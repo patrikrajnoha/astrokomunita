@@ -1,6 +1,17 @@
-import axios from "axios";
+import axios from 'axios'
 
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  headers: { Accept: "application/json" },
-});
+const api = axios.create({
+  baseURL: 'http://localhost:8000/api',
+  withCredentials: true,
+
+  // ✅ dôležité pre Sanctum (cookie -> header)
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
+
+  // ✅ axios v1+ : pošli XSRF aj pri cross-site (localhost:5173 -> localhost:8000)
+  withXSRFToken: true,
+
+  headers: { Accept: 'application/json' },
+})
+
+export default api
