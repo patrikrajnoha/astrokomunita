@@ -8,7 +8,14 @@ class HtmlSourceFetcher
 {
     public function fetch(string $url): string
     {
-        return Http::accept('text/html')
+        // Podpora lokálneho súboru: file://C:/path/to/file.html
+        if (str_starts_with($url, 'file://')) {
+            $path = substr($url, 7);
+            return file_get_contents($path) ?: '';
+        }
+
+        return Http::withoutVerifying()
+            ->accept('text/html')
             ->get($url)
             ->throw()
             ->body();
