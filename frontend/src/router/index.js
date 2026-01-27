@@ -6,87 +6,101 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     // Verejné cesty
-    { 
-      path: '/', 
-      name: 'home', 
-      component: HomeView 
+    {
+      path: '/',
+      name: 'home',
+      component: HomeView,
     },
-    { 
-      path: '/events', 
-      name: 'events', 
-      component: () => import('../views/EventsView.vue') 
+    {
+      path: '/events',
+      name: 'events',
+      component: () => import('../views/EventsView.vue'),
     },
-    { 
-      path: '/events/swipe', 
-      name: 'events-swipe', 
-      component: () => import('../views/SwipeEventsView.vue') 
+    {
+      path: '/events/swipe',
+      name: 'events-swipe',
+      component: () => import('../views/SwipeEventsView.vue'),
     },
-    { 
-      path: '/events/:id', 
-      name: 'event-detail', 
-      component: () => import('../views/EventDetailView.vue') 
+    {
+      path: '/events/:id',
+      name: 'event-detail',
+      component: () => import('../views/EventDetailView.vue'),
     },
-    { 
-      path: '/calendar', 
-      name: 'calendar', 
-      component: () => import('../views/CalendarView.vue') 
+    {
+      path: '/calendar',
+      name: 'calendar',
+      component: () => import('../views/CalendarView.vue'),
     },
-    { 
-      path: '/observations', 
-      name: 'observations', 
-      component: () => import('../views/ObservationsView.vue') 
+    {
+      path: '/observations',
+      name: 'observations',
+      component: () => import('../views/ObservationsView.vue'),
     },
-    { 
-      path: '/learn', 
-      name: 'learn', 
-      component: () => import('../views/LearnView.vue') 
+    {
+      path: '/learn',
+      name: 'learn',
+      component: () => import('../views/LearnView.vue'),
     },
 
     // Cesty len pre neprihlásených (Guest)
-    { 
-      path: '/login', 
-      name: 'login', 
-      meta: { guest: true }, 
-      component: () => import('../views/LoginView.vue') 
+    {
+      path: '/login',
+      name: 'login',
+      meta: { guest: true },
+      component: () => import('../views/LoginView.vue'),
     },
-    { 
-      path: '/register', 
-      name: 'register', 
-      meta: { guest: true }, 
-      component: () => import('../views/RegisterView.vue') 
+    {
+      path: '/register',
+      name: 'register',
+      meta: { guest: true },
+      component: () => import('../views/RegisterView.vue'),
     },
 
     // Chránené cesty (vyžadujú prihlásenie)
-    { 
-      path: '/favorites', 
-      name: 'favorites', 
-      meta: { auth: true }, 
-      component: () => import('../views/FavoritesView.vue') 
+    {
+      path: '/favorites',
+      name: 'favorites',
+      meta: { auth: true },
+      component: () => import('../views/FavoritesView.vue'),
     },
-    { 
-      path: '/notifications', 
-      name: 'notifications', 
-      meta: { auth: true }, 
-      component: () => import('../views/NotificationsView.vue') 
+    {
+      path: '/notifications',
+      name: 'notifications',
+      meta: { auth: true },
+      component: () => import('../views/NotificationsView.vue'),
     },
-    { 
-      path: '/profile', 
-      name: 'profile', 
-      meta: { auth: true }, 
-      component: () => import('../views/ProfileView.vue') 
+    {
+      path: '/profile',
+      name: 'profile',
+      meta: { auth: true },
+      component: () => import('../views/ProfileView.vue'),
     },
-    { 
-      path: '/profile/edit', 
-      name: 'profile.edit', 
-      meta: { auth: true }, 
-      component: () => import('../views/ProfileEdit.vue') 
+    {
+      path: '/profile/edit',
+      name: 'profile.edit',
+      meta: { auth: true },
+      component: () => import('../views/ProfileEdit.vue'),
+    },
+
+    // ✅ ADMIN (MVP)
+    {
+      path: '/admin/candidates',
+      name: 'admin.candidates',
+      meta: { auth: true, admin: true },
+      component: () => import('../views/CandidatesListView.vue'),
+    },
+    {
+      path: '/admin/candidates/:id',
+      name: 'admin.candidate.detail',
+      meta: { auth: true, admin: true },
+      component: () => import('../views/CandidateDetailView.vue'),
     },
 
     // 404 - Not Found (musí byť na konci)
-    { 
-      path: '/:pathMatch(.*)*', 
-      name: 'not-found', 
-      component: () => import('../views/NotFoundView.vue') 
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('../views/NotFoundView.vue'),
     },
   ],
 })
@@ -97,24 +111,33 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // 1. Ak user ešte nie je inicializovaný (napr. po refreshi), skúsime ho načítať
+  // 1) Ak user ešte nie je inicializovaný (napr. po refreshi), skúsime ho načítať
   if (!auth.initialized) {
     await auth.fetchUser()
   }
 
   const redirectTarget = to.fullPath
 
-  // 2. Ak cesta vyžaduje auth a user nie je prihlásený
+  // 2) Ak cesta vyžaduje auth a user nie je prihlásený
   if (to.meta?.auth && !auth.isAuthed) {
-    return { 
-      name: 'login', 
-      query: { redirect: redirectTarget } 
+    return {
+      name: 'login',
+      query: { redirect: redirectTarget },
     }
   }
 
-  // 3. Ak je cesta pre hostí (login/register) a user je už prihlásený
+  // 3) Admin-only: ak cesta vyžaduje admin a user nie je admin
+  if (to.meta?.admin) {
+    // 🔧 JEDEN RIADOK NA PRISPÔSOBENIE podľa toho, ako máš usera v store:
+    const isAdmin = !!auth.user?.is_admin
+
+    if (!isAdmin) {
+      return { name: 'home' }
+    }
+  }
+
+  // 4) Ak je cesta pre hostí (login/register) a user je už prihlásený
   if (to.meta?.guest && auth.isAuthed) {
-    // Ak existuje redirect v URL, pošli ho tam, inak na domov
     const redirect = typeof to.query?.redirect === 'string' ? to.query.redirect : null
     return redirect || { name: 'home' }
   }

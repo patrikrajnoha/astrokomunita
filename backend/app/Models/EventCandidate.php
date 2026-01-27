@@ -22,6 +22,7 @@ class EventCandidate extends Model
         'source_hash',
 
         'title',
+        'raw_type',
         'type',
         'max_at',
         'start_at',

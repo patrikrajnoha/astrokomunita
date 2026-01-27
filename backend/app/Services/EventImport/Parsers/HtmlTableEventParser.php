@@ -10,11 +10,103 @@ class HtmlTableEventParser implements EventSourceParser
 {
     public function parse(string $payload): array
     {
-        // 1) Skús najprv existujúcu "table" logiku (ak ju máš)
-        // Ak už máš pôvodnú implementáciu, nechaj ju a len pridaj fallback:
-        $items = $this->parsePreBlocksAstroPixels($payload);
+        // 1) Najprv skús jednoduchú HTML tabuľku (<tr data-uid="..."><td>...</td>...</tr>)
+        $items = $this->parseSimpleHtmlTable($payload);
+        if (!empty($items)) {
+            return $items;
+        }
+
+        // 2) Fallback: AstroPixels "Sky Event Almanac" (<pre> bloky)
+        return $this->parsePreBlocksAstroPixels($payload);
+    }
+
+    /**
+     * Parsuje jednoduchý test formát:
+     * <table>
+     *   <tr><th>Title</th>...</tr>
+     *   <tr data-uid="test-1">
+     *     <td>Title</td><td>Type</td><td>Start</td><td>End</td><td>Max</td><td>Short</td><td>Description</td>
+     *   </tr>
+     * </table>
+     */
+    private function parseSimpleHtmlTable(string $payload): array
+    {
+        // nájdi všetky <tr ... data-uid="...">...</tr>
+        if (!preg_match_all('~<tr\b[^>]*\bdata-uid\s*=\s*["\']([^"\']+)["\'][^>]*>(.*?)</tr>~si', $payload, $rows, PREG_SET_ORDER)) {
+            return [];
+        }
+
+        $items = [];
+        $tz = 'Europe/Bratislava';
+
+        foreach ($rows as $row) {
+            $uid = trim($row[1]);
+            $trInner = $row[2];
+
+            // vyber <td>...</td>
+            if (!preg_match_all('~<td\b[^>]*>(.*?)</td>~si', $trInner, $cols)) {
+                continue;
+            }
+
+            $values = array_map(function ($v) {
+                $v = html_entity_decode($v, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $v = strip_tags($v);
+                $v = preg_replace('/\s+/u', ' ', $v) ?? $v;
+                return trim($v);
+            }, $cols[1]);
+
+            // očakávame 7 stĺpcov (Title, Type, Start, End, Max, Short, Description)
+            // ak je menej, preskoč
+            if (count($values) < 2) {
+                continue;
+            }
+
+            $title = $values[0] ?? null;
+            $type  = $values[1] ?? null;
+            $startRaw = $values[2] ?? null;
+            $endRaw   = $values[3] ?? null;
+            $maxRaw   = $values[4] ?? null;
+            $short    = $values[5] ?? null;
+            $desc     = $values[6] ?? null;
+
+            if ($title === null || trim($title) === '') {
+                continue;
+            }
+
+            // parse datetime "YYYY-mm-dd HH:ii" (tvoj test formát)
+            $startAt = $this->parseYmdHi($startRaw, $tz);
+            $endAt   = $this->parseYmdHi($endRaw, $tz);
+            $maxAt   = $this->parseYmdHi($maxRaw, $tz) ?? $startAt;
+
+            $items[] = new EventCandidateData(
+                title: $title,
+                type: $type ?: 'unknown',
+                startAt: $startAt,
+                endAt: $endAt,
+                maxAt: $maxAt,
+                short: $short,
+                description: $desc,
+                sourceUid: $uid !== '' ? $uid : null,
+            );
+        }
 
         return $items;
+    }
+
+    private function parseYmdHi(?string $value, string $tz): ?Carbon
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        // očakávame "YYYY-mm-dd HH:ii"
+        $dt = Carbon::createFromFormat('Y-m-d H:i', $value, $tz);
+        return $dt ?: null;
     }
 
     /**
@@ -23,9 +115,8 @@ class HtmlTableEventParser implements EventSourceParser
     private function parsePreBlocksAstroPixels(string $payload): array
     {
         $year = $this->extractYear($payload) ?? (int) date('Y');
-        $tz   = 'Europe/Bratislava'; // CET/CEST (prakticky pre SK)
+        $tz   = 'Europe/Bratislava';
 
-        // Vyberieme všetky <pre> bloky (v tej stránke sú 2 hlavné: Jan-Jun a Jul-Dec + ďalšie tabuľky)
         if (!preg_match_all('~<pre>(.*?)</pre>~si', $payload, $m)) {
             return [];
         }
@@ -34,8 +125,6 @@ class HtmlTableEventParser implements EventSourceParser
 
         foreach ($m[1] as $preHtml) {
             $text = html_entity_decode($preHtml, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-            // Normalizuj nové riadky
             $lines = preg_split("~\r\n|\n|\r~", $text);
 
             $currentMonth = null;
@@ -43,24 +132,15 @@ class HtmlTableEventParser implements EventSourceParser
             foreach ($lines as $lineRaw) {
                 $line = rtrim($lineRaw);
 
-                // skip prázdne / hlavičky
                 if (trim($line) === '' || str_starts_with(trim($line), 'Date')) {
                     continue;
                 }
 
-                // Príklady:
-                // "Jan 01  22:43  Moon at Perigee: 360348 km"
-                // "    03  11:03  FULL MOON"
-                // "    03  18     Earth at Perihelion: 0.98330 AU"
-                //
-                // 1) riadok s mesiacom
                 if (preg_match('~^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{2})\s+(.+)$~', trim($line), $mm)) {
                     $currentMonth = $mm[1];
                     $day = (int) $mm[2];
                     $rest = trim($mm[3]);
-                }
-                // 2) pokračovanie bez mesiaca (len deň + zvyšok)
-                elseif (preg_match('~^(\d{2})\s+(.+)$~', trim($line), $mm)) {
+                } elseif (preg_match('~^(\d{2})\s+(.+)$~', trim($line), $mm)) {
                     if (!$currentMonth) {
                         continue;
                     }
@@ -70,12 +150,6 @@ class HtmlTableEventParser implements EventSourceParser
                     continue;
                 }
 
-                // čas + event:
-                // "22:43  Moon at Perigee..."
-                // "18     Earth at Perihelion..."
-                // "23:01  Jupiter 3.7°S of Moon"
-                //
-                // Čas môže byť HH:MM alebo len HH
                 $time = null;
                 $eventText = null;
 
@@ -86,11 +160,9 @@ class HtmlTableEventParser implements EventSourceParser
                     $time = sprintf('%02d:00', (int)$tm[1]);
                     $eventText = trim($tm[2]);
                 } else {
-                    // nie je čas → preskoč, alebo nastav 00:00 (podľa potreby)
                     continue;
                 }
 
-                // Odfiltruj “rozbitý” event (niekedy je tam iba mesiacová hlavička)
                 if ($eventText === '' || Str::lower($eventText) === 'event') {
                     continue;
                 }
@@ -102,7 +174,7 @@ class HtmlTableEventParser implements EventSourceParser
 
                 $type = $this->guessType($eventText);
 
-                $item = new EventCandidateData(
+                $items[] = new EventCandidateData(
                     title: $eventText,
                     type: $type,
                     startAt: $startAt,
@@ -110,10 +182,8 @@ class HtmlTableEventParser implements EventSourceParser
                     maxAt: $startAt,
                     short: Str::limit($eventText, 120),
                     description: null,
-                    sourceUid: $this->buildUid($year, $currentMonth, $day, $time, $eventText)
+                    sourceUid: $this->buildUid($year, $currentMonth, $day, $time, $eventText),
                 );
-
-                $items[] = $item;
             }
         }
 
@@ -122,7 +192,6 @@ class HtmlTableEventParser implements EventSourceParser
 
     private function extractYear(string $payload): ?int
     {
-        // napr. v <title> je "Sky Event Almanac 2026 (Central European Time)"
         if (preg_match('~Sky Event Almanac\s+(\d{4})~i', $payload, $m)) {
             return (int) $m[1];
         }

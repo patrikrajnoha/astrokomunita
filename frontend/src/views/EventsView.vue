@@ -14,13 +14,13 @@
       <button class="filterbtn" :class="{ active: selectedType === 'meteors' }" @click="selectedType = 'meteors'">
         Meteorické roje
       </button>
-      <button class="filterbtn" :class="{ active: selectedType === 'eclipse' }" @click="selectedType = 'eclipse'">
+      <button class="filterbtn" :class="{ active: selectedType === 'eclipses' }" @click="selectedType = 'eclipses'">
         Zatmenia
       </button>
-      <button class="filterbtn" :class="{ active: selectedType === 'conjunction' }" @click="selectedType = 'conjunction'">
+      <button class="filterbtn" :class="{ active: selectedType === 'conjunctions' }" @click="selectedType = 'conjunctions'">
         Konjunkcie
       </button>
-      <button class="filterbtn" :class="{ active: selectedType === 'comet' }" @click="selectedType = 'comet'">
+      <button class="filterbtn" :class="{ active: selectedType === 'comets' }" @click="selectedType = 'comets'">
         Kométy
       </button>
     </section>
@@ -67,7 +67,7 @@
         </p>
 
         <p class="mt-3 text-xs text-slate-400">
-          Viditeľnosť: {{ e.visibility || '—' }}
+          Viditeľnosť: {{ e.visibility ?? '—' }}
         </p>
       </router-link>
     </section>
@@ -92,7 +92,17 @@ export default {
   computed: {
     filteredEvents() {
       if (this.selectedType === 'all') return this.events
-      return this.events.filter((e) => e.type === this.selectedType)
+
+      // UI filter -> API types
+      const groups = {
+        meteors: ['meteor_shower'],
+        eclipses: ['eclipse_lunar', 'eclipse_solar'],
+        conjunctions: ['planetary_event'], // ak neskôr rozlíšiš, upravíš len tu
+        comets: ['other'], // zatiaľ nemáš "comet" typ v backende
+      }
+
+      const allowed = groups[this.selectedType] || []
+      return this.events.filter((e) => allowed.includes(e.type))
     },
   },
   methods: {
@@ -102,7 +112,8 @@ export default {
 
       try {
         const res = await api.get('/events')
-        this.events = res.data
+        // ✅ Laravel paginator -> reálne položky sú v res.data.data
+        this.events = Array.isArray(res.data?.data) ? res.data.data : []
       } catch (err) {
         this.error = err?.message || 'Nepodarilo sa načítať udalosti.'
       } finally {
@@ -116,17 +127,20 @@ export default {
 
     typeLabel(type) {
       const map = {
-        meteors: 'Meteory',
-        eclipse: 'Zatmenie',
-        conjunction: 'Konjunkcia',
-        comet: 'Kométa',
+        meteor_shower: 'Meteory',
+        eclipse_lunar: 'Zatmenie (L)',
+        eclipse_solar: 'Zatmenie (S)',
+        planetary_event: 'Konjunkcia',
+        other: 'Iné',
       }
       return map[type] || type
     },
 
     formatDateTime(value) {
       if (!value) return '—'
-      return value.replace('T', ' ').slice(0, 16)
+      const d = new Date(value)
+      if (isNaN(d.getTime())) return String(value)
+      return d.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
     },
   },
 

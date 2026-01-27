@@ -10,6 +10,7 @@ class EventImportService
 {
     public function __construct(
         private HtmlSourceFetcher $fetcher,
+        private EventTypeClassifier $typeClassifier,
     ) {
     }
 
@@ -37,10 +38,14 @@ class EventImportService
             $short = $this->normalizeText($item->short);
             $description = $this->normalizeText($item->description);
 
-            // UID stavaj z normalizovaného titulu
+            // raw_type (čo prišlo zo zdroja) + normalized type (interná taxonómia)
+            $rawType = $this->normalizeText($item->type) ?? $item->type; // fallback na pôvodný string
+            $normalizedType = $this->typeClassifier->classify($rawType, $title);
+
+            // UID stavaj z normalizovaného titulu + NORMALIZOVANÉHO typu (stabilnejšie)
             $sourceUid = $item->sourceUid ?: $this->buildSourceUidFromNormalized(
                 $title,
-                $item->type ?? 'unknown',
+                $normalizedType ?: 'other',
                 $item->startAt,
                 $item->endAt,
                 $item->maxAt
@@ -76,7 +81,10 @@ class EventImportService
                 'source_hash' => $sourceHash,
 
                 'title'       => $title,
-                'type'        => $item->type ?? 'unknown',
+
+                // raw_type + normalized type
+                'raw_type'    => $rawType,
+                'type'        => $normalizedType,
 
                 'start_at'    => $startAt,
                 'end_at'      => $endAt,
@@ -109,7 +117,7 @@ class EventImportService
     ): string {
         $parts = [
             Str::slug($title, '-'),
-            $type ?: 'unknown',
+            $type ?: 'other',
             $startAt?->format('Y-m-d H:i:s'),
             $endAt?->format('Y-m-d H:i:s'),
             $maxAt?->format('Y-m-d H:i:s'),
@@ -150,16 +158,13 @@ class EventImportService
         }
 
         // 1) Oprava double-encoding (typicky: &amp;#176;)
-        // Decodneme "bezpečne" len základné entity a ak treba, prejde to ešte raz v kroku 3.
         $s = str_replace(['&amp;#', '&amp;nbsp;'], ['&#', ' '], $s);
 
         // 2) Doplnenie bodkočiarky pre numeric entity, ak chýba:
-        //    - &#176N  -> &#176;N
-        //    - &#xB0N  -> &#xB0;N
         $s = preg_replace('/&#(\d+)(?!;)/', '&#$1;', $s) ?? $s;
         $s = preg_replace('/&#x([0-9a-fA-F]+)(?!;)/', '&#x$1;', $s) ?? $s;
 
-        // 3) Dekódovanie HTML entít (urobíme max 2 prechody kvôli prípadnému ďalšiemu enkódovaniu)
+        // 3) Dekódovanie HTML entít (max 2 prechody)
         for ($i = 0; $i < 2; $i++) {
             $decoded = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
             if ($decoded === $s) {
