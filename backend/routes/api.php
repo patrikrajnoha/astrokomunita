@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\FavoriteController;
@@ -79,6 +80,15 @@ Route::middleware('web')->prefix('auth')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
+| AUTHENTICATED USER (default /user route)
+|--------------------------------------------------------------------------
+*/
+Route::get('/user', function (Request $request) {
+    return $request->user();
+})->middleware('auth:sanctum');
+
+/*
+|--------------------------------------------------------------------------
 | ASTRONOMICAL EVENTS (PUBLIC MVP)
 |--------------------------------------------------------------------------
 */
@@ -88,10 +98,11 @@ Route::get('/events/{id}', [EventController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------
-| COMMUNITY – POSTS (PUBLIC)
+| Posts (public feed + detail)
 |--------------------------------------------------------------------------
 */
 Route::get('/posts', [PostController::class, 'index']);
+Route::get('/posts/{post}', [PostController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------
@@ -144,6 +155,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::patch('/profile',          [ProfileController::class, 'update']);
     Route::patch('/profile/password', [ProfileController::class, 'changePassword']);
 
-    // ✍️ Posts (create)
+    /*
+    |----------------------------------------------------------------------
+    | Posts (create - auth)
+    |----------------------------------------------------------------------
+    */
     Route::post('/posts', [PostController::class, 'store']);
 });
