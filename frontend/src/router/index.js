@@ -41,6 +41,11 @@ const router = createRouter({
       name: 'learn',
       component: () => import('../views/LearnView.vue'),
     },
+    {
+      path: '/learn/:slug',
+      name: 'learn-detail',
+      component: () => import('../views/LearnDetailView.vue'),
+    },
 
     // Cesty len pre neprihlásených (Guest)
     {
@@ -95,6 +100,18 @@ const router = createRouter({
       meta: { auth: true, admin: true },
       component: () => import('../views/CandidateDetailView.vue'),
     },
+    {
+      path: '/admin/blog-posts',
+      name: 'admin.blog-posts',
+      meta: { auth: true, admin: true },
+      component: () => import('../views/AdminBlogPostsView.vue'),
+    },
+
+    {
+      path: '/posts/:id',
+      name: 'post-detail',
+      component: () => import('@/views/PostDetailView.vue'),
+    },
 
     // 404 - Not Found (musí byť na konci)
     {
@@ -102,13 +119,6 @@ const router = createRouter({
       name: 'not-found',
       component: () => import('../views/NotFoundView.vue'),
     },
-{
-  path: '/posts/:id',
-  name: 'post-detail',
-  component: () => import('@/views/PostDetailView.vue'),
-}
-
-
   ],
 })
 

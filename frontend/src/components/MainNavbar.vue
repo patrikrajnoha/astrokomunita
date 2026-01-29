@@ -36,6 +36,15 @@
           🛠 Admin
           <span class="pill">Schvaľovanie</span>
         </router-link>
+        <router-link
+          v-if="auth.user?.is_admin"
+          class="navlink adminlink"
+          to="/admin/blog-posts"
+          title="Správa blogových článkov"
+        >
+          📝 Články
+          <span class="pill">Admin</span>
+        </router-link>
 
         <!-- Right area -->
         <div class="flex items-center gap-2 ml-2 pl-2 border-l border-slate-800">
