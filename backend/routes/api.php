@@ -9,11 +9,15 @@ use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\BlogPostController;
+use App\Http\Controllers\Api\BlogTagController;
+use App\Http\Controllers\Api\BlogPostCommentController;
 
 use App\Http\Controllers\Api\Admin\EventCandidateController;
 use App\Http\Controllers\Api\Admin\EventCandidateReviewController;
 use App\Http\Controllers\Api\Admin\EventCandidateMetaController;
 use App\Http\Controllers\Api\Admin\CrawlRunController;
+use App\Http\Controllers\Api\Admin\AdminBlogPostController;
 
 /*
 |--------------------------------------------------------------------------
@@ -106,6 +110,21 @@ Route::get('/posts/{post}', [PostController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------
+| Blog posts (public)
+|--------------------------------------------------------------------------
+*/
+Route::get('/blog-posts', [BlogPostController::class, 'index']);
+Route::get('/blog-posts/{slug}/related', [BlogPostController::class, 'related']);
+Route::get('/blog-posts/{slug}', [BlogPostController::class, 'show']);
+Route::get('/blog-posts/{slug}/comments', [BlogPostCommentController::class, 'index']);
+Route::post('/blog-posts/{slug}/comments', [BlogPostCommentController::class, 'store'])
+    ->middleware('auth:sanctum');
+Route::delete('/blog-posts/{slug}/comments/{comment}', [BlogPostCommentController::class, 'destroy'])
+    ->middleware('auth:sanctum');
+Route::get('/blog-tags', [BlogTagController::class, 'index']);
+
+/*
+|--------------------------------------------------------------------------
 | FAVORITES (zatiaľ bez auth)
 |--------------------------------------------------------------------------
 */
@@ -142,6 +161,18 @@ Route::middleware(['auth:sanctum', 'admin'])
         // 🕷 Crawl runs
         Route::get('/crawl-runs',            [CrawlRunController::class, 'index']);
         Route::get('/crawl-runs/{crawlRun}', [CrawlRunController::class, 'show']);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Blog posts (admin)
+        |--------------------------------------------------------------------------
+        */
+        Route::get('/blog-posts', [AdminBlogPostController::class, 'index']);
+        Route::get('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'show']);
+        Route::post('/blog-posts', [AdminBlogPostController::class, 'store']);
+        Route::put('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
+        Route::patch('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
+        Route::delete('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'destroy']);
     });
 
 /*

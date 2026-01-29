@@ -6,7 +6,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 // ✅ pridané
-use App\Http\Middleware\AdminMiddleware;
+use App\Http\Middleware\IsAdmin;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -26,7 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // ✅ Admin route middleware alias (Laravel 12 namiesto Kernel.php)
         $middleware->alias([
-            'admin' => AdminMiddleware::class,
+            'admin' => IsAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
