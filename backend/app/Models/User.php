@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
@@ -18,6 +19,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
         'bio',        // Twitter-like "O mne"
@@ -47,5 +49,13 @@ class User extends Authenticatable
             'password' => 'hashed', // Laravel automaticky hashne heslo
             'is_admin' => 'boolean',
         ];
+    }
+
+    /**
+     * Posty, ktorĂ© pouĹľĂ­vateÄľ lajkol.
+     */
+    public function likedPosts(): BelongsToMany
+    {
+        return $this->belongsToMany(Post::class, 'post_likes');
     }
 }

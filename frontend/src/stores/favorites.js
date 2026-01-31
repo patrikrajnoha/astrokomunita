@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { getFavorites, addFavorite, removeFavorite } from '@/services/favorites'
+import { useAuthStore } from '@/stores/auth'
 
 export const useFavoritesStore = defineStore('favorites', {
   state: () => ({
@@ -13,6 +14,13 @@ export const useFavoritesStore = defineStore('favorites', {
 
   actions: {
     async fetch() {
+      const auth = useAuthStore()
+      if (!auth.isAuthed) {
+        this.ids = new Set()
+        this.loading = false
+        return
+      }
+
       this.loading = true
       try {
         const res = await getFavorites()
@@ -28,6 +36,8 @@ export const useFavoritesStore = defineStore('favorites', {
     },
 
     async add(eventId) {
+      const auth = useAuthStore()
+      if (!auth.isAuthed) return
       const id = Number(eventId)
       if (!Number.isFinite(id)) return
       if (this.loading) return
@@ -39,6 +49,7 @@ export const useFavoritesStore = defineStore('favorites', {
       this.ids = next
 
       try {
+        await auth.csrf()
         await addFavorite(id)
       } catch (err) {
         // rollback
@@ -48,6 +59,8 @@ export const useFavoritesStore = defineStore('favorites', {
     },
 
     async remove(eventId) {
+      const auth = useAuthStore()
+      if (!auth.isAuthed) return
       const id = Number(eventId)
       if (!Number.isFinite(id)) return
       if (this.loading) return
@@ -59,6 +72,7 @@ export const useFavoritesStore = defineStore('favorites', {
       this.ids = next
 
       try {
+        await auth.csrf()
         await removeFavorite(id)
       } catch (err) {
         // rollback

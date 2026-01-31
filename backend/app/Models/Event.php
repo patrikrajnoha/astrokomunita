@@ -8,6 +8,19 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Event extends Model
 {
+    protected $fillable = [
+        'title',
+        'type',
+        'start_at',
+        'end_at',
+        'max_at',
+        'short',
+        'description',
+        'visibility',
+        'source_name',
+        'source_uid',
+        'source_hash',
+    ];
     /**
      * Atribúty, ktoré by mali byť pretypované.
      *

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref } from "vue";
 import { blogPosts } from "@/services/blogPosts";
 
@@ -23,14 +23,23 @@ const coverFile = ref(null);
 const coverPreview = ref("");
 const tagsInput = ref("");
 const showPreview = ref(false);
+const query = ref("");
+const activeTab = ref("content");
 
 const isEditing = computed(() => !!selectedId.value);
+const selectedPost = computed(
+  () => data.value?.data?.find((p) => p.id === selectedId.value) || null
+);
+const selectedStatus = computed(() => {
+  if (!isEditing.value) return "draft";
+  return selectedPost.value ? computeStatus(selectedPost.value) : "draft";
+});
 
 function formatDate(value) {
   if (!value) return "-";
   const d = new Date(value);
   if (isNaN(d.getTime())) return String(value);
-  return d.toLocaleString("sk-SK", { dateStyle: "medium", timeStyle: "short" });
+  return d.toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 }
 
 function toDateTimeLocal(value) {
@@ -60,6 +69,18 @@ function computeStatus(post) {
   return d.getTime() <= Date.now() ? "published" : "scheduled";
 }
 
+function statusLabel(value) {
+  switch (value) {
+    case "published":
+      return "published";
+    case "scheduled":
+      return "scheduled";
+    case "draft":
+    default:
+      return "draft";
+  }
+}
+
 function resetForm() {
   selectedId.value = null;
   form.value = {
@@ -71,6 +92,8 @@ function resetForm() {
   coverPreview.value = "";
   tagsInput.value = "";
   formError.value = null;
+  showPreview.value = false;
+  activeTab.value = "content";
 }
 
 function selectPost(post) {
@@ -84,10 +107,18 @@ function selectPost(post) {
   coverPreview.value = post.cover_image_url || "";
   tagsInput.value = (post.tags || []).map((t) => t.name).join(", ");
   formError.value = null;
+  showPreview.value = false;
+  activeTab.value = "content";
 }
 
 function setPublishNow() {
   form.value.published_at = toDateTimeLocal(new Date().toISOString());
+}
+
+function setStatusFilter(value) {
+  status.value = value;
+  page.value = 1;
+  load();
 }
 
 function slugifyHeading(text) {
@@ -131,10 +162,13 @@ function parseContentBlocks(text) {
   const blocks = [];
   let buffer = [];
   let listBuffer = [];
+  let keyIndex = 0;
+
+  const nextKey = () => `b-${keyIndex++}`;
 
   const flushParagraph = () => {
     const t = buffer.join(" ").trim();
-    if (t) blocks.push({ type: "p", html: inlineMarkdown(t) });
+    if (t) blocks.push({ type: "p", html: inlineMarkdown(t), key: nextKey() });
     buffer = [];
   };
 
@@ -143,6 +177,7 @@ function parseContentBlocks(text) {
       blocks.push({
         type: "ul",
         items: listBuffer.map((item) => inlineMarkdown(item)),
+        key: nextKey(),
       });
       listBuffer = [];
     }
@@ -162,6 +197,7 @@ function parseContentBlocks(text) {
         type: h3 ? "h3" : "h2",
         text: title,
         id: slugifyHeading(title),
+        key: nextKey(),
       });
       return;
     }
@@ -189,13 +225,28 @@ function parseContentBlocks(text) {
 function readTimeFor(text) {
   const words = String(text || "").trim().split(/\s+/).filter(Boolean).length;
   const minutes = Math.max(1, Math.round(words / 220));
-  return `${minutes} min čítania`;
+  return `${minutes} min read`;
 }
 
 const previewBlocks = computed(() => parseContentBlocks(form.value.content));
 const previewToc = computed(() =>
   previewBlocks.value.filter((b) => b.type === "h2" || b.type === "h3")
 );
+
+const filteredPosts = computed(() => {
+  const list = data.value?.data || [];
+  const q = query.value.trim().toLowerCase();
+  if (!q) return list;
+  return list.filter((post) => {
+    const tagText = (post.tags || []).map((t) => t.name).join(" ");
+    const author = post.user?.name || "";
+    const base = [post.title, post.content, tagText, author, String(post.id)]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return base.includes(q);
+  });
+});
 
 function onCoverChange(event) {
   const file = event.target.files?.[0] || null;
@@ -221,8 +272,7 @@ async function load() {
       per_page: per_page.value,
     });
   } catch (e) {
-    error.value =
-      e?.response?.data?.message || "Chyba pri načítaní článkov.";
+    error.value = e?.response?.data?.message || "Failed to load posts.";
   } finally {
     loading.value = false;
   }
@@ -263,8 +313,7 @@ async function save() {
       }
     }
   } catch (e) {
-    const msg =
-      e?.response?.data?.message || "Chyba pri ukladaní článku.";
+    const msg = e?.response?.data?.message || "Failed to save post.";
     const fieldErrors = e?.response?.data?.errors;
     if (fieldErrors) {
       const firstField = Object.keys(fieldErrors)[0];
@@ -281,7 +330,7 @@ async function save() {
 async function saveCoverOnly() {
   if (!selectedId.value) return;
   if (!coverFile.value) {
-    formError.value = "Najprv vyber cover obrázok.";
+    formError.value = "Pick a cover image first.";
     return;
   }
 
@@ -302,14 +351,15 @@ async function saveCoverOnly() {
     }
   } catch (e) {
     formError.value =
-      e?.response?.data?.message || "Chyba pri ukladaní cover obrázka.";
+      e?.response?.data?.message || "Failed to save cover image.";
   } finally {
     saving.value = false;
   }
 }
+
 async function remove() {
   if (!selectedId.value) return;
-  if (!confirm("Naozaj chceš zmazať tento článok?")) return;
+  if (!confirm("Are you sure you want to delete this post?")) return;
 
   deleting.value = true;
   formError.value = null;
@@ -319,8 +369,7 @@ async function remove() {
     resetForm();
     await load();
   } catch (e) {
-    formError.value =
-      e?.response?.data?.message || "Chyba pri mazaní článku.";
+    formError.value = e?.response?.data?.message || "Failed to delete post.";
   } finally {
     deleting.value = false;
   }
@@ -343,52 +392,70 @@ onMounted(load);
 
 <template>
   <div class="admin-blog">
-    <div class="header">
-      <div>
-        <h1>Správa článkov</h1>
-        <p>Admin panel pre tvorbu a publikovanie obsahu.</p>
-      </div>
-      <div class="header-actions">
-        <button class="ghost" @click="resetForm" :disabled="saving || deleting">
-          Nový článok
-        </button>
-      </div>
-    </div>
-
-    <div class="filters">
-      <div class="field">
-        <label>Status</label>
-        <select v-model="status" @change="page = 1; load()" :disabled="loading">
-          <option value="">všetko</option>
-          <option value="published">published</option>
-          <option value="scheduled">scheduled</option>
-          <option value="draft">draft</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label>Per page</label>
-        <select
-          v-model.number="per_page"
-          @change="page = 1; load()"
-          :disabled="loading"
-        >
-          <option :value="5">5</option>
-          <option :value="10">10</option>
-          <option :value="20">20</option>
-        </select>
-      </div>
-
-      <div class="field grow">
-        <div class="stat">
-          <span>Page</span>
-          <strong>{{ data?.current_page || 1 }}</strong>
-          <span>/ {{ data?.last_page || 1 }}</span>
+    <div class="command-bar">
+      <div class="command-left">
+        <div class="search-field">
+          <input
+            v-model="query"
+            type="search"
+            placeholder="Search by title, tags, author"
+          />
+        </div>
+        <div class="segmented" role="group" aria-label="Status">
+          <button
+            type="button"
+            :class="{ active: status === '' }"
+            @click="setStatusFilter('')"
+            :disabled="loading"
+          >
+            All
+          </button>
+          <button
+            type="button"
+            :class="{ active: status === 'draft' }"
+            @click="setStatusFilter('draft')"
+            :disabled="loading"
+          >
+            Drafts
+          </button>
+          <button
+            type="button"
+            :class="{ active: status === 'scheduled' }"
+            @click="setStatusFilter('scheduled')"
+            :disabled="loading"
+          >
+            Scheduled
+          </button>
+          <button
+            type="button"
+            :class="{ active: status === 'published' }"
+            @click="setStatusFilter('published')"
+            :disabled="loading"
+          >
+            Published
+          </button>
         </div>
       </div>
 
-      <div class="field buttons">
-        <button class="ghost" @click="load" :disabled="loading">Refresh</button>
+      <div class="command-right">
+        <label class="select-field">
+          <span>Per page</span>
+          <select
+            v-model.number="per_page"
+            @change="page = 1; load()"
+            :disabled="loading"
+          >
+            <option :value="5">5</option>
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+          </select>
+        </label>
+        <button class="ghost" @click="load" :disabled="loading">
+          Refresh
+        </button>
+        <button class="primary" @click="resetForm" :disabled="saving || deleting">
+          New post
+        </button>
       </div>
     </div>
 
@@ -399,56 +466,64 @@ onMounted(load);
     <div class="grid">
       <section class="panel list">
         <div class="panel-head">
-          <h2>Články</h2>
-          <div class="muted">
-            {{ data?.total || 0 }} celkom
+          <div>
+            <h2>Posts</h2>
+            <div class="muted">
+              {{ data?.total || 0 }} total
+            </div>
+          </div>
+          <div class="page-meta">
+            <span>Page</span>
+            <strong>{{ data?.current_page || 1 }}</strong>
+            <span>/ {{ data?.last_page || 1 }}</span>
           </div>
         </div>
 
-        <div v-if="loading" class="muted pad">Loading...</div>
+        <div class="list-body">
+          <div v-if="loading" class="muted pad">Loading...</div>
 
-        <div v-else class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Titulok</th>
-                <th>Status</th>
-                <th>Publikované</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="post in data?.data || []"
-                :key="post.id"
-                :class="{ active: post.id === selectedId }"
-                @click="selectPost(post)"
-              >
-                <td>#{{ post.id }}</td>
-            <td class="title-cell">
-              <div class="title">{{ post.title }}</div>
-              <div class="meta">Autor: {{ post.user?.name || "-" }}</div>
-              <div v-if="post.tags?.length" class="tagline">
-                Tagy: {{ post.tags.map((t) => t.name).join(", ") }}
-              </div>
-            </td>
-                <td>
-                  <span :class="['pill', computeStatus(post)]">
-                    {{ computeStatus(post) }}
+          <div v-else class="card-list">
+            <button
+              v-for="post in filteredPosts"
+              :key="post.id"
+              type="button"
+              class="post-card"
+              :class="{ active: post.id === selectedId }"
+              @click="selectPost(post)"
+            >
+              <div class="card-main">
+                <div class="card-title">{{ post.title || "(Untitled)" }}</div>
+                <div class="card-meta">
+                  <span>{{ post.user?.name || "-" }}</span>
+                  <span>•</span>
+                  <span>{{ formatDate(post.published_at) }}</span>
+                </div>
+                <div v-if="post.tags?.length" class="tag-row">
+                  <span
+                    v-for="tag in post.tags"
+                    :key="tag.id || tag.name"
+                    class="tag-chip"
+                  >
+                    {{ tag.name }}
                   </span>
-                </td>
-                <td>{{ formatDate(post.published_at) }}</td>
-              </tr>
-              <tr v-if="(data?.data || []).length === 0">
-                <td colspan="4" class="empty">Žiadne články.</td>
-              </tr>
-            </tbody>
-          </table>
+                </div>
+              </div>
+              <div class="card-side">
+                <span :class="['pill', computeStatus(post)]">
+                  {{ statusLabel(computeStatus(post)) }}
+                </span>
+              </div>
+            </button>
+
+            <div v-if="filteredPosts.length === 0" class="empty">
+              No posts found.
+            </div>
+          </div>
         </div>
 
         <div class="pager">
           <button class="ghost" @click="prevPage" :disabled="loading || page <= 1">
-            Prev
+            Previous
           </button>
           <button
             class="ghost"
@@ -461,10 +536,56 @@ onMounted(load);
       </section>
 
       <section class="panel editor">
-        <div class="panel-head">
-          <h2>{{ isEditing ? "Editácia" : "Nový článok" }}</h2>
-          <div class="muted">
-            {{ isEditing ? `ID #${selectedId}` : "Draft" }}
+        <div class="editor-topbar">
+          <div class="editor-title">
+            <div>
+              <h2>{{ isEditing ? "Editing" : "New post" }}</h2>
+              <div class="muted">
+                {{ isEditing ? `ID #${selectedId}` : "Draft" }}
+              </div>
+            </div>
+            <div class="editor-badges">
+              <span :class="['pill', selectedStatus]">
+                {{ statusLabel(selectedStatus) }}
+              </span>
+              <span class="muted">
+                {{ formatDate(selectedPost?.published_at) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="editor-actions">
+            <button class="primary" @click="save" :disabled="saving || deleting">
+              {{ saving ? "Saving..." : "Save" }}
+            </button>
+            <button
+              class="ghost"
+              @click="showPreview = !showPreview"
+              :disabled="saving || deleting"
+            >
+              {{ showPreview ? "Edit" : "Preview" }}
+            </button>
+            <button
+              v-if="selectedStatus === 'draft'"
+              class="ghost"
+              @click="setPublishNow"
+              :disabled="saving || deleting"
+            >
+              Publish now
+            </button>
+            <details v-if="isEditing" class="more-menu">
+              <summary>More</summary>
+              <div class="menu">
+                <button
+                  class="danger"
+                  type="button"
+                  @click="remove"
+                  :disabled="saving || deleting"
+                >
+                  {{ deleting ? "Deleting..." : "Delete" }}
+                </button>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -472,122 +593,139 @@ onMounted(load);
           {{ formError }}
         </div>
 
-        <div class="form">
-          <label>
-            <span>Titulok</span>
+        <div class="editor-body">
+          <div v-if="showPreview" class="preview">
+            <div class="preview-header">
+              <div class="preview-kicker">Preview</div>
+              <div class="preview-meta">
+                {{ readTimeFor(form.content) }}
+              </div>
+            </div>
+            <h2 class="preview-title">{{ form.title || "Untitled" }}</h2>
+            <div v-if="tagsInput" class="taglist">
+              <span
+                v-for="tag in tagsInput.split(',').map((t) => t.trim()).filter(Boolean)"
+                :key="tag"
+                class="tag-chip"
+              >
+                {{ tag }}
+              </span>
+            </div>
+
+            <div v-if="coverPreview" class="preview-cover">
+              <img :src="coverPreview" alt="Cover preview" />
+            </div>
+
+            <div class="preview-layout">
+              <aside v-if="previewToc.length" class="preview-toc">
+                <div class="preview-toc-title">Contents</div>
+                <ul>
+                  <li v-for="item in previewToc" :key="item.id" :class="item.type">
+                    <span>{{ item.text }}</span>
+                  </li>
+                </ul>
+              </aside>
+
+              <div class="preview-content">
+                <template v-for="block in previewBlocks">
+                  <h3 v-if="block.type === 'h2'" :key="`${block.key}-h2`">{{ block.text }}</h3>
+                  <h4 v-else-if="block.type === 'h3'" :key="`${block.key}-h3`">{{ block.text }}</h4>
+                  <ul v-else-if="block.type === 'ul'" :key="`${block.key}-ul`">
+                    <li v-for="(item, idx) in block.items" :key="idx" v-html="item"></li>
+                  </ul>
+                  <p v-else :key="`${block.key}-p`" v-html="block.html"></p>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="editor-form">
             <input
               v-model="form.title"
               type="text"
-              placeholder="Napíš jasný, krátky nadpis"
+              class="title-input"
+              placeholder="Write a clear, short headline"
             />
-          </label>
 
-          <label>
-            <span>Obsah</span>
-            <textarea
-              v-model="form.content"
-              rows="10"
-              placeholder="Plný obsah článku..."
-            />
-          </label>
-
-          <label>
-            <span>Tagy (oddelené čiarkou)</span>
-            <input
-              v-model="tagsInput"
-              type="text"
-              placeholder="napr. planéty, kométy, pozorovanie"
-            />
-          </label>
-
-          <label>
-            <span>Publikovať od</span>
-            <input v-model="form.published_at" type="datetime-local" />
-          </label>
-
-          <label>
-            <span>Cover image</span>
-            <input type="file" accept="image/*" @change="onCoverChange" />
-          </label>
-
-          <div v-if="coverPreview" class="cover-preview">
-            <img :src="coverPreview" alt="Cover preview" />
-          </div>
-
-          <div class="actions">
-            <button class="accent" @click="save" :disabled="saving || deleting">
-              {{ saving ? "Ukladám..." : "Uložiť" }}
-            </button>
-            <button
-              v-if="isEditing"
-              class="ghost"
-              @click="saveCoverOnly"
-              :disabled="saving || deleting"
-            >
-              Uložiť len cover
-            </button>
-            <button
-              class="ghost"
-              @click="showPreview = !showPreview"
-              :disabled="saving || deleting"
-            >
-              {{ showPreview ? "Skryť preview" : "Preview" }}
-            </button>
-            <button class="ghost" @click="setPublishNow" :disabled="saving || deleting">
-              Publikovať teraz
-            </button>
-            <button
-              v-if="isEditing"
-              class="danger"
-              @click="remove"
-              :disabled="saving || deleting"
-            >
-              {{ deleting ? "Mažem..." : "Zmazať" }}
-            </button>
-          </div>
-        </div>
-
-        <div v-if="showPreview" class="preview">
-          <div class="preview-header">
-            <div class="preview-kicker">Preview</div>
-            <div class="preview-meta">
-              {{ readTimeFor(form.content) }}
+            <div class="tabs">
+              <button
+                type="button"
+                :class="{ active: activeTab === 'content' }"
+                @click="activeTab = 'content'"
+              >
+                Content
+              </button>
+              <button
+                type="button"
+                :class="{ active: activeTab === 'meta' }"
+                @click="activeTab = 'meta'"
+              >
+                Meta
+              </button>
+              <button
+                type="button"
+                :class="{ active: activeTab === 'media' }"
+                @click="activeTab = 'media'"
+              >
+                Media
+              </button>
             </div>
-          </div>
-          <h2 class="preview-title">{{ form.title || "Bez názvu" }}</h2>
-          <div v-if="tagsInput" class="taglist">
-            <span
-              v-for="tag in tagsInput.split(',').map(t => t.trim()).filter(Boolean)"
-              :key="tag"
-              class="tag-pill"
-            >
-              {{ tag }}
-            </span>
-          </div>
 
-          <div v-if="coverPreview" class="preview-cover">
-            <img :src="coverPreview" alt="Preview cover" />
-          </div>
+            <div class="tab-body">
+              <div v-show="activeTab === 'content'" class="tab-panel">
+                <label class="field-block">
+                  <span>Content</span>
+                  <textarea
+                    v-model="form.content"
+                    rows="14"
+                    placeholder="Full article content..."
+                  />
+                </label>
+              </div>
 
-          <div class="preview-layout">
-            <aside v-if="previewToc.length" class="preview-toc">
-              <div class="preview-toc-title">Obsah</div>
-              <ul>
-                <li v-for="item in previewToc" :key="item.id" :class="item.type">
-                  <span>{{ item.text }}</span>
-                </li>
-              </ul>
-            </aside>
+              <div v-show="activeTab === 'meta'" class="tab-panel">
+                <label class="field-block">
+                  <span>Tags (comma separated)</span>
+                  <input
+                    v-model="tagsInput"
+                    type="text"
+                    placeholder="e.g. planets, comets, observation"
+                  />
+                </label>
 
-            <div class="preview-content">
-              <template v-for="(block, i) in previewBlocks" :key="i">
-                <h3 v-if="block.type === 'h2'">{{ block.text }}</h3>
-                <h4 v-else-if="block.type === 'h3'">{{ block.text }}</h4>
-                <ul v-else-if="block.type === 'ul'">
-                  <li v-for="(item, idx) in block.items" :key="idx" v-html="item"></li>
-                </ul>
-                <p v-else v-html="block.html"></p>
-              </template>
+                <label class="field-block">
+                  <span>Publish from</span>
+                  <input v-model="form.published_at" type="datetime-local" />
+                </label>
+
+                <button
+                  class="ghost"
+                  @click="setPublishNow"
+                  :disabled="saving || deleting"
+                >
+                  Publish now
+                </button>
+              </div>
+
+              <div v-show="activeTab === 'media'" class="tab-panel">
+                <label class="field-block">
+                  <span>Cover image</span>
+                  <input type="file" accept="image/*" @change="onCoverChange" />
+                </label>
+
+                <div v-if="coverPreview" class="cover-preview">
+                  <img :src="coverPreview" alt="Cover preview" />
+                </div>
+
+                <button
+                  v-if="isEditing"
+                  class="ghost"
+                  @click="saveCoverOnly"
+                  :disabled="saving || deleting"
+                >
+                  Save cover only
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -598,92 +736,96 @@ onMounted(load);
 
 <style scoped>
 .admin-blog {
-  --panel: rgba(15, 23, 42, 0.85);
-  --panel-border: rgba(148, 163, 184, 0.25);
-  --muted: rgba(226, 232, 240, 0.7);
-  --accent: #22c55e;
+  --bg: #0b0f17;
+  --panel: rgba(15, 23, 42, 0.9);
+  --panel-soft: rgba(15, 23, 42, 0.6);
+  --panel-border: rgba(148, 163, 184, 0.2);
+  --muted: rgba(226, 232, 240, 0.65);
+  --text: #e2e8f0;
+  --primary: #3b82f6;
+  --primary-strong: #60a5fa;
   --danger: #ef4444;
-  --ring: rgba(56, 189, 248, 0.4);
+  --ring: rgba(59, 130, 246, 0.35);
+  color: var(--text);
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px;
-  border-radius: 16px;
-  background: linear-gradient(120deg, rgba(15, 23, 42, 0.9), rgba(2, 132, 199, 0.2));
-  border: 1px solid var(--panel-border);
-}
-
-.header h1 {
-  margin: 0 0 6px;
-  font-size: 24px;
-}
-
-.header p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.filters {
+.command-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  justify-content: space-between;
   padding: 12px;
-  border-radius: 14px;
-  background: var(--panel);
+  border-radius: 16px;
+  background: linear-gradient(120deg, rgba(15, 23, 42, 0.95), rgba(30, 64, 175, 0.18));
   border: 1px solid var(--panel-border);
+  backdrop-filter: blur(10px);
 }
 
-.field {
+.command-left,
+.command-right {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 140px;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 
-.field label {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.field select,
-.field input {
-  padding: 10px 12px;
-  border-radius: 10px;
+.search-field input {
+  min-width: 220px;
+  padding: 10px 14px;
+  border-radius: 999px;
   border: 1px solid var(--panel-border);
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(15, 23, 42, 0.7);
   color: inherit;
 }
 
-.field.grow {
-  flex: 1;
-  justify-content: flex-end;
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid var(--panel-border);
 }
 
-.stat {
+.segmented button {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.segmented button.active {
+  background: rgba(59, 130, 246, 0.25);
+  color: #dbeafe;
+}
+
+.select-field {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(2, 132, 199, 0.12);
-  border: 1px solid rgba(2, 132, 199, 0.25);
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
-.buttons {
-  justify-content: flex-end;
+.select-field select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: rgba(15, 23, 42, 0.7);
+  color: inherit;
 }
 
 .error {
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.4);
   color: #fecaca;
@@ -691,15 +833,18 @@ onMounted(load);
 
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   gap: 16px;
+  min-height: 70vh;
 }
 
 .panel {
-  border-radius: 16px;
+  border-radius: 18px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel-head {
@@ -711,8 +856,16 @@ onMounted(load);
 }
 
 .panel-head h2 {
-  margin: 0;
+  margin: 0 0 4px;
   font-size: 16px;
+}
+
+.page-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .muted {
@@ -720,53 +873,74 @@ onMounted(load);
   font-size: 12px;
 }
 
-.pad {
-  padding: 16px;
-}
-
-.table-wrap {
+.list-body {
+  flex: 1;
   overflow: auto;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
 }
 
-thead {
-  background: rgba(148, 163, 184, 0.08);
-}
-
-th,
-td {
-  padding: 12px;
+.post-card {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  background: rgba(2, 6, 23, 0.35);
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
   text-align: left;
-  font-size: 13px;
-}
-
-tbody tr {
-  border-top: 1px solid rgba(148, 163, 184, 0.08);
   cursor: pointer;
+  color: inherit;
 }
 
-tbody tr.active {
-  background: rgba(2, 132, 199, 0.15);
+.post-card:hover {
+  border-color: rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.08);
 }
 
-.title-cell .title {
+.post-card.active {
+  border-color: rgba(59, 130, 246, 0.6);
+  background: rgba(59, 130, 246, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.25);
+}
+
+.card-title {
+  font-size: 15px;
   font-weight: 600;
+  margin-bottom: 6px;
 }
 
-.title-cell .meta {
+.card-meta {
+  display: flex;
+  gap: 6px;
   font-size: 12px;
   color: var(--muted);
-  margin-top: 4px;
 }
 
-.title-cell .tagline {
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tag-chip {
   font-size: 11px;
-  color: rgba(226, 232, 240, 0.6);
-  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.card-side {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
 }
 
 .pill {
@@ -811,25 +985,118 @@ tbody tr.active {
   border-top: 1px solid rgba(148, 163, 184, 0.12);
 }
 
-.form {
+.editor {
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.7));
+}
+
+.editor-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.95);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.editor-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.editor-title h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.editor-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.editor-body {
+  flex: 1;
+  padding: 16px;
+  overflow: auto;
+}
+
+.editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.title-input {
+  font-size: 22px;
+  font-weight: 600;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--panel-border);
+  background: rgba(15, 23, 42, 0.6);
+  color: inherit;
+}
+
+.tabs {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.tabs button {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tabs button.active {
+  background: rgba(59, 130, 246, 0.25);
+  color: #dbeafe;
+}
+
+.tab-body {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
   padding: 16px;
 }
 
-.form label {
+.tab-panel {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 14px;
+}
+
+.field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   font-size: 12px;
   color: var(--muted);
 }
 
-.form input,
-.form textarea {
+.field-block input,
+.field-block textarea {
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--panel-border);
   background: rgba(15, 23, 42, 0.6);
   color: inherit;
@@ -837,7 +1104,7 @@ tbody tr.active {
 }
 
 .cover-preview {
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.25);
   background: rgba(15, 23, 42, 0.5);
@@ -846,27 +1113,13 @@ tbody tr.active {
 .cover-preview img {
   width: 100%;
   display: block;
-  max-height: 220px;
+  max-height: 240px;
   object-fit: cover;
 }
 
-.form input:focus,
-.form textarea:focus,
-.field select:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--ring);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .preview {
-  margin-top: 16px;
   padding: 16px;
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid rgba(148, 163, 184, 0.25);
   background: rgba(15, 23, 42, 0.7);
 }
@@ -892,11 +1145,11 @@ tbody tr.active {
 
 .preview-title {
   margin: 0 0 10px;
-  font-size: 22px;
+  font-size: 24px;
 }
 
 .preview-cover {
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
   margin-bottom: 12px;
   border: 1px solid rgba(148, 163, 184, 0.25);
@@ -905,7 +1158,7 @@ tbody tr.active {
 .preview-cover img {
   display: block;
   width: 100%;
-  max-height: 200px;
+  max-height: 220px;
   object-fit: cover;
 }
 
@@ -970,7 +1223,7 @@ tbody tr.active {
 }
 
 .preview-content a {
-  color: #bae6fd;
+  color: #93c5fd;
   text-decoration: underline;
 }
 
@@ -985,17 +1238,21 @@ tbody tr.active {
 
 button {
   padding: 10px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--panel-border);
   background: rgba(148, 163, 184, 0.08);
   color: inherit;
   cursor: pointer;
 }
 
-button.accent {
-  background: rgba(34, 197, 94, 0.18);
-  border-color: rgba(34, 197, 94, 0.45);
-  color: #bbf7d0;
+button.primary {
+  background: rgba(59, 130, 246, 0.22);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #dbeafe;
+}
+
+button.ghost {
+  background: transparent;
 }
 
 button.danger {
@@ -1004,13 +1261,56 @@ button.danger {
   color: #fecaca;
 }
 
-button.ghost {
-  background: transparent;
-}
-
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.more-menu {
+  position: relative;
+}
+
+.more-menu summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.more-menu[open] summary {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.more-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.more-menu .menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  background: rgba(15, 23, 42, 0.98);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
+  min-width: 160px;
+  z-index: 10;
+}
+
+.more-menu .menu button {
+  width: 100%;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus,
+summary:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 @media (max-width: 980px) {
@@ -1018,9 +1318,8 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
+  .command-bar {
+    position: static;
   }
 }
 
@@ -1030,3 +1329,5 @@ button:disabled {
   }
 }
 </style>
+
+

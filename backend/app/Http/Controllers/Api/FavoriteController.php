@@ -9,9 +9,12 @@ use App\Models\Event;
 
 class FavoriteController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $user = $request->user();
+
         return Favorite::with('event')
+            ->where('user_id', $user->id)
             ->latest()
             ->get();
     }
@@ -23,19 +26,16 @@ class FavoriteController extends Controller
         ]);
 
         $favorite = Favorite::firstOrCreate([
-            'user_id' => null, // neskôr: auth()->id()
+            'user_id' => $request->user()->id,
             'event_id' => $validated['event_id'],
         ]);
 
-        // vráť aj event (aby frontend hneď videl title/max_at/...)
         return $favorite->load('event');
     }
 
-    public function destroy(Event $event)
+    public function destroy(Request $request, Event $event)
     {
-        // teraz: user_id je null (MVP)
-        // neskôr: pridať ->where('user_id', auth()->id())
-        Favorite::where('user_id', null)
+        Favorite::where('user_id', $request->user()->id)
             ->where('event_id', $event->id)
             ->delete();
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -53,5 +54,25 @@ class ProfileController extends Controller
         $user->save();
 
         return response()->json(['message' => 'Heslo bolo zmenené.']);
+    }
+
+    public function destroy(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user?->tokens()) {
+            $user->tokens()->delete();
+        }
+
+        Auth::guard('web')->logout();
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
+        $user->delete();
+
+        return response()->json(['message' => 'Account deactivated.']);
     }
 }

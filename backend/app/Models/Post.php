@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
@@ -15,6 +16,8 @@ class Post extends Model
     protected $fillable = [
         'user_id',
         'parent_id',
+        'root_id',
+        'depth',
         'content',
         'attachment_path',
         'attachment_mime',
@@ -29,6 +32,8 @@ class Post extends Model
     protected $casts = [
         'user_id' => 'integer',
         'parent_id' => 'integer',
+        'root_id' => 'integer',
+        'depth' => 'integer',
         'attachment_size' => 'integer',
     ];
 
@@ -38,6 +43,14 @@ class Post extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Likes na tento post.
+     */
+    public function likes(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'post_likes');
     }
 
     /**
@@ -53,7 +66,15 @@ class Post extends Model
      */
     public function replies(): HasMany
     {
-        return $this->hasMany(self::class, 'parent_id');
+        return $this->hasMany(self::class, 'parent_id')->latest();
+    }
+
+    /**
+     * Root post (ak ide o reply).
+     */
+    public function root(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'root_id');
     }
 
     /**
@@ -84,7 +105,12 @@ class Post extends Model
         'id',
         'user_id',
         'user',        // ✅ bez toho sa relation user do JSON neobjaví
+        'parent',
         'parent_id',
+        'replies',
+        'root',
+        'root_id',
+        'depth',
         'content',
         'attachment_path',
         'attachment_mime',
@@ -94,5 +120,7 @@ class Post extends Model
         'created_at',
         'updated_at',
         'replies_count',
+        'likes_count',
+        'liked_by_me',
     ];
 }

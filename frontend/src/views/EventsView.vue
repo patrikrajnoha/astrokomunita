@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="space-y-6">
     <header>
       <h1 class="text-2xl font-bold text-indigo-400">Udalosti</h1>
@@ -46,9 +46,9 @@
             <button
               class="favbtn"
               type="button"
-              :disabled="favorites.loading"
+              :disabled="favorites.loading || !auth.isAuthed"
               :aria-pressed="favorites.isFavorite(e.id)"
-              :title="favorites.isFavorite(e.id) ? 'Odobrať z obľúbených' : 'Pridať do obľúbených'"
+              :title="auth.isAuthed ? (favorites.isFavorite(e.id) ? 'Odobrať z obľúbených' : 'Pridať do obľúbených') : 'Prihlás sa pre uloženie obľúbených'"
               @click.prevent.stop="toggleFavorite(e.id)"
             >
               <span v-if="favorites.isFavorite(e.id)">★</span>
@@ -77,6 +77,7 @@
 <script>
 import api from '../services/api'
 import { useFavoritesStore } from '../stores/favorites'
+import { useAuthStore } from '@/stores/auth'
 
 export default {
   name: 'EventsView',
@@ -87,6 +88,7 @@ export default {
       loading: true,
       error: null,
       favorites: useFavoritesStore(),
+      auth: useAuthStore(),
     }
   },
   computed: {
@@ -205,3 +207,5 @@ export default {
   cursor: not-allowed;
 }
 </style>
+
+

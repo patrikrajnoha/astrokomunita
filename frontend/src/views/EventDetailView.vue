@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="space-y-6">
     <header class="flex items-start justify-between gap-4">
       <div>
@@ -15,8 +15,8 @@
           <button
             class="favbtn"
             type="button"
-            :disabled="favorites.loading"
-            :title="favorites.isFavorite(event.id) ? 'Odobrať z obľúbených' : 'Pridať do obľúbených'"
+            :disabled="favorites.loading || !auth.isAuthed"
+            :title="auth.isAuthed ? (favorites.isFavorite(event.id) ? 'Odobra� z ob��ben�ch' : 'Prida� do ob��ben�ch') : 'Prihl�s sa pre ulo�enie ob��ben�ch'"
             @click="toggleFavorite(event.id)"
           >
             <span v-if="favorites.isFavorite(event.id)">★</span>
@@ -52,8 +52,8 @@
           v-if="event"
           class="favbtn"
           type="button"
-          :disabled="favorites.loading"
-          :title="favorites.isFavorite(event.id) ? 'Odobrať z obľúbených' : 'Pridať do obľúbených'"
+          :disabled="favorites.loading || !auth.isAuthed"
+          :title="auth.isAuthed ? (favorites.isFavorite(event.id) ? 'Odobrať z obľúbených' : 'Pridať do obľúbených') : 'Prihlás sa pre uloženie obľúbených'"
           @click="toggleFavorite(event.id)"
         >
           <span v-if="favorites.isFavorite(event.id)">★</span>
@@ -134,6 +134,29 @@
           {{ event && favorites.isFavorite(event.id) ? 'Odobrať z obľúbených' : 'Pridať medzi obľúbené' }}
         </button>
       </div>
+      <div v-if="!auth.isAuthed" class="mt-4">
+        <div class="label">Upozornenie emailom</div>
+        <p class="text-slate-400 text-sm">
+          Neprihláseným pošleme upozornenie k tejto udalosti.
+        </p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <input
+            v-model="notifyEmail"
+            type="email"
+            class="notifyInput"
+            placeholder="tvoj@email.sk"
+          />
+          <button
+            class="actionbtn"
+            :disabled="notifyLoading || !notifyEmail.trim()"
+            @click="sendEmailAlert"
+          >
+            {{ notifyLoading ? 'Odosielam...' : 'Poslať upozornenie' }}
+          </button>
+        </div>
+        <div v-if="notifyMsg" class="notifyMsg ok">{{ notifyMsg }}</div>
+        <div v-if="notifyErr" class="notifyMsg err">{{ notifyErr }}</div>
+      </div>
     </section>
   </div>
 </template>
@@ -141,6 +164,7 @@
 <script>
 import api from '../services/api'
 import { useFavoritesStore } from '../stores/favorites'
+import { useAuthStore } from '@/stores/auth'
 
 export default {
   name: 'EventDetailView',
@@ -150,6 +174,11 @@ export default {
       loading: true,
       error: null,
       favorites: useFavoritesStore(),
+      auth: useAuthStore(),
+      notifyEmail: '',
+      notifyLoading: false,
+      notifyMsg: '',
+      notifyErr: '',
     }
   },
   computed: {
@@ -178,7 +207,31 @@ export default {
     async toggleFavorite(eventId) {
       return this.favorites.toggle(eventId)
     },
+    async sendEmailAlert() {
+      if (this.auth.isAuthed) return
+      if (!this.event?.id) return
 
+      const email = String(this.notifyEmail || '').trim()
+      if (!email) {
+        this.notifyErr = 'Zadaj email.'
+        return
+      }
+
+      this.notifyLoading = true
+      this.notifyErr = ''
+      this.notifyMsg = ''
+
+      try {
+        await api.post(`/events/${this.event.id}/notify-email`, { email })
+        this.notifyMsg = 'Hotovo. Upozornenie bolo uložené.'
+        this.notifyEmail = ''
+      } catch (e) {
+        this.notifyErr =
+          e?.response?.data?.message || 'Nepodarilo sa uložiť upozornenie.'
+      } finally {
+        this.notifyLoading = false
+      }
+    },
     typeLabel(type) {
       const map = {
         meteor_shower: 'Meteory',
@@ -285,3 +338,9 @@ export default {
   word-break: break-all;
 }
 </style>
+
+
+
+
+
+

@@ -195,10 +195,9 @@ async function submit() {
   try {
     const fd = new FormData()
     fd.append('content', content.value)
-    fd.append('parent_id', String(props.parentId))
     if (file.value) fd.append('attachment', file.value)
 
-    const res = await api.post('/posts', fd, {
+    const res = await api.post(`/posts/${props.parentId}/reply`, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
 

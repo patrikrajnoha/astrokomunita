@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\EventEmailAlertController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
@@ -99,6 +100,7 @@ Route::get('/user', function (Request $request) {
 Route::get('/events',      [EventController::class, 'index']);
 Route::get('/events/next', [EventController::class, 'next']);
 Route::get('/events/{id}', [EventController::class, 'show']);
+Route::post('/events/{event}/notify-email', [EventEmailAlertController::class, 'store']);
 
 /*
 |--------------------------------------------------------------------------
@@ -107,6 +109,11 @@ Route::get('/events/{id}', [EventController::class, 'show']);
 */
 Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/{post}', [PostController::class, 'show']);
+
+// Public user profiles
+Route::get('/users/{username}', [App\Http\Controllers\Api\UserProfileController::class, 'show']);
+Route::get('/users/{username}/posts', [App\Http\Controllers\Api\UserProfileController::class, 'posts']);
+
 
 /*
 |--------------------------------------------------------------------------
@@ -128,7 +135,7 @@ Route::get('/blog-tags', [BlogTagController::class, 'index']);
 | FAVORITES (zatiaľ bez auth)
 |--------------------------------------------------------------------------
 */
-Route::prefix('favorites')->group(function () {
+Route::middleware(['auth:sanctum'])->prefix('favorites')->group(function () {
     Route::get('/',           [FavoriteController::class, 'index']);
     Route::post('/',          [FavoriteController::class, 'store']);
     Route::delete('/{event}', [FavoriteController::class, 'destroy']);
@@ -185,6 +192,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // 👤 Profil
     Route::patch('/profile',          [ProfileController::class, 'update']);
     Route::patch('/profile/password', [ProfileController::class, 'changePassword']);
+    Route::delete('/profile',         [ProfileController::class, 'destroy']);
 
     /*
     |----------------------------------------------------------------------
@@ -192,4 +200,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     |----------------------------------------------------------------------
     */
     Route::post('/posts', [PostController::class, 'store']);
+    Route::post('/posts/{post}/reply', [PostController::class, 'reply']);
+    Route::post('/posts/{post}/like', [PostController::class, 'like']);
+    Route::delete('/posts/{post}/like', [PostController::class, 'unlike']);
+    Route::delete('/posts/{post}', [PostController::class, 'destroy']);
 });
+

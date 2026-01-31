@@ -19,15 +19,16 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            // DEV friendly: bez "dns" aby prešli aj test.local adresy
+            // DEV friendly: no "dns" so test.local addresses pass
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)],
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
+            'username' => $this->generateUsername($validated['name'], $validated['email']),
             'email' => $validated['email'],
-            // User model má cast: 'password' => 'hashed' -> hashne sa automaticky
+            // User model has cast: 'password' => 'hashed' -> auto hash
             'password' => $validated['password'],
         ]);
 
@@ -45,7 +46,7 @@ class AuthController extends Controller
 
         if (!Auth::attempt($credentials, true)) {
             return response()->json([
-                'message' => 'Nesprávny email alebo heslo.',
+                'message' => 'Nespravny email alebo heslo.',
             ], 422);
         }
 
@@ -62,5 +63,27 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return response()->noContent();
+    }
+
+    private function generateUsername(string $name, string $email): string
+    {
+        $base = trim($name) !== '' ? $name : $email;
+        $candidate = strtolower($base);
+        $candidate = preg_replace('/\s+/', '_', $candidate);
+        $candidate = preg_replace('/[^a-z0-9_]+/', '', $candidate);
+        $candidate = substr($candidate, 0, 30);
+        if ($candidate === '') {
+            $candidate = 'user';
+        }
+
+        $username = $candidate;
+        $i = 1;
+        while (User::where('username', $username)->exists()) {
+            $suffix = '_' . $i;
+            $username = substr($candidate, 0, 30 - strlen($suffix)) . $suffix;
+            $i++;
+        }
+
+        return $username;
     }
 }

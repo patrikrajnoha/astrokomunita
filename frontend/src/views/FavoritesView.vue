@@ -1,7 +1,7 @@
-<template>
+﻿<template>
   <div class="space-y-6">
     <header>
-      <h1 class="text-2xl font-bold text-indigo-400">Obľúbené ⭐</h1>
+      <h1 class="text-2xl font-bold text-indigo-400">Obľúbené</h1>
       <p class="mt-1 text-slate-300 text-sm">
         Udalosti, ktoré máš uložené medzi obľúbenými.
       </p>
@@ -75,7 +75,9 @@ export default {
   methods: {
     async fetchEvents() {
       const res = await api.get('/events')
-      this.events = res.data || []
+      this.events = Array.isArray(res.data?.data)
+        ? res.data.data
+        : (Array.isArray(res.data) ? res.data : [])
     },
 
     async toggleFavorite(eventId) {
@@ -128,3 +130,4 @@ export default {
   color: white;
 }
 </style>
+

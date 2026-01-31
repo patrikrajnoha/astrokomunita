@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    // Verejné cesty
+    // VerejnĂ© cesty
     {
       path: '/',
       name: 'home',
@@ -46,8 +46,20 @@ const router = createRouter({
       name: 'learn-detail',
       component: () => import('../views/LearnDetailView.vue'),
     },
+    {
+      path: '/settings',
+      name: 'settings',
+      meta: { auth: true },
+      component: () => import('../views/SettingsView.vue'),
+    },
+    {
+      path: '/creator-studio',
+      name: 'creator-studio',
+      meta: { auth: true },
+      component: () => import('../views/CreatorStudioView.vue'),
+    },
 
-    // Cesty len pre neprihlásených (Guest)
+    // Cesty len pre neprihlĂˇsenĂ˝ch (Guest)
     {
       path: '/login',
       name: 'login',
@@ -61,13 +73,7 @@ const router = createRouter({
       component: () => import('../views/RegisterView.vue'),
     },
 
-    // Chránené cesty (vyžadujú prihlásenie)
-    {
-      path: '/favorites',
-      name: 'favorites',
-      meta: { auth: true },
-      component: () => import('../views/FavoritesView.vue'),
-    },
+    // ChrĂˇnenĂ© cesty (vyĹľadujĂş prihlĂˇsenie)
     {
       path: '/notifications',
       name: 'notifications',
@@ -77,7 +83,6 @@ const router = createRouter({
     {
       path: '/profile',
       name: 'profile',
-      meta: { auth: true },
       component: () => import('../views/ProfileView.vue'),
     },
     {
@@ -87,7 +92,7 @@ const router = createRouter({
       component: () => import('../views/ProfileEdit.vue'),
     },
 
-    // ✅ ADMIN (MVP)
+    // âś… ADMIN (MVP)
     {
       path: '/admin/candidates',
       name: 'admin.candidates',
@@ -112,8 +117,13 @@ const router = createRouter({
       name: 'post-detail',
       component: () => import('@/views/PostDetailView.vue'),
     },
+    {
+      path: '/u/:username',
+      name: 'user-profile',
+      component: () => import('../views/PublicProfileView.vue'),
+    },
 
-    // 404 - Not Found (musí byť na konci)
+    // 404 - Not Found (musĂ­ byĹĄ na konci)
     {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
@@ -128,14 +138,14 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // 1) Ak user ešte nie je inicializovaný (napr. po refreshi), skúsime ho načítať
+  // 1) Ak user eĹˇte nie je inicializovanĂ˝ (napr. po refreshi), skĂşsime ho naÄŤĂ­taĹĄ
   if (!auth.initialized) {
     await auth.fetchUser()
   }
 
   const redirectTarget = to.fullPath
 
-  // 2) Ak cesta vyžaduje auth a user nie je prihlásený
+  // 2) Ak cesta vyĹľaduje auth a user nie je prihlĂˇsenĂ˝
   if (to.meta?.auth && !auth.isAuthed) {
     return {
       name: 'login',
@@ -143,9 +153,9 @@ router.beforeEach(async (to) => {
     }
   }
 
-  // 3) Admin-only: ak cesta vyžaduje admin a user nie je admin
+  // 3) Admin-only: ak cesta vyĹľaduje admin a user nie je admin
   if (to.meta?.admin) {
-    // 🔧 JEDEN RIADOK NA PRISPÔSOBENIE podľa toho, ako máš usera v store:
+    // đź”§ JEDEN RIADOK NA PRISPĂ”SOBENIE podÄľa toho, ako mĂˇĹˇ usera v store:
     const isAdmin = !!auth.user?.is_admin
 
     if (!isAdmin) {
@@ -153,7 +163,7 @@ router.beforeEach(async (to) => {
     }
   }
 
-  // 4) Ak je cesta pre hostí (login/register) a user je už prihlásený
+  // 4) Ak je cesta pre hostĂ­ (login/register) a user je uĹľ prihlĂˇsenĂ˝
   if (to.meta?.guest && auth.isAuthed) {
     const redirect = typeof to.query?.redirect === 'string' ? to.query.redirect : null
     return redirect || { name: 'home' }
