@@ -1,76 +1,161 @@
-﻿<template>
-  <div class="space-y-6">
-    <header>
-      <h1 class="text-2xl font-bold text-indigo-400">Udalosti</h1>
-      <p class="mt-1 text-slate-300 text-sm">
-        Zoznam astronomických udalostí (načítané z API).
-      </p>
-    </header>
-
-    <section class="flex flex-wrap gap-2">
-      <button class="filterbtn" :class="{ active: selectedType === 'all' }" @click="selectedType = 'all'">
-        Všetky
-      </button>
-      <button class="filterbtn" :class="{ active: selectedType === 'meteors' }" @click="selectedType = 'meteors'">
-        Meteorické roje
-      </button>
-      <button class="filterbtn" :class="{ active: selectedType === 'eclipses' }" @click="selectedType = 'eclipses'">
-        Zatmenia
-      </button>
-      <button class="filterbtn" :class="{ active: selectedType === 'conjunctions' }" @click="selectedType = 'conjunctions'">
-        Konjunkcie
-      </button>
-      <button class="filterbtn" :class="{ active: selectedType === 'comets' }" @click="selectedType = 'comets'">
-        Kométy
-      </button>
-    </section>
-
-    <div v-if="loading" class="text-slate-300">Načítavam udalosti…</div>
-    <div v-else-if="error" class="text-red-300">
-      Chyba: {{ error }}
-    </div>
-
-    <section v-else class="grid gap-4 sm:grid-cols-2">
-      <router-link
-        v-for="e in filteredEvents"
-        :key="e.id"
-        :to="`/events/${e.id}`"
-        class="card"
-      >
-        <div class="flex items-start justify-between gap-3">
-          <h2 class="text-lg font-semibold text-white">{{ e.title }}</h2>
-
-          <div class="flex items-center gap-2">
-            <span class="badge">{{ typeLabel(e.type) }}</span>
-
-            <button
-              class="favbtn"
-              type="button"
-              :disabled="favorites.loading || !auth.isAuthed"
-              :aria-pressed="favorites.isFavorite(e.id)"
-              :title="auth.isAuthed ? (favorites.isFavorite(e.id) ? 'Odobrať z obľúbených' : 'Pridať do obľúbených') : 'Prihlás sa pre uloženie obľúbených'"
-              @click.prevent.stop="toggleFavorite(e.id)"
-            >
-              <span v-if="favorites.isFavorite(e.id)">★</span>
-              <span v-else>☆</span>
-            </button>
+<template>
+  <div class="min-h-screen">
+    <!-- Hero Section -->
+    <section class="relative overflow-hidden bg-gradient-to-br from-blue-900/20 via-purple-900/10 to-pink-900/20 backdrop-blur-sm">
+      <div class="absolute inset-0 opacity-30" style="background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiM5QzkyQUMiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDM0di00aC0ydjRoLTR2Mmg0djRoMnYtNGg0di0yaC00em0wLTMwVjBoLTJ2NGgtNHYyaDR2NGgyVjZoNFY0aC00ek02IDM0di00SDR2NEgwdjJoNHY0aDJ2LTRoNHYtMkg2ek02IDRWMFg0djRIMHYyaDR2NGgyVjZoNFY0SDZ6Ii8+PC9nPjwvZz48L3N2Zz4=');"></div>
+      
+      <div class="relative px-6 py-16 md:px-8">
+        <div class="mx-auto max-w-4xl">
+          <div class="text-center">
+            <h1 class="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-4xl font-bold text-transparent md:text-6xl">
+              Astronomické Udalosti
+            </h1>
+            <p class="mt-4 text-lg text-[var(--color-text-secondary)] md:text-xl">
+              Objavujte fascinujúce vesmírne udalosti a astronomické úkazy
+            </p>
           </div>
         </div>
-
-        <p class="mt-2 text-sm text-slate-300">
-          <span class="text-slate-200 font-medium">Max:</span>
-          {{ formatDateTime(e.max_at) }}
-        </p>
-
-        <p class="mt-2 text-sm text-slate-300 line-clamp-2">
-          {{ e.short || '—' }}
-        </p>
-
-        <p class="mt-3 text-xs text-slate-400">
-          Viditeľnosť: {{ e.visibility ?? '—' }}
-        </p>
-      </router-link>
+      </div>
     </section>
+
+    <!-- Main Content -->
+    <div class="px-6 py-8 md:px-8">
+      <!-- Filter Section -->
+      <section class="mb-8">
+        <div class="flex flex-wrap justify-center gap-3">
+          <button 
+            class="filter-btn" 
+            :class="{ active: selectedType === 'all' }" 
+            @click="selectedType = 'all'"
+          >
+            <span class="flex items-center gap-2">
+              <span class="icon">🌌</span>
+              Všetky
+            </span>
+          </button>
+          <button 
+            class="filter-btn" 
+            :class="{ active: selectedType === 'meteors' }" 
+            @click="selectedType = 'meteors'"
+          >
+            <span class="flex items-center gap-2">
+              <span class="icon">☄️</span>
+              Meteorické roje
+            </span>
+          </button>
+          <button 
+            class="filter-btn" 
+            :class="{ active: selectedType === 'eclipses' }" 
+            @click="selectedType = 'eclipses'"
+          >
+            <span class="flex items-center gap-2">
+              <span class="icon">🌑</span>
+              Zatmenia
+            </span>
+          </button>
+          <button 
+            class="filter-btn" 
+            :class="{ active: selectedType === 'conjunctions' }" 
+            @click="selectedType = 'conjunctions'"
+          >
+            <span class="flex items-center gap-2">
+              <span class="icon">⭐</span>
+              Konjunkcie
+            </span>
+          </button>
+          <button 
+            class="filter-btn" 
+            :class="{ active: selectedType === 'comets' }" 
+            @click="selectedType = 'comets'"
+          >
+            <span class="flex items-center gap-2">
+              <span class="icon">🌠</span>
+              Kométy
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Loading State -->
+      <div v-if="loading" class="flex justify-center py-12">
+        <div class="flex flex-col items-center gap-4">
+          <div class="h-12 w-12 animate-spin rounded-full border-4 border-blue-500/20 border-t-blue-500"></div>
+          <p class="text-[var(--color-text-secondary)]">Načítavam udalosti...</p>
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="flex justify-center py-12">
+        <div class="rounded-2xl border border-red-500/20 bg-red-500/10 p-8 text-center">
+          <div class="text-4xl mb-4">🚨</div>
+          <h3 class="text-lg font-semibold text-red-400 mb-2">Chyba pri načítaní</h3>
+          <p class="text-[var(--color-text-secondary)]">{{ error }}</p>
+        </div>
+      </div>
+
+      <!-- Events Grid -->
+      <section v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <router-link
+          v-for="e in filteredEvents"
+          :key="e.id"
+          :to="`/events/${e.id}`"
+          class="event-card group"
+        >
+          <div class="card-content">
+            <!-- Card Header -->
+            <div class="flex items-start justify-between gap-3 mb-4">
+              <div class="flex-1">
+                <h3 class="text-xl font-bold text-[var(--color-surface)] group-hover:text-blue-400 transition-colors">
+                  {{ e.title }}
+                </h3>
+                <div class="flex items-center gap-2 mt-2">
+                  <span class="type-badge">{{ typeLabel(e.type) }}</span>
+                  <span class="text-xs text-[var(--color-text-secondary)]">
+                    {{ formatDateTime(e.max_at) }}
+                  </span>
+                </div>
+              </div>
+              
+              <button
+                class="favorite-btn"
+                type="button"
+                :disabled="favorites.loading || !auth.isAuthed"
+                :aria-pressed="favorites.isFavorite(e.id)"
+                :title="auth.isAuthed ? (favorites.isFavorite(e.id) ? 'Odobrať z obľúbených' : 'Pridať do obľúbených') : 'Prihlás sa pre uloženie obľúbených'"
+                @click.prevent.stop="toggleFavorite(e.id)"
+              >
+                <span class="text-xl">{{ favorites.isFavorite(e.id) ? '❤️' : '🤍' }}</span>
+              </button>
+            </div>
+
+            <!-- Card Body -->
+            <p class="text-[var(--color-text-secondary)] text-sm line-clamp-3 mb-4">
+              {{ e.short || '—' }}
+            </p>
+
+            <!-- Card Footer -->
+            <div class="flex items-center justify-between pt-3 border-t border-[var(--color-text-secondary)]/20">
+              <div class="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+                <span>👁️</span>
+                <span>Viditeľnosť: {{ e.visibility ?? '—' }}</span>
+              </div>
+              <div class="opacity-0 group-hover:opacity-100 transition-opacity">
+                <span class="text-blue-400 text-sm font-medium">Zobraziť →</span>
+              </div>
+            </div>
+          </div>
+        </router-link>
+      </section>
+
+      <!-- Empty State -->
+      <div v-if="!loading && !error && filteredEvents.length === 0" class="flex justify-center py-12">
+        <div class="text-center">
+          <div class="text-6xl mb-4">🔭</div>
+          <h3 class="text-xl font-semibold text-[var(--color-surface)] mb-2">Žiadne udalosti</h3>
+          <p class="text-[var(--color-text-secondary)]">V tejto kategórii sa nenašli žiadne udalosti.</p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -114,10 +199,23 @@ export default {
 
       try {
         const res = await api.get('/events')
-        // ✅ Laravel paginator -> reálne položky sú v res.data.data
+        // ? Laravel paginator -> reálne položky sú v res.data.data
         this.events = Array.isArray(res.data?.data) ? res.data.data : []
       } catch (err) {
-        this.error = err?.message || 'Nepodarilo sa načítať udalosti.'
+        console.error('Failed to fetch events:', err)
+        
+        // Konkrétne error handling podľa status kódu
+        if (err?.response?.status === 429) {
+          this.error = 'Príliš veľa požiadaviek. Skús to znova o chvíľu.'
+        } else if (err?.response?.status >= 500) {
+          this.error = 'Server je dočasne nedostupný. Skús to neskôr.'
+        } else if (err?.response?.status === 404) {
+          this.error = 'Udalosti neboli nájdené.'
+        } else if (err?.code === 'NETWORK_ERROR') {
+          this.error = 'Problém s pripojením. Skontroluj internetové pripojenie.'
+        } else {
+          this.error = err?.response?.data?.message || 'Nepodarilo sa načítať udalosti.'
+        }
       } finally {
         this.loading = false
       }
@@ -154,58 +252,197 @@ export default {
 </script>
 
 <style scoped>
-.card {
-  display: block;
-  padding: 1rem;
-  border-radius: 1.25rem;
-  border: 1px solid rgb(51 65 85);
-  background: rgba(15, 23, 42, 0.6);
-  position: relative;
+/* CSS Custom Properties pre konzistentné hodnoty */
+:root {
+  --border-radius-sm: 0.75rem;
+  --border-radius-md: 0.9rem;
+  --border-radius-lg: 1rem;
+  --border-radius-xl: 1.25rem;
+  --border-radius-full: 9999px;
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 0.75rem;
+  --spacing-lg: 1rem;
+  --spacing-xl: 1.5rem;
+  --spacing-2xl: 2rem;
+  --transition-fast: 0.15s;
+  --transition-normal: 0.2s;
+  --transition-slow: 0.3s;
 }
-.card:hover {
-  border-color: rgb(99 102 241);
-}
-.badge {
-  font-size: 0.75rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
-  background: rgba(99, 102, 241, 0.15);
-  color: rgb(199, 210, 254);
-  border: 1px solid rgba(99, 102, 241, 0.35);
-}
-.filterbtn {
-  padding: 0.4rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid rgb(51 65 85);
-  background: rgba(15, 23, 42, 0.5);
-  color: rgb(203 213 225);
-  font-size: 0.875rem;
-}
-.filterbtn.active {
-  border-color: rgb(99 102 241);
-  color: white;
-}
-.favbtn {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  border: 1px solid rgb(51 65 85);
-  background: rgba(15, 23, 42, 0.5);
-  color: rgb(199, 210, 254);
+
+/* Filter Buttons */
+.filter-btn {
   display: inline-flex;
   align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--border-radius-full);
+  border: 1px solid rgba(var(--color-text-secondary-rgb), 0.3);
+  background: rgba(var(--color-bg-rgb), 0.6);
+  color: var(--color-surface);
+  font-weight: 500;
+  transition: all var(--transition-slow) ease-out;
+  backdrop-filter: blur(10px);
+}
+
+.filter-btn:hover {
+  transform: scale(1.05);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.filter-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.filter-btn.active {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: linear-gradient(to right, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2));
+  color: #93c5fd;
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2);
+}
+
+.filter-btn .icon {
+  font-size: 1.125rem;
+}
+
+/* Event Cards */
+.event-card {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--border-radius-lg);
+  border: 1px solid rgba(var(--color-text-secondary-rgb), 0.2);
+  background: linear-gradient(to bottom right, rgba(var(--color-bg-rgb), 0.8), rgba(var(--color-bg-rgb), 0.4));
+  backdrop-filter: blur(12px);
+  transition: all var(--transition-slow) ease-out;
+  text-decoration: none;
+}
+
+.event-card:hover {
+  transform: scale(1.02);
+  box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.event-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom right, rgba(59, 130, 246, 0.05), rgba(147, 51, 234, 0.05));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.event-card:hover::before {
+  opacity: 1;
+}
+
+.card-content {
+  position: relative;
+  padding: var(--spacing-xl);
+}
+
+/* Type Badge */
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--border-radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: linear-gradient(to right, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2));
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Favorite Button */
+.favorite-btn {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--color-text-secondary-rgb), 0.3);
+  background: rgba(var(--color-bg-rgb), 0.6);
+  display: flex;
+  align-items: center;
   justify-content: center;
-  line-height: 1;
-  font-size: 1.05rem;
+  transition: all var(--transition-slow) ease-out;
+  cursor: pointer;
 }
-.favbtn:hover {
-  border-color: rgb(99 102 241);
-  color: white;
+
+.favorite-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.1);
 }
-.favbtn:disabled {
-  opacity: 0.6;
+
+.favorite-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.favorite-btn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
+  transform: scale(1);
+  border-color: rgba(var(--color-text-secondary-rgb), 0.3);
+}
+
+/* Line Clamp Utility */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-clamp: 3; /* Štandardná definícia pre kompatibilitu */
+}
+
+/* Responsive Grid */
+@media (max-width: 640px) {
+  .event-card {
+    border-radius: var(--border-radius-sm);
+  }
+  
+  .card-content {
+    padding: var(--spacing-lg);
+  }
+}
+
+/* Loading Animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Glassmorphism Effects */
+.backdrop-blur-md {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Custom Scrollbar */
+.event-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.event-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.event-card::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 3px;
+}
+
+.event-card::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.5);
 }
 </style>
-
-

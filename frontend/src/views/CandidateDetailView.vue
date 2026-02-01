@@ -83,7 +83,7 @@ onMounted(load);
       <div>
         <button
           @click="router.back()"
-          style="padding:8px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:transparent; color:inherit;"
+          style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
         >
           ← Back
         </button>
@@ -100,7 +100,7 @@ onMounted(load);
       </div>
     </div>
 
-    <div v-if="error" style="margin-top: 12px; color: #ff6b6b;">
+    <div v-if="error" style="margin-top: 12px; color: var(--color-danger);">
       {{ error }}
     </div>
     <div v-if="loading" style="margin-top: 12px; opacity: .85;">
@@ -110,7 +110,7 @@ onMounted(load);
     <div v-if="candidate && !loading" style="margin-top: 16px; display:grid; gap: 12px;">
       <!-- Meta -->
       <section
-        style="padding: 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px;"
+        style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;"
       >
         <h3 style="margin:0 0 10px;">Meta</h3>
 
@@ -129,7 +129,7 @@ onMounted(load);
 
       <!-- Time -->
       <section
-        style="padding: 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px;"
+        style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;"
       >
         <h3 style="margin:0 0 10px;">Čas</h3>
 
@@ -142,7 +142,7 @@ onMounted(load);
 
       <!-- Source -->
       <section
-        style="padding: 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px;"
+        style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;"
       >
         <h3 style="margin:0 0 10px;">Zdroj</h3>
 
@@ -160,7 +160,7 @@ onMounted(load);
 
       <!-- Review -->
       <section
-        style="padding: 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px;"
+        style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;"
       >
         <h3 style="margin:0 0 10px;">Review</h3>
 
@@ -168,7 +168,7 @@ onMounted(load);
           <button
             @click="approve"
             :disabled="!canReview()"
-            style="padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:rgba(0,255,0,.10); color:inherit;"
+            style="padding:10px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-success-rgb) / .10); color:inherit;"
           >
             Approve
           </button>
@@ -176,7 +176,7 @@ onMounted(load);
           <button
             @click="reject"
             :disabled="!canReview()"
-            style="padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:rgba(255,0,0,.10); color:inherit;"
+            style="padding:10px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-danger-rgb) / .10); color:inherit;"
           >
             Reject
           </button>
@@ -189,14 +189,14 @@ onMounted(load);
 
       <!-- Raw payload -->
       <section
-        style="padding: 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px;"
+        style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;"
       >
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
           <h3 style="margin:0;">Raw payload</h3>
 
           <button
             @click="showRaw = !showRaw"
-            style="padding:8px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.08); color:inherit;"
+            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
           >
             {{ showRaw ? "Hide" : "Show" }}
           </button>
@@ -208,7 +208,7 @@ onMounted(load);
 
         <pre
           v-if="showRaw"
-          style="margin-top:10px; white-space:pre-wrap; max-height:320px; overflow:auto; border:1px solid rgba(255,255,255,.18); border-radius:10px; padding:10px;"
+          style="margin-top:10px; white-space:pre-wrap; max-height:320px; overflow:auto; border:1px solid rgb(var(--color-surface-rgb) / .18); border-radius:10px; padding:10px;"
         >{{ candidate.raw_payload ?? "" }}</pre>
       </section>
     </div>

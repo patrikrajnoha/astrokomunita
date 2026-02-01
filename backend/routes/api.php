@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventEmailAlertController;
+use App\Http\Controllers\Api\EventCalendarController;
+use App\Http\Controllers\Api\EventReminderController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
@@ -13,12 +15,21 @@ use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\BlogPostController;
 use App\Http\Controllers\Api\BlogTagController;
 use App\Http\Controllers\Api\BlogPostCommentController;
+use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\NasaIotdController;
 
 use App\Http\Controllers\Api\Admin\EventCandidateController;
 use App\Http\Controllers\Api\Admin\EventCandidateReviewController;
 use App\Http\Controllers\Api\Admin\EventCandidateMetaController;
 use App\Http\Controllers\Api\Admin\CrawlRunController;
 use App\Http\Controllers\Api\Admin\AdminBlogPostController;
+use App\Http\Controllers\Api\Admin\AdminUserController;
+use App\Http\Controllers\Api\Admin\AdminEventController;
+use App\Http\Controllers\Api\Admin\ManualEventController;
+use App\Http\Controllers\Api\Admin\ReportQueueController;
+use App\Http\Controllers\Api\Admin\AstroBotController;
+use App\Http\Controllers\Api\Admin\DashboardController;
+use App\Http\Controllers\CsrfTestController;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,6 +44,8 @@ Route::get('/health', function () {
     ]);
 });
 
+Route::get('/csrf-test', [CsrfTestController::class, 'test']);
+
 /*
 |--------------------------------------------------------------------------
 | DEBUG ROUTES (len local + debug)
@@ -40,7 +53,7 @@ Route::get('/health', function () {
 */
 if (app()->environment('local') && config('app.debug')) {
 
-    // 🔍 SPA / cookie debug (web + session)
+    // SPA / cookie debug (web + session)
     Route::get('/debug/auth', function () {
         return response()->json([
             'user_via_request' => request()->user(),
@@ -51,7 +64,7 @@ if (app()->environment('local') && config('app.debug')) {
         ]);
     })->middleware('web');
 
-    // 🔑 Bearer token debug
+    // Bearer token debug
     Route::get('/debug/token', function () {
         $user = request()->user();
 
@@ -73,14 +86,14 @@ if (app()->environment('local') && config('app.debug')) {
 */
 Route::middleware('web')->prefix('auth')->group(function () {
 
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login',    [AuthController::class, 'login']);
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
     Route::post('/logout', [AuthController::class, 'logout'])
-        ->middleware('auth:sanctum');
+        ->middleware(['auth:sanctum']);
 
     Route::get('/me', [AuthController::class, 'me'])
-        ->middleware('auth:sanctum');
+        ->middleware(['auth:sanctum', 'active']);
 });
 
 /*
@@ -90,7 +103,7 @@ Route::middleware('web')->prefix('auth')->group(function () {
 */
 Route::get('/user', function (Request $request) {
     return $request->user();
-})->middleware('auth:sanctum');
+})->middleware(['auth:sanctum', 'active']);
 
 /*
 |--------------------------------------------------------------------------
@@ -100,7 +113,10 @@ Route::get('/user', function (Request $request) {
 Route::get('/events',      [EventController::class, 'index']);
 Route::get('/events/next', [EventController::class, 'next']);
 Route::get('/events/{id}', [EventController::class, 'show']);
+Route::get('/events/{event}/ics', [EventCalendarController::class, 'show']);
 Route::post('/events/{event}/notify-email', [EventEmailAlertController::class, 'store']);
+
+Route::get('/nasa/iotd', [NasaIotdController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------
@@ -114,7 +130,6 @@ Route::get('/posts/{post}', [PostController::class, 'show']);
 Route::get('/users/{username}', [App\Http\Controllers\Api\UserProfileController::class, 'show']);
 Route::get('/users/{username}/posts', [App\Http\Controllers\Api\UserProfileController::class, 'posts']);
 
-
 /*
 |--------------------------------------------------------------------------
 | Blog posts (public)
@@ -125,9 +140,12 @@ Route::get('/blog-posts/{slug}/related', [BlogPostController::class, 'related'])
 Route::get('/blog-posts/{slug}', [BlogPostController::class, 'show']);
 Route::get('/blog-posts/{slug}/comments', [BlogPostCommentController::class, 'index']);
 Route::post('/blog-posts/{slug}/comments', [BlogPostCommentController::class, 'store'])
-    ->middleware('auth:sanctum');
+    ->middleware(['auth:sanctum', 'active']);
 Route::delete('/blog-posts/{slug}/comments/{comment}', [BlogPostCommentController::class, 'destroy'])
-    ->middleware('auth:sanctum');
+    ->middleware(['auth:sanctum', 'active']);
+
+Route::post('/reports', [ReportController::class, 'store'])
+    ->middleware(['auth:sanctum', 'active']);
 Route::get('/blog-tags', [BlogTagController::class, 'index']);
 
 /*
@@ -136,9 +154,11 @@ Route::get('/blog-tags', [BlogTagController::class, 'index']);
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:sanctum'])->prefix('favorites')->group(function () {
-    Route::get('/',           [FavoriteController::class, 'index']);
-    Route::post('/',          [FavoriteController::class, 'store']);
-    Route::delete('/{event}', [FavoriteController::class, 'destroy']);
+    Route::middleware('active')->group(function () {
+        Route::get('/',           [FavoriteController::class, 'index']);
+        Route::post('/',          [FavoriteController::class, 'store']);
+        Route::delete('/{event}', [FavoriteController::class, 'destroy']);
+    });
 });
 
 /*
@@ -150,11 +170,14 @@ Route::middleware(['auth:sanctum'])->prefix('favorites')->group(function () {
 |  - API token (Bearer ...)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', 'admin'])
+Route::middleware(['auth:sanctum', 'active', 'admin'])
     ->prefix('admin')
     ->group(function () {
 
-        // 📋 Kandidáti (list + detail)
+        // � Dashboard
+        Route::get('/dashboard', DashboardController::class);
+
+        // �📋 Kandidáti (list + detail)
         Route::get('/event-candidates',                  [EventCandidateController::class, 'index']);
         Route::get('/event-candidates/{eventCandidate}', [EventCandidateController::class, 'show']);
 
@@ -180,6 +203,76 @@ Route::middleware(['auth:sanctum', 'admin'])
         Route::put('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
         Route::patch('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
         Route::delete('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'destroy']);
+
+        /*
+        |----------------------------------------------------------------------
+        | Users (admin)
+        |----------------------------------------------------------------------
+        */
+        Route::get('/users', [AdminUserController::class, 'index']);
+        Route::post('/users/{id}/ban', [AdminUserController::class, 'ban']);
+        Route::post('/users/{id}/unban', [AdminUserController::class, 'unban']);
+        Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivate']);
+        Route::post('/users/{id}/reset-profile', [AdminUserController::class, 'resetProfile']);
+
+        /*
+        |----------------------------------------------------------------------
+        | Events (admin)
+        |----------------------------------------------------------------------
+        */
+        Route::get('/events', [AdminEventController::class, 'index']);
+        Route::get('/events/{event}', [AdminEventController::class, 'show']);
+        Route::post('/events', [AdminEventController::class, 'store']);
+        Route::put('/events/{event}', [AdminEventController::class, 'update']);
+
+        /*
+        |----------------------------------------------------------------------
+        | Manual event drafts (admin)
+        |----------------------------------------------------------------------
+        */
+        Route::get('/manual-events', [ManualEventController::class, 'index']);
+        Route::post('/manual-events', [ManualEventController::class, 'store']);
+        Route::put('/manual-events/{manualEvent}', [ManualEventController::class, 'update']);
+        Route::delete('/manual-events/{manualEvent}', [ManualEventController::class, 'destroy']);
+        Route::post('/manual-events/{manualEvent}/publish', [ManualEventController::class, 'publish']);
+
+        /*
+        |----------------------------------------------------------------------
+        | Reports (admin)
+        |----------------------------------------------------------------------
+        */
+        Route::get('/reports', [ReportQueueController::class, 'index']);
+        Route::post('/reports/{report}/dismiss', [ReportQueueController::class, 'dismiss']);
+        Route::post('/reports/{report}/hide', [ReportQueueController::class, 'hide']);
+        Route::post('/reports/{report}/delete', [ReportQueueController::class, 'delete']);
+        Route::post('/reports/{report}/warn', [ReportQueueController::class, 'warn']);
+        Route::post('/reports/{report}/ban', [ReportQueueController::class, 'ban']);
+
+        /*
+        |--------------------------------------------------------------------------
+        | AstroBot Admin (RSS pipeline)
+        |--------------------------------------------------------------------------
+        */
+        Route::prefix('astrobot')->middleware('throttle:10,1')->group(function () {
+            // RSS items management
+            Route::get('/items', [AstroBotController::class, 'items']);
+            Route::post('/fetch', [AstroBotController::class, 'fetch']);
+            Route::put('/items/{id}', [AstroBotController::class, 'update']);
+            Route::post('/items/{id}/approve', [AstroBotController::class, 'approve']);
+            Route::post('/items/{id}/publish', [AstroBotController::class, 'publish']);
+            Route::post('/items/{id}/schedule', [AstroBotController::class, 'schedule']);
+            Route::post('/items/{id}/discard', [AstroBotController::class, 'discard']);
+
+            // Bulk actions
+            Route::post('/bulk', [AstroBotController::class, 'bulk']);
+
+            // Published bot posts management
+            Route::get('/posts', [AstroBotController::class, 'posts']);
+            Route::delete('/posts/{id}', [AstroBotController::class, 'deletePost']);
+
+            // Manual trigger for scheduled publishing
+            Route::post('/publish-scheduled', [AstroBotController::class, 'publishScheduled']);
+        });
     });
 
 /*
@@ -188,21 +281,29 @@ Route::middleware(['auth:sanctum', 'admin'])
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::middleware('active')->group(function () {
 
-    // 👤 Profil
-    Route::patch('/profile',          [ProfileController::class, 'update']);
-    Route::patch('/profile/password', [ProfileController::class, 'changePassword']);
-    Route::delete('/profile',         [ProfileController::class, 'destroy']);
+        // 👤 Profil
+        Route::patch('/profile',          [ProfileController::class, 'update']);
+        Route::post('/profile/media',     [ProfileController::class, 'uploadMedia']);
+        Route::patch('/profile/password', [ProfileController::class, 'changePassword']);
+        Route::delete('/profile',         [ProfileController::class, 'destroy']);
 
-    /*
-    |----------------------------------------------------------------------
-    | Posts (create - auth)
-    |----------------------------------------------------------------------
-    */
-    Route::post('/posts', [PostController::class, 'store']);
-    Route::post('/posts/{post}/reply', [PostController::class, 'reply']);
-    Route::post('/posts/{post}/like', [PostController::class, 'like']);
-    Route::delete('/posts/{post}/like', [PostController::class, 'unlike']);
-    Route::delete('/posts/{post}', [PostController::class, 'destroy']);
+        /*
+        |----------------------------------------------------------------------
+        | Posts (create - auth)
+        |----------------------------------------------------------------------
+        */
+        Route::post('/posts', [PostController::class, 'store']);
+        Route::post('/posts/{post}/reply', [PostController::class, 'reply']);
+        Route::post('/posts/{post}/like', [PostController::class, 'like']);
+        Route::delete('/posts/{post}/like', [PostController::class, 'unlike']);
+        Route::delete('/posts/{post}', [PostController::class, 'destroy']);
+
+        // Event reminders
+        Route::post('/events/{event}/reminders', [EventReminderController::class, 'store']);
+        Route::get('/me/reminders', [EventReminderController::class, 'index']);
+        Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);
+    });
 });
 

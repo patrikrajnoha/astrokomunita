@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Console\Commands\ImportEventCandidates;
+use App\Console\Commands\ImportNasaNewsCommand;
+use App\Console\Commands\SendEventReminders;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -14,6 +16,8 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->commands([
             ImportEventCandidates::class,
+            ImportNasaNewsCommand::class,
+            SendEventReminders::class,
         ]);
     }
 

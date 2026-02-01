@@ -1,8 +1,8 @@
 <template>
-  <div class="max-w-md mx-auto space-y-6">
+  <div class="max-w-md mx-auto min-h-[70vh] flex flex-col justify-center space-y-6">
     <header>
-      <h1 class="text-2xl font-bold text-indigo-400">Registrácia</h1>
-      <p class="mt-1 text-slate-300 text-sm">
+      <h1 class="text-2xl font-semibold text-[var(--color-surface)]">Registrácia</h1>
+      <p class="mt-1 text-[var(--color-text-secondary)] text-sm">
         Vytvor si účet (dev režim).
       </p>
     </header>
@@ -36,7 +36,7 @@
         {{ auth.loading ? 'Registrujem…' : 'Zaregistrovať' }}
       </button>
 
-      <p class="text-sm text-slate-300">
+      <p class="text-sm text-[var(--color-text-secondary)]">
         Už máš účet?
         <router-link class="link" :to="loginLink">Prihlás sa</router-link>
       </p>
@@ -94,40 +94,42 @@ const submit = async () => {
 
 <style scoped>
 .card {
-  padding: 1rem;
+  padding: 1.25rem;
   border-radius: 1.25rem;
-  border: 1px solid rgb(51 65 85);
-  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  background: rgb(var(--color-bg-rgb) / 0.6);
+  box-shadow: 0 18px 36px rgb(var(--color-bg-rgb) / 0.35);
 }
 .field { display: grid; gap: 0.35rem; }
-.label { color: rgb(203 213 225); font-size: 0.875rem; }
+.label { color: var(--color-text-secondary); font-size: 0.85rem; }
 .input {
   width: 100%;
-  padding: 0.6rem 0.75rem;
+  padding: 0.65rem 0.85rem;
   border-radius: 0.9rem;
-  border: 1px solid rgb(51 65 85);
-  background: rgba(15, 23, 42, 0.4);
-  color: white;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  background: rgb(var(--color-bg-rgb) / 0.4);
+  color: var(--color-surface);
 }
-.input:focus { outline: none; border-color: rgb(99 102 241); }
+.input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px rgb(var(--color-primary-rgb) / 0.2); }
 .btn {
   width: 100%;
-  padding: 0.65rem 0.9rem;
+  padding: 0.7rem 0.9rem;
   border-radius: 0.9rem;
-  border: 1px solid rgb(99 102 241);
-  background: rgba(99, 102, 241, 0.15);
-  color: white;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
+  background: rgb(var(--color-primary-rgb) / 0.18);
+  color: var(--color-surface);
+  font-weight: 600;
 }
-.btn:hover { background: rgba(99, 102, 241, 0.25); }
+.btn:hover { background: rgb(var(--color-primary-rgb) / 0.25); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.link { color: rgb(129 140 248); }
+.link { color: var(--color-primary); }
 .link:hover { text-decoration: underline; }
 .alert {
   padding: 0.6rem 0.75rem;
   border-radius: 0.9rem;
-  border: 1px solid rgba(248, 113, 113, 0.35);
-  background: rgba(248, 113, 113, 0.12);
-  color: rgb(254, 202, 202);
+  border: 1px solid rgb(var(--color-danger-rgb) / 0.35);
+  background: rgb(var(--color-danger-rgb) / 0.12);
+  color: var(--color-danger);
   font-size: 0.875rem;
 }
 </style>

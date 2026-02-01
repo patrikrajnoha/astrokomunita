@@ -1,18 +1,18 @@
 <template>
   <div class="mx-auto flex w-full max-w-3xl flex-col gap-6">
     <header>
-      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
         Account
       </p>
-      <h1 class="mt-2 text-3xl font-semibold text-slate-100">Settings</h1>
-      <p class="mt-2 text-sm text-slate-300">
+      <h1 class="mt-2 text-3xl font-semibold text-[var(--color-surface)]">Settings</h1>
+      <p class="mt-2 text-sm text-[var(--color-text-secondary)]">
         Manage your account details and security.
       </p>
     </header>
 
-    <section class="rounded-2xl border border-slate-900/80 bg-slate-950/60 p-6">
-      <h2 class="text-lg font-semibold text-slate-100">Change email</h2>
-      <p class="mt-1 text-sm text-slate-400">
+    <section class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] p-6">
+      <h2 class="text-lg font-semibold text-[var(--color-surface)]">Change email</h2>
+      <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
         Update the email address associated with your account.
       </p>
 
@@ -24,7 +24,7 @@
       </div>
 
       <form class="mt-4 space-y-3" @submit.prevent="submitEmail">
-        <label class="block text-sm font-medium text-slate-200" for="settings-email">
+        <label class="block text-sm font-medium text-[var(--color-surface)]" for="settings-email">
           New email
         </label>
         <input
@@ -33,7 +33,7 @@
           type="email"
           autocomplete="email"
           placeholder="you@example.com"
-          class="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+          class="w-full rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm text-[var(--color-surface)] placeholder:text-[var(--color-surface)]0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
           :aria-invalid="emailState.fieldError ? 'true' : 'false'"
           :aria-describedby="emailState.fieldError ? 'settings-email-error' : undefined"
           :disabled="emailState.loading"
@@ -45,7 +45,7 @@
 
         <button
           type="submit"
-          class="inline-flex items-center justify-center rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-sky-400/40 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+          class="inline-flex items-center justify-center rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:border-[color:rgb(var(--color-primary-rgb)/0.4)] hover:bg-[var(--color-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
           :disabled="emailState.loading || !emailForm.email"
           aria-label="Save new email"
         >
@@ -54,9 +54,9 @@
       </form>
     </section>
 
-    <section class="rounded-2xl border border-slate-900/80 bg-slate-950/60 p-6">
-      <h2 class="text-lg font-semibold text-slate-100">Change password</h2>
-      <p class="mt-1 text-sm text-slate-400">
+    <section class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] p-6">
+      <h2 class="text-lg font-semibold text-[var(--color-surface)]">Change password</h2>
+      <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
         Set a new password for your account.
       </p>
 
@@ -68,7 +68,7 @@
       </div>
 
       <form class="mt-4 space-y-3" @submit.prevent="submitPassword">
-        <label class="block text-sm font-medium text-slate-200" for="current-password">
+        <label class="block text-sm font-medium text-[var(--color-surface)]" for="current-password">
           Current password
         </label>
         <input
@@ -77,12 +77,12 @@
           type="password"
           autocomplete="current-password"
           placeholder="••••••••"
-          class="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+          class="w-full rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm text-[var(--color-surface)] placeholder:text-[var(--color-surface)]0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
           :disabled="passwordState.loading"
           required
         />
 
-        <label class="block text-sm font-medium text-slate-200" for="new-password">
+        <label class="block text-sm font-medium text-[var(--color-surface)]" for="new-password">
           New password
         </label>
         <input
@@ -91,13 +91,13 @@
           type="password"
           autocomplete="new-password"
           placeholder="New password"
-          class="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+          class="w-full rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm text-[var(--color-surface)] placeholder:text-[var(--color-surface)]0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
           :disabled="passwordState.loading"
           required
           minlength="8"
         />
 
-        <label class="block text-sm font-medium text-slate-200" for="confirm-password">
+        <label class="block text-sm font-medium text-[var(--color-surface)]" for="confirm-password">
           Confirm new password
         </label>
         <input
@@ -106,7 +106,7 @@
           type="password"
           autocomplete="new-password"
           placeholder="Confirm new password"
-          class="w-full rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+          class="w-full rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm text-[var(--color-surface)] placeholder:text-[var(--color-surface)]0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
           :disabled="passwordState.loading"
           required
           minlength="8"
@@ -118,7 +118,7 @@
 
         <button
           type="submit"
-          class="inline-flex items-center justify-center rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-sky-400/40 hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
+          class="inline-flex items-center justify-center rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:border-[color:rgb(var(--color-primary-rgb)/0.4)] hover:bg-[var(--color-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
           :disabled="passwordState.loading"
           aria-label="Update password"
         >

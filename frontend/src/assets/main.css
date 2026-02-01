@@ -1,1 +1,19 @@
 @import "tailwindcss";
+@import "./base.css";
+
+:root {
+  --color-primary: #1da1f2;
+  --color-bg: #14171a;
+  --color-text-secondary: #657786;
+  --color-surface: #f5f8fa;
+
+  --color-primary-rgb: 29 161 242;
+  --color-bg-rgb: 20 23 26;
+  --color-text-secondary-rgb: 101 119 134;
+  --color-surface-rgb: 245 248 250;
+
+  --color-danger: #ef4444;
+  --color-danger-rgb: 239 68 68;
+  --color-success: #22c55e;
+  --color-success-rgb: 34 197 94;
+}

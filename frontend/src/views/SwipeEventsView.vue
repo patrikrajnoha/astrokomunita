@@ -1,13 +1,13 @@
 <template>
-  <main class="min-h-screen bg-black text-white">
+  <main class="min-h-screen bg-[var(--color-bg)] text-[var(--color-surface)]">
     <!-- deck -->
     <div class="mx-auto flex min-h-screen max-w-xl items-center justify-center px-4 py-10">
       <div class="relative h-[70vh] w-full max-w-[420px]">
-        <div v-if="loading" class="grid h-full place-items-center text-white/70">
+        <div v-if="loading" class="grid h-full place-items-center text-[color:rgb(var(--color-surface-rgb)/0.7)]">
           Načítavam...
         </div>
 
-        <div v-else-if="error" class="grid h-full place-items-center text-red-400">
+        <div v-else-if="error" class="grid h-full place-items-center text-[var(--color-danger)]">
           {{ error }}
         </div>
 
@@ -15,16 +15,16 @@
           <!-- next preview -->
           <div
             v-if="nextEvent"
-            class="absolute inset-0 rounded-3xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur
+            class="absolute inset-0 rounded-3xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.2)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] shadow-2xl backdrop-blur
                    translate-y-3 scale-[0.97] opacity-70"
           >
             <div class="p-6">
-              <div class="text-sm text-white/60">Ďalšia udalosť</div>
+              <div class="text-sm text-[color:rgb(var(--color-surface-rgb)/0.6)]">Ďalšia udalosť</div>
               <div class="mt-2 text-2xl font-bold leading-snug">
                 {{ nextEvent.title }}
               </div>
               <div
-                class="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1 text-xs text-white/70"
+                class="mt-3 inline-flex items-center gap-2 rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.2)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-3 py-1 text-xs text-[color:rgb(var(--color-surface-rgb)/0.7)]"
               >
                 {{ nextEvent.type }}
               </div>
@@ -34,7 +34,7 @@
           <!-- top card (swipe-enabled) -->
           <div
             v-if="currentEvent"
-            class="absolute inset-0 rounded-3xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur
+            class="absolute inset-0 rounded-3xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.2)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] shadow-2xl backdrop-blur
                    select-none touch-none"
             :style="cardStyle"
             @pointerdown="onDown"
@@ -55,7 +55,7 @@
               <!-- top meta -->
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <div class="text-xs text-white/60">Astronomická udalosť</div>
+                  <div class="text-xs text-[color:rgb(var(--color-surface-rgb)/0.6)]">Astronomická udalosť</div>
                   <h2 class="mt-2 truncate text-3xl font-extrabold leading-tight">
                     {{ currentEvent.title }}
                   </h2>
@@ -63,20 +63,20 @@
 
                 <!-- type badge -->
                 <span
-                  class="shrink-0 rounded-full bg-[#1d9bf0]/20 px-3 py-1 text-xs font-semibold text-[#1d9bf0] ring-1 ring-[#1d9bf0]/30"
+                  class="shrink-0 rounded-full bg-[color:rgb(var(--color-primary-rgb)/0.2)] px-3 py-1 text-xs font-semibold text-[var(--color-primary)] ring-1 ring-[color:rgb(var(--color-primary-rgb)/0.3)]"
                 >
                   {{ currentEvent.type }}
                 </span>
               </div>
 
               <!-- date -->
-              <div class="mt-4 text-sm text-white/70">
-                <span class="text-white/50">Max.:</span>
+              <div class="mt-4 text-sm text-[color:rgb(var(--color-surface-rgb)/0.7)]">
+                <span class="text-[color:rgb(var(--color-surface-rgb)/0.5)]">Max.:</span>
                 {{ formatDate(currentEvent.max_at) }}
               </div>
 
               <!-- description -->
-              <p class="mt-5 text-base leading-relaxed text-white/85">
+              <p class="mt-5 text-base leading-relaxed text-[color:rgb(var(--color-surface-rgb)/0.85)]">
                 {{ currentEvent.short || 'Bez krátkeho popisu.' }}
               </p>
 
@@ -86,8 +86,7 @@
               <div class="mt-6 flex items-center justify-center gap-4">
                 <!-- UNDO -->
                 <button
-                  class="grid h-14 w-14 place-items-center rounded-full bg-white/5 ring-1 ring-white/10
-                         hover:bg-white/10 active:scale-95 transition disabled:opacity-40"
+                  class="grid h-14 w-14 place-items-center rounded-full bg-[color:rgb(var(--color-bg-rgb)/0.6)] ring-1 ring-[color:rgb(var(--color-text-secondary-rgb)/0.2)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.8)] active:scale-95 transition disabled:opacity-40"
                   @click="undo"
                   :disabled="history.length === 0 || index === 0"
                   aria-label="Späť"
@@ -97,8 +96,7 @@
                 </button>
 
                 <button
-                  class="grid h-14 w-14 place-items-center rounded-full bg-white/5 ring-1 ring-white/10
-                         hover:bg-white/10 active:scale-95 transition"
+                  class="grid h-14 w-14 place-items-center rounded-full bg-[color:rgb(var(--color-bg-rgb)/0.6)] ring-1 ring-[color:rgb(var(--color-text-secondary-rgb)/0.2)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.8)] active:scale-95 transition"
                   @click="skip"
                   aria-label="Preskočiť"
                 >
@@ -106,8 +104,7 @@
                 </button>
 
                 <button
-                  class="grid h-14 w-14 place-items-center rounded-full bg-white/5 ring-1 ring-white/10
-                         hover:bg-white/10 active:scale-95 transition"
+                  class="grid h-14 w-14 place-items-center rounded-full bg-[color:rgb(var(--color-bg-rgb)/0.6)] ring-1 ring-[color:rgb(var(--color-text-secondary-rgb)/0.2)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.8)] active:scale-95 transition"
                   @click="openDetail"
                   aria-label="Detail"
                 >
@@ -115,8 +112,7 @@
                 </button>
 
                 <button
-                  class="grid h-14 w-14 place-items-center rounded-full bg-[#1d9bf0]/20 ring-1 ring-[#1d9bf0]/30
-                         hover:bg-[#1d9bf0]/30 active:scale-95 transition"
+                  class="grid h-14 w-14 place-items-center rounded-full bg-[color:rgb(var(--color-primary-rgb)/0.2)] ring-1 ring-[color:rgb(var(--color-primary-rgb)/0.3)] hover:bg-[color:rgb(var(--color-primary-rgb)/0.3)] active:scale-95 transition"
                   @click="like"
                   aria-label="Uložiť do obľúbených"
                 >
@@ -124,14 +120,14 @@
                 </button>
               </div>
 
-              <div class="mt-4 text-center text-xs text-white/50">
+              <div class="mt-4 text-center text-xs text-[color:rgb(var(--color-surface-rgb)/0.5)]">
                 {{ index + 1 }} / {{ events.length }}
               </div>
             </div>
           </div>
 
           <!-- empty -->
-          <div v-else class="grid h-[70vh] place-items-center text-white/70">
+          <div v-else class="grid h-[70vh] place-items-center text-[color:rgb(var(--color-surface-rgb)/0.7)]">
             Žiadne ďalšie udalosti.
           </div>
         </div>
@@ -180,10 +176,10 @@ const badge = computed(() => {
 })
 
 const badgeClass = computed(() => {
-  if (dx.value > 70) return 'bg-[#1d9bf0]/20 text-[#1d9bf0] ring-[#1d9bf0]/30'
-  if (dx.value < -70) return 'bg-red-500/20 text-red-300 ring-red-400/30'
-  if (dy.value < -70) return 'bg-white/10 text-white ring-white/20'
-  return 'bg-white/10 text-white ring-white/20'
+  if (dx.value > 70) return 'bg-[color:rgb(var(--color-primary-rgb)/0.2)] text-[var(--color-primary)] ring-[color:rgb(var(--color-primary-rgb)/0.3)]'
+  if (dx.value < -70) return 'bg-[color:rgb(var(--color-danger-rgb)/0.2)] text-[var(--color-danger)] ring-[color:rgb(var(--color-danger-rgb)/0.3)]'
+  if (dy.value < -70) return 'bg-[color:rgb(var(--color-bg-rgb)/0.7)] text-[var(--color-surface)] ring-[color:rgb(var(--color-text-secondary-rgb)/0.3)]'
+  return 'bg-[color:rgb(var(--color-bg-rgb)/0.7)] text-[var(--color-surface)] ring-[color:rgb(var(--color-text-secondary-rgb)/0.3)]'
 })
 
 const cardStyle = computed(() => {

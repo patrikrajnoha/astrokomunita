@@ -1,53 +1,53 @@
-﻿<template>
+<template>
   <div class="space-y-6">
     <header class="flex items-start justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-indigo-400">Detail udalosti</h1>
+        <h1 class="text-2xl font-bold text-[var(--color-primary)]">Detail udalosti</h1>
 
         <div class="mt-2 flex items-center gap-2" v-if="event">
-          <p class="text-slate-200 text-sm font-medium">
+          <p class="text-[var(--color-surface)] text-sm font-medium">
             {{ event.title }}
           </p>
 
           <span class="badge">{{ typeLabel(event.type) }}</span>
 
-          <!-- ⭐ -->
+          <!-- ? -->
           <button
             class="favbtn"
             type="button"
             :disabled="favorites.loading || !auth.isAuthed"
-            :title="auth.isAuthed ? (favorites.isFavorite(event.id) ? 'Odobra� z ob��ben�ch' : 'Prida� do ob��ben�ch') : 'Prihl�s sa pre ulo�enie ob��ben�ch'"
+            :title="auth.isAuthed ? (favorites.isFavorite(event.id) ? 'Odobra? z ob??ben?ch' : 'Prida? do ob??ben?ch') : 'Prihl?s sa pre ulo?enie ob??ben?ch'"
             @click="toggleFavorite(event.id)"
           >
-            <span v-if="favorites.isFavorite(event.id)">★</span>
-            <span v-else>☆</span>
+            <span v-if="favorites.isFavorite(event.id)">?</span>
+            <span v-else>?</span>
           </button>
         </div>
       </div>
 
-      <router-link to="/events" class="text-indigo-300 hover:underline text-sm">
-        ← späť na Udalosti
+      <router-link to="/events" class="text-[var(--color-primary)] hover:underline text-sm">
+        ‹ späť na Udalosti
       </router-link>
     </header>
 
-    <div v-if="loading" class="text-slate-300">Načítavam detail…</div>
-    <div v-else-if="error" class="text-red-300">Chyba: {{ error }}</div>
+    <div v-if="loading" class="text-[var(--color-text-secondary)]">Načítavam detail…</div>
+    <div v-else-if="error" class="text-[var(--color-danger)]">Chyba: {{ error }}</div>
 
     <section
       v-else
-      class="rounded-2xl border border-slate-700 bg-slate-900/60 p-5"
+      class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] p-5"
     >
       <div class="flex items-start justify-between gap-3">
         <div>
-          <h2 class="text-xl font-semibold text-white">
+          <h2 class="text-xl font-semibold text-[var(--color-surface)]">
             {{ event?.title || '—' }}
           </h2>
-          <p class="mt-1 text-sm text-slate-400">
+          <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
             ID: {{ event?.id ?? '—' }}
           </p>
         </div>
 
-        <!-- ⭐ aj pri názve -->
+        <!-- ? aj pri názve -->
         <button
           v-if="event"
           class="favbtn"
@@ -56,13 +56,13 @@
           :title="auth.isAuthed ? (favorites.isFavorite(event.id) ? 'Odobrať z obľúbených' : 'Pridať do obľúbených') : 'Prihlás sa pre uloženie obľúbených'"
           @click="toggleFavorite(event.id)"
         >
-          <span v-if="favorites.isFavorite(event.id)">★</span>
-          <span v-else>☆</span>
+          <span v-if="favorites.isFavorite(event.id)">?</span>
+          <span v-else>?</span>
         </button>
       </div>
 
       <!-- Hlavné info -->
-      <div class="mt-4 grid gap-3 sm:grid-cols-2 text-sm text-slate-300">
+      <div class="mt-4 grid gap-3 sm:grid-cols-2 text-sm text-[var(--color-text-secondary)]">
         <div class="info">
           <div class="label">Typ</div>
           <div class="value">{{ typeLabel(event?.type) }}</div>
@@ -100,7 +100,7 @@
       <!-- Popis -->
       <div class="mt-4">
         <div class="label">Popis</div>
-        <p class="mt-1 text-slate-200 text-sm leading-relaxed">
+        <p class="mt-1 text-[var(--color-surface)] text-sm leading-relaxed">
           {{ event?.description || event?.short || '—' }}
         </p>
       </div>
@@ -108,13 +108,13 @@
       <!-- Technické (UID/hash) -->
       <div v-if="event?.source?.uid || event?.source?.hash" class="mt-4">
         <div class="label">Technické</div>
-        <div class="mt-1 text-xs text-slate-400 space-y-1">
+        <div class="mt-1 text-xs text-[var(--color-text-secondary)] space-y-1">
           <div v-if="event?.source?.uid">
-            <span class="text-slate-500">UID:</span>
+            <span class="text-[var(--color-surface)]0">UID:</span>
             <span class="mono">{{ event.source.uid }}</span>
           </div>
           <div v-if="event?.source?.hash">
-            <span class="text-slate-500">HASH:</span>
+            <span class="text-[var(--color-surface)]0">HASH:</span>
             <span class="mono">{{ event.source.hash }}</span>
           </div>
         </div>
@@ -136,7 +136,7 @@
       </div>
       <div v-if="!auth.isAuthed" class="mt-4">
         <div class="label">Upozornenie emailom</div>
-        <p class="text-slate-400 text-sm">
+        <p class="text-[var(--color-text-secondary)] text-sm">
           Neprihláseným pošleme upozornenie k tejto udalosti.
         </p>
         <div class="mt-2 flex flex-wrap gap-2">
@@ -194,7 +194,7 @@ export default {
       try {
         const res = await api.get(`/events/${this.eventId}`)
 
-        // ✅ EventResource často vracia { data: {...} }
+        // ? EventResource často vracia { data: {...} }
         const payload = res.data?.data ?? res.data
         this.event = payload
       } catch (err) {
@@ -251,7 +251,21 @@ export default {
     },
 
     addToCalendar() {
-      alert('MVP: neskôr napojíme na kalendár.')
+      if (!this.event) return
+      const date = this.event.start_at || this.event.max_at || this.event.end_at
+      const ymd = date ? this.toYMD(date) : null
+      this.$router.push({
+        name: 'calendar',
+        query: ymd ? { date: ymd } : {},
+      })
+    },
+    toYMD(value) {
+      const d = new Date(value)
+      if (isNaN(d.getTime())) return null
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
     },
   },
 
@@ -273,26 +287,26 @@ export default {
 .actionbtn {
   padding: 0.6rem 0.9rem;
   border-radius: 0.9rem;
-  border: 1px solid rgb(99 102 241);
-  background: rgba(99, 102, 241, 0.15);
-  color: white;
+  border: 1px solid var(--color-primary);
+  background: rgb(var(--color-primary-rgb) / 0.15);
+  color: var(--color-surface);
 }
 .actionbtn:hover {
-  background: rgba(99, 102, 241, 0.25);
+  background: rgb(var(--color-primary-rgb) / 0.25);
 }
 .actionbtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-/* ⭐ */
+/* ? */
 .favbtn {
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 999px;
-  border: 1px solid rgb(51 65 85);
-  background: rgba(15, 23, 42, 0.5);
-  color: rgb(199, 210, 254);
+  border: 1px solid var(--color-text-secondary);
+  background: rgb(var(--color-bg-rgb) / 0.5);
+  color: var(--color-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -300,8 +314,8 @@ export default {
   font-size: 1.15rem;
 }
 .favbtn:hover {
-  border-color: rgb(99 102 241);
-  color: white;
+  border-color: var(--color-primary);
+  color: var(--color-surface);
 }
 .favbtn:disabled {
   opacity: 0.6;
@@ -312,25 +326,25 @@ export default {
   font-size: 0.75rem;
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
-  background: rgba(99, 102, 241, 0.15);
-  color: rgb(199, 210, 254);
-  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.15);
+  color: var(--color-primary);
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.35);
 }
 
 .label {
-  color: rgb(148 163 184);
+  color: var(--color-text-secondary);
   font-size: 0.8rem;
   margin-bottom: 0.15rem;
 }
 .value {
-  color: rgb(226 232 240);
+  color: var(--color-surface);
 }
 
 .info {
-  border: 1px solid rgba(51, 65, 85, 0.6);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
   border-radius: 0.9rem;
   padding: 0.65rem 0.75rem;
-  background: rgba(15, 23, 42, 0.35);
+  background: rgb(var(--color-bg-rgb) / 0.35);
 }
 
 .mono {

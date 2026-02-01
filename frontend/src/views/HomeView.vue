@@ -1,109 +1,119 @@
 <template>
-  <div class="space-y-8">
-    <!-- Header -->
-    <header class="flex items-start justify-between gap-4">
-      <div>
-        <h1 class="title">
-          Astro<span class="titleAccent">komunita</span>
-        </h1>
-        <p class="subtitle">
-          Najbližšia astronomická udalosť a komunitný feed.
-        </p>
-      </div>
+  <div class="homeLayout">
+    <section class="centerCol">
+      <PostComposer
+        v-if="auth?.isAuthed"
+        @created="onPostCreated"
+      />
 
-      <router-link class="pill" to="/events">
-        Udalosti <span class="pillArrow">→</span>
-      </router-link>
-    </header>
-
-    <!-- HERO (najbližšia udalosť) -->
-    <section class="hero card">
-      <div class="heroBg" aria-hidden="true"></div>
-
-      <!-- Loading -->
-      <div v-if="loading" class="space-y-4">
-        <div class="flex items-start justify-between gap-4">
-          <div class="skeleton h-7 w-2/3"></div>
-          <div class="skeleton h-6 w-20 rounded-full"></div>
-        </div>
-        <div class="skeleton h-5 w-56"></div>
-        <div class="skeleton h-12 w-full"></div>
-        <div class="skeleton h-4 w-72"></div>
-
-        <div class="pt-2 flex flex-wrap gap-2">
-          <div class="skeleton h-10 w-36 rounded-xl"></div>
-          <div class="skeleton h-10 w-40 rounded-xl"></div>
-        </div>
-      </div>
-
-      <!-- Error -->
-      <div v-else-if="error" class="state stateError">
-        <div class="stateTitle">Nepodarilo sa načítať najbližšiu udalosť</div>
-        <div class="stateText">{{ error }}</div>
-        <button class="ghostbtn" @click="fetchNextEvent">Skúsiť znova</button>
-      </div>
-
-      <!-- Empty -->
-      <div v-else-if="!nextEvent" class="state">
-        <div class="stateTitle">Zatiaľ nemáme žiadnu budúcu udalosť</div>
-        <div class="stateText">Pozri udalosti alebo pridaj novú.</div>
-        <div class="pt-2 flex flex-wrap gap-2">
-          <router-link class="actionbtn" to="/events/create">Pridať udalosť</router-link>
-          <router-link class="ghostbtn" to="/events">Všetky udalosti</router-link>
-        </div>
-      </div>
-
-      <!-- Content -->
-      <div v-else class="space-y-4 relative">
-        <div class="flex items-start justify-between gap-4">
-          <div class="space-y-1">
-            <div class="kicker">Najbližšie</div>
-            <h2 class="eventTitle">{{ nextEvent.title }}</h2>
-          </div>
-
-          <span class="badge">
-            {{ iconForType(nextEvent.type) }} {{ typeLabel(nextEvent.type) }}
-          </span>
-        </div>
-
-        <div class="metaGrid">
-          <div class="metaItem">
-            <div class="metaLabel">Max</div>
-            <div class="metaValue">{{ formatDateTime(nextEvent.max_at) }}</div>
-          </div>
-
-          <div class="metaItem">
-            <div class="metaLabel">Viditeľnosť</div>
-            <div class="metaValue">
-              {{ nextEvent.visibility || '—' }}
-            </div>
-          </div>
-        </div>
-
-        <p class="eventDesc">
-          {{ nextEvent.short || '—' }}
-        </p>
-
-        <div class="pt-2 flex flex-wrap gap-2">
-          <router-link class="actionbtn" :to="`/events/${nextEvent.id}`">
-            Detail udalosti
-          </router-link>
-
-          <router-link class="ghostbtn" to="/events">
-            Všetky udalosti <span class="pillArrow">→</span>
-          </router-link>
-        </div>
-      </div>
+      <FeedList ref="feed" />
     </section>
 
-    <!-- Composer -->
-    <PostComposer
-      v-if="auth?.isAuthed"
-      @created="onPostCreated"
-    />
+    <aside class="rightCol">
+      <section class="card panel">
+        <div class="panelTitle">Najbližšia udalosť</div>
 
-    <!-- Feed -->
-    <FeedList ref="feed" />
+        <div v-if="loading" class="panelLoading">
+          <div class="skeleton h-4 w-2/3"></div>
+          <div class="skeleton h-4 w-1/2"></div>
+          <div class="skeleton h-8 w-full"></div>
+        </div>
+
+        <div v-else-if="error" class="state stateError">
+          <div class="stateTitle">Nepodarilo sa načítať</div>
+          <div class="stateText">{{ error }}</div>
+          <button class="ghostbtn" @click="fetchNextEvent">Skúsiť znova</button>
+        </div>
+
+        <div v-else-if="!nextEvent" class="state">
+          <div class="stateTitle">Zatiaľ žiadna udalosť</div>
+          <div class="stateText">Pozri kalendár alebo udalosti.</div>
+          <div class="panelActions">
+            <router-link class="ghostbtn" to="/events">Všetky udalosti</router-link>
+          </div>
+        </div>
+
+        <div v-else class="eventCard">
+          <div class="eventTitle">{{ nextEvent.title }}</div>
+          <div class="eventMeta">{{ formatDateTime(nextEvent.max_at) }}</div>
+          <router-link class="actionbtn" :to="`/events/${nextEvent.id}`">
+            Detail
+          </router-link>
+        </div>
+      </section>
+
+      <section class="card panel">
+        <div class="panelTitle">Najnovšie články</div>
+
+        <div v-if="articlesLoading" class="panelLoading">
+          <div class="skeleton h-4 w-4/5"></div>
+          <div class="skeleton h-4 w-2/3"></div>
+          <div class="skeleton h-4 w-3/4"></div>
+        </div>
+
+        <div v-else-if="articlesError" class="state stateError">
+          <div class="stateTitle">Nepodarilo sa načítať</div>
+          <div class="stateText">{{ articlesError }}</div>
+        </div>
+
+        <div v-else-if="latestArticles.length === 0" class="state">
+          <div class="stateTitle">Zatiaľ žiadne články</div>
+        </div>
+
+        <ul v-else class="articleList">
+          <li v-for="post in latestArticles" :key="post.id">
+            <router-link class="articleLink" :to="`/learn/${post.slug}`">
+              {{ post.title }}
+            </router-link>
+          </li>
+        </ul>
+      </section>
+
+      <section v-if="nasaEnabled" class="card panel">
+        <div class="panelTitle">NASA – Obrázok dňa</div>
+
+        <div v-if="nasaLoading" class="panelLoading">
+          <div class="skeleton nasaThumb"></div>
+          <div class="skeleton h-4 w-4/5"></div>
+          <div class="skeleton h-4 w-2/3"></div>
+        </div>
+
+        <div v-else-if="!nasaItem || !nasaItem.available" class="state">
+          <div class="stateText">Obrázok dňa je momentálne nedostupný</div>
+        </div>
+
+        <div v-else class="nasaCard">
+          <a
+            class="nasaImageLink"
+            :href="nasaItem.link"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <div class="nasaImageWrap">
+              <img
+                :src="nasaItem.image_url"
+                :alt="nasaItem.title"
+                loading="lazy"
+              />
+            </div>
+          </a>
+
+          <div class="nasaTitle">{{ nasaItem.title }}</div>
+          <div v-if="nasaItem.excerpt" class="nasaExcerpt">{{ nasaItem.excerpt }}</div>
+
+          <div class="panelActions">
+            <a
+              class="ghostbtn"
+              :href="nasaItem.link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Zobraziť na NASA.gov
+            </a>
+          </div>
+        </div>
+      </section>
+    </aside>
   </div>
 </template>
 
@@ -112,6 +122,7 @@ import api from '../services/api'
 import { useAuthStore } from '@/stores/auth'
 import PostComposer from '@/components/PostComposer.vue'
 import FeedList from '@/components/FeedList.vue'
+import { blogPosts } from '@/services/blogPosts'
 
 export default {
   name: 'HomeView',
@@ -122,6 +133,16 @@ export default {
       nextEvent: null,
       loading: true,
       error: null,
+      latestArticles: [],
+      articlesLoading: true,
+      articlesError: null,
+
+      nasaEnabled:
+        import.meta.env.VITE_FEATURE_NASA_IOTD !== 'false' &&
+        import.meta.env.VITE_FEATURE_NASA_IOTD !== '0',
+      nasaItem: null,
+      nasaLoading: false,
+      nasaError: null,
     }
   },
   methods: {
@@ -199,171 +220,206 @@ export default {
     onPostCreated(createdPost) {
       this.$refs.feed?.prepend?.(createdPost)
     },
+
+    async fetchLatestArticles() {
+      this.articlesLoading = true
+      this.articlesError = null
+      this.latestArticles = []
+
+      try {
+        const data = await blogPosts.listPublic({ page: 1 })
+        const rows = Array.isArray(data?.data) ? data.data : []
+        this.latestArticles = rows.slice(0, 3)
+      } catch (err) {
+        this.articlesError =
+          err?.response?.data?.message ||
+          err?.message ||
+          'Nepodarilo sa načítať články.'
+      } finally {
+        this.articlesLoading = false
+      }
+    },
+
+    async fetchNasaIotd() {
+      this.nasaLoading = true
+      this.nasaError = null
+      this.nasaItem = null
+
+      try {
+        const res = await api.get('/nasa/iotd')
+        const payload = res?.data
+
+        if (payload && payload.available) {
+          this.nasaItem = payload
+        } else {
+          this.nasaItem = null
+        }
+      } catch (err) {
+        this.nasaError =
+          err?.response?.data?.message ||
+          err?.message ||
+          'Nepodarilo sa načítať NASA Image of the Day.'
+        this.nasaItem = null
+      } finally {
+        this.nasaLoading = false
+      }
+    },
   },
   created() {
     this.fetchNextEvent()
+    this.fetchLatestArticles()
+
+    if (this.nasaEnabled) {
+      this.fetchNasaIotd()
+    }
   },
 }
 </script>
 
 <style scoped>
-.title {
-  font-size: 1.875rem;
-  line-height: 1.2;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: rgb(226 232 240);
+.homeLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1.5rem;
+  align-items: start;
 }
-.titleAccent {
-  color: rgb(129 140 248);
+
+.centerCol {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
 }
-.subtitle {
-  margin-top: 0.5rem;
-  color: rgb(148 163 184);
+
+.rightCol {
+  position: sticky;
+  top: 1.25rem;
+  align-self: start;
+  display: grid;
+  gap: 1rem;
+}
+
+@media (max-width: 1100px) {
+  .homeLayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rightCol {
+    display: none;
+  }
 }
 
 .card {
   position: relative;
-  border: 1px solid rgb(51 65 85);
-  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid var(--color-text-secondary);
+  background: rgb(var(--color-bg-rgb) / 0.55);
   border-radius: 1.5rem;
   padding: 1.25rem;
   overflow: hidden;
 }
 
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid rgb(51 65 85);
-  background: rgba(15, 23, 42, 0.35);
-  color: rgb(226 232 240);
-  font-size: 0.9rem;
-  white-space: nowrap;
-}
-.pill:hover {
-  border-color: rgb(99 102 241);
-  background: rgba(99, 102, 241, 0.08);
-}
-.pillArrow {
-  opacity: 0.85;
-}
-
-.hero {
-  padding: 1.35rem;
-}
-.heroBg {
-  position: absolute;
-  inset: -2px;
-  background:
-    radial-gradient(900px 260px at 15% 10%, rgba(99, 102, 241, 0.22), transparent 60%),
-    radial-gradient(700px 240px at 80% 0%, rgba(56, 189, 248, 0.16), transparent 55%),
-    radial-gradient(900px 320px at 50% 120%, rgba(168, 85, 247, 0.12), transparent 60%);
-  pointer-events: none;
-}
-
-.kicker {
-  font-size: 0.75rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgb(148 163 184);
-}
-.eventTitle {
-  font-size: 1.6rem;
-  font-weight: 800;
-  color: rgb(255 255 255);
-  line-height: 1.15;
-}
-
-.badge {
-  font-size: 0.78rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  background: rgba(99, 102, 241, 0.14);
-  color: rgb(199, 210, 254);
-  border: 1px solid rgba(99, 102, 241, 0.35);
-  white-space: nowrap;
-}
-
-.metaGrid {
+.panel {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
-@media (max-width: 520px) {
-  .metaGrid {
-    grid-template-columns: 1fr;
-  }
+
+.panelTitle {
+  font-weight: 800;
+  color: var(--color-surface);
+  font-size: 0.95rem;
 }
 
-.metaItem {
-  border: 1px solid rgba(51, 65, 85, 0.9);
-  background: rgba(2, 6, 23, 0.25);
-  border-radius: 1rem;
-  padding: 0.75rem 0.85rem;
-}
-.metaLabel {
-  font-size: 0.75rem;
-  color: rgb(148 163 184);
-}
-.metaValue {
-  margin-top: 0.2rem;
-  font-weight: 700;
-  color: rgb(226 232 240);
+.panelLoading {
+  display: grid;
+  gap: 0.5rem;
 }
 
-.eventDesc {
-  color: rgb(226 232 240);
-  opacity: 0.95;
-  line-height: 1.55;
+.eventCard {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.eventTitle {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-surface);
+}
+
+.eventMeta {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.panelActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.articleList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.articleLink {
+  color: var(--color-surface);
+  text-decoration: none;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.articleLink:hover {
+  color: var(--color-primary);
 }
 
 .actionbtn {
   padding: 0.6rem 0.9rem;
   border-radius: 0.9rem;
-  border: 1px solid rgb(99 102 241);
-  background: rgba(99, 102, 241, 0.16);
-  color: white;
+  border: 1px solid var(--color-primary);
+  background: rgb(var(--color-primary-rgb) / 0.16);
+  color: var(--color-surface);
 }
 .actionbtn:hover {
-  background: rgba(99, 102, 241, 0.28);
+  background: rgb(var(--color-primary-rgb) / 0.28);
 }
 
 .ghostbtn {
   padding: 0.6rem 0.9rem;
   border-radius: 0.9rem;
-  border: 1px solid rgb(51 65 85);
-  color: rgb(203 213 225);
-  background: rgba(15, 23, 42, 0.2);
+  border: 1px solid var(--color-text-secondary);
+  color: var(--color-surface);
+  background: rgb(var(--color-bg-rgb) / 0.2);
 }
 .ghostbtn:hover {
-  border-color: rgb(99 102 241);
-  color: white;
-  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--color-primary);
+  color: var(--color-surface);
+  background: rgb(var(--color-primary-rgb) / 0.08);
 }
 
 .stateTitle {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 800;
-  color: rgb(226 232 240);
+  color: var(--color-surface);
 }
 .stateText {
   margin-top: 0.35rem;
-  color: rgb(148 163 184);
+  color: var(--color-text-secondary);
 }
 .stateError .stateTitle,
 .stateError .stateText {
-  color: rgb(254 202 202);
+  color: var(--color-danger);
 }
 
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(148, 163, 184, 0.08),
-    rgba(148, 163, 184, 0.16),
-    rgba(148, 163, 184, 0.08)
+    rgb(var(--color-text-secondary-rgb) / 0.08),
+    rgb(var(--color-text-secondary-rgb) / 0.16),
+    rgb(var(--color-text-secondary-rgb) / 0.08)
   );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
@@ -372,5 +428,48 @@ export default {
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+.nasaCard {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.nasaThumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 1rem;
+}
+
+.nasaImageWrap {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+}
+
+.nasaImageWrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.nasaTitle {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--color-surface);
+  line-height: 1.25;
+}
+
+.nasaExcerpt {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  display: -webkit-box;
+  line-clamp: 3;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

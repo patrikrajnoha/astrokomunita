@@ -1,17 +1,17 @@
-﻿<template>
+<template>
   <div class="space-y-6">
     <header>
-      <h1 class="text-2xl font-bold text-indigo-400">Obľúbené</h1>
-      <p class="mt-1 text-slate-300 text-sm">
+      <h1 class="text-2xl font-bold text-[var(--color-primary)]">Obľúbené</h1>
+      <p class="mt-1 text-[var(--color-text-secondary)] text-sm">
         Udalosti, ktoré máš uložené medzi obľúbenými.
       </p>
     </header>
 
-    <div v-if="favorites.loading" class="text-slate-300">
+    <div v-if="favorites.loading" class="text-[var(--color-text-secondary)]">
       Načítavam obľúbené…
     </div>
 
-    <div v-else-if="favoriteEvents.length === 0" class="text-slate-300">
+    <div v-else-if="favoriteEvents.length === 0" class="text-[var(--color-text-secondary)]">
       Zatiaľ nemáš žiadne obľúbené udalosti.
     </div>
 
@@ -23,31 +23,31 @@
         class="card"
       >
         <div class="flex items-start justify-between gap-3">
-          <h2 class="text-lg font-semibold text-white">
+          <h2 class="text-lg font-semibold text-[var(--color-surface)]">
             {{ e.title }}
           </h2>
 
-          <!-- ⭐ -->
+          <!-- ? -->
           <button
             class="favbtn"
             type="button"
             title="Odobrať z obľúbených"
             @click.prevent.stop="toggleFavorite(e.id)"
           >
-            ★
+            ?
           </button>
         </div>
 
-        <p class="mt-2 text-sm text-slate-300">
-          <span class="text-slate-200 font-medium">Max:</span>
+        <p class="mt-2 text-sm text-[var(--color-text-secondary)]">
+          <span class="text-[var(--color-surface)] font-medium">Max:</span>
           {{ formatDateTime(e.max_at) }}
         </p>
 
-        <p class="mt-2 text-sm text-slate-300 line-clamp-2">
+        <p class="mt-2 text-sm text-[var(--color-text-secondary)] line-clamp-2">
           {{ e.short || '—' }}
         </p>
 
-        <p class="mt-3 text-xs text-slate-400">
+        <p class="mt-3 text-xs text-[var(--color-text-secondary)]">
           Viditeľnosť: {{ e.visibility || '—' }}
         </p>
       </router-link>
@@ -104,21 +104,21 @@ export default {
   display: block;
   padding: 1rem;
   border-radius: 1.25rem;
-  border: 1px solid rgb(51 65 85);
-  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--color-text-secondary);
+  background: rgb(var(--color-bg-rgb) / 0.6);
 }
 .card:hover {
-  border-color: rgb(99 102 241);
+  border-color: var(--color-primary);
 }
 
-/* ⭐ */
+/* ? */
 .favbtn {
   width: 2rem;
   height: 2rem;
   border-radius: 999px;
-  border: 1px solid rgb(51 65 85);
-  background: rgba(15, 23, 42, 0.5);
-  color: rgb(199, 210, 254);
+  border: 1px solid var(--color-text-secondary);
+  background: rgb(var(--color-bg-rgb) / 0.5);
+  color: var(--color-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -126,8 +126,8 @@ export default {
   font-size: 1.05rem;
 }
 .favbtn:hover {
-  border-color: rgb(99 102 241);
-  color: white;
+  border-color: var(--color-primary);
+  color: var(--color-surface);
 }
 </style>
 
