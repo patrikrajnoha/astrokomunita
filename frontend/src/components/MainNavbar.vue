@@ -1,21 +1,21 @@
-<template>
-  <nav class="flex h-full flex-col gap-4" aria-label="Primary navigation">
+﻿<template>
+  <nav class="flex h-full flex-col gap-5" aria-label="Primary navigation">
     <RouterLink
       to="/"
-      class="inline-flex items-center gap-3 rounded-2xl px-3 py-2 text-base font-semibold text-slate-100 transition hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+      class="inline-flex items-center gap-3 rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.45)] px-3 py-2.5 text-base font-semibold text-[var(--color-surface)] shadow-[0_12px_30px_rgb(var(--color-bg-rgb)/0.35)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.6)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
       title="Home"
       aria-label="Home"
     >
       <span
-        class="grid h-10 w-10 place-items-center rounded-2xl border border-slate-700 bg-gradient-to-br from-sky-400/30 via-slate-900/40 to-indigo-400/20 text-base shadow-lg"
+        class="grid h-10 w-10 place-items-center rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[var(--color-surface)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.45)]"
         aria-hidden="true"
       >
-        🌌
+        AK
       </span>
       <span>Astrokomunita</span>
     </RouterLink>
 
-    <div class="flex flex-col gap-1">
+    <div class="flex flex-col gap-1.5">
       <RouterLink
         v-for="item in primaryLinks"
         :key="item.to"
@@ -23,13 +23,13 @@
         custom
         v-slot="{ href, navigate, isActive }"
       >
-        <div v-if="item.isMore" ref="moreWrapperRef" class="relative">
+        <div v-if="item.isMore" ref="moreWrapperRef" class="relative mt-3 border-t border-[color:rgb(var(--color-text-secondary-rgb)/0.12)] pt-3">
           <button
             type="button"
-            class="group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+            class="group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] transition-all duration-200 ease-out hover:!text-[var(--color-surface)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.55)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
             :class="isMoreActive
-              ? 'bg-sky-500/20 text-slate-50 ring-1 ring-sky-400/40'
-              : 'text-slate-300 hover:bg-slate-900 hover:text-slate-100'"
+              ? `bg-[color:rgb(var(--color-bg-rgb)/0.65)] !text-[var(--color-surface)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.3)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+              : ''"
             :aria-expanded="isMoreOpen ? 'true' : 'false'"
             aria-controls="more-menu"
             aria-label="More"
@@ -37,19 +37,19 @@
             @click="toggleMore"
           >
             <span
-              class="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900/60 text-[0.7rem] font-semibold uppercase text-slate-300 group-hover:text-slate-100"
+              class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
               aria-hidden="true"
             >
               {{ item.icon }}
             </span>
             <span class="flex-1">{{ item.label }}</span>
-            <span class="text-xs text-slate-400" aria-hidden="true">▾</span>
+            <span class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">v</span>
           </button>
 
           <div
             v-if="isMoreOpen"
             id="more-menu"
-            class="absolute left-0 top-full z-50 mt-2 w-56 rounded-2xl border border-slate-800 bg-slate-950/95 p-2 shadow-xl"
+            class="absolute left-0 top-full z-50 mt-2 w-60 rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.92)] p-2 backdrop-blur-md ring-1 ring-[color:rgb(var(--color-text-secondary-rgb)/0.18)] shadow-[0_18px_55px_rgb(0_0_0/0.55)]"
             role="menu"
             aria-label="More options"
           >
@@ -61,15 +61,15 @@
               <a
                 :href="moreHref"
                 @click="() => { closeMore(); moreNavigate(); }"
-                class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                 :class="isMoreItemActive
-                  ? 'bg-sky-500/20 text-slate-50 ring-1 ring-sky-400/40'
-                  : 'text-slate-300 hover:bg-slate-900 hover:text-slate-100'"
+                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                  : ''"
                 role="menuitem"
                 aria-label="Settings"
               >
                 <span
-                  class="grid h-8 w-8 place-items-center rounded-lg border border-slate-800 bg-slate-900/60 text-[0.7rem] font-semibold uppercase text-slate-300"
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
                   aria-hidden="true"
                 >
                   S
@@ -86,20 +86,226 @@
               <a
                 :href="moreHref"
                 @click="() => { closeMore(); moreNavigate(); }"
-                class="mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+                class="group relative mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                 :class="isMoreItemActive
-                  ? 'bg-sky-500/20 text-slate-50 ring-1 ring-sky-400/40'
-                  : 'text-slate-300 hover:bg-slate-900 hover:text-slate-100'"
+                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                  : ''"
                 role="menuitem"
                 aria-label="Creator Studio"
               >
                 <span
-                  class="grid h-8 w-8 place-items-center rounded-lg border border-slate-800 bg-slate-900/60 text-[0.7rem] font-semibold uppercase text-slate-300"
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
                   aria-hidden="true"
                 >
                   C
                 </span>
                 <span class="flex-1">Creator Studio</span>
+              </a>
+            </RouterLink>
+          </div>
+        </div>
+        <div v-else-if="item.isAdmin" ref="adminWrapperRef" class="relative mt-3 border-t border-[color:rgb(var(--color-text-secondary-rgb)/0.12)] pt-3">
+          <button
+            type="button"
+            class="group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] transition-all duration-200 ease-out hover:!text-[var(--color-surface)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.55)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+            :class="isAdminActive
+              ? `bg-[color:rgb(var(--color-bg-rgb)/0.65)] !text-[var(--color-surface)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.3)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+              : ''"
+            :aria-expanded="isAdminOpen ? 'true' : 'false'"
+            aria-controls="admin-menu"
+            aria-label="Admin"
+            title="Admin"
+            @click="toggleAdmin"
+          >
+            <span
+              class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+              aria-hidden="true"
+            >
+              {{ item.icon }}
+            </span>
+            <span class="flex-1">{{ item.label }}</span>
+            <span class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">v</span>
+          </button>
+
+          <div
+            v-if="isAdminOpen"
+            id="admin-menu"
+            class="absolute left-0 top-full z-50 mt-2 w-60 rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.92)] p-2 backdrop-blur-md ring-1 ring-[color:rgb(var(--color-text-secondary-rgb)/0.18)] shadow-[0_18px_55px_rgb(0_0_0/0.55)]"
+            role="menu"
+            aria-label="Admin options"
+          >
+            <RouterLink
+              to="/admin/dashboard"
+              custom
+              v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
+            >
+              <a
+                :href="adminHref"
+                @click="() => { closeAdmin(); adminNavigate(); }"
+                class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+                :class="isAdminItemActive
+                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                  : ''"
+                role="menuitem"
+                aria-label="Dashboard"
+              >
+                <span
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+                  aria-hidden="true"
+                >
+                  D
+                </span>
+                <span class="flex-1">Dashboard</span>
+              </a>
+            </RouterLink>
+
+            <RouterLink
+              to="/admin/candidates"
+              custom
+              v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
+            >
+              <a
+                :href="adminHref"
+                @click="() => { closeAdmin(); adminNavigate(); }"
+                class="group relative mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+                :class="isAdminItemActive
+                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                  : ''"
+                role="menuitem"
+                aria-label="Candidates"
+              >
+                <span
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+                  aria-hidden="true"
+                >
+                  C
+                </span>
+                <span class="flex-1">Candidates</span>
+              </a>
+            </RouterLink>
+
+            <RouterLink
+              to="/admin/events"
+              custom
+              v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
+            >
+              <a
+                :href="adminHref"
+                @click="() => { closeAdmin(); adminNavigate(); }"
+                class="group relative mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+                :class="isAdminItemActive
+                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                  : ''"
+                role="menuitem"
+                aria-label="Events"
+              >
+                <span
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+                  aria-hidden="true"
+                >
+                  E
+                </span>
+                <span class="flex-1">Events</span>
+              </a>
+            </RouterLink>
+
+            <RouterLink
+              to="/admin/reports"
+              custom
+              v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
+            >
+              <a
+                :href="adminHref"
+                @click="() => { closeAdmin(); adminNavigate(); }"
+                class="group relative mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+                :class="isAdminItemActive
+                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                  : ''"
+                role="menuitem"
+                aria-label="Reports"
+              >
+                <span
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+                  aria-hidden="true"
+                >
+                  R
+                </span>
+                <span class="flex-1">Reports</span>
+              </a>
+            </RouterLink>
+
+            <RouterLink
+              to="/admin/blog-posts"
+              custom
+              v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
+            >
+              <a
+                :href="adminHref"
+                @click="() => { closeAdmin(); adminNavigate(); }"
+                class="group relative mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+                :class="isAdminItemActive
+                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                  : ''"
+                role="menuitem"
+                aria-label="Articles"
+              >
+                <span
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+                  aria-hidden="true"
+                >
+                  B
+                </span>
+                <span class="flex-1">Articles</span>
+              </a>
+            </RouterLink>
+
+            <RouterLink
+              to="/admin/users"
+              custom
+              v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
+            >
+              <a
+                :href="adminHref"
+                @click="() => { closeAdmin(); adminNavigate(); }"
+                class="group relative mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+                :class="isAdminItemActive
+                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                  : ''"
+                role="menuitem"
+                aria-label="Users"
+              >
+                <span
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+                  aria-hidden="true"
+                >
+                  U
+                </span>
+                <span class="flex-1">Users</span>
+              </a>
+            </RouterLink>
+
+            <RouterLink
+              to="/admin/astrobot"
+              custom
+              v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
+            >
+              <a
+                :href="adminHref"
+                @click="() => { closeAdmin(); adminNavigate(); }"
+                class="group relative mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+                :class="isAdminItemActive
+                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                  : ''"
+                role="menuitem"
+                aria-label="AstroBot"
+              >
+                <span
+                  class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+                  aria-hidden="true"
+                >
+                  A
+                </span>
+                <span class="flex-1">AstroBot</span>
               </a>
             </RouterLink>
           </div>
@@ -111,14 +317,14 @@
           :title="item.title || item.label"
           :aria-label="item.label"
           :class="[
-            'group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400',
+            'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
             isActive
-              ? 'bg-sky-500/20 text-slate-50 ring-1 ring-sky-400/40'
-              : 'text-slate-300 hover:bg-slate-900 hover:text-slate-100',
+              ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+              : 'text-[var(--color-surface)]',
           ]"
         >
           <span
-            class="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900/60 text-[0.7rem] font-semibold uppercase text-slate-300 group-hover:text-slate-100"
+            class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.7rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
             aria-hidden="true"
           >
             {{ item.icon }}
@@ -126,7 +332,7 @@
           <span class="flex-1">{{ item.label }}</span>
           <span
             v-if="item.badge"
-            class="rounded-full border border-sky-400/40 bg-sky-400/15 px-2 py-0.5 text-[0.65rem] font-semibold text-slate-100"
+            class="rounded-full bg-[color:rgb(var(--color-bg-rgb)/0.55)] px-2 py-0.5 text-[0.65rem] font-semibold text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)]"
           >
             {{ item.badge }}
           </span>
@@ -134,7 +340,7 @@
       </RouterLink>
     </div>
 
-    <div class="mt-auto border-t border-slate-900/80 pt-4">
+    <div class="mt-auto border-t border-[color:rgb(var(--color-text-secondary-rgb)/0.12)] pt-5">
       <template v-if="auth.user">
         <RouterLink
           to="/profile"
@@ -147,33 +353,33 @@
             title="Profile"
             aria-label="Profile"
             :class="[
-              'group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400',
+              'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
               isActive
-                ? 'bg-sky-500/20 text-slate-50 ring-1 ring-sky-400/40'
-                : 'text-slate-300 hover:bg-slate-900 hover:text-slate-100',
+                ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                : 'text-[var(--color-surface)]',
             ]"
           >
             <span
-              class="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900/60 text-sm text-slate-300 group-hover:text-slate-100"
+              class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
               aria-hidden="true"
             >
-              👤
+              L
             </span>
             <span class="flex-1">{{ auth.user.name }}</span>
           </a>
         </RouterLink>
 
         <button
-          class="mt-2 flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm font-medium text-slate-300 transition hover:border-sky-400/40 hover:bg-slate-900 hover:text-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400"
+          class="group mt-2 flex w-full items-center gap-3 rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.5)] px-3 py-2.5 text-sm font-semibold !text-[var(--color-surface)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
           title="Log out"
           aria-label="Log out"
           @click="logout"
         >
           <span
-            class="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900/60 text-sm text-slate-300"
+            class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
             aria-hidden="true"
           >
-            ⎋
+            X
           </span>
           <span class="flex-1">Logout</span>
         </button>
@@ -191,17 +397,17 @@
             title="Log in"
             aria-label="Log in"
             :class="[
-              'group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400',
+              'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
               isActive
-                ? 'bg-sky-500/20 text-slate-50 ring-1 ring-sky-400/40'
-                : 'text-slate-300 hover:bg-slate-900 hover:text-slate-100',
+                ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                : 'text-[var(--color-surface)]',
             ]"
           >
             <span
-              class="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900/60 text-sm text-slate-300 group-hover:text-slate-100"
+              class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
               aria-hidden="true"
             >
-              🔐
+              L
             </span>
             <span class="flex-1">Login</span>
           </a>
@@ -218,17 +424,17 @@
             title="Register"
             aria-label="Register"
             :class="[
-              'group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-sky-400',
+              'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
               isActive
-                ? 'bg-sky-500/20 text-slate-50 ring-1 ring-sky-400/40'
-                : 'text-slate-300 hover:bg-slate-900 hover:text-slate-100',
+                ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                : 'text-[var(--color-surface)]',
             ]"
           >
             <span
-              class="grid h-9 w-9 place-items-center rounded-xl border border-slate-800 bg-slate-900/60 text-sm text-slate-300 group-hover:text-slate-100"
+              class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
               aria-hidden="true"
             >
-              ✨
+              R
             </span>
             <span class="flex-1">Register</span>
           </a>
@@ -248,9 +454,15 @@ const router = useRouter()
 const route = useRoute()
 const isMoreOpen = ref(false)
 const moreWrapperRef = ref(null)
+const isAdminOpen = ref(false)
+const adminWrapperRef = ref(null)
 
 const isMoreActive = computed(() => {
   return route.path === '/settings' || route.path === '/creator-studio'
+})
+
+const isAdminActive = computed(() => {
+  return route.path.startsWith('/admin/')
 })
 
 const primaryLinks = computed(() => {
@@ -264,21 +476,8 @@ const primaryLinks = computed(() => {
     links.push({ to: '/observations', label: 'Observations', icon: 'P' })
   }
 
-  if (auth.user?.is_admin) {
-    links.push({
-      to: '/admin/candidates',
-      label: '🛠 Admin',
-      title: 'Event candidate approvals',
-      badge: 'Approvals',
-      icon: 'A',
-    })
-    links.push({
-      to: '/admin/blog-posts',
-      label: '📰 Articles',
-      title: 'Blog post management',
-      badge: 'Admin',
-      icon: 'C',
-    })
+  if (auth.isAdmin) {
+    links.push({ to: '/admin', label: 'Admin', icon: 'A', isAdmin: true })
   }
 
   links.push({ to: '/more', label: 'More', icon: 'M', isMore: true })
@@ -294,22 +493,31 @@ const closeMore = () => {
   isMoreOpen.value = false
 }
 
-const handleClickOutside = (event) => {
-  if (!isMoreOpen.value) {
-    return
-  }
+const toggleAdmin = () => {
+  isAdminOpen.value = !isAdminOpen.value
+}
 
+const closeAdmin = () => {
+  isAdminOpen.value = false
+}
+
+const handleClickOutside = (event) => {
   const target = event.target
   const wrapper = moreWrapperRef.value
+  const adminWrapper = adminWrapperRef.value
 
-  if (wrapper && target instanceof Node && !wrapper.contains(target)) {
+  if (isMoreOpen.value && wrapper && target instanceof Node && !wrapper.contains(target)) {
     closeMore()
+  }
+  if (isAdminOpen.value && adminWrapper && target instanceof Node && !adminWrapper.contains(target)) {
+    closeAdmin()
   }
 }
 
 const handleKeydown = (event) => {
-  if (event.key === 'Escape' && isMoreOpen.value) {
-    closeMore()
+  if (event.key === 'Escape') {
+    if (isMoreOpen.value) closeMore()
+    if (isAdminOpen.value) closeAdmin()
   }
 }
 
@@ -331,3 +539,5 @@ const logout = async () => {
   }
 }
 </script>
+
+

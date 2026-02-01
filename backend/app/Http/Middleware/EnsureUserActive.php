@@ -6,7 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class IsAdmin
+class EnsureUserActive
 {
     public function handle(Request $request, Closure $next): Response
     {
@@ -18,7 +18,7 @@ class IsAdmin
             ], 401);
         }
 
-        if (!$user->isAdmin()) {
+        if ($user->is_banned || !$user->is_active) {
             return response()->json([
                 'message' => 'Forbidden',
             ], 403);

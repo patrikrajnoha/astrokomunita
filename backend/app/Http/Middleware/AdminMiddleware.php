@@ -18,7 +18,7 @@ class AdminMiddleware
             ], 401);
         }
 
-        if (!$user->is_admin) {
+        if (!$user->isAdmin()) {
             return response()->json([
                 'message' => 'Forbidden'
             ], 403);

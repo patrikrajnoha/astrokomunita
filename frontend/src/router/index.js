@@ -94,6 +94,12 @@ const router = createRouter({
 
     // âś… ADMIN (MVP)
     {
+      path: '/admin/dashboard',
+      name: 'admin.dashboard',
+      meta: { auth: true, admin: true },
+      component: () => import('../views/AdminDashboardView.vue'),
+    },
+    {
       path: '/admin/candidates',
       name: 'admin.candidates',
       meta: { auth: true, admin: true },
@@ -110,6 +116,42 @@ const router = createRouter({
       name: 'admin.blog-posts',
       meta: { auth: true, admin: true },
       component: () => import('../views/AdminBlogPostsView.vue'),
+    },
+    {
+      path: '/admin/events',
+      name: 'admin.events',
+      meta: { auth: true, admin: true },
+      component: () => import('../views/AdminEventsView.vue'),
+    },
+    {
+      path: '/admin/events/create',
+      name: 'admin.events.create',
+      meta: { auth: true, admin: true },
+      component: () => import('../views/AdminEventFormView.vue'),
+    },
+    {
+      path: '/admin/events/:id/edit',
+      name: 'admin.events.edit',
+      meta: { auth: true, admin: true },
+      component: () => import('../views/AdminEventFormView.vue'),
+    },
+    {
+      path: '/admin/reports',
+      name: 'admin.reports',
+      meta: { auth: true, admin: true },
+      component: () => import('../views/AdminReportsView.vue'),
+    },
+    {
+      path: '/admin/users',
+      name: 'admin.users',
+      meta: { auth: true, admin: true },
+      component: () => import('../views/AdminUsersView.vue'),
+    },
+    {
+      path: '/admin/astrobot',
+      name: 'admin.astrobot',
+      meta: { auth: true, admin: true },
+      component: () => import('../views/admin/AstroBotView.vue'),
     },
 
     {
@@ -155,8 +197,7 @@ router.beforeEach(async (to) => {
 
   // 3) Admin-only: ak cesta vyĹľaduje admin a user nie je admin
   if (to.meta?.admin) {
-    // đź”§ JEDEN RIADOK NA PRISPĂ”SOBENIE podÄľa toho, ako mĂˇĹˇ usera v store:
-    const isAdmin = !!auth.user?.is_admin
+    const isAdmin = auth.isAdmin
 
     if (!isAdmin) {
       return { name: 'home' }
