@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -22,9 +23,15 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
+        'avatar_path',
+        'cover_path',
         'bio',        // Twitter-like "O mne"
         'location',   // Poloha používateľa
         'is_admin',   // Role
+        'role',
+        'is_banned',
+        'is_active',
+        'warning_count',
     ];
 
     /**
@@ -38,6 +45,16 @@ class User extends Authenticatable
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'avatar_url',
+        'cover_url',
+    ];
+
+    /**
      * The attributes that should be cast.
      *
      * @return array<string, string>
@@ -48,7 +65,40 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed', // Laravel automaticky hashne heslo
             'is_admin' => 'boolean',
+            'is_banned' => 'boolean',
+            'is_active' => 'boolean',
+            'warning_count' => 'integer',
         ];
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        $path = $this->avatar_path;
+        if (!$path) {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+        if (!$disk->exists($path)) {
+            return null;
+        }
+
+        return $disk->url($path);
+    }
+
+    public function getCoverUrlAttribute(): ?string
+    {
+        $path = $this->cover_path;
+        if (!$path) {
+            return null;
+        }
+
+        $disk = Storage::disk('public');
+        if (!$disk->exists($path)) {
+            return null;
+        }
+
+        return $disk->url($path);
     }
 
     /**
@@ -57,5 +107,15 @@ class User extends Authenticatable
     public function likedPosts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_likes');
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin' || (bool) $this->is_admin;
+    }
+
+    public function isBanned(): bool
+    {
+        return (bool) $this->is_banned;
     }
 }

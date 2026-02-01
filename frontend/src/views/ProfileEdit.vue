@@ -175,17 +175,17 @@ onMounted(async () => {
   width: 38px;
   height: 38px;
   border-radius: 999px;
-  border: 1px solid rgba(51, 65, 85, 0.8);
-  background: rgba(15, 23, 42, 0.35);
-  color: rgb(226 232 240);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.8);
+  background: rgb(var(--color-bg-rgb) / 0.35);
+  color: var(--color-surface);
 }
 
-.title { font-weight: 950; color: rgb(226 232 240); }
-.subtitle { color: rgb(148 163 184); font-size: 0.9rem; }
+.title { font-weight: 950; color: var(--color-surface); }
+.subtitle { color: var(--color-text-secondary); font-size: 0.9rem; }
 
 .card {
-  border: 1px solid rgba(51, 65, 85, 0.85);
-  background: rgba(2, 6, 23, 0.55);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.85);
+  background: rgb(var(--color-bg-rgb) / 0.55);
   border-radius: 1.25rem;
   padding: 1.1rem;
 }
@@ -195,7 +195,7 @@ onMounted(async () => {
 .field label {
   display: block;
   font-size: 0.8rem;
-  color: rgb(203 213 225);
+  color: var(--color-surface);
   margin-bottom: 0.35rem;
 }
 
@@ -203,18 +203,18 @@ onMounted(async () => {
   width: 100%;
   padding: 0.7rem 0.85rem;
   border-radius: 1rem;
-  border: 1px solid rgba(51, 65, 85, 0.9);
-  background: rgba(15, 23, 42, 0.35);
-  color: rgb(226 232 240);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.9);
+  background: rgb(var(--color-bg-rgb) / 0.35);
+  color: var(--color-surface);
   outline: none;
 }
-.input:focus { border-color: rgba(99, 102, 241, 0.9); }
+.input:focus { border-color: rgb(var(--color-primary-rgb) / 0.9); }
 
 .textarea { resize: vertical; }
 
 .hint {
   margin-top: 0.35rem;
-  color: rgb(100 116 139);
+  color: var(--color-text-secondary);
   font-size: 0.85rem;
   text-align: right;
 }
@@ -222,7 +222,7 @@ onMounted(async () => {
 .fieldErr {
   margin-top: 0.35rem;
   font-size: 0.85rem;
-  color: rgb(254 202 202);
+  color: var(--color-danger);
 }
 
 .actions {
@@ -235,25 +235,25 @@ onMounted(async () => {
 .btn {
   padding: 0.6rem 0.95rem;
   border-radius: 999px;
-  border: 1px solid rgba(99, 102, 241, 0.85);
-  background: rgba(99, 102, 241, 0.15);
-  color: white;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.85);
+  background: rgb(var(--color-primary-rgb) / 0.15);
+  color: var(--color-surface);
   font-weight: 800;
 }
-.btn:hover { background: rgba(99, 102, 241, 0.25); }
+.btn:hover { background: rgb(var(--color-primary-rgb) / 0.25); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn.ghost {
-  border-color: rgba(51, 65, 85, 0.95);
-  background: rgba(15, 23, 42, 0.2);
-  color: rgb(203 213 225);
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  background: rgb(var(--color-bg-rgb) / 0.2);
+  color: var(--color-surface);
 }
-.btn.ghost:hover { border-color: rgba(99, 102, 241, 0.85); color: white; }
+.btn.ghost:hover { border-color: rgb(var(--color-primary-rgb) / 0.85); color: var(--color-surface); }
 
 .msg { margin-bottom: 0.75rem; padding: 0.6rem 0.8rem; border-radius: 1rem; font-size: 0.95rem; }
-.msg.ok { border: 1px solid rgba(34, 197, 94, 0.45); background: rgba(34, 197, 94, 0.1); color: rgb(187 247 208); }
-.msg.err { border: 1px solid rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.1); color: rgb(254 202 202); }
+.msg.ok { border: 1px solid rgb(var(--color-success-rgb) / 0.45); background: rgb(var(--color-success-rgb) / 0.1); color: var(--color-success); }
+.msg.err { border: 1px solid rgb(var(--color-danger-rgb) / 0.45); background: rgb(var(--color-danger-rgb) / 0.1); color: var(--color-danger); }
 
-.muted { color: rgb(148 163 184); }
-.err { color: rgb(254 202 202); }
+.muted { color: var(--color-text-secondary); }
+.err { color: var(--color-danger); }
 </style>

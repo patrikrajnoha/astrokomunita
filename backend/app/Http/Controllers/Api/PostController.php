@@ -15,6 +15,7 @@ class PostController extends Controller
      * GET /api/posts
      * GET /api/posts?scope=me
      * GET /api/posts?kind=roots|replies|media
+     * GET /api/posts?source=astrobot|users
      * GET /api/posts?per_page=...
      *
      * Public community feed + optional filters.
@@ -36,10 +37,13 @@ class PostController extends Controller
         $withCounts = $request->query('with') === 'counts';
 
         $user = $request->user();
+        $isAdmin = $user?->isAdmin() ?? false;
 
         $query = Post::query()
             ->with([
-                'user:id,name,username,email,location,bio,is_admin',
+                'user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
             ])
             ->latest();
 
@@ -58,15 +62,19 @@ class PostController extends Controller
         if ($kind === 'replies') {
             $query->whereNotNull('parent_id');
             $query->with([
-                'parent.user:id,name,username,email,location,bio,is_admin',
+                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
             ]);
         } elseif ($kind === 'media') {
             $query->whereNotNull('attachment_path');
             $query->with([
-                'parent.user:id,name,username,email,location,bio,is_admin',
+                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
             ]);
         } else {
             $query->whereNull('parent_id');
+        }
+
+        if (!$request->boolean('include_hidden') || !$isAdmin) {
+            $query->where('is_hidden', false);
         }
 
         if ($request->query('scope') === 'me') {
@@ -77,6 +85,15 @@ class PostController extends Controller
             }
 
             $query->where('user_id', $user->id);
+        }
+
+        // Filter by source (e.g., astrobot, users)
+        if ($source = $request->query('source')) {
+            if ($source === 'astrobot') {
+                $query->where('source_name', 'astrobot');
+            } elseif ($source === 'users') {
+                $query->whereNull('source_name')->orWhere('source_name', '!=', 'astrobot');
+            }
         }
 
         return response()->json(
@@ -93,6 +110,13 @@ class PostController extends Controller
     public function show(Request $request, Post $post)
     {
         $viewer = $request->user();
+        $isAdmin = $viewer?->isAdmin() ?? false;
+
+        if ($post->is_hidden && !$isAdmin) {
+            return response()->json([
+                'message' => 'Not found.',
+            ], 404);
+        }
 
         // Ak niekto otvori reply URL priamo, vratime root post + cele vlakno
         $root = $post;
@@ -112,25 +136,27 @@ class PostController extends Controller
             }
         }
 
-        $root->load([
-            'user:id,name,username,email,location,bio,is_admin',
-        ]);
-        $root->loadCount('likes');
-        if ($viewer) {
-            $root->setAttribute(
-                'liked_by_me',
-                $root->likes()->where('user_id', $viewer->id)->exists()
-            );
+        if ($root->is_hidden && !$isAdmin) {
+            return response()->json([
+                'message' => 'Not found.',
+            ], 404);
         }
 
+        // Načítanie celého vlákna naraz - efektívnejšie
         $threadQuery = Post::query()
-            ->where('id', $root->id)
-            ->orWhere('root_id', $root->id)
-            ->orWhere('parent_id', $root->id) // fallback pre stare data bez root_id
+            ->where(function ($q) use ($root) {
+                $q->where('id', $root->id)
+                  ->orWhere('root_id', $root->id)
+                  ->orWhere('parent_id', $root->id); // fallback pre stare data
+            })
             ->with([
-                'user:id,name,username,email,location,bio,is_admin',
+                'user:id,name,username,email,location,bio,is_admin,avatar_path',
             ])
             ->withCount('likes');
+            
+        if (!$isAdmin) {
+            $threadQuery->where('is_hidden', false);
+        }
 
         if ($viewer) {
             $threadQuery->withExists([
@@ -140,26 +166,18 @@ class PostController extends Controller
 
         $thread = $threadQuery->orderBy('created_at')->get();
 
-        $rootId = $root->id;
-        $root->setAttribute(
-            'replies_count',
-            $thread->filter(fn ($p) => (int) $p->id !== (int) $rootId)->count()
-        );
-
-        $post->load([
-            'user:id,name,username,email,location,bio,is_admin',
-        ]);
-        $post->loadCount('likes');
-        if ($viewer) {
-            $post->setAttribute(
-                'liked_by_me',
-                $post->likes()->where('user_id', $viewer->id)->exists()
+        // Najdenie root postu v thread a pridanie counts
+        $rootPost = $thread->firstWhere('id', $root->id);
+        if ($rootPost) {
+            $rootPost->setAttribute(
+                'replies_count',
+                $thread->filter(fn ($p) => (int) $p->id !== (int) $root->id)->count()
             );
         }
 
-        // Optional nested replies (max depth 2): root.replies + reply.replies
+        // Vytvorenie štruktúry replies
         $byParent = $thread->groupBy('parent_id');
-        $nestedReplies = $byParent->get($rootId, collect())
+        $nestedReplies = $byParent->get($root->id, collect())
             ->map(function (Post $reply) use ($byParent) {
                 $reply->setRelation(
                     'replies',
@@ -171,7 +189,7 @@ class PostController extends Controller
 
         return response()->json([
             'post' => $post,
-            'root' => $root,
+            'root' => $rootPost,
             'thread' => $thread,
             'replies' => $nestedReplies,
         ]);
@@ -262,7 +280,7 @@ class PostController extends Controller
         $post = Post::create($data);
 
         $post->load([
-            'user:id,name,username,email,location,bio,is_admin',
+            'user:id,name,username,email,location,bio,is_admin,avatar_path',
         ]);
 
         return response()->json($post, 201);
@@ -331,7 +349,7 @@ class PostController extends Controller
         $reply = Post::create($data);
 
         $reply->load([
-            'user:id,name,username,email,location,bio,is_admin',
+            'user:id,name,username,email,location,bio,is_admin,avatar_path',
         ]);
 
         return response()->json($reply, 201);

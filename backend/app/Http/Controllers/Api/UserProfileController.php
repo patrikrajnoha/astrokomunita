@@ -12,7 +12,7 @@ class UserProfileController extends Controller
     public function show(string $username)
     {
         $user = User::query()
-            ->select(['id', 'name', 'username', 'bio', 'location', 'is_admin'])
+            ->select(['id', 'name', 'username', 'bio', 'location', 'is_admin', 'avatar_path', 'cover_path'])
             ->where('username', $username)
             ->first();
 
@@ -41,10 +41,11 @@ class UserProfileController extends Controller
         $kind = $request->query('kind', 'roots');
 
         $viewer = $request->user();
+        $isAdmin = $viewer?->isAdmin() ?? false;
 
         $query = Post::query()
             ->with([
-                'user:id,name,username,location,bio,is_admin',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
             ])
             ->withCount(['replies', 'likes'])
             ->latest();
@@ -58,15 +59,19 @@ class UserProfileController extends Controller
         if ($kind === 'replies') {
             $query->whereNotNull('parent_id');
             $query->with([
-                'parent.user:id,name,username,location,bio,is_admin',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
             ]);
         } elseif ($kind === 'media') {
             $query->whereNotNull('attachment_path');
             $query->with([
-                'parent.user:id,name,username,location,bio,is_admin',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
             ]);
         } else {
             $query->whereNull('parent_id');
+        }
+
+        if (!$request->boolean('include_hidden') || !$isAdmin) {
+            $query->where('is_hidden', false);
         }
 
         $query->where('user_id', $user->id);

@@ -71,6 +71,12 @@
                 <div class="fileArrow">-></div>
               </a>
             </div>
+
+            <div class="postActions">
+              <button class="replyBtn" type="button" @click="openReport(root)">
+                Report
+              </button>
+            </div>
           </div>
         </article>
 
@@ -149,9 +155,17 @@
                   </a>
                 </div>
 
-                <div v-if="r.depth === 1" class="replyActions">
-                  <button class="replyBtn" type="button" @click="toggleReplyComposer(r.id)">
+                <div class="replyActions">
+                  <button
+                    v-if="r.depth === 1"
+                    class="replyBtn"
+                    type="button"
+                    @click="toggleReplyComposer(r.id)"
+                  >
                     Reply
+                  </button>
+                  <button class="replyBtn" type="button" @click="openReport(r)">
+                    Report
                   </button>
                 </div>
 
@@ -181,9 +195,9 @@
                           <span v-if="c?.user?.location" class="dot">.</span>
                           <span v-if="c?.user?.location" class="loc">Location: {{ c.user.location }}</span>
                         </div>
-                      </div>
+                    </div>
 
-                      <div class="replyText">{{ c.content }}</div>
+                    <div class="replyText">{{ c.content }}</div>
 
                       <div v-if="c.attachment_url" class="mediaWrapSm">
                         <img
@@ -211,12 +225,40 @@
                           <div class="fileArrow">-></div>
                         </a>
                       </div>
+                      <div class="replyActions">
+                        <button class="replyBtn" type="button" @click="openReport(c)">
+                          Report
+                        </button>
+                      </div>
                     </div>
                   </article>
                 </div>
               </div>
             </article>
           </div>
+        </div>
+      </div>
+      <div v-if="reportNotice" class="reportNotice">
+        {{ reportNotice }}
+      </div>
+      <div v-if="reportTarget" class="reportBox">
+        <div class="reportTitle">Nahlásiť príspevok</div>
+        <div class="reportRow">
+          <label>Reason</label>
+          <select v-model="reportReason">
+            <option value="spam">spam</option>
+            <option value="abuse">abuse</option>
+            <option value="misinfo">misinfo</option>
+            <option value="other">other</option>
+          </select>
+        </div>
+        <div class="reportRow">
+          <label>Message (optional)</label>
+          <textarea v-model="reportMessage" rows="3" placeholder="Popis..." />
+        </div>
+        <div class="reportActions">
+          <button class="replyBtn" type="button" @click="closeReport">Cancel</button>
+          <button class="replyBtn" type="button" @click="submitReport">Submit</button>
         </div>
       </div>
     </div>
@@ -228,9 +270,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import ReplyComposer from '@/components/ReplyComposer.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 
 const post = ref(null)
 const root = ref(null)
@@ -239,6 +283,10 @@ const activeReplyId = ref(null)
 
 const loading = ref(true)
 const error = ref('')
+const reportTarget = ref(null)
+const reportReason = ref('spam')
+const reportMessage = ref('')
+const reportNotice = ref('')
 
 function openProfile(user) {
   const username = user?.username
@@ -322,6 +370,40 @@ function toggleReplyComposer(id) {
   activeReplyId.value = activeReplyId.value === id ? null : id
 }
 
+function openReport(post) {
+  if (!post?.id) return
+  reportTarget.value = post
+  reportNotice.value = ''
+}
+
+function closeReport() {
+  reportTarget.value = null
+  reportReason.value = 'spam'
+  reportMessage.value = ''
+}
+
+async function submitReport() {
+  const post = reportTarget.value
+  if (!post?.id) return
+
+  try {
+    await auth.csrf()
+    await api.post('/reports', {
+      target_id: post.id,
+      reason: reportReason.value,
+      message: reportMessage.value || null,
+    })
+    reportNotice.value = 'Thanks, we will review it.'
+  } catch (e) {
+    const status = e?.response?.status
+    if (status === 401) reportNotice.value = 'Prihlas sa.'
+    else if (status === 409) reportNotice.value = 'Už si reportoval tento post.'
+    else reportNotice.value = e?.response?.data?.message || 'Report zlyhal.'
+  } finally {
+    closeReport()
+  }
+}
+
 async function loadPost() {
   loading.value = true
   error.value = ''
@@ -389,9 +471,9 @@ const repliesCount = computed(() => {
 }
 
 .card {
-  border: 1px solid rgba(51, 65, 85, 0.75);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.75);
   border-radius: 1.6rem;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgb(var(--color-bg-rgb) / 0.55);
   padding: 1.15rem;
 }
 
@@ -403,22 +485,22 @@ const repliesCount = computed(() => {
   display: inline-flex;
   padding: 0.5rem 0.75rem;
   border-radius: 0.9rem;
-  border: 1px solid rgb(51 65 85);
-  color: rgb(203 213 225);
-  background: rgba(15, 23, 42, 0.2);
+  border: 1px solid var(--color-text-secondary);
+  color: var(--color-surface);
+  background: rgb(var(--color-bg-rgb) / 0.2);
 }
 .back:hover {
-  border-color: rgb(99 102 241);
-  color: white;
-  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--color-primary);
+  color: var(--color-surface);
+  background: rgb(var(--color-primary-rgb) / 0.08);
 }
 
 /* states */
 .loading {
-  color: rgb(148 163 184);
+  color: var(--color-text-secondary);
 }
 .error {
-  color: rgb(254 202 202);
+  color: var(--color-danger);
 }
 
 /* post layout (same as feed) */
@@ -427,9 +509,9 @@ const repliesCount = computed(() => {
   grid-template-columns: 52px 1fr;
   gap: 0.85rem;
   padding: 0.95rem;
-  border: 1px solid rgba(51, 65, 85, 0.55);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
   border-radius: 1.35rem;
-  background: rgba(2, 6, 23, 0.25);
+  background: rgb(var(--color-bg-rgb) / 0.25);
 }
 
 .avatar {
@@ -438,9 +520,9 @@ const repliesCount = computed(() => {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(99, 102, 241, 0.6);
-  background: rgba(99, 102, 241, 0.12);
-  color: white;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.6);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+  color: var(--color-surface);
   font-weight: 950;
   font-size: 0.95rem;
 }
@@ -468,12 +550,12 @@ const repliesCount = computed(() => {
 }
 
 .name {
-  color: rgb(226 232 240);
+  color: var(--color-surface);
   font-weight: 950;
 }
 
 .meta {
-  color: rgb(148 163 184);
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
   display: flex;
   flex-wrap: wrap;
@@ -484,7 +566,7 @@ const repliesCount = computed(() => {
 
 .postText {
   margin-top: 0.5rem;
-  color: rgb(226 232 240);
+  color: var(--color-surface);
   white-space: pre-wrap;
   line-height: 1.6;
   font-size: 1rem;
@@ -499,7 +581,7 @@ const repliesCount = computed(() => {
   max-height: 520px;
   object-fit: cover;
   border-radius: 1.15rem;
-  border: 1px solid rgba(51, 65, 85, 0.55);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
 }
 
 /* file */
@@ -509,9 +591,9 @@ const repliesCount = computed(() => {
   gap: 0.75rem;
   padding: 0.85rem;
   border-radius: 1.15rem;
-  border: 1px solid rgba(51, 65, 85, 0.55);
-  background: rgba(2, 6, 23, 0.25);
-  color: rgb(226 232 240);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
+  background: rgb(var(--color-bg-rgb) / 0.25);
+  color: var(--color-surface);
 }
 .fileIcon {
   width: 42px;
@@ -519,7 +601,7 @@ const repliesCount = computed(() => {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  background: rgba(99, 102, 241, 0.14);
+  background: rgb(var(--color-primary-rgb) / 0.14);
 }
 .fileInfo {
   flex: 1;
@@ -530,7 +612,7 @@ const repliesCount = computed(() => {
   font-weight: 900;
 }
 .fileName {
-  color: rgb(148 163 184);
+  color: var(--color-text-secondary);
 }
 .fileArrow {
   font-weight: 900;
@@ -545,7 +627,7 @@ const repliesCount = computed(() => {
 .replies {
   margin-top: 1rem;
   padding-top: 0.85rem;
-  border-top: 1px solid rgba(51, 65, 85, 0.45);
+  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
 }
 .repliesHead {
   display: flex;
@@ -555,18 +637,18 @@ const repliesCount = computed(() => {
   padding: 0.15rem 0.2rem 0.6rem;
 }
 .repliesTitle {
-  color: rgb(226 232 240);
+  color: var(--color-surface);
   font-weight: 950;
   font-size: 1rem;
 }
 .repliesSub {
-  color: rgb(148 163 184);
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
 }
 
 .repliesEmpty {
   padding: 0.6rem 0.25rem 0.25rem;
-  color: rgb(148 163 184);
+  color: var(--color-text-secondary);
 }
 
 .replyList {
@@ -579,9 +661,9 @@ const repliesCount = computed(() => {
   grid-template-columns: 44px 1fr;
   gap: 0.75rem;
   padding: 0.8rem;
-  border: 1px solid rgba(51, 65, 85, 0.45);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
   border-radius: 1.2rem;
-  background: rgba(2, 6, 23, 0.22);
+  background: rgb(var(--color-bg-rgb) / 0.22);
 }
 .replyChildren {
   display: grid;
@@ -589,8 +671,8 @@ const repliesCount = computed(() => {
   margin: 0.25rem 0 0.1rem 1.5rem;
 }
 .replyCardChild {
-  border-color: rgba(51, 65, 85, 0.35);
-  background: rgba(2, 6, 23, 0.18);
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.35);
+  background: rgb(var(--color-bg-rgb) / 0.18);
 }
 
 .avatarSm {
@@ -606,7 +688,7 @@ const repliesCount = computed(() => {
 
 .replyText {
   margin-top: 0.4rem;
-  color: rgb(226 232 240);
+  color: var(--color-surface);
   white-space: pre-wrap;
   line-height: 1.55;
   font-size: 0.98rem;
@@ -620,7 +702,7 @@ const repliesCount = computed(() => {
   max-height: 360px;
   object-fit: cover;
   border-radius: 1.05rem;
-  border: 1px solid rgba(51, 65, 85, 0.5);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.5);
 }
 .fileCardSm {
   padding: 0.7rem 0.75rem;
@@ -630,19 +712,86 @@ const repliesCount = computed(() => {
 .replyActions {
   margin-top: 0.5rem;
 }
+.postActions {
+  margin-top: 0.5rem;
+}
+.reportNotice {
+  margin-top: 0.75rem;
+  color: var(--color-text-secondary);
+}
+.reportBox {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
+  background: rgb(var(--color-bg-rgb) / 0.35);
+  display: grid;
+  gap: 0.6rem;
+}
+.reportTitle {
+  font-weight: 800;
+}
+.reportRow {
+  display: grid;
+  gap: 0.35rem;
+}
+.reportRow label {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+.reportRow select,
+.reportRow textarea {
+  border-radius: 0.75rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.7);
+  background: rgb(var(--color-bg-rgb) / 0.2);
+  color: inherit;
+  padding: 0.5rem 0.65rem;
+}
+.reportActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
 .replyBtn {
   padding: 0.45rem 0.7rem;
   border-radius: 0.85rem;
-  border: 1px solid rgb(51 65 85);
-  color: rgb(203 213 225);
-  background: rgba(15, 23, 42, 0.2);
+  border: 1px solid var(--color-text-secondary);
+  color: var(--color-surface);
+  background: rgb(var(--color-bg-rgb) / 0.2);
 }
 .replyBtn:hover {
-  border-color: rgb(99 102 241);
-  color: white;
-  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--color-primary);
+  color: var(--color-surface);
+  background: rgb(var(--color-primary-rgb) / 0.08);
 }
 .composerWrapSm {
   margin-top: 0.6rem;
+}
+
+@media (max-width: 480px) {
+  .wrap {
+    padding: 0 12px;
+  }
+  .card {
+    padding: 0.9rem;
+  }
+  .postCard,
+  .replyCard {
+    grid-template-columns: 44px 1fr;
+    gap: 0.6rem;
+  }
+  .avatar,
+  .avatarSm {
+    width: 40px;
+    height: 40px;
+    font-size: 0.85rem;
+  }
+  .replyCardChild {
+    margin-left: 12px;
+  }
+  .postText,
+  .replyText {
+    font-size: 0.95rem;
+  }
 }
 </style>

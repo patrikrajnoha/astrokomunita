@@ -11,8 +11,6 @@ const api = axios.create({
   // ✅ Sanctum: cookie -> header
   xsrfCookieName: 'XSRF-TOKEN',
   xsrfHeaderName: 'X-XSRF-TOKEN',
-
-  // ✅ axios v1+: pošli XSRF aj pri cross-site (5173 → 8000)
   withXSRFToken: true,
 
   headers: {

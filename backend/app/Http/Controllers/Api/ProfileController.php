@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -74,5 +75,33 @@ class ProfileController extends Controller
         $user->delete();
 
         return response()->json(['message' => 'Account deactivated.']);
+    }
+
+    public function uploadMedia(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'type' => ['required', Rule::in(['avatar', 'cover'])],
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
+        ]);
+
+        $type = $validated['type'];
+        $file = $request->file('file');
+        $disk = Storage::disk('public');
+        $directory = $type === 'avatar' ? "avatars/{$user->id}" : "covers/{$user->id}";
+        $path = $file->store($directory, 'public');
+
+        $column = $type === 'avatar' ? 'avatar_path' : 'cover_path';
+        $oldPath = $user->{$column};
+
+        $user->{$column} = $path;
+        $user->save();
+
+        if ($oldPath && $oldPath !== $path && $disk->exists($oldPath)) {
+            $disk->delete($oldPath);
+        }
+
+        return response()->json($user->fresh());
     }
 }

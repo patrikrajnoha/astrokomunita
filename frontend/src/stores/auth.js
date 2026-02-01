@@ -1,5 +1,15 @@
 import { defineStore } from 'pinia'
 import { http } from '@/lib/http'
+import axios from 'axios'
+
+// Separate axios instance for CSRF (no baseURL)
+const csrfHttp = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  withCredentials: true,
+  withXSRFToken: true,
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
+})
 
 function getCookie(name) {
   const row = document.cookie.split('; ').find((r) => r.startsWith(name + '='))
@@ -15,6 +25,7 @@ export const useAuthStore = defineStore('auth', {
 
   getters: {
     isAuthed: (s) => !!s.user,
+    isAdmin: (s) => s.user?.role === 'admin' || s.user?.is_admin,
   },
 
   actions: {
@@ -25,7 +36,7 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async csrf() {
-      await http.get('/sanctum/csrf-cookie')
+      await csrfHttp.get('/sanctum/csrf-cookie')
 
       // Edge/Windows: natvrdo nastav X-XSRF-TOKEN header z cookie
       const xsrf = getCookie('XSRF-TOKEN')
@@ -36,7 +47,7 @@ export const useAuthStore = defineStore('auth', {
 
     async fetchUser() {
       try {
-        const { data } = await http.get('/api/auth/me')
+        const { data } = await http.get('/auth/me')
         this.user = data
       } catch (e) {
         if (e?.response?.status !== 401) console.error('fetchUser error:', e)
@@ -50,7 +61,7 @@ export const useAuthStore = defineStore('auth', {
       this.loading = true
       try {
         await this.csrf()
-        await http.post('/api/auth/login', payload)
+        await http.post('/auth/login', payload)
         await this.fetchUser()
       } finally {
         this.loading = false
@@ -61,7 +72,7 @@ export const useAuthStore = defineStore('auth', {
       this.loading = true
       try {
         await this.csrf()
-        await http.post('/api/auth/register', payload)
+        await http.post('/auth/register', payload)
         await this.fetchUser()
       } finally {
         this.loading = false
@@ -72,7 +83,7 @@ export const useAuthStore = defineStore('auth', {
       this.loading = true
       try {
         await this.csrf()
-        await http.post('/api/auth/logout')
+        await http.post('/auth/logout')
       } catch {
         // 401/419 nevadí – aj tak čistíme lokálny stav
       } finally {

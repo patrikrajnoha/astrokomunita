@@ -9,7 +9,13 @@
 
     <div class="row">
       <div class="avatar">
-        <span>{{ initials }}</span>
+        <img
+          v-if="avatarUrl"
+          class="avatarImg"
+          :src="avatarUrl"
+          :alt="auth?.user?.name || 'avatar'"
+        />
+        <span v-else>{{ initials }}</span>
       </div>
 
       <div class="body">
@@ -108,6 +114,18 @@ const initials = computed(() => {
 })
 
 const remaining = computed(() => 280 - content.value.length)
+
+const avatarUrl = computed(() => {
+  const raw = auth?.user?.avatar_url || auth?.user?.avatarUrl || ''
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) return raw
+
+  const base = api?.defaults?.baseURL || ''
+  const origin = base.replace(/\/api\/?$/, '')
+
+  if (raw.startsWith('/')) return origin + raw
+  return origin + '/' + raw
+})
 
 const isSubmitDisabled = computed(() => {
   if (posting.value) return true
@@ -218,22 +236,29 @@ onBeforeUnmount(() => revokePreview())
 
 <style scoped>
 .card {
-  border: 1px solid rgb(51 65 85);
-  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid var(--color-text-secondary);
+  background: rgb(var(--color-bg-rgb) / 0.55);
   border-radius: 1.5rem;
   padding: 1.15rem;
 }
 .head { display: flex; justify-content: space-between; gap: 1rem; }
-.title { font-size: 1.05rem; font-weight: 900; color: rgb(226 232 240); }
-.sub { margin-top: 0.25rem; color: rgb(148 163 184); font-size: 0.9rem; }
+.title { font-size: 1.05rem; font-weight: 900; color: var(--color-surface); }
+.sub { margin-top: 0.25rem; color: var(--color-text-secondary); font-size: 0.9rem; }
 
 .row { display: grid; grid-template-columns: 56px 1fr; gap: 0.85rem; margin-top: 0.85rem; }
 .avatar {
   width: 56px; height: 56px; border-radius: 999px;
   display: grid; place-items: center;
-  border: 1px solid rgba(99, 102, 241, 0.6);
-  background: rgba(99, 102, 241, 0.12);
-  color: white; font-weight: 900; font-size: 1.05rem;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.6);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+  color: var(--color-surface); font-weight: 900; font-size: 1.05rem;
+  overflow: hidden;
+}
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .body { display: grid; gap: 0.6rem; }
 
@@ -241,31 +266,31 @@ onBeforeUnmount(() => revokePreview())
   width: 100%;
   padding: 0.75rem 0.85rem;
   border-radius: 1rem;
-  border: 1px solid rgba(51, 65, 85, 0.9);
-  background: rgba(2, 6, 23, 0.25);
-  color: rgb(226 232 240);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.9);
+  background: rgb(var(--color-bg-rgb) / 0.25);
+  color: var(--color-surface);
   outline: none;
   resize: vertical;
 }
-.input:focus { border-color: rgba(99, 102, 241, 0.9); }
+.input:focus { border-color: rgb(var(--color-primary-rgb) / 0.9); }
 
 .mediaCard {
   position: relative;
-  border: 1px solid rgba(51, 65, 85, 0.6);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
   border-radius: 1rem;
   overflow: hidden;
-  background: rgba(2, 6, 23, 0.25);
+  background: rgb(var(--color-bg-rgb) / 0.25);
 }
 .mediaImg { width: 100%; max-height: 360px; object-fit: cover; display: block; }
 .removeMedia {
   position: absolute; top: 10px; right: 10px;
   width: 34px; height: 34px;
   border-radius: 999px;
-  border: 1px solid rgba(51, 65, 85, 0.9);
-  background: rgba(2, 6, 23, 0.65);
-  color: rgb(226 232 240);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.9);
+  background: rgb(var(--color-bg-rgb) / 0.65);
+  color: var(--color-surface);
 }
-.removeMedia:hover { background: rgba(2, 6, 23, 0.85); }
+.removeMedia:hover { background: rgb(var(--color-bg-rgb) / 0.85); }
 .removeMedia:disabled { opacity: .6; cursor: not-allowed; }
 
 .fileChip {
@@ -273,21 +298,21 @@ onBeforeUnmount(() => revokePreview())
   gap: .75rem;
   padding: .75rem .85rem;
   border-radius: 1rem;
-  border: 1px solid rgba(51, 65, 85, 0.6);
-  background: rgba(2, 6, 23, 0.25);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
+  background: rgb(var(--color-bg-rgb) / 0.25);
 }
 .fileLeft { display: flex; align-items: center; gap: .65rem; min-width: 0; }
 .clip { opacity: .9; }
 .fileText { min-width: 0; }
-.fileName { color: rgb(226 232 240); font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 520px; }
-.fileMeta { color: rgb(148 163 184); font-size: .85rem; margin-top: .15rem; }
+.fileName { color: var(--color-surface); font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 520px; }
+.fileMeta { color: var(--color-text-secondary); font-size: .85rem; margin-top: .15rem; }
 .fileRemove {
   padding: .45rem .7rem; border-radius: .9rem;
-  border: 1px solid rgba(248, 113, 113, 0.5);
-  background: rgba(248, 113, 113, 0.12);
-  color: rgb(254 202 202);
+  border: 1px solid rgb(var(--color-danger-rgb) / 0.5);
+  background: rgb(var(--color-danger-rgb) / 0.12);
+  color: var(--color-danger);
 }
-.fileRemove:hover { background: rgba(248, 113, 113, 0.2); }
+.fileRemove:hover { background: rgb(var(--color-danger-rgb) / 0.2); }
 .fileRemove:disabled { opacity: .6; cursor: not-allowed; }
 
 .bar { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; }
@@ -296,29 +321,39 @@ onBeforeUnmount(() => revokePreview())
 
 .fileInput { display: none; }
 
-.counter { color: rgb(100 116 139); font-size: 0.85rem; }
-.counter.warn { color: rgb(251 191 36); }
-.counter.bad { color: rgb(248 113 113); }
+.counter { color: var(--color-text-secondary); font-size: 0.85rem; }
+.counter.warn { color: var(--color-primary); }
+.counter.bad { color: var(--color-danger); }
 
 .actionbtn {
   padding: 0.6rem 0.9rem;
   border-radius: 0.9rem;
-  border: 1px solid rgb(99 102 241);
-  background: rgba(99, 102, 241, 0.16);
-  color: white;
+  border: 1px solid var(--color-primary);
+  background: rgb(var(--color-primary-rgb) / 0.16);
+  color: var(--color-surface);
 }
-.actionbtn:hover { background: rgba(99, 102, 241, 0.28); }
+.actionbtn:hover { background: rgb(var(--color-primary-rgb) / 0.28); }
 .actionbtn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .ghostbtn {
   padding: 0.55rem 0.85rem;
   border-radius: 0.9rem;
-  border: 1px solid rgb(51 65 85);
-  color: rgb(203 213 225);
-  background: rgba(15, 23, 42, 0.2);
+  border: 1px solid var(--color-text-secondary);
+  color: var(--color-surface);
+  background: rgb(var(--color-bg-rgb) / 0.2);
 }
-.ghostbtn:hover { border-color: rgb(99 102 241); color: white; background: rgba(99, 102, 241, 0.08); }
+.ghostbtn:hover { border-color: var(--color-primary); color: var(--color-surface); background: rgb(var(--color-primary-rgb) / 0.08); }
 .ghostbtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-.err { color: rgb(254 202 202); font-size: .95rem; }
+.err { color: var(--color-danger); font-size: .95rem; }
+
+@media (max-width: 480px) {
+  .card { padding: 0.9rem; }
+  .row { grid-template-columns: 1fr; }
+  .avatar { width: 44px; height: 44px; font-size: 0.9rem; }
+  .bar { flex-direction: column; align-items: stretch; }
+  .left, .right { justify-content: space-between; width: 100%; }
+  .actionbtn, .ghostbtn { min-height: 44px; }
+  .fileName { max-width: 200px; }
+}
 </style>
