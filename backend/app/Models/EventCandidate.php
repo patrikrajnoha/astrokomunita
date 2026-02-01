@@ -37,6 +37,7 @@ class EventCandidate extends Model
         'status',
         'reviewed_by',
         'reviewed_at',
+        'published_event_id',
         'reject_reason',
     ];
 

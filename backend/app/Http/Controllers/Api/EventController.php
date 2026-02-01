@@ -23,12 +23,14 @@ class EventController extends Controller
         $query = Event::query()
             ->where('visibility', 1)
             ->published()
-            // ✅ iba eventy, ktoré vznikli zo schválených kandidátov
-            ->whereExists(function ($sub) {
-                $sub->selectRaw('1')
-                    ->from('event_candidates')
-                    ->whereColumn('event_candidates.published_event_id', 'events.id')
-                    ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
+            ->where(function ($sub) {
+                $sub->where('source_name', 'manual')
+                    ->orWhereExists(function ($q) {
+                        $q->selectRaw('1')
+                            ->from('event_candidates')
+                            ->whereColumn('event_candidates.published_event_id', 'events.id')
+                            ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
+                    });
             });
 
         // Filter: type
@@ -48,32 +50,45 @@ class EventController extends Controller
 
         /**
          * Filter: date range
-         * Primárne podľa start_at, fallback na max_at.
+         * PrimĂˇrne podÄľa start_at, fallback na max_at.
          */
-        if (!empty($v['from'])) {
-            $from = $v['from'];
-            $query->where(function ($sub) use ($from) {
-                $sub->where('start_at', '>=', $from)
-                    ->orWhere(function ($sub2) use ($from) {
-                        $sub2->whereNull('start_at')
-                             ->where('max_at', '>=', $from);
-                    });
-            });
+        $hasFrom = !empty($v['from']);
+        $hasTo = !empty($v['to']);
+
+        if ($hasFrom && $hasTo) {
+            $query->whereBetween('start_at', [$v['from'], $v['to']]);
+        } else {
+            if ($hasFrom) {
+                $from = $v['from'];
+                $query->where(function ($sub) use ($from) {
+                    $sub->where('start_at', '>=', $from)
+                        ->orWhere(function ($sub2) use ($from) {
+                            $sub2->whereNull('start_at')
+                                 ->where('max_at', '>=', $from);
+                        });
+                });
+            }
+
+            if ($hasTo) {
+                $to = $v['to'];
+                $query->where(function ($sub) use ($to) {
+                    $sub->where('start_at', '<=', $to)
+                        ->orWhere(function ($sub2) use ($to) {
+                            $sub2->whereNull('start_at')
+                                 ->where('max_at', '<=', $to);
+                        });
+                });
+            }
         }
 
-        if (!empty($v['to'])) {
-            $to = $v['to'];
-            $query->where(function ($sub) use ($to) {
-                $sub->where('start_at', '<=', $to)
-                    ->orWhere(function ($sub2) use ($to) {
-                        $sub2->whereNull('start_at')
-                             ->where('max_at', '<=', $to);
-                    });
-            });
-        }
-
-        // Radenie: najbližšie dopredu (start_at alebo max_at)
+        // Radenie: najbliĹľĹˇie dopredu (start_at alebo max_at)
         $query->orderByRaw('COALESCE(start_at, max_at) ASC');
+
+        if ($hasFrom && $hasTo) {
+            return EventResource::collection(
+                $query->get()
+            );
+        }
 
         $perPage = $v['per_page'] ?? 20;
 
@@ -92,15 +107,17 @@ class EventController extends Controller
         $base = Event::query()
             ->where('visibility', 1)
             ->published()
-            // ✅ iba eventy zo schválených kandidátov
-            ->whereExists(function ($sub) {
-                $sub->selectRaw('1')
-                    ->from('event_candidates')
-                    ->whereColumn('event_candidates.published_event_id', 'events.id')
-                    ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
+            ->where(function ($sub) {
+                $sub->where('source_name', 'manual')
+                    ->orWhereExists(function ($q) {
+                        $q->selectRaw('1')
+                            ->from('event_candidates')
+                            ->whereColumn('event_candidates.published_event_id', 'events.id')
+                            ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
+                    });
             });
 
-        // 1) Najbližšia budúca
+        // 1) NajbliĹľĹˇia budĂşca
         $event = (clone $base)
             ->where(function ($q) use ($now) {
                 $q->where('start_at', '>=', $now)
@@ -112,7 +129,7 @@ class EventController extends Controller
             ->orderByRaw('COALESCE(start_at, max_at) ASC')
             ->first();
 
-        // 2) Fallback: najbližšia minulá
+        // 2) Fallback: najbliĹľĹˇia minulĂˇ
         if (!$event) {
             $event = (clone $base)
                 ->orderByRaw('COALESCE(start_at, max_at) DESC')
@@ -136,12 +153,14 @@ class EventController extends Controller
         $event = Event::query()
             ->where('visibility', 1)
             ->published()
-            // ✅ iba eventy zo schválených kandidátov
-            ->whereExists(function ($sub) {
-                $sub->selectRaw('1')
-                    ->from('event_candidates')
-                    ->whereColumn('event_candidates.published_event_id', 'events.id')
-                    ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
+            ->where(function ($sub) {
+                $sub->where('source_name', 'manual')
+                    ->orWhereExists(function ($q) {
+                        $q->selectRaw('1')
+                            ->from('event_candidates')
+                            ->whereColumn('event_candidates.published_event_id', 'events.id')
+                            ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
+                    });
             })
             ->findOrFail($id);
 

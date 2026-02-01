@@ -17,6 +17,9 @@ class EventResource extends JsonResource
             'start_at' => optional($this->start_at)?->toIso8601String(),
             'end_at'   => optional($this->end_at)?->toIso8601String(),
             'max_at'   => optional($this->max_at)?->toIso8601String(),
+            'starts_at' => optional($this->start_at)?->toIso8601String(),
+            'ends_at'   => optional($this->end_at)?->toIso8601String(),
+            'all_day'   => (bool) ($this->all_day ?? false),
 
             'short' => $this->short,
             'description' => $this->description,

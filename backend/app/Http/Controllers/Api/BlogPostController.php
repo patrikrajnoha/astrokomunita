@@ -92,8 +92,21 @@ class BlogPostController extends Controller
     {
         $query = BlogPost::query()->published();
 
+        // Validácia a sanitizácia slugu
+        $slug = trim($slug);
+        if (empty($slug)) {
+            return null;
+        }
+
+        // Ak je to číslo, hľadaj podľa ID, inak podľa slugu
         if (ctype_digit($slug)) {
-            return $query->where('id', (int) $slug)->first();
+            $id = (int) $slug;
+            return $query->where('id', $id)->first();
+        }
+
+        // Ochrana proti SQL injection - povoliť len validné znaky pre slug
+        if (!preg_match('/^[a-z0-9\-_]+$/', $slug)) {
+            return null;
         }
 
         return $query->where('slug', $slug)->first();

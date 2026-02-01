@@ -68,14 +68,28 @@ class AuthController extends Controller
     private function generateUsername(string $name, string $email): string
     {
         $base = trim($name) !== '' ? $name : $email;
+        
+        // Základná sanitizácia
         $candidate = strtolower($base);
         $candidate = preg_replace('/\s+/', '_', $candidate);
-        $candidate = preg_replace('/[^a-z0-9_]+/', '', $candidate);
+        $candidate = preg_replace('/[^a-z0-9_]/', '', $candidate);
         $candidate = substr($candidate, 0, 30);
+        
+        // Ak je prázdny, použiť časť emailu
+        if ($candidate === '') {
+            $emailParts = explode('@', $email);
+            $candidate = !empty($emailParts[0]) ? $emailParts[0] : 'user';
+            $candidate = strtolower($candidate);
+            $candidate = preg_replace('/[^a-z0-9_]/', '', $candidate);
+            $candidate = substr($candidate, 0, 30);
+        }
+        
+        // Ak je stále prázdny, použiť predvolenú hodnotu
         if ($candidate === '') {
             $candidate = 'user';
         }
 
+        // Skontrolovať unikátnosť
         $username = $candidate;
         $i = 1;
         while (User::where('username', $username)->exists()) {

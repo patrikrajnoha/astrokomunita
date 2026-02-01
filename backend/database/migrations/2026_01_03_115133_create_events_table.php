@@ -18,7 +18,7 @@ public function up(): void
         $table->dateTime('max_at')->nullable();
         $table->text('short')->nullable();
         $table->longText('description')->nullable();
-        $table->string('visibility')->default('Slovensko');
+        $table->integer('visibility')->default(1);
         $table->timestamps();
     });
 }
