@@ -15,4 +15,21 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  server: {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    },
+    hmr: {
+      overlay: false
+    },
+    // Fix for 431 Request Header Fields Too Large
+    maxHeaderSize: 16384, // 16KB
+    // Increase timeout if needed
+    watch: {
+      usePolling: false,
+      interval: 100
+    }
+  }
 })

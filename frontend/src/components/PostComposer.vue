@@ -20,13 +20,35 @@
 
       <div class="body">
         <textarea
+          ref="textareaRef"
           v-model="content"
           class="input"
           rows="3"
           maxlength="280"
           placeholder="Čo sa deje na oblohe?"
           @input="onTyping"
+          @keydown="onKeydown"
+          @blur="onBlur"
         />
+
+        <!-- Hashtag autocomplete popover -->
+        <div
+          v-if="showAutocomplete && suggestions.length > 0"
+          class="autocompletePopover"
+          :style="{ top: autocompletePosition.top + 'px', left: autocompletePosition.left + 'px' }"
+        >
+          <div
+            v-for="(suggestion, index) in suggestions"
+            :key="suggestion.name"
+            class="autocompleteItem"
+            :class="{ active: selectedIndex === index }"
+            @click="selectSuggestion(suggestion)"
+            @mouseenter="selectedIndex = index"
+          >
+            <div class="suggestionName">#{{ suggestion.name }}</div>
+            <div class="suggestionCount">{{ suggestion.count }} posts</div>
+          </div>
+        </div>
 
         <!-- Media preview -->
         <div v-if="imagePreviewUrl" class="mediaCard">
@@ -83,7 +105,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, nextTick } from 'vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -103,7 +125,17 @@ const imagePreviewUrl = ref(null)
 const posting = ref(false)
 const err = ref('')
 
+// Hashtag autocomplete
+const showAutocomplete = ref(false)
+const suggestions = ref([])
+const selectedIndex = ref(0)
+const autocompletePosition = ref({ top: 0, left: 0 })
+const currentHashtagStart = ref(0)
+const debounceTimer = ref(null)
+const suggestionCache = ref(new Map())
+
 const fileInput = ref(null)
+const textareaRef = ref(null)
 
 const initials = computed(() => {
   const n = auth?.user?.name || ''
@@ -134,8 +166,136 @@ const isSubmitDisabled = computed(() => {
   return false
 })
 
-function onTyping() {
+function onTyping(event) {
   if (err.value && content.value.length <= 280) err.value = ''
+  
+  // Handle hashtag autocomplete
+  const target = event?.target
+  if (!target) return
+  
+  const cursorPos = target.selectionStart
+  const textBefore = content.value.substring(0, cursorPos)
+  
+  // Find current hashtag token
+  const hashtagMatch = textBefore.match(/#([a-zA-Z0-9_]*)$/)
+  
+  if (hashtagMatch) {
+    const query = hashtagMatch[1]
+    if (query.length >= 1) {
+      showAutocomplete.value = true
+      currentHashtagStart.value = cursorPos - hashtagMatch[0].length
+      fetchSuggestions(query)
+      updateAutocompletePosition(target)
+    } else {
+      hideAutocomplete()
+    }
+  } else {
+    hideAutocomplete()
+  }
+}
+
+function updateAutocompletePosition(textarea) {
+  const rect = textarea.getBoundingClientRect()
+  const lineHeight = 24 // Approximate line height
+  const lineHeightPx = parseInt(getComputedStyle(textarea).lineHeight) || lineHeight
+  
+  // Calculate position based on cursor position
+  const lines = content.value.substring(0, textarea.selectionStart).split('\n')
+  const currentLine = lines.length - 1
+  const charInLine = lines[lines.length - 1].length
+  
+  autocompletePosition.value = {
+    top: rect.top + window.scrollY + (currentLine * lineHeightPx) + lineHeightPx,
+    left: rect.left + window.scrollX + Math.min(charInLine * 8, rect.width - 200) // Approximate char width
+  }
+}
+
+async function fetchSuggestions(query) {
+  // Check cache first
+  if (suggestionCache.value.has(query)) {
+    suggestions.value = suggestionCache.value.get(query)
+    selectedIndex.value = 0
+    return
+  }
+
+  // Debounce API calls
+  if (debounceTimer.value) {
+    clearTimeout(debounceTimer.value)
+  }
+
+  debounceTimer.value = setTimeout(async () => {
+    try {
+      const res = await api.get(`/tags/suggest?q=${encodeURIComponent(query)}&limit=8`)
+      const data = res.data || []
+      suggestions.value = data
+      selectedIndex.value = 0
+      
+      // Cache the result
+      suggestionCache.value.set(query, data)
+    } catch (e) {
+      console.error('Failed to fetch suggestions:', e)
+      suggestions.value = []
+    }
+  }, 200)
+}
+
+function hideAutocomplete() {
+  showAutocomplete.value = false
+  suggestions.value = []
+  selectedIndex.value = 0
+}
+
+function selectSuggestion(suggestion) {
+  if (!suggestion) return
+  
+  const cursorPos = textareaRef.value?.selectionStart || content.value.length
+  const beforeHashtag = content.value.substring(0, currentHashtagStart.value)
+  const afterHashtag = content.value.substring(cursorPos)
+  
+  // Replace partial hashtag with full suggestion
+  content.value = beforeHashtag + '#' + suggestion.name + ' ' + afterHashtag
+  
+  // Update cursor position
+  nextTick(() => {
+    const newCursorPos = beforeHashtag.length + suggestion.name.length + 2 // # + space
+    if (textareaRef.value) {
+      textareaRef.value.setSelectionRange(newCursorPos, newCursorPos)
+      textareaRef.value.focus()
+    }
+  })
+  
+  hideAutocomplete()
+}
+
+function onKeydown(event) {
+  if (!showAutocomplete.value || suggestions.value.length === 0) return
+  
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault()
+      selectedIndex.value = (selectedIndex.value + 1) % suggestions.value.length
+      break
+    case 'ArrowUp':
+      event.preventDefault()
+      selectedIndex.value = selectedIndex.value === 0 ? suggestions.value.length - 1 : selectedIndex.value - 1
+      break
+    case 'Enter':
+    case 'Tab':
+      event.preventDefault()
+      if (selectedIndex.value >= 0 && selectedIndex.value < suggestions.value.length) {
+        selectSuggestion(suggestions.value[selectedIndex.value])
+      }
+      break
+    case 'Escape':
+      event.preventDefault()
+      hideAutocomplete()
+      break
+  }
+}
+
+function onBlur() {
+  // Delay hiding to allow click events on suggestions
+  setTimeout(hideAutocomplete, 200)
 }
 
 function pickFile() {
@@ -346,6 +506,44 @@ onBeforeUnmount(() => revokePreview())
 .ghostbtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .err { color: var(--color-danger); font-size: .95rem; }
+
+/* Hashtag autocomplete */
+.autocompletePopover {
+  position: fixed;
+  z-index: 1000;
+  background: var(--color-bg);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 300px;
+  overflow: hidden;
+}
+
+.autocompleteItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.autocompleteItem:hover,
+.autocompleteItem.active {
+  background: rgb(var(--color-primary-rgb) / 0.1);
+}
+
+.suggestionName {
+  color: var(--color-surface);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.suggestionCount {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
 
 @media (max-width: 480px) {
   .card { padding: 0.9rem; }
