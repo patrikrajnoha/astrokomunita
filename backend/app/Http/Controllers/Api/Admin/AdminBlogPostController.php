@@ -164,25 +164,42 @@ class AdminBlogPostController extends Controller
         $ids = [];
 
         foreach ($tags as $tagName) {
-            $name = trim($tagName);
+            // Normalize and validate tag name
+            $name = $this->normalizeTagName($tagName);
             if ($name === '') {
                 continue;
             }
 
-            $slug = Str::slug($name);
-            if ($slug === '') {
-                continue;
-            }
-
-            $tag = Tag::query()->firstOrCreate(
-                ['slug' => $slug],
-                ['name' => $name]
+            $tag = Tag::firstOrCreate(
+                ['name' => $name],
+                ['slug' => Str::slug($name)]
             );
 
             $ids[] = $tag->id;
         }
 
         $blogPost->tags()->sync(array_values(array_unique($ids)));
+    }
+
+    /**
+     * Normalize tag name to ensure it's a valid string.
+     */
+    private function normalizeTagName($name): string
+    {
+        // Cast to string and trim whitespace
+        $normalized = trim((string) $name);
+        
+        // Validate tag name is not empty
+        if (empty($normalized)) {
+            return '';
+        }
+        
+        // Ensure it's not too long (database constraint)
+        if (strlen($normalized) > 255) {
+            return '';
+        }
+        
+        return $normalized;
     }
 
     public function destroy(BlogPost $blogPost)

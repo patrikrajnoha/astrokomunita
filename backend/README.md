@@ -7,6 +7,65 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## AstroKomunita Project
+
+## Notifications System (Bachelor Thesis)
+
+### ERD (text)
+- notifications: id, user_id (FK users.id), type, data (json), read_at, created_at, updated_at
+  - indexes: (user_id, read_at), (user_id, created_at), (user_id, type)
+- notification_events: id, hash (unique), notification_id (FK notifications.id), created_at, updated_at
+
+### Use-case scenáre
+1. Post like
+   - používateľ B lajkuje post používateľa A → vznikne notifikácia typu `post_liked`
+   - deduplikácia: pre (recipient, actor, post) max 1 unread notifikácia, pri opakovaní sa len bumpne čas
+2. Event reminder
+   - scheduler nájde eventy štartujúce v okne T-60
+   - vytvorí `event_reminder` notifikáciu pre subscriberov alebo globálne pre všetkých aktívnych userov
+   - idempotencia cez `notification_events.hash`
+
+### Scheduler (lokálne)
+```powershell
+php artisan schedule:work
+```
+
+### API endpoints
+- GET /api/notifications (page, per_page)
+- GET /api/notifications/unread-count
+- POST /api/notifications/{id}/read
+- POST /api/notifications/read-all
+
+### API Testing on Windows (PowerShell)
+
+**Important:** This project runs on Windows + PowerShell. For API testing, use PowerShell commands instead of Unix-style `curl | jq`.
+
+```powershell
+# Public endpoint
+irm http://localhost:8000/api/sidebar-sections | ConvertTo-Json -Depth 10
+
+# Admin endpoint (requires auth)
+irm http://localhost:8000/api/admin/sidebar-sections -Headers @{"Authorization"="Bearer YOUR_TOKEN"} | ConvertTo-Json -Depth 10
+```
+
+📖 **Full documentation:** See `API_TESTING.md` for complete testing guide.
+
+> **Note:** In PowerShell, `curl` is an alias for `Invoke-WebRequest`, so we use `Invoke-RestMethod` (irm) for API calls.
+
+### Scheduler (local dev)
+
+For local development on Windows, run the scheduler worker in a separate terminal so AstroBot cleanup runs automatically:
+
+```powershell
+php artisan schedule:work
+```
+
+To test the purge command manually:
+
+```powershell
+php artisan astrobot:purge-old-posts --dry-run
+```
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

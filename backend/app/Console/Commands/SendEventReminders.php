@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\EventReminder;
 use App\Notifications\EventReminderNotification;
+use App\Services\NotificationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -17,6 +18,7 @@ class SendEventReminders extends Command
     public function handle(): int
     {
         $now = CarbonImmutable::now();
+        $service = app(NotificationService::class);
 
         $reminders = EventReminder::query()
             ->with(['user', 'event'])
@@ -32,6 +34,12 @@ class SendEventReminders extends Command
                 }
 
                 $reminder->user->notify(new EventReminderNotification($reminder));
+                $windowKey = 'T-' . $reminder->minutes_before;
+                $service->createEventReminder(
+                    $reminder->user_id,
+                    $reminder->event_id,
+                    $windowKey
+                );
 
                 $reminder->update([
                     'status' => 'sent',

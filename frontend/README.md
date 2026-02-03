@@ -1,6 +1,17 @@
-# .
+# AstroKomunita Frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+Vue 3 + Vite frontend for the AstroKomunita project.
+
+### API Testing (Windows PowerShell)
+
+For testing backend API endpoints from Windows, use PowerShell commands:
+
+```powershell
+# Test sidebar sections endpoint
+irm http://localhost:8000/api/sidebar-sections | ConvertTo-Json -Depth 10
+```
+
+> **Note:** Use `irm` (Invoke-RestMethod) instead of `curl` on Windows.
 
 ## Recommended IDE Setup
 
