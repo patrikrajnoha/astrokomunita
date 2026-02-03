@@ -20,3 +20,7 @@ backend/.phpunit.result.cache
 # IDE
 .vscode
 .idea
+
+# Local debug scripts
+backend/debug_astrobot.php
+backend/test-api.ps1
