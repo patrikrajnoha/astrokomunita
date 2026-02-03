@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Hashtag;
 
 class Post extends Model
 {
@@ -23,12 +24,14 @@ class Post extends Model
         'source_url',
         'source_uid',
         'source_published_at',
+        'expires_at',  // When AstroBot posts should expire
         'is_hidden',
         'hidden_reason',
         'attachment_path',
         'attachment_mime',
         'attachment_original_name',
         'attachment_size',
+        'pinned_at',
     ];
 
     protected $appends = [
@@ -42,6 +45,8 @@ class Post extends Model
         'depth' => 'integer',
         'attachment_size' => 'integer',
         'source_published_at' => 'datetime',
+        'expires_at' => 'datetime',
+        'pinned_at' => 'datetime',
         'is_hidden' => 'boolean',
     ];
 
@@ -78,6 +83,22 @@ class Post extends Model
     }
 
     /**
+     * Tags on this post.
+     */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'post_tags');
+    }
+
+    /**
+     * Hashtags on this post.
+     */
+    public function hashtags(): BelongsToMany
+    {
+        return $this->belongsToMany(Hashtag::class, 'hashtag_post');
+    }
+
+    /**
      * Root post (ak ide o reply).
      */
     public function root(): BelongsTo
@@ -106,6 +127,42 @@ class Post extends Model
     }
 
     /**
+     * Check if this post is from a bot user.
+     */
+    public function isFromBot(): bool
+    {
+        return $this->user?->isBot() ?? false;
+    }
+
+    /**
+     * Check if this post has expired (for AstroBot posts).
+     */
+    public function isExpired(): bool
+    {
+        return $this->expires_at && $this->expires_at->isPast();
+    }
+
+    /**
+     * Scope to exclude expired AstroBot posts from queries.
+     */
+    public function scopeNotExpired($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('expires_at')
+              ->orWhere('expires_at', '>', now());
+        });
+    }
+
+    /**
+     * Scope to get only expired posts for cleanup.
+     */
+    public function scopeExpired($query)
+    {
+        return $query->whereNotNull('expires_at')
+                    ->where('expires_at', '<=', now());
+    }
+
+    /**
      * Polia viditeľné v JSON (API response).
      * replies_count sa objaví pri withCount('replies').
      */
@@ -120,6 +177,8 @@ class Post extends Model
         'root_id',
         'depth',
         'content',
+        'tags',        // Hashtag tags
+        'hashtags',    // New hashtags
         'source_name',
         'source_url',
         'source_uid',
@@ -131,6 +190,8 @@ class Post extends Model
         'attachment_original_name',
         'attachment_size',
         'attachment_url',
+        'pinned_at',
+        'expires_at',
         'created_at',
         'updated_at',
         'replies_count',

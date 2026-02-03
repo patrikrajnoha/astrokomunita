@@ -7,6 +7,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
@@ -28,6 +29,7 @@ class User extends Authenticatable
         'bio',        // Twitter-like "O mne"
         'location',   // Poloha používateľa
         'is_admin',   // Role
+        'is_bot',     // Automated bot user (AstroBot)
         'role',
         'is_banned',
         'is_active',
@@ -65,6 +67,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed', // Laravel automaticky hashne heslo
             'is_admin' => 'boolean',
+            'is_bot' => 'boolean',
             'is_banned' => 'boolean',
             'is_active' => 'boolean',
             'warning_count' => 'integer',
@@ -102,11 +105,16 @@ class User extends Authenticatable
     }
 
     /**
-     * Posty, ktorĂ© pouĹľĂ­vateÄľ lajkol.
+     * Posty, ktorĂ˝ pouĹľĂ­vateÄľ lajkol.
      */
     public function likedPosts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_likes');
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
     }
 
     public function isAdmin(): bool
@@ -117,5 +125,14 @@ class User extends Authenticatable
     public function isBanned(): bool
     {
         return (bool) $this->is_banned;
+    }
+
+    /**
+     * Check if user is a bot (e.g., AstroBot).
+     * Bot users publish automated content and should not receive replies.
+     */
+    public function isBot(): bool
+    {
+        return (bool) $this->is_bot;
     }
 }

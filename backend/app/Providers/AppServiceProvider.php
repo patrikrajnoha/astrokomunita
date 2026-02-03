@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Console\Commands\ImportEventCandidates;
 use App\Console\Commands\ImportNasaNewsCommand;
 use App\Console\Commands\SendEventReminders;
+use App\Console\Commands\SendEventNotificationReminders;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -18,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
             ImportEventCandidates::class,
             ImportNasaNewsCommand::class,
             SendEventReminders::class,
+            SendEventNotificationReminders::class,
         ]);
     }
 
