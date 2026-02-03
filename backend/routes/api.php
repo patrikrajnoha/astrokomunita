@@ -8,10 +8,12 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventEmailAlertController;
 use App\Http\Controllers\Api\EventCalendarController;
 use App\Http\Controllers\Api\EventReminderController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\BlogPostController;
 use App\Http\Controllers\Api\BlogTagController;
 use App\Http\Controllers\Api\BlogPostCommentController;
@@ -29,6 +31,13 @@ use App\Http\Controllers\Api\Admin\ManualEventController;
 use App\Http\Controllers\Api\Admin\ReportQueueController;
 use App\Http\Controllers\Api\Admin\AstroBotController;
 use App\Http\Controllers\Api\Admin\DashboardController;
+use App\Http\Controllers\Api\Admin\AdminPostController;
+use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
+use App\Http\Controllers\Api\SidebarSectionController;
+use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\FeedController;
+use App\Http\Controllers\Api\HashtagController;
+use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\CsrfTestController;
 
 /*
@@ -120,15 +129,62 @@ Route::get('/nasa/iotd', [NasaIotdController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------
+| Sidebar Sections (Public)
+|--------------------------------------------------------------------------
+*/
+Route::get('/sidebar-sections', [SidebarSectionController::class, 'index']);
+
+/*
+|--------------------------------------------------------------------------
 | Posts (public feed + detail)
 |--------------------------------------------------------------------------
 */
 Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/{post}', [PostController::class, 'show']);
 
+/*
+|--------------------------------------------------------------------------
+| Feed endpoints
+|--------------------------------------------------------------------------
+*/
+Route::get('/feed', [FeedController::class, 'index']);
+Route::get('/feed/astrobot', [FeedController::class, 'astrobot']);
+
+// Tag suggestions for autocomplete
+Route::get('/tags/suggest', [TagController::class, 'suggest']);
+
+// Get posts by tag
+Route::get('/tags/{tag}', [TagController::class, 'show']);
+
 // Public user profiles
 Route::get('/users/{username}', [App\Http\Controllers\Api\UserProfileController::class, 'show']);
 Route::get('/users/{username}/posts', [App\Http\Controllers\Api\UserProfileController::class, 'posts']);
+
+/*
+|--------------------------------------------------------------------------
+| Search & Discovery (Public)
+|--------------------------------------------------------------------------
+*/
+Route::get('/search/users', [SearchController::class, 'users']);
+Route::get('/search/posts', [SearchController::class, 'posts']);
+
+/*
+|--------------------------------------------------------------------------
+| Hashtags (Public)
+|--------------------------------------------------------------------------
+*/
+Route::get('/hashtags', [HashtagController::class, 'index']);
+Route::get('/hashtags/{name}/posts', [HashtagController::class, 'posts']);
+Route::get('/trending', [HashtagController::class, 'trending']);
+
+/*
+|--------------------------------------------------------------------------
+| Recommendations (Authenticated)
+|--------------------------------------------------------------------------
+*/
+Route::get('/recommendations/users', [RecommendationController::class, 'users'])
+    ->middleware(['auth:sanctum', 'active']);
+Route::get('/recommendations/posts', [RecommendationController::class, 'posts']);
 
 /*
 |--------------------------------------------------------------------------
@@ -193,6 +249,14 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
         Route::get('/crawl-runs/{crawlRun}', [CrawlRunController::class, 'show']);
 
         /*
+        |----------------------------------------------------------------------
+        | Sidebar Sections (Admin)
+        |----------------------------------------------------------------------
+        */
+        Route::get('/sidebar-sections', [AdminSidebarSectionController::class, 'index']);
+        Route::put('/sidebar-sections', [AdminSidebarSectionController::class, 'update']);
+
+        /*
         |--------------------------------------------------------------------------
         | Blog posts (admin)
         |--------------------------------------------------------------------------
@@ -249,6 +313,14 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
         Route::post('/reports/{report}/ban', [ReportQueueController::class, 'ban']);
 
         /*
+        |----------------------------------------------------------------------
+        | Posts (admin)
+        |----------------------------------------------------------------------
+        */
+        Route::patch('/posts/{post}/pin', [AdminPostController::class, 'pin']);
+        Route::patch('/posts/{post}/unpin', [AdminPostController::class, 'unpin']);
+
+        /*
         |--------------------------------------------------------------------------
         | AstroBot Admin (RSS pipeline)
         |--------------------------------------------------------------------------
@@ -299,6 +371,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/posts/{post}/like', [PostController::class, 'like']);
         Route::delete('/posts/{post}/like', [PostController::class, 'unlike']);
         Route::delete('/posts/{post}', [PostController::class, 'destroy']);
+
+        // Notifications
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::middleware('throttle:30,1')->group(function () {
+            Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
+            Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+        });
 
         // Event reminders
         Route::post('/events/{event}/reminders', [EventReminderController::class, 'store']);

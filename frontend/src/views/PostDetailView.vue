@@ -3,7 +3,7 @@
     <div class="card">
       <!-- top -->
       <div class="top">
-        <router-link class="back" to="/"><- Spat</router-link>
+        <router-link class="back" to="/">&larr; Späť</router-link>
       </div>
 
       <!-- loading -->
@@ -32,18 +32,20 @@
                 <button class="name linkBtn" type="button" @click="openProfile(root?.user)">
                   {{ root?.user?.name ?? 'User' }}
                 </button>
+                <span v-if="root?.source_name === 'astrobot'" class="badge badgeAstrobot">🚀 AstroBot</span>
                 <div class="meta">
                   <span class="time">{{ fmt(root?.created_at) }}</span>
                   <span v-if="root?.user?.location" class="dot">.</span>
                   <span v-if="root?.user?.location" class="loc">
                     Location: {{ root.user.location }}
                   </span>
+                  <span v-if="root?.source_name === 'astrobot'" class="botLabel">Automated news · replies disabled</span>
                 </div>
               </div>
             </div>
 
             <div class="postText">
-              {{ root?.content }}
+              <HashtagText :content="root?.content" />
             </div>
 
             <div v-if="root?.attachment_url" class="mediaWrap">
@@ -80,13 +82,16 @@
           </div>
         </article>
 
-        <!-- REPLY COMPOSER (MVP: nech je vzdy viditelny; ak user nie je prihlaseny, backend vrati 401) -->
-        <div class="composerWrap">
+        <!-- REPLY COMPOSER - only show for non-AstroBot posts -->
+        <div v-if="root?.source_name !== 'astrobot'" class="composerWrap">
           <ReplyComposer
             v-if="root?.id"
             :parent-id="root.id"
             @created="onReplyCreated"
           />
+        </div>
+        <div v-else class="repliesDisabledNotice">
+          <p>Replies are disabled on automated news posts.</p>
         </div>
 
         <!-- REPLIES -->
@@ -126,7 +131,9 @@
                   </div>
                 </div>
 
-                <div class="replyText">{{ r.content }}</div>
+                <div class="replyText">
+                  <HashtagText :content="r.content" />
+                </div>
 
                 <div v-if="r.attachment_url" class="mediaWrapSm">
                   <img
@@ -197,7 +204,9 @@
                         </div>
                     </div>
 
-                    <div class="replyText">{{ c.content }}</div>
+                    <div class="replyText">
+                      <HashtagText :content="c.content" />
+                    </div>
 
                       <div v-if="c.attachment_url" class="mediaWrapSm">
                         <img
@@ -268,6 +277,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import HashtagText from '@/components/HashtagText.vue'
 import api from '@/services/api'
 import ReplyComposer from '@/components/ReplyComposer.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -751,6 +761,39 @@ const repliesCount = computed(() => {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  border: 1px solid rgb(var(--color-success-rgb) / 0.55);
+  color: var(--color-success);
+  background: rgb(var(--color-success-rgb) / 0.25);
+}
+.badgeAstrobot {
+  border-color: rgb(var(--color-success-rgb) / 0.55);
+  color: var(--color-success);
+  background: rgb(var(--color-success-rgb) / 0.25);
+}
+.botLabel {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-style: italic;
+  opacity: 0.8;
+}
+.repliesDisabledNotice {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
+  background: rgb(var(--color-bg-rgb) / 0.25);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-style: italic;
 }
 .replyBtn {
   padding: 0.45rem 0.7rem;

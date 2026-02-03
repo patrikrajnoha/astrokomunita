@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Post;
+use App\Services\HashtagParser;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
@@ -44,8 +46,10 @@ class PostController extends Controller
                 'user:id,name,username,email,location,bio,is_admin,avatar_path',
                 'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
                 'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'tags:id,name',
+                'hashtags:id,name',
             ])
-            ->latest();
+            ->orderByRaw('pinned_at IS NULL DESC, pinned_at DESC, created_at DESC');
 
         $counts = ['likes'];
         if ($withCounts) {
@@ -77,6 +81,15 @@ class PostController extends Controller
             $query->where('is_hidden', false);
         }
 
+        // Exclude expired AstroBot posts from public feed
+        $query->notExpired();
+
+        // Exclude AstroBot posts from main feed - they have separate feed
+        $query->where(function ($q) {
+            $q->whereNull('source_name')
+              ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
+        });
+
         if ($request->query('scope') === 'me') {
             if (!$user) {
                 return response()->json([
@@ -85,15 +98,29 @@ class PostController extends Controller
             }
 
             $query->where('user_id', $user->id);
+            
+            // Also exclude AstroBot posts from user's own feed
+            $query->where(function ($q) {
+                $q->whereNull('source_name')
+                  ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
+            });
         }
 
-        // Filter by source (e.g., astrobot, users)
+        // Filter by source (e.g., astrobot, users) - kept for backward compatibility
         if ($source = $request->query('source')) {
             if ($source === 'astrobot') {
                 $query->where('source_name', 'astrobot');
             } elseif ($source === 'users') {
                 $query->whereNull('source_name')->orWhere('source_name', '!=', 'astrobot');
             }
+        }
+
+        // Filter by tag - try both name and slug for robustness
+        if ($tag = $request->query('tag')) {
+            $tag = strtolower($tag);
+            $query->whereHas('tags', function ($q) use ($tag) {
+                $q->where('name', $tag)->orWhere('slug', $tag);
+            });
         }
 
         return response()->json(
@@ -151,12 +178,17 @@ class PostController extends Controller
             })
             ->with([
                 'user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'tags:id,name',
+                'hashtags:id,name',
             ])
             ->withCount('likes');
             
         if (!$isAdmin) {
             $threadQuery->where('is_hidden', false);
         }
+
+        // Exclude expired AstroBot posts from thread view
+        $threadQuery->notExpired();
 
         if ($viewer) {
             $threadQuery->withExists([
@@ -279,8 +311,13 @@ class PostController extends Controller
 
         $post = Post::create($data);
 
+        // Parse and sync hashtags
+        HashtagParser::syncHashtags($post, $validated['content']);
+
         $post->load([
             'user:id,name,username,email,location,bio,is_admin,avatar_path',
+            'tags:id,name',
+            'hashtags:id,name',
         ]);
 
         return response()->json($post, 201);
@@ -294,6 +331,14 @@ class PostController extends Controller
     public function reply(Request $request, Post $post)
     {
         $user = $request->user();
+
+        // Prevent replies on AstroBot posts - they are broadcast-only
+        if ($post->isFromBot()) {
+            return response()->json([
+                'message' => 'Replies are disabled on automated news posts.',
+                'error' => 'replies_disabled'
+            ], 403);
+        }
 
         $validated = $request->validate([
             'content' => [
@@ -348,8 +393,13 @@ class PostController extends Controller
 
         $reply = Post::create($data);
 
+        // Parse and sync hashtags for reply
+        HashtagParser::syncHashtags($reply, $validated['content']);
+
         $reply->load([
             'user:id,name,username,email,location,bio,is_admin,avatar_path',
+            'tags:id,name',
+            'hashtags:id,name',
         ]);
 
         return response()->json($reply, 201);
@@ -376,6 +426,11 @@ class PostController extends Controller
         );
 
         $post->loadCount('likes');
+        app(NotificationService::class)->createPostLiked(
+            $post->user_id,
+            $user->id,
+            $post->id
+        );
 
         return response()->json([
             'likes_count' => $post->likes_count,

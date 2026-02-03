@@ -47,6 +47,11 @@ const router = createRouter({
       component: () => import('../views/LearnDetailView.vue'),
     },
     {
+      path: '/search',
+      name: 'search',
+      component: () => import('../views/SearchView.vue'),
+    },
+    {
       path: '/settings',
       name: 'settings',
       meta: { auth: true },
@@ -97,11 +102,11 @@ const router = createRouter({
       path: '/admin/dashboard',
       name: 'admin.dashboard',
       meta: { auth: true, admin: true },
-      component: () => import('../views/AdminDashboardView.vue'),
+      component: () => import('../views/DashboardView.vue'),
     },
     {
-      path: '/admin/candidates',
-      name: 'admin.candidates',
+      path: '/admin/event-candidates',
+      name: 'admin.event-candidates',
       meta: { auth: true, admin: true },
       component: () => import('../views/CandidatesListView.vue'),
     },
@@ -112,8 +117,8 @@ const router = createRouter({
       component: () => import('../views/CandidateDetailView.vue'),
     },
     {
-      path: '/admin/blog-posts',
-      name: 'admin.blog-posts',
+      path: '/admin/blog',
+      name: 'admin.blog',
       meta: { auth: true, admin: true },
       component: () => import('../views/AdminBlogPostsView.vue'),
     },
@@ -121,19 +126,7 @@ const router = createRouter({
       path: '/admin/events',
       name: 'admin.events',
       meta: { auth: true, admin: true },
-      component: () => import('../views/AdminEventsView.vue'),
-    },
-    {
-      path: '/admin/events/create',
-      name: 'admin.events.create',
-      meta: { auth: true, admin: true },
-      component: () => import('../views/AdminEventFormView.vue'),
-    },
-    {
-      path: '/admin/events/:id/edit',
-      name: 'admin.events.edit',
-      meta: { auth: true, admin: true },
-      component: () => import('../views/AdminEventFormView.vue'),
+      component: () => import('../views/AdminEventsUnifiedView.vue'),
     },
     {
       path: '/admin/reports',
@@ -153,11 +146,27 @@ const router = createRouter({
       meta: { auth: true, admin: true },
       component: () => import('../views/admin/AstroBotView.vue'),
     },
+    {
+      path: '/admin/sidebar',
+      name: 'admin.sidebar',
+      meta: { auth: true, admin: true },
+      component: () => import('../views/admin/SidebarConfigView.vue'),
+    },
 
     {
       path: '/posts/:id',
       name: 'post-detail',
       component: () => import('@/views/PostDetailView.vue'),
+    },
+    {
+      path: '/tags/:tag',
+      name: 'tag-feed',
+      component: () => import('../views/TagFeedView.vue'),
+    },
+    {
+      path: '/hashtags/:name',
+      name: 'hashtag-feed',
+      component: () => import('../views/HashtagFeedView.vue'),
     },
     {
       path: '/u/:username',
