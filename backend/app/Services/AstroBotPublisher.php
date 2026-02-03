@@ -35,6 +35,7 @@ class AstroBotPublisher
             $content = $overrides['content'] ?? $this->buildContent($item);
             $summary = $overrides['summary'] ?? $item->summary;
 
+            $ttlHours = (int) config('astrobot.post_ttl_hours', 24);
             $post = Post::create([
                 'user_id' => $this->astroBot->id,
                 'content' => $content,
@@ -42,6 +43,7 @@ class AstroBotPublisher
                 'source_url' => $item->url,
                 'source_uid' => $item->dedupe_hash,
                 'source_published_at' => $item->published_at,
+                'expires_at' => now()->addHours($ttlHours), // AstroBot posts expire after TTL hours
             ]);
 
             $item->update([
@@ -127,6 +129,7 @@ class AstroBotPublisher
                 'name' => 'AstroBot',
                 'bio' => 'Automated space news from NASA RSS',
                 'password' => \Illuminate\Support\Str::random(40),
+                'is_bot' => true, // Mark as bot user for broadcast-only behavior
             ]
         );
     }

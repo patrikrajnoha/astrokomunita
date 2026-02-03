@@ -16,6 +16,7 @@ class AstroBotSeeder extends Seeder
                 'name' => 'AstroBot',
                 'bio' => 'Automated space news from NASA RSS',
                 'password' => Str::random(40),
+                'is_bot' => true, // Mark as bot user
             ]
         );
     }
