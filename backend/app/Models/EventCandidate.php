@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EventCandidateStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,10 +11,10 @@ class EventCandidate extends Model
 {
     use HasFactory;
 
-    public const STATUS_PENDING   = 'pending';
-    public const STATUS_APPROVED  = 'approved';
-    public const STATUS_REJECTED  = 'rejected';
-    public const STATUS_DUPLICATE = 'duplicate';
+    public const STATUS_PENDING   = EventCandidateStatus::Pending->value;
+    public const STATUS_APPROVED  = EventCandidateStatus::Approved->value;
+    public const STATUS_REJECTED  = EventCandidateStatus::Rejected->value;
+    public const STATUS_DUPLICATE = EventCandidateStatus::Duplicate->value;
 
     protected $fillable = [
         'source_name',

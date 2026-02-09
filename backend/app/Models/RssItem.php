@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\RssItemStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,12 +12,12 @@ class RssItem extends Model
 {
     use HasFactory;
 
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_APPROVED = 'approved';
-    public const STATUS_SCHEDULED = 'scheduled';
-    public const STATUS_PUBLISHED = 'published';
-    public const STATUS_DISCARDED = 'discarded';
-    public const STATUS_ERROR = 'error';
+    public const STATUS_PENDING = RssItemStatus::Pending->value;
+    public const STATUS_APPROVED = RssItemStatus::Approved->value;
+    public const STATUS_SCHEDULED = RssItemStatus::Scheduled->value;
+    public const STATUS_PUBLISHED = RssItemStatus::Published->value;
+    public const STATUS_DISCARDED = RssItemStatus::Discarded->value;
+    public const STATUS_ERROR = RssItemStatus::Error->value;
 
     protected $fillable = [
         'source',
@@ -54,10 +55,14 @@ class RssItem extends Model
     /**
      * Scope: filter by status
      */
-    public function scopeByStatus(Builder $query, string|array $status): Builder
+    public function scopeByStatus(Builder $query, string|RssItemStatus|array $status): Builder
     {
         $statuses = is_array($status) ? $status : [$status];
-        return $query->whereIn('status', $statuses);
+        $normalized = array_map(
+            fn ($item) => $item instanceof RssItemStatus ? $item->value : (string) $item,
+            $statuses
+        );
+        return $query->whereIn('status', $normalized);
     }
 
     /**
