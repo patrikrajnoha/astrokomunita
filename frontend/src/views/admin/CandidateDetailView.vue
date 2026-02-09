@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { eventCandidates } from "../services/eventCandidates";
+import { eventCandidates } from "@/services/eventCandidates";
 
 const route = useRoute();
 const router = useRouter();

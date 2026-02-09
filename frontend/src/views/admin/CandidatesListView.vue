@@ -2,7 +2,7 @@
 import { onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import api from "@/services/api";
-import { eventCandidates } from "../services/eventCandidates";
+import { eventCandidates } from "@/services/eventCandidates";
 
 const router = useRouter();
 

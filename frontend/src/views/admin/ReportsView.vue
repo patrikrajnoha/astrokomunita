@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
+import LoadingIndicator from '@/components/shared/LoadingIndicator.vue'
 
 const loading = ref(false)
 const error = ref('')
@@ -127,9 +128,7 @@ onMounted(load)
       {{ error }}
     </div>
 
-    <div v-if="loading" style="margin-top: 12px; opacity: .85;">
-      Loading...
-    </div>
+    <LoadingIndicator :loading="loading" text="Loading..." />
 
     <div
       v-if="data && !loading"

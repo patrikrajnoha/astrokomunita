@@ -5,27 +5,33 @@ import { useAuthStore } from '@/stores/auth'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    // VerejnĂ© cesty
     {
       path: '/',
       name: 'home',
       component: HomeView,
     },
+
     {
       path: '/events',
-      name: 'events',
-      component: () => import('../views/EventsView.vue'),
+      children: [
+        {
+          path: '',
+          name: 'events',
+          component: () => import('../views/EventsView.vue'),
+        },
+        {
+          path: 'swipe',
+          name: 'events-swipe',
+          component: () => import('../views/SwipeEventsView.vue'),
+        },
+        {
+          path: ':id',
+          name: 'event-detail',
+          component: () => import('../views/EventDetailView.vue'),
+        },
+      ],
     },
-    {
-      path: '/events/swipe',
-      name: 'events-swipe',
-      component: () => import('../views/SwipeEventsView.vue'),
-    },
-    {
-      path: '/events/:id',
-      name: 'event-detail',
-      component: () => import('../views/EventDetailView.vue'),
-    },
+
     {
       path: '/calendar',
       name: 'calendar',
@@ -64,7 +70,6 @@ const router = createRouter({
       component: () => import('../views/CreatorStudioView.vue'),
     },
 
-    // Cesty len pre neprihlĂˇsenĂ˝ch (Guest)
     {
       path: '/login',
       name: 'login',
@@ -78,7 +83,6 @@ const router = createRouter({
       component: () => import('../views/RegisterView.vue'),
     },
 
-    // ChrĂˇnenĂ© cesty (vyĹľadujĂş prihlĂˇsenie)
     {
       path: '/notifications',
       name: 'notifications',
@@ -97,60 +101,67 @@ const router = createRouter({
       component: () => import('../views/ProfileEdit.vue'),
     },
 
-    // âś… ADMIN (MVP)
     {
-      path: '/admin/dashboard',
-      name: 'admin.dashboard',
+      path: '/admin',
+      component: () => import('../layouts/AdminLayout.vue'),
       meta: { auth: true, admin: true },
-      component: () => import('../views/DashboardView.vue'),
-    },
-    {
-      path: '/admin/event-candidates',
-      name: 'admin.event-candidates',
-      meta: { auth: true, admin: true },
-      component: () => import('../views/CandidatesListView.vue'),
-    },
-    {
-      path: '/admin/candidates/:id',
-      name: 'admin.candidate.detail',
-      meta: { auth: true, admin: true },
-      component: () => import('../views/CandidateDetailView.vue'),
-    },
-    {
-      path: '/admin/blog',
-      name: 'admin.blog',
-      meta: { auth: true, admin: true },
-      component: () => import('../views/AdminBlogPostsView.vue'),
-    },
-    {
-      path: '/admin/events',
-      name: 'admin.events',
-      meta: { auth: true, admin: true },
-      component: () => import('../views/AdminEventsUnifiedView.vue'),
-    },
-    {
-      path: '/admin/reports',
-      name: 'admin.reports',
-      meta: { auth: true, admin: true },
-      component: () => import('../views/AdminReportsView.vue'),
-    },
-    {
-      path: '/admin/users',
-      name: 'admin.users',
-      meta: { auth: true, admin: true },
-      component: () => import('../views/AdminUsersView.vue'),
-    },
-    {
-      path: '/admin/astrobot',
-      name: 'admin.astrobot',
-      meta: { auth: true, admin: true },
-      component: () => import('../views/admin/AstroBotView.vue'),
-    },
-    {
-      path: '/admin/sidebar',
-      name: 'admin.sidebar',
-      meta: { auth: true, admin: true },
-      component: () => import('../views/admin/SidebarConfigView.vue'),
+      children: [
+        {
+          path: 'dashboard',
+          name: 'admin.dashboard',
+          component: () => import('../views/admin/DashboardView.vue'),
+        },
+        {
+          path: 'event-candidates',
+          name: 'admin.event-candidates',
+          component: () => import('../views/admin/CandidatesListView.vue'),
+        },
+        {
+          path: 'candidates/:id',
+          name: 'admin.candidate.detail',
+          component: () => import('../views/admin/CandidateDetailView.vue'),
+        },
+        {
+          path: 'blog',
+          name: 'admin.blog',
+          component: () => import('../views/admin/BlogPostsView.vue'),
+        },
+        {
+          path: 'events',
+          name: 'admin.events',
+          component: () => import('../views/admin/EventsUnifiedView.vue'),
+        },
+        {
+          path: 'events/create',
+          name: 'admin.events.create',
+          component: () => import('../views/admin/EventFormView.vue'),
+        },
+        {
+          path: 'events/:id/edit',
+          name: 'admin.events.edit',
+          component: () => import('../views/admin/EventFormView.vue'),
+        },
+        {
+          path: 'reports',
+          name: 'admin.reports',
+          component: () => import('../views/admin/ReportsView.vue'),
+        },
+        {
+          path: 'users',
+          name: 'admin.users',
+          component: () => import('../views/admin/UsersView.vue'),
+        },
+        {
+          path: 'astrobot',
+          name: 'admin.astrobot',
+          component: () => import('../views/admin/AstroBotView.vue'),
+        },
+        {
+          path: 'sidebar',
+          name: 'admin.sidebar',
+          component: () => import('../views/admin/SidebarConfigView.vue'),
+        },
+      ],
     },
 
     {
@@ -174,7 +185,6 @@ const router = createRouter({
       component: () => import('../views/PublicProfileView.vue'),
     },
 
-    // 404 - Not Found (musĂ­ byĹĄ na konci)
     {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
@@ -183,20 +193,15 @@ const router = createRouter({
   ],
 })
 
-/**
- * Navigation Guard
- */
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // 1) Ak user eĹˇte nie je inicializovanĂ˝ (napr. po refreshi), skĂşsime ho naÄŤĂ­taĹĄ
   if (!auth.initialized) {
     await auth.fetchUser()
   }
 
   const redirectTarget = to.fullPath
 
-  // 2) Ak cesta vyĹľaduje auth a user nie je prihlĂˇsenĂ˝
   if (to.meta?.auth && !auth.isAuthed) {
     return {
       name: 'login',
@@ -204,16 +209,10 @@ router.beforeEach(async (to) => {
     }
   }
 
-  // 3) Admin-only: ak cesta vyĹľaduje admin a user nie je admin
-  if (to.meta?.admin) {
-    const isAdmin = auth.isAdmin
-
-    if (!isAdmin) {
-      return { name: 'home' }
-    }
+  if (to.meta?.admin && !auth.isAdmin) {
+    return { name: 'home' }
   }
 
-  // 4) Ak je cesta pre hostĂ­ (login/register) a user je uĹľ prihlĂˇsenĂ˝
   if (to.meta?.guest && auth.isAuthed) {
     const redirect = typeof to.query?.redirect === 'string' ? to.query.redirect : null
     return redirect || { name: 'home' }

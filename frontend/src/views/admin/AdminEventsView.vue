@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
+import LoadingIndicator from '@/components/shared/LoadingIndicator.vue'
 
 const router = useRouter()
 
@@ -80,9 +81,7 @@ onMounted(load)
       {{ error }}
     </div>
 
-    <div v-if="loading" style="margin-top: 12px; opacity: .85;">
-      Loading...
-    </div>
+    <LoadingIndicator :loading="loading" text="Loading..." />
 
     <div
       v-if="data && !loading"
