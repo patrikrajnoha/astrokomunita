@@ -41,6 +41,15 @@
       </main>
     </div>
 
+    <button
+      v-if="canInstall"
+      type="button"
+      class="installBtn"
+      @click="installApp"
+    >
+      Install app
+    </button>
+
     <transition
       enter-active-class="transition-opacity duration-200"
       enter-from-class="opacity-0"
@@ -110,6 +119,8 @@ import { RouterLink, RouterView } from 'vue-router'
 import MainNavbar from '@/components/MainNavbar.vue'
 
 const isDrawerOpen = ref(false)
+const deferredInstallPrompt = ref(null)
+const canInstall = ref(false)
 
 const openDrawer = () => {
   isDrawerOpen.value = true
@@ -125,11 +136,62 @@ const handleKeydown = (event) => {
   }
 }
 
+const handleBeforeInstallPrompt = (event) => {
+  event.preventDefault()
+  deferredInstallPrompt.value = event
+  canInstall.value = true
+}
+
+const handleInstalled = () => {
+  deferredInstallPrompt.value = null
+  canInstall.value = false
+}
+
+const installApp = async () => {
+  const promptEvent = deferredInstallPrompt.value
+  if (!promptEvent) return
+
+  try {
+    await promptEvent.prompt()
+    await promptEvent.userChoice
+  } catch (error) {
+    console.warn('Install prompt failed:', error)
+  } finally {
+    deferredInstallPrompt.value = null
+    canInstall.value = false
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+  window.addEventListener('appinstalled', handleInstalled)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+  window.removeEventListener('appinstalled', handleInstalled)
 })
 </script>
+
+<style scoped>
+.installBtn {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 60;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.6);
+  border-radius: 999px;
+  background: rgb(var(--color-bg-rgb) / 0.9);
+  color: var(--color-surface);
+  padding: 0.55rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.installBtn:hover {
+  border-color: var(--color-primary);
+  background: rgb(var(--color-primary-rgb) / 0.16);
+}
+</style>

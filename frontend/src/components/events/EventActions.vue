@@ -1,12 +1,33 @@
 <template>
   <div class="event-actions">
-    <button type="button" class="action action-ignore" :disabled="disabled" @click="$emit('dismiss')" aria-label="Ignorovat">
+    <button
+      type="button"
+      class="action action-ignore"
+      :disabled="disabled"
+      title="Predosla udalost (sipka vlavo)"
+      aria-label="Predosla udalost, klavesa sipka vlavo"
+      @click="$emit('dismiss')"
+    >
       {{ ICONS.dismiss }}
     </button>
-    <button type="button" class="action action-star" :disabled="disabled" @click="$emit('favorite')" aria-label="Sledovat">
+    <button
+      type="button"
+      class="action action-star"
+      :disabled="disabled"
+      title="Dalsia udalost (sipka vpravo)"
+      aria-label="Dalsia udalost, klavesa sipka vpravo"
+      @click="$emit('favorite')"
+    >
       {{ ICONS.star }}
     </button>
-    <button type="button" class="action action-calendar" :disabled="disabled" @click="$emit('calendar')" aria-label="Pridat do kalendara">
+    <button
+      type="button"
+      class="action action-calendar"
+      :disabled="disabled"
+      title="Pridat do kalendara"
+      aria-label="Pridat udalost do kalendara"
+      @click="$emit('calendar')"
+    >
       {{ ICONS.calendar }}
     </button>
   </div>
@@ -14,8 +35,8 @@
 
 <script setup>
 const ICONS = {
-  dismiss: '\u274c',
-  star: '\u2b50',
+  dismiss: '\u2190',
+  star: '\u2192',
   calendar: '\ud83d\udcc5',
 }
 

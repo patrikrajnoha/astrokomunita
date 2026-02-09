@@ -23,3 +23,15 @@ const auth = useAuthStore(pinia)
 auth.fetchUser().finally(() => {
   app.mount('#app')
 })
+
+// PWA: safe SW registration (only in production, does not break app if registration fails)
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const swUrl = `${import.meta.env.BASE_URL}sw.js`
+      await navigator.serviceWorker.register(swUrl)
+    } catch (error) {
+      console.warn('Service worker registration failed:', error)
+    }
+  })
+}

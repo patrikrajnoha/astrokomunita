@@ -5,7 +5,7 @@
         v-if="heroImage"
         class="hero-image"
         :src="heroImage"
-        :alt="event?.title || 'Event image'"
+        :alt="event?.title ? `Obrazok udalosti ${event.title}` : 'Obrazok udalosti'"
         loading="lazy"
         decoding="async"
       />
@@ -16,21 +16,32 @@
     <div class="card-body">
       <h2 class="title">{{ event?.title || 'Bez nazvu' }}</h2>
       <p class="meta-row">{{ formattedTime }}</p>
-      <p class="visibility-row">{{ `${SK_FLAG} ${visibilityIcon}` }}</p>
+      <p class="visibility-row" :aria-label="`Viditelnost zo Slovenska: ${visibilityText || 'neznamy stav'}`">
+        {{ `${SK_FLAG} ${visibilityIcon}` }}
+      </p>
 
-      <button type="button" class="bio-hit" @click="$emit('toggle-bio')">
+      <button
+        type="button"
+        class="bio-hit"
+        :aria-expanded="bioExpanded ? 'true' : 'false'"
+        :aria-controls="BIO_ID"
+        aria-label="Rozbalit alebo zbalit popis udalosti"
+        @click="$emit('toggle-bio')"
+      >
         <transition name="bio-expand" mode="out-in">
-          <p v-if="bioExpanded" key="expanded" class="bio bio-expanded">
+          <p v-if="bioExpanded" :id="BIO_ID" key="expanded" class="bio bio-expanded">
             {{ description }}
             <span class="bio-action">Menej</span>
           </p>
-          <p v-else key="collapsed" class="bio bio-collapsed">
+          <p v-else :id="BIO_ID" key="collapsed" class="bio bio-collapsed">
             {{ description }}
           </p>
         </transition>
       </button>
 
-      <button type="button" class="more-btn" @click="$emit('open-sheet')">Viac detailu</button>
+      <button type="button" class="more-btn" aria-label="Otvorit detail udalosti" @click="$emit('open-sheet')">
+        Viac detailu
+      </button>
     </div>
   </article>
 </template>
@@ -51,6 +62,10 @@ const props = defineProps({
     type: String,
     default: '\u25d1',
   },
+  visibilityText: {
+    type: String,
+    default: '',
+  },
   bioExpanded: {
     type: Boolean,
     default: false,
@@ -60,6 +75,7 @@ const props = defineProps({
 defineEmits(['toggle-bio', 'open-sheet'])
 
 const SK_FLAG = '\ud83c\uddf8\ud83c\uddf0'
+const BIO_ID = 'event-bio'
 
 const description = computed(() => props.event?.description || props.event?.short || 'Bez popisu.')
 const heroImage = computed(

@@ -1,5 +1,7 @@
-<template>
+﻿<template>
   <main class="event-detail-view">
+    <p class="sr-only-live" aria-live="polite" aria-atomic="true">{{ liveMessage }}</p>
+
     <header class="detail-header">
       <router-link to="/events" class="back-link">&lt;- Spat na udalosti</router-link>
       <p v-if="deck.length" class="deck-count">{{ Math.min(activeIndex + 1, deck.length) }} / {{ deck.length }}</p>
@@ -27,20 +29,33 @@
         <div
           class="stack-card stack-active"
           :style="cardStyle"
+          role="group"
+          tabindex="0"
+          aria-label="Karta udalosti. Sipka vlavo predosla, sipka vpravo dalsia, sipka hore prida do oblubenych, sipka dole otvori detail."
           @pointerdown="onPointerDown"
           @pointermove="onPointerMove"
           @pointerup="onPointerUp"
           @pointercancel="onPointerUp"
         >
-          <div v-if="badge" class="swipe-badge" :class="badgeClass">{{ badge }}</div>
+          <div
+            v-if="badge"
+            class="swipe-badge"
+            :class="badgeClass"
+            role="status"
+            aria-live="polite"
+            :aria-label="swipeBadgeLabel"
+          >
+            {{ swipeBadgeText }}
+          </div>
 
           <EventCard
             :event="currentEvent"
             :formatted-time="formattedTime"
             :visibility-icon="visibilityIcon"
+            :visibility-text="visibilityText"
             :bio-expanded="bioExpanded"
             @toggle-bio="toggleBio"
-            @open-sheet="openSheet"
+            @open-sheet="openSheet('card')"
           />
         </div>
       </div>
@@ -50,9 +65,9 @@
       <EventActions
         class="actions"
         :disabled="loading || !currentEvent"
-        @dismiss="dismissCurrent"
-        @favorite="favoriteCurrent"
-        @calendar="addToCalendar"
+        @dismiss="previousEvent('button')"
+        @favorite="nextEvent('button')"
+        @calendar="addToCalendar('button')"
       />
     </section>
 
@@ -72,11 +87,17 @@
       @send-notify="sendEmailAlert"
       @update:notify-email="notifyEmail = $event"
     />
+
+    <transition name="toast-fade">
+      <div v-if="toast.visible" class="toast" :class="`toast-${toast.kind}`" role="status" aria-live="polite">
+        {{ toast.message }}
+      </div>
+    </transition>
   </main>
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import EventCard from '@/components/events/EventCard.vue'
@@ -102,6 +123,14 @@ const notifyEmail = ref('')
 const notifyLoading = ref(false)
 const notifyMsg = ref('')
 const notifyErr = ref('')
+const liveMessage = ref('')
+const toast = ref({
+  visible: false,
+  message: '',
+  kind: 'info',
+})
+const preloadedHeroUrls = new Set()
+let toastTimer = null
 
 const eventId = computed(() => Number(route.params.id))
 const isDebug = computed(() => route.query.debug === '1')
@@ -123,21 +152,39 @@ const {
 } = useSwipeCard({
   threshold: 110,
   onLeft: async () => {
-    dismissCurrent()
+    previousEvent('swipe')
   },
   onRight: async () => {
-    await favoriteCurrent()
+    nextEvent('swipe')
   },
   onUp: async () => {
-    bioExpanded.value = true
-    sheetOpen.value = true
+    await favoriteCurrent('swipe')
+  },
+  onDown: async () => {
+    openSheet('swipe')
   },
 })
 
 const badgeClass = computed(() => {
-  if (badge.value === 'STAR') return 'badge-star'
-  if (badge.value === 'IGNORE') return 'badge-ignore'
+  if (badge.value === 'UP') return 'badge-star'
+  if (badge.value === 'LEFT') return 'badge-ignore'
+  if (badge.value === 'RIGHT') return 'badge-next'
   return 'badge-detail'
+})
+
+const swipeBadgeText = computed(() => {
+  if (badge.value === 'RIGHT') return 'DALSIA'
+  if (badge.value === 'LEFT') return 'PREDOSLA'
+  if (badge.value === 'UP') return 'FAVORITE'
+  if (badge.value === 'DOWN') return 'DETAIL'
+  return ''
+})
+
+const swipeBadgeLabel = computed(() => {
+  if (badge.value === 'RIGHT') return 'Akcia dalsia udalost'
+  if (badge.value === 'LEFT') return 'Akcia predosla udalost'
+  if (badge.value === 'UP') return 'Akcia pridat medzi oblubene'
+  return 'Akcia otvorit detail'
 })
 
 function advanceDeck() {
@@ -150,24 +197,50 @@ function advanceDeck() {
   activeIndex.value = deck.value.length
 }
 
-function dismissCurrent() {
+async function favoriteCurrent(source = 'button') {
   if (!currentEvent.value) return
+  const currentId = currentEvent.value.id
+  await toggleFavorite(currentId)
+  trackEvent('favorite_add', { source, event_id: currentId })
+  showToast('Pridane medzi oblubene', 'success')
+  announce('Udalost pridana medzi oblubene')
+}
+
+function nextEvent(source = 'button') {
+  if (!currentEvent.value) return
+  const currentId = currentEvent.value.id
+  trackEvent('swipe_right', { source, event_id: currentId })
+  showToast('Dalsia udalost', 'info')
+  announce('Presun na dalsiu udalost')
   advanceDeck()
 }
 
-async function favoriteCurrent() {
-  if (!currentEvent.value) return
-  await toggleFavorite(currentEvent.value.id)
-  advanceDeck()
+function previousEvent(source = 'button') {
+  if (activeIndex.value <= 0) {
+    showToast('Uz si na prvej udalosti', 'warn')
+    announce('Prva udalost v zozname')
+    return
+  }
+  activeIndex.value -= 1
+  bioExpanded.value = false
+  if (currentEvent.value?.id) {
+    trackEvent('swipe_left', { source, event_id: currentEvent.value.id })
+  }
+  showToast('Predosla udalost', 'info')
+  announce('Presun na predoslu udalost')
 }
 
 function toggleBio() {
   bioExpanded.value = !bioExpanded.value
 }
 
-function openSheet() {
+function openSheet(source = 'button') {
+  if (currentEvent.value?.id) {
+    trackEvent('open_sheet', { source, event_id: currentEvent.value.id })
+  }
   bioExpanded.value = true
   sheetOpen.value = true
+  announce('Detail udalosti otvoreny')
 }
 
 function closeSheet() {
@@ -189,9 +262,14 @@ async function fetchDeckCandidates(primaryEvent) {
 
   if (related.length) return related
 
-  const res = await api.get('/events', { params: { limit: 10 } })
-  const rows = Array.isArray(res.data?.data) ? res.data.data : res.data
-  return Array.isArray(rows) ? rows : []
+  try {
+    const res = await api.get('/events', { params: { limit: 10 } })
+    const rows = Array.isArray(res.data?.data) ? res.data.data : res.data
+    return Array.isArray(rows) ? rows : []
+  } catch (err) {
+    console.warn('Event deck fallback fetch failed:', err?.message || err)
+    return []
+  }
 }
 
 function buildDeck(primaryEvent, candidates) {
@@ -222,10 +300,17 @@ async function loadEventAndDeck() {
     activeIndex.value = 0
     bioExpanded.value = false
   } catch (err) {
-    error.value = err?.response?.data?.message || err?.message || 'Nepodarilo sa nacitat detail.'
+    error.value = getApiErrorMessage(err, 'Nepodarilo sa nacitat detail.')
   } finally {
     loading.value = false
   }
+}
+
+function getApiErrorMessage(err, fallback) {
+  if (err?.message === 'Network Error') {
+    return 'Network Error: API server nie je dostupny alebo je zla konfiguracia VITE_API_BASE_URL/CORS.'
+  }
+  return err?.response?.data?.message || err?.message || fallback
 }
 
 async function toggleFavorite(id) {
@@ -341,12 +426,15 @@ function mapVisibility(item) {
   return { icon: '\u25d1', text: 'Viditelnost zo Slovenska nie je upresnena' }
 }
 
-function addToCalendar() {
+function addToCalendar(source = 'button') {
   const selected = currentEvent.value
   if (!selected) return
 
   const date = selected.start_at || selected.starts_at || selected.max_at || selected.end_at || selected.ends_at
   const ymd = toYMD(date)
+  trackEvent('calendar_click', { source, event_id: selected.id })
+  showToast('Pridane do kalendara', 'info')
+  announce('Udalost otvorena v kalendari')
 
   router.push({
     name: 'calendar',
@@ -364,8 +452,91 @@ function toYMD(value) {
   return `${y}-${m}-${d}`
 }
 
+function getHeroImage(item) {
+  return item?.image || item?.image_url || item?.hero_image || item?.cover_image_url || ''
+}
+
+function preloadHero(item) {
+  const heroUrl = getHeroImage(item)
+  if (!heroUrl || preloadedHeroUrls.has(heroUrl)) return
+  preloadedHeroUrls.add(heroUrl)
+  const img = new Image()
+  img.decoding = 'async'
+  img.src = heroUrl
+}
+
+function showToast(message, kind = 'info') {
+  if (toastTimer) window.clearTimeout(toastTimer)
+  toast.value = { visible: true, message, kind }
+  toastTimer = window.setTimeout(() => {
+    toast.value.visible = false
+  }, 2400)
+}
+
+function announce(message) {
+  liveMessage.value = ''
+  window.requestAnimationFrame(() => {
+    liveMessage.value = message
+  })
+}
+
+function trackEvent(eventName, payload = {}) {
+  if (Array.isArray(window.dataLayer)) {
+    window.dataLayer.push({ event: eventName, ...payload })
+  }
+  window.dispatchEvent(new CustomEvent('analytics:event', { detail: { event: eventName, ...payload } }))
+}
+
+async function onKeyDown(event) {
+  const targetTag = event.target?.tagName
+  const isEditable =
+    event.target?.isContentEditable ||
+    targetTag === 'INPUT' ||
+    targetTag === 'TEXTAREA' ||
+    targetTag === 'SELECT'
+
+  if (isEditable) return
+
+  if (event.key === 'Escape' && sheetOpen.value) {
+    event.preventDefault()
+    closeSheet()
+    return
+  }
+
+  if (!currentEvent.value || loading.value || sheetOpen.value) return
+
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    previousEvent('keyboard')
+    return
+  }
+
+  if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    nextEvent('keyboard')
+    return
+  }
+
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+    await favoriteCurrent('keyboard')
+    return
+  }
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+    openSheet('keyboard')
+  }
+}
+
 onMounted(async () => {
+  window.addEventListener('keydown', onKeyDown)
   await Promise.all([loadEventAndDeck(), favorites.fetch()])
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeyDown)
+  if (toastTimer) window.clearTimeout(toastTimer)
 })
 
 watch(
@@ -373,6 +544,15 @@ watch(
   async () => {
     await Promise.all([loadEventAndDeck(), favorites.fetch()])
   }
+)
+
+watch(
+  () => [secondCard.value, thirdCard.value],
+  ([nextCard, third]) => {
+    preloadHero(nextCard)
+    preloadHero(third)
+  },
+  { immediate: true }
 )
 </script>
 
@@ -488,6 +668,12 @@ watch(
   border-color: rgb(255 116 139 / 0.45);
 }
 
+.badge-next {
+  color: #cbe6ff;
+  background: rgb(18 86 146 / 0.38);
+  border-color: rgb(110 180 246 / 0.45);
+}
+
 .badge-detail {
   color: #d9dee9;
   background: rgb(var(--color-bg-rgb) / 0.58);
@@ -507,6 +693,54 @@ watch(
 
 .state.error {
   color: var(--color-danger);
+}
+
+.sr-only-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.15rem;
+  transform: translateX(-50%);
+  z-index: 120;
+  border-radius: 999px;
+  padding: 0.52rem 0.92rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 12px 24px rgb(4 11 24 / 0.34);
+}
+
+.toast-info {
+  background: rgb(21 83 142 / 0.94);
+}
+
+.toast-success {
+  background: rgb(16 126 88 / 0.94);
+}
+
+.toast-warn {
+  background: rgb(143 39 58 / 0.94);
+}
+
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(6px);
 }
 </style>
 

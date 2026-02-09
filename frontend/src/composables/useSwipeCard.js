@@ -5,6 +5,7 @@ export function useSwipeCard(options = {}) {
     onLeft = async () => {},
     onRight = async () => {},
     onUp = async () => {},
+    onDown = async () => {},
     threshold = 110,
     velocityThreshold = 0.5,
     maxRotation = 12,
@@ -22,9 +23,10 @@ export function useSwipeCard(options = {}) {
 
   const badge = computed(() => {
     if (!dragging.value) return ''
-    if (dx.value >= 56) return 'STAR'
-    if (dx.value <= -56) return 'IGNORE'
-    if (dy.value <= -56) return 'DETAIL'
+    if (dx.value >= 56) return 'RIGHT'
+    if (dx.value <= -56) return 'LEFT'
+    if (dy.value <= -56) return 'UP'
+    if (dy.value >= 56) return 'DOWN'
     return ''
   })
 
@@ -102,6 +104,7 @@ export function useSwipeCard(options = {}) {
     const right = dx.value >= threshold || vx >= velocityThreshold
     const left = dx.value <= -threshold || vx <= -velocityThreshold
     const up = dy.value <= -threshold || vy <= -velocityThreshold
+    const down = dy.value >= threshold || vy >= velocityThreshold
 
     if (right) {
       await flyOut({ x: 640, y: dy.value, cb: onRight })
@@ -115,6 +118,11 @@ export function useSwipeCard(options = {}) {
 
     if (up) {
       await flyOut({ x: dx.value * 0.15, y: -420, cb: onUp })
+      return
+    }
+
+    if (down) {
+      await flyOut({ x: dx.value * 0.15, y: 420, cb: onDown })
       return
     }
 
