@@ -103,63 +103,63 @@ const router = createRouter({
 
     {
       path: '/admin',
-      component: () => import('../layouts/AdminLayout.vue'),
+      component: () => import('@/layouts/AdminLayout.vue'),
       meta: { auth: true, admin: true },
       children: [
         {
           path: 'dashboard',
           name: 'admin.dashboard',
-          component: () => import('../views/admin/DashboardView.vue'),
+          component: () => import('@/views/admin/DashboardView.vue'),
         },
         {
           path: 'event-candidates',
           name: 'admin.event-candidates',
-          component: () => import('../views/admin/CandidatesListView.vue'),
+          component: () => import('@/views/admin/CandidatesListView.vue'),
         },
         {
           path: 'candidates/:id',
           name: 'admin.candidate.detail',
-          component: () => import('../views/admin/CandidateDetailView.vue'),
+          component: () => import('@/views/admin/CandidateDetailView.vue'),
         },
         {
           path: 'blog',
           name: 'admin.blog',
-          component: () => import('../views/admin/BlogPostsView.vue'),
+          component: () => import('@/views/admin/BlogPostsView.vue'),
         },
         {
           path: 'events',
           name: 'admin.events',
-          component: () => import('../views/admin/EventsUnifiedView.vue'),
+          component: () => import('@/views/admin/EventsUnifiedView.vue'),
         },
         {
           path: 'events/create',
           name: 'admin.events.create',
-          component: () => import('../views/admin/EventFormView.vue'),
+          component: () => import('@/views/admin/EventFormView.vue'),
         },
         {
           path: 'events/:id/edit',
           name: 'admin.events.edit',
-          component: () => import('../views/admin/EventFormView.vue'),
+          component: () => import('@/views/admin/EventFormView.vue'),
         },
         {
           path: 'reports',
           name: 'admin.reports',
-          component: () => import('../views/admin/ReportsView.vue'),
+          component: () => import('@/views/admin/ReportsView.vue'),
         },
         {
           path: 'users',
           name: 'admin.users',
-          component: () => import('../views/admin/UsersView.vue'),
+          component: () => import('@/views/admin/UsersView.vue'),
         },
         {
           path: 'astrobot',
           name: 'admin.astrobot',
-          component: () => import('../views/admin/AstroBotView.vue'),
+          component: () => import('@/views/admin/AstroBotView.vue'),
         },
         {
           path: 'sidebar',
           name: 'admin.sidebar',
-          component: () => import('../views/admin/SidebarConfigView.vue'),
+          component: () => import('@/views/admin/SidebarConfigView.vue'),
         },
       ],
     },
