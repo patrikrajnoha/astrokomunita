@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Post;
 use App\Models\RssItem;
 use App\Services\AstroBotPublisher;
+use App\Services\AstroBotRssRefreshService;
 use App\Services\RssFetchService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +17,8 @@ class AstroBotController extends Controller
 {
     public function __construct(
         private RssFetchService $fetchService,
-        private AstroBotPublisher $publisher
+        private AstroBotPublisher $publisher,
+        private AstroBotRssRefreshService $rssRefreshService,
     ) {}
 
     /**
@@ -332,5 +334,26 @@ class AstroBotController extends Controller
     {
         $count = $this->publisher->publishScheduled();
         return response()->json(['message' => "Published {$count} scheduled items."]);
+    }
+
+    /**
+     * POST /api/admin/astrobot/rss/refresh
+     *
+     * Body:
+     * - source: string (optional, default nasa_news)
+     */
+    public function refreshRss(Request $request): JsonResponse
+    {
+        $request->validate([
+            'source' => 'string',
+        ]);
+
+        $source = (string) $request->get('source', RssFetchService::SOURCE_NASA_NEWS);
+        $result = $this->rssRefreshService->refresh($source);
+
+        return response()->json([
+            'message' => 'RSS refresh completed.',
+            'result' => $result,
+        ]);
     }
 }

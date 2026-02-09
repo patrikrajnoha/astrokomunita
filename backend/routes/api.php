@@ -344,6 +344,7 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
 
             // Manual trigger for scheduled publishing
             Route::post('/publish-scheduled', [AstroBotController::class, 'publishScheduled']);
+            Route::post('/rss/refresh', [AstroBotController::class, 'refreshRss']);
         });
     });
 
