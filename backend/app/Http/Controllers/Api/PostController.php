@@ -19,7 +19,9 @@ class PostController extends Controller
 
     public function index(Request $request)
     {
-        if ($request->query('scope') === 'me' && !$request->user()) {
+        $viewer = $request->user() ?? $request->user('sanctum');
+
+        if ($request->query('scope') === 'me' && !$viewer) {
             return response()->json([
                 'message' => 'Neprihlaseny pouzivatel.',
             ], 401);
@@ -33,7 +35,7 @@ class PostController extends Controller
             'scope' => $request->query('scope'),
             'source' => $request->query('source'),
             'tag' => $request->query('tag'),
-        ], $request->user());
+        ], $viewer);
 
         return response()->json($result);
     }

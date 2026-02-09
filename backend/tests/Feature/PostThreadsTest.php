@@ -230,4 +230,41 @@ class PostThreadsTest extends TestCase
         $response->assertJsonPath('data.0.id', $root->id);
         $response->assertJsonPath('data.0.replies_count', 1);
     }
+
+    public function test_scope_me_requires_authentication(): void
+    {
+        $response = $this->getJson('/api/posts?scope=me');
+
+        $response->assertStatus(401);
+    }
+
+    public function test_scope_me_accepts_sanctum_token_and_returns_only_my_posts(): void
+    {
+        $me = User::factory()->create();
+        $other = User::factory()->create();
+
+        Post::create([
+            'user_id' => $me->id,
+            'content' => 'My post',
+            'parent_id' => null,
+            'root_id' => null,
+            'depth' => 0,
+        ]);
+
+        Post::create([
+            'user_id' => $other->id,
+            'content' => 'Other post',
+            'parent_id' => null,
+            'root_id' => null,
+            'depth' => 0,
+        ]);
+
+        Sanctum::actingAs($me);
+
+        $response = $this->getJson('/api/posts?scope=me');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.user_id', $me->id);
+    }
 }
