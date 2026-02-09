@@ -1,9 +1,29 @@
-<template>
+﻿<template>
   <div class="adminAstrobot">
     <header class="adminHeader">
-      <h1 class="adminTitle">AstroBot Admin</h1>
-      <p class="adminSubtitle">RSS pipeline – NASA news automation</p>
+      <div>
+        <h1 class="adminTitle">AstroBot Admin</h1>
+        <p class="adminSubtitle">RSS pipeline - NASA news automation</p>
+      </div>
+
+      <button
+        class="refreshButton"
+        type="button"
+        :disabled="refreshing"
+        @click="refreshRss"
+      >
+        <LoadingIndicator v-if="refreshing" size="sm" :text="''" :full-width="false" />
+        <span>{{ refreshing ? 'Aktualizujem...' : 'Aktualizovat RSS' }}</span>
+      </button>
     </header>
+
+    <div
+      v-if="toast.message"
+      class="toast"
+      :class="toast.type === 'error' ? 'toastError' : 'toastSuccess'"
+    >
+      {{ toast.message }}
+    </div>
 
     <div class="adminTabs">
       <button
@@ -18,8 +38,8 @@
     </div>
 
     <main class="adminMain">
-      <TodayTab v-if="activeTab === 'today'" />
-      <PublishedTab v-if="activeTab === 'published'" />
+      <TodayTab v-if="activeTab === 'today'" :key="`today-${refreshNonce}`" />
+      <PublishedTab v-if="activeTab === 'published'" :key="`published-${refreshNonce}`" />
       <SettingsTab v-if="activeTab === 'settings'" />
     </main>
   </div>
@@ -29,19 +49,54 @@
 import TodayTab from '@/components/admin/astrobot/TodayTab.vue'
 import PublishedTab from '@/components/admin/astrobot/PublishedTab.vue'
 import SettingsTab from '@/components/admin/astrobot/SettingsTab.vue'
+import LoadingIndicator from '@/components/shared/LoadingIndicator.vue'
+import api from '@/services/api'
 
 export default {
   name: 'AstroBotView',
-  components: { TodayTab, PublishedTab, SettingsTab },
+  components: { TodayTab, PublishedTab, SettingsTab, LoadingIndicator },
   data() {
     return {
       activeTab: 'today',
+      refreshing: false,
+      refreshNonce: 0,
+      toast: {
+        message: '',
+        type: 'success',
+      },
       tabs: [
         { key: 'today', label: 'Today' },
         { key: 'published', label: 'Published' },
         { key: 'settings', label: 'Settings' },
       ],
     }
+  },
+  methods: {
+    async refreshRss() {
+      if (this.refreshing) return
+      this.refreshing = true
+      this.toast.message = ''
+
+      try {
+        const res = await api.post('/admin/astrobot/rss/refresh')
+        const result = res?.data?.result || {}
+        this.toast = {
+          type: 'success',
+          message: `RSS aktualizovane. Nove: ${result.created ?? 0}, preskocene: ${result.skipped ?? 0}.`,
+        }
+        this.refreshNonce += 1
+      } catch (e) {
+        this.toast = {
+          type: 'error',
+          message: e?.response?.data?.message || 'Nepodarilo sa aktualizovat RSS feed.',
+        }
+      } finally {
+        this.refreshing = false
+        window.setTimeout(() => {
+          this.toast.message = ''
+        }, 5000)
+      }
+    },
   },
 }
 </script>
@@ -54,7 +109,11 @@ export default {
 }
 
 .adminHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 2rem;
+  gap: 1rem;
 }
 
 .adminTitle {
@@ -68,6 +127,47 @@ export default {
   color: var(--color-text-secondary);
   font-size: 1rem;
   margin: 0;
+}
+
+.refreshButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.45);
+  color: var(--color-surface);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+  border-radius: 0.75rem;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: rgb(var(--color-primary-rgb) / 0.2);
+}
+
+.refreshButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.toast {
+  margin-bottom: 1rem;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+}
+
+.toastSuccess {
+  border: 1px solid rgb(var(--color-success-rgb) / 0.4);
+  background: rgb(var(--color-success-rgb) / 0.12);
+  color: var(--color-success);
+}
+
+.toastError {
+  border: 1px solid rgb(var(--color-danger-rgb) / 0.4);
+  background: rgb(var(--color-danger-rgb) / 0.12);
+  color: var(--color-danger);
 }
 
 .adminTabs {
@@ -101,5 +201,12 @@ export default {
 
 .adminMain {
   min-height: 400px;
+}
+
+@media (max-width: 760px) {
+  .adminHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>
