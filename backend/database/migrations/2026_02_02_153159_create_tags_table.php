@@ -6,23 +6,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('tags', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 32)->unique(); // lowercase hashtag name
+            $table->string('name', 32)->unique();
+            $table->string('slug', 100)->unique();
             $table->timestamps();
-            
+
             $table->index('name');
+            $table->index('slug');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('tags');

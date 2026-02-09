@@ -57,7 +57,9 @@ class EventReminderController extends Controller
             ]
         );
 
-        return new EventReminderResource($reminder->load('event'));
+        return (new EventReminderResource($reminder->load('event')))
+            ->response()
+            ->setStatusCode(200);
     }
 
     /**

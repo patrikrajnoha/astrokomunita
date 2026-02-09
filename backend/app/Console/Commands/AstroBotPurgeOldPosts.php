@@ -15,9 +15,7 @@ class AstroBotPurgeOldPosts extends Command
      *
      * @var string
      */
-    protected $signature = 'astrobot:purge-old-posts 
-                            {--dry-run : Show what would be deleted without actually deleting}
-                            {--hours= : Number of hours after which posts should be deleted (overrides config)}';
+    protected $signature = 'astrobot:purge-old-posts {--dry-run : Show what would be deleted without actually deleting} {--hours= : Number of hours after which posts should be deleted (overrides config)}';
 
     /**
      * The console command description.

@@ -10,35 +10,30 @@ return new class extends Migration
     {
         Schema::create('event_candidates', function (Blueprint $table) {
             $table->id();
-
-            // Zdroj + deduplikácia
             $table->string('source_name', 100);
             $table->text('source_url')->nullable();
-            $table->string('source_uid', 191)->nullable();     // ID zo zdroja, ak existuje
-            $table->string('source_hash', 64)->index();        // hash pre dedupe
+            $table->string('source_uid', 191)->nullable();
+            $table->string('source_hash', 64)->index();
 
-            // Normalizované polia (čo admin vidí)
             $table->string('title', 255);
-            $table->string('type', 50);                        // zatiaľ string, neskôr enum
+            $table->string('raw_type')->nullable();
+            $table->string('type', 50);
             $table->dateTime('max_at');
             $table->dateTime('start_at')->nullable();
             $table->dateTime('end_at')->nullable();
 
             $table->text('short')->nullable();
             $table->longText('description')->nullable();
-            $table->string('visibility', 50)->nullable();      // SK/EU/WORLD alebo text
+            $table->string('visibility', 50)->nullable();
+            $table->longText('raw_payload')->nullable();
 
-            // Audit / reprodukovateľnosť
-            $table->longText('raw_payload')->nullable();       // JSON ako text
-
-            // Review flow
-            $table->string('status', 20)->default('pending')->index(); // pending/approved/rejected/duplicate
+            $table->string('status', 20)->default('pending')->index();
             $table->foreignId('reviewed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->dateTime('reviewed_at')->nullable();
+            $table->foreignId('published_event_id')->nullable()->constrained('events')->nullOnDelete();
             $table->text('reject_reason')->nullable();
 
             $table->timestamps();
-
             $table->index(['source_name', 'source_uid']);
         });
     }

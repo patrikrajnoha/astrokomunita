@@ -33,8 +33,6 @@ return new class extends Migration
             $table->index('post_id', 'rss_items_post_id_index');
             $table->index('fetched_at', 'rss_items_fetched_at_index');
 
-            // Foreign key
-            $table->foreign('post_id')->references('id')->on('posts')->onDelete('set null');
         });
     }
 

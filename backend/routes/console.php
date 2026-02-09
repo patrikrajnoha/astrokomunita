@@ -27,7 +27,7 @@ Artisan::command('astrobot:cleanup-expired {--dry-run}', function () {
     $this->call(\App\Console\Commands\CleanupExpiredAstroBotPosts::class);
 })->purpose('Hide expired AstroBot posts (older than 24 hours)');
 
-Artisan::command('astrobot:purge-old-posts {--dry-run}', function () {
+Artisan::command('astrobot:purge-old-posts {--dry-run} {--hours=}', function () {
     $this->call(\App\Console\Commands\AstroBotPurgeOldPosts::class);
 })->purpose('Permanently delete AstroBot posts older than 24 hours');
 
