@@ -42,4 +42,16 @@ return [
      * Default: 100
      */
     'max_posts_per_cleanup' => env('ASTROBOT_MAX_POSTS_PER_CLEANUP', 100),
+
+    /**
+     * Keep non-published RSS items for this many days.
+     * Set to 0 to disable age-based cleanup.
+     */
+    'rss_retention_days' => env('ASTROBOT_RSS_RETENTION_DAYS', 30),
+
+    /**
+     * Keep at most this many non-published RSS items.
+     * Set to 0 to disable count-based cleanup.
+     */
+    'rss_retention_max_items' => env('ASTROBOT_RSS_RETENTION_MAX_ITEMS', 200),
 ];

@@ -19,6 +19,10 @@ Artisan::command('astrobot:fetch {--source=nasa_news}', function () {
     $this->call(\App\Console\Commands\AstroBotFetch::class);
 })->purpose('Fetch RSS items for AstroBot');
 
+Artisan::command('astrobot:rss:refresh {--source=nasa_news}', function () {
+    $this->call(\App\Console\Commands\AstroBotRssRefresh::class);
+})->purpose('Refresh AstroBot RSS items and apply retention cleanup');
+
 Artisan::command('astrobot:publish-scheduled', function () {
     $this->call(\App\Console\Commands\AstroBotPublishScheduled::class);
 })->purpose('Publish scheduled AstroBot items');
@@ -54,10 +58,10 @@ Schedule::command('news:import-nasa --limit=20')
 // ------------------------------------------------------------------
 // AstroBot Scheduler
 // ------------------------------------------------------------------
-Schedule::command('astrobot:fetch')
-    ->everyFifteenMinutes()
+Schedule::command('astrobot:rss:refresh')
+    ->hourly()
     ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/astrobot_fetch.log'));
+    ->appendOutputTo(storage_path('logs/astrobot_rss_refresh.log'));
 
 Schedule::command('astrobot:publish-scheduled')
     ->everyMinute()
