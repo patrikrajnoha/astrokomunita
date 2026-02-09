@@ -329,11 +329,11 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
             // RSS items management
             Route::get('/items', [AstroBotController::class, 'items']);
             Route::post('/fetch', [AstroBotController::class, 'fetch']);
-            Route::put('/items/{id}', [AstroBotController::class, 'update']);
-            Route::post('/items/{id}/approve', [AstroBotController::class, 'approve']);
-            Route::post('/items/{id}/publish', [AstroBotController::class, 'publish']);
-            Route::post('/items/{id}/schedule', [AstroBotController::class, 'schedule']);
-            Route::post('/items/{id}/discard', [AstroBotController::class, 'discard']);
+            Route::put('/items/{item}', [AstroBotController::class, 'update']);
+            Route::post('/items/{item}/approve', [AstroBotController::class, 'approve']);
+            Route::post('/items/{item}/publish', [AstroBotController::class, 'publish']);
+            Route::post('/items/{item}/schedule', [AstroBotController::class, 'schedule']);
+            Route::post('/items/{item}/discard', [AstroBotController::class, 'discard']);
 
             // Bulk actions
             Route::post('/bulk', [AstroBotController::class, 'bulk']);
