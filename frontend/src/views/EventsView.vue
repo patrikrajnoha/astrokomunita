@@ -182,9 +182,10 @@ export default {
 
       // UI filter -> API types
       const groups = {
-        meteors: ['meteor_shower'],
-        eclipses: ['eclipse_lunar', 'eclipse_solar'],
-        conjunctions: ['planetary_event'], // ak neskôr rozlíšiš, upravíš len tu
+        // Support current backend event types and legacy aliases.
+        meteors: ['meteors', 'meteor_shower'],
+        eclipses: ['eclipse', 'eclipse_lunar', 'eclipse_solar'],
+        conjunctions: ['conjunction', 'planetary_event'], // ak neskôr rozlíšiš, upravíš len tu
         comets: ['other'], // zatiaľ nemáš "comet" typ v backende
       }
 
@@ -227,9 +228,12 @@ export default {
 
     typeLabel(type) {
       const map = {
+        meteors: 'Meteory',
         meteor_shower: 'Meteory',
+        eclipse: 'Zatmenie',
         eclipse_lunar: 'Zatmenie (L)',
         eclipse_solar: 'Zatmenie (S)',
+        conjunction: 'Konjunkcia',
         planetary_event: 'Konjunkcia',
         other: 'Iné',
       }
