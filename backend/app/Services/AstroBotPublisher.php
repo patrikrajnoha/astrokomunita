@@ -10,12 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 class AstroBotPublisher
 {
-    private User $astroBot;
-
-    public function __construct()
-    {
-        $this->astroBot = $this->ensureAstroBotUser();
-    }
+    private ?User $astroBot = null;
 
     /**
      * Publish an RSS item immediately as a Post.
@@ -36,8 +31,9 @@ class AstroBotPublisher
             $summary = $overrides['summary'] ?? $item->summary;
 
             $ttlHours = (int) config('astrobot.post_ttl_hours', 24);
+            $astroBot = $this->getAstroBotUser();
             $post = Post::create([
-                'user_id' => $this->astroBot->id,
+                'user_id' => $astroBot->id,
                 'content' => $content,
                 'source_name' => 'astrobot',
                 'source_url' => $item->url,
@@ -132,6 +128,15 @@ class AstroBotPublisher
                 'is_bot' => true, // Mark as bot user for broadcast-only behavior
             ]
         );
+    }
+
+    private function getAstroBotUser(): User
+    {
+        if ($this->astroBot === null) {
+            $this->astroBot = $this->ensureAstroBotUser();
+        }
+
+        return $this->astroBot;
     }
 
     private function buildContent(RssItem $item): string

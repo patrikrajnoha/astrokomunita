@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Post;
-use App\Services\HashtagParser;
+use App\Support\HashtagParser;
 use Illuminate\Console\Command;
 
 class FixHashtags extends Command
@@ -28,7 +28,7 @@ class FixHashtags extends Command
         foreach ($posts as $post) {
             $this->line("Processing post ID: {$post->id}");
             try {
-                HashtagParser::syncTags($post, $post->content);
+                HashtagParser::syncHashtags($post, $post->content);
                 $this->info("✓ Fixed post {$post->id}");
             } catch (\Exception $e) {
                 $this->error("✗ Error fixing post {$post->id}: " . $e->getMessage());
