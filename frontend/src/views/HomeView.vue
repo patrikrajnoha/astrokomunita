@@ -1,27 +1,25 @@
 <template>
-  <div class="homeLayout">
-    <section class="centerCol">
-      <PostComposer
-        v-if="auth?.isAuthed"
-        @created="onPostCreated"
-      />
+  <section class="centerCol">
+    <PostComposer
+      v-if="auth?.isAuthed"
+      @created="onPostCreated"
+    />
 
-      <FeedList ref="feed" :key="$route.fullPath" />
-    </section>
-
-    <DynamicSidebar />
-  </div>
+    <FeedList ref="feed" :key="$route.fullPath" />
+  </section>
 </template>
 
 <script>
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 import PostComposer from '@/components/PostComposer.vue'
 import FeedList from '@/components/FeedList.vue'
-import DynamicSidebar from '@/components/DynamicSidebar.vue'
+
+const { showToast } = useToast()
 
 export default {
   name: 'HomeView',
-  components: { PostComposer, FeedList, DynamicSidebar },
+  components: { PostComposer, FeedList },
   data() {
     return {
       auth: useAuthStore(),
@@ -30,32 +28,38 @@ export default {
   methods: {
     onPostCreated(createdPost) {
       this.$refs.feed?.prepend?.(createdPost)
+      showToast('Prispevok bol publikovany.', 'success')
     },
+    onGlobalPostCreated(event) {
+      const createdPost = event?.detail
+      if (!createdPost?.id) return
+      this.$refs.feed?.prepend?.(createdPost)
+    },
+  },
+  mounted() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('post:created', this.onGlobalPostCreated)
+    }
+  },
+  beforeUnmount() {
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('post:created', this.onGlobalPostCreated)
+    }
   },
 }
 </script>
 
 <style scoped>
-.homeLayout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 1.5rem;
-  align-items: start;
-}
-
 .centerCol {
   display: grid;
-  gap: 1.25rem;
-  max-width: 680px;
+  gap: 1rem;
   width: 100%;
-  margin: 0 auto;
+  min-width: 0;
 }
 
-/* Responsive: on mobile, hide sidebar column completely */
-@media (max-width: 1023px) {
-  .homeLayout {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 480px) {
+  .centerCol {
+    gap: 0.75rem;
   }
 }
-
 </style>

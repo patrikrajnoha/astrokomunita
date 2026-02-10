@@ -2,11 +2,6 @@
   <section class="feed-container">
     <!-- Header -->
     <header class="feed-header">
-      <div class="feed-title-section">
-        <h1 class="feed-title">Komunitný feed</h1>
-        <p class="feed-subtitle">Najnovšie príspevky od používateľov.</p>
-      </div>
-
       <div class="feed-actions">
         <!-- X-like tabs -->
         <div class="feed-tabs" role="tablist">
@@ -63,7 +58,8 @@
         class="post-card"
         :class="{ 
           'post-card--pinned': p.pinned_at,
-          'post-card--astrobot': p.source_name === 'astrobot'
+          'post-card--astrobot': p.source_name === 'astrobot',
+          'post-card--new': highlightedPostId === p.id
         }"
         @click="openPost(p)"
       >
@@ -98,29 +94,17 @@
                 <span v-if="p.source_name === 'astrobot'" class="astrobot-label">Automated news · replies disabled</span>
               </div>
             </div>
-
-            <!-- Actions dropdown placeholder -->
+            <!-- Actions dropdown -->
             <div class="post-actions-menu">
-              <button class="action-button" type="button" title="Možnosti" @click.stop>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="12" cy="5" r="2"/>
-                  <circle cx="12" cy="12" r="2"/>
-                  <circle cx="12" cy="19" r="2"/>
-                </svg>
-              </button>
-              <button
-                v-if="auth.user?.is_admin && p.source_name !== 'astrobot'"
-                class="action-button"
-                type="button"
-                :title="p.pinned_at ? 'Odopnúť' : 'Pripnúť'"
-                :disabled="pinLoadingId === p.id"
-                @click.stop="togglePin(p)"
-              >
-                {{ pinLoadingId === p.id ? '...' : (p.pinned_at ? '📌' : '📌') }}
-              </button>
+              <DropdownMenu
+                v-if="menuItemsForPost(p).length"
+                :items="menuItemsForPost(p)"
+                label="More actions"
+                menu-label="Post actions"
+                @select="(item) => onMenuAction(item, p)"
+              />
             </div>
           </div>
-
           <!-- Content -->
           <div class="post-text">
             <HashtagText :content="p.content" />
@@ -135,13 +119,10 @@
 
           <!-- Media attachment -->
           <div v-if="p.attachment_url" class="post-media">
-            <img
+            <PostMediaImage
               v-if="isImage(p)"
-              class="media-image"
               :src="attachmentSrc(p)"
-              alt="Príloha"
-              loading="lazy"
-              @click.stop
+              alt="Priloha prispevku"
             />
 
             <a
@@ -165,14 +146,7 @@
 
           <!-- Bottom actions -->
           <div class="post-actions" @click.stop>
-            <button class="action-btn action-btn--report" type="button" title="Nahlásiť" @click.stop="openReport(p)">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 12h18m-9-9v18"/>
-              </svg>
-              <span class="action-text">Report</span>
-            </button>
-            
-            <button 
+<button 
               v-if="p.source_name !== 'astrobot'"
               class="action-btn action-btn--reply" 
               type="button" 
@@ -196,7 +170,13 @@
               <span class="action-count">{{ p.replies_count ?? 0 }}</span>
             </span>
             
-            <button class="action-btn action-btn--share" type="button" title="Zdieľať" disabled>
+            <button
+              class="action-btn action-btn--share"
+              type="button"
+              title="Zdieľať"
+              aria-label="Zdieľať prispevok"
+              @click.stop="openShareModal(p)"
+            >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
                 <polyline points="16 6 12 2 8 6"/>
@@ -223,11 +203,18 @@
             
             <div class="action-spacer"></div>
             
-            <button class="action-btn action-btn--thread" type="button" title="View thread" @click.stop="openPost(p)">
+            <button
+              class="action-btn action-btn--thread"
+              type="button"
+              title="Počet zobrazení"
+              aria-label="Počet zobrazení"
+              @click.stop="openPost(p)"
+            >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M8 9h8m-8 4h6m-6 4h4"/>
-                <path d="M3 12h.01M21 12h.01"/>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
               </svg>
+              <span v-if="Number(p.views ?? 0) > 0" class="view-count">{{ p.views }}</span>
             </button>
             
             <button class="action-btn action-btn--save" type="button" title="Uložiť" disabled>
@@ -235,23 +222,12 @@
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
               </svg>
             </button>
-            
-            <button
-              v-if="canDelete(p)"
-              class="action-btn action-btn--delete"
-              type="button"
-              title="Delete"
-              :disabled="deleteLoadingId === p.id"
-              @click.stop="deletePost(p)"
-            >
-              {{ deleteLoadingId === p.id ? 'Mazem...' : 'Delete' }}
-            </button>
-          </div>
+</div>
         </div>
       </article>
     </div>
 
-    <!-- Load more -->
+        <!-- Load more -->
     <div class="load-more">
       <button
         v-if="nextPageUrl"
@@ -259,14 +235,13 @@
         :disabled="loading"
         @click="load(false)"
       >
-        {{ loading ? 'Načítavam…' : 'Načítať viac' }}
+        {{ loading ? 'Loading...' : 'Load more' }}
       </button>
     </div>
-
     <!-- Report modal -->
     <div v-if="reportTarget" class="report-modal" @click.stop>
       <div class="report-content">
-        <h3 class="report-title">Nahlásiť príspevok</h3>
+        <h3 class="report-title">Nahlasit prispevok</h3>
         <div class="report-form">
           <div class="form-group">
             <label class="form-label">Reason</label>
@@ -288,6 +263,30 @@
         </div>
       </div>
     </div>
+    <div v-if="deleteTarget" class="report-modal" @click="closeDeleteConfirm">
+      <div
+        class="report-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-title"
+        @click.stop
+      >
+        <h3 id="delete-title" class="report-title">Delete post</h3>
+        <p class="delete-copy">This action cannot be undone.</p>
+        <div class="report-actions">
+          <button class="btn btn-secondary" type="button" @click="closeDeleteConfirm">Cancel</button>
+          <button
+            class="btn btn-danger"
+            type="button"
+            :disabled="deleteLoadingId === deleteTarget.id"
+            @click="confirmDelete"
+          >
+            {{ deleteLoadingId === deleteTarget.id ? 'Deleting...' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    </div>
+    <ShareModal :open="!!shareTarget" :post="shareTarget" @close="closeShareModal" />
   </section>
 </template>
 
@@ -295,8 +294,12 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import HashtagText from './HashtagText.vue'
+import DropdownMenu from '@/components/shared/DropdownMenu.vue'
+import PostMediaImage from '@/components/media/PostMediaImage.vue'
+import ShareModal from '@/components/share/ShareModal.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { canDeletePost, canReportPost } from '@/utils/postPermissions'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -316,8 +319,12 @@ const likeLoadingIds = ref(new Set())
 const likeBumpId = ref(null)
 const pinLoadingId = ref(null)
 const reportTarget = ref(null)
+const deleteTarget = ref(null)
 const reportReason = ref('spam')
 const reportMessage = ref('')
+const highlightedPostId = ref(null)
+const shareTarget = ref(null)
+let highlightTimer = null
 
 function createFeedState() {
   return {
@@ -341,9 +348,51 @@ function openProfile(post) {
 }
 
 function canDelete(post) {
-  const userId = auth.user?.id
-  if (!userId) return false
-  return Number(post?.user_id) === Number(userId)
+  return canDeletePost(post, auth.user)
+}
+
+function canReport(post) {
+  return canReportPost(post, auth.user)
+}
+
+function menuItemsForPost(post) {
+  const items = []
+
+  if (canReport(post)) {
+    items.push({ key: 'report', label: 'Report', danger: false })
+  }
+
+  if (canDelete(post)) {
+    items.push({ key: 'delete', label: 'Delete', danger: true })
+  }
+
+  if (auth.user?.is_admin && post?.source_name !== 'astrobot') {
+    items.push({
+      key: 'pin',
+      label: post?.pinned_at ? 'Unpin' : 'Pin',
+      danger: false,
+    })
+  }
+
+  return items
+}
+
+function onMenuAction(item, post) {
+  if (!item?.key || !post?.id) return
+
+  if (item.key === 'report') {
+    openReport(post)
+    return
+  }
+
+  if (item.key === 'delete') {
+    openDeleteConfirm(post)
+    return
+  }
+
+  if (item.key === 'pin') {
+    togglePin(post)
+  }
 }
 
 function isLikeLoading(post) {
@@ -358,7 +407,7 @@ function setLikeLoading(id, on) {
 }
 
 function openReport(post) {
-  if (!post?.id) return
+  if (!post?.id || !canReport(post)) return
   reportTarget.value = post
 }
 
@@ -438,8 +487,7 @@ async function toggleLike(post) {
 
 async function deletePost(post) {
   if (!post?.id || deleteLoadingId.value) return
-  const ok = window.confirm('Naozaj zmazat post?')
-  if (!ok) return
+  if (!canDelete(post)) return
 
   currentFeed.value.err = ''
   deleteLoadingId.value = post.id
@@ -455,7 +503,31 @@ async function deletePost(post) {
     else currentFeed.value.err = e?.response?.data?.message || 'Mazanie zlyhalo.'
   } finally {
     deleteLoadingId.value = null
+    closeDeleteConfirm()
   }
+}
+
+function openDeleteConfirm(post) {
+  if (!post?.id || !canDelete(post)) return
+  deleteTarget.value = post
+}
+
+function openShareModal(post) {
+  if (!post?.id) return
+  shareTarget.value = post
+}
+
+function closeShareModal() {
+  shareTarget.value = null
+}
+
+function closeDeleteConfirm() {
+  deleteTarget.value = null
+}
+
+async function confirmDelete() {
+  if (!deleteTarget.value?.id) return
+  await deletePost(deleteTarget.value)
 }
 
 function initials(name) {
@@ -624,18 +696,39 @@ function prepend(post) {
   if (!post?.id) return
   const state = feedState.for_you
   state.items = [post, ...state.items]
+  highlightedPostId.value = post.id
+
+  if (highlightTimer) {
+    clearTimeout(highlightTimer)
+  }
+  highlightTimer = setTimeout(() => {
+    if (highlightedPostId.value === post.id) highlightedPostId.value = null
+    highlightTimer = null
+  }, 1800)
+}
+
+function handleGlobalKeydown(event) {
+  if (event.key !== 'Escape') return
+  if (reportTarget.value) closeReport()
+  if (deleteTarget.value) closeDeleteConfirm()
 }
 
 onMounted(() => {
   load(true)
+  window.addEventListener('keydown', handleGlobalKeydown)
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
   Object.values(feedState).forEach((state) => {
     if (state?.controller) {
       state.controller.abort()
     }
   })
+  if (highlightTimer) {
+    clearTimeout(highlightTimer)
+    highlightTimer = null
+  }
 })
 
 defineExpose({ load, prepend })
@@ -644,9 +737,12 @@ defineExpose({ load, prepend })
 <style scoped>
 /* Modern Feed Styles */
 .feed-container {
-  max-width: 600px;
+  max-width: 760px;
   margin: 0 auto;
   padding: 0;
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
 }
 
 /* Header */
@@ -816,6 +912,7 @@ defineExpose({ load, prepend })
   flex-direction: column;
   gap: 12px;
   padding: 0 4px;
+  min-width: 0;
 }
 
 .post-card {
@@ -827,6 +924,8 @@ defineExpose({ load, prepend })
   cursor: pointer;
   position: relative;
   overflow: hidden;
+  width: 100%;
+  min-width: 0;
 }
 
 .post-card:hover {
@@ -839,6 +938,27 @@ defineExpose({ load, prepend })
 .post-card:active {
   transform: translateY(0);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.post-card--new {
+  animation: newPostReveal 760ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  border-color: rgb(var(--color-primary-rgb) / 0.48);
+}
+
+@keyframes newPostReveal {
+  0% {
+    opacity: 0.35;
+    transform: translateY(-10px) scale(0.985);
+    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0.35);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 0 8px rgb(var(--color-primary-rgb) / 0.08);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0);
+  }
 }
 
 /* Pinned posts */
@@ -961,6 +1081,7 @@ defineExpose({ load, prepend })
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 4px;
+  min-width: 0;
 }
 
 .author-name {
@@ -1094,7 +1215,9 @@ defineExpose({ load, prepend })
   line-height: 1.6;
   font-size: 15px;
   word-wrap: break-word;
+  word-break: break-word;
   overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 .post-text a {
@@ -1146,20 +1269,6 @@ defineExpose({ load, prepend })
 /* Media */
 .post-media {
   margin-top: 12px;
-}
-
-.media-image {
-  width: 100%;
-  max-height: 420px;
-  object-fit: cover;
-  display: block;
-  border-radius: 8px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.15);
-  transition: transform 0.2s ease;
-}
-
-.media-image:hover {
-  transform: scale(1.02);
 }
 
 /* File Attachment */
@@ -1231,6 +1340,8 @@ defineExpose({ load, prepend })
   gap: 4px;
   padding-top: 12px;
   border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.1);
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .action-btn {
@@ -1352,6 +1463,13 @@ defineExpose({ load, prepend })
   font-weight: 500;
   min-width: 16px;
   text-align: center;
+}
+
+.view-count {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  line-height: 1;
 }
 
 .action-text {
@@ -1525,55 +1643,174 @@ defineExpose({ load, prepend })
   border-color: rgb(var(--color-primary-rgb) / 0.9);
 }
 
+.btn-danger {
+  background: rgb(var(--color-danger-rgb) / 0.18);
+  border-color: rgb(var(--color-danger-rgb) / 0.55);
+  color: var(--color-danger);
+}
+
+.btn-danger:hover {
+  background: rgb(var(--color-danger-rgb) / 0.26);
+}
+
 .btn:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
-/* Mobile Responsive */
-@media (max-width: 640px) {
+.delete-copy {
+  color: var(--color-text-secondary);
+  margin: 0 0 0.9rem;
+}
+
+@media (max-width: 480px) {
   .feed-container {
-    padding: 0 8px;
+    padding: 0 6px;
   }
-  
+
+  .feed-header {
+    margin-bottom: 16px;
+  }
+
+  .feed-title {
+    font-size: 1.2rem;
+  }
+
+  .feed-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .feed-tabs {
+    width: 100%;
+  }
+
+  .tab-button {
+    padding: 10px 12px;
+    font-size: 0.82rem;
+  }
+
+  .post-card {
+    padding: 10px;
+    gap: 8px;
+    border-radius: 10px;
+  }
+
+  .post-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .post-actions-menu {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .avatar-image,
+  .avatar-fallback {
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+  }
+
+  .author-name {
+    font-size: 13px;
+  }
+
+  .author-username {
+    font-size: 12px;
+  }
+
+  .post-text {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .post-time {
+    font-size: 12px;
+  }
+
+  .action-btn {
+    padding: 6px 8px;
+    font-size: 12px;
+    min-height: 32px;
+  }
+
+  .action-count {
+    font-size: 11px;
+  }
+
+  .action-spacer {
+    display: none;
+  }
+
+  .report-content {
+    padding: 16px;
+    margin: 10px;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .feed-container {
+    padding: 0 10px;
+  }
+
+  .feed-title {
+    font-size: 1.32rem;
+  }
+
   .post-card {
     padding: 12px;
     gap: 10px;
   }
-  
+
+  .post-header {
+    gap: 10px;
+  }
+
   .avatar-image,
   .avatar-fallback {
     width: 40px;
     height: 40px;
     font-size: 14px;
   }
-  
+
   .author-name {
     font-size: 14px;
   }
-  
+
   .author-username {
     font-size: 13px;
   }
-  
+
   .post-text {
     font-size: 14px;
   }
-  
+
   .action-btn {
     padding: 6px 10px;
     font-size: 12px;
-    min-height: 32px;
+    min-height: 34px;
   }
-  
-  .action-count {
-    font-size: 11px;
-  }
-  
+
   .report-content {
     padding: 16px;
     margin: 16px;
   }
 }
 
+@media (min-width: 769px) {
+  .feed-container {
+    padding: 0 4px;
+  }
+
+  .post-card {
+    padding: 16px;
+    gap: 12px;
+  }
+}
+
 </style>
+
+
+

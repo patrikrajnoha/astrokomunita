@@ -4,7 +4,7 @@
       <header class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 class="text-4xl font-black tracking-tight sm:text-5xl">Notifications</h1>
-          <p class="mt-2 text-sm text-[#9a9a9a]">Tvoje posledné upozornenia v reálnom čase.</p>
+          <p class="mt-2 text-sm text-[#9a9a9a]">Your latest activity updates.</p>
         </div>
         <button
           class="rounded-full border border-[#1f1f1f] bg-[#0d0d0d] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#cfcfcf] transition hover:border-[#2a2a2a] hover:text-white"
@@ -16,11 +16,19 @@
       </header>
 
       <div class="rounded-2xl border border-[#121212] bg-[#050505]">
-        <div
-          v-if="!items.length && !loading"
-          class="px-6 py-10 text-center text-sm text-[#8a8a8a]"
-        >
-          Zatiaľ žiadne notifikácie.
+        <div v-if="error && !loading" class="px-6 py-6 text-center">
+          <p class="text-sm text-rose-300">{{ error }}</p>
+          <button
+            type="button"
+            class="mt-3 rounded-full border border-[#2b2b2b] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#d0d0d0] transition hover:border-[#3a3a3a] hover:text-white"
+            @click="retry"
+          >
+            Retry
+          </button>
+        </div>
+
+        <div v-else-if="!items.length && !loading" class="px-6 py-10 text-center text-sm text-[#8a8a8a]">
+          No notifications yet.
         </div>
 
         <button
@@ -36,17 +44,13 @@
             :class="item.read_at ? 'bg-transparent' : 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.55)]'"
           ></span>
           <div class="flex-1">
-            <p class="text-sm font-semibold text-white">
-              {{ formatTitle(item) }}
-            </p>
-            <p class="mt-1 text-xs text-[#9a9a9a]">
-              {{ formatSubtitle(item) }}
-            </p>
+            <p class="text-sm font-semibold text-white">{{ formatTitle(item) }}</p>
+            <p class="mt-1 text-xs text-[#9a9a9a]">{{ formatSubtitle(item) }}</p>
           </div>
           <span class="text-xs text-[#b5b5b5]">{{ formatTime(item.created_at) }}</span>
         </button>
 
-        <div v-if="loading" class="px-6 py-4 text-xs text-[#8a8a8a]">Načítavam…</div>
+        <div v-if="loading" class="px-6 py-4 text-xs text-[#8a8a8a]">Loading...</div>
       </div>
 
       <button
@@ -71,6 +75,7 @@ const router = useRouter()
 
 const items = computed(() => store.items)
 const loading = computed(() => store.loading)
+const error = computed(() => store.error)
 const page = computed(() => store.page)
 const lastPage = computed(() => store.lastPage)
 
@@ -81,6 +86,7 @@ onMounted(() => {
 
 const loadMore = () => store.fetchList(store.page + 1)
 const markAll = () => store.markAllRead()
+const retry = () => store.fetchList(1)
 
 const openNotification = async (item) => {
   if (!item) return
@@ -93,24 +99,24 @@ const openNotification = async (item) => {
 
 const formatTitle = (item) => {
   if (item.type === 'post_liked') {
-    const name = item.data?.actor_name || item.data?.actor_username || 'Niekto'
-    return `${name} lajkol tvoj príspevok`
+    const name = item.data?.actor_name || item.data?.actor_username || 'Someone'
+    return `${name} liked your post`
   }
   if (item.type === 'event_reminder') {
-    return 'Blížiaca sa udalosť'
+    return 'Upcoming event reminder'
   }
-  return 'Notifikácia'
+  return 'Notification'
 }
 
 const formatSubtitle = (item) => {
   if (item.type === 'post_liked') {
     const username = item.data?.actor_username ? `@${item.data.actor_username}` : ''
-    return username || 'Aktivita v komunite'
+    return username || 'Community activity'
   }
   if (item.type === 'event_reminder') {
-    return item.data?.event_title || 'Udalosť začína čoskoro'
+    return item.data?.event_title || 'Event starts soon'
   }
-  return 'Nové upozornenie'
+  return 'New update'
 }
 
 const formatTime = (iso) => {

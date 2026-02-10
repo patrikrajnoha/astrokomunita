@@ -20,6 +20,7 @@ class Post extends Model
         'root_id',
         'depth',
         'content',
+        'views',
         'source_name',
         'source_url',
         'source_uid',
@@ -43,6 +44,7 @@ class Post extends Model
         'parent_id' => 'integer',
         'root_id' => 'integer',
         'depth' => 'integer',
+        'views' => 'integer',
         'attachment_size' => 'integer',
         'source_published_at' => 'datetime',
         'expires_at' => 'datetime',
@@ -177,6 +179,7 @@ class Post extends Model
         'root_id',
         'depth',
         'content',
+        'views',
         'tags',        // Hashtag tags
         'hashtags',    // New hashtags
         'source_name',

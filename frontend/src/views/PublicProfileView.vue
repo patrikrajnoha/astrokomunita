@@ -271,7 +271,7 @@ async function loadUser() {
   user.value = null
 
   try {
-    const { data } = await http.get(`/api/users/${username.value}`)
+    const { data } = await http.get(`/users/${username.value}`)
     user.value = data
   } catch (e) {
     const status = e?.response?.status
@@ -291,7 +291,7 @@ async function loadCounts() {
 
   for (const k of kinds) {
     try {
-      const { data } = await http.get(`/api/users/${username.value}/posts`, {
+      const { data } = await http.get(`/users/${username.value}/posts`, {
         params: { kind: k.kind, per_page: 1 },
       })
 
@@ -315,7 +315,7 @@ async function loadTab(key, reset = true) {
   state.err = ''
 
   try {
-    const url = reset ? `/api/users/${username.value}/posts` : state.next
+    const url = reset ? `/users/${username.value}/posts` : state.next
     if (!url) return
 
     const { data } = await http.get(url, {

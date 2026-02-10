@@ -14,6 +14,7 @@ class AstroBotSeeder extends Seeder
             ['email' => 'astrobot@astrokomunita.local'],
             [
                 'name' => 'AstroBot',
+                'username' => 'astrobot',
                 'bio' => 'Automated space news from NASA RSS',
                 'password' => Str::random(40),
                 'is_bot' => true, // Mark as bot user

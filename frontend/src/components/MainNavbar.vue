@@ -15,11 +15,6 @@
       <span class="hidden sm:inline">Astrokomunita</span>
     </RouterLink>
 
-    <!-- Search Bar -->
-    <div class="px-1">
-      <SearchBar />
-    </div>
-
     <!-- Main Navigation -->
     <div class="flex flex-col gap-1.5 flex-1 overflow-y-auto">
       <RouterLink
@@ -49,7 +44,7 @@
               {{ item.icon }}
             </span>
             <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
-            <span class="shrink-0 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">v</span>
+            <span class="shrink-0 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">▾</span>
           </button>
 
           <div
@@ -130,7 +125,7 @@
               {{ item.icon }}
             </span>
             <span class="flex-1">{{ item.label }}</span>
-            <span class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">v</span>
+            <span class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">▾</span>
           </button>
 
           <div
@@ -196,7 +191,7 @@
               </RouterLink>
 
               <RouterLink
-                to="/admin/candidates"
+                to="/admin/event-candidates"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -244,6 +239,31 @@
                   <span class="flex-1">Reports</span>
                 </a>
               </RouterLink>
+
+              <RouterLink
+                to="/admin/banned-words"
+                custom
+                v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
+              >
+                <a
+                  :href="adminHref"
+                  @click="() => { closeAdmin(); adminNavigate(); }"
+                  class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+                  :class="isAdminItemActive
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    : ''"
+                  role="menuitem"
+                  aria-label="Banned words"
+                >
+                  <span
+                    class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+                    aria-hidden="true"
+                  >
+                    W
+                  </span>
+                  <span class="flex-1">Banned words</span>
+                </a>
+              </RouterLink>
             </div>
 
             <!-- Admin Group 2: Content & Configuration -->
@@ -277,7 +297,7 @@
               </RouterLink>
 
               <RouterLink
-                to="/admin/blog-posts"
+                to="/admin/blog"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -311,7 +331,7 @@
                   @click="() => { closeAdmin(); adminNavigate(); }"
                   class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                   :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25pxrgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
                   aria-label="Sidebar"
@@ -336,13 +356,13 @@
                   @click="() => { closeAdmin(); adminNavigate(); }"
                   class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                   :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25pxrgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
                   aria-label="AstroBot"
                 >
                   <span
-                    class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+                    class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
                     aria-hidden="true"
                   >
                     A
@@ -411,7 +431,13 @@
               class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
               aria-hidden="true"
             >
-              P
+              <img
+                v-if="userAvatarUrl"
+                :src="userAvatarUrl"
+                alt=""
+                class="h-full w-full rounded-lg object-cover"
+              />
+              <span v-else>{{ userInitials }}</span>
             </span>
             <span class="flex-1 truncate">{{ auth.user.name }}</span>
           </a>
@@ -498,7 +524,6 @@ import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
-import SearchBar from '@/components/SearchBar.vue'
 
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
@@ -517,8 +542,28 @@ const isAdminActive = computed(() => {
   return route.path.startsWith('/admin/')
 })
 
+const userInitials = computed(() => {
+  const name = String(auth.user?.name || '').trim()
+  if (!name) return 'U'
+  const parts = name.split(/\s+/).filter(Boolean)
+  const first = parts[0]?.[0] || 'U'
+  const second = parts[1]?.[0] || ''
+  return (first + second).toUpperCase()
+})
+
+const userAvatarUrl = computed(() => {
+  const raw = auth.user?.avatar_url || auth.user?.avatarUrl || auth.user?.avatar_path || ''
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) return raw
+
+  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  if (raw.startsWith('/')) return `${base}${raw}`
+  return `${base}/${raw}`
+})
+
 const primaryLinks = computed(() => {
   const links = [
+    { to: '/', label: 'Home', icon: 'H' },
     { to: '/events', label: 'Events', icon: 'U' },
     { to: '/calendar', label: 'Calendar', icon: 'K' },
     { to: '/learn', label: 'Learning', icon: 'V' },
@@ -535,7 +580,7 @@ const primaryLinks = computed(() => {
   }
 
   if (auth.isAdmin) {
-    links.push({ to: '/admin', label: 'Admin', icon: 'A', isAdmin: true })
+    links.push({ to: '/admin', label: 'Admin Hub', icon: 'A' })
   }
 
   links.push({ to: '/more', label: 'More', icon: 'M', isMore: true })

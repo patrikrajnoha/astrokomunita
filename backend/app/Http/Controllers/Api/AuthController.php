@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
+use App\Support\UsernameRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Facades\Cache;
 
 class AuthController extends Controller
 {
@@ -15,26 +17,40 @@ class AuthController extends Controller
         return response()->json($request->user());
     }
 
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            // DEV friendly: no "dns" so test.local addresses pass
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'confirmed', Password::min(8)],
-        ]);
+        $validated = $request->validated();
 
         $user = User::create([
             'name' => $validated['name'],
-            'username' => $this->generateUsername($validated['name'], $validated['email']),
+            'username' => $validated['username'],
             'email' => $validated['email'],
-            // User model has cast: 'password' => 'hashed' -> auto hash
+            'date_of_birth' => $validated['date_of_birth'],
             'password' => $validated['password'],
         ]);
 
         Auth::login($user);
 
         return response()->json($user, 201);
+    }
+
+    public function usernameAvailable(Request $request)
+    {
+        $rawUsername = (string) $request->query('username', '');
+        $normalized = UsernameRules::normalize($rawUsername);
+
+        $status = Cache::remember(
+            'auth:username-availability:' . md5($normalized),
+            now()->addSeconds(45),
+            static fn () => UsernameRules::status($normalized)
+        );
+
+        return response()->json([
+            'username' => $rawUsername,
+            'normalized' => $status['normalized'],
+            'available' => $status['available'],
+            'reason' => $status['reason'],
+        ]);
     }
 
     public function login(Request $request)
@@ -63,41 +79,5 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return response()->noContent();
-    }
-
-    private function generateUsername(string $name, string $email): string
-    {
-        $base = trim($name) !== '' ? $name : $email;
-        
-        // Základná sanitizácia
-        $candidate = strtolower($base);
-        $candidate = preg_replace('/\s+/', '_', $candidate);
-        $candidate = preg_replace('/[^a-z0-9_]/', '', $candidate);
-        $candidate = substr($candidate, 0, 30);
-        
-        // Ak je prázdny, použiť časť emailu
-        if ($candidate === '') {
-            $emailParts = explode('@', $email);
-            $candidate = !empty($emailParts[0]) ? $emailParts[0] : 'user';
-            $candidate = strtolower($candidate);
-            $candidate = preg_replace('/[^a-z0-9_]/', '', $candidate);
-            $candidate = substr($candidate, 0, 30);
-        }
-        
-        // Ak je stále prázdny, použiť predvolenú hodnotu
-        if ($candidate === '') {
-            $candidate = 'user';
-        }
-
-        // Skontrolovať unikátnosť
-        $username = $candidate;
-        $i = 1;
-        while (User::where('username', $username)->exists()) {
-            $suffix = '_' . $i;
-            $username = substr($candidate, 0, 30 - strlen($suffix)) . $suffix;
-            $i++;
-        }
-
-        return $username;
     }
 }

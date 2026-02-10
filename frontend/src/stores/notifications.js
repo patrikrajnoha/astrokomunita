@@ -7,6 +7,7 @@ export const useNotificationsStore = defineStore('notifications', {
     items: [],
     unreadCount: 0,
     loading: false,
+    error: '',
     page: 1,
     lastPage: 1,
   }),
@@ -25,11 +26,13 @@ export const useNotificationsStore = defineStore('notifications', {
         this.items = []
         this.page = 1
         this.lastPage = 1
+        this.error = ''
         return
       }
 
       if (this.loading) return
       this.loading = true
+      this.error = ''
       try {
         const res = await http.get('/notifications', {
           params: { page, per_page: 20 },
@@ -40,6 +43,14 @@ export const useNotificationsStore = defineStore('notifications', {
         this.lastPage = payload.meta?.last_page || page
         this.items = page > 1 ? [...this.items, ...data] : data
       } catch (err) {
+        const status = err?.response?.status
+        if (status === 401) {
+          this.error = 'Session expired. Please sign in again.'
+        } else if (status === 403) {
+          this.error = 'Account does not have access to notifications.'
+        } else {
+          this.error = err?.response?.data?.message || 'Failed to load notifications.'
+        }
         console.warn('Notifications fetch failed:', err?.message || err)
       } finally {
         this.loading = false
@@ -57,6 +68,10 @@ export const useNotificationsStore = defineStore('notifications', {
         const res = await http.get('/notifications/unread-count')
         this.unreadCount = res?.data?.count ?? 0
       } catch (err) {
+        const status = err?.response?.status
+        if (status === 403 && !this.error) {
+          this.error = 'Account does not have access to notifications.'
+        }
         console.warn('Unread count fetch failed:', err?.message || err)
       }
     },

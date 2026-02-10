@@ -9,6 +9,7 @@ use App\Models\Post;
 use App\Services\PostService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class PostController extends Controller
 {
@@ -146,5 +147,50 @@ class PostController extends Controller
         }
 
         return response()->json($this->posts->unlikePost($post, $user));
+    }
+
+    public function view(Request $request, Post $post)
+    {
+        $viewer = $request->user();
+        $isAdmin = $viewer?->isAdmin() ?? false;
+
+        if ($post->is_hidden && !$isAdmin) {
+            return response()->json([
+                'message' => 'Not found.',
+            ], 404);
+        }
+
+        $viewerKey = $viewer
+            ? 'u:' . $viewer->id
+            : $this->resolveAnonymousViewerKey($request);
+
+        $cacheKey = sprintf('post_view:%d:%s', $post->id, $viewerKey);
+        $incremented = Cache::add($cacheKey, 1, now()->addMinutes(15));
+
+        if ($incremented) {
+            Post::query()->whereKey($post->id)->increment('views');
+        }
+
+        $views = (int) Post::query()->whereKey($post->id)->value('views');
+
+        return response()->json([
+            'views' => $views,
+            'incremented' => (bool) $incremented,
+        ]);
+    }
+
+    private function resolveAnonymousViewerKey(Request $request): string
+    {
+        if (method_exists($request, 'hasSession') && $request->hasSession()) {
+            $sessionId = $request->session()->getId();
+            if ($sessionId) {
+                return 's:' . $sessionId;
+            }
+        }
+
+        $ip = (string) $request->ip();
+        $ua = (string) $request->userAgent();
+
+        return 'ip:' . sha1($ip . '|' . substr($ua, 0, 120));
     }
 }

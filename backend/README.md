@@ -36,6 +36,18 @@ php artisan schedule:work
 - POST /api/notifications/{id}/read
 - POST /api/notifications/read-all
 
+### Auth registration rules
+- POST `/api/auth/register`
+  - required fields: `name`, `email`, `password`, `password_confirmation`, `username`, `date_of_birth`
+  - `username` is normalized to lower-case and must match: 3-20 chars, starts with letter, only `[a-z0-9_]`, no `__`
+  - blocked usernames are configured in `config/auth.php` under `auth.username.reserved` and `auth.username.blocked_words`
+  - minimum age is 13 (`date_of_birth` must be before or equal to `today - 13 years`)
+- GET `/api/auth/username-available?username=...`
+  - public endpoint with throttle `30/min/IP`
+  - response:
+    - `{ "username": "abc", "normalized": "abc", "available": true, "reason": "ok" }`
+    - `reason` can be: `ok`, `taken`, `reserved`, `invalid`
+
 ### API Testing on Windows (PowerShell)
 
 **Important:** This project runs on Windows + PowerShell. For API testing, use PowerShell commands instead of Unix-style `curl | jq`.

@@ -1,23 +1,111 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
-import LoadingIndicator from '@/components/shared/LoadingIndicator.vue'
+import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
+import AdminToolbar from '@/components/admin/shared/AdminToolbar.vue'
+import AdminDataTable from '@/components/admin/shared/AdminDataTable.vue'
+import AdminPagination from '@/components/admin/shared/AdminPagination.vue'
+
+const route = useRoute()
+const router = useRouter()
 
 const loading = ref(false)
 const error = ref('')
+const searchInput = ref('')
+const search = ref('')
 const status = ref('open')
 const page = ref(1)
 const perPage = ref(20)
 const data = ref(null)
+
+let searchDebounce = null
+
+const columns = [
+  { key: 'type', label: 'Type' },
+  { key: 'target', label: 'Target' },
+  { key: 'reason', label: 'Reason' },
+  { key: 'status', label: 'Status' },
+  { key: 'created_at', label: 'Created' },
+  { key: 'actions', label: 'Actions', align: 'right' },
+]
+
+const rows = computed(() => data.value?.data || [])
+const hasActiveFilters = computed(() => Boolean(search.value || status.value !== 'open'))
+
+function parsePositiveInt(value, fallback) {
+  const parsed = Number.parseInt(String(value || ''), 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function readQuery(query) {
+  const qSearch = typeof query.search === 'string' ? query.search : ''
+  const qStatus = typeof query.status === 'string' ? query.status : 'open'
+  const qPage = parsePositiveInt(query.page, 1)
+  const qPerPage = parsePositiveInt(query.per_page, 20)
+
+  searchInput.value = qSearch
+  search.value = qSearch
+  status.value = qStatus
+  page.value = qPage
+  perPage.value = qPerPage
+}
+
+function buildQuery() {
+  const query = {
+    status: status.value,
+    page: String(page.value),
+    per_page: String(perPage.value),
+  }
+
+  if (search.value) {
+    query.search = search.value
+  }
+
+  return query
+}
+
+function currentQuery() {
+  return {
+    status: typeof route.query.status === 'string' ? route.query.status : 'open',
+    page: String(parsePositiveInt(route.query.page, 1)),
+    per_page: String(parsePositiveInt(route.query.per_page, 20)),
+    search: typeof route.query.search === 'string' ? route.query.search : '',
+  }
+}
+
+function syncQueryWithState() {
+  const next = buildQuery()
+  const now = currentQuery()
+
+  if (
+    next.status === now.status &&
+    next.page === now.page &&
+    next.per_page === now.per_page &&
+    (next.search || '') === now.search
+  ) {
+    return
+  }
+
+  router.replace({ query: next })
+}
 
 async function load() {
   loading.value = true
   error.value = ''
 
   try {
-    const res = await api.get('/admin/reports', {
-      params: { status: status.value, page: page.value, per_page: perPage.value },
-    })
+    const params = {
+      status: status.value,
+      page: page.value,
+      per_page: perPage.value,
+    }
+
+    if (search.value) {
+      params.search = search.value
+    }
+
+    const res = await api.get('/admin/reports', { params })
     data.value = res.data
   } catch (e) {
     error.value = e?.response?.data?.message || 'Failed to load reports.'
@@ -28,10 +116,10 @@ async function load() {
 
 function updateRow(updated) {
   if (!data.value || !updated) return
-  const rows = data.value.data || []
-  const idx = rows.findIndex((r) => r.id === updated.id)
+  const reportRows = data.value.data || []
+  const idx = reportRows.findIndex((r) => r.id === updated.id)
   if (idx >= 0) {
-    rows[idx] = { ...rows[idx], ...updated }
+    reportRows[idx] = { ...reportRows[idx], ...updated }
   }
 }
 
@@ -53,196 +141,232 @@ async function act(report, action) {
   }
 }
 
-function prevPage() {
-  if (!data.value || page.value <= 1) return
-  page.value -= 1
-  load()
-}
-
-function nextPage() {
-  if (!data.value || page.value >= data.value.last_page) return
-  page.value += 1
-  load()
-}
-
-watch([status, perPage], () => {
+function clearFilters() {
+  searchInput.value = ''
+  search.value = ''
+  status.value = 'open'
   page.value = 1
+}
+
+function formatDate(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString()
+}
+
+function reportType(report) {
+  if (!report?.target_type) return 'post'
+  const segments = String(report.target_type).split('\\')
+  return (segments[segments.length - 1] || 'post').toLowerCase()
+}
+
+function targetSummary(report) {
+  const author = report?.target?.user?.name || '-'
+  const snippet = report?.target?.content ? String(report.target.content).slice(0, 40) : ''
+  return snippet ? `${author}: ${snippet}` : author
+}
+
+function refresh() {
+  load()
+}
+
+watch(
+  () => route.query,
+  (query) => {
+    readQuery(query)
+  },
+)
+
+watch(searchInput, (value) => {
+  if (searchDebounce) clearTimeout(searchDebounce)
+  searchDebounce = setTimeout(() => {
+    if (search.value !== value) {
+      search.value = value
+      page.value = 1
+    }
+  }, 400)
+})
+
+watch([search, status, page, perPage], () => {
+  syncQueryWithState()
   load()
 })
 
-onMounted(load)
+onBeforeUnmount(() => {
+  if (searchDebounce) clearTimeout(searchDebounce)
+})
+
+readQuery(route.query)
+syncQueryWithState()
+load()
 </script>
 
 <template>
-  <div style="max-width: 1100px; margin: 0 auto; padding: 24px 16px;">
-    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px;">
-      <div>
-        <h1 style="margin:0 0 6px;">Reports</h1>
-        <div style="opacity:.8; font-size: 14px;">
-          Moderation queue (MVP).
-        </div>
-      </div>
-    </div>
-
-    <div
-      style="
-        margin-top: 16px;
-        padding: 12px;
-        border: 1px solid rgb(var(--color-surface-rgb) / .12);
-        border-radius: 12px;
-        display: grid;
-        grid-template-columns: repeat(12, 1fr);
-        gap: 12px;
-      "
-    >
-      <div style="grid-column: span 3;">
-        <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Status</label>
-        <select
-          v-model="status"
-          :disabled="loading"
-          style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-        >
-          <option value="open">open</option>
-          <option value="reviewed">reviewed</option>
-          <option value="dismissed">dismissed</option>
-          <option value="action_taken">action_taken</option>
-        </select>
-      </div>
-
-      <div style="grid-column: span 3;">
-        <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Per page</label>
-        <select
-          v-model.number="perPage"
-          :disabled="loading"
-          style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-        >
-          <option :value="10">10</option>
-          <option :value="20">20</option>
-          <option :value="50">50</option>
-          <option :value="100">100</option>
-        </select>
-      </div>
-    </div>
-
-    <div v-if="error" style="margin-top: 12px; color: var(--color-danger);">
+  <AdminPageShell title="Reports" subtitle="Moderation queue (MVP).">
+    <div v-if="error" class="adminAlert">
       {{ error }}
     </div>
 
-    <LoadingIndicator :loading="loading" text="Loading..." />
+    <AdminToolbar :loading="loading">
+      <template #search>
+        <label class="fieldLabel" for="reports-search">Search</label>
+        <input
+          id="reports-search"
+          v-model="searchInput"
+          :disabled="loading"
+          type="search"
+          placeholder="Search reports..."
+          class="fieldInput"
+        />
+      </template>
 
-    <div
-      v-if="data && !loading"
-      style="
-        margin-top: 16px;
-        border: 1px solid rgb(var(--color-surface-rgb) / .12);
-        border-radius: 12px;
-        overflow: hidden;
-      "
+      <template #filters>
+        <div class="filtersRow">
+          <div>
+            <label class="fieldLabel" for="reports-status">Status</label>
+            <select
+              id="reports-status"
+              v-model="status"
+              :disabled="loading"
+              class="fieldInput"
+              @change="page = 1"
+            >
+              <option value="open">open</option>
+              <option value="reviewed">reviewed</option>
+              <option value="dismissed">dismissed</option>
+              <option value="action_taken">action_taken</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="fieldLabel" for="reports-per-page">Per page</label>
+            <select
+              id="reports-per-page"
+              v-model.number="perPage"
+              :disabled="loading"
+              class="fieldInput"
+              @change="page = 1"
+            >
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+          </div>
+        </div>
+      </template>
+
+      <template #actions>
+        <button type="button" class="btn ghost" :disabled="loading" @click="refresh">Refresh</button>
+      </template>
+    </AdminToolbar>
+
+    <AdminDataTable
+      :columns="columns"
+      :rows="rows"
+      :loading="loading"
+      empty-title="No reports found"
+      empty-description="Try adjusting your filters."
+      :can-clear-filters="hasActiveFilters"
+      @clear-filters="clearFilters"
     >
-      <table style="width:100%; border-collapse:collapse;">
-        <thead style="background: rgb(var(--color-surface-rgb) / .05);">
-          <tr>
-            <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Date</th>
-            <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Reason</th>
-            <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Reporter</th>
-            <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Author</th>
-            <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Snippet</th>
-            <th style="text-align:right; padding:12px; font-size:12px; opacity:.85;">Actions</th>
-          </tr>
-        </thead>
+      <template #[`cell(type)`]="{ row }">
+        <span class="statusBadge">{{ reportType(row) }}</span>
+      </template>
 
-        <tbody>
-          <tr
-            v-for="r in data.data"
-            :key="r.id"
-            style="border-top: 1px solid rgb(var(--color-surface-rgb) / .08);"
-          >
-            <td style="padding:12px; white-space:nowrap;">{{ r.created_at }}</td>
-            <td style="padding:12px; white-space:nowrap;">{{ r.reason }}</td>
-            <td style="padding:12px; white-space:nowrap;">{{ r.reporter?.name || '-' }}</td>
-            <td style="padding:12px; white-space:nowrap;">{{ r.target?.user?.name || '-' }}</td>
-            <td style="padding:12px;">
-              {{ r.target?.content?.slice(0, 80) || '-' }}
-            </td>
-            <td style="padding:12px; text-align:right; white-space:nowrap;">
-              <button
-                @click="act(r, 'hide')"
-                :disabled="loading"
-                style="padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-              >
-                Hide
-              </button>
-              <button
-                @click="act(r, 'delete')"
-                :disabled="loading"
-                style="margin-left:6px; padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-              >
-                Delete
-              </button>
-              <button
-                @click="act(r, 'warn')"
-                :disabled="loading"
-                style="margin-left:6px; padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
-              >
-                Warn
-              </button>
-              <button
-                @click="act(r, 'ban')"
-                :disabled="loading"
-                style="margin-left:6px; padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-              >
-                Ban
-              </button>
-              <button
-                @click="act(r, 'dismiss')"
-                :disabled="loading"
-                style="margin-left:6px; padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-              >
-                Dismiss
-              </button>
-            </td>
-          </tr>
+      <template #[`cell(target)`]="{ row }">
+        {{ targetSummary(row) }}
+      </template>
 
-          <tr v-if="data.data.length === 0">
-            <td colspan="6" style="padding:16px; opacity:.8;">
-              No reports.
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <template #[`cell(status)`]="{ row }">
+        <span class="statusBadge">{{ row.status || '-' }}</span>
+      </template>
 
-    <div
-      v-if="data"
-      style="
-        margin-top: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-      "
-    >
-      <div style="opacity:.85; font-size: 14px;">
-        Page {{ data.current_page }} / {{ data.last_page }} (total {{ data.total }})
-      </div>
+      <template #[`cell(created_at)`]="{ row }">
+        {{ formatDate(row.created_at) }}
+      </template>
 
-      <div style="display:flex; gap:10px;">
-        <button
-          @click="prevPage"
-          :disabled="loading || page <= 1"
-          style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-        >
-          Prev
-        </button>
-        <button
-          @click="nextPage"
-          :disabled="loading || (data && page >= data.last_page)"
-          style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-        >
-          Next
-        </button>
-      </div>
-    </div>
-  </div>
+      <template #[`cell(actions)`]="{ row }">
+        <div class="rowActions">
+          <button class="btn action" :disabled="loading" @click="act(row, 'hide')">Hide</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'delete')">Delete</button>
+          <button class="btn action subtle" :disabled="loading" @click="act(row, 'warn')">Warn</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'ban')">Ban</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'dismiss')">Dismiss</button>
+        </div>
+      </template>
+    </AdminDataTable>
+
+    <AdminPagination :meta="data" @page-change="page = $event" />
+  </AdminPageShell>
 </template>
+
+<style scoped>
+.adminAlert {
+  color: var(--color-danger);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-danger-rgb, 239 68 68) / 0.35);
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.08);
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 12px;
+  opacity: 0.8;
+  margin-bottom: 6px;
+}
+
+.fieldInput {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  background: transparent;
+  color: inherit;
+}
+
+.filtersRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filtersRow > div {
+  min-width: 160px;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  text-transform: uppercase;
+}
+
+.rowActions {
+  display: inline-flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  border-radius: 10px;
+  padding: 6px 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.btn.subtle {
+  background: rgb(var(--color-surface-rgb) / 0.08);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>

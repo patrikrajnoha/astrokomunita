@@ -1,51 +1,46 @@
 <template>
-  <div class="mx-auto flex w-full max-w-3xl flex-col gap-6">
-    <header>
-      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-secondary)]">
-        Account
-      </p>
-      <h1 class="mt-2 text-3xl font-semibold text-[var(--color-surface)]">Settings</h1>
-      <p class="mt-2 text-sm text-[var(--color-text-secondary)]">
-        Manage your account details and security.
-      </p>
+  <div class="settings-page">
+    <div class="settings-glow settings-glow-1" aria-hidden="true"></div>
+    <div class="settings-glow settings-glow-2" aria-hidden="true"></div>
+
+    <header class="settings-header">
+      <p class="eyebrow">Account</p>
+      <h1 class="title">Settings</h1>
+      <p class="subtitle">Manage your account details and security.</p>
     </header>
 
-    <section class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] p-6">
-      <h2 class="text-lg font-semibold text-[var(--color-surface)]">Change email</h2>
-      <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Update the email address associated with your account.
-      </p>
+    <section class="settings-card">
+      <h2 class="card-title">Change email</h2>
+      <p class="card-subtitle">Update the email address associated with your account.</p>
 
-      <div v-if="emailState.success" class="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100" role="status">
+      <div v-if="emailState.success" class="status status-success" role="status">
         {{ emailState.success }}
       </div>
-      <div v-if="emailState.error" class="mt-4 rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
+      <div v-if="emailState.error" class="status status-error" role="alert">
         {{ emailState.error }}
       </div>
 
-      <form class="mt-4 space-y-3" @submit.prevent="submitEmail">
-        <label class="block text-sm font-medium text-[var(--color-surface)]" for="settings-email">
-          New email
-        </label>
+      <form class="settings-form" @submit.prevent="submitEmail">
+        <label class="field-label" for="settings-email">New email</label>
         <input
           id="settings-email"
           v-model.trim="emailForm.email"
           type="email"
           autocomplete="email"
           placeholder="you@example.com"
-          class="w-full rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm text-[var(--color-surface)] placeholder:text-[var(--color-surface)]0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
+          class="field-input"
           :aria-invalid="emailState.fieldError ? 'true' : 'false'"
           :aria-describedby="emailState.fieldError ? 'settings-email-error' : undefined"
           :disabled="emailState.loading"
           required
         />
-        <p v-if="emailState.fieldError" id="settings-email-error" class="text-sm text-rose-200">
+        <p v-if="emailState.fieldError" id="settings-email-error" class="field-error">
           {{ emailState.fieldError }}
         </p>
 
         <button
           type="submit"
-          class="inline-flex items-center justify-center rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:border-[color:rgb(var(--color-primary-rgb)/0.4)] hover:bg-[var(--color-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+          class="btn btn-primary"
           :disabled="emailState.loading || !emailForm.email"
           aria-label="Save new email"
         >
@@ -54,71 +49,63 @@
       </form>
     </section>
 
-    <section class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] p-6">
-      <h2 class="text-lg font-semibold text-[var(--color-surface)]">Change password</h2>
-      <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Set a new password for your account.
-      </p>
+    <section class="settings-card">
+      <h2 class="card-title">Change password</h2>
+      <p class="card-subtitle">Set a new password for your account.</p>
 
-      <div v-if="passwordState.success" class="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100" role="status">
+      <div v-if="passwordState.success" class="status status-success" role="status">
         {{ passwordState.success }}
       </div>
-      <div v-if="passwordState.error" class="mt-4 rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
+      <div v-if="passwordState.error" class="status status-error" role="alert">
         {{ passwordState.error }}
       </div>
 
-      <form class="mt-4 space-y-3" @submit.prevent="submitPassword">
-        <label class="block text-sm font-medium text-[var(--color-surface)]" for="current-password">
-          Current password
-        </label>
+      <form class="settings-form" @submit.prevent="submitPassword">
+        <label class="field-label" for="current-password">Current password</label>
         <input
           id="current-password"
           v-model="passwordForm.current"
           type="password"
           autocomplete="current-password"
-          placeholder="••••••••"
-          class="w-full rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm text-[var(--color-surface)] placeholder:text-[var(--color-surface)]0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
+          placeholder="********"
+          class="field-input"
           :disabled="passwordState.loading"
           required
         />
 
-        <label class="block text-sm font-medium text-[var(--color-surface)]" for="new-password">
-          New password
-        </label>
+        <label class="field-label" for="new-password">New password</label>
         <input
           id="new-password"
           v-model="passwordForm.password"
           type="password"
           autocomplete="new-password"
           placeholder="New password"
-          class="w-full rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm text-[var(--color-surface)] placeholder:text-[var(--color-surface)]0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
+          class="field-input"
           :disabled="passwordState.loading"
           required
           minlength="8"
         />
 
-        <label class="block text-sm font-medium text-[var(--color-surface)]" for="confirm-password">
-          Confirm new password
-        </label>
+        <label class="field-label" for="confirm-password">Confirm new password</label>
         <input
           id="confirm-password"
           v-model="passwordForm.confirm"
           type="password"
           autocomplete="new-password"
           placeholder="Confirm new password"
-          class="w-full rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm text-[var(--color-surface)] placeholder:text-[var(--color-surface)]0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
+          class="field-input"
           :disabled="passwordState.loading"
           required
           minlength="8"
         />
 
-        <p v-if="passwordState.fieldError" class="text-sm text-rose-200">
+        <p v-if="passwordState.fieldError" class="field-error">
           {{ passwordState.fieldError }}
         </p>
 
         <button
           type="submit"
-          class="inline-flex items-center justify-center rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:border-[color:rgb(var(--color-primary-rgb)/0.4)] hover:bg-[var(--color-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+          class="btn btn-primary"
           :disabled="passwordState.loading"
           aria-label="Update password"
         >
@@ -127,33 +114,29 @@
       </form>
     </section>
 
-    <section class="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6">
-      <h2 class="text-lg font-semibold text-rose-100">Deactivate account</h2>
-      <p class="mt-1 text-sm text-rose-200/80">
-        This action permanently removes your account and signs you out.
-      </p>
+    <section class="settings-card settings-card-danger">
+      <h2 class="card-title">Deactivate account</h2>
+      <p class="card-subtitle">This action permanently removes your account and signs you out.</p>
 
-      <div v-if="deactivateState.error" class="mt-4 rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100" role="alert">
+      <div v-if="deactivateState.error" class="status status-error" role="alert">
         {{ deactivateState.error }}
       </div>
 
-      <div class="mt-4 space-y-3">
-        <label class="block text-sm font-medium text-rose-100" for="deactivate-confirm">
-          Type DEACTIVATE to confirm
-        </label>
+      <div class="settings-form">
+        <label class="field-label" for="deactivate-confirm">Type DEACTIVATE to confirm</label>
         <input
           id="deactivate-confirm"
           v-model.trim="deactivateForm.confirm"
           type="text"
           placeholder="DEACTIVATE"
-          class="w-full rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm text-rose-100 placeholder:text-rose-200/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-300"
+          class="field-input field-input-danger"
           :disabled="deactivateState.loading"
           aria-label="Confirm deactivation"
         />
 
         <button
           type="button"
-          class="inline-flex items-center justify-center rounded-xl border border-rose-400/40 bg-rose-500/20 px-4 py-2 text-sm font-semibold text-rose-100 transition hover:bg-rose-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
+          class="btn btn-danger"
           :disabled="deactivateState.loading || deactivateForm.confirm !== 'DEACTIVATE'"
           aria-label="Deactivate account"
           @click="submitDeactivate"
@@ -360,3 +343,239 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.settings-page {
+  position: relative;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.settings-header {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  border-radius: 1.25rem;
+  padding: 1.4rem 1.25rem;
+  background:
+    linear-gradient(145deg, rgb(var(--color-bg-rgb) / 0.88), rgb(var(--color-bg-rgb) / 0.64)),
+    radial-gradient(circle at top right, rgb(var(--color-primary-rgb) / 0.2), transparent 60%);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.26);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.title {
+  margin: 0.35rem 0 0;
+  font-size: clamp(1.8rem, 4vw, 2.35rem);
+  line-height: 1.08;
+  color: var(--color-surface);
+}
+
+.subtitle {
+  margin: 0.6rem 0 0;
+  font-size: 0.95rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.settings-card {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  border-radius: 1.15rem;
+  padding: 1.2rem;
+  background:
+    linear-gradient(170deg, rgb(var(--color-bg-rgb) / 0.82), rgb(var(--color-bg-rgb) / 0.58));
+  box-shadow: 0 16px 42px rgb(0 0 0 / 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.settings-card-danger {
+  border-color: rgb(244 63 94 / 0.35);
+  background:
+    linear-gradient(165deg, rgb(127 29 29 / 0.35), rgb(var(--color-bg-rgb) / 0.72));
+}
+
+.card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--color-surface);
+  font-weight: 700;
+}
+
+.card-subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.92rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.settings-form {
+  margin-top: 0.95rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.field-label {
+  font-size: 0.86rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.96);
+  font-weight: 600;
+}
+
+.field-input {
+  width: 100%;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  border-radius: 0.75rem;
+  background: rgb(var(--color-bg-rgb) / 0.66);
+  color: var(--color-surface);
+  padding: 0.62rem 0.85rem;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.field-input::placeholder {
+  color: rgb(var(--color-text-secondary-rgb) / 0.58);
+}
+
+.field-input:focus-visible {
+  border-color: rgb(var(--color-primary-rgb) / 0.7);
+  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.18);
+}
+
+.field-input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.field-input-danger {
+  border-color: rgb(251 113 133 / 0.5);
+}
+
+.field-input-danger:focus-visible {
+  border-color: rgb(251 113 133 / 0.9);
+  box-shadow: 0 0 0 3px rgb(251 113 133 / 0.2);
+}
+
+.field-error {
+  margin: 0;
+  color: rgb(254 205 211);
+  font-size: 0.88rem;
+}
+
+.status {
+  margin-top: 0.9rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  padding: 0.68rem 0.82rem;
+  font-size: 0.88rem;
+}
+
+.status-success {
+  border-color: rgb(16 185 129 / 0.45);
+  background: rgb(5 150 105 / 0.12);
+  color: rgb(209 250 229);
+}
+
+.status-error {
+  border-color: rgb(251 113 133 / 0.45);
+  background: rgb(225 29 72 / 0.14);
+  color: rgb(255 228 230);
+}
+
+.btn {
+  appearance: none;
+  border-radius: 0.78rem;
+  border: 1px solid transparent;
+  padding: 0.58rem 0.95rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  color: var(--color-surface);
+  border-color: rgb(var(--color-primary-rgb) / 0.4);
+  background: linear-gradient(
+    145deg,
+    rgb(var(--color-primary-rgb) / 0.24),
+    rgb(var(--color-bg-rgb) / 0.7)
+  );
+  box-shadow: 0 10px 28px rgb(var(--color-primary-rgb) / 0.2);
+}
+
+.btn-primary:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.62);
+  background: linear-gradient(
+    145deg,
+    rgb(var(--color-primary-rgb) / 0.34),
+    rgb(var(--color-bg-rgb) / 0.64)
+  );
+}
+
+.btn-danger {
+  color: rgb(255 228 230);
+  border-color: rgb(251 113 133 / 0.55);
+  background: linear-gradient(145deg, rgb(190 24 93 / 0.38), rgb(127 29 29 / 0.35));
+  box-shadow: 0 10px 26px rgb(190 24 93 / 0.18);
+}
+
+.btn-danger:hover {
+  border-color: rgb(251 113 133 / 0.8);
+  background: linear-gradient(145deg, rgb(225 29 72 / 0.45), rgb(127 29 29 / 0.4));
+}
+
+.settings-glow {
+  position: absolute;
+  z-index: -1;
+  border-radius: 999px;
+  filter: blur(36px);
+  pointer-events: none;
+}
+
+.settings-glow-1 {
+  top: -52px;
+  right: -10px;
+  width: 220px;
+  height: 220px;
+  background: rgb(var(--color-primary-rgb) / 0.28);
+}
+
+.settings-glow-2 {
+  bottom: -45px;
+  left: -12px;
+  width: 160px;
+  height: 160px;
+  background: rgb(244 63 94 / 0.2);
+}
+
+@media (max-width: 640px) {
+  .settings-page {
+    gap: 1rem;
+  }
+
+  .settings-header,
+  .settings-card {
+    padding: 1rem;
+    border-radius: 1rem;
+  }
+}
+</style>

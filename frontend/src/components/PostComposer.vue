@@ -400,6 +400,8 @@ onBeforeUnmount(() => revokePreview())
   background: rgb(var(--color-bg-rgb) / 0.55);
   border-radius: 1.5rem;
   padding: 1.15rem;
+  width: 100%;
+  min-width: 0;
 }
 .head { display: flex; justify-content: space-between; gap: 1rem; }
 .title { font-size: 1.05rem; font-weight: 900; color: var(--color-surface); }
@@ -424,6 +426,7 @@ onBeforeUnmount(() => revokePreview())
 
 .input {
   width: 100%;
+  min-height: clamp(120px, 22vh, 220px);
   padding: 0.75rem 0.85rem;
   border-radius: 1rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.9);
@@ -476,8 +479,8 @@ onBeforeUnmount(() => revokePreview())
 .fileRemove:disabled { opacity: .6; cursor: not-allowed; }
 
 .bar { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; }
-.left { display: flex; align-items: center; gap: .6rem; }
-.right { display: flex; align-items: center; gap: .75rem; }
+.left { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.right { display: flex; align-items: center; gap: .75rem; min-width: 0; }
 
 .fileInput { display: none; }
 
@@ -545,13 +548,31 @@ onBeforeUnmount(() => revokePreview())
   margin-left: 0.5rem;
 }
 
-@media (max-width: 480px) {
-  .card { padding: 0.9rem; }
-  .row { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  .card { border-radius: 1.15rem; }
+  .row { grid-template-columns: 44px 1fr; }
   .avatar { width: 44px; height: 44px; font-size: 0.9rem; }
+  .fileName { max-width: 100%; }
+  .left, .right { width: 100%; justify-content: space-between; }
+  .ghostbtn, .actionbtn { min-height: 42px; }
+}
+
+@media (max-width: 480px) {
+  .card { padding: 0.85rem; border-radius: 1rem; }
+  .row { grid-template-columns: 1fr; }
+  .avatar { width: 40px; height: 40px; font-size: 0.85rem; }
+  .title { font-size: 1rem; }
+  .sub { font-size: 0.85rem; }
+  .input { min-height: clamp(132px, 28vh, 240px); }
   .bar { flex-direction: column; align-items: stretch; }
-  .left, .right { justify-content: space-between; width: 100%; }
+  .left, .right { justify-content: space-between; width: 100%; gap: 0.5rem; }
   .actionbtn, .ghostbtn { min-height: 44px; }
-  .fileName { max-width: 200px; }
+  .fileChip { flex-direction: column; align-items: stretch; }
+  .fileName { max-width: 100%; }
+}
+
+@media (min-width: 769px) {
+  .card { border-radius: 1.4rem; }
+  .input { min-height: clamp(120px, 20vh, 210px); }
 }
 </style>

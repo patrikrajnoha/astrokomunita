@@ -35,6 +35,14 @@
                 <span v-if="root?.source_name === 'astrobot'" class="badge badgeAstrobot">🚀 AstroBot</span>
                 <div class="meta">
                   <span class="time">{{ fmt(root?.created_at) }}</span>
+                  <span class="dot">.</span>
+                  <span class="viewMeta" title="Počet zobrazení" aria-label="Počet zobrazení">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <span>{{ Number(root?.views ?? 0) }}</span>
+                  </span>
                   <span v-if="root?.user?.location" class="dot">.</span>
                   <span v-if="root?.user?.location" class="loc">
                     Location: {{ root.user.location }}
@@ -49,11 +57,10 @@
             </div>
 
             <div v-if="root?.attachment_url" class="mediaWrap">
-              <img
+              <PostMediaImage
                 v-if="isImage(root)"
-                class="mediaImg"
                 :src="attachmentSrc(root)"
-                alt="Priloha"
+                alt="Priloha prispevku"
               />
 
               <a
@@ -136,12 +143,10 @@
                 </div>
 
                 <div v-if="r.attachment_url" class="mediaWrapSm">
-                  <img
+                  <PostMediaImage
                     v-if="isImage(r)"
-                    class="mediaImgSm"
                     :src="attachmentSrc(r)"
-                    alt="Priloha"
-                    loading="lazy"
+                    alt="Priloha prispevku"
                   />
 
                   <a
@@ -209,12 +214,10 @@
                     </div>
 
                       <div v-if="c.attachment_url" class="mediaWrapSm">
-                        <img
+                        <PostMediaImage
                           v-if="isImage(c)"
-                          class="mediaImgSm"
                           :src="attachmentSrc(c)"
-                          alt="Priloha"
-                          loading="lazy"
+                          alt="Priloha prispevku"
                         />
 
                         <a
@@ -275,11 +278,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HashtagText from '@/components/HashtagText.vue'
 import api from '@/services/api'
 import ReplyComposer from '@/components/ReplyComposer.vue'
+import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -297,6 +301,8 @@ const reportTarget = ref(null)
 const reportReason = ref('spam')
 const reportMessage = ref('')
 const reportNotice = ref('')
+const lastTrackedViewKey = ref('')
+let viewAnimationFrame = null
 
 function openProfile(user) {
   const username = user?.username
@@ -392,6 +398,69 @@ function closeReport() {
   reportMessage.value = ''
 }
 
+function stopViewAnimation() {
+  if (viewAnimationFrame !== null) {
+    cancelAnimationFrame(viewAnimationFrame)
+    viewAnimationFrame = null
+  }
+}
+
+function animateRootViewsTo(targetViews) {
+  if (!root.value) return
+
+  const target = Number(targetViews)
+  if (!Number.isFinite(target)) return
+
+  const start = Number(root.value.views ?? 0)
+  if (!Number.isFinite(start) || start === target) {
+    root.value.views = target
+    return
+  }
+
+  stopViewAnimation()
+
+  const durationMs = 220
+  const startedAt = performance.now()
+
+  const tick = (now) => {
+    if (!root.value) {
+      stopViewAnimation()
+      return
+    }
+
+    const progress = Math.min(1, (now - startedAt) / durationMs)
+    const eased = 1 - Math.pow(1 - progress, 3)
+    root.value.views = Math.round(start + (target - start) * eased)
+
+    if (progress < 1) {
+      viewAnimationFrame = requestAnimationFrame(tick)
+      return
+    }
+
+    viewAnimationFrame = null
+  }
+
+  viewAnimationFrame = requestAnimationFrame(tick)
+}
+
+async function registerPostView(postId) {
+  if (!postId) return
+
+  const key = String(postId)
+  if (lastTrackedViewKey.value === key) return
+  lastTrackedViewKey.value = key
+
+  try {
+    const res = await api.post(`/posts/${postId}/view`)
+    const nextViews = Number(res?.data?.views)
+    if (Number.isFinite(nextViews) && root.value) {
+      animateRootViewsTo(nextViews)
+    }
+  } catch {
+    // Intentionally silent: view tracking must never block UI.
+  }
+}
+
 async function submitReport() {
   const post = reportTarget.value
   if (!post?.id) return
@@ -447,6 +516,8 @@ async function loadPost() {
 
       replies.value = rootReplies
     }
+
+    void registerPostView(root.value?.id ?? route.params.id)
   } catch (e) {
     error.value =
       e?.response?.data?.message ||
@@ -459,6 +530,10 @@ async function loadPost() {
 
 onMounted(() => {
   loadPost()
+})
+
+onBeforeUnmount(() => {
+  stopViewAnimation()
 })
 
 watch(
@@ -478,13 +553,18 @@ const repliesCount = computed(() => {
 .wrap {
   display: grid;
   gap: 1rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .card {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.75);
   border-radius: 1.6rem;
   background: rgb(var(--color-bg-rgb) / 0.55);
-  padding: 1.15rem;
+  padding: clamp(0.85rem, 1.8vw, 1.15rem);
+  width: 100%;
+  min-width: 0;
+  overflow: clip;
 }
 
 /* top */
@@ -522,6 +602,14 @@ const repliesCount = computed(() => {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
   border-radius: 1.35rem;
   background: rgb(var(--color-bg-rgb) / 0.25);
+  min-width: 0;
+  align-items: start;
+}
+
+.postMain,
+.replyMain,
+.who {
+  min-width: 0;
 }
 
 .avatar {
@@ -557,11 +645,15 @@ const repliesCount = computed(() => {
 .postHead {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
 .name {
   color: var(--color-surface);
   font-weight: 950;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .meta {
@@ -571,8 +663,16 @@ const repliesCount = computed(() => {
   flex-wrap: wrap;
   gap: 0.45rem;
   align-items: center;
+  overflow-wrap: anywhere;
 }
 .dot { opacity: 0.65; }
+.viewMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
 
 .postText {
   margin-top: 0.5rem;
@@ -580,18 +680,13 @@ const repliesCount = computed(() => {
   white-space: pre-wrap;
   line-height: 1.6;
   font-size: 1rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* media */
 .mediaWrap {
   margin-top: 0.75rem;
-}
-.mediaImg {
-  width: 100%;
-  max-height: 520px;
-  object-fit: cover;
-  border-radius: 1.15rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
 }
 
 /* file */
@@ -604,6 +699,8 @@ const repliesCount = computed(() => {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
   background: rgb(var(--color-bg-rgb) / 0.25);
   color: var(--color-surface);
+  min-width: 0;
+  overflow: hidden;
 }
 .fileIcon {
   width: 42px;
@@ -617,12 +714,16 @@ const repliesCount = computed(() => {
   flex: 1;
   display: grid;
   gap: 0.15rem;
+  min-width: 0;
 }
 .fileTitle {
   font-weight: 900;
 }
 .fileName {
   color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .fileArrow {
   font-weight: 900;
@@ -674,11 +775,13 @@ const repliesCount = computed(() => {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
   border-radius: 1.2rem;
   background: rgb(var(--color-bg-rgb) / 0.22);
+  min-width: 0;
+  align-items: start;
 }
 .replyChildren {
   display: grid;
   gap: 0.6rem;
-  margin: 0.25rem 0 0.1rem 1.5rem;
+  margin: 0.25rem 0 0.1rem clamp(0.8rem, 2.5vw, 1.5rem);
 }
 .replyCardChild {
   border-color: rgb(var(--color-text-secondary-rgb) / 0.35);
@@ -702,17 +805,12 @@ const repliesCount = computed(() => {
   white-space: pre-wrap;
   line-height: 1.55;
   font-size: 0.98rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .mediaWrapSm {
   margin-top: 0.6rem;
-}
-.mediaImgSm {
-  width: 100%;
-  max-height: 360px;
-  object-fit: cover;
-  border-radius: 1.05rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.5);
 }
 .fileCardSm {
   padding: 0.7rem 0.75rem;
@@ -761,6 +859,7 @@ const repliesCount = computed(() => {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 .badge {
   display: inline-flex;
@@ -801,40 +900,63 @@ const repliesCount = computed(() => {
   border: 1px solid var(--color-text-secondary);
   color: var(--color-surface);
   background: rgb(var(--color-bg-rgb) / 0.2);
+  white-space: nowrap;
 }
 .replyBtn:hover {
   border-color: var(--color-primary);
   color: var(--color-surface);
   background: rgb(var(--color-primary-rgb) / 0.08);
 }
-.composerWrapSm {
-  margin-top: 0.6rem;
+.composerWrapSm { margin-top: 0.6rem; }
+
+@media (max-width: 768px) {
+  .card {
+    border-radius: 1.2rem;
+  }
+
+  .postCard,
+  .replyCard {
+    grid-template-columns: 42px 1fr;
+    gap: 0.6rem;
+    padding: 0.72rem;
+    border-radius: 1rem;
+  }
+
+  .avatar,
+  .avatarSm {
+    width: 38px;
+    height: 38px;
+    font-size: 0.82rem;
+  }
+
+  .meta {
+    font-size: 0.82rem;
+    gap: 0.35rem;
+  }
+
+  .reportActions {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 480px) {
-  .wrap {
-    padding: 0 12px;
-  }
   .card {
-    padding: 0.9rem;
+    padding: 0.72rem;
+    border-radius: 1rem;
   }
-  .postCard,
-  .replyCard {
-    grid-template-columns: 44px 1fr;
-    gap: 0.6rem;
-  }
-  .avatar,
-  .avatarSm {
-    width: 40px;
-    height: 40px;
-    font-size: 0.85rem;
-  }
+
   .replyCardChild {
-    margin-left: 12px;
+    margin-left: 0.45rem;
   }
+
   .postText,
   .replyText {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
+  }
+
+  .fileCard,
+  .fileCardSm {
+    padding: 0.62rem;
   }
 }
 </style>

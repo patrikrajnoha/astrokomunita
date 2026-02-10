@@ -112,4 +112,37 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Username Rules
+    |--------------------------------------------------------------------------
+    */
+    'username' => [
+        'reserved' => [
+            'admin',
+            'administrator',
+            'root',
+            'system',
+            'support',
+            'moderator',
+            'mod',
+            'owner',
+            'api',
+            'staff',
+            'null',
+            'undefined',
+            'me',
+            'you',
+            'test',
+        ],
+        'blocked_words' => [
+            'fuck',
+            'shit',
+            'bitch',
+            'cunt',
+            'nigger',
+            'retard',
+        ],
+    ],
+
 ];

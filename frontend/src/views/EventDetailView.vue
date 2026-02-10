@@ -60,11 +60,17 @@
         </div>
       </div>
 
-      <div v-else class="state">Ziadne dalsie udalosti.</div>
+      <div v-else class="state state-empty">
+        <p>Ziadne dalsie udalosti.</p>
+        <button type="button" class="state-back-btn" @click="previousEvent('empty_state')">
+          Vratit sa na predoslu udalost
+        </button>
+        <router-link to="/events" class="state-back-link">Spat na zoznam udalosti</router-link>
+      </div>
 
       <EventActions
         class="actions"
-        :disabled="loading || !currentEvent"
+        :disabled="loading"
         @dismiss="previousEvent('button')"
         @favorite="nextEvent('button')"
         @calendar="addToCalendar('button')"
@@ -691,6 +697,35 @@ watch(
   color: rgb(var(--color-surface-rgb) / 0.75);
 }
 
+.state-empty {
+  gap: 0.55rem;
+  text-align: center;
+}
+
+.state-back-btn {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: rgb(var(--color-bg-rgb) / 0.7);
+  color: var(--color-surface);
+  border-radius: 999px;
+  padding: 0.45rem 0.78rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.state-back-btn:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.55);
+}
+
+.state-back-link {
+  font-size: 0.82rem;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.state-back-link:hover {
+  text-decoration: underline;
+}
+
 .state.error {
   color: var(--color-danger);
 }
@@ -743,4 +778,3 @@ watch(
   transform: translateX(-50%) translateY(6px);
 }
 </style>
-

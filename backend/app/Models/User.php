@@ -22,6 +22,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'username',
+        'date_of_birth',
         'email',
         'password',
         'avatar_path',
@@ -65,6 +66,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'date_of_birth' => 'date',
             'password' => 'hashed', // Laravel automaticky hashne heslo
             'is_admin' => 'boolean',
             'is_bot' => 'boolean',

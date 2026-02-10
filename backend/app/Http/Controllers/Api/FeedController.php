@@ -11,8 +11,8 @@ class FeedController extends Controller
     /**
      * GET /api/feed
      * 
-     * Main public feed - combines user posts and AstroBot posts
-     * Pinned posts always appear first (both user and AstroBot)
+     * Main public feed - user posts only (AstroBot excluded)
+     * Pinned posts always appear first
      * Supports pagination, filtering, and same parameters as other feeds
      */
     public function index(Request $request)
@@ -31,9 +31,13 @@ class FeedController extends Controller
         $user = $request->user();
         $isAdmin = $user?->isAdmin() ?? false;
 
-        // Get pinned posts first (both user and AstroBot)
+        // Get pinned user posts first (exclude AstroBot/nasa_rss sources)
         $pinnedQuery = Post::query()
             ->whereNotNull('pinned_at')
+            ->where(function ($q) {
+                $q->whereNull('source_name')
+                    ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
+            })
             ->with([
                 'user:id,name,username,email,location,bio,is_admin,avatar_path',
                 'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
@@ -65,18 +69,12 @@ class FeedController extends Controller
 
         $pinnedQuery->notExpired();
 
-        // Get regular posts (excluding pinned to avoid duplication)
-        // Include both user posts and AstroBot posts (except hidden/expired)
+        // Get regular user posts (excluding pinned and AstroBot sources)
         $regularQuery = Post::query()
             ->whereNull('pinned_at')
             ->where(function ($q) {
                 $q->whereNull('source_name')
-                  ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss'])
-                  ->orWhere(function ($subQ) {
-                      // Include AstroBot posts that are not hidden and not expired
-                      $subQ->whereIn('source_name', ['astrobot', 'nasa_rss'])
-                           ->where('is_hidden', false);
-                  });
+                    ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
             })
             ->with([
                 'user:id,name,username,email,location,bio,is_admin,avatar_path',

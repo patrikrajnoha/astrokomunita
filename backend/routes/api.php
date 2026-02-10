@@ -95,8 +95,9 @@ if (app()->environment('local') && config('app.debug')) {
 */
 Route::middleware('web')->prefix('auth')->group(function () {
 
-    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
-    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-register');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-login');
+    Route::get('/username-available', [AuthController::class, 'usernameAvailable'])->middleware('throttle:auth-username-available');
 
     Route::post('/logout', [AuthController::class, 'logout'])
         ->middleware(['auth:sanctum']);
@@ -141,6 +142,7 @@ Route::get('/sidebar-sections', [SidebarSectionController::class, 'index']);
 */
 Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/{post}', [PostController::class, 'show']);
+Route::post('/posts/{post}/view', [PostController::class, 'view']);
 
 /*
 |--------------------------------------------------------------------------
@@ -274,6 +276,8 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
         |----------------------------------------------------------------------
         */
         Route::get('/users', [AdminUserController::class, 'index']);
+        Route::get('/users/{id}', [AdminUserController::class, 'show']);
+        Route::get('/users/{id}/reports', [AdminUserController::class, 'reports']);
         Route::post('/users/{id}/ban', [AdminUserController::class, 'ban']);
         Route::post('/users/{id}/unban', [AdminUserController::class, 'unban']);
         Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivate']);

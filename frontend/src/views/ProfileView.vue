@@ -472,7 +472,7 @@ async function uploadMedia(type, file) {
     form.append('type', type)
     form.append('file', file)
 
-    await http.post('/api/profile/media', form, {
+    await http.post('/profile/media', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
 
@@ -522,7 +522,7 @@ async function saveEdit() {
   try {
     await auth.csrf()
 
-    const { data } = await http.patch('/api/profile', {
+    const { data } = await http.patch('/profile', {
       name: auth.user.name,
       email: auth.user.email,
       bio: editForm.bio,
@@ -601,7 +601,7 @@ async function deletePost(post) {
 
   try {
     await auth.csrf()
-    await http.delete(`/api/posts/${post.id}`)
+    await http.delete(`/posts/${post.id}`)
 
     for (const key of Object.keys(tabState)) {
       tabState[key].items = tabState[key].items.filter((x) => x.id !== post.id)
@@ -638,7 +638,7 @@ async function loadCounts() {
 
   for (const k of kinds) {
     try {
-      const { data } = await http.get('/api/posts', {
+      const { data } = await http.get('/posts', {
         params: { scope: 'me', kind: k.kind, per_page: 1 },
       })
 
@@ -701,7 +701,7 @@ async function loadTab(key, reset = true) {
   state.err = ''
 
   try {
-    const url = reset ? '/api/posts' : state.next
+    const url = reset ? '/posts' : state.next
     if (!url) return
 
     const { data } = await http.get(url, {

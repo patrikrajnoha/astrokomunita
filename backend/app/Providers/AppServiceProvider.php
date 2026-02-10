@@ -6,6 +6,9 @@ use App\Console\Commands\ImportEventCandidates;
 use App\Console\Commands\ImportNasaNewsCommand;
 use App\Console\Commands\SendEventReminders;
 use App\Console\Commands\SendEventNotificationReminders;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -28,6 +31,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        RateLimiter::for('auth-register', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip() . '|register');
+        });
+
+        RateLimiter::for('auth-login', function (Request $request) {
+            return Limit::perMinute(10)->by($request->ip() . '|login');
+        });
+
+        RateLimiter::for('auth-username-available', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip() . '|username-available');
+        });
     }
 }
