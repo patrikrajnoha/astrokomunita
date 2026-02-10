@@ -3,31 +3,33 @@
 namespace App\Services\Observing\Providers;
 
 use App\Services\Observing\Contracts\SunMoonProvider;
+use App\Services\Observing\Support\ObservingHttp;
 use DateTimeImmutable;
 use DateTimeZone;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class UsnoSunMoonProvider implements SunMoonProvider
 {
+    public function __construct(
+        private readonly ObservingHttp $http
+    ) {
+    }
+
     public function get(float $lat, float $lon, string $date, string $tz): array
     {
         $timeConfig = $this->resolveUsnoTimezone($tz, $date);
+        $query = [
+            'date' => $date,
+            'coords' => number_format($lat, 6, '.', '') . ',' . number_format($lon, 6, '.', ''),
+            'tz' => (int) $timeConfig['tz'],
+            'dst' => $timeConfig['dst'] ? 'true' : 'false',
+        ];
 
-        $response = Http::timeout((int) config('observing.http.timeout_seconds', 8))
-            ->retry((int) config('observing.http.retry_times', 2), (int) config('observing.http.retry_sleep_ms', 200))
-            ->acceptJson()
-            ->get(config('observing.providers.usno_url'), [
-                'date' => $date,
-                'coords' => "{$lat},{$lon}",
-                'tz' => $timeConfig['tz'],
-                'dst' => $timeConfig['dst'] ? 'true' : 'false',
-            ]);
-
-        if (!$response->successful()) {
-            throw new \RuntimeException('USNO provider request failed.');
-        }
-
-        $payload = $response->json();
+        $payload = $this->http->getJson(
+            'usno',
+            (string) config('observing.providers.usno_url'),
+            $query
+        );
         $data = data_get($payload, 'properties.data', []);
         if (!is_array($data)) {
             throw new \RuntimeException('USNO provider payload is invalid.');
@@ -66,17 +68,38 @@ class UsnoSunMoonProvider implements SunMoonProvider
 
         try {
             $zone = new DateTimeZone($tzName);
-        } catch (\Throwable) {
-            $zone = new DateTimeZone($fallbackTz);
+        } catch (\Throwable $exception) {
+            Log::warning('USNO timezone conversion failed, using fallback timezone.', [
+                'provider' => 'usno',
+                'requested_tz' => $ianaTimezone,
+                'date' => $date,
+                'exception_message' => $exception->getMessage(),
+            ]);
+
+            try {
+                $zone = new DateTimeZone($fallbackTz);
+            } catch (\Throwable $inner) {
+                Log::warning('USNO fallback timezone failed, using UTC offset fallback.', [
+                    'provider' => 'usno',
+                    'fallback_tz' => $fallbackTz,
+                    'date' => $date,
+                    'exception_message' => $inner->getMessage(),
+                ]);
+
+                return [
+                    'tz' => 0,
+                    'dst' => false,
+                ];
+            }
         }
 
         $dt = new DateTimeImmutable("{$date} 12:00:00", $zone);
         $isDst = $dt->format('I') === '1';
-        $offsetHours = $dt->getOffset() / 3600;
+        $offsetHours = (int) round($dt->getOffset() / 3600);
         $baseOffset = $isDst ? $offsetHours - 1 : $offsetHours;
 
         return [
-            'tz' => $baseOffset,
+            'tz' => (int) $baseOffset,
             'dst' => $isDst,
         ];
     }

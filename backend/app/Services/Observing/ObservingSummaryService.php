@@ -5,6 +5,7 @@ namespace App\Services\Observing;
 use App\Services\Observing\Contracts\AirQualityProvider;
 use App\Services\Observing\Contracts\SunMoonProvider;
 use App\Services\Observing\Contracts\WeatherProvider;
+use App\Services\Observing\Support\ObservingProviderException;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 
@@ -22,6 +23,8 @@ class ObservingSummaryService
      */
     public function getSummary(float $lat, float $lon, string $date, string $tz): array
     {
+        $providerDebug = [];
+
         $sun = [
             'sunrise' => null,
             'sunset' => null,
@@ -72,13 +75,13 @@ class ObservingSummaryService
                 'status' => (($sunMoonRaw['phase_name'] ?? null) || $illuminationPct !== null) ? 'ok' : 'unavailable',
             ];
         } catch (\Throwable $exception) {
-            Log::warning('ObserveSummary sun/moon provider failed.', [
+            $providerDebug['sun_moon'] = $this->buildProviderFailureDebug('usno', $exception);
+            Log::warning('ObserveSummary sun/moon provider failed.', array_merge([
                 'lat' => $lat,
                 'lon' => $lon,
                 'date' => $date,
                 'tz' => $tz,
-                'error' => $exception->getMessage(),
-            ]);
+            ], $this->buildExceptionContext($exception)));
         }
 
         try {
@@ -94,13 +97,13 @@ class ObservingSummaryService
                 'status' => $weatherRaw['status'] ?? $humidityHeuristic['status'],
             ];
         } catch (\Throwable $exception) {
-            Log::warning('ObserveSummary weather provider failed.', [
+            $providerDebug['weather'] = $this->buildProviderFailureDebug('open_meteo', $exception);
+            Log::warning('ObserveSummary weather provider failed.', array_merge([
                 'lat' => $lat,
                 'lon' => $lon,
                 'date' => $date,
                 'tz' => $tz,
-                'error' => $exception->getMessage(),
-            ]);
+            ], $this->buildExceptionContext($exception)));
         }
 
         try {
@@ -116,13 +119,13 @@ class ObservingSummaryService
                 'status' => $airRaw['status'] ?? $airHeuristic['status'],
             ];
         } catch (\Throwable $exception) {
-            Log::warning('ObserveSummary air-quality provider failed.', [
+            $providerDebug['air_quality'] = $this->buildProviderFailureDebug('openaq', $exception);
+            Log::warning('ObserveSummary air-quality provider failed.', array_merge([
                 'lat' => $lat,
                 'lon' => $lon,
                 'date' => $date,
                 'tz' => $tz,
-                'error' => $exception->getMessage(),
-            ]);
+            ], $this->buildExceptionContext($exception)));
         }
 
         $overallLabels = [
@@ -160,9 +163,73 @@ class ObservingSummaryService
             $airQuality['status'],
         ], true);
 
+        $allUnavailable = $sun['status'] === 'unavailable'
+            && $moon['status'] === 'unavailable'
+            && $humidity['status'] === 'unavailable'
+            && $airQuality['status'] === 'unavailable';
+
+        if (app()->environment('local')) {
+            if (isset($providerDebug['sun_moon'])) {
+                $summary['sun']['debug'] = $providerDebug['sun_moon'];
+                $summary['moon']['debug'] = $providerDebug['sun_moon'];
+            }
+            if (isset($providerDebug['weather'])) {
+                $summary['atmosphere']['humidity']['debug'] = $providerDebug['weather'];
+            }
+            if (isset($providerDebug['air_quality'])) {
+                $summary['atmosphere']['air_quality']['debug'] = $providerDebug['air_quality'];
+            }
+        }
+
         return [
             'summary' => $summary,
             'is_partial' => $isPartial,
+            'all_unavailable' => $allUnavailable,
+        ];
+    }
+
+    public function diagnostics(float $lat, float $lon, string $date, string $tz): array
+    {
+        $checks = [
+            'usno' => ['status' => 'unavailable', 'http_status' => null, 'reason' => null],
+            'open_meteo' => ['status' => 'unavailable', 'http_status' => null, 'reason' => null],
+            'openaq' => ['status' => 'unavailable', 'http_status' => null, 'reason' => null],
+        ];
+
+        try {
+            $this->sunMoonProvider->get($lat, $lon, $date, $tz);
+            $checks['usno']['status'] = 'ok';
+        } catch (\Throwable $exception) {
+            $checks['usno'] = $this->diagnosticFromException($exception);
+        }
+
+        try {
+            $this->weatherProvider->get($lat, $lon, $date, $tz, null);
+            $checks['open_meteo']['status'] = 'ok';
+        } catch (\Throwable $exception) {
+            $checks['open_meteo'] = $this->diagnosticFromException($exception);
+        }
+
+        try {
+            $aq = $this->airQualityProvider->get($lat, $lon, $date, $tz);
+            if (($aq['status'] ?? 'unavailable') === 'ok') {
+                $checks['openaq']['status'] = 'ok';
+            } else {
+                $checks['openaq'] = [
+                    'status' => 'unavailable',
+                    'http_status' => null,
+                    'reason' => 'OpenAQ API key missing or no PM data nearby.',
+                ];
+            }
+        } catch (\Throwable $exception) {
+            $checks['openaq'] = $this->diagnosticFromException($exception);
+        }
+
+        return [
+            'location' => ['lat' => $lat, 'lon' => $lon, 'tz' => $tz],
+            'date' => $date,
+            'providers' => $checks,
+            'updated_at' => now()->toIso8601String(),
         ];
     }
 
@@ -173,6 +240,56 @@ class ObservingSummaryService
     public function buildSummary(float $lat, float $lon, string $date, string $tz): array
     {
         return $this->getSummary($lat, $lon, $date, $tz);
+    }
+
+    private function buildProviderFailureDebug(string $provider, \Throwable $exception): array
+    {
+        if ($exception instanceof ObservingProviderException) {
+            return [
+                'provider' => $provider,
+                'reason' => mb_substr($exception->getMessage(), 0, 200),
+                'status' => $exception->status,
+            ];
+        }
+
+        return [
+            'provider' => $provider,
+            'reason' => mb_substr($exception->getMessage(), 0, 200),
+            'status' => null,
+        ];
+    }
+
+    private function buildExceptionContext(\Throwable $exception): array
+    {
+        if ($exception instanceof ObservingProviderException) {
+            return $exception->toLogContext();
+        }
+
+        return [
+            'provider' => null,
+            'url' => null,
+            'status' => null,
+            'body_snippet' => null,
+            'exception_class' => $exception::class,
+            'exception_message' => $exception->getMessage(),
+        ];
+    }
+
+    private function diagnosticFromException(\Throwable $exception): array
+    {
+        if ($exception instanceof ObservingProviderException) {
+            return [
+                'status' => 'unavailable',
+                'http_status' => $exception->status,
+                'reason' => mb_substr($exception->getMessage(), 0, 250),
+            ];
+        }
+
+        return [
+            'status' => 'unavailable',
+            'http_status' => null,
+            'reason' => mb_substr($exception->getMessage(), 0, 250),
+        ];
     }
 
     private function normalizeIlluminationPct(mixed $fraction): ?int

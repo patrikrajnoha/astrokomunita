@@ -38,20 +38,53 @@ php artisan schedule:work
 
 ### Observing conditions sidebar API
 - Endpoint: `GET /api/observe/summary?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava`
+- Local diagnostics endpoint: `GET /api/observe/diagnostics?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava`
+  - dostupny iba v `APP_ENV=local`, inak vracia 404
 - Aggreguje:
   - USNO: sunrise/sunset, civil twilight, moon phase + illumination
   - Open-Meteo: humidity (current + evening)
   - OpenAQ: PM2.5/PM10 (najblizsia stanica v radiuse)
 - Pri zlyhani providera endpoint stale vracia `200`, ale prislusna sekcia ma `status: "unavailable"`.
+- V `APP_ENV=local` endpoint vracia aj necitlive `debug.reason` pri sekcii, ktora zlyha.
 - Cache:
   - plny vysledok: `OBSERVING_CACHE_TTL_MINUTES` (default 15)
   - partial vysledok: `OBSERVING_CACHE_PARTIAL_TTL_MINUTES` (default 5)
+  - ked su vsetky sekcie unavailable: `OBSERVING_CACHE_ALL_UNAVAILABLE_TTL_SECONDS` (default 90s)
 
 Nastavenie `.env`:
 
 ```env
 OPENAQ_API_KEY=your_openaq_key
+OPENAQ_BASE_URL=https://api.openaq.org/v3
 OBSERVING_DEFAULT_TZ=Europe/Bratislava
+OBSERVING_CA_BUNDLE_PATH=C:\absolute\path\to\backend\storage\certs\cacert.pem
+```
+
+Po zmene `.env`:
+
+```powershell
+php artisan config:clear
+```
+
+### Windows/XAMPP SSL fix (cURL error 60)
+Ak USNO/Open-Meteo padaju s `cURL error 60`, PHP nema CA bundle.
+
+1. V repozitari je local CA bundle:
+   - `backend/storage/certs/cacert.pem`
+2. Najdi Apache `php.ini` (XAMPP PHP) a nastav:
+
+```ini
+curl.cainfo="ABSOLUTE_PATH_TO_PROJECT\backend\storage\certs\cacert.pem"
+openssl.cafile="ABSOLUTE_PATH_TO_PROJECT\backend\storage\certs\cacert.pem"
+```
+
+3. Restartuj Apache.
+4. Ak volas Artisan cez ine PHP binarky, over ze CLI pouziva rovnake `php.ini`.
+
+Smoke test (PowerShell):
+
+```powershell
+irm "http://127.0.0.1:8000/api/observe/diagnostics?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava" | ConvertTo-Json -Depth 10
 ```
 
 ### Auth registration rules

@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\FeedController;
 use App\Http\Controllers\Api\HashtagController;
 use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\ObserveSummaryController;
+use App\Http\Controllers\Api\ObserveDiagnosticsController;
 use App\Http\Controllers\CsrfTestController;
 
 /*
@@ -129,6 +130,7 @@ Route::post('/events/{event}/notify-email', [EventEmailAlertController::class, '
 
 Route::get('/nasa/iotd', [NasaIotdController::class, 'show']);
 Route::get('/observe/summary', ObserveSummaryController::class);
+Route::get('/observe/diagnostics', ObserveDiagnosticsController::class);
 
 /*
 |--------------------------------------------------------------------------

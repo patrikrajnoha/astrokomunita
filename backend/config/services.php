@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'openaq' => [
+        'key' => env('OPENAQ_API_KEY'),
+        'base_url' => env('OPENAQ_BASE_URL', 'https://api.openaq.org/v3'),
+    ],
+
 ];

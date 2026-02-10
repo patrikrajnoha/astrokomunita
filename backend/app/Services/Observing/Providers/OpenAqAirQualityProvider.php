@@ -3,30 +3,38 @@
 namespace App\Services\Observing\Providers;
 
 use App\Services\Observing\Contracts\AirQualityProvider;
-use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Support\Facades\Http;
+use App\Services\Observing\Support\ObservingHttp;
 
 class OpenAqAirQualityProvider implements AirQualityProvider
 {
+    public function __construct(
+        private readonly ObservingHttp $http
+    ) {
+    }
+
     public function get(float $lat, float $lon, string $date, string $tz): array
     {
-        $apiKey = trim((string) config('observing.providers.openaq_api_key'));
+        $apiKey = trim((string) config('observing.providers.openaq.key'));
         if ($apiKey === '') {
             return $this->unavailable();
         }
 
-        $locations = $this->httpClient($apiKey)->get(config('observing.providers.openaq_locations_url'), [
-            'coordinates' => "{$lat},{$lon}",
-            'radius' => (int) config('observing.providers.openaq_radius_meters', 25000),
-            'limit' => 5,
-            'sort' => 'distance',
-        ]);
+        $baseUrl = rtrim((string) config('observing.providers.openaq.base_url', 'https://api.openaq.org/v3'), '/');
+        $locationsPayload = $this->http->getJson(
+            'openaq',
+            "{$baseUrl}/locations",
+            [
+                'coordinates' => number_format($lat, 6, '.', '') . ',' . number_format($lon, 6, '.', ''),
+                'radius' => (int) config('observing.providers.openaq_radius_meters', 25000),
+                'limit' => 5,
+                'sort' => 'distance',
+            ],
+            [
+                'X-API-Key' => $apiKey,
+            ]
+        );
 
-        if (!$locations->successful()) {
-            throw new \RuntimeException('OpenAQ locations request failed.');
-        }
-
-        $locationRows = data_get($locations->json(), 'results', data_get($locations->json(), 'data', []));
+        $locationRows = data_get($locationsPayload, 'results', data_get($locationsPayload, 'data', []));
         if (!is_array($locationRows) || count($locationRows) === 0) {
             return $this->unavailable();
         }
@@ -38,19 +46,16 @@ class OpenAqAirQualityProvider implements AirQualityProvider
             return $this->unavailable();
         }
 
-        $latestUrl = str_replace(
-            '{id}',
-            (string) $locationId,
-            (string) config('observing.providers.openaq_latest_url', 'https://api.openaq.org/v3/locations/{id}/latest')
+        $latestPayload = $this->http->getJson(
+            'openaq',
+            "{$baseUrl}/locations/{$locationId}/latest",
+            [],
+            [
+                'X-API-Key' => $apiKey,
+            ]
         );
 
-        $latest = $this->httpClient($apiKey)->get($latestUrl);
-
-        if (!$latest->successful()) {
-            throw new \RuntimeException('OpenAQ latest request failed.');
-        }
-
-        [$pm25, $pm10] = $this->extractPmValues($latest->json());
+        [$pm25, $pm10] = $this->extractPmValues($latestPayload);
 
         return [
             'pm25' => $pm25,
@@ -58,16 +63,6 @@ class OpenAqAirQualityProvider implements AirQualityProvider
             'source' => 'OpenAQ',
             'status' => ($pm25 === null && $pm10 === null) ? 'unavailable' : 'ok',
         ];
-    }
-
-    private function httpClient(string $apiKey): PendingRequest
-    {
-        return Http::timeout((int) config('observing.http.timeout_seconds', 8))
-            ->retry((int) config('observing.http.retry_times', 2), (int) config('observing.http.retry_sleep_ms', 200))
-            ->acceptJson()
-            ->withHeaders([
-                'X-API-Key' => $apiKey,
-            ]);
     }
 
     private function pickClosestLocation(array $rows): array

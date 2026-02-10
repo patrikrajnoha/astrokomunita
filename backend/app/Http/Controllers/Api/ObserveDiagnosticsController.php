@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Services\Observing\ObservingSummaryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-class ObserveSummaryController extends Controller
+class ObserveDiagnosticsController extends Controller
 {
     public function __construct(
         private readonly ObservingSummaryService $summaryService
@@ -17,6 +17,10 @@ class ObserveSummaryController extends Controller
 
     public function __invoke(Request $request): JsonResponse
     {
+        if (!app()->environment('local')) {
+            throw new NotFoundHttpException();
+        }
+
         $validated = $request->validate([
             'lat' => ['required', 'numeric', 'between:-90,90'],
             'lon' => ['required', 'numeric', 'between:-180,180'],
@@ -29,38 +33,9 @@ class ObserveSummaryController extends Controller
         $date = (string) $validated['date'];
         $tz = $this->sanitizeTimezone((string) ($validated['tz'] ?? ''));
 
-        $cacheKey = implode(':', [
-            'observe_summary',
-            number_format($lat, 6, '.', ''),
-            number_format($lon, 6, '.', ''),
-            $date,
-            str_replace(':', '_', $tz),
-        ]);
-
-        $cached = Cache::get($cacheKey);
-        if (is_array($cached)) {
-            return response()->json($cached);
-        }
-
-        $result = $this->summaryService->getSummary($lat, $lon, $date, $tz);
-        $summary = $result['summary'];
-        $isPartial = (bool) ($result['is_partial'] ?? false);
-
-        $allUnavailable = (bool) ($result['all_unavailable'] ?? false);
-        if ($allUnavailable) {
-            Cache::put(
-                $cacheKey,
-                $summary,
-                now()->addSeconds((int) config('observing.cache.all_unavailable_ttl_seconds', 90))
-            );
-        } else {
-            $ttlMinutes = $isPartial
-                ? (int) config('observing.cache.partial_ttl_minutes', 5)
-                : (int) config('observing.cache.ttl_minutes', 15);
-            Cache::put($cacheKey, $summary, now()->addMinutes($ttlMinutes));
-        }
-
-        return response()->json($summary);
+        return response()->json(
+            $this->summaryService->diagnostics($lat, $lon, $date, $tz)
+        );
     }
 
     private function sanitizeTimezone(string $raw): string
@@ -75,3 +50,4 @@ class ObserveSummaryController extends Controller
         return in_array($trimmed, timezone_identifiers_list(), true) ? $trimmed : $default;
     }
 }
+

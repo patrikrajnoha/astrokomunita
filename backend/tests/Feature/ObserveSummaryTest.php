@@ -17,7 +17,7 @@ class ObserveSummaryTest extends TestCase
 
     public function test_it_returns_summary_payload_when_providers_succeed(): void
     {
-        config()->set('observing.providers.openaq_api_key', 'test-key');
+        config()->set('observing.providers.openaq.key', 'test-key');
 
         Http::fake([
             'https://aa.usno.navy.mil/*' => Http::response($this->usnoPayload(), 200),
@@ -41,7 +41,7 @@ class ObserveSummaryTest extends TestCase
 
     public function test_it_returns_partial_unavailable_sections_when_one_provider_times_out(): void
     {
-        config()->set('observing.providers.openaq_api_key', 'test-key');
+        config()->set('observing.providers.openaq.key', 'test-key');
 
         Http::fake([
             'https://aa.usno.navy.mil/*' => Http::response($this->usnoPayload(), 200),

@@ -3,31 +3,46 @@
 namespace App\Services\Observing\Providers;
 
 use App\Services\Observing\Contracts\WeatherProvider;
+use App\Services\Observing\Support\ObservingHttp;
+use App\Services\Observing\Support\ObservingProviderException;
 use DateTimeImmutable;
-use Illuminate\Support\Facades\Http;
 
 class OpenMeteoWeatherProvider implements WeatherProvider
 {
+    public function __construct(
+        private readonly ObservingHttp $http
+    ) {
+    }
+
     public function get(float $lat, float $lon, string $date, string $tz, ?string $targetEveningTime = null): array
     {
-        $response = Http::timeout((int) config('observing.http.timeout_seconds', 8))
-            ->retry((int) config('observing.http.retry_times', 2), (int) config('observing.http.retry_sleep_ms', 200))
-            ->acceptJson()
-            ->get(config('observing.providers.open_meteo_url'), [
-                'latitude' => $lat,
-                'longitude' => $lon,
-                'timezone' => $tz,
-                'current' => 'relative_humidity_2m',
-                'hourly' => 'relative_humidity_2m',
-                'start_date' => $date,
-                'end_date' => $date,
-            ]);
+        $query = [
+            'latitude' => number_format($lat, 6, '.', ''),
+            'longitude' => number_format($lon, 6, '.', ''),
+            'timezone' => $tz,
+            'current' => 'relative_humidity_2m',
+            'hourly' => 'relative_humidity_2m',
+            'forecast_days' => 1,
+        ];
 
-        if (!$response->successful()) {
-            throw new \RuntimeException('Open-Meteo provider request failed.');
+        try {
+            $payload = $this->http->getJson(
+                'open_meteo',
+                (string) config('observing.providers.open_meteo_url'),
+                $query
+            );
+        } catch (ObservingProviderException $exception) {
+            if ($tz !== 'UTC') {
+                $query['timezone'] = 'UTC';
+                $payload = $this->http->getJson(
+                    'open_meteo',
+                    (string) config('observing.providers.open_meteo_url'),
+                    $query
+                );
+            } else {
+                throw $exception;
+            }
         }
-
-        $payload = $response->json();
 
         $current = data_get($payload, 'current.relative_humidity_2m');
         $currentPct = is_numeric($current) ? (int) round((float) $current) : null;
