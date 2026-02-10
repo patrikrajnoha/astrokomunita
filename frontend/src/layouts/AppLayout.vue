@@ -221,31 +221,35 @@ const canInstall = ref(false)
 const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const showRightSidebar = computed(() => ['home', 'post-detail'].includes(String(route.name || '')))
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
-const observingLat = computed(() => parseNumericQuery(route.query.lat))
-const observingLon = computed(() => parseNumericQuery(route.query.lon))
+const observingLocationMeta = computed(() => {
+  const value = auth.user?.location_meta
+  if (!value || typeof value !== 'object') return null
+  return value
+})
+const observingLat = computed(() => parseNumericValue(observingLocationMeta.value?.lat))
+const observingLon = computed(() => parseNumericValue(observingLocationMeta.value?.lon))
 const observingDate = computed(() => parseDateQuery(route.query.date) ?? localIsoDate(new Date()))
 const observingTz = computed(() => {
-  const queryTz = parseStringQuery(route.query.tz)
-  if (queryTz) return queryTz
+  const metaTz = parseStringValue(observingLocationMeta.value?.tz)
+  if (metaTz) return metaTz
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Bratislava'
 })
 
-const parseStringQuery = (value) => {
-  const source = Array.isArray(value) ? value[0] : value
-  if (typeof source !== 'string') return null
-  const trimmed = source.trim()
+const parseStringValue = (value) => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
   return trimmed !== '' ? trimmed : null
 }
 
-const parseNumericQuery = (value) => {
-  const source = parseStringQuery(value)
-  if (source === null) return null
-  const parsed = Number(source)
+const parseNumericValue = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value !== 'string') return null
+  const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
 }
 
 const parseDateQuery = (value) => {
-  const source = parseStringQuery(value)
+  const source = parseStringValue(Array.isArray(value) ? value[0] : value)
   if (!source) return null
   return /^\d{4}-\d{2}-\d{2}$/.test(source) ? source : null
 }

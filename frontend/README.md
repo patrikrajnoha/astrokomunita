@@ -53,3 +53,9 @@ npm run build
 ```sh
 npm run lint
 ```
+
+### Observing Sidebar Smoke Check
+
+1. Prihlas sa a nastav v profile `Location` (napr. `Bratislava`).
+2. Otvor Home (`/`) kde je pravy sidebar.
+3. Sekcia `Astronomické podmienky pozorovania` sa ma nacitat a nesmie ostat na placeholderi `Zvol lokalitu`.

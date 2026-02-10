@@ -9,6 +9,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable
 {
@@ -55,6 +56,7 @@ class User extends Authenticatable
     protected $appends = [
         'avatar_url',
         'cover_url',
+        'location_meta',
     ];
 
     /**
@@ -104,6 +106,58 @@ class User extends Authenticatable
         }
 
         return $disk->url($path);
+    }
+
+    public function getLocationMetaAttribute(): ?array
+    {
+        $rawLocation = trim((string) ($this->location ?? ''));
+        if ($rawLocation === '') {
+            return null;
+        }
+
+        $known = config('user_locations.map', []);
+        $fallbackTimezone = (string) config('user_locations.fallback_timezone', 'Europe/Bratislava');
+        $item = null;
+
+        if (isset($known[$rawLocation]) && is_array($known[$rawLocation])) {
+            $item = $known[$rawLocation];
+        } else {
+            $normalizedRaw = Str::lower(Str::of($rawLocation)->ascii()->value());
+            foreach ($known as $name => $candidate) {
+                if (!is_array($candidate)) {
+                    continue;
+                }
+                $normalizedCandidate = Str::lower(Str::of((string) $name)->ascii()->value());
+                if ($normalizedRaw === $normalizedCandidate) {
+                    $item = $candidate;
+                    break;
+                }
+            }
+        }
+
+        if (is_array($item)) {
+            $lat = isset($item['lat']) && is_numeric($item['lat']) ? (float) $item['lat'] : null;
+            $lon = isset($item['lon']) && is_numeric($item['lon']) ? (float) $item['lon'] : null;
+            $tz = is_string($item['tz'] ?? null) && trim($item['tz']) !== ''
+                ? trim($item['tz'])
+                : $fallbackTimezone;
+
+            if ($lat !== null && $lon !== null) {
+                return [
+                    'name' => $rawLocation,
+                    'lat' => $lat,
+                    'lon' => $lon,
+                    'tz' => $tz,
+                ];
+            }
+        }
+
+        return [
+            'name' => $rawLocation,
+            'lat' => null,
+            'lon' => null,
+            'tz' => $fallbackTimezone,
+        ];
     }
 
     /**
