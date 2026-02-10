@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\FeedController;
 use App\Http\Controllers\Api\HashtagController;
 use App\Http\Controllers\Api\RecommendationController;
+use App\Http\Controllers\Api\ObserveSummaryController;
 use App\Http\Controllers\CsrfTestController;
 
 /*
@@ -127,6 +128,7 @@ Route::get('/events/{event}/ics', [EventCalendarController::class, 'show']);
 Route::post('/events/{event}/notify-email', [EventEmailAlertController::class, 'store']);
 
 Route::get('/nasa/iotd', [NasaIotdController::class, 'show']);
+Route::get('/observe/summary', ObserveSummaryController::class);
 
 /*
 |--------------------------------------------------------------------------

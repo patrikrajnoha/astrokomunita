@@ -6,6 +6,12 @@ use App\Console\Commands\ImportEventCandidates;
 use App\Console\Commands\ImportNasaNewsCommand;
 use App\Console\Commands\SendEventReminders;
 use App\Console\Commands\SendEventNotificationReminders;
+use App\Services\Observing\Contracts\AirQualityProvider;
+use App\Services\Observing\Contracts\SunMoonProvider;
+use App\Services\Observing\Contracts\WeatherProvider;
+use App\Services\Observing\Providers\OpenAqAirQualityProvider;
+use App\Services\Observing\Providers\OpenMeteoWeatherProvider;
+use App\Services\Observing\Providers\UsnoSunMoonProvider;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -18,6 +24,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(SunMoonProvider::class, UsnoSunMoonProvider::class);
+        $this->app->bind(WeatherProvider::class, OpenMeteoWeatherProvider::class);
+        $this->app->bind(AirQualityProvider::class, OpenAqAirQualityProvider::class);
+
         $this->commands([
             ImportEventCandidates::class,
             ImportNasaNewsCommand::class,

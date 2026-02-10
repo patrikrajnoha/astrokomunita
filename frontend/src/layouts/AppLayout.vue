@@ -57,6 +57,12 @@
         >
           <div class="grid gap-4">
             <SearchBar />
+            <RightObservingSidebar
+              :lat="observingLat"
+              :lon="observingLon"
+              :date="observingDate"
+              :tz="observingTz"
+            />
             <DynamicSidebar />
           </div>
         </aside>
@@ -198,6 +204,7 @@ import { useAuthStore } from '@/stores/auth'
 import MainNavbar from '@/components/MainNavbar.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import DynamicSidebar from '@/components/DynamicSidebar.vue'
+import RightObservingSidebar from '@/components/RightObservingSidebar.vue'
 import PostComposer from '@/components/PostComposer.vue'
 import MobileFab from '@/components/MobileFab.vue'
 import AppToast from '@/components/shared/AppToast.vue'
@@ -214,6 +221,41 @@ const canInstall = ref(false)
 const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const showRightSidebar = computed(() => ['home', 'post-detail'].includes(String(route.name || '')))
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
+const observingLat = computed(() => parseNumericQuery(route.query.lat))
+const observingLon = computed(() => parseNumericQuery(route.query.lon))
+const observingDate = computed(() => parseDateQuery(route.query.date) ?? localIsoDate(new Date()))
+const observingTz = computed(() => {
+  const queryTz = parseStringQuery(route.query.tz)
+  if (queryTz) return queryTz
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Bratislava'
+})
+
+const parseStringQuery = (value) => {
+  const source = Array.isArray(value) ? value[0] : value
+  if (typeof source !== 'string') return null
+  const trimmed = source.trim()
+  return trimmed !== '' ? trimmed : null
+}
+
+const parseNumericQuery = (value) => {
+  const source = parseStringQuery(value)
+  if (source === null) return null
+  const parsed = Number(source)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const parseDateQuery = (value) => {
+  const source = parseStringQuery(value)
+  if (!source) return null
+  return /^\d{4}-\d{2}-\d{2}$/.test(source) ? source : null
+}
+
+const localIsoDate = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 const openDrawer = () => {
   closeComposerModal()

@@ -36,6 +36,24 @@ php artisan schedule:work
 - POST /api/notifications/{id}/read
 - POST /api/notifications/read-all
 
+### Observing conditions sidebar API
+- Endpoint: `GET /api/observe/summary?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava`
+- Aggreguje:
+  - USNO: sunrise/sunset, civil twilight, moon phase + illumination
+  - Open-Meteo: humidity (current + evening)
+  - OpenAQ: PM2.5/PM10 (najblizsia stanica v radiuse)
+- Pri zlyhani providera endpoint stale vracia `200`, ale prislusna sekcia ma `status: "unavailable"`.
+- Cache:
+  - plny vysledok: `OBSERVING_CACHE_TTL_MINUTES` (default 15)
+  - partial vysledok: `OBSERVING_CACHE_PARTIAL_TTL_MINUTES` (default 5)
+
+Nastavenie `.env`:
+
+```env
+OPENAQ_API_KEY=your_openaq_key
+OBSERVING_DEFAULT_TZ=Europe/Bratislava
+```
+
 ### Auth registration rules
 - POST `/api/auth/register`
   - required fields: `name`, `email`, `password`, `password_confirmation`, `username`, `date_of_birth`
