@@ -11,6 +11,5 @@ interface WeatherProvider
      *   status:string
      * }
      */
-    public function fetch(float $lat, float $lon, string $date, string $tz, ?string $targetEveningTime = null): array;
+    public function get(float $lat, float $lon, string $date, string $tz, ?string $targetEveningTime = null): array;
 }
-

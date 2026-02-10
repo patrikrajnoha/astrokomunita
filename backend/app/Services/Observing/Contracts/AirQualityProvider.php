@@ -12,6 +12,5 @@ interface AirQualityProvider
      *   status:string
      * }
      */
-    public function fetch(float $lat, float $lon): array;
+    public function get(float $lat, float $lon, string $date, string $tz): array;
 }
-

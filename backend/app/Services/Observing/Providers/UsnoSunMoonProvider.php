@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Http;
 
 class UsnoSunMoonProvider implements SunMoonProvider
 {
-    public function fetch(float $lat, float $lon, string $date, string $tz): array
+    public function get(float $lat, float $lon, string $date, string $tz): array
     {
         $timeConfig = $this->resolveUsnoTimezone($tz, $date);
 
@@ -124,4 +124,3 @@ class UsnoSunMoonProvider implements SunMoonProvider
         return $str !== '' ? $str : null;
     }
 }
-

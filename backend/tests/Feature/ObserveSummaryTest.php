@@ -32,28 +32,33 @@ class ObserveSummaryTest extends TestCase
         $response->assertJsonPath('sun.sunrise', '07:07');
         $response->assertJsonPath('moon.phase_name', 'Waning Crescent');
         $response->assertJsonPath('moon.illumination_pct', 91);
-        $response->assertJsonPath('moon.warning', 'Mesiac je velmi jasny, slabsie objekty budu horsie viditelne.');
+        $response->assertJsonPath('moon.warning', 'Mesiac je veľmi jasný – slabšie objekty budú horšie viditeľné.');
         $response->assertJsonPath('atmosphere.humidity.current_pct', 82);
         $response->assertJsonPath('atmosphere.air_quality.pm25', 12.4);
         $response->assertJsonPath('atmosphere.air_quality.pm10', 28.7);
         $response->assertJsonPath('atmosphere.air_quality.label', 'OK');
     }
 
-    public function test_it_returns_partial_unavailable_sections_when_providers_fail(): void
+    public function test_it_returns_partial_unavailable_sections_when_one_provider_times_out(): void
     {
         config()->set('observing.providers.openaq_api_key', 'test-key');
 
         Http::fake([
-            '*' => Http::response([], 500),
+            'https://aa.usno.navy.mil/*' => Http::response($this->usnoPayload(), 200),
+            'https://api.open-meteo.com/*' => function () {
+                throw new \Illuminate\Http\Client\ConnectionException('Timeout');
+            },
+            'https://api.openaq.org/v3/locations/123/latest*' => Http::response($this->openAqLatestPayload(), 200),
+            'https://api.openaq.org/v3/locations*' => Http::response($this->openAqLocationsPayload(), 200),
         ]);
 
         $response = $this->getJson('/api/observe/summary?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava');
 
         $response->assertOk();
-        $response->assertJsonPath('sun.status', 'unavailable');
-        $response->assertJsonPath('moon.status', 'unavailable');
+        $response->assertJsonPath('sun.status', 'ok');
+        $response->assertJsonPath('moon.status', 'ok');
         $response->assertJsonPath('atmosphere.humidity.status', 'unavailable');
-        $response->assertJsonPath('atmosphere.air_quality.status', 'unavailable');
+        $response->assertJsonPath('atmosphere.air_quality.status', 'ok');
     }
 
     private function usnoPayload(): array
@@ -116,4 +121,3 @@ class ObserveSummaryTest extends TestCase
         ];
     }
 }
-

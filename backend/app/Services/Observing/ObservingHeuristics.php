@@ -8,7 +8,7 @@ class ObservingHeuristics
     {
         if ($value === null) {
             return [
-                'label' => 'Nedostupne',
+                'label' => 'Nedostupné',
                 'note' => null,
                 'status' => 'unavailable',
             ];
@@ -17,7 +17,7 @@ class ObservingHeuristics
         if ($value < (int) config('observing.thresholds.humidity.ok_max', 60)) {
             return [
                 'label' => 'OK',
-                'note' => 'Nizsia vlhkost zvacsa znamena lepsiu priehladnost.',
+                'note' => 'Vyššia vlhkosť zhoršuje priehľadnosť atmosféry.',
                 'status' => 'ok',
             ];
         }
@@ -25,14 +25,14 @@ class ObservingHeuristics
         if ($value <= (int) config('observing.thresholds.humidity.warn_max', 80)) {
             return [
                 'label' => 'Pozor',
-                'note' => 'Vyssia vlhkost moze zhorsit kontrast a rastie riziko rosy.',
+                'note' => 'Vyššia vlhkosť zhoršuje priehľadnosť atmosféry.',
                 'status' => 'ok',
             ];
         }
 
         return [
-            'label' => 'Zle',
-            'note' => 'Velmi vysoka vlhkost casto vyrazne znizuje priehladnost.',
+            'label' => 'Zlé',
+            'note' => 'Vyššia vlhkosť zhoršuje priehľadnosť atmosféry.',
             'status' => 'ok',
         ];
     }
@@ -41,7 +41,7 @@ class ObservingHeuristics
     {
         if ($pm25 === null && $pm10 === null) {
             return [
-                'label' => 'Nedostupne',
+                'label' => 'Nedostupné',
                 'note' => null,
                 'status' => 'unavailable',
             ];
@@ -54,7 +54,7 @@ class ObservingHeuristics
             if ($pm25 <= (float) config('observing.thresholds.pm25.warn_max', 35)) {
                 return self::airResponse('Pozor');
             }
-            return self::airResponse('Zle');
+            return self::airResponse('Zlé');
         }
 
         if ($pm10 < (float) config('observing.thresholds.pm10.ok_max', 30)) {
@@ -64,7 +64,7 @@ class ObservingHeuristics
             return self::airResponse('Pozor');
         }
 
-        return self::airResponse('Zle');
+        return self::airResponse('Zlé');
     }
 
     public static function moonWarning(?int $illuminationPct): ?string
@@ -74,7 +74,7 @@ class ObservingHeuristics
         }
 
         if ($illuminationPct >= (int) config('observing.thresholds.moon.warning_min_pct', 90)) {
-            return 'Mesiac je velmi jasny, slabsie objekty budu horsie viditelne.';
+            return 'Mesiac je veľmi jasný – slabšie objekty budú horšie viditeľné.';
         }
 
         return null;
@@ -85,11 +85,11 @@ class ObservingHeuristics
         $priority = [
             'OK' => 1,
             'Pozor' => 2,
-            'Zle' => 3,
-            'Nedostupne' => 0,
+            'Zlé' => 3,
+            'Nedostupné' => 0,
         ];
 
-        $worstLabel = 'Nedostupne';
+        $worstLabel = 'Nedostupné';
         $worstScore = 0;
 
         foreach ($labels as $label) {
@@ -107,9 +107,8 @@ class ObservingHeuristics
     {
         return [
             'label' => $label,
-            'note' => 'Vyssie aerosoly znizuju transparentnost oblohy.',
+            'note' => 'Vyššie znečistenie (aerosóly) zhoršuje transparentnosť.',
             'status' => 'ok',
         ];
     }
 }
-

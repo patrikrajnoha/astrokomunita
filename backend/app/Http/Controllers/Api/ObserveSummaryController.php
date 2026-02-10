@@ -46,7 +46,7 @@ class ObserveSummaryController extends Controller
             return response()->json($cached);
         }
 
-        $result = $this->summaryService->buildSummary($lat, $lon, $date, $tz);
+        $result = $this->summaryService->getSummary($lat, $lon, $date, $tz);
         $summary = $result['summary'];
         $isPartial = (bool) ($result['is_partial'] ?? false);
 
@@ -59,4 +59,3 @@ class ObserveSummaryController extends Controller
         return response()->json($summary);
     }
 }
-

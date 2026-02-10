@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Http;
 
 class OpenAqAirQualityProvider implements AirQualityProvider
 {
-    public function fetch(float $lat, float $lon): array
+    public function get(float $lat, float $lon, string $date, string $tz): array
     {
         $apiKey = trim((string) config('observing.providers.openaq_api_key'));
         if ($apiKey === '') {

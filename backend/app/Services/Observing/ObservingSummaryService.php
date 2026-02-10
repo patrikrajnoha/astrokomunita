@@ -6,6 +6,7 @@ use App\Services\Observing\Contracts\AirQualityProvider;
 use App\Services\Observing\Contracts\SunMoonProvider;
 use App\Services\Observing\Contracts\WeatherProvider;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Log;
 
 class ObservingSummaryService
 {
@@ -19,7 +20,7 @@ class ObservingSummaryService
     /**
      * @return array{summary:array<string,mixed>,is_partial:bool}
      */
-    public function buildSummary(float $lat, float $lon, string $date, string $tz): array
+    public function getSummary(float $lat, float $lon, string $date, string $tz): array
     {
         $sun = [
             'sunrise' => null,
@@ -39,7 +40,7 @@ class ObservingSummaryService
         $humidity = [
             'current_pct' => null,
             'evening_pct' => null,
-            'label' => 'Nedostupne',
+            'label' => 'Nedostupné',
             'note' => null,
             'status' => 'unavailable',
         ];
@@ -47,14 +48,14 @@ class ObservingSummaryService
         $airQuality = [
             'pm25' => null,
             'pm10' => null,
-            'label' => 'Nedostupne',
+            'label' => 'Nedostupné',
             'note' => null,
             'source' => 'OpenAQ',
             'status' => 'unavailable',
         ];
 
         try {
-            $sunMoonRaw = $this->sunMoonProvider->fetch($lat, $lon, $date, $tz);
+            $sunMoonRaw = $this->sunMoonProvider->get($lat, $lon, $date, $tz);
             $sun = [
                 'sunrise' => $sunMoonRaw['sunrise'] ?? null,
                 'sunset' => $sunMoonRaw['sunset'] ?? null,
@@ -70,13 +71,19 @@ class ObservingSummaryService
                 'warning' => ObservingHeuristics::moonWarning($illuminationPct),
                 'status' => (($sunMoonRaw['phase_name'] ?? null) || $illuminationPct !== null) ? 'ok' : 'unavailable',
             ];
-        } catch (\Throwable) {
-            // Keep section unavailable but keep endpoint healthy.
+        } catch (\Throwable $exception) {
+            Log::warning('ObserveSummary sun/moon provider failed.', [
+                'lat' => $lat,
+                'lon' => $lon,
+                'date' => $date,
+                'tz' => $tz,
+                'error' => $exception->getMessage(),
+            ]);
         }
 
         try {
             $targetEveningTime = $this->resolveTargetEveningTime($sun['civil_twilight_end']);
-            $weatherRaw = $this->weatherProvider->fetch($lat, $lon, $date, $tz, $targetEveningTime);
+            $weatherRaw = $this->weatherProvider->get($lat, $lon, $date, $tz, $targetEveningTime);
             $humidityHeuristic = ObservingHeuristics::humidity($weatherRaw['evening_pct'] ?? $weatherRaw['current_pct'] ?? null);
 
             $humidity = [
@@ -86,12 +93,18 @@ class ObservingSummaryService
                 'note' => $humidityHeuristic['note'],
                 'status' => $weatherRaw['status'] ?? $humidityHeuristic['status'],
             ];
-        } catch (\Throwable) {
-            // Keep section unavailable but keep endpoint healthy.
+        } catch (\Throwable $exception) {
+            Log::warning('ObserveSummary weather provider failed.', [
+                'lat' => $lat,
+                'lon' => $lon,
+                'date' => $date,
+                'tz' => $tz,
+                'error' => $exception->getMessage(),
+            ]);
         }
 
         try {
-            $airRaw = $this->airQualityProvider->fetch($lat, $lon);
+            $airRaw = $this->airQualityProvider->get($lat, $lon, $date, $tz);
             $airHeuristic = ObservingHeuristics::airQuality($airRaw['pm25'] ?? null, $airRaw['pm10'] ?? null);
 
             $airQuality = [
@@ -102,8 +115,14 @@ class ObservingSummaryService
                 'source' => $airRaw['source'] ?? 'OpenAQ',
                 'status' => $airRaw['status'] ?? $airHeuristic['status'],
             ];
-        } catch (\Throwable) {
-            // Keep section unavailable but keep endpoint healthy.
+        } catch (\Throwable $exception) {
+            Log::warning('ObserveSummary air-quality provider failed.', [
+                'lat' => $lat,
+                'lon' => $lon,
+                'date' => $date,
+                'tz' => $tz,
+                'error' => $exception->getMessage(),
+            ]);
         }
 
         $overallLabels = [
@@ -147,6 +166,15 @@ class ObservingSummaryService
         ];
     }
 
+    /**
+     * @deprecated Use getSummary() instead.
+     * @return array{summary:array<string,mixed>,is_partial:bool}
+     */
+    public function buildSummary(float $lat, float $lon, string $date, string $tz): array
+    {
+        return $this->getSummary($lat, $lon, $date, $tz);
+    }
+
     private function normalizeIlluminationPct(mixed $fraction): ?int
     {
         if ($fraction === null || !is_numeric($fraction)) {
@@ -168,4 +196,3 @@ class ObservingSummaryService
         return $base->addHour()->format('H:i');
     }
 }
-

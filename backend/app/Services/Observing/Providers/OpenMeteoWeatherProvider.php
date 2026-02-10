@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Http;
 
 class OpenMeteoWeatherProvider implements WeatherProvider
 {
-    public function fetch(float $lat, float $lon, string $date, string $tz, ?string $targetEveningTime = null): array
+    public function get(float $lat, float $lon, string $date, string $tz, ?string $targetEveningTime = null): array
     {
         $response = Http::timeout((int) config('observing.http.timeout_seconds', 8))
             ->retry((int) config('observing.http.retry_times', 2), (int) config('observing.http.retry_sleep_ms', 200))
@@ -88,4 +88,3 @@ class OpenMeteoWeatherProvider implements WeatherProvider
         return $bestValue;
     }
 }
-

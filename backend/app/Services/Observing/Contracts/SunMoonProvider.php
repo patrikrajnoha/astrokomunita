@@ -15,6 +15,5 @@ interface SunMoonProvider
      *   fracillum:?float
      * }
      */
-    public function fetch(float $lat, float $lon, string $date, string $tz): array;
+    public function get(float $lat, float $lon, string $date, string $tz): array;
 }
-
