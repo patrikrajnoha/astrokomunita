@@ -59,3 +59,9 @@ npm run lint
 1. Prihlas sa a nastav v profile `Location` (napr. `Bratislava`).
 2. Otvor Home (`/`) kde je pravy sidebar.
 3. Sekcia `Astronomické podmienky pozorovania` sa ma nacitat a nesmie ostat na placeholderi `Zvol lokalitu`.
+
+### Observing Sidebar location note
+
+- Sidebar reads coordinates from `auth.user.location_meta` generated on backend from user `location`.
+- Supported values include canonical profile locations (for example `Bratislava`) and normalized variants (for example `Bratislava, SK`).
+- If user location is empty or unknown, placeholder `Zvol lokalitu` is expected.

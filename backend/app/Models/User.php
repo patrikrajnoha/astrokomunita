@@ -122,17 +122,7 @@ class User extends Authenticatable
         if (isset($known[$rawLocation]) && is_array($known[$rawLocation])) {
             $item = $known[$rawLocation];
         } else {
-            $normalizedRaw = Str::lower(Str::of($rawLocation)->ascii()->value());
-            foreach ($known as $name => $candidate) {
-                if (!is_array($candidate)) {
-                    continue;
-                }
-                $normalizedCandidate = Str::lower(Str::of((string) $name)->ascii()->value());
-                if ($normalizedRaw === $normalizedCandidate) {
-                    $item = $candidate;
-                    break;
-                }
-            }
+            $item = $this->resolveLocationMetaFromNormalizedMap($rawLocation, $known);
         }
 
         if (is_array($item)) {
@@ -158,6 +148,72 @@ class User extends Authenticatable
             'lon' => null,
             'tz' => $fallbackTimezone,
         ];
+    }
+
+    private function resolveLocationMetaFromNormalizedMap(string $rawLocation, array $known): ?array
+    {
+        $normalizedMap = [];
+
+        foreach ($known as $name => $candidate) {
+            if (!is_array($candidate)) {
+                continue;
+            }
+
+            $normalizedKey = $this->normalizeLocationLookup((string) $name);
+            if ($normalizedKey !== '') {
+                $normalizedMap[$normalizedKey] = $candidate;
+            }
+        }
+
+        foreach ($this->locationLookupCandidates($rawLocation) as $candidateLookup) {
+            if (isset($normalizedMap[$candidateLookup])) {
+                return $normalizedMap[$candidateLookup];
+            }
+
+            foreach ($normalizedMap as $knownName => $knownMeta) {
+                if (str_starts_with($candidateLookup, $knownName . ' ')) {
+                    return $knownMeta;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function locationLookupCandidates(string $rawLocation): array
+    {
+        $candidates = [];
+        $normalized = $this->normalizeLocationLookup($rawLocation);
+
+        if ($normalized !== '') {
+            $candidates[] = $normalized;
+        }
+
+        $withoutCountrySuffix = preg_replace('/\s*,\s*(sk|slovakia|slovensko|cz|czechia|czech republic)\s*$/i', '', $rawLocation);
+        $withoutCountrySuffix = is_string($withoutCountrySuffix) ? $withoutCountrySuffix : $rawLocation;
+        $normalizedWithoutCountry = $this->normalizeLocationLookup($withoutCountrySuffix);
+
+        if ($normalizedWithoutCountry !== '' && !in_array($normalizedWithoutCountry, $candidates, true)) {
+            $candidates[] = $normalizedWithoutCountry;
+        }
+
+        $beforeComma = trim((string) Str::of($rawLocation)->before(','));
+        $normalizedBeforeComma = $this->normalizeLocationLookup($beforeComma);
+
+        if ($normalizedBeforeComma !== '' && !in_array($normalizedBeforeComma, $candidates, true)) {
+            $candidates[] = $normalizedBeforeComma;
+        }
+
+        return $candidates;
+    }
+
+    private function normalizeLocationLookup(string $value): string
+    {
+        $ascii = Str::of($value)->ascii()->lower()->value();
+        $clean = preg_replace('/[^a-z0-9]+/i', ' ', $ascii);
+        $clean = is_string($clean) ? trim(preg_replace('/\s+/', ' ', $clean) ?? '') : '';
+
+        return $clean;
     }
 
     /**

@@ -142,6 +142,8 @@ const safeTimezone = computed(() => {
   return 'Europe/Bratislava'
 })
 
+const devDebugEnabled = import.meta.env.DEV && typeof window !== 'undefined'
+
 function toNumber(value) {
   if (typeof value === 'number') return value
   if (typeof value === 'string' && value.trim() !== '') {
@@ -159,6 +161,18 @@ function toLocalIsoDate(date) {
 }
 
 function queueFetch() {
+  if (devDebugEnabled) {
+    console.debug('[RightObservingSidebar] queueFetch', {
+      lat: props.lat,
+      lon: props.lon,
+      numericLat: numericLat.value,
+      numericLon: numericLon.value,
+      hasLocation: hasLocation.value,
+      date: safeDate.value,
+      tz: safeTimezone.value,
+    })
+  }
+
   if (debounceTimer) {
     window.clearTimeout(debounceTimer)
   }
@@ -170,6 +184,13 @@ function queueFetch() {
 
 async function fetchSummary() {
   if (!hasLocation.value) {
+    if (devDebugEnabled) {
+      console.debug('[RightObservingSidebar] skip fetch, missing coords', {
+        lat: props.lat,
+        lon: props.lon,
+      })
+    }
+
     summary.value = null
     error.value = ''
     loading.value = false
