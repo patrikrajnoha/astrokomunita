@@ -37,7 +37,7 @@
             <p v-if="fieldErr.bio" class="fieldErr">{{ fieldErr.bio }}</p>
           </div>
 
-          <div class="field">
+          <div id="location" class="field">
             <label>Poloha</label>
             <select class="input" v-model="form.location">
               <option value="">— Vyber polohu —</option>

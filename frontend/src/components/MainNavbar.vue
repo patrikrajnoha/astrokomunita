@@ -16,13 +16,13 @@
     </RouterLink>
 
     <!-- Main Navigation -->
-    <div class="flex flex-col gap-1.5 flex-1 overflow-y-auto">
+    <div class="navScroll flex flex-col gap-1.5 flex-1 overflow-y-auto overflow-x-hidden">
       <RouterLink
         v-for="item in primaryLinks"
-        :key="item.to"
+        :key="item.key || item.to"
         :to="item.to"
         custom
-        v-slot="{ href, navigate, isActive }"
+        v-slot="{ href, navigate, isActive, isExactActive }"
       >
         <div v-if="item.isMore" ref="moreWrapperRef" class="relative mt-3 border-t border-[color:rgb(var(--color-text-secondary-rgb)/0.12)] pt-3">
           <button
@@ -381,7 +381,7 @@
           :aria-label="item.label"
           :class="[
             'group relative flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
-            isActive
+            isPrimaryLinkActive(item, isActive, isExactActive)
               ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
               : 'text-[var(--color-surface)]',
           ]"
@@ -390,9 +390,19 @@
             class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.7rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
             aria-hidden="true"
           >
-            <svg v-if="item.iconSvg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
-              <path d="M6 8a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6" />
-              <path d="M9.5 20a2.5 2.5 0 0 0 5 0" />
+            <svg
+              v-if="Array.isArray(item.iconPaths) && item.iconPaths.length > 0"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path v-for="(path, index) in item.iconPaths" :key="`${item.to}-icon-${index}`" :d="path" />
             </svg>
             <span v-else>{{ item.icon }}</span>
           </span>
@@ -562,31 +572,64 @@ const userAvatarUrl = computed(() => {
 })
 
 const primaryLinks = computed(() => {
+  const navIcons = {
+    home: [
+      'M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18Z',
+      'M7.2 9.1l1.6-1.3 2.2.4 1.1 1.4-.4 1.8-1.6 1.2-1.9-.5-.5-1.6z',
+      'M12.8 13.2l1.9-1.2 2.3.7.8 1.9-1.5 1.9-2 .4-1.6-1.1.3-2.6z',
+    ],
+    search: ['M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z', 'm20 20-3.5-3.5'],
+    notifications: ['M6 8a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6', 'M9.5 20a2.5 2.5 0 0 0 5 0'],
+    events: ['M7 3v3', 'M17 3v3', 'M4 8h16', 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z'],
+    learn: ['M4 6.5A2.5 2.5 0 0 1 6.5 4H20v14H6.5A2.5 2.5 0 0 0 4 20.5z', 'M8 8h8', 'M8 11h8'],
+  }
+
   const links = [
-    { to: '/', label: 'Home', icon: 'H' },
-    { to: '/events', label: 'Events', icon: 'U' },
-    { to: '/calendar', label: 'Calendar', icon: 'K' },
-    { to: '/learn', label: 'Learning', icon: 'V' },
+    { key: 'home', to: '/', label: 'Domov', icon: 'D', iconPaths: navIcons.home },
+    { key: 'search', to: '/search', label: 'Preskumat', icon: 'P', iconPaths: navIcons.search },
+    {
+      key: 'notifications',
+      to: '/notifications',
+      label: 'Upozornenia',
+      icon: 'U',
+      iconPaths: navIcons.notifications,
+      badge: auth.isAuthed ? notifications.unreadBadge : null,
+    },
+    {
+      key: 'events',
+      to: '/events',
+      label: 'Udalosti',
+      icon: 'U',
+      iconPaths: navIcons.events,
+      matchPrefix: '/events',
+    },
+    { key: 'learn', to: '/learn', label: 'Vzdelavanie', icon: 'V', iconPaths: navIcons.learn },
   ]
 
-  if (auth.isAuthed) {
-    links.unshift({
-      to: '/notifications',
-      label: 'Notifications',
-      icon: 'N',
-      iconSvg: true,
-      badge: notifications.unreadBadge,
-    })
-  }
-
   if (auth.isAdmin) {
-    links.push({ to: '/admin', label: 'Admin Hub', icon: 'A' })
+    links.push({ key: 'admin', to: '/admin/dashboard', label: 'Admin Hub', icon: 'A', matchPrefix: '/admin' })
   }
 
-  links.push({ to: '/more', label: 'More', icon: 'M', isMore: true })
+  links.push({ key: 'more', to: '/more', label: 'More', icon: 'M', isMore: true })
 
   return links
 })
+
+const isPrimaryLinkActive = (item, isActive, isExactActive) => {
+  if (!item) return false
+  const targetPath = typeof item.to === 'string' ? item.to : item.to?.path
+
+  // Home should be active only on exact root route.
+  if (targetPath === '/') {
+    return Boolean(isExactActive)
+  }
+
+  if (item.matchPrefix) {
+    return route.path.startsWith(item.matchPrefix)
+  }
+
+  return Boolean(isActive)
+}
 
 const toggleMore = () => {
   isMoreOpen.value = !isMoreOpen.value
@@ -650,5 +693,17 @@ const logout = async () => {
   }
 }
 </script>
+
+<style scoped>
+.navScroll {
+  -ms-overflow-style: none; /* IE and old Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.navScroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+</style>
 
 

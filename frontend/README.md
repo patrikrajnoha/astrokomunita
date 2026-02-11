@@ -54,6 +54,54 @@ npm run build
 npm run lint
 ```
 
+## UI Popups
+
+Unified popup system is available globally in `App.vue`.
+
+### Toasts (`useToast`)
+
+Use toasts for non-blocking feedback:
+
+```js
+import { useToast } from '@/composables/useToast'
+
+const toast = useToast()
+toast.success('Saved.')
+toast.error('Something went wrong.')
+toast.warn('Check the form.')
+toast.info('Refreshing data...')
+```
+
+### Confirm / Prompt (`useConfirm`)
+
+Use modal confirm for destructive or irreversible actions:
+
+```js
+import { useConfirm } from '@/composables/useConfirm'
+
+const { confirm, prompt } = useConfirm()
+
+const ok = await confirm({
+  title: 'Delete post',
+  message: 'This action cannot be undone.',
+  confirmText: 'Delete',
+  cancelText: 'Cancel',
+  variant: 'danger',
+})
+
+const reason = await prompt({
+  title: 'Reject candidate',
+  message: 'Reason for rejection:',
+  required: true,
+})
+```
+
+### When to use what
+
+- Use `toast.*` for success/info/warn/error feedback.
+- Use `confirm(...)` for delete/logout/ban/deactivate/reset and other critical actions.
+- Use `prompt(...)` only when a short reason/value is required from user before continuing.
+
 ### Observing Sidebar Smoke Check
 
 1. Prihlas sa a nastav v profile `Location` (napr. `Bratislava`).

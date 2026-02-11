@@ -3,8 +3,12 @@ import { onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import api from "@/services/api";
 import { eventCandidates } from "@/services/eventCandidates";
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter();
+const { confirm } = useConfirm()
+const toast = useToast()
 
 const activeTab = ref("crawled");
 
@@ -241,7 +245,13 @@ async function saveManual() {
 
 async function deleteManual(row) {
   if (!row?.id) return;
-  const ok = window.confirm(`Zmaza? draft "${row.title}"?`);
+  const ok = await confirm({
+    title: 'Zmazat draft',
+    message: `Zmazat draft "${row.title}"?`,
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    variant: 'danger',
+  });
   if (!ok) return;
 
   manualLoading.value = true;
@@ -252,8 +262,10 @@ async function deleteManual(row) {
     if (manualData.value?.data) {
       manualData.value.data = manualData.value.data.filter((r) => r.id !== row.id);
     }
+    toast.success('Draft bol zmazany.');
   } catch (e) {
     manualError.value = e?.response?.data?.message || "Mazanie zlyhalo";
+    toast.error(manualError.value);
   } finally {
     manualLoading.value = false;
   }
@@ -261,7 +273,12 @@ async function deleteManual(row) {
 
 async function publishManual(row) {
   if (!row?.id) return;
-  const ok = window.confirm(`Publikova? "${row.title}" do events?`);
+  const ok = await confirm({
+    title: 'Publikovat draft',
+    message: `Publikovat "${row.title}" do events?`,
+    confirmText: 'Publish',
+    cancelText: 'Cancel',
+  });
   if (!ok) return;
 
   manualLoading.value = true;
@@ -274,8 +291,10 @@ async function publishManual(row) {
       status: "published",
       published_event_id: res.data?.data?.id ?? res.data?.id ?? null,
     });
+    toast.success('Draft bol publikovany.');
   } catch (e) {
     manualError.value = e?.response?.data?.message || "Publish zlyhal";
+    toast.error(manualError.value);
   } finally {
     manualLoading.value = false;
   }
@@ -295,9 +314,6 @@ onMounted(load);
     <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px;">
       <div>
         <h1 style="margin:0 0 6px;">Event candidates</h1>
-        <div style="opacity:.8; font-size: 14px;">
-          Crawled kandid?ti + manu?lne drafty (MVP).
-        </div>
       </div>
 
       <div style="display:flex; gap:10px;">
@@ -478,9 +494,7 @@ onMounted(load);
             </tr>
 
             <tr v-if="data.data.length === 0">
-              <td colspan="7" style="padding:16px; opacity:.8;">
-                ?iadne v?sledky pre zvolen? filtre.
-              </td>
+              <td colspan="7" style="padding:0;"></td>
             </tr>
           </tbody>
         </table>

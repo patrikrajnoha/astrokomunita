@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\RssItemStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,32 +11,44 @@ class RssItem extends Model
 {
     use HasFactory;
 
-    public const STATUS_PENDING = RssItemStatus::Pending->value;
-    public const STATUS_APPROVED = RssItemStatus::Approved->value;
-    public const STATUS_SCHEDULED = RssItemStatus::Scheduled->value;
-    public const STATUS_PUBLISHED = RssItemStatus::Published->value;
-    public const STATUS_DISCARDED = RssItemStatus::Discarded->value;
-    public const STATUS_ERROR = RssItemStatus::Error->value;
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_NEEDS_REVIEW = 'needs_review';
+    public const STATUS_PUBLISHED = 'published';
+    public const STATUS_REJECTED = 'rejected';
+
+    // Legacy values kept for backward compatibility in older records/tests.
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_SCHEDULED = 'scheduled';
+    public const STATUS_DISCARDED = 'discarded';
+    public const STATUS_ERROR = 'error';
 
     protected $fillable = [
         'source',
         'guid',
         'url',
         'dedupe_hash',
+        'stable_key',
         'title',
         'summary',
         'published_at',
+        'published_to_posts_at',
         'fetched_at',
         'status',
         'scheduled_for',
         'post_id',
+        'reviewed_by',
+        'reviewed_at',
+        'review_note',
         'last_error',
     ];
 
     protected $casts = [
         'published_at' => 'datetime',
+        'published_to_posts_at' => 'datetime',
         'fetched_at' => 'datetime',
         'scheduled_for' => 'datetime',
+        'reviewed_at' => 'datetime',
     ];
 
     // ------------------------------------------------------------------
@@ -55,13 +66,10 @@ class RssItem extends Model
     /**
      * Scope: filter by status
      */
-    public function scopeByStatus(Builder $query, string|RssItemStatus|array $status): Builder
+    public function scopeByStatus(Builder $query, string|array $status): Builder
     {
         $statuses = is_array($status) ? $status : [$status];
-        $normalized = array_map(
-            fn ($item) => $item instanceof RssItemStatus ? $item->value : (string) $item,
-            $statuses
-        );
+        $normalized = array_map(static fn ($item): string => (string) $item, $statuses);
         return $query->whereIn('status', $normalized);
     }
 
@@ -78,7 +86,7 @@ class RssItem extends Model
      */
     public function scopePending(Builder $query): Builder
     {
-        return $query->where('status', self::STATUS_PENDING);
+        return $query->whereIn('status', [self::STATUS_DRAFT, self::STATUS_PENDING]);
     }
 
     /**
@@ -99,6 +107,11 @@ class RssItem extends Model
         return $this->belongsTo(Post::class);
     }
 
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
@@ -116,7 +129,12 @@ class RssItem extends Model
      */
     public function canPublish(): bool
     {
-        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_APPROVED]);
+        return in_array($this->status, [
+            self::STATUS_DRAFT,
+            self::STATUS_NEEDS_REVIEW,
+            self::STATUS_PENDING,
+            self::STATUS_APPROVED,
+        ], true);
     }
 
     /**
@@ -125,5 +143,11 @@ class RssItem extends Model
     public function isPublished(): bool
     {
         return $this->status === self::STATUS_PUBLISHED && $this->post_id;
+    }
+
+    public function getDomainAttribute(): ?string
+    {
+        $host = parse_url((string) $this->url, PHP_URL_HOST);
+        return $host ? strtolower($host) : null;
     }
 }

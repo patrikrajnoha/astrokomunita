@@ -12,6 +12,9 @@ export function canDeletePost(post, currentUser) {
 }
 
 export function canReportPost(post, currentUser) {
-  if (!currentUser) return false
+  const sourceName = String(post?.source_name || '').toLowerCase()
+  if (sourceName === 'astrobot' || sourceName === 'nasa_rss') return false
+
+  if (!currentUser) return true
   return !isOwner(post, currentUser)
 }

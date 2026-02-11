@@ -4,9 +4,9 @@
     type="button"
     class="mobileFab"
     :style="fabStyle"
-    aria-label="Vytvorit prispevok"
-    title="Vytvorit prispevok"
-    @click="$emit('click')"
+    aria-label="Widgets"
+    title="Widgets"
+    @click="$emit('widgets')"
   >
     <svg
       class="fabIcon"
@@ -15,13 +15,15 @@
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      stroke-width="2.3"
+      stroke-width="2"
       stroke-linecap="round"
       stroke-linejoin="round"
       aria-hidden="true"
     >
-      <path d="M12 5v14" />
-      <path d="M5 12h14" />
+      <rect x="3" y="3" width="7" height="7" rx="1.2" />
+      <rect x="14" y="3" width="7" height="7" rx="1.2" />
+      <rect x="3" y="14" width="7" height="7" rx="1.2" />
+      <rect x="14" y="14" width="7" height="7" rx="1.2" />
     </svg>
   </button>
 </template>
@@ -34,7 +36,7 @@ const props = defineProps({
   bottomOffset: { type: Number, default: 16 },
 })
 
-defineEmits(['click'])
+defineEmits(['widgets'])
 
 const fabStyle = computed(() => ({
   '--fab-bottom-offset': `${Math.max(0, Number(props.bottomOffset) || 0)}px`,

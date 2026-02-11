@@ -40,7 +40,6 @@ class RecommendationController extends Controller
                       ->whereNull('parent_id')
                       ->where('is_hidden', false);
             }])
-            ->having('posts_count', '>', 0)
             ->orderBy('posts_count', 'desc')
             ->limit($limit)
             ->get(['id', 'name', 'username', 'avatar_path', 'posts_count']);

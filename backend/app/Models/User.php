@@ -219,6 +219,11 @@ class User extends Authenticatable
     /**
      * Posty, ktorĂ˝ pouĹľĂ­vateÄľ lajkol.
      */
+    public function posts(): HasMany
+    {
+        return $this->hasMany(Post::class);
+    }
+
     public function likedPosts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_likes');

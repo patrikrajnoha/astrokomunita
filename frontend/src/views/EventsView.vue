@@ -14,7 +14,26 @@
 
     <main class="content-wrap">
       <section class="filter-panel">
-        <div class="filter-row" role="tablist" aria-label="Event type filters">
+        <div class="view-toggle" role="tablist" aria-label="Zobrazenie udalosti">
+          <button
+            class="view-btn"
+            :class="{ active: !isCalendarView }"
+            type="button"
+            @click="setView('list')"
+          >
+            Zoznam
+          </button>
+          <button
+            class="view-btn"
+            :class="{ active: isCalendarView }"
+            type="button"
+            @click="setView('calendar')"
+          >
+            Kalendar
+          </button>
+        </div>
+
+        <div v-if="!isCalendarView" class="filter-row" role="tablist" aria-label="Event type filters">
           <button class="filter-btn" :class="{ active: selectedType === 'all' }" @click="selectedType = 'all'">
             <span class="pill-icon">ALL</span>
             <span>Vsetky</span>
@@ -36,10 +55,14 @@
             <span>Komety</span>
           </button>
         </div>
-        <p class="filter-meta">Zobrazenych udalosti: <strong>{{ filteredEvents.length }}</strong></p>
+        <p v-if="!isCalendarView" class="filter-meta">Zobrazenych udalosti: <strong>{{ filteredEvents.length }}</strong></p>
       </section>
 
-      <div v-if="loading" class="state-card">
+      <section v-if="isCalendarView" class="calendar-panel">
+        <CalendarView />
+      </section>
+
+      <div v-else-if="loading" class="state-card">
         <div class="spinner" aria-hidden="true"></div>
         <h3>Nacitavam udalosti</h3>
         <p>Chvilu strpenia, data sa pripravuju.</p>
@@ -103,9 +126,13 @@
 import api from '../services/api'
 import { useFavoritesStore } from '../stores/favorites'
 import { useAuthStore } from '@/stores/auth'
+import CalendarView from './CalendarView.vue'
 
 export default {
   name: 'EventsView',
+  components: {
+    CalendarView,
+  },
   data() {
     return {
       selectedType: 'all',
@@ -117,6 +144,9 @@ export default {
     }
   },
   computed: {
+    isCalendarView() {
+      return this.$route?.query?.view === 'calendar'
+    },
     filteredEvents() {
       if (this.selectedType === 'all') return this.events
 
@@ -161,6 +191,18 @@ export default {
     async toggleFavorite(eventId) {
       return this.favorites.toggle(eventId)
     },
+    setView(view) {
+      const nextQuery = { ...this.$route.query }
+      if (view === 'calendar') {
+        nextQuery.view = 'calendar'
+      } else {
+        delete nextQuery.view
+      }
+      this.$router.replace({
+        name: 'events',
+        query: nextQuery,
+      })
+    },
 
     typeLabel(type) {
       const map = {
@@ -183,10 +225,22 @@ export default {
       return d.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
     },
   },
+  watch: {
+    async isCalendarView(next) {
+      if (!next && this.events.length === 0 && !this.loading) {
+        await this.fetchEvents()
+      }
+      if (!next && this.favorites.ids.size === 0 && !this.favorites.loading) {
+        await this.favorites.fetch()
+      }
+    },
+  },
 
   async created() {
-    await this.fetchEvents()
-    await this.favorites.fetch()
+    if (!this.isCalendarView) {
+      await this.fetchEvents()
+      await this.favorites.fetch()
+    }
   },
 }
 </script>
@@ -194,6 +248,7 @@ export default {
 <style scoped>
 .events-page {
   min-height: 100vh;
+  width: 100%;
 }
 
 .hero {
@@ -270,6 +325,7 @@ export default {
 }
 
 .content-wrap {
+  width: 100%;
   padding: 1.35rem 0.2rem 0;
 }
 
@@ -279,6 +335,34 @@ export default {
   padding: 0.95rem;
   background: linear-gradient(155deg, rgb(var(--color-bg-rgb) / 0.8), rgb(var(--color-bg-rgb) / 0.6));
   box-shadow: 0 14px 36px rgb(2 6 23 / 0.18);
+}
+
+.view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.7rem;
+  padding: 0.28rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  background: rgb(var(--color-bg-rgb) / 0.5);
+}
+
+.view-btn {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0.36rem 0.78rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  background: transparent;
+  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
+}
+
+.view-btn.active {
+  border-color: rgb(var(--color-primary-rgb) / 0.6);
+  background: rgb(var(--color-primary-rgb) / 0.2);
+  color: var(--color-surface);
 }
 
 .filter-row {
@@ -291,6 +375,7 @@ export default {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
+  white-space: nowrap;
   padding: 0.48rem 0.72rem;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
@@ -375,6 +460,11 @@ export default {
   display: grid;
   gap: 0.85rem;
   grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+}
+
+.calendar-panel {
+  margin-top: 1rem;
+  width: 100%;
 }
 
 .event-card {
@@ -523,15 +613,37 @@ export default {
   }
 
   .content-wrap {
-    padding-top: 0.9rem;
+    padding: 0.9rem 0 0;
   }
 
   .filter-panel {
     padding: 0.72rem;
   }
 
+  .view-toggle {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .view-btn {
+    flex: 1 1 0;
+    text-align: center;
+    padding: 0.48rem 0.62rem;
+    font-size: 0.76rem;
+  }
+
   .filter-row {
     gap: 0.45rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .filter-row::-webkit-scrollbar {
+    width: 0;
+    height: 0;
   }
 
   .filter-btn {
@@ -542,6 +654,42 @@ export default {
   .events-grid {
     gap: 0.7rem;
     grid-template-columns: 1fr;
+  }
+
+  .card-content {
+    padding: 0.85rem;
+  }
+
+  .card-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .hero-inner {
+    padding: 2rem 1rem 1.85rem;
+  }
+
+  .hero-title {
+    font-size: clamp(1.7rem, 5.6vw, 2.5rem);
+  }
+
+  .hero-subtitle {
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .events-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+@media (hover: none) {
+  .open-label {
+    opacity: 1;
+    transform: none;
   }
 }
 </style>

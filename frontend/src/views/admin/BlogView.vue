@@ -52,7 +52,8 @@
 <script setup>
 import { ref, watch } from 'vue';
 import { useAdminTable } from '@/composables/useAdminTable.js';
-import { useNotifications } from '@/composables/useNotifications.js';
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 import { getBlogPosts, deleteBlogPost as deleteBlogPostApi, publishBlogPost, unpublishBlogPost } from '@/services/api/admin/blog.js';
 
 // Components
@@ -61,7 +62,8 @@ import BlogPostsTable from '@/components/admin/tables/BlogPostsTable.vue';
 import PaginationBar from '@/components/admin/shared/PaginationBar.vue';
 import BlogPostForm from '@/components/admin/forms/BlogPostForm.vue';
 
-const { success, handleApiError } = useNotifications();
+const { confirm } = useConfirm()
+const toast = useToast()
 
 // State
 const showBlogForm = ref(false);
@@ -85,47 +87,54 @@ function editPost(post) {
 }
 
 async function deletePost(post) {
-  if (!confirm(`Naozaj chcete vymazať článok "${post.title}"?`)) {
+  const ok = await confirm({
+    title: 'Vymazat clanok',
+    message: `Naozaj chcete vymazat clanok "${post.title}"?`,
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    variant: 'danger',
+  })
+  if (!ok) {
     return;
   }
 
   try {
     await deleteBlogPostApi(post.id);
-    success('Článok vymazaný');
+    toast.success('Clanok vymazany');
     blogTable.refresh();
   } catch (err) {
-    handleApiError(err);
+    toast.error(err?.response?.data?.message || 'Mazanie zlyhalo');
   }
 }
 
 async function publishPost(post) {
   try {
     await publishBlogPost(post.id);
-    success('Článok publikovaný');
+    toast.success('Clanok publikovany');
     blogTable.refresh();
   } catch (err) {
-    handleApiError(err);
+    toast.error(err?.response?.data?.message || 'Publikovanie zlyhalo');
   }
 }
 
 async function unpublishPost(post) {
   try {
     await unpublishBlogPost(post.id);
-    success('Článok skrytý');
+    toast.success('Clanok skryty');
     blogTable.refresh();
   } catch (err) {
-    handleApiError(err);
+    toast.error(err?.response?.data?.message || 'Skrytie zlyhalo');
   }
 }
 
 async function saveBlogPost() {
   try {
     // Tu by bola logika pre vytvorenie/aktualizáciu článku
-    success('Článok uložený');
+    toast.success('Clanok ulozeny');
     closeBlogForm();
     blogTable.refresh();
   } catch (err) {
-    handleApiError(err);
+    toast.error(err?.response?.data?.message || 'Ulozenie zlyhalo');
   }
 }
 

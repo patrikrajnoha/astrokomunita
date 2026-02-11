@@ -5,7 +5,7 @@
       <p class="settingsSubtitle">Configure RSS pipeline and automation (placeholder MVP)</p>
 
       <div class="settingsSection">
-        <h3>Auto-fetch</h3>
+        <h3>Auto-sync</h3>
         <label class="toggleLabel">
           <input
             v-model="autoFetchEnabled"
@@ -13,15 +13,15 @@
             class="toggleInput"
           />
           <span class="toggleSlider"></span>
-          Enable auto-fetch (every 15 minutes)
+          Enable RSS sync scheduler (hourly)
         </label>
         <p class="settingsNote">
-          This setting is UI-only. To enable/disable scheduler, edit <code>routes/console.php</code>.
+          This setting is UI-only. Scheduler runs <code>astrobot:sync-rss</code> hourly in <code>routes/console.php</code>.
         </p>
       </div>
 
       <div class="settingsSection">
-        <h3>Default schedule</h3>
+        <h3>Auto-publish</h3>
         <label class="toggleLabel">
           <input
             v-model="autoPublishEnabled"
@@ -29,10 +29,10 @@
             class="toggleInput"
           />
           <span class="toggleSlider"></span>
-          Auto-publish scheduled items (every minute)
+          Auto-publish safe items
         </label>
         <p class="settingsNote">
-          Scheduler runs <code>astrobot:publish-scheduled</code> each minute.
+          Controlled by <code>ASTROBOT_AUTO_PUBLISH_ENABLED</code>.
         </p>
       </div>
 
@@ -40,9 +40,9 @@
         <h3>Info</h3>
         <ul class="infoList">
           <li><strong>Source:</strong> NASA News Release RSS</li>
-          <li><strong>Deduplication:</strong> GUID or URL hash</li>
+          <li><strong>Deduplication:</strong> stable_key = GUID or hash(link + published_at)</li>
           <li><strong>Bot user:</strong> AstroBot (astrobot@astrokomunita.local)</li>
-          <li><strong>Posts:</strong> Tagged with source_name = astrobot</li>
+          <li><strong>Review:</strong> Needs review only for risky items or when auto-publish is OFF</li>
         </ul>
       </div>
 
@@ -53,10 +53,10 @@
             <span class="codePrompt">$</span> php artisan astrobot:ensure-user
           </div>
           <div class="codeLine">
-            <span class="codePrompt">$</span> php artisan astrobot:fetch --source=nasa_news
+            <span class="codePrompt">$</span> php artisan astrobot:sync-rss
           </div>
           <div class="codeLine">
-            <span class="codePrompt">$</span> php artisan astrobot:publish-scheduled
+            <span class="codePrompt">$</span> php artisan schedule:work
           </div>
         </div>
       </div>
@@ -65,12 +65,10 @@
         <h3>API endpoints</h3>
         <div class="codeBlock">
           <div class="codeLine">GET /api/admin/astrobot/items</div>
-          <div class="codeLine">POST /api/admin/astrobot/fetch</div>
+          <div class="codeLine">POST /api/admin/astrobot/sync</div>
+          <div class="codeLine">GET /api/admin/astrobot/items?status=needs_review</div>
           <div class="codeLine">POST /api/admin/astrobot/items/{id}/publish</div>
-          <div class="codeLine">POST /api/admin/astrobot/items/{id}/schedule</div>
-          <div class="codeLine">POST /api/admin/astrobot/items/{id}/discard</div>
-          <div class="codeLine">GET /api/admin/astrobot/posts</div>
-          <div class="codeLine">DELETE /api/admin/astrobot/posts/{id}</div>
+          <div class="codeLine">POST /api/admin/astrobot/items/{id}/reject</div>
         </div>
       </div>
     </div>

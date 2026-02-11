@@ -94,11 +94,6 @@
       @update:notify-email="notifyEmail = $event"
     />
 
-    <transition name="toast-fade">
-      <div v-if="toast.visible" class="toast" :class="`toast-${toast.kind}`" role="status" aria-live="polite">
-        {{ toast.message }}
-      </div>
-    </transition>
   </main>
 </template>
 
@@ -112,11 +107,13 @@ import EventDetailSheet from '@/components/events/EventDetailSheet.vue'
 import { useSwipeCard } from '@/composables/useSwipeCard'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
 const favorites = useFavoritesStore()
 const auth = useAuthStore()
+const toastApi = useToast()
 
 const event = ref(null)
 const deck = ref([])
@@ -130,13 +127,7 @@ const notifyLoading = ref(false)
 const notifyMsg = ref('')
 const notifyErr = ref('')
 const liveMessage = ref('')
-const toast = ref({
-  visible: false,
-  message: '',
-  kind: 'info',
-})
 const preloadedHeroUrls = new Set()
-let toastTimer = null
 
 const eventId = computed(() => Number(route.params.id))
 const isDebug = computed(() => route.query.debug === '1')
@@ -443,8 +434,8 @@ function addToCalendar(source = 'button') {
   announce('Udalost otvorena v kalendari')
 
   router.push({
-    name: 'calendar',
-    query: ymd ? { date: ymd } : {},
+    name: 'events',
+    query: ymd ? { view: 'calendar', date: ymd } : { view: 'calendar' },
   })
 }
 
@@ -472,11 +463,19 @@ function preloadHero(item) {
 }
 
 function showToast(message, kind = 'info') {
-  if (toastTimer) window.clearTimeout(toastTimer)
-  toast.value = { visible: true, message, kind }
-  toastTimer = window.setTimeout(() => {
-    toast.value.visible = false
-  }, 2400)
+  if (kind === 'error') {
+    toastApi.error(message)
+    return
+  }
+  if (kind === 'success') {
+    toastApi.success(message)
+    return
+  }
+  if (kind === 'warn') {
+    toastApi.warn(message)
+    return
+  }
+  toastApi.info(message)
 }
 
 function announce(message) {
@@ -542,7 +541,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
-  if (toastTimer) window.clearTimeout(toastTimer)
 })
 
 watch(
@@ -741,40 +739,4 @@ watch(
   border: 0;
 }
 
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 1.15rem;
-  transform: translateX(-50%);
-  z-index: 120;
-  border-radius: 999px;
-  padding: 0.52rem 0.92rem;
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: #fff;
-  box-shadow: 0 12px 24px rgb(4 11 24 / 0.34);
-}
-
-.toast-info {
-  background: rgb(21 83 142 / 0.94);
-}
-
-.toast-success {
-  background: rgb(16 126 88 / 0.94);
-}
-
-.toast-warn {
-  background: rgb(143 39 58 / 0.94);
-}
-
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-  transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.toast-fade-enter-from,
-.toast-fade-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(6px);
-}
 </style>

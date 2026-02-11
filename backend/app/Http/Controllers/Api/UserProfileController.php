@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Post;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -43,7 +42,7 @@ class UserProfileController extends Controller
         $viewer = $request->user();
         $isAdmin = $viewer?->isAdmin() ?? false;
 
-        $query = Post::query()
+        $query = $user->posts()
             ->with([
                 'user:id,name,username,location,bio,is_admin,avatar_path',
             ])
@@ -73,8 +72,6 @@ class UserProfileController extends Controller
         if (!$request->boolean('include_hidden') || !$isAdmin) {
             $query->where('is_hidden', false);
         }
-
-        $query->where('user_id', $user->id);
 
         return response()->json(
             $query->paginate($perPage)->withQueryString()

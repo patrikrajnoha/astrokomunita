@@ -1,608 +1,327 @@
-<script setup>
-import { computed, onMounted, ref, watch } from "vue";
-import { blogPosts } from "@/services/blogPosts";
+﻿<script setup>
+import { computed, onMounted, ref, watch } from 'vue'
+import { blogPosts } from '@/services/blogPosts'
 
-const loading = ref(false);
-const error = ref(null);
-const data = ref(null);
-const page = ref(1);
-const tags = ref([]);
-const selectedTag = ref("");
-const search = ref("");
-const searchInput = ref("");
+const loading = ref(false)
+const error = ref('')
+const data = ref(null)
+const page = ref(1)
+const tags = ref([])
+const selectedTag = ref('')
+const search = ref('')
+const searchInput = ref('')
 
-function setMeta({ title, description }) {
-  if (typeof document === "undefined") return;
-  document.title = title;
-
-  const ensure = (name, property) => {
-    let tag = document.querySelector(`meta[${property ? "property" : "name"}='${name}']`);
-    if (!tag) {
-      tag = document.createElement("meta");
-      tag.setAttribute(property ? "property" : "name", name);
-      document.head.appendChild(tag);
-    }
-    return tag;
-  };
-
-  ensure("description", false).setAttribute("content", description);
-  ensure("og:title", true).setAttribute("content", title);
-  ensure("og:description", true).setAttribute("content", description);
-}
+const categoryCards = [
+  {
+    id: 'basics',
+    title: 'Zaklady astronomie',
+    description: 'Pojmy, orientacia na oblohe a prve kroky pre zaciatocnikov.',
+    icon: 'ZA',
+    tagHint: '',
+  },
+  {
+    id: 'observing',
+    title: 'Pozorovanie',
+    description: 'Prakticke tipy na pozorovanie v meste aj mimo svetelneho smogu.',
+    icon: 'PO',
+    tagHint: '',
+  },
+  {
+    id: 'moon-planets',
+    title: 'Mesiac a planety',
+    description: 'Kedy a ako sledovat planety, fazy mesiaca a najzaujimavejsie ukazy.',
+    icon: 'MP',
+    tagHint: '',
+  },
+  {
+    id: 'deep-sky',
+    title: 'Deep sky',
+    description: 'Galaxie, hmloviny a hviezdokopy. Ako ich najst a pozorovat.',
+    icon: 'DS',
+    tagHint: '',
+  },
+  {
+    id: 'gear',
+    title: 'Technika',
+    description: 'Vyber dalekohladu, okulare, montaz a zaklady astrofotografie.',
+    icon: 'TE',
+    tagHint: '',
+  },
+  {
+    id: 'faq',
+    title: 'FAQ',
+    description: 'Najcastejsie otazky komunity a kratke odpovede na jednom mieste.',
+    icon: 'FAQ',
+    tagHint: '',
+  },
+]
 
 const featuredPost = computed(() => {
-  if (!data.value || page.value !== 1) return null;
-  return data.value.data?.[0] || null;
-});
+  if (!data.value || page.value !== 1) return null
+  return data.value.data?.[0] || null
+})
 
 const listPosts = computed(() => {
-  if (!data.value) return [];
-  if (page.value === 1) {
-    return data.value.data?.slice(1) || [];
-  }
-  return data.value.data || [];
-});
+  if (!data.value) return []
+  if (page.value === 1) return data.value.data?.slice(1) || []
+  return data.value.data || []
+})
 
-function formatDate(value) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return String(value);
-  return d.toLocaleDateString("sk-SK", { dateStyle: "long" });
+const hasAnyPosts = computed(() => {
+  return Boolean((data.value?.data || []).length)
+})
+
+function setMeta({ title, description }) {
+  if (typeof document === 'undefined') return
+
+  document.title = title
+
+  const ensure = (name, property) => {
+    let tag = document.querySelector(`meta[${property ? 'property' : 'name'}='${name}']`)
+    if (!tag) {
+      tag = document.createElement('meta')
+      tag.setAttribute(property ? 'property' : 'name', name)
+      document.head.appendChild(tag)
+    }
+
+    return tag
+  }
+
+  ensure('description', false).setAttribute('content', description)
+  ensure('og:title', true).setAttribute('content', title)
+  ensure('og:description', true).setAttribute('content', description)
 }
 
-function excerpt(text, limit = 200) {
-  if (!text) return "";
-  const cleaned = String(text).replace(/\s+/g, " ").trim();
-  if (cleaned.length <= limit) return cleaned;
-  return `${cleaned.slice(0, limit).trim()}…`;
+function formatDate(value) {
+  if (!value) return '-'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  return d.toLocaleDateString('sk-SK', { dateStyle: 'long' })
+}
+
+function excerpt(text, limit = 180) {
+  if (!text) return ''
+  const cleaned = String(text).replace(/\s+/g, ' ').trim()
+  if (cleaned.length <= limit) return cleaned
+  return `${cleaned.slice(0, limit).trim()}...`
 }
 
 function readTime(text) {
-  if (!text) return "1 min čítania";
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  const minutes = Math.max(1, Math.round(words / 220));
-  return `${minutes} min čítania`;
+  if (!text) return '1 min citania'
+  const words = String(text).trim().split(/\s+/).filter(Boolean).length
+  const minutes = Math.max(1, Math.round(words / 220))
+  return `${minutes} min citania`
+}
+
+function highlight(text) {
+  if (!text) return ''
+  if (!search.value) return text
+  const safe = search.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const re = new RegExp(`(${safe})`, 'gi')
+  return text.replace(re, '<mark>$1</mark>')
 }
 
 async function load() {
-  loading.value = true;
-  error.value = null;
+  loading.value = true
+  error.value = ''
+
   try {
     data.value = await blogPosts.listPublic({
       page: page.value,
       tag: selectedTag.value || undefined,
       q: search.value || undefined,
-    });
+    })
   } catch (e) {
-    error.value =
-      e?.response?.data?.message || "Chyba pri načítaní článkov.";
+    error.value = e?.response?.data?.message || 'Chyba pri nacitani clankov.'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
-
-function prevPage() {
-  if (!data.value || page.value <= 1) return;
-  page.value -= 1;
-  load();
-}
-
-function nextPage() {
-  if (!data.value || page.value >= data.value.last_page) return;
-  page.value += 1;
-  load();
-}
-
-onMounted(load);
 
 async function loadTags() {
   try {
-    tags.value = await blogPosts.listTagsPublic();
+    tags.value = await blogPosts.listTagsPublic()
   } catch {
-    tags.value = [];
+    tags.value = []
   }
 }
 
-onMounted(loadTags);
-
 function selectTag(slug) {
-  selectedTag.value = slug;
-  page.value = 1;
-  load();
+  selectedTag.value = slug
+  page.value = 1
+  load()
 }
 
 function applySearch() {
-  search.value = searchInput.value.trim();
-  page.value = 1;
-  load();
+  search.value = searchInput.value.trim()
+  page.value = 1
+  load()
 }
 
 function clearSearch() {
-  search.value = "";
-  searchInput.value = "";
-  page.value = 1;
-  load();
+  search.value = ''
+  searchInput.value = ''
+  page.value = 1
+  load()
 }
 
-function highlight(text) {
-  if (!text) return "";
-  if (!search.value) return text;
-  const safe = search.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`(${safe})`, "gi");
-  return text.replace(re, "<mark>$1</mark>");
+function prevPage() {
+  if (!data.value || page.value <= 1) return
+  page.value -= 1
+  load()
+}
+
+function nextPage() {
+  if (!data.value || page.value >= data.value.last_page) return
+  page.value += 1
+  load()
+}
+
+function openCategory(card) {
+  if (card?.tagHint) {
+    selectTag(card.tagHint)
+  }
 }
 
 watch(
   () => [selectedTag.value, search.value],
   () => {
     const tagLabel = selectedTag.value
-      ? ` • ${tags.value.find((t) => t.slug === selectedTag.value)?.name || "Tag"}`
-      : "";
-    const searchLabel = search.value ? ` • Hľadanie: ${search.value}` : "";
+      ? ` - ${tags.value.find((t) => t.slug === selectedTag.value)?.name || 'Tag'}`
+      : ''
+    const searchLabel = search.value ? ` - Hladanie: ${search.value}` : ''
+
     setMeta({
-      title: `Vzdelávanie${tagLabel}${searchLabel} | Nebeský sprievodca`,
-      description:
-        "Kvalitné články o astronómii, pozorovaniach a dianí na nočnej oblohe.",
-    });
+      title: `Vzdelavanie${tagLabel}${searchLabel} | Astrokomunita`,
+      description: 'Learning hub s clankami o astronomii, pozorovani a nocej oblohe.',
+    })
   },
-  { immediate: true }
-);
+  { immediate: true },
+)
+
+onMounted(() => {
+  load()
+  loadTags()
+})
 </script>
 
 <template>
-  <section class="learn">
-    <header class="hero">
-      <div>
-        <p class="kicker">Nebeský sprievodca</p>
-        <h1>Vzdelávanie a články</h1>
-        <p class="lead">
-          Dlhšie, kvalitné texty o astronómii, pozorovaniach a dianí na nočnej
-          oblohe.
+  <section class="mx-auto max-w-7xl space-y-6">
+    <header class="relative overflow-hidden rounded-3xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.18)] bg-[radial-gradient(circle_at_12%_18%,rgb(var(--color-primary-rgb)/0.3),transparent_48%),linear-gradient(120deg,rgb(var(--color-bg-rgb)/0.92),rgb(var(--color-bg-rgb)/0.72))] p-6 sm:p-8">
+      <div class="max-w-3xl space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">Learning Hub</p>
+        <h1 class="text-3xl font-extrabold text-[var(--color-surface)] sm:text-4xl">Vzdelavanie</h1>
+        <p class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] sm:text-base">
+          Miesto, kde sa naucis zaklady astronomie, prakticke pozorovanie a objavis kvalitne clanky pre dalsi krok.
         </p>
-      </div>
-      <div class="hero-card">
-        <div class="hero-label">Nový obsah každý týždeň</div>
-        <div class="hero-meta">Kurátorované redakciou</div>
       </div>
     </header>
 
-    <div v-if="error" class="error">{{ error }}</div>
+    <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <article v-for="card in categoryCards" :key="card.id" class="group rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.16)] bg-[color:rgb(var(--color-bg-rgb)/0.5)] p-4 transition hover:-translate-y-0.5 hover:bg-[color:rgb(var(--color-bg-rgb)/0.72)]">
+        <div class="flex items-start justify-between gap-3">
+          <span class="grid h-10 w-10 place-items-center rounded-xl border border-[color:rgb(var(--color-primary-rgb)/0.4)] bg-[color:rgb(var(--color-primary-rgb)/0.16)] text-xs font-bold text-[var(--color-surface)]">{{ card.icon }}</span>
+          <button type="button" class="rounded-lg border border-[color:rgb(var(--color-text-secondary-rgb)/0.32)] px-2.5 py-1 text-xs font-semibold text-[var(--color-surface)]" @click="openCategory(card)">
+            Otvorit
+          </button>
+        </div>
+        <h2 class="mt-3 text-lg font-semibold text-[var(--color-surface)]">{{ card.title }}</h2>
+        <p class="mt-2 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">{{ card.description }}</p>
+      </article>
+    </section>
 
-    <div class="filters">
-      <div v-if="tags.length" class="tag-filter">
-        <button
-          class="tag"
-          :class="{ active: !selectedTag }"
-          @click="selectTag('')"
-        >
-          Všetko
-        </button>
-        <button
-          v-for="tag in tags"
-          :key="tag.id"
-          class="tag"
-          :class="{ active: selectedTag === tag.slug }"
-          @click="selectTag(tag.slug)"
-        >
-          {{ tag.name }}
-          <span class="count">{{ tag.published_posts_count }}</span>
-        </button>
+    <section class="space-y-4 rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.18)] bg-[color:rgb(var(--color-bg-rgb)/0.44)] p-4 sm:p-5">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div v-if="tags.length" class="flex flex-wrap gap-2">
+          <button class="rounded-full border px-3 py-1.5 text-xs font-semibold" :class="!selectedTag ? 'border-[color:rgb(var(--color-primary-rgb)/0.5)] bg-[color:rgb(var(--color-primary-rgb)/0.18)] text-[var(--color-surface)]' : 'border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] text-[var(--color-surface)]'" @click="selectTag('')">Vsetko</button>
+          <button
+            v-for="tag in tags"
+            :key="tag.id"
+            class="rounded-full border px-3 py-1.5 text-xs font-semibold"
+            :class="selectedTag === tag.slug ? 'border-[color:rgb(var(--color-primary-rgb)/0.5)] bg-[color:rgb(var(--color-primary-rgb)/0.18)] text-[var(--color-surface)]' : 'border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] text-[var(--color-surface)]'"
+            @click="selectTag(tag.slug)"
+          >
+            {{ tag.name }}
+          </button>
+        </div>
+
+        <div class="flex flex-1 flex-wrap gap-2 lg:justify-end">
+          <input
+            v-model="searchInput"
+            type="text"
+            placeholder="Hladat temu"
+            class="min-w-[180px] flex-1 rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.65)] px-3 py-2 text-sm text-[var(--color-surface)] placeholder:text-[color:rgb(var(--color-text-secondary-rgb)/0.8)]"
+            @keyup.enter="applySearch"
+          />
+          <button class="rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] px-3 py-2 text-xs font-semibold text-[var(--color-surface)]" @click="applySearch">Hladat</button>
+          <button class="rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] px-3 py-2 text-xs font-semibold text-[var(--color-surface)] disabled:opacity-60" :disabled="!search" @click="clearSearch">Reset</button>
+        </div>
       </div>
 
-      <div class="search">
-        <input
-          v-model="searchInput"
-          type="text"
-          placeholder="Hľadaj v článkoch..."
-          @keyup.enter="applySearch"
-        />
-        <button class="ghost" @click="applySearch">Hľadať</button>
-        <button class="ghost" @click="clearSearch" :disabled="!search">
-          Reset
-        </button>
+      <div v-if="error" class="rounded-xl border border-[color:rgb(var(--color-danger-rgb)/0.5)] bg-[color:rgb(var(--color-danger-rgb)/0.1)] px-4 py-3 text-sm text-[var(--color-surface)]">{{ error }}</div>
+
+      <div v-if="loading" class="space-y-2">
+        <div v-for="row in 5" :key="`learn-loading-${row}`" class="h-12 animate-pulse rounded-lg bg-[color:rgb(var(--color-text-secondary-rgb)/0.15)]"></div>
       </div>
-    </div>
 
-    <div v-if="loading" class="muted">Načítavam články…</div>
-
-    <div v-if="data && !loading" class="grid">
-      <article v-if="featuredPost" class="featured-hero">
-        <div
-          v-if="featuredPost.cover_image_url"
-          class="featured-media"
-          :style="{ backgroundImage: `url(${featuredPost.cover_image_url})` }"
-        ></div>
-        <div class="featured-content">
-          <p class="card-kicker">Hlavný článok</p>
-          <h2 class="featured-title">
-            <router-link :to="`/learn/${featuredPost.slug || featuredPost.id}`">
-              {{ featuredPost.title }}
+      <template v-else>
+        <article v-if="featuredPost" class="overflow-hidden rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.16)] bg-[color:rgb(var(--color-bg-rgb)/0.54)] lg:grid lg:grid-cols-[1.2fr_1fr]">
+          <div v-if="featuredPost.cover_image_url" class="min-h-56 bg-cover bg-center" :style="{ backgroundImage: `url(${featuredPost.cover_image_url})` }"></div>
+          <div class="space-y-3 p-5">
+            <p class="text-xs uppercase tracking-[0.18em] text-[color:rgb(var(--color-text-secondary-rgb)/0.8)]">Featured</p>
+            <h2 class="text-xl font-bold text-[var(--color-surface)] sm:text-2xl">
+              <router-link :to="`/learn/${featuredPost.slug || featuredPost.id}`" class="hover:text-[var(--color-primary)]">{{ featuredPost.title }}</router-link>
+            </h2>
+            <p class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" v-html="highlight(excerpt(featuredPost.content, 260))"></p>
+            <div class="flex flex-wrap gap-2 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
+              <span>{{ formatDate(featuredPost.published_at) }}</span>
+              <span>•</span>
+              <span>{{ featuredPost.user?.name || 'Redakcia' }}</span>
+              <span>•</span>
+              <span>{{ readTime(featuredPost.content) }}</span>
+            </div>
+            <router-link :to="`/learn/${featuredPost.slug || featuredPost.id}`" class="inline-flex rounded-xl border border-[color:rgb(var(--color-primary-rgb)/0.5)] bg-[color:rgb(var(--color-primary-rgb)/0.18)] px-3 py-1.5 text-sm font-semibold text-[var(--color-surface)]">
+              Otvorit clanok
             </router-link>
-          </h2>
-          <p
-            class="card-excerpt"
-            v-html="highlight(excerpt(featuredPost.content, 260))"
-          ></p>
-          <div v-if="featuredPost.tags?.length" class="taglist">
-            <span v-for="tag in featuredPost.tags" :key="tag.id" class="tag-pill">
-              {{ tag.name }}
-            </span>
           </div>
-          <div class="card-meta">
-            <span>{{ formatDate(featuredPost.published_at) }}</span>
-            <span>•</span>
-            <span>{{ featuredPost.user?.name || "Redakcia" }}</span>
-            <span>•</span>
-            <span>{{ readTime(featuredPost.content) }}</span>
-          </div>
-          <router-link class="cta" :to="`/learn/${featuredPost.slug || featuredPost.id}`">
-            Čítať článok →
-          </router-link>
-        </div>
-      </article>
+        </article>
 
-      <article
-        v-for="post in listPosts"
-        :key="post.id"
-        class="card"
-      >
-        <div
-          class="card-media"
-          v-if="post.cover_image_url"
-          :style="{ backgroundImage: `url(${post.cover_image_url})` }"
-        ></div>
-        <div class="card-body">
-          <p class="card-kicker">Vzdelávanie</p>
-          <h2 class="card-title">
-            <router-link :to="`/learn/${post.slug || post.id}`">{{ post.title }}</router-link>
-          </h2>
-          <p class="card-excerpt" v-html="highlight(excerpt(post.content))"></p>
-          <div v-if="post.tags?.length" class="taglist">
-            <span v-for="tag in post.tags" :key="tag.id" class="tag-pill">
-              {{ tag.name }}
-            </span>
-          </div>
-          <div class="card-meta">
-            <span>{{ formatDate(post.published_at) }}</span>
-            <span>•</span>
-            <span>{{ post.user?.name || "Redakcia" }}</span>
-            <span>•</span>
-            <span>{{ readTime(post.content) }}</span>
-          </div>
+        <div v-if="listPosts.length" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <article v-for="post in listPosts" :key="post.id" class="flex h-full flex-col rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.16)] bg-[color:rgb(var(--color-bg-rgb)/0.54)] p-4">
+            <p class="text-xs uppercase tracking-[0.15em] text-[color:rgb(var(--color-text-secondary-rgb)/0.8)]">Learning</p>
+            <h3 class="mt-2 text-lg font-semibold text-[var(--color-surface)]">
+              <router-link :to="`/learn/${post.slug || post.id}`" class="hover:text-[var(--color-primary)]">{{ post.title }}</router-link>
+            </h3>
+            <p class="mt-2 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" v-html="highlight(excerpt(post.content))"></p>
+            <div class="mt-auto pt-3 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.85)]">
+              {{ formatDate(post.published_at) }} • {{ readTime(post.content) }}
+            </div>
+          </article>
         </div>
-        <div class="card-accent"></div>
-      </article>
-    </div>
 
-    <div v-if="data" class="pager">
-      <button class="ghost" @click="prevPage" :disabled="loading || page <= 1">
-        Predošlá
-      </button>
-      <div class="muted">Strana {{ data.current_page }} z {{ data.last_page }}</div>
-      <button
-        class="ghost"
-        @click="nextPage"
-        :disabled="loading || page >= data.last_page"
-      >
-        Ďalšia
-      </button>
-    </div>
+        <div v-if="!hasAnyPosts" class="rounded-2xl border border-dashed border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-[color:rgb(var(--color-bg-rgb)/0.35)] p-8 text-center">
+          <p class="text-base font-semibold text-[var(--color-surface)]">Obsah pripravujeme</p>
+          <p class="mt-1 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">Pracujeme na novych temach. Zatial skus vyhladavanie alebo sa vrat neskor.</p>
+        </div>
+      </template>
+
+      <div v-if="data" class="flex flex-col gap-2 rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.18)] bg-[color:rgb(var(--color-bg-rgb)/0.38)] p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">Strana {{ data.current_page }} z {{ data.last_page }}</p>
+        <div class="flex gap-2">
+          <button class="rounded-lg border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] px-3 py-1.5 text-xs font-semibold text-[var(--color-surface)] disabled:opacity-50" :disabled="loading || page <= 1" @click="prevPage">Predosla</button>
+          <button class="rounded-lg border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] px-3 py-1.5 text-xs font-semibold text-[var(--color-surface)] disabled:opacity-50" :disabled="loading || page >= data.last_page" @click="nextPage">Dalsia</button>
+        </div>
+      </div>
+    </section>
   </section>
 </template>
 
 <style scoped>
-.learn {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  font-family: "Georgia", "Times New Roman", serif;
-}
-
-.hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.7fr);
-  gap: 20px;
-  padding: 24px;
-  border-radius: 20px;
-  background: radial-gradient(
-      circle at 20% 10%,
-      rgb(var(--color-primary-rgb) / 0.18),
-      transparent 55%
-    ),
-    linear-gradient(120deg, rgb(var(--color-bg-rgb) / 0.9), rgb(var(--color-bg-rgb) / 0.7));
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
-}
-
-.kicker {
-  text-transform: uppercase;
-  letter-spacing: 0.25em;
-  font-size: 12px;
-  color: rgb(var(--color-surface-rgb) / 0.7);
-  margin: 0 0 10px;
-}
-
-.hero h1 {
-  font-size: 34px;
-  margin: 0 0 10px;
-}
-
-.lead {
-  margin: 0;
-  color: rgb(var(--color-surface-rgb) / 0.85);
-  font-size: 16px;
-  line-height: 1.7;
-}
-
-.hero-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 18px;
-  border-radius: 16px;
-  background: rgb(var(--color-bg-rgb) / 0.75);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  gap: 6px;
-  text-align: right;
-}
-
-.hero-label {
-  font-size: 14px;
-  color: var(--color-primary);
-}
-
-.hero-meta {
-  font-size: 12px;
-  color: rgb(var(--color-surface-rgb) / 0.7);
-}
-
-.grid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-}
-
-.tag-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.filters {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.search {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.search input {
-  min-width: 240px;
-  flex: 1;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: rgb(var(--color-bg-rgb) / 0.5);
-  color: inherit;
-}
-
-.search .ghost {
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.tag {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: rgb(var(--color-bg-rgb) / 0.5);
-  color: inherit;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tag.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  color: var(--color-primary);
-  background: rgb(var(--color-primary-rgb) / 0.12);
-}
-
-.tag .count {
-  font-size: 11px;
-  color: rgb(var(--color-surface-rgb) / 0.6);
-}
-
-.card {
-  position: relative;
-  overflow: hidden;
-  border-radius: 18px;
-  background: rgb(var(--color-bg-rgb) / 0.85);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
-  display: flex;
-  flex-direction: column;
-  min-height: 260px;
-}
-
-.card-body {
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.card-media {
-  width: 100%;
-  height: 140px;
-  background-size: cover;
-  background-position: center;
-  filter: saturate(0.9);
-}
-
-.featured-hero {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-  gap: 20px;
-  border-radius: 20px;
-  background: rgb(var(--color-bg-rgb) / 0.9);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  overflow: hidden;
-}
-
-.featured-media {
-  min-height: 260px;
-  background-size: cover;
-  background-position: center;
-}
-
-.featured-content {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.featured-title {
-  margin: 0;
-  font-size: 26px;
-  line-height: 1.35;
-}
-
-.featured-title a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.featured-title a:hover {
-  color: var(--color-primary);
-}
-
-.cta {
-  margin-top: auto;
-  text-decoration: none;
-  color: var(--color-primary);
-  font-size: 14px;
-}
-
-.card-kicker {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: rgb(var(--color-surface-rgb) / 0.6);
-  margin: 0;
-}
-
-.card-title {
-  font-size: 20px;
-  margin: 0;
-  line-height: 1.4;
-}
-
-.card-title a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.card-title a:hover {
-  color: var(--color-primary);
-}
-
-.card-excerpt {
-  margin: 0;
-  color: rgb(var(--color-surface-rgb) / 0.78);
-  line-height: 1.6;
-  font-size: 14px;
-}
-
-.taglist {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.tag-pill {
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  color: rgb(var(--color-surface-rgb) / 0.75);
-}
-
-.card-meta {
-  margin-top: auto;
-  font-size: 12px;
-  color: rgb(var(--color-surface-rgb) / 0.6);
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.card-accent {
-  position: absolute;
-  inset: auto 0 0 0;
-  height: 4px;
-  background: linear-gradient(90deg, var(--color-primary), transparent);
-  opacity: 0.7;
-}
-
-.error {
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid rgb(var(--color-danger-rgb) / 0.5);
-  background: rgb(var(--color-danger-rgb) / 0.15);
-  color: var(--color-danger);
-}
-
-.muted {
-  color: rgb(var(--color-surface-rgb) / 0.7);
-  font-size: 14px;
-}
-
-.pager {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.ghost {
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.ghost:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 mark {
   background: rgb(var(--color-primary-rgb) / 0.3);
   color: inherit;
-  padding: 0 2px;
   border-radius: 3px;
-}
-
-@media (max-width: 900px) {
-  .hero {
-    grid-template-columns: 1fr;
-  }
-
-  .featured-hero {
-    grid-template-columns: 1fr;
-  }
+  padding: 0 2px;
 }
 </style>
+

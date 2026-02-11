@@ -24,3 +24,6 @@ backend/.phpunit.result.cache
 # Local debug scripts
 backend/debug_astrobot.php
 backend/test-api.ps1
+
+# Local runtime artifacts
+.run/

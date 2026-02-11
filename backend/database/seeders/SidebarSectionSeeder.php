@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\SidebarSection;
+use Illuminate\Database\Seeder;
 
 class SidebarSectionSeeder extends Seeder
 {
@@ -15,30 +14,44 @@ class SidebarSectionSeeder extends Seeder
     {
         $sections = [
             [
-                'key' => 'next_event',
-                'title' => 'Najbližšia udalosť',
+                'key' => 'search',
+                'title' => 'Search',
+                'is_visible' => true,
+                'sort_order' => 0,
+            ],
+            [
+                'key' => 'observing_conditions',
+                'title' => 'Observing Conditions',
                 'is_visible' => true,
                 'sort_order' => 1,
             ],
             [
-                'key' => 'latest_articles',
-                'title' => 'Najnovšie články',
+                'key' => 'next_event',
+                'title' => 'Najblizsia udalost',
                 'is_visible' => true,
                 'sort_order' => 2,
             ],
             [
-                'key' => 'nasa_apod',
-                'title' => 'NASA – Obrázok dňa',
+                'key' => 'latest_articles',
+                'title' => 'Najnovsie clanky',
                 'is_visible' => true,
                 'sort_order' => 3,
+            ],
+            [
+                'key' => 'nasa_apod',
+                'title' => 'NASA obrazok dna',
+                'is_visible' => true,
+                'sort_order' => 4,
             ],
         ];
 
         foreach ($sections as $section) {
-            SidebarSection::firstOrCreate(
+            SidebarSection::updateOrCreate(
                 ['key' => $section['key']],
                 $section
             );
         }
+
+        SidebarSection::query()->where('key', 'sky_tonight')->delete();
     }
 }

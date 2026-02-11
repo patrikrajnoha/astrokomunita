@@ -47,4 +47,14 @@ return [
     'defaults' => [
         'evening_target_time' => env('OBSERVING_EVENING_TARGET_TIME', '21:00'),
     ],
+
+    'sky_summary' => [
+        'cache_ttl_minutes' => env('OBSERVING_SKY_CACHE_TTL_MINUTES', 60),
+        'microservice_base' => env('OBSERVING_SKY_MICROSERVICE_BASE', env('OBSERVING_SKY_MICROSERVICE_URL', 'http://127.0.0.1:8010')),
+        'endpoint_path' => env('OBSERVING_SKY_ENDPOINT_PATH', '/sky-summary'),
+        'health_path' => env('OBSERVING_SKY_HEALTH_PATH', '/health'),
+        'timeout_seconds' => env('OBSERVING_SKY_TIMEOUT_SECONDS', 12),
+        'retry_times' => env('OBSERVING_SKY_RETRY_TIMES', 1),
+        'retry_sleep_ms' => env('OBSERVING_SKY_RETRY_SLEEP_MS', 200),
+    ],
 ];

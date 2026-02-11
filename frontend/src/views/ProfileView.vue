@@ -288,9 +288,11 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { http } from '@/lib/http'
 import api from '@/services/api'
+import { useConfirm } from '@/composables/useConfirm'
 
 const router = useRouter()
 const auth = useAuthStore()
+const { confirm } = useConfirm()
 
 const tabs = [
   { key: 'posts', label: 'Posts', kind: 'roots' },
@@ -592,7 +594,13 @@ function togglePin(post) {
 
 async function deletePost(post) {
   if (!post?.id || deleteLoadingId.value) return
-  const ok = window.confirm('Naozaj zmazat post?')
+  const ok = await confirm({
+    title: 'Zmazat post',
+    message: 'Naozaj zmazat post?',
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    variant: 'danger',
+  })
   if (!ok) return
 
   actionMsg.value = ''

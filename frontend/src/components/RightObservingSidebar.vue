@@ -1,95 +1,93 @@
 <template>
-  <section class="card panel">
-    <header class="panelHead">
-      <h3 class="panelTitle">Astronomické podmienky pozorovania</h3>
-      <p class="panelSub">Rýchly prehľad pre pozorovanie</p>
+  <section class="card shell">
+    <header class="head">
+      <h3 class="title">Astronomicke podmienky</h3>
+      <p class="subtitle">Minimalny prehlad na dnesny vecer</p>
+      <p class="location">{{ locationLabel }}</p>
     </header>
 
-    <div v-if="!hasLocation" class="state">
-      <p class="stateTitle">Zvol lokalitu</p>
-      <p class="stateText">Dopĺň lat/lon do výberu lokality, aby sa načítali podmienky.</p>
+    <div v-if="authPending" class="state">
+      <p class="stateTitle">Nacitavam...</p>
+      <p class="stateText">Overujem lokalitu a data.</p>
     </div>
 
-    <div v-else-if="loading" class="loadingGrid">
-      <div class="skeleton h12 w70"></div>
+    <div v-else-if="!isAuthenticated" class="state">
+      <p class="stateTitle">Widget je dostupny po prihlaseni.</p>
+      <button class="btnPrimary" type="button" @click="goToLogin">Prihlasit sa</button>
+    </div>
+
+    <div v-else-if="!hasLocationCoords" class="state">
+      <p class="stateTitle">Chybaju suradnice lokality.</p>
+      <button class="btnPrimary" type="button" @click="goToProfileLocation">Nastavit lokalitu</button>
+    </div>
+
+    <div v-else-if="loading" class="loading">
+      <div class="skeleton h14 w60"></div>
       <div class="skeleton h10 w100"></div>
-      <div class="skeleton h10 w90"></div>
       <div class="skeleton h10 w100"></div>
-      <div class="skeleton h10 w80"></div>
+      <div class="skeleton h10 w85"></div>
     </div>
 
-    <div v-else-if="error" class="state stateError">
-      <p class="stateTitle">Nepodarilo sa načítať podmienky</p>
-      <p class="stateText">{{ error }}</p>
-      <button class="ghostBtn" type="button" @click="fetchSummary">Skúsiť znova</button>
-    </div>
+    <div v-else class="body">
+      <div v-if="error" class="notice">
+        <p class="noticeText">{{ error }}</p>
+        <button class="btnGhost" type="button" @click="fetchSummary">Skusit znova</button>
+      </div>
 
-    <div v-else-if="summary" class="content">
-      <section class="group">
-        <div class="groupHead">
-          <h4>Tma</h4>
-          <span class="badge" :class="badgeForSun(summary.sun.status)">
-            {{ sunStatusLabel(summary.sun.status) }}
-          </span>
-        </div>
-
-        <p v-if="summary.sun.status === 'continuous_day'" class="line muted">
-          Slnko je celý deň nad horizontom.
-        </p>
-        <p v-else-if="summary.sun.status === 'continuous_night'" class="line muted">
-          Slnko je celý deň pod horizontom.
-        </p>
-        <template v-else>
-          <p class="line"><span>Sunrise</span><strong>{{ summary.sun.sunrise || '-' }}</strong></p>
-          <p class="line"><span>Sunset</span><strong>{{ summary.sun.sunset || '-' }}</strong></p>
-          <p class="line">
-            <span>Tma približne od</span>
-            <strong>{{ summary.sun.civil_twilight_end || 'Tma po západe Slnka' }}</strong>
-          </p>
-        </template>
+      <section class="chips">
+        <span class="chip" :class="badgeForSun(observeSummary?.sun?.status)">
+          Tma: {{ sunStatusLabel(observeSummary?.sun?.status) }}
+        </span>
+        <span class="chip" :class="moonBadge">Mesiac: {{ moonPhaseLabel }}</span>
+        <span class="chip" :class="badgeFromLabel(observeSummary?.overall?.label)">
+          Atmosfera: {{ observeSummary?.overall?.label || 'Nedostupne' }}
+        </span>
       </section>
 
-      <section class="group">
-        <div class="groupHead">
-          <h4>Mesiac</h4>
-          <span class="badge" :class="badgeForMoon(summary.moon.status, summary.moon.warning)">
-            {{ moonLabel(summary.moon.status, summary.moon.warning) }}
-          </span>
-        </div>
-
-        <p class="line"><span>Fáza</span><strong>{{ summary.moon.phase_name || '-' }}</strong></p>
-        <p class="line"><span>Osvetlenie</span><strong>{{ pct(summary.moon.illumination_pct) }}</strong></p>
-        <p v-if="summary.moon.warning" class="warn">{{ summary.moon.warning }}</p>
+      <section class="panel">
+        <p class="row"><span>Sunset</span><strong>{{ observeSummary?.sun?.sunset || '-' }}</strong></p>
+        <p class="row"><span>Tma od</span><strong>{{ observeSummary?.sun?.civil_twilight_end || '-' }}</strong></p>
+        <p class="row"><span>Moonrise / Moonset</span><strong>{{ moonRiseSet }}</strong></p>
       </section>
 
-      <section class="group">
-        <div class="groupHead">
-          <h4>Atmosféra</h4>
-          <span class="badge" :class="badgeFromLabel(summary.overall?.label)">
-            {{ summary.overall?.label || 'Nedostupné' }}
-          </span>
-        </div>
+      <section class="panel">
+        <p class="row"><span>Faza</span><strong>{{ moonPhaseLabel }}</strong></p>
+        <p class="row"><span>Osvetlenie</span><strong>{{ moonIllumination }}</strong></p>
+      </section>
 
-        <p class="line">
-          <span>Vlhkosť (večer)</span>
-          <strong>{{ pct(summary.atmosphere.humidity.evening_pct ?? summary.atmosphere.humidity.current_pct) }}</strong>
-        </p>
-        <p class="subline">
-          <span class="badge" :class="badgeFromLabel(summary.atmosphere.humidity.label)">
-            {{ summary.atmosphere.humidity.label }}
-          </span>
-          <span>{{ summary.atmosphere.humidity.note || '-' }}</span>
-        </p>
+      <section v-if="planets.length > 0" class="panel">
+        <h4 class="sectionTitle">Planety</h4>
+        <article v-for="planet in planets.slice(0, 3)" :key="planet.key" class="planet">
+          <div class="planetTop">
+            <strong>{{ planet.name }}</strong>
+            <div class="tags">
+              <span class="badge">{{ localizeDirection(planet.direction) }}</span>
+              <span v-if="planet.is_low" class="badge isWarn">nizko</span>
+            </div>
+          </div>
+          <p class="row compact"><span>Najlepsie</span><strong>{{ planet.best_from }} - {{ planet.best_to }}</strong></p>
+          <p class="row compact"><span>Max vyska</span><strong>{{ deg(planet.alt_max_deg) }}</strong></p>
+        </article>
+      </section>
 
-        <p class="line">
-          <span>Smog (PM2.5 / PM10)</span>
-          <strong>{{ pm(summary.atmosphere.air_quality.pm25) }} / {{ pm(summary.atmosphere.air_quality.pm10) }}</strong>
+      <section v-if="meteors.length > 0" class="panel">
+        <h4 class="sectionTitle">Aktivne meteory</h4>
+        <article v-for="shower in meteors" :key="shower.id" class="meteor">
+          <p class="row compact"><strong>{{ shower.name }}</strong><span class="badge isOk">aktivny</span></p>
+          <p class="row compact"><span>Peak</span><strong>{{ shower.peak_date }} ({{ signedDays(shower.peak_in_days) }})</strong></p>
+          <p class="row compact"><span>ZHR</span><strong>{{ shower.zhr ?? '-' }}</strong></p>
+        </article>
+      </section>
+
+      <section class="panel">
+        <h4 class="sectionTitle">Atmosfera</h4>
+        <p class="row compact">
+          <span>Vlhkost (vecer)</span>
+          <strong>{{ pct(observeSummary?.atmosphere?.humidity?.evening_pct ?? observeSummary?.atmosphere?.humidity?.current_pct) }}</strong>
         </p>
-        <p class="subline">
-          <span class="badge" :class="badgeFromLabel(summary.atmosphere.air_quality.label)">
-            {{ summary.atmosphere.air_quality.label }}
-          </span>
-          <span>{{ summary.atmosphere.air_quality.note || '-' }}</span>
+        <p class="row compact">
+          <span>Smog PM2.5 / PM10</span>
+          <strong>{{ pm(observeSummary?.atmosphere?.air_quality?.pm25) }} / {{ pm(observeSummary?.atmosphere?.air_quality?.pm10) }}</strong>
         </p>
       </section>
     </div>
@@ -97,29 +95,25 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 
 const props = defineProps({
-  lat: {
-    type: [Number, String],
-    default: null,
-  },
-  lon: {
-    type: [Number, String],
-    default: null,
-  },
-  date: {
-    type: String,
-    default: '',
-  },
-  tz: {
-    type: String,
-    default: 'Europe/Bratislava',
-  },
+  lat: { type: [Number, String], default: null },
+  lon: { type: [Number, String], default: null },
+  date: { type: String, default: '' },
+  tz: { type: String, default: 'Europe/Bratislava' },
+  locationName: { type: String, default: '' },
 })
 
-const summary = ref(null)
+const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
+
+const observeSummary = ref(null)
+const skySummary = ref(null)
 const loading = ref(false)
 const error = ref('')
 let debounceTimer = null
@@ -127,22 +121,125 @@ let requestCounter = 0
 
 const numericLat = computed(() => toNumber(props.lat))
 const numericLon = computed(() => toNumber(props.lon))
-const hasLocation = computed(() => Number.isFinite(numericLat.value) && Number.isFinite(numericLon.value))
+const hasLocationCoords = computed(() => Number.isFinite(numericLat.value) && Number.isFinite(numericLon.value))
+const isAuthenticated = computed(() => auth.isAuthed)
+const authPending = computed(() => !auth.initialized)
+
+const locationLabel = computed(() => {
+  if (authPending.value) return 'Nacitavam...'
+  if (!isAuthenticated.value) return 'Neprihlaseny pouzivatel'
+
+  const raw = typeof props.locationName === 'string' ? props.locationName.trim() : ''
+  return raw || 'Nezvolena lokalita'
+})
 
 const safeDate = computed(() => {
-  if (typeof props.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(props.date)) {
-    return props.date
-  }
+  if (typeof props.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(props.date)) return props.date
   return toLocalIsoDate(new Date())
 })
 
 const safeTimezone = computed(() => {
-  const value = typeof props.tz === 'string' ? props.tz.trim() : ''
-  if (value) return value
-  return 'Europe/Bratislava'
+  const candidate = typeof props.tz === 'string' ? props.tz.trim() : ''
+  if (candidate && isValidIana(candidate)) return candidate
+
+  const browser = Intl.DateTimeFormat().resolvedOptions().timeZone
+  if (browser && isValidIana(browser)) return browser
+
+  return 'UTC'
 })
 
-const devDebugEnabled = import.meta.env.DEV && typeof window !== 'undefined'
+const planets = computed(() => (Array.isArray(skySummary.value?.planets) ? skySummary.value.planets : []))
+const meteors = computed(() => (Array.isArray(skySummary.value?.meteors) ? skySummary.value.meteors : []))
+
+const moonPhaseLabel = computed(() => {
+  const raw = skySummary.value?.moon?.phase_name || observeSummary.value?.moon?.phase_name || ''
+  return translateMoonPhase(raw) || 'Nedostupne'
+})
+
+const moonBadge = computed(() => {
+  const pctValue = Number(skySummary.value?.moon?.illumination ?? observeSummary.value?.moon?.illumination_pct)
+  if (!Number.isFinite(pctValue)) return 'isUnknown'
+  if (pctValue >= 90) return 'isWarn'
+  return 'isOk'
+})
+
+const moonRiseSet = computed(() => {
+  const rise = skySummary.value?.moon?.rise_local || '-'
+  const set = skySummary.value?.moon?.set_local || '-'
+  return `${rise} / ${set}`
+})
+
+const moonIllumination = computed(() => {
+  const fromSky = Number(skySummary.value?.moon?.illumination)
+  if (Number.isFinite(fromSky)) return `${Math.round(fromSky)}%`
+
+  const fromObserve = Number(observeSummary.value?.moon?.illumination_pct)
+  if (Number.isFinite(fromObserve)) return `${Math.round(fromObserve)}%`
+
+  return '-'
+})
+
+function queueFetch() {
+  if (debounceTimer) window.clearTimeout(debounceTimer)
+  debounceTimer = window.setTimeout(fetchSummary, 220)
+}
+
+async function fetchSummary() {
+  if (!isAuthenticated.value || !hasLocationCoords.value) {
+    observeSummary.value = null
+    skySummary.value = null
+    error.value = ''
+    loading.value = false
+    return
+  }
+
+  const runId = ++requestCounter
+  loading.value = true
+  error.value = ''
+
+  const params = {
+    lat: numericLat.value,
+    lon: numericLon.value,
+    date: safeDate.value,
+    tz: safeTimezone.value,
+  }
+
+  const [observeResult, skyResult] = await Promise.allSettled([
+    api.get('/observe/summary', { params }),
+    api.get('/observing/sky-summary', { params }),
+  ])
+
+  if (runId !== requestCounter) return
+
+  observeSummary.value = observeResult.status === 'fulfilled' ? (observeResult.value?.data ?? null) : null
+  skySummary.value = skyResult.status === 'fulfilled' ? (skyResult.value?.data ?? null) : null
+
+  if (observeResult.status === 'rejected' && skyResult.status === 'rejected') {
+    error.value = 'Nepodarilo sa nacitat data pre pozorovanie. Skus to znovu.'
+  } else if (skyResult.status === 'rejected') {
+    error.value = 'Planetarne a meteoricke data su docasne nedostupne.'
+  }
+
+  loading.value = false
+}
+
+function goToLogin() {
+  router.push({ name: 'login', query: { redirect: route.fullPath } })
+}
+
+function goToProfileLocation() {
+  router.push({ name: 'profile.edit', hash: '#location' })
+}
+
+watch(
+  () => [props.lat, props.lon, props.date, props.tz, auth.initialized, auth.isAuthed],
+  queueFetch,
+  { immediate: true }
+)
+
+onBeforeUnmount(() => {
+  if (debounceTimer) window.clearTimeout(debounceTimer)
+})
 
 function toNumber(value) {
   if (typeof value === 'number') return value
@@ -150,6 +247,7 @@ function toNumber(value) {
     const parsed = Number(value)
     return Number.isFinite(parsed) ? parsed : NaN
   }
+
   return NaN
 }
 
@@ -160,97 +258,38 @@ function toLocalIsoDate(date) {
   return `${y}-${m}-${d}`
 }
 
-function queueFetch() {
-  if (devDebugEnabled) {
-    console.debug('[RightObservingSidebar] queueFetch', {
-      lat: props.lat,
-      lon: props.lon,
-      numericLat: numericLat.value,
-      numericLon: numericLon.value,
-      hasLocation: hasLocation.value,
-      date: safeDate.value,
-      tz: safeTimezone.value,
-    })
-  }
-
-  if (debounceTimer) {
-    window.clearTimeout(debounceTimer)
-  }
-
-  debounceTimer = window.setTimeout(() => {
-    fetchSummary()
-  }, 220)
-}
-
-async function fetchSummary() {
-  if (!hasLocation.value) {
-    if (devDebugEnabled) {
-      console.debug('[RightObservingSidebar] skip fetch, missing coords', {
-        lat: props.lat,
-        lon: props.lon,
-      })
-    }
-
-    summary.value = null
-    error.value = ''
-    loading.value = false
-    return
-  }
-
-  const runId = ++requestCounter
-  loading.value = true
-  error.value = ''
-
+function isValidIana(value) {
   try {
-    const response = await api.get('/observe/summary', {
-      params: {
-        lat: numericLat.value,
-        lon: numericLon.value,
-        date: safeDate.value,
-        tz: safeTimezone.value,
-      },
-    })
-
-    if (runId !== requestCounter) return
-    summary.value = response?.data ?? null
-  } catch (err) {
-    if (runId !== requestCounter) return
-    summary.value = null
-    error.value = err?.response?.data?.message || err?.message || 'Neznáma chyba.'
-  } finally {
-    if (runId === requestCounter) {
-      loading.value = false
-    }
+    Intl.DateTimeFormat('en-US', { timeZone: value }).format(new Date())
+    return true
+  } catch {
+    return false
   }
 }
-
-watch(
-  () => [props.lat, props.lon, props.date, props.tz],
-  () => {
-    queueFetch()
-  },
-  { immediate: true }
-)
-
-onBeforeUnmount(() => {
-  if (debounceTimer) {
-    window.clearTimeout(debounceTimer)
-  }
-})
 
 function pct(value) {
-  return Number.isFinite(value) ? `${Math.round(Number(value))}%` : '-'
+  return Number.isFinite(Number(value)) ? `${Math.round(Number(value))}%` : '-'
 }
 
 function pm(value) {
-  if (!Number.isFinite(value)) return '-'
-  return Number(value).toFixed(1)
+  return Number.isFinite(Number(value)) ? Number(value).toFixed(1) : '-'
+}
+
+function deg(value) {
+  return Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)}deg` : '-'
+}
+
+function signedDays(value) {
+  if (!Number.isFinite(Number(value))) return '-'
+  const parsed = Number(value)
+  if (parsed === 0) return 'dnes'
+  return parsed > 0 ? `+${parsed} d` : `${parsed} d`
 }
 
 function badgeFromLabel(label) {
   if (label === 'OK') return 'isOk'
   if (label === 'Pozor') return 'isWarn'
-  if (label === 'Zlé') return 'isBad'
+  if (label === 'Zle') return 'isBad'
   return 'isUnknown'
 }
 
@@ -260,22 +299,48 @@ function badgeForSun(status) {
   return 'isUnknown'
 }
 
-function badgeForMoon(status, warning) {
-  if (status !== 'ok') return 'isUnknown'
-  if (warning) return 'isWarn'
-  return 'isOk'
-}
-
-function moonLabel(status, warning) {
-  if (status !== 'ok') return 'Nedostupné'
-  return warning ? 'Pozor' : 'OK'
-}
-
 function sunStatusLabel(status) {
   if (status === 'ok') return 'OK'
-  if (status === 'continuous_day') return 'Polárny deň'
-  if (status === 'continuous_night') return 'Polárna noc'
-  return 'Nedostupné'
+  if (status === 'continuous_day') return 'Polarny den'
+  if (status === 'continuous_night') return 'Polarna noc'
+  return 'Nedostupne'
+}
+
+function localizeDirection(value) {
+  if (typeof value !== 'string') return '-'
+
+  const normalized = value.trim().toUpperCase()
+  const dictionary = {
+    N: 'S',
+    NE: 'SV',
+    E: 'V',
+    SE: 'JV',
+    S: 'J',
+    SW: 'JZ',
+    W: 'Z',
+    NW: 'SZ',
+  }
+
+  return dictionary[normalized] || value.trim()
+}
+
+function translateMoonPhase(value) {
+  if (typeof value !== 'string') return ''
+
+  const normalized = value.trim().toLowerCase().replace(/\s+/g, ' ')
+  const dictionary = {
+    'new moon': 'Nov',
+    'waxing crescent': 'Dorastajuci kosacik',
+    'first quarter': 'Prva stvrt',
+    'waxing gibbous': 'Dorastajuci mesiac',
+    'full moon': 'Spln',
+    'waning gibbous': 'Ubudajuci mesiac',
+    'last quarter': 'Posledna stvrt',
+    'third quarter': 'Posledna stvrt',
+    'waning crescent': 'Ubudajuci kosacik',
+  }
+
+  return dictionary[normalized] || value.trim()
 }
 </script>
 
@@ -283,110 +348,185 @@ function sunStatusLabel(status) {
 .card {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
   border-radius: 1.1rem;
-  background: linear-gradient(160deg, rgb(var(--color-bg-rgb) / 0.82), rgb(var(--color-bg-rgb) / 0.6));
   padding: 0.95rem;
+  background:
+    radial-gradient(circle at 12% -18%, rgb(var(--color-primary-rgb) / 0.16), transparent 44%),
+    linear-gradient(160deg, rgb(var(--color-bg-rgb) / 0.86), rgb(var(--color-bg-rgb) / 0.6));
 }
 
-.panel {
+.shell,
+.body {
   display: grid;
-  gap: 0.8rem;
+  gap: 0.75rem;
 }
 
-.panelHead {
+.head {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.22rem;
 }
 
-.panelTitle {
+.title {
   margin: 0;
-  color: var(--color-surface);
-  font-size: 0.95rem;
+  font-size: 1.02rem;
   font-weight: 800;
+  color: var(--color-surface);
 }
 
-.panelSub {
+.subtitle,
+.location {
   margin: 0;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
-  font-size: 0.76rem;
-}
-
-.content {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.group {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  border-radius: 0.9rem;
-  padding: 0.7rem;
-  display: grid;
-  gap: 0.45rem;
-  background: rgb(var(--color-bg-rgb) / 0.36);
-}
-
-.groupHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.groupHead h4 {
-  margin: 0;
-  font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.78rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
 }
 
-.line {
-  margin: 0;
+.chips {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.55rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.98);
-  font-size: 0.82rem;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
-.line strong {
-  color: var(--color-surface);
-  font-weight: 700;
-}
-
-.subline {
-  margin: 0;
-  display: flex;
-  gap: 0.4rem;
-  align-items: center;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-  font-size: 0.74rem;
-}
-
-.muted {
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
-}
-
-.warn {
-  margin: 0;
-  font-size: 0.74rem;
-  color: rgb(251 113 133 / 0.95);
-  background: rgb(190 24 93 / 0.12);
-  border: 1px solid rgb(251 113 133 / 0.35);
-  border-radius: 0.6rem;
-  padding: 0.35rem 0.45rem;
-}
-
+.chip,
 .badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  padding: 0.1rem 0.48rem;
+  padding: 0.14rem 0.5rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
   font-size: 0.68rem;
   font-weight: 700;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
 }
+
+.panel {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  border-radius: 0.9rem;
+  background: rgb(var(--color-bg-rgb) / 0.34);
+  padding: 0.64rem;
+  display: grid;
+  gap: 0.36rem;
+}
+
+.sectionTitle {
+  margin: 0 0 0.08rem;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(var(--color-text-secondary-rgb) / 0.96);
+}
+
+.row {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.55rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.98);
+  font-size: 0.81rem;
+}
+
+.row strong {
+  color: var(--color-surface);
+  font-weight: 700;
+}
+
+.compact {
+  font-size: 0.76rem;
+}
+
+.planet,
+.meteor {
+  display: grid;
+  gap: 0.22rem;
+  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.15);
+  padding-top: 0.42rem;
+}
+
+.planetTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.tags {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.state {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.stateTitle {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-surface);
+}
+
+.stateText {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.btnPrimary,
+.btnGhost {
+  width: fit-content;
+  border-radius: 0.68rem;
+  padding: 0.42rem 0.68rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.btnPrimary {
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.56);
+  background: rgb(var(--color-primary-rgb) / 0.15);
+  color: var(--color-surface);
+}
+
+.btnGhost {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.38);
+  background: rgb(var(--color-bg-rgb) / 0.4);
+  color: var(--color-surface);
+}
+
+.notice {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.noticeText {
+  margin: 0;
+  font-size: 0.76rem;
+  color: rgb(251 113 133 / 0.95);
+  border: 1px solid rgb(251 113 133 / 0.33);
+  border-radius: 0.62rem;
+  background: rgb(190 24 93 / 0.12);
+  padding: 0.4rem 0.5rem;
+}
+
+.loading {
+  display: grid;
+  gap: 0.44rem;
+}
+
+.skeleton {
+  border-radius: 0.56rem;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-text-secondary-rgb) / 0.08),
+    rgb(var(--color-text-secondary-rgb) / 0.18),
+    rgb(var(--color-text-secondary-rgb) / 0.08)
+  );
+  background-size: 220% 100%;
+  animation: shimmer 1.2s infinite linear;
+}
+
+.h14 { height: 0.85rem; }
+.h10 { height: 0.62rem; }
+.w60 { width: 60%; }
+.w85 { width: 85%; }
+.w100 { width: 100%; }
 
 .isOk {
   color: rgb(167 243 208);
@@ -410,67 +550,6 @@ function sunStatusLabel(status) {
   color: rgb(var(--color-text-secondary-rgb) / 0.96);
   border-color: rgb(var(--color-text-secondary-rgb) / 0.3);
   background: rgb(var(--color-bg-rgb) / 0.45);
-}
-
-.loadingGrid {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.skeleton {
-  border-radius: 0.6rem;
-  background: linear-gradient(
-    90deg,
-    rgb(var(--color-text-secondary-rgb) / 0.08),
-    rgb(var(--color-text-secondary-rgb) / 0.18),
-    rgb(var(--color-text-secondary-rgb) / 0.08)
-  );
-  background-size: 220% 100%;
-  animation: shimmer 1.2s infinite linear;
-}
-
-.h12 { height: 0.75rem; }
-.h10 { height: 0.62rem; }
-.w70 { width: 70%; }
-.w80 { width: 80%; }
-.w90 { width: 90%; }
-.w100 { width: 100%; }
-
-.state {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.stateTitle {
-  margin: 0;
-  font-size: 0.86rem;
-  font-weight: 700;
-  color: var(--color-surface);
-}
-
-.stateText {
-  margin: 0;
-  font-size: 0.8rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
-}
-
-.stateError .stateTitle,
-.stateError .stateText {
-  color: rgb(251 113 133 / 0.95);
-}
-
-.ghostBtn {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.4);
-  border-radius: 0.7rem;
-  background: rgb(var(--color-bg-rgb) / 0.4);
-  color: var(--color-surface);
-  padding: 0.45rem 0.7rem;
-  font-size: 0.76rem;
-  font-weight: 600;
-}
-
-.ghostBtn:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.6);
 }
 
 @keyframes shimmer {

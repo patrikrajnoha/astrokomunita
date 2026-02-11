@@ -313,7 +313,9 @@ function applyRouteDate() {
   box-shadow: var(--shadow);
   color: var(--text);
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  padding: 24px;
+  padding: clamp(14px, 2.2vw, 24px);
+  width: 100%;
+  overflow: hidden;
 }
 
 .calendar-card,
@@ -325,10 +327,12 @@ function applyRouteDate() {
   display: grid;
   grid-template-columns: 1.15fr 1px 0.85fr;
   gap: 0;
+  min-width: 0;
 }
 
 .left {
   padding-right: 22px;
+  min-width: 0;
 }
 
 .month-header {
@@ -337,12 +341,15 @@ function applyRouteDate() {
   justify-content: space-between;
   margin-bottom: 18px;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .month-title {
-  font-size: 28px;
+  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
   font-weight: 700;
   letter-spacing: 0.2px;
+  line-height: 1.1;
+  text-transform: capitalize;
 }
 
 .month-meta {
@@ -354,7 +361,9 @@ function applyRouteDate() {
 .month-actions {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .nav-btn {
@@ -363,7 +372,8 @@ function applyRouteDate() {
   background: rgb(var(--color-surface-rgb) / 0.04);
   color: var(--text);
   border-radius: 999px;
-  padding: 6px 12px;
+  min-height: 36px;
+  padding: 7px 13px;
   font-size: 12px;
   letter-spacing: 0.2px;
   cursor: pointer;
@@ -391,8 +401,8 @@ function applyRouteDate() {
 .days-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  grid-auto-rows: minmax(32px, auto);
-  row-gap: 14px;
+  grid-auto-rows: minmax(36px, auto);
+  row-gap: 10px;
   column-gap: 4px;
   font-size: 16px;
   line-height: 1;
@@ -408,6 +418,7 @@ function applyRouteDate() {
   align-items: center;
   justify-content: center;
   text-align: center;
+  min-height: 36px;
   padding: 8px 0;
   border-radius: 999px;
   position: relative;
@@ -486,6 +497,9 @@ function applyRouteDate() {
   white-space: nowrap;
   z-index: 10;
   box-shadow: 0 10px 25px rgb(var(--color-bg-rgb) / 0.35);
+  max-width: min(240px, 92vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .day-cell[data-tip]:hover::after {
@@ -508,12 +522,15 @@ function applyRouteDate() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .list-header {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .list-title {
@@ -533,6 +550,10 @@ function applyRouteDate() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
 }
 
 .event-item {
@@ -584,7 +605,7 @@ function applyRouteDate() {
 @media (max-width: 900px) {
   .calendar-layout {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 14px;
   }
 
   .divider {
@@ -598,6 +619,92 @@ function applyRouteDate() {
 
   .right {
     padding-left: 0;
+  }
+
+  .event-list {
+    max-height: 280px;
+  }
+}
+
+@media (max-width: 640px) {
+  .calendar-card {
+    border-radius: 16px;
+  }
+
+  .month-header {
+    margin-bottom: 14px;
+    gap: 10px;
+  }
+
+  .month-meta {
+    font-size: 12px;
+  }
+
+  .month-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .nav-btn {
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .dow-grid {
+    font-size: 11px;
+    margin-bottom: 8px;
+  }
+
+  .days-grid {
+    grid-auto-rows: minmax(32px, auto);
+    row-gap: 8px;
+    font-size: 14px;
+  }
+
+  .day-cell {
+    min-height: 32px;
+    padding: 6px 0;
+  }
+
+  .day-cell--has-events::after {
+    transform: translateY(12px);
+  }
+
+  .count-badge {
+    top: -3px;
+    right: -1px;
+    min-width: 14px;
+    height: 14px;
+    line-height: 14px;
+    font-size: 9px;
+  }
+
+  .list-title {
+    font-size: 14px;
+  }
+
+  .list-subtitle {
+    font-size: 11px;
+  }
+
+  .event-title {
+    font-size: 13px;
+  }
+
+  .event-list {
+    max-height: 240px;
+    gap: 12px;
+  }
+}
+
+@media (hover: none) {
+  .day-cell[data-tip]:hover::before,
+  .day-cell[data-tip]:hover::after {
+    content: none;
   }
 }
 </style>

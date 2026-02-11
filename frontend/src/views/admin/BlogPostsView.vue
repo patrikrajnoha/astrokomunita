@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { blogPosts } from "@/services/blogPosts";
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 
 const loading = ref(false);
 const saving = ref(false);
@@ -25,6 +27,8 @@ const tagsInput = ref("");
 const showPreview = ref(false);
 const query = ref("");
 const activeTab = ref("content");
+const { confirm } = useConfirm()
+const toast = useToast()
 
 const isEditing = computed(() => !!selectedId.value);
 const selectedPost = computed(
@@ -359,7 +363,14 @@ async function saveCoverOnly() {
 
 async function remove() {
   if (!selectedId.value) return;
-  if (!confirm("Are you sure you want to delete this post?")) return;
+  const ok = await confirm({
+    title: 'Delete post',
+    message: 'Are you sure you want to delete this post?',
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    variant: 'danger',
+  })
+  if (!ok) return;
 
   deleting.value = true;
   formError.value = null;
@@ -368,8 +379,10 @@ async function remove() {
     await blogPosts.adminDelete(selectedId.value);
     resetForm();
     await load();
+    toast.success('Post deleted.')
   } catch (e) {
     formError.value = e?.response?.data?.message || "Failed to delete post.";
+    toast.error(formError.value)
   } finally {
     deleting.value = false;
   }
@@ -1329,5 +1342,4 @@ summary:focus {
   }
 }
 </style>
-
 

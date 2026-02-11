@@ -32,7 +32,13 @@ const appShellChildren = [
   {
     path: 'calendar',
     name: 'calendar',
-    component: () => import('../views/CalendarView.vue'),
+    redirect: (to) => ({
+      name: 'events',
+      query: {
+        ...to.query,
+        view: 'calendar',
+      },
+    }),
   },
   {
     path: 'observations',
@@ -110,7 +116,7 @@ const appShellChildren = [
     children: [
       {
         path: '',
-        redirect: { name: 'admin.users' },
+        redirect: { name: 'admin.dashboard' },
       },
       {
         path: 'dashboard',

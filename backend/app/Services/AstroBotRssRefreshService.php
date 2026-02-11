@@ -2,12 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\RssItem;
-
 class AstroBotRssRefreshService
 {
     public function __construct(
-        private readonly RssFetchService $fetchService,
+        private readonly AstroBotRssService $rssService,
     ) {
     }
 
@@ -23,16 +21,15 @@ class AstroBotRssRefreshService
      */
     public function refresh(string $source = RssFetchService::SOURCE_NASA_NEWS): array
     {
-        $fetchResult = $this->fetchService->fetch($source);
-        $cleanupResult = $this->cleanupNonPublished();
+        $result = $this->rssService->sync();
 
         return [
-            'created' => (int) ($fetchResult['created'] ?? 0),
-            'skipped' => (int) ($fetchResult['skipped'] ?? 0),
-            'errors' => (int) ($fetchResult['errors'] ?? 0),
-            'deleted_by_age' => $cleanupResult['deleted_by_age'],
-            'deleted_by_limit' => $cleanupResult['deleted_by_limit'],
-            'deleted_total' => $cleanupResult['deleted_total'],
+            'created' => (int) ($result['added'] ?? 0),
+            'skipped' => (int) ($result['skipped'] ?? 0),
+            'errors' => (int) ($result['errors'] ?? 0),
+            'deleted_by_age' => (int) ($result['deleted'] ?? 0),
+            'deleted_by_limit' => 0,
+            'deleted_total' => (int) ($result['deleted'] ?? 0),
         ];
     }
 
@@ -41,44 +38,6 @@ class AstroBotRssRefreshService
      */
     public function cleanupNonPublished(): array
     {
-        $retentionDays = (int) config('astrobot.rss_retention_days', 30);
-        $maxItems = (int) config('astrobot.rss_retention_max_items', 200);
-
-        $deletedByAge = 0;
-        $deletedByLimit = 0;
-
-        if ($retentionDays > 0) {
-            $deletedByAge = $this->deletableQuery()
-                ->where('created_at', '<', now()->subDays($retentionDays))
-                ->delete();
-        }
-
-        if ($maxItems > 0) {
-            $idsToKeep = $this->deletableQuery()
-                ->orderByDesc('created_at')
-                ->orderByDesc('id')
-                ->take($maxItems)
-                ->pluck('id');
-
-            $deleteQuery = $this->deletableQuery();
-            if ($idsToKeep->isNotEmpty()) {
-                $deleteQuery->whereNotIn('id', $idsToKeep->all());
-            }
-            $deletedByLimit = $deleteQuery->delete();
-        }
-
-        return [
-            'deleted_by_age' => $deletedByAge,
-            'deleted_by_limit' => $deletedByLimit,
-            'deleted_total' => $deletedByAge + $deletedByLimit,
-        ];
+        return ['deleted_by_age' => 0, 'deleted_by_limit' => 0, 'deleted_total' => 0];
     }
-
-    private function deletableQuery()
-    {
-        return RssItem::query()
-            ->where('status', '!=', RssItem::STATUS_PUBLISHED)
-            ->whereNull('post_id');
-    }
-
 }

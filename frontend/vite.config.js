@@ -8,7 +8,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 export default defineConfig({
   plugins: [
     vue(),
-    vueDevTools(),
+    ...(process.env.VITEST ? [] : [vueDevTools()]),
   ],
   resolve: {
     alias: {
@@ -31,5 +31,11 @@ export default defineConfig({
       usePolling: false,
       interval: 100
     }
-  }
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    include: ['src/**/*.test.js'],
+    exclude: ['node_modules/**', 'src/utils/postPermissions.test.js'],
+  },
 })

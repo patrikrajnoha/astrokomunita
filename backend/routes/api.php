@@ -34,12 +34,15 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\AdminPostController;
 use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
 use App\Http\Controllers\Api\SidebarSectionController;
+use App\Http\Controllers\Api\Admin\SidebarConfigController as AdminSidebarConfigController;
+use App\Http\Controllers\Api\SidebarConfigController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\FeedController;
 use App\Http\Controllers\Api\HashtagController;
 use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\ObserveSummaryController;
 use App\Http\Controllers\Api\ObserveDiagnosticsController;
+use App\Http\Controllers\Api\ObservingSkySummaryController;
 use App\Http\Controllers\CsrfTestController;
 
 /*
@@ -131,6 +134,7 @@ Route::post('/events/{event}/notify-email', [EventEmailAlertController::class, '
 Route::get('/nasa/iotd', [NasaIotdController::class, 'show']);
 Route::get('/observe/summary', ObserveSummaryController::class);
 Route::get('/observe/diagnostics', ObserveDiagnosticsController::class);
+Route::get('/observing/sky-summary', ObservingSkySummaryController::class);
 
 /*
 |--------------------------------------------------------------------------
@@ -138,6 +142,7 @@ Route::get('/observe/diagnostics', ObserveDiagnosticsController::class);
 |--------------------------------------------------------------------------
 */
 Route::get('/sidebar-sections', [SidebarSectionController::class, 'index']);
+Route::get('/sidebar-config', [SidebarConfigController::class, 'index']);
 
 /*
 |--------------------------------------------------------------------------
@@ -173,6 +178,7 @@ Route::get('/users/{username}/posts', [App\Http\Controllers\Api\UserProfileContr
 */
 Route::get('/search/users', [SearchController::class, 'users']);
 Route::get('/search/posts', [SearchController::class, 'posts']);
+Route::get('/search/suggest', [SearchController::class, 'suggest']);
 
 /*
 |--------------------------------------------------------------------------
@@ -261,6 +267,8 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
         */
         Route::get('/sidebar-sections', [AdminSidebarSectionController::class, 'index']);
         Route::put('/sidebar-sections', [AdminSidebarSectionController::class, 'update']);
+        Route::get('/sidebar-config', [AdminSidebarConfigController::class, 'index']);
+        Route::put('/sidebar-config', [AdminSidebarConfigController::class, 'update']);
 
         /*
         |--------------------------------------------------------------------------
@@ -334,25 +342,15 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
         |--------------------------------------------------------------------------
         */
         Route::prefix('astrobot')->middleware('throttle:10,1')->group(function () {
-            // RSS items management
             Route::get('/items', [AstroBotController::class, 'items']);
-            Route::post('/fetch', [AstroBotController::class, 'fetch']);
             Route::put('/items/{item}', [AstroBotController::class, 'update']);
-            Route::post('/items/{item}/approve', [AstroBotController::class, 'approve']);
             Route::post('/items/{item}/publish', [AstroBotController::class, 'publish']);
-            Route::post('/items/{item}/schedule', [AstroBotController::class, 'schedule']);
+            Route::post('/items/{item}/reject', [AstroBotController::class, 'reject']);
             Route::post('/items/{item}/discard', [AstroBotController::class, 'discard']);
-
-            // Bulk actions
-            Route::post('/bulk', [AstroBotController::class, 'bulk']);
-
-            // Published bot posts management
             Route::get('/posts', [AstroBotController::class, 'posts']);
             Route::delete('/posts/{id}', [AstroBotController::class, 'deletePost']);
-
-            // Manual trigger for scheduled publishing
-            Route::post('/publish-scheduled', [AstroBotController::class, 'publishScheduled']);
-            Route::post('/rss/refresh', [AstroBotController::class, 'refreshRss']);
+            Route::post('/sync', [AstroBotController::class, 'syncRss'])->middleware('throttle:astrobot-sync');
+            Route::post('/rss/refresh', [AstroBotController::class, 'refreshRss'])->middleware('throttle:astrobot-sync');
         });
     });
 

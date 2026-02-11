@@ -1,46 +1,20 @@
 <template>
-  <div class="todayTab">
+  <div class="inboxTab">
     <div class="tabActions">
-      <button class="actionbtn" @click="fetchNow" :disabled="fetching">
-        {{ fetching ? 'Fetching…' : 'Fetch now' }}
+      <button class="actionbtn" @click="loadItems" :disabled="loading">
+        {{ loading ? 'Nacitavam...' : 'Obnovit inbox' }}
       </button>
-      <button class="actionbtn" @click="publishScheduledNow" :disabled="publishingScheduled">
-        {{ publishingScheduled ? 'Publishing…' : 'Publish scheduled' }}
-      </button>
-      <select v-model="statusFilter" class="filterSelect">
-        <option value="">All statuses</option>
-        <option value="pending">Pending</option>
-        <option value="approved">Approved</option>
-        <option value="scheduled">Scheduled</option>
-        <option value="published">Published</option>
-        <option value="discarded">Discarded</option>
-        <option value="error">Error</option>
-      </select>
       <input
         v-model="searchQuery"
         type="text"
-        placeholder="Search items..."
+        placeholder="Hladat podla nazvu..."
         class="searchInput"
       />
-      <select v-model="sourceFilter" class="filterSelect">
-        <option value="">All sources</option>
-        <option value="nasa_news">NASA News</option>
-      </select>
     </div>
 
-    <div v-if="fetchResult" class="fetchResult">
-      <div class="resultItem">
-        <span class="resultLabel">Created:</span>
-        <span class="resultValue">{{ fetchResult.created }}</span>
-      </div>
-      <div class="resultItem">
-        <span class="resultLabel">Skipped:</span>
-        <span class="resultValue">{{ fetchResult.skipped }}</span>
-      </div>
-      <div class="resultItem">
-        <span class="resultLabel">Errors:</span>
-        <span class="resultValue">{{ fetchResult.errors }}</span>
-      </div>
+    <div class="actionsHint">
+      <strong>Needs review:</strong> tu su polozky, ktore sa nepublikovali automaticky. Môzes ich upravit,
+      publikovat alebo zamietnut.
     </div>
 
     <div v-if="loading" class="panelLoading">
@@ -49,184 +23,75 @@
       <div class="skeleton h-4 w-4/5"></div>
     </div>
 
-    <div v-if="successMessage" class="state stateSuccess">
-      <div class="stateTitle">Success</div>
-      <div class="stateText">{{ successMessage }}</div>
-      <button class="ghostbtn" @click="successMessage = null">Dismiss</button>
-    </div>
-
-    <div v-if="error" class="state stateError">
-      <div class="stateTitle">Error</div>
+    <div v-else-if="error" class="state stateError">
+      <div class="stateTitle">Chyba</div>
       <div class="stateText">{{ error }}</div>
-      <button class="ghostbtn" @click="error = null">Dismiss</button>
+      <button class="ghostbtn" @click="loadItems">Skusit znova</button>
     </div>
 
     <div v-else-if="items.length === 0" class="state">
-      <div class="stateTitle">Žiadne položky na dnes</div>
-    </div>
-
-    <!-- Bulk Actions -->
-    <div v-if="selectedItems.length > 0" class="bulkActions">
-      <span class="bulkInfo">{{ selectedItems.length }} items selected</span>
-      <button class="actionbtn" @click="bulkApprove" :disabled="bulkLoading">
-        {{ bulkLoading ? 'Processing…' : 'Approve' }}
-      </button>
-      <button class="actionbtn" @click="bulkPublish" :disabled="bulkLoading">
-        {{ bulkLoading ? 'Processing…' : 'Publish' }}
-      </button>
-      <button class="ghostbtn" @click="bulkDiscard" :disabled="bulkLoading">
-        {{ bulkLoading ? 'Processing…' : 'Discard' }}
-      </button>
-      <button class="ghostbtn" @click="clearSelection">Clear</button>
+      <div class="stateTitle">Inbox je prazdny</div>
+      <div class="stateText">Aktualne nie su ziadne polozky na manualny review.</div>
     </div>
 
     <ul v-else class="itemsList">
       <li v-for="item in items" :key="item.id" class="itemCard">
         <div class="itemHeader">
-          <input
-            type="checkbox"
-            :checked="selectedItems.includes(item.id)"
-            @change="toggleSelection(item.id)"
-            class="itemCheckbox"
-          />
-          <span class="itemBadge" :class="`badge-${item.status}`">{{ item.status }}</span>
-          <span v-if="item.source" class="sourceBadge">{{ item.source }}</span>
+          <span class="itemBadge badge-review">needs_review</span>
+          <span class="sourceBadge">{{ item.domain || item.source || 'unknown' }}</span>
         </div>
 
         <div class="itemTitle">{{ item.title }}</div>
-
-        <div v-if="item.summary" class="itemSummary">{{ truncate(item.summary, 240) }}</div>
+        <div v-if="item.summary" class="itemSummary">{{ truncate(item.summary, 260) }}</div>
 
         <div class="itemMeta">
-          <span v-if="item.published_at" class="metaItem">
-            Published: {{ formatDateTime(item.published_at) }}
-          </span>
-          <span v-if="item.fetched_at" class="metaItem">
-            Fetched: {{ formatDateTime(item.fetched_at) }}
-          </span>
-          <span v-if="item.scheduled_for" class="metaItem">
-            Scheduled: {{ formatDateTime(item.scheduled_for) }}
-          </span>
+          <span v-if="item.published_at">RSS datum: {{ formatDateTime(item.published_at) }}</span>
+          <span v-if="item.fetched_at">Sync: {{ formatDateTime(item.fetched_at) }}</span>
         </div>
 
         <div class="itemActions">
-          <button class="ghostbtn" @click="preview(item)">Preview</button>
-          <button
-            v-if="item.status === 'pending' || item.status === 'approved'"
-            class="actionbtn"
-            @click="publishNow(item)"
-            :disabled="actionLoading[item.id] === 'publish'"
-          >
-            {{ actionLoading[item.id] === 'publish' ? 'Publishing…' : 'Publish now' }}
+          <button class="ghostbtn" @click="openEdit(item)">Upravit</button>
+          <button class="actionbtn" @click="publishItem(item)" :disabled="actionLoading[item.id] === 'publish'">
+            {{ actionLoading[item.id] === 'publish' ? 'Publikujem...' : 'Publish' }}
           </button>
-          <button
-            v-if="item.status === 'pending' || item.status === 'approved'"
-            class="ghostbtn"
-            @click="openSchedule(item)"
-          >
-            Schedule
+          <button class="ghostbtn danger" @click="rejectItem(item)" :disabled="actionLoading[item.id] === 'reject'">
+            {{ actionLoading[item.id] === 'reject' ? 'Zamietam...' : 'Reject' }}
           </button>
-          <button
-            v-if="item.status !== 'published' && item.status !== 'discarded'"
-            class="ghostbtn"
-            @click="discard(item)"
-            :disabled="actionLoading[item.id] === 'discard'"
-          >
-            {{ actionLoading[item.id] === 'discard' ? 'Discarding…' : 'Discard' }}
-          </button>
-          <a
-            v-if="item.url"
-            :href="item.url"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="ghostbtn"
-          >
-            Open
-          </a>
+          <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="ghostbtn">Zdroj</a>
         </div>
       </li>
     </ul>
 
-    <!-- Pagination -->
     <div v-if="pagination.last_page > 1" class="pagination">
-      <button
-        class="paginationBtn"
-        :disabled="pagination.current_page === 1"
-        @click="goToPage(pagination.current_page - 1)"
-      >
-        Previous
+      <button class="paginationBtn" :disabled="pagination.current_page === 1" @click="goToPage(pagination.current_page - 1)">
+        Predchadzajuca
       </button>
       <span class="paginationInfo">
-        Page {{ pagination.current_page }} of {{ pagination.last_page }}
-        ({{ pagination.total }} total)
+        Strana {{ pagination.current_page }} z {{ pagination.last_page }} (spolu {{ pagination.total }})
       </span>
-      <button
-        class="paginationBtn"
-        :disabled="pagination.current_page === pagination.last_page"
-        @click="goToPage(pagination.current_page + 1)"
-      >
-        Next
+      <button class="paginationBtn" :disabled="pagination.current_page === pagination.last_page" @click="goToPage(pagination.current_page + 1)">
+        Dalsia
       </button>
     </div>
 
-    <!-- Preview Modal -->
-    <div v-if="previewItem" class="modalOverlay" @click="closePreview">
+    <div v-if="editItem" class="modalOverlay" @click="closeEdit">
       <div class="modalCard" @click.stop>
         <div class="modalHeader">
-          <h2>Preview</h2>
-          <button class="ghostbtn" @click="closePreview">&times;</button>
+          <h2>Upravit polozku</h2>
+          <button class="ghostbtn" @click="closeEdit">&times;</button>
         </div>
         <div class="modalBody">
           <div class="formGroup">
-            <label for="editTitle">Title:</label>
-            <input
-              id="editTitle"
-              v-model="editItem.title"
-              type="text"
-              class="formInput"
-            />
+            <label for="title">Nadpis</label>
+            <input id="title" v-model="editItem.title" class="formInput" type="text" />
           </div>
           <div class="formGroup">
-            <label for="editSummary">Summary:</label>
-            <textarea
-              id="editSummary"
-              v-model="editItem.summary"
-              class="formTextarea"
-              rows="4"
-            ></textarea>
-          </div>
-          <div class="formGroup">
-            <label>URL:</label>
-            <a v-if="editItem.url" :href="editItem.url" target="_blank" rel="noopener noreferrer">
-              {{ editItem.url }}
-            </a>
+            <label for="summary">Zhrnutie</label>
+            <textarea id="summary" v-model="editItem.summary" class="formTextarea" rows="5"></textarea>
           </div>
           <div class="modalActions">
-            <button class="actionbtn" @click="saveEdit">Save</button>
-            <button class="ghostbtn" @click="closePreview">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Schedule Modal -->
-    <div v-if="scheduleItem" class="modalOverlay" @click="closeSchedule">
-      <div class="modalCard" @click.stop>
-        <div class="modalHeader">
-          <h2>Schedule</h2>
-          <button class="ghostbtn" @click="closeSchedule">&times;</button>
-        </div>
-        <div class="modalBody">
-          <label for="scheduleFor">Schedule for:</label>
-          <input
-            id="scheduleFor"
-            v-model="scheduleFor"
-            type="datetime-local"
-            class="scheduleInput"
-          />
-          <div class="modalActions">
-            <button class="actionbtn" @click="confirmSchedule">Schedule</button>
-            <button class="ghostbtn" @click="closeSchedule">Cancel</button>
+            <button class="actionbtn" @click="saveEdit">Ulozit</button>
+            <button class="ghostbtn" @click="closeEdit">Zrusit</button>
           </div>
         </div>
       </div>
@@ -236,6 +101,11 @@
 
 <script>
 import api from '@/services/api'
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
+
+const { confirm, prompt } = useConfirm()
+const toast = useToast()
 
 export default {
   name: 'TodayTab',
@@ -243,45 +113,26 @@ export default {
     return {
       loading: false,
       error: null,
-      successMessage: null,
+      searchQuery: '',
+      searchDebounce: null,
       actionLoading: {},
       items: [],
+      editItem: null,
       pagination: {
         current_page: 1,
         last_page: 1,
-        per_page: 50,
+        per_page: 20,
         total: 0,
       },
-      searchQuery: '',
-      sourceFilter: '',
-      searchDebounce: null,
-      selectedItems: [],
-      bulkLoading: false,
-      editItem: null,
-      statusFilter: '',
-      fetching: false,
-      fetchResult: null,
-      previewItem: null,
-      scheduleItem: null,
-      scheduleFor: '',
-      publishingScheduled: false,
     }
   },
   watch: {
-    statusFilter() {
-      this.pagination.current_page = 1
-      this.loadItems()
-    },
-    sourceFilter() {
-      this.pagination.current_page = 1
-      this.loadItems()
-    },
     searchQuery() {
       clearTimeout(this.searchDebounce)
       this.searchDebounce = setTimeout(() => {
         this.pagination.current_page = 1
         this.loadItems()
-      }, 500)
+      }, 400)
     },
   },
   created() {
@@ -292,52 +143,37 @@ export default {
       this.loading = true
       this.error = null
       try {
-        const params = {
-          scope: 'today',
-          page: this.pagination.current_page,
-          per_page: this.pagination.per_page,
-        }
-        if (this.statusFilter) params.status = this.statusFilter
-        if (this.sourceFilter) params.source = this.sourceFilter
-        if (this.searchQuery) params.search = this.searchQuery
-        
-        const res = await api.get('/admin/astrobot/items', { params })
-        this.items = res.data.data || []
+        const res = await api.get('/admin/astrobot/items', {
+          params: {
+            status: 'needs_review',
+            scope: 'all',
+            search: this.searchQuery || undefined,
+            page: this.pagination.current_page,
+            per_page: this.pagination.per_page,
+          },
+        })
+        this.items = (res.data.data || []).map((item) => ({
+          ...item,
+          domain: this.extractDomain(item.url),
+        }))
         this.pagination = {
           current_page: res.data.current_page || 1,
           last_page: res.data.last_page || 1,
-          per_page: res.data.per_page || 50,
+          per_page: res.data.per_page || 20,
           total: res.data.total || 0,
         }
       } catch (err) {
-        this.error = err?.response?.data?.message || err?.message || 'Failed to load items.'
+        this.error = err?.response?.data?.message || err?.message || 'Nepodarilo sa nacitat inbox.'
       } finally {
         this.loading = false
       }
     },
 
-    async fetchNow() {
-      this.fetching = true
-      this.fetchResult = null
-      try {
-        const res = await api.post('/admin/astrobot/fetch')
-        this.fetchResult = res.data
-        // Refresh list
-        await this.loadItems()
-      } catch (err) {
-        this.error = 'Fetch failed: ' + (err?.response?.data?.message || err?.message)
-      } finally {
-        this.fetching = false
-      }
-    },
-
-    preview(item) {
-      this.previewItem = item
+    openEdit(item) {
       this.editItem = { ...item }
     },
 
-    closePreview() {
-      this.previewItem = null
+    closeEdit() {
       this.editItem = null
     },
 
@@ -348,138 +184,74 @@ export default {
           title: this.editItem.title,
           summary: this.editItem.summary,
         })
-        this.successMessage = 'Item updated successfully'
-        this.closePreview()
+        this.closeEdit()
         await this.loadItems()
+        toast.success('Polozka bola upravena.')
       } catch (err) {
-        this.error = 'Update failed: ' + (err?.response?.data?.message || err?.message)
+        this.error = 'Uprava zlyhala: ' + (err?.response?.data?.message || err?.message)
+        toast.error(this.error)
       }
     },
 
-    toggleSelection(itemId) {
-      const index = this.selectedItems.indexOf(itemId)
-      if (index > -1) {
-        this.selectedItems.splice(index, 1)
-      } else {
-        this.selectedItems.push(itemId)
-      }
-    },
-
-    clearSelection() {
-      this.selectedItems = []
-    },
-
-    async bulkApprove() {
-      await this.bulkAction('approve')
-    },
-
-    async bulkPublish() {
-      if (!confirm('Publish selected items now?')) return
-      await this.bulkAction('publish')
-    },
-
-    async bulkDiscard() {
-      const reason = prompt('Reason for discard (optional):')
-      await this.bulkAction('discard', { reason })
-    },
-
-    async bulkAction(action, data = {}) {
-      this.bulkLoading = true
-      try {
-        await api.post('/admin/astrobot/bulk', {
-          action,
-          item_ids: this.selectedItems,
-          ...data
-        })
-        this.successMessage = `Bulk ${action} completed successfully`
-        this.clearSelection()
-        await this.loadItems()
-      } catch (err) {
-        this.error = `Bulk ${action} failed: ` + (err?.response?.data?.message || err?.message)
-      } finally {
-        this.bulkLoading = false
-      }
-    },
-
-    openSchedule(item) {
-      this.scheduleItem = item
-      // Default to tomorrow same time
-      const tomorrow = new Date()
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      this.scheduleFor = tomorrow.toISOString().slice(0, 16)
-    },
-
-    closeSchedule() {
-      this.scheduleItem = null
-      this.scheduleFor = ''
-    },
-
-    async confirmSchedule() {
-      if (!this.scheduleItem || !this.scheduleFor) return
-      try {
-        await api.post(`/admin/astrobot/items/${this.scheduleItem.id}/schedule`, {
-          scheduled_for: new Date(this.scheduleFor).toISOString(),
-        })
-        this.closeSchedule()
-        await this.loadItems()
-      } catch (err) {
-        this.error = 'Schedule failed: ' + (err?.response?.data?.message || err?.message)
-      }
-    },
-
-    async publishNow(item) {
-      if (!confirm('Publish this item now?')) return
+    async publishItem(item) {
+      const ok = await confirm({
+        title: 'Publikovat polozku',
+        message: 'Publikovat tuto polozku?',
+        confirmText: 'Publish',
+        cancelText: 'Cancel',
+      })
+      if (!ok) return
       this.actionLoading[item.id] = 'publish'
       try {
         await api.post(`/admin/astrobot/items/${item.id}/publish`)
-        this.successMessage = 'Item published successfully'
         await this.loadItems()
+        toast.success('Polozka bola publikovana.')
       } catch (err) {
-        this.error = 'Publish failed: ' + (err?.response?.data?.message || err?.message)
+        this.error = 'Publikovanie zlyhalo: ' + (err?.response?.data?.message || err?.message)
+        toast.error(this.error)
       } finally {
         delete this.actionLoading[item.id]
       }
     },
 
-    async discard(item) {
-      const reason = prompt('Reason for discard (optional):')
-      this.actionLoading[item.id] = 'discard'
+    async rejectItem(item) {
+      const note = await prompt({
+        title: 'Zamietnut polozku',
+        message: 'Dovod zamietnutia (volitelne):',
+        placeholder: 'Napis poznamku',
+        confirmText: 'Reject',
+        cancelText: 'Cancel',
+      })
+      if (note === null) return
+      this.actionLoading[item.id] = 'reject'
       try {
-        await api.post(`/admin/astrobot/items/${item.id}/discard`, { reason })
-        this.successMessage = 'Item discarded successfully'
+        await api.post(`/admin/astrobot/items/${item.id}/reject`, { note })
         await this.loadItems()
+        toast.success('Polozka bola zamietnuta.')
       } catch (err) {
-        this.error = 'Discard failed: ' + (err?.response?.data?.message || err?.message)
+        this.error = 'Reject zlyhal: ' + (err?.response?.data?.message || err?.message)
+        toast.error(this.error)
       } finally {
         delete this.actionLoading[item.id]
       }
     },
 
-    async publishScheduledNow() {
-      this.publishingScheduled = true
+    extractDomain(url) {
       try {
-        const res = await api.post('/admin/astrobot/publish-scheduled')
-        const message = res.data?.message || 'Scheduled items published.'
-        this.successMessage = message
-        // Refresh list
-        await this.loadItems()
-      } catch (err) {
-        this.error = 'Publish scheduled failed: ' + (err?.response?.data?.message || err?.message)
-      } finally {
-        this.publishingScheduled = false
+        return new URL(url).hostname
+      } catch {
+        return ''
       }
     },
 
     truncate(text, max) {
       if (!text) return ''
-      if (text.length <= max) return text
-      return text.slice(0, max) + '…'
+      return text.length > max ? text.slice(0, max) + '...' : text
     },
 
     formatDateTime(value) {
       if (!value) return ''
-      const d = new Date(value)
-      return d.toLocaleString()
+      return new Date(value).toLocaleString('sk-SK')
     },
 
     goToPage(page) {
@@ -491,292 +263,33 @@ export default {
 </script>
 
 <style scoped>
-.todayTab {
-  display: grid;
-  gap: 1.5rem;
-}
-
-.tabActions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.filterSelect {
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-text-secondary);
-  background: var(--color-bg);
-  color: var(--color-surface);
-}
-
-.searchInput {
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-text-secondary);
-  background: var(--color-bg);
-  color: var(--color-surface);
-  min-width: 200px;
-}
-
-.bulkActions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 1rem;
-  background: rgb(var(--color-primary-rgb) / 0.1);
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.3);
-  border-radius: 1rem;
-  margin-bottom: 1rem;
-}
-
-.bulkInfo {
-  font-weight: 600;
-  color: var(--color-primary);
-  margin-right: auto;
-}
-
-.itemCheckbox {
-  width: 1.25rem;
-  height: 1.25rem;
-  margin-right: 0.75rem;
-  cursor: pointer;
-}
-
-.formGroup {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.formGroup label {
-  font-weight: 600;
-  color: var(--color-surface);
-}
-
-.formInput,
-.formTextarea {
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-text-secondary);
-  background: var(--color-bg);
-  color: var(--color-surface);
-  font-family: inherit;
-}
-
-.formTextarea {
-  resize: vertical;
-  min-height: 100px;
-}
-
-.fetchResult {
-  display: flex;
-  gap: 2rem;
-  padding: 1rem;
-  background: rgb(var(--color-bg-rgb) / 0.6);
-  border-radius: 1rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-}
-
-.resultItem {
-  display: flex;
-  flex-direction: column;
-}
-
-.resultLabel {
-  font-size: 0.85rem;
-  color: var(--color-text-secondary);
-}
-
-.resultValue {
-  font-weight: 700;
-  color: var(--color-surface);
-}
-
-.itemsList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 1rem;
-}
-
-.itemCard {
-  padding: 1.25rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(var(--color-bg-rgb) / 0.4);
-  border-radius: 1rem;
-  display: grid;
-  gap: 0.75rem;
-}
-
-.itemHeader {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.itemBadge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.badge-pending { background: #f59e0b; color: #fff; }
-.badge-approved { background: #10b981; color: #fff; }
-.badge-scheduled { background: #3b82f6; color: #fff; }
-.badge-published { background: #6b7280; color: #fff; }
-.badge-discarded { background: #ef4444; color: #fff; }
-.badge-error { background: #dc2626; color: #fff; }
-
-.stateSuccess {
-  padding: 2rem;
-  text-align: center;
-  background: rgb(34 197 94 / 0.1);
-  border: 1px solid rgb(34 197 94 / 0.3);
-  border-radius: 1rem;
-  color: var(--color-surface);
-}
-
-.stateError {
-  padding: 2rem;
-  text-align: center;
-  background: rgb(239 68 68 / 0.1);
-  border: 1px solid rgb(239 68 68 / 0.3);
-  border-radius: 1rem;
-  color: var(--color-surface);
-}
-
-.stateTitle {
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.stateText {
-  margin-bottom: 1rem;
-  color: var(--color-text-secondary);
-}
-
-.sourceBadge {
-  padding: 0.25rem 0.75rem;
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  color: var(--color-primary);
-  border-radius: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.itemTitle {
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: var(--color-surface);
-}
-
-.itemSummary {
-  color: var(--color-text-secondary);
-  line-height: 1.5;
-}
-
-.itemMeta {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  font-size: 0.85rem;
-  color: var(--color-text-secondary);
-}
-
-.itemActions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modalCard {
-  background: var(--color-bg);
-  border: 1px solid var(--color-text-secondary);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  max-width: 500px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-.modalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.modalBody {
-  display: grid;
-  gap: 1rem;
-}
-
-.modalActions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  margin-top: 1rem;
-}
-
-.scheduleInput {
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-text-secondary);
-  background: var(--color-bg);
-  color: var(--color-surface);
-}
-
-.pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 2rem;
-  padding: 1rem;
-  background: rgb(var(--color-bg-rgb) / 0.6);
-  border-radius: 1rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-}
-
-.paginationBtn {
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-text-secondary);
-  background: var(--color-bg);
-  color: var(--color-surface);
-  cursor: pointer;
-  transition: all 0.2s ease-out;
-}
-
-.paginationBtn:hover:not(:disabled) {
-  background: rgb(var(--color-bg-rgb) / 0.8);
-}
-
-.paginationBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.paginationInfo {
-  font-size: 0.9rem;
-  color: var(--color-text-secondary);
-}
+.inboxTab { display: grid; gap: 1rem; }
+.tabActions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+.searchInput { padding: 0.5rem 0.7rem; border-radius: 0.5rem; border: 1px solid var(--color-text-secondary); background: var(--color-bg); color: var(--color-surface); min-width: 240px; }
+.actionsHint { border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2); background: rgb(var(--color-bg-rgb) / 0.45); border-radius: 0.8rem; padding: 0.75rem 0.9rem; color: var(--color-text-secondary); font-size: 0.88rem; }
+.itemsList { list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; }
+.itemCard { padding: 1rem; border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2); background: rgb(var(--color-bg-rgb) / 0.4); border-radius: 0.9rem; display: grid; gap: 0.6rem; }
+.itemHeader { display: flex; gap: 0.5rem; align-items: center; }
+.itemBadge { padding: 0.2rem 0.6rem; border-radius: 0.4rem; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; }
+.badge-review { background: #f59e0b; color: #fff; }
+.sourceBadge { padding: 0.2rem 0.6rem; background: rgb(var(--color-primary-rgb) / 0.16); color: var(--color-primary); border-radius: 0.4rem; font-size: 0.78rem; }
+.itemTitle { font-weight: 700; color: var(--color-surface); }
+.itemSummary { color: var(--color-text-secondary); }
+.itemMeta { display: flex; gap: 0.8rem; flex-wrap: wrap; font-size: 0.83rem; color: var(--color-text-secondary); }
+.itemActions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.danger { color: var(--color-danger); border-color: var(--color-danger); }
+.pagination { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem; border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2); border-radius: 0.8rem; }
+.paginationBtn { padding: 0.4rem 0.7rem; border-radius: 0.5rem; border: 1px solid var(--color-text-secondary); background: var(--color-bg); color: var(--color-surface); }
+.paginationInfo { color: var(--color-text-secondary); font-size: 0.85rem; }
+.modalOverlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modalCard { background: var(--color-bg); border: 1px solid var(--color-text-secondary); border-radius: 0.9rem; padding: 1rem; width: min(560px, 92vw); }
+.modalHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.7rem; }
+.modalBody { display: grid; gap: 0.7rem; }
+.formGroup { display: grid; gap: 0.35rem; }
+.formInput, .formTextarea { padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--color-text-secondary); background: var(--color-bg); color: var(--color-surface); }
+.modalActions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.state { padding: 1.4rem; border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.35); border-radius: 0.9rem; }
+.stateTitle { font-weight: 700; color: var(--color-surface); margin-bottom: 0.3rem; }
+.stateText { color: var(--color-text-secondary); }
+.stateError { border-style: solid; border-color: rgb(var(--color-danger-rgb) / 0.4); background: rgb(var(--color-danger-rgb) / 0.08); }
 </style>

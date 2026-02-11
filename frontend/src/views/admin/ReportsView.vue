@@ -6,9 +6,13 @@ import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import AdminToolbar from '@/components/admin/shared/AdminToolbar.vue'
 import AdminDataTable from '@/components/admin/shared/AdminDataTable.vue'
 import AdminPagination from '@/components/admin/shared/AdminPagination.vue'
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
+const { confirm } = useConfirm()
+const toast = useToast()
 
 const loading = ref(false)
 const error = ref('')
@@ -125,7 +129,13 @@ function updateRow(updated) {
 
 async function act(report, action) {
   if (!report?.id) return
-  const ok = window.confirm(`Confirm ${action}?`)
+  const ok = await confirm({
+    title: 'Potvrdenie akcie',
+    message: `Naozaj chces vykonat akciu "${action}"?`,
+    confirmText: action === 'delete' || action === 'ban' ? 'Pokracovat' : 'Potvrdit',
+    cancelText: 'Zrusit',
+    variant: action === 'delete' || action === 'ban' ? 'danger' : 'default',
+  })
   if (!ok) return
 
   loading.value = true
@@ -134,8 +144,10 @@ async function act(report, action) {
   try {
     const res = await api.post(`/admin/reports/${report.id}/${action}`)
     updateRow(res.data)
+    toast.success('Akcia bola vykonana.')
   } catch (e) {
     error.value = e?.response?.data?.message || 'Action failed.'
+    toast.error(error.value)
   } finally {
     loading.value = false
   }

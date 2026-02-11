@@ -1,10 +1,12 @@
 <template>
   <div class="publishedTab">
     <div class="tabActions">
-      <button class="actionbtn" @click="loadPosts" :disabled="loading">
-        {{ loading ? 'Loading…' : 'Refresh' }}
+      <button class="actionbtn" @click="loadItems" :disabled="loading">
+        {{ loading ? 'Nacitavam...' : 'Obnovit zoznam' }}
       </button>
     </div>
+
+    <div class="tabHint">Tu vidis RSS polozky, ktore boli automaticky alebo manualne publikovane.</div>
 
     <div v-if="loading" class="panelLoading">
       <div class="skeleton h-4 w-3/4"></div>
@@ -13,233 +15,114 @@
     </div>
 
     <div v-else-if="error" class="state stateError">
-      <div class="stateTitle">Nepodarilo sa načítať</div>
+      <div class="stateTitle">Nepodarilo sa nacitat data</div>
       <div class="stateText">{{ error }}</div>
-      <button class="ghostbtn" @click="loadPosts">Skúsiť znova</button>
+      <button class="ghostbtn" @click="loadItems">Skusit znova</button>
     </div>
 
-    <div v-else-if="posts.length === 0" class="state">
-      <div class="stateTitle">Žiadne publikované príspevky</div>
+    <div v-else-if="items.length === 0" class="state">
+      <div class="stateTitle">Ziadne publikovane polozky</div>
     </div>
 
     <ul v-else class="postsList">
-      <li v-for="post in posts" :key="post.id" class="postCard">
+      <li v-for="item in items" :key="item.id" class="postCard">
         <div class="postHeader">
-          <span class="postBadge">AstroBot</span>
-          <span class="postMeta">Created: {{ formatDateTime(post.created_at) }}</span>
+          <span class="postBadge">published</span>
+          <span class="postMeta">RSS datum: {{ formatDateTime(item.published_at) }}</span>
         </div>
 
-        <div class="postContent">{{ post.content }}</div>
+        <div class="postContent">{{ item.title }}</div>
+        <div v-if="item.summary" class="postSummary">{{ truncate(item.summary, 200) }}</div>
 
         <div class="postActions">
-          <a
-            v-if="extractUrl(post.content)"
-            :href="extractUrl(post.content)"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="ghostbtn"
-          >
-            Open original
-          </a>
-          <button class="ghostbtn danger" @click="deletePost(post)">
-            Hide
-          </button>
+          <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="ghostbtn">Otvorit zdroj</a>
+          <button class="ghostbtn danger" @click="rejectItem(item)">Presunut do rejected</button>
         </div>
       </li>
     </ul>
-
-    <!-- Confirm Delete Modal -->
-    <div v-if="deletePostItem" class="modalOverlay" @click="cancelDelete">
-      <div class="modalCard" @click.stop>
-        <div class="modalHeader">
-          <h2>Hide this post?</h2>
-          <button class="ghostbtn" @click="cancelDelete">&times;</button>
-        </div>
-        <div class="modalBody">
-          <p>This will hide the post from the feed (soft delete).</p>
-          <div class="modalActions">
-            <button class="actionbtn danger" @click="confirmDelete">Hide</button>
-            <button class="ghostbtn" @click="cancelDelete">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script>
 import api from '@/services/api'
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
+
+const { prompt } = useConfirm()
+const toast = useToast()
 
 export default {
   name: 'PublishedTab',
   data() {
-    return {
-      loading: false,
-      error: null,
-      posts: [],
-      deletePostItem: null,
-    }
+    return { loading: false, error: null, items: [] }
   },
   created() {
-    this.loadPosts()
+    this.loadItems()
   },
   methods: {
-    async loadPosts() {
+    async loadItems() {
       this.loading = true
       this.error = null
       try {
-        const res = await api.get('/admin/astrobot/posts', { params: { scope: 'today' } })
-        this.posts = res.data.data || []
+        const res = await api.get('/admin/astrobot/items', {
+          params: { status: 'published', scope: 'all', per_page: 50 },
+        })
+        this.items = res.data.data || []
       } catch (err) {
-        this.error = err?.response?.data?.message || err?.message || 'Failed to load posts.'
+        this.error = err?.response?.data?.message || err?.message || 'Nepodarilo sa nacitat polozky.'
       } finally {
         this.loading = false
       }
     },
 
-    deletePost(post) {
-      this.deletePostItem = post
-    },
-
-    cancelDelete() {
-      this.deletePostItem = null
-    },
-
-    async confirmDelete() {
-      if (!this.deletePostItem) return
+    async rejectItem(item) {
+      const note = await prompt({
+        title: 'Presunut do rejected',
+        message: 'Dovod presunu do rejected (volitelne):',
+        placeholder: 'Napis poznamku',
+        confirmText: 'Presunut',
+        cancelText: 'Cancel',
+        variant: 'danger',
+      })
+      if (note === null) return
       try {
-        await api.delete(`/admin/astrobot/posts/${this.deletePostItem.id}`)
-        this.deletePostItem = null
-        await this.loadPosts()
+        await api.post(`/admin/astrobot/items/${item.id}/reject`, { note })
+        await this.loadItems()
+        toast.success('Polozka bola presunuta do rejected.')
       } catch (err) {
-        alert('Delete failed: ' + (err?.response?.data?.message || err?.message))
+        this.error = 'Akcia zlyhala: ' + (err?.response?.data?.message || err?.message)
+        toast.error(this.error)
       }
     },
 
-    extractUrl(content) {
-      // Simple regex to extract URL from content (last line)
-      const match = content.match(/https?:\/\/[^\s]+$/m)
-      return match ? match[0] : null
+    formatDateTime(value) {
+      if (!value) return '-'
+      return new Date(value).toLocaleString('sk-SK')
     },
 
-    formatDateTime(value) {
-      if (!value) return ''
-      const d = new Date(value)
-      return d.toLocaleString()
+    truncate(text, max) {
+      if (!text) return ''
+      return text.length > max ? text.slice(0, max) + '...' : text
     },
   },
 }
 </script>
 
 <style scoped>
-.publishedTab {
-  display: grid;
-  gap: 1.5rem;
-}
-
-.tabActions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.postsList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 1rem;
-}
-
-.postCard {
-  padding: 1.25rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(var(--color-bg-rgb) / 0.4);
-  border-radius: 1rem;
-  display: grid;
-  gap: 0.75rem;
-}
-
-.postHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.postBadge {
-  padding: 0.25rem 0.75rem;
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  color: var(--color-primary);
-  border-radius: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.postMeta {
-  font-size: 0.85rem;
-  color: var(--color-text-secondary);
-}
-
-.postContent {
-  white-space: pre-wrap;
-  color: var(--color-surface);
-  line-height: 1.5;
-}
-
-.postActions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.danger {
-  color: var(--color-danger);
-  border-color: var(--color-danger);
-}
-
-.danger:hover {
-  background: rgb(var(--color-danger-rgb) / 0.1);
-}
-
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modalCard {
-  background: var(--color-bg);
-  border: 1px solid var(--color-text-secondary);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  max-width: 400px;
-  width: 90%;
-}
-
-.modalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.modalBody {
-  display: grid;
-  gap: 1rem;
-}
-
-.modalActions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  margin-top: 1rem;
-}
+.publishedTab { display: grid; gap: 1rem; }
+.tabActions { display: flex; gap: 1rem; }
+.tabHint { border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2); background: rgb(var(--color-bg-rgb) / 0.45); border-radius: 0.8rem; padding: 0.75rem 0.9rem; color: var(--color-text-secondary); font-size: 0.88rem; }
+.postsList { list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; }
+.postCard { padding: 1rem; border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2); background: rgb(var(--color-bg-rgb) / 0.4); border-radius: 0.9rem; display: grid; gap: 0.6rem; }
+.postHeader { display: flex; justify-content: space-between; align-items: center; }
+.postBadge { padding: 0.25rem 0.7rem; background: #10b981; color: #fff; border-radius: 0.4rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.postMeta { color: var(--color-text-secondary); font-size: 0.83rem; }
+.postContent { color: var(--color-surface); font-weight: 700; }
+.postSummary { color: var(--color-text-secondary); }
+.postActions { display: flex; gap: 0.5rem; }
+.danger { color: var(--color-danger); border-color: var(--color-danger); }
+.state { padding: 1.3rem; border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.35); border-radius: 0.9rem; }
+.stateError { border-style: solid; border-color: rgb(var(--color-danger-rgb) / 0.4); background: rgb(var(--color-danger-rgb) / 0.08); }
+.stateTitle { font-weight: 700; color: var(--color-surface); }
+.stateText { color: var(--color-text-secondary); }
 </style>

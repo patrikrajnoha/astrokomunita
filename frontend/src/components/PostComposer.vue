@@ -1,14 +1,14 @@
-<template>
-  <section class="card">
-    <div class="head">
-      <div>
-        <div class="title">Zdieľaj pozorovanie</div>
-        <div class="sub">Krátky príspevok do feedu (max 280 znakov).</div>
+﻿<template>
+  <section class="composerCard">
+    <header class="composerHead">
+      <div class="titleWrap">
+        <div class="title">Zdielaj pozorovanie</div>
+        <div class="sub">Kratky prispevok do feedu (max 280 znakov).</div>
       </div>
-    </div>
+    </header>
 
-    <div class="row">
-      <div class="avatar">
+    <div class="composerRow">
+      <div class="avatar" aria-hidden="true">
         <img
           v-if="avatarUrl"
           class="avatarImg"
@@ -18,20 +18,23 @@
         <span v-else>{{ initials }}</span>
       </div>
 
-      <div class="body">
+      <div class="composerBody">
+        <label for="post-composer-textarea" class="srOnly">Text prispevku</label>
         <textarea
+          id="post-composer-textarea"
           ref="textareaRef"
           v-model="content"
-          class="input"
-          rows="3"
+          class="composerInput"
+          :class="{ expanded: isExpanded }"
+          rows="1"
           maxlength="280"
-          placeholder="Čo sa deje na oblohe?"
+          placeholder="Co sa deje na oblohe?"
+          @focus="onFocus"
           @input="onTyping"
           @keydown="onKeydown"
           @blur="onBlur"
         />
 
-        <!-- Hashtag autocomplete popover -->
         <div
           v-if="showAutocomplete && suggestions.length > 0"
           class="autocompletePopover"
@@ -50,18 +53,20 @@
           </div>
         </div>
 
-        <!-- Media preview -->
         <div v-if="imagePreviewUrl" class="mediaCard">
           <img class="mediaImg" :src="imagePreviewUrl" alt="Preview" />
-          <button class="removeMedia" type="button" :disabled="posting" @click="removeFile">
-            ✕
+          <button class="removeMedia" type="button" :disabled="posting" aria-label="Odstranit prilohu" @click="removeFile">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+            </svg>
           </button>
         </div>
 
-        <!-- File chip (non-image) -->
         <div v-else-if="file" class="fileChip">
           <div class="fileLeft">
-            <span class="clip">📎</span>
+            <svg class="clipIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="m21.4 11-8.5 8.5a5.5 5.5 0 1 1-7.8-7.8l8.9-8.9a3.5 3.5 0 1 1 5 5l-9 9a1.5 1.5 0 0 1-2.1-2.1l8-8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
             <div class="fileText">
               <div class="fileName">{{ file.name }}</div>
               <div class="fileMeta">{{ prettySize(file.size) }}</div>
@@ -69,12 +74,12 @@
           </div>
 
           <button class="fileRemove" type="button" :disabled="posting" @click="removeFile">
-            Odstrániť
+            Odstranit
           </button>
         </div>
 
-        <div class="bar">
-          <div class="left">
+        <div class="actionsBar">
+          <div class="leftActions">
             <input
               ref="fileInput"
               type="file"
@@ -82,18 +87,31 @@
               :accept="accept"
               @change="onFileChange"
             />
-            <button class="ghostbtn" type="button" :disabled="posting" @click="pickFile">
-              Pridať prílohu
+            <button
+              class="attachBtn"
+              type="button"
+              :disabled="posting"
+              aria-label="Pridat prilohu"
+              @click="pickFile"
+            >
+              <svg class="btnIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="m21.4 11-8.5 8.5a5.5 5.5 0 1 1-7.8-7.8l8.9-8.9a3.5 3.5 0 1 1 5 5l-9 9a1.5 1.5 0 0 1-2.1-2.1l8-8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span class="attachText">Pridat prilohu</span>
             </button>
           </div>
 
-          <div class="right">
-            <div class="counter" :class="{ warn: remaining <= 20 && remaining >= 0, bad: remaining < 0 }">
+          <div class="rightActions">
+            <div class="counter" :class="{ warn: content.length > 260 && content.length <= 280, bad: content.length > 280 }">
               {{ content.length }}/280
             </div>
 
-            <button class="actionbtn" type="button" :disabled="isSubmitDisabled" @click="submit">
-              {{ posting ? 'Publikujem…' : 'Publikovať' }}
+            <button class="publishBtn" type="button" :disabled="isSubmitDisabled" aria-label="Publikovat" @click="submit">
+              <svg class="btnIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M22 2 11 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M22 2 15 22l-4-9-9-4 20-7Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>{{ posting ? 'Publikujem...' : 'Publikovat' }}</span>
             </button>
           </div>
         </div>
@@ -112,9 +130,8 @@ import { useAuthStore } from '@/stores/auth'
 const emit = defineEmits(['created'])
 
 const props = defineProps({
-  // držíme sa backendu (max 5MB + mimes)
   accept: { type: String, default: 'image/*,.pdf,.txt,.doc,.docx' },
-  maxBytes: { type: Number, default: 5 * 1024 * 1024 }, // 5MB
+  maxBytes: { type: Number, default: 5 * 1024 * 1024 },
 })
 
 const auth = useAuthStore()
@@ -124,8 +141,8 @@ const file = ref(null)
 const imagePreviewUrl = ref(null)
 const posting = ref(false)
 const err = ref('')
+const isFocused = ref(false)
 
-// Hashtag autocomplete
 const showAutocomplete = ref(false)
 const suggestions = ref([])
 const selectedIndex = ref(0)
@@ -145,8 +162,6 @@ const initials = computed(() => {
   return (a + b).toUpperCase()
 })
 
-const remaining = computed(() => 280 - content.value.length)
-
 const avatarUrl = computed(() => {
   const raw = auth?.user?.avatar_url || auth?.user?.avatarUrl || ''
   if (!raw) return ''
@@ -159,6 +174,8 @@ const avatarUrl = computed(() => {
   return origin + '/' + raw
 })
 
+const isExpanded = computed(() => isFocused.value || content.value.trim().length > 0 || !!file.value)
+
 const isSubmitDisabled = computed(() => {
   if (posting.value) return true
   if (!content.value.trim()) return true
@@ -166,19 +183,20 @@ const isSubmitDisabled = computed(() => {
   return false
 })
 
+function onFocus() {
+  isFocused.value = true
+}
+
 function onTyping(event) {
   if (err.value && content.value.length <= 280) err.value = ''
-  
-  // Handle hashtag autocomplete
+
   const target = event?.target
   if (!target) return
-  
+
   const cursorPos = target.selectionStart
   const textBefore = content.value.substring(0, cursorPos)
-  
-  // Find current hashtag token
   const hashtagMatch = textBefore.match(/#([a-zA-Z0-9_]*)$/)
-  
+
   if (hashtagMatch) {
     const query = hashtagMatch[1]
     if (query.length >= 1) {
@@ -196,29 +214,26 @@ function onTyping(event) {
 
 function updateAutocompletePosition(textarea) {
   const rect = textarea.getBoundingClientRect()
-  const lineHeight = 24 // Approximate line height
+  const lineHeight = 24
   const lineHeightPx = parseInt(getComputedStyle(textarea).lineHeight) || lineHeight
-  
-  // Calculate position based on cursor position
+
   const lines = content.value.substring(0, textarea.selectionStart).split('\n')
   const currentLine = lines.length - 1
   const charInLine = lines[lines.length - 1].length
-  
+
   autocompletePosition.value = {
     top: rect.top + window.scrollY + (currentLine * lineHeightPx) + lineHeightPx,
-    left: rect.left + window.scrollX + Math.min(charInLine * 8, rect.width - 200) // Approximate char width
+    left: rect.left + window.scrollX + Math.min(charInLine * 8, rect.width - 200),
   }
 }
 
 async function fetchSuggestions(query) {
-  // Check cache first
   if (suggestionCache.value.has(query)) {
     suggestions.value = suggestionCache.value.get(query)
     selectedIndex.value = 0
     return
   }
 
-  // Debounce API calls
   if (debounceTimer.value) {
     clearTimeout(debounceTimer.value)
   }
@@ -229,11 +244,8 @@ async function fetchSuggestions(query) {
       const data = res.data || []
       suggestions.value = data
       selectedIndex.value = 0
-      
-      // Cache the result
       suggestionCache.value.set(query, data)
-    } catch (e) {
-      console.error('Failed to fetch suggestions:', e)
+    } catch {
       suggestions.value = []
     }
   }, 200)
@@ -247,54 +259,59 @@ function hideAutocomplete() {
 
 function selectSuggestion(suggestion) {
   if (!suggestion) return
-  
+
   const cursorPos = textareaRef.value?.selectionStart || content.value.length
   const beforeHashtag = content.value.substring(0, currentHashtagStart.value)
   const afterHashtag = content.value.substring(cursorPos)
-  
-  // Replace partial hashtag with full suggestion
+
   content.value = beforeHashtag + '#' + suggestion.name + ' ' + afterHashtag
-  
-  // Update cursor position
+
   nextTick(() => {
-    const newCursorPos = beforeHashtag.length + suggestion.name.length + 2 // # + space
+    const newCursorPos = beforeHashtag.length + suggestion.name.length + 2
     if (textareaRef.value) {
       textareaRef.value.setSelectionRange(newCursorPos, newCursorPos)
       textareaRef.value.focus()
     }
   })
-  
+
   hideAutocomplete()
 }
 
 function onKeydown(event) {
-  if (!showAutocomplete.value || suggestions.value.length === 0) return
-  
-  switch (event.key) {
-    case 'ArrowDown':
-      event.preventDefault()
-      selectedIndex.value = (selectedIndex.value + 1) % suggestions.value.length
-      break
-    case 'ArrowUp':
-      event.preventDefault()
-      selectedIndex.value = selectedIndex.value === 0 ? suggestions.value.length - 1 : selectedIndex.value - 1
-      break
-    case 'Enter':
-    case 'Tab':
-      event.preventDefault()
-      if (selectedIndex.value >= 0 && selectedIndex.value < suggestions.value.length) {
-        selectSuggestion(suggestions.value[selectedIndex.value])
-      }
-      break
-    case 'Escape':
-      event.preventDefault()
-      hideAutocomplete()
-      break
+  if (showAutocomplete.value && suggestions.value.length > 0) {
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault()
+        selectedIndex.value = (selectedIndex.value + 1) % suggestions.value.length
+        return
+      case 'ArrowUp':
+        event.preventDefault()
+        selectedIndex.value = selectedIndex.value === 0 ? suggestions.value.length - 1 : selectedIndex.value - 1
+        return
+      case 'Enter':
+      case 'Tab':
+        event.preventDefault()
+        if (selectedIndex.value >= 0 && selectedIndex.value < suggestions.value.length) {
+          selectSuggestion(suggestions.value[selectedIndex.value])
+        }
+        return
+      case 'Escape':
+        event.preventDefault()
+        hideAutocomplete()
+        return
+    }
+  }
+
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    event.preventDefault()
+    if (!isSubmitDisabled.value) {
+      submit()
+    }
   }
 }
 
 function onBlur() {
-  // Delay hiding to allow click events on suggestions
+  isFocused.value = false
   setTimeout(hideAutocomplete, 200)
 }
 
@@ -320,7 +337,6 @@ function isImageFile(f) {
 }
 
 function isAllowedByMvp(f) {
-  // frontend check len ako UX; backend je zdroj pravdy
   const name = (f?.name || '').toLowerCase()
   return (
     isImageFile(f) ||
@@ -336,16 +352,15 @@ function onFileChange(e) {
   const f = e?.target?.files?.[0] || null
   if (!f) return
 
-  // reset predchádzajúceho stavu (pre konzistentné preview/input)
   removeFile()
 
   if (f.size > props.maxBytes) {
-    err.value = `Súbor je príliš veľký. Max ${prettySize(props.maxBytes)}.`
+    err.value = `Subor je prilis velky. Max ${prettySize(props.maxBytes)}.`
     return
   }
 
   if (!isAllowedByMvp(f)) {
-    err.value = 'Nepovolený typ súboru.'
+    err.value = 'Nepovoleny typ suboru.'
     return
   }
 
@@ -380,11 +395,12 @@ async function submit() {
     emit('created', res.data)
 
     content.value = ''
+    isFocused.value = false
     removeFile()
   } catch (e) {
     const status = e?.response?.status
-    if (status === 401) err.value = 'Pre publikovanie sa prihlás.'
-    else if (status === 422) err.value = 'Skontroluj text (1–280) a typ/veľkosť prílohy.'
+    if (status === 401) err.value = 'Pre publikovanie sa prihlas.'
+    else if (status === 422) err.value = 'Skontroluj text (1-280) a typ/velkost prilohy.'
     else err.value = e?.response?.data?.message || 'Publikovanie zlyhalo.'
   } finally {
     posting.value = false
@@ -395,129 +411,298 @@ onBeforeUnmount(() => revokePreview())
 </script>
 
 <style scoped>
-.card {
-  border: 1px solid var(--color-text-secondary);
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  border-radius: 1.5rem;
-  padding: 1.15rem;
-  width: 100%;
-  min-width: 0;
-}
-.head { display: flex; justify-content: space-between; gap: 1rem; }
-.title { font-size: 1.05rem; font-weight: 900; color: var(--color-surface); }
-.sub { margin-top: 0.25rem; color: var(--color-text-secondary); font-size: 0.9rem; }
+.composerCard {
+  --surface: rgb(var(--color-surface-rgb) / 0.98);
+  --muted: rgb(var(--color-text-secondary-rgb) / 0.92);
+  --border: rgb(var(--color-text-secondary-rgb) / 0.35);
+  --soft-border: rgb(var(--color-text-secondary-rgb) / 0.24);
+  --panel: rgb(var(--color-bg-rgb) / 0.58);
+  --panel-strong: rgb(var(--color-bg-rgb) / 0.72);
+  --primary: rgb(var(--color-primary-rgb) / 0.9);
 
-.row { display: grid; grid-template-columns: 56px 1fr; gap: 0.85rem; margin-top: 0.85rem; }
-.avatar {
-  width: 56px; height: 56px; border-radius: 999px;
-  display: grid; place-items: center;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.6);
-  background: rgb(var(--color-primary-rgb) / 0.12);
-  color: var(--color-surface); font-weight: 900; font-size: 1.05rem;
-  overflow: hidden;
+  border: 1px solid var(--border);
+  background: linear-gradient(165deg, rgb(var(--color-bg-rgb) / 0.7), rgb(var(--color-bg-rgb) / 0.52));
+  border-radius: 14px;
+  padding: 0.85rem;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
 }
+
+.composerHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.title {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--surface);
+}
+
+.sub {
+  margin-top: 0.18rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.composerRow {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: 0.7rem;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
+  background: rgb(var(--color-primary-rgb) / 0.15);
+  color: var(--surface);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
 .avatarImg {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
-.body { display: grid; gap: 0.6rem; }
 
-.input {
-  width: 100%;
-  min-height: clamp(120px, 22vh, 220px);
-  padding: 0.75rem 0.85rem;
-  border-radius: 1rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.9);
-  background: rgb(var(--color-bg-rgb) / 0.25);
-  color: var(--color-surface);
-  outline: none;
-  resize: vertical;
+.composerBody {
+  display: grid;
+  gap: 0.55rem;
 }
-.input:focus { border-color: rgb(var(--color-primary-rgb) / 0.9); }
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.composerInput {
+  width: 100%;
+  min-height: 48px;
+  max-height: 48px;
+  padding: 0.62rem 0.72rem;
+  border-radius: 12px;
+  border: 1px solid var(--soft-border);
+  background: var(--panel);
+  color: var(--surface);
+  outline: none;
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.45;
+  transition: max-height 0.2s ease, min-height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.composerInput::placeholder {
+  color: rgb(var(--color-text-secondary-rgb) / 0.88);
+}
+
+.composerInput.expanded {
+  min-height: 118px;
+  max-height: 190px;
+  background: var(--panel-strong);
+}
+
+.composerInput:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.18);
+}
 
 .mediaCard {
   position: relative;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
-  border-radius: 1rem;
+  border: 1px solid var(--soft-border);
+  border-radius: 12px;
   overflow: hidden;
-  background: rgb(var(--color-bg-rgb) / 0.25);
+  background: var(--panel);
 }
-.mediaImg { width: 100%; max-height: 360px; object-fit: cover; display: block; }
+
+.mediaImg {
+  width: 100%;
+  max-height: 280px;
+  object-fit: cover;
+  display: block;
+}
+
 .removeMedia {
-  position: absolute; top: 10px; right: 10px;
-  width: 34px; height: 34px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.9);
-  background: rgb(var(--color-bg-rgb) / 0.65);
-  color: var(--color-surface);
+  border: 1px solid var(--border);
+  background: rgb(var(--color-bg-rgb) / 0.75);
+  color: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-.removeMedia:hover { background: rgb(var(--color-bg-rgb) / 0.85); }
-.removeMedia:disabled { opacity: .6; cursor: not-allowed; }
+
+.removeMedia svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
 
 .fileChip {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: .75rem;
-  padding: .75rem .85rem;
-  border-radius: 1rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
-  background: rgb(var(--color-bg-rgb) / 0.25);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid var(--soft-border);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 0.55rem 0.65rem;
 }
-.fileLeft { display: flex; align-items: center; gap: .65rem; min-width: 0; }
-.clip { opacity: .9; }
-.fileText { min-width: 0; }
-.fileName { color: var(--color-surface); font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 520px; }
-.fileMeta { color: var(--color-text-secondary); font-size: .85rem; margin-top: .15rem; }
+
+.fileLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.clipIcon {
+  width: 0.9rem;
+  height: 0.9rem;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.fileText {
+  min-width: 0;
+}
+
+.fileName {
+  color: var(--surface);
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fileMeta {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
 .fileRemove {
-  padding: .45rem .7rem; border-radius: .9rem;
   border: 1px solid rgb(var(--color-danger-rgb) / 0.5);
-  background: rgb(var(--color-danger-rgb) / 0.12);
+  border-radius: 10px;
+  background: rgb(var(--color-danger-rgb) / 0.15);
+  color: var(--color-danger);
+  padding: 0.35rem 0.55rem;
+  font-size: 0.73rem;
+}
+
+.actionsBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.leftActions,
+.rightActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.fileInput {
+  display: none;
+}
+
+.attachBtn,
+.publishBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 34px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: background-color 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
+}
+
+.attachBtn {
+  border: 1px solid var(--border);
+  background: rgb(var(--color-bg-rgb) / 0.4);
+  color: var(--surface);
+  padding: 0.38rem 0.6rem;
+}
+
+.publishBtn {
+  border: 1px solid var(--primary);
+  background: rgb(var(--color-primary-rgb) / 0.2);
+  color: var(--surface);
+  padding: 0.38rem 0.66rem;
+}
+
+.attachBtn:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.7);
+}
+
+.publishBtn:hover {
+  background: rgb(var(--color-primary-rgb) / 0.28);
+}
+
+.attachBtn:disabled,
+.publishBtn:disabled,
+.removeMedia:disabled,
+.fileRemove:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.btnIcon {
+  width: 0.92rem;
+  height: 0.92rem;
+  flex: 0 0 auto;
+}
+
+.counter {
+  font-size: 0.74rem;
+  color: var(--muted);
+  opacity: 0.9;
+}
+
+.counter.warn {
+  color: rgb(250 204 21);
+}
+
+.counter.bad {
   color: var(--color-danger);
 }
-.fileRemove:hover { background: rgb(var(--color-danger-rgb) / 0.2); }
-.fileRemove:disabled { opacity: .6; cursor: not-allowed; }
 
-.bar { display: flex; justify-content: space-between; align-items: center; gap: .75rem; flex-wrap: wrap; }
-.left { display: flex; align-items: center; gap: .6rem; min-width: 0; }
-.right { display: flex; align-items: center; gap: .75rem; min-width: 0; }
-
-.fileInput { display: none; }
-
-.counter { color: var(--color-text-secondary); font-size: 0.85rem; }
-.counter.warn { color: var(--color-primary); }
-.counter.bad { color: var(--color-danger); }
-
-.actionbtn {
-  padding: 0.6rem 0.9rem;
-  border-radius: 0.9rem;
-  border: 1px solid var(--color-primary);
-  background: rgb(var(--color-primary-rgb) / 0.16);
-  color: var(--color-surface);
+.err {
+  color: var(--color-danger);
+  font-size: 0.84rem;
 }
-.actionbtn:hover { background: rgb(var(--color-primary-rgb) / 0.28); }
-.actionbtn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-.ghostbtn {
-  padding: 0.55rem 0.85rem;
-  border-radius: 0.9rem;
-  border: 1px solid var(--color-text-secondary);
-  color: var(--color-surface);
-  background: rgb(var(--color-bg-rgb) / 0.2);
-}
-.ghostbtn:hover { border-color: var(--color-primary); color: var(--color-surface); background: rgb(var(--color-primary-rgb) / 0.08); }
-.ghostbtn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.err { color: var(--color-danger); font-size: .95rem; }
-
-/* Hashtag autocomplete */
 .autocompletePopover {
   position: fixed;
   z-index: 1000;
   background: var(--color-bg);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 0.2);
   max-width: 300px;
   overflow: hidden;
 }
@@ -526,9 +711,8 @@ onBeforeUnmount(() => revokePreview())
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 0.85rem;
+  padding: 0.65rem 0.75rem;
   cursor: pointer;
-  transition: background-color 0.15s ease;
 }
 
 .autocompleteItem:hover,
@@ -537,42 +721,49 @@ onBeforeUnmount(() => revokePreview())
 }
 
 .suggestionName {
-  color: var(--color-surface);
+  color: var(--surface);
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .suggestionCount {
-  color: var(--color-text-secondary);
-  font-size: 0.85rem;
+  color: var(--muted);
+  font-size: 0.8rem;
   margin-left: 0.5rem;
 }
 
-@media (max-width: 768px) {
-  .card { border-radius: 1.15rem; }
-  .row { grid-template-columns: 44px 1fr; }
-  .avatar { width: 44px; height: 44px; font-size: 0.9rem; }
-  .fileName { max-width: 100%; }
-  .left, .right { width: 100%; justify-content: space-between; }
-  .ghostbtn, .actionbtn { min-height: 42px; }
-}
+@media (max-width: 640px) {
+  .composerCard {
+    border-radius: 12px;
+    padding: 0.75rem;
+  }
 
-@media (max-width: 480px) {
-  .card { padding: 0.85rem; border-radius: 1rem; }
-  .row { grid-template-columns: 1fr; }
-  .avatar { width: 40px; height: 40px; font-size: 0.85rem; }
-  .title { font-size: 1rem; }
-  .sub { font-size: 0.85rem; }
-  .input { min-height: clamp(132px, 28vh, 240px); }
-  .bar { flex-direction: column; align-items: stretch; }
-  .left, .right { justify-content: space-between; width: 100%; gap: 0.5rem; }
-  .actionbtn, .ghostbtn { min-height: 44px; }
-  .fileChip { flex-direction: column; align-items: stretch; }
-  .fileName { max-width: 100%; }
-}
+  .composerRow {
+    grid-template-columns: 38px 1fr;
+    gap: 0.55rem;
+  }
 
-@media (min-width: 769px) {
-  .card { border-radius: 1.4rem; }
-  .input { min-height: clamp(120px, 20vh, 210px); }
+  .avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 0.8rem;
+  }
+
+  .attachText {
+    display: none;
+  }
+
+  .actionsBar {
+    gap: 0.5rem;
+  }
+
+  .leftActions,
+  .rightActions {
+    gap: 0.45rem;
+  }
+
+  .publishBtn span {
+    font-size: 0.78rem;
+  }
 }
 </style>

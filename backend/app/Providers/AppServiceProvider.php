@@ -6,6 +6,7 @@ use App\Console\Commands\ImportEventCandidates;
 use App\Console\Commands\ImportNasaNewsCommand;
 use App\Console\Commands\SendEventReminders;
 use App\Console\Commands\SendEventNotificationReminders;
+use App\Console\Commands\AstroBotSyncRss;
 use App\Services\Observing\Contracts\AirQualityProvider;
 use App\Services\Observing\Contracts\SunMoonProvider;
 use App\Services\Observing\Contracts\WeatherProvider;
@@ -33,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
             ImportNasaNewsCommand::class,
             SendEventReminders::class,
             SendEventNotificationReminders::class,
+            AstroBotSyncRss::class,
         ]);
     }
 
@@ -51,6 +53,11 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('auth-username-available', function (Request $request) {
             return Limit::perMinute(60)->by($request->ip() . '|username-available');
+        });
+
+        RateLimiter::for('astrobot-sync', function (Request $request) {
+            $userId = $request->user()?->id ?? $request->ip();
+            return Limit::perMinute(2)->by('astrobot-sync|' . $userId);
         });
     }
 }

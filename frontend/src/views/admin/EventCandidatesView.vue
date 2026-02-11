@@ -170,7 +170,8 @@
 import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAdminTable } from '@/composables/useAdminTable.js';
-import { useNotifications } from '@/composables/useNotifications.js';
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 import { CANDIDATES_TABS, CANDIDATE_STATUS } from '@/utils/constants.js';
 import { getCandidates, approveCandidate, rejectCandidate, publishCandidate, updateCandidate, createCandidate, deleteCandidate } from '@/services/api/admin/candidates.js';
 
@@ -181,7 +182,8 @@ import PaginationBar from '@/components/admin/shared/PaginationBar.vue';
 import CandidateForm from '@/components/admin/forms/CandidateForm.vue';
 
 const router = useRouter();
-const { success, handleApiError } = useNotifications();
+const { confirm, prompt } = useConfirm()
+const toast = useToast()
 
 // State
 const activeTab = ref(CANDIDATES_TABS.CRAWLED);
@@ -260,57 +262,72 @@ function editManualCandidate(candidate) {
 async function handleApprove(candidate) {
   try {
     await approveCandidate(candidate.id);
-    success('Kandidát schválený');
+    toast.success('Kandidát schválený');
     crawledTable.refresh();
     manualTable.refresh();
   } catch (err) {
-    handleApiError(err);
+    toast.error(err?.response?.data?.message || 'Schválenie zlyhalo');
   }
 }
 
 async function handleReject(candidate) {
-  const reason = prompt('Dôvod zamietnutia:');
+  const reason = await prompt({
+    title: 'Zamietnuť kandidáta',
+    message: 'Dôvod zamietnutia:',
+    placeholder: 'Napíš dôvod',
+    confirmText: 'Reject',
+    cancelText: 'Cancel',
+    required: true,
+    variant: 'danger',
+  });
   if (!reason) return;
   
   try {
     await rejectCandidate(candidate.id, { reason });
-    success('Kandidát zamietnutý');
+    toast.success('Kandidát zamietnutý');
     crawledTable.refresh();
     manualTable.refresh();
   } catch (err) {
-    handleApiError(err);
+    toast.error(err?.response?.data?.message || 'Reject zlyhal');
   }
 }
 
 async function handlePublish(candidate) {
   try {
     await publishCandidate(candidate.id);
-    success('Kandidát publikovaný ako event');
+    toast.success('Kandidát publikovaný ako event');
     crawledTable.refresh();
     manualTable.refresh();
     reviewedTable.refresh();
   } catch (err) {
-    handleApiError(err);
+    toast.error(err?.response?.data?.message || 'Publikovanie zlyhalo');
   }
 }
 
 async function handleDelete(candidate) {
-  if (!confirm(`Naozaj chcete vymazať kandidáta "${candidate.title}"?`)) {
+  const ok = await confirm({
+    title: 'Vymazať kandidáta',
+    message: `Naozaj chcete vymazať kandidáta "${candidate.title}"?`,
+    confirmText: 'Delete',
+    cancelText: 'Cancel',
+    variant: 'danger',
+  });
+  if (!ok) {
     return;
   }
   
   try {
     await deleteCandidate(candidate.id);
-    success('Kandidát vymazaný');
+    toast.success('Kandidát vymazaný');
     manualTable.refresh();
   } catch (err) {
-    handleApiError(err);
+    toast.error(err?.response?.data?.message || 'Mazanie zlyhalo');
   }
 }
 
 async function handleUnreview() {
   // Implement unreview logic
-  success('Schválenie zrušené');
+  toast.success('Schválenie zrušené');
   reviewedTable.refresh();
 }
 
@@ -318,16 +335,16 @@ async function saveManualCandidate(candidateData) {
   try {
     if (editingCandidate.value) {
       await updateCandidate(editingCandidate.value.id, candidateData);
-      success('Kandidát aktualizovaný');
+      toast.success('Kandidát aktualizovaný');
     } else {
       await createCandidate(candidateData);
-      success('Kandidát vytvorený');
+      toast.success('Kandidát vytvorený');
     }
     
     closeManualForm();
     manualTable.refresh();
   } catch (err) {
-    handleApiError(err);
+    toast.error(err?.response?.data?.message || 'Uloženie zlyhalo');
   }
 }
 

@@ -38,6 +38,7 @@ php artisan schedule:work
 
 ### Observing conditions sidebar API
 - Endpoint: `GET /api/observe/summary?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava`
+- Sky summary endpoint: `GET /api/observing/sky-summary?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava`
 - Local diagnostics endpoint: `GET /api/observe/diagnostics?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava`
   - dostupny iba v `APP_ENV=local`, inak vracia 404
 - Aggreguje:
@@ -50,6 +51,7 @@ php artisan schedule:work
   - plny vysledok: `OBSERVING_CACHE_TTL_MINUTES` (default 15)
   - partial vysledok: `OBSERVING_CACHE_PARTIAL_TTL_MINUTES` (default 5)
   - ked su vsetky sekcie unavailable: `OBSERVING_CACHE_ALL_UNAVAILABLE_TTL_SECONDS` (default 90s)
+  - sky summary payload: `OBSERVING_SKY_CACHE_TTL_MINUTES` (default 60)
 
 Nastavenie `.env`:
 
@@ -58,6 +60,17 @@ OPENAQ_API_KEY=your_openaq_key
 OPENAQ_BASE_URL=https://api.openaq.org/v3
 OBSERVING_DEFAULT_TZ=Europe/Bratislava
 OBSERVING_CA_BUNDLE_PATH=C:\absolute\path\to\backend\storage\certs\cacert.pem
+OBSERVING_SKY_MICROSERVICE_BASE=http://127.0.0.1:8010
+OBSERVING_SKY_ENDPOINT_PATH=/sky-summary
+OBSERVING_SKY_HEALTH_PATH=/health
+OBSERVING_SKY_CACHE_TTL_MINUTES=60
+```
+
+Sky microservice quick checks:
+
+```powershell
+curl "http://127.0.0.1:8010/health"
+curl "http://127.0.0.1:8010/sky-summary?lat=48.1486&lon=17.1077&tz=Europe/Bratislava&date=2026-02-11"
 ```
 
 Po zmene `.env`:
@@ -128,6 +141,63 @@ To test the purge command manually:
 ```powershell
 php artisan astrobot:purge-old-posts --dry-run
 ```
+
+## AstroBot RSS automation
+
+### What runs automatically
+- Scheduler runs `astrobot:sync-rss` every hour.
+- Import is idempotent via `stable_key` (GUID preferred, fallback hash(link + published_at)).
+- Auto-publish is ON by default for safe items.
+- Risky items are routed to `needs_review` inbox.
+- Cleanup removes items missing from current RSS and items older than `ASTROBOT_RSS_MAX_AGE_DAYS`.
+
+### Configuration
+Set these in `.env` if needed:
+
+```env
+ASTROBOT_RSS_URL=https://www.nasa.gov/news-release/feed/
+ASTROBOT_RSS_TIMEOUT_SECONDS=10
+ASTROBOT_RSS_RETRY_TIMES=2
+ASTROBOT_RSS_RETRY_SLEEP_MS=250
+ASTROBOT_MAX_ITEMS_PER_SYNC=80
+ASTROBOT_RSS_MAX_PAYLOAD_KB=1024
+ASTROBOT_RSS_MAX_AGE_DAYS=30
+ASTROBOT_AUTO_PUBLISH_ENABLED=true
+ASTROBOT_DOMAIN_WHITELIST=nasa.gov,www.nasa.gov
+ASTROBOT_RISK_KEYWORDS=!!!,crypto,free,win
+```
+
+Manual emergency sync command:
+
+```powershell
+php artisan astrobot:sync-rss
+```
+
+Manual admin API sync endpoint (admin only, rate-limited):
+- `POST /api/admin/astrobot/sync`
+- `GET /api/admin/astrobot/items?status=needs_review`
+- `POST /api/admin/astrobot/items/{id}/publish`
+- `POST /api/admin/astrobot/items/{id}/reject`
+
+### Development (Windows/XAMPP)
+Run scheduler worker in a separate terminal:
+
+```powershell
+php artisan schedule:work
+```
+
+### Production (Linux cron)
+Use one cron entry:
+
+```cron
+* * * * * cd /path && php artisan schedule:run >> /dev/null 2>&1
+```
+
+### Troubleshooting
+- If scheduled tasks do not run, verify server timezone and cron/service permissions.
+- If `onOneServer()` lock behaves unexpectedly, check cache driver setup (`redis`/shared cache recommended for multi-server).
+- If RSS sync fails intermittently, inspect `storage/logs/laravel.log` for `AstroBot RSS sync` warnings.
+- If later moved to queued jobs, ensure queue worker is running (`php artisan queue:work`) and queue connection is configured.
 
 ## About Laravel
 

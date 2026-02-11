@@ -1,103 +1,131 @@
 <template>
-  <aside v-if="isDesktop && sections.length > 0" class="rightCol">
+  <aside v-if="isDesktop && activeScope && renderedSections.length > 0" class="rightCol">
     <component
-      v-for="section in sections"
-      :key="section.key"
-      :is="getWidgetComponent(section.key)"
-      :title="section.title"
+      :is="resolveSidebarComponent(section.section_key)"
+      v-for="section in renderedSections"
+      :key="section.section_key"
+      v-bind="propsForSection(section.section_key)"
     />
   </aside>
 </template>
 
-<script>
-import { ref, onMounted, computed } from 'vue'
-import api from '@/services/api'
-import NextEventWidget from './widgets/NextEventWidget.vue'
-import LatestArticlesWidget from './widgets/LatestArticlesWidget.vue'
-import NasaApodWidget from './widgets/NasaApodWidget.vue'
+<script setup>
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { useSidebarConfigStore } from '@/stores/sidebarConfig'
+import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
+import {
+  getEnabledSidebarSections,
+  resolveSidebarComponent,
+} from '@/sidebar/engine'
 
-export default {
-  name: 'DynamicSidebar',
-  components: {
-    NextEventWidget,
-    LatestArticlesWidget,
-    NasaApodWidget
+const props = defineProps({
+  observingLat: {
+    type: [Number, String],
+    default: null,
   },
-  setup() {
-    const sections = ref([])
-    const loading = ref(true)
+  observingLon: {
+    type: [Number, String],
+    default: null,
+  },
+  observingDate: {
+    type: String,
+    default: '',
+  },
+  observingTz: {
+    type: String,
+    default: 'Europe/Bratislava',
+  },
+  observingLocationName: {
+    type: String,
+    default: '',
+  },
+})
 
-    // Media query for desktop detection
-    const isDesktop = computed(() => {
-      if (typeof window === 'undefined') return true
-      return window.matchMedia('(min-width: 1024px)').matches
-    })
+const route = useRoute()
+const sidebarConfigStore = useSidebarConfigStore()
+const isDesktop = ref(typeof window === 'undefined' ? true : window.matchMedia('(min-width: 1280px)').matches)
+const currentItems = ref([])
 
-    // Widget component mapper
-    const widgetComponents = {
-      'next_event': 'NextEventWidget',
-      'latest_articles': 'LatestArticlesWidget', 
-      'nasa_apod': 'NasaApodWidget'
-    }
+const activeScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 
-    const getWidgetComponent = (key) => {
-      return widgetComponents[key] || null
-    }
+const renderedSections = computed(() => {
+  return getEnabledSidebarSections(currentItems.value).filter((section) => {
+    return Boolean(resolveSidebarComponent(section.section_key))
+  })
+})
 
-    const fetchSidebarSections = async () => {
-      if (!isDesktop.value) {
-        loading.value = false
-        return
-      }
-
-      try {
-        const response = await api.get('/sidebar-sections')
-        sections.value = response.data?.data || []
-      } catch (error) {
-        console.error('Failed to fetch sidebar sections:', error)
-        sections.value = []
-      } finally {
-        loading.value = false
-      }
-    }
-
-    // Listen for window resize to update desktop detection
-    const updateDesktopDetection = () => {
-      if (isDesktop.value && sections.value.length === 0 && !loading.value) {
-        fetchSidebarSections()
-      }
-    }
-
-    onMounted(() => {
-      fetchSidebarSections()
-      if (typeof window !== 'undefined') {
-        window.addEventListener('resize', updateDesktopDetection)
-      }
-    })
-
+const propsForSection = (sectionKey) => {
+  if (sectionKey === 'observing_conditions') {
     return {
-      sections,
-      loading,
-      isDesktop,
-      getWidgetComponent
+      lat: props.observingLat,
+      lon: props.observingLon,
+      date: props.observingDate,
+      tz: props.observingTz,
+      locationName: props.observingLocationName,
     }
   }
+
+  if (sectionKey === 'nasa_apod' || sectionKey === 'next_event' || sectionKey === 'latest_articles') {
+    const section = currentItems.value.find((item) => item.section_key === sectionKey)
+    return section?.title ? { title: section.title } : {}
+  }
+
+  return {}
 }
+
+const syncScope = async (scope) => {
+  if (!scope || !isDesktop.value) {
+    currentItems.value = []
+    return
+  }
+
+  const items = await sidebarConfigStore.fetchScope(scope)
+  currentItems.value = items
+}
+
+const updateDesktopState = () => {
+  if (typeof window === 'undefined') return
+  isDesktop.value = window.matchMedia('(min-width: 1280px)').matches
+}
+
+watch(
+  () => activeScope.value,
+  async (scope) => {
+    await syncScope(scope)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => isDesktop.value,
+  async (value) => {
+    if (!value) {
+      currentItems.value = []
+      return
+    }
+
+    await syncScope(activeScope.value)
+  },
+)
+
+onMounted(() => {
+  updateDesktopState()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', updateDesktopState)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', updateDesktopState)
+  }
+})
 </script>
 
 <style scoped>
 .rightCol {
-  position: sticky;
-  top: 1.25rem;
-  align-self: start;
   display: grid;
   gap: 1rem;
-}
-
-/* Responsive: hide sidebar completely on mobile */
-@media (max-width: 1023px) {
-  .rightCol {
-    display: none !important;
-  }
 }
 </style>

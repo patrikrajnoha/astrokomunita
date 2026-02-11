@@ -50,6 +50,15 @@
                   <span v-if="root?.source_name === 'astrobot'" class="botLabel">Automated news · replies disabled</span>
                 </div>
               </div>
+              <div class="postActionsMenu">
+                <DropdownMenu
+                  v-if="root && menuItemsForPost(root).length"
+                  :items="menuItemsForPost(root)"
+                  label="More actions"
+                  menu-label="Post actions"
+                  @select="(item) => onMenuAction(item, root)"
+                />
+              </div>
             </div>
 
             <div class="postText">
@@ -128,13 +137,24 @@
 
               <div class="replyMain">
                 <div class="replyHead">
-                  <button class="name linkBtn" type="button" @click="openProfile(r?.user)">
-                    {{ r?.user?.name ?? 'User' }}
-                  </button>
-                  <div class="meta">
-                    <span class="time">{{ fmt(r?.created_at) }}</span>
-                    <span v-if="r?.user?.location" class="dot">.</span>
-                    <span v-if="r?.user?.location" class="loc">Location: {{ r.user.location }}</span>
+                  <div class="replyHeadMain">
+                    <button class="name linkBtn" type="button" @click="openProfile(r?.user)">
+                      {{ r?.user?.name ?? 'User' }}
+                    </button>
+                    <div class="meta">
+                      <span class="time">{{ fmt(r?.created_at) }}</span>
+                      <span v-if="r?.user?.location" class="dot">.</span>
+                      <span v-if="r?.user?.location" class="loc">Location: {{ r.user.location }}</span>
+                    </div>
+                  </div>
+                  <div class="postActionsMenu">
+                    <DropdownMenu
+                      v-if="menuItemsForPost(r).length"
+                      :items="menuItemsForPost(r)"
+                      label="More actions"
+                      menu-label="Reply actions"
+                      @select="(item) => onMenuAction(item, r)"
+                    />
                   </div>
                 </div>
 
@@ -176,9 +196,6 @@
                   >
                     Reply
                   </button>
-                  <button class="replyBtn" type="button" @click="openReport(r)">
-                    Report
-                  </button>
                 </div>
 
                 <div v-if="activeReplyId === r.id" class="composerWrapSm">
@@ -199,15 +216,26 @@
 
                     <div class="replyMain">
                       <div class="replyHead">
-                        <button class="name linkBtn" type="button" @click="openProfile(c?.user)">
-                          {{ c?.user?.name ?? 'User' }}
-                        </button>
-                        <div class="meta">
-                          <span class="time">{{ fmt(c?.created_at) }}</span>
-                          <span v-if="c?.user?.location" class="dot">.</span>
-                          <span v-if="c?.user?.location" class="loc">Location: {{ c.user.location }}</span>
+                        <div class="replyHeadMain">
+                          <button class="name linkBtn" type="button" @click="openProfile(c?.user)">
+                            {{ c?.user?.name ?? 'User' }}
+                          </button>
+                          <div class="meta">
+                            <span class="time">{{ fmt(c?.created_at) }}</span>
+                            <span v-if="c?.user?.location" class="dot">.</span>
+                            <span v-if="c?.user?.location" class="loc">Location: {{ c.user.location }}</span>
+                          </div>
                         </div>
-                    </div>
+                        <div class="postActionsMenu">
+                          <DropdownMenu
+                            v-if="menuItemsForPost(c).length"
+                            :items="menuItemsForPost(c)"
+                            label="More actions"
+                            menu-label="Reply actions"
+                            @select="(item) => onMenuAction(item, c)"
+                          />
+                        </div>
+                      </div>
 
                     <div class="replyText">
                       <HashtagText :content="c.content" />
@@ -236,11 +264,6 @@
                           </div>
                           <div class="fileArrow">-></div>
                         </a>
-                      </div>
-                      <div class="replyActions">
-                        <button class="replyBtn" type="button" @click="openReport(c)">
-                          Report
-                        </button>
                       </div>
                     </div>
                   </article>
@@ -281,10 +304,12 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HashtagText from '@/components/HashtagText.vue'
+import DropdownMenu from '@/components/shared/DropdownMenu.vue'
 import api from '@/services/api'
 import ReplyComposer from '@/components/ReplyComposer.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import { useAuthStore } from '@/stores/auth'
+import { canReportPost } from '@/utils/postPermissions'
 
 const route = useRoute()
 const router = useRouter()
@@ -390,6 +415,23 @@ function openReport(post) {
   if (!post?.id) return
   reportTarget.value = post
   reportNotice.value = ''
+}
+
+function menuItemsForPost(post) {
+  const items = []
+
+  if (canReportPost(post, auth.user)) {
+    items.push({ key: 'report', label: 'Report', danger: false })
+  }
+
+  return items
+}
+
+function onMenuAction(item, post) {
+  if (!item?.key || !post?.id) return
+  if (item.key === 'report') {
+    openReport(post)
+  }
 }
 
 function closeReport() {
@@ -649,6 +691,10 @@ const repliesCount = computed(() => {
   gap: 0.5rem;
 }
 
+.postActionsMenu {
+  flex-shrink: 0;
+}
+
 .name {
   color: var(--color-surface);
   font-weight: 950;
@@ -736,56 +782,92 @@ const repliesCount = computed(() => {
 
 /* Replies section */
 .replies {
-  margin-top: 1rem;
-  padding-top: 0.85rem;
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
 }
 .repliesHead {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.15rem 0.2rem 0.6rem;
+  padding: 0.2rem 0.25rem 0.75rem;
 }
 .repliesTitle {
   color: var(--color-surface);
   font-weight: 950;
-  font-size: 1rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
 }
 .repliesSub {
-  color: var(--color-text-secondary);
-  font-size: 0.9rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  font-size: 0.82rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  background: rgb(var(--color-bg-rgb) / 0.3);
 }
 
 .repliesEmpty {
-  padding: 0.6rem 0.25rem 0.25rem;
+  padding: 0.85rem 0.45rem 0.35rem;
   color: var(--color-text-secondary);
+  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.3);
+  border-radius: 0.9rem;
+  background: rgb(var(--color-bg-rgb) / 0.18);
 }
 
 .replyList {
   display: grid;
-  gap: 0.6rem;
-  padding: 0 0.15rem 0.25rem;
+  gap: 0.72rem;
+  padding: 0 0.15rem 0.35rem;
 }
 .replyCard {
   display: grid;
   grid-template-columns: 44px 1fr;
-  gap: 0.75rem;
-  padding: 0.8rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
-  border-radius: 1.2rem;
-  background: rgb(var(--color-bg-rgb) / 0.22);
+  gap: 0.78rem;
+  padding: 0.85rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  border-radius: 1.15rem;
+  background:
+    radial-gradient(circle at 0% 0%, rgb(var(--color-primary-rgb) / 0.1), transparent 36%),
+    rgb(var(--color-bg-rgb) / 0.24);
   min-width: 0;
   align-items: start;
+  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+.replyCard:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.36);
+  transform: translateY(-1px);
+  background:
+    radial-gradient(circle at 0% 0%, rgb(var(--color-primary-rgb) / 0.14), transparent 40%),
+    rgb(var(--color-bg-rgb) / 0.3);
 }
 .replyChildren {
+  position: relative;
   display: grid;
-  gap: 0.6rem;
-  margin: 0.25rem 0 0.1rem clamp(0.8rem, 2.5vw, 1.5rem);
+  gap: 0.62rem;
+  margin: 0.4rem 0 0.15rem clamp(0.9rem, 2.8vw, 1.65rem);
+  padding-left: 0.65rem;
+}
+.replyChildren::before {
+  content: '';
+  position: absolute;
+  left: 0.12rem;
+  top: 0.15rem;
+  bottom: 0.15rem;
+  width: 2px;
+  border-radius: 99px;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--color-primary-rgb) / 0.45),
+    rgb(var(--color-text-secondary-rgb) / 0.16)
+  );
 }
 .replyCardChild {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.35);
-  background: rgb(var(--color-bg-rgb) / 0.18);
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.22);
+  background:
+    linear-gradient(145deg, rgb(var(--color-bg-rgb) / 0.22), rgb(var(--color-bg-rgb) / 0.14));
+  border-radius: 1rem;
 }
 
 .avatarSm {
@@ -795,12 +877,20 @@ const repliesCount = computed(() => {
 }
 
 .replyHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.replyHeadMain {
   display: grid;
   gap: 0.15rem;
+  min-width: 0;
 }
 
 .replyText {
-  margin-top: 0.4rem;
+  margin-top: 0.45rem;
   color: var(--color-surface);
   white-space: pre-wrap;
   line-height: 1.55;
@@ -818,7 +908,10 @@ const repliesCount = computed(() => {
 }
 
 .replyActions {
-  margin-top: 0.5rem;
+  margin-top: 0.62rem;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
 }
 .postActions {
   margin-top: 0.5rem;
@@ -895,17 +988,21 @@ const repliesCount = computed(() => {
   font-style: italic;
 }
 .replyBtn {
-  padding: 0.45rem 0.7rem;
-  border-radius: 0.85rem;
-  border: 1px solid var(--color-text-secondary);
+  padding: 0.45rem 0.72rem;
+  border-radius: 0.78rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
   color: var(--color-surface);
-  background: rgb(var(--color-bg-rgb) / 0.2);
+  background: rgb(var(--color-bg-rgb) / 0.32);
   white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 700;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
 }
 .replyBtn:hover {
-  border-color: var(--color-primary);
+  border-color: rgb(var(--color-primary-rgb) / 0.72);
   color: var(--color-surface);
-  background: rgb(var(--color-primary-rgb) / 0.08);
+  background: rgb(var(--color-primary-rgb) / 0.14);
+  transform: translateY(-1px);
 }
 .composerWrapSm { margin-top: 0.6rem; }
 
@@ -918,8 +1015,13 @@ const repliesCount = computed(() => {
   .replyCard {
     grid-template-columns: 42px 1fr;
     gap: 0.6rem;
-    padding: 0.72rem;
+    padding: 0.74rem;
     border-radius: 1rem;
+  }
+
+  .replyChildren {
+    margin-left: 0.62rem;
+    padding-left: 0.52rem;
   }
 
   .avatar,
@@ -946,7 +1048,7 @@ const repliesCount = computed(() => {
   }
 
   .replyCardChild {
-    margin-left: 0.45rem;
+    margin-left: 0.15rem;
   }
 
   .postText,

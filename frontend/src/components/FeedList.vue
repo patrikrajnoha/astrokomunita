@@ -3,33 +3,28 @@
     <!-- Header -->
     <header class="feed-header">
       <div class="feed-actions">
-        <!-- X-like tabs -->
-        <div class="feed-tabs" role="tablist">
-          <button
-            class="tab-button"
-            role="tab"
-            :aria-selected="activeTab === 'for_you'"
-            :class="{ active: activeTab === 'for_you' }"
-            @click="switchTab('for_you')"
-          >
-            Pre vás
-          </button>
-          <button
-            class="tab-button"
-            role="tab"
-            :aria-selected="activeTab === 'astrobot'"
-            :class="{ active: activeTab === 'astrobot' }"
-            @click="switchTab('astrobot')"
-          >
-            AstroBot
-          </button>
-        </div>
+        <FeedSwitcher
+          :tabs="tabs"
+          :model-value="activeTab"
+          @update:modelValue="switchTab"
+        />
       </div>
     </header>
 
+    <section
+      v-for="tab in tabs"
+      :id="tab.panelId"
+      :key="tab.panelId"
+      role="tabpanel"
+      class="feed-panel"
+      :aria-labelledby="tab.tabId"
+      :hidden="activeTab !== tab.id"
+    >
+      <template v-if="activeTab === tab.id">
     <!-- Error -->
     <div v-if="err" class="error-message">
-      {{ err }}
+      <span>{{ err }}</span>
+      <button type="button" class="retry-btn" @click="retryCurrentTab">Skusit znova</button>
     </div>
 
     <!-- Loading skeleton -->
@@ -50,8 +45,13 @@
       </div>
     </div>
 
+    <div v-else-if="!loading && items.length === 0" class="empty-state">
+      <p>Zatial tu nic nie je.</p>
+      <button type="button" class="retry-btn" @click="retryCurrentTab">Obnovit feed</button>
+    </div>
+
     <!-- Feed -->
-    <div class="feed-list">
+    <div v-else class="feed-list">
       <article
         v-for="p in items"
         :key="p.id"
@@ -238,6 +238,8 @@
         {{ loading ? 'Loading...' : 'Load more' }}
       </button>
     </div>
+      </template>
+    </section>
     <!-- Report modal -->
     <div v-if="reportTarget" class="report-modal" @click.stop>
       <div class="report-content">
@@ -291,8 +293,9 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import FeedSwitcher from '@/components/FeedSwitcher.vue'
 import HashtagText from './HashtagText.vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
@@ -303,6 +306,10 @@ import { canDeletePost, canReportPost } from '@/utils/postPermissions'
 
 const router = useRouter()
 const auth = useAuthStore()
+const tabs = [
+  { id: 'for_you', label: 'Pre vas', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
+  { id: 'astrobot', label: 'AstroBot', tabId: 'feed-tab-astrobot', panelId: 'feed-panel-astrobot' },
+]
 
 const feedState = reactive({
   for_you: createFeedState(),
@@ -333,6 +340,8 @@ function createFeedState() {
     loading: false,
     err: '',
     controller: null,
+    loaded: false,
+    scrollY: 0,
   }
 }
 
@@ -585,11 +594,34 @@ function isImage(p) {
   )
 }
 
-function switchTab(tab) {
+function saveTabScroll(tab) {
+  if (typeof window === 'undefined') return
+  if (!feedState[tab]) return
+  feedState[tab].scrollY = window.scrollY || 0
+}
+
+function restoreTabScroll(tab) {
+  if (typeof window === 'undefined') return
+  if (!feedState[tab]) return
+  window.scrollTo({
+    top: feedState[tab].scrollY || 0,
+    behavior: 'auto',
+  })
+}
+
+async function switchTab(tab) {
+  if (!feedState[tab]) return
   if (activeTab.value === tab) return
+
+  saveTabScroll(activeTab.value)
   activeTab.value = tab
-  resetFeed(tab)
-  load(true, tab)
+
+  if (!feedState[tab].loaded) {
+    await load(true, tab)
+  }
+
+  await nextTick()
+  restoreTabScroll(tab)
 }
 
 function resetFeed(tab) {
@@ -602,10 +634,12 @@ function resetFeed(tab) {
   state.loading = false
   state.err = ''
   state.controller = null
+  state.loaded = false
 }
 
 async function load(reset = true, tab = activeTab.value) {
   const state = feedState[tab]
+  if (!state) return
   if (state.loading) return
   state.loading = true
   state.err = ''
@@ -644,6 +678,7 @@ async function load(reset = true, tab = activeTab.value) {
     else state.items = [...state.items, ...rows]
 
     state.nextPageUrl = payload.next_page_url || null
+    state.loaded = true
   } catch (e) {
     if (e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError') return
     state.err = e?.response?.data?.message || e?.message || 'Načítanie feedu zlyhalo.'
@@ -652,6 +687,11 @@ async function load(reset = true, tab = activeTab.value) {
   }
 }
 
+async function retryCurrentTab() {
+  const tab = activeTab.value
+  resetFeed(tab)
+  await load(true, tab)
+}
 async function togglePin(post) {
   if (!post?.id || pinLoadingId.value) return
   if (!auth.user?.is_admin) {
@@ -696,6 +736,7 @@ function prepend(post) {
   if (!post?.id) return
   const state = feedState.for_you
   state.items = [post, ...state.items]
+  state.loaded = true
   highlightedPostId.value = post.id
 
   if (highlightTimer) {
@@ -708,13 +749,24 @@ function prepend(post) {
 }
 
 function handleGlobalKeydown(event) {
+  if (event.ctrlKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+    event.preventDefault()
+    const currentIndex = tabs.findIndex((tab) => tab.id === activeTab.value)
+    if (currentIndex < 0) return
+
+    const direction = event.key === 'ArrowRight' ? 1 : -1
+    const nextIndex = (currentIndex + direction + tabs.length) % tabs.length
+    switchTab(tabs[nextIndex].id)
+    return
+  }
+
   if (event.key !== 'Escape') return
   if (reportTarget.value) closeReport()
   if (deleteTarget.value) closeDeleteConfirm()
 }
 
 onMounted(() => {
-  load(true)
+  load(true, activeTab.value)
   window.addEventListener('keydown', handleGlobalKeydown)
 })
 
@@ -747,8 +799,14 @@ defineExpose({ load, prepend })
 
 /* Header */
 .feed-header {
-  margin-bottom: 24px;
+  position: sticky;
+  top: 0;
+  z-index: 18;
+  margin-bottom: 12px;
   padding: 0 4px;
+  background: rgb(var(--color-bg-rgb) / 0.86);
+  backdrop-filter: blur(9px);
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
 }
 
 .feed-title-section {
@@ -770,8 +828,38 @@ defineExpose({ load, prepend })
 }
 
 .feed-actions {
-  display: flex;
-  justify-content: center;
+  width: 100%;
+}
+
+.feed-panel {
+  min-width: 0;
+}
+
+.empty-state {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  border-radius: 12px;
+  background: rgb(var(--color-bg-rgb) / 0.3);
+  color: var(--color-text-secondary);
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.retry-btn {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
+  border-radius: 999px;
+  background: rgb(var(--color-bg-rgb) / 0.55);
+  color: var(--color-surface);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.retry-btn:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.55);
+  color: var(--color-primary);
 }
 
 /* Modern Tabs */
@@ -824,7 +912,10 @@ defineExpose({ load, prepend })
   border-radius: 8px;
   margin-bottom: 16px;
   font-size: 0.9rem;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 /* Loading Skeleton */
@@ -1811,6 +1902,4 @@ defineExpose({ load, prepend })
 }
 
 </style>
-
-
 

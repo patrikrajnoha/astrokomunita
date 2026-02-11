@@ -7,10 +7,14 @@ import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import AdminToolbar from '@/components/admin/shared/AdminToolbar.vue'
 import AdminDataTable from '@/components/admin/shared/AdminDataTable.vue'
 import AdminPagination from '@/components/admin/shared/AdminPagination.vue'
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
+const { confirm } = useConfirm()
+const toast = useToast()
 
 const loading = ref(false)
 const error = ref('')
@@ -129,53 +133,84 @@ function updateRow(updated) {
 
 async function banUser(user) {
   if (!user || isSelf(user)) return
-  const ok = window.confirm(`Ban user ${user.email}?`)
+  const ok = await confirm({
+    title: 'Ban user',
+    message: `Ban user ${user.email}?`,
+    confirmText: 'Ban',
+    cancelText: 'Cancel',
+    variant: 'danger',
+  })
   if (!ok) return
 
   try {
     const res = await api.post(`/admin/users/${user.id}/ban`)
     updateRow(res.data)
+    toast.success('User banned.')
   } catch (e) {
     error.value = e?.response?.data?.message || 'Ban failed.'
+    toast.error(error.value)
   }
 }
 
 async function unbanUser(user) {
   if (!user || isSelf(user)) return
-  const ok = window.confirm(`Unban user ${user.email}?`)
+  const ok = await confirm({
+    title: 'Unban user',
+    message: `Unban user ${user.email}?`,
+    confirmText: 'Unban',
+    cancelText: 'Cancel',
+  })
   if (!ok) return
 
   try {
     const res = await api.post(`/admin/users/${user.id}/unban`)
     updateRow(res.data)
+    toast.success('User unbanned.')
   } catch (e) {
     error.value = e?.response?.data?.message || 'Unban failed.'
+    toast.error(error.value)
   }
 }
 
 async function deactivateUser(user) {
   if (!user || isSelf(user) || !user.is_active) return
-  const ok = window.confirm(`Deactivate user ${user.email}?`)
+  const ok = await confirm({
+    title: 'Deactivate user',
+    message: `Deactivate user ${user.email}?`,
+    confirmText: 'Deactivate',
+    cancelText: 'Cancel',
+    variant: 'danger',
+  })
   if (!ok) return
 
   try {
     const res = await api.post(`/admin/users/${user.id}/deactivate`)
     updateRow(res.data)
+    toast.success('User deactivated.')
   } catch (e) {
     error.value = e?.response?.data?.message || 'Deactivate failed.'
+    toast.error(error.value)
   }
 }
 
 async function resetProfile(user) {
   if (!user) return
-  const ok = window.confirm(`Reset profile for ${user.email}?`)
+  const ok = await confirm({
+    title: 'Reset profile',
+    message: `Reset profile for ${user.email}?`,
+    confirmText: 'Reset',
+    cancelText: 'Cancel',
+    variant: 'danger',
+  })
   if (!ok) return
 
   try {
     const res = await api.post(`/admin/users/${user.id}/reset-profile`)
     updateRow(res.data)
+    toast.success('Profile reset done.')
   } catch (e) {
     error.value = e?.response?.data?.message || 'Reset profile failed.'
+    toast.error(error.value)
   }
 }
 

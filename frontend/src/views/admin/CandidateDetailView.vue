@@ -2,9 +2,13 @@
 import { computed, onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { eventCandidates } from "@/services/eventCandidates";
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute();
 const router = useRouter();
+const { confirm } = useConfirm()
+const toast = useToast()
 
 const id = computed(() => Number(route.params.id));
 
@@ -41,16 +45,23 @@ async function load() {
 async function approve() {
   if (!candidate.value) return;
 
-  const ok = window.confirm("Naozaj chceš schváliť tohto kandidáta?");
+  const ok = await confirm({
+    title: 'Schvalit kandidata',
+    message: 'Naozaj chces schvalit tohto kandidata?',
+    confirmText: 'Schvalit',
+    cancelText: 'Zrusit',
+  })
   if (!ok) return;
 
   loading.value = true;
   error.value = null;
   try {
     await eventCandidates.approve(candidate.value.id);
+    toast.success('Kandidat bol schvaleny.')
     router.push("/admin/candidates");
   } catch (e) {
     error.value = e?.response?.data?.message || "Approve zlyhalo";
+    toast.error(error.value)
   } finally {
     loading.value = false;
   }
@@ -59,16 +70,24 @@ async function approve() {
 async function reject() {
   if (!candidate.value) return;
 
-  const ok = window.confirm("Naozaj chceš zamietnuť tohto kandidáta?");
+  const ok = await confirm({
+    title: 'Zamietnut kandidata',
+    message: 'Naozaj chces zamietnut tohto kandidata?',
+    confirmText: 'Zamietnut',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
   if (!ok) return;
 
   loading.value = true;
   error.value = null;
   try {
     await eventCandidates.reject(candidate.value.id);
+    toast.success('Kandidat bol zamietnuty.')
     router.push("/admin/candidates");
   } catch (e) {
     error.value = e?.response?.data?.message || "Reject zlyhalo";
+    toast.error(error.value)
   } finally {
     loading.value = false;
   }

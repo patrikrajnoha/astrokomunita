@@ -10,6 +10,7 @@
     "dev": "vite",
     "build": "vite build",
     "test:unit": "node --test src/utils/postPermissions.test.js",
+    "test:ui": "vitest run",
     "preview": "vite preview",
     "lint": "eslint . --fix --cache",
     "format": "prettier --write --experimental-cli src/"
@@ -31,6 +32,7 @@
     "@eslint/js": "^9.39.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@vitejs/plugin-vue": "^6.0.3",
+    "@vue/test-utils": "^2.4.6",
     "@vue/eslint-config-prettier": "^10.2.0",
     "autoprefixer": "^10.4.23",
     "eslint": "^9.39.2",
@@ -40,6 +42,8 @@
     "prettier": "3.7.4",
     "tailwindcss": "^4.1.18",
     "vite": "^7.3.0",
-    "vite-plugin-vue-devtools": "^8.0.5"
+    "vite-plugin-vue-devtools": "^8.0.5",
+    "vitest": "^2.1.8",
+    "jsdom": "^25.0.1"
   }
 }
