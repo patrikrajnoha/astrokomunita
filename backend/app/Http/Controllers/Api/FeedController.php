@@ -39,9 +39,9 @@ class FeedController extends Controller
                     ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
             })
             ->with([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
+                'replies.user:id,name,username,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
             ])
@@ -77,9 +77,9 @@ class FeedController extends Controller
                     ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
             })
             ->with([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
+                'replies.user:id,name,username,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
             ])
@@ -161,9 +161,9 @@ class FeedController extends Controller
         $query = Post::query()
             ->whereIn('source_name', ['astrobot', 'nasa_rss'])
             ->with([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
+                'replies.user:id,name,username,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
             ])
@@ -184,12 +184,12 @@ class FeedController extends Controller
         if ($kind === 'replies') {
             $query->whereNotNull('parent_id');
             $query->with([
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
             ]);
         } elseif ($kind === 'media') {
             $query->whereNotNull('attachment_path');
             $query->with([
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
             ]);
         } else {
             $query->whereNull('parent_id');

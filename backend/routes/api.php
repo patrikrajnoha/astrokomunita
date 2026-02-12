@@ -176,9 +176,11 @@ Route::get('/users/{username}/posts', [App\Http\Controllers\Api\UserProfileContr
 | Search & Discovery (Public)
 |--------------------------------------------------------------------------
 */
-Route::get('/search/users', [SearchController::class, 'users']);
-Route::get('/search/posts', [SearchController::class, 'posts']);
-Route::get('/search/suggest', [SearchController::class, 'suggest']);
+Route::middleware('throttle:60,1')->prefix('search')->group(function () {
+    Route::get('/users', [SearchController::class, 'users']);
+    Route::get('/posts', [SearchController::class, 'posts']);
+    Route::get('/suggest', [SearchController::class, 'suggest']);
+});
 
 /*
 |--------------------------------------------------------------------------

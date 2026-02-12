@@ -35,6 +35,7 @@ php artisan schedule:work
 - GET /api/notifications/unread-count
 - POST /api/notifications/{id}/read
 - POST /api/notifications/read-all
+- Search endpoints (`/api/search/users`, `/api/search/posts`, `/api/search/suggest`) are rate-limited to `60 requests/minute/IP`.
 
 ### Observing conditions sidebar API
 - Endpoint: `GET /api/observe/summary?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava`

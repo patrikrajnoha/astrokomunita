@@ -34,9 +34,9 @@ class PostService
 
         $query = Post::query()
             ->with([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
+                'replies.user:id,name,username,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
             ])
@@ -56,11 +56,11 @@ class PostService
 
         if ($kind === 'replies') {
             $query->whereNotNull('parent_id')->with([
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
             ]);
         } elseif ($kind === 'media') {
             $query->whereNotNull('attachment_path')->with([
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
             ]);
         } else {
             $query->whereNull('parent_id');
@@ -121,7 +121,7 @@ class PostService
                     ->orWhere('parent_id', $root->id);
             })
             ->with([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
             ])
@@ -189,7 +189,7 @@ class PostService
             HashtagParser::syncHashtags($post, $content);
 
             return $post->load([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
             ]);
@@ -226,7 +226,7 @@ class PostService
             HashtagParser::syncHashtags($reply, $content);
 
             return $reply->load([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
             ]);
