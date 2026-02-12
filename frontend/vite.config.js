@@ -36,6 +36,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['src/**/*.test.js'],
-    exclude: ['node_modules/**', 'src/utils/postPermissions.test.js'],
+    exclude: ['node_modules/**', '**/tests-node/**'],
   },
 })

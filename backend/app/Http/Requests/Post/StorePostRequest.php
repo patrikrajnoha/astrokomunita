@@ -22,9 +22,9 @@ class StorePostRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'content.required' => 'Obsah prispevku je povinny.',
-            'content.min' => 'Obsah prispevku musi mat aspon 1 znak.',
-            'content.max' => 'Obsah prispevku moze mat maximalne 2000 znakov.',
+            'content.required' => 'Post content is required.',
+            'content.min' => 'Post content must contain at least 1 character.',
+            'content.max' => 'Post content may not be greater than 2000 characters.',
         ];
     }
 }

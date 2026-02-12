@@ -95,7 +95,7 @@ if (app()->environment('local') && config('app.debug')) {
 
 /*
 |--------------------------------------------------------------------------
-| AUTH – Sanctum SPA (cookies)
+| AUTH - Sanctum SPA (cookies)
 |--------------------------------------------------------------------------
 */
 Route::middleware('web')->prefix('auth')->group(function () {
@@ -181,7 +181,6 @@ Route::middleware('throttle:60,1')->prefix('search')->group(function () {
     Route::get('/posts', [SearchController::class, 'posts']);
     Route::get('/suggest', [SearchController::class, 'suggest']);
 });
-
 /*
 |--------------------------------------------------------------------------
 | Hashtags (Public)
@@ -220,7 +219,7 @@ Route::get('/blog-tags', [BlogTagController::class, 'index']);
 
 /*
 |--------------------------------------------------------------------------
-| FAVORITES (zatiaľ bez auth)
+| FAVORITES (auth required)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:sanctum'])->prefix('favorites')->group(function () {
@@ -233,7 +232,7 @@ Route::middleware(['auth:sanctum'])->prefix('favorites')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| ADMIN – Event Candidates (Crawling + Review)
+| ADMIN - Event Candidates (Crawling + Review)
 |--------------------------------------------------------------------------
 | Funguje:
 |  - SPA (cookies)
@@ -244,21 +243,21 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
     ->prefix('admin')
     ->group(function () {
 
-        // � Dashboard
+        // Dashboard
         Route::get('/dashboard', DashboardController::class);
 
-        // �📋 Kandidáti (list + detail)
+        // Candidates (list + detail)
         Route::get('/event-candidates',                  [EventCandidateController::class, 'index']);
         Route::get('/event-candidates/{eventCandidate}', [EventCandidateController::class, 'show']);
 
-        // 🧠 Meta pre filtre
+        // Meta for filters
         Route::get('/event-candidates-meta', EventCandidateMetaController::class);
 
-        // ✅ Review proces
+        // Review process
         Route::post('/event-candidates/{candidate}/approve', [EventCandidateReviewController::class, 'approve']);
         Route::post('/event-candidates/{candidate}/reject',  [EventCandidateReviewController::class, 'reject']);
 
-        // 🕷 Crawl runs
+        // Crawl runs
         Route::get('/crawl-runs',            [CrawlRunController::class, 'index']);
         Route::get('/crawl-runs/{crawlRun}', [CrawlRunController::class, 'show']);
 
@@ -364,7 +363,7 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::middleware('active')->group(function () {
 
-        // 👤 Profil
+        // Profile
         Route::patch('/profile',          [ProfileController::class, 'update']);
         Route::post('/profile/media',     [ProfileController::class, 'uploadMedia']);
         Route::patch('/profile/password', [ProfileController::class, 'changePassword']);
@@ -395,4 +394,5 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);
     });
 });
+
 

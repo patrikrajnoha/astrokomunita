@@ -24,7 +24,7 @@ class ReportController extends Controller
 
         if ((int) $targetPost->user_id === (int) $user->id) {
             return response()->json([
-                'message' => 'Nemozes nahlasit vlastny post.',
+                'message' => 'You cannot report your own post.',
             ], 403);
         }
 

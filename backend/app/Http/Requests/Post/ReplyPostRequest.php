@@ -22,9 +22,9 @@ class ReplyPostRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'content.required' => 'Obsah odpovede je povinny.',
-            'content.min' => 'Obsah odpovede musi mat aspon 1 znak.',
-            'content.max' => 'Obsah odpovede moze mat maximalne 2000 znakov.',
+            'content.required' => 'Reply content is required.',
+            'content.min' => 'Reply content must contain at least 1 character.',
+            'content.max' => 'Reply content may not be greater than 2000 characters.',
         ];
     }
 }
