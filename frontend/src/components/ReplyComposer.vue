@@ -3,7 +3,7 @@
     <div class="head">
       <div>
         <div class="title">Napíš reply</div>
-        <div class="sub">Krátka odpoveď k príspevku (max 280 znakov).</div>
+        <div class="sub">Krátka odpoveď k príspevku (max 2000 znakov).</div>
       </div>
     </div>
 
@@ -23,7 +23,7 @@
           v-model="content"
           class="input"
           rows="3"
-          maxlength="280"
+          maxlength="2000"
           placeholder="Napíš reply…"
           @input="onTyping"
         />
@@ -66,8 +66,8 @@
           </div>
 
           <div class="right">
-            <div class="counter" :class="{ warn: remaining <= 20 && remaining >= 0, bad: remaining < 0 }">
-              {{ content.length }}/280
+            <div class="counter" :class="{ warn: remaining <= 200 && remaining >= 0, bad: remaining < 0 }">
+              {{ content.length }}/2000
             </div>
 
             <button class="actionbtn" type="button" :disabled="isSubmitDisabled" @click="submit">
@@ -115,7 +115,7 @@ const initials = computed(() => {
   return (a + b).toUpperCase()
 })
 
-const remaining = computed(() => 280 - content.value.length)
+const remaining = computed(() => 2000 - content.value.length)
 
 const avatarUrl = computed(() => {
   const raw = auth?.user?.avatar_url || auth?.user?.avatarUrl || ''
@@ -132,12 +132,12 @@ const avatarUrl = computed(() => {
 const isSubmitDisabled = computed(() => {
   if (posting.value) return true
   if (!content.value.trim()) return true
-  if (content.value.length > 280) return true
+  if (content.value.length > 2000) return true
   return false
 })
 
 function onTyping() {
-  if (err.value && content.value.length <= 280) err.value = ''
+  if (err.value && content.value.length <= 2000) err.value = ''
 }
 
 function pickFile() {
@@ -226,7 +226,7 @@ async function submit() {
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) err.value = 'Pre odoslanie reply sa prihlás.'
-    else if (status === 422) err.value = 'Skontroluj text (1–280) a typ/veľkosť prílohy.'
+    else if (status === 422) err.value = 'Skontroluj text (1–2000) a typ/veľkosť prílohy.'
     else err.value = e?.response?.data?.message || 'Odoslanie reply zlyhalo.'
   } finally {
     posting.value = false

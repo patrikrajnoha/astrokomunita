@@ -3,7 +3,7 @@
     <header class="composerHead">
       <div class="titleWrap">
         <div class="title">Zdielaj pozorovanie</div>
-        <div class="sub">Kratky prispevok do feedu (max 280 znakov).</div>
+        <div class="sub">Kratky prispevok do feedu (max 2000 znakov).</div>
       </div>
     </header>
 
@@ -27,7 +27,7 @@
           class="composerInput"
           :class="{ expanded: isExpanded }"
           rows="1"
-          maxlength="280"
+          maxlength="2000"
           placeholder="Co sa deje na oblohe?"
           @focus="onFocus"
           @input="onTyping"
@@ -102,8 +102,8 @@
           </div>
 
           <div class="rightActions">
-            <div class="counter" :class="{ warn: content.length > 260 && content.length <= 280, bad: content.length > 280 }">
-              {{ content.length }}/280
+            <div class="counter" :class="{ warn: content.length > 1800 && content.length <= 2000, bad: content.length > 2000 }">
+              {{ content.length }}/2000
             </div>
 
             <button class="publishBtn" type="button" :disabled="isSubmitDisabled" aria-label="Publikovat" @click="submit">
@@ -179,7 +179,7 @@ const isExpanded = computed(() => isFocused.value || content.value.trim().length
 const isSubmitDisabled = computed(() => {
   if (posting.value) return true
   if (!content.value.trim()) return true
-  if (content.value.length > 280) return true
+  if (content.value.length > 2000) return true
   return false
 })
 
@@ -188,7 +188,7 @@ function onFocus() {
 }
 
 function onTyping(event) {
-  if (err.value && content.value.length <= 280) err.value = ''
+  if (err.value && content.value.length <= 2000) err.value = ''
 
   const target = event?.target
   if (!target) return
@@ -400,7 +400,7 @@ async function submit() {
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) err.value = 'Pre publikovanie sa prihlas.'
-    else if (status === 422) err.value = 'Skontroluj text (1-280) a typ/velkost prilohy.'
+    else if (status === 422) err.value = 'Skontroluj text (1-2000) a typ/velkost prilohy.'
     else err.value = e?.response?.data?.message || 'Publikovanie zlyhalo.'
   } finally {
     posting.value = false

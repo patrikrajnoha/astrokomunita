@@ -14,8 +14,17 @@ class ReplyPostRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'content' => ['required', 'string', 'min:1', 'max:280'],
+            'content' => ['required', 'string', 'min:1', 'max:2000'],
             'attachment' => ['nullable', 'file', 'max:5120', 'mimes:jpg,jpeg,png,webp,gif,pdf,txt,doc,docx'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'content.required' => 'Obsah odpovede je povinny.',
+            'content.min' => 'Obsah odpovede musi mat aspon 1 znak.',
+            'content.max' => 'Obsah odpovede moze mat maximalne 2000 znakov.',
         ];
     }
 }
