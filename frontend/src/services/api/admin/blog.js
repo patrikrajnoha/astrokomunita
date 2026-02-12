@@ -11,7 +11,7 @@ import api from '@/services/api.js';
  * @returns {Promise} API response
  */
 export function getBlogPosts(params = {}) {
-  return api.get('/admin/blog', { params });
+  return api.get('/admin/blog-posts', { params });
 }
 
 /**
@@ -20,7 +20,7 @@ export function getBlogPosts(params = {}) {
  * @returns {Promise} API response
  */
 export function getBlogPost(id) {
-  return api.get(`/admin/blog/${id}`);
+  return api.get(`/admin/blog-posts/${id}`);
 }
 
 /**
@@ -29,7 +29,7 @@ export function getBlogPost(id) {
  * @returns {Promise} API response
  */
 export function createBlogPost(data) {
-  return api.post('/admin/blog', data);
+  return api.post('/admin/blog-posts', data);
 }
 
 /**
@@ -39,7 +39,7 @@ export function createBlogPost(data) {
  * @returns {Promise} API response
  */
 export function updateBlogPost(id, data) {
-  return api.put(`/admin/blog/${id}`, data);
+  return api.put(`/admin/blog-posts/${id}`, data);
 }
 
 /**
@@ -48,7 +48,7 @@ export function updateBlogPost(id, data) {
  * @returns {Promise} API response
  */
 export function deleteBlogPost(id) {
-  return api.delete(`/admin/blog/${id}`);
+  return api.delete(`/admin/blog-posts/${id}`);
 }
 
 /**
@@ -58,7 +58,10 @@ export function deleteBlogPost(id) {
  * @returns {Promise} API response
  */
 export function publishBlogPost(id, data = {}) {
-  return api.post(`/admin/blog/${id}/publish`, data);
+  return api.patch(`/admin/blog-posts/${id}`, {
+    ...data,
+    published_at: data.published_at || new Date().toISOString(),
+  });
 }
 
 /**
@@ -68,7 +71,7 @@ export function publishBlogPost(id, data = {}) {
  * @returns {Promise} API response
  */
 export function scheduleBlogPost(id, publishedAt) {
-  return api.post(`/admin/blog/${id}/schedule`, { published_at: publishedAt });
+  return api.patch(`/admin/blog-posts/${id}`, { published_at: publishedAt });
 }
 
 /**
@@ -77,7 +80,7 @@ export function scheduleBlogPost(id, publishedAt) {
  * @returns {Promise} API response
  */
 export function unpublishBlogPost(id) {
-  return api.post(`/admin/blog/${id}/unpublish`);
+  return api.patch(`/admin/blog-posts/${id}`, { published_at: null });
 }
 
 /**
@@ -87,7 +90,7 @@ export function unpublishBlogPost(id) {
  * @returns {Promise} API response
  */
 export function uploadBlogCover(id, formData) {
-  return api.post(`/admin/blog/${id}/cover`, formData, {
+  return api.patch(`/admin/blog-posts/${id}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }
