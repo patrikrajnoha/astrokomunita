@@ -166,7 +166,37 @@ ASTROBOT_RSS_MAX_AGE_DAYS=30
 ASTROBOT_AUTO_PUBLISH_ENABLED=true
 ASTROBOT_DOMAIN_WHITELIST=nasa.gov,www.nasa.gov
 ASTROBOT_RISK_KEYWORDS=!!!,crypto,free,win
+ASTROBOT_SSL_VERIFY=true
+ASTROBOT_SSL_CA_BUNDLE=
 ```
+
+### NASA RSS SSL setup (Windows/XAMPP + production)
+
+AstroBot NASA sync keeps SSL verification enabled. If PHP cannot validate certificates (`cURL error 60`), provide a CA bundle.
+
+1. Download `cacert.pem` (curl CA bundle) and place it in one of:
+   - `backend/storage/cacert.pem` (preferred)
+   - `backend/cacert.pem`
+2. Set `.env`:
+
+```env
+ASTROBOT_SSL_VERIFY=true
+ASTROBOT_SSL_CA_BUNDLE=C:\absolute\path\to\backend\storage\cacert.pem
+```
+
+3. Reload config:
+
+```powershell
+php artisan optimize:clear
+```
+
+4. Verify fetch works:
+
+```powershell
+php artisan astrobot:sync-rss
+```
+
+If sync still fails, check latest run in admin (`/api/admin/astrobot/nasa/status`) and `storage/logs/laravel.log` for the full `error_message`.
 
 Manual emergency sync command:
 
