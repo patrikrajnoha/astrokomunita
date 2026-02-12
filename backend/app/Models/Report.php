@@ -9,13 +9,16 @@ class Report extends Model
 {
     protected $fillable = [
         'reporter_user_id',
-        'target_type',
         'target_id',
         'reason',
         'message',
         'status',
         'admin_action',
         'reviewed_by',
+    ];
+
+    protected $attributes = [
+        'target_type' => 'post',
     ];
 
     public function reporter(): BelongsTo

@@ -42,7 +42,6 @@ class ReportController extends Controller
 
         $report = Report::create([
             'reporter_user_id' => $user->id,
-            'target_type' => 'post',
             'target_id' => $validated['target_id'],
             'reason' => $validated['reason'],
             'message' => $validated['message'] ?? null,
