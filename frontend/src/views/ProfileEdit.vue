@@ -116,7 +116,7 @@ async function save() {
   try {
     await auth.csrf()
 
-    const { data } = await http.patch('/api/profile', {
+    const { data } = await http.patch('/profile', {
       name: form.name,
       email: form.email,        // ✅ backend vyžaduje email
       bio: form.bio,

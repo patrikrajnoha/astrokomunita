@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test:unit": "node --test src/utils/postPermissions.test.js",
+    "test:unit": "node --test src/utils/postPermissions.test.js src/utils/httpPathRegression.nodecheck.js",
     "test:ui": "vitest run",
     "preview": "vite preview",
     "lint": "eslint . --fix --cache",
