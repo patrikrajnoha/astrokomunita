@@ -3,7 +3,14 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
+use App\Support\ApiResponse;
 
 // ✅ pridané
 use App\Http\Middleware\IsAdmin;
@@ -32,6 +39,42 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Throwable $throwable, Request $request) {
+            if (!$request->expectsJson()) {
+                return null;
+            }
+
+            if ($throwable instanceof ValidationException) {
+                return ApiResponse::error(
+                    'The given data was invalid.',
+                    $throwable->errors(),
+                    $throwable->status
+                );
+            }
+
+            if ($throwable instanceof AuthenticationException) {
+                return ApiResponse::error('Unauthenticated', null, 401);
+            }
+
+            if ($throwable instanceof AuthorizationException) {
+                return ApiResponse::error($throwable->getMessage() ?: 'Forbidden', null, 403);
+            }
+
+            if ($throwable instanceof NotFoundHttpException) {
+                return ApiResponse::error('Not found.', null, 404);
+            }
+
+            if ($throwable instanceof HttpExceptionInterface) {
+                $status = $throwable->getStatusCode();
+                $message = $throwable->getMessage() ?: 'HTTP error';
+
+                return ApiResponse::error($message, null, $status);
+            }
+
+            $status = 500;
+            $message = config('app.debug') ? $throwable->getMessage() : 'Server error.';
+
+            return ApiResponse::error($message, null, $status);
+        });
     })
     ->create();
