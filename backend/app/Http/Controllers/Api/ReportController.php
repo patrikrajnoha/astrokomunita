@@ -7,6 +7,7 @@ use App\Models\Post;
 use App\Models\Report;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Gate;
 
 class ReportController extends Controller
 {
@@ -22,7 +23,7 @@ class ReportController extends Controller
 
         $targetPost = Post::query()->select('id', 'user_id')->findOrFail($validated['target_id']);
 
-        if ((int) $targetPost->user_id === (int) $user->id) {
+        if (Gate::forUser($user)->denies('create', [Report::class, $targetPost])) {
             return response()->json([
                 'message' => 'You cannot report your own post.',
             ], 403);
