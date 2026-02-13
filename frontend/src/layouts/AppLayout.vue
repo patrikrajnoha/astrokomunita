@@ -37,6 +37,16 @@
 
     <div class="md:pl-64">
       <div
+        v-if="showAuthFallbackBanner"
+        class="authFallbackBanner"
+        role="status"
+        aria-live="polite"
+      >
+        <span>{{ authFallbackMessage }}</span>
+        <button type="button" class="authFallbackRetry" @click="retryAuthFetch">Skusit znova</button>
+      </div>
+
+      <div
         :class="[
           'mx-auto w-full',
           isAdminRoute
@@ -430,6 +440,16 @@ const observingTz = computed(() => {
   if (metaTz) return metaTz
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Bratislava'
 })
+const showAuthFallbackBanner = computed(() => {
+  return auth.bootstrapDone && !auth.isAuthed && (auth.error?.type === 'timeout' || auth.error?.type === 'network')
+})
+const authFallbackMessage = computed(() => {
+  if (auth.error?.type === 'timeout') {
+    return 'Nepodarilo sa nacitat profil (timeout). Pokracujes ako host.'
+  }
+
+  return 'Backend je nedostupny. Pokracujes ako host.'
+})
 
 const parseStringValue = (value) => {
   if (typeof value !== 'string') return null
@@ -616,6 +636,10 @@ const installApp = async () => {
   }
 }
 
+const retryAuthFetch = async () => {
+  await auth.retryFetchUser()
+}
+
 const warmSidebarConfig = async () => {
   const scope = currentSidebarScope.value
   if (!scope) {
@@ -739,6 +763,35 @@ onBeforeUnmount(() => {
   padding: 0.55rem 0.9rem;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.authFallbackBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin: 0.8rem auto 0;
+  padding: 0.65rem 0.9rem;
+  max-width: 1160px;
+  border: 1px solid rgb(var(--color-warning-rgb, 245 158 11) / 0.45);
+  border-radius: 10px;
+  background: rgb(var(--color-warning-rgb, 245 158 11) / 0.12);
+  color: rgb(var(--color-surface-rgb) / 0.95);
+  font-size: 0.82rem;
+}
+
+.authFallbackRetry {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.28);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.authFallbackRetry:hover {
+  background: rgb(var(--color-surface-rgb) / 0.12);
 }
 
 .installBtn:hover {

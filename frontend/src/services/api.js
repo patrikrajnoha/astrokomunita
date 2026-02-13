@@ -1,15 +1,14 @@
 import axios from 'axios'
 import { useToast } from '@/composables/useToast'
 
-const api = axios.create({
-  // base URL berieme z env, fallback nechávame pre istotu
-  baseURL: import.meta.env.VITE_API_BASE_URL
-    ? `${import.meta.env.VITE_API_BASE_URL}/api`
-    : 'http://127.0.0.1:8000/api',
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const normalizedApiBaseUrl = rawApiBaseUrl.replace(/\/api\/?$/i, '')
 
+const api = axios.create({
+  baseURL: `${normalizedApiBaseUrl}/api`,
+  timeout: 15000,
   withCredentials: true,
 
-  // ✅ Sanctum: cookie -> header
   xsrfCookieName: 'XSRF-TOKEN',
   xsrfHeaderName: 'X-XSRF-TOKEN',
   withXSRFToken: true,
@@ -20,6 +19,22 @@ const api = axios.create({
 })
 
 const toast = useToast()
+
+function isProtectedPath(pathname) {
+  return (
+    pathname.startsWith('/settings') ||
+    pathname.startsWith('/creator-studio') ||
+    pathname.startsWith('/notifications') ||
+    pathname.startsWith('/profile') ||
+    pathname.startsWith('/admin')
+  )
+}
+
+function shouldRedirectToLogin(error) {
+  if (error?.config?.meta?.requiresAuth === true) return true
+  if (typeof window === 'undefined') return false
+  return isProtectedPath(window.location.pathname || '')
+}
 
 function redirectToLoginIfNeeded() {
   if (typeof window === 'undefined') return
@@ -41,8 +56,10 @@ api.interceptors.response.use(
       if (status === 422) {
         toast.warn('Skontroluj formular.')
       } else if (status === 401 || status === 419) {
-        toast.warn(dataMessage || 'Relacia vyprsala. Prihlas sa znova.')
-        redirectToLoginIfNeeded()
+        if (shouldRedirectToLogin(error)) {
+          toast.warn(dataMessage || 'Relacia vyprsala. Prihlas sa znova.')
+          redirectToLoginIfNeeded()
+        }
       } else if (status >= 500 || isNetworkError) {
         toast.error(dataMessage || (isNetworkError ? 'Sietova chyba. Skus to znova.' : 'Server error. Skus to neskor.'))
       }

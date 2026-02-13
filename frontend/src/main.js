@@ -126,14 +126,13 @@ async function bootstrap() {
 
   const auth = useAuthStore(pinia)
 
-  try {
-    await auth.fetchUser()
-  } catch (error) {
+  auth.bootstrapAuth().catch((error) => {
     setInitError(formatError(error))
-    ensureFatalOverlay(error, 'auth.fetchUser')
-  } finally {
-    setInitializing(false)
-  }
+    ensureFatalOverlay(error, 'auth.bootstrapAuth')
+  })
+
+  // Never block public render on auth bootstrap.
+  setInitializing(false)
 
   if (import.meta.env.PROD && 'serviceWorker' in navigator) {
     window.addEventListener('load', async () => {

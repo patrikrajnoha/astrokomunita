@@ -1,8 +1,12 @@
 import axios from 'axios'
 import { useToast } from '@/composables/useToast'
 
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const normalizedApiBaseUrl = rawApiBaseUrl.replace(/\/api\/?$/i, '')
+
 export const http = axios.create({
-  baseURL: (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') + '/api',
+  baseURL: `${normalizedApiBaseUrl}/api`,
+  timeout: 15000,
   withCredentials: true,
   withXSRFToken: true,
   headers: {
@@ -14,6 +18,22 @@ export const http = axios.create({
 })
 
 const toast = useToast()
+
+function isProtectedPath(pathname) {
+  return (
+    pathname.startsWith('/settings') ||
+    pathname.startsWith('/creator-studio') ||
+    pathname.startsWith('/notifications') ||
+    pathname.startsWith('/profile') ||
+    pathname.startsWith('/admin')
+  )
+}
+
+function shouldRedirectToLogin(error) {
+  if (error?.config?.meta?.requiresAuth === true) return true
+  if (typeof window === 'undefined') return false
+  return isProtectedPath(window.location.pathname || '')
+}
 
 function redirectToLoginIfNeeded() {
   if (typeof window === 'undefined') return
@@ -35,8 +55,10 @@ http.interceptors.response.use(
       if (status === 422) {
         toast.warn('Skontroluj formular.')
       } else if (status === 401 || status === 419) {
-        toast.warn(dataMessage || 'Relacia vyprsala. Prihlas sa znova.')
-        redirectToLoginIfNeeded()
+        if (shouldRedirectToLogin(error)) {
+          toast.warn(dataMessage || 'Relacia vyprsala. Prihlas sa znova.')
+          redirectToLoginIfNeeded()
+        }
       } else if (status >= 500 || isNetworkError) {
         toast.error(dataMessage || (isNetworkError ? 'Sietova chyba. Skus to znova.' : 'Server error. Skus to neskor.'))
       }
