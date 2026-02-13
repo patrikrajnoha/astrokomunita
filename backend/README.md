@@ -9,6 +9,32 @@
 
 ## AstroKomunita Project
 
+## Personalizovany feed udalosti
+
+### Co sa uklada
+- Pouzivatelske preferencie su v tabulke `user_preferences`:
+  - `event_types` (JSON array typov udalosti)
+  - `region` (`sk|eu|global`)
+  - `updated_at` (automaticke casove razitko)
+- Udalosti maju doplnene `events.region_scope` (`sk|eu|global`) pre region filter.
+
+### Ako funguje `scopeForUser`
+- Scope `Event::forUser(?User $user)` aplikuje personalizaciu len ak je pouzivatel prihlaseny a ma ulozene preferencie.
+- `event_types` filtruje udalosti cez `whereIn(type, ...)`.
+- `region` filtruje cez `region_scope`:
+  - `sk`: povolene `sk`, `eu`, `global`
+  - `eu`: povolene `eu`, `global`
+  - `global`: bez region obmedzenia
+- Pri prazdnom `event_types` sa to interpretuje ako \"vsetky typy\".
+
+### UX personalizacia na `/events`
+- Feed ma segment `Vsetko` vs `Pre mna`.
+- Neprihlaseny pouzivatel vidi `Pre mna` ako disabled + CTA na prihlasenie.
+- Prihlaseny pouzivatel ma panel `Moje preferencie` (multi-select typov + region + ulozenie).
+- Pri feede `Pre mna` su pokryte empty states:
+  - bez ulozenych preferencii -> CTA na nastavenie
+  - preferencie existuju, ale bez vysledkov -> CTA na upravu filtrov
+
 ## Notifications System (Bachelor Thesis)
 
 ### ERD (text)
