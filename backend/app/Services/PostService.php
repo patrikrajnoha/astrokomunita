@@ -7,7 +7,6 @@ use App\Models\Post;
 use App\Models\User;
 use App\Support\HashtagParser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +17,7 @@ class PostService
 {
     public function __construct(
         private readonly NotificationService $notifications,
+        private readonly FeedQueryBuilder $feedQueryBuilder,
     ) {
     }
 
@@ -32,59 +32,17 @@ class PostService
         $scope = $filters['scope'] ?? null;
         $source = $filters['source'] ?? null;
         $tag = isset($filters['tag']) ? strtolower((string) $filters['tag']) : null;
-        $isAdmin = $user?->isAdmin() ?? false;
-
-        $query = Post::query()
-            ->with([
-                'user:id,name,username,location,bio,is_admin,avatar_path',
-                'replies.user:id,name,username,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
-                'tags:id,name',
-                'hashtags:id,name',
-            ])
-            ->orderByRaw('pinned_at IS NULL DESC, pinned_at DESC, created_at DESC');
-
-        $counts = ['likes'];
-        if ($withCounts) {
-            $counts[] = 'replies';
-        }
-        $query->withCount($counts);
-
-        if ($user) {
-            $query->withExists([
-                'likes as liked_by_me' => fn ($likesQuery) => $likesQuery->where('user_id', $user->id),
-            ]);
-        }
-
-        if ($kind === 'replies') {
-            $query->whereNotNull('parent_id')->with([
-                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
-            ]);
-        } elseif ($kind === 'media') {
-            $query->whereNotNull('attachment_path')->with([
-                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
-            ]);
-        } else {
-            $query->whereNull('parent_id');
-        }
-
-        if (!$includeHidden || !$isAdmin) {
-            $query->publiclyVisible();
-        }
-
-        $query->notExpired();
-
-        $query->where(function ($sourceFilterQuery) {
-            $sourceFilterQuery->whereNull('source_name')
-                ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
-        });
+        $query = $this->feedQueryBuilder->build([
+            'kind' => $kind,
+            'with_counts' => $withCounts,
+            'include_hidden' => $includeHidden,
+            'tag' => $tag,
+            'order' => 'pinned_then_created',
+            'sources_exclude' => ['astrobot', 'nasa_rss'],
+        ], $user);
 
         if ($scope === 'me' && $user) {
             $query->where('user_id', $user->id);
-            $query->where(function ($sourceFilterQuery) {
-                $sourceFilterQuery->whereNull('source_name')
-                    ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
-            });
         }
 
         if ($source) {
@@ -96,12 +54,6 @@ class PostService
                         ->orWhere('source_name', '!=', 'astrobot');
                 });
             }
-        }
-
-        if ($tag) {
-            $query->whereHas('tags', function ($tagsQuery) use ($tag) {
-                $tagsQuery->where('name', $tag)->orWhere('slug', $tag);
-            });
         }
 
         return $query->paginate($perPage)->withQueryString();
