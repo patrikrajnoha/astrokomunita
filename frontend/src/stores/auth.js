@@ -4,7 +4,7 @@ import axios from 'axios'
 
 // Separate axios instance for CSRF (no baseURL)
 const csrfHttp = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
   withCredentials: true,
   withXSRFToken: true,
   xsrfCookieName: 'XSRF-TOKEN',
@@ -47,10 +47,13 @@ export const useAuthStore = defineStore('auth', {
 
     async fetchUser() {
       try {
-        const { data } = await http.get('/auth/me')
+        const { data } = await http.get('/auth/me', { timeout: 8000, meta: { skipErrorToast: true } })
         this.user = data
       } catch (e) {
-        if (e?.response?.status !== 401) console.error('fetchUser error:', e)
+        if (e?.response?.status !== 401) {
+          const details = e?.response?.data || e?.message || e
+          console.error('[AUTH] fetchUser failed:', details)
+        }
         this.user = null
       } finally {
         this.initialized = true
