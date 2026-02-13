@@ -62,7 +62,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { http } from '@/lib/http.js'
+import http from '@/services/api'
 
 const recommendedUsers = ref([])
 const recommendedPosts = ref([])

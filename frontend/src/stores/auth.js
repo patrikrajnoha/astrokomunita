@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
-import { http } from '@/lib/http'
+import http from '@/services/api'
 import axios from 'axios'
 
-const AUTH_TIMEOUTS_MS = [8000, 15000]
+const AUTH_TIMEOUTS_MS = [5000, 8000]
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const csrfBaseUrl = rawApiBaseUrl.replace(/\/api\/?$/i, '')
 
 // Separate axios instance for CSRF (no baseURL)
 const csrfHttp = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000',
+  baseURL: csrfBaseUrl,
   withCredentials: true,
   withXSRFToken: true,
   xsrfCookieName: 'XSRF-TOKEN',
@@ -47,6 +49,12 @@ function classifyFetchUserError(error) {
   return { type: 'server', status, code, message }
 }
 
+function isCsrfMismatch(error) {
+  const status = Number(error?.response?.status || 0)
+  const message = String(error?.response?.data?.message || error?.message || '').toLowerCase()
+  return status === 419 || message.includes('csrf token mismatch')
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
@@ -54,6 +62,7 @@ export const useAuthStore = defineStore('auth', {
     initialized: false,
     status: 'idle', // idle|loading|authenticated|guest|error
     bootstrapDone: false,
+    loginSequence: 0,
     error: null,
   }),
 
@@ -82,6 +91,24 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async postWithCsrfRetry(url, payload) {
+      try {
+        await this.csrf()
+        return await http.post(url, payload)
+      } catch (error) {
+        if (!isCsrfMismatch(error)) {
+          throw error
+        }
+
+        if (import.meta.env.DEV) {
+          console.warn(`[AUTH] CSRF retry for ${url}`)
+        }
+
+        await this.csrf()
+        return http.post(url, payload)
+      }
+    },
+
     async fetchUser(options = {}) {
       const source = String(options.source || 'manual')
       const shouldRetry = options.retry !== false
@@ -93,98 +120,101 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
 
       const endpointDebug = getAuthEndpointDebug()
-
-      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-        const timeout = AUTH_TIMEOUTS_MS[Math.min(attempt - 1, AUTH_TIMEOUTS_MS.length - 1)]
-
-        if (import.meta.env.DEV) {
-          console.info(
-            `[AUTH] fetchUser start source=${source} attempt=${attempt}/${maxAttempts} url=${endpointDebug.url} baseURL=${endpointDebug.baseURL} timeout=${timeout}`,
-          )
-        }
-
-        try {
-          const { data } = await http.get('/auth/me', {
-            timeout,
-            withCredentials: true,
-            meta: { skipErrorToast: true },
-          })
-
-          this.user = data
-          this.status = 'authenticated'
-          this.error = null
-
-          if (markBootstrap) {
-            this.bootstrapDone = true
-            this.initialized = true
-          }
-
-          return data
-        } catch (error) {
-          const classified = classifyFetchUserError(error)
+      try {
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+          const timeout = AUTH_TIMEOUTS_MS[Math.min(attempt - 1, AUTH_TIMEOUTS_MS.length - 1)]
 
           if (import.meta.env.DEV) {
-            console.warn('[AUTH] fetchUser failed', {
-              source,
-              attempt,
-              ...endpointDebug,
+            console.info(
+              `[AUTH] fetchUser start source=${source} attempt=${attempt}/${maxAttempts} url=${endpointDebug.url} baseURL=${endpointDebug.baseURL} timeout=${timeout}`,
+            )
+          }
+
+          try {
+            const { data } = await http.get('/auth/me', {
               timeout,
-              type: classified.type,
-              status: classified.status,
-              code: classified.code,
-              message: classified.message,
-              response: error?.response?.data || null,
+              withCredentials: true,
+              meta: { skipErrorToast: true },
             })
+
+            this.user = data
+            this.status = 'authenticated'
+            this.error = null
+
+            if (markBootstrap) {
+              this.bootstrapDone = true
+              this.initialized = true
+            }
+
+            return data
+          } catch (error) {
+            const classified = classifyFetchUserError(error)
+
+            if (import.meta.env.DEV) {
+              console.warn('[AUTH] fetchUser failed', {
+                source,
+                attempt,
+                ...endpointDebug,
+                timeout,
+                type: classified.type,
+                status: classified.status,
+                code: classified.code,
+                message: classified.message,
+                response: error?.response?.data || null,
+              })
+            }
+
+            const canRetry =
+              shouldRetry &&
+              attempt < maxAttempts &&
+              (classified.type === 'timeout' || classified.type === 'network')
+
+            if (canRetry) {
+              continue
+            }
+
+            this.user = null
+
+            if (classified.type === 'timeout' || classified.type === 'network' || classified.type === 'unauthorized') {
+              this.status = 'guest'
+            } else {
+              this.status = 'error'
+            }
+
+            this.error = {
+              type: classified.type,
+              message: classified.message,
+              status: classified.status || null,
+              code: classified.code || null,
+            }
+
+            if (markBootstrap) {
+              this.bootstrapDone = true
+              this.initialized = true
+            }
+
+            return null
           }
-
-          const canRetry =
-            shouldRetry &&
-            attempt < maxAttempts &&
-            (classified.type === 'timeout' || classified.type === 'network')
-
-          if (canRetry) {
-            continue
-          }
-
-          this.user = null
-
-          if (classified.type === 'timeout' || classified.type === 'network' || classified.type === 'unauthorized') {
-            this.status = 'guest'
-          } else {
-            this.status = 'error'
-          }
-
-          this.error = {
-            type: classified.type,
-            message: classified.message,
-            status: classified.status || null,
-            code: classified.code || null,
-          }
-
-          if (markBootstrap) {
-            this.bootstrapDone = true
-            this.initialized = true
-          }
-
-          return null
         }
-      }
 
-      this.user = null
-      this.status = 'guest'
-      this.error = {
-        type: 'unknown',
-        message: 'fetchUser failed',
-        status: null,
-        code: null,
-      }
+        this.user = null
+        this.status = 'guest'
+        this.error = {
+          type: 'unknown',
+          message: 'fetchUser failed',
+          status: null,
+          code: null,
+        }
 
-      if (markBootstrap) {
-        this.bootstrapDone = true
-        this.initialized = true
-      }
+        if (markBootstrap) {
+          this.bootstrapDone = true
+          this.initialized = true
+        }
 
-      return null
+        return null
+      } finally {
+        this.loading = false
+      }
     },
 
     async bootstrapAuth() {
@@ -202,9 +232,9 @@ export const useAuthStore = defineStore('auth', {
     async login(payload) {
       this.loading = true
       try {
-        await this.csrf()
-        await http.post('/auth/login', payload)
-        await this.fetchUser({ source: 'login', retry: false, markBootstrap: true })
+        await this.postWithCsrfRetry('/auth/login', payload)
+        const user = await this.fetchUser({ source: 'login', retry: false, markBootstrap: true })
+        if (user) this.loginSequence += 1
       } finally {
         this.loading = false
       }
@@ -213,9 +243,9 @@ export const useAuthStore = defineStore('auth', {
     async register(payload) {
       this.loading = true
       try {
-        await this.csrf()
-        await http.post('/auth/register', payload)
-        await this.fetchUser({ source: 'register', retry: false, markBootstrap: true })
+        await this.postWithCsrfRetry('/auth/register', payload)
+        const user = await this.fetchUser({ source: 'register', retry: false, markBootstrap: true })
+        if (user) this.loginSequence += 1
       } finally {
         this.loading = false
       }

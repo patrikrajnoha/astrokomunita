@@ -62,7 +62,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { http } from '@/lib/http'
+import http from '@/services/api'
 
 const router = useRouter()
 const auth = useAuthStore()
