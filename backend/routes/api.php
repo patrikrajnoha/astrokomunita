@@ -391,6 +391,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Event reminders
         Route::post('/events/{event}/reminders', [EventReminderController::class, 'store']);
         Route::get('/me/reminders', [EventReminderController::class, 'index']);
+        Route::get('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'show']);
+        Route::put('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);
         Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);
     });
 });

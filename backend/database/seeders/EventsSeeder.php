@@ -135,6 +135,14 @@ class EventsSeeder extends Seeder
             ],
         ];
 
+        $events = array_map(static function (array $event): array {
+            if (!array_key_exists('region_scope', $event)) {
+                $event['region_scope'] = 'global';
+            }
+
+            return $event;
+        }, $events);
+
         DB::table('events')->insert($events);
     }
 }
