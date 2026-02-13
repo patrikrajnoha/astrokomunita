@@ -7,55 +7,91 @@
 
       <div class="hero-inner">
         <p class="hero-kicker">Astronomy Feed</p>
-        <h1 class="hero-title">Astronomicke Udalosti</h1>
-        <p class="hero-subtitle">Objav udalosti na oblohe, filtruj podla typu a otvor detail jednym klikom.</p>
+        <h1 class="hero-title">Astronomicke udalosti</h1>
+        <p class="hero-subtitle">Prepni medzi globalnym feedom a personalizovanym feedom "Pre mna".</p>
       </div>
     </section>
 
     <main class="content-wrap">
       <section class="filter-panel">
         <div class="view-toggle" role="tablist" aria-label="Zobrazenie udalosti">
-          <button
-            class="view-btn"
-            :class="{ active: !isCalendarView }"
-            type="button"
-            @click="setView('list')"
-          >
+          <button class="view-btn" :class="{ active: !isCalendarView }" type="button" @click="setView('list')">
             Zoznam
           </button>
-          <button
-            class="view-btn"
-            :class="{ active: isCalendarView }"
-            type="button"
-            @click="setView('calendar')"
-          >
+          <button class="view-btn" :class="{ active: isCalendarView }" type="button" @click="setView('calendar')">
             Kalendar
           </button>
         </div>
 
-        <div v-if="!isCalendarView" class="filter-row" role="tablist" aria-label="Event type filters">
-          <button class="filter-btn" :class="{ active: selectedType === 'all' }" @click="selectedType = 'all'">
-            <span class="pill-icon">ALL</span>
-            <span>Vsetky</span>
-          </button>
-          <button class="filter-btn" :class="{ active: selectedType === 'meteors' }" @click="selectedType = 'meteors'">
-            <span class="pill-icon">MET</span>
-            <span>Meteoricke roje</span>
-          </button>
-          <button class="filter-btn" :class="{ active: selectedType === 'eclipses' }" @click="selectedType = 'eclipses'">
-            <span class="pill-icon">ECL</span>
-            <span>Zatmenia</span>
-          </button>
-          <button class="filter-btn" :class="{ active: selectedType === 'conjunctions' }" @click="selectedType = 'conjunctions'">
-            <span class="pill-icon">CNJ</span>
-            <span>Konjunkcie</span>
-          </button>
-          <button class="filter-btn" :class="{ active: selectedType === 'comets' }" @click="selectedType = 'comets'">
-            <span class="pill-icon">CMT</span>
-            <span>Komety</span>
-          </button>
-        </div>
-        <p v-if="!isCalendarView" class="filter-meta">Zobrazenych udalosti: <strong>{{ filteredEvents.length }}</strong></p>
+        <template v-if="!isCalendarView">
+          <div class="feed-toggle" role="tablist" aria-label="Typ feedu">
+            <button class="feed-btn" :class="{ active: feedMode === 'all' }" type="button" @click="setFeed('all')">
+              Vsetko
+            </button>
+            <button
+              class="feed-btn"
+              :class="{ active: feedMode === 'mine' }"
+              :disabled="!auth.isAuthed"
+              type="button"
+              @click="setFeed('mine')"
+            >
+              Pre mna
+            </button>
+          </div>
+
+          <div v-if="!auth.isAuthed" class="mine-cta-banner">
+            <p>Prihlas sa pre personalizovany feed udalosti.</p>
+            <RouterLink class="cta-link" :to="loginLink">Prihlasit sa</RouterLink>
+          </div>
+
+          <div v-if="auth.isAuthed" class="preferences-header">
+            <button class="pref-toggle-btn" type="button" @click="preferencesOpen = !preferencesOpen">
+              {{ preferencesOpen ? 'Skryt moje preferencie' : 'Moje preferencie' }}
+            </button>
+          </div>
+
+          <div v-if="auth.isAuthed && preferencesOpen" class="preferences-panel">
+            <p class="panel-title">Typy udalosti</p>
+            <div class="chip-grid">
+              <button
+                v-for="type in availablePreferenceTypes"
+                :key="type"
+                type="button"
+                class="chip"
+                :class="{ active: draft.event_types.includes(type) }"
+                @click="toggleDraftType(type)"
+              >
+                {{ typeLabel(type) }}
+              </button>
+            </div>
+
+            <label class="region-row">
+              <span>Region</span>
+              <select v-model="draft.region">
+                <option v-for="region in availableRegions" :key="region" :value="region">{{ regionLabel(region) }}</option>
+              </select>
+            </label>
+
+            <div class="pref-actions">
+              <button class="save-btn" type="button" :disabled="preferences.saving" @click="savePreferences">
+                {{ preferences.saving ? 'Ukladam...' : 'Ulozit' }}
+              </button>
+              <button class="secondary-btn" type="button" :disabled="preferences.loading" @click="applyAllTypesPreset">
+                Vybrat vsetky typy
+              </button>
+            </div>
+          </div>
+
+          <div v-if="feedMode === 'all'" class="filter-row" role="tablist" aria-label="Event type filters">
+            <button class="filter-btn" :class="{ active: selectedType === 'all' }" @click="selectedType = 'all'">Vsetky</button>
+            <button class="filter-btn" :class="{ active: selectedType === 'meteors' }" @click="selectedType = 'meteors'">Meteoricke roje</button>
+            <button class="filter-btn" :class="{ active: selectedType === 'eclipses' }" @click="selectedType = 'eclipses'">Zatmenia</button>
+            <button class="filter-btn" :class="{ active: selectedType === 'conjunctions' }" @click="selectedType = 'conjunctions'">Konjunkcie</button>
+            <button class="filter-btn" :class="{ active: selectedType === 'comets' }" @click="selectedType = 'comets'">Komety</button>
+          </div>
+
+          <p class="filter-meta">Zobrazenych udalosti: <strong>{{ events.length }}</strong></p>
+        </template>
       </section>
 
       <section v-if="isCalendarView" class="calendar-panel">
@@ -65,21 +101,21 @@
       <div v-else-if="loading" class="state-card">
         <div class="spinner" aria-hidden="true"></div>
         <h3>Nacitavam udalosti</h3>
-        <p>Chvilu strpenia, data sa pripravuju.</p>
       </div>
 
       <div v-else-if="error" class="state-card state-error">
-        <h3>Chyba pri nacitani</h3>
+        <h3>Nastala chyba</h3>
         <p>{{ error }}</p>
       </div>
 
+      <div v-else-if="mineWithoutPreferences" class="state-card state-empty">
+        <h3>Nastav si preferencie</h3>
+        <p>Aby feed "Pre mna" fungoval, vyber typy udalosti a region.</p>
+        <button class="save-btn" type="button" @click="openPreferences">Otvorit preferencie</button>
+      </div>
+
       <section v-else class="events-grid">
-        <router-link
-          v-for="e in filteredEvents"
-          :key="e.id"
-          :to="`/events/${e.id}`"
-          class="event-card group"
-        >
+        <RouterLink v-for="e in events" :key="e.id" :to="`/events/${e.id}`" class="event-card">
           <div class="card-content">
             <div class="card-header">
               <div>
@@ -95,154 +131,262 @@
                 type="button"
                 :disabled="favorites.loading || !auth.isAuthed"
                 :aria-pressed="favorites.isFavorite(e.id)"
-                :title="auth.isAuthed ? (favorites.isFavorite(e.id) ? 'Odobrat z oblubenych' : 'Pridat do oblubenych') : 'Prihlas sa pre ulozenie oblubenych'"
                 @click.prevent.stop="toggleFavorite(e.id)"
               >
-                <span class="favorite-glyph">{{ favorites.isFavorite(e.id) ? 'ON' : 'OFF' }}</span>
+                {{ favorites.isFavorite(e.id) ? 'ON' : 'OFF' }}
               </button>
             </div>
 
-            <p class="card-description">
-              {{ e.short || '-' }}
-            </p>
+            <p class="card-description">{{ e.short || '-' }}</p>
 
             <div class="card-footer">
-              <div class="visibility">Viditelnost: {{ e.visibility ?? '-' }}</div>
-              <div class="open-label">Zobrazit detail</div>
+              <span>Region: {{ regionLabel(e.region_scope) }}</span>
+              <span class="open-label">Zobrazit detail</span>
             </div>
           </div>
-        </router-link>
+        </RouterLink>
       </section>
 
-      <div v-if="!loading && !error && filteredEvents.length === 0" class="state-card state-empty">
-        <h3>Ziadne udalosti</h3>
-        <p>V tejto kategorii sa nenasli ziadne udalosti.</p>
+      <div v-if="!isCalendarView && !loading && !error && !mineWithoutPreferences && events.length === 0" class="state-card state-empty">
+        <h3>{{ feedMode === 'mine' ? 'Ziadne udalosti pre tvoje filtre' : 'Ziadne udalosti' }}</h3>
+        <p v-if="feedMode === 'mine'">Skus zmenit region alebo pridat dalsie typy udalosti.</p>
+        <p v-else>V tejto kategorii sa nenasli ziadne udalosti.</p>
+        <button v-if="feedMode === 'mine'" class="secondary-btn" type="button" @click="openPreferences">Zmenit preferencie</button>
       </div>
     </main>
   </div>
 </template>
 
-<script>
-import api from '../services/api'
-import { useFavoritesStore } from '../stores/favorites'
-import { useAuthStore } from '@/stores/auth'
+<script setup>
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import CalendarView from './CalendarView.vue'
+import { useFavoritesStore } from '@/stores/favorites'
+import { useAuthStore } from '@/stores/auth'
+import { useEventPreferencesStore } from '@/stores/eventPreferences'
+import { useToast } from '@/composables/useToast'
+import { getEvents } from '@/services/events'
 
-export default {
-  name: 'EventsView',
-  components: {
-    CalendarView,
-  },
-  data() {
-    return {
-      selectedType: 'all',
-      events: [],
-      loading: true,
-      error: null,
-      favorites: useFavoritesStore(),
-      auth: useAuthStore(),
-    }
-  },
-  computed: {
-    isCalendarView() {
-      return this.$route?.query?.view === 'calendar'
-    },
-    filteredEvents() {
-      if (this.selectedType === 'all') return this.events
+const route = useRoute()
+const router = useRouter()
+const toast = useToast()
 
-      const groups = {
-        meteors: ['meteors', 'meteor_shower'],
-        eclipses: ['eclipse', 'eclipse_lunar', 'eclipse_solar'],
-        conjunctions: ['conjunction', 'planetary_event'],
-        comets: ['other'],
-      }
+const favorites = useFavoritesStore()
+const auth = useAuthStore()
+const preferences = useEventPreferencesStore()
 
-      const allowed = groups[this.selectedType] || []
-      return this.events.filter((e) => allowed.includes(e.type))
-    },
-  },
-  methods: {
-    async fetchEvents() {
-      this.loading = true
-      this.error = null
+const selectedType = ref('all')
+const events = ref([])
+const loading = ref(false)
+const error = ref('')
+const preferencesOpen = ref(false)
 
-      try {
-        const res = await api.get('/events')
-        this.events = Array.isArray(res.data?.data) ? res.data.data : []
-      } catch (err) {
-        console.error('Failed to fetch events:', err)
+const draft = reactive({
+  event_types: [],
+  region: 'global',
+})
 
-        if (err?.response?.status === 429) {
-          this.error = 'Prilis vela poziadaviek. Skus to znova o chvilu.'
-        } else if (err?.response?.status >= 500) {
-          this.error = 'Server je docasne nedostupny. Skus to neskor.'
-        } else if (err?.response?.status === 404) {
-          this.error = 'Udalosti neboli najdene.'
-        } else if (err?.code === 'NETWORK_ERROR') {
-          this.error = 'Problem s pripojenim. Skontroluj internetove pripojenie.'
-        } else {
-          this.error = err?.response?.data?.message || 'Nepodarilo sa nacitat udalosti.'
-        }
-      } finally {
-        this.loading = false
-      }
-    },
+const isCalendarView = computed(() => route.query?.view === 'calendar')
+const feedMode = computed(() => (route.query?.feed === 'mine' ? 'mine' : 'all'))
+const loginLink = computed(() => `/login?redirect=${encodeURIComponent('/events?feed=mine')}`)
 
-    async toggleFavorite(eventId) {
-      return this.favorites.toggle(eventId)
-    },
-    setView(view) {
-      const nextQuery = { ...this.$route.query }
-      if (view === 'calendar') {
-        nextQuery.view = 'calendar'
-      } else {
-        delete nextQuery.view
-      }
-      this.$router.replace({
-        name: 'events',
-        query: nextQuery,
-      })
-    },
+const mineWithoutPreferences = computed(() => {
+  return feedMode.value === 'mine' && auth.isAuthed && preferences.loaded && !preferences.hasPreferences
+})
 
-    typeLabel(type) {
-      const map = {
-        meteors: 'Meteory',
-        meteor_shower: 'Meteory',
-        eclipse: 'Zatmenie',
-        eclipse_lunar: 'Zatmenie (L)',
-        eclipse_solar: 'Zatmenie (S)',
-        conjunction: 'Konjunkcia',
-        planetary_event: 'Konjunkcia',
-        other: 'Ine',
-      }
-      return map[type] || type
-    },
+const availablePreferenceTypes = computed(() => {
+  if (preferences.supportedEventTypes.length > 0) {
+    return preferences.supportedEventTypes
+  }
 
-    formatDateTime(value) {
-      if (!value) return '-'
-      const d = new Date(value)
-      if (isNaN(d.getTime())) return String(value)
-      return d.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
-    },
-  },
-  watch: {
-    async isCalendarView(next) {
-      if (!next && this.events.length === 0 && !this.loading) {
-        await this.fetchEvents()
-      }
-      if (!next && this.favorites.ids.size === 0 && !this.favorites.loading) {
-        await this.favorites.fetch()
-      }
-    },
-  },
+  return ['meteors', 'meteor_shower', 'eclipse', 'eclipse_lunar', 'eclipse_solar', 'conjunction', 'comet', 'other']
+})
 
-  async created() {
-    if (!this.isCalendarView) {
-      await this.fetchEvents()
-      await this.favorites.fetch()
-    }
-  },
+const availableRegions = computed(() => {
+  return preferences.supportedRegions.length > 0 ? preferences.supportedRegions : ['sk', 'eu', 'global']
+})
+
+const allFeedTypeGroups = {
+  meteors: ['meteors', 'meteor_shower'],
+  eclipses: ['eclipse', 'eclipse_lunar', 'eclipse_solar'],
+  conjunctions: ['conjunction', 'planetary_event'],
+  comets: ['comet', 'other'],
 }
+
+function syncDraftFromStore() {
+  draft.event_types = [...preferences.eventTypes]
+  draft.region = preferences.region || 'global'
+}
+
+async function fetchEvents() {
+  if (isCalendarView.value) return
+
+  loading.value = true
+  error.value = ''
+
+  try {
+    const params = {
+      feed: feedMode.value,
+    }
+
+    if (feedMode.value === 'all' && selectedType.value !== 'all') {
+      params.types = allFeedTypeGroups[selectedType.value] || []
+    }
+
+    const response = await getEvents(params)
+    events.value = Array.isArray(response?.data?.data) ? response.data.data : []
+  } catch (err) {
+    if (err?.response?.status === 401 && feedMode.value === 'mine') {
+      error.value = 'Prihlas sa, aby si videl personalizovany feed.'
+      return
+    }
+
+    error.value = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa nacitat udalosti.'
+  } finally {
+    loading.value = false
+  }
+}
+
+function setView(view) {
+  const nextQuery = { ...route.query }
+
+  if (view === 'calendar') {
+    nextQuery.view = 'calendar'
+  } else {
+    delete nextQuery.view
+  }
+
+  router.replace({ name: 'events', query: nextQuery })
+}
+
+function setFeed(mode) {
+  if (mode === 'mine' && !auth.isAuthed) return
+
+  const nextQuery = { ...route.query }
+  nextQuery.feed = mode
+
+  router.replace({ name: 'events', query: nextQuery })
+}
+
+function toggleDraftType(type) {
+  if (draft.event_types.includes(type)) {
+    draft.event_types = draft.event_types.filter((item) => item !== type)
+    return
+  }
+
+  draft.event_types = [...draft.event_types, type]
+}
+
+function openPreferences() {
+  preferencesOpen.value = true
+}
+
+function applyAllTypesPreset() {
+  draft.event_types = [...availablePreferenceTypes.value]
+}
+
+async function savePreferences() {
+  try {
+    await preferences.save({
+      event_types: draft.event_types,
+      region: draft.region,
+    })
+
+    syncDraftFromStore()
+    toast.success('Preferencie boli ulozene.')
+
+    if (feedMode.value === 'mine') {
+      await fetchEvents()
+    }
+  } catch {
+    toast.error(preferences.error || 'Nepodarilo sa ulozit preferencie.')
+  }
+}
+
+async function ensureMineContext() {
+  if (!auth.isAuthed) {
+    if (feedMode.value === 'mine') {
+      setFeed('all')
+    }
+    events.value = []
+    return
+  }
+
+  try {
+    await preferences.fetch()
+    syncDraftFromStore()
+
+    if (!preferences.hasPreferences) {
+      events.value = []
+      return
+    }
+
+    await fetchEvents()
+  } catch (err) {
+    error.value = err?.response?.data?.message || 'Nepodarilo sa nacitat personalizovany feed.'
+  }
+}
+
+async function toggleFavorite(eventId) {
+  await favorites.toggle(eventId)
+}
+
+function regionLabel(region) {
+  const map = {
+    sk: 'Slovensko',
+    eu: 'Europa',
+    global: 'Globalne',
+  }
+
+  return map[region] || region || '-'
+}
+
+function typeLabel(type) {
+  const map = {
+    meteors: 'Meteory',
+    meteor_shower: 'Meteoricky roj',
+    eclipse: 'Zatmenie',
+    eclipse_lunar: 'Zatmenie (L)',
+    eclipse_solar: 'Zatmenie (S)',
+    conjunction: 'Konjunkcia',
+    planetary_event: 'Planetarny ukaz',
+    comet: 'Kometa',
+    asteroid: 'Asteroid',
+    mission: 'Misia',
+    other: 'Ine',
+  }
+
+  return map[type] || type
+}
+
+function formatDateTime(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+
+  return date.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+watch(
+  [isCalendarView, feedMode, selectedType, () => auth.isAuthed],
+  async () => {
+    if (isCalendarView.value) return
+
+    if (feedMode.value === 'mine') {
+      await ensureMineContext()
+      return
+    }
+
+    await fetchEvents()
+  },
+  { immediate: true },
+)
+
+onMounted(async () => {
+  if (!isCalendarView.value && auth.isAuthed && favorites.ids.size === 0 && !favorites.loading) {
+    await favorites.fetch()
+  }
+})
 </script>
 
 <style scoped>
@@ -337,7 +481,8 @@ export default {
   box-shadow: 0 14px 36px rgb(2 6 23 / 0.18);
 }
 
-.view-toggle {
+.view-toggle,
+.feed-toggle {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -348,7 +493,8 @@ export default {
   background: rgb(var(--color-bg-rgb) / 0.5);
 }
 
-.view-btn {
+.view-btn,
+.feed-btn {
   border: 1px solid transparent;
   border-radius: 999px;
   padding: 0.36rem 0.78rem;
@@ -356,13 +502,116 @@ export default {
   font-weight: 700;
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
   background: transparent;
-  transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease;
 }
 
-.view-btn.active {
+.view-btn.active,
+.feed-btn.active {
   border-color: rgb(var(--color-primary-rgb) / 0.6);
   background: rgb(var(--color-primary-rgb) / 0.2);
   color: var(--color-surface);
+}
+
+.feed-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.mine-cta-banner {
+  margin-bottom: 0.8rem;
+  border: 1px dashed rgb(var(--color-primary-rgb) / 0.6);
+  border-radius: 0.8rem;
+  padding: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.mine-cta-banner p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.cta-link {
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
+  color: var(--color-surface);
+  text-decoration: none;
+}
+
+.preferences-header {
+  margin-bottom: 0.7rem;
+}
+
+.pref-toggle-btn,
+.save-btn,
+.secondary-btn {
+  border-radius: 0.75rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  background: rgb(var(--color-bg-rgb) / 0.7);
+  color: var(--color-surface);
+  padding: 0.45rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.preferences-panel {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  border-radius: 0.9rem;
+  padding: 0.8rem;
+  margin-bottom: 0.8rem;
+  background: rgb(var(--color-bg-rgb) / 0.45);
+}
+
+.panel-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.chip {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  border-radius: 999px;
+  background: rgb(var(--color-bg-rgb) / 0.75);
+  color: var(--color-surface);
+  padding: 0.25rem 0.55rem;
+  font-size: 0.74rem;
+}
+
+.chip.active {
+  border-color: rgb(var(--color-primary-rgb) / 0.7);
+  background: rgb(var(--color-primary-rgb) / 0.22);
+}
+
+.region-row {
+  margin-top: 0.7rem;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  font-size: 0.84rem;
+}
+
+.region-row select {
+  border-radius: 0.6rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  background: rgb(var(--color-bg-rgb) / 0.8);
+  color: var(--color-surface);
+  padding: 0.36rem 0.5rem;
+}
+
+.pref-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .filter-row {
@@ -372,9 +621,6 @@ export default {
 }
 
 .filter-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
   white-space: nowrap;
   padding: 0.48rem 0.72rem;
   border-radius: 999px;
@@ -383,31 +629,11 @@ export default {
   color: var(--color-surface);
   font-size: 0.82rem;
   font-weight: 600;
-  transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
-}
-
-.filter-btn:hover {
-  transform: translateY(-1px);
-  border-color: rgb(var(--color-primary-rgb) / 0.6);
 }
 
 .filter-btn.active {
   border-color: rgb(var(--color-primary-rgb) / 0.7);
   background: linear-gradient(145deg, rgb(var(--color-primary-rgb) / 0.28), rgb(var(--color-bg-rgb) / 0.72));
-  box-shadow: 0 8px 20px rgb(var(--color-primary-rgb) / 0.2);
-}
-
-.pill-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2.15rem;
-  padding: 0.14rem 0.3rem;
-  border-radius: 999px;
-  background: rgb(var(--color-bg-rgb) / 0.85);
-  font-size: 0.64rem;
-  letter-spacing: 0.08em;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
 }
 
 .filter-meta {
@@ -425,24 +651,9 @@ export default {
   text-align: center;
 }
 
-.state-card h3 {
-  margin: 0;
-  font-size: 1.02rem;
-  color: var(--color-surface);
-}
-
-.state-card p {
-  margin: 0.4rem 0 0;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
-}
-
 .state-error {
   border-color: rgb(251 113 133 / 0.45);
   background: rgb(190 24 93 / 0.12);
-}
-
-.state-empty {
-  margin-bottom: 1rem;
 }
 
 .spinner {
@@ -468,19 +679,10 @@ export default {
 }
 
 .event-card {
-  position: relative;
-  overflow: hidden;
   border-radius: 1rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
   background: linear-gradient(170deg, rgb(var(--color-bg-rgb) / 0.82), rgb(var(--color-bg-rgb) / 0.62));
   text-decoration: none;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-
-.event-card:hover {
-  transform: translateY(-2px);
-  border-color: rgb(var(--color-primary-rgb) / 0.45);
-  box-shadow: 0 16px 36px rgb(var(--color-primary-rgb) / 0.14);
 }
 
 .card-content {
@@ -510,8 +712,6 @@ export default {
 }
 
 .type-badge {
-  display: inline-flex;
-  align-items: center;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-primary-rgb) / 0.38);
   background: rgb(var(--color-primary-rgb) / 0.18);
@@ -521,48 +721,25 @@ export default {
   padding: 0.2rem 0.5rem;
 }
 
-.card-date {
+.card-date,
+.card-description,
+.card-footer {
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
-  font-size: 0.74rem;
+  font-size: 0.78rem;
 }
 
 .favorite-btn {
-  width: 2.05rem;
-  height: 2.05rem;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
   background: rgb(var(--color-bg-rgb) / 0.84);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 150ms ease, transform 150ms ease;
-}
-
-.favorite-btn:hover:not(:disabled) {
-  transform: scale(1.06);
-  border-color: rgb(244 63 94 / 0.62);
-}
-
-.favorite-btn:disabled {
-  opacity: 0.52;
-  cursor: not-allowed;
-}
-
-.favorite-glyph {
-  font-size: 0.62rem;
-  letter-spacing: 0.08em;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  color: var(--color-surface);
+  font-size: 0.64rem;
+  padding: 0.4rem 0.5rem;
 }
 
 .card-description {
   margin: 0.72rem 0 0;
-  color: rgb(var(--color-text-secondary-rgb) / 0.96);
-  font-size: 0.84rem;
   line-height: 1.45;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .card-footer {
@@ -572,124 +749,35 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.65rem;
-}
-
-.visibility {
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-  font-size: 0.73rem;
 }
 
 .open-label {
   color: rgb(var(--color-primary-rgb) / 0.9);
-  font-size: 0.74rem;
   font-weight: 700;
-  opacity: 0;
-  transform: translateX(-4px);
-  transition: opacity 150ms ease, transform 150ms ease;
-}
-
-.event-card:hover .open-label {
-  opacity: 1;
-  transform: translateX(0);
 }
 
 @keyframes spin {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
 }
 
 @media (max-width: 640px) {
-  .hero {
-    border-radius: 0.9rem;
-  }
-
-  .hero-inner {
-    padding: 1.7rem 0.9rem 1.55rem;
-  }
-
-  .content-wrap {
-    padding: 0.9rem 0 0;
-  }
-
-  .filter-panel {
-    padding: 0.72rem;
-  }
-
-  .view-toggle {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .view-btn {
-    flex: 1 1 0;
-    text-align: center;
-    padding: 0.48rem 0.62rem;
-    font-size: 0.76rem;
-  }
-
-  .filter-row {
-    gap: 0.45rem;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 0.2rem;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .filter-row::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-  }
-
-  .filter-btn {
-    padding: 0.42rem 0.62rem;
-    font-size: 0.78rem;
-  }
-
   .events-grid {
-    gap: 0.7rem;
     grid-template-columns: 1fr;
   }
 
-  .card-content {
-    padding: 0.85rem;
-  }
-
-  .card-footer {
+  .mine-cta-banner {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.35rem;
-  }
-}
-
-@media (max-width: 900px) {
-  .hero-inner {
-    padding: 2rem 1rem 1.85rem;
   }
 
-  .hero-title {
-    font-size: clamp(1.7rem, 5.6vw, 2.5rem);
-  }
-
-  .hero-subtitle {
-    font-size: 0.92rem;
-    line-height: 1.45;
-  }
-
-  .events-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  }
-}
-
-@media (hover: none) {
-  .open-label {
-    opacity: 1;
-    transform: none;
+  .pref-actions {
+    flex-direction: column;
   }
 }
 </style>
