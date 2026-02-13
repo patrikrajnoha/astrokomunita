@@ -1,4 +1,4 @@
-<script setup>
+ï»¿<script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/services/api'
@@ -568,18 +568,21 @@ onBeforeUnmount(() => {
     <div v-if="queueError" class="adminAlert">Queues: {{ queueError }}</div>
 
     <section class="kpiGrid" aria-label="KPI metrics">
-      <div v-if="loadingDashboard" v-for="i in 6" :key="`kpi-skeleton-${i}`" class="skeletonCard"></div>
-      <KpiCard
-        v-for="card in kpiCards"
-        v-else
-        :key="card.label"
-        :label="card.label"
-        :value="card.value"
-        :delta="card.delta"
-        :hint="card.hint"
-        :help="card.help"
-        :tone="card.tone"
-      />
+      <template v-if="loadingDashboard">
+        <div v-for="i in 6" :key="`kpi-skeleton-${i}`" class="skeletonCard"></div>
+      </template>
+      <template v-else>
+        <KpiCard
+          v-for="card in kpiCards"
+          :key="card.label"
+          :label="card.label"
+          :value="card.value"
+          :delta="card.delta"
+          :hint="card.hint"
+          :help="card.help"
+          :tone="card.tone"
+        />
+      </template>
     </section>
 
     <section class="mainGrid">
@@ -592,7 +595,7 @@ onBeforeUnmount(() => {
               <div class="queueMain">
                 <strong>#{{ item.id }}</strong>
                 <span class="queueMeta">{{ reportTargetSummary(item) }}</span>
-                <span class="queueSub">{{ item.reason || '-' }} · {{ formatRelative(item.created_at) }}</span>
+                <span class="queueSub">{{ item.reason || '-' }} Â· {{ formatRelative(item.created_at) }}</span>
               </div>
               <div class="queueActions">
                 <button type="button" class="btn ghost" @click="openReport(item)">Open</button>
@@ -610,7 +613,7 @@ onBeforeUnmount(() => {
               <div class="queueMain">
                 <strong>#{{ item.id }}</strong>
                 <span class="queueMeta">{{ item.title || '-' }}</span>
-                <span class="queueSub">{{ item.source_name || '-' }} · {{ formatRelative(item.created_at) }}</span>
+                <span class="queueSub">{{ item.source_name || '-' }} Â· {{ formatRelative(item.created_at) }}</span>
               </div>
               <div class="queueActions">
                 <button type="button" class="btn ghost" @click="router.push(`/admin/candidates/${item.id}`)">Open</button>
@@ -629,7 +632,7 @@ onBeforeUnmount(() => {
               <div class="queueMain">
                 <strong>#{{ item.id }}</strong>
                 <span class="queueMeta">{{ item.snippet || '-' }}</span>
-                <span class="queueSub">{{ item.moderation_status || '-' }} · {{ formatRelative(item.created_at) }}</span>
+                <span class="queueSub">{{ item.moderation_status || '-' }} Â· {{ formatRelative(item.created_at) }}</span>
               </div>
               <div class="queueActions">
                 <button type="button" class="btn ghost" @click="openModerationPage">Review</button>
@@ -987,3 +990,4 @@ onBeforeUnmount(() => {
   100% { background-position: -200% 0; }
 }
 </style>
+

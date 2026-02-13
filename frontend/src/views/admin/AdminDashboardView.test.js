@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import AdminDashboardView from '@/views/admin/AdminDashboardView.vue'
 
@@ -94,17 +94,37 @@ function setupApiWithData({ empty = false } = {}) {
     }
 
     if (url === '/admin/astrobot/nasa/status') {
-      return Promise.resolve({ data: { last_run: { new_items: 2, published_items: 1, finished_at: '2026-02-13T10:20:00Z', error_message: '' } } })
+      return Promise.resolve({
+        data: {
+          last_run: {
+            new_items: 2,
+            published_items: 1,
+            finished_at: '2026-02-13T10:20:00Z',
+            error_message: '',
+          },
+        },
+      })
     }
 
     if (url === '/admin/reports') {
-      if (params.per_page === 1) return Promise.resolve({ data: { total: empty ? 0 : 4, data: [] } })
+      if (params.per_page === 1) {
+        return Promise.resolve({ data: { total: empty ? 0 : 4, data: [] } })
+      }
       return Promise.resolve({ data: empty ? { ...reportsPaginated, data: [] } : reportsPaginated })
     }
 
     if (url === '/admin/event-candidates') {
-      if (params.per_page === 1) return Promise.resolve({ data: { total: empty ? 0 : 3, data: [] } })
-      return Promise.resolve({ data: { data: empty ? [] : [{ id: 77, title: 'Meteor shower', source_name: 'crawler', created_at: '2026-02-13T08:00:00Z' }] } })
+      if (params.per_page === 1) {
+        return Promise.resolve({ data: { total: empty ? 0 : 3, data: [] } })
+      }
+
+      return Promise.resolve({
+        data: {
+          data: empty
+            ? []
+            : [{ id: 77, title: 'Meteor shower', source_name: 'crawler', created_at: '2026-02-13T08:00:00Z' }],
+        },
+      })
     }
 
     if (url === '/admin/moderation') {
@@ -113,8 +133,18 @@ function setupApiWithData({ empty = false } = {}) {
         flagged: empty ? 0 : 1,
         blocked: empty ? 0 : 1,
       }
-      if (params.per_page === 1) return Promise.resolve({ data: { total: totalByStatus[params.status] || 0, data: [] } })
-      return Promise.resolve({ data: { data: empty ? [] : [{ id: 88, snippet: 'Toxic text', moderation_status: 'pending', created_at: '2026-02-13T07:00:00Z' }] } })
+
+      if (params.per_page === 1) {
+        return Promise.resolve({ data: { total: totalByStatus[params.status] || 0, data: [] } })
+      }
+
+      return Promise.resolve({
+        data: {
+          data: empty
+            ? []
+            : [{ id: 88, snippet: 'Toxic text', moderation_status: 'pending', created_at: '2026-02-13T07:00:00Z' }],
+        },
+      })
     }
 
     return Promise.resolve({ data: {} })
