@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\ModeratePostJob;
 use App\Models\Post;
 use App\Models\User;
 use App\Support\HashtagParser;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class PostService
@@ -67,7 +69,7 @@ class PostService
         }
 
         if (!$includeHidden || !$isAdmin) {
-            $query->where('is_hidden', false);
+            $query->publiclyVisible();
         }
 
         $query->notExpired();
@@ -110,7 +112,7 @@ class PostService
         $isAdmin = $viewer?->isAdmin() ?? false;
         $root = $this->resolveRootPost($post);
 
-        if ($root->is_hidden && !$isAdmin) {
+        if (($root->is_hidden || $root->hidden_at || $root->moderation_status === 'blocked') && !$isAdmin) {
             throw new ModelNotFoundException();
         }
 
@@ -128,7 +130,7 @@ class PostService
             ->withCount('likes');
 
         if (!$isAdmin) {
-            $threadQuery->where('is_hidden', false);
+            $threadQuery->publiclyVisible();
         }
 
         $threadQuery->notExpired();
@@ -168,6 +170,7 @@ class PostService
     public function createPost(User $user, string $content, ?UploadedFile $attachment = null): Post
     {
         return DB::transaction(function () use ($user, $content, $attachment) {
+            $moderationEnabled = (bool) config('moderation.enabled', true);
             $post = new Post();
             $post->user_id = $user->id;
             $post->content = $content;
@@ -175,6 +178,10 @@ class PostService
             $post->root_id = null;
             $post->depth = 0;
             $post->is_hidden = false;
+            $post->moderation_status = $moderationEnabled ? 'pending' : 'ok';
+            $post->moderation_summary = null;
+            $post->hidden_reason = null;
+            $post->hidden_at = null;
 
             if ($attachment) {
                 $path = $attachment->store('posts', 'public');
@@ -182,11 +189,22 @@ class PostService
                 $post->attachment_mime = $attachment->getClientMimeType();
                 $post->attachment_original_name = $attachment->getClientOriginalName();
                 $post->attachment_size = $attachment->getSize();
+                $isImageAttachment = str_starts_with((string) $post->attachment_mime, 'image/');
+                $post->attachment_moderation_status = ($moderationEnabled && $isImageAttachment)
+                    ? 'pending'
+                    : null;
+                $post->attachment_moderation_summary = null;
+                $post->attachment_is_blurred = $moderationEnabled && $isImageAttachment;
+                $post->attachment_hidden_at = null;
             }
 
             $post->save();
 
             HashtagParser::syncHashtags($post, $content);
+            if ($moderationEnabled) {
+                $this->logModerationQueueDiagnostics();
+                ModeratePostJob::dispatch((int) $post->id)->afterCommit();
+            }
 
             return $post->load([
                 'user:id,name,username,location,bio,is_admin,avatar_path',
@@ -199,6 +217,7 @@ class PostService
     public function createReply(User $user, Post $parent, string $content, ?UploadedFile $attachment = null): Post
     {
         return DB::transaction(function () use ($user, $parent, $content, $attachment) {
+            $moderationEnabled = (bool) config('moderation.enabled', true);
             $parentDepth = $parent->depth;
             if ($parentDepth === null) {
                 $parentDepth = $parent->parent_id ? 1 : 0;
@@ -212,6 +231,10 @@ class PostService
             $reply->parent_id = $parent->id;
             $reply->root_id = $rootId;
             $reply->depth = $depth;
+            $reply->moderation_status = $moderationEnabled ? 'pending' : 'ok';
+            $reply->moderation_summary = null;
+            $reply->hidden_reason = null;
+            $reply->hidden_at = null;
 
             if ($attachment) {
                 $path = $attachment->store('posts', 'public');
@@ -219,11 +242,22 @@ class PostService
                 $reply->attachment_mime = $attachment->getClientMimeType();
                 $reply->attachment_original_name = $attachment->getClientOriginalName();
                 $reply->attachment_size = $attachment->getSize();
+                $isImageAttachment = str_starts_with((string) $reply->attachment_mime, 'image/');
+                $reply->attachment_moderation_status = ($moderationEnabled && $isImageAttachment)
+                    ? 'pending'
+                    : null;
+                $reply->attachment_moderation_summary = null;
+                $reply->attachment_is_blurred = $moderationEnabled && $isImageAttachment;
+                $reply->attachment_hidden_at = null;
             }
 
             $reply->save();
 
             HashtagParser::syncHashtags($reply, $content);
+            if ($moderationEnabled) {
+                $this->logModerationQueueDiagnostics();
+                ModeratePostJob::dispatch((int) $reply->id)->afterCommit();
+            }
 
             return $reply->load([
                 'user:id,name,username,location,bio,is_admin,avatar_path',
@@ -305,5 +339,30 @@ class PostService
         }
 
         return $post;
+    }
+
+    private function logModerationQueueDiagnostics(): void
+    {
+        if (!app()->environment('local')) {
+            return;
+        }
+
+        static $warningEmitted = false;
+
+        if ($warningEmitted) {
+            return;
+        }
+
+        $queueConnection = (string) config('queue.default', 'sync');
+        if ($queueConnection === 'sync') {
+            return;
+        }
+
+        $warningEmitted = true;
+
+        Log::warning('Moderation jobs are queued asynchronously in local env. Ensure a worker is running.', [
+            'queue_connection' => $queueConnection,
+            'hint' => 'Run: php artisan queue:work',
+        ]);
     }
 }

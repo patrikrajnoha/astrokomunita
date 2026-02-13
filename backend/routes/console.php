@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use App\Jobs\AstroBotNasaSyncJob;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -39,6 +40,12 @@ Artisan::command('astrobot:purge-old-posts {--dry-run} {--hours=}', function () 
     $this->call(\App\Console\Commands\AstroBotPurgeOldPosts::class);
 })->purpose('Permanently delete AstroBot posts older than 24 hours');
 
+Artisan::command('moderation:run {post_id}', function () {
+    $this->call(\App\Console\Commands\RunPostModerationCommand::class, [
+        'post_id' => $this->argument('post_id'),
+    ]);
+})->purpose('Run moderation immediately for one post (local debug).');
+
 // ------------------------------------------------------------------
 // Scheduler (produkčný crawl + logovanie do crawl_runs)
 // ------------------------------------------------------------------
@@ -62,23 +69,8 @@ Schedule::command('news:import-nasa --limit=20')
 // ------------------------------------------------------------------
 // AstroBot Scheduler
 // ------------------------------------------------------------------
-Schedule::command('astrobot:sync-rss')
+Schedule::job(new AstroBotNasaSyncJob())
+    ->name('astrobot:nasa:sync-job')
     ->hourly()
     ->withoutOverlapping()
-    ->onOneServer()
-    ->appendOutputTo(storage_path('logs/astrobot_rss_refresh.log'));
-
-Schedule::command('astrobot:publish-scheduled')
-    ->everyMinute()
-    ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/astrobot_publish_scheduled.log'));
-
-Schedule::command('astrobot:cleanup-expired')
-    ->hourly()
-    ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/astrobot_cleanup.log'));
-
-Schedule::command('astrobot:purge-old-posts --hours=' . config('astrobot.post_ttl_hours', 24))
-    ->hourly()
-    ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/astrobot_purge.log'));
+    ->onOneServer();

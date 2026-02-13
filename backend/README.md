@@ -143,6 +143,49 @@ To test the purge command manually:
 php artisan astrobot:purge-old-posts --dry-run
 ```
 
+## Moderation (local, free)
+
+This project supports fully self-hosted moderation with Laravel + FastAPI + HuggingFace models.
+
+### Architecture
+- Laravel publishes posts immediately (`201`) with `moderation_status=pending`.
+- `ModeratePostJob` runs asynchronously and updates moderation status.
+- Image attachments stay blurred while pending to reduce NSFW flashes.
+- Admin review queue is available at `/admin/moderation`.
+
+### Backend env config
+Add these values to `.env`:
+
+```env
+MODERATION_ENABLED=true
+MODERATION_BASE_URL=http://127.0.0.1:8090
+MODERATION_INTERNAL_TOKEN=change-me
+MODERATION_FALLBACK_POLICY=pending_blur_retry
+MODERATION_TEXT_FLAG_THRESHOLD=0.70
+MODERATION_TEXT_BLOCK_THRESHOLD=0.90
+MODERATION_IMAGE_FLAG_THRESHOLD=0.60
+MODERATION_IMAGE_BLOCK_THRESHOLD=0.85
+```
+
+### Local FastAPI service
+Use `../moderation-service/README.md` for setup. For Windows/XAMPP Laravel dev, running the microservice on `http://127.0.0.1:8090` is enough.
+
+### Queue worker
+Moderation is async. Keep queue worker running:
+
+```powershell
+php artisan queue:work
+```
+
+Notes:
+- In local env, post creation logs a warning if moderation uses async queue and worker is probably missing.
+- Moderation jobs are dispatched `afterCommit`, so workers do not race uncommitted posts.
+- For quick manual debug, run:
+
+```powershell
+php artisan moderation:run 123
+```
+
 ## AstroBot RSS automation
 
 ### What runs automatically
