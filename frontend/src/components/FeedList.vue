@@ -119,14 +119,19 @@
 
           <!-- Media attachment -->
           <div v-if="p.attachment_url" class="post-media">
+            <div v-if="isAttachmentBlocked(p)" class="media-removed">
+              Removed
+            </div>
             <PostMediaImage
-              v-if="isImage(p)"
+              v-else-if="isImage(p)"
               :src="attachmentSrc(p)"
               alt="Priloha prispevku"
+              :blurred="isAttachmentPending(p)"
+              pending-label="Checking..."
             />
 
             <a
-              v-else
+              v-else-if="!isAttachmentPending(p)"
               class="file-attachment"
               :href="attachmentSrc(p)"
               target="_blank"
@@ -594,6 +599,30 @@ function isImage(p) {
   )
 }
 
+function isAttachmentPending(post) {
+  return post?.attachment_moderation_status === 'pending' || post?.attachment_is_blurred === true
+}
+
+function isAttachmentBlocked(post) {
+  return post?.attachment_moderation_status === 'blocked' || !!post?.attachment_hidden_at
+}
+
+function normalizeFeedError(error) {
+  const status = Number(error?.response?.status || 0)
+  const code = String(error?.code || '')
+  const message = String(error?.message || '')
+
+  if (status === 401) return 'Prihlas sa pre tuto akciu.'
+  if (code === 'ECONNABORTED' || message.toLowerCase().includes('timeout')) {
+    return 'Server neodpoveda. Skus to znova neskor.'
+  }
+  if (!status && (code === 'ERR_NETWORK' || message.toLowerCase().includes('network'))) {
+    return 'Backend je nedostupny. Skontroluj, ci bezi API server.'
+  }
+
+  return error?.response?.data?.message || message || 'Nacitanie feedu zlyhalo.'
+}
+
 function saveTabScroll(tab) {
   if (typeof window === 'undefined') return
   if (!feedState[tab]) return
@@ -670,7 +699,10 @@ async function load(reset = true, tab = activeTab.value) {
     const controller = new AbortController()
     state.controller = controller
 
-    const res = await api.get(url, { signal: controller.signal })
+    const res = await api.get(url, {
+      signal: controller.signal,
+      meta: { skipErrorToast: true },
+    })
     const payload = res.data || {}
     const rows = payload.data || []
 
@@ -681,7 +713,7 @@ async function load(reset = true, tab = activeTab.value) {
     state.loaded = true
   } catch (e) {
     if (e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError') return
-    state.err = e?.response?.data?.message || e?.message || 'Načítanie feedu zlyhalo.'
+    state.err = normalizeFeedError(e)
   } finally {
     state.loading = false
   }
@@ -1360,6 +1392,15 @@ defineExpose({ load, prepend })
 /* Media */
 .post-media {
   margin-top: 12px;
+}
+
+.media-removed {
+  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.28);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  font-size: 13px;
 }
 
 /* File Attachment */
