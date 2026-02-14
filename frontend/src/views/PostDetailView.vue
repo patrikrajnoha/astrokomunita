@@ -66,6 +66,15 @@
               <HashtagText :content="root?.content" />
             </div>
 
+            <PollCard
+              v-if="root?.poll"
+              :poll="root.poll"
+              :post-id="root.id"
+              :is-authed="auth.isAuthed"
+              @updated="updateRootPoll"
+              @login-required="onPollLoginRequired"
+            />
+
             <div v-if="root?.attachment_url" class="mediaWrap">
               <div v-if="isAttachmentBlocked(root)" class="removedMedia">Removed</div>
               <PostMediaImage
@@ -318,6 +327,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HashtagText from '@/components/HashtagText.vue'
+import PollCard from '@/components/PollCard.vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
 import api from '@/services/api'
 import ReplyComposer from '@/components/ReplyComposer.vue'
@@ -456,6 +466,15 @@ function closeReport() {
   reportTarget.value = null
   reportReason.value = 'spam'
   reportMessage.value = ''
+}
+
+function updateRootPoll(nextPoll) {
+  if (!root.value || !nextPoll) return
+  root.value.poll = nextPoll
+}
+
+function onPollLoginRequired() {
+  reportNotice.value = 'Prihlas sa pre hlasovanie.'
 }
 
 function stopViewAnimation() {
@@ -1103,4 +1122,3 @@ const repliesCount = computed(() => {
   }
 }
 </style>
-
