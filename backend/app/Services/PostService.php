@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class PostService
 {
@@ -125,6 +126,12 @@ class PostService
 
     public function createPost(User $user, string $content, ?UploadedFile $attachment = null, ?array $pollInput = null): Post
     {
+        if (is_array($pollInput) && $attachment) {
+            throw ValidationException::withMessages([
+                'attachment' => 'Poll a prilohy sa nedaju kombinovat.',
+            ]);
+        }
+
         return DB::transaction(function () use ($user, $content, $attachment, $pollInput) {
             $moderationEnabled = (bool) config('moderation.enabled', true);
             $post = new Post();
