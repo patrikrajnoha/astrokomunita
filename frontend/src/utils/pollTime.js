@@ -9,14 +9,29 @@ export function formatPollRemainingSk(remainingSeconds) {
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60)
   const minutes = totalMinutes % 60
 
-  const parts = []
-  if (days > 0) parts.push(`${days} d.`)
-  if (hours > 0) parts.push(`${hours} hod.`)
-  if (minutes > 0 && days === 0) parts.push(`${minutes} min.`)
+  if (days > 0) {
+    const dayWord = pluralizeSkDays(days)
+    if (hours > 0) {
+      return `${days} ${dayWord} ${hours} hod.`
+    }
 
-  if (parts.length === 0) {
-    return '1 min.'
+    return `${days} ${dayWord}`
   }
 
-  return parts.join(' ')
+  if (hours > 0) {
+    if (minutes > 0) {
+      return `${hours} hod. ${minutes} min.`
+    }
+
+    return `${hours} hod.`
+  }
+
+  return `${Math.max(1, minutes)} min.`
+}
+
+function pluralizeSkDays(days) {
+  const abs = Math.abs(Number(days || 0))
+  if (abs === 1) return 'den'
+  if (abs >= 2 && abs <= 4) return 'dni'
+  return 'dni'
 }
