@@ -231,7 +231,14 @@
               <span v-if="Number(p.views ?? 0) > 0" class="view-count">{{ p.views }}</span>
             </button>
             
-            <button class="action-btn action-btn--save" type="button" title="Uložiť" disabled>
+            <button
+              class="action-btn action-btn--bookmark"
+              type="button"
+              :class="{ 'action-btn--bookmarked': p.is_bookmarked }"
+              :disabled="!auth.isAuthed || isBookmarkLoading(p)"
+              :title="auth.isAuthed ? (p.is_bookmarked ? 'Odstranit zo zaloziek' : 'Ulozit do zaloziek') : 'Prihlas sa pre zalozky'"
+              @click.stop="toggleBookmark(p)"
+            >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
               </svg>
@@ -317,11 +324,15 @@ import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import ShareModal from '@/components/share/ShareModal.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { useBookmarksStore } from '@/stores/bookmarks'
+import { useToast } from '@/composables/useToast'
 import { canDeletePost, canReportPost } from '@/utils/postPermissions'
 import { formatRelativeShort } from '@/utils/dateUtils'
 
 const router = useRouter()
 const auth = useAuthStore()
+const bookmarks = useBookmarksStore()
+const { error: toastError } = useToast()
 const tabs = [
   { id: 'for_you', label: 'Pre vas', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
   { id: 'astrobot', label: 'AstroBot', tabId: 'feed-tab-astrobot', panelId: 'feed-panel-astrobot' },
@@ -475,6 +486,40 @@ function applyLikeResponse(post, res) {
   if (!data || !post) return
   if (data.likes_count !== undefined) post.likes_count = data.likes_count
   if (data.liked_by_me !== undefined) post.liked_by_me = data.liked_by_me
+}
+
+function isBookmarkLoading(post) {
+  return bookmarks.isLoading(post?.id)
+}
+
+async function toggleBookmark(post) {
+  if (!post?.id || isBookmarkLoading(post)) return
+  if (!auth.isAuthed) {
+    currentFeed.value.err = 'Prihlas sa pre zalozky.'
+    return
+  }
+
+  currentFeed.value.err = ''
+  const prevBookmarked = !!post.is_bookmarked
+  const prevBookmarkedAt = post.bookmarked_at || null
+  const nextBookmarked = !prevBookmarked
+
+  post.is_bookmarked = nextBookmarked
+  post.bookmarked_at = nextBookmarked ? new Date().toISOString() : null
+  bookmarks.setBookmarked(post.id, nextBookmarked)
+
+  try {
+    await auth.csrf()
+    const state = await bookmarks.toggleBookmark(post.id, prevBookmarked)
+    post.is_bookmarked = state
+    post.bookmarked_at = state ? (post.bookmarked_at || new Date().toISOString()) : null
+  } catch (e) {
+    post.is_bookmarked = prevBookmarked
+    post.bookmarked_at = prevBookmarkedAt
+    bookmarks.setBookmarked(post.id, prevBookmarked)
+    currentFeed.value.err = e?.response?.data?.message || 'Ulozenie zalozky zlyhalo.'
+    toastError('Ulozenie zalozky zlyhalo.')
+  }
 }
 
 async function toggleLike(post) {
@@ -720,6 +765,7 @@ async function load(reset = true, tab = activeTab.value) {
     })
     const payload = res.data || {}
     const rows = payload.data || []
+    bookmarks.hydrateFromPosts(rows)
 
     if (reset) state.items = rows
     else state.items = [...state.items, ...rows]
@@ -1591,13 +1637,18 @@ defineExpose({ load, prepend })
   color: var(--color-primary);
 }
 
-.action-btn--save {
+.action-btn--bookmark {
   color: var(--color-text-secondary);
 }
 
-.action-btn--save:hover:not(:disabled) {
+.action-btn--bookmark:hover:not(:disabled) {
   background: rgb(var(--color-warning-rgb) / 0.1);
   color: var(--color-warning);
+}
+
+.action-btn--bookmark.action-btn--bookmarked {
+  color: var(--color-warning);
+  font-weight: 600;
 }
 
 .action-btn--delete {
@@ -1972,4 +2023,3 @@ defineExpose({ load, prepend })
 }
 
 </style>
-
