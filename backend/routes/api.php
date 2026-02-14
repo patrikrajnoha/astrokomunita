@@ -32,9 +32,11 @@ use App\Http\Controllers\Api\Admin\ReportQueueController;
 use App\Http\Controllers\Api\Admin\AstroBotController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\AdminPostController;
+use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
 use App\Http\Controllers\Api\SidebarSectionController;
 use App\Http\Controllers\Api\Admin\SidebarConfigController as AdminSidebarConfigController;
+use App\Http\Controllers\Api\Admin\SidebarCustomComponentController as AdminSidebarCustomComponentController;
 use App\Http\Controllers\Api\SidebarConfigController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\FeedController;
@@ -270,6 +272,12 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
         Route::put('/sidebar-sections', [AdminSidebarSectionController::class, 'update']);
         Route::get('/sidebar-config', [AdminSidebarConfigController::class, 'index']);
         Route::put('/sidebar-config', [AdminSidebarConfigController::class, 'update']);
+        Route::get('/sidebar/custom-components', [AdminSidebarCustomComponentController::class, 'index']);
+        Route::post('/sidebar/custom-components', [AdminSidebarCustomComponentController::class, 'store']);
+        Route::get('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'show']);
+        Route::put('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'update']);
+        Route::patch('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'update']);
+        Route::delete('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'destroy']);
 
         /*
         |--------------------------------------------------------------------------
@@ -331,6 +339,15 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
 
         /*
         |----------------------------------------------------------------------
+        | Moderation Queue (admin)
+        |----------------------------------------------------------------------
+        */
+        Route::get('/moderation', [ModerationQueueController::class, 'index']);
+        Route::get('/moderation/{post}', [ModerationQueueController::class, 'show']);
+        Route::post('/moderation/{post}/action', [ModerationQueueController::class, 'action']);
+
+        /*
+        |----------------------------------------------------------------------
         | Posts (admin)
         |----------------------------------------------------------------------
         */
@@ -343,13 +360,17 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
         |--------------------------------------------------------------------------
         */
         Route::prefix('astrobot')->middleware('throttle:10,1')->group(function () {
+            Route::get('/nasa/status', [AstroBotController::class, 'nasaStatus']);
+            Route::post('/nasa/sync-now', [AstroBotController::class, 'syncNow'])->middleware('throttle:astrobot-sync');
             Route::get('/items', [AstroBotController::class, 'items']);
             Route::put('/items/{item}', [AstroBotController::class, 'update']);
             Route::post('/items/{item}/publish', [AstroBotController::class, 'publish']);
             Route::post('/items/{item}/reject', [AstroBotController::class, 'reject']);
             Route::post('/items/{item}/discard', [AstroBotController::class, 'discard']);
             Route::get('/posts', [AstroBotController::class, 'posts']);
-            Route::delete('/posts/{id}', [AstroBotController::class, 'deletePost']);
+            Route::delete('/posts/{post}', [AstroBotController::class, 'deletePost']);
+            Route::post('/rss-items/{item}/retranslate', [AstroBotController::class, 'retranslate']);
+            Route::post('/rss-items/retranslate-pending', [AstroBotController::class, 'retranslatePending']);
             Route::post('/sync', [AstroBotController::class, 'syncRss'])->middleware('throttle:astrobot-sync');
             Route::post('/rss/refresh', [AstroBotController::class, 'refreshRss'])->middleware('throttle:astrobot-sync');
         });
@@ -374,8 +395,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         | Posts (create - auth)
         |----------------------------------------------------------------------
         */
-        Route::post('/posts', [PostController::class, 'store']);
-        Route::post('/posts/{post}/reply', [PostController::class, 'reply']);
+        Route::post('/posts', [PostController::class, 'store'])->middleware('throttle:post-create');
+        Route::post('/posts/{post}/reply', [PostController::class, 'reply'])->middleware('throttle:post-create');
         Route::post('/posts/{post}/like', [PostController::class, 'like']);
         Route::delete('/posts/{post}/like', [PostController::class, 'unlike']);
         Route::delete('/posts/{post}', [PostController::class, 'destroy']);
