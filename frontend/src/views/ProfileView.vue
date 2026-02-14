@@ -13,7 +13,7 @@
     <template v-else>
       <div v-if="!auth.user" class="card info">
         <div class="infoTitle">Profil je dostupny po prihlaseni.</div>
-        <div class="infoSub">Prihlas sa a uvidis svoje posty, replies a media.</div>
+        <div class="infoSub">Prihlas sa a uvidis svoje posty, replies, media a zalozky.</div>
         <button class="btn" @click="goLogin">Prihlasit sa</button>
       </div>
 
@@ -229,7 +229,7 @@
                 <div class="postMeta">
                   <div class="postName">{{ displayName }}</div>
                   <div class="dot">.</div>
-                  <div class="postTime">{{ fmt(p.created_at) }}</div>
+                  <div class="postTime">{{ activeTab === 'bookmarks' ? fmt(p.bookmarked_at || p.created_at) : fmt(p.created_at) }}</div>
                 </div>
 
                 <div v-if="p.parent && activeTab === 'replies'" class="replyContext">
@@ -298,6 +298,7 @@ const tabs = [
   { key: 'posts', label: 'Posts', kind: 'roots' },
   { key: 'replies', label: 'Replies', kind: 'replies' },
   { key: 'media', label: 'Media', kind: 'media' },
+  { key: 'bookmarks', label: 'Zalozky', kind: 'bookmarks' },
 ]
 
 const stats = reactive({ posts: '--', replies: '--', media: '--' })
@@ -307,6 +308,7 @@ const tabState = reactive({
   posts: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   replies: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   media: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
+  bookmarks: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
 })
 
 const editOpen = ref(false)
@@ -709,11 +711,16 @@ async function loadTab(key, reset = true) {
   state.err = ''
 
   try {
-    const url = reset ? '/posts' : state.next
+    const url = reset ? (tab.kind === 'bookmarks' ? '/me/bookmarks' : '/posts') : state.next
     if (!url) return
 
     const { data } = await http.get(url, {
-      params: reset ? { scope: 'me', kind: tab.kind, per_page: 10 } : undefined,
+      params:
+        reset
+          ? tab.kind === 'bookmarks'
+            ? { per_page: 10 }
+            : { scope: 'me', kind: tab.kind, per_page: 10 }
+          : undefined,
     })
 
     const rows = data?.data ?? []
@@ -1064,7 +1071,7 @@ onBeforeUnmount(() => {
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.5rem;
 }
 
