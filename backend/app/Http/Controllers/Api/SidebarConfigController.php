@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\SidebarCustomComponentPayload;
 use App\Models\SidebarSectionConfig;
 use App\Support\SidebarSectionRegistry;
 use Illuminate\Http\JsonResponse;
@@ -27,25 +28,45 @@ class SidebarConfigController extends Controller
     }
 
     /**
-     * @return array<int, array{section_key:string,title:string,order:int,is_enabled:bool}>
+     * @return array<int, array<string,mixed>>
      */
     private function buildConfig(string $scope): array
     {
         $dbRows = SidebarSectionConfig::query()
             ->forScope($scope)
+            ->with('customComponent')
             ->get()
-            ->keyBy('section_key');
+            ->sortBy('order')
+            ->values();
 
         $items = [];
+        $builtinRows = $dbRows->where('kind', 'builtin')->keyBy('section_key');
 
         foreach (SidebarSectionRegistry::sections() as $section) {
-            $dbRow = $dbRows->get($section['section_key']);
+            $dbRow = $builtinRows->get($section['section_key']);
 
             $items[] = [
+                'kind' => 'builtin',
                 'section_key' => $section['section_key'],
                 'title' => $section['title'],
+                'custom_component_id' => null,
+                'custom_component' => null,
                 'order' => $dbRow ? (int) $dbRow->order : (int) $section['default_order'],
                 'is_enabled' => $dbRow ? (bool) $dbRow->is_enabled : (bool) $section['default_enabled'],
+            ];
+        }
+
+        foreach ($dbRows->where('kind', 'custom_component') as $dbRow) {
+            $component = $dbRow->customComponent;
+
+            $items[] = [
+                'kind' => 'custom_component',
+                'section_key' => 'custom_component',
+                'title' => $component ? $component->name : 'Custom component (deleted)',
+                'custom_component_id' => $component ? (int) $component->id : (int) ($dbRow->custom_component_id ?? 0),
+                'custom_component' => $component ? SidebarCustomComponentPayload::toArray($component) : null,
+                'order' => (int) $dbRow->order,
+                'is_enabled' => (bool) $dbRow->is_enabled,
             ];
         }
 

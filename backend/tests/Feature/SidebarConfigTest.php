@@ -40,9 +40,9 @@ class SidebarConfigTest extends TestCase
 
         $payload = [
             'items' => [
-                ['section_key' => 'latest_articles', 'order' => 0, 'is_enabled' => true],
-                ['section_key' => 'search', 'order' => 2, 'is_enabled' => false],
-                ['section_key' => 'nasa_apod', 'order' => 1, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'latest_articles', 'order' => 0, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'search', 'order' => 2, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'nasa_apod', 'order' => 1, 'is_enabled' => true],
             ],
         ];
 
@@ -94,7 +94,7 @@ class SidebarConfigTest extends TestCase
 
         $response = $this->putJson('/api/admin/sidebar-config?scope=home', [
             'items' => [
-                ['section_key' => 'unknown_widget', 'order' => 0, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'unknown_widget', 'order' => 0, 'is_enabled' => true],
             ],
         ]);
 
