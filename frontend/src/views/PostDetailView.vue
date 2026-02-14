@@ -29,13 +29,14 @@
           <div class="postMain">
             <div class="postHead">
               <div class="who">
-                <button class="name linkBtn" type="button" @click="openProfile(root?.user)">
-                  {{ root?.user?.name ?? 'User' }}
-                </button>
+                <div class="nameRow">
+                  <button class="name linkBtn" type="button" @click="openProfile(root?.user)">
+                    {{ root?.user?.name ?? 'User' }}
+                  </button>
+                  <span class="nameTime">{{ fmt(root?.created_at) }}</span>
+                </div>
                 <span v-if="root?.source_name === 'astrobot'" class="badge badgeAstrobot">🚀 AstroBot</span>
                 <div class="meta">
-                  <span class="time">{{ fmt(root?.created_at) }}</span>
-                  <span class="dot">.</span>
                   <span class="viewMeta" title="Počet zobrazení" aria-label="Počet zobrazení">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -66,14 +67,17 @@
             </div>
 
             <div v-if="root?.attachment_url" class="mediaWrap">
+              <div v-if="isAttachmentBlocked(root)" class="removedMedia">Removed</div>
               <PostMediaImage
-                v-if="isImage(root)"
+                v-else-if="isImage(root)"
                 :src="attachmentSrc(root)"
                 alt="Priloha prispevku"
+                :blurred="isAttachmentPending(root)"
+                pending-label="Checking..."
               />
 
               <a
-                v-else
+                v-else-if="!isAttachmentPending(root)"
                 class="fileCard"
                 :href="attachmentSrc(root)"
                 target="_blank"
@@ -138,13 +142,15 @@
               <div class="replyMain">
                 <div class="replyHead">
                   <div class="replyHeadMain">
-                    <button class="name linkBtn" type="button" @click="openProfile(r?.user)">
-                      {{ r?.user?.name ?? 'User' }}
-                    </button>
-                    <div class="meta">
-                      <span class="time">{{ fmt(r?.created_at) }}</span>
-                      <span v-if="r?.user?.location" class="dot">.</span>
-                      <span v-if="r?.user?.location" class="loc">Location: {{ r.user.location }}</span>
+                    <div class="nameRow">
+                      <button class="name linkBtn" type="button" @click="openProfile(r?.user)">
+                        {{ r?.user?.name ?? 'User' }}
+                      </button>
+                      <span class="nameTime">{{ fmt(r?.created_at) }}</span>
+                    </div>
+                    <div v-if="r?.user?.location" class="meta">
+                      <span class="dot">.</span>
+                      <span class="loc">Location: {{ r.user.location }}</span>
                     </div>
                   </div>
                   <div class="postActionsMenu">
@@ -163,14 +169,17 @@
                 </div>
 
                 <div v-if="r.attachment_url" class="mediaWrapSm">
+                  <div v-if="isAttachmentBlocked(r)" class="removedMedia">Removed</div>
                   <PostMediaImage
-                    v-if="isImage(r)"
+                    v-else-if="isImage(r)"
                     :src="attachmentSrc(r)"
                     alt="Priloha prispevku"
+                    :blurred="isAttachmentPending(r)"
+                    pending-label="Checking..."
                   />
 
                   <a
-                    v-else
+                    v-else-if="!isAttachmentPending(r)"
                     class="fileCard fileCardSm"
                     :href="attachmentSrc(r)"
                     target="_blank"
@@ -217,13 +226,15 @@
                     <div class="replyMain">
                       <div class="replyHead">
                         <div class="replyHeadMain">
-                          <button class="name linkBtn" type="button" @click="openProfile(c?.user)">
-                            {{ c?.user?.name ?? 'User' }}
-                          </button>
-                          <div class="meta">
-                            <span class="time">{{ fmt(c?.created_at) }}</span>
-                            <span v-if="c?.user?.location" class="dot">.</span>
-                            <span v-if="c?.user?.location" class="loc">Location: {{ c.user.location }}</span>
+                          <div class="nameRow">
+                            <button class="name linkBtn" type="button" @click="openProfile(c?.user)">
+                              {{ c?.user?.name ?? 'User' }}
+                            </button>
+                            <span class="nameTime">{{ fmt(c?.created_at) }}</span>
+                          </div>
+                          <div v-if="c?.user?.location" class="meta">
+                            <span class="dot">.</span>
+                            <span class="loc">Location: {{ c.user.location }}</span>
                           </div>
                         </div>
                         <div class="postActionsMenu">
@@ -242,14 +253,17 @@
                     </div>
 
                       <div v-if="c.attachment_url" class="mediaWrapSm">
+                        <div v-if="isAttachmentBlocked(c)" class="removedMedia">Removed</div>
                         <PostMediaImage
-                          v-if="isImage(c)"
+                          v-else-if="isImage(c)"
                           :src="attachmentSrc(c)"
                           alt="Priloha prispevku"
+                          :blurred="isAttachmentPending(c)"
+                          pending-label="Checking..."
                         />
 
                         <a
-                          v-else
+                          v-else-if="!isAttachmentPending(c)"
                           class="fileCard fileCardSm"
                           :href="attachmentSrc(c)"
                           target="_blank"
@@ -310,6 +324,7 @@ import ReplyComposer from '@/components/ReplyComposer.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import { useAuthStore } from '@/stores/auth'
 import { canReportPost } from '@/utils/postPermissions'
+import { formatRelativeShort } from '@/utils/dateUtils'
 
 const route = useRoute()
 const router = useRouter()
@@ -344,12 +359,7 @@ function initials(name) {
 }
 
 function fmt(iso) {
-  if (!iso) return ''
-  try {
-    return new Date(iso).toLocaleString()
-  } catch {
-    return String(iso)
-  }
+  return formatRelativeShort(iso)
 }
 
 function isImage(p) {
@@ -364,6 +374,14 @@ function isImage(p) {
     name.endsWith('.gif') ||
     name.endsWith('.webp')
   )
+}
+
+function isAttachmentPending(item) {
+  return item?.attachment_moderation_status === 'pending' || item?.attachment_is_blurred === true
+}
+
+function isAttachmentBlocked(item) {
+  return item?.attachment_moderation_status === 'blocked' || !!item?.attachment_hidden_at
 }
 
 function attachmentSrc(p) {
@@ -702,6 +720,20 @@ const repliesCount = computed(() => {
   overflow-wrap: anywhere;
 }
 
+.nameRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.nameTime {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .meta {
   color: var(--color-text-secondary);
   font-size: 0.9rem;
@@ -733,6 +765,15 @@ const repliesCount = computed(() => {
 /* media */
 .mediaWrap {
   margin-top: 0.75rem;
+}
+
+.removedMedia {
+  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.35);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.85;
 }
 
 /* file */
@@ -1062,3 +1103,4 @@ const repliesCount = computed(() => {
   }
 }
 </style>
+

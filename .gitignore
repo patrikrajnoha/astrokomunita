@@ -27,3 +27,13 @@ backend/test-api.ps1
 
 # Local runtime artifacts
 .run/
+tmp_*
+16248
+18564
+services/**/.venv*/
+**/.venv/
+**/.venv*/
+*.out.log
+*.err.log
+__pycache__/
+*.pyc

@@ -163,7 +163,27 @@ function clearFilters() {
 function formatDate(value) {
   if (!value) return '-'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString()
+  if (Number.isNaN(date.getTime())) return String(value)
+
+  const diffMs = Date.now() - date.getTime()
+  const absDiffMs = Math.abs(diffMs)
+  const minuteMs = 60 * 1000
+  const hourMs = 60 * minuteMs
+  const dayMs = 24 * hourMs
+
+  if (absDiffMs < minuteMs) return 'now'
+
+  const formatUnit = (value, unit) => `${value}${unit}`
+
+  if (absDiffMs < hourMs) {
+    return formatUnit(Math.floor(absDiffMs / minuteMs), 'm')
+  }
+
+  if (absDiffMs < dayMs) {
+    return formatUnit(Math.floor(absDiffMs / hourMs), 'h')
+  }
+
+  return formatUnit(Math.floor(absDiffMs / dayMs), 'd')
 }
 
 function reportType(report) {

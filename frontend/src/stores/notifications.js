@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { http } from '@/lib/http'
+import http from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
 export const useNotificationsStore = defineStore('notifications', {

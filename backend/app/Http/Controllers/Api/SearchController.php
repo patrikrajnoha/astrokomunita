@@ -133,7 +133,7 @@ class SearchController extends Controller
 
         $posts = Post::query()
             ->whereNull('parent_id')
-            ->where('is_hidden', false)
+            ->publiclyVisible()
             ->where(function ($q) use ($query) {
                 $q->where('content', 'LIKE', '%' . $query . '%');
             })

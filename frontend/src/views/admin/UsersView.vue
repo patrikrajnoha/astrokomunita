@@ -27,7 +27,7 @@ const data = ref(null)
 let searchDebounce = null
 
 const columns = [
-  { key: 'name', label: 'Username' },
+  { key: 'name', label: 'User' },
   { key: 'email', label: 'Email' },
   { key: 'role', label: 'Role' },
   { key: 'status', label: 'Status' },
@@ -93,6 +93,27 @@ function statusLabel(user) {
   if (!user?.is_active) return 'inactive'
   if (user?.is_banned) return 'banned'
   return 'active'
+}
+
+function statusClass(user) {
+  const status = statusLabel(user)
+  if (status === 'active') return 'is-active'
+  if (status === 'banned') return 'is-banned'
+  return 'is-inactive'
+}
+
+function roleClass(user) {
+  const role = String(user?.role || '').toLowerCase()
+  if (role === 'admin') return 'is-admin'
+  if (role === 'moderator') return 'is-moderator'
+  return 'is-member'
+}
+
+function initials(name) {
+  const value = String(name || '').trim()
+  if (!value) return '?'
+  const parts = value.split(/\s+/).filter(Boolean)
+  return parts.slice(0, 2).map((part) => part[0].toUpperCase()).join('')
 }
 
 function isSelf(user) {
@@ -304,13 +325,28 @@ load()
       @clear-filters="clearFilters"
     >
       <template #[`cell(name)`]="{ row }">
-        <RouterLink :to="{ name: 'admin.users.detail', params: { id: row.id } }" class="userLink">
-          {{ row.name || '-' }}
-        </RouterLink>
+        <div class="userCell">
+          <div class="avatar" :aria-label="`Avatar ${row.name || 'user ' + row.id}`">
+            <img v-if="row.avatar_url" :src="row.avatar_url" :alt="row.name || 'User avatar'" class="avatarImg" />
+            <span v-else class="avatarFallback">{{ initials(row.name) }}</span>
+          </div>
+          <div class="userMeta">
+            <RouterLink :to="{ name: 'admin.users.detail', params: { id: row.id } }" class="userLink">
+              {{ row.name || '-' }}
+            </RouterLink>
+            <div class="userSubline">
+              {{ row.username ? `@${row.username}` : `ID: ${row.id}` }}
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template #[`cell(role)`]="{ row }">
+        <span class="badge roleBadge" :class="roleClass(row)">{{ row.role || '-' }}</span>
       </template>
 
       <template #[`cell(status)`]="{ row }">
-        <span class="statusBadge">{{ statusLabel(row) }}</span>
+        <span class="badge statusBadge" :class="statusClass(row)">{{ statusLabel(row) }}</span>
       </template>
 
       <template #[`cell(actions)`]="{ row }">
@@ -377,14 +413,56 @@ load()
   color: inherit;
 }
 
-.statusBadge {
+.badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
   font-size: 12px;
   border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
   text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
+
+.statusBadge.is-active {
+  color: rgb(21 128 61);
+  border-color: rgb(34 197 94 / 0.35);
+  background: rgb(34 197 94 / 0.12);
+}
+
+.statusBadge.is-banned {
+  color: rgb(185 28 28);
+  border-color: rgb(239 68 68 / 0.35);
+  background: rgb(239 68 68 / 0.12);
+}
+
+.statusBadge.is-inactive {
+  color: rgb(71 85 105);
+  border-color: rgb(100 116 139 / 0.35);
+  background: rgb(100 116 139 / 0.12);
+}
+
+.roleBadge {
+  text-transform: none;
+}
+
+.roleBadge.is-admin {
+  color: rgb(30 64 175);
+  border-color: rgb(59 130 246 / 0.35);
+  background: rgb(59 130 246 / 0.12);
+}
+
+.roleBadge.is-moderator {
+  color: rgb(146 64 14);
+  border-color: rgb(245 158 11 / 0.35);
+  background: rgb(245 158 11 / 0.12);
+}
+
+.roleBadge.is-member {
+  color: rgb(75 85 99);
+  border-color: rgb(107 114 128 / 0.35);
+  background: rgb(107 114 128 / 0.12);
 }
 
 .rowActions {
@@ -417,5 +495,47 @@ load()
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.userCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--color-surface-rgb) / 0.12);
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatarFallback {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.userMeta {
+  min-width: 0;
+}
+
+.userSubline {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-top: 2px;
 }
 </style>

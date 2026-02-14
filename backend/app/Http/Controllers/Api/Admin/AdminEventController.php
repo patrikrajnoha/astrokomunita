@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Enums\EventType;
+use App\Enums\RegionScope;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
@@ -41,6 +43,7 @@ class AdminEventController extends Controller
         $event->title = $validated['title'];
         $event->description = $validated['description'] ?? null;
         $event->type = $validated['type'];
+        $event->region_scope = $validated['region_scope'] ?? RegionScope::Global->value;
         $event->start_at = $validated['start_at'];
         $event->end_at = $validated['end_at'] ?? null;
         $event->visibility = $validated['visibility'];
@@ -59,6 +62,7 @@ class AdminEventController extends Controller
         $event->title = $validated['title'];
         $event->description = $validated['description'] ?? null;
         $event->type = $validated['type'];
+        $event->region_scope = $validated['region_scope'] ?? $event->region_scope ?? RegionScope::Global->value;
         $event->start_at = $validated['start_at'];
         $event->end_at = $validated['end_at'] ?? null;
         $event->visibility = $validated['visibility'];
@@ -73,7 +77,8 @@ class AdminEventController extends Controller
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'type' => ['required', 'string', 'max:60'],
+            'type' => ['required', 'string', Rule::in(EventType::values())],
+            'region_scope' => ['nullable', 'string', Rule::in(RegionScope::values())],
             'start_at' => ['required', 'date'],
             'end_at' => ['nullable', 'date'],
             'visibility' => ['required', Rule::in([0, 1])],

@@ -9,6 +9,61 @@
 
 ## AstroKomunita Project
 
+## Media storage (uploads)
+
+- Uploads use Laravel Storage API only (no direct writes to `/public`).
+- Database stores only file paths (`avatar_path`, `cover_path`, `attachment_path`, `cover_image_path`), not blobs.
+- Frontend consumes URLs returned by API (`avatar_url`, `cover_url`, `attachment_url`, `cover_image_url`).
+
+### Setup
+
+```powershell
+php artisan storage:link
+```
+
+### Environment
+
+```env
+FILES_DISK=public
+FILES_CLOUD_DISK=s3
+```
+
+- `FILES_DISK=public` (dev default): files are saved under `storage/app/public` and served via `/storage` symlink.
+- For cloud-ready deployment, switch `FILES_DISK` to a cloud disk (for example `s3`) and configure that disk.
+
+### Folder layout
+
+- avatars: `avatars/{userId}/...`
+- covers: `covers/{userId}/...`
+- post attachments: `posts/{postId}/...`
+- blog covers: `blog-covers/{userId}/...`
+
+## Personalizovany feed udalosti
+
+### Co sa uklada
+- Pouzivatelske preferencie su v tabulke `user_preferences`:
+  - `event_types` (JSON array typov udalosti)
+  - `region` (`sk|eu|global`)
+  - `updated_at` (automaticke casove razitko)
+- Udalosti maju doplnene `events.region_scope` (`sk|eu|global`) pre region filter.
+
+### Ako funguje `scopeForUser`
+- Scope `Event::forUser(?User $user)` aplikuje personalizaciu len ak je pouzivatel prihlaseny a ma ulozene preferencie.
+- `event_types` filtruje udalosti cez `whereIn(type, ...)`.
+- `region` filtruje cez `region_scope`:
+  - `sk`: povolene `sk`, `eu`, `global`
+  - `eu`: povolene `eu`, `global`
+  - `global`: bez region obmedzenia
+- Pri prazdnom `event_types` sa to interpretuje ako \"vsetky typy\".
+
+### UX personalizacia na `/events`
+- Feed ma segment `Vsetko` vs `Pre mna`.
+- Neprihlaseny pouzivatel vidi `Pre mna` ako disabled + CTA na prihlasenie.
+- Prihlaseny pouzivatel ma panel `Moje preferencie` (multi-select typov + region + ulozenie).
+- Pri feede `Pre mna` su pokryte empty states:
+  - bez ulozenych preferencii -> CTA na nastavenie
+  - preferencie existuju, ale bez vysledkov -> CTA na upravu filtrov
+
 ## Notifications System (Bachelor Thesis)
 
 ### ERD (text)
@@ -35,6 +90,7 @@ php artisan schedule:work
 - GET /api/notifications/unread-count
 - POST /api/notifications/{id}/read
 - POST /api/notifications/read-all
+- Search endpoints (`/api/search/users`, `/api/search/posts`, `/api/search/suggest`) are rate-limited to `60 requests/minute/IP`.
 
 ### Observing conditions sidebar API
 - Endpoint: `GET /api/observe/summary?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava`
@@ -142,6 +198,49 @@ To test the purge command manually:
 php artisan astrobot:purge-old-posts --dry-run
 ```
 
+## Moderation (local, free)
+
+This project supports fully self-hosted moderation with Laravel + FastAPI + HuggingFace models.
+
+### Architecture
+- Laravel publishes posts immediately (`201`) with `moderation_status=pending`.
+- `ModeratePostJob` runs asynchronously and updates moderation status.
+- Image attachments stay blurred while pending to reduce NSFW flashes.
+- Admin review queue is available at `/admin/moderation`.
+
+### Backend env config
+Add these values to `.env`:
+
+```env
+MODERATION_ENABLED=true
+MODERATION_BASE_URL=http://127.0.0.1:8090
+MODERATION_INTERNAL_TOKEN=change-me
+MODERATION_FALLBACK_POLICY=pending_blur_retry
+MODERATION_TEXT_FLAG_THRESHOLD=0.70
+MODERATION_TEXT_BLOCK_THRESHOLD=0.90
+MODERATION_IMAGE_FLAG_THRESHOLD=0.60
+MODERATION_IMAGE_BLOCK_THRESHOLD=0.85
+```
+
+### Local FastAPI service
+Use `../moderation-service/README.md` for setup. For Windows/XAMPP Laravel dev, running the microservice on `http://127.0.0.1:8090` is enough.
+
+### Queue worker
+Moderation is async. Keep queue worker running:
+
+```powershell
+php artisan queue:work
+```
+
+Notes:
+- In local env, post creation logs a warning if moderation uses async queue and worker is probably missing.
+- Moderation jobs are dispatched `afterCommit`, so workers do not race uncommitted posts.
+- For quick manual debug, run:
+
+```powershell
+php artisan moderation:run 123
+```
+
 ## AstroBot RSS automation
 
 ### What runs automatically
@@ -165,7 +264,46 @@ ASTROBOT_RSS_MAX_AGE_DAYS=30
 ASTROBOT_AUTO_PUBLISH_ENABLED=true
 ASTROBOT_DOMAIN_WHITELIST=nasa.gov,www.nasa.gov
 ASTROBOT_RISK_KEYWORDS=!!!,crypto,free,win
+ASTROBOT_SSL_VERIFY=true
+ASTROBOT_SSL_CA_BUNDLE=
+TRANSLATION_SERVICE_URL=http://127.0.0.1:8010
+TRANSLATION_SERVICE_TRANSLATE_PATH=/translate
+TRANSLATION_SERVICE_DIAGNOSTICS_PATH=/diagnostics
+TRANSLATION_TIMEOUT_SECONDS=12
+TRANSLATION_CONNECT_TIMEOUT_SECONDS=3
+TRANSLATION_RETRIES=2
+TRANSLATION_RETRY_SLEEP_MS=250
+INTERNAL_TOKEN=change-me
+TRANSLATION_INTERNAL_TOKEN=change-me
 ```
+
+### NASA RSS SSL setup (Windows/XAMPP + production)
+
+AstroBot NASA sync keeps SSL verification enabled. If PHP cannot validate certificates (`cURL error 60`), provide a CA bundle.
+
+1. Download `cacert.pem` (curl CA bundle) and place it in one of:
+   - `backend/storage/cacert.pem` (preferred)
+   - `backend/cacert.pem`
+2. Set `.env`:
+
+```env
+ASTROBOT_SSL_VERIFY=true
+ASTROBOT_SSL_CA_BUNDLE=C:\absolute\path\to\backend\storage\cacert.pem
+```
+
+3. Reload config:
+
+```powershell
+php artisan optimize:clear
+```
+
+4. Verify fetch works:
+
+```powershell
+php artisan astrobot:sync-rss
+```
+
+If sync still fails, check latest run in admin (`/api/admin/astrobot/nasa/status`) and `storage/logs/laravel.log` for the full `error_message`.
 
 Manual emergency sync command:
 
@@ -178,6 +316,22 @@ Manual admin API sync endpoint (admin only, rate-limited):
 - `GET /api/admin/astrobot/items?status=needs_review`
 - `POST /api/admin/astrobot/items/{id}/publish`
 - `POST /api/admin/astrobot/items/{id}/reject`
+- `POST /api/admin/astrobot/rss-items/{id}/retranslate` (force retranslate)
+- `POST /api/admin/astrobot/rss-items/retranslate-pending` (batch max 100)
+
+### Translation flow (EN -> SK)
+- New/updated RSS items are queued for translation (`TranslateRssItemJob`) after DB commit.
+- `rss_items` stores:
+  - `original_title`, `original_summary`
+  - `translated_title`, `translated_summary`
+  - `translation_status` (`pending|done|failed`)
+  - `translation_error`, `translated_at`
+- Auto-publish waits for `translation_status=done`, so published AstroBot content uses Slovak translation.
+- Keep queue worker running:
+
+```powershell
+php artisan queue:work
+```
 
 ### Development (Windows/XAMPP)
 Run scheduler worker in a separate terminal:

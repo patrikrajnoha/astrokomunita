@@ -37,24 +37,15 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed, ref } from 'vue'
 
-type GenericRecord = Record<string, any>
-
-const props = withDefaults(
-  defineProps<{
-    post: GenericRecord
-    author?: GenericRecord | null
-    brandDomain?: string
-    forcePlaceholderAvatar?: boolean
-  }>(),
-  {
-    author: null,
-    brandDomain: 'nebesky-sprievodca.sk',
-    forcePlaceholderAvatar: false,
-  },
-)
+const props = defineProps({
+  post: { type: Object, required: true },
+  author: { type: Object, default: null },
+  brandDomain: { type: String, default: 'nebesky-sprievodca.sk' },
+  forcePlaceholderAvatar: { type: Boolean, default: false },
+})
 
 const avatarBroken = ref(false)
 
@@ -108,7 +99,7 @@ const bodySnippet = computed(() => {
 const visibleTags = computed(() => {
   const tags = Array.isArray(props.post?.tags)
     ? props.post.tags
-        .map((tag: GenericRecord | string) =>
+        .map((tag) =>
           typeof tag === 'string' ? tag.trim() : String(tag?.name || tag?.slug || '').trim(),
         )
         .filter(Boolean)

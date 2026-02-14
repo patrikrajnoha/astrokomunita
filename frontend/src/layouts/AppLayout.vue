@@ -23,7 +23,17 @@
         >
           🌌
         </span>
-        <span>Astrokomunita</span>
+        <Transition name="brand-fade" mode="out-in">
+          <TypingText
+            v-if="showBrandGreeting"
+            :text="brandGreetingText"
+            :speed-ms="56"
+            :start-delay-ms="150"
+            class="brandLabel font-bold"
+            @done="onBrandGreetingDone"
+          />
+          <span v-else class="brandLabel">Astrokomunita</span>
+        </Transition>
       </RouterLink>
 
       <span class="h-10 w-10" aria-hidden="true"></span>
@@ -36,6 +46,16 @@
     </aside>
 
     <div class="md:pl-64">
+      <div
+        v-if="showAuthFallbackBanner"
+        class="authFallbackBanner"
+        role="status"
+        aria-live="polite"
+      >
+        <span>{{ authFallbackMessage }}</span>
+        <button type="button" class="authFallbackRetry" @click="retryAuthFetch">Skusit znova</button>
+      </div>
+
       <div
         :class="[
           'mx-auto w-full',
@@ -124,7 +144,17 @@
             >
               🌌
             </span>
-            <span>Astrokomunita</span>
+            <Transition name="brand-fade" mode="out-in">
+              <TypingText
+                v-if="showBrandGreeting"
+                :text="brandGreetingText"
+                :speed-ms="56"
+                :start-delay-ms="150"
+                class="brandLabel font-bold"
+                @done="onBrandGreetingDone"
+              />
+              <span v-else class="brandLabel">Astrokomunita</span>
+            </Transition>
           </RouterLink>
 
           <button
@@ -370,6 +400,7 @@ import MainNavbar from '@/components/MainNavbar.vue'
 import DynamicSidebar from '@/components/DynamicSidebar.vue'
 import PostComposer from '@/components/PostComposer.vue'
 import MobileFab from '@/components/MobileFab.vue'
+import TypingText from '@/components/TypingText.vue'
 import { useToast } from '@/composables/useToast'
 import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
@@ -400,8 +431,11 @@ const widgetSheetOffsetY = ref(0)
 const widgetMenuOffsetY = ref(0)
 const touchStartY = ref(0)
 const touchMode = ref('')
+const showBrandGreeting = ref(false)
+const brandGreetingText = ref('')
 const lastWidgetStorageKey = 'mobile_sidebar_last_widget'
 const lastWidgetKey = ref('')
+let brandGreetingHideTimer = null
 const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
@@ -429,6 +463,16 @@ const observingTz = computed(() => {
   const metaTz = parseStringValue(observingLocationMeta.value?.tz)
   if (metaTz) return metaTz
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Bratislava'
+})
+const showAuthFallbackBanner = computed(() => {
+  return auth.bootstrapDone && !auth.isAuthed && (auth.error?.type === 'timeout' || auth.error?.type === 'network')
+})
+const authFallbackMessage = computed(() => {
+  if (auth.error?.type === 'timeout') {
+    return 'Nepodarilo sa nacitat profil (timeout). Pokracujes ako host.'
+  }
+
+  return 'Backend je nedostupny. Pokracujes ako host.'
 })
 
 const parseStringValue = (value) => {
@@ -616,6 +660,10 @@ const installApp = async () => {
   }
 }
 
+const retryAuthFetch = async () => {
+  await auth.retryFetchUser()
+}
+
 const warmSidebarConfig = async () => {
   const scope = currentSidebarScope.value
   if (!scope) {
@@ -674,6 +722,32 @@ const onSheetTouchEnd = (mode) => {
   touchMode.value = ''
 }
 
+const clearBrandGreetingTimer = () => {
+  if (brandGreetingHideTimer !== null) {
+    window.clearTimeout(brandGreetingHideTimer)
+    brandGreetingHideTimer = null
+  }
+}
+
+const hideBrandGreetingNow = () => {
+  clearBrandGreetingTimer()
+  showBrandGreeting.value = false
+  brandGreetingText.value = ''
+}
+
+const onBrandGreetingDone = () => {
+  clearBrandGreetingTimer()
+  brandGreetingHideTimer = window.setTimeout(() => {
+    showBrandGreeting.value = false
+  }, 2500)
+}
+
+const userGreetingName = (user) => {
+  const fromName = parseStringValue(user?.name)
+  if (fromName) return fromName
+  return parseStringValue(user?.username) || ''
+}
+
 watch(
   () => currentSidebarScope.value,
   async () => {
@@ -703,6 +777,35 @@ watch(
   },
 )
 
+watch(
+  () => auth.user,
+  (nextUser) => {
+    if (!nextUser) {
+      hideBrandGreetingNow()
+    }
+  },
+)
+
+watch(
+  () => auth.loginSequence,
+  (next, prev) => {
+    if (!Number.isFinite(next) || next <= 0) return
+    if (typeof prev === 'number' && next <= prev) return
+    if (!auth.user) return
+
+    const name = userGreetingName(auth.user)
+    if (!name) {
+      hideBrandGreetingNow()
+      return
+    }
+
+    clearBrandGreetingTimer()
+    brandGreetingText.value = `Ahoj ${name}! \u{1F44B}`
+    showBrandGreeting.value = true
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
   updateViewportState()
   if (typeof window !== 'undefined') {
@@ -723,6 +826,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
   window.removeEventListener('appinstalled', handleInstalled)
   window.removeEventListener('resize', updateViewportState)
+  clearBrandGreetingTimer()
 })
 </script>
 
@@ -739,6 +843,51 @@ onBeforeUnmount(() => {
   padding: 0.55rem 0.9rem;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.authFallbackBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin: 0.8rem auto 0;
+  padding: 0.65rem 0.9rem;
+  max-width: 1160px;
+  border: 1px solid rgb(var(--color-warning-rgb, 245 158 11) / 0.45);
+  border-radius: 10px;
+  background: rgb(var(--color-warning-rgb, 245 158 11) / 0.12);
+  color: rgb(var(--color-surface-rgb) / 0.95);
+  font-size: 0.82rem;
+}
+
+.brandLabel {
+  display: inline-block;
+  min-height: 1.2rem;
+  white-space: nowrap;
+}
+
+.brand-fade-enter-active,
+.brand-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.brand-fade-enter-from,
+.brand-fade-leave-to {
+  opacity: 0;
+}
+
+.authFallbackRetry {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.28);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.authFallbackRetry:hover {
+  background: rgb(var(--color-surface-rgb) / 0.12);
 }
 
 .installBtn:hover {

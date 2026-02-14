@@ -61,7 +61,7 @@ const segments = computed(() => {
 <style scoped>
 .hashtag-text {
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: inherit;
   word-wrap: break-word;
   overflow-wrap: break-word;
 }

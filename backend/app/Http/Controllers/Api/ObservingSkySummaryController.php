@@ -27,7 +27,7 @@ class ObservingSkySummaryController extends Controller
         $lat = (float) $validated['lat'];
         $lon = (float) $validated['lon'];
         $date = (string) $validated['date'];
-        $tz = $this->normalizeTimezoneInput((string) ($validated['tz'] ?? ''));
+        $tz = (string) ($validated['tz'] ?? '');
 
         $cacheKey = implode(':', [
             'sky_summary',
@@ -46,19 +46,4 @@ class ObservingSkySummaryController extends Controller
         return response()->json($summary);
     }
 
-    private function normalizeTimezoneInput(string $raw): string
-    {
-        $trimmed = trim($raw, " \t\n\r\0\x0B\"'");
-
-        if ($trimmed !== '' && in_array($trimmed, timezone_identifiers_list(), true)) {
-            return $trimmed;
-        }
-
-        $fallback = (string) config('app.timezone', 'UTC');
-        if (!in_array($fallback, timezone_identifiers_list(), true)) {
-            $fallback = 'UTC';
-        }
-
-        return $fallback;
-    }
 }

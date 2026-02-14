@@ -16,6 +16,8 @@ export default defineConfig({
     },
   },
   server: {
+    host: '127.0.0.1',
+    port: 5173,
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -36,6 +38,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['src/**/*.test.js'],
-    exclude: ['node_modules/**', 'src/utils/postPermissions.test.js'],
+    exclude: ['node_modules/**', '**/tests-node/**'],
   },
 })

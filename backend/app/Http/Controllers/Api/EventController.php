@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\EventType;
+use App\Enums\RegionScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\EventIndexRequest;
 use App\Http\Resources\EventResource;
@@ -20,25 +22,35 @@ class EventController extends Controller
     {
         $v = $request->validated();
 
-        $query = Event::query()
-            ->where('visibility', 1)
-            ->published()
-            ->where(function ($sub) {
-                $sub->where('source_name', 'manual')
-                    ->orWhereExists(function ($q) {
-                        $q->selectRaw('1')
-                            ->from('event_candidates')
-                            ->whereColumn('event_candidates.published_event_id', 'events.id')
-                            ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
-                    });
-            });
+        $feed = $v['feed'] ?? 'all';
+        $user = $request->user();
 
-        // Filter: type
-        if (!empty($v['type'])) {
-            $query->where('type', $v['type']);
+        if ($feed === 'mine' && !$user) {
+            return response()->json([
+                'message' => 'Prihlas sa pre personalizovany feed.',
+            ], 401);
         }
 
-        // Filter: fulltext (title/short/description)
+        $query = $this->basePublishedQuery();
+
+        if ($feed === 'mine') {
+            $query->forUser($user);
+        }
+
+        $requestedTypes = $this->resolveRequestedTypes($v);
+        if ($requestedTypes !== []) {
+            $query->whereIn('type', $requestedTypes);
+        }
+
+        if (
+            Event::supportsRegionScope()
+            && !empty($v['region'])
+            && in_array($v['region'], RegionScope::values(), true)
+        ) {
+            $query->where('region_scope', $v['region']);
+        }
+
+        // Filter: type
         if (!empty($v['q'])) {
             $q = $v['q'];
             $query->where(function ($sub) use ($q) {
@@ -103,19 +115,7 @@ class EventController extends Controller
     public function next(Request $request)
     {
         $now = CarbonImmutable::now();
-
-        $base = Event::query()
-            ->where('visibility', 1)
-            ->published()
-            ->where(function ($sub) {
-                $sub->where('source_name', 'manual')
-                    ->orWhereExists(function ($q) {
-                        $q->selectRaw('1')
-                            ->from('event_candidates')
-                            ->whereColumn('event_candidates.published_event_id', 'events.id')
-                            ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
-                    });
-            });
+        $base = $this->basePublishedQuery();
 
         // 1) NajbliĹľĹˇia budĂşca
         $event = (clone $base)
@@ -151,7 +151,15 @@ class EventController extends Controller
      */
     public function show(int $id)
     {
-        $event = Event::query()
+        $event = $this->basePublishedQuery()
+            ->findOrFail($id);
+
+        return new EventResource($event);
+    }
+
+    private function basePublishedQuery()
+    {
+        return Event::query()
             ->where('visibility', 1)
             ->published()
             ->where(function ($sub) {
@@ -162,9 +170,28 @@ class EventController extends Controller
                             ->whereColumn('event_candidates.published_event_id', 'events.id')
                             ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
                     });
-            })
-            ->findOrFail($id);
+            });
+    }
 
-        return new EventResource($event);
+    /**
+     * @return list<string>
+     */
+    private function resolveRequestedTypes(array $validated): array
+    {
+        $supported = EventType::values();
+        $rawTypes = $validated['types'] ?? [];
+
+        if (is_string($rawTypes)) {
+            $rawTypes = array_map('trim', explode(',', $rawTypes));
+        }
+
+        $types = collect(is_array($rawTypes) ? $rawTypes : [])
+            ->filter(static fn ($type) => is_string($type) && in_array($type, $supported, true));
+
+        if (!empty($validated['type']) && is_string($validated['type']) && in_array($validated['type'], $supported, true)) {
+            $types->push($validated['type']);
+        }
+
+        return $types->unique()->values()->all();
     }
 }

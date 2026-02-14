@@ -8,10 +8,12 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Services\Storage\MediaStorageService;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -85,12 +87,12 @@ class User extends Authenticatable
             return null;
         }
 
-        $disk = Storage::disk('public');
-        if (!$disk->exists($path)) {
+        $media = app(MediaStorageService::class);
+        if (!$media->exists($path)) {
             return null;
         }
 
-        return $disk->url($path);
+        return $media->absoluteUrl($path);
     }
 
     public function getCoverUrlAttribute(): ?string
@@ -100,12 +102,12 @@ class User extends Authenticatable
             return null;
         }
 
-        $disk = Storage::disk('public');
-        if (!$disk->exists($path)) {
+        $media = app(MediaStorageService::class);
+        if (!$media->exists($path)) {
             return null;
         }
 
-        return $disk->url($path);
+        return $media->absoluteUrl($path);
     }
 
     public function getLocationMetaAttribute(): ?array
@@ -232,6 +234,11 @@ class User extends Authenticatable
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
+    }
+
+    public function eventPreference(): HasOne
+    {
+        return $this->hasOne(UserPreference::class);
     }
 
     public function isAdmin(): bool

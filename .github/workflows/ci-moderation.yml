@@ -1,0 +1,55 @@
+name: CI Moderation Service
+
+on:
+  push:
+    branches:
+      - main
+      - audit-fixes
+  pull_request:
+    branches:
+      - main
+      - audit-fixes
+
+jobs:
+  moderation:
+    name: FastAPI lightweight checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: moderation-service
+    env:
+      TRANSFORMERS_OFFLINE: "1"
+      HF_HUB_OFFLINE: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: moderation-service/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+      - name: Compile Python files
+        run: |
+          python -m py_compile $(git ls-files '*.py')
+
+      - name: Import check
+        run: python -c "import app.main"
+
+      - name: Run pytest when present
+        run: |
+          if command -v pytest >/dev/null 2>&1 && [ -d tests ]; then
+            pytest -q
+          else
+            echo "Skipping pytest: pytest or tests/ not present."
+          fi

@@ -3,11 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Post;
 use Illuminate\Http\Request;
+use App\Services\FeedQueryBuilder;
+use App\Models\User;
 
 class FeedController extends Controller
 {
+    public function __construct(
+        private readonly FeedQueryBuilder $feedQueryBuilder,
+    ) {
+    }
+
     /**
      * GET /api/feed
      * 
@@ -27,113 +33,21 @@ class FeedController extends Controller
 
         $kind = $request->query('kind', 'roots');
         $withCounts = $request->query('with') === 'counts';
+        $tag = $request->query('tag');
 
-        $user = $request->user();
-        $isAdmin = $user?->isAdmin() ?? false;
+        $user = $this->resolveViewer($request);
+        $query = $this->feedQueryBuilder->build([
+            'kind' => $kind,
+            'with_counts' => $withCounts,
+            'include_hidden' => $request->boolean('include_hidden'),
+            'order' => 'pinned_then_created',
+            'sources_exclude' => ['astrobot', 'nasa_rss'],
+            'tag' => $tag ? strtolower((string) $tag) : null,
+        ], $user);
 
-        // Get pinned user posts first (exclude AstroBot/nasa_rss sources)
-        $pinnedQuery = Post::query()
-            ->whereNotNull('pinned_at')
-            ->where(function ($q) {
-                $q->whereNull('source_name')
-                    ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
-            })
-            ->with([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'tags:id,name',
-                'hashtags:id,name',
-            ])
-            ->withCount('likes')
-            ->orderBy('pinned_at', 'desc');
-
-        // Apply common filters to pinned posts
-        if ($user) {
-            $pinnedQuery->withExists([
-                'likes as liked_by_me' => fn ($q) => $q->where('user_id', $user->id),
-            ]);
-        }
-
-        if ($kind === 'replies') {
-            $pinnedQuery->whereNotNull('parent_id');
-        } elseif ($kind === 'media') {
-            $pinnedQuery->whereNotNull('attachment_path');
-        } else {
-            $pinnedQuery->whereNull('parent_id');
-        }
-
-        if (!$request->boolean('include_hidden') || !$isAdmin) {
-            $pinnedQuery->where('is_hidden', false);
-        }
-
-        $pinnedQuery->notExpired();
-
-        // Get regular user posts (excluding pinned and AstroBot sources)
-        $regularQuery = Post::query()
-            ->whereNull('pinned_at')
-            ->where(function ($q) {
-                $q->whereNull('source_name')
-                    ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
-            })
-            ->with([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'tags:id,name',
-                'hashtags:id,name',
-            ])
-            ->orderBy('created_at', 'desc');
-
-        $counts = ['likes'];
-        if ($withCounts) {
-            $counts[] = 'replies';
-        }
-        $regularQuery->withCount($counts);
-
-        if ($user) {
-            $regularQuery->withExists([
-                'likes as liked_by_me' => fn ($q) => $q->where('user_id', $user->id),
-            ]);
-        }
-
-        if ($kind === 'replies') {
-            $regularQuery->whereNotNull('parent_id');
-        } elseif ($kind === 'media') {
-            $regularQuery->whereNotNull('attachment_path');
-        } else {
-            $regularQuery->whereNull('parent_id');
-        }
-
-        if (!$request->boolean('include_hidden') || !$isAdmin) {
-            $regularQuery->where('is_hidden', false);
-        }
-
-        $regularQuery->notExpired();
-
-        // Filter by tag - try both name and slug for robustness
-        if ($tag = $request->query('tag')) {
-            $tag = strtolower($tag);
-            $pinnedQuery->whereHas('tags', function ($q) use ($tag) {
-                $q->where('name', $tag)->orWhere('slug', $tag);
-            });
-            $regularQuery->whereHas('tags', function ($q) use ($tag) {
-                $q->where('name', $tag)->orWhere('slug', $tag);
-            });
-        }
-
-        // Get pinned posts and regular posts
-        $pinnedPosts = $pinnedQuery->get();
-        $regularQuery = $regularQuery->paginate($perPage - $pinnedPosts->count())->withQueryString();
-        
-        // Combine results: pinned first, then regular
-        $allPosts = $pinnedPosts->concat($regularQuery->getCollection());
-        
-        // Create custom pagination metadata
-        $result = $regularQuery;
-        $result->setCollection($allPosts);
-
-        return response()->json($result);
+        return response()->json(
+            $query->paginate($perPage)->withQueryString()
+        );
     }
 
     /**
@@ -155,52 +69,14 @@ class FeedController extends Controller
         $kind = $request->query('kind', 'roots');
         $withCounts = $request->query('with') === 'counts';
 
-        $user = $request->user();
-        $isAdmin = $user?->isAdmin() ?? false;
-
-        $query = Post::query()
-            ->whereIn('source_name', ['astrobot', 'nasa_rss'])
-            ->with([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'tags:id,name',
-                'hashtags:id,name',
-            ])
-            ->orderByRaw('pinned_at IS NULL DESC, pinned_at DESC, created_at DESC');
-
-        $counts = ['likes'];
-        if ($withCounts) {
-            $counts[] = 'replies';
-        }
-        $query->withCount($counts);
-
-        if ($user) {
-            $query->withExists([
-                'likes as liked_by_me' => fn ($q) => $q->where('user_id', $user->id),
-            ]);
-        }
-
-        if ($kind === 'replies') {
-            $query->whereNotNull('parent_id');
-            $query->with([
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
-            ]);
-        } elseif ($kind === 'media') {
-            $query->whereNotNull('attachment_path');
-            $query->with([
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
-            ]);
-        } else {
-            $query->whereNull('parent_id');
-        }
-
-        if (!$request->boolean('include_hidden') || !$isAdmin) {
-            $query->where('is_hidden', false);
-        }
-
-        // Exclude expired AstroBot posts
-        $query->notExpired();
+        $user = $this->resolveViewer($request);
+        $query = $this->feedQueryBuilder->build([
+            'kind' => $kind,
+            'with_counts' => $withCounts,
+            'include_hidden' => $request->boolean('include_hidden'),
+            'order' => 'pinned_then_created',
+            'sources_include' => ['astrobot', 'nasa_rss'],
+        ], $user);
 
         // Filter by tag - try both name and slug for robustness
         if ($tag = $request->query('tag')) {
@@ -213,5 +89,10 @@ class FeedController extends Controller
         return response()->json(
             $query->paginate($perPage)->withQueryString()
         );
+    }
+
+    private function resolveViewer(Request $request): ?User
+    {
+        return $request->user() ?? $request->user('sanctum');
     }
 }

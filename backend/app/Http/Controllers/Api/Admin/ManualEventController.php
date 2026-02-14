@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Enums\EventType;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
@@ -113,7 +114,7 @@ class ManualEventController extends Controller
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'event_type' => ['required', 'string', 'max:60'],
+            'event_type' => ['required', 'string', 'in:' . implode(',', EventType::values())],
             'starts_at' => ['required', 'date'],
             'ends_at' => ['nullable', 'date'],
             'visibility' => ['nullable', 'integer'],

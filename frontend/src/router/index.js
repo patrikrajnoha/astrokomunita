@@ -7,6 +7,7 @@ const appShellChildren = [
   {
     path: '',
     name: 'home',
+    meta: { requiresAuth: false },
     component: HomeView,
   },
   {
@@ -15,16 +16,19 @@ const appShellChildren = [
       {
         path: '',
         name: 'events',
+        meta: { requiresAuth: false },
         component: () => import('../views/EventsView.vue'),
       },
       {
         path: 'swipe',
         name: 'events-swipe',
+        meta: { requiresAuth: false },
         component: () => import('../views/SwipeEventsView.vue'),
       },
       {
         path: ':id',
         name: 'event-detail',
+        meta: { requiresAuth: false },
         component: () => import('../views/EventDetailView.vue'),
       },
     ],
@@ -43,76 +47,85 @@ const appShellChildren = [
   {
     path: 'observations',
     name: 'observations',
+    meta: { requiresAuth: false },
     component: () => import('../views/ObservationsView.vue'),
   },
   {
     path: 'learn',
     name: 'learn',
+    meta: { requiresAuth: false },
     component: () => import('../views/LearnView.vue'),
   },
   {
     path: 'learn/:slug',
     name: 'learn-detail',
+    meta: { requiresAuth: false },
     component: () => import('../views/LearnDetailView.vue'),
   },
   {
     path: 'search',
     name: 'search',
+    meta: { requiresAuth: false },
     component: () => import('../views/SearchView.vue'),
   },
   {
     path: 'settings',
     name: 'settings',
-    meta: { auth: true },
+    meta: { auth: true, requiresAuth: true },
     component: () => import('../views/SettingsView.vue'),
   },
   {
     path: 'creator-studio',
     name: 'creator-studio',
-    meta: { auth: true },
+    meta: { auth: true, requiresAuth: true },
     component: () => import('../views/CreatorStudioView.vue'),
   },
   {
     path: 'notifications',
     name: 'notifications',
-    meta: { auth: true },
+    meta: { auth: true, requiresAuth: true },
     component: () => import('../views/NotificationsView.vue'),
   },
   {
     path: 'profile',
     name: 'profile',
+    meta: { auth: true, requiresAuth: true },
     component: () => import('../views/ProfileView.vue'),
   },
   {
     path: 'profile/edit',
     name: 'profile.edit',
-    meta: { auth: true },
+    meta: { auth: true, requiresAuth: true },
     component: () => import('../views/ProfileEdit.vue'),
   },
   {
     path: 'posts/:id',
     name: 'post-detail',
+    meta: { requiresAuth: false },
     component: () => import('@/views/PostDetailView.vue'),
   },
   {
     path: 'tags/:tag',
     name: 'tag-feed',
+    meta: { requiresAuth: false },
     component: () => import('../views/TagFeedView.vue'),
   },
   {
     path: 'hashtags/:name',
     name: 'hashtag-feed',
+    meta: { requiresAuth: false },
     component: () => import('../views/HashtagFeedView.vue'),
   },
   {
     path: 'u/:username',
     name: 'user-profile',
+    meta: { requiresAuth: false },
     component: () => import('../views/PublicProfileView.vue'),
   },
   {
     path: 'admin',
     component: () => import('@/layouts/AdminHubLayout.vue'),
-    meta: { auth: true, admin: true },
+    meta: { auth: true, requiresAuth: true, admin: true },
     children: [
       {
         path: '',
@@ -121,7 +134,7 @@ const appShellChildren = [
       {
         path: 'dashboard',
         name: 'admin.dashboard',
-        component: () => import('@/views/admin/DashboardView.vue'),
+        component: () => import('@/views/admin/AdminDashboardView.vue'),
       },
       {
         path: 'event-candidates',
@@ -157,6 +170,11 @@ const appShellChildren = [
         path: 'reports',
         name: 'admin.reports',
         component: () => import('@/views/admin/ReportsView.vue'),
+      },
+      {
+        path: 'moderation',
+        name: 'admin.moderation',
+        component: () => import('@/views/admin/ModerationView.vue'),
       },
       {
         path: 'users',
@@ -198,13 +216,13 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      meta: { guest: true },
+      meta: { guest: true, requiresAuth: false },
       component: () => import('../views/LoginView.vue'),
     },
     {
       path: '/register',
       name: 'register',
-      meta: { guest: true },
+      meta: { guest: true, requiresAuth: false },
       component: () => import('../views/RegisterView.vue'),
     },
     {
@@ -215,32 +233,42 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach(async (to) => {
-  const auth = useAuthStore()
+export function applyAuthGuards(routerInstance) {
+  routerInstance.beforeEach((to) => {
+    const auth = useAuthStore()
 
-  if (!auth.initialized) {
-    await auth.fetchUser()
-  }
-
-  const redirectTarget = to.fullPath
-
-  if (to.meta?.auth && !auth.isAuthed) {
-    return {
-      name: 'login',
-      query: { redirect: redirectTarget },
+    if (!auth.bootstrapDone && auth.status === 'idle' && !auth.loading) {
+      auth.bootstrapAuth()
     }
-  }
 
-  if (to.meta?.admin && !auth.isAdmin) {
-    return { name: 'home' }
-  }
+    const redirectTarget = to.fullPath
+    const requiresAuth = Boolean(to.meta?.requiresAuth ?? to.meta?.auth ?? false)
 
-  if (to.meta?.guest && auth.isAuthed) {
-    const redirect = typeof to.query?.redirect === 'string' ? to.query.redirect : null
-    return redirect || { name: 'home' }
-  }
+    const shouldRedirectGuest =
+      requiresAuth &&
+      !auth.isAuthed &&
+      (auth.bootstrapDone || auth.initialized || auth.status === 'guest' || auth.status === 'error')
 
-  return true
-})
+    if (shouldRedirectGuest) {
+      return {
+        name: 'login',
+        query: { redirect: redirectTarget },
+      }
+    }
+
+    if (to.meta?.admin && !auth.isAdmin) {
+      return { name: 'home' }
+    }
+
+    if (to.meta?.guest && auth.isAuthed) {
+      const redirect = typeof to.query?.redirect === 'string' ? to.query.redirect : null
+      return redirect || { name: 'home' }
+    }
+
+    return true
+  })
+}
+
+applyAuthGuards(router)
 
 export default router

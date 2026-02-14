@@ -14,6 +14,7 @@ return [
     */
 
     'default' => env('FILESYSTEM_DISK', 'local'),
+    'cloud' => env('FILES_CLOUD_DISK', 's3'),
 
     /*
     |--------------------------------------------------------------------------

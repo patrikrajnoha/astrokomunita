@@ -33,12 +33,12 @@ class RecommendationController extends Controller
             ->whereHas('posts', function ($query) {
                 $query->where('created_at', '>=', now()->subDays(7))
                       ->whereNull('parent_id') // Len root posts
-                      ->where('is_hidden', false);
+                      ->publiclyVisible();
             })
             ->withCount(['posts' => function ($query) {
                 $query->where('created_at', '>=', now()->subDays(7))
                       ->whereNull('parent_id')
-                      ->where('is_hidden', false);
+                      ->publiclyVisible();
             }])
             ->orderBy('posts_count', 'desc')
             ->limit($limit)
@@ -61,7 +61,7 @@ class RecommendationController extends Controller
 
         $posts = Post::query()
             ->whereNull('parent_id') // Len root posts
-            ->where('is_hidden', false)
+            ->publiclyVisible()
             ->notExpired()
             ->where('created_at', '>=', now()->subHours(48))
             ->with(['user:id,name,username,avatar_path', 'hashtags'])

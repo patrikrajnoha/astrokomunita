@@ -78,7 +78,7 @@ async function load() {
   try {
     data.value = await eventCandidates.list(buildParams());
   } catch (e) {
-    error.value = e?.response?.data?.message || "Chyba pri na??tan? kandid?tov";
+    error.value = e?.response?.data?.message || "Chyba pri nacitani kandidatov";
   } finally {
     loading.value = false;
   }
@@ -106,7 +106,7 @@ async function loadManual() {
     const res = await api.get("/admin/manual-events", { params: buildManualParams() });
     manualData.value = res.data;
   } catch (e) {
-    manualError.value = e?.response?.data?.message || "Chyba pri na??tan? draftov";
+    manualError.value = e?.response?.data?.message || "Chyba pri nacitani draftov";
   } finally {
     manualLoading.value = false;
   }
@@ -137,7 +137,7 @@ watch([status, type, per_page], () => {
   if (activeTab.value === "crawled") load();
 });
 
-// Source a q nech?me na Enter / Search button (aby sa to nena??tavalo pri ka?dom p?smene)
+// Source and q are triggered on Enter/Search only to avoid fetches on each keystroke.
 
 function prevPage() {
   if (!data.value || page.value <= 1) return;
@@ -237,7 +237,7 @@ async function saveManual() {
     }
     showManualForm.value = false;
   } catch (e) {
-    manualError.value = e?.response?.data?.message || "Ulo?enie zlyhalo";
+    manualError.value = e?.response?.data?.message || "Ulozenie zlyhalo";
   } finally {
     manualLoading.value = false;
   }
@@ -419,7 +419,7 @@ onMounted(load);
           <input
             v-model="q"
             :disabled="loading"
-            placeholder="h?adaj v title/short/? (q)"
+            placeholder="hladaj v title/short/description (q)"
             @keyup.enter="resetToFirstPage(); load()"
             style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           />
@@ -610,7 +610,7 @@ onMounted(load);
           <input
             v-model="manualQ"
             :disabled="manualLoading"
-            placeholder="h?adaj v title (q)"
+            placeholder="hladaj v title (q)"
             @keyup.enter="resetManualToFirstPage(); loadManual()"
             style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           />
@@ -755,7 +755,7 @@ onMounted(load);
 
             <tr v-if="manualData.data.length === 0">
               <td colspan="5" style="padding:16px; opacity:.8;">
-                ?iadne drafty.
+                Ziadne drafty.
               </td>
             </tr>
           </tbody>

@@ -65,7 +65,7 @@
           <input v-model="passwordConfirmation" type="password" class="input" autocomplete="new-password" />
         </label>
 
-        <button class="btn" type="submit" :disabled="auth.loading || usernameCheckState === 'checking'">
+        <button class="btn" type="submit" :disabled="auth.loading">
           {{ auth.loading ? 'Registrujem...' : 'Zaregistrovat' }}
         </button>
 
@@ -81,7 +81,7 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { http } from '@/lib/http'
+import http from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -251,11 +251,6 @@ const submit = async () => {
   const dobError = validateDateOfBirth(dateOfBirth.value)
   if (dobError) {
     formError.value = dobError
-    return
-  }
-
-  if (usernameCheckState.value === 'checking') {
-    formError.value = 'Pockaj na dokoncenie kontroly pouzivatelskeho mena.'
     return
   }
 
