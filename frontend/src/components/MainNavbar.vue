@@ -12,7 +12,17 @@
       >
         AK
       </span>
-      <span class="hidden sm:inline">Astrokomunita</span>
+      <Transition name="brand-fade" mode="out-in">
+        <TypingText
+          v-if="showGreeting"
+          :text="greetingText"
+          :speed-ms="56"
+          :start-delay-ms="150"
+          class="brandLabel hidden sm:inline font-bold"
+          @done="onGreetingDone"
+        />
+        <span v-else class="brandLabel hidden sm:inline">Astrokomunita</span>
+      </Transition>
     </RouterLink>
 
     <!-- Main Navigation -->
@@ -237,6 +247,31 @@
                     R
                   </span>
                   <span class="flex-1">Reports</span>
+                </a>
+              </RouterLink>
+
+              <RouterLink
+                to="/admin/moderation"
+                custom
+                v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
+              >
+                <a
+                  :href="adminHref"
+                  @click="() => { closeAdmin(); adminNavigate(); }"
+                  class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+                  :class="isAdminItemActive
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    : ''"
+                  role="menuitem"
+                  aria-label="Moderation"
+                >
+                  <span
+                    class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+                    aria-hidden="true"
+                  >
+                    M
+                  </span>
+                  <span class="flex-1">Moderation</span>
                 </a>
               </RouterLink>
 
@@ -534,6 +569,7 @@ import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
+import TypingText from '@/components/TypingText.vue'
 
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
@@ -543,6 +579,10 @@ const isMoreOpen = ref(false)
 const moreWrapperRef = ref(null)
 const isAdminOpen = ref(false)
 const adminWrapperRef = ref(null)
+const showGreeting = ref(false)
+const greetingText = ref('')
+
+let greetingHideTimer = null
 
 const isMoreActive = computed(() => {
   return route.path === '/settings' || route.path === '/creator-studio'
@@ -566,7 +606,7 @@ const userAvatarUrl = computed(() => {
   if (!raw) return ''
   if (/^https?:\/\//i.test(raw)) return raw
 
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
   if (raw.startsWith('/')) return `${base}${raw}`
   return `${base}/${raw}`
 })
@@ -647,15 +687,20 @@ const closeAdmin = () => {
   isAdminOpen.value = false
 }
 
+const firstElementRef = (value) => {
+  if (Array.isArray(value)) return value[0] || null
+  return value || null
+}
+
 const handleClickOutside = (event) => {
   const target = event.target
-  const wrapper = moreWrapperRef.value
-  const adminWrapper = adminWrapperRef.value
+  const wrapper = firstElementRef(moreWrapperRef.value)
+  const adminWrapper = firstElementRef(adminWrapperRef.value)
 
-  if (isMoreOpen.value && wrapper && target instanceof Node && !wrapper.contains(target)) {
+  if (isMoreOpen.value && wrapper instanceof Element && target instanceof Node && !wrapper.contains(target)) {
     closeMore()
   }
-  if (isAdminOpen.value && adminWrapper && target instanceof Node && !adminWrapper.contains(target)) {
+  if (isAdminOpen.value && adminWrapper instanceof Element && target instanceof Node && !adminWrapper.contains(target)) {
     closeAdmin()
   }
 }
@@ -667,6 +712,34 @@ const handleKeydown = (event) => {
   }
 }
 
+const clearGreetingTimer = () => {
+  if (greetingHideTimer !== null) {
+    window.clearTimeout(greetingHideTimer)
+    greetingHideTimer = null
+  }
+}
+
+const hideGreetingNow = () => {
+  clearGreetingTimer()
+  showGreeting.value = false
+  greetingText.value = ''
+}
+
+const onGreetingDone = () => {
+  clearGreetingTimer()
+  greetingHideTimer = window.setTimeout(() => {
+    showGreeting.value = false
+  }, 2500)
+}
+
+const userGreetingName = (user) => {
+  const fromName = String(user?.name || '').trim()
+  if (fromName) return fromName
+  const fromUsername = String(user?.username || '').trim()
+  if (fromUsername) return fromUsername
+  return ''
+}
+
 onMounted(() => {
   document.addEventListener('mousedown', handleClickOutside)
   window.addEventListener('keydown', handleKeydown)
@@ -676,6 +749,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleClickOutside)
   window.removeEventListener('keydown', handleKeydown)
+  clearGreetingTimer()
 })
 
 watch(
@@ -683,6 +757,35 @@ watch(
   (isAuthed) => {
     if (isAuthed) notifications.fetchUnreadCount()
   }
+)
+
+watch(
+  () => auth.user,
+  (nextUser) => {
+    if (!nextUser) {
+      hideGreetingNow()
+    }
+  },
+)
+
+watch(
+  () => auth.loginSequence,
+  (next, prev) => {
+    if (!Number.isFinite(next) || next <= 0) return
+    if (typeof prev === 'number' && next <= prev) return
+    if (!auth.user) return
+
+    const name = userGreetingName(auth.user)
+    if (!name) {
+      hideGreetingNow()
+      return
+    }
+
+    clearGreetingTimer()
+    greetingText.value = `Ahoj ${name}! \u{1F44B}`
+    showGreeting.value = true
+  },
+  { immediate: true },
 )
 
 const logout = async () => {
@@ -703,6 +806,22 @@ const logout = async () => {
 .navScroll::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+.brandLabel {
+  display: inline-block;
+  min-height: 1.2rem;
+  white-space: nowrap;
+}
+
+.brand-fade-enter-active,
+.brand-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.brand-fade-enter-from,
+.brand-fade-leave-to {
+  opacity: 0;
 }
 </style>
 

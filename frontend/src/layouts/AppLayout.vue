@@ -23,7 +23,17 @@
         >
           🌌
         </span>
-        <span>Astrokomunita</span>
+        <Transition name="brand-fade" mode="out-in">
+          <TypingText
+            v-if="showBrandGreeting"
+            :text="brandGreetingText"
+            :speed-ms="56"
+            :start-delay-ms="150"
+            class="brandLabel font-bold"
+            @done="onBrandGreetingDone"
+          />
+          <span v-else class="brandLabel">Astrokomunita</span>
+        </Transition>
       </RouterLink>
 
       <span class="h-10 w-10" aria-hidden="true"></span>
@@ -134,7 +144,17 @@
             >
               🌌
             </span>
-            <span>Astrokomunita</span>
+            <Transition name="brand-fade" mode="out-in">
+              <TypingText
+                v-if="showBrandGreeting"
+                :text="brandGreetingText"
+                :speed-ms="56"
+                :start-delay-ms="150"
+                class="brandLabel font-bold"
+                @done="onBrandGreetingDone"
+              />
+              <span v-else class="brandLabel">Astrokomunita</span>
+            </Transition>
           </RouterLink>
 
           <button
@@ -380,6 +400,7 @@ import MainNavbar from '@/components/MainNavbar.vue'
 import DynamicSidebar from '@/components/DynamicSidebar.vue'
 import PostComposer from '@/components/PostComposer.vue'
 import MobileFab from '@/components/MobileFab.vue'
+import TypingText from '@/components/TypingText.vue'
 import { useToast } from '@/composables/useToast'
 import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
@@ -410,8 +431,11 @@ const widgetSheetOffsetY = ref(0)
 const widgetMenuOffsetY = ref(0)
 const touchStartY = ref(0)
 const touchMode = ref('')
+const showBrandGreeting = ref(false)
+const brandGreetingText = ref('')
 const lastWidgetStorageKey = 'mobile_sidebar_last_widget'
 const lastWidgetKey = ref('')
+let brandGreetingHideTimer = null
 const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
@@ -698,6 +722,32 @@ const onSheetTouchEnd = (mode) => {
   touchMode.value = ''
 }
 
+const clearBrandGreetingTimer = () => {
+  if (brandGreetingHideTimer !== null) {
+    window.clearTimeout(brandGreetingHideTimer)
+    brandGreetingHideTimer = null
+  }
+}
+
+const hideBrandGreetingNow = () => {
+  clearBrandGreetingTimer()
+  showBrandGreeting.value = false
+  brandGreetingText.value = ''
+}
+
+const onBrandGreetingDone = () => {
+  clearBrandGreetingTimer()
+  brandGreetingHideTimer = window.setTimeout(() => {
+    showBrandGreeting.value = false
+  }, 2500)
+}
+
+const userGreetingName = (user) => {
+  const fromName = parseStringValue(user?.name)
+  if (fromName) return fromName
+  return parseStringValue(user?.username) || ''
+}
+
 watch(
   () => currentSidebarScope.value,
   async () => {
@@ -727,6 +777,35 @@ watch(
   },
 )
 
+watch(
+  () => auth.user,
+  (nextUser) => {
+    if (!nextUser) {
+      hideBrandGreetingNow()
+    }
+  },
+)
+
+watch(
+  () => auth.loginSequence,
+  (next, prev) => {
+    if (!Number.isFinite(next) || next <= 0) return
+    if (typeof prev === 'number' && next <= prev) return
+    if (!auth.user) return
+
+    const name = userGreetingName(auth.user)
+    if (!name) {
+      hideBrandGreetingNow()
+      return
+    }
+
+    clearBrandGreetingTimer()
+    brandGreetingText.value = `Ahoj ${name}! \u{1F44B}`
+    showBrandGreeting.value = true
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
   updateViewportState()
   if (typeof window !== 'undefined') {
@@ -747,6 +826,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
   window.removeEventListener('appinstalled', handleInstalled)
   window.removeEventListener('resize', updateViewportState)
+  clearBrandGreetingTimer()
 })
 </script>
 
@@ -778,6 +858,22 @@ onBeforeUnmount(() => {
   background: rgb(var(--color-warning-rgb, 245 158 11) / 0.12);
   color: rgb(var(--color-surface-rgb) / 0.95);
   font-size: 0.82rem;
+}
+
+.brandLabel {
+  display: inline-block;
+  min-height: 1.2rem;
+  white-space: nowrap;
+}
+
+.brand-fade-enter-active,
+.brand-fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.brand-fade-enter-from,
+.brand-fade-leave-to {
+  opacity: 0;
 }
 
 .authFallbackRetry {
