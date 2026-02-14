@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\TranslateRssItemJob;
 use App\Models\RssItem;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -136,7 +137,9 @@ class AstroBotRssService
                 'guid' => $guid !== '' ? $guid : null,
                 'url' => $link,
                 'title' => Str::limit($title, 255),
+                'original_title' => Str::limit($title, 255),
                 'summary' => $summary !== '' ? Str::limit($summary, 2000) : null,
+                'original_summary' => $summary !== '' ? Str::limit($summary, 2000) : null,
                 'published_at' => $publishedAt,
                 'fetched_at' => now(),
                 'dedupe_hash' => $stableKey,
@@ -148,6 +151,8 @@ class AstroBotRssService
 
             if ($isNew) {
                 $payloadForUpsert['status'] = RssItem::STATUS_DRAFT;
+                $payloadForUpsert['translation_status'] = RssItem::TRANSLATION_PENDING;
+                $payloadForUpsert['translation_error'] = null;
             }
 
             $item = RssItem::query()->updateOrCreate(
@@ -158,12 +163,21 @@ class AstroBotRssService
             if ($isNew) {
                 $stats['added']++;
                 $stats['evaluate_item_ids'][] = $item->id;
+                TranslateRssItemJob::dispatch($item->id)->afterCommit();
                 continue;
             }
 
             if ($existing !== null && $this->hasImportChanges($existing, $payloadForUpsert)) {
+                $item->update([
+                    'translated_title' => null,
+                    'translated_summary' => null,
+                    'translation_status' => RssItem::TRANSLATION_PENDING,
+                    'translation_error' => null,
+                    'translated_at' => null,
+                ]);
                 $stats['updated']++;
                 $stats['evaluate_item_ids'][] = $item->id;
+                TranslateRssItemJob::dispatch($item->id)->afterCommit();
             } else {
                 $stats['skipped']++;
             }
@@ -311,4 +325,3 @@ class AstroBotRssService
         return trim($value);
     }
 }
-

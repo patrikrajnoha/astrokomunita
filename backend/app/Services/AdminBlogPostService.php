@@ -4,13 +4,18 @@ namespace App\Services;
 
 use App\Models\BlogPost;
 use App\Models\Tag;
+use App\Services\Storage\MediaStorageService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class AdminBlogPostService
 {
+    public function __construct(
+        private readonly MediaStorageService $mediaStorage,
+    ) {
+    }
+
     public function list(?string $status): LengthAwarePaginator
     {
         $query = BlogPost::query()
@@ -40,7 +45,7 @@ class AdminBlogPostService
         ];
 
         if ($coverImage) {
-            $path = $coverImage->store('blog-covers', 'public');
+            $path = $this->mediaStorage->storeBlogCover($coverImage, $userId);
             $data['cover_image_path'] = $path;
             $data['cover_image_mime'] = $coverImage->getClientMimeType();
             $data['cover_image_original_name'] = $coverImage->getClientOriginalName();
@@ -77,11 +82,9 @@ class AdminBlogPostService
         }
 
         if ($coverImage) {
-            if ($blogPost->cover_image_path) {
-                Storage::disk('public')->delete($blogPost->cover_image_path);
-            }
+            $this->mediaStorage->delete($blogPost->cover_image_path);
 
-            $path = $coverImage->store('blog-covers', 'public');
+            $path = $this->mediaStorage->storeBlogCover($coverImage, (int) $blogPost->user_id);
             $blogPost->update([
                 'cover_image_path' => $path,
                 'cover_image_mime' => $coverImage->getClientMimeType(),
@@ -99,9 +102,7 @@ class AdminBlogPostService
 
     public function delete(BlogPost $blogPost): void
     {
-        if ($blogPost->cover_image_path) {
-            Storage::disk('public')->delete($blogPost->cover_image_path);
-        }
+        $this->mediaStorage->delete($blogPost->cover_image_path);
 
         $blogPost->delete();
     }

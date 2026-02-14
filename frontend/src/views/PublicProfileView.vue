@@ -155,7 +155,7 @@
 <script setup>
 import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { http } from '@/lib/http'
+import http from '@/services/api'
 
 const router = useRouter()
 const route = useRoute()

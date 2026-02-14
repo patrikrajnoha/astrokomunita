@@ -23,6 +23,10 @@ class RssItem extends Model
     public const STATUS_DISCARDED = 'discarded';
     public const STATUS_ERROR = 'error';
 
+    public const TRANSLATION_PENDING = 'pending';
+    public const TRANSLATION_DONE = 'done';
+    public const TRANSLATION_FAILED = 'failed';
+
     protected $fillable = [
         'source',
         'guid',
@@ -30,7 +34,14 @@ class RssItem extends Model
         'dedupe_hash',
         'stable_key',
         'title',
+        'original_title',
+        'translated_title',
         'summary',
+        'original_summary',
+        'translated_summary',
+        'translation_status',
+        'translation_error',
+        'translated_at',
         'published_at',
         'published_to_posts_at',
         'fetched_at',
@@ -49,6 +60,7 @@ class RssItem extends Model
         'fetched_at' => 'datetime',
         'scheduled_for' => 'datetime',
         'reviewed_at' => 'datetime',
+        'translated_at' => 'datetime',
     ];
 
     // ------------------------------------------------------------------

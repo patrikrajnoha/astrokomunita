@@ -13,6 +13,7 @@ class EventResource extends JsonResource
             'id' => $this->id,
             'title' => $this->title,
             'type' => $this->type,
+            'region_scope' => $this->region_scope,
 
             'start_at' => optional($this->start_at)?->toIso8601String(),
             'end_at'   => optional($this->end_at)?->toIso8601String(),

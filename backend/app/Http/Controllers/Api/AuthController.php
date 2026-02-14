@@ -6,9 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
 use App\Support\UsernameRules;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 
 class AuthController extends Controller
 {
@@ -29,6 +33,7 @@ class AuthController extends Controller
             'password' => $validated['password'],
         ]);
 
+        event(new Registered($user));
         Auth::login($user);
 
         return response()->json($user, 201);
@@ -60,7 +65,20 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (!Auth::attempt($credentials, true)) {
+        $credentials['email'] = mb_strtolower(trim((string) $credentials['email']));
+
+        try {
+            $attempted = Auth::attempt($credentials, true);
+        } catch (RuntimeException $exception) {
+            $attempted = false;
+        }
+
+        if (! $attempted) {
+            if ($this->attemptLegacyPlaintextLogin($credentials['email'], $credentials['password'])) {
+                $request->session()->regenerate();
+                return response()->json($request->user());
+            }
+
             return response()->json([
                 'message' => 'Nespravny email alebo heslo.',
             ], 422);
@@ -71,6 +89,44 @@ class AuthController extends Controller
         return response()->json($request->user());
     }
 
+    private function attemptLegacyPlaintextLogin(string $email, string $password): bool
+    {
+        $user = User::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->first();
+
+        if (! $user) {
+            return false;
+        }
+
+        $stored = (string) ($user->getAuthPassword() ?? '');
+        if ($stored === '') {
+            return false;
+        }
+
+        $hashInfo = password_get_info($stored);
+        $isAlreadyHashed = ! empty($hashInfo['algo']);
+        $verified = false;
+
+        if ($isAlreadyHashed) {
+            $verified = password_verify($password, $stored);
+        } else {
+            $verified = hash_equals($stored, $password);
+        }
+
+        if (! $verified) {
+            return false;
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($password),
+        ])->save();
+
+        Auth::login($user, true);
+
+        return true;
+    }
+
     public function logout(Request $request)
     {
         Auth::guard('web')->logout();
@@ -79,5 +135,64 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return response()->noContent();
+    }
+
+    public function verifyEmail(Request $request, int $id, string $hash)
+    {
+        if (!$request->hasValidSignature()) {
+            return response()->json([
+                'message' => 'Verification link is invalid or expired.',
+            ], 403);
+        }
+
+        $user = User::query()->find($id);
+        if (!$user) {
+            return response()->json([
+                'message' => 'Verification link is invalid.',
+            ], 404);
+        }
+
+        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+            return response()->json([
+                'message' => 'Verification link is invalid.',
+            ], 403);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Email already verified.',
+            ]);
+        }
+
+        if ($user->markEmailAsVerified()) {
+            event(new Verified($user));
+        }
+
+        return response()->json([
+            'message' => 'Email verified successfully.',
+        ]);
+    }
+
+    public function resendVerificationEmail(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Email already verified.',
+            ]);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return response()->json([
+            'message' => 'Verification link sent.',
+        ]);
     }
 }

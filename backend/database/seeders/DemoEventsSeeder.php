@@ -13,6 +13,7 @@ class DemoEventsSeeder extends Seeder
             [
                 'title' => 'Meteoricky roj Perseidy',
                 'type' => 'meteors',
+                'region_scope' => 'sk',
                 'start_at' => now()->addDays(5)->setTime(22, 0),
                 'end_at' => now()->addDays(6)->setTime(4, 0),
                 'max_at' => now()->addDays(6)->setTime(1, 0),
@@ -25,6 +26,7 @@ class DemoEventsSeeder extends Seeder
             [
                 'title' => 'Ciastocne zatmenie Mesiaca',
                 'type' => 'eclipse',
+                'region_scope' => 'eu',
                 'start_at' => now()->addDays(12)->setTime(20, 30),
                 'end_at' => now()->addDays(12)->setTime(23, 10),
                 'max_at' => now()->addDays(12)->setTime(21, 50),
@@ -37,6 +39,7 @@ class DemoEventsSeeder extends Seeder
             [
                 'title' => 'Konjunkcia Venuse a Jupitera',
                 'type' => 'conjunction',
+                'region_scope' => 'global',
                 'start_at' => now()->addDays(20)->setTime(19, 45),
                 'end_at' => now()->addDays(20)->setTime(21, 15),
                 'max_at' => now()->addDays(20)->setTime(20, 15),

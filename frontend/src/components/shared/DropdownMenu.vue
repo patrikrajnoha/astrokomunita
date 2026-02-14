@@ -24,7 +24,7 @@
       @keydown="onMenuKeydown"
     >
       <button
-        v-for="(item, index) in items"
+        v-for="item in items"
         :key="item.key"
         type="button"
         role="menuitem"
@@ -171,22 +171,22 @@ defineExpose({ close })
 }
 
 .dropdownTrigger {
-  background: none;
+  background: transparent;
   border: none;
   padding: 6px;
-  border-radius: 8px;
-  color: var(--color-text-secondary);
+  border-radius: 999px;
+  color: #71767b;
   cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease;
 }
 
 .dropdownTrigger:hover {
-  background: rgb(var(--color-text-secondary-rgb) / 0.1);
-  color: var(--color-surface);
+  background: rgb(29 155 240 / 0.12);
+  color: #1d9bf0;
 }
 
 .dropdownTrigger:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid #1d9bf0;
   outline-offset: 2px;
 }
 
@@ -195,41 +195,53 @@ defineExpose({ close })
   top: calc(100% + 6px);
   right: 0;
   z-index: 80;
-  min-width: 180px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  min-width: 170px;
+  border: 1px solid #2f3336;
   border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.97);
-  backdrop-filter: blur(8px);
-  padding: 6px;
+  background: #16181c;
+  padding: 4px;
   display: grid;
-  gap: 4px;
-  box-shadow: 0 18px 32px rgb(0 0 0 / 0.28);
+  gap: 2px;
+  animation: dropdownIn 140ms ease-out;
 }
 
 .dropdownItem {
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
-  color: var(--color-surface);
+  color: #e7e9ea;
   text-align: left;
-  padding: 0.5rem 0.65rem;
+  padding: 0.45rem 0.6rem;
   cursor: pointer;
+  font-size: 13px;
 }
 
 .dropdownItem:hover {
-  background: rgb(var(--color-text-secondary-rgb) / 0.12);
+  background: #1a1f24;
 }
 
 .dropdownItem:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid #1d9bf0;
   outline-offset: 1px;
 }
 
 .dropdownItem--danger {
-  color: var(--color-danger);
+  color: #f4212e;
 }
 
 .dropdownItem--danger:hover {
-  background: rgb(var(--color-danger-rgb) / 0.12);
+  background: rgb(244 33 46 / 0.15);
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 </style>

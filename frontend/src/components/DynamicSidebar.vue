@@ -1,10 +1,10 @@
 <template>
   <aside v-if="isDesktop && activeScope && renderedSections.length > 0" class="rightCol">
     <component
-      :is="resolveSidebarComponent(section.section_key)"
+      :is="resolveSidebarComponent(section)"
       v-for="section in renderedSections"
-      :key="section.section_key"
-      v-bind="propsForSection(section.section_key)"
+      :key="resolveItemKey(section)"
+      v-bind="propsForSection(section)"
     />
   </aside>
 </template>
@@ -51,11 +51,27 @@ const activeScope = computed(() => resolveSidebarScopeFromPath(route.path || '')
 
 const renderedSections = computed(() => {
   return getEnabledSidebarSections(currentItems.value).filter((section) => {
-    return Boolean(resolveSidebarComponent(section.section_key))
+    return Boolean(resolveSidebarComponent(section))
   })
 })
 
-const propsForSection = (sectionKey) => {
+const resolveItemKey = (section) => {
+  if (section.kind === 'custom_component') {
+    return `custom:${section.custom_component_id}`
+  }
+
+  return `builtin:${section.section_key}`
+}
+
+const propsForSection = (section) => {
+  const sectionKey = section.section_key
+
+  if (section.kind === 'custom_component') {
+    return {
+      component: section.custom_component || null,
+    }
+  }
+
   if (sectionKey === 'observing_conditions') {
     return {
       lat: props.observingLat,
@@ -67,8 +83,8 @@ const propsForSection = (sectionKey) => {
   }
 
   if (sectionKey === 'nasa_apod' || sectionKey === 'next_event' || sectionKey === 'latest_articles') {
-    const section = currentItems.value.find((item) => item.section_key === sectionKey)
-    return section?.title ? { title: section.title } : {}
+    const staticSection = currentItems.value.find((item) => item.section_key === sectionKey)
+    return staticSection?.title ? { title: staticSection.title } : {}
   }
 
   return {}

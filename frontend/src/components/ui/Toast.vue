@@ -57,6 +57,10 @@
 </template>
 
 <script setup>
+defineOptions({
+  name: 'UiToast',
+})
+
 defineProps({
   item: {
     type: Object,

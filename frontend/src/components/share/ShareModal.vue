@@ -67,33 +67,23 @@
   </teleport>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useToast } from '@/composables/useToast'
 import { buildPostUrl, generateShareImage, shareLink } from '@/utils/sharePost'
 
-type GenericRecord = Record<string, any>
+const props = defineProps({
+  open: { type: Boolean, default: false },
+  post: { type: Object, default: null },
+})
 
-type GeneratedAsset = {
-  blob: Blob
-  file: File
-  dataUrl: string
-}
-
-const props = defineProps<{
-  open: boolean
-  post: GenericRecord | null
-}>()
-
-const emit = defineEmits<{
-  close: []
-}>()
+const emit = defineEmits(['close'])
 
 const { showToast } = useToast()
 
-const dialogRef = ref<HTMLElement | null>(null)
+const dialogRef = ref(null)
 const generating = ref(false)
-const generated = ref<GeneratedAsset | null>(null)
+const generated = ref(null)
 
 const canShareFile = computed(() => {
   if (!generated.value?.file) return false
@@ -132,11 +122,11 @@ function close() {
 function focusFirstControl() {
   const node = dialogRef.value
   if (!node) return
-  const first = node.querySelector<HTMLElement>('button:not(:disabled)')
+  const first = node.querySelector('button:not(:disabled)')
   first?.focus()
 }
 
-function onGlobalKeydown(event: KeyboardEvent) {
+function onGlobalKeydown(event) {
   if (!props.open) return
 
   if (event.key === 'Escape') {
@@ -151,7 +141,7 @@ function onGlobalKeydown(event: KeyboardEvent) {
   if (!node) return
 
   const focusables = Array.from(
-    node.querySelectorAll<HTMLElement>(
+    node.querySelectorAll(
       'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     ),
   )
@@ -160,7 +150,7 @@ function onGlobalKeydown(event: KeyboardEvent) {
 
   const first = focusables[0]
   const last = focusables[focusables.length - 1]
-  const active = document.activeElement as HTMLElement | null
+  const active = document.activeElement
 
   if (event.shiftKey && active === first) {
     event.preventDefault()
@@ -245,7 +235,7 @@ async function onShareGenerated() {
         files: [generated.value.file],
       })
       return
-    } catch (error: any) {
+    } catch (error) {
       if (error?.name === 'AbortError') return
     }
   }

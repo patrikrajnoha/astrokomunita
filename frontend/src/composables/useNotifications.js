@@ -31,19 +31,19 @@ function resolveApiErrorMessage(err, fallback) {
 function buildApi() {
   const toast = useToast()
 
-  const success = (message, _title = '', options = {}) => {
+  const success = (message, options = {}) => {
     return toast.success(normalizeMessage(message, 'Hotovo'), options)
   }
 
-  const error = (message, _title = '', options = {}) => {
+  const error = (message, options = {}) => {
     return toast.error(normalizeMessage(message), options)
   }
 
-  const warning = (message, _title = '', options = {}) => {
+  const warning = (message, options = {}) => {
     return toast.warn(normalizeMessage(message, 'Upozornenie'), options)
   }
 
-  const info = (message, _title = '', options = {}) => {
+  const info = (message, options = {}) => {
     return toast.info(normalizeMessage(message, 'Informacia'), options)
   }
 

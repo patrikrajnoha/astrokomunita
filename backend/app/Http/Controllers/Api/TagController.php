@@ -90,7 +90,7 @@ class TagController extends Controller
                 'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
             ])
             ->withCount(['likes', 'replies'])
-            ->where('is_hidden', false)
+            ->publiclyVisible()
             ->notExpired() // Exclude expired AstroBot posts
             ->latest()
             ->paginate($perPage);

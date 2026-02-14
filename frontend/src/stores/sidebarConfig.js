@@ -3,19 +3,24 @@ import api from '@/services/api'
 import { getEnabledSidebarSections } from '@/sidebar/engine'
 
 const DEFAULT_ITEMS = [
-  { section_key: 'search', title: 'Search', order: 0, is_enabled: true },
-  { section_key: 'observing_conditions', title: 'Observing Conditions', order: 1, is_enabled: true },
-  { section_key: 'nasa_apod', title: 'NASA APOD', order: 2, is_enabled: true },
-  { section_key: 'next_event', title: 'Next Event', order: 3, is_enabled: true },
-  { section_key: 'latest_articles', title: 'Latest Articles', order: 4, is_enabled: true },
+  { kind: 'builtin', section_key: 'search', title: 'Search', order: 0, is_enabled: true },
+  { kind: 'builtin', section_key: 'observing_conditions', title: 'Observing Conditions', order: 1, is_enabled: true },
+  { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA APOD', order: 2, is_enabled: true },
+  { kind: 'builtin', section_key: 'next_event', title: 'Next Event', order: 3, is_enabled: true },
+  { kind: 'builtin', section_key: 'latest_articles', title: 'Latest Articles', order: 4, is_enabled: true },
 ]
 
 const cloneAndSort = (items) => {
   const source = Array.isArray(items) ? items : []
   return [...source]
     .map((item) => ({
+      kind: item?.kind === 'custom_component' ? 'custom_component' : 'builtin',
       section_key: String(item.section_key || ''),
       title: String(item.title || ''),
+      custom_component_id: Number.isFinite(Number(item.custom_component_id))
+        ? Number(item.custom_component_id)
+        : null,
+      custom_component: item?.custom_component ?? null,
       order: Number.isFinite(item.order) ? Number(item.order) : 0,
       is_enabled: Boolean(item.is_enabled),
     }))
@@ -47,7 +52,10 @@ export const useSidebarConfigStore = defineStore('sidebarConfig', {
       }
 
       const requestPromise = api
-        .get('/sidebar-config', { params: { scope } })
+        .get('/sidebar-config', {
+          params: { scope },
+          meta: { skipErrorToast: true },
+        })
         .then((response) => {
           const items = cloneAndSort(response?.data?.data)
           this.byScope[scope] = items.length > 0 ? items : this.getDefaultForScope()

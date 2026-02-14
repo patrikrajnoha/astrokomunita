@@ -2,36 +2,39 @@
 
 namespace App\Console\Commands;
 
-use App\Services\AstroBotSyncOrchestratorService;
+use App\Exceptions\AstroBotSyncInProgressException;
+use App\Services\AstroBotNasaService;
 use Illuminate\Console\Command;
 
 class AstroBotSyncRss extends Command
 {
     protected $signature = 'astrobot:sync-rss';
-    protected $description = 'Synchronize AstroBot RSS feed with idempotent upsert and cleanup.';
+    protected $description = 'Synchronize NASA RSS in fully automatic AstroBot mode.';
 
     public function __construct(
-        private readonly AstroBotSyncOrchestratorService $orchestrator,
+        private readonly AstroBotNasaService $nasaService,
     ) {
         parent::__construct();
     }
 
     public function handle(): int
     {
-        $stats = $this->orchestrator->syncAndProcess();
+        try {
+            $stats = $this->nasaService->syncWithLock('command');
+        } catch (AstroBotSyncInProgressException) {
+            $this->warn('NASA RSS sync is already running.');
+            return self::FAILURE;
+        }
 
         $this->info(sprintf(
-            'Added: %d, Updated: %d, Published: %d, Needs review: %d, Rejected: %d, Deleted: %d, Skipped: %d, Errors: %d',
-            $stats['added'],
-            $stats['updated'],
+            'New: %d, Published: %d, Deleted: %d, Duration: %dms, Errors: %d',
+            $stats['new'],
             $stats['published'],
-            $stats['needs_review'],
-            $stats['rejected'],
             $stats['deleted'],
-            $stats['skipped'],
-            $stats['errors']
+            $stats['duration_ms'],
+            $stats['errors'],
         ));
 
-        return self::SUCCESS;
+        return $stats['errors'] > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

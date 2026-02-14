@@ -85,11 +85,11 @@
                   {{ p?.user?.name ?? 'User' }}
                 </button>
                 <span class="author-username">@{{ p?.user?.username }}</span>
+                <span class="author-time">{{ fmt(p?.created_at) }}</span>
                 <span v-if="p.source_name === 'astrobot'" class="astrobot-badge">🚀 AstroBot</span>
                 <span v-if="p.pinned_at" class="pinned-badge">📌 Pripnuté</span>
               </div>
-              <div class="post-time">
-                <span class="time-text">{{ fmt(p?.created_at) }}</span>
+              <div v-if="p?.user?.location || p.source_name === 'astrobot'" class="post-time">
                 <span v-if="p?.user?.location" class="location">📍 {{ p.user.location }}</span>
                 <span v-if="p.source_name === 'astrobot'" class="astrobot-label">Automated news · replies disabled</span>
               </div>
@@ -119,14 +119,19 @@
 
           <!-- Media attachment -->
           <div v-if="p.attachment_url" class="post-media">
+            <div v-if="isAttachmentBlocked(p)" class="media-removed">
+              Removed
+            </div>
             <PostMediaImage
-              v-if="isImage(p)"
+              v-else-if="isImage(p)"
               :src="attachmentSrc(p)"
               alt="Priloha prispevku"
+              :blurred="isAttachmentPending(p)"
+              pending-label="Checking..."
             />
 
             <a
-              v-else
+              v-else-if="!isAttachmentPending(p)"
               class="file-attachment"
               :href="attachmentSrc(p)"
               target="_blank"
@@ -303,6 +308,7 @@ import ShareModal from '@/components/share/ShareModal.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { canDeletePost, canReportPost } from '@/utils/postPermissions'
+import { formatRelativeShort } from '@/utils/dateUtils'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -548,12 +554,7 @@ function initials(name) {
 }
 
 function fmt(iso) {
-  if (!iso) return ''
-  try {
-    return new Date(iso).toLocaleString()
-  } catch {
-    return String(iso)
-  }
+  return formatRelativeShort(iso)
 }
 
 function attachmentSrc(p) {
@@ -592,6 +593,30 @@ function isImage(p) {
     name.endsWith('.gif') ||
     name.endsWith('.webp')
   )
+}
+
+function isAttachmentPending(post) {
+  return post?.attachment_moderation_status === 'pending' || post?.attachment_is_blurred === true
+}
+
+function isAttachmentBlocked(post) {
+  return post?.attachment_moderation_status === 'blocked' || !!post?.attachment_hidden_at
+}
+
+function normalizeFeedError(error) {
+  const status = Number(error?.response?.status || 0)
+  const code = String(error?.code || '')
+  const message = String(error?.message || '')
+
+  if (status === 401) return 'Prihlas sa pre tuto akciu.'
+  if (code === 'ECONNABORTED' || message.toLowerCase().includes('timeout')) {
+    return 'Server neodpoveda. Skus to znova neskor.'
+  }
+  if (!status && (code === 'ERR_NETWORK' || message.toLowerCase().includes('network'))) {
+    return 'Backend je nedostupny. Skontroluj, ci bezi API server.'
+  }
+
+  return error?.response?.data?.message || message || 'Nacitanie feedu zlyhalo.'
 }
 
 function saveTabScroll(tab) {
@@ -670,7 +695,10 @@ async function load(reset = true, tab = activeTab.value) {
     const controller = new AbortController()
     state.controller = controller
 
-    const res = await api.get(url, { signal: controller.signal })
+    const res = await api.get(url, {
+      signal: controller.signal,
+      meta: { skipErrorToast: true },
+    })
     const payload = res.data || {}
     const rows = payload.data || []
 
@@ -681,7 +709,7 @@ async function load(reset = true, tab = activeTab.value) {
     state.loaded = true
   } catch (e) {
     if (e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError') return
-    state.err = e?.response?.data?.message || e?.message || 'Načítanie feedu zlyhalo.'
+    state.err = normalizeFeedError(e)
   } finally {
     state.loading = false
   }
@@ -1001,7 +1029,7 @@ defineExpose({ load, prepend })
 .feed-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding: 0 4px;
   min-width: 0;
 }
@@ -1010,7 +1038,7 @@ defineExpose({ load, prepend })
   background: rgb(var(--color-bg-rgb) / 0.4);
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.15);
   border-radius: 12px;
-  padding: 16px;
+  padding: 14px;
   transition: all 0.2s ease;
   cursor: pointer;
   position: relative;
@@ -1158,7 +1186,7 @@ defineExpose({ load, prepend })
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .post-meta {
@@ -1200,6 +1228,12 @@ defineExpose({ load, prepend })
   color: var(--color-text-secondary);
   font-size: 14px;
   font-weight: 400;
+}
+
+.author-time {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .astrobot-badge {
@@ -1244,10 +1278,6 @@ defineExpose({ load, prepend })
   color: var(--color-text-secondary);
   font-size: 13px;
   font-weight: 400;
-}
-
-.time-text {
-  color: inherit;
 }
 
 .location {
@@ -1300,11 +1330,11 @@ defineExpose({ load, prepend })
 
 /* Modern Post Content */
 .post-text {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: var(--color-surface);
   white-space: pre-wrap;
-  line-height: 1.6;
-  font-size: 15px;
+  line-height: 1.68;
+  font-size: 15.5px;
   word-wrap: break-word;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -1360,6 +1390,15 @@ defineExpose({ load, prepend })
 /* Media */
 .post-media {
   margin-top: 12px;
+}
+
+.media-removed {
+  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.28);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  font-size: 13px;
 }
 
 /* File Attachment */
@@ -1425,11 +1464,11 @@ defineExpose({ load, prepend })
 
 /* Modern Action Buttons */
 .post-actions {
-  margin-top: 12px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.1);
   flex-wrap: wrap;
   min-width: 0;
@@ -1439,7 +1478,7 @@ defineExpose({ load, prepend })
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 7px 10px;
   border: none;
   background: transparent;
   color: var(--color-text-secondary);
@@ -1448,7 +1487,8 @@ defineExpose({ load, prepend })
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 36px;
+  min-height: 40px;
+  min-width: 40px;
   text-decoration: none;
 }
 
@@ -1812,9 +1852,13 @@ defineExpose({ load, prepend })
     font-size: 12px;
   }
 
+  .author-time {
+    font-size: 11px;
+  }
+
   .post-text {
-    font-size: 13px;
-    line-height: 1.45;
+    font-size: 14px;
+    line-height: 1.58;
   }
 
   .post-time {
@@ -1824,7 +1868,8 @@ defineExpose({ load, prepend })
   .action-btn {
     padding: 6px 8px;
     font-size: 12px;
-    min-height: 32px;
+    min-height: 38px;
+    min-width: 38px;
   }
 
   .action-count {
@@ -1874,14 +1919,20 @@ defineExpose({ load, prepend })
     font-size: 13px;
   }
 
+  .author-time {
+    font-size: 12px;
+  }
+
   .post-text {
-    font-size: 14px;
+    font-size: 14.5px;
+    line-height: 1.6;
   }
 
   .action-btn {
     padding: 6px 10px;
     font-size: 12px;
-    min-height: 34px;
+    min-height: 38px;
+    min-width: 38px;
   }
 
   .report-content {
@@ -1902,4 +1953,5 @@ defineExpose({ load, prepend })
 }
 
 </style>
+
 

@@ -59,5 +59,10 @@ class AppServiceProvider extends ServiceProvider
             $userId = $request->user()?->id ?? $request->ip();
             return Limit::perMinute(2)->by('astrobot-sync|' . $userId);
         });
+
+        RateLimiter::for('post-create', function (Request $request) {
+            $userId = $request->user()?->id ?? 'guest';
+            return Limit::perMinute(20)->by('post-create|' . $userId . '|' . $request->ip());
+        });
     }
 }

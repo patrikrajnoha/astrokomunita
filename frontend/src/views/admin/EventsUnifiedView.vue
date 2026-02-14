@@ -241,7 +241,7 @@
 <script>
 import { ref, computed, watch } from 'vue'
 import { useAdminTable } from '@/composables/useAdminTable'
-import { http } from '@/lib/http'
+import http from '@/services/api'
 
 export default {
   name: 'AdminEventsUnifiedView',

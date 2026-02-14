@@ -32,9 +32,11 @@ use App\Http\Controllers\Api\Admin\ReportQueueController;
 use App\Http\Controllers\Api\Admin\AstroBotController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\AdminPostController;
+use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
 use App\Http\Controllers\Api\SidebarSectionController;
 use App\Http\Controllers\Api\Admin\SidebarConfigController as AdminSidebarConfigController;
+use App\Http\Controllers\Api\Admin\SidebarCustomComponentController as AdminSidebarCustomComponentController;
 use App\Http\Controllers\Api\SidebarConfigController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\FeedController;
@@ -95,7 +97,7 @@ if (app()->environment('local') && config('app.debug')) {
 
 /*
 |--------------------------------------------------------------------------
-| AUTH – Sanctum SPA (cookies)
+| AUTH - Sanctum SPA (cookies)
 |--------------------------------------------------------------------------
 */
 Route::middleware('web')->prefix('auth')->group(function () {
@@ -109,6 +111,11 @@ Route::middleware('web')->prefix('auth')->group(function () {
 
     Route::get('/me', [AuthController::class, 'me'])
         ->middleware(['auth:sanctum', 'active']);
+    Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail'])
+        ->middleware(['auth:sanctum', 'active', 'throttle:6,1']);
+    Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
 });
 
 /*
@@ -176,10 +183,11 @@ Route::get('/users/{username}/posts', [App\Http\Controllers\Api\UserProfileContr
 | Search & Discovery (Public)
 |--------------------------------------------------------------------------
 */
-Route::get('/search/users', [SearchController::class, 'users']);
-Route::get('/search/posts', [SearchController::class, 'posts']);
-Route::get('/search/suggest', [SearchController::class, 'suggest']);
-
+Route::middleware('throttle:60,1')->prefix('search')->group(function () {
+    Route::get('/users', [SearchController::class, 'users']);
+    Route::get('/posts', [SearchController::class, 'posts']);
+    Route::get('/suggest', [SearchController::class, 'suggest']);
+});
 /*
 |--------------------------------------------------------------------------
 | Hashtags (Public)
@@ -195,7 +203,7 @@ Route::get('/trending', [HashtagController::class, 'trending']);
 |--------------------------------------------------------------------------
 */
 Route::get('/recommendations/users', [RecommendationController::class, 'users'])
-    ->middleware(['auth:sanctum', 'active']);
+    ->middleware(['auth:sanctum', 'active', 'verified']);
 Route::get('/recommendations/posts', [RecommendationController::class, 'posts']);
 
 /*
@@ -208,21 +216,21 @@ Route::get('/blog-posts/{slug}/related', [BlogPostController::class, 'related'])
 Route::get('/blog-posts/{slug}', [BlogPostController::class, 'show']);
 Route::get('/blog-posts/{slug}/comments', [BlogPostCommentController::class, 'index']);
 Route::post('/blog-posts/{slug}/comments', [BlogPostCommentController::class, 'store'])
-    ->middleware(['auth:sanctum', 'active']);
+    ->middleware(['auth:sanctum', 'active', 'verified']);
 Route::delete('/blog-posts/{slug}/comments/{comment}', [BlogPostCommentController::class, 'destroy'])
-    ->middleware(['auth:sanctum', 'active']);
+    ->middleware(['auth:sanctum', 'active', 'verified']);
 
 Route::post('/reports', [ReportController::class, 'store'])
-    ->middleware(['auth:sanctum', 'active']);
+    ->middleware(['auth:sanctum', 'active', 'verified']);
 Route::get('/blog-tags', [BlogTagController::class, 'index']);
 
 /*
 |--------------------------------------------------------------------------
-| FAVORITES (zatiaľ bez auth)
+| FAVORITES (auth required)
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:sanctum'])->prefix('favorites')->group(function () {
-    Route::middleware('active')->group(function () {
+    Route::middleware(['active', 'verified'])->group(function () {
         Route::get('/',           [FavoriteController::class, 'index']);
         Route::post('/',          [FavoriteController::class, 'store']);
         Route::delete('/{event}', [FavoriteController::class, 'destroy']);
@@ -231,32 +239,32 @@ Route::middleware(['auth:sanctum'])->prefix('favorites')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| ADMIN – Event Candidates (Crawling + Review)
+| ADMIN - Event Candidates (Crawling + Review)
 |--------------------------------------------------------------------------
 | Funguje:
 |  - SPA (cookies)
 |  - API token (Bearer ...)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', 'active', 'admin'])
+Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
     ->prefix('admin')
     ->group(function () {
 
-        // � Dashboard
+        // Dashboard
         Route::get('/dashboard', DashboardController::class);
 
-        // �📋 Kandidáti (list + detail)
+        // Candidates (list + detail)
         Route::get('/event-candidates',                  [EventCandidateController::class, 'index']);
         Route::get('/event-candidates/{eventCandidate}', [EventCandidateController::class, 'show']);
 
-        // 🧠 Meta pre filtre
+        // Meta for filters
         Route::get('/event-candidates-meta', EventCandidateMetaController::class);
 
-        // ✅ Review proces
+        // Review process
         Route::post('/event-candidates/{candidate}/approve', [EventCandidateReviewController::class, 'approve']);
         Route::post('/event-candidates/{candidate}/reject',  [EventCandidateReviewController::class, 'reject']);
 
-        // 🕷 Crawl runs
+        // Crawl runs
         Route::get('/crawl-runs',            [CrawlRunController::class, 'index']);
         Route::get('/crawl-runs/{crawlRun}', [CrawlRunController::class, 'show']);
 
@@ -269,6 +277,12 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
         Route::put('/sidebar-sections', [AdminSidebarSectionController::class, 'update']);
         Route::get('/sidebar-config', [AdminSidebarConfigController::class, 'index']);
         Route::put('/sidebar-config', [AdminSidebarConfigController::class, 'update']);
+        Route::get('/sidebar/custom-components', [AdminSidebarCustomComponentController::class, 'index']);
+        Route::post('/sidebar/custom-components', [AdminSidebarCustomComponentController::class, 'store']);
+        Route::get('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'show']);
+        Route::put('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'update']);
+        Route::patch('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'update']);
+        Route::delete('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'destroy']);
 
         /*
         |--------------------------------------------------------------------------
@@ -330,6 +344,15 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
 
         /*
         |----------------------------------------------------------------------
+        | Moderation Queue (admin)
+        |----------------------------------------------------------------------
+        */
+        Route::get('/moderation', [ModerationQueueController::class, 'index']);
+        Route::get('/moderation/{post}', [ModerationQueueController::class, 'show']);
+        Route::post('/moderation/{post}/action', [ModerationQueueController::class, 'action']);
+
+        /*
+        |----------------------------------------------------------------------
         | Posts (admin)
         |----------------------------------------------------------------------
         */
@@ -342,13 +365,17 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
         |--------------------------------------------------------------------------
         */
         Route::prefix('astrobot')->middleware('throttle:10,1')->group(function () {
+            Route::get('/nasa/status', [AstroBotController::class, 'nasaStatus']);
+            Route::post('/nasa/sync-now', [AstroBotController::class, 'syncNow'])->middleware('throttle:astrobot-sync');
             Route::get('/items', [AstroBotController::class, 'items']);
             Route::put('/items/{item}', [AstroBotController::class, 'update']);
             Route::post('/items/{item}/publish', [AstroBotController::class, 'publish']);
             Route::post('/items/{item}/reject', [AstroBotController::class, 'reject']);
             Route::post('/items/{item}/discard', [AstroBotController::class, 'discard']);
             Route::get('/posts', [AstroBotController::class, 'posts']);
-            Route::delete('/posts/{id}', [AstroBotController::class, 'deletePost']);
+            Route::delete('/posts/{post}', [AstroBotController::class, 'deletePost']);
+            Route::post('/rss-items/{item}/retranslate', [AstroBotController::class, 'retranslate']);
+            Route::post('/rss-items/retranslate-pending', [AstroBotController::class, 'retranslatePending']);
             Route::post('/sync', [AstroBotController::class, 'syncRss'])->middleware('throttle:astrobot-sync');
             Route::post('/rss/refresh', [AstroBotController::class, 'refreshRss'])->middleware('throttle:astrobot-sync');
         });
@@ -360,9 +387,9 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::middleware('active')->group(function () {
+    Route::middleware(['active', 'verified'])->group(function () {
 
-        // 👤 Profil
+        // Profile
         Route::patch('/profile',          [ProfileController::class, 'update']);
         Route::post('/profile/media',     [ProfileController::class, 'uploadMedia']);
         Route::patch('/profile/password', [ProfileController::class, 'changePassword']);
@@ -373,8 +400,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         | Posts (create - auth)
         |----------------------------------------------------------------------
         */
-        Route::post('/posts', [PostController::class, 'store']);
-        Route::post('/posts/{post}/reply', [PostController::class, 'reply']);
+        Route::post('/posts', [PostController::class, 'store'])->middleware('throttle:post-create');
+        Route::post('/posts/{post}/reply', [PostController::class, 'reply'])->middleware('throttle:post-create');
         Route::post('/posts/{post}/like', [PostController::class, 'like']);
         Route::delete('/posts/{post}/like', [PostController::class, 'unlike']);
         Route::delete('/posts/{post}', [PostController::class, 'destroy']);
@@ -390,7 +417,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Event reminders
         Route::post('/events/{event}/reminders', [EventReminderController::class, 'store']);
         Route::get('/me/reminders', [EventReminderController::class, 'index']);
+        Route::get('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'show']);
+        Route::put('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);
         Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);
     });
 });
+
 

@@ -2,12 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\AstroBotRun;
+use App\Models\Post;
 use App\Models\RssItem;
 use App\Models\User;
-use App\Services\AstroBotRssService;
+use App\Services\AstroBotNasaService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -15,138 +19,207 @@ class AstroBotRssServiceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_import_sync_is_idempotent_and_deletes_items_missing_from_feed(): void
+    public function test_sync_creates_published_post_from_rss(): void
     {
-        config()->set('astrobot.rss_url', 'https://example.test/rss');
-        config()->set('astrobot.max_items_per_sync', 80);
-        config()->set('astrobot.max_age_days', 30);
-
-        Http::fakeSequence()
-            ->push($this->rssPayload([
-                ['guid' => 'guid-1', 'url' => 'https://www.nasa.gov/a', 'title' => 'Alpha'],
-                ['guid' => 'guid-2', 'url' => 'https://www.nasa.gov/b', 'title' => 'Beta'],
-            ]), 200)
-            ->push($this->rssPayload([
-                ['guid' => 'guid-1', 'url' => 'https://www.nasa.gov/a', 'title' => 'Alpha'],
-                ['guid' => 'guid-2', 'url' => 'https://www.nasa.gov/b', 'title' => 'Beta'],
-            ]), 200)
-            ->push($this->rssPayload([
-                ['guid' => 'guid-2', 'url' => 'https://www.nasa.gov/b', 'title' => 'Beta updated'],
-            ]), 200);
-
-        $service = app(AstroBotRssService::class);
-
-        $first = $service->sync();
-        $this->assertSame(2, $first['added']);
-        $this->assertSame(0, $first['updated']);
-        $this->assertSame(0, $first['deleted']);
-        $this->assertDatabaseCount('rss_items', 2);
-        $this->assertDatabaseHas('rss_items', ['status' => RssItem::STATUS_DRAFT]);
-
-        $second = $service->sync();
-        $this->assertSame(0, $second['added']);
-        $this->assertSame(0, $second['updated']);
-        $this->assertSame(0, $second['deleted']);
-        $this->assertDatabaseCount('rss_items', 2);
-
-        $third = $service->sync();
-        $this->assertSame(0, $third['added']);
-        $this->assertSame(1, $third['updated']);
-        $this->assertSame(1, $third['deleted']);
-        $this->assertDatabaseCount('rss_items', 1);
-        $this->assertDatabaseHas('rss_items', ['guid' => 'guid-2', 'title' => 'Beta updated']);
-    }
-
-    public function test_sync_handles_http_500_and_invalid_xml_without_crashing_or_mutating_db(): void
-    {
-        config()->set('astrobot.rss_url', 'https://example.test/rss');
-        Log::spy();
-
-        Http::fake(['*' => Http::response('server error', 500)]);
-        $first = app(AstroBotRssService::class)->sync();
-        $this->assertSame(1, $first['errors']);
-        $this->assertDatabaseCount('rss_items', 0);
-
-        Http::fake(['*' => Http::response('<rss><channel><item><title>broken', 200)]);
-        $second = app(AstroBotRssService::class)->sync();
-        $this->assertSame(1, $second['errors']);
-        $this->assertDatabaseCount('rss_items', 0);
-        Log::shouldHaveReceived('warning')->atLeast()->once();
-    }
-
-    public function test_admin_sync_endpoint_requires_admin_and_auto_publishes_safe_items(): void
-    {
-        config()->set('astrobot.rss_url', 'https://example.test/rss');
-        config()->set('astrobot.auto_publish_enabled', true);
-        config()->set('astrobot.domain_whitelist', ['nasa.gov']);
-        config()->set('astrobot.risk_keywords', []);
+        config()->set('astrobot.nasa_rss_url', 'https://example.test/nasa-rss');
+        config()->set('services.translation.base_url', 'http://translation.test');
+        config()->set('services.translation.internal_token', 'token');
+        config()->set('astrobot.keep_max_items', 30);
+        config()->set('astrobot.keep_max_days', 14);
 
         Http::fake([
-            '*' => Http::response($this->rssPayload([
-                ['guid' => 'guid-admin-sync', 'url' => 'https://nasa.gov/admin', 'title' => 'Admin sync'],
+            'https://example.test/*' => Http::response($this->rssPayload([
+                ['guid' => 'nasa-guid-1', 'url' => 'https://www.nasa.gov/news/a', 'title' => 'NASA Alpha'],
             ]), 200),
+            'http://translation.test/*' => Http::response([
+                'translated' => 'Prelozene',
+                'meta' => ['engine' => 'argos', 'from' => 'en', 'to' => 'sk', 'took_ms' => 5],
+            ], 200),
         ]);
 
-        $this->postJson('/api/admin/astrobot/sync')->assertStatus(401);
+        $result = app(AstroBotNasaService::class)->runSync('test');
+
+        $this->assertSame(1, $result['new']);
+        $this->assertSame(1, $result['published']);
+        $this->assertDatabaseHas('rss_items', [
+            'source' => AstroBotNasaService::SOURCE,
+            'guid' => 'nasa-guid-1',
+            'status' => RssItem::STATUS_PUBLISHED,
+        ]);
+        $this->assertDatabaseHas('posts', [
+            'source_name' => 'astrobot',
+            'source_url' => 'https://www.nasa.gov/news/a',
+        ]);
+    }
+
+    public function test_repeated_sync_is_idempotent_and_does_not_create_duplicates(): void
+    {
+        config()->set('astrobot.nasa_rss_url', 'https://example.test/nasa-rss');
+        config()->set('services.translation.base_url', 'http://translation.test');
+        config()->set('services.translation.internal_token', 'token');
+
+        Http::fake(function ($request) {
+            if (str_starts_with($request->url(), 'http://translation.test/')) {
+                return Http::response([
+                    'translated' => 'Prelozene',
+                    'meta' => ['engine' => 'argos', 'from' => 'en', 'to' => 'sk', 'took_ms' => 5],
+                ], 200);
+            }
+
+            if (str_starts_with($request->url(), 'https://example.test/')) {
+                return Http::response($this->rssPayload([
+                    ['guid' => 'idempotent-guid', 'url' => 'https://www.nasa.gov/news/idempotent', 'title' => 'NASA Idempotent'],
+                ]), 200);
+            }
+
+            return Http::response('', 404);
+        });
+
+        $service = app(AstroBotNasaService::class);
+        $service->runSync('test');
+        $service->runSync('test');
+
+        $this->assertSame(1, RssItem::query()->where('source', AstroBotNasaService::SOURCE)->count());
+        $this->assertSame(1, Post::query()->where('source_url', 'https://www.nasa.gov/news/idempotent')->count());
+    }
+
+    public function test_prune_removes_old_nasa_posts(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-02-12 12:00:00'));
+        config()->set('astrobot.keep_max_days', 14);
+        config()->set('astrobot.keep_max_items', 30);
+
+        $bot = User::factory()->create([
+            'email' => 'astrobot@astrokomunita.local',
+            'username' => 'astrobot',
+            'is_bot' => true,
+        ]);
+        $human = User::factory()->create();
+
+        $oldNasaPost = Post::factory()->create([
+            'user_id' => $bot->id,
+            'source_name' => 'astrobot',
+            'created_at' => now()->subDays(20),
+            'updated_at' => now()->subDays(20),
+            'source_published_at' => now()->subDays(20),
+        ]);
+        $freshNasaPost = Post::factory()->create([
+            'user_id' => $bot->id,
+            'source_name' => 'astrobot',
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDays(2),
+            'source_published_at' => now()->subDays(2),
+        ]);
+        $oldHumanPost = Post::factory()->create([
+            'user_id' => $human->id,
+            'source_name' => null,
+            'created_at' => now()->subDays(25),
+            'updated_at' => now()->subDays(25),
+        ]);
+
+        RssItem::query()->create([
+            'source' => AstroBotNasaService::SOURCE,
+            'guid' => 'old-guid',
+            'url' => 'https://www.nasa.gov/old',
+            'dedupe_hash' => sha1('old-guid'),
+            'stable_key' => sha1('old-guid'),
+            'title' => 'Old NASA',
+            'summary' => 'Old',
+            'status' => RssItem::STATUS_PUBLISHED,
+            'fetched_at' => now(),
+            'published_at' => now()->subDays(20),
+            'post_id' => $oldNasaPost->id,
+        ]);
+        RssItem::query()->create([
+            'source' => AstroBotNasaService::SOURCE,
+            'guid' => 'fresh-guid',
+            'url' => 'https://www.nasa.gov/fresh',
+            'dedupe_hash' => sha1('fresh-guid'),
+            'stable_key' => sha1('fresh-guid'),
+            'title' => 'Fresh NASA',
+            'summary' => 'Fresh',
+            'status' => RssItem::STATUS_PUBLISHED,
+            'fetched_at' => now(),
+            'published_at' => now()->subDays(2),
+            'post_id' => $freshNasaPost->id,
+        ]);
+
+        $deleted = app(AstroBotNasaService::class)->pruneOld();
+
+        $this->assertSame(1, $deleted);
+        $this->assertDatabaseMissing('posts', ['id' => $oldNasaPost->id]);
+        $this->assertDatabaseHas('posts', ['id' => $freshNasaPost->id]);
+        $this->assertDatabaseHas('posts', ['id' => $oldHumanPost->id]);
+    }
+
+    public function test_emergency_sync_endpoint_works_only_for_admin(): void
+    {
+        config()->set('astrobot.nasa_rss_url', 'https://example.test/nasa-rss');
+        config()->set('services.translation.base_url', 'http://translation.test');
+        config()->set('services.translation.internal_token', 'token');
+        Http::fake([
+            'https://example.test/*' => Http::response($this->rssPayload([]), 200),
+            'http://translation.test/*' => Http::response([
+                'translated' => 'Prelozene',
+                'meta' => ['engine' => 'argos', 'from' => 'en', 'to' => 'sk', 'took_ms' => 5],
+            ], 200),
+        ]);
+
+        $this->postJson('/api/admin/astrobot/nasa/sync-now')->assertStatus(401);
 
         $nonAdmin = User::factory()->create(['is_admin' => false, 'is_active' => true]);
         Sanctum::actingAs($nonAdmin);
-        $this->postJson('/api/admin/astrobot/sync')->assertStatus(403);
+        $this->postJson('/api/admin/astrobot/nasa/sync-now')->assertStatus(403);
 
         $admin = User::factory()->create(['is_admin' => true, 'role' => 'admin', 'is_active' => true]);
         Sanctum::actingAs($admin);
-
-        $response = $this->postJson('/api/admin/astrobot/sync');
-        $response->assertOk();
-        $response->assertJsonPath('result.added', 1);
-        $response->assertJsonPath('result.published', 1);
-
-        $this->assertDatabaseHas('rss_items', [
-            'guid' => 'guid-admin-sync',
-            'status' => RssItem::STATUS_PUBLISHED,
-        ]);
+        $this->postJson('/api/admin/astrobot/nasa/sync-now')->assertOk();
     }
 
-    public function test_auto_publish_off_sends_items_to_needs_review(): void
+    public function test_emergency_sync_returns_409_when_lock_is_active(): void
     {
-        config()->set('astrobot.rss_url', 'https://example.test/rss');
-        config()->set('astrobot.auto_publish_enabled', false);
-
-        Http::fake([
-            '*' => Http::response($this->rssPayload([
-                ['guid' => 'guid-review-1', 'url' => 'https://nasa.gov/review', 'title' => 'Needs review'],
-            ]), 200),
-        ]);
-
         $admin = User::factory()->create(['is_admin' => true, 'role' => 'admin', 'is_active' => true]);
         Sanctum::actingAs($admin);
 
-        $response = $this->postJson('/api/admin/astrobot/sync');
-        $response->assertOk();
-        $response->assertJsonPath('result.needs_review', 1);
+        $lock = Cache::lock(AstroBotNasaService::LOCK_KEY, 60);
+        $this->assertTrue($lock->get());
 
-        $this->assertDatabaseHas('rss_items', [
-            'guid' => 'guid-review-1',
-            'status' => RssItem::STATUS_NEEDS_REVIEW,
-        ]);
+        try {
+            $this->postJson('/api/admin/astrobot/nasa/sync-now')
+                ->assertStatus(409);
+        } finally {
+            $lock->release();
+        }
     }
 
-    public function test_admin_sync_endpoint_is_rate_limited(): void
+    public function test_fetch_failure_is_audited_and_status_endpoint_returns_error(): void
     {
-        config()->set('astrobot.rss_url', 'https://example.test/rss');
+        config()->set('astrobot.nasa_rss_url', 'https://www.nasa.gov/news-release/feed/');
+        config()->set('astrobot.ssl_verify', true);
+        config()->set('astrobot.ssl_ca_bundle', null);
 
-        Http::fake([
-            '*' => Http::response($this->rssPayload([
-                ['guid' => 'guid-rate-1', 'url' => 'https://nasa.gov/r1', 'title' => 'Rate 1'],
-            ]), 200),
-        ]);
+        Http::fake(function () {
+            throw new ConnectionException('cURL error 60: SSL certificate problem: unable to get local issuer certificate');
+        });
+
+        $result = app(AstroBotNasaService::class)->runSync('test');
+
+        $this->assertSame(1, $result['errors']);
+        $this->assertStringContainsString('SSL verify failed', (string) $result['error']);
+
+        $run = AstroBotRun::query()->latest('id')->first();
+        $this->assertNotNull($run);
+        $this->assertSame('error', $run->status);
+        $this->assertStringContainsString('SSL verify failed', (string) $run->error_message);
 
         $admin = User::factory()->create(['is_admin' => true, 'role' => 'admin', 'is_active' => true]);
         Sanctum::actingAs($admin);
 
-        $this->postJson('/api/admin/astrobot/sync')->assertStatus(200);
-        $this->postJson('/api/admin/astrobot/sync')->assertStatus(200);
-        $this->postJson('/api/admin/astrobot/sync')->assertStatus(429);
+        $response = $this->getJson('/api/admin/astrobot/nasa/status');
+        $response->assertOk();
+        $response->assertJsonPath('last_run.status', 'error');
+        $response->assertJsonPath('last_run.errors', 1);
+        $this->assertStringContainsString('SSL verify failed', (string) data_get($response->json(), 'last_run.error_message'));
     }
 
     /**
@@ -176,4 +249,3 @@ class AstroBotRssServiceTest extends TestCase
 XML;
     }
 }
-

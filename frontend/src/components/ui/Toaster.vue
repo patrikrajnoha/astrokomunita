@@ -15,6 +15,10 @@
 </template>
 
 <script setup>
+defineOptions({
+  name: 'UiToaster',
+})
+
 import Toast from '@/components/ui/Toast.vue'
 import { useToast } from '@/composables/useToast'
 

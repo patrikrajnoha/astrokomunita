@@ -77,8 +77,8 @@ class FeedVisibilityTest extends TestCase
         $response = $this->getJson('/api/feed/astrobot?with=counts');
 
         $response->assertOk();
-        $response->assertJsonPath('data.0.id', $astrobotPost->id);
         $response->assertJsonCount(2, 'data');
+        $response->assertJsonFragment(['id' => $astrobotPost->id]);
+        $response->assertJsonMissing(['content' => 'Human post']);
     }
 }
-

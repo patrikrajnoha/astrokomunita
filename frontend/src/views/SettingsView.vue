@@ -152,7 +152,7 @@
 import { onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { http } from '@/lib/http'
+import http from '@/services/api'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -235,7 +235,7 @@ const submitEmail = async () => {
   try {
     await auth.csrf()
 
-    const { data } = await http.patch('/api/profile', {
+    const { data } = await http.patch('/profile', {
       name: emailForm.name,
       email: emailForm.email,
     })
@@ -284,7 +284,7 @@ const submitPassword = async () => {
 
   try {
     await auth.csrf()
-    await http.patch('/api/profile/password', {
+    await http.patch('/profile/password', {
       current_password: passwordForm.current,
       password: passwordForm.password,
       password_confirmation: passwordForm.confirm,
@@ -321,7 +321,7 @@ const submitDeactivate = async () => {
     }
 
     await auth.csrf()
-    await http.delete('/api/profile')
+    await http.delete('/profile')
     await auth.logout()
     router.push({ name: 'login' })
   } catch (e) {

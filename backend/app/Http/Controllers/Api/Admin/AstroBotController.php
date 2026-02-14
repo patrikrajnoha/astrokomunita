@@ -2,20 +2,74 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exceptions\AstroBotSyncInProgressException;
 use App\Http\Controllers\Controller;
+use App\Jobs\TranslateRssItemJob;
 use App\Models\Post;
 use App\Models\RssItem;
-use App\Services\AstroBotPublisher;
-use App\Services\AstroBotSyncOrchestratorService;
+use App\Services\AstroBotNasaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AstroBotController extends Controller
 {
     public function __construct(
-        private readonly AstroBotPublisher $publisher,
-        private readonly AstroBotSyncOrchestratorService $syncService,
+        private readonly AstroBotNasaService $nasaService,
     ) {
+    }
+
+    public function nasaStatus(): JsonResponse
+    {
+        $run = $this->nasaService->latestRun();
+
+        return response()->json([
+            'mode' => 'automatic',
+            'enabled' => (bool) config('astrobot.enabled', true),
+            'source' => AstroBotNasaService::SOURCE,
+            'keep_max_items' => (int) config('astrobot.keep_max_items', 30),
+            'keep_max_days' => (int) config('astrobot.keep_max_days', 14),
+            'last_run' => $run ? [
+                'id' => $run->id,
+                'status' => $run->status,
+                'trigger' => $run->trigger,
+                'started_at' => optional($run->started_at)->toIso8601String(),
+                'finished_at' => optional($run->finished_at)->toIso8601String(),
+                'duration_ms' => $run->duration_ms,
+                'new_items' => $run->new_items,
+                'published_items' => $run->published_items,
+                'deleted_items' => $run->deleted_items,
+                'errors' => $run->errors,
+                'error_message' => $run->error_message,
+            ] : null,
+        ]);
+    }
+
+    public function syncNow(): JsonResponse
+    {
+        try {
+            $result = $this->nasaService->syncWithLock('manual');
+        } catch (AstroBotSyncInProgressException) {
+            return response()->json([
+                'message' => 'NASA RSS sync is already running.',
+            ], 409);
+        }
+
+        return response()->json([
+            'message' => 'NASA RSS sync completed.',
+            'result' => $result,
+        ]);
+    }
+
+    // Backward-compatible alias.
+    public function syncRss(): JsonResponse
+    {
+        return $this->syncNow();
+    }
+
+    public function refreshRss(Request $request): JsonResponse
+    {
+        return $this->syncNow();
     }
 
     public function items(Request $request): JsonResponse
@@ -29,7 +83,7 @@ class AstroBotController extends Controller
             'page' => 'integer|min:1',
         ]);
 
-        $query = RssItem::query()->with('reviewer:id,name,email');
+        $query = RssItem::query();
 
         $scope = (string) $request->get('scope', 'all');
         if ($scope === 'today') {
@@ -52,84 +106,10 @@ class AstroBotController extends Controller
             });
         }
 
-        $query->orderByRaw("
-            CASE status
-                WHEN 'needs_review' THEN 1
-                WHEN 'draft' THEN 2
-                WHEN 'published' THEN 3
-                WHEN 'rejected' THEN 4
-                ELSE 5
-            END ASC,
-            published_at DESC,
-            fetched_at DESC,
-            id DESC
-        ");
+        $query->orderByDesc('published_at')->orderByDesc('id');
 
         $perPage = (int) $request->get('per_page', 50);
         return response()->json($query->paginate($perPage));
-    }
-
-    public function publish(RssItem $item, Request $request): JsonResponse
-    {
-        $request->validate([
-            'content' => 'nullable|string|max:5000',
-            'summary' => 'nullable|string|max:2000',
-        ]);
-
-        try {
-            $post = $this->publisher->publish($item, $request->only(['content', 'summary']));
-            $item->update([
-                'reviewed_by' => $request->user()?->id,
-                'reviewed_at' => now(),
-                'review_note' => null,
-            ]);
-
-            return response()->json([
-                'message' => 'Item published.',
-                'post_id' => $post->id,
-                'status' => $item->fresh()->status,
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-    }
-
-    public function reject(RssItem $item, Request $request): JsonResponse
-    {
-        $request->validate([
-            'note' => 'nullable|string|max:2000',
-        ]);
-
-        $this->publisher->reject($item, $request->string('note')->toString(), $request->user()?->id);
-
-        return response()->json([
-            'message' => 'Item rejected.',
-            'status' => $item->fresh()->status,
-        ]);
-    }
-
-    // Backward-compatible alias for old endpoint naming.
-    public function discard(RssItem $item, Request $request): JsonResponse
-    {
-        return $this->reject($item, $request);
-    }
-
-    public function update(RssItem $item, Request $request): JsonResponse
-    {
-        $request->validate([
-            'title' => 'required|string|max:500',
-            'summary' => 'nullable|string|max:2000',
-        ]);
-
-        $item->update([
-            'title' => (string) $request->get('title'),
-            'summary' => $request->get('summary'),
-            'status' => $item->status === RssItem::STATUS_PUBLISHED
-                ? RssItem::STATUS_PUBLISHED
-                : RssItem::STATUS_NEEDS_REVIEW,
-        ]);
-
-        return response()->json(['message' => 'Item updated.']);
     }
 
     public function posts(Request $request): JsonResponse
@@ -141,7 +121,7 @@ class AstroBotController extends Controller
         ]);
 
         $query = Post::query()
-            ->where('source_name', 'astrobot')
+            ->whereIn('source_name', ['astrobot', 'nasa_rss'])
             ->with('user:id,name,email')
             ->orderByDesc('created_at');
 
@@ -153,32 +133,98 @@ class AstroBotController extends Controller
         return response()->json($query->paginate($perPage));
     }
 
-    public function deletePost(Post $post): JsonResponse
+    public function update(RssItem $item, Request $request): JsonResponse
     {
-        if ($post->source_name !== 'astrobot') {
-            return response()->json(['message' => 'Only AstroBot posts can be deleted via this endpoint.'], 403);
-        }
-
-        $post->delete();
-
-        return response()->json(['message' => 'Post hidden.']);
+        return response()->json([
+            'message' => 'Manual item editing is disabled in automatic mode.',
+        ], 410);
     }
 
-    public function syncRss(): JsonResponse
+    public function publish(RssItem $item, Request $request): JsonResponse
     {
-        $result = $this->syncService->syncAndProcess();
+        return response()->json([
+            'message' => 'Manual publish is disabled. NASA RSS is fully automatic.',
+        ], 410);
+    }
+
+    public function reject(RssItem $item, Request $request): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Manual review is disabled. NASA RSS is fully automatic.',
+        ], 410);
+    }
+
+    public function discard(RssItem $item, Request $request): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Manual discard is disabled. NASA RSS is fully automatic.',
+        ], 410);
+    }
+
+    public function deletePost(Post $post): JsonResponse
+    {
+        return response()->json([
+            'message' => 'Manual deletion is disabled. Retention is automatic.',
+        ], 410);
+    }
+
+    public function retranslate(RssItem $item, Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'force' => 'boolean',
+        ]);
+
+        $force = (bool) ($validated['force'] ?? true);
+
+        TranslateRssItemJob::dispatch($item->id, $force)->afterCommit();
+
+        Log::info('AstroBot admin requested rss item retranslation', [
+            'admin_user_id' => $request->user()?->id,
+            'rss_item_id' => $item->id,
+            'force' => $force,
+        ]);
 
         return response()->json([
-            'message' => 'RSS sync completed.',
-            'result' => $result,
-            'server_time' => now()->toIso8601String(),
-            'last_synced_at' => $this->syncService->lastSyncAt(),
+            'message' => 'Retranslation queued.',
+            'item_id' => $item->id,
+            'force' => $force,
         ]);
     }
 
-    public function refreshRss(Request $request): JsonResponse
+    public function retranslatePending(Request $request): JsonResponse
     {
-        return $this->syncRss();
+        $validated = $request->validate([
+            'limit' => 'nullable|integer|min:1|max:100',
+            'force' => 'boolean',
+        ]);
+
+        $limit = (int) ($validated['limit'] ?? 100);
+        $force = (bool) ($validated['force'] ?? false);
+
+        $itemIds = RssItem::query()
+            ->whereIn('translation_status', [
+                RssItem::TRANSLATION_PENDING,
+                RssItem::TRANSLATION_FAILED,
+            ])
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->pluck('id');
+
+        foreach ($itemIds as $itemId) {
+            TranslateRssItemJob::dispatch((int) $itemId, $force)->afterCommit();
+        }
+
+        Log::info('AstroBot admin requested pending retranslation batch', [
+            'admin_user_id' => $request->user()?->id,
+            'items_queued' => $itemIds->count(),
+            'force' => $force,
+            'limit' => $limit,
+        ]);
+
+        return response()->json([
+            'message' => 'Pending retranslation batch queued.',
+            'queued' => $itemIds->count(),
+        ]);
     }
 }
-

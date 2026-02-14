@@ -35,6 +35,13 @@ class AstroBotPublisher
                 'source_url' => $item->url,
                 'source_uid' => $sourceUid,
                 'source_published_at' => $item->published_at,
+                'original_title' => $item->original_title ?: $item->title,
+                'original_body' => $item->original_summary ?: $item->summary,
+                'translated_title' => $item->translated_title,
+                'translated_body' => $item->translated_summary,
+                'translation_status' => $item->translation_status ?: RssItem::TRANSLATION_PENDING,
+                'translation_error' => $item->translation_error,
+                'translated_at' => $item->translated_at,
                 'expires_at' => now()->addHours($ttlHours),
             ]);
             $post->save();
@@ -126,13 +133,16 @@ class AstroBotPublisher
 
     private function buildContent(RssItem $item): string
     {
+        $title = $item->translated_title ?: $item->title;
+        $summary = $item->translated_summary ?: $item->summary;
+
         $lines = [
-            sprintf('NASA: %s', $item->title),
+            sprintf('NASA: %s', $title),
         ];
 
-        if ($item->summary) {
+        if ($summary) {
             $lines[] = '';
-            $lines[] = (string) $item->summary;
+            $lines[] = (string) $summary;
         }
 
         $lines[] = '';
@@ -141,4 +151,3 @@ class AstroBotPublisher
         return implode("\n", $lines);
     }
 }
-

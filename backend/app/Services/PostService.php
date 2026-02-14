@@ -2,20 +2,23 @@
 
 namespace App\Services;
 
+use App\Jobs\ModeratePostJob;
 use App\Models\Post;
 use App\Models\User;
+use App\Services\Storage\MediaStorageService;
 use App\Support\HashtagParser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class PostService
 {
     public function __construct(
         private readonly NotificationService $notifications,
+        private readonly FeedQueryBuilder $feedQueryBuilder,
+        private readonly MediaStorageService $mediaStorage,
     ) {
     }
 
@@ -30,59 +33,17 @@ class PostService
         $scope = $filters['scope'] ?? null;
         $source = $filters['source'] ?? null;
         $tag = isset($filters['tag']) ? strtolower((string) $filters['tag']) : null;
-        $isAdmin = $user?->isAdmin() ?? false;
-
-        $query = Post::query()
-            ->with([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'tags:id,name',
-                'hashtags:id,name',
-            ])
-            ->orderByRaw('pinned_at IS NULL DESC, pinned_at DESC, created_at DESC');
-
-        $counts = ['likes'];
-        if ($withCounts) {
-            $counts[] = 'replies';
-        }
-        $query->withCount($counts);
-
-        if ($user) {
-            $query->withExists([
-                'likes as liked_by_me' => fn ($likesQuery) => $likesQuery->where('user_id', $user->id),
-            ]);
-        }
-
-        if ($kind === 'replies') {
-            $query->whereNotNull('parent_id')->with([
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
-            ]);
-        } elseif ($kind === 'media') {
-            $query->whereNotNull('attachment_path')->with([
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
-            ]);
-        } else {
-            $query->whereNull('parent_id');
-        }
-
-        if (!$includeHidden || !$isAdmin) {
-            $query->where('is_hidden', false);
-        }
-
-        $query->notExpired();
-
-        $query->where(function ($sourceFilterQuery) {
-            $sourceFilterQuery->whereNull('source_name')
-                ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
-        });
+        $query = $this->feedQueryBuilder->build([
+            'kind' => $kind,
+            'with_counts' => $withCounts,
+            'include_hidden' => $includeHidden,
+            'tag' => $tag,
+            'order' => 'pinned_then_created',
+            'sources_exclude' => ['astrobot', 'nasa_rss'],
+        ], $user);
 
         if ($scope === 'me' && $user) {
             $query->where('user_id', $user->id);
-            $query->where(function ($sourceFilterQuery) {
-                $sourceFilterQuery->whereNull('source_name')
-                    ->orWhereNotIn('source_name', ['astrobot', 'nasa_rss']);
-            });
         }
 
         if ($source) {
@@ -96,12 +57,6 @@ class PostService
             }
         }
 
-        if ($tag) {
-            $query->whereHas('tags', function ($tagsQuery) use ($tag) {
-                $tagsQuery->where('name', $tag)->orWhere('slug', $tag);
-            });
-        }
-
         return $query->paginate($perPage)->withQueryString();
     }
 
@@ -110,7 +65,7 @@ class PostService
         $isAdmin = $viewer?->isAdmin() ?? false;
         $root = $this->resolveRootPost($post);
 
-        if ($root->is_hidden && !$isAdmin) {
+        if (($root->is_hidden || $root->hidden_at || $root->moderation_status === 'blocked') && !$isAdmin) {
             throw new ModelNotFoundException();
         }
 
@@ -121,14 +76,14 @@ class PostService
                     ->orWhere('parent_id', $root->id);
             })
             ->with([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
             ])
             ->withCount('likes');
 
         if (!$isAdmin) {
-            $threadQuery->where('is_hidden', false);
+            $threadQuery->publiclyVisible();
         }
 
         $threadQuery->notExpired();
@@ -168,6 +123,7 @@ class PostService
     public function createPost(User $user, string $content, ?UploadedFile $attachment = null): Post
     {
         return DB::transaction(function () use ($user, $content, $attachment) {
+            $moderationEnabled = (bool) config('moderation.enabled', true);
             $post = new Post();
             $post->user_id = $user->id;
             $post->content = $content;
@@ -175,21 +131,37 @@ class PostService
             $post->root_id = null;
             $post->depth = 0;
             $post->is_hidden = false;
+            $post->moderation_status = $moderationEnabled ? 'pending' : 'ok';
+            $post->moderation_summary = null;
+            $post->hidden_reason = null;
+            $post->hidden_at = null;
+
+            $post->save();
 
             if ($attachment) {
-                $path = $attachment->store('posts', 'public');
+                $path = $this->mediaStorage->storePostAttachment($attachment, (int) $post->id);
                 $post->attachment_path = $path;
                 $post->attachment_mime = $attachment->getClientMimeType();
                 $post->attachment_original_name = $attachment->getClientOriginalName();
                 $post->attachment_size = $attachment->getSize();
+                $isImageAttachment = str_starts_with((string) $post->attachment_mime, 'image/');
+                $post->attachment_moderation_status = ($moderationEnabled && $isImageAttachment)
+                    ? 'pending'
+                    : null;
+                $post->attachment_moderation_summary = null;
+                $post->attachment_is_blurred = $moderationEnabled && $isImageAttachment;
+                $post->attachment_hidden_at = null;
+                $post->save();
             }
 
-            $post->save();
-
             HashtagParser::syncHashtags($post, $content);
+            if ($moderationEnabled) {
+                $this->logModerationQueueDiagnostics();
+                ModeratePostJob::dispatch((int) $post->id)->afterCommit();
+            }
 
             return $post->load([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
             ]);
@@ -199,6 +171,7 @@ class PostService
     public function createReply(User $user, Post $parent, string $content, ?UploadedFile $attachment = null): Post
     {
         return DB::transaction(function () use ($user, $parent, $content, $attachment) {
+            $moderationEnabled = (bool) config('moderation.enabled', true);
             $parentDepth = $parent->depth;
             if ($parentDepth === null) {
                 $parentDepth = $parent->parent_id ? 1 : 0;
@@ -212,21 +185,37 @@ class PostService
             $reply->parent_id = $parent->id;
             $reply->root_id = $rootId;
             $reply->depth = $depth;
+            $reply->moderation_status = $moderationEnabled ? 'pending' : 'ok';
+            $reply->moderation_summary = null;
+            $reply->hidden_reason = null;
+            $reply->hidden_at = null;
+
+            $reply->save();
 
             if ($attachment) {
-                $path = $attachment->store('posts', 'public');
+                $path = $this->mediaStorage->storePostAttachment($attachment, (int) $reply->id);
                 $reply->attachment_path = $path;
                 $reply->attachment_mime = $attachment->getClientMimeType();
                 $reply->attachment_original_name = $attachment->getClientOriginalName();
                 $reply->attachment_size = $attachment->getSize();
+                $isImageAttachment = str_starts_with((string) $reply->attachment_mime, 'image/');
+                $reply->attachment_moderation_status = ($moderationEnabled && $isImageAttachment)
+                    ? 'pending'
+                    : null;
+                $reply->attachment_moderation_summary = null;
+                $reply->attachment_is_blurred = $moderationEnabled && $isImageAttachment;
+                $reply->attachment_hidden_at = null;
+                $reply->save();
             }
 
-            $reply->save();
-
             HashtagParser::syncHashtags($reply, $content);
+            if ($moderationEnabled) {
+                $this->logModerationQueueDiagnostics();
+                ModeratePostJob::dispatch((int) $reply->id)->afterCommit();
+            }
 
             return $reply->load([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
             ]);
@@ -244,9 +233,7 @@ class PostService
 
     public function deletePost(Post $post): void
     {
-        if ($post->attachment_path) {
-            Storage::disk('public')->delete($post->attachment_path);
-        }
+        $this->mediaStorage->delete($post->attachment_path);
 
         $post->delete();
     }
@@ -305,5 +292,30 @@ class PostService
         }
 
         return $post;
+    }
+
+    private function logModerationQueueDiagnostics(): void
+    {
+        if (!app()->environment('local')) {
+            return;
+        }
+
+        static $warningEmitted = false;
+
+        if ($warningEmitted) {
+            return;
+        }
+
+        $queueConnection = (string) config('queue.default', 'sync');
+        if ($queueConnection === 'sync') {
+            return;
+        }
+
+        $warningEmitted = true;
+
+        Log::warning('Moderation jobs are queued asynchronously in local env. Ensure a worker is running.', [
+            'queue_connection' => $queueConnection,
+            'hint' => 'Run: php artisan queue:work',
+        ]);
     }
 }

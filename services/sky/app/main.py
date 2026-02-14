@@ -1,14 +1,26 @@
 from __future__ import annotations
 
+import os
+import re
+import time
 from datetime import date as date_cls
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, time as time_cls, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from pydantic import BaseModel, Field
 from skyfield import almanac
 from skyfield.api import Loader, wgs84
+
+try:
+    from argostranslate import translate as argos_translate
+except Exception as exc:  # pragma: no cover
+    argos_translate = None
+    ARGOS_IMPORT_ERROR = str(exc)
+else:
+    ARGOS_IMPORT_ERROR = None
 
 APP_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = APP_ROOT / "data"
@@ -32,13 +44,250 @@ PLANETS = [
 
 DIRECTIONS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 
-SERVICE_VERSION = "1.0.0"
+SERVICE_VERSION = "1.1.0"
+INTERNAL_TOKEN = os.getenv("INTERNAL_TOKEN", "")
+MAX_TRANSLATE_CHARS = int(os.getenv("TRANSLATION_CHUNK_MAX_CHARS", "4000"))
+
+ASTRONOMY_TERMS = {
+    "meteor shower": "meteorický roj",
+    "lunar eclipse": "zatmenie Mesiaca",
+    "solar eclipse": "zatmenie Slnka",
+    "International Space Station": "Medzinárodná vesmírna stanica",
+    "Milky Way": "Mliečna cesta",
+    "black hole": "čierna diera",
+    "supernova": "supernova",
+    "exoplanet": "exoplanéta",
+    "deep space": "hlboký vesmír",
+    "space telescope": "vesmírny teleskop",
+    "nebula": "hmlovina",
+    "rocket launch": "štart rakety",
+}
+
 app = FastAPI(title="Sky Summary Service", version=SERVICE_VERSION)
+
+translation_state: dict[str, object] = {
+    "error": None,
+    "installed_languages": [],
+    "has_en": False,
+    "has_sk": False,
+    "has_en_sk_pair": False,
+    "translator": None,
+}
+
+
+class TranslateRequest(BaseModel):
+    text: str = ""
+    from_lang: str = Field(default="en", alias="from")
+    to_lang: str = Field(default="sk", alias="to")
+    domain: str | None = "astronomy"
+
+    model_config = {
+        "populate_by_name": True,
+    }
+
+
+def ensure_internal_token(x_internal_token: str | None = Header(default=None, alias="X-Internal-Token")) -> None:
+    if not INTERNAL_TOKEN:
+        raise HTTPException(status_code=500, detail="INTERNAL_TOKEN is not configured.")
+
+    if not x_internal_token or x_internal_token != INTERNAL_TOKEN:
+        raise HTTPException(status_code=401, detail="Unauthorized internal token.")
+
+
+@app.on_event("startup")
+def startup_check() -> None:
+    refresh_translation_state()
+
+
+def refresh_translation_state() -> None:
+    state = {
+        "error": None,
+        "installed_languages": [],
+        "has_en": False,
+        "has_sk": False,
+        "has_en_sk_pair": False,
+        "translator": None,
+    }
+
+    if ARGOS_IMPORT_ERROR:
+        state["error"] = f"argostranslate import failed: {ARGOS_IMPORT_ERROR}"
+        translation_state.update(state)
+        return
+
+    if argos_translate is None:
+        state["error"] = "argostranslate is unavailable."
+        translation_state.update(state)
+        return
+
+    try:
+        installed = argos_translate.get_installed_languages()
+    except Exception as exc:  # pragma: no cover
+        state["error"] = f"failed_to_list_languages:{exc}"
+        translation_state.update(state)
+        return
+
+    codes = sorted({lang.code for lang in installed if getattr(lang, "code", None)})
+    state["installed_languages"] = codes
+    state["has_en"] = "en" in codes
+    state["has_sk"] = "sk" in codes
+
+    if not (state["has_en"] and state["has_sk"]):
+        state["error"] = "Missing installed language packages for en and/or sk."
+        translation_state.update(state)
+        return
+
+    from_lang = next((lang for lang in installed if lang.code == "en"), None)
+    to_lang = next((lang for lang in installed if lang.code == "sk"), None)
+
+    if from_lang is None or to_lang is None:
+        state["error"] = "Missing en or sk language object."
+        translation_state.update(state)
+        return
+
+    try:
+        translator = from_lang.get_translation(to_lang)
+    except Exception as exc:
+        state["error"] = f"Missing en->sk translation model: {exc}"
+        translation_state.update(state)
+        return
+
+    state["has_en_sk_pair"] = True
+    state["translator"] = translator
+    translation_state.update(state)
 
 
 @app.get("/health")
 def health() -> dict[str, object]:
-    return {"ok": True, "version": SERVICE_VERSION}
+    return {"ok": bool(translation_state.get("has_en_sk_pair")), "version": SERVICE_VERSION}
+
+
+@app.get("/diagnostics")
+def diagnostics(_: None = Depends(ensure_internal_token)) -> dict[str, object]:
+    refresh_translation_state()
+    return {
+        "version": SERVICE_VERSION,
+        "engine": "argos",
+        "has_en": bool(translation_state.get("has_en")),
+        "has_sk": bool(translation_state.get("has_sk")),
+        "has_en_sk_pair": bool(translation_state.get("has_en_sk_pair")),
+        "installed_languages": translation_state.get("installed_languages", []),
+        "error": translation_state.get("error"),
+    }
+
+
+@app.post("/translate")
+def translate(payload: TranslateRequest, _: None = Depends(ensure_internal_token)) -> dict[str, object]:
+    text = payload.text or ""
+    if text.strip() == "":
+        return {
+            "translated": text,
+            "meta": {
+                "engine": "argos",
+                "from": payload.from_lang,
+                "to": payload.to_lang,
+                "took_ms": 0,
+            },
+        }
+
+    started = time.perf_counter()
+
+    if payload.from_lang != "en" or payload.to_lang != "sk":
+        raise HTTPException(status_code=422, detail="Only en->sk translation is supported.")
+
+    if not bool(translation_state.get("has_en_sk_pair")):
+        refresh_translation_state()
+
+    translator = translation_state.get("translator")
+    if translator is None:
+        raise HTTPException(
+            status_code=503,
+            detail=str(translation_state.get("error") or "en->sk translation model is unavailable."),
+        )
+
+    chunks = split_text_preserving_format(text, MAX_TRANSLATE_CHARS)
+    translated_chunks: list[str] = []
+
+    for chunk in chunks:
+        if chunk == "" or chunk.isspace():
+            translated_chunks.append(chunk)
+            continue
+        translated_chunks.append(translator.translate(chunk))
+
+    translated = "".join(translated_chunks)
+
+    if (payload.domain or "").strip().lower() == "astronomy":
+        translated = apply_astronomy_terminology(translated)
+
+    took_ms = int((time.perf_counter() - started) * 1000)
+
+    return {
+        "translated": translated,
+        "meta": {
+            "engine": "argos",
+            "from": payload.from_lang,
+            "to": payload.to_lang,
+            "took_ms": took_ms,
+        },
+    }
+
+
+def split_text_preserving_format(text: str, max_chars: int) -> list[str]:
+    if len(text) <= max_chars:
+        return [text]
+
+    parts = re.split(r"(\n+)", text)
+    chunks: list[str] = []
+
+    for part in parts:
+        if part == "":
+            continue
+        if part.startswith("\n"):
+            chunks.append(part)
+            continue
+
+        chunks.extend(split_long_segment(part, max_chars))
+
+    return chunks
+
+
+def split_long_segment(segment: str, max_chars: int) -> list[str]:
+    if len(segment) <= max_chars:
+        return [segment]
+
+    units = re.split(r"(?<=[.!?])(\s+)", segment)
+    chunks: list[str] = []
+    current = ""
+
+    for unit in units:
+        if unit == "":
+            continue
+
+        if len(unit) > max_chars:
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.extend([unit[i : i + max_chars] for i in range(0, len(unit), max_chars)])
+            continue
+
+        if len(current) + len(unit) <= max_chars:
+            current += unit
+            continue
+
+        if current:
+            chunks.append(current)
+        current = unit
+
+    if current:
+        chunks.append(current)
+
+    return chunks
+
+
+def apply_astronomy_terminology(text: str) -> str:
+    translated = text
+    for source, target in ASTRONOMY_TERMS.items():
+        translated = re.sub(re.escape(source), target, translated, flags=re.IGNORECASE)
+    return translated
 
 
 @app.get("/sky-summary")
@@ -71,7 +320,7 @@ def sky_summary(
 
 
 def build_moon_payload(observer, location, local_date: date_cls, local_tz: ZoneInfo) -> dict:
-    local_noon = datetime.combine(local_date, time(12, 0), tzinfo=local_tz)
+    local_noon = datetime.combine(local_date, time_cls(12, 0), tzinfo=local_tz)
     noon_utc = local_noon.astimezone(timezone.utc)
     t_noon = ts.from_datetime(noon_utc)
 
@@ -90,7 +339,7 @@ def build_moon_payload(observer, location, local_date: date_cls, local_tz: ZoneI
 
 
 def moon_rise_set_times(location, local_date: date_cls, local_tz: ZoneInfo) -> tuple[str | None, str | None]:
-    start_local = datetime.combine(local_date, time(0, 0), tzinfo=local_tz)
+    start_local = datetime.combine(local_date, time_cls(0, 0), tzinfo=local_tz)
     end_local = start_local + timedelta(days=1)
 
     t0 = ts.from_datetime(start_local.astimezone(timezone.utc))
@@ -114,8 +363,8 @@ def moon_rise_set_times(location, local_date: date_cls, local_tz: ZoneInfo) -> t
 
 
 def build_planets_payload(observer, local_date: date_cls, local_tz: ZoneInfo) -> list[dict]:
-    start_local = datetime.combine(local_date, time(18, 0), tzinfo=local_tz)
-    end_local = datetime.combine(local_date + timedelta(days=1), time(3, 0), tzinfo=local_tz)
+    start_local = datetime.combine(local_date, time_cls(18, 0), tzinfo=local_tz)
+    end_local = datetime.combine(local_date + timedelta(days=1), time_cls(3, 0), tzinfo=local_tz)
 
     local_times = []
     current = start_local

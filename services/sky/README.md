@@ -1,6 +1,8 @@
-# Sky Summary Microservice
+# Sky + Translation Microservice
 
-FastAPI service used by Laravel endpoint `/api/observing/sky-summary`.
+FastAPI service used by Laravel for:
+- `GET /sky-summary` (observing info)
+- `POST /translate` (offline EN -> SK translation via Argos Translate)
 
 ## Run locally
 
@@ -9,23 +11,46 @@ cd services/sky
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+```
+
+Set internal token (same value as backend `INTERNAL_TOKEN` / `TRANSLATION_INTERNAL_TOKEN`):
+
+```powershell
+$env:INTERNAL_TOKEN="change-me"
+```
+
+Start service:
+
+```powershell
 cd app
 uvicorn main:app --host 127.0.0.1 --port 8010 --reload
 ```
 
-If Laravel runs from another container/VM, run on `0.0.0.0` and use reachable host in backend `.env`:
+## Install Argos EN -> SK model
 
 ```powershell
-uvicorn main:app --host 0.0.0.0 --port 8010 --reload
+python -m argostranslate.package --update-package-index
+python -m argostranslate.package --install translate-en_sk
 ```
 
-## Endpoint
+If package name differs in your index, list available packages:
 
-- `GET /sky-summary?lat=48.1486&lon=17.1077&tz=Europe/Bratislava&date=2026-02-11`
-- Returns `moon` and `planets` sections.
-- `GET /health` returns `{ "ok": true, "version": "1.0.0" }`
+```powershell
+python -m argostranslate.package --available-packages
+```
+
+## Translation endpoints
+
+- `POST /translate` (requires `X-Internal-Token`)
+  - request: `{ "text": "...", "from": "en", "to": "sk", "domain": "astronomy" }`
+  - response: `{ "translated": "...", "meta": { "engine": "argos", "from": "en", "to": "sk", "took_ms": 123 } }`
+- `GET /health` -> `{ "ok": true|false, "version": "..." }`
+- `GET /diagnostics` (requires `X-Internal-Token`)
+  - includes installed languages and `has_en_sk_pair`
 
 ## Notes
 
-- Uses Skyfield with local ephemeris cache at `services/sky/data/de421.bsp`.
-- Planet visibility uses evening window `18:00-03:00` local time and prefers `alt>=10` while Sun altitude is below `-6` degrees, then falls back to only `alt>=10`.
+- Long text is chunked automatically (> `TRANSLATION_CHUNK_MAX_CHARS`, default `4000`).
+- Astronomy terminology post-processing is applied when `domain == "astronomy"`.
+- Existing sky summary endpoint remains unchanged:
+  - `GET /sky-summary?lat=48.1486&lon=17.1077&tz=Europe/Bratislava&date=2026-02-11`

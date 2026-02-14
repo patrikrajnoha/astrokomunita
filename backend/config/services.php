@@ -40,4 +40,15 @@ return [
         'base_url' => env('OPENAQ_BASE_URL', 'https://api.openaq.org/v3'),
     ],
 
+    'translation' => [
+        'base_url' => env('TRANSLATION_SERVICE_URL', env('OBSERVING_SKY_MICROSERVICE_BASE', 'http://127.0.0.1:8010')),
+        'translate_path' => env('TRANSLATION_SERVICE_TRANSLATE_PATH', '/translate'),
+        'diagnostics_path' => env('TRANSLATION_SERVICE_DIAGNOSTICS_PATH', '/diagnostics'),
+        'timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SECONDS', 12),
+        'connect_timeout_seconds' => (int) env('TRANSLATION_CONNECT_TIMEOUT_SECONDS', 3),
+        'retries' => (int) env('TRANSLATION_RETRIES', 2),
+        'retry_sleep_ms' => (int) env('TRANSLATION_RETRY_SLEEP_MS', 250),
+        'internal_token' => env('TRANSLATION_INTERNAL_TOKEN', env('INTERNAL_TOKEN', '')),
+    ],
+
 ];

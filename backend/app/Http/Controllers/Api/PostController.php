@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Post\ReplyPostRequest;
 use App\Http\Requests\Post\StorePostRequest;
+use App\Http\Resources\PostResource;
 use App\Models\Post;
 use App\Services\PostService;
+use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
 
 class PostController extends Controller
 {
@@ -43,10 +46,10 @@ class PostController extends Controller
 
     public function show(Request $request, Post $post)
     {
-        $viewer = $request->user();
-        $isAdmin = $viewer?->isAdmin() ?? false;
+        $viewer = $this->resolveViewer($request);
+        $canViewRestricted = $viewer ? Gate::forUser($viewer)->allows('viewRestricted', $post) : false;
 
-        if ($post->is_hidden && !$isAdmin) {
+        if (($post->is_hidden || $post->hidden_at || $post->moderation_status === 'blocked') && !$canViewRestricted) {
             return response()->json([
                 'message' => 'Not found.',
             ], 404);
@@ -73,10 +76,7 @@ class PostController extends Controller
             ], 401);
         }
 
-        $isOwner = (int) $post->user_id === (int) $user->id;
-        $isAdmin = (bool) $user->is_admin;
-
-        if (!$isOwner && !$isAdmin) {
+        if (Gate::forUser($user)->denies('delete', $post)) {
             return response()->json([
                 'message' => 'Nemate opravnenie zmazat tento post.',
             ], 403);
@@ -95,7 +95,7 @@ class PostController extends Controller
             $request->file('attachment')
         );
 
-        return response()->json($post, 201);
+        return response()->json((new PostResource($post))->resolve(), 201);
     }
 
     public function reply(ReplyPostRequest $request, Post $post)
@@ -120,7 +120,7 @@ class PostController extends Controller
             $request->file('attachment')
         );
 
-        return response()->json($reply, 201);
+        return response()->json((new PostResource($reply))->resolve(), 201);
     }
 
     public function like(Request $request, Post $post)
@@ -151,10 +151,10 @@ class PostController extends Controller
 
     public function view(Request $request, Post $post)
     {
-        $viewer = $request->user();
-        $isAdmin = $viewer?->isAdmin() ?? false;
+        $viewer = $this->resolveViewer($request);
+        $canViewRestricted = $viewer ? Gate::forUser($viewer)->allows('viewRestricted', $post) : false;
 
-        if ($post->is_hidden && !$isAdmin) {
+        if (($post->is_hidden || $post->hidden_at || $post->moderation_status === 'blocked') && !$canViewRestricted) {
             return response()->json([
                 'message' => 'Not found.',
             ], 404);
@@ -192,5 +192,10 @@ class PostController extends Controller
         $ua = (string) $request->userAgent();
 
         return 'ip:' . sha1($ip . '|' . substr($ua, 0, 120));
+    }
+
+    private function resolveViewer(Request $request): ?User
+    {
+        return $request->user() ?? $request->user('sanctum');
     }
 }

@@ -70,7 +70,7 @@ class UserProfileController extends Controller
         }
 
         if (!$request->boolean('include_hidden') || !$isAdmin) {
-            $query->where('is_hidden', false);
+            $query->publiclyVisible();
         }
 
         return response()->json(

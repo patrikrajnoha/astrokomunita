@@ -286,7 +286,7 @@
 import { computed, reactive, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { http } from '@/lib/http'
+import http from '@/services/api'
 import api from '@/services/api'
 import { useConfirm } from '@/composables/useConfirm'
 

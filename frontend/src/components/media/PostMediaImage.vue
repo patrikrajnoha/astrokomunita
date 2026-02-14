@@ -3,10 +3,11 @@
     <div
       ref="frameRef"
       class="feed-media-frame"
+      :class="{ 'feed-media-frame--blurred': blurred }"
       :style="frameStyle"
       role="button"
       tabindex="0"
-      :aria-label="'Otvoriť celý obrázok'"
+      :aria-label="blurred ? 'Obrazok sa kontroluje' : 'Otvorit cely obrazok'"
       @click.stop="openLightbox"
       @keydown.enter.prevent="openLightbox"
       @keydown.space.prevent="openLightbox"
@@ -19,15 +20,18 @@
         loading="lazy"
         @load="onLoad"
       />
-      <div v-if="isOversized" class="media-overlay-wrap">
+      <div v-if="isOversized && !blurred" class="media-overlay-wrap">
         <button
           type="button"
           class="media-overlay-btn"
-          aria-label="Zobraziť celé"
+          aria-label="Zobrazit cele"
           @click.stop="openLightbox"
         >
-          Zobraziť celé
+          Zobrazit cele
         </button>
+      </div>
+      <div v-if="blurred" class="media-state-overlay">
+        <span>{{ pendingLabel }}</span>
       </div>
     </div>
 
@@ -41,9 +45,11 @@ import ImageLightbox from '@/components/media/ImageLightbox.vue'
 
 const props = defineProps({
   src: { type: String, required: true },
-  alt: { type: String, default: 'Príloha' },
+  alt: { type: String, default: 'Priloha' },
   maxHeightDesktop: { type: Number, default: 520 },
   maxHeightMobile: { type: Number, default: 420 },
+  blurred: { type: Boolean, default: false },
+  pendingLabel: { type: String, default: 'Checking...' },
 })
 
 const frameRef = ref(null)
@@ -54,7 +60,7 @@ const isOversized = ref(false)
 const isLightboxOpen = ref(false)
 let resizeRaf = null
 
-const altText = computed(() => props.alt || 'Príloha')
+const altText = computed(() => props.alt || 'Priloha')
 const frameStyle = computed(() => {
   if (!frameHeight.value) return {}
   return { height: `${frameHeight.value}px` }
@@ -99,6 +105,7 @@ function getMaxHeight() {
 }
 
 function openLightbox() {
+  if (props.blurred) return
   isLightboxOpen.value = true
 }
 
@@ -133,6 +140,10 @@ onBeforeUnmount(() => {
   transition: height 0.16s ease;
 }
 
+.feed-media-frame--blurred {
+  cursor: default;
+}
+
 .feed-media-frame:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
@@ -157,6 +168,11 @@ onBeforeUnmount(() => {
   object-fit: contain;
   display: block;
   background: transparent;
+}
+
+.feed-media-frame--blurred .feed-media-img {
+  filter: blur(28px) saturate(0.7);
+  transform: scale(1.05);
 }
 
 .media-overlay-wrap {
@@ -185,6 +201,22 @@ onBeforeUnmount(() => {
 .media-overlay-btn:focus {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+.media-state-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  background: linear-gradient(to top, rgba(2, 6, 23, 0.82), rgba(2, 6, 23, 0));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 @media (max-width: 768px) {

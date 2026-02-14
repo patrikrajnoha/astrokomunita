@@ -16,7 +16,7 @@ class EventService
     {
         $query = Event::query()
             ->with(['user'])
-            ->orderBy('starts_at', 'desc');
+            ->orderBy('start_at', 'desc');
 
         // Apply filters
         if (isset($filters['type'])) {
@@ -36,11 +36,11 @@ class EventService
         }
 
         if (isset($filters['date_from'])) {
-            $query->whereDate('starts_at', '>=', $filters['date_from']);
+            $query->whereDate('start_at', '>=', $filters['date_from']);
         }
 
         if (isset($filters['date_to'])) {
-            $query->whereDate('starts_at', '<=', $filters['date_to']);
+            $query->whereDate('start_at', '<=', $filters['date_to']);
         }
 
         return $query->paginate($perPage);
@@ -56,8 +56,8 @@ class EventService
                 'title' => $data['title'],
                 'description' => $data['description'] ?? null,
                 'type' => $data['type'],
-                'starts_at' => $data['start_at'],
-                'ends_at' => $data['end_at'] ?? null,
+                'start_at' => $data['start_at'],
+                'end_at' => $data['end_at'] ?? null,
                 'visibility' => $data['visibility'] ?? 1,
                 'max_at' => $data['max_at'] ?? $data['start_at'],
             ]);
@@ -80,12 +80,12 @@ class EventService
             ];
 
             if (isset($data['start_at'])) {
-                $updateData['starts_at'] = $data['start_at'];
+                $updateData['start_at'] = $data['start_at'];
                 $updateData['max_at'] = $data['start_at'];
             }
 
             if (isset($data['end_at'])) {
-                $updateData['ends_at'] = $data['end_at'];
+                $updateData['end_at'] = $data['end_at'];
             }
 
             $event->update($updateData);
@@ -110,9 +110,9 @@ class EventService
     public function getUpcomingEvents(int $limit = 10): \Illuminate\Database\Eloquent\Collection
     {
         return Event::query()
-            ->where('starts_at', '>', now())
+            ->where('start_at', '>', now())
             ->where('visibility', 1)
-            ->orderBy('starts_at', 'asc')
+            ->orderBy('start_at', 'asc')
             ->limit($limit)
             ->get();
     }
@@ -123,9 +123,9 @@ class EventService
     public function getEventsByDateRange(\DateTime $startDate, \DateTime $endDate): \Illuminate\Database\Eloquent\Collection
     {
         return Event::query()
-            ->whereBetween('starts_at', [$startDate, $endDate])
+            ->whereBetween('start_at', [$startDate, $endDate])
             ->where('visibility', 1)
-            ->orderBy('starts_at', 'asc')
+            ->orderBy('start_at', 'asc')
             ->get();
     }
 
@@ -149,8 +149,8 @@ class EventService
             'total' => Event::count(),
             'public' => Event::where('visibility', 1)->count(),
             'hidden' => Event::where('visibility', 0)->count(),
-            'upcoming' => Event::where('starts_at', '>', now())->count(),
-            'past' => Event::where('starts_at', '<=', now())->count(),
+            'upcoming' => Event::where('start_at', '>', now())->count(),
+            'past' => Event::where('start_at', '<=', now())->count(),
             'by_type' => Event::selectRaw('type, count(*) as count')
                 ->groupBy('type')
                 ->pluck('count', 'type')

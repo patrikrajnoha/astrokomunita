@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Report;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class AdminUserController extends Controller
 {
@@ -20,7 +21,7 @@ class AdminUserController extends Controller
         }
 
         $users = User::query()
-            ->select(['id', 'name', 'email', 'role', 'is_banned', 'is_active'])
+            ->select(['id', 'name', 'username', 'email', 'role', 'is_banned', 'is_active', 'avatar_path'])
             ->orderByDesc('id')
             ->paginate($perPage);
 
@@ -30,7 +31,7 @@ class AdminUserController extends Controller
     public function show(int $id)
     {
         $user = User::query()
-            ->select(['id', 'name', 'email', 'role', 'is_banned', 'is_active', 'created_at'])
+            ->select(['id', 'name', 'username', 'email', 'role', 'is_banned', 'is_active', 'avatar_path', 'created_at'])
             ->findOrFail($id);
 
         return response()->json($user);
@@ -81,7 +82,7 @@ class AdminUserController extends Controller
     public function ban(Request $request, int $id)
     {
         $user = User::findOrFail($id);
-        $this->ensureNotSelf($request, $user);
+        $this->ensureAllowed($request, 'ban', $user);
 
         $user->is_banned = true;
         $user->save();
@@ -92,7 +93,7 @@ class AdminUserController extends Controller
     public function unban(Request $request, int $id)
     {
         $user = User::findOrFail($id);
-        $this->ensureNotSelf($request, $user);
+        $this->ensureAllowed($request, 'unban', $user);
 
         $user->is_banned = false;
         $user->save();
@@ -103,7 +104,7 @@ class AdminUserController extends Controller
     public function deactivate(Request $request, int $id)
     {
         $user = User::findOrFail($id);
-        $this->ensureNotSelf($request, $user);
+        $this->ensureAllowed($request, 'deactivate', $user);
 
         $user->is_active = false;
         $user->save();
@@ -111,9 +112,10 @@ class AdminUserController extends Controller
         return response()->json($this->mapUser($user));
     }
 
-    public function resetProfile(int $id)
+    public function resetProfile(Request $request, int $id)
     {
         $user = User::findOrFail($id);
+        $this->ensureAllowed($request, 'resetProfile', $user);
 
         $user->bio = null;
         $user->location = null;
@@ -124,10 +126,10 @@ class AdminUserController extends Controller
         return response()->json($this->mapUser($user));
     }
 
-    private function ensureNotSelf(Request $request, User $target): void
+    private function ensureAllowed(Request $request, string $ability, User $target): void
     {
         $actor = $request->user();
-        if ($actor && (int) $actor->id === (int) $target->id) {
+        if ($actor && Gate::forUser($actor)->denies($ability, $target)) {
             abort(403, 'Forbidden');
         }
     }
@@ -137,10 +139,12 @@ class AdminUserController extends Controller
         return $user->only([
             'id',
             'name',
+            'username',
             'email',
             'role',
             'is_banned',
             'is_active',
+            'avatar_path',
         ]);
     }
 }

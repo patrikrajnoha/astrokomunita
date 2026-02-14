@@ -89,6 +89,28 @@ export function formatRelativeTime(value, locale = 'sk-SK') {
 }
 
 /**
+ * Formatuje relativny cas v kratkom tvare (napr. "3d", "2h", "15m")
+ * @param {string|Date|null} value - Datum
+ * @returns {string} Kratky relativny cas
+ */
+export function formatRelativeShort(value) {
+  if (!value) return '';
+
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+
+  const diffMs = Math.abs(Date.now() - d.getTime());
+  const minuteMs = 60 * 1000;
+  const hourMs = 60 * minuteMs;
+  const dayMs = 24 * hourMs;
+
+  if (diffMs < minuteMs) return 'now';
+  if (diffMs < hourMs) return `${Math.floor(diffMs / minuteMs)} m`;
+  if (diffMs < dayMs) return `${Math.floor(diffMs / hourMs)} h`;
+  return `${Math.floor(diffMs / dayMs)} d`;
+}
+
+/**
  * Skontroluje či je dátum v minulosti
  * @param {string|Date|null} value - Dátum na kontrolu
  * @returns {boolean} True ak je dátum v minulosti
