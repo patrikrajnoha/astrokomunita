@@ -14,6 +14,7 @@ class PollOption extends Model
     protected $fillable = [
         'poll_id',
         'text',
+        'image_path',
         'position',
         'votes_count',
     ];
@@ -39,3 +40,4 @@ class PollOption extends Model
         return $this->hasMany(PollVote::class);
     }
 }
+

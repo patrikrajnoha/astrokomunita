@@ -108,7 +108,10 @@ class PollVoteTest extends TestCase
             'content' => 'Poll question',
             'poll' => [
                 'duration_preset' => '1d',
-                'options' => ['Option A', 'Option B'],
+                'options' => [
+                    ['text' => 'Option A'],
+                    ['text' => 'Option B'],
+                ],
             ],
         ]);
 

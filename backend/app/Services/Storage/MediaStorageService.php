@@ -27,6 +27,11 @@ class MediaStorageService
         return $this->storePublicly($file, sprintf('posts/%d', $postId));
     }
 
+    public function storePollOptionImage(UploadedFile $file, int $pollId, int $optionId): string
+    {
+        return $this->storePublicly($file, sprintf('polls/%d/options/%d', $pollId, $optionId));
+    }
+
     public function storeBlogCover(UploadedFile $file, int $userId): string
     {
         return $this->storePublicly($file, sprintf('blog-covers/%d', $userId));

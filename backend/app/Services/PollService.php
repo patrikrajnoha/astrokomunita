@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Models\Poll;
 use App\Models\PollOption;
 use App\Models\Post;
+use App\Services\Storage\MediaStorageService;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class PollService
@@ -22,6 +24,11 @@ class PollService
         '7d' => 604800,
     ];
 
+    public function __construct(
+        private readonly MediaStorageService $mediaStorage,
+    ) {
+    }
+
     public function pollRelations(?int $viewerUserId = null): array
     {
         if ($viewerUserId) {
@@ -37,22 +44,25 @@ class PollService
     public function createForPost(Post $post, array $pollInput): Poll
     {
         $endsAt = $this->resolveEndsAt($pollInput);
-        $options = array_values(array_map(
-            fn ($item) => trim((string) $item),
-            (array) ($pollInput['options'] ?? [])
-        ));
+        $options = $this->normalizeOptions($pollInput);
 
         $poll = Poll::create([
             'post_id' => $post->id,
             'ends_at' => $endsAt,
         ]);
 
-        foreach ($options as $index => $optionText) {
-            $poll->pollOptions()->create([
-                'text' => $optionText,
+        foreach ($options as $index => $optionInput) {
+            $option = $poll->pollOptions()->create([
+                'text' => $optionInput['text'],
                 'position' => $index + 1,
                 'votes_count' => 0,
             ]);
+
+            if ($optionInput['image'] instanceof UploadedFile) {
+                $path = $this->mediaStorage->storePollOptionImage($optionInput['image'], (int) $poll->id, (int) $option->id);
+                $option->image_path = $path;
+                $option->save();
+            }
         }
 
         return $poll;
@@ -64,6 +74,10 @@ class PollService
 
         if (!empty($pollInput['ends_at'])) {
             return CarbonImmutable::parse((string) $pollInput['ends_at']);
+        }
+
+        if (isset($pollInput['duration_seconds'])) {
+            return $now->addSeconds((int) $pollInput['duration_seconds']);
         }
 
         if (isset($pollInput['ends_in_seconds'])) {
@@ -112,6 +126,8 @@ class PollService
             'is_closed' => $isClosed,
             'total_votes' => $totalVotes,
             'ends_in_seconds' => $endsInSeconds,
+            'user_has_voted' => $myVoteOptionId !== null,
+            'chosen_option_id' => $myVoteOptionId,
             'my_vote_option_id' => $myVoteOptionId,
             'options' => $options->map(function (PollOption $option) use ($totalVotes, $isClosed, $winnerVoteCount) {
                 $votesCount = (int) $option->votes_count;
@@ -120,6 +136,7 @@ class PollService
                 return [
                     'id' => (int) $option->id,
                     'text' => $option->text,
+                    'image_url' => $this->mediaStorage->absoluteUrl($option->image_path),
                     'votes_count' => $votesCount,
                     'percent' => $percent,
                     'is_winner' => $isClosed && $winnerVoteCount !== null && $votesCount === $winnerVoteCount,
@@ -127,4 +144,27 @@ class PollService
             })->values()->all(),
         ];
     }
+
+    private function normalizeOptions(array $pollInput): array
+    {
+        $normalized = [];
+
+        foreach ((array) ($pollInput['options'] ?? []) as $option) {
+            if (is_array($option)) {
+                $normalized[] = [
+                    'text' => trim((string) ($option['text'] ?? '')),
+                    'image' => $option['image'] ?? null,
+                ];
+                continue;
+            }
+
+            $normalized[] = [
+                'text' => trim((string) $option),
+                'image' => null,
+            ];
+        }
+
+        return array_values($normalized);
+    }
 }
+
