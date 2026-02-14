@@ -109,6 +109,15 @@
           <div class="post-text">
             <HashtagText :content="p.content" />
           </div>
+
+          <PollCard
+            v-if="p.poll"
+            :poll="p.poll"
+            :post-id="p.id"
+            :is-authed="auth.isAuthed"
+            @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
+            @login-required="onPollLoginRequired"
+          />
           
           <!-- Source URL for AstroBot posts -->
           <div v-if="p.source_name === 'astrobot' && p.source_url" class="source-url">
@@ -302,6 +311,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'v
 import { useRouter } from 'vue-router'
 import FeedSwitcher from '@/components/FeedSwitcher.vue'
 import HashtagText from './HashtagText.vue'
+import PollCard from '@/components/PollCard.vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import ShareModal from '@/components/share/ShareModal.vue'
@@ -538,6 +548,15 @@ function closeShareModal() {
 
 function closeDeleteConfirm() {
   deleteTarget.value = null
+}
+
+function updatePostPoll(post, nextPoll) {
+  if (!post || !nextPoll) return
+  post.poll = nextPoll
+}
+
+function onPollLoginRequired() {
+  currentFeed.value.err = 'Prihlas sa pre hlasovanie.'
 }
 
 async function confirmDelete() {
@@ -1953,5 +1972,4 @@ defineExpose({ load, prepend })
 }
 
 </style>
-
 

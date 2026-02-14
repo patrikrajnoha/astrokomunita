@@ -117,4 +117,9 @@ api.interceptors.response.use(
   },
 )
 
+api.vote = (pollId, optionId, config = {}) =>
+  api.post(`/polls/${pollId}/vote`, { option_id: optionId }, config)
+
+api.fetchPoll = (pollId, config = {}) => api.get(`/polls/${pollId}`, config)
+
 export default api

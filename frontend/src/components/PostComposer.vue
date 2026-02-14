@@ -78,6 +78,60 @@
           </button>
         </div>
 
+        <div v-if="pollEnabled" class="pollEditor">
+          <div class="pollHead">
+            <div class="pollTitle">Anketa</div>
+            <button
+              class="pollToggleBtn pollToggleBtn--remove"
+              type="button"
+              :disabled="posting"
+              @click="disablePoll"
+            >
+              Odstranit
+            </button>
+          </div>
+
+          <div class="pollOptions">
+            <input
+              v-for="(option, index) in pollOptions"
+              :key="`poll-option-${index}`"
+              v-model="pollOptions[index]"
+              class="pollOptionInput"
+              type="text"
+              maxlength="25"
+              :placeholder="`Moznost ${index + 1}`"
+            />
+          </div>
+
+          <div class="pollControls">
+            <button
+              class="pollToggleBtn"
+              type="button"
+              :disabled="posting || pollOptions.length >= 4"
+              @click="addPollOption"
+            >
+              + Moznost
+            </button>
+            <button
+              class="pollToggleBtn"
+              type="button"
+              :disabled="posting || pollOptions.length <= 2"
+              @click="removePollOption"
+            >
+              - Moznost
+            </button>
+
+            <label class="pollDurationLabel" for="poll-duration-select">Trvanie</label>
+            <select id="poll-duration-select" v-model="pollDuration" class="pollDurationSelect">
+              <option value="5m">5m</option>
+              <option value="1h">1h</option>
+              <option value="1d">1d</option>
+              <option value="3d">3d</option>
+              <option value="7d">7d</option>
+            </select>
+          </div>
+        </div>
+
         <div class="actionsBar">
           <div class="leftActions">
             <input
@@ -98,6 +152,17 @@
                 <path d="m21.4 11-8.5 8.5a5.5 5.5 0 1 1-7.8-7.8l8.9-8.9a3.5 3.5 0 1 1 5 5l-9 9a1.5 1.5 0 0 1-2.1-2.1l8-8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
               <span class="attachText">Pridat prilohu</span>
+            </button>
+
+            <button
+              v-if="!pollEnabled"
+              class="attachBtn"
+              type="button"
+              :disabled="posting"
+              aria-label="Pridat anketu"
+              @click="enablePoll"
+            >
+              <span class="attachText">Anketa</span>
             </button>
           </div>
 
@@ -142,6 +207,9 @@ const imagePreviewUrl = ref(null)
 const posting = ref(false)
 const err = ref('')
 const isFocused = ref(false)
+const pollEnabled = ref(false)
+const pollOptions = ref(['', ''])
+const pollDuration = ref('1d')
 
 const showAutocomplete = ref(false)
 const suggestions = ref([])
@@ -180,7 +248,17 @@ const isSubmitDisabled = computed(() => {
   if (posting.value) return true
   if (!content.value.trim()) return true
   if (content.value.length > 2000) return true
+  if (pollEnabled.value && !isPollValid.value) return true
   return false
+})
+
+const isPollValid = computed(() => {
+  if (!pollEnabled.value) return true
+  if (pollOptions.value.length < 2 || pollOptions.value.length > 4) return false
+  return pollOptions.value.every((option) => {
+    const text = String(option || '').trim()
+    return text.length >= 1 && text.length <= 25
+  })
 })
 
 function onFocus() {
@@ -325,6 +403,29 @@ function pickFile() {
   fileInput.value?.click()
 }
 
+function enablePoll() {
+  pollEnabled.value = true
+  if (!Array.isArray(pollOptions.value) || pollOptions.value.length < 2) {
+    pollOptions.value = ['', '']
+  }
+}
+
+function disablePoll() {
+  pollEnabled.value = false
+  pollOptions.value = ['', '']
+  pollDuration.value = '1d'
+}
+
+function addPollOption() {
+  if (pollOptions.value.length >= 4) return
+  pollOptions.value = [...pollOptions.value, '']
+}
+
+function removePollOption() {
+  if (pollOptions.value.length <= 2) return
+  pollOptions.value = pollOptions.value.slice(0, pollOptions.value.length - 1)
+}
+
 function revokePreview() {
   if (imagePreviewUrl.value) {
     URL.revokeObjectURL(imagePreviewUrl.value)
@@ -393,6 +494,12 @@ async function submit() {
     const fd = new FormData()
     fd.append('content', content.value.trim())
     if (file.value) fd.append('attachment', file.value)
+    if (pollEnabled.value) {
+      fd.append('poll[duration_preset]', pollDuration.value)
+      pollOptions.value.forEach((option) => {
+        fd.append('poll[options][]', String(option || '').trim())
+      })
+    }
 
     const res = await api.post('/posts', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -403,11 +510,12 @@ async function submit() {
     content.value = ''
     isFocused.value = false
     removeFile()
+    disablePoll()
     if (textareaRef.value) textareaRef.value.style.height = ''
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) err.value = 'Pre publikovanie sa prihlas.'
-    else if (status === 422) err.value = 'Skontroluj text (1-2000) a typ/velkost prilohy.'
+    else if (status === 422) err.value = 'Skontroluj text, prilohu a poll moznosti (2-4, max 25 znakov).'
     else err.value = e?.response?.data?.message || 'Publikovanie zlyhalo.'
   } finally {
     posting.value = false
@@ -584,6 +692,89 @@ onBeforeUnmount(() => revokePreview())
   border-radius: 12px;
   background: var(--panel);
   padding: 0.55rem 0.65rem;
+}
+
+.pollEditor {
+  border: 1px solid var(--soft-border);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 0.6rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.pollHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.pollTitle {
+  color: var(--surface);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.pollOptions {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.pollOptionInput {
+  border: 1px solid var(--soft-border);
+  border-radius: 999px;
+  background: rgb(var(--color-bg-rgb) / 0.35);
+  color: var(--surface);
+  padding: 0.5rem 0.7rem;
+  font-size: 0.82rem;
+}
+
+.pollOptionInput:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.pollControls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.pollToggleBtn {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgb(var(--color-bg-rgb) / 0.35);
+  color: var(--surface);
+  padding: 0.32rem 0.62rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.pollToggleBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pollToggleBtn--remove {
+  border-color: rgb(var(--color-danger-rgb) / 0.55);
+  color: var(--color-danger);
+}
+
+.pollDurationLabel {
+  color: var(--muted);
+  font-size: 0.74rem;
+  margin-left: 0.35rem;
+}
+
+.pollDurationSelect {
+  border: 1px solid var(--soft-border);
+  border-radius: 999px;
+  background: rgb(var(--color-bg-rgb) / 0.35);
+  color: var(--surface);
+  padding: 0.32rem 0.62rem;
+  font-size: 0.74rem;
 }
 
 .fileLeft {
