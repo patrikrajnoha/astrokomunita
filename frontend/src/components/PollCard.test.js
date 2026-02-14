@@ -9,12 +9,19 @@ vi.mock('@/services/api', () => ({
   },
 }))
 
+vi.mock('@/composables/useToast', () => ({
+  useToast: () => ({
+    warn: vi.fn(),
+    error: vi.fn(),
+  }),
+}))
+
 describe('PollCard', () => {
   afterEach(() => {
     document.body.innerHTML = ''
   })
 
-  it('renders before-vote state', () => {
+  it('renders before-vote state with thumbnails', () => {
     const wrapper = mount(PollCard, {
       props: {
         isAuthed: true,
@@ -25,15 +32,16 @@ describe('PollCard', () => {
           ends_in_seconds: 3600,
           my_vote_option_id: null,
           options: [
-            { id: 11, text: 'A', percent: 50, votes_count: 6, is_winner: false },
-            { id: 12, text: 'B', percent: 50, votes_count: 6, is_winner: false },
+            { id: 11, text: 'A', image_url: 'https://example.com/a.jpg', percent: 50, votes_count: 6, is_winner: false },
+            { id: 12, text: 'B', image_url: null, percent: 50, votes_count: 6, is_winner: false },
           ],
         },
       },
     })
 
     expect(wrapper.findAll('.pollOption')).toHaveLength(2)
-    expect(wrapper.text()).toContain('Počet hlasov: 12')
+    expect(wrapper.text()).toContain('Pocet hlasov: 12')
+    expect(wrapper.find('.pollThumb').exists()).toBe(true)
     expect(wrapper.find('.pollPercent').exists()).toBe(false)
   })
 
@@ -48,8 +56,8 @@ describe('PollCard', () => {
           ends_in_seconds: 1000,
           my_vote_option_id: 21,
           options: [
-            { id: 21, text: 'Yes', percent: 60, votes_count: 6, is_winner: false },
-            { id: 22, text: 'No', percent: 40, votes_count: 4, is_winner: false },
+            { id: 21, text: 'Yes', image_url: null, percent: 60, votes_count: 6, is_winner: false },
+            { id: 22, text: 'No', image_url: null, percent: 40, votes_count: 4, is_winner: false },
           ],
         },
       },
@@ -71,14 +79,15 @@ describe('PollCard', () => {
           ends_in_seconds: 0,
           my_vote_option_id: null,
           options: [
-            { id: 31, text: 'Winner', percent: 70, votes_count: 7, is_winner: true },
-            { id: 32, text: 'Loser', percent: 30, votes_count: 3, is_winner: false },
+            { id: 31, text: 'Winner', image_url: null, percent: 70, votes_count: 7, is_winner: true },
+            { id: 32, text: 'Loser', image_url: null, percent: 30, votes_count: 3, is_winner: false },
           ],
         },
       },
     })
 
-    expect(wrapper.text()).toContain('Víťaz')
+    expect(wrapper.text()).toContain('Vitaz')
     expect(wrapper.find('.pollOption--winner').exists()).toBe(true)
   })
 })
+
