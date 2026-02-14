@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\AstroBotSyncInProgressException;
+use App\Jobs\TranslateRssItemJob;
 use App\Models\AstroBotRun;
 use App\Models\Post;
 use App\Models\RssItem;
@@ -216,6 +217,8 @@ class AstroBotNasaService
                 'url' => $row['link'],
                 'title' => Str::limit($row['title'], 255),
                 'summary' => $row['summary'] ? Str::limit($row['summary'], 2000) : null,
+                'original_title' => Str::limit($row['title'], 255),
+                'original_summary' => $row['summary'] ? Str::limit($row['summary'], 2000) : null,
                 'published_at' => $row['published_at'],
                 'fetched_at' => now(),
                 'stable_key' => $row['fingerprint'],
@@ -223,19 +226,37 @@ class AstroBotNasaService
             ];
 
             if (! $existing) {
-                RssItem::query()->create($payload + [
+                $createdItem = RssItem::query()->create($payload + [
                     'status' => RssItem::STATUS_DRAFT,
+                    'translation_status' => RssItem::TRANSLATION_PENDING,
+                    'translation_error' => null,
                 ]);
+                TranslateRssItemJob::dispatch($createdItem->id)->afterCommit();
                 $created++;
                 continue;
             }
+
+            $textChanged = $existing->title !== $payload['title']
+                || (string) ($existing->summary ?? '') !== (string) ($payload['summary'] ?? '');
 
             if ($existing->status !== RssItem::STATUS_PUBLISHED || ! $existing->post_id) {
                 $payload['status'] = RssItem::STATUS_DRAFT;
                 $payload['last_error'] = null;
             }
 
+            if ($textChanged) {
+                $payload['translated_title'] = null;
+                $payload['translated_summary'] = null;
+                $payload['translation_status'] = RssItem::TRANSLATION_PENDING;
+                $payload['translation_error'] = null;
+                $payload['translated_at'] = null;
+            }
+
             $existing->fill($payload)->save();
+
+            if ($textChanged || $existing->translation_status !== RssItem::TRANSLATION_DONE) {
+                TranslateRssItemJob::dispatch($existing->id)->afterCommit();
+            }
         }
 
         return $created;
@@ -243,6 +264,23 @@ class AstroBotNasaService
 
     public function publishNew(): int
     {
+        if (! (bool) config('astrobot.auto_publish_enabled', true)) {
+            RssItem::query()
+                ->where('source', self::SOURCE)
+                ->where('translation_status', RssItem::TRANSLATION_DONE)
+                ->whereIn('status', [
+                    RssItem::STATUS_DRAFT,
+                    RssItem::STATUS_PENDING,
+                    RssItem::STATUS_APPROVED,
+                    RssItem::STATUS_ERROR,
+                ])
+                ->update([
+                    'status' => RssItem::STATUS_NEEDS_REVIEW,
+                ]);
+
+            return 0;
+        }
+
         $items = RssItem::query()
             ->where('source', self::SOURCE)
             ->whereIn('status', [
@@ -252,6 +290,7 @@ class AstroBotNasaService
                 RssItem::STATUS_NEEDS_REVIEW,
                 RssItem::STATUS_ERROR,
             ])
+            ->where('translation_status', RssItem::TRANSLATION_DONE)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->get();

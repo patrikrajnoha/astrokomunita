@@ -32,6 +32,10 @@ class AstroBotItemProcessorService
             return 'needs_review';
         }
 
+        if ($item->translation_status !== RssItem::TRANSLATION_DONE) {
+            return 'skipped';
+        }
+
         $decision = $this->policyService->evaluate($item);
         if ($decision === AstroBotPublishPolicyService::DECISION_PUBLISH) {
             $this->publisher->publish($item);
@@ -45,4 +49,3 @@ class AstroBotItemProcessorService
         return 'needs_review';
     }
 }
-
