@@ -3,11 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\PollService;
+use App\Services\PostPayloadService;
 use App\Models\User;
 use Illuminate\Http\Request;
 
 class UserProfileController extends Controller
 {
+    public function __construct(
+        private readonly PollService $polls,
+        private readonly PostPayloadService $payloads,
+    ) {
+    }
+
     public function show(string $username)
     {
         $user = User::query()
@@ -39,13 +47,13 @@ class UserProfileController extends Controller
 
         $kind = $request->query('kind', 'roots');
 
-        $viewer = $request->user();
+        $viewer = $request->user() ?? $request->user('sanctum');
         $isAdmin = $viewer?->isAdmin() ?? false;
 
         $query = $user->posts()
-            ->with([
+            ->with(array_merge([
                 'user:id,name,username,location,bio,is_admin,avatar_path',
-            ])
+            ], $this->polls->pollRelations($viewer?->id)))
             ->withCount(['replies', 'likes'])
             ->latest();
 
@@ -73,8 +81,10 @@ class UserProfileController extends Controller
             $query->publiclyVisible();
         }
 
+        $paginator = $query->paginate($perPage)->withQueryString();
+
         return response()->json(
-            $query->paginate($perPage)->withQueryString()
+            $this->payloads->serializePaginator($paginator, $viewer)
         );
     }
 }

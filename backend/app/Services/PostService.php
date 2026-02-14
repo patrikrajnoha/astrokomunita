@@ -19,6 +19,7 @@ class PostService
         private readonly NotificationService $notifications,
         private readonly FeedQueryBuilder $feedQueryBuilder,
         private readonly MediaStorageService $mediaStorage,
+        private readonly PollService $polls,
     ) {
     }
 
@@ -75,11 +76,11 @@ class PostService
                     ->orWhere('root_id', $root->id)
                     ->orWhere('parent_id', $root->id);
             })
-            ->with([
+            ->with(array_merge([
                 'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
-            ])
+            ], $this->polls->pollRelations($viewer?->id)))
             ->withCount('likes');
 
         if (!$isAdmin) {
@@ -112,17 +113,19 @@ class PostService
             })
             ->values();
 
+        $currentPost = $thread->firstWhere('id', $post->id) ?? $post;
+
         return [
-            'post' => $post,
+            'post' => $currentPost,
             'root' => $rootPost,
             'thread' => $thread,
             'replies' => $nestedReplies,
         ];
     }
 
-    public function createPost(User $user, string $content, ?UploadedFile $attachment = null): Post
+    public function createPost(User $user, string $content, ?UploadedFile $attachment = null, ?array $pollInput = null): Post
     {
-        return DB::transaction(function () use ($user, $content, $attachment) {
+        return DB::transaction(function () use ($user, $content, $attachment, $pollInput) {
             $moderationEnabled = (bool) config('moderation.enabled', true);
             $post = new Post();
             $post->user_id = $user->id;
@@ -137,6 +140,10 @@ class PostService
             $post->hidden_at = null;
 
             $post->save();
+
+            if (is_array($pollInput)) {
+                $this->polls->createForPost($post, $pollInput);
+            }
 
             if ($attachment) {
                 $path = $this->mediaStorage->storePostAttachment($attachment, (int) $post->id);
@@ -164,6 +171,7 @@ class PostService
                 'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
                 'hashtags:id,name',
+                ...$this->polls->pollRelations($user->id),
             ]);
         });
     }

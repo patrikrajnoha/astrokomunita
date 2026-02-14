@@ -8,6 +8,11 @@ use Illuminate\Database\Eloquent\Builder;
 
 class FeedQueryBuilder
 {
+    public function __construct(
+        private readonly PollService $polls,
+    ) {
+    }
+
     public function build(array $options, ?User $viewer = null): Builder
     {
         $kind = (string) ($options['kind'] ?? 'roots');
@@ -20,13 +25,13 @@ class FeedQueryBuilder
         $pinned = $options['pinned'] ?? null; // only|exclude|null
         $isAdmin = $viewer?->isAdmin() ?? false;
 
-        $query = Post::query()->with([
+        $query = Post::query()->with(array_merge([
             'user:id,name,username,location,bio,is_admin,avatar_path',
             'replies.user:id,name,username,location,bio,is_admin,avatar_path',
             'parent.user:id,name,username,location,bio,is_admin,avatar_path',
             'tags:id,name',
             'hashtags:id,name',
-        ]);
+        ], $this->polls->pollRelations($viewer?->id)));
 
         if ($withCounts) {
             $query->withCount(['likes', 'replies']);

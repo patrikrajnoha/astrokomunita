@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\PollController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\BlogPostController;
 use App\Http\Controllers\Api\BlogTagController;
@@ -160,6 +161,7 @@ Route::get('/sidebar-config', [SidebarConfigController::class, 'index']);
 Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/{post}', [PostController::class, 'show']);
 Route::post('/posts/{post}/view', [PostController::class, 'view']);
+Route::get('/polls/{poll}', [PollController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------
@@ -406,6 +408,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/posts/{post}/like', [PostController::class, 'like']);
         Route::delete('/posts/{post}/like', [PostController::class, 'unlike']);
         Route::delete('/posts/{post}', [PostController::class, 'destroy']);
+        Route::post('/polls/{poll}/vote', [PollController::class, 'vote']);
 
         // Notifications
         Route::get('/notifications', [NotificationController::class, 'index']);
@@ -425,4 +428,3 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);
     });
 });
-

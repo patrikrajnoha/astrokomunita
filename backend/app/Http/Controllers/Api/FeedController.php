@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Services\FeedQueryBuilder;
+use App\Services\PostPayloadService;
 use App\Models\User;
 
 class FeedController extends Controller
 {
     public function __construct(
         private readonly FeedQueryBuilder $feedQueryBuilder,
+        private readonly PostPayloadService $payloads,
     ) {
     }
 
@@ -45,8 +47,10 @@ class FeedController extends Controller
             'tag' => $tag ? strtolower((string) $tag) : null,
         ], $user);
 
+        $paginator = $query->paginate($perPage)->withQueryString();
+
         return response()->json(
-            $query->paginate($perPage)->withQueryString()
+            $this->payloads->serializePaginator($paginator, $user)
         );
     }
 
@@ -86,8 +90,10 @@ class FeedController extends Controller
             });
         }
 
+        $paginator = $query->paginate($perPage)->withQueryString();
+
         return response()->json(
-            $query->paginate($perPage)->withQueryString()
+            $this->payloads->serializePaginator($paginator, $user)
         );
     }
 
