@@ -76,6 +76,7 @@ describe('FeedList tabs', () => {
             template: '<span>{{ content }}</span>',
           },
           DropdownMenu: true,
+          PollCard: true,
           PostMediaImage: true,
           ShareModal: true,
         },
