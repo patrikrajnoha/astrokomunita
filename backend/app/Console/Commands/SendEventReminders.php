@@ -33,6 +33,8 @@ class SendEventReminders extends Command
                     continue;
                 }
 
+                // TODO(notifications-email): Respect notification_preferences.email_enabled
+                // before sending reminder emails.
                 $reminder->user->notify(new EventReminderNotification($reminder));
                 $windowKey = 'T-' . $reminder->minutes_before;
                 $service->createEventReminder(

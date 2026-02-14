@@ -241,6 +241,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(UserPreference::class);
     }
 
+    public function notificationPreference(): HasOne
+    {
+        return $this->hasOne(NotificationPreference::class);
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin' || (bool) $this->is_admin;

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Event;
 use App\Models\Notification;
 use App\Models\NotificationEvent;
+use App\Models\NotificationPreference;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -12,9 +13,16 @@ use Illuminate\Support\Facades\DB;
 
 class NotificationService
 {
+    /** @var array<int, array<string, bool>> */
+    private array $inAppPreferenceCache = [];
+
     public function createPostLiked(int $recipientId, int $actorId, int $postId): ?Notification
     {
         if ($recipientId === $actorId) {
+            return null;
+        }
+
+        if (!$this->shouldDeliverInApp($recipientId, 'post_like')) {
             return null;
         }
 
@@ -37,6 +45,8 @@ class NotificationService
 
         $actor = User::query()->select(['id', 'name', 'username'])->find($actorId);
 
+        // TODO(notifications-email): When social notification emails are introduced,
+        // check NotificationPreference.email_enabled here and dispatch email delivery.
         return Notification::create([
             'user_id' => $recipientId,
             'type' => 'post_liked',
@@ -51,6 +61,10 @@ class NotificationService
 
     public function createEventReminder(int $recipientId, int $eventId, string $remindAtWindowKey): ?Notification
     {
+        if (!$this->shouldDeliverInApp($recipientId, 'event_reminder')) {
+            return null;
+        }
+
         $hash = sha1('event_reminder|' . $recipientId . '|' . $eventId . '|' . $remindAtWindowKey);
 
         if (NotificationEvent::query()->where('hash', $hash)->exists()) {
@@ -78,6 +92,9 @@ class NotificationService
                 'hash' => $hash,
                 'notification_id' => $notification->id,
             ]);
+
+            // TODO(notifications-email): If event reminder emails are moved to this flow,
+            // respect NotificationPreference.email_enabled before dispatching mail jobs.
 
             return $notification;
         });
@@ -125,5 +142,15 @@ class NotificationService
             ->where('user_id', $userId)
             ->orderByDesc('created_at')
             ->paginate($perPage);
+    }
+
+    private function shouldDeliverInApp(int $userId, string $preferenceKey): bool
+    {
+        if (!isset($this->inAppPreferenceCache[$userId])) {
+            $preferences = NotificationPreference::ensureForUser($userId);
+            $this->inAppPreferenceCache[$userId] = $preferences->inApp();
+        }
+
+        return (bool) ($this->inAppPreferenceCache[$userId][$preferenceKey] ?? true);
     }
 }

@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\EventEmailAlertController;
 use App\Http\Controllers\Api\EventCalendarController;
 use App\Http\Controllers\Api\EventReminderController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\NotificationPreferenceController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
@@ -409,6 +410,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Notifications
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::get('/notification-preferences', [NotificationPreferenceController::class, 'show']);
+        Route::put('/notification-preferences', [NotificationPreferenceController::class, 'update']);
         Route::middleware('throttle:30,1')->group(function () {
             Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
             Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
@@ -422,5 +425,4 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);
     });
 });
-
 
