@@ -6,9 +6,12 @@ use App\Enums\RegionScope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class Event extends Model
 {
+    private static ?bool $hasRegionScopeColumn = null;
+
     protected $fillable = [
         'title',
         'type',
@@ -65,11 +68,22 @@ class Event extends Model
         }
 
         $preferredRegion = $preferences->regionEnum();
-        if ($preferredRegion !== RegionScope::Global) {
+        if ($preferredRegion !== RegionScope::Global && self::supportsRegionScope()) {
             $query->whereIn('region_scope', RegionScope::visibleFor($preferredRegion));
         }
 
         return $query;
+    }
+
+    public static function supportsRegionScope(): bool
+    {
+        if (self::$hasRegionScopeColumn !== null) {
+            return self::$hasRegionScopeColumn;
+        }
+
+        self::$hasRegionScopeColumn = Schema::hasColumn('events', 'region_scope');
+
+        return self::$hasRegionScopeColumn;
     }
 
     /**

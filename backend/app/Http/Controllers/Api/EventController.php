@@ -42,7 +42,11 @@ class EventController extends Controller
             $query->whereIn('type', $requestedTypes);
         }
 
-        if (!empty($v['region']) && in_array($v['region'], RegionScope::values(), true)) {
+        if (
+            Event::supportsRegionScope()
+            && !empty($v['region'])
+            && in_array($v['region'], RegionScope::values(), true)
+        ) {
             $query->where('region_scope', $v['region']);
         }
 

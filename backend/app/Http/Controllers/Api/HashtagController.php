@@ -46,7 +46,7 @@ class HashtagController extends Controller
 
         $posts = $hashtag->posts()
             ->whereNull('parent_id') // Len root posts
-            ->where('is_hidden', false)
+            ->publiclyVisible()
             ->notExpired()
             ->with(['user:id,name,username,avatar_path', 'hashtags'])
             ->withCount(['likes', 'replies'])
