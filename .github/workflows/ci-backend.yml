@@ -58,6 +58,7 @@ jobs:
           cp .env.example .env
           mkdir -p database
           touch database/database.sqlite
+          mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
