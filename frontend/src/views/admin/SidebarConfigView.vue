@@ -43,13 +43,24 @@
 
       <div class="cardHeader">
         <h2>{{ activeTabLabel }} layout</h2>
-        <button class="btn btnPrimary" :disabled="loading || !hasBuilderChanges" @click="saveLayoutChanges">
-          <span v-if="loading" class="spinner"></span>
-          {{ loading ? 'Saving...' : 'Save layout' }}
-        </button>
+        <div class="headerActions">
+          <button class="btn" type="button" @click="openCreateCustomComponent">New custom</button>
+          <button class="btn btnPrimary" :disabled="loading || !hasBuilderChanges" @click="saveLayoutChanges">
+            <span v-if="loading" class="spinner"></span>
+            {{ loading ? 'Saving...' : 'Save layout' }}
+          </button>
+        </div>
       </div>
 
       <div v-if="error" class="alert alertError">{{ error }}</div>
+
+      <div class="quickStats">
+        <span class="statPill">Items: {{ sections.length }}</span>
+        <span class="statPill">Custom: {{ availableCustomComponents.length }}</span>
+        <span class="statPill" :class="{ warning: hasBuilderChanges }">
+          {{ hasBuilderChanges ? 'Unsaved changes' : 'All changes saved' }}
+        </span>
+      </div>
 
       <div class="builderGrid">
         <div>
@@ -75,6 +86,12 @@
                     <div class="sectionKey">
                       {{ section.kind === 'builtin' ? section.section_key : `custom:${section.custom_component_id}` }}
                     </div>
+                    <div v-if="section.kind === 'custom_component'" class="sectionActions">
+                      <button type="button" class="linkBtn" @click="editCustomComponentFromLayout(section)">Edit</button>
+                      <button type="button" class="linkBtn danger" @click="removeCustomComponentFromLayout(section)">
+                        Remove
+                      </button>
+                    </div>
                   </div>
 
                   <label class="toggle">
@@ -89,17 +106,33 @@
         </div>
 
         <div class="availableBox">
-          <div class="sectionTitle">Custom Components</div>
+          <div class="sectionTitleRow">
+            <div class="sectionTitle">Custom Components</div>
+            <button class="linkBtn" type="button" @click="openCreateCustomComponent">Create</button>
+          </div>
+          <input
+            v-model="customSearch"
+            class="compactInput"
+            type="text"
+            placeholder="Find component..."
+          />
           <div v-if="availableCustomComponents.length === 0" class="emptyText">
             Ziadne aktivne custom komponenty.
           </div>
+          <div v-else-if="filteredAvailableCustomComponents.length === 0" class="emptyText">
+            Ziadny komponent nevyhovuje filtru.
+          </div>
           <div v-else class="availableList">
-            <div v-for="component in availableCustomComponents" :key="component.id" class="availableItem">
+            <div v-for="component in filteredAvailableCustomComponents" :key="component.id" class="availableItem">
               <div>
                 <div class="availableName">{{ component.name }}</div>
                 <div class="availableMeta">{{ component.type }}</div>
               </div>
-              <button class="btn btnSmall" type="button" @click="addCustomComponentToLayout(component)">Add</button>
+              <div class="availableActions">
+                <button class="btn btnSmall" type="button" @click="addCustomComponentToLayout(component)">Add</button>
+                <button class="btn btnSmall" type="button" @click="openEditCustomComponent(component)">Edit</button>
+                <button class="btn btnSmall btnDanger" type="button" @click="removeComponent(component)">Delete</button>
+              </div>
             </div>
           </div>
         </div>
@@ -114,6 +147,12 @@
 
       <div class="customGrid">
         <div class="listPanel">
+          <input
+            v-model="customListSearch"
+            class="compactInput"
+            type="text"
+            placeholder="Filter by name..."
+          />
           <table class="listTable">
             <thead>
               <tr>
@@ -125,7 +164,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in customComponents" :key="item.id" :class="{ selected: form.id === item.id }">
+              <tr v-for="item in filteredCustomComponents" :key="item.id" :class="{ selected: form.id === item.id }">
                 <td>{{ item.name }}</td>
                 <td>{{ item.type }}</td>
                 <td>{{ item.is_active ? 'Yes' : 'No' }}</td>
@@ -134,6 +173,9 @@
                   <button class="linkBtn" @click="editComponent(item)">Edit</button>
                   <button class="linkBtn danger" @click="removeComponent(item)">Delete</button>
                 </td>
+              </tr>
+              <tr v-if="filteredCustomComponents.length === 0">
+                <td colspan="5" class="emptyCell">No components found.</td>
               </tr>
             </tbody>
           </table>
@@ -254,6 +296,8 @@ const customComponents = ref([])
 const availableCustomComponents = ref([])
 const customSaving = ref(false)
 const retryLoading = ref(false)
+const customSearch = ref('')
+const customListSearch = ref('')
 const eventSummary = ref(null)
 const eventSummaryError = ref('')
 const form = ref(defaultForm())
@@ -334,6 +378,26 @@ const hasBuilderChanges = computed(() => {
 
 const hasFormChanges = computed(() => {
   return JSON.stringify(form.value) !== originalFormSnapshot.value
+})
+
+const filteredAvailableCustomComponents = computed(() => {
+  const query = customSearch.value.trim().toLowerCase()
+  if (!query) return availableCustomComponents.value
+
+  return availableCustomComponents.value.filter((component) =>
+    String(component?.name || '').toLowerCase().includes(query)
+      || String(component?.type || '').toLowerCase().includes(query),
+  )
+})
+
+const filteredCustomComponents = computed(() => {
+  const query = customListSearch.value.trim().toLowerCase()
+  if (!query) return customComponents.value
+
+  return customComponents.value.filter((component) =>
+    String(component?.name || '').toLowerCase().includes(query)
+      || String(component?.type || '').toLowerCase().includes(query),
+  )
 })
 
 const applyOrderFromPosition = () => {
@@ -454,6 +518,55 @@ const addCustomComponentToLayout = (component) => {
     is_enabled: true,
   })
   applyOrderFromPosition()
+}
+
+const openCreateCustomComponent = () => {
+  activeMode.value = 'custom'
+  startCreate()
+}
+
+const openEditCustomComponent = async (component) => {
+  const componentId = Number(component?.id)
+  if (!Number.isFinite(componentId) || componentId < 1) return
+
+  try {
+    const payload = await sidebarCustomComponentsAdminApi.get(componentId)
+    activeMode.value = 'custom'
+    editComponent(payload?.data || component)
+  } catch (err) {
+    notifyErrorOnce(err?.response?.data?.message || 'Failed to load component.')
+  }
+}
+
+const editCustomComponentFromLayout = async (section) => {
+  const componentId = Number(section?.custom_component_id)
+  if (!Number.isFinite(componentId) || componentId < 1) return
+
+  const selected = customComponents.value.find((item) => Number(item?.id) === componentId) || null
+  if (selected) {
+    await openEditCustomComponent(selected)
+    return
+  }
+
+  await openEditCustomComponent({ id: componentId })
+}
+
+const removeCustomComponentFromLayout = async (section) => {
+  const componentId = Number(section?.custom_component_id)
+  const componentName = section?.title || `Custom #${componentId}`
+  const confirmed = await confirm({
+    title: 'Remove from layout',
+    message: `Remove "${componentName}" from this sidebar layout? Component will stay in Custom Components.`,
+    confirmText: 'Remove',
+    cancelText: 'Cancel',
+    variant: 'danger',
+  })
+  if (!confirmed) return
+
+  const currentKey = String(section?.client_key || '')
+  sections.value = sections.value.filter((item) => String(item?.client_key || '') !== currentKey)
+  applyOrderFromPosition()
+  showToast('Component removed from layout. Save layout to apply changes.', 'success')
 }
 
 const saveLayoutChanges = async () => {
@@ -654,9 +767,9 @@ onBeforeRouteLeave(async () => {
 
 <style scoped>
 .adminLayout {
-  max-width: 1200px;
+  max-width: 1380px;
   margin: 0 auto;
-  padding: 2rem 1rem;
+  padding: 1.25rem 0.9rem;
 }
 
 .pageHeader {
@@ -664,33 +777,33 @@ onBeforeRouteLeave(async () => {
 }
 
 .pageTitle {
-  font-size: 2rem;
+  font-size: 1.6rem;
   font-weight: 800;
   color: var(--color-surface);
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.25rem;
 }
 
 .pageDescription {
   color: var(--color-text-secondary);
-  font-size: 1rem;
+  font-size: 0.92rem;
 }
 
 .modeTabs,
 .tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
 }
 
 .tabBtn {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
-  border-radius: 0.65rem;
+  border-radius: 0.55rem;
   background: rgb(var(--color-bg-rgb) / 0.4);
   color: var(--color-text-secondary);
-  font-size: 0.88rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  padding: 0.56rem 0.65rem;
+  padding: 0.42rem 0.6rem;
 }
 
 .tabBtn.active {
@@ -702,8 +815,8 @@ onBeforeRouteLeave(async () => {
 .card {
   background: rgb(var(--color-bg-rgb) / 0.55);
   border: 1px solid var(--color-text-secondary);
-  border-radius: 1.5rem;
-  padding: 1.5rem;
+  border-radius: 1rem;
+  padding: 1rem;
 }
 
 .cardHeader,
@@ -711,15 +824,21 @@ onBeforeRouteLeave(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.7rem;
+}
+
+.headerActions {
+  display: inline-flex;
+  gap: 0.4rem;
 }
 
 .btn {
-  padding: 0.65rem 1rem;
-  border-radius: 0.75rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 0.6rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
   color: var(--color-surface);
   background: rgb(var(--color-bg-rgb) / 0.3);
+  font-size: 0.82rem;
 }
 
 .btnPrimary {
@@ -729,8 +848,8 @@ onBeforeRouteLeave(async () => {
 }
 
 .btnSmall {
-  padding: 0.45rem 0.75rem;
-  font-size: 0.8rem;
+  padding: 0.32rem 0.58rem;
+  font-size: 0.74rem;
 }
 
 .spinner {
@@ -750,26 +869,47 @@ onBeforeRouteLeave(async () => {
 
 .builderGrid {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: 1.5fr 1fr;
+  gap: 0.75rem;
+  grid-template-columns: 1.65fr 1fr;
+}
+
+.quickStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.7rem;
+}
+
+.statPill {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  color: var(--color-text-secondary);
+}
+
+.statPill.warning {
+  border-color: rgb(var(--color-warning-rgb, 255 178 64) / 0.5);
+  color: rgb(var(--color-warning-rgb, 255 178 64));
 }
 
 .sectionTitle {
-  margin-bottom: 0.6rem;
-  font-size: 0.85rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--color-text-secondary);
+  letter-spacing: 0.01em;
 }
 
 .sectionsList {
   display: grid;
-  gap: 0.68rem;
+  gap: 0.5rem;
 }
 
 .sectionItem {
   background: rgb(var(--color-bg-rgb) / 0.3);
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
-  border-radius: 0.95rem;
+  border-radius: 0.75rem;
 }
 
 .sectionItem.isHidden {
@@ -779,8 +919,8 @@ onBeforeRouteLeave(async () => {
 .sectionContent {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
-  padding: 0.9rem;
+  gap: 0.65rem;
+  padding: 0.65rem;
 }
 
 .dragHandle {
@@ -805,17 +945,25 @@ onBeforeRouteLeave(async () => {
 .sectionName {
   font-weight: 600;
   color: var(--color-surface);
+  font-size: 0.88rem;
 }
 
 .sectionKey {
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   color: var(--color-text-secondary);
   font-family: monospace;
 }
 
+.sectionActions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}
+
 .kindBadge {
-  font-size: 0.72rem;
-  padding: 0.2rem 0.5rem;
+  font-size: 0.66rem;
+  padding: 0.14rem 0.42rem;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-primary-rgb) / 0.38);
   color: var(--color-surface);
@@ -861,105 +1009,155 @@ onBeforeRouteLeave(async () => {
 }
 
 .toggleLabel {
-  font-size: 0.84rem;
+  font-size: 0.76rem;
   color: var(--color-text-secondary);
 }
 
 .availableBox {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
-  border-radius: 1rem;
-  padding: 0.9rem;
+  border-radius: 0.75rem;
+  padding: 0.65rem;
+}
+
+.sectionTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
 }
 
 .availableList {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
 }
 
 .availableItem {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.65rem;
-  border-radius: 0.8rem;
+  gap: 0.45rem;
+  padding: 0.45rem;
+  border-radius: 0.6rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
 }
 
 .availableName {
   font-weight: 600;
+  font-size: 0.84rem;
 }
 
 .availableMeta {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   color: var(--color-text-secondary);
+}
+
+.availableActions {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.compactInput {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  background: rgb(var(--color-bg-rgb) / 0.42);
+  color: var(--color-surface);
+  padding: 0.42rem 0.55rem;
+  font-size: 0.8rem;
 }
 
 .customGrid {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 0.75rem;
+  grid-template-columns: 1.12fr 0.95fr 0.9fr;
 }
 
 .listPanel,
 .formPanel,
 .previewPanel {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.26);
-  border-radius: 1rem;
-  padding: 0.9rem;
+  border-radius: 0.75rem;
+  padding: 0.65rem;
+  min-width: 0;
+}
+
+.listPanel {
+  overflow: hidden;
+  max-height: 62vh;
+  overflow: auto;
+}
+
+.listPanel .compactInput {
+  margin-bottom: 0.45rem;
 }
 
 .listTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.86rem;
+  font-size: 0.78rem;
 }
 
 .listTable th,
 .listTable td {
   border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
   text-align: left;
-  padding: 0.5rem 0.35rem;
+  padding: 0.38rem 0.3rem;
+  white-space: nowrap;
 }
 
 .listTable tr.selected {
   background: rgb(var(--color-primary-rgb) / 0.1);
 }
 
+.emptyCell {
+  text-align: center;
+  color: var(--color-text-secondary);
+  padding: 0.7rem 0.35rem;
+}
+
 .actionsCol {
   display: flex;
-  gap: 0.35rem;
+  gap: 0.2rem;
 }
 
 .linkBtn {
   border: 0;
   background: transparent;
   color: var(--color-primary);
+  font-size: 0.76rem;
+  padding: 0.1rem 0.2rem;
 }
 
 .linkBtn.danger {
   color: var(--color-danger);
 }
 
+.btnDanger {
+  border-color: rgb(var(--color-danger-rgb) / 0.35);
+  color: var(--color-danger);
+}
+
 .field {
   display: grid;
   gap: 0.35rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.55rem;
 }
 
 .field span {
-  font-size: 0.8rem;
+  font-size: 0.73rem;
   color: var(--color-text-secondary);
 }
 
 .field input,
 .field textarea,
 .field select {
-  border-radius: 0.65rem;
+  border-radius: 0.5rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
   background: rgb(var(--color-bg-rgb) / 0.42);
   color: var(--color-surface);
-  padding: 0.6rem 0.65rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.82rem;
 }
 
 .fieldInline {
@@ -978,7 +1176,7 @@ onBeforeRouteLeave(async () => {
 }
 
 .hint {
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   color: var(--color-text-secondary);
 }
 
@@ -988,16 +1186,18 @@ onBeforeRouteLeave(async () => {
 
 .formActions {
   display: flex;
-  gap: 0.55rem;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
 }
 
 .alertError {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   background: rgb(var(--color-danger-rgb) / 0.1);
   border: 1px solid rgb(var(--color-danger-rgb) / 0.3);
   color: var(--color-danger);
-  border-radius: 0.72rem;
-  padding: 0.75rem;
+  border-radius: 0.55rem;
+  padding: 0.55rem;
+  font-size: 0.82rem;
 }
 
 .alertSticky {
@@ -1009,13 +1209,32 @@ onBeforeRouteLeave(async () => {
 
 .emptyText {
   color: var(--color-text-secondary);
-  font-size: 0.86rem;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 1320px) {
+  .customGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .previewPanel {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 1080px) {
   .builderGrid,
   .customGrid {
     grid-template-columns: 1fr;
+  }
+
+  .listTable {
+    max-height: none;
+  }
+
+  .headerActions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 </style>
