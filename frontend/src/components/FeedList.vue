@@ -85,11 +85,11 @@
                   {{ p?.user?.name ?? 'User' }}
                 </button>
                 <span class="author-username">@{{ p?.user?.username }}</span>
+                <span class="author-time">{{ fmt(p?.created_at) }}</span>
                 <span v-if="p.source_name === 'astrobot'" class="astrobot-badge">🚀 AstroBot</span>
                 <span v-if="p.pinned_at" class="pinned-badge">📌 Pripnuté</span>
               </div>
-              <div class="post-time">
-                <span class="time-text">{{ fmt(p?.created_at) }}</span>
+              <div v-if="p?.user?.location || p.source_name === 'astrobot'" class="post-time">
                 <span v-if="p?.user?.location" class="location">📍 {{ p.user.location }}</span>
                 <span v-if="p.source_name === 'astrobot'" class="astrobot-label">Automated news · replies disabled</span>
               </div>
@@ -308,6 +308,7 @@ import ShareModal from '@/components/share/ShareModal.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { canDeletePost, canReportPost } from '@/utils/postPermissions'
+import { formatRelativeShort } from '@/utils/dateUtils'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -553,12 +554,7 @@ function initials(name) {
 }
 
 function fmt(iso) {
-  if (!iso) return ''
-  try {
-    return new Date(iso).toLocaleString()
-  } catch {
-    return String(iso)
-  }
+  return formatRelativeShort(iso)
 }
 
 function attachmentSrc(p) {
@@ -1033,7 +1029,7 @@ defineExpose({ load, prepend })
 .feed-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding: 0 4px;
   min-width: 0;
 }
@@ -1042,7 +1038,7 @@ defineExpose({ load, prepend })
   background: rgb(var(--color-bg-rgb) / 0.4);
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.15);
   border-radius: 12px;
-  padding: 16px;
+  padding: 14px;
   transition: all 0.2s ease;
   cursor: pointer;
   position: relative;
@@ -1190,7 +1186,7 @@ defineExpose({ load, prepend })
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .post-meta {
@@ -1232,6 +1228,12 @@ defineExpose({ load, prepend })
   color: var(--color-text-secondary);
   font-size: 14px;
   font-weight: 400;
+}
+
+.author-time {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .astrobot-badge {
@@ -1276,10 +1278,6 @@ defineExpose({ load, prepend })
   color: var(--color-text-secondary);
   font-size: 13px;
   font-weight: 400;
-}
-
-.time-text {
-  color: inherit;
 }
 
 .location {
@@ -1332,11 +1330,11 @@ defineExpose({ load, prepend })
 
 /* Modern Post Content */
 .post-text {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   color: var(--color-surface);
   white-space: pre-wrap;
-  line-height: 1.6;
-  font-size: 15px;
+  line-height: 1.68;
+  font-size: 15.5px;
   word-wrap: break-word;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -1466,11 +1464,11 @@ defineExpose({ load, prepend })
 
 /* Modern Action Buttons */
 .post-actions {
-  margin-top: 12px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.1);
   flex-wrap: wrap;
   min-width: 0;
@@ -1480,7 +1478,7 @@ defineExpose({ load, prepend })
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 7px 10px;
   border: none;
   background: transparent;
   color: var(--color-text-secondary);
@@ -1489,7 +1487,8 @@ defineExpose({ load, prepend })
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 36px;
+  min-height: 40px;
+  min-width: 40px;
   text-decoration: none;
 }
 
@@ -1853,9 +1852,13 @@ defineExpose({ load, prepend })
     font-size: 12px;
   }
 
+  .author-time {
+    font-size: 11px;
+  }
+
   .post-text {
-    font-size: 13px;
-    line-height: 1.45;
+    font-size: 14px;
+    line-height: 1.58;
   }
 
   .post-time {
@@ -1865,7 +1868,8 @@ defineExpose({ load, prepend })
   .action-btn {
     padding: 6px 8px;
     font-size: 12px;
-    min-height: 32px;
+    min-height: 38px;
+    min-width: 38px;
   }
 
   .action-count {
@@ -1915,14 +1919,20 @@ defineExpose({ load, prepend })
     font-size: 13px;
   }
 
+  .author-time {
+    font-size: 12px;
+  }
+
   .post-text {
-    font-size: 14px;
+    font-size: 14.5px;
+    line-height: 1.6;
   }
 
   .action-btn {
     padding: 6px 10px;
     font-size: 12px;
-    min-height: 34px;
+    min-height: 38px;
+    min-width: 38px;
   }
 
   .report-content {
@@ -1943,4 +1953,5 @@ defineExpose({ load, prepend })
 }
 
 </style>
+
 
