@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\Hashtag;
 use App\Services\Storage\MediaStorageService;
 
@@ -128,6 +129,11 @@ class Post extends Model
         return $this->belongsTo(self::class, 'root_id');
     }
 
+    public function poll(): HasOne
+    {
+        return $this->hasOne(Poll::class);
+    }
+
     /**
      * Verejná URL pre attachment (absolútna).
      */
@@ -229,4 +235,3 @@ class Post extends Model
         'liked_by_me',
     ];
 }
-
