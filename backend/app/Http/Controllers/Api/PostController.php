@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Post\ReplyPostRequest;
 use App\Http\Requests\Post\StorePostRequest;
-use App\Http\Resources\PostResource;
 use App\Models\Post;
+use App\Services\PostPayloadService;
 use App\Services\PostService;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -18,6 +18,7 @@ class PostController extends Controller
 {
     public function __construct(
         private readonly PostService $posts,
+        private readonly PostPayloadService $payloads,
     ) {
     }
 
@@ -41,7 +42,9 @@ class PostController extends Controller
             'tag' => $request->query('tag'),
         ], $viewer);
 
-        return response()->json($result);
+        return response()->json(
+            $this->payloads->serializePaginator($result, $viewer)
+        );
     }
 
     public function show(Request $request, Post $post)
@@ -63,7 +66,12 @@ class PostController extends Controller
             ], 404);
         }
 
-        return response()->json($payload);
+        return response()->json([
+            'post' => $payload['post'] ? $this->payloads->serializePost($payload['post'], $viewer) : null,
+            'root' => $payload['root'] ? $this->payloads->serializePost($payload['root'], $viewer) : null,
+            'thread' => $this->payloads->serializeCollection($payload['thread'], $viewer)->values(),
+            'replies' => $this->payloads->serializeNestedReplies($payload['replies'], $viewer),
+        ]);
     }
 
     public function destroy(Request $request, Post $post)
@@ -92,10 +100,11 @@ class PostController extends Controller
         $post = $this->posts->createPost(
             $request->user(),
             $request->validated('content'),
-            $request->file('attachment')
+            $request->file('attachment'),
+            $request->validated('poll')
         );
 
-        return response()->json((new PostResource($post))->resolve(), 201);
+        return response()->json($this->payloads->serializePost($post, $request->user()), 201);
     }
 
     public function reply(ReplyPostRequest $request, Post $post)
@@ -120,7 +129,7 @@ class PostController extends Controller
             $request->file('attachment')
         );
 
-        return response()->json((new PostResource($reply))->resolve(), 201);
+        return response()->json($this->payloads->serializePost($reply, $request->user()), 201);
     }
 
     public function like(Request $request, Post $post)

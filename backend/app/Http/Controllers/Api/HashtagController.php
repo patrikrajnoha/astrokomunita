@@ -4,12 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Hashtag;
-use App\Models\Post;
+use App\Services\PollService;
+use App\Services\PostPayloadService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class HashtagController extends Controller
 {
+    public function __construct(
+        private readonly PollService $polls,
+        private readonly PostPayloadService $payloads,
+    ) {
+    }
+
     /**
      * GET /api/hashtags
      * Zoznam všetkých hashtagov.
@@ -44,16 +51,21 @@ class HashtagController extends Controller
 
         $hashtag = Hashtag::where('name', $name)->firstOrFail();
 
+        $viewer = $request->user() ?? $request->user('sanctum');
+
         $posts = $hashtag->posts()
             ->whereNull('parent_id') // Len root posts
             ->publiclyVisible()
             ->notExpired()
-            ->with(['user:id,name,username,avatar_path', 'hashtags'])
+            ->with(array_merge(
+                ['user:id,name,username,avatar_path', 'hashtags'],
+                $this->polls->pollRelations($viewer?->id)
+            ))
             ->withCount(['likes', 'replies'])
             ->latest()
             ->paginate($limit);
 
-        return response()->json($posts);
+        return response()->json($this->payloads->serializePaginator($posts, $viewer));
     }
 
     /**
