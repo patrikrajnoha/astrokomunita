@@ -33,52 +33,21 @@ class FeedController extends Controller
 
         $kind = $request->query('kind', 'roots');
         $withCounts = $request->query('with') === 'counts';
+        $tag = $request->query('tag');
 
         $user = $this->resolveViewer($request);
-        // Get pinned user posts first (exclude AstroBot/nasa_rss sources)
-        $pinnedQuery = $this->feedQueryBuilder->build([
-            'pinned' => 'only',
-            'kind' => $kind,
-            'with_counts' => false,
-            'include_hidden' => $request->boolean('include_hidden'),
-            'order' => 'pinned_desc',
-            'sources_exclude' => ['astrobot', 'nasa_rss'],
-        ], $user)->limit($perPage);
-
-        // Get regular user posts (excluding pinned and AstroBot sources)
-        $regularQuery = $this->feedQueryBuilder->build([
-            'pinned' => 'exclude',
+        $query = $this->feedQueryBuilder->build([
             'kind' => $kind,
             'with_counts' => $withCounts,
             'include_hidden' => $request->boolean('include_hidden'),
-            'order' => 'created_desc',
+            'order' => 'pinned_then_created',
             'sources_exclude' => ['astrobot', 'nasa_rss'],
+            'tag' => $tag ? strtolower((string) $tag) : null,
         ], $user);
 
-        // Filter by tag - try both name and slug for robustness
-        if ($tag = $request->query('tag')) {
-            $tag = strtolower($tag);
-            $pinnedQuery->whereHas('tags', function ($q) use ($tag) {
-                $q->where('name', $tag)->orWhere('slug', $tag);
-            });
-            $regularQuery->whereHas('tags', function ($q) use ($tag) {
-                $q->where('name', $tag)->orWhere('slug', $tag);
-            });
-        }
-
-        // Get pinned posts and regular posts
-        $pinnedPosts = $pinnedQuery->get();
-        $regularPerPage = max(1, $perPage - $pinnedPosts->count());
-        $regularQuery = $regularQuery->paginate($regularPerPage)->withQueryString();
-        
-        // Combine results: pinned first, then regular
-        $allPosts = $pinnedPosts->concat($regularQuery->getCollection());
-        
-        // Create custom pagination metadata
-        $result = $regularQuery;
-        $result->setCollection($allPosts);
-
-        return response()->json($result);
+        return response()->json(
+            $query->paginate($perPage)->withQueryString()
+        );
     }
 
     /**
