@@ -35,3 +35,5 @@ services/**/.venv*/
 **/.venv*/
 *.out.log
 *.err.log
+__pycache__/
+*.pyc
