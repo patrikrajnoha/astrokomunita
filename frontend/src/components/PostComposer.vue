@@ -123,7 +123,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, nextTick } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, nextTick } from 'vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -185,9 +185,11 @@ const isSubmitDisabled = computed(() => {
 
 function onFocus() {
   isFocused.value = true
+  autoResize()
 }
 
 function onTyping(event) {
+  autoResize()
   if (err.value && content.value.length <= 2000) err.value = ''
 
   const target = event?.target
@@ -271,6 +273,7 @@ function selectSuggestion(suggestion) {
     if (textareaRef.value) {
       textareaRef.value.setSelectionRange(newCursorPos, newCursorPos)
       textareaRef.value.focus()
+      autoResize()
     }
   })
 
@@ -312,6 +315,9 @@ function onKeydown(event) {
 
 function onBlur() {
   isFocused.value = false
+  if (!content.value.trim() && textareaRef.value) {
+    textareaRef.value.style.height = ''
+  }
   setTimeout(hideAutocomplete, 200)
 }
 
@@ -397,6 +403,7 @@ async function submit() {
     content.value = ''
     isFocused.value = false
     removeFile()
+    if (textareaRef.value) textareaRef.value.style.height = ''
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) err.value = 'Pre publikovanie sa prihlas.'
@@ -406,6 +413,18 @@ async function submit() {
     posting.value = false
   }
 }
+
+function autoResize() {
+  const el = textareaRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  const nextHeight = Math.min(220, Math.max(52, el.scrollHeight))
+  el.style.height = `${nextHeight}px`
+}
+
+onMounted(() => {
+  autoResize()
+})
 
 onBeforeUnmount(() => revokePreview())
 </script>
@@ -494,8 +513,7 @@ onBeforeUnmount(() => revokePreview())
 
 .composerInput {
   width: 100%;
-  min-height: 48px;
-  max-height: 48px;
+  min-height: 52px;
   padding: 0.62rem 0.72rem;
   border-radius: 12px;
   border: 1px solid var(--soft-border);
@@ -503,9 +521,9 @@ onBeforeUnmount(() => revokePreview())
   color: var(--surface);
   outline: none;
   resize: none;
-  overflow-y: auto;
-  line-height: 1.45;
-  transition: max-height 0.2s ease, min-height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  overflow-y: hidden;
+  line-height: 1.55;
+  transition: min-height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .composerInput::placeholder {
@@ -513,8 +531,7 @@ onBeforeUnmount(() => revokePreview())
 }
 
 .composerInput.expanded {
-  min-height: 118px;
-  max-height: 190px;
+  min-height: 110px;
   background: var(--panel-strong);
 }
 
