@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\EventReminderController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\NotificationPreferenceController;
 use App\Http\Controllers\Api\FavoriteController;
+use App\Http\Controllers\Api\BookmarkController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PostController;
@@ -407,6 +408,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/posts/{post}/reply', [PostController::class, 'reply'])->middleware('throttle:post-create');
         Route::post('/posts/{post}/like', [PostController::class, 'like']);
         Route::delete('/posts/{post}/like', [PostController::class, 'unlike']);
+        Route::post('/posts/{post}/bookmark', [BookmarkController::class, 'store'])->middleware('throttle:60,1');
+        Route::delete('/posts/{post}/bookmark', [BookmarkController::class, 'destroy'])->middleware('throttle:60,1');
         Route::delete('/posts/{post}', [PostController::class, 'destroy']);
         Route::post('/polls/{poll}/vote', [PollController::class, 'vote']);
 
@@ -422,6 +425,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Event reminders
         Route::post('/events/{event}/reminders', [EventReminderController::class, 'store']);
+        Route::get('/me/bookmarks', [BookmarkController::class, 'index'])->middleware('throttle:60,1');
         Route::get('/me/reminders', [EventReminderController::class, 'index']);
         Route::get('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'show']);
         Route::put('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);

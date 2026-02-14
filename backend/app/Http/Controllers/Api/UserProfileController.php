@@ -60,6 +60,7 @@ class UserProfileController extends Controller
         if ($viewer) {
             $query->withExists([
                 'likes as liked_by_me' => fn ($q) => $q->where('user_id', $viewer->id),
+                'bookmarkedBy as is_bookmarked' => fn ($q) => $q->where('user_id', $viewer->id),
             ]);
         }
 
