@@ -8,7 +8,7 @@
       <div class="hero-inner">
         <p class="hero-kicker">Astronomy Feed</p>
         <h1 class="hero-title">Astronomicke udalosti</h1>
-        <p class="hero-subtitle">Prepni medzi globalnym feedom a personalizovanym feedom "Pre mna".</p>
+        <p class="hero-subtitle">Filtruj udalosti podla typu, regionu, textu a datumu.</p>
       </div>
     </section>
 
@@ -24,70 +24,76 @@
         </div>
 
         <template v-if="!isCalendarView">
-          <div class="feed-toggle" role="tablist" aria-label="Typ feedu">
-            <button class="feed-btn" :class="{ active: feedMode === 'all' }" type="button" @click="setFeed('all')">
-              Vsetko
-            </button>
+          <div class="filters-toolbar">
             <button
-              class="feed-btn"
-              :class="{ active: feedMode === 'mine' }"
-              :disabled="!auth.isAuthed"
+              class="filter-toggle-btn"
               type="button"
-              @click="setFeed('mine')"
+              :aria-expanded="filtersOpen"
+              @click="filtersOpen = !filtersOpen"
             >
-              Pre mna
+              {{ filtersOpen ? 'Skryt filtre' : 'Zobrazit filtre' }}
             </button>
           </div>
 
-          <div v-if="!auth.isAuthed" class="mine-cta-banner">
-            <p>Prihlas sa pre personalizovany feed udalosti.</p>
-            <RouterLink class="cta-link" :to="loginLink">Prihlasit sa</RouterLink>
-          </div>
-
-          <div v-if="auth.isAuthed" class="preferences-header">
-            <button class="pref-toggle-btn" type="button" @click="preferencesOpen = !preferencesOpen">
-              {{ preferencesOpen ? 'Skryt moje preferencie' : 'Moje preferencie' }}
-            </button>
-          </div>
-
-          <div v-if="auth.isAuthed && preferencesOpen" class="preferences-panel">
-            <p class="panel-title">Typy udalosti</p>
-            <div class="chip-grid">
-              <button
-                v-for="type in availablePreferenceTypes"
-                :key="type"
-                type="button"
-                class="chip"
-                :class="{ active: draft.event_types.includes(type) }"
-                @click="toggleDraftType(type)"
-              >
-                {{ typeLabel(type) }}
-              </button>
+          <div v-if="filtersOpen" class="filters-content">
+            <div class="filter-row" role="tablist" aria-label="Event type filters">
+              <button class="filter-btn" :class="{ active: selectedType === 'all' }" @click="selectedType = 'all'">Vsetky</button>
+              <button class="filter-btn" :class="{ active: selectedType === 'meteors' }" @click="selectedType = 'meteors'">Meteoricke roje</button>
+              <button class="filter-btn" :class="{ active: selectedType === 'eclipses' }" @click="selectedType = 'eclipses'">Zatmenia</button>
+              <button class="filter-btn" :class="{ active: selectedType === 'conjunctions' }" @click="selectedType = 'conjunctions'">Konjunkcie</button>
+              <button class="filter-btn" :class="{ active: selectedType === 'comets' }" @click="selectedType = 'comets'">Komety</button>
             </div>
 
-            <label class="region-row">
-              <span>Region</span>
-              <select v-model="draft.region">
-                <option v-for="region in availableRegions" :key="region" :value="region">{{ regionLabel(region) }}</option>
-              </select>
-            </label>
+            <div class="advanced-filters">
+              <label class="filter-field search-field">
+                <span>Hladaj</span>
+                <input
+                  v-model.trim="searchQuery"
+                  type="search"
+                  placeholder="Nazov alebo popis udalosti"
+                  autocomplete="off"
+                />
+              </label>
 
-            <div class="pref-actions">
-              <button class="save-btn" type="button" :disabled="preferences.saving" @click="savePreferences">
-                {{ preferences.saving ? 'Ukladam...' : 'Ulozit' }}
-              </button>
-              <button class="secondary-btn" type="button" :disabled="preferences.loading" @click="applyAllTypesPreset">
-                Vybrat vsetky typy
-              </button>
+              <label class="filter-field">
+                <span>Region</span>
+                <select v-model="selectedRegion">
+                  <option value="all">Vsetky regiony</option>
+                  <option value="sk">Slovensko</option>
+                  <option value="eu">Europa</option>
+                  <option value="global">Globalne</option>
+                </select>
+              </label>
+
+              <button class="secondary-btn" type="button" @click="resetFilters">Reset filtrov</button>
             </div>
-          </div>
 
-          <div v-if="feedMode === 'all'" class="filter-row" role="tablist" aria-label="Event type filters">
-            <button class="filter-btn" :class="{ active: selectedType === 'all' }" @click="selectedType = 'all'">Vsetky</button>
-            <button class="filter-btn" :class="{ active: selectedType === 'meteors' }" @click="selectedType = 'meteors'">Meteoricke roje</button>
-            <button class="filter-btn" :class="{ active: selectedType === 'eclipses' }" @click="selectedType = 'eclipses'">Zatmenia</button>
-            <button class="filter-btn" :class="{ active: selectedType === 'conjunctions' }" @click="selectedType = 'conjunctions'">Konjunkcie</button>
-            <button class="filter-btn" :class="{ active: selectedType === 'comets' }" @click="selectedType = 'comets'">Komety</button>
+            <div class="date-panel">
+              <div class="date-presets">
+                <button
+                  v-for="preset in datePresets"
+                  :key="preset.value"
+                  class="date-preset-btn"
+                  :class="{ active: datePreset === preset.value }"
+                  type="button"
+                  @click="setDatePreset(preset.value)"
+                >
+                  {{ preset.label }}
+                </button>
+              </div>
+
+              <div class="date-custom">
+                <label class="filter-field">
+                  <span>Od</span>
+                  <input v-model="dateFrom" type="date" @change="setDatePreset('custom')" />
+                </label>
+
+                <label class="filter-field">
+                  <span>Do</span>
+                  <input v-model="dateTo" type="date" @change="setDatePreset('custom')" />
+                </label>
+              </div>
+            </div>
           </div>
 
           <p class="filter-meta">Zobrazenych udalosti: <strong>{{ events.length }}</strong></p>
@@ -106,12 +112,6 @@
       <div v-else-if="error" class="state-card state-error">
         <h3>Nastala chyba</h3>
         <p>{{ error }}</p>
-      </div>
-
-      <div v-else-if="mineWithoutPreferences" class="state-card state-empty">
-        <h3>Nastav si preferencie</h3>
-        <p>Aby feed "Pre mna" fungoval, vyber typy udalosti a region.</p>
-        <button class="save-btn" type="button" @click="openPreferences">Otvorit preferencie</button>
       </div>
 
       <section v-else class="events-grid">
@@ -147,75 +147,149 @@
         </RouterLink>
       </section>
 
-      <div v-if="!isCalendarView && !loading && !error && !mineWithoutPreferences && events.length === 0" class="state-card state-empty">
-        <h3>{{ feedMode === 'mine' ? 'Ziadne udalosti pre tvoje filtre' : 'Ziadne udalosti' }}</h3>
-        <p v-if="feedMode === 'mine'">Skus zmenit region alebo pridat dalsie typy udalosti.</p>
-        <p v-else>V tejto kategorii sa nenasli ziadne udalosti.</p>
-        <button v-if="feedMode === 'mine'" class="secondary-btn" type="button" @click="openPreferences">Zmenit preferencie</button>
+      <div v-if="!isCalendarView && !loading && !error && events.length === 0" class="state-card state-empty">
+        <h3>Ziadne udalosti</h3>
+        <p>Skus upravit filtre a rozsirit vyhladavanie.</p>
+        <button class="secondary-btn" type="button" @click="resetFilters">Vymazat filtre</button>
       </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import CalendarView from './CalendarView.vue'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useAuthStore } from '@/stores/auth'
-import { useEventPreferencesStore } from '@/stores/eventPreferences'
-import { useToast } from '@/composables/useToast'
 import { getEvents } from '@/services/events'
 
 const route = useRoute()
 const router = useRouter()
-const toast = useToast()
 
 const favorites = useFavoritesStore()
 const auth = useAuthStore()
-const preferences = useEventPreferencesStore()
 
 const selectedType = ref('all')
+const selectedRegion = ref('all')
+const searchQuery = ref('')
+const dateFrom = ref('')
+const dateTo = ref('')
+const datePreset = ref('next_30_days')
+const filtersOpen = ref(false)
+
 const events = ref([])
 const loading = ref(false)
 const error = ref('')
-const preferencesOpen = ref(false)
-
-const draft = reactive({
-  event_types: [],
-  region: 'global',
-})
 
 const isCalendarView = computed(() => route.query?.view === 'calendar')
-const feedMode = computed(() => (route.query?.feed === 'mine' ? 'mine' : 'all'))
-const loginLink = computed(() => `/login?redirect=${encodeURIComponent('/events?feed=mine')}`)
-
-const mineWithoutPreferences = computed(() => {
-  return feedMode.value === 'mine' && auth.isAuthed && preferences.loaded && !preferences.hasPreferences
-})
-
-const availablePreferenceTypes = computed(() => {
-  if (preferences.supportedEventTypes.length > 0) {
-    return preferences.supportedEventTypes
-  }
-
-  return ['meteors', 'meteor_shower', 'eclipse', 'eclipse_lunar', 'eclipse_solar', 'conjunction', 'comet', 'other']
-})
-
-const availableRegions = computed(() => {
-  return preferences.supportedRegions.length > 0 ? preferences.supportedRegions : ['sk', 'eu', 'global']
-})
 
 const allFeedTypeGroups = {
   meteors: ['meteors', 'meteor_shower'],
   eclipses: ['eclipse', 'eclipse_lunar', 'eclipse_solar'],
   conjunctions: ['conjunction', 'planetary_event'],
-  comets: ['comet', 'other'],
+  comets: ['comet', 'asteroid', 'other'],
 }
 
-function syncDraftFromStore() {
-  draft.event_types = [...preferences.eventTypes]
-  draft.region = preferences.region || 'global'
+const datePresets = [
+  { value: 'any', label: 'Kedykolvek' },
+  { value: 'today', label: 'Dnes' },
+  { value: 'next_7_days', label: 'Najblizsich 7 dni' },
+  { value: 'next_30_days', label: 'Najblizsich 30 dni' },
+  { value: 'this_month', label: 'Tento mesiac' },
+  { value: 'custom', label: 'Vlastny rozsah' },
+]
+
+function toIsoDate(dateLike) {
+  const date = new Date(dateLike)
+  if (Number.isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function todayIso() {
+  return toIsoDate(new Date())
+}
+
+function setDatePreset(preset) {
+  datePreset.value = preset
+
+  if (preset === 'custom') {
+    return
+  }
+
+  if (preset === 'any') {
+    dateFrom.value = ''
+    dateTo.value = ''
+    return
+  }
+
+  const now = new Date()
+  const start = new Date(now)
+  const end = new Date(now)
+
+  if (preset === 'today') {
+    dateFrom.value = toIsoDate(start)
+    dateTo.value = toIsoDate(end)
+    return
+  }
+
+  if (preset === 'next_7_days') {
+    end.setDate(end.getDate() + 7)
+    dateFrom.value = toIsoDate(start)
+    dateTo.value = toIsoDate(end)
+    return
+  }
+
+  if (preset === 'next_30_days') {
+    end.setDate(end.getDate() + 30)
+    dateFrom.value = toIsoDate(start)
+    dateTo.value = toIsoDate(end)
+    return
+  }
+
+  if (preset === 'this_month') {
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    dateFrom.value = toIsoDate(monthStart)
+    dateTo.value = toIsoDate(monthEnd)
+  }
+}
+
+function ensureDateRangeOrder() {
+  if (!dateFrom.value || !dateTo.value) return
+  if (dateFrom.value <= dateTo.value) return
+
+  const from = dateFrom.value
+  dateFrom.value = dateTo.value
+  dateTo.value = from
+}
+
+function buildParams() {
+  const params = { feed: 'all' }
+
+  if (selectedType.value !== 'all') {
+    params.types = allFeedTypeGroups[selectedType.value] || []
+  }
+
+  if (selectedRegion.value !== 'all') {
+    params.region = selectedRegion.value
+  }
+
+  if (searchQuery.value) {
+    params.q = searchQuery.value
+  }
+
+  ensureDateRangeOrder()
+
+  if (dateFrom.value && dateTo.value) {
+    params.from = dateFrom.value
+    params.to = dateTo.value
+  }
+
+  return params
 }
 
 async function fetchEvents() {
@@ -225,22 +299,9 @@ async function fetchEvents() {
   error.value = ''
 
   try {
-    const params = {
-      feed: feedMode.value,
-    }
-
-    if (feedMode.value === 'all' && selectedType.value !== 'all') {
-      params.types = allFeedTypeGroups[selectedType.value] || []
-    }
-
-    const response = await getEvents(params)
+    const response = await getEvents(buildParams())
     events.value = Array.isArray(response?.data?.data) ? response.data.data : []
   } catch (err) {
-    if (err?.response?.status === 401 && feedMode.value === 'mine') {
-      error.value = 'Prihlas sa, aby si videl personalizovany feed.'
-      return
-    }
-
     error.value = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa nacitat udalosti.'
   } finally {
     loading.value = false
@@ -259,72 +320,11 @@ function setView(view) {
   router.replace({ name: 'events', query: nextQuery })
 }
 
-function setFeed(mode) {
-  if (mode === 'mine' && !auth.isAuthed) return
-
-  const nextQuery = { ...route.query }
-  nextQuery.feed = mode
-
-  router.replace({ name: 'events', query: nextQuery })
-}
-
-function toggleDraftType(type) {
-  if (draft.event_types.includes(type)) {
-    draft.event_types = draft.event_types.filter((item) => item !== type)
-    return
-  }
-
-  draft.event_types = [...draft.event_types, type]
-}
-
-function openPreferences() {
-  preferencesOpen.value = true
-}
-
-function applyAllTypesPreset() {
-  draft.event_types = [...availablePreferenceTypes.value]
-}
-
-async function savePreferences() {
-  try {
-    await preferences.save({
-      event_types: draft.event_types,
-      region: draft.region,
-    })
-
-    syncDraftFromStore()
-    toast.success('Preferencie boli ulozene.')
-
-    if (feedMode.value === 'mine') {
-      await fetchEvents()
-    }
-  } catch {
-    toast.error(preferences.error || 'Nepodarilo sa ulozit preferencie.')
-  }
-}
-
-async function ensureMineContext() {
-  if (!auth.isAuthed) {
-    if (feedMode.value === 'mine') {
-      setFeed('all')
-    }
-    events.value = []
-    return
-  }
-
-  try {
-    await preferences.fetch()
-    syncDraftFromStore()
-
-    if (!preferences.hasPreferences) {
-      events.value = []
-      return
-    }
-
-    await fetchEvents()
-  } catch (err) {
-    error.value = err?.response?.data?.message || 'Nepodarilo sa nacitat personalizovany feed.'
-  }
+function resetFilters() {
+  selectedType.value = 'all'
+  selectedRegion.value = 'all'
+  searchQuery.value = ''
+  setDatePreset('next_30_days')
 }
 
 async function toggleFavorite(eventId) {
@@ -368,21 +368,22 @@ function formatDateTime(value) {
 }
 
 watch(
-  [isCalendarView, feedMode, selectedType, () => auth.isAuthed],
+  [isCalendarView, selectedType, selectedRegion, searchQuery, dateFrom, dateTo],
   async () => {
-    if (isCalendarView.value) return
-
-    if (feedMode.value === 'mine') {
-      await ensureMineContext()
-      return
+    if (!isCalendarView.value) {
+      await fetchEvents()
     }
-
-    await fetchEvents()
   },
   { immediate: true },
 )
 
 onMounted(async () => {
+  if (!dateFrom.value && !dateTo.value) {
+    setDatePreset('next_30_days')
+  } else if (dateFrom.value && dateTo.value && dateFrom.value === todayIso()) {
+    datePreset.value = 'today'
+  }
+
   if (!isCalendarView.value && auth.isAuthed && favorites.ids.size === 0 && !favorites.loading) {
     await favorites.fetch()
   }
@@ -399,7 +400,7 @@ onMounted(async () => {
   position: relative;
   overflow: hidden;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.12);
-  border-radius: 1.2rem;
+  border-radius: 0.95rem;
   background:
     radial-gradient(circle at 12% 8%, rgb(56 189 248 / 0.12), transparent 32%),
     radial-gradient(circle at 85% 20%, rgb(244 63 94 / 0.12), transparent 30%),
@@ -440,7 +441,7 @@ onMounted(async () => {
   position: relative;
   max-width: 820px;
   margin: 0 auto;
-  padding: 2.6rem 1.2rem 2.2rem;
+  padding: 1.6rem 1rem 1.3rem;
   text-align: center;
 }
 
@@ -454,180 +455,95 @@ onMounted(async () => {
 }
 
 .hero-title {
-  margin: 0.75rem 0 0;
-  font-size: clamp(1.9rem, 5vw, 3.4rem);
+  margin: 0.45rem 0 0;
+  font-size: clamp(1.5rem, 4vw, 2.4rem);
   line-height: 1.05;
   color: var(--color-surface);
   text-wrap: balance;
 }
 
 .hero-subtitle {
-  margin: 0.9rem auto 0;
+  margin: 0.55rem auto 0;
   max-width: 620px;
-  font-size: 0.98rem;
+  font-size: 0.86rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.94);
 }
 
 .content-wrap {
   width: 100%;
-  padding: 1.35rem 0.2rem 0;
+  padding: 0.85rem 0.1rem 0;
 }
 
 .filter-panel {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
   border-radius: 1rem;
-  padding: 0.95rem;
+  padding: 0.72rem;
   background: linear-gradient(155deg, rgb(var(--color-bg-rgb) / 0.8), rgb(var(--color-bg-rgb) / 0.6));
   box-shadow: 0 14px 36px rgb(2 6 23 / 0.18);
 }
 
-.view-toggle,
-.feed-toggle {
+.view-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.7rem;
-  padding: 0.28rem;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+  padding: 0.22rem;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
   background: rgb(var(--color-bg-rgb) / 0.5);
 }
 
-.view-btn,
-.feed-btn {
+.view-btn {
   border: 1px solid transparent;
   border-radius: 999px;
-  padding: 0.36rem 0.78rem;
-  font-size: 0.78rem;
+  padding: 0.3rem 0.64rem;
+  font-size: 0.74rem;
   font-weight: 700;
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
   background: transparent;
 }
 
-.view-btn.active,
-.feed-btn.active {
+.view-btn.active {
   border-color: rgb(var(--color-primary-rgb) / 0.6);
   background: rgb(var(--color-primary-rgb) / 0.2);
   color: var(--color-surface);
 }
 
-.feed-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.mine-cta-banner {
-  margin-bottom: 0.8rem;
-  border: 1px dashed rgb(var(--color-primary-rgb) / 0.6);
-  border-radius: 0.8rem;
-  padding: 0.7rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
-}
-
-.mine-cta-banner p {
-  margin: 0;
-  font-size: 0.85rem;
-}
-
-.cta-link {
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
-  color: var(--color-surface);
-  text-decoration: none;
-}
-
-.preferences-header {
-  margin-bottom: 0.7rem;
-}
-
-.pref-toggle-btn,
-.save-btn,
-.secondary-btn {
-  border-radius: 0.75rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
-  background: rgb(var(--color-bg-rgb) / 0.7);
-  color: var(--color-surface);
-  padding: 0.45rem 0.7rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.preferences-panel {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
-  border-radius: 0.9rem;
-  padding: 0.8rem;
-  margin-bottom: 0.8rem;
-  background: rgb(var(--color-bg-rgb) / 0.45);
-}
-
-.panel-title {
-  margin: 0 0 0.45rem;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-}
-
-.chip-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.chip {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
-  border-radius: 999px;
-  background: rgb(var(--color-bg-rgb) / 0.75);
-  color: var(--color-surface);
-  padding: 0.25rem 0.55rem;
-  font-size: 0.74rem;
-}
-
-.chip.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.7);
-  background: rgb(var(--color-primary-rgb) / 0.22);
-}
-
-.region-row {
-  margin-top: 0.7rem;
-  display: flex;
-  gap: 0.6rem;
-  align-items: center;
-  font-size: 0.84rem;
-}
-
-.region-row select {
-  border-radius: 0.6rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
-  background: rgb(var(--color-bg-rgb) / 0.8);
-  color: var(--color-surface);
-  padding: 0.36rem 0.5rem;
-}
-
-.pref-actions {
-  margin-top: 0.75rem;
-  display: flex;
-  gap: 0.5rem;
-}
-
 .filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: 0.4rem;
+  margin-bottom: 0.55rem;
+}
+
+.filters-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.45rem;
+}
+
+.filter-toggle-btn {
+  border-radius: 0.65rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  background: rgb(var(--color-bg-rgb) / 0.72);
+  color: var(--color-surface);
+  padding: 0.34rem 0.56rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.filters-content {
+  animation: fade-slide 150ms ease;
 }
 
 .filter-btn {
   white-space: nowrap;
-  padding: 0.48rem 0.72rem;
+  padding: 0.36rem 0.58rem;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
   background: rgb(var(--color-bg-rgb) / 0.66);
   color: var(--color-surface);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 600;
 }
 
@@ -636,17 +552,82 @@ onMounted(async () => {
   background: linear-gradient(145deg, rgb(var(--color-primary-rgb) / 0.28), rgb(var(--color-bg-rgb) / 0.72));
 }
 
+.advanced-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.6fr) minmax(130px, 1fr) auto;
+  gap: 0.45rem;
+  align-items: end;
+}
+
+.date-panel {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  border-radius: 0.75rem;
+  background: rgb(var(--color-bg-rgb) / 0.45);
+}
+
+.date-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.date-preset-btn {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  background: rgb(var(--color-bg-rgb) / 0.66);
+  color: var(--color-surface);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  padding: 0.28rem 0.52rem;
+}
+
+.date-preset-btn.active {
+  border-color: rgb(var(--color-primary-rgb) / 0.7);
+  background: linear-gradient(145deg, rgb(var(--color-primary-rgb) / 0.28), rgb(var(--color-bg-rgb) / 0.72));
+}
+
+.date-custom {
+  margin-top: 0.45rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 0.45rem;
+}
+
+.filter-field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.filter-field span {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.filter-field input,
+.filter-field select,
+.secondary-btn {
+  border-radius: 0.65rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  background: rgb(var(--color-bg-rgb) / 0.72);
+  color: var(--color-surface);
+  padding: 0.38rem 0.52rem;
+  font-size: 0.78rem;
+}
+
 .filter-meta {
-  margin: 0.72rem 0 0;
+  margin: 0.48rem 0 0;
   color: rgb(var(--color-text-secondary-rgb) / 0.92);
-  font-size: 0.84rem;
+  font-size: 0.78rem;
 }
 
 .state-card {
-  margin-top: 1rem;
-  border-radius: 1rem;
+  margin-top: 0.7rem;
+  border-radius: 0.8rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  padding: 1.1rem;
+  padding: 0.85rem;
   background: rgb(var(--color-bg-rgb) / 0.66);
   text-align: center;
 }
@@ -657,57 +638,57 @@ onMounted(async () => {
 }
 
 .spinner {
-  width: 2rem;
-  height: 2rem;
-  margin: 0 auto 0.6rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0 auto 0.4rem;
   border-radius: 999px;
-  border: 3px solid rgb(var(--color-primary-rgb) / 0.25);
+  border: 2px solid rgb(var(--color-primary-rgb) / 0.25);
   border-top-color: rgb(var(--color-primary-rgb) / 0.95);
   animation: spin 1s linear infinite;
 }
 
 .events-grid {
-  margin-top: 1rem;
+  margin-top: 0.65rem;
   display: grid;
-  gap: 0.85rem;
-  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 }
 
 .calendar-panel {
-  margin-top: 1rem;
+  margin-top: 0.7rem;
   width: 100%;
 }
 
 .event-card {
-  border-radius: 1rem;
+  border-radius: 0.8rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
   background: linear-gradient(170deg, rgb(var(--color-bg-rgb) / 0.82), rgb(var(--color-bg-rgb) / 0.62));
   text-decoration: none;
 }
 
 .card-content {
-  padding: 0.95rem;
+  padding: 0.72rem;
 }
 
 .card-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.7rem;
+  gap: 0.5rem;
 }
 
 .card-title {
   margin: 0;
-  font-size: 1.02rem;
-  line-height: 1.24;
+  font-size: 0.92rem;
+  line-height: 1.2;
   color: var(--color-surface);
 }
 
 .meta-row {
-  margin-top: 0.45rem;
+  margin-top: 0.3rem;
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.3rem;
   flex-wrap: wrap;
 }
 
@@ -716,16 +697,16 @@ onMounted(async () => {
   border: 1px solid rgb(var(--color-primary-rgb) / 0.38);
   background: rgb(var(--color-primary-rgb) / 0.18);
   color: rgb(191 219 254);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  padding: 0.2rem 0.5rem;
+  padding: 0.12rem 0.36rem;
 }
 
 .card-date,
 .card-description,
 .card-footer {
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
 }
 
 .favorite-btn {
@@ -733,18 +714,18 @@ onMounted(async () => {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
   background: rgb(var(--color-bg-rgb) / 0.84);
   color: var(--color-surface);
-  font-size: 0.64rem;
-  padding: 0.4rem 0.5rem;
+  font-size: 0.58rem;
+  padding: 0.28rem 0.38rem;
 }
 
 .card-description {
-  margin: 0.72rem 0 0;
-  line-height: 1.45;
+  margin: 0.48rem 0 0;
+  line-height: 1.35;
 }
 
 .card-footer {
-  margin-top: 0.9rem;
-  padding-top: 0.6rem;
+  margin-top: 0.6rem;
+  padding-top: 0.42rem;
   border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
   display: flex;
   align-items: center;
@@ -766,18 +747,47 @@ onMounted(async () => {
   }
 }
 
+@keyframes fade-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .advanced-filters {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+
+  .search-field {
+    grid-column: 1 / -1;
+  }
+
+  .date-custom {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .events-grid {
     grid-template-columns: 1fr;
   }
 
-  .mine-cta-banner {
-    flex-direction: column;
-    align-items: flex-start;
+  .advanced-filters {
+    grid-template-columns: 1fr;
   }
 
-  .pref-actions {
-    flex-direction: column;
+  .hero-inner {
+    padding: 1.2rem 0.8rem 1rem;
+  }
+
+  .content-wrap {
+    padding-top: 0.65rem;
   }
 }
 </style>
