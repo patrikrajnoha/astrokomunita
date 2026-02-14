@@ -22,6 +22,15 @@ vi.mock('@/stores/auth', () => ({
   }),
 }))
 
+vi.mock('@/stores/bookmarks', () => ({
+  useBookmarksStore: () => ({
+    isLoading: () => false,
+    setBookmarked: vi.fn(),
+    toggleBookmark: vi.fn(),
+    hydrateFromPosts: vi.fn(),
+  }),
+}))
+
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -93,5 +102,36 @@ describe('FeedList tabs', () => {
 
     expect(wrapper.text()).toContain('AstroBot content')
     expect(wrapper.find('#feed-tab-astrobot').attributes('aria-selected')).toBe('true')
+  })
+
+  it('renders bookmark state from post payload', async () => {
+    api.get.mockImplementationOnce(() =>
+      Promise.resolve({
+        data: {
+          data: [{ id: 101, content: 'Saved post', is_bookmarked: true, user: { username: 'user', name: 'User Name' } }],
+          next_page_url: null,
+        },
+      }),
+    )
+
+    const wrapper = mount(FeedList, {
+      attachTo: document.body,
+      global: {
+        stubs: {
+          HashtagText: {
+            props: ['content'],
+            template: '<span>{{ content }}</span>',
+          },
+          DropdownMenu: true,
+          PollCard: true,
+          PostMediaImage: true,
+          ShareModal: true,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find('.action-btn--bookmark').classes()).toContain('action-btn--bookmarked')
   })
 })
