@@ -20,6 +20,13 @@ class Post extends Model
         'root_id',
         'depth',
         'content',
+        'original_title',
+        'original_body',
+        'translated_title',
+        'translated_body',
+        'translation_status',
+        'translation_error',
+        'translated_at',
         'views',
         'source_name',
         'source_url',
@@ -27,11 +34,18 @@ class Post extends Model
         'source_published_at',
         'expires_at',  // When AstroBot posts should expire
         'is_hidden',
+        'moderation_status',
+        'moderation_summary',
         'hidden_reason',
+        'hidden_at',
         'attachment_path',
         'attachment_mime',
         'attachment_original_name',
         'attachment_size',
+        'attachment_moderation_status',
+        'attachment_moderation_summary',
+        'attachment_is_blurred',
+        'attachment_hidden_at',
         'pinned_at',
     ];
 
@@ -47,9 +61,15 @@ class Post extends Model
         'views' => 'integer',
         'attachment_size' => 'integer',
         'source_published_at' => 'datetime',
+        'translated_at' => 'datetime',
         'expires_at' => 'datetime',
         'pinned_at' => 'datetime',
         'is_hidden' => 'boolean',
+        'moderation_summary' => 'array',
+        'hidden_at' => 'datetime',
+        'attachment_moderation_summary' => 'array',
+        'attachment_is_blurred' => 'boolean',
+        'attachment_hidden_at' => 'datetime',
     ];
 
     /**
@@ -155,6 +175,14 @@ class Post extends Model
         });
     }
 
+    public function scopePubliclyVisible($query)
+    {
+        return $query
+            ->where('is_hidden', false)
+            ->whereNull('hidden_at')
+            ->where('moderation_status', '!=', 'blocked');
+    }
+
     /**
      * Scope to get only expired posts for cleanup.
      */
@@ -187,11 +215,18 @@ class Post extends Model
         'source_uid',
         'source_published_at',
         'is_hidden',
+        'moderation_status',
+        'moderation_summary',
         'hidden_reason',
+        'hidden_at',
         'attachment_path',
         'attachment_mime',
         'attachment_original_name',
         'attachment_size',
+        'attachment_moderation_status',
+        'attachment_moderation_summary',
+        'attachment_is_blurred',
+        'attachment_hidden_at',
         'attachment_url',
         'pinned_at',
         'expires_at',
