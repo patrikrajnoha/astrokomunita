@@ -4,19 +4,19 @@ export function formatPollRemainingSk(remainingSeconds) {
     return '0 min.'
   }
 
-  const totalMinutes = Math.floor(seconds / 60)
+  const totalMinutes = Math.max(1, Math.floor(seconds / 60))
   const days = Math.floor(totalMinutes / (60 * 24))
   const hours = Math.floor((totalMinutes % (60 * 24)) / 60)
   const minutes = totalMinutes % 60
 
-  if (days > 0) {
-    if (hours > 0) return `${days} d ${hours} hod.`
-    return `${days} d`
+  const parts = []
+  if (days > 0) parts.push(`${days} d.`)
+  if (hours > 0) parts.push(`${hours} hod.`)
+  if (minutes > 0 && days === 0) parts.push(`${minutes} min.`)
+
+  if (parts.length === 0) {
+    return '1 min.'
   }
 
-  if (hours > 0) {
-    return `${hours} hod. ${minutes} min.`
-  }
-
-  return `${Math.max(1, minutes)} min.`
+  return parts.join(' ')
 }
