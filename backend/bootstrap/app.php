@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use App\Support\ApiResponse;
 
@@ -62,6 +63,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
             if ($throwable instanceof NotFoundHttpException) {
                 return ApiResponse::error('Not found.', null, 404);
+            }
+
+            if ($throwable instanceof InvalidSignatureException) {
+                return ApiResponse::error('Verification link is invalid or expired.', null, 403);
             }
 
             if ($throwable instanceof HttpExceptionInterface) {

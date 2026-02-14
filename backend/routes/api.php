@@ -111,6 +111,11 @@ Route::middleware('web')->prefix('auth')->group(function () {
 
     Route::get('/me', [AuthController::class, 'me'])
         ->middleware(['auth:sanctum', 'active']);
+    Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail'])
+        ->middleware(['auth:sanctum', 'active', 'throttle:6,1']);
+    Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
 });
 
 /*
@@ -198,7 +203,7 @@ Route::get('/trending', [HashtagController::class, 'trending']);
 |--------------------------------------------------------------------------
 */
 Route::get('/recommendations/users', [RecommendationController::class, 'users'])
-    ->middleware(['auth:sanctum', 'active']);
+    ->middleware(['auth:sanctum', 'active', 'verified']);
 Route::get('/recommendations/posts', [RecommendationController::class, 'posts']);
 
 /*
@@ -211,12 +216,12 @@ Route::get('/blog-posts/{slug}/related', [BlogPostController::class, 'related'])
 Route::get('/blog-posts/{slug}', [BlogPostController::class, 'show']);
 Route::get('/blog-posts/{slug}/comments', [BlogPostCommentController::class, 'index']);
 Route::post('/blog-posts/{slug}/comments', [BlogPostCommentController::class, 'store'])
-    ->middleware(['auth:sanctum', 'active']);
+    ->middleware(['auth:sanctum', 'active', 'verified']);
 Route::delete('/blog-posts/{slug}/comments/{comment}', [BlogPostCommentController::class, 'destroy'])
-    ->middleware(['auth:sanctum', 'active']);
+    ->middleware(['auth:sanctum', 'active', 'verified']);
 
 Route::post('/reports', [ReportController::class, 'store'])
-    ->middleware(['auth:sanctum', 'active']);
+    ->middleware(['auth:sanctum', 'active', 'verified']);
 Route::get('/blog-tags', [BlogTagController::class, 'index']);
 
 /*
@@ -225,7 +230,7 @@ Route::get('/blog-tags', [BlogTagController::class, 'index']);
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:sanctum'])->prefix('favorites')->group(function () {
-    Route::middleware('active')->group(function () {
+    Route::middleware(['active', 'verified'])->group(function () {
         Route::get('/',           [FavoriteController::class, 'index']);
         Route::post('/',          [FavoriteController::class, 'store']);
         Route::delete('/{event}', [FavoriteController::class, 'destroy']);
@@ -241,7 +246,7 @@ Route::middleware(['auth:sanctum'])->prefix('favorites')->group(function () {
 |  - API token (Bearer ...)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', 'active', 'admin'])
+Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
     ->prefix('admin')
     ->group(function () {
 
@@ -382,7 +387,7 @@ Route::middleware(['auth:sanctum', 'active', 'admin'])
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth:sanctum'])->group(function () {
-    Route::middleware('active')->group(function () {
+    Route::middleware(['active', 'verified'])->group(function () {
 
         // Profile
         Route::patch('/profile',          [ProfileController::class, 'update']);
