@@ -3,11 +3,7 @@
     <!-- Header -->
     <header class="feed-header">
       <div class="feed-actions">
-        <FeedSwitcher
-          :tabs="tabs"
-          :model-value="activeTab"
-          @update:modelValue="switchTab"
-        />
+        <FeedSwitcher v-if="tabs.length > 1" :tabs="tabs" :model-value="activeTab" @update:modelValue="switchTab" />
       </div>
     </header>
 
@@ -46,8 +42,9 @@
     </div>
 
     <div v-else-if="!loading && items.length === 0" class="empty-state">
-      <p>Zatial tu nic nie je.</p>
-      <button type="button" class="retry-btn" @click="retryCurrentTab">Obnovit feed</button>
+      <p>{{ isBookmarksMode ? 'Zatial nemas ziadne ulozene prispevky.' : 'Zatial tu nic nie je.' }}</p>
+      <button v-if="isBookmarksMode" type="button" class="retry-btn" @click="goExplore">Preskumat</button>
+      <button v-else type="button" class="retry-btn" @click="retryCurrentTab">Obnovit feed</button>
     </div>
 
     <!-- Feed -->
@@ -329,20 +326,31 @@ import { useToast } from '@/composables/useToast'
 import { canDeletePost, canReportPost } from '@/utils/postPermissions'
 import { formatRelativeShort } from '@/utils/dateUtils'
 
+const props = defineProps({
+  mode: {
+    type: String,
+    default: 'home',
+  },
+})
+
 const router = useRouter()
 const auth = useAuthStore()
 const bookmarks = useBookmarksStore()
 const { error: toastError } = useToast()
-const tabs = [
+const HOME_TABS = [
   { id: 'for_you', label: 'Pre vas', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
   { id: 'astrobot', label: 'AstroBot', tabId: 'feed-tab-astrobot', panelId: 'feed-panel-astrobot' },
 ]
+const BOOKMARK_TABS = [{ id: 'bookmarks', label: 'Zalozky', tabId: 'feed-tab-bookmarks', panelId: 'feed-panel-bookmarks' }]
+const isBookmarksMode = computed(() => props.mode === 'bookmarks')
+const tabs = computed(() => (isBookmarksMode.value ? BOOKMARK_TABS : HOME_TABS))
 
 const feedState = reactive({
   for_you: createFeedState(),
   astrobot: createFeedState(),
+  bookmarks: createFeedState(),
 })
-const activeTab = ref('for_you')
+const activeTab = ref(isBookmarksMode.value ? 'bookmarks' : 'for_you')
 const currentFeed = computed(() => feedState[activeTab.value])
 const items = computed(() => currentFeed.value.items)
 const nextPageUrl = computed(() => currentFeed.value.nextPageUrl)
@@ -381,6 +389,10 @@ function openProfile(post) {
   const username = post?.user?.username
   if (!username) return
   router.push(`/u/${username}`)
+}
+
+function goExplore() {
+  router.push('/search')
 }
 
 function canDelete(post) {
@@ -743,6 +755,8 @@ async function load(reset = true, tab = activeTab.value) {
       // Use dedicated endpoints based on active tab
       if (tab === 'astrobot') {
         url = '/feed/astrobot?with=counts'
+      } else if (tab === 'bookmarks') {
+        url = '/me/bookmarks?with=counts'
       } else {
         // for_you tab uses new unified feed endpoint
         url = '/feed?with=counts'
@@ -842,14 +856,21 @@ function prepend(post) {
 }
 
 function handleGlobalKeydown(event) {
+  if (tabs.value.length < 2) {
+    if (event.key !== 'Escape') return
+    if (reportTarget.value) closeReport()
+    if (deleteTarget.value) closeDeleteConfirm()
+    return
+  }
+
   if (event.ctrlKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
     event.preventDefault()
-    const currentIndex = tabs.findIndex((tab) => tab.id === activeTab.value)
+    const currentIndex = tabs.value.findIndex((tab) => tab.id === activeTab.value)
     if (currentIndex < 0) return
 
     const direction = event.key === 'ArrowRight' ? 1 : -1
-    const nextIndex = (currentIndex + direction + tabs.length) % tabs.length
-    switchTab(tabs[nextIndex].id)
+    const nextIndex = (currentIndex + direction + tabs.value.length) % tabs.value.length
+    switchTab(tabs.value[nextIndex].id)
     return
   }
 

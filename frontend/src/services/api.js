@@ -39,6 +39,7 @@ function isProtectedPath(pathname) {
     pathname.startsWith('/settings') ||
     pathname.startsWith('/creator-studio') ||
     pathname.startsWith('/notifications') ||
+    pathname.startsWith('/bookmarks') ||
     pathname.startsWith('/profile') ||
     pathname.startsWith('/admin')
   )
