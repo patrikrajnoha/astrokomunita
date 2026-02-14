@@ -21,7 +21,7 @@ class AdminUserController extends Controller
         }
 
         $users = User::query()
-            ->select(['id', 'name', 'email', 'role', 'is_banned', 'is_active'])
+            ->select(['id', 'name', 'username', 'email', 'role', 'is_banned', 'is_active', 'avatar_path'])
             ->orderByDesc('id')
             ->paginate($perPage);
 
@@ -31,7 +31,7 @@ class AdminUserController extends Controller
     public function show(int $id)
     {
         $user = User::query()
-            ->select(['id', 'name', 'email', 'role', 'is_banned', 'is_active', 'created_at'])
+            ->select(['id', 'name', 'username', 'email', 'role', 'is_banned', 'is_active', 'avatar_path', 'created_at'])
             ->findOrFail($id);
 
         return response()->json($user);
@@ -139,10 +139,12 @@ class AdminUserController extends Controller
         return $user->only([
             'id',
             'name',
+            'username',
             'email',
             'role',
             'is_banned',
             'is_active',
+            'avatar_path',
         ]);
     }
 }
