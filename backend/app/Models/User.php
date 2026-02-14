@@ -231,6 +231,12 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsToMany(Post::class, 'post_likes');
     }
 
+    public function bookmarks(): BelongsToMany
+    {
+        return $this->belongsToMany(Post::class, 'post_user_bookmarks')
+            ->withPivot('created_at');
+    }
+
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);

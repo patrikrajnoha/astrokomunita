@@ -71,6 +71,9 @@ class Post extends Model
         'attachment_moderation_summary' => 'array',
         'attachment_is_blurred' => 'boolean',
         'attachment_hidden_at' => 'datetime',
+        'liked_by_me' => 'boolean',
+        'is_bookmarked' => 'boolean',
+        'bookmarked_at' => 'datetime',
     ];
 
     /**
@@ -87,6 +90,12 @@ class Post extends Model
     public function likes(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'post_likes');
+    }
+
+    public function bookmarkedBy(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'post_user_bookmarks')
+            ->withPivot('created_at');
     }
 
     /**
@@ -233,5 +242,10 @@ class Post extends Model
         'replies_count',
         'likes_count',
         'liked_by_me',
+        'is_bookmarked',
+        'bookmarked_at',
     ];
 }
+
+
+

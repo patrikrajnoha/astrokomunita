@@ -93,6 +93,7 @@ class PostService
         if ($viewer) {
             $threadQuery->withExists([
                 'likes as liked_by_me' => fn ($likesQuery) => $likesQuery->where('user_id', $viewer->id),
+                'bookmarkedBy as is_bookmarked' => fn ($bookmarksQuery) => $bookmarksQuery->where('user_id', $viewer->id),
             ]);
         }
 
