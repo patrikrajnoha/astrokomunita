@@ -16,12 +16,12 @@ vi.mock('@/composables/useToast', () => ({
   }),
 }))
 
-describe('PollCard', () => {
+describe('PollCard responsive layout', () => {
   afterEach(() => {
     document.body.innerHTML = ''
   })
 
-  it('does not render hero preview when no option has image', () => {
+  it('renders mobile card wrapper with full-width option buttons', () => {
     const wrapper = mount(PollCard, {
       props: {
         isAuthed: true,
@@ -32,17 +32,19 @@ describe('PollCard', () => {
           ends_in_seconds: 3600,
           my_vote_option_id: null,
           options: [
-            { id: 11, text: 'A', image_url: null, percent: 50, votes_count: 6, is_winner: false },
+            { id: 11, text: 'A', image_url: 'https://example.com/a.jpg', percent: 50, votes_count: 6, is_winner: false },
             { id: 12, text: 'B', image_url: null, percent: 50, votes_count: 6, is_winner: false },
           ],
         },
       },
     })
 
-    expect(wrapper.find('[data-testid="poll-hero"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="poll-mobile-card"]').exists()).toBe(true)
+    expect(wrapper.findAll('.mPollOption')).toHaveLength(2)
+    expect(wrapper.find('[data-testid="poll-mobile-card"] .mPollOption').element.tagName).toBe('BUTTON')
   })
 
-  it('renders hero preview and switches on hover before vote', async () => {
+  it('keeps desktop layout structure available', () => {
     const wrapper = mount(PollCard, {
       props: {
         isAuthed: true,
@@ -53,21 +55,19 @@ describe('PollCard', () => {
           ends_in_seconds: 1000,
           my_vote_option_id: null,
           options: [
-            { id: 21, text: 'Option 1', image_url: 'https://example.com/one.jpg', percent: 60, votes_count: 6, is_winner: false },
-            { id: 22, text: 'Option 2', image_url: 'https://example.com/two.jpg', percent: 40, votes_count: 4, is_winner: false },
+            { id: 21, text: 'Option 1', image_url: null, percent: 60, votes_count: 6, is_winner: false },
+            { id: 22, text: 'Option 2', image_url: null, percent: 40, votes_count: 4, is_winner: false },
           ],
         },
       },
     })
 
-    const hero = () => wrapper.find('[data-testid="poll-hero"] img')
-    expect(hero().attributes('src')).toBe('https://example.com/one.jpg')
-
-    await wrapper.findAll('.pollOption')[1].trigger('mouseenter')
-    expect(hero().attributes('src')).toBe('https://example.com/two.jpg')
+    expect(wrapper.find('[data-testid="poll-desktop"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-testid="poll-desktop"] .pollOption')).toHaveLength(2)
+    expect(wrapper.text()).toContain('Pocet hlasov: 10')
   })
 
-  it('after vote shows chosen hero image and result bars', () => {
+  it('shows result fill and percents after vote in both layouts', () => {
     const wrapper = mount(PollCard, {
       props: {
         isAuthed: true,
@@ -80,16 +80,15 @@ describe('PollCard', () => {
           user_has_voted: true,
           chosen_option_id: 32,
           options: [
-            { id: 31, text: 'First', image_url: 'https://example.com/first.jpg', percent: 30, votes_count: 3, is_winner: false },
-            { id: 32, text: 'Second', image_url: 'https://example.com/second.jpg', percent: 70, votes_count: 7, is_winner: false },
+            { id: 31, text: 'First', image_url: null, percent: 30, votes_count: 3, is_winner: false },
+            { id: 32, text: 'Second', image_url: null, percent: 70, votes_count: 7, is_winner: false },
           ],
         },
       },
     })
 
-    expect(wrapper.find('[data-testid="poll-hero"] img').attributes('src')).toBe('https://example.com/second.jpg')
     expect(wrapper.findAll('.pollFill')).toHaveLength(2)
+    expect(wrapper.findAll('.mPollFill')).toHaveLength(2)
     expect(wrapper.text()).toContain('70%')
-    expect(wrapper.text()).toContain('Pocet hlasov: 10')
   })
 })
