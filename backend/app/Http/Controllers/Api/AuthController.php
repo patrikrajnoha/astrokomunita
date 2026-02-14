@@ -9,6 +9,8 @@ use App\Support\UsernameRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use RuntimeException;
 
 class AuthController extends Controller
 {
@@ -60,7 +62,20 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (!Auth::attempt($credentials, true)) {
+        $credentials['email'] = mb_strtolower(trim((string) $credentials['email']));
+
+        try {
+            $attempted = Auth::attempt($credentials, true);
+        } catch (RuntimeException $exception) {
+            $attempted = false;
+        }
+
+        if (! $attempted) {
+            if ($this->attemptLegacyPlaintextLogin($credentials['email'], $credentials['password'])) {
+                $request->session()->regenerate();
+                return response()->json($request->user());
+            }
+
             return response()->json([
                 'message' => 'Nespravny email alebo heslo.',
             ], 422);
@@ -69,6 +84,44 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         return response()->json($request->user());
+    }
+
+    private function attemptLegacyPlaintextLogin(string $email, string $password): bool
+    {
+        $user = User::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->first();
+
+        if (! $user) {
+            return false;
+        }
+
+        $stored = (string) ($user->getAuthPassword() ?? '');
+        if ($stored === '') {
+            return false;
+        }
+
+        $hashInfo = password_get_info($stored);
+        $isAlreadyHashed = ! empty($hashInfo['algo']);
+        $verified = false;
+
+        if ($isAlreadyHashed) {
+            $verified = password_verify($password, $stored);
+        } else {
+            $verified = hash_equals($stored, $password);
+        }
+
+        if (! $verified) {
+            return false;
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($password),
+        ])->save();
+
+        Auth::login($user, true);
+
+        return true;
     }
 
     public function logout(Request $request)
