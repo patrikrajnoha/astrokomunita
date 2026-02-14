@@ -237,6 +237,15 @@ ASTROBOT_DOMAIN_WHITELIST=nasa.gov,www.nasa.gov
 ASTROBOT_RISK_KEYWORDS=!!!,crypto,free,win
 ASTROBOT_SSL_VERIFY=true
 ASTROBOT_SSL_CA_BUNDLE=
+TRANSLATION_SERVICE_URL=http://127.0.0.1:8010
+TRANSLATION_SERVICE_TRANSLATE_PATH=/translate
+TRANSLATION_SERVICE_DIAGNOSTICS_PATH=/diagnostics
+TRANSLATION_TIMEOUT_SECONDS=12
+TRANSLATION_CONNECT_TIMEOUT_SECONDS=3
+TRANSLATION_RETRIES=2
+TRANSLATION_RETRY_SLEEP_MS=250
+INTERNAL_TOKEN=change-me
+TRANSLATION_INTERNAL_TOKEN=change-me
 ```
 
 ### NASA RSS SSL setup (Windows/XAMPP + production)
@@ -278,6 +287,22 @@ Manual admin API sync endpoint (admin only, rate-limited):
 - `GET /api/admin/astrobot/items?status=needs_review`
 - `POST /api/admin/astrobot/items/{id}/publish`
 - `POST /api/admin/astrobot/items/{id}/reject`
+- `POST /api/admin/astrobot/rss-items/{id}/retranslate` (force retranslate)
+- `POST /api/admin/astrobot/rss-items/retranslate-pending` (batch max 100)
+
+### Translation flow (EN -> SK)
+- New/updated RSS items are queued for translation (`TranslateRssItemJob`) after DB commit.
+- `rss_items` stores:
+  - `original_title`, `original_summary`
+  - `translated_title`, `translated_summary`
+  - `translation_status` (`pending|done|failed`)
+  - `translation_error`, `translated_at`
+- Auto-publish waits for `translation_status=done`, so published AstroBot content uses Slovak translation.
+- Keep queue worker running:
+
+```powershell
+php artisan queue:work
+```
 
 ### Development (Windows/XAMPP)
 Run scheduler worker in a separate terminal:

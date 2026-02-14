@@ -22,13 +22,19 @@ class AstroBotRssServiceTest extends TestCase
     public function test_sync_creates_published_post_from_rss(): void
     {
         config()->set('astrobot.nasa_rss_url', 'https://example.test/nasa-rss');
+        config()->set('services.translation.base_url', 'http://translation.test');
+        config()->set('services.translation.internal_token', 'token');
         config()->set('astrobot.keep_max_items', 30);
         config()->set('astrobot.keep_max_days', 14);
 
         Http::fake([
-            '*' => Http::response($this->rssPayload([
+            'https://example.test/*' => Http::response($this->rssPayload([
                 ['guid' => 'nasa-guid-1', 'url' => 'https://www.nasa.gov/news/a', 'title' => 'NASA Alpha'],
             ]), 200),
+            'http://translation.test/*' => Http::response([
+                'translated' => 'Prelozene',
+                'meta' => ['engine' => 'argos', 'from' => 'en', 'to' => 'sk', 'took_ms' => 5],
+            ], 200),
         ]);
 
         $result = app(AstroBotNasaService::class)->runSync('test');
@@ -49,14 +55,25 @@ class AstroBotRssServiceTest extends TestCase
     public function test_repeated_sync_is_idempotent_and_does_not_create_duplicates(): void
     {
         config()->set('astrobot.nasa_rss_url', 'https://example.test/nasa-rss');
+        config()->set('services.translation.base_url', 'http://translation.test');
+        config()->set('services.translation.internal_token', 'token');
 
-        Http::fakeSequence()
-            ->push($this->rssPayload([
-                ['guid' => 'idempotent-guid', 'url' => 'https://www.nasa.gov/news/idempotent', 'title' => 'NASA Idempotent'],
-            ]), 200)
-            ->push($this->rssPayload([
-                ['guid' => 'idempotent-guid', 'url' => 'https://www.nasa.gov/news/idempotent', 'title' => 'NASA Idempotent'],
-            ]), 200);
+        Http::fake(function ($request) {
+            if (str_starts_with($request->url(), 'http://translation.test/')) {
+                return Http::response([
+                    'translated' => 'Prelozene',
+                    'meta' => ['engine' => 'argos', 'from' => 'en', 'to' => 'sk', 'took_ms' => 5],
+                ], 200);
+            }
+
+            if (str_starts_with($request->url(), 'https://example.test/')) {
+                return Http::response($this->rssPayload([
+                    ['guid' => 'idempotent-guid', 'url' => 'https://www.nasa.gov/news/idempotent', 'title' => 'NASA Idempotent'],
+                ]), 200);
+            }
+
+            return Http::response('', 404);
+        });
 
         $service = app(AstroBotNasaService::class);
         $service->runSync('test');
@@ -138,7 +155,15 @@ class AstroBotRssServiceTest extends TestCase
     public function test_emergency_sync_endpoint_works_only_for_admin(): void
     {
         config()->set('astrobot.nasa_rss_url', 'https://example.test/nasa-rss');
-        Http::fake(['*' => Http::response($this->rssPayload([]), 200)]);
+        config()->set('services.translation.base_url', 'http://translation.test');
+        config()->set('services.translation.internal_token', 'token');
+        Http::fake([
+            'https://example.test/*' => Http::response($this->rssPayload([]), 200),
+            'http://translation.test/*' => Http::response([
+                'translated' => 'Prelozene',
+                'meta' => ['engine' => 'argos', 'from' => 'en', 'to' => 'sk', 'took_ms' => 5],
+            ], 200),
+        ]);
 
         $this->postJson('/api/admin/astrobot/nasa/sync-now')->assertStatus(401);
 
