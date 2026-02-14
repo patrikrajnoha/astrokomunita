@@ -3,3 +3,4 @@ uvicorn[standard]==0.35.0
 skyfield==1.53
 numpy==2.3.2
 tzdata==2025.3
+argostranslate==1.9.6
