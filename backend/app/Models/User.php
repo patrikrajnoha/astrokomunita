@@ -236,6 +236,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Notification::class);
     }
 
+    public function pollVotes(): HasMany
+    {
+        return $this->hasMany(PollVote::class);
+    }
+
     public function eventPreference(): HasOne
     {
         return $this->hasOne(UserPreference::class);
