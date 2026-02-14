@@ -28,7 +28,7 @@
           :class="{ expanded: isExpanded }"
           rows="1"
           maxlength="2000"
-          placeholder="Co sa deje na oblohe?"
+          :placeholder="composerPlaceholder"
           @focus="onFocus"
           @input="onTyping"
           @keydown="onKeydown"
@@ -78,59 +78,15 @@
           </button>
         </div>
 
-        <div v-if="pollEnabled" class="pollEditor">
-          <div class="pollHead">
-            <div class="pollTitle">Anketa</div>
-            <button
-              class="pollToggleBtn pollToggleBtn--remove"
-              type="button"
-              :disabled="posting"
-              @click="disablePoll"
-            >
-              Odstranit
-            </button>
-          </div>
-
-          <div class="pollOptions">
-            <input
-              v-for="(option, index) in pollOptions"
-              :key="`poll-option-${index}`"
-              v-model="pollOptions[index]"
-              class="pollOptionInput"
-              type="text"
-              maxlength="25"
-              :placeholder="`Moznost ${index + 1}`"
-            />
-          </div>
-
-          <div class="pollControls">
-            <button
-              class="pollToggleBtn"
-              type="button"
-              :disabled="posting || pollOptions.length >= 4"
-              @click="addPollOption"
-            >
-              + Moznost
-            </button>
-            <button
-              class="pollToggleBtn"
-              type="button"
-              :disabled="posting || pollOptions.length <= 2"
-              @click="removePollOption"
-            >
-              - Moznost
-            </button>
-
-            <label class="pollDurationLabel" for="poll-duration-select">Trvanie</label>
-            <select id="poll-duration-select" v-model="pollDuration" class="pollDurationSelect">
-              <option value="5m">5m</option>
-              <option value="1h">1h</option>
-              <option value="1d">1d</option>
-              <option value="3d">3d</option>
-              <option value="7d">7d</option>
-            </select>
-          </div>
-        </div>
+        <PollComposerPanel
+          v-if="pollEnabled"
+          :model-value="pollOptions"
+          :duration-seconds="pollDurationSeconds"
+          :disabled="posting"
+          @update:model-value="onPollOptionsUpdate"
+          @update:duration-seconds="setPollDurationSeconds"
+          @remove-poll="disablePoll"
+        />
 
         <div class="actionsBar">
           <div class="leftActions">
@@ -143,8 +99,10 @@
             />
             <button
               class="attachBtn"
+              :class="{ 'attachBtn--disabledHint': isAttachmentDisabled }"
               type="button"
-              :disabled="posting"
+              :disabled="posting || isAttachmentDisabled"
+              :title="isAttachmentDisabled ? pollAttachmentDisabledHint : ''"
               aria-label="Pridat prilohu"
               @click="pickFile"
             >
@@ -180,17 +138,27 @@
             </button>
           </div>
         </div>
+        <div v-if="pollEnabled" class="pollAttachmentHint">{{ pollAttachmentDisabledHint }}</div>
 
         <div v-if="err" class="err">{{ err }}</div>
+        <div v-else-if="submitBlockReason" class="err">{{ submitBlockReason }}</div>
       </div>
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, nextTick } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
+import PollComposerPanel from '@/components/poll/PollComposerPanel.vue'
+
+const DRAFT_KEY = 'post_composer_draft_v1'
+const POLL_MIN_OPTIONS = 2
+const POLL_MAX_OPTIONS = 4
+const POLL_MIN_SECONDS = 300
+const POLL_MAX_SECONDS = 604800
 
 const emit = defineEmits(['created'])
 
@@ -200,6 +168,7 @@ const props = defineProps({
 })
 
 const auth = useAuthStore()
+const toast = useToast()
 
 const content = ref('')
 const file = ref(null)
@@ -208,8 +177,8 @@ const posting = ref(false)
 const err = ref('')
 const isFocused = ref(false)
 const pollEnabled = ref(false)
-const pollOptions = ref(['', ''])
-const pollDuration = ref('1d')
+const pollOptions = ref(createInitialPollOptions())
+const pollDurationSeconds = ref(86400)
 
 const showAutocomplete = ref(false)
 const suggestions = ref([])
@@ -221,6 +190,9 @@ const suggestionCache = ref(new Map())
 
 const fileInput = ref(null)
 const textareaRef = ref(null)
+
+const pollAttachmentDisabledHint = 'Pri ankete sa obrazky pridavaju iba ku konkretnym moznostiam.'
+const isAttachmentDisabled = computed(() => pollEnabled.value)
 
 const initials = computed(() => {
   const n = auth?.user?.name || ''
@@ -243,6 +215,7 @@ const avatarUrl = computed(() => {
 })
 
 const isExpanded = computed(() => isFocused.value || content.value.trim().length > 0 || !!file.value)
+const composerPlaceholder = computed(() => (pollEnabled.value ? 'Napis otazku ankety...' : 'Co sa deje na oblohe?'))
 
 const isSubmitDisabled = computed(() => {
   if (posting.value) return true
@@ -254,12 +227,28 @@ const isSubmitDisabled = computed(() => {
 
 const isPollValid = computed(() => {
   if (!pollEnabled.value) return true
-  if (pollOptions.value.length < 2 || pollOptions.value.length > 4) return false
+  if (pollOptions.value.length < POLL_MIN_OPTIONS || pollOptions.value.length > POLL_MAX_OPTIONS) return false
+
   return pollOptions.value.every((option) => {
-    const text = String(option || '').trim()
+    const text = String(option?.text || '').trim()
     return text.length >= 1 && text.length <= 25
   })
 })
+
+const submitBlockReason = computed(() => {
+  if (!pollEnabled.value) return ''
+  if (!content.value.trim()) return 'Dopln otazku ankety do textu prispevku.'
+  if (!isPollValid.value) return 'Skontroluj moznosti ankety (2-4, max 25 znakov).'
+  return ''
+})
+
+watch(
+  [content, pollEnabled, pollOptions, pollDurationSeconds],
+  () => {
+    persistDraft()
+  },
+  { deep: true },
+)
 
 function onFocus() {
   isFocused.value = true
@@ -302,7 +291,7 @@ function updateAutocompletePosition(textarea) {
   const charInLine = lines[lines.length - 1].length
 
   autocompletePosition.value = {
-    top: rect.top + window.scrollY + (currentLine * lineHeightPx) + lineHeightPx,
+    top: rect.top + window.scrollY + currentLine * lineHeightPx + lineHeightPx,
     left: rect.left + window.scrollX + Math.min(charInLine * 8, rect.width - 200),
   }
 }
@@ -400,35 +389,61 @@ function onBlur() {
 }
 
 function pickFile() {
+  if (isAttachmentDisabled.value) {
+    err.value = pollAttachmentDisabledHint
+    return
+  }
+
   fileInput.value?.click()
 }
 
 function enablePoll() {
-  pollEnabled.value = true
-  if (!Array.isArray(pollOptions.value) || pollOptions.value.length < 2) {
-    pollOptions.value = ['', '']
+  if (file.value) {
+    toast.warn('Anketa sa neda kombinovat s prilohami.', {
+      action: {
+        label: 'Odstranit prilohy a pokracovat',
+        onClick: async () => {
+          removeFile()
+          pollEnabled.value = true
+          ensurePollDefaults()
+        },
+      },
+    })
+    return
   }
+
+  pollEnabled.value = true
+  ensurePollDefaults()
 }
 
 function disablePoll() {
   pollEnabled.value = false
-  pollOptions.value = ['', '']
-  pollDuration.value = '1d'
+  resetPollState()
 }
 
-function addPollOption() {
-  if (pollOptions.value.length >= 4) return
-  pollOptions.value = [...pollOptions.value, '']
+function onPollOptionsUpdate(nextOptions) {
+  pollOptions.value = normalizePollOptions(nextOptions, pollOptions.value)
 }
 
-function removePollOption() {
-  if (pollOptions.value.length <= 2) return
-  pollOptions.value = pollOptions.value.slice(0, pollOptions.value.length - 1)
+function setPollDurationSeconds(value) {
+  pollDurationSeconds.value = clampPollDuration(value)
+}
+
+function ensurePollDefaults() {
+  if (!Array.isArray(pollOptions.value) || pollOptions.value.length < POLL_MIN_OPTIONS) {
+    pollOptions.value = createInitialPollOptions()
+  }
+}
+
+function resetPollState() {
+  revokeAllPollOptionPreviews(pollOptions.value)
+  pollOptions.value = createInitialPollOptions()
+  pollDurationSeconds.value = 86400
 }
 
 function revokePreview() {
   if (imagePreviewUrl.value) {
-    URL.revokeObjectURL(imagePreviewUrl.value)
+    revokeObjectUrl(imagePreviewUrl.value)
     imagePreviewUrl.value = null
   }
 }
@@ -445,17 +460,17 @@ function isImageFile(f) {
 
 function isAllowedByMvp(f) {
   const name = (f?.name || '').toLowerCase()
-  return (
-    isImageFile(f) ||
-    name.endsWith('.pdf') ||
-    name.endsWith('.txt') ||
-    name.endsWith('.doc') ||
-    name.endsWith('.docx')
-  )
+  return isImageFile(f) || name.endsWith('.pdf') || name.endsWith('.txt') || name.endsWith('.doc') || name.endsWith('.docx')
 }
 
 function onFileChange(e) {
   err.value = ''
+
+  if (pollEnabled.value) {
+    err.value = pollAttachmentDisabledHint
+    return
+  }
+
   const f = e?.target?.files?.[0] || null
   if (!f) return
 
@@ -473,7 +488,7 @@ function onFileChange(e) {
 
   file.value = f
   if (isImageFile(f)) {
-    imagePreviewUrl.value = URL.createObjectURL(f)
+    imagePreviewUrl.value = createObjectUrl(f)
   }
 }
 
@@ -494,10 +509,14 @@ async function submit() {
     const fd = new FormData()
     fd.append('content', content.value.trim())
     if (file.value) fd.append('attachment', file.value)
+
     if (pollEnabled.value) {
-      fd.append('poll[duration_preset]', pollDuration.value)
-      pollOptions.value.forEach((option) => {
-        fd.append('poll[options][]', String(option || '').trim())
+      fd.append('poll[duration_seconds]', String(clampPollDuration(pollDurationSeconds.value)))
+      pollOptions.value.forEach((option, index) => {
+        fd.append(`poll[options][${index}][text]`, String(option?.text || '').trim())
+        if (option?.imageFile) {
+          fd.append(`poll[options][${index}][image]`, option.imageFile)
+        }
       })
     }
 
@@ -511,11 +530,12 @@ async function submit() {
     isFocused.value = false
     removeFile()
     disablePoll()
+    clearDraft()
     if (textareaRef.value) textareaRef.value.style.height = ''
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) err.value = 'Pre publikovanie sa prihlas.'
-    else if (status === 422) err.value = 'Skontroluj text, prilohu a poll moznosti (2-4, max 25 znakov).'
+    else if (status === 422) err.value = e?.response?.data?.message || 'Skontroluj text, prilohu a poll moznosti.'
     else err.value = e?.response?.data?.message || 'Publikovanie zlyhalo.'
   } finally {
     posting.value = false
@@ -530,11 +550,143 @@ function autoResize() {
   el.style.height = `${nextHeight}px`
 }
 
+function createInitialPollOptions() {
+  return [createEmptyPollOption(), createEmptyPollOption()]
+}
+
+function createEmptyPollOption() {
+  return {
+    text: '',
+    imageFile: null,
+    imagePreviewUrl: '',
+  }
+}
+
+function normalizePollOptions(nextOptions, previousOptions = []) {
+  const safe = Array.isArray(nextOptions) ? nextOptions.slice(0, POLL_MAX_OPTIONS) : createInitialPollOptions()
+  const normalized = safe.map((option, index) => {
+    const prev = previousOptions[index] || createEmptyPollOption()
+    const text = String(option?.text || '').slice(0, 25)
+    const imageFile = option?.imageFile || null
+    let imagePreviewUrl = ''
+
+    if (imageFile && imageFile === prev.imageFile && prev.imagePreviewUrl) {
+      imagePreviewUrl = prev.imagePreviewUrl
+    } else if (imageFile && isImageFile(imageFile)) {
+      imagePreviewUrl = createObjectUrl(imageFile)
+    } else if (typeof option?.imagePreviewUrl === 'string') {
+      imagePreviewUrl = option.imagePreviewUrl
+    }
+
+    if (prev.imagePreviewUrl && prev.imagePreviewUrl !== imagePreviewUrl) {
+      revokeObjectUrl(prev.imagePreviewUrl)
+    }
+
+    return {
+      text,
+      imageFile,
+      imagePreviewUrl,
+    }
+  })
+
+  if (normalized.length < POLL_MIN_OPTIONS) {
+    while (normalized.length < POLL_MIN_OPTIONS) {
+      normalized.push(createEmptyPollOption())
+    }
+  }
+
+  if (previousOptions.length > normalized.length) {
+    previousOptions.slice(normalized.length).forEach((option) => {
+      if (option?.imagePreviewUrl) {
+        revokeObjectUrl(option.imagePreviewUrl)
+      }
+    })
+  }
+
+  return normalized
+}
+
+function revokeAllPollOptionPreviews(options) {
+  if (!Array.isArray(options)) return
+  options.forEach((option) => {
+    if (option?.imagePreviewUrl) {
+      revokeObjectUrl(option.imagePreviewUrl)
+    }
+  })
+}
+
+function createObjectUrl(file) {
+  if (typeof URL?.createObjectURL !== 'function') return ''
+  return URL.createObjectURL(file)
+}
+
+function revokeObjectUrl(url) {
+  if (!url) return
+  if (typeof URL?.revokeObjectURL !== 'function') return
+  URL.revokeObjectURL(url)
+}
+
+function clampPollDuration(value) {
+  const n = Number(value || 0)
+  if (!Number.isFinite(n)) return 86400
+  return Math.max(POLL_MIN_SECONDS, Math.min(POLL_MAX_SECONDS, Math.round(n)))
+}
+
+function persistDraft() {
+  try {
+    const payload = {
+      content: content.value,
+      pollEnabled: pollEnabled.value,
+      pollDurationSeconds: clampPollDuration(pollDurationSeconds.value),
+      pollOptions: pollOptions.value.map((option) => ({
+        text: String(option?.text || ''),
+      })),
+    }
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(payload))
+  } catch {
+    // no-op
+  }
+}
+
+function loadDraft() {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY)
+    if (!raw) return
+    const draft = JSON.parse(raw)
+    content.value = String(draft?.content || '')
+    pollEnabled.value = Boolean(draft?.pollEnabled)
+    pollDurationSeconds.value = clampPollDuration(draft?.pollDurationSeconds ?? 86400)
+    const draftOptions = Array.isArray(draft?.pollOptions) ? draft.pollOptions : []
+    pollOptions.value = normalizePollOptions(
+      draftOptions.map((option) => ({
+        text: String(option?.text || ''),
+        imageFile: null,
+        imagePreviewUrl: '',
+      })),
+      [],
+    )
+  } catch {
+    // no-op
+  }
+}
+
+function clearDraft() {
+  try {
+    window.localStorage.removeItem(DRAFT_KEY)
+  } catch {
+    // no-op
+  }
+}
+
 onMounted(() => {
+  loadDraft()
   autoResize()
 })
 
-onBeforeUnmount(() => revokePreview())
+onBeforeUnmount(() => {
+  revokePreview()
+  revokeAllPollOptionPreviews(pollOptions.value)
+})
 </script>
 
 <style scoped>
@@ -777,6 +929,11 @@ onBeforeUnmount(() => revokePreview())
   font-size: 0.74rem;
 }
 
+.pollHint {
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
 .fileLeft {
   display: flex;
   align-items: center;
@@ -856,6 +1013,10 @@ onBeforeUnmount(() => revokePreview())
   padding: 0.38rem 0.6rem;
 }
 
+.attachBtn--disabledHint {
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.5);
+}
+
 .publishBtn {
   border: 1px solid var(--primary);
   background: rgb(var(--color-primary-rgb) / 0.2);
@@ -902,6 +1063,11 @@ onBeforeUnmount(() => revokePreview())
 .err {
   color: var(--color-danger);
   font-size: 0.84rem;
+}
+
+.pollAttachmentHint {
+  color: var(--muted);
+  font-size: 0.76rem;
 }
 
 .autocompletePopover {
