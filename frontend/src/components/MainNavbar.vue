@@ -622,6 +622,7 @@ const primaryLinks = computed(() => {
     notifications: ['M6 8a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6', 'M9.5 20a2.5 2.5 0 0 0 5 0'],
     events: ['M7 3v3', 'M17 3v3', 'M4 8h16', 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z'],
     learn: ['M4 6.5A2.5 2.5 0 0 1 6.5 4H20v14H6.5A2.5 2.5 0 0 0 4 20.5z', 'M8 8h8', 'M8 11h8'],
+    bookmarks: ['M7 4h10a1 1 0 0 1 1 1v15l-6-3.8L6 20V5a1 1 0 0 1 1-1z'],
   }
 
   const links = [
@@ -643,6 +644,9 @@ const primaryLinks = computed(() => {
       iconPaths: navIcons.events,
       matchPrefix: '/events',
     },
+    ...(auth.isAuthed
+      ? [{ key: 'bookmarks', to: '/bookmarks', label: 'Zalozky', icon: 'Z', iconPaths: navIcons.bookmarks }]
+      : []),
     { key: 'learn', to: '/learn', label: 'Vzdelavanie', icon: 'V', iconPaths: navIcons.learn },
   ]
 
@@ -824,5 +828,4 @@ const logout = async () => {
   opacity: 0;
 }
 </style>
-
 

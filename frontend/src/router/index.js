@@ -87,6 +87,12 @@ const appShellChildren = [
     component: () => import('../views/NotificationsView.vue'),
   },
   {
+    path: 'bookmarks',
+    name: 'bookmarks',
+    meta: { auth: true, requiresAuth: true },
+    component: () => import('../views/BookmarksView.vue'),
+  },
+  {
     path: 'profile',
     name: 'profile',
     meta: { auth: true, requiresAuth: true },
