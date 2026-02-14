@@ -5,19 +5,20 @@ namespace App\Services;
 use App\Jobs\ModeratePostJob;
 use App\Models\Post;
 use App\Models\User;
+use App\Services\Storage\MediaStorageService;
 use App\Support\HashtagParser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class PostService
 {
     public function __construct(
         private readonly NotificationService $notifications,
         private readonly FeedQueryBuilder $feedQueryBuilder,
+        private readonly MediaStorageService $mediaStorage,
     ) {
     }
 
@@ -135,8 +136,10 @@ class PostService
             $post->hidden_reason = null;
             $post->hidden_at = null;
 
+            $post->save();
+
             if ($attachment) {
-                $path = $attachment->store('posts', 'public');
+                $path = $this->mediaStorage->storePostAttachment($attachment, (int) $post->id);
                 $post->attachment_path = $path;
                 $post->attachment_mime = $attachment->getClientMimeType();
                 $post->attachment_original_name = $attachment->getClientOriginalName();
@@ -148,9 +151,8 @@ class PostService
                 $post->attachment_moderation_summary = null;
                 $post->attachment_is_blurred = $moderationEnabled && $isImageAttachment;
                 $post->attachment_hidden_at = null;
+                $post->save();
             }
-
-            $post->save();
 
             HashtagParser::syncHashtags($post, $content);
             if ($moderationEnabled) {
@@ -188,8 +190,10 @@ class PostService
             $reply->hidden_reason = null;
             $reply->hidden_at = null;
 
+            $reply->save();
+
             if ($attachment) {
-                $path = $attachment->store('posts', 'public');
+                $path = $this->mediaStorage->storePostAttachment($attachment, (int) $reply->id);
                 $reply->attachment_path = $path;
                 $reply->attachment_mime = $attachment->getClientMimeType();
                 $reply->attachment_original_name = $attachment->getClientOriginalName();
@@ -201,9 +205,8 @@ class PostService
                 $reply->attachment_moderation_summary = null;
                 $reply->attachment_is_blurred = $moderationEnabled && $isImageAttachment;
                 $reply->attachment_hidden_at = null;
+                $reply->save();
             }
-
-            $reply->save();
 
             HashtagParser::syncHashtags($reply, $content);
             if ($moderationEnabled) {
@@ -230,9 +233,7 @@ class PostService
 
     public function deletePost(Post $post): void
     {
-        if ($post->attachment_path) {
-            Storage::disk('public')->delete($post->attachment_path);
-        }
+        $this->mediaStorage->delete($post->attachment_path);
 
         $post->delete();
     }

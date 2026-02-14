@@ -9,6 +9,35 @@
 
 ## AstroKomunita Project
 
+## Media storage (uploads)
+
+- Uploads use Laravel Storage API only (no direct writes to `/public`).
+- Database stores only file paths (`avatar_path`, `cover_path`, `attachment_path`, `cover_image_path`), not blobs.
+- Frontend consumes URLs returned by API (`avatar_url`, `cover_url`, `attachment_url`, `cover_image_url`).
+
+### Setup
+
+```powershell
+php artisan storage:link
+```
+
+### Environment
+
+```env
+FILES_DISK=public
+FILES_CLOUD_DISK=s3
+```
+
+- `FILES_DISK=public` (dev default): files are saved under `storage/app/public` and served via `/storage` symlink.
+- For cloud-ready deployment, switch `FILES_DISK` to a cloud disk (for example `s3`) and configure that disk.
+
+### Folder layout
+
+- avatars: `avatars/{userId}/...`
+- covers: `covers/{userId}/...`
+- post attachments: `posts/{postId}/...`
+- blog covers: `blog-covers/{userId}/...`
+
 ## Personalizovany feed udalosti
 
 ### Co sa uklada

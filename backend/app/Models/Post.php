@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
 use App\Models\Hashtag;
+use App\Services\Storage\MediaStorageService;
 
 class Post extends Model
 {
@@ -137,15 +137,7 @@ class Post extends Model
             return null;
         }
 
-        $url = Storage::disk('public')->url($this->attachment_path);
-
-        // Ak už je absolútna, necháme ju
-        if (preg_match('#^https?://#i', $url)) {
-            return $url;
-        }
-
-        // Inak doplníme APP_URL
-        return rtrim(config('app.url'), '/') . $url;
+        return app(MediaStorageService::class)->absoluteUrl($this->attachment_path);
     }
 
     /**
@@ -237,3 +229,4 @@ class Post extends Model
         'liked_by_me',
     ];
 }
+

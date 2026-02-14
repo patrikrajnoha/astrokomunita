@@ -4,12 +4,14 @@ namespace App\Services\Moderation;
 
 use App\Models\ModerationLog;
 use App\Models\Post;
+use App\Services\Storage\MediaStorageService;
 use Illuminate\Support\Facades\Storage;
 
 class ModerationService
 {
     public function __construct(
         private readonly ModerationClient $client,
+        private readonly MediaStorageService $mediaStorage,
     ) {
     }
 
@@ -121,7 +123,7 @@ class ModerationService
             ];
         }
 
-        $disk = Storage::disk('public');
+        $disk = Storage::disk($this->mediaStorage->diskName());
         if (!$disk->exists($post->attachment_path)) {
             $this->writeLog(
                 entityType: 'media',
@@ -140,7 +142,8 @@ class ModerationService
         }
 
         $startedAt = microtime(true);
-        $absolutePath = $disk->path($post->attachment_path);
+        $cleanupPath = null;
+        $absolutePath = $this->resolveAttachmentPathForModeration($disk, $post->attachment_path, $cleanupPath);
 
         try {
             $response = $this->client->moderateImageFromPath($absolutePath);
@@ -159,6 +162,10 @@ class ModerationService
             );
 
             throw new ModerationTemporaryException($exception->getMessage(), previous: $exception);
+        } finally {
+            if (is_string($cleanupPath) && $cleanupPath !== '' && is_file($cleanupPath)) {
+                @unlink($cleanupPath);
+            }
         }
 
         $nsfwScore = (float) ($response['nsfw_score'] ?? 0);
@@ -297,5 +304,46 @@ class ModerationService
     private function latencyMs(float $startedAt): int
     {
         return (int) max(0, round((microtime(true) - $startedAt) * 1000));
+    }
+
+    private function resolveAttachmentPathForModeration($disk, string $storagePath, ?string &$cleanupPath = null): string
+    {
+        $cleanupPath = null;
+
+        try {
+            $absolute = $disk->path($storagePath);
+            if (is_string($absolute) && $absolute !== '' && is_file($absolute)) {
+                return $absolute;
+            }
+        } catch (\Throwable) {
+            // Disk may not provide local paths (e.g. cloud adapters).
+        }
+
+        $stream = $disk->readStream($storagePath);
+        if ($stream === false || !is_resource($stream)) {
+            throw new ModerationTemporaryException('Unable to read attachment stream for moderation.');
+        }
+
+        $tmpPath = tempnam(sys_get_temp_dir(), 'mod_');
+        if ($tmpPath === false) {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+            throw new ModerationTemporaryException('Unable to create temporary file for moderation.');
+        }
+
+        $tmpHandle = fopen($tmpPath, 'wb');
+        if (!is_resource($tmpHandle)) {
+            fclose($stream);
+            @unlink($tmpPath);
+            throw new ModerationTemporaryException('Unable to open temporary file for moderation.');
+        }
+
+        stream_copy_to_stream($stream, $tmpHandle);
+        fclose($stream);
+        fclose($tmpHandle);
+
+        $cleanupPath = $tmpPath;
+        return $tmpPath;
     }
 }

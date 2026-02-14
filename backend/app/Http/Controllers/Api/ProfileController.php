@@ -3,15 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Storage\MediaStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        private readonly MediaStorageService $mediaStorage,
+    ) {
+    }
+
     public function update(Request $request)
     {
         $user = $request->user();
@@ -88,9 +93,9 @@ class ProfileController extends Controller
 
         $type = $validated['type'];
         $file = $request->file('file');
-        $disk = Storage::disk('public');
-        $directory = $type === 'avatar' ? "avatars/{$user->id}" : "covers/{$user->id}";
-        $path = $file->store($directory, 'public');
+        $path = $type === 'avatar'
+            ? $this->mediaStorage->storeAvatar($file, (int) $user->id)
+            : $this->mediaStorage->storeCover($file, (int) $user->id);
 
         $column = $type === 'avatar' ? 'avatar_path' : 'cover_path';
         $oldPath = $user->{$column};
@@ -98,8 +103,8 @@ class ProfileController extends Controller
         $user->{$column} = $path;
         $user->save();
 
-        if ($oldPath && $oldPath !== $path && $disk->exists($oldPath)) {
-            $disk->delete($oldPath);
+        if ($oldPath && $oldPath !== $path) {
+            $this->mediaStorage->delete($oldPath);
         }
 
         return response()->json($user->fresh());

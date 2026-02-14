@@ -13,9 +13,12 @@ class ReplyPostRequest extends FormRequest
 
     public function rules(): array
     {
+        $mimes = implode(',', (array) config('media.post_attachment_mimes', []));
+        $maxKb = (int) config('media.post_attachment_max_kb', 10240);
+
         return [
             'content' => ['required', 'string', 'min:1', 'max:2000'],
-            'attachment' => ['nullable', 'file', 'max:5120', 'mimes:jpg,jpeg,png,webp,gif,pdf,txt,doc,docx'],
+            'attachment' => ['nullable', 'file', 'max:' . $maxKb, 'mimes:' . $mimes],
         ];
     }
 

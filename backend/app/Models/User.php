@@ -9,9 +9,9 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Services\Storage\MediaStorageService;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -87,12 +87,12 @@ class User extends Authenticatable implements MustVerifyEmail
             return null;
         }
 
-        $disk = Storage::disk('public');
-        if (!$disk->exists($path)) {
+        $media = app(MediaStorageService::class);
+        if (!$media->exists($path)) {
             return null;
         }
 
-        return $disk->url($path);
+        return $media->absoluteUrl($path);
     }
 
     public function getCoverUrlAttribute(): ?string
@@ -102,12 +102,12 @@ class User extends Authenticatable implements MustVerifyEmail
             return null;
         }
 
-        $disk = Storage::disk('public');
-        if (!$disk->exists($path)) {
+        $media = app(MediaStorageService::class);
+        if (!$media->exists($path)) {
             return null;
         }
 
-        return $disk->url($path);
+        return $media->absoluteUrl($path);
     }
 
     public function getLocationMetaAttribute(): ?array

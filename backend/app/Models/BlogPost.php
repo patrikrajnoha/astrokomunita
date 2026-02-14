@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
+use App\Services\Storage\MediaStorageService;
 
 class BlogPost extends Model
 {
@@ -65,12 +65,6 @@ class BlogPost extends Model
             return null;
         }
 
-        $url = Storage::disk('public')->url($this->cover_image_path);
-
-        if (preg_match('#^https?://#i', $url)) {
-            return $url;
-        }
-
-        return rtrim(config('app.url'), '/') . $url;
+        return app(MediaStorageService::class)->absoluteUrl($this->cover_image_path);
     }
 }
