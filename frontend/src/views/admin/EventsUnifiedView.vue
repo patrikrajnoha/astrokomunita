@@ -53,9 +53,39 @@
       <div v-else-if="data" class="tableContainer">
         <div class="tableHeader">
           <h2>Events List</h2>
-          <div class="tableInfo">
-            Page {{ pagination?.currentPage }} / {{ pagination?.lastPage }} (total {{ pagination?.total }})
+          <div class="tableHeaderRight">
+            <div class="tableActions">
+              <button
+                class="actionBtn secondaryAction"
+                :disabled="translationActionLoading"
+                @click="previewTranslationBackfill"
+              >
+                Preview retranslate
+              </button>
+              <button
+                class="actionBtn primaryAction"
+                :disabled="translationActionLoading"
+                @click="runTranslationBackfill"
+              >
+                Run retranslate
+              </button>
+            </div>
+            <div class="tableInfo">
+              Page {{ pagination?.currentPage }} / {{ pagination?.lastPage }} (total {{ pagination?.total }})
+            </div>
           </div>
+        </div>
+
+        <div v-if="translationError" class="translationNotice translationError">
+          {{ translationError }}
+        </div>
+        <div v-else-if="translationSummary" class="translationNotice translationOk">
+          status={{ translationSummary.status }} |
+          candidates={{ translationSummary.summary?.total_candidates ?? 0 }} |
+          translated={{ translationSummary.summary?.translated ?? 0 }} |
+          failed={{ translationSummary.summary?.failed ?? 0 }} |
+          events_updated={{ translationSummary.summary?.events_updated ?? 0 }} |
+          dry_run={{ translationSummary.summary?.dry_run ? 'yes' : 'no' }}
         </div>
 
         <div class="tableWrapper">
@@ -253,6 +283,9 @@ export default {
     const formLoading = ref(false)
     const formError = ref('')
     const formSuccess = ref('')
+    const translationActionLoading = ref(false)
+    const translationError = ref('')
+    const translationSummary = ref(null)
 
     const eventTypes = [
       { value: 'meteor_shower', label: 'Meteory' },
@@ -372,6 +405,40 @@ export default {
       return d.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
     }
 
+    const requestTranslationBackfill = async (dryRun) => {
+      translationActionLoading.value = true
+      translationError.value = ''
+      translationSummary.value = null
+
+      try {
+        const response = await http.post('/admin/events/retranslate', {
+          dry_run: dryRun,
+          force: false,
+          limit: 0,
+        })
+        translationSummary.value = response.data
+
+        if (!dryRun) {
+          await refresh()
+        }
+      } catch (err) {
+        translationError.value = err?.response?.data?.message || 'Retranslation request failed.'
+      } finally {
+        translationActionLoading.value = false
+      }
+    }
+
+    const previewTranslationBackfill = async () => {
+      await requestTranslationBackfill(true)
+    }
+
+    const runTranslationBackfill = async () => {
+      if (!window.confirm('Run retranslation for approved events now?')) {
+        return
+      }
+      await requestTranslationBackfill(false)
+    }
+
     // Reset form when switching to create view
     watch(currentView, (newView) => {
       if (newView === 'create') {
@@ -393,12 +460,17 @@ export default {
       formLoading,
       formError,
       formSuccess,
+      translationActionLoading,
+      translationError,
+      translationSummary,
       form,
       eventTypes,
       isEdit,
       editEvent,
       submitForm,
       formatDate,
+      previewTranslationBackfill,
+      runTranslationBackfill,
     }
   }
 }
@@ -518,6 +590,7 @@ export default {
   align-items: center;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 1rem;
 }
 
 .tableHeader h2 {
@@ -527,9 +600,50 @@ export default {
   margin: 0;
 }
 
+.tableHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.tableActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .tableInfo {
   font-size: 0.875rem;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.secondaryAction {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.primaryAction {
+  border-color: #3b82f6;
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.translationNotice {
+  margin: 0.75rem 1rem 0 1rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+}
+
+.translationOk {
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  background-color: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+}
+
+.translationError {
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
 }
 
 .tableWrapper {
@@ -808,6 +922,16 @@ export default {
   .headerContent {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .tableHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tableHeaderRight {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .formGrid {
