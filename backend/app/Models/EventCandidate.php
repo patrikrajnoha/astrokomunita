@@ -17,9 +17,11 @@ class EventCandidate extends Model
     public const STATUS_DUPLICATE = EventCandidateStatus::Duplicate->value;
 
     protected $fillable = [
+        'event_source_id',
         'source_name',
         'source_url',
         'source_uid',
+        'external_id',
         'source_hash',
 
         'title',
@@ -52,6 +54,11 @@ class EventCandidate extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function eventSource(): BelongsTo
+    {
+        return $this->belongsTo(EventSource::class);
     }
 
     public function scopePending($query)
