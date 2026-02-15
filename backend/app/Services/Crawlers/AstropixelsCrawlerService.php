@@ -6,11 +6,22 @@ use App\Enums\EventSource;
 use App\Services\Crawlers\Astropixels\AstropixelsAlmanacParser;
 use Carbon\CarbonImmutable;
 use DomainException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
 class AstropixelsCrawlerService implements CrawlerInterface
 {
+    private const REQUEST_TIMEOUT_SECONDS = 20;
+    private const REQUEST_CONNECT_TIMEOUT_SECONDS = 10;
+    private const REQUEST_RETRY_TIMES = 2;
+    private const REQUEST_RETRY_SLEEP_MS = 500;
+    private const REQUEST_HEADERS = [
+        'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language' => 'sk-SK,sk;q=0.9,en;q=0.8',
+        'User-Agent' => 'AstrokomunitaCrawler/1.0 (+https://astropixels.com; research-use)',
+    ];
+
     public function __construct(
         private readonly AstropixelsAlmanacParser $parser,
     ) {
@@ -21,30 +32,38 @@ class AstropixelsCrawlerService implements CrawlerInterface
         $url = $this->buildUrlForYear($context->year);
         $verifyOption = $this->resolveSslVerifyOption();
 
-        $response = Http::timeout(20)
-            ->retry(2, 500)
+        $response = Http::connectTimeout(self::REQUEST_CONNECT_TIMEOUT_SECONDS)
+            ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+            ->retry(self::REQUEST_RETRY_TIMES, self::REQUEST_RETRY_SLEEP_MS)
             ->withOptions(['verify' => $verifyOption])
-            ->withHeaders([
-                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language' => 'sk-SK,sk;q=0.9,en;q=0.8',
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            ])
+            ->withHeaders(self::REQUEST_HEADERS)
             ->get($url);
 
-        $response->throw();
+        try {
+            $response->throw();
+        } catch (RequestException $e) {
+            throw new DomainException(
+                sprintf(
+                    'ASTROPIXELS_HTTP_ERROR: GET %s failed with status %s.',
+                    $url,
+                    $e->response?->status() ?? 'n/a'
+                ),
+                previous: $e
+            );
+        }
+
         $html = (string) $response->body();
 
         try {
-            $items = $this->parser->parse($html, $context->year, $url, $context->timezone);
+            $parseResult = $this->parser->parse($html, $context->year, $url, $context->timezone);
         } catch (Throwable $e) {
-            $snippet = substr(trim(strip_tags($html)), 0, 1200);
             throw new DomainException(
-                'Astropixels parser failed: '
-                . $e->getMessage()
-                . ' | html_snippet='
-                . $snippet
+                'ASTROPIXELS_PARSE_ERROR: ' . $e->getMessage(),
+                previous: $e
             );
         }
+
+        $items = $parseResult->items;
 
         if ($context->from || $context->to) {
             $items = array_values(array_filter($items, function (CandidateItem $item) use ($context) {
@@ -64,6 +83,9 @@ class AstropixelsCrawlerService implements CrawlerInterface
             fetchedAt: CarbonImmutable::now('UTC'),
             items: $items,
             fetchedBytes: strlen($html),
+            sourceUrl: $url,
+            headersUsed: self::REQUEST_HEADERS !== [],
+            diagnostics: $parseResult->diagnostics,
         );
     }
 

@@ -34,6 +34,13 @@ class CrawlAstropixelsEventsCommand extends Command
         $timezone = (string) config('events.source_timezone', 'Europe/Bratislava');
         $dryRun = (bool) $this->option('dry-run');
         $hasFailures = false;
+        $totals = [
+            'fetched' => 0,
+            'created' => 0,
+            'updated' => 0,
+            'duplicates' => 0,
+            'errors' => 0,
+        ];
 
         foreach ($years as $year) {
             $context = new CrawlContext(
@@ -45,21 +52,46 @@ class CrawlAstropixelsEventsCommand extends Command
             );
 
             $run = $this->orchestrator->run($this->crawler, $context);
+            $fetched = (int) $run->fetched_count;
+            $created = (int) $run->created_candidates_count;
+            $updated = (int) $run->updated_candidates_count;
+            $duplicates = (int) $run->skipped_duplicates_count;
+            $errors = (int) $run->errors_count;
+
+            $totals['fetched'] += $fetched;
+            $totals['created'] += $created;
+            $totals['updated'] += $updated;
+            $totals['duplicates'] += $duplicates;
+            $totals['errors'] += $errors;
 
             $this->line(sprintf(
-                '[%d] status=%s fetched=%d created=%d duplicates=%d',
+                '[%d] status=%s fetched=%d created=%d updated=%d skipped=%d errors=%d',
                 $year,
                 (string) $run->status,
-                (int) $run->fetched_count,
-                (int) $run->created_candidates_count,
-                (int) $run->skipped_duplicates_count
+                $fetched,
+                $created,
+                $updated,
+                $duplicates,
+                $errors
             ));
 
             if ($run->status === 'failed') {
                 $hasFailures = true;
-                $this->error((string) ($run->error_summary ?: 'Crawler failed.'));
+                $errorCode = (string) ($run->error_code ?: 'crawler_runtime_error');
+                $this->error(sprintf('[%d] %s: %s', $year, $errorCode, (string) ($run->error_summary ?: 'Crawler failed.')));
             }
         }
+
+        $this->newLine();
+        $this->info(sprintf(
+            'Summary years=%d fetched=%d created=%d updated=%d skipped=%d errors=%d',
+            count($years),
+            $totals['fetched'],
+            $totals['created'],
+            $totals['updated'],
+            $totals['duplicates'],
+            $totals['errors']
+        ));
 
         return $hasFailures ? self::FAILURE : self::SUCCESS;
     }

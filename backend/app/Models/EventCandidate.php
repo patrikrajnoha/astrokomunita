@@ -22,6 +22,7 @@ class EventCandidate extends Model
         'source_url',
         'source_uid',
         'external_id',
+        'stable_key',
         'source_hash',
 
         'title',
