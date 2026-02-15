@@ -20,6 +20,7 @@ return [
     */
     'cache_enabled' => filter_var(env('TRANSLATION_CACHE_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
     'cache_ttl' => (int) env('TRANSLATION_CACHE_TTL', 86400),
+    'cache_key_version' => (string) env('TRANSLATION_CACHE_KEY_VERSION', 'v6'),
 
     /*
     |--------------------------------------------------------------------------
@@ -34,6 +35,40 @@ return [
     'allow_sync_queue' => filter_var(env('TRANSLATION_ALLOW_SYNC_QUEUE', false), FILTER_VALIDATE_BOOLEAN),
     'events' => [
         'enabled' => filter_var(env('TRANSLATION_EVENTS_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Grammar quality pass (optional, fail-open)
+    |--------------------------------------------------------------------------
+    |
+    | Runs after translation to improve Slovak grammar quality.
+    | Recommended provider: self-hosted LanguageTool.
+    |
+    */
+    'grammar' => [
+        'enabled' => filter_var(env('TRANSLATION_GRAMMAR_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+        'provider' => env('TRANSLATION_GRAMMAR_PROVIDER', 'languagetool'),
+        'languages' => array_values(array_filter(array_map(
+            static fn (string $value): string => trim($value),
+            explode(',', (string) env('TRANSLATION_GRAMMAR_LANGUAGES', 'sk'))
+        ))),
+
+        'languagetool' => [
+            'base_url' => env('LANGUAGETOOL_BASE_URL', 'http://127.0.0.1:8081'),
+            'check_path' => env('LANGUAGETOOL_CHECK_PATH', '/v2/check'),
+            'language' => env('LANGUAGETOOL_LANGUAGE', 'sk-SK'),
+            'timeout' => (int) env('LANGUAGETOOL_TIMEOUT', 6),
+            'connect_timeout' => (int) env('LANGUAGETOOL_CONNECT_TIMEOUT', 2),
+            'retry' => (int) env('LANGUAGETOOL_RETRY', 1),
+            'retry_sleep_ms' => (int) env('LANGUAGETOOL_RETRY_SLEEP_MS', 200),
+            'verify_ssl' => filter_var(env('LANGUAGETOOL_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
+            'internal_token' => env('LANGUAGETOOL_INTERNAL_TOKEN', env('TRANSLATION_INTERNAL_TOKEN', env('INTERNAL_TOKEN', ''))),
+            'max_fixes' => (int) env('LANGUAGETOOL_MAX_FIXES', 30),
+            'enabled_rules' => env('LANGUAGETOOL_ENABLED_RULES', ''),
+            'disabled_rules' => env('LANGUAGETOOL_DISABLED_RULES', ''),
+            'enabled_only' => filter_var(env('LANGUAGETOOL_ENABLED_ONLY', false), FILTER_VALIDATE_BOOLEAN),
+        ],
     ],
 
     'libretranslate' => [

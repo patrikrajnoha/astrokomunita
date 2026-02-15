@@ -6,6 +6,8 @@ use App\Models\TranslationCacheEntry;
 use App\Models\TranslationLog;
 use App\Models\TranslationOverride;
 use App\Services\Translation\Contracts\TranslationProviderInterface;
+use App\Services\Translation\Grammar\Contracts\GrammarCheckerInterface;
+use App\Services\Translation\Grammar\GrammarCheckException;
 use App\Services\Translation\Providers\ArgosMicroserviceProvider;
 use App\Services\Translation\Providers\LibreTranslateProvider;
 use App\Services\Translation\TranslationResult;
@@ -20,6 +22,7 @@ class TranslationService
     public function __construct(
         private readonly LibreTranslateProvider $libreTranslateProvider,
         private readonly ArgosMicroserviceProvider $argosMicroserviceProvider,
+        private readonly GrammarCheckerInterface $grammarChecker,
     ) {
     }
 
@@ -108,6 +111,12 @@ class TranslationService
             try {
                 $providerResult = $provider->translate($preparedInput, $from, $to);
                 $translated = $this->applyOverridesAfterTranslation($providerResult->translatedText, $from, $to);
+                $translated = $this->applyGrammarCorrections(
+                    text: $translated,
+                    languageTo: $to,
+                    sourceTextHash: $sourceTextHash
+                );
+                $translated = $this->applyTargetLanguageOverrides($translated, $to);
 
                 $durationMs = $providerResult->durationMs > 0
                     ? $providerResult->durationMs
@@ -213,7 +222,20 @@ class TranslationService
 
     private function buildCacheKey(string $text, string $from, string $to): string
     {
-        return hash('sha256', implode('|', [$text, $from, $to]));
+        $grammarEnabled = $this->shouldApplyGrammar($to) ? 'grammar-on' : 'grammar-off';
+        $grammarProvider = strtolower(trim((string) config('translation.grammar.provider', 'none')));
+        $grammarLanguage = trim((string) config('translation.grammar.languagetool.language', ''));
+        $version = trim((string) config('translation.cache_key_version', 'v6'));
+
+        return hash('sha256', implode('|', [
+            $text,
+            $from,
+            $to,
+            $version,
+            $grammarEnabled,
+            $grammarProvider,
+            $grammarLanguage,
+        ]));
     }
 
     private function applyOverridesBeforeTranslation(string $text, string $from, string $to): string
@@ -223,7 +245,13 @@ class TranslationService
 
     private function applyOverridesAfterTranslation(string $text, string $from, string $to): string
     {
-        return $this->applyOverrides($text, $from, $to);
+        $value = $this->applyOverrides($text, $from, $to);
+        return $this->applyTargetLanguageOverrides($value, $to);
+    }
+
+    private function applyTargetLanguageOverrides(string $text, string $language): string
+    {
+        return $this->applyOverrides($text, $language, $language);
     }
 
     private function applyOverrides(string $text, string $from, string $to): string
@@ -241,15 +269,25 @@ class TranslationService
                 continue;
             }
 
-            $pattern = '/' . preg_quote($source, '/') . '/u';
-            if (! (bool) ($override['is_case_sensitive'] ?? false)) {
-                $pattern .= 'i';
-            }
+            $pattern = $this->buildOverridePattern(
+                source: $source,
+                caseSensitive: (bool) ($override['is_case_sensitive'] ?? false)
+            );
 
             $value = preg_replace($pattern, $target, $value) ?? $value;
         }
 
         return $value;
+    }
+
+    private function buildOverridePattern(string $source, bool $caseSensitive): string
+    {
+        $escaped = preg_quote($source, '/');
+        $leftBoundary = preg_match('/^[\pL\pN]/u', $source) === 1 ? '(?<![\pL\pN])' : '';
+        $rightBoundary = preg_match('/[\pL\pN]$/u', $source) === 1 ? '(?![\pL\pN])' : '';
+        $flags = $caseSensitive ? 'u' : 'ui';
+
+        return '/' . $leftBoundary . $escaped . $rightBoundary . '/' . $flags;
     }
 
     /**
@@ -281,6 +319,100 @@ class TranslationService
         }
 
         return Cache::remember($cacheKey, $ttl, $loader);
+    }
+
+    private function applyGrammarCorrections(string $text, string $languageTo, string $sourceTextHash): string
+    {
+        if (! $this->shouldApplyGrammar($languageTo)) {
+            return $text;
+        }
+
+        $provider = strtolower(trim((string) config('translation.grammar.provider', 'languagetool')));
+        if ($provider !== 'languagetool') {
+            return $text;
+        }
+
+        $grammarLanguage = trim((string) config('translation.grammar.languagetool.language', $languageTo));
+        if ($grammarLanguage === '') {
+            $grammarLanguage = $languageTo;
+        }
+
+        try {
+            $result = $this->grammarChecker->correct($text, $grammarLanguage);
+
+            if ($result->appliedFixes > 0) {
+                Log::info('Translation grammar corrections applied', [
+                    'provider' => $result->provider,
+                    'fixes' => $result->appliedFixes,
+                    'duration_ms' => $result->durationMs,
+                    'language_to' => $languageTo,
+                    'original_text_hash' => $sourceTextHash,
+                ]);
+            }
+
+            return $result->correctedText;
+        } catch (GrammarCheckException $exception) {
+            Log::warning('Translation grammar check failed', [
+                'provider' => $provider,
+                'error_code' => $exception->errorCode(),
+                'status_code' => $exception->statusCode(),
+                'message' => $exception->getMessage(),
+                'language_to' => $languageTo,
+                'original_text_hash' => $sourceTextHash,
+            ]);
+
+            return $text;
+        } catch (Throwable $exception) {
+            Log::warning('Translation grammar check failed with unexpected error', [
+                'provider' => $provider,
+                'message' => $exception->getMessage(),
+                'language_to' => $languageTo,
+                'original_text_hash' => $sourceTextHash,
+            ]);
+
+            return $text;
+        }
+    }
+
+    private function shouldApplyGrammar(string $languageTo): bool
+    {
+        if (! (bool) config('translation.grammar.enabled', false)) {
+            return false;
+        }
+
+        $target = strtolower(trim($languageTo));
+        if ($target === '') {
+            return false;
+        }
+
+        $configured = config('translation.grammar.languages', ['sk']);
+        if (is_string($configured)) {
+            $configured = [$configured];
+        }
+        if (! is_array($configured)) {
+            return false;
+        }
+
+        foreach ($configured as $language) {
+            $value = strtolower(trim((string) $language));
+            if ($value === '') {
+                continue;
+            }
+
+            if ($target === $value) {
+                return true;
+            }
+
+            if (str_starts_with($target, $value . '-')) {
+                return true;
+            }
+
+            if (str_starts_with($value, $target . '-')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function getCachedTranslation(string $cacheKey, string $from, string $to): ?TranslationResult
