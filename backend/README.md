@@ -423,6 +423,14 @@ php artisan events:crawl-astropixels --year=2026 --dry-run
 - Input times are interpreted in `Europe/Bratislava` and stored in DB as UTC.
 - Crawl run logs are persisted in `crawl_runs` with status, fetched count, created candidates, duplicates and error summary.
 
+### SSL/TLS for crawler (recommended for thesis + production)
+- Keep verification enabled by default:
+  - `EVENTS_CRAWLER_SSL_VERIFY=true`
+- If your local PHP/OpenSSL trust store is broken on Windows, point crawler to CA bundle:
+  - `EVENTS_CRAWLER_CA_BUNDLE=C:\absolute\path\to\backend\storage\certs\cacert.pem`
+- Development-only fallback (not recommended for production):
+  - `EVENTS_CRAWLER_SSL_VERIFY=false`
+
 ### Scheduler
 - `routes/console.php` schedules:
   - daily bounded current year crawl
