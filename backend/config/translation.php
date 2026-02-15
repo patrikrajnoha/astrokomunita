@@ -20,7 +20,7 @@ return [
     */
     'cache_enabled' => filter_var(env('TRANSLATION_CACHE_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
     'cache_ttl' => (int) env('TRANSLATION_CACHE_TTL', 86400),
-    'cache_key_version' => (string) env('TRANSLATION_CACHE_KEY_VERSION', 'v6'),
+    'cache_key_version' => (string) env('TRANSLATION_CACHE_KEY_VERSION', 'v7'),
 
     /*
     |--------------------------------------------------------------------------
