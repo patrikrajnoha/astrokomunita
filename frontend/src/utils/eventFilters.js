@@ -11,16 +11,21 @@ export function resolveDefaultYear(meta, now = new Date()) {
   return clampYear(candidate, minYear, maxYear)
 }
 
+export function normalizePeriod(period) {
+  return ['month', 'week', 'year'].includes(period) ? period : 'month'
+}
+
 export function buildPeriodQuery({ period, year, month, week }) {
+  const normalizedPeriod = normalizePeriod(period)
   const query = {
-    period: period || 'month',
+    period: normalizedPeriod,
     year: String(year),
   }
 
-  if (query.period === 'month') {
+  if (normalizedPeriod === 'month') {
     query.month = String(month)
     delete query.week
-  } else if (query.period === 'week') {
+  } else if (normalizedPeriod === 'week') {
     query.week = String(week)
     delete query.month
   } else {
@@ -29,4 +34,22 @@ export function buildPeriodQuery({ period, year, month, week }) {
   }
 
   return query
+}
+
+export function resolvePeriodSelectionFromQuery(query, defaults = {}) {
+  const fallbackDate = defaults.now instanceof Date ? defaults.now : new Date()
+  const fallbackYear = Number(defaults.year ?? fallbackDate.getFullYear())
+  const fallbackMonth = Number(defaults.month ?? fallbackDate.getMonth() + 1)
+  const fallbackWeek = Number(defaults.week ?? 1)
+
+  const year = Number(query?.year)
+  const month = Number(query?.month)
+  const week = Number(query?.week)
+
+  return {
+    period: normalizePeriod(query?.period),
+    year: Number.isFinite(year) ? year : fallbackYear,
+    month: Number.isFinite(month) && month >= 1 && month <= 12 ? month : fallbackMonth,
+    week: Number.isFinite(week) && week >= 1 && week <= 53 ? week : fallbackWeek,
+  }
 }
