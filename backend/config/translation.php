@@ -69,6 +69,14 @@ return [
             'disabled_rules' => env('LANGUAGETOOL_DISABLED_RULES', ''),
             'enabled_only' => filter_var(env('LANGUAGETOOL_ENABLED_ONLY', false), FILTER_VALIDATE_BOOLEAN),
         ],
+
+        'ollama' => [
+            'language' => env('TRANSLATION_GRAMMAR_OLLAMA_LANGUAGE', 'sk'),
+            'model' => env('TRANSLATION_GRAMMAR_OLLAMA_MODEL', config('ai.ollama.model', 'mistral')),
+            'temperature' => (float) env('TRANSLATION_GRAMMAR_OLLAMA_TEMPERATURE', 0.0),
+            'num_predict' => (int) env('TRANSLATION_GRAMMAR_OLLAMA_NUM_PREDICT', 256),
+            'timeout' => (int) env('TRANSLATION_GRAMMAR_OLLAMA_TIMEOUT', 20),
+        ],
     ],
 
     'libretranslate' => [
