@@ -202,4 +202,23 @@ class TranslationServiceTest extends TestCase
         $this->assertSame('Mesiac pri vzostupny uzol', $result->translatedText);
     }
 
+    public function test_it_applies_hardcoded_lunar_quarter_phrase_fixes(): void
+    {
+        config()->set('translation.default_provider', 'libretranslate');
+        config()->set('translation.fallback_provider', '');
+        config()->set('translation.cache_enabled', false);
+        config()->set('translation.libretranslate.base_url', 'http://libre.test');
+        config()->set('translation.grammar.enabled', false);
+
+        Http::fake([
+            'http://libre.test/*' => Http::response([
+                'translatedText' => 'prva tlac mesiaca',
+            ], 200),
+        ]);
+
+        $result = app(TranslationService::class)->translate('First Quarter Moon', 'en', 'sk');
+
+        $this->assertSame('prvá štvrť Mesiaca', $result->translatedText);
+    }
+
 }

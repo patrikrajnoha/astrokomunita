@@ -251,7 +251,28 @@ class TranslationService
 
     private function applyTargetLanguageOverrides(string $text, string $language): string
     {
-        return $this->applyOverrides($text, $language, $language);
+        $value = $this->applyOverrides($text, $language, $language);
+        return $this->applyAstronomyPhraseFixes($value, $language);
+    }
+
+    private function applyAstronomyPhraseFixes(string $text, string $language): string
+    {
+        $lang = strtolower(trim($language));
+        if ($lang !== 'sk' && ! str_starts_with($lang, 'sk-')) {
+            return $text;
+        }
+
+        $patterns = [
+            '/\bprv(?:a|á)\s+tla(?:c|č)\s+mesiaca\b/iu' => 'prvá štvrť Mesiaca',
+            '/\bpolo(?:z|ž)en(?:a|á)\s+tla(?:c|č)\s+mesiaca\b/iu' => 'posledná štvrť Mesiaca',
+        ];
+
+        $value = $text;
+        foreach ($patterns as $pattern => $replacement) {
+            $value = preg_replace($pattern, $replacement, $value) ?? $value;
+        }
+
+        return $value;
     }
 
     private function applyOverrides(string $text, string $from, string $to): string
