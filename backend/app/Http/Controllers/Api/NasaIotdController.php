@@ -54,7 +54,7 @@ class NasaIotdController extends Controller
 
     private function fetchFeed(): SimpleXMLElement
     {
-        $body = Http::withoutVerifying()
+        $body = Http::secure()
             ->accept('application/rss+xml, application/xml, text/xml')
             ->get(self::FEED_URL)
             ->throw()

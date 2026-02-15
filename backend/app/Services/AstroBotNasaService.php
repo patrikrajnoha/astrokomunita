@@ -7,6 +7,7 @@ use App\Jobs\TranslateRssItemJob;
 use App\Models\AstroBotRun;
 use App\Models\Post;
 use App\Models\RssItem;
+use App\Support\Http\SslVerificationPolicy;
 use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
@@ -131,6 +132,7 @@ class AstroBotNasaService
 
         try {
             $response = Http::withOptions(['verify' => $verifyOption])
+                ->withAttributes(['ssl_verify' => $verifyOption])
                 ->accept('application/rss+xml, application/xml, text/xml, application/atom+xml')
                 ->withUserAgent((string) config('astrobot.rss_user_agent', 'AstroKomunita/AstroBot NASA Sync'))
                 ->timeout($timeout)
@@ -174,7 +176,9 @@ class AstroBotNasaService
             }
         }
 
-        return $configuredVerify;
+        return app(SslVerificationPolicy::class)->resolveVerifyOption(
+            allowInsecure: ! $configuredVerify
+        );
     }
 
     private function buildFetchErrorMessage(string $message, bool|string $verifyOption): string

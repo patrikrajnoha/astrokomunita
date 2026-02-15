@@ -5,6 +5,7 @@ namespace App\Services\Translation\Providers;
 use App\Services\Translation\Contracts\TranslationProviderInterface;
 use App\Services\Translation\TranslationResult;
 use App\Services\Translation\TranslationServiceException;
+use App\Support\Http\SslVerificationPolicy;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -15,6 +16,9 @@ class LibreTranslateProvider implements TranslationProviderInterface
     {
         $startedAt = microtime(true);
         $config = (array) config('translation.libretranslate', []);
+        $verifyOption = app(SslVerificationPolicy::class)->resolveVerifyOption(
+            allowInsecure: ! (bool) ($config['verify_ssl'] ?? true)
+        );
 
         try {
             $response = Http::baseUrl((string) ($config['base_url'] ?? 'http://127.0.0.1:5000'))
@@ -27,8 +31,9 @@ class LibreTranslateProvider implements TranslationProviderInterface
                     false
                 )
                 ->withOptions([
-                    'verify' => (bool) ($config['verify_ssl'] ?? true),
+                    'verify' => $verifyOption,
                 ])
+                ->withAttributes(['ssl_verify' => $verifyOption])
                 ->acceptJson()
                 ->withHeaders($this->resolveHeaders($config))
                 ->asForm()

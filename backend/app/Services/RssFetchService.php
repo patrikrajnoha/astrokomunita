@@ -90,7 +90,7 @@ class RssFetchService
 
     private function fetchXml(string $url): SimpleXMLElement
     {
-        $body = Http::withoutVerifying()
+        $body = Http::secure()
             ->accept('application/rss+xml, application/xml, text/xml')
             ->timeout(15)
             ->get($url)
