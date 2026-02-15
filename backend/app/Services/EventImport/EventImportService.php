@@ -48,6 +48,7 @@ class EventImportService
     ): EventImportResult {
         $total = count($items);
         $imported = 0;
+        $updated = 0;
         $duplicates = 0;
 
         foreach ($items as $item) {
@@ -81,36 +82,13 @@ class EventImportService
             $payloadString = json_encode($item->rawPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
             $sourceHash = $this->buildSourceHash($sourceName, $sourceUid, $payloadString);
 
-            $exists = EventCandidate::query()
-                ->when(
-                    $eventSourceId,
-                    fn ($query) => $query->where('event_source_id', $eventSourceId),
-                    fn ($query) => $query->where('source_name', $sourceName)
-                )
-                ->where(function ($query) use ($sourceUid, $sourceHash) {
-                    if ($sourceUid !== null && $sourceUid !== '') {
-                        $query->orWhere('external_id', $sourceUid)
-                            ->orWhere('source_uid', $sourceUid);
-                    }
-                    $query->orWhere('source_hash', $sourceHash);
-                })
-                ->exists();
-
-            if ($exists) {
-                $duplicates++;
-                continue;
-            }
-
-            if ($dryRun) {
-                continue;
-            }
-
-            EventCandidate::create([
+            $attributes = [
                 'event_source_id' => $eventSourceId,
                 'source_name' => $sourceName,
                 'source_url' => $item->sourceUrl ?: $sourceUrl,
                 'source_uid' => $sourceUid,
                 'external_id' => $sourceUid,
+                'stable_key' => $sourceUid,
                 'source_hash' => $sourceHash,
 
                 'title' => $title,
@@ -125,12 +103,42 @@ class EventImportService
                 'description' => $description,
                 'raw_payload' => $payloadString,
                 'status' => EventCandidate::STATUS_PENDING,
-            ]);
+            ];
 
-            $imported++;
+            $existing = $this->findExistingCandidate(
+                sourceName: $sourceName,
+                eventSourceId: $eventSourceId,
+                sourceUid: $sourceUid,
+                sourceHash: $sourceHash
+            );
+
+            if ($existing === null) {
+                if (!$dryRun) {
+                    EventCandidate::create($attributes);
+                }
+                $imported++;
+                continue;
+            }
+
+            if (!$this->shouldUpdateCandidate($existing, $attributes)) {
+                $duplicates++;
+                continue;
+            }
+
+            if ($existing->status !== EventCandidate::STATUS_PENDING) {
+                $duplicates++;
+                continue;
+            }
+
+            if (!$dryRun) {
+                $existing->fill($attributes);
+                $existing->save();
+            }
+
+            $updated++;
         }
 
-        return new EventImportResult($total, $imported, $duplicates);
+        return new EventImportResult($total, $imported, $updated, $duplicates);
     }
 
     private function buildSourceUidFromNormalized(
@@ -161,6 +169,79 @@ class EventImportService
             (string) $sourceUid,
             hash('sha256', $payload),
         ]));
+    }
+
+    private function findExistingCandidate(
+        string $sourceName,
+        ?int $eventSourceId,
+        ?string $sourceUid,
+        string $sourceHash
+    ): ?EventCandidate {
+        return EventCandidate::query()
+            ->when(
+                $eventSourceId,
+                fn ($query) => $query->where('event_source_id', $eventSourceId),
+                fn ($query) => $query->where('source_name', $sourceName)
+            )
+            ->where(function ($query) use ($sourceUid, $sourceHash) {
+                if ($sourceUid !== null && $sourceUid !== '') {
+                    $query->where('external_id', $sourceUid)
+                        ->orWhere('source_uid', $sourceUid)
+                        ->orWhere('stable_key', $sourceUid)
+                        ->orWhere('source_hash', $sourceHash);
+
+                    return;
+                }
+
+                $query->where('source_hash', $sourceHash);
+            })
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    private function shouldUpdateCandidate(EventCandidate $candidate, array $attributes): bool
+    {
+        $fields = [
+            'event_source_id',
+            'source_name',
+            'source_url',
+            'source_uid',
+            'external_id',
+            'stable_key',
+            'source_hash',
+            'title',
+            'raw_type',
+            'type',
+            'start_at',
+            'end_at',
+            'max_at',
+            'short',
+            'description',
+            'raw_payload',
+        ];
+
+        foreach ($fields as $field) {
+            $current = $this->normalizeComparableValue($candidate->getAttribute($field));
+            $incoming = $this->normalizeComparableValue($attributes[$field] ?? null);
+            if ($current !== $incoming) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizeComparableValue(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        }
+
+        return trim((string) $value);
     }
 
     private function normalizeText(?string $value): ?string
