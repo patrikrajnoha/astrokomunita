@@ -14,11 +14,17 @@ class CrawlRunController extends Controller
         $perPage = max(1, min($perPage, 100));
 
         $sourceName = $request->query('source_name');
+        $sourceKey = $request->query('source_key');
+        $year = $request->query('year');
+        $status = $request->query('status');
         $from = $request->query('from');
         $to = $request->query('to');
 
         $items = CrawlRun::query()
             ->when($sourceName, fn ($q) => $q->where('source_name', $sourceName))
+            ->when($sourceKey, fn ($q) => $q->whereHas('eventSource', fn ($sub) => $sub->where('key', $sourceKey)))
+            ->when($year, fn ($q) => $q->where('year', (int) $year))
+            ->when($status, fn ($q) => $q->where('status', $status))
             ->when($from, fn ($q) => $q->where('started_at', '>=', $from))
             ->when($to, fn ($q) => $q->where('started_at', '<=', $to))
             ->orderByDesc('started_at')

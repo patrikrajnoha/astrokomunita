@@ -3,6 +3,7 @@
 namespace App\Services\EventImport;
 
 use App\Models\EventCandidate;
+use App\Services\Crawlers\CandidateItem;
 use App\Services\EventImport\Parsers\EventSourceParser;
 use Illuminate\Support\Str;
 
@@ -19,46 +20,77 @@ class EventImportService
         $payload = $this->fetcher->fetch($sourceUrl);
         $items = $parser->parse($payload);
 
+        $candidateItems = array_map(function (EventCandidateData $item) use ($sourceUrl, $payload) {
+            return new CandidateItem(
+                title: $item->title,
+                startsAtUtc: $item->startAt ? $item->startAt->toImmutable()->utc() : now('UTC')->toImmutable(),
+                endsAtUtc: $item->endAt ? $item->endAt->toImmutable()->utc() : null,
+                description: $item->description,
+                sourceUrl: $sourceUrl,
+                externalId: $item->sourceUid,
+                rawPayload: ['source_payload_hash' => hash('sha256', $payload)],
+                eventType: $item->type,
+            );
+        }, $items);
+
+        return $this->importFromCandidateItems($sourceName, $sourceUrl, $candidateItems);
+    }
+
+    /**
+     * @param array<int, CandidateItem> $items
+     */
+    public function importFromCandidateItems(
+        string $sourceName,
+        string $sourceUrl,
+        array $items,
+        ?int $eventSourceId = null,
+        bool $dryRun = false,
+    ): EventImportResult {
         $total = count($items);
         $imported = 0;
         $duplicates = 0;
 
         foreach ($items as $item) {
-            // Bez titulu nemá zmysel ukladať
-            if ($item->title === null || trim($item->title) === '') {
+            if (trim($item->title) === '') {
                 continue;
             }
 
-            // Normalizuj texty už pred generovaním UID (aby UID neobsahoval entity)
             $title = $this->normalizeText($item->title);
             if ($title === null) {
                 continue;
             }
 
-            $short = $this->normalizeText($item->short);
+            $short = $this->normalizeText(Str::limit($item->description ?? $title, 180));
             $description = $this->normalizeText($item->description);
 
-            // raw_type (čo prišlo zo zdroja) + normalized type (interná taxonómia)
-            $rawType = $this->normalizeText($item->type) ?? $item->type; // fallback na pôvodný string
+            $rawType = $this->normalizeText($item->eventType) ?? $item->eventType;
             $normalizedType = $this->typeClassifier->classify($rawType, $title);
 
-            // UID stavaj z normalizovaného titulu + NORMALIZOVANÉHO typu (stabilnejšie)
-            $sourceUid = $item->sourceUid ?: $this->buildSourceUidFromNormalized(
+            $startAt = $item->startsAtUtc;
+            $endAt = $item->endsAtUtc;
+            $maxAt = $startAt;
+
+            $sourceUid = $item->externalId ?: $this->buildSourceUidFromNormalized(
                 $title,
                 $normalizedType ?: 'other',
-                $item->startAt,
-                $item->endAt,
-                $item->maxAt
+                $startAt,
+                $endAt,
+                $maxAt
             );
 
-            // Hash viažeme aj na payload (audit/repro), aj na UID
-            $sourceHash = $this->buildSourceHash($sourceName, $sourceUid, $payload);
+            $payloadString = json_encode($item->rawPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
+            $sourceHash = $this->buildSourceHash($sourceName, $sourceUid, $payloadString);
 
             $exists = EventCandidate::query()
-                ->where('source_name', $sourceName)
+                ->when(
+                    $eventSourceId,
+                    fn ($query) => $query->where('event_source_id', $eventSourceId),
+                    fn ($query) => $query->where('source_name', $sourceName)
+                )
                 ->where(function ($query) use ($sourceUid, $sourceHash) {
                     if ($sourceUid !== null && $sourceUid !== '') {
-                        $query->orWhere('source_uid', $sourceUid);
+                        $query->orWhere('external_id', $sourceUid)
+                            ->orWhere('source_uid', $sourceUid);
                     }
                     $query->orWhere('source_hash', $sourceHash);
                 })
@@ -69,34 +101,30 @@ class EventImportService
                 continue;
             }
 
-            // Bezpečný fallback (hodí sa ak by max_at bolo NOT NULL)
-            $startAt = $item->startAt;
-            $endAt   = $item->endAt;
-            $maxAt   = $item->maxAt ?? $startAt;
+            if ($dryRun) {
+                continue;
+            }
 
             EventCandidate::create([
+                'event_source_id' => $eventSourceId,
                 'source_name' => $sourceName,
-                'source_url'  => $sourceUrl,
-                'source_uid'  => $sourceUid,
+                'source_url' => $item->sourceUrl ?: $sourceUrl,
+                'source_uid' => $sourceUid,
+                'external_id' => $sourceUid,
                 'source_hash' => $sourceHash,
 
-                'title'       => $title,
+                'title' => $title,
+                'raw_type' => $rawType,
+                'type' => $normalizedType,
 
-                // raw_type + normalized type
-                'raw_type'    => $rawType,
-                'type'        => $normalizedType,
+                'start_at' => $startAt,
+                'end_at' => $endAt,
+                'max_at' => $maxAt,
 
-                'start_at'    => $startAt,
-                'end_at'      => $endAt,
-                'max_at'      => $maxAt,
-
-                'short'       => $short,
+                'short' => $short,
                 'description' => $description,
-
-                // Surový zdroj nechávame 1:1 kvôli auditovateľnosti/reprodukovateľnosti
-                'raw_payload' => $payload,
-
-                'status'      => EventCandidate::STATUS_PENDING,
+                'raw_payload' => $payloadString,
+                'status' => EventCandidate::STATUS_PENDING,
             ]);
 
             $imported++;
@@ -105,9 +133,6 @@ class EventImportService
         return new EventImportResult($total, $imported, $duplicates);
     }
 
-    /**
-     * Stavia UID zo "čistých" hodnôt (bez HTML entít).
-     */
     private function buildSourceUidFromNormalized(
         string $title,
         string $type,
@@ -138,14 +163,6 @@ class EventImportService
         ]));
     }
 
-    /**
-     * Normalizuje text pre DB/UI:
-     * - rieši aj dvojité enkódovanie (&amp;#176; -> &#176;)
-     * - doplní chýbajúce bodkočiarky v numeric entitách (&#176N -> &#176;N)
-     * - dekóduje HTML entity (&#176; -> °)
-     * - zjednotí whitespace
-     * - oreže okraje
-     */
     private function normalizeText(?string $value): ?string
     {
         if ($value === null) {
@@ -157,14 +174,10 @@ class EventImportService
             return null;
         }
 
-        // 1) Oprava double-encoding (typicky: &amp;#176;)
         $s = str_replace(['&amp;#', '&amp;nbsp;'], ['&#', ' '], $s);
-
-        // 2) Doplnenie bodkočiarky pre numeric entity, ak chýba:
         $s = preg_replace('/&#(\d+)(?!;)/', '&#$1;', $s) ?? $s;
         $s = preg_replace('/&#x([0-9a-fA-F]+)(?!;)/', '&#x$1;', $s) ?? $s;
 
-        // 3) Dekódovanie HTML entít (max 2 prechody)
         for ($i = 0; $i < 2; $i++) {
             $decoded = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
             if ($decoded === $s) {
@@ -173,7 +186,6 @@ class EventImportService
             $s = $decoded;
         }
 
-        // 4) Normalizácia whitespace
         $s = preg_replace('/\s+/u', ' ', $s) ?? $s;
         $s = trim($s);
 
