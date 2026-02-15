@@ -13,7 +13,8 @@ class GenerateEventDescriptionsCommand extends Command
                             {--limit=0 : Max events to process (0 = all)}
                             {--dry-run : Do not persist changes}
                             {--force : Regenerate even when description already exists}
-                            {--ids= : Comma-separated event IDs}';
+                            {--ids= : Comma-separated event IDs}
+                            {--mode= : template|ollama (default from config)}';
 
     protected $description = 'Generate Slovak event descriptions using local open-source AI model.';
 
@@ -28,6 +29,7 @@ class GenerateEventDescriptionsCommand extends Command
         $limit = max(0, (int) $this->option('limit'));
         $dryRun = (bool) $this->option('dry-run');
         $force = (bool) $this->option('force');
+        $mode = $this->resolveMode((string) $this->option('mode'));
         $ids = $this->parseIds((string) $this->option('ids'));
 
         $query = Event::query()
@@ -64,13 +66,13 @@ class GenerateEventDescriptionsCommand extends Command
             'dry_run' => $dryRun,
         ];
 
-        $this->info("Processing {$events->count()} events...");
+        $this->info("Processing {$events->count()} events in {$mode} mode...");
 
         foreach ($events as $event) {
             $summary['processed']++;
 
             try {
-                $generated = $this->generatorService->generateForEvent($event);
+                $generated = $this->generatorService->generateForEvent($event, $mode);
                 $summary['generated']++;
 
                 if (! $dryRun) {
@@ -94,12 +96,13 @@ class GenerateEventDescriptionsCommand extends Command
 
         $this->newLine();
         $this->info(sprintf(
-            'Generate summary processed=%d generated=%d failed=%d updated=%d dry_run=%s',
+            'Generate summary processed=%d generated=%d failed=%d updated=%d dry_run=%s mode=%s',
             $summary['processed'],
             $summary['generated'],
             $summary['failed'],
             $summary['updated'],
-            $summary['dry_run'] ? 'yes' : 'no'
+            $summary['dry_run'] ? 'yes' : 'no',
+            $mode
         ));
 
         return $summary['failed'] > 0 ? self::FAILURE : self::SUCCESS;
@@ -123,5 +126,24 @@ class GenerateEventDescriptionsCommand extends Command
         $parts = array_values(array_filter($parts, static fn (int $id): bool => $id > 0));
         return array_values(array_unique($parts));
     }
-}
 
+    private function resolveMode(string $mode): string
+    {
+        $value = strtolower(trim($mode));
+        if ($value === '') {
+            $value = strtolower(trim((string) config('events.ai.description_mode', 'template')));
+        }
+
+        $allowed = ['template', 'ollama'];
+        if (! in_array($value, $allowed, true)) {
+            $this->warn(sprintf(
+                'Invalid mode "%s". Falling back to "template". Allowed: %s',
+                $mode,
+                implode(', ', $allowed)
+            ));
+            return 'template';
+        }
+
+        return $value;
+    }
+}

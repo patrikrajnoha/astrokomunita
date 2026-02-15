@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Event;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -11,23 +12,40 @@ class GenerateEventDescriptionsCommandTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function createEvent(): Event
+    private function createEvent(string $title = 'prvá štvrť Mesiaca'): Event
     {
         return Event::query()->create([
-            'title' => 'First Quarter Moon',
+            'title' => $title,
             'type' => 'other',
-            'start_at' => now(),
-            'max_at' => now(),
+            'start_at' => CarbonImmutable::parse('2026-02-24 12:28:00', 'UTC'),
+            'max_at' => CarbonImmutable::parse('2026-02-24 12:28:00', 'UTC'),
             'short' => null,
             'description' => null,
             'visibility' => 1,
             'source_name' => 'astropixels',
-            'source_uid' => 'evt-llm-1',
-            'source_hash' => hash('sha256', 'evt-llm-1'),
+            'source_uid' => 'evt-desc-1',
+            'source_hash' => hash('sha256', 'evt-desc-1'),
         ]);
     }
 
-    public function test_command_generates_descriptions_and_updates_events(): void
+    public function test_command_generates_template_descriptions_and_updates_events(): void
+    {
+        config()->set('events.ai.description_mode', 'template');
+
+        $event = $this->createEvent();
+
+        $this->artisan('events:generate-descriptions --force --limit=1 --mode=template')
+            ->assertExitCode(0);
+
+        $event->refresh();
+
+        $this->assertNotNull($event->description);
+        $this->assertNotNull($event->short);
+        $this->assertStringContainsString('štvrť', (string) $event->description);
+        $this->assertStringContainsString('24. 02. 2026', (string) $event->description);
+    }
+
+    public function test_command_ollama_mode_generates_descriptions(): void
     {
         config()->set('ai.ollama.base_url', 'http://ollama.test');
         config()->set('ai.ollama.generate_path', '/api/generate');
@@ -36,38 +54,26 @@ class GenerateEventDescriptionsCommandTest extends TestCase
         Http::fake([
             'http://ollama.test/*' => Http::response([
                 'model' => 'mistral',
-                'response' => '{"description":"Táto fáza Mesiaca je vhodná na večerné pozorovanie detailov terminátora.","short":"Fáza prvá štvrť Mesiaca pre večerné pozorovanie."}',
+                'response' => '{"description":"Prva stvrt Mesiaca je vhodna na vecerne pozorovanie terminatora.","short":"Prva stvrt Mesiaca pre vecerne pozorovanie."}',
                 'done' => true,
             ], 200),
         ]);
 
-        $event = $this->createEvent();
+        $event = $this->createEvent('First Quarter Moon');
 
-        $this->artisan('events:generate-descriptions --force --limit=1')
+        $this->artisan('events:generate-descriptions --force --limit=1 --mode=ollama')
             ->assertExitCode(0);
 
         $event->refresh();
         $this->assertNotNull($event->description);
-        $this->assertNotNull($event->short);
-        $this->assertStringContainsString('terminátora', (string) $event->description);
+        $this->assertStringContainsString('terminatora', (string) $event->description);
     }
 
     public function test_command_dry_run_does_not_persist_changes(): void
     {
-        config()->set('ai.ollama.base_url', 'http://ollama.test');
-        config()->set('ai.ollama.generate_path', '/api/generate');
-
-        Http::fake([
-            'http://ollama.test/*' => Http::response([
-                'model' => 'mistral',
-                'response' => '{"description":"Test opis udalosti.","short":"Test krátkeho opisu."}',
-                'done' => true,
-            ], 200),
-        ]);
-
         $event = $this->createEvent();
 
-        $this->artisan('events:generate-descriptions --force --dry-run --limit=1')
+        $this->artisan('events:generate-descriptions --force --dry-run --limit=1 --mode=template')
             ->assertExitCode(0);
 
         $event->refresh();

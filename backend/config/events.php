@@ -7,6 +7,7 @@ return [
     'crawler_ssl_ca_bundle' => env('EVENTS_CRAWLER_CA_BUNDLE'),
     'timezone' => env('EVENTS_DISPLAY_TIMEZONE', 'Europe/Bratislava'),
     'ai' => [
+        'description_mode' => env('EVENTS_AI_DESCRIPTION_MODE', 'template'),
         'model' => env('EVENTS_AI_MODEL', config('ai.ollama.model', 'mistral')),
         'temperature' => (float) env('EVENTS_AI_TEMPERATURE', 0.2),
         'num_predict' => (int) env('EVENTS_AI_NUM_PREDICT', 420),
