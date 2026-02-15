@@ -51,6 +51,14 @@ class TranslationHealthController extends Controller
                 'from' => $windowStart->toIso8601String(),
                 'to' => Carbon::now()->toIso8601String(),
             ],
+            'grammar' => [
+                'enabled' => (bool) config('translation.grammar.enabled', false),
+                'provider' => (string) config('translation.grammar.provider', 'none'),
+                'languages' => array_values(array_map(
+                    static fn (mixed $language): string => (string) $language,
+                    (array) config('translation.grammar.languages', [])
+                )),
+            ],
             'last_successful_translation' => $lastSuccess ? [
                 'provider' => (string) $lastSuccess->provider,
                 'at' => $lastSuccess->created_at?->toIso8601String(),
