@@ -3,6 +3,7 @@
 namespace App\Services\Translation\Grammar;
 
 use App\Services\Translation\Grammar\Contracts\GrammarCheckerInterface;
+use App\Support\Http\SslVerificationPolicy;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -27,6 +28,9 @@ class LanguageToolGrammarChecker implements GrammarCheckerInterface
         $baseUrl = (string) ($config['base_url'] ?? 'http://127.0.0.1:8081');
         $path = (string) ($config['check_path'] ?? '/v2/check');
         $languageCode = trim($language) !== '' ? $language : (string) ($config['language'] ?? 'sk-SK');
+        $verifyOption = app(SslVerificationPolicy::class)->resolveVerifyOption(
+            allowInsecure: ! (bool) ($config['verify_ssl'] ?? true)
+        );
 
         try {
             $response = Http::baseUrl($baseUrl)
@@ -39,8 +43,9 @@ class LanguageToolGrammarChecker implements GrammarCheckerInterface
                     false
                 )
                 ->withOptions([
-                    'verify' => (bool) ($config['verify_ssl'] ?? true),
+                    'verify' => $verifyOption,
                 ])
+                ->withAttributes(['ssl_verify' => $verifyOption])
                 ->acceptJson()
                 ->withHeaders($this->resolveHeaders($config))
                 ->asForm()
@@ -246,4 +251,3 @@ class LanguageToolGrammarChecker implements GrammarCheckerInterface
         return is_array($chars) ? $chars : [$value];
     }
 }
-

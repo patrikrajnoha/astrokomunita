@@ -3,6 +3,7 @@
 namespace App\Services\Crawlers;
 
 use App\Enums\EventSource;
+use App\Support\Http\SslVerificationPolicy;
 use App\Services\Crawlers\Astropixels\AstropixelsAlmanacParser;
 use Carbon\CarbonImmutable;
 use DomainException;
@@ -36,6 +37,7 @@ class AstropixelsCrawlerService implements CrawlerInterface
             ->timeout(self::REQUEST_TIMEOUT_SECONDS)
             ->retry(self::REQUEST_RETRY_TIMES, self::REQUEST_RETRY_SLEEP_MS)
             ->withOptions(['verify' => $verifyOption])
+            ->withAttributes(['ssl_verify' => $verifyOption])
             ->withHeaders(self::REQUEST_HEADERS)
             ->get($url);
 
@@ -106,6 +108,10 @@ class AstropixelsCrawlerService implements CrawlerInterface
             return $caBundle;
         }
 
-        return (bool) config('events.crawler_ssl_verify', true);
+        $configuredVerify = (bool) config('events.crawler_ssl_verify', true);
+
+        return app(SslVerificationPolicy::class)->resolveVerifyOption(
+            allowInsecure: ! $configuredVerify
+        );
     }
 }

@@ -95,7 +95,7 @@ class NasaRssImportService
 
     private function fetchFeed(): SimpleXMLElement
     {
-        $payload = Http::withoutVerifying()
+        $payload = Http::secure()
             ->accept('application/rss+xml, application/xml, text/xml')
             ->get(self::FEED_URL)
             ->throw()

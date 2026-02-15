@@ -2,6 +2,7 @@
 
 namespace App\Services\AI;
 
+use App\Support\Http\SslVerificationPolicy;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -38,6 +39,10 @@ class OllamaClient
             $payload['system'] = $system;
         }
 
+        $verifyOption = app(SslVerificationPolicy::class)->resolveVerifyOption(
+            allowInsecure: ! (bool) ($config['verify_ssl'] ?? true)
+        );
+
         try {
             $response = Http::baseUrl((string) ($config['base_url'] ?? 'http://127.0.0.1:11434'))
                 ->timeout((int) ($options['timeout'] ?? ($config['timeout'] ?? 60)))
@@ -49,8 +54,9 @@ class OllamaClient
                     false
                 )
                 ->withOptions([
-                    'verify' => (bool) ($config['verify_ssl'] ?? true),
+                    'verify' => $verifyOption,
                 ])
+                ->withAttributes(['ssl_verify' => $verifyOption])
                 ->acceptJson()
                 ->withHeaders($this->resolveHeaders($config))
                 ->post((string) ($config['generate_path'] ?? '/api/generate'), $payload);

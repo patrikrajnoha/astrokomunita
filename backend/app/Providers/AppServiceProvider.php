@@ -9,6 +9,9 @@ use App\Console\Commands\SendEventReminders;
 use App\Console\Commands\SendEventNotificationReminders;
 use App\Console\Commands\AstroBotSyncRss;
 use App\Console\Commands\GenerateEventDescriptionsCommand;
+use App\Support\Http\SslVerificationPolicy;
+use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\Client\PendingRequest;
 use App\Services\Observing\Contracts\AirQualityProvider;
 use App\Services\Observing\Contracts\SunMoonProvider;
 use App\Services\Observing\Contracts\WeatherProvider;
@@ -20,6 +23,7 @@ use App\Services\Translation\Grammar\LanguageToolGrammarChecker;
 use App\Services\Translation\Grammar\OllamaGrammarChecker;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -58,6 +62,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Http::macro('secure', function (): PendingRequest {
+            /** @var HttpFactory $this */
+            $verifySsl = app(SslVerificationPolicy::class)->shouldVerifySsl();
+
+            return $this->withOptions([
+                'verify' => $verifySsl,
+            ]);
+        });
+
         RateLimiter::for('auth-register', function (Request $request) {
             return Limit::perMinute(10)->by($request->ip() . '|register');
         });
