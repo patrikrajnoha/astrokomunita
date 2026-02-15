@@ -14,13 +14,28 @@ class EventDescriptionGeneratorService
 {
     public function __construct(
         private readonly OllamaClient $ollamaClient,
+        private readonly EventDescriptionTemplateBuilder $templateBuilder,
     ) {
     }
 
     /**
      * @return array{description:string,short:string,provider:string}
      */
-    public function generateForEvent(Event $event): array
+    public function generateForEvent(Event $event, ?string $mode = null): array
+    {
+        $resolvedMode = $this->resolveMode($mode);
+
+        if ($resolvedMode === 'template') {
+            return $this->templateBuilder->build($event);
+        }
+
+        return $this->generateWithOllama($event);
+    }
+
+    /**
+     * @return array{description:string,short:string,provider:string}
+     */
+    private function generateWithOllama(Event $event): array
     {
         $tz = (string) config('events.timezone', 'Europe/Bratislava');
         $startLocal = $this->formatDateTime($event->start_at, $tz);
@@ -32,7 +47,7 @@ class EventDescriptionGeneratorService
 Vytvor JSON s klucmi "description" a "short".
 Poziadavky:
 - Jazyk: slovencina
-- fakticky, bez halucinacii
+- fakticky, bez halucinacii, nemen cisla ani casy
 - description: 2-3 vety, max 500 znakov
 - short: jedna veta, max 180 znakov
 - bez markdownu
@@ -89,6 +104,16 @@ PROMPT;
             'short' => $short,
             'provider' => 'ollama',
         ];
+    }
+
+    private function resolveMode(?string $mode): string
+    {
+        $value = strtolower(trim((string) ($mode ?? '')));
+        if ($value === '') {
+            $value = strtolower(trim((string) config('events.ai.description_mode', 'template')));
+        }
+
+        return in_array($value, ['template', 'ollama'], true) ? $value : 'template';
     }
 
     private function formatDateTime(mixed $value, string $timezone): string
