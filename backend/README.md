@@ -409,6 +409,7 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 ### Source model
 - `event_sources` table stores known crawler sources (`astropixels`, `nasa`).
 - `event_candidates` and `crawl_runs` now also keep `event_source_id` FK (legacy `source_name` remains for compatibility).
+- Astropixels candidates use deterministic `external_id`/`stable_key` for idempotent re-crawls.
 
 ### Command
 ```powershell
@@ -421,7 +422,8 @@ php artisan events:crawl-astropixels --year=2026 --dry-run
 
 - Default year is bounded to configured range (`events.astropixels.min_year..max_year`, currently `2021..2030`).
 - Input times are interpreted in `Europe/Bratislava` and stored in DB as UTC.
-- Crawl run logs are persisted in `crawl_runs` with status, fetched count, created candidates, duplicates and error summary.
+- `--all-years` iterates full configured range (`2021..2030`).
+- `crawl_runs` stores observability fields: `status`, `duration_ms`, `source_year`, `source_url`, `headers_used`, `fetched_count`, `created_candidates_count`, `updated_candidates_count`, `skipped_duplicates_count`, `error_code`, `error_summary`, `diagnostics`.
 
 ### SSL/TLS for crawler (recommended for thesis + production)
 - Keep verification enabled by default:
@@ -435,12 +437,18 @@ php artisan events:crawl-astropixels --year=2026 --dry-run
 - `routes/console.php` schedules:
   - daily bounded current year crawl
   - daily next-year preload crawl (if available)
-  - weekly backfill for range `min_year..(currentYear+1)`
+  - weekly sync for `current bounded year` and `next year` (if available)
 
 ### Public API filters
-- `GET /api/events/years` -> returns `{ years, defaultYear, minYear, maxYear }`
+- `GET /api/events/years` -> returns `{ years, defaultYear, currentYearBounded, minYear, maxYear }`
 - `GET /api/events?year=YYYY&month=MM`
 - `GET /api/events?year=YYYY&week=WW` (ISO week)
 - `GET /api/events?year=YYYY` (whole year)
 
-All wrappers are backward-compatible with existing `from/to` range queries.
+Rules:
+- `year` is optional
+- `month=1..12`
+- `week=1..53`
+- `month` and `week` cannot be combined in one request
+
+All wrappers remain backward-compatible with existing `from/to` range queries.
