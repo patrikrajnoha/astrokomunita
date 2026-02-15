@@ -2,10 +2,13 @@
 
 namespace App\Services\EventImport;
 
+use App\Jobs\TranslateEventCandidateJob;
 use App\Models\EventCandidate;
 use App\Services\Crawlers\CandidateItem;
 use App\Services\EventImport\Parsers\EventSourceParser;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class EventImportService
 {
@@ -92,6 +95,8 @@ class EventImportService
                 'source_hash' => $sourceHash,
 
                 'title' => $title,
+                'original_title' => $title,
+                'translated_title' => null,
                 'raw_type' => $rawType,
                 'type' => $normalizedType,
 
@@ -101,6 +106,11 @@ class EventImportService
 
                 'short' => $short,
                 'description' => $description,
+                'original_description' => $description,
+                'translated_description' => null,
+                'translation_status' => EventCandidate::TRANSLATION_PENDING,
+                'translation_error' => null,
+                'translated_at' => null,
                 'raw_payload' => $payloadString,
                 'status' => EventCandidate::STATUS_PENDING,
             ];
@@ -113,10 +123,15 @@ class EventImportService
             );
 
             if ($existing === null) {
+                $candidateId = null;
                 if (!$dryRun) {
-                    EventCandidate::create($attributes);
+                    $candidate = EventCandidate::create($attributes);
+                    $candidateId = (int) $candidate->id;
                 }
                 $imported++;
+                if ($candidateId !== null) {
+                    $this->dispatchCandidateTranslation($candidateId, $sourceName);
+                }
                 continue;
             }
 
@@ -133,6 +148,7 @@ class EventImportService
             if (!$dryRun) {
                 $existing->fill($attributes);
                 $existing->save();
+                $this->dispatchCandidateTranslation((int) $existing->id, $sourceName);
             }
 
             $updated++;
@@ -271,5 +287,39 @@ class EventImportService
         $s = trim($s);
 
         return $s !== '' ? $s : null;
+    }
+
+    private function dispatchCandidateTranslation(int $candidateId, string $sourceName): void
+    {
+        if (! $this->shouldDispatchEventTranslation($sourceName)) {
+            return;
+        }
+
+        try {
+            TranslateEventCandidateJob::dispatch($candidateId)->afterCommit();
+        } catch (Throwable $exception) {
+            Log::warning('Event candidate translation dispatch failed', [
+                'candidate_id' => $candidateId,
+                'source_name' => $sourceName,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function shouldDispatchEventTranslation(string $sourceName): bool
+    {
+        if (! (bool) config('translation.events.enabled', true)) {
+            return false;
+        }
+
+        if ($sourceName === 'manual') {
+            return false;
+        }
+
+        if (! (bool) config('translation.allow_sync_queue', false) && config('queue.default') === 'sync') {
+            return false;
+        }
+
+        return true;
     }
 }

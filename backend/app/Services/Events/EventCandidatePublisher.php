@@ -48,8 +48,12 @@ class EventCandidatePublisher
             $event = new Event();
 
             // Základné údaje
-            $event->title = $candidate->title;
-            $event->description = $candidate->description;
+            $event->title = filled($candidate->translated_title)
+                ? (string) $candidate->translated_title
+                : (string) $candidate->title;
+            $event->description = filled($candidate->translated_description)
+                ? (string) $candidate->translated_description
+                : $candidate->description;
             $event->type = $candidate->type ?? 'other';
 
             // Časové údaje
