@@ -19,11 +19,18 @@ class AstroBotRssServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function configureTranslation(): void
+    {
+        config()->set('translation.default_provider', 'argos_microservice');
+        config()->set('translation.fallback_provider', '');
+        config()->set('translation.argos_microservice.base_url', 'http://translation.test');
+        config()->set('translation.argos_microservice.internal_token', 'token');
+    }
+
     public function test_sync_creates_published_post_from_rss(): void
     {
         config()->set('astrobot.nasa_rss_url', 'https://example.test/nasa-rss');
-        config()->set('services.translation.base_url', 'http://translation.test');
-        config()->set('services.translation.internal_token', 'token');
+        $this->configureTranslation();
         config()->set('astrobot.keep_max_items', 30);
         config()->set('astrobot.keep_max_days', 14);
 
@@ -55,8 +62,7 @@ class AstroBotRssServiceTest extends TestCase
     public function test_repeated_sync_is_idempotent_and_does_not_create_duplicates(): void
     {
         config()->set('astrobot.nasa_rss_url', 'https://example.test/nasa-rss');
-        config()->set('services.translation.base_url', 'http://translation.test');
-        config()->set('services.translation.internal_token', 'token');
+        $this->configureTranslation();
 
         Http::fake(function ($request) {
             if (str_starts_with($request->url(), 'http://translation.test/')) {
@@ -155,8 +161,7 @@ class AstroBotRssServiceTest extends TestCase
     public function test_emergency_sync_endpoint_works_only_for_admin(): void
     {
         config()->set('astrobot.nasa_rss_url', 'https://example.test/nasa-rss');
-        config()->set('services.translation.base_url', 'http://translation.test');
-        config()->set('services.translation.internal_token', 'token');
+        $this->configureTranslation();
         Http::fake([
             'https://example.test/*' => Http::response($this->rssPayload([]), 200),
             'http://translation.test/*' => Http::response([
