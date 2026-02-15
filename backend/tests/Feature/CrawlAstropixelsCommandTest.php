@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CrawlRun;
 use App\Models\EventCandidate;
+use Illuminate\Console\Command;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -30,6 +31,9 @@ class CrawlAstropixelsCommandTest extends TestCase
         $this->assertNotNull($firstRun);
         $this->assertSame('success', $firstRun->status);
         $this->assertSame(2026, $firstRun->year);
+        $this->assertSame(2026, $firstRun->source_year);
+        $this->assertTrue((bool) $firstRun->headers_used);
+        $this->assertSame(0, (int) $firstRun->updated_candidates_count);
         $this->assertGreaterThan(0, (int) $firstRun->created_candidates_count);
 
         $this->artisan('events:crawl-astropixels --year=2026')
@@ -41,6 +45,37 @@ class CrawlAstropixelsCommandTest extends TestCase
         $this->assertNotNull($secondRun);
         $this->assertSame('success', $secondRun->status);
         $this->assertSame(0, (int) $secondRun->created_candidates_count);
+        $this->assertSame(0, (int) $secondRun->updated_candidates_count);
         $this->assertGreaterThan(0, (int) $secondRun->skipped_duplicates_count);
+    }
+
+    public function test_all_years_continues_after_per_year_failures_and_logs_them(): void
+    {
+        $html2026 = File::get(base_path('tests/Fixtures/astropixels/almanac2026cet.html'));
+        $html2025 = File::get(base_path('tests/Fixtures/astropixels/almanac2025cet.html'));
+
+        Http::fake(function ($request) use ($html2026, $html2025) {
+            $url = $request->url();
+
+            if (str_contains($url, 'almanac2026cet.html')) {
+                return Http::response($html2026, 200);
+            }
+
+            if (str_contains($url, 'almanac2027cet.html')) {
+                return Http::response($html2025, 200);
+            }
+
+            return Http::response('Not found', 404);
+        });
+
+        $this->artisan('events:crawl-astropixels --all-years')
+            ->assertExitCode(Command::FAILURE);
+
+        $runs = CrawlRun::query()->where('source_name', 'astropixels')->get();
+        $this->assertCount(10, $runs);
+        $this->assertSame(2, $runs->where('status', 'success')->count());
+        $this->assertSame(8, $runs->where('status', 'failed')->count());
+        $this->assertGreaterThan(0, $runs->where('status', 'failed')->whereNotNull('error_code')->count());
+        $this->assertGreaterThan(0, EventCandidate::query()->count());
     }
 }
