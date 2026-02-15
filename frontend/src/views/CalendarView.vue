@@ -16,6 +16,9 @@
           </div>
         </header>
 
+        <p v-if="loading" class="month-meta">Nacitavam udalosti...</p>
+        <p v-else-if="error" class="month-meta" style="color: var(--color-danger);">{{ error }}</p>
+
         <div class="dow-grid">
           <span class="dow sun">S</span>
           <span class="dow">M</span>
@@ -72,14 +75,21 @@
 
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 
 const route = useRoute()
+const router = useRouter()
 const today = new Date()
 const currentMonth = ref(new Date(today.getFullYear(), today.getMonth(), 1))
 const selectedDate = ref(new Date(today.getFullYear(), today.getMonth(), today.getDate()))
 const events = ref([])
+const loading = ref(false)
+const error = ref('')
+const activeYear = ref(today.getFullYear())
+const activeMonth = ref(today.getMonth() + 1)
+const activeWeek = ref(getIsoWeek(today))
+const activePeriod = ref('month')
 
 const monthLabel = computed(() =>
   currentMonth.value.toLocaleDateString('sk-SK', { month: 'long' })
@@ -211,59 +221,90 @@ function toYMD(date) {
 }
 
 async function fetchMonthEvents() {
-  const year = currentMonth.value.getFullYear()
-  const month = currentMonth.value.getMonth()
-  const from = toYMD(new Date(year, month, 1))
-  const to = toYMD(new Date(year, month + 1, 0))
-  const res = await api.get('/events', { params: { from, to } })
-  const rows = Array.isArray(res.data?.data) ? res.data.data : res.data
-  events.value = Array.isArray(rows) ? rows : []
+  loading.value = true
+  error.value = ''
+  const params = { year: activeYear.value }
+  if (activePeriod.value === 'month') {
+    params.month = activeMonth.value
+  } else if (activePeriod.value === 'week') {
+    params.week = activeWeek.value
+  }
+  try {
+    const res = await api.get('/events', { params })
+    const rows = Array.isArray(res.data?.data) ? res.data.data : res.data
+    events.value = Array.isArray(rows) ? rows : []
+  } catch (err) {
+    error.value = err?.response?.data?.message || 'Nepodarilo sa nacitat udalosti.'
+    events.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
 function prevMonth() {
-  currentMonth.value = new Date(
-    currentMonth.value.getFullYear(),
-    currentMonth.value.getMonth() - 1,
-    1
-  )
-  fetchMonthEvents()
+  if (activePeriod.value === 'month') {
+    const next = new Date(activeYear.value, activeMonth.value - 2, 1)
+    syncQuery({ year: next.getFullYear(), month: next.getMonth() + 1, period: 'month' })
+    return
+  }
+
+  if (activePeriod.value === 'week') {
+    const start = isoWeekStart(activeYear.value, activeWeek.value)
+    start.setDate(start.getDate() - 7)
+    syncQuery({ year: start.getFullYear(), week: getIsoWeek(start), period: 'week' })
+    return
+  }
+
+  syncQuery({ year: activeYear.value - 1, period: 'year' })
 }
 
 function nextMonth() {
-  currentMonth.value = new Date(
-    currentMonth.value.getFullYear(),
-    currentMonth.value.getMonth() + 1,
-    1
-  )
-  fetchMonthEvents()
+  if (activePeriod.value === 'month') {
+    const next = new Date(activeYear.value, activeMonth.value, 1)
+    syncQuery({ year: next.getFullYear(), month: next.getMonth() + 1, period: 'month' })
+    return
+  }
+
+  if (activePeriod.value === 'week') {
+    const start = isoWeekStart(activeYear.value, activeWeek.value)
+    start.setDate(start.getDate() + 7)
+    syncQuery({ year: start.getFullYear(), week: getIsoWeek(start), period: 'week' })
+    return
+  }
+
+  syncQuery({ year: activeYear.value + 1, period: 'year' })
 }
 
 function prevYear() {
-  currentMonth.value = new Date(
-    currentMonth.value.getFullYear() - 1,
-    currentMonth.value.getMonth(),
-    1
-  )
-  fetchMonthEvents()
+  syncQuery({
+    year: activeYear.value - 1,
+    month: activeMonth.value,
+    week: activeWeek.value,
+    period: activePeriod.value,
+  })
 }
 
 function nextYear() {
-  currentMonth.value = new Date(
-    currentMonth.value.getFullYear() + 1,
-    currentMonth.value.getMonth(),
-    1
-  )
-  fetchMonthEvents()
+  syncQuery({
+    year: activeYear.value + 1,
+    month: activeMonth.value,
+    week: activeWeek.value,
+    period: activePeriod.value,
+  })
 }
 
 function goToToday() {
-  currentMonth.value = new Date(today.getFullYear(), today.getMonth(), 1)
+  syncQuery({
+    year: today.getFullYear(),
+    month: today.getMonth() + 1,
+    week: getIsoWeek(today),
+    period: activePeriod.value,
+  })
   selectedDate.value = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  fetchMonthEvents()
 }
 
 onMounted(() => {
-  applyRouteDate()
+  applyRoutePeriod()
   fetchMonthEvents()
   window.addEventListener('keydown', handleKeydown)
 })
@@ -273,11 +314,12 @@ onBeforeUnmount(() => {
 })
 
 watch(
-  () => route.query.date,
+  () => route.query,
   () => {
-    applyRouteDate()
+    applyRoutePeriod()
     fetchMonthEvents()
-  }
+  },
+  { deep: true },
 )
 
 function handleKeydown(event) {
@@ -288,13 +330,76 @@ function handleKeydown(event) {
   }
 }
 
-function applyRouteDate() {
+function applyRoutePeriod() {
+  const period = typeof route.query.period === 'string' ? route.query.period : 'month'
+  activePeriod.value = ['month', 'week', 'year'].includes(period) ? period : 'month'
+  activeYear.value = Number(route.query.year) || today.getFullYear()
+  activeMonth.value = Number(route.query.month) || today.getMonth() + 1
+  activeWeek.value = Number(route.query.week) || getIsoWeek(today)
+
   const q = route.query.date
-  if (!q || typeof q !== 'string') return
-  const d = new Date(q)
-  if (isNaN(d.getTime())) return
-  currentMonth.value = new Date(d.getFullYear(), d.getMonth(), 1)
-  selectedDate.value = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  if (q && typeof q === 'string') {
+    const d = new Date(q)
+    if (!Number.isNaN(d.getTime())) {
+      selectedDate.value = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+    }
+  }
+
+  if (activePeriod.value === 'month') {
+    currentMonth.value = new Date(activeYear.value, activeMonth.value - 1, 1)
+    return
+  }
+
+  if (activePeriod.value === 'week') {
+    const start = isoWeekStart(activeYear.value, activeWeek.value)
+    currentMonth.value = new Date(start.getFullYear(), start.getMonth(), 1)
+    selectedDate.value = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+    return
+  }
+
+  currentMonth.value = new Date(activeYear.value, currentMonth.value.getMonth(), 1)
+}
+
+function syncQuery({ year, month, week, period }) {
+  const next = {
+    ...route.query,
+    year: String(year ?? activeYear.value),
+    period: period ?? activePeriod.value,
+  }
+
+  if ((period ?? activePeriod.value) === 'month') {
+    next.month = String(month ?? activeMonth.value)
+    delete next.week
+  } else if ((period ?? activePeriod.value) === 'week') {
+    next.week = String(week ?? activeWeek.value)
+    delete next.month
+  } else {
+    delete next.month
+    delete next.week
+  }
+
+  router.replace({ query: next })
+}
+
+function getIsoWeek(date) {
+  const dt = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = dt.getUTCDay() || 7
+  dt.setUTCDate(dt.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1))
+  return Math.ceil((((dt - yearStart) / 86400000) + 1) / 7)
+}
+
+function isoWeekStart(year, week) {
+  const simple = new Date(year, 0, 1 + (week - 1) * 7)
+  const dayOfWeek = simple.getDay()
+  const monday = new Date(simple)
+  if (dayOfWeek <= 4) {
+    monday.setDate(simple.getDate() - simple.getDay() + 1)
+  } else {
+    monday.setDate(simple.getDate() + 8 - simple.getDay())
+  }
+  monday.setHours(0, 0, 0, 0)
+  return monday
 }
 </script>
 
