@@ -166,7 +166,7 @@ import CalendarView from './CalendarView.vue'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useAuthStore } from '@/stores/auth'
 import { getEvents, getEventYears } from '@/services/events'
-import { buildPeriodQuery, resolveDefaultYear } from '@/utils/eventFilters'
+import { buildPeriodQuery, resolveDefaultYear, resolvePeriodSelectionFromQuery } from '@/utils/eventFilters'
 
 const route = useRoute()
 const router = useRouter()
@@ -328,16 +328,23 @@ async function onPeriodSelectionChanged() {
 function applyPeriodFromRoute() {
   isApplyingRoute.value = true
   const now = new Date()
-  const routeYear = Number(route.query.year)
-  const routeMonth = Number(route.query.month)
-  const routeWeek = Number(route.query.week)
+  const fallbackYear = yearOptions.value.includes(selectedYear.value)
+    ? selectedYear.value
+    : (yearOptions.value[0] || now.getFullYear())
 
-  selectedYear.value = Number.isFinite(routeYear) && yearOptions.value.includes(routeYear)
-    ? routeYear
-    : selectedYear.value
-  selectedPeriod.value = normalizePeriod(route.query.period)
-  selectedMonth.value = Number.isFinite(routeMonth) && routeMonth >= 1 && routeMonth <= 12 ? routeMonth : now.getMonth() + 1
-  selectedWeek.value = Number.isFinite(routeWeek) && routeWeek >= 1 && routeWeek <= 53 ? routeWeek : getIsoWeek(now)
+  const state = resolvePeriodSelectionFromQuery(route.query, {
+    now,
+    year: fallbackYear,
+    month: now.getMonth() + 1,
+    week: getIsoWeek(now),
+  })
+
+  selectedYear.value = yearOptions.value.includes(state.year)
+    ? state.year
+    : fallbackYear
+  selectedPeriod.value = normalizePeriod(state.period)
+  selectedMonth.value = state.month
+  selectedWeek.value = state.week
   isApplyingRoute.value = false
 }
 
@@ -405,8 +412,11 @@ onMounted(async () => {
     }
     selectedYear.value = defaultYear
   } catch {
-    yearOptions.value = Array.from({ length: 10 }, (_, idx) => 2021 + idx)
-    selectedYear.value = 2026
+    const minYear = 2021
+    const maxYear = 2030
+    const defaultYear = resolveDefaultYear({ minYear, maxYear }, new Date())
+    yearOptions.value = Array.from({ length: maxYear - minYear + 1 }, (_, idx) => minYear + idx)
+    selectedYear.value = defaultYear
   }
 
   applyPeriodFromRoute()
