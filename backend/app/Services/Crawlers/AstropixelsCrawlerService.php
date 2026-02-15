@@ -19,9 +19,11 @@ class AstropixelsCrawlerService implements CrawlerInterface
     public function fetchCandidates(CrawlContext $context): CandidateBatch
     {
         $url = $this->buildUrlForYear($context->year);
+        $verifyOption = $this->resolveSslVerifyOption();
 
         $response = Http::timeout(20)
             ->retry(2, 500)
+            ->withOptions(['verify' => $verifyOption])
             ->withHeaders([
                 'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Language' => 'sk-SK,sk;q=0.9,en;q=0.8',
@@ -69,5 +71,19 @@ class AstropixelsCrawlerService implements CrawlerInterface
     {
         $pattern = (string) config('events.astropixels.base_url_pattern', 'https://astropixels.com/almanac/almanac21/almanac%dcet.html');
         return sprintf($pattern, $year);
+    }
+
+    private function resolveSslVerifyOption(): bool|string
+    {
+        $caBundle = (string) config('events.crawler_ssl_ca_bundle', '');
+        if ($caBundle !== '') {
+            if (!is_file($caBundle)) {
+                throw new DomainException("Astropixels crawler SSL: CA bundle file not found at '{$caBundle}'.");
+            }
+
+            return $caBundle;
+        }
+
+        return (bool) config('events.crawler_ssl_verify', true);
     }
 }
