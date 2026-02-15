@@ -12,8 +12,15 @@ export function getEvents(params = {}) {
   if (params.q) query.q = params.q
   if (params.from) query.from = params.from
   if (params.to) query.to = params.to
+  if (params.year) query.year = params.year
+  if (params.month) query.month = params.month
+  if (params.week) query.week = params.week
 
   return api.get('/events', { params: query })
+}
+
+export function getEventYears() {
+  return api.get('/events/years')
 }
 
 export function getMyPreferences() {

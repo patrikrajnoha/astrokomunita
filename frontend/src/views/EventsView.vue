@@ -45,6 +45,36 @@
             </div>
 
             <div class="advanced-filters">
+              <label class="filter-field">
+                <span>Rok</span>
+                <select v-model.number="selectedYear" @change="onPeriodSelectionChanged">
+                  <option v-for="year in yearOptions" :key="year" :value="year">{{ year }}</option>
+                </select>
+              </label>
+
+              <label class="filter-field">
+                <span>Obdobie</span>
+                <select v-model="selectedPeriod" @change="onPeriodSelectionChanged">
+                  <option value="month">Mesiac</option>
+                  <option value="week">Tyzden</option>
+                  <option value="year">Vsetko v roku</option>
+                </select>
+              </label>
+
+              <label v-if="selectedPeriod === 'month'" class="filter-field">
+                <span>Mesiac</span>
+                <select v-model.number="selectedMonth" @change="onPeriodSelectionChanged">
+                  <option v-for="month in monthOptions" :key="month.value" :value="month.value">{{ month.label }}</option>
+                </select>
+              </label>
+
+              <label v-if="selectedPeriod === 'week'" class="filter-field">
+                <span>ISO Tyzden</span>
+                <select v-model.number="selectedWeek" @change="onPeriodSelectionChanged">
+                  <option v-for="week in weekOptions" :key="week" :value="week">{{ week }}</option>
+                </select>
+              </label>
+
               <label class="filter-field search-field">
                 <span>Hladaj</span>
                 <input
@@ -66,33 +96,6 @@
               </label>
 
               <button class="secondary-btn" type="button" @click="resetFilters">Reset filtrov</button>
-            </div>
-
-            <div class="date-panel">
-              <div class="date-presets">
-                <button
-                  v-for="preset in datePresets"
-                  :key="preset.value"
-                  class="date-preset-btn"
-                  :class="{ active: datePreset === preset.value }"
-                  type="button"
-                  @click="setDatePreset(preset.value)"
-                >
-                  {{ preset.label }}
-                </button>
-              </div>
-
-              <div class="date-custom">
-                <label class="filter-field">
-                  <span>Od</span>
-                  <input v-model="dateFrom" type="date" @change="setDatePreset('custom')" />
-                </label>
-
-                <label class="filter-field">
-                  <span>Do</span>
-                  <input v-model="dateTo" type="date" @change="setDatePreset('custom')" />
-                </label>
-              </div>
             </div>
           </div>
 
@@ -162,7 +165,8 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import CalendarView from './CalendarView.vue'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useAuthStore } from '@/stores/auth'
-import { getEvents } from '@/services/events'
+import { getEvents, getEventYears } from '@/services/events'
+import { buildPeriodQuery, resolveDefaultYear } from '@/utils/eventFilters'
 
 const route = useRoute()
 const router = useRouter()
@@ -173,16 +177,34 @@ const auth = useAuthStore()
 const selectedType = ref('all')
 const selectedRegion = ref('all')
 const searchQuery = ref('')
-const dateFrom = ref('')
-const dateTo = ref('')
-const datePreset = ref('next_30_days')
+const selectedYear = ref(new Date().getFullYear())
+const selectedPeriod = ref('month')
+const selectedMonth = ref(new Date().getMonth() + 1)
+const selectedWeek = ref(1)
+const yearOptions = ref([])
 const filtersOpen = ref(false)
+const isApplyingRoute = ref(false)
 
 const events = ref([])
 const loading = ref(false)
 const error = ref('')
 
 const isCalendarView = computed(() => route.query?.view === 'calendar')
+const weekOptions = computed(() => Array.from({ length: 53 }, (_, idx) => idx + 1))
+const monthOptions = [
+  { value: 1, label: 'Januar' },
+  { value: 2, label: 'Februar' },
+  { value: 3, label: 'Marec' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'Maj' },
+  { value: 6, label: 'Jun' },
+  { value: 7, label: 'Jul' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'Oktober' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' },
+]
 
 const allFeedTypeGroups = {
   meteors: ['meteors', 'meteor_shower'],
@@ -191,80 +213,12 @@ const allFeedTypeGroups = {
   comets: ['comet', 'asteroid', 'other'],
 }
 
-const datePresets = [
-  { value: 'any', label: 'Kedykolvek' },
-  { value: 'today', label: 'Dnes' },
-  { value: 'next_7_days', label: 'Najblizsich 7 dni' },
-  { value: 'next_30_days', label: 'Najblizsich 30 dni' },
-  { value: 'this_month', label: 'Tento mesiac' },
-  { value: 'custom', label: 'Vlastny rozsah' },
-]
-
-function toIsoDate(dateLike) {
-  const date = new Date(dateLike)
-  if (Number.isNaN(date.getTime())) return ''
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function todayIso() {
-  return toIsoDate(new Date())
-}
-
-function setDatePreset(preset) {
-  datePreset.value = preset
-
-  if (preset === 'custom') {
-    return
-  }
-
-  if (preset === 'any') {
-    dateFrom.value = ''
-    dateTo.value = ''
-    return
-  }
-
-  const now = new Date()
-  const start = new Date(now)
-  const end = new Date(now)
-
-  if (preset === 'today') {
-    dateFrom.value = toIsoDate(start)
-    dateTo.value = toIsoDate(end)
-    return
-  }
-
-  if (preset === 'next_7_days') {
-    end.setDate(end.getDate() + 7)
-    dateFrom.value = toIsoDate(start)
-    dateTo.value = toIsoDate(end)
-    return
-  }
-
-  if (preset === 'next_30_days') {
-    end.setDate(end.getDate() + 30)
-    dateFrom.value = toIsoDate(start)
-    dateTo.value = toIsoDate(end)
-    return
-  }
-
-  if (preset === 'this_month') {
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    dateFrom.value = toIsoDate(monthStart)
-    dateTo.value = toIsoDate(monthEnd)
-  }
-}
-
-function ensureDateRangeOrder() {
-  if (!dateFrom.value || !dateTo.value) return
-  if (dateFrom.value <= dateTo.value) return
-
-  const from = dateFrom.value
-  dateFrom.value = dateTo.value
-  dateTo.value = from
+function getIsoWeek(date) {
+  const dt = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = dt.getUTCDay() || 7
+  dt.setUTCDate(dt.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1))
+  return Math.ceil((((dt - yearStart) / 86400000) + 1) / 7)
 }
 
 function buildParams() {
@@ -282,11 +236,11 @@ function buildParams() {
     params.q = searchQuery.value
   }
 
-  ensureDateRangeOrder()
-
-  if (dateFrom.value && dateTo.value) {
-    params.from = dateFrom.value
-    params.to = dateTo.value
+  params.year = selectedYear.value
+  if (selectedPeriod.value === 'month') {
+    params.month = selectedMonth.value
+  } else if (selectedPeriod.value === 'week') {
+    params.week = selectedWeek.value
   }
 
   return params
@@ -324,7 +278,67 @@ function resetFilters() {
   selectedType.value = 'all'
   selectedRegion.value = 'all'
   searchQuery.value = ''
-  setDatePreset('next_30_days')
+  selectedPeriod.value = 'month'
+  selectedMonth.value = new Date().getMonth() + 1
+  selectedWeek.value = getIsoWeek(new Date())
+  onPeriodSelectionChanged()
+}
+
+function normalizePeriod(value) {
+  return ['month', 'week', 'year'].includes(value) ? value : 'month'
+}
+
+async function onPeriodSelectionChanged() {
+  if (isApplyingRoute.value) return
+
+  const periodQuery = buildPeriodQuery({
+    period: selectedPeriod.value,
+    year: selectedYear.value,
+    month: selectedMonth.value,
+    week: selectedWeek.value,
+  })
+
+  const current = {
+    period: String(route.query.period || ''),
+    year: String(route.query.year || ''),
+    month: String(route.query.month || ''),
+    week: String(route.query.week || ''),
+  }
+
+  const next = {
+    period: String(periodQuery.period || ''),
+    year: String(periodQuery.year || ''),
+    month: String(periodQuery.month || ''),
+    week: String(periodQuery.week || ''),
+  }
+
+  if (current.period === next.period && current.year === next.year && current.month === next.month && current.week === next.week) {
+    return
+  }
+
+  await router.replace({
+    name: 'events',
+    query: {
+      ...route.query,
+      ...periodQuery,
+    },
+  })
+}
+
+function applyPeriodFromRoute() {
+  isApplyingRoute.value = true
+  const now = new Date()
+  const routeYear = Number(route.query.year)
+  const routeMonth = Number(route.query.month)
+  const routeWeek = Number(route.query.week)
+
+  selectedYear.value = Number.isFinite(routeYear) && yearOptions.value.includes(routeYear)
+    ? routeYear
+    : selectedYear.value
+  selectedPeriod.value = normalizePeriod(route.query.period)
+  selectedMonth.value = Number.isFinite(routeMonth) && routeMonth >= 1 && routeMonth <= 12 ? routeMonth : now.getMonth() + 1
+  selectedWeek.value = Number.isFinite(routeWeek) && routeWeek >= 1 && routeWeek <= 53 ? routeWeek : getIsoWeek(now)
+  isApplyingRoute.value = false
 }
 
 async function toggleFavorite(eventId) {
@@ -368,8 +382,11 @@ function formatDateTime(value) {
 }
 
 watch(
-  [isCalendarView, selectedType, selectedRegion, searchQuery, dateFrom, dateTo],
+  [isCalendarView, selectedType, selectedRegion, searchQuery, selectedYear, selectedPeriod, selectedMonth, selectedWeek],
   async () => {
+    if (!isApplyingRoute.value) {
+      await onPeriodSelectionChanged()
+    }
     if (!isCalendarView.value) {
       await fetchEvents()
     }
@@ -378,16 +395,39 @@ watch(
 )
 
 onMounted(async () => {
-  if (!dateFrom.value && !dateTo.value) {
-    setDatePreset('next_30_days')
-  } else if (dateFrom.value && dateTo.value && dateFrom.value === todayIso()) {
-    datePreset.value = 'today'
+  try {
+    const yearsRes = await getEventYears()
+    const meta = yearsRes?.data || {}
+    yearOptions.value = Array.isArray(meta.years) ? meta.years : []
+    const defaultYear = resolveDefaultYear(meta, new Date())
+    if (!yearOptions.value.includes(defaultYear)) {
+      yearOptions.value = [defaultYear]
+    }
+    selectedYear.value = defaultYear
+  } catch {
+    yearOptions.value = Array.from({ length: 10 }, (_, idx) => 2021 + idx)
+    selectedYear.value = 2026
   }
+
+  applyPeriodFromRoute()
+  await onPeriodSelectionChanged()
+  if (!isCalendarView.value) await fetchEvents()
 
   if (!isCalendarView.value && auth.isAuthed && favorites.ids.size === 0 && !favorites.loading) {
     await favorites.fetch()
   }
 })
+
+watch(
+  () => route.query,
+  async () => {
+    applyPeriodFromRoute()
+    if (!isCalendarView.value) {
+      await fetchEvents()
+    }
+  },
+  { deep: true },
+)
 </script>
 
 <style scoped>

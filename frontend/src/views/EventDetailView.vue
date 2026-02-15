@@ -435,7 +435,15 @@ function addToCalendar(source = 'button') {
 
   router.push({
     name: 'events',
-    query: ymd ? { view: 'calendar', date: ymd } : { view: 'calendar' },
+    query: ymd
+      ? {
+          view: 'calendar',
+          date: ymd,
+          period: 'month',
+          year: String(new Date(date).getFullYear()),
+          month: String(new Date(date).getMonth() + 1),
+        }
+      : { view: 'calendar' },
   })
 }
 
