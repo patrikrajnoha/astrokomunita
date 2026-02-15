@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\PollController;
 use App\Http\Controllers\Api\TagController;
+use App\Http\Controllers\Api\GifSearchController;
 use App\Http\Controllers\Api\BlogPostController;
 use App\Http\Controllers\Api\BlogTagController;
 use App\Http\Controllers\Api\BlogPostCommentController;
@@ -136,6 +137,7 @@ Route::get('/user', function (Request $request) {
 |--------------------------------------------------------------------------
 */
 Route::get('/events',      [EventController::class, 'index']);
+Route::get('/events/years', [EventController::class, 'years']);
 Route::get('/events/next', [EventController::class, 'next']);
 Route::get('/events/{id}', [EventController::class, 'show']);
 Route::get('/events/{event}/ics', [EventCalendarController::class, 'show']);
@@ -174,6 +176,7 @@ Route::get('/feed/astrobot', [FeedController::class, 'astrobot']);
 
 // Tag suggestions for autocomplete
 Route::get('/tags/suggest', [TagController::class, 'suggest']);
+Route::get('/integrations/gifs/search', GifSearchController::class)->middleware('throttle:gif-search');
 
 // Get posts by tag
 Route::get('/tags/{tag}', [TagController::class, 'show']);

@@ -21,6 +21,7 @@ class EventController extends Controller
     public function index(EventIndexRequest $request)
     {
         $v = $request->validated();
+        $v = $this->applyPeriodWrappers($v);
 
         $feed = $v['feed'] ?? 'all';
         $user = $request->user();
@@ -110,6 +111,24 @@ class EventController extends Controller
     }
 
     /**
+     * GET /api/events/years
+     */
+    public function years()
+    {
+        $minYear = (int) config('events.astropixels.min_year', 2021);
+        $maxYear = (int) config('events.astropixels.max_year', 2030);
+        $currentYear = (int) now()->year;
+        $defaultYear = max($minYear, min($maxYear, $currentYear));
+
+        return response()->json([
+            'years' => range($minYear, $maxYear),
+            'defaultYear' => $defaultYear,
+            'minYear' => $minYear,
+            'maxYear' => $maxYear,
+        ]);
+    }
+
+    /**
      * GET /api/events/next
      */
     public function next(Request $request)
@@ -193,5 +212,37 @@ class EventController extends Controller
         }
 
         return $types->unique()->values()->all();
+    }
+
+    private function applyPeriodWrappers(array $validated): array
+    {
+        if (!empty($validated['from']) || !empty($validated['to'])) {
+            return $validated;
+        }
+
+        $timezone = (string) config('events.source_timezone', 'Europe/Bratislava');
+        $year = isset($validated['year']) ? (int) $validated['year'] : null;
+        $month = isset($validated['month']) ? (int) $validated['month'] : null;
+        $week = isset($validated['week']) ? (int) $validated['week'] : null;
+
+        if ($year === null) {
+            return $validated;
+        }
+
+        if ($week !== null) {
+            $startLocal = CarbonImmutable::now($timezone)->setISODate($year, $week, 1)->startOfDay();
+            $endLocal = $startLocal->endOfWeek()->endOfDay();
+        } elseif ($month !== null) {
+            $startLocal = CarbonImmutable::create($year, $month, 1, 0, 0, 0, $timezone)->startOfDay();
+            $endLocal = $startLocal->endOfMonth()->endOfDay();
+        } else {
+            $startLocal = CarbonImmutable::create($year, 1, 1, 0, 0, 0, $timezone)->startOfDay();
+            $endLocal = $startLocal->endOfYear()->endOfDay();
+        }
+
+        $validated['from'] = $startLocal->utc()->toDateTimeString();
+        $validated['to'] = $endLocal->utc()->toDateTimeString();
+
+        return $validated;
     }
 }
