@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Console\Commands\ImportEventCandidates;
 use App\Console\Commands\ImportNasaNewsCommand;
+use App\Console\Commands\CrawlAstropixelsEventsCommand;
 use App\Console\Commands\SendEventReminders;
 use App\Console\Commands\SendEventNotificationReminders;
 use App\Console\Commands\AstroBotSyncRss;
@@ -32,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
         $this->commands([
             ImportEventCandidates::class,
             ImportNasaNewsCommand::class,
+            CrawlAstropixelsEventsCommand::class,
             SendEventReminders::class,
             SendEventNotificationReminders::class,
             AstroBotSyncRss::class,
@@ -63,6 +65,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('post-create', function (Request $request) {
             $userId = $request->user()?->id ?? 'guest';
             return Limit::perMinute(20)->by('post-create|' . $userId . '|' . $request->ip());
+        });
+
+        RateLimiter::for('gif-search', function (Request $request) {
+            $userId = $request->user()?->id ?? 'guest';
+            return Limit::perMinute(30)->by('gif-search|' . $userId . '|' . $request->ip());
         });
     }
 }

@@ -16,6 +16,7 @@ class EventCandidateController extends Controller
             'raw_type'    => ['nullable', 'string', 'max:100'],
             'source_name' => ['nullable', 'string', 'max:100'],
             'source'      => ['nullable', 'string', 'max:100'],
+            'source_key'  => ['nullable', 'string', 'max:100'],
             'q'           => ['nullable', 'string', 'max:200'],
             'per_page'    => ['nullable', 'integer', 'min:1', 'max:200'],
         ]);
@@ -24,6 +25,7 @@ class EventCandidateController extends Controller
         $type       = $validated['type'] ?? null;
         $rawType    = $validated['raw_type'] ?? null;
         $sourceName = $validated['source_name'] ?? $validated['source'] ?? null;
+        $sourceKey  = $validated['source_key'] ?? null;
         $q          = isset($validated['q']) ? trim($validated['q']) : null;
         $perPage    = $validated['per_page'] ?? 20;
 
@@ -51,6 +53,9 @@ class EventCandidateController extends Controller
             ->when($type, fn ($qq) => $qq->where('type', $type))
             ->when($rawType, fn ($qq) => $qq->where('raw_type', $rawType))
             ->when($sourceName, fn ($qq) => $qq->where('source_name', $sourceName))
+            ->when($sourceKey, function ($qq) use ($sourceKey) {
+                $qq->whereHas('eventSource', fn ($q) => $q->where('key', $sourceKey));
+            })
             ->when($q !== null && $q !== '', function ($qq) use ($q) {
                 $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
 

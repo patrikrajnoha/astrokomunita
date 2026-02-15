@@ -47,11 +47,32 @@ Artisan::command('moderation:run {post_id}', function () {
 })->purpose('Run moderation immediately for one post (local debug).');
 
 // ------------------------------------------------------------------
-// Scheduler (produkčný crawl + logovanie do crawl_runs)
+// Scheduler (production crawl + crawl_runs logging)
 // ------------------------------------------------------------------
-Schedule::command('events:import:tracked astropixels https://example.com --parser=table')
-    ->dailyAt('02:00')
+$currentYear = now()->year;
+$minYear = (int) config('events.astropixels.min_year', 2021);
+$maxYear = (int) config('events.astropixels.max_year', 2030);
+$boundedCurrentYear = max($minYear, min($maxYear, $currentYear));
+$nextYear = $boundedCurrentYear + 1 <= $maxYear ? $boundedCurrentYear + 1 : null;
+
+Schedule::command("events:crawl-astropixels --year={$boundedCurrentYear}")
+    ->dailyAt('01:30')
     ->withoutOverlapping();
+
+if ($nextYear !== null) {
+    Schedule::command("events:crawl-astropixels --year={$nextYear}")
+        ->dailyAt('02:00')
+        ->withoutOverlapping();
+}
+
+$weeklyUpperBound = min($maxYear, $currentYear + 1);
+if ($weeklyUpperBound >= $minYear) {
+    foreach (range($minYear, $weeklyUpperBound) as $yearToSync) {
+        Schedule::command("events:crawl-astropixels --year={$yearToSync}")
+            ->weeklyOn(1, '03:00')
+            ->withoutOverlapping();
+    }
+}
 
 Schedule::command('reminders:send')
     ->everyMinute()

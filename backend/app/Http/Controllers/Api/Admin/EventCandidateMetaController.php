@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\EventCandidate;
+use App\Models\EventSource;
 use Illuminate\Http\Request;
 
 class EventCandidateMetaController extends Controller
@@ -42,10 +43,16 @@ class EventCandidateMetaController extends Controller
             ->pluck('status')
             ->values();
 
+        $sourceKeys = EventSource::query()
+            ->orderBy('key')
+            ->pluck('key')
+            ->values();
+
         return response()->json([
             'types'        => $types,
             'raw_types'    => $rawTypes,
             'source_names' => $sourceNames,
+            'source_keys'  => $sourceKeys,
             'statuses'     => $statuses,
         ]);
     }

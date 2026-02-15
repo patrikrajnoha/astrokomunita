@@ -2,6 +2,12 @@
 
 return [
     'default_visibility' => 1,
+    'source_timezone' => 'Europe/Bratislava',
+    'astropixels' => [
+        'min_year' => 2021,
+        'max_year' => 2030,
+        'base_url_pattern' => 'https://astropixels.com/almanac/almanac21/almanac%dcet.html',
+    ],
 
     'types' => [
         'meteors',
