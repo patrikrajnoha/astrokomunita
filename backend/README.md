@@ -333,6 +333,11 @@ Manual admin API sync endpoint (admin only, rate-limited):
 - Translation dedupe/cache uses `translation_cache_entries` (`hash(text+from+to)` key).
 - Observability logs are stored in `translation_logs` and exposed via admin endpoint:
   - `GET /api/admin/translation-health`
+- Admin-triggered event backfill endpoint:
+  - `POST /api/admin/events/retranslate` with JSON body:
+    - `dry_run` (`true|false`)
+    - `force` (`true|false`)
+    - `limit` (`0` = all)
 
 ### Run LibreTranslate (local Docker)
 ```powershell
@@ -363,6 +368,13 @@ Keep queue worker running:
 
 ```powershell
 php artisan queue:work
+```
+
+Backfill existing approved events:
+
+```powershell
+php artisan events:backfill-translations --dry-run
+php artisan events:backfill-translations
 ```
 
 ### Development (Windows/XAMPP)
