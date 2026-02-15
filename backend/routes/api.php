@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\Admin\CrawlRunController;
 use App\Http\Controllers\Api\Admin\AdminBlogPostController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\AdminEventController;
+use App\Http\Controllers\Api\Admin\EventTranslationController;
 use App\Http\Controllers\Api\Admin\ManualEventController;
 use App\Http\Controllers\Api\Admin\ReportQueueController;
 use App\Http\Controllers\Api\Admin\AstroBotController;
@@ -327,6 +328,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::get('/events/{event}', [AdminEventController::class, 'show']);
         Route::post('/events', [AdminEventController::class, 'store']);
         Route::put('/events/{event}', [AdminEventController::class, 'update']);
+        Route::post('/events/retranslate', [EventTranslationController::class, 'backfill']);
 
         /*
         |----------------------------------------------------------------------
