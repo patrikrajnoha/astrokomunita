@@ -225,7 +225,7 @@ class TranslationService
         $grammarEnabled = $this->shouldApplyGrammar($to) ? 'grammar-on' : 'grammar-off';
         $grammarProvider = strtolower(trim((string) config('translation.grammar.provider', 'none')));
         $grammarLanguage = trim((string) config('translation.grammar.languagetool.language', ''));
-        $version = trim((string) config('translation.cache_key_version', 'v6'));
+        $version = trim((string) config('translation.cache_key_version', 'v7'));
 
         return hash('sha256', implode('|', [
             $text,
@@ -349,14 +349,11 @@ class TranslationService
         }
 
         $provider = strtolower(trim((string) config('translation.grammar.provider', 'languagetool')));
-        if ($provider !== 'languagetool') {
+        if ($provider === '' || $provider === 'none') {
             return $text;
         }
 
-        $grammarLanguage = trim((string) config('translation.grammar.languagetool.language', $languageTo));
-        if ($grammarLanguage === '') {
-            $grammarLanguage = $languageTo;
-        }
+        $grammarLanguage = $this->resolveGrammarLanguage($provider, $languageTo);
 
         try {
             $result = $this->grammarChecker->correct($text, $grammarLanguage);
@@ -393,6 +390,16 @@ class TranslationService
 
             return $text;
         }
+    }
+
+    private function resolveGrammarLanguage(string $provider, string $languageTo): string
+    {
+        $resolved = match ($provider) {
+            'ollama' => trim((string) config('translation.grammar.ollama.language', $languageTo)),
+            default => trim((string) config('translation.grammar.languagetool.language', $languageTo)),
+        };
+
+        return $resolved !== '' ? $resolved : $languageTo;
     }
 
     private function shouldApplyGrammar(string $languageTo): bool

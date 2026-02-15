@@ -8,6 +8,7 @@ use App\Console\Commands\CrawlAstropixelsEventsCommand;
 use App\Console\Commands\SendEventReminders;
 use App\Console\Commands\SendEventNotificationReminders;
 use App\Console\Commands\AstroBotSyncRss;
+use App\Console\Commands\GenerateEventDescriptionsCommand;
 use App\Services\Observing\Contracts\AirQualityProvider;
 use App\Services\Observing\Contracts\SunMoonProvider;
 use App\Services\Observing\Contracts\WeatherProvider;
@@ -16,6 +17,7 @@ use App\Services\Observing\Providers\OpenMeteoWeatherProvider;
 use App\Services\Observing\Providers\UsnoSunMoonProvider;
 use App\Services\Translation\Grammar\Contracts\GrammarCheckerInterface;
 use App\Services\Translation\Grammar\LanguageToolGrammarChecker;
+use App\Services\Translation\Grammar\OllamaGrammarChecker;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -31,7 +33,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SunMoonProvider::class, UsnoSunMoonProvider::class);
         $this->app->bind(WeatherProvider::class, OpenMeteoWeatherProvider::class);
         $this->app->bind(AirQualityProvider::class, OpenAqAirQualityProvider::class);
-        $this->app->bind(GrammarCheckerInterface::class, LanguageToolGrammarChecker::class);
+        $this->app->bind(GrammarCheckerInterface::class, function ($app) {
+            $provider = strtolower(trim((string) config('translation.grammar.provider', 'languagetool')));
+
+            return match ($provider) {
+                'ollama' => $app->make(OllamaGrammarChecker::class),
+                default => $app->make(LanguageToolGrammarChecker::class),
+            };
+        });
 
         $this->commands([
             ImportEventCandidates::class,
@@ -40,6 +49,7 @@ class AppServiceProvider extends ServiceProvider
             SendEventReminders::class,
             SendEventNotificationReminders::class,
             AstroBotSyncRss::class,
+            GenerateEventDescriptionsCommand::class,
         ]);
     }
 
