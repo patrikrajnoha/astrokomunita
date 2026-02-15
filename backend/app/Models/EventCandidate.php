@@ -15,6 +15,9 @@ class EventCandidate extends Model
     public const STATUS_APPROVED  = EventCandidateStatus::Approved->value;
     public const STATUS_REJECTED  = EventCandidateStatus::Rejected->value;
     public const STATUS_DUPLICATE = EventCandidateStatus::Duplicate->value;
+    public const TRANSLATION_PENDING = 'pending';
+    public const TRANSLATION_DONE = 'done';
+    public const TRANSLATION_FAILED = 'failed';
 
     protected $fillable = [
         'event_source_id',
@@ -26,6 +29,8 @@ class EventCandidate extends Model
         'source_hash',
 
         'title',
+        'original_title',
+        'translated_title',
         'raw_type',
         'type',
         'max_at',
@@ -34,7 +39,12 @@ class EventCandidate extends Model
 
         'short',
         'description',
+        'original_description',
+        'translated_description',
         'visibility',
+        'translation_status',
+        'translation_error',
+        'translated_at',
 
         'raw_payload',
 
@@ -49,6 +59,7 @@ class EventCandidate extends Model
         'max_at'      => 'datetime',
         'start_at'    => 'datetime',
         'end_at'      => 'datetime',
+        'translated_at' => 'datetime',
         'reviewed_at' => 'datetime',
     ];
 
