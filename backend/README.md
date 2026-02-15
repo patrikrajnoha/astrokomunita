@@ -319,15 +319,47 @@ Manual admin API sync endpoint (admin only, rate-limited):
 - `POST /api/admin/astrobot/rss-items/{id}/retranslate` (force retranslate)
 - `POST /api/admin/astrobot/rss-items/retranslate-pending` (batch max 100)
 
-### Translation flow (EN -> SK)
-- New/updated RSS items are queued for translation (`TranslateRssItemJob`) after DB commit.
-- `rss_items` stores:
-  - `original_title`, `original_summary`
-  - `translated_title`, `translated_summary`
-  - `translation_status` (`pending|done|failed`)
-  - `translation_error`, `translated_at`
-- Auto-publish waits for `translation_status=done`, so published AstroBot content uses Slovak translation.
-- Keep queue worker running:
+### Translation flow (EN -> SK, open-source)
+- Translation is provider-based (`TranslationProviderInterface`):
+  - primary: `libretranslate` (self-hosted)
+  - fallback: `argos_microservice` (`services/sky`), backward-compatible
+- Async jobs:
+  - RSS: `TranslateRssItemJob`
+  - Crawled events: `TranslateEventCandidateJob`
+- Stored translation fields and states:
+  - `rss_items`: `original_*`, `translated_*`, `translation_status`, `translation_error`, `translated_at`
+  - `event_candidates`: `original_*`, `translated_*`, `translation_status`, `translation_error`, `translated_at`
+- Terminology overrides are stored in `translation_overrides` and applied before and after provider translation.
+- Translation dedupe/cache uses `translation_cache_entries` (`hash(text+from+to)` key).
+- Observability logs are stored in `translation_logs` and exposed via admin endpoint:
+  - `GET /api/admin/translation-health`
+
+### Run LibreTranslate (local Docker)
+```powershell
+docker run --rm -p 5000:5000 libretranslate/libretranslate:latest
+```
+
+### Translation environment
+```env
+TRANSLATION_DEFAULT_PROVIDER=libretranslate
+TRANSLATION_FALLBACK_PROVIDER=argos_microservice
+TRANSLATION_CACHE_ENABLED=true
+TRANSLATION_CACHE_TTL=86400
+TRANSLATION_EVENTS_ENABLED=true
+TRANSLATION_ALLOW_SYNC_QUEUE=false
+
+LIBRETRANSLATE_BASE_URL=http://127.0.0.1:5000
+LIBRETRANSLATE_TRANSLATE_PATH=/translate
+LIBRETRANSLATE_TIMEOUT=12
+LIBRETRANSLATE_CONNECT_TIMEOUT=3
+LIBRETRANSLATE_RETRY=2
+LIBRETRANSLATE_RETRY_SLEEP_MS=250
+LIBRETRANSLATE_VERIFY_SSL=true
+LIBRETRANSLATE_INTERNAL_TOKEN=change-me
+LIBRETRANSLATE_API_KEY=
+```
+
+Keep queue worker running:
 
 ```powershell
 php artisan queue:work
