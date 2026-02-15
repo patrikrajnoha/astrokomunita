@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\Admin\AstroBotController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\AdminPostController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
+use App\Http\Controllers\Api\Admin\TranslationHealthController;
 use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
 use App\Http\Controllers\Api\SidebarSectionController;
 use App\Http\Controllers\Api\Admin\SidebarConfigController as AdminSidebarConfigController;
@@ -274,6 +275,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         // Crawl runs
         Route::get('/crawl-runs',            [CrawlRunController::class, 'index']);
         Route::get('/crawl-runs/{crawlRun}', [CrawlRunController::class, 'show']);
+        Route::get('/translation-health', TranslationHealthController::class);
 
         /*
         |----------------------------------------------------------------------
