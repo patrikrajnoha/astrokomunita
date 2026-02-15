@@ -323,6 +323,8 @@ Manual admin API sync endpoint (admin only, rate-limited):
 - Translation is provider-based (`TranslationProviderInterface`):
   - primary: `libretranslate` (self-hosted)
   - fallback: `argos_microservice` (`services/sky`), backward-compatible
+- Optional grammar quality pass is provider-based (`GrammarCheckerInterface`):
+  - current implementation: `languagetool` (self-hosted, fail-open)
 - Async jobs:
   - RSS: `TranslateRssItemJob`
   - Crawled events: `TranslateEventCandidateJob`
@@ -330,6 +332,7 @@ Manual admin API sync endpoint (admin only, rate-limited):
   - `rss_items`: `original_*`, `translated_*`, `translation_status`, `translation_error`, `translated_at`
   - `event_candidates`: `original_*`, `translated_*`, `translation_status`, `translation_error`, `translated_at`
 - Terminology overrides are stored in `translation_overrides` and applied before and after provider translation.
+- Additional SK->SK post-correction overrides can be stored in `translation_overrides` (`language_from=sk`, `language_to=sk`) to fix domain phrasing.
 - Translation dedupe/cache uses `translation_cache_entries` (`hash(text+from+to)` key).
 - Observability logs are stored in `translation_logs` and exposed via admin endpoint:
   - `GET /api/admin/translation-health`
@@ -344,14 +347,23 @@ Manual admin API sync endpoint (admin only, rate-limited):
 docker run --rm -p 5000:5000 libretranslate/libretranslate:latest
 ```
 
+### Run LanguageTool (local Docker, optional quality pass)
+```powershell
+docker run --rm -p 8081:8010 silviof/docker-languagetool:latest
+```
+
 ### Translation environment
 ```env
 TRANSLATION_DEFAULT_PROVIDER=libretranslate
 TRANSLATION_FALLBACK_PROVIDER=argos_microservice
 TRANSLATION_CACHE_ENABLED=true
 TRANSLATION_CACHE_TTL=86400
+TRANSLATION_CACHE_KEY_VERSION=v6
 TRANSLATION_EVENTS_ENABLED=true
 TRANSLATION_ALLOW_SYNC_QUEUE=false
+TRANSLATION_GRAMMAR_ENABLED=false
+TRANSLATION_GRAMMAR_PROVIDER=languagetool
+TRANSLATION_GRAMMAR_LANGUAGES=sk
 
 LIBRETRANSLATE_BASE_URL=http://127.0.0.1:5000
 LIBRETRANSLATE_TRANSLATE_PATH=/translate
@@ -362,6 +374,20 @@ LIBRETRANSLATE_RETRY_SLEEP_MS=250
 LIBRETRANSLATE_VERIFY_SSL=true
 LIBRETRANSLATE_INTERNAL_TOKEN=change-me
 LIBRETRANSLATE_API_KEY=
+
+LANGUAGETOOL_BASE_URL=http://127.0.0.1:8081
+LANGUAGETOOL_CHECK_PATH=/v2/check
+LANGUAGETOOL_LANGUAGE=sk-SK
+LANGUAGETOOL_TIMEOUT=6
+LANGUAGETOOL_CONNECT_TIMEOUT=2
+LANGUAGETOOL_RETRY=1
+LANGUAGETOOL_RETRY_SLEEP_MS=200
+LANGUAGETOOL_VERIFY_SSL=true
+LANGUAGETOOL_INTERNAL_TOKEN=change-me
+LANGUAGETOOL_MAX_FIXES=30
+LANGUAGETOOL_ENABLED_RULES=
+LANGUAGETOOL_DISABLED_RULES=
+LANGUAGETOOL_ENABLED_ONLY=false
 ```
 
 Keep queue worker running:
@@ -375,6 +401,13 @@ Backfill existing approved events:
 ```powershell
 php artisan events:backfill-translations --dry-run
 php artisan events:backfill-translations
+php artisan events:backfill-translations --force
+```
+
+For one-time quality recalculation (ignore old translation cache), run with cache disabled:
+
+```powershell
+$env:TRANSLATION_CACHE_ENABLED='false'; php artisan events:backfill-translations --force
 ```
 
 ### Development (Windows/XAMPP)
