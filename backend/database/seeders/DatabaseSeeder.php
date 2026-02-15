@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
         $this->call(AstroBotSeeder::class);
         $this->call(SidebarSectionSeeder::class);
         $this->call(EventSourceSeeder::class);
+        $this->call(TranslationOverrideSeeder::class);
         $this->call(DemoEventsSeeder::class);
 
         User::factory()->create([
