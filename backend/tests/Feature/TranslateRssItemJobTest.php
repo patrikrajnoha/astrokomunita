@@ -16,6 +16,14 @@ class TranslateRssItemJobTest extends TestCase
 {
     use RefreshDatabase;
 
+    private function configureTranslation(): void
+    {
+        config()->set('translation.default_provider', 'argos_microservice');
+        config()->set('translation.fallback_provider', '');
+        config()->set('translation.argos_microservice.base_url', 'http://translation.test');
+        config()->set('translation.argos_microservice.internal_token', 'token');
+    }
+
     public function test_upsert_dispatches_translation_job_after_commit(): void
     {
         Queue::fake();
@@ -38,8 +46,7 @@ class TranslateRssItemJobTest extends TestCase
 
     public function test_job_marks_item_done_and_saves_translations(): void
     {
-        config()->set('services.translation.base_url', 'http://translation.test');
-        config()->set('services.translation.internal_token', 'token');
+        $this->configureTranslation();
 
         Http::fake([
             'http://translation.test/*' => Http::response([
@@ -78,8 +85,7 @@ class TranslateRssItemJobTest extends TestCase
 
     public function test_job_marks_item_failed_when_translation_service_errors(): void
     {
-        config()->set('services.translation.base_url', 'http://translation.test');
-        config()->set('services.translation.internal_token', 'token');
+        $this->configureTranslation();
 
         Http::fake([
             'http://translation.test/*' => Http::response(['error' => 'boom'], 500),
@@ -105,7 +111,7 @@ class TranslateRssItemJobTest extends TestCase
         } catch (\Throwable) {
             $item->refresh();
             $this->assertSame(RssItem::TRANSLATION_FAILED, $item->translation_status);
-            $this->assertSame('http_500', $item->translation_error);
+            $this->assertSame('argos_http_500', $item->translation_error);
         }
     }
 
