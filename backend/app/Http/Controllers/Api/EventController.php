@@ -118,11 +118,13 @@ class EventController extends Controller
         $minYear = (int) config('events.astropixels.min_year', 2021);
         $maxYear = (int) config('events.astropixels.max_year', 2030);
         $currentYear = (int) now()->year;
-        $defaultYear = max($minYear, min($maxYear, $currentYear));
+        $currentYearBounded = max($minYear, min($maxYear, $currentYear));
+        $defaultYear = $currentYearBounded;
 
         return response()->json([
             'years' => range($minYear, $maxYear),
             'defaultYear' => $defaultYear,
+            'currentYearBounded' => $currentYearBounded,
             'minYear' => $minYear,
             'maxYear' => $maxYear,
         ]);
@@ -225,13 +227,23 @@ class EventController extends Controller
         $month = isset($validated['month']) ? (int) $validated['month'] : null;
         $week = isset($validated['week']) ? (int) $validated['week'] : null;
 
+        if ($year === null && ($month !== null || $week !== null)) {
+            $minYear = (int) config('events.astropixels.min_year', 2021);
+            $maxYear = (int) config('events.astropixels.max_year', 2030);
+            $year = max($minYear, min($maxYear, (int) now()->year));
+        }
+
         if ($year === null) {
             return $validated;
         }
 
         if ($week !== null) {
-            $startLocal = CarbonImmutable::now($timezone)->setISODate($year, $week, 1)->startOfDay();
-            $endLocal = $startLocal->endOfWeek()->endOfDay();
+            $maxIsoWeeks = CarbonImmutable::create($year, 12, 28, 0, 0, 0, $timezone)->isoWeek();
+            $resolvedWeek = min($week, $maxIsoWeeks);
+            $startLocal = CarbonImmutable::create($year, 1, 4, 0, 0, 0, $timezone)
+                ->setISODate($year, $resolvedWeek, 1)
+                ->startOfDay();
+            $endLocal = $startLocal->addDays(6)->endOfDay();
         } elseif ($month !== null) {
             $startLocal = CarbonImmutable::create($year, $month, 1, 0, 0, 0, $timezone)->startOfDay();
             $endLocal = $startLocal->endOfMonth()->endOfDay();

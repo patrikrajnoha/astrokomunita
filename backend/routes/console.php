@@ -65,13 +65,15 @@ if ($nextYear !== null) {
         ->withoutOverlapping();
 }
 
-$weeklyUpperBound = min($maxYear, $currentYear + 1);
-if ($weeklyUpperBound >= $minYear) {
-    foreach (range($minYear, $weeklyUpperBound) as $yearToSync) {
-        Schedule::command("events:crawl-astropixels --year={$yearToSync}")
-            ->weeklyOn(1, '03:00')
-            ->withoutOverlapping();
-    }
+$weeklyYears = [$boundedCurrentYear];
+if ($nextYear !== null) {
+    $weeklyYears[] = $nextYear;
+}
+
+foreach (array_values(array_unique($weeklyYears)) as $yearToSync) {
+    Schedule::command("events:crawl-astropixels --year={$yearToSync}")
+        ->weeklyOn(1, '03:00')
+        ->withoutOverlapping();
 }
 
 Schedule::command('reminders:send')
