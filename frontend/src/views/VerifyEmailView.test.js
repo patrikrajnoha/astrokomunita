@@ -24,7 +24,7 @@ vi.mock('@/services/api', () => ({
 
 import VerifyEmailView from './VerifyEmailView.vue'
 
-function makeRouter(path = '/verify-email') {
+function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
     routes: [

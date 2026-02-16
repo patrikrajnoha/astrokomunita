@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import AdminSubNav from './AdminSubNav.vue'
 
-function makeRouter(path = '/admin/dashboard') {
+function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
     routes: [
