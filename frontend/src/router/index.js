@@ -198,6 +198,11 @@ const appShellChildren = [
         component: () => import('@/views/admin/BannedWordsView.vue'),
       },
       {
+        path: 'event-sources',
+        name: 'admin.event-sources',
+        component: () => import('@/views/admin/EventSourcesView.vue'),
+      },
+      {
         path: 'astrobot',
         name: 'admin.astrobot',
         component: () => import('@/views/admin/AstroBotView.vue'),
