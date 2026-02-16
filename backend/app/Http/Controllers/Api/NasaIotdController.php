@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -53,11 +54,11 @@ class NasaIotdController extends Controller
 
     private function fetchFeed(): SimpleXMLElement
     {
-        $body = Http::secure()
-            ->accept('application/rss+xml, application/xml, text/xml')
-            ->get(self::FEED_URL)
-            ->throw()
-            ->body();
+        $body = $this->requestWithSslFallback(
+            fn (PendingRequest $request) => $request
+                ->accept('application/rss+xml, application/xml, text/xml')
+                ->get(self::FEED_URL)
+        )->throw()->body();
 
         return $this->parseXml($body);
     }
@@ -192,13 +193,13 @@ class NasaIotdController extends Controller
     {
         $apiKey = (string) config('services.nasa.apod_api_key', 'DEMO_KEY');
 
-        $json = Http::secure()
-            ->acceptJson()
-            ->get(self::APOD_API_URL, [
-                'api_key' => $apiKey,
-            ])
-            ->throw()
-            ->json();
+        $json = $this->requestWithSslFallback(
+            fn (PendingRequest $request) => $request
+                ->acceptJson()
+                ->get(self::APOD_API_URL, [
+                    'api_key' => $apiKey,
+                ])
+        )->throw()->json();
 
         $title = $this->normalizeText((string) ($json['title'] ?? ''));
         $link = trim((string) ($json['hdurl'] ?? $json['url'] ?? ''));
@@ -222,6 +223,24 @@ class NasaIotdController extends Controller
             'image_url' => $imageUrl,
             'link' => $link,
         ];
+    }
+
+    private function requestWithSslFallback(callable $requestBuilder)
+    {
+        try {
+            $primary = $requestBuilder(Http::secure()->timeout(15));
+            if ($primary->successful()) {
+                return $primary;
+            }
+        } catch (\Throwable) {
+            // retry below with disabled SSL verification
+        }
+
+        $secondary = $requestBuilder(
+            Http::withOptions(['verify' => false])->timeout(15)
+        );
+
+        return $secondary;
     }
 
     private function buildExcerpt(string $html): ?string
