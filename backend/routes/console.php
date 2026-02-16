@@ -84,13 +84,8 @@ Schedule::command('notifications:send-event-reminders')
     ->everyFiveMinutes()
     ->withoutOverlapping();
 
-Schedule::command('news:import-nasa --limit=20')
-    ->hourly()
-    ->withoutOverlapping()
-    ->appendOutputTo(storage_path('logs/nasa_rss_import.log'));
-
 // ------------------------------------------------------------------
-// AstroBot Scheduler
+// AstroBot Scheduler (authoritative NASA RSS sync path)
 // ------------------------------------------------------------------
 Schedule::job(new AstroBotNasaSyncJob())
     ->name('astrobot:nasa:sync-job')
