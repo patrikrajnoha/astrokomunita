@@ -7,13 +7,6 @@
 - Suggested periodicity: daily incremental crawl + weekly consistency re-crawl.
 - Licensing note: verify publisher terms for redistribution of event text; store source URL and original text for attribution.
 
-## Go Astronomy (Event Calendar)
-- Type: HTML event calendar table/list.
-- URL: `https://www.go-astronomy.com/astronomy-calendar.php`
-- Parsing mode: calendar row parsing (`events:crawl-go-astronomy`) with date extraction and normalization.
-- Suggested periodicity: daily crawl (changes can happen inside current year).
-- Licensing note: verify Terms/robots before large-scale crawling; keep source links and avoid bulk text republishing without permission.
-
 ## NASA RSS (News Feed)
 - Type: RSS/Atom feed.
 - URL: configured by `ASTROBOT_NASA_RSS_URL`.

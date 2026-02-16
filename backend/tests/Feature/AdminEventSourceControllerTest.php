@@ -35,8 +35,14 @@ class AdminEventSourceControllerTest extends TestCase
             'is_enabled' => true,
         ]);
         EventSource::query()->create([
-            'key' => EventSourceEnum::GO_ASTRONOMY->value,
-            'name' => EventSourceEnum::GO_ASTRONOMY->label(),
+            'key' => EventSourceEnum::NASA->value,
+            'name' => EventSourceEnum::NASA->label(),
+            'base_url' => 'https://nasa.test',
+            'is_enabled' => true,
+        ]);
+        EventSource::query()->create([
+            'key' => 'go_astronomy',
+            'name' => 'Go Astronomy Event Calendar',
             'base_url' => 'https://go-astronomy.test',
             'is_enabled' => false,
         ]);
@@ -47,15 +53,19 @@ class AdminEventSourceControllerTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonCount(2, 'data');
-        $response->assertJsonPath('data.0.key', EventSourceEnum::ASTROPIXELS->value);
+        $response->assertJsonMissingPath('data.2');
+        $keys = collect($response->json('data'))->pluck('key')->all();
+        $this->assertContains(EventSourceEnum::ASTROPIXELS->value, $keys);
+        $this->assertContains(EventSourceEnum::NASA->value, $keys);
+        $this->assertNotContains('go_astronomy', $keys);
     }
 
     public function test_admin_can_toggle_source_enabled_state(): void
     {
         $source = EventSource::query()->create([
-            'key' => EventSourceEnum::GO_ASTRONOMY->value,
-            'name' => EventSourceEnum::GO_ASTRONOMY->label(),
-            'base_url' => 'https://go-astronomy.test',
+            'key' => EventSourceEnum::NASA->value,
+            'name' => EventSourceEnum::NASA->label(),
+            'base_url' => 'https://nasa.test',
             'is_enabled' => true,
         ]);
 
@@ -64,7 +74,7 @@ class AdminEventSourceControllerTest extends TestCase
         $this->patchJson("/api/admin/event-sources/{$source->id}", [
             'is_enabled' => false,
         ])->assertOk()
-            ->assertJsonPath('key', EventSourceEnum::GO_ASTRONOMY->value)
+            ->assertJsonPath('key', EventSourceEnum::NASA->value)
             ->assertJsonPath('is_enabled', false);
 
         $this->assertDatabaseHas('event_sources', [
@@ -82,8 +92,14 @@ class AdminEventSourceControllerTest extends TestCase
             'is_enabled' => true,
         ]);
         EventSource::query()->create([
-            'key' => EventSourceEnum::GO_ASTRONOMY->value,
-            'name' => EventSourceEnum::GO_ASTRONOMY->label(),
+            'key' => EventSourceEnum::NASA->value,
+            'name' => EventSourceEnum::NASA->label(),
+            'base_url' => 'https://www.nasa.gov/',
+            'is_enabled' => false,
+        ]);
+        EventSource::query()->create([
+            'key' => 'go_astronomy',
+            'name' => 'Go Astronomy Event Calendar',
             'base_url' => 'https://go-astronomy.test/calendar',
             'is_enabled' => false,
         ]);
@@ -98,7 +114,7 @@ class AdminEventSourceControllerTest extends TestCase
         $response = $this->postJson('/api/admin/event-sources/run', [
             'source_keys' => [
                 EventSourceEnum::ASTROPIXELS->value,
-                EventSourceEnum::GO_ASTRONOMY->value,
+                EventSourceEnum::NASA->value,
             ],
             'year' => 2026,
         ]);
@@ -107,12 +123,33 @@ class AdminEventSourceControllerTest extends TestCase
         $response->assertJsonPath('status', 'ok');
         $response->assertJsonPath('results.0.source_key', EventSourceEnum::ASTROPIXELS->value);
         $response->assertJsonPath('results.0.status', 'success');
-        $response->assertJsonPath('results.1.source_key', EventSourceEnum::GO_ASTRONOMY->value);
+        $response->assertJsonPath('results.1.source_key', EventSourceEnum::NASA->value);
         $response->assertJsonPath('results.1.status', 'skipped');
 
         $this->assertDatabaseHas('crawl_runs', [
             'source_name' => EventSourceEnum::ASTROPIXELS->value,
             'status' => 'success',
         ]);
+    }
+
+    public function test_manual_run_rejects_go_astronomy_source_key(): void
+    {
+        EventSource::query()->create([
+            'key' => EventSourceEnum::ASTROPIXELS->value,
+            'name' => EventSourceEnum::ASTROPIXELS->label(),
+            'base_url' => 'https://astropixels.com/almanac/almanac21/almanac%dcet.html',
+            'is_enabled' => true,
+        ]);
+
+        $this->actingAsAdmin();
+
+        $response = $this->postJson('/api/admin/event-sources/run', [
+            'source_keys' => ['go_astronomy'],
+            'year' => 2026,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('message', 'One or more sources are not available in this environment.');
+        $response->assertJsonPath('errors.source_keys.0', 'Source key(s) not allowed: go_astronomy');
     }
 }

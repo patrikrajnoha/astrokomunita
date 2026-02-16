@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
 
 class EventSourceController extends Controller
 {
+    private const DISABLED_SOURCE_KEYS = ['go_astronomy'];
+
     public function __construct(
         private readonly CrawlerRegistry $crawlerRegistry,
         private readonly CrawlerOrchestrator $orchestrator,
@@ -26,6 +28,7 @@ class EventSourceController extends Controller
     public function index(): JsonResponse
     {
         $sources = EventSource::query()
+            ->whereNotIn('key', self::DISABLED_SOURCE_KEYS)
             ->orderBy('key')
             ->get()
             ->map(fn (EventSource $source): array => [
@@ -45,6 +48,10 @@ class EventSourceController extends Controller
 
     public function update(Request $request, EventSource $eventSource): JsonResponse
     {
+        if (in_array($eventSource->key, self::DISABLED_SOURCE_KEYS, true)) {
+            abort(404);
+        }
+
         $payload = $request->validate([
             'is_enabled' => ['required', 'boolean'],
         ]);
@@ -76,6 +83,22 @@ class EventSourceController extends Controller
             static fn (mixed $v): string => strtolower(trim((string) $v)),
             (array) $payload['source_keys']
         )));
+
+        $blockedKeys = array_values(array_filter(
+            $requestedKeys,
+            fn (string $key): bool => in_array($key, self::DISABLED_SOURCE_KEYS, true)
+        ));
+
+        if ($blockedKeys !== []) {
+            return response()->json([
+                'message' => 'One or more sources are not available in this environment.',
+                'errors' => [
+                    'source_keys' => [
+                        sprintf('Source key(s) not allowed: %s', implode(', ', $blockedKeys)),
+                    ],
+                ],
+            ], 422);
+        }
 
         $sources = EventSource::query()
             ->whereIn('key', $requestedKeys)
