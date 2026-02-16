@@ -63,3 +63,7 @@ python -m py_compile $(git ls-files '*.py')
 TRANSFORMERS_OFFLINE=1 HF_HUB_OFFLINE=1 python -c "import app.main"
 if command -v pytest >/dev/null 2>&1 && [ -d tests ]; then pytest -q; else echo "Skipping pytest"; fi
 ```
+
+## Local development
+
+See `docs/dev.md` for local backend/frontend startup commands and expected ports.

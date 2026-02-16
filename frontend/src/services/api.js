@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { useToast } from '@/composables/useToast'
 
-const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 const normalizedApiBaseUrl = rawApiBaseUrl.replace(/\/api\/?$/i, '')
 
 const api = axios.create({
