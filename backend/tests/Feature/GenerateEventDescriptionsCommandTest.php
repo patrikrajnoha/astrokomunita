@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\GenerateEventDescriptionJob;
 use App\Models\DescriptionGenerationRun;
 use App\Models\Event;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class GenerateEventDescriptionsCommandTest extends TestCase
@@ -61,6 +63,22 @@ class GenerateEventDescriptionsCommandTest extends TestCase
         $this->assertNotNull($event->short);
         $this->assertStringContainsString('mesiac', mb_strtolower((string) $event->description));
         $this->assertStringContainsString('24. 02. 2026', (string) $event->description);
+    }
+
+    public function test_concurrency_flag_dispatches_expected_number_of_jobs(): void
+    {
+        Queue::fake();
+
+        $this->createEvents(4);
+
+        $this->artisan('events:generate-descriptions --mode=template --limit=3 --concurrency=3')
+            ->assertExitCode(0);
+
+        Queue::assertPushed(GenerateEventDescriptionJob::class, 3);
+        Queue::assertPushed(
+            GenerateEventDescriptionJob::class,
+            static fn (GenerateEventDescriptionJob $job): bool => $job->concurrency === 3
+        );
     }
 
     public function test_command_ollama_mode_generates_descriptions(): void
@@ -219,5 +237,30 @@ class GenerateEventDescriptionsCommandTest extends TestCase
         $this->assertSame(5, $finalRun->processed);
         $this->assertSame(5, $finalRun->generated);
         $this->assertSame(max(array_map(static fn (Event $event): int => (int) $event->id, $events)), (int) $finalRun->last_event_id);
+    }
+
+    public function test_no_event_is_regenerated_without_force(): void
+    {
+        $alreadyGenerated = $this->createEvent('evt-existing', 'Already generated');
+        $alreadyGenerated->update([
+            'description' => 'Predgenerovany popis udalosti.',
+            'short' => 'Predgenerovane kratke zhrnutie.',
+        ]);
+        $alreadyGenerated->refresh();
+        $existingUpdatedAt = $alreadyGenerated->updated_at?->toIso8601String();
+
+        $missing = $this->createEvent('evt-missing', 'Needs generation');
+
+        sleep(1);
+
+        $this->artisan('events:generate-descriptions --mode=template')
+            ->assertExitCode(0);
+
+        $alreadyGenerated->refresh();
+        $missing->refresh();
+
+        $this->assertSame($existingUpdatedAt, $alreadyGenerated->updated_at?->toIso8601String());
+        $this->assertNotNull($missing->description);
+        $this->assertNotNull($missing->short);
     }
 }

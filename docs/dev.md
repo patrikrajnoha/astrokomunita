@@ -51,7 +51,7 @@ Credentials:
 Use the robust batch command from `backend/`:
 
 ```bash
-php artisan events:generate-descriptions --mode=ollama --fallback=skip
+php artisan events:generate-descriptions --mode=ollama --concurrency=2 --resume --fallback=base
 ```
 
 Useful options:
@@ -61,10 +61,27 @@ Useful options:
 - `--limit=50` process only a chunk
 - `--force` regenerate even when description/short already exist
 - `--fallback=base|skip`
+- `--concurrency=N` expected worker concurrency for queue `descriptions` (default `2`)
+- `--unsafe` allow `--concurrency` higher than safe cap (`3`)
 
 Fallback behavior:
 - `--fallback=base` if Ollama is unavailable, continue with base/template descriptions.
 - `--fallback=skip` if Ollama fails for an event, skip that event and continue batch.
+
+Windows worker command:
+
+```bash
+php artisan queue:work --queue=descriptions --sleep=1 --tries=1
+```
+
+Run this in separate terminals:
+- concurrency `2` -> run 2 worker terminals (safe default)
+- concurrency `3` -> run 3 worker terminals (max recommended)
+
+Recommended for i5-9300H + 16GB RAM + GTX 1650:
+- `--concurrency=2` (safe)
+- `--concurrency=3` (max recommended)
+- Not recommended: `>3` on 16GB RAM unless explicitly testing with `--unsafe`
 
 Exit codes:
 - `0` completed successfully
