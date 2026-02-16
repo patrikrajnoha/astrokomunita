@@ -50,7 +50,7 @@ describe('LatestArticlesWidget', () => {
         stubs: {
           RouterLink: {
             props: ['to'],
-            template: '<a :href=\"String(to)\"><slot /></a>',
+            template: '<a :href="String(to)"><slot /></a>',
           },
         },
       },
@@ -72,7 +72,7 @@ describe('LatestArticlesWidget', () => {
         stubs: {
           RouterLink: {
             props: ['to'],
-            template: '<a :href=\"String(to)\"><slot /></a>',
+            template: '<a :href="String(to)"><slot /></a>',
           },
         },
       },
