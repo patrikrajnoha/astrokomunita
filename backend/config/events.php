@@ -18,6 +18,9 @@ return [
         'max_year' => 2030,
         'base_url_pattern' => 'https://astropixels.com/almanac/almanac21/almanac%dcet.html',
     ],
+    'go_astronomy' => [
+        'calendar_url' => env('EVENTS_GO_ASTRONOMY_CALENDAR_URL', 'https://www.go-astronomy.com/astronomy-calendar.php'),
+    ],
 
     'types' => [
         'meteors',

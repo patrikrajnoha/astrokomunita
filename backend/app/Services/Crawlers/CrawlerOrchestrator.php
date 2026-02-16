@@ -18,8 +18,8 @@ class CrawlerOrchestrator
 
     public function run(CrawlerInterface $crawler, CrawlContext $context): CrawlRun
     {
-        $sourceEnum = $this->resolveSource($crawler);
-        $sourceUrl = $this->guessSourceUrl($context->year);
+        $sourceEnum = $crawler->source();
+        $sourceUrl = $this->resolveSourceUrl($sourceEnum, $context->year);
         $sourceModel = EventSourceModel::query()->firstOrCreate(
             ['key' => $sourceEnum->value],
             [
@@ -40,6 +40,20 @@ class CrawlerOrchestrator
             'headers_used' => false,
             'status' => 'running',
         ]);
+
+        if (! (bool) $sourceModel->is_enabled) {
+            $finishedAt = CarbonImmutable::now('UTC');
+            $run->update([
+                'finished_at' => $finishedAt,
+                'duration_ms' => $startedAt->diffInMilliseconds($finishedAt),
+                'status' => 'skipped',
+                'errors_count' => 0,
+                'error_code' => 'source_disabled',
+                'error_summary' => sprintf('Source "%s" is disabled.', $sourceEnum->value),
+            ]);
+
+            return $run->fresh();
+        }
 
         try {
             $batch = $crawler->fetchCandidates($context);
@@ -90,19 +104,16 @@ class CrawlerOrchestrator
         return $run->fresh();
     }
 
-    private function resolveSource(CrawlerInterface $crawler): EventSource
+    private function resolveSourceUrl(EventSource $source, int $year): string
     {
-        if ($crawler instanceof AstropixelsCrawlerService) {
-            return EventSource::ASTROPIXELS;
-        }
-
-        return EventSource::ASTROPIXELS;
-    }
-
-    private function guessSourceUrl(int $year): string
-    {
-        $pattern = (string) config('events.astropixels.base_url_pattern', 'https://astropixels.com/almanac/almanac21/almanac%dcet.html');
-        return sprintf($pattern, $year);
+        return match ($source) {
+            EventSource::ASTROPIXELS => sprintf(
+                (string) config('events.astropixels.base_url_pattern', 'https://astropixels.com/almanac/almanac21/almanac%dcet.html'),
+                $year
+            ),
+            EventSource::GO_ASTRONOMY => (string) config('events.go_astronomy.calendar_url', 'https://www.go-astronomy.com/astronomy-calendar.php'),
+            EventSource::NASA => (string) config('astrobot.nasa_rss_url', 'https://www.nasa.gov/rss/dyn/breaking_news.rss'),
+        };
     }
 
     private function encodeDiagnostics(array $diagnostics): ?string
@@ -138,8 +149,14 @@ class CrawlerOrchestrator
         if (str_contains($message, 'ASTROPIXELS_PARSE_ERROR')) {
             return 'astropixels_parse_error';
         }
+        if (str_contains($message, 'GO_ASTRONOMY_HTTP_ERROR')) {
+            return 'go_astronomy_http_error';
+        }
+        if (str_contains($message, 'GO_ASTRONOMY_PARSE_ERROR')) {
+            return 'go_astronomy_parse_error';
+        }
         if (str_contains($message, 'SSL')) {
-            return 'astropixels_ssl_error';
+            return 'crawler_ssl_error';
         }
 
         return 'crawler_runtime_error';
