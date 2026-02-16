@@ -51,4 +51,8 @@ return [
         'internal_token' => env('TRANSLATION_INTERNAL_TOKEN', env('INTERNAL_TOKEN', '')),
     ],
 
+    'nasa' => [
+        'apod_api_key' => env('NASA_APOD_API_KEY', env('NASA_API_KEY', 'DEMO_KEY')),
+    ],
+
 ];
