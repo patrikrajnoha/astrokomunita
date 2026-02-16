@@ -22,6 +22,8 @@ class TranslateEventCandidateJobTest extends TestCase
         config()->set('translation.fallback_provider', '');
         config()->set('translation.argos_microservice.base_url', 'http://translation.test');
         config()->set('translation.argos_microservice.internal_token', 'token');
+        config()->set('ai.ollama_refinement_enabled', false);
+        config()->set('ai.ollama_retry_attempts', 1);
     }
 
     private function runJob(int $candidateId): void
