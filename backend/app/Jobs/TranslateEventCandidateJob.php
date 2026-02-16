@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\EventCandidate;
+use App\Services\AI\OllamaRefinementService;
 use App\Services\Translation\TranslationServiceException;
 use App\Services\TranslationService;
 use Illuminate\Bus\Queueable;
@@ -42,8 +43,10 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
         return 'event-candidate-translation-' . $this->candidateId . '-' . ($this->force ? 'force' : 'normal');
     }
 
-    public function handle(TranslationService $translationService): void
-    {
+    public function handle(
+        TranslationService $translationService,
+        OllamaRefinementService $ollamaRefinementService
+    ): void {
         $candidate = EventCandidate::query()->find($this->candidateId);
         if (! $candidate) {
             return;
@@ -73,6 +76,33 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
             $translatedDescription = $originalDescription !== null
                 ? $translationService->translateEnToSk((string) $originalDescription, 'astronomy')
                 : null;
+
+            if ((bool) config('ai.ollama_refinement_enabled', false)) {
+                try {
+                    $refined = $ollamaRefinementService->refine(
+                        originalEnglishTitle: $originalTitle,
+                        originalEnglishDescription: $originalDescription !== null ? (string) $originalDescription : null,
+                        translatedTitle: $translatedTitle,
+                        translatedDescription: $translatedDescription
+                    );
+
+                    $translatedTitle = (string) ($refined['refined_title'] ?? $translatedTitle);
+                    $translatedDescription = array_key_exists('refined_description', $refined)
+                        ? $refined['refined_description']
+                        : $translatedDescription;
+
+                    if ((bool) ($refined['used_fallback'] ?? false)) {
+                        Log::warning('Event candidate refinement fallback used; keeping base translation where needed.', [
+                            'event_candidate_id' => $candidate->id,
+                        ]);
+                    }
+                } catch (\Throwable $exception) {
+                    Log::warning('Event candidate refinement failed unexpectedly; keeping translated values.', [
+                        'event_candidate_id' => $candidate->id,
+                        'message' => $exception->getMessage(),
+                    ]);
+                }
+            }
 
             $candidate->update([
                 'translated_title' => $translatedTitle,

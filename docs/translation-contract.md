@@ -21,3 +21,10 @@
 ## Queue behavior
 - Translation is intended to run async via queue jobs.
 - Event import may skip dispatch when queue driver is `sync` and `TRANSLATION_ALLOW_SYNC_QUEUE=false`.
+
+## Ollama Refinement Layer
+- Optional post-processing layer that runs only when `AI_OLLAMA_REFINEMENT_ENABLED=true`.
+- Purpose: improve Slovak naturalness and readability of translated text.
+- Safety: fail-open. If Ollama errors, times out, or returns invalid output, original translated fields are kept.
+- Factual scope: refinement must not introduce new facts, numbers, or dates.
+- Status invariant: `translation_status` semantics do not change. Refinement never overrides `failed`/`done` outcomes from the base translation pipeline.

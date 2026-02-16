@@ -4,7 +4,11 @@ namespace Tests\Feature;
 
 use App\Jobs\TranslateRssItemJob;
 use App\Models\RssItem;
+use App\Services\AI\OllamaClient;
+use App\Services\AI\OllamaClientException;
+use App\Services\AI\OllamaRefinementService;
 use App\Services\AstroBotNasaService;
+use App\Services\TranslationService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +26,14 @@ class TranslateRssItemJobTest extends TestCase
         config()->set('translation.fallback_provider', '');
         config()->set('translation.argos_microservice.base_url', 'http://translation.test');
         config()->set('translation.argos_microservice.internal_token', 'token');
+    }
+
+    private function runJob(int $itemId): void
+    {
+        (new TranslateRssItemJob($itemId))->handle(
+            app(TranslationService::class),
+            app(OllamaRefinementService::class)
+        );
     }
 
     public function test_upsert_dispatches_translation_job_after_commit(): void
@@ -74,7 +86,7 @@ class TranslateRssItemJobTest extends TestCase
             'published_at' => now(),
         ]);
 
-        (new TranslateRssItemJob($item->id))->handle(app(\App\Services\TranslationService::class));
+        $this->runJob($item->id);
 
         $item->refresh();
         $this->assertSame(RssItem::TRANSLATION_DONE, $item->translation_status);
@@ -106,7 +118,7 @@ class TranslateRssItemJobTest extends TestCase
         ]);
 
         try {
-            (new TranslateRssItemJob($item->id))->handle(app(\App\Services\TranslationService::class));
+            $this->runJob($item->id);
             $this->fail('Expected translation job to throw on HTTP 500.');
         } catch (\Throwable) {
             $item->refresh();
@@ -141,11 +153,132 @@ class TranslateRssItemJobTest extends TestCase
             'published_at' => now(),
         ]);
 
-        (new TranslateRssItemJob($item->id))->handle(app(\App\Services\TranslationService::class));
+        $this->runJob($item->id);
 
         Http::assertNothingSent();
         $item->refresh();
         $this->assertSame('Uz prelozene', $item->translated_title);
         $this->assertSame(RssItem::TRANSLATION_DONE, $item->translation_status);
+    }
+
+    public function test_job_replaces_translated_fields_when_refinement_enabled(): void
+    {
+        $this->configureTranslation();
+        config()->set('ai.ollama_refinement_enabled', true);
+
+        $client = $this->createMock(OllamaClient::class);
+        $client->expects($this->once())
+            ->method('generate')
+            ->willReturn([
+                'text' => '{"refined_title":"Maximum meteorického roja Perzeidy","refined_description":"Meteorický roj je pravidelný úkaz na oblohe.\n\nMaximum je najlepšie sledovať v druhej polovici noci mimo svetelného smogu."}',
+                'model' => 'mistral',
+                'duration_ms' => 10,
+                'raw' => [],
+            ]);
+        $this->app->instance(OllamaClient::class, $client);
+
+        Http::fake([
+            'http://translation.test/*' => Http::response([
+                'translated' => 'Prelozene',
+            ], 200),
+        ]);
+
+        $item = RssItem::query()->create([
+            'source' => AstroBotNasaService::SOURCE,
+            'guid' => 'job-refine-ok',
+            'url' => 'https://www.nasa.gov/news/job-refine-ok',
+            'dedupe_hash' => sha1('job-refine-ok'),
+            'stable_key' => sha1('job-refine-ok'),
+            'title' => 'Peak of the Perseids meteor shower',
+            'summary' => 'A yearly meteor shower that can be seen at night with the naked eye.',
+            'status' => RssItem::STATUS_DRAFT,
+            'translation_status' => RssItem::TRANSLATION_PENDING,
+            'fetched_at' => now(),
+            'published_at' => now(),
+        ]);
+
+        $this->runJob($item->id);
+
+        $item->refresh();
+        $this->assertSame(RssItem::TRANSLATION_DONE, $item->translation_status);
+        $this->assertSame('Maximum meteorického roja Perzeidy', $item->translated_title);
+        $this->assertStringContainsString('Meteorický roj je pravidelný úkaz na oblohe.', (string) $item->translated_summary);
+    }
+
+    public function test_job_keeps_translated_fields_when_refinement_throws_exception(): void
+    {
+        $this->configureTranslation();
+        config()->set('ai.ollama_refinement_enabled', true);
+
+        $client = $this->createMock(OllamaClient::class);
+        $client->expects($this->once())
+            ->method('generate')
+            ->willThrowException(new OllamaClientException('Ollama down.', 'ollama_connection_error'));
+        $this->app->instance(OllamaClient::class, $client);
+
+        Http::fake([
+            'http://translation.test/*' => Http::response([
+                'translated' => 'Prelozene',
+            ], 200),
+        ]);
+
+        $item = RssItem::query()->create([
+            'source' => AstroBotNasaService::SOURCE,
+            'guid' => 'job-refine-fallback',
+            'url' => 'https://www.nasa.gov/news/job-refine-fallback',
+            'dedupe_hash' => sha1('job-refine-fallback'),
+            'stable_key' => sha1('job-refine-fallback'),
+            'title' => 'Original title',
+            'summary' => 'Original summary',
+            'status' => RssItem::STATUS_DRAFT,
+            'translation_status' => RssItem::TRANSLATION_PENDING,
+            'fetched_at' => now(),
+            'published_at' => now(),
+        ]);
+
+        $this->runJob($item->id);
+
+        $item->refresh();
+        $this->assertSame(RssItem::TRANSLATION_DONE, $item->translation_status);
+        $this->assertSame('Prelozene', $item->translated_title);
+        $this->assertSame('Prelozene', $item->translated_summary);
+        $this->assertNull($item->translation_error);
+    }
+
+    public function test_job_does_not_call_refinement_when_disabled(): void
+    {
+        $this->configureTranslation();
+        config()->set('ai.ollama_refinement_enabled', false);
+
+        $refiner = $this->createMock(OllamaRefinementService::class);
+        $refiner->expects($this->never())->method('refine');
+        $this->app->instance(OllamaRefinementService::class, $refiner);
+
+        Http::fake([
+            'http://translation.test/*' => Http::response([
+                'translated' => 'Prelozene',
+            ], 200),
+        ]);
+
+        $item = RssItem::query()->create([
+            'source' => AstroBotNasaService::SOURCE,
+            'guid' => 'job-refine-disabled',
+            'url' => 'https://www.nasa.gov/news/job-refine-disabled',
+            'dedupe_hash' => sha1('job-refine-disabled'),
+            'stable_key' => sha1('job-refine-disabled'),
+            'title' => 'Original title',
+            'summary' => 'Original summary',
+            'status' => RssItem::STATUS_DRAFT,
+            'translation_status' => RssItem::TRANSLATION_PENDING,
+            'fetched_at' => now(),
+            'published_at' => now(),
+        ]);
+
+        $this->runJob($item->id);
+
+        $item->refresh();
+        $this->assertSame(RssItem::TRANSLATION_DONE, $item->translation_status);
+        $this->assertSame('Prelozene', $item->translated_title);
+        $this->assertSame('Prelozene', $item->translated_summary);
     }
 }
