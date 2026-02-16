@@ -24,12 +24,6 @@ class EventSourceSeeder extends Seeder
                 'base_url' => 'https://www.nasa.gov/',
                 'is_enabled' => true,
             ],
-            [
-                'key' => EventSource::GO_ASTRONOMY->value,
-                'name' => EventSource::GO_ASTRONOMY->label(),
-                'base_url' => 'https://www.go-astronomy.com/astronomy-calendar.php',
-                'is_enabled' => true,
-            ],
         ];
 
         foreach ($rows as $row) {
@@ -51,5 +45,7 @@ class EventSourceSeeder extends Seeder
                 ->whereNull('event_source_id')
                 ->update(['event_source_id' => $model->id]);
         }
+
+        EventSourceModel::query()->where('key', 'go_astronomy')->delete();
     }
 }

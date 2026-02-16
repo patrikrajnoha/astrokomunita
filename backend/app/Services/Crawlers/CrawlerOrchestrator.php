@@ -111,7 +111,6 @@ class CrawlerOrchestrator
                 (string) config('events.astropixels.base_url_pattern', 'https://astropixels.com/almanac/almanac21/almanac%dcet.html'),
                 $year
             ),
-            EventSource::GO_ASTRONOMY => (string) config('events.go_astronomy.calendar_url', 'https://www.go-astronomy.com/astronomy-calendar.php'),
             EventSource::NASA => (string) config('astrobot.nasa_rss_url', 'https://www.nasa.gov/rss/dyn/breaking_news.rss'),
         };
     }
@@ -148,12 +147,6 @@ class CrawlerOrchestrator
         }
         if (str_contains($message, 'ASTROPIXELS_PARSE_ERROR')) {
             return 'astropixels_parse_error';
-        }
-        if (str_contains($message, 'GO_ASTRONOMY_HTTP_ERROR')) {
-            return 'go_astronomy_http_error';
-        }
-        if (str_contains($message, 'GO_ASTRONOMY_PARSE_ERROR')) {
-            return 'go_astronomy_parse_error';
         }
         if (str_contains($message, 'SSL')) {
             return 'crawler_ssl_error';

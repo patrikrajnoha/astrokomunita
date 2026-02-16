@@ -8,7 +8,6 @@ class CrawlerRegistry
 {
     public function __construct(
         private readonly AstropixelsCrawlerService $astropixelsCrawler,
-        private readonly GoAstronomyCrawlerService $goAstronomyCrawler,
     ) {
     }
 
@@ -22,7 +21,6 @@ class CrawlerRegistry
 
         return match ($enum) {
             EventSource::ASTROPIXELS => $this->astropixelsCrawler,
-            EventSource::GO_ASTRONOMY => $this->goAstronomyCrawler,
             EventSource::NASA => null,
         };
     }

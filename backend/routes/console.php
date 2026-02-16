@@ -59,10 +59,6 @@ Schedule::command("events:crawl-astropixels --year={$boundedCurrentYear}")
     ->dailyAt('01:30')
     ->withoutOverlapping();
 
-Schedule::command('events:crawl-go-astronomy --year=' . $boundedCurrentYear)
-    ->dailyAt('02:15')
-    ->withoutOverlapping();
-
 if ($nextYear !== null) {
     Schedule::command("events:crawl-astropixels --year={$nextYear}")
         ->dailyAt('02:00')
