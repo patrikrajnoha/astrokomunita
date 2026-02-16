@@ -24,6 +24,12 @@ class EventSourceSeeder extends Seeder
                 'base_url' => 'https://www.nasa.gov/',
                 'is_enabled' => true,
             ],
+            [
+                'key' => EventSource::GO_ASTRONOMY->value,
+                'name' => EventSource::GO_ASTRONOMY->label(),
+                'base_url' => 'https://www.go-astronomy.com/astronomy-calendar.php',
+                'is_enabled' => true,
+            ],
         ];
 
         foreach ($rows as $row) {

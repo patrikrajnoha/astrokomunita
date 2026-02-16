@@ -28,6 +28,11 @@ class AstropixelsCrawlerService implements CrawlerInterface
     ) {
     }
 
+    public function source(): EventSource
+    {
+        return EventSource::ASTROPIXELS;
+    }
+
     public function fetchCandidates(CrawlContext $context): CandidateBatch
     {
         $url = $this->buildUrlForYear($context->year);
