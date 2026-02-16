@@ -88,8 +88,11 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
             ]);
         } catch (TranslationServiceException $exception) {
             $candidate->update([
+                'translated_title' => $originalTitle,
+                'translated_description' => $originalDescription,
                 'translation_status' => EventCandidate::TRANSLATION_FAILED,
                 'translation_error' => $exception->errorCode(),
+                'translated_at' => now(),
             ]);
 
             Log::warning('Event candidate translation failed', [

@@ -88,8 +88,11 @@ class TranslateRssItemJob implements ShouldQueue, ShouldBeUnique
             ]);
         } catch (TranslationServiceException $exception) {
             $item->update([
+                'translated_title' => $originalTitle,
+                'translated_summary' => $originalSummary,
                 'translation_status' => RssItem::TRANSLATION_FAILED,
                 'translation_error' => $exception->errorCode(),
+                'translated_at' => now(),
             ]);
 
             Log::warning('RSS item translation failed', [

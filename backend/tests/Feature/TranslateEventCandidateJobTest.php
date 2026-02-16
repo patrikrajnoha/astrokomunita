@@ -93,6 +93,9 @@ class TranslateEventCandidateJobTest extends TestCase
             $candidate->refresh();
             $this->assertSame(EventCandidate::TRANSLATION_FAILED, $candidate->translation_status);
             $this->assertSame('argos_http_500', $candidate->translation_error);
+            $this->assertSame('Original title', $candidate->translated_title);
+            $this->assertSame('Original description', $candidate->translated_description);
+            $this->assertNotNull($candidate->translated_at);
         }
     }
 }
