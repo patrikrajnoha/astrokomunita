@@ -46,6 +46,31 @@ Credentials:
 - `astrobot` / `astrobot@astrobot.sk` / `astrobot`
 - `patrik` / `patrik@patrik.sk` / `patrik`
 
+## Generating Descriptions Safely
+
+Use the robust batch command from `backend/`:
+
+```bash
+php artisan events:generate-descriptions --mode=ollama --fallback=skip
+```
+
+Useful options:
+- `--resume` resume unfinished run (batch default when `--ids` is not used)
+- `--no-resume` disable automatic resume
+- `--from-id=123` start from a specific event id
+- `--limit=50` process only a chunk
+- `--force` regenerate even when description/short already exist
+- `--fallback=base|skip`
+
+Fallback behavior:
+- `--fallback=base` if Ollama is unavailable, continue with base/template descriptions.
+- `--fallback=skip` if Ollama fails for an event, skip that event and continue batch.
+
+Exit codes:
+- `0` completed successfully
+- `2` completed, but with failed events
+- `1` fatal configuration/runtime error
+
 ## 3) Optional workers (recommended in dev)
 
 From `backend/`:
