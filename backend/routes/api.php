@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\EventWidgetController;
 use App\Http\Controllers\Api\EventEmailAlertController;
 use App\Http\Controllers\Api\EventCalendarController;
 use App\Http\Controllers\Api\EventReminderController;
@@ -144,6 +145,7 @@ Route::get('/user', function (Request $request) {
 Route::get('/events',      [EventController::class, 'index']);
 Route::get('/events/years', [EventController::class, 'years']);
 Route::get('/events/next', [EventController::class, 'next']);
+Route::get('/events/widget/upcoming', [EventWidgetController::class, 'upcoming']);
 Route::get('/events/{id}', [EventController::class, 'show']);
 Route::get('/events/{event}/ics', [EventCalendarController::class, 'show']);
 Route::post('/events/{event}/notify-email', [EventEmailAlertController::class, 'store']);

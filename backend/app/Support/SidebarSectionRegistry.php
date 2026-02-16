@@ -58,6 +58,12 @@ class SidebarSectionRegistry
                 'default_enabled' => true,
                 'default_order' => 4,
             ],
+            [
+                'section_key' => 'upcoming_events',
+                'title' => 'Co sa deje',
+                'default_enabled' => true,
+                'default_order' => 5,
+            ],
         ];
     }
 
