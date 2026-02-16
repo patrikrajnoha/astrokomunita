@@ -61,9 +61,11 @@ use App\Http\Controllers\CsrfTestController;
 */
 Route::get('/health', function () {
     return response()->json([
+        'ok' => true,
         'status' => 'ok',
-        'app'    => config('app.name'),
-        'env'    => app()->environment(),
+        'app' => config('app.name'),
+        'env' => app()->environment(),
+        'time' => now()->toIso8601String(),
     ]);
 });
 
