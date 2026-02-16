@@ -268,6 +268,10 @@ const submit = async () => {
       password: password.value,
       password_confirmation: passwordConfirmation.value,
     })
+    if (!auth.user?.email_verified_at) {
+      await router.push({ name: 'verify-email.required', query: { redirect: redirect.value } })
+      return
+    }
     await router.push(redirect.value)
   } catch (e) {
     const msg = e?.response?.data?.message

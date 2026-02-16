@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
+const wipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCase() === 'true'
 
 const groups = [
   {
@@ -14,7 +15,7 @@ const groups = [
       { label: 'Event sources', to: '/admin/event-sources', icon: 'S' },
       { label: 'Reports', to: '/admin/reports', icon: 'R' },
       { label: 'Moderation', to: '/admin/moderation', icon: 'M' },
-      { label: 'Banned words', to: '/admin/banned-words', icon: 'W' },
+      ...(wipEnabled ? [{ label: 'Banned words', to: '/admin/banned-words', icon: 'W' }] : []),
     ],
   },
   {

@@ -51,6 +51,21 @@ function shouldRedirectToLogin(error) {
   return isProtectedPath(window.location.pathname || '')
 }
 
+function isVerificationError(status, message) {
+  if (status !== 403) return false
+  const normalized = String(message || '').toLowerCase()
+  return normalized.includes('verified') || normalized.includes('verify') || normalized.includes('email address is not verified')
+}
+
+function redirectToVerifyIfNeeded() {
+  if (typeof window === 'undefined') return
+  const pathname = window.location.pathname || ''
+  if (pathname.startsWith('/verify-email')) return
+
+  const redirect = encodeURIComponent(window.location.pathname + window.location.search)
+  window.location.assign(`/verify-email?redirect=${redirect}`)
+}
+
 function redirectToLoginIfNeeded() {
   if (typeof window === 'undefined') return
   const pathname = window.location.pathname || ''
@@ -102,6 +117,9 @@ api.interceptors.response.use(
     if (!suppressToast) {
       if (status === 422) {
         toast.warn('Skontroluj formular.')
+      } else if (isVerificationError(status, normalizedMessage)) {
+        toast.warn('Najprv over emailovu adresu.')
+        redirectToVerifyIfNeeded()
       } else if (status === 401 || status === 419) {
         if (shouldRedirectToLogin(error)) {
           toast.warn(error?.response?.data?.message || 'Relacia vyprsala. Prihlas sa znova.')
