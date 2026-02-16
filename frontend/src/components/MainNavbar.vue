@@ -90,6 +90,7 @@
             </RouterLink>
 
             <RouterLink
+              v-if="isWipEnabled"
               to="/creator-studio"
               custom
               v-slot="{ href: moreHref, navigate: moreNavigate, isActive: isMoreItemActive }"
@@ -276,6 +277,7 @@
               </RouterLink>
 
               <RouterLink
+                v-if="isWipEnabled"
                 to="/admin/banned-words"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
@@ -575,6 +577,7 @@ const auth = useAuthStore()
 const notifications = useNotificationsStore()
 const router = useRouter()
 const route = useRoute()
+const isWipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCase() === 'true'
 const isMoreOpen = ref(false)
 const moreWrapperRef = ref(null)
 const isAdminOpen = ref(false)
@@ -585,7 +588,7 @@ const greetingText = ref('')
 let greetingHideTimer = null
 
 const isMoreActive = computed(() => {
-  return route.path === '/settings' || route.path === '/creator-studio'
+  return route.path === '/settings' || (isWipEnabled && route.path === '/creator-studio')
 })
 
 const isAdminActive = computed(() => {

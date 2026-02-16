@@ -62,6 +62,10 @@ export default {
       this.error = null
       try {
         await this.auth.login({ email: this.email, password: this.password })
+        if (!this.auth.user?.email_verified_at) {
+          this.$router.push({ name: 'verify-email.required', query: { redirect: this.redirect } })
+          return
+        }
         this.$router.push(this.redirect)
       } catch (e) {
         this.error = e?.response?.data?.message || 'Prihlasenie zlyhalo.'

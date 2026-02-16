@@ -3,6 +3,8 @@ import HomeView from '../views/HomeView.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
 
+const wipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCase() === 'true'
+
 const appShellChildren = [
   {
     path: '',
@@ -44,12 +46,14 @@ const appShellChildren = [
       },
     }),
   },
-  {
-    path: 'observations',
-    name: 'observations',
-    meta: { requiresAuth: false },
-    component: () => import('../views/ObservationsView.vue'),
-  },
+  ...(wipEnabled
+    ? [{
+        path: 'observations',
+        name: 'observations',
+        meta: { requiresAuth: false },
+        component: () => import('../views/ObservationsView.vue'),
+      }]
+    : []),
   {
     path: 'learn',
     name: 'learn',
@@ -74,12 +78,14 @@ const appShellChildren = [
     meta: { auth: true, requiresAuth: true },
     component: () => import('../views/SettingsView.vue'),
   },
-  {
-    path: 'creator-studio',
-    name: 'creator-studio',
-    meta: { auth: true, requiresAuth: true },
-    component: () => import('../views/CreatorStudioView.vue'),
-  },
+  ...(wipEnabled
+    ? [{
+        path: 'creator-studio',
+        name: 'creator-studio',
+        meta: { auth: true, requiresAuth: true },
+        component: () => import('../views/CreatorStudioView.vue'),
+      }]
+    : []),
   {
     path: 'notifications',
     name: 'notifications',
@@ -192,11 +198,13 @@ const appShellChildren = [
         name: 'admin.users.detail',
         component: () => import('@/views/admin/AdminUserDetailView.vue'),
       },
-      {
-        path: 'banned-words',
-        name: 'admin.banned-words',
-        component: () => import('@/views/admin/BannedWordsView.vue'),
-      },
+      ...(wipEnabled
+        ? [{
+            path: 'banned-words',
+            name: 'admin.banned-words',
+            component: () => import('@/views/admin/BannedWordsView.vue'),
+          }]
+        : []),
       {
         path: 'event-sources',
         name: 'admin.event-sources',
@@ -235,6 +243,18 @@ const router = createRouter({
       name: 'register',
       meta: { guest: true, requiresAuth: false },
       component: () => import('../views/RegisterView.vue'),
+    },
+    {
+      path: '/verify-email',
+      name: 'verify-email.required',
+      meta: { requiresAuth: true },
+      component: () => import('../views/VerifyEmailView.vue'),
+    },
+    {
+      path: '/verify-email/:id/:hash',
+      name: 'verify-email.link',
+      meta: { requiresAuth: false },
+      component: () => import('../views/VerifyEmailView.vue'),
     },
     {
       path: '/:pathMatch(.*)*',
