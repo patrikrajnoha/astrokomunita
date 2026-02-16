@@ -33,6 +33,19 @@ The frontend API base URL is read from:
 
 Default expected backend for local dev is `http://127.0.0.1:8000`.
 
+## Default Users
+
+Regenerate default local/testing users with:
+
+```bash
+php artisan app:seed-default-users
+```
+
+Credentials:
+- `admin` / `admin@admin.sk` / `admin`
+- `astrobot` / `astrobot@astrobot.sk` / `astrobot`
+- `patrik` / `patrik@patrik.sk` / `patrik`
+
 ## 3) Optional workers (recommended in dev)
 
 From `backend/`:
