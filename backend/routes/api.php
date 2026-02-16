@@ -224,6 +224,7 @@ Route::get('/recommendations/posts', [RecommendationController::class, 'posts'])
 |--------------------------------------------------------------------------
 */
 Route::get('/blog-posts', [BlogPostController::class, 'index']);
+Route::get('/articles/widget', [BlogPostController::class, 'widget']);
 Route::get('/blog-posts/{slug}/related', [BlogPostController::class, 'related']);
 Route::get('/blog-posts/{slug}', [BlogPostController::class, 'show']);
 Route::get('/blog-posts/{slug}/comments', [BlogPostCommentController::class, 'index']);
