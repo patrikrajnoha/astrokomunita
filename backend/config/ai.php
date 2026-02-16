@@ -10,6 +10,12 @@ return [
         static fn (string $value): int => (int) trim($value),
         explode(',', (string) env('AI_OLLAMA_RETRY_BACKOFF_SECONDS', '1,3,7'))
     ), static fn (int $value): bool => $value >= 0)),
+    'ollama_max_tokens_description' => (int) env('AI_OLLAMA_MAX_TOKENS_DESCRIPTION', 420),
+    'ollama_jitter_ms' => array_values(array_filter(array_map(
+        static fn (string $value): int => (int) trim($value),
+        explode(',', (string) env('AI_OLLAMA_JITTER_MS', '200,500'))
+    ), static fn (int $value): bool => $value >= 0)),
+    'ollama_safe_concurrency_default' => (int) env('AI_OLLAMA_SAFE_CONCURRENCY_DEFAULT', 2),
     'ollama_refinement_temperature' => (float) env('AI_OLLAMA_REFINEMENT_TEMPERATURE', 0.3),
     'ollama_refinement_max_tokens' => (int) env('AI_OLLAMA_REFINEMENT_MAX_TOKENS', 700),
 

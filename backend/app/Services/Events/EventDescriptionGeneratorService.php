@@ -149,6 +149,8 @@ Vstup:
 Vrat iba validny JSON.
 PROMPT;
 
+        $this->applyOllamaJitterIfNeeded();
+
         try {
             $result = $this->ollamaClient->generate(
                 prompt: $prompt,
@@ -156,7 +158,7 @@ PROMPT;
                 options: [
                     'model' => (string) config('events.ai.model', config('ai.ollama.model', 'mistral')),
                     'temperature' => (float) config('events.ai.temperature', 0.2),
-                    'num_predict' => (int) config('events.ai.num_predict', 420),
+                    'num_predict' => $this->resolveDescriptionMaxTokens(),
                     'timeout' => (int) config('events.ai.timeout', 45),
                 ]
             );
@@ -277,6 +279,65 @@ PROMPT;
     private function resolveOllamaTimeoutSeconds(): int
     {
         return max(1, (int) config('ai.ollama_timeout_seconds', config('ai.ollama.timeout', 45)));
+    }
+
+    private function resolveDescriptionMaxTokens(): int
+    {
+        $configured = (int) config('ai.ollama_max_tokens_description', config('events.ai.num_predict', 420));
+        return max(350, min(450, $configured));
+    }
+
+    private function applyOllamaJitterIfNeeded(): void
+    {
+        $concurrency = max(1, (int) config('ai.ollama_runtime_concurrency', 1));
+        if ($concurrency <= 1) {
+            return;
+        }
+
+        [$minMs, $maxMs] = $this->resolveJitterRangeMs();
+        if ($maxMs <= 0) {
+            return;
+        }
+
+        $delayMs = $minMs >= $maxMs ? $maxMs : random_int($minMs, $maxMs);
+        usleep($delayMs * 1_000);
+    }
+
+    /**
+     * @return array{0:int,1:int}
+     */
+    private function resolveJitterRangeMs(): array
+    {
+        $configured = config('ai.ollama_jitter_ms', [200, 500]);
+
+        if (is_numeric($configured)) {
+            $value = max(0, (int) $configured);
+            return [$value, $value];
+        }
+
+        if (is_string($configured)) {
+            $parts = array_values(array_filter(array_map(
+                static fn (string $item): int => max(0, (int) trim($item)),
+                explode(',', $configured)
+            ), static fn (int $item): bool => $item >= 0));
+        } elseif (is_array($configured)) {
+            $parts = array_values(array_map(static fn ($item): int => max(0, (int) $item), $configured));
+        } else {
+            $parts = [];
+        }
+
+        if ($parts === []) {
+            return [200, 500];
+        }
+
+        $min = $parts[0];
+        $max = $parts[1] ?? $parts[0];
+
+        if ($min > $max) {
+            [$min, $max] = [$max, $min];
+        }
+
+        return [$min, $max];
     }
 
     private function enrichDescription(string $description, string $startLocal, string $endLocal, string $maxLocal): string

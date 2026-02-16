@@ -2,9 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\GenerateEventDescriptionJob;
 use App\Models\DescriptionGenerationRun;
 use App\Models\Event;
-use App\Services\AI\OllamaClientException;
+use App\Services\Events\DescriptionGenerationRunMetricsService;
 use App\Services\Events\EventDescriptionGeneratorService;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,6 +15,9 @@ class GenerateEventDescriptionsCommand extends Command
 {
     private const EXIT_FATAL = 1;
     private const EXIT_PARTIAL_FAILURE = 2;
+    private const SAFE_CONCURRENCY_CAP = 3;
+    private const DESCRIPTIONS_QUEUE = 'descriptions';
+    private const MEMORY_PRESSURE_WARN_RATIO = 0.80;
 
     protected $signature = 'events:generate-descriptions
                             {--limit=0 : Max events to process (0 = all)}
@@ -25,12 +29,15 @@ class GenerateEventDescriptionsCommand extends Command
                             {--resume : Enable automatic resume from unfinished run}
                             {--no-resume : Disable automatic resume}
                             {--from-id= : Start from event ID (inclusive)}
-                            {--fallback=skip : ollama failure strategy: base|skip}';
+                            {--fallback=skip : ollama failure strategy: base|skip}
+                            {--concurrency= : Expected worker concurrency for queue jobs}
+                            {--unsafe : Allow concurrency above the safe cap}';
 
-    protected $description = 'Generate Slovak event descriptions with robust resume/retry/fallback behavior. Exit codes: 0 success, 2 completed_with_failures, 1 fatal.';
+    protected $description = 'Queue Slovak event description generation with robust resume/retry/fallback behavior.';
 
     public function __construct(
         private readonly EventDescriptionGeneratorService $generatorService,
+        private readonly DescriptionGenerationRunMetricsService $metricsService,
     ) {
         parent::__construct();
     }
@@ -42,6 +49,7 @@ class GenerateEventDescriptionsCommand extends Command
             $dryRun = (bool) $this->option('dry-run');
             $force = (bool) $this->option('force');
             $ids = $this->parseIds((string) $this->option('ids'));
+            $unsafeConcurrency = (bool) $this->option('unsafe');
 
             $requestedMode = $this->resolveMode(
                 rawMode: (string) $this->option('mode'),
@@ -74,9 +82,45 @@ class GenerateEventDescriptionsCommand extends Command
                 return self::EXIT_FATAL;
             }
 
-            $effectiveMode = $requestedMode;
-            $usingFallbackBaseForRemaining = false;
+            $concurrencyWarning = null;
+            $concurrency = $this->resolveConcurrency(
+                rawValue: $this->option('concurrency'),
+                unsafe: $unsafeConcurrency,
+                warning: $concurrencyWarning
+            );
+            if ($concurrency === null) {
+                $this->error('Invalid --concurrency value. Must be a positive integer.');
+                return self::EXIT_FATAL;
+            }
 
+            if ($concurrencyWarning !== null) {
+                $this->warn($concurrencyWarning);
+            }
+
+            if ($resumeEnabled && $ids === [] && $fromId === 0 && ! $dryRun) {
+                $activeRun = $this->findActiveRun(
+                    requestedMode: $requestedMode,
+                    force: $force
+                );
+
+                if ($activeRun !== null) {
+                    $target = (int) data_get($activeRun->meta, 'target_processed', 0);
+                    $this->warn(sprintf(
+                        'Run #%d is already in progress (%d/%d processed). Wait for workers to finish.',
+                        (int) $activeRun->id,
+                        (int) $activeRun->processed,
+                        $target
+                    ));
+                    $this->line(sprintf(
+                        'Worker command: php artisan queue:work --queue=%s --sleep=1 --tries=1',
+                        self::DESCRIPTIONS_QUEUE
+                    ));
+
+                    return self::SUCCESS;
+                }
+            }
+
+            $effectiveMode = $requestedMode;
             if ($requestedMode === 'ollama') {
                 $health = $this->generatorService->preflightOllama();
                 $this->line(sprintf(
@@ -89,10 +133,9 @@ class GenerateEventDescriptionsCommand extends Command
                     $this->warn('Ollama pre-flight failed: ' . (string) ($health['message'] ?? 'unknown error'));
                     if ($fallbackMode === 'base') {
                         $effectiveMode = 'template';
-                        $usingFallbackBaseForRemaining = true;
                         $this->warn('Fallback=base enabled. Continuing in base mode for this run.');
                     } else {
-                        $this->warn('Fallback=skip enabled. Run continues, but some events may fail.');
+                        $this->warn('Fallback=skip enabled. Run continues, but failed events will be skipped.');
                     }
                 } else {
                     $this->info('Ollama pre-flight health check: OK');
@@ -131,8 +174,8 @@ class GenerateEventDescriptionsCommand extends Command
                 $baseQuery->limit($limit);
             }
 
-            $events = $baseQuery->get();
-            $total = $events->count();
+            $eventIds = $baseQuery->pluck('id')->map(static fn ($id): int => (int) $id)->all();
+            $total = count($eventIds);
 
             if ($total === 0) {
                 $run->fill([
@@ -143,168 +186,115 @@ class GenerateEventDescriptionsCommand extends Command
                 ])->save();
 
                 $this->info('No events require description generation.');
+                $this->printMetrics($run->fresh());
                 return self::SUCCESS;
             }
+
+            $this->warnIfMemoryPressure($concurrency);
 
             $retryAttempts = $this->resolveRetryAttempts();
             $retryBackoff = $this->resolveRetryBackoffSeconds($retryAttempts);
 
-            $processed = (int) $run->processed;
-            $generated = (int) $run->generated;
-            $failed = (int) $run->failed;
-            $skipped = (int) $run->skipped;
-
-            $this->info(sprintf(
-                'Processing %d events (requested_mode=%s, effective_mode=%s, fallback=%s, retries=%d, dry_run=%s).',
-                $total,
-                $requestedMode,
-                $effectiveMode,
-                $fallbackMode,
-                $retryAttempts,
-                $dryRun ? 'yes' : 'no'
-            ));
-            $this->line('Exit codes: 0=success, 2=completed_with_failures, 1=fatal_config_error.');
-
-            $this->output->progressStart($total);
-
-            foreach ($events as $event) {
-                $attemptsUsed = 0;
-                $eventStatus = 'generated';
-                $errorCode = null;
-                $errorMessage = null;
-
-                try {
-                    $generationResult = null;
-                    $shouldSwitchToBase = false;
-
-                    if ($effectiveMode === 'template') {
-                        $attemptsUsed = 1;
-                        $generationResult = $this->generatorService->generateForEvent($event, 'template');
-                    } else {
-                        $attemptsUsed = 0;
-                        $generationResult = $this->generateWithRetry(
-                            event: $event,
-                            retryAttempts: $retryAttempts,
-                            retryBackoffSeconds: $retryBackoff,
-                            attemptsUsed: $attemptsUsed,
-                            errorCode: $errorCode,
-                            errorMessage: $errorMessage
-                        );
-
-                        if ($generationResult === null && $fallbackMode === 'base') {
-                            $shouldSwitchToBase = true;
-                            $usingFallbackBaseForRemaining = true;
-                            $generationResult = $this->generatorService->generateForEvent($event, 'template');
-                        }
-                    }
-
-                    if ($generationResult === null) {
-                        $failed++;
-                        if ($fallbackMode === 'skip') {
-                            $skipped++;
-                            $eventStatus = 'skipped';
-                        } else {
-                            $eventStatus = 'failed';
-                        }
-                    } else {
-                        if (! $dryRun) {
-                            $event->update([
-                                'description' => (string) $generationResult['description'],
-                                'short' => (string) $generationResult['short'],
-                            ]);
-                        }
-
-                        $generated++;
-                        $eventStatus = $shouldSwitchToBase
-                            ? 'generated_base_fallback'
-                            : (string) ($generationResult['provider'] ?? 'generated');
-
-                        if ($shouldSwitchToBase && $effectiveMode !== 'template') {
-                            $effectiveMode = 'template';
-                            $this->warn('Switching remaining events to base mode due to Ollama outage.');
-                        }
-                    }
-                } catch (Throwable $exception) {
-                    $attemptsUsed = max($attemptsUsed, 1);
-                    $failed++;
-                    $errorCode = $this->resolveErrorCode($exception);
-                    $errorMessage = $exception->getMessage();
-                    $eventStatus = 'failed';
-                }
-
-                $processed++;
-
-                $run->fill([
-                    'effective_mode' => $effectiveMode,
-                    'last_event_id' => (int) $event->id,
-                    'processed' => $processed,
-                    'generated' => $generated,
-                    'failed' => $failed,
-                    'skipped' => $skipped,
-                    'meta' => array_filter([
-                        'using_fallback_base_for_remaining' => $usingFallbackBaseForRemaining,
-                        'last_event_status' => $eventStatus,
-                        'last_error_code' => $errorCode,
-                        'last_error_message' => $errorMessage,
-                        'last_attempts' => $attemptsUsed,
-                    ], static fn ($value): bool => $value !== null),
-                ])->save();
-
-                $this->output->progressAdvance();
-                $this->line(sprintf(
-                    ' event_id=%d status=%s attempts=%d processed=%d generated=%d failed=%d skipped=%d',
-                    (int) $event->id,
-                    $eventStatus,
-                    $attemptsUsed,
-                    $processed,
-                    $generated,
-                    $failed,
-                    $skipped
-                ));
-            }
-
-            $this->output->progressFinish();
-            $this->newLine();
-
-            $hasRemaining = $this->hasRemainingEvents(
+            $lastDispatchedEventId = max($eventIds);
+            $hasRemainingAfterBatch = $this->hasRemainingEvents(
                 ids: $ids,
                 force: $force,
                 initialFromId: $effectiveFromId,
-                lastEventId: (int) ($run->last_event_id ?? 0)
+                lastEventId: $lastDispatchedEventId
             );
 
-            if (! $dryRun && $hasRemaining) {
-                $run->fill([
-                    'status' => 'partial',
-                    'finished_at' => null,
-                    'effective_mode' => $effectiveMode,
-                    'error_message' => null,
-                ])->save();
-            } else {
-                $run->fill([
-                    'status' => $failed > 0 ? 'completed_with_failures' : 'completed',
-                    'finished_at' => now(),
-                    'effective_mode' => $effectiveMode,
-                    'error_message' => null,
-                ])->save();
+            $meta = (array) ($run->meta ?? []);
+            unset(
+                $meta['finalized_at'],
+                $meta['dispatch_completed_at'],
+                $meta['dispatch_duration_seconds'],
+                $meta['last_error_code'],
+                $meta['last_error_message']
+            );
+
+            $meta = array_merge($meta, [
+                'queue' => self::DESCRIPTIONS_QUEUE,
+                'concurrency' => $concurrency,
+                'unsafe_concurrency' => $unsafeConcurrency,
+                'retry_attempts' => $retryAttempts,
+                'retry_backoff_seconds' => $retryBackoff,
+                'queued_total' => $total,
+                'target_processed' => (int) $run->processed + $total,
+                'has_remaining_after_batch' => $hasRemainingAfterBatch,
+                'dispatch_started_at' => now()->toIso8601String(),
+            ]);
+
+            $run->fill([
+                'status' => 'running',
+                'effective_mode' => $effectiveMode,
+                'fallback_mode' => $fallbackMode,
+                'resume_enabled' => $resumeEnabled,
+                'force_enabled' => $force,
+                'dry_run' => $dryRun,
+                'from_id' => $effectiveFromId,
+                'limit' => $limit > 0 ? $limit : null,
+                'meta' => $meta,
+                'error_message' => null,
+            ])->save();
+
+            config()->set('ai.ollama_runtime_concurrency', $concurrency);
+
+            $dispatchStartedAt = microtime(true);
+            foreach ($eventIds as $eventId) {
+                GenerateEventDescriptionJob::dispatch(
+                    runId: (int) $run->id,
+                    eventId: (int) $eventId,
+                    force: $force,
+                    dryRun: $dryRun,
+                    requestedMode: $requestedMode,
+                    fallbackMode: $fallbackMode,
+                    retryAttempts: $retryAttempts,
+                    retryBackoffSeconds: $retryBackoff,
+                    concurrency: $concurrency
+                )->onQueue(self::DESCRIPTIONS_QUEUE);
             }
 
-            $this->info(sprintf(
-                'Run summary run_id=%d processed=%d generated=%d failed=%d skipped=%d status=%s requested_mode=%s effective_mode=%s fallback=%s',
-                (int) $run->id,
-                $processed,
-                $generated,
-                $failed,
-                $skipped,
-                (string) $run->status,
-                $requestedMode,
-                $effectiveMode,
-                $fallbackMode
-            ));
+            $dispatchDurationSeconds = microtime(true) - $dispatchStartedAt;
+            $this->markDispatchCompleted((int) $run->id, $dispatchDurationSeconds);
 
-            if ($failed > 0) {
-                $this->warn('Completed with failures. Exit code: 2');
-                return self::EXIT_PARTIAL_FAILURE;
+            $this->info(sprintf(
+                'Dispatched %d events to queue "%s" (run_id=%d, mode=%s, fallback=%s, concurrency=%d).',
+                $total,
+                self::DESCRIPTIONS_QUEUE,
+                (int) $run->id,
+                $requestedMode,
+                $fallbackMode,
+                $concurrency
+            ));
+            $this->line('Windows worker command: php artisan queue:work --queue=descriptions --sleep=1 --tries=1');
+            $this->line(sprintf('Run %d worker terminal(s) for concurrency=%d.', $concurrency, $concurrency));
+
+            $run->refresh();
+            if (in_array((string) $run->status, ['completed', 'completed_with_failures', 'partial'], true)) {
+                $this->info(sprintf(
+                    'Run summary run_id=%d processed=%d generated=%d failed=%d skipped=%d status=%s requested_mode=%s effective_mode=%s fallback=%s',
+                    (int) $run->id,
+                    (int) $run->processed,
+                    (int) $run->generated,
+                    (int) $run->failed,
+                    (int) $run->skipped,
+                    (string) $run->status,
+                    $requestedMode,
+                    (string) $run->effective_mode,
+                    $fallbackMode
+                ));
+                $this->printMetrics($run);
+
+                if ((string) $run->status === 'completed_with_failures') {
+                    return self::EXIT_PARTIAL_FAILURE;
+                }
+            } else {
+                $this->line(sprintf(
+                    'Run #%d is processing asynchronously (%d/%d processed).',
+                    (int) $run->id,
+                    (int) $run->processed,
+                    (int) data_get($run->meta, 'target_processed', (int) $run->processed)
+                ));
             }
 
             return self::SUCCESS;
@@ -379,6 +369,43 @@ class GenerateEventDescriptionsCommand extends Command
         return [$run, $fromId, false];
     }
 
+    private function findActiveRun(string $requestedMode, bool $force): ?DescriptionGenerationRun
+    {
+        $run = DescriptionGenerationRun::query()
+            ->where('status', 'running')
+            ->where('dry_run', false)
+            ->where('force_enabled', $force)
+            ->where('requested_mode', $requestedMode)
+            ->latest('id')
+            ->first();
+
+        if ($run === null) {
+            return null;
+        }
+
+        $targetProcessed = (int) data_get($run->meta, 'target_processed', 0);
+        if ($targetProcessed <= 0) {
+            return null;
+        }
+
+        return (int) $run->processed < $targetProcessed ? $run : null;
+    }
+
+    private function markDispatchCompleted(int $runId, float $dispatchDurationSeconds): void
+    {
+        $run = DescriptionGenerationRun::query()->find($runId);
+        if ($run === null) {
+            return;
+        }
+
+        $meta = array_merge((array) ($run->meta ?? []), [
+            'dispatch_completed_at' => now()->toIso8601String(),
+            'dispatch_duration_seconds' => round($dispatchDurationSeconds, 3),
+        ]);
+
+        $run->fill(['meta' => $meta])->save();
+    }
+
     private function hasRemainingEvents(array $ids, bool $force, ?int $initialFromId, int $lastEventId): bool
     {
         if ($lastEventId <= 0) {
@@ -414,112 +441,6 @@ class GenerateEventDescriptionsCommand extends Command
         }
 
         return $query;
-    }
-
-    /**
-     * @return array{description:string,short:string,provider:string}|null
-     */
-    private function generateWithRetry(
-        Event $event,
-        int $retryAttempts,
-        array $retryBackoffSeconds,
-        int &$attemptsUsed,
-        ?string &$errorCode,
-        ?string &$errorMessage
-    ): ?array {
-        for ($attempt = 1; $attempt <= $retryAttempts; $attempt++) {
-            $attemptsUsed = $attempt;
-
-            try {
-                return $this->generatorService->generateForEvent($event, 'ollama');
-            } catch (Throwable $exception) {
-                $errorCode = $this->resolveErrorCode($exception);
-                $errorMessage = $exception->getMessage();
-
-                $retryable = $this->isRetryableOllamaException($exception);
-                if (! $retryable) {
-                    return null;
-                }
-
-                if ($attempt >= $retryAttempts) {
-                    return null;
-                }
-
-                $backoff = (int) ($retryBackoffSeconds[$attempt - 1] ?? 0);
-                if ($backoff > 0) {
-                    usleep($backoff * 1_000_000);
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private function resolveErrorCode(Throwable $exception): string
-    {
-        foreach ($this->exceptionChain($exception) as $item) {
-            if ($item instanceof OllamaClientException) {
-                return $item->errorCode();
-            }
-        }
-
-        $message = strtolower($exception->getMessage());
-        if (str_contains($message, 'timeout')) {
-            return 'ollama_timeout';
-        }
-        if (str_contains($message, 'connection')) {
-            return 'ollama_connection_error';
-        }
-
-        return 'description_generation_error';
-    }
-
-    private function isRetryableOllamaException(Throwable $exception): bool
-    {
-        foreach ($this->exceptionChain($exception) as $item) {
-            if ($item instanceof OllamaClientException) {
-                $errorCode = $item->errorCode();
-
-                if (in_array($errorCode, ['ollama_connection_error', 'ollama_service_error'], true)) {
-                    return true;
-                }
-
-                if (str_starts_with($errorCode, 'ollama_http_')) {
-                    $status = (int) substr($errorCode, strlen('ollama_http_'));
-                    return $status >= 500 || $status === 429;
-                }
-
-                return false;
-            }
-
-            $message = strtolower($item->getMessage());
-            if (
-                str_contains($message, 'connection failed')
-                || str_contains($message, 'timed out')
-                || str_contains($message, 'timeout')
-                || str_contains($message, 'could not connect')
-            ) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * @return array<int,Throwable>
-     */
-    private function exceptionChain(Throwable $exception): array
-    {
-        $chain = [];
-        $current = $exception;
-
-        while ($current !== null) {
-            $chain[] = $current;
-            $current = $current->getPrevious();
-        }
-
-        return $chain;
     }
 
     private function resolveRetryAttempts(): int
@@ -621,5 +542,132 @@ class GenerateEventDescriptionsCommand extends Command
         }
 
         return $ids === [];
+    }
+
+    private function resolveConcurrency(mixed $rawValue, bool $unsafe, ?string &$warning): ?int
+    {
+        $warning = null;
+
+        $configuredDefault = max(1, (int) config('ai.ollama_safe_concurrency_default', 2));
+        $value = trim((string) ($rawValue ?? ''));
+        $concurrency = $value === '' ? $configuredDefault : (int) $value;
+
+        if ($concurrency <= 0) {
+            return null;
+        }
+
+        if (! $unsafe && $concurrency > self::SAFE_CONCURRENCY_CAP) {
+            $warning = sprintf(
+                'Requested concurrency=%d exceeds safe cap=%d. Capped to %d. Use --unsafe to override.',
+                $concurrency,
+                self::SAFE_CONCURRENCY_CAP,
+                self::SAFE_CONCURRENCY_CAP
+            );
+            $concurrency = self::SAFE_CONCURRENCY_CAP;
+        }
+
+        return $concurrency;
+    }
+
+    private function warnIfMemoryPressure(int $concurrency): void
+    {
+        $processUsageBytes = memory_get_usage(true);
+        $memoryLimitBytes = $this->parseIniBytes((string) ini_get('memory_limit'));
+
+        if ($memoryLimitBytes !== null && $memoryLimitBytes > 0) {
+            $ratio = $processUsageBytes / $memoryLimitBytes;
+            if ($ratio >= self::MEMORY_PRESSURE_WARN_RATIO) {
+                $this->warn(sprintf(
+                    'PHP process memory usage is high (%.1f%% of memory_limit). Consider reducing --concurrency.',
+                    $ratio * 100
+                ));
+            }
+        }
+
+        $systemUsage = $this->detectWindowsSystemMemoryUsagePercent();
+        if ($systemUsage !== null && $systemUsage >= 80.0) {
+            $this->warn(sprintf(
+                'System RAM usage is %.1f%%. Reduce --concurrency (current=%d) to avoid Ollama overload.',
+                $systemUsage,
+                $concurrency
+            ));
+        }
+    }
+
+    private function parseIniBytes(string $raw): ?int
+    {
+        $value = strtolower(trim($raw));
+        if ($value === '' || $value === '-1') {
+            return null;
+        }
+
+        $unit = substr($value, -1);
+        $number = is_numeric($unit) ? (float) $value : (float) substr($value, 0, -1);
+        if (! is_finite($number) || $number <= 0) {
+            return null;
+        }
+
+        return match ($unit) {
+            'g' => (int) round($number * 1024 * 1024 * 1024),
+            'm' => (int) round($number * 1024 * 1024),
+            'k' => (int) round($number * 1024),
+            default => (int) round($number),
+        };
+    }
+
+    private function detectWindowsSystemMemoryUsagePercent(): ?float
+    {
+        if (PHP_OS_FAMILY !== 'Windows' || ! function_exists('shell_exec')) {
+            return null;
+        }
+
+        $wmicOutput = @shell_exec('wmic OS get FreePhysicalMemory,TotalVisibleMemorySize /Value 2>NUL');
+        if (is_string($wmicOutput) && trim($wmicOutput) !== '') {
+            $total = null;
+            $free = null;
+
+            foreach (preg_split('/\r\n|\r|\n/', trim($wmicOutput)) as $line) {
+                if (! is_string($line) || ! str_contains($line, '=')) {
+                    continue;
+                }
+
+                [$key, $value] = array_map('trim', explode('=', $line, 2));
+                if ($key === 'TotalVisibleMemorySize') {
+                    $total = (float) $value;
+                }
+                if ($key === 'FreePhysicalMemory') {
+                    $free = (float) $value;
+                }
+            }
+
+            if ($total !== null && $total > 0 && $free !== null && $free >= 0) {
+                return round((($total - $free) / $total) * 100, 2);
+            }
+        }
+
+        $powerShellOutput = @shell_exec('powershell -NoProfile -Command "$os = Get-CimInstance Win32_OperatingSystem; if ($os.TotalVisibleMemorySize -gt 0) { [math]::Round((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100, 2) }"');
+        if (! is_string($powerShellOutput)) {
+            return null;
+        }
+
+        $value = trim($powerShellOutput);
+        if ($value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        return (float) $value;
+    }
+
+    private function printMetrics(?DescriptionGenerationRun $run): void
+    {
+        if (! $run instanceof DescriptionGenerationRun) {
+            return;
+        }
+
+        $metrics = $this->metricsService->summarize($run);
+        $this->line(sprintf('Total duration: %.2fs', (float) $metrics['duration_seconds']));
+        $this->line(sprintf('Average seconds/event: %.2f', (float) $metrics['average_seconds_per_event']));
+        $this->line(sprintf('Estimated throughput: %.2f events/minute', (float) $metrics['throughput_events_per_minute']));
+        $this->line(sprintf('Suggested concurrency: %d', (int) $metrics['suggested_concurrency']));
     }
 }
