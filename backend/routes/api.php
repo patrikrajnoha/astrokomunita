@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\Admin\EventCandidateController;
 use App\Http\Controllers\Api\Admin\EventCandidateReviewController;
 use App\Http\Controllers\Api\Admin\EventCandidateMetaController;
 use App\Http\Controllers\Api\Admin\CrawlRunController;
+use App\Http\Controllers\Api\Admin\EventSourceController;
 use App\Http\Controllers\Api\Admin\AdminBlogPostController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\AdminEventController;
@@ -276,6 +277,9 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         // Crawl runs
         Route::get('/crawl-runs',            [CrawlRunController::class, 'index']);
         Route::get('/crawl-runs/{crawlRun}', [CrawlRunController::class, 'show']);
+        Route::get('/event-sources', [EventSourceController::class, 'index']);
+        Route::patch('/event-sources/{eventSource}', [EventSourceController::class, 'update']);
+        Route::post('/event-sources/run', [EventSourceController::class, 'run']);
         Route::get('/translation-health', TranslationHealthController::class);
 
         /*
