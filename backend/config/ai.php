@@ -1,14 +1,20 @@
 <?php
 
 return [
+    'ollama_base_url' => env('AI_OLLAMA_BASE_URL', env('OLLAMA_BASE_URL', 'http://127.0.0.1:11434')),
     'ollama_refinement_enabled' => filter_var(env('AI_OLLAMA_REFINEMENT_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
     'ollama_timeout_seconds' => (int) env('AI_OLLAMA_TIMEOUT_SECONDS', env('OLLAMA_TIMEOUT', 60)),
     'ollama_model_name' => env('AI_OLLAMA_MODEL_NAME', env('OLLAMA_MODEL', 'mistral')),
+    'ollama_retry_attempts' => (int) env('AI_OLLAMA_RETRY_ATTEMPTS', 3),
+    'ollama_retry_backoff_seconds' => array_values(array_filter(array_map(
+        static fn (string $value): int => (int) trim($value),
+        explode(',', (string) env('AI_OLLAMA_RETRY_BACKOFF_SECONDS', '1,3,7'))
+    ), static fn (int $value): bool => $value >= 0)),
     'ollama_refinement_temperature' => (float) env('AI_OLLAMA_REFINEMENT_TEMPERATURE', 0.3),
     'ollama_refinement_max_tokens' => (int) env('AI_OLLAMA_REFINEMENT_MAX_TOKENS', 700),
 
     'ollama' => [
-        'base_url' => env('OLLAMA_BASE_URL', 'http://127.0.0.1:11434'),
+        'base_url' => env('OLLAMA_BASE_URL', env('AI_OLLAMA_BASE_URL', 'http://127.0.0.1:11434')),
         'generate_path' => env('OLLAMA_GENERATE_PATH', '/api/generate'),
         'model' => env('OLLAMA_MODEL', 'mistral'),
         'timeout' => (int) env('OLLAMA_TIMEOUT', 60),
