@@ -87,12 +87,7 @@ class FeedQueryBuilder
             });
         }
 
-        if ($order === 'pinned_then_created') {
-            $query
-                ->orderByRaw('CASE WHEN pinned_at IS NULL THEN 0 ELSE 1 END DESC')
-                ->orderBy('created_at', 'desc')
-                ->orderBy('id', 'desc');
-        } elseif ($order === 'pinned_desc') {
+        if ($order === 'pinned_desc') {
             $query->orderBy('pinned_at', 'desc');
         } else {
             $query

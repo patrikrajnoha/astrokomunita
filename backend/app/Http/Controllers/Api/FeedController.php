@@ -18,9 +18,9 @@ class FeedController extends Controller
 
     /**
      * GET /api/feed
-     * 
-     * Main public feed - user posts only (AstroBot excluded)
-     * Pinned posts always appear first
+     *
+     * Main public feed - user posts only (AstroBot excluded).
+     * Ordering is strictly chronological (created_at DESC, id DESC).
      * Supports pagination, filtering, and same parameters as other feeds
      */
     public function index(Request $request)
@@ -42,7 +42,7 @@ class FeedController extends Controller
             'kind' => $kind,
             'with_counts' => $withCounts,
             'include_hidden' => $request->boolean('include_hidden'),
-            'order' => 'pinned_then_created',
+            'order' => 'created_desc',
             'sources_exclude' => ['astrobot', 'nasa_rss'],
             'tag' => $tag ? strtolower((string) $tag) : null,
         ], $user);
@@ -78,7 +78,7 @@ class FeedController extends Controller
             'kind' => $kind,
             'with_counts' => $withCounts,
             'include_hidden' => $request->boolean('include_hidden'),
-            'order' => 'pinned_then_created',
+            'order' => 'created_desc',
             'sources_include' => ['astrobot', 'nasa_rss'],
         ], $user);
 
