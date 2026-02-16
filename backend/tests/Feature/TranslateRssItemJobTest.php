@@ -112,6 +112,9 @@ class TranslateRssItemJobTest extends TestCase
             $item->refresh();
             $this->assertSame(RssItem::TRANSLATION_FAILED, $item->translation_status);
             $this->assertSame('argos_http_500', $item->translation_error);
+            $this->assertSame('Original title', $item->translated_title);
+            $this->assertSame('Original summary', $item->translated_summary);
+            $this->assertNotNull($item->translated_at);
         }
     }
 
