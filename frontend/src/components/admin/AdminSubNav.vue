@@ -23,6 +23,7 @@ const groups = [
     title: 'Content & configuration',
     items: [
       { label: 'Events', to: '/admin/events', icon: 'E' },
+      { label: 'Featured popup', to: '/admin/featured-events', icon: 'P' },
       { label: 'Contests', to: '/admin/contests', icon: 'C' },
       { label: 'Articles', to: '/admin/blog', icon: 'B' },
       { label: 'Sidebar', to: '/admin/sidebar', icon: 'S' },
