@@ -46,6 +46,16 @@ class NotificationResource extends JsonResource
             ];
         }
 
+        if ($this->type === 'contest_winner') {
+            $postId = $data['post_id'] ?? null;
+
+            return [
+                'kind' => 'post',
+                'id' => $postId,
+                'url' => $postId ? '/posts/' . $postId : '/contests',
+            ];
+        }
+
         return [
             'kind' => Str::before($this->type, '_') ?: 'unknown',
             'id' => null,

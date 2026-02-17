@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\AdminPostController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\TranslationHealthController;
+use App\Http\Controllers\Api\Admin\ContestController as AdminContestController;
 use App\Http\Controllers\Api\Admin\AdminStatsController;
 use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
 use App\Http\Controllers\Api\SidebarSectionController;
@@ -50,6 +51,7 @@ use App\Http\Controllers\Api\SidebarConfigController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\FeedController;
 use App\Http\Controllers\Api\HashtagController;
+use App\Http\Controllers\Api\ContestController;
 use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\ObserveSummaryController;
 use App\Http\Controllers\Api\ObserveDiagnosticsController;
@@ -211,6 +213,8 @@ Route::middleware('throttle:60,1')->prefix('search')->group(function () {
 Route::get('/hashtags', [HashtagController::class, 'index']);
 Route::get('/hashtags/{name}/posts', [HashtagController::class, 'posts']);
 Route::get('/trending', [HashtagController::class, 'trending']);
+Route::get('/contests/active', [ContestController::class, 'active']);
+Route::get('/contests/{contest}/participants', [ContestController::class, 'participants']);
 
 /*
 |--------------------------------------------------------------------------
@@ -289,6 +293,10 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::patch('/event-sources/{eventSource}', [EventSourceController::class, 'update']);
         Route::post('/event-sources/run', [EventSourceController::class, 'run']);
         Route::get('/translation-health', TranslationHealthController::class);
+        Route::get('/contests', [AdminContestController::class, 'index']);
+        Route::post('/contests', [AdminContestController::class, 'store']);
+        Route::patch('/contests/{contest}', [AdminContestController::class, 'update']);
+        Route::post('/contests/{contest}/select-winner', [AdminContestController::class, 'selectWinner']);
 
         /*
         |----------------------------------------------------------------------
