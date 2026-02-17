@@ -32,21 +32,33 @@ function getAuthEndpointDebug() {
 function classifyFetchUserError(error) {
   const status = Number(error?.response?.status || 0)
   const code = String(error?.code || '')
-  const message = String(error?.message || 'Request failed')
+  const responseMessage = String(error?.response?.data?.message || '')
+  const message = responseMessage || String(error?.message || 'Request failed')
+  const backendCode = String(error?.response?.data?.code || '')
+  const reason = error?.response?.data?.reason ?? null
+  const bannedAt = error?.response?.data?.banned_at ?? null
 
   if (status === 401 || status === 419) {
-    return { type: 'unauthorized', status, code, message }
+    return { type: 'unauthorized', status, code, message, backendCode, reason: null, bannedAt: null }
+  }
+
+  if (status === 403 && backendCode === 'ACCOUNT_BANNED') {
+    return { type: 'banned', status, code, message, backendCode, reason, bannedAt }
+  }
+
+  if (status === 403 && backendCode === 'ACCOUNT_INACTIVE') {
+    return { type: 'inactive', status, code, message, backendCode, reason: null, bannedAt: null }
   }
 
   if (code === 'ECONNABORTED' || message.toLowerCase().includes('timeout')) {
-    return { type: 'timeout', status, code, message }
+    return { type: 'timeout', status, code, message, backendCode, reason: null, bannedAt: null }
   }
 
   if (!status && (code === 'ERR_NETWORK' || message.toLowerCase().includes('network'))) {
-    return { type: 'network', status, code, message }
+    return { type: 'network', status, code, message, backendCode, reason: null, bannedAt: null }
   }
 
-  return { type: 'server', status, code, message }
+  return { type: 'server', status, code, message, backendCode, reason: null, bannedAt: null }
 }
 
 function isCsrfMismatch(error) {
@@ -175,7 +187,13 @@ export const useAuthStore = defineStore('auth', {
 
             this.user = null
 
-            if (classified.type === 'timeout' || classified.type === 'network' || classified.type === 'unauthorized') {
+            if (
+              classified.type === 'timeout' ||
+              classified.type === 'network' ||
+              classified.type === 'unauthorized' ||
+              classified.type === 'banned' ||
+              classified.type === 'inactive'
+            ) {
               this.status = 'guest'
             } else {
               this.status = 'error'
@@ -186,6 +204,9 @@ export const useAuthStore = defineStore('auth', {
               message: classified.message,
               status: classified.status || null,
               code: classified.code || null,
+              backendCode: classified.backendCode || null,
+              reason: classified.reason || null,
+              bannedAt: classified.bannedAt || null,
             }
 
             if (markBootstrap) {
@@ -204,6 +225,9 @@ export const useAuthStore = defineStore('auth', {
           message: 'fetchUser failed',
           status: null,
           code: null,
+          backendCode: null,
+          reason: null,
+          bannedAt: null,
         }
 
         if (markBootstrap) {
@@ -234,7 +258,15 @@ export const useAuthStore = defineStore('auth', {
       try {
         await this.postWithCsrfRetry('/auth/login', payload)
         const user = await this.fetchUser({ source: 'login', retry: false, markBootstrap: true })
-        if (user) this.loginSequence += 1
+        if (user) {
+          this.loginSequence += 1
+          return user
+        }
+
+        const fallbackMessage = this.error?.message || 'Prihlasenie zlyhalo.'
+        const loginFailure = new Error(fallbackMessage)
+        loginFailure.authError = this.error
+        throw loginFailure
       } finally {
         this.loading = false
       }

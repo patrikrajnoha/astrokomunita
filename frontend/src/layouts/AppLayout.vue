@@ -47,13 +47,14 @@
 
     <div class="md:pl-64">
       <div
-        v-if="showAuthFallbackBanner"
+        v-if="showAuthFallbackBanner || showAuthBannedBanner"
         class="authFallbackBanner"
+        :class="{ 'is-danger': showAuthBannedBanner }"
         role="status"
         aria-live="polite"
       >
-        <span>{{ authFallbackMessage }}</span>
-        <button type="button" class="authFallbackRetry" @click="retryAuthFetch">Skusit znova</button>
+        <span>{{ authBannerMessage }}</span>
+        <button v-if="showAuthFallbackBanner" type="button" class="authFallbackRetry" @click="retryAuthFetch">Skusit znova</button>
       </div>
 
       <div
@@ -467,12 +468,30 @@ const observingTz = computed(() => {
 const showAuthFallbackBanner = computed(() => {
   return auth.bootstrapDone && !auth.isAuthed && (auth.error?.type === 'timeout' || auth.error?.type === 'network')
 })
+const showAuthBannedBanner = computed(() => {
+  return auth.bootstrapDone && !auth.isAuthed && auth.error?.type === 'banned'
+})
 const authFallbackMessage = computed(() => {
   if (auth.error?.type === 'timeout') {
     return 'Nepodarilo sa nacitat profil (timeout). Pokracujes ako host.'
   }
 
   return 'Backend je nedostupny. Pokracujes ako host.'
+})
+const authBannedMessage = computed(() => {
+  const reason = parseStringValue(auth.error?.reason)
+  if (reason) {
+    return `Tento ucet je zablokovany. Dovod: ${reason}`
+  }
+
+  return 'Tento ucet je zablokovany.'
+})
+const authBannerMessage = computed(() => {
+  if (showAuthBannedBanner.value) {
+    return authBannedMessage.value
+  }
+
+  return authFallbackMessage.value
 })
 
 const parseStringValue = (value) => {
@@ -858,6 +877,11 @@ onBeforeUnmount(() => {
   background: rgb(var(--color-warning-rgb, 245 158 11) / 0.12);
   color: rgb(var(--color-surface-rgb) / 0.95);
   font-size: 0.82rem;
+}
+
+.authFallbackBanner.is-danger {
+  border-color: rgb(var(--color-danger-rgb, 239 68 68) / 0.5);
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.14);
 }
 
 .brandLabel {
