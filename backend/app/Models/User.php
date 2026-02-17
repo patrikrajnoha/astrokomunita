@@ -40,6 +40,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'ban_reason',
         'is_active',
         'warning_count',
+        'last_calendar_popup_at',
+        'calendar_popup_last_force_version',
     ];
 
     /**
@@ -80,6 +82,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'banned_at' => 'datetime',
             'is_active' => 'boolean',
             'warning_count' => 'integer',
+            'last_calendar_popup_at' => 'datetime',
+            'calendar_popup_last_force_version' => 'integer',
         ];
     }
 
