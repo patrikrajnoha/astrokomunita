@@ -2,9 +2,10 @@
 const props = defineProps({
   label: { type: String, required: true },
   value: { type: [String, Number], default: '-' },
-  delta: { type: Number, default: null },
+  delta: { type: [String, Number], default: null },
   hint: { type: String, default: '' },
-  help: { type: String, default: '' },
+  viewLabel: { type: String, default: 'View' },
+  viewTo: { type: [String, Object], default: null },
   tone: { type: String, default: 'default' },
 })
 
@@ -27,7 +28,7 @@ function deltaText(delta) {
   <article class="kpiCard" :class="`tone-${props.tone}`">
     <header class="kpiHead">
       <h3 class="kpiLabel">{{ props.label }}</h3>
-      <span v-if="props.help" class="kpiHelp" :title="props.help" aria-label="KPI info">?</span>
+      <RouterLink v-if="props.viewTo" class="kpiViewLink" :to="props.viewTo">{{ props.viewLabel }}</RouterLink>
     </header>
 
     <div class="kpiValue">{{ props.value }}</div>
@@ -56,23 +57,19 @@ function deltaText(delta) {
   gap: 8px;
 }
 
+.kpiViewLink {
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .kpiLabel {
   margin: 0;
   font-size: 12px;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
-}
-
-.kpiHelp {
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  display: inline-grid;
-  place-items: center;
-  font-size: 11px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
 }
 
 .kpiValue {

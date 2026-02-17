@@ -13,6 +13,7 @@ const groups = [
       { label: 'Users', to: '/admin/users', icon: 'U' },
       { label: 'Candidates', to: '/admin/event-candidates', icon: 'C' },
       { label: 'Event sources', to: '/admin/event-sources', icon: 'S' },
+      { label: 'Crawl runs', to: '/admin/event-sources', icon: 'R' },
       { label: 'Reports', to: '/admin/reports', icon: 'R' },
       { label: 'Moderation', to: '/admin/moderation', icon: 'M' },
       ...(wipEnabled ? [{ label: 'Banned words', to: '/admin/banned-words', icon: 'W' }] : []),
