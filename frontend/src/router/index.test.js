@@ -4,13 +4,27 @@ import { applyAuthGuards } from './index'
 
 const authState = {
   initialized: true,
+  bootstrapDone: true,
+  status: 'authenticated',
+  loading: false,
   isAuthed: false,
   isAdmin: false,
-  fetchUser: vi.fn(async () => {}),
+  user: null,
+  bootstrapAuth: vi.fn(async () => {}),
+}
+
+const preferencesState = {
+  loaded: true,
+  isOnboardingCompleted: true,
+  fetchPreferences: vi.fn(async () => {}),
 }
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => authState,
+}))
+
+vi.mock('@/stores/eventPreferences', () => ({
+  useEventPreferencesStore: () => preferencesState,
 }))
 
 function makeRouter() {
@@ -21,6 +35,8 @@ function makeRouter() {
       { path: '/events', name: 'events', component: { template: '<div>events</div>' }, meta: { requiresAuth: false } },
       { path: '/settings', name: 'settings', component: { template: '<div>settings</div>' }, meta: { requiresAuth: true } },
       { path: '/login', name: 'login', component: { template: '<div>login</div>' }, meta: { guest: true } },
+      { path: '/verify-email', name: 'verify-email.required', component: { template: '<div>verify</div>' }, meta: { requiresAuth: true } },
+      { path: '/onboarding', name: 'onboarding', component: { template: '<div>onboarding</div>' }, meta: { requiresAuth: true } },
       { path: '/admin', name: 'admin', component: { template: '<div>admin</div>' }, meta: { requiresAuth: true, admin: true } },
     ],
   })
@@ -32,9 +48,17 @@ function makeRouter() {
 describe('router auth guard', () => {
   beforeEach(() => {
     authState.initialized = true
+    authState.bootstrapDone = true
+    authState.status = 'authenticated'
+    authState.loading = false
     authState.isAuthed = false
     authState.isAdmin = false
-    authState.fetchUser.mockClear()
+    authState.user = null
+    authState.bootstrapAuth.mockClear()
+
+    preferencesState.loaded = true
+    preferencesState.isOnboardingCompleted = true
+    preferencesState.fetchPreferences.mockClear()
   })
 
   it('allows guest access to public pages without redirection', async () => {
@@ -56,10 +80,38 @@ describe('router auth guard', () => {
 
   it('keeps authenticated non-admin users out of admin routes', async () => {
     authState.isAuthed = true
+    authState.user = { email_verified_at: '2026-02-17T00:00:00Z' }
     const router = makeRouter()
     await router.push('/admin')
     await router.isReady()
 
     expect(router.currentRoute.value.name).toBe('home')
+  })
+
+  it('redirects verified users with incomplete onboarding to onboarding route', async () => {
+    authState.isAuthed = true
+    authState.user = { email_verified_at: '2026-02-17T00:00:00Z' }
+    preferencesState.loaded = true
+    preferencesState.isOnboardingCompleted = false
+
+    const router = makeRouter()
+    await router.push('/settings')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('onboarding')
+    expect(router.currentRoute.value.query.redirect).toBe('/settings')
+  })
+
+  it('does not reopen onboarding when completed on later navigation', async () => {
+    authState.isAuthed = true
+    authState.user = { email_verified_at: '2026-02-17T00:00:00Z' }
+    preferencesState.loaded = true
+    preferencesState.isOnboardingCompleted = true
+
+    const router = makeRouter()
+    await router.push('/settings')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('settings')
   })
 })

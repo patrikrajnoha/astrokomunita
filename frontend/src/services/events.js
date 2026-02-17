@@ -34,3 +34,13 @@ export function updateMyPreferences(payload) {
     meta: { requiresAuth: true },
   })
 }
+
+export function getOnboardingInterests() {
+  return api.get('/meta/interests')
+}
+
+export function searchOnboardingLocations(query, limit = 8) {
+  return api.get('/meta/locations', {
+    params: { q: query, limit },
+  })
+}
