@@ -57,7 +57,9 @@ use App\Http\Controllers\Api\ObserveSummaryController;
 use App\Http\Controllers\Api\ObserveDiagnosticsController;
 use App\Http\Controllers\Api\ObservingSkySummaryController;
 use App\Http\Controllers\Api\MetaController;
+use App\Http\Controllers\Api\MarkYourCalendarPopupController;
 use App\Http\Controllers\CsrfTestController;
+use App\Http\Controllers\Api\Admin\FeaturedEventController;
 
 /*
 |--------------------------------------------------------------------------
@@ -317,6 +319,14 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::patch('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'update']);
         Route::delete('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'destroy']);
 
+        // Mark your calendar popup (admin)
+        Route::get('/featured-events', [FeaturedEventController::class, 'index']);
+        Route::post('/featured-events', [FeaturedEventController::class, 'store']);
+        Route::patch('/featured-events/{featuredEvent}', [FeaturedEventController::class, 'update']);
+        Route::delete('/featured-events/{featuredEvent}', [FeaturedEventController::class, 'destroy']);
+        Route::post('/featured-events/force-popup', [FeaturedEventController::class, 'forcePopup']);
+        Route::patch('/featured-events/popup-settings', [FeaturedEventController::class, 'updatePopupSettings']);
+
         /*
         |--------------------------------------------------------------------------
         | Blog posts (admin)
@@ -462,5 +472,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'show']);
         Route::put('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);
         Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);
+
+        // Mark your calendar popup
+        Route::get('/popup/mark-your-calendar', [MarkYourCalendarPopupController::class, 'show']);
+        Route::post('/popup/mark-your-calendar/seen', [MarkYourCalendarPopupController::class, 'seen']);
     });
 });

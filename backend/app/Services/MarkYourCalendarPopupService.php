@@ -1,0 +1,339 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\AppSetting;
+use App\Models\Event;
+use App\Models\MonthlyFeaturedEvent;
+use App\Models\User;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+
+class MarkYourCalendarPopupService
+{
+    public const SETTINGS_ENABLED_KEY = 'calendar_popup_enabled';
+    public const SETTINGS_FORCE_VERSION_KEY = 'calendar_popup_force_version';
+    public const SETTINGS_FORCE_AT_KEY = 'calendar_popup_force_at';
+    public const MAX_ACTIVE_ITEMS = 10;
+    public const MAX_ROWS = 2;
+    public const CACHE_TTL_SECONDS = 90;
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function payloadForUser(User $user): array
+    {
+        $enabled = $this->isEnabled();
+        $items = $this->cachedActiveItems();
+        $forceVersion = $this->forceVersion();
+        $monthKey = $this->monthKey(now());
+
+        $reason = 'already_seen';
+        $shouldShow = false;
+
+        if (! $enabled || $items === []) {
+            $reason = 'disabled';
+        } elseif ($forceVersion > (int) $user->calendar_popup_last_force_version) {
+            $shouldShow = true;
+            $reason = 'forced';
+        } else {
+            $lastSeen = $user->last_calendar_popup_at;
+            $lastSeenMonthKey = $lastSeen ? $this->monthKey($lastSeen) : null;
+
+            if ($lastSeenMonthKey !== $monthKey) {
+                $shouldShow = true;
+                $reason = 'monthly';
+            }
+        }
+
+        return [
+            'should_show' => $shouldShow,
+            'reason' => $reason,
+            'force_version' => $forceVersion,
+            'month_key' => $monthKey,
+            'items' => $items,
+            'meta' => [
+                'max_items' => self::MAX_ACTIVE_ITEMS,
+                'max_rows' => self::MAX_ROWS,
+            ],
+            'generated_at' => now()->toIso8601String(),
+        ];
+    }
+
+    public function acknowledgeSeen(User $user, int $forceVersion): void
+    {
+        $user->forceFill([
+            'last_calendar_popup_at' => now(),
+            'calendar_popup_last_force_version' => max((int) $user->calendar_popup_last_force_version, $forceVersion),
+        ])->save();
+    }
+
+    /**
+     * @return array<int, array<string,mixed>>
+     */
+    public function adminFeaturedEvents(): array
+    {
+        return MonthlyFeaturedEvent::query()
+            ->with('event:id,title,start_at,end_at')
+            ->orderBy('position')
+            ->orderBy('id')
+            ->get()
+            ->map(function (MonthlyFeaturedEvent $item): array {
+                return [
+                    'id' => $item->id,
+                    'event_id' => $item->event_id,
+                    'position' => (int) $item->position,
+                    'is_active' => (bool) $item->is_active,
+                    'event' => $item->event ? [
+                        'id' => $item->event->id,
+                        'title' => $item->event->title,
+                        'start_at' => optional($item->event->start_at)->toIso8601String(),
+                        'end_at' => optional($item->event->end_at)->toIso8601String(),
+                    ] : null,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function createFeaturedEvent(User $admin, int $eventId, ?int $position): array
+    {
+        Event::query()->findOrFail($eventId);
+
+        if ($this->activeCount() >= self::MAX_ACTIVE_ITEMS) {
+            throw ValidationException::withMessages([
+                'event_id' => ['Maximum 10 active featured events are allowed.'],
+            ]);
+        }
+
+        $item = DB::transaction(function () use ($admin, $eventId, $position): MonthlyFeaturedEvent {
+            $item = MonthlyFeaturedEvent::query()->create([
+                'event_id' => $eventId,
+                'position' => $this->nextPosition(),
+                'is_active' => true,
+                'created_by' => $admin->id,
+            ]);
+
+            if ($position !== null) {
+                $item->position = max(0, $position);
+                $item->save();
+            }
+
+            $this->normalizePositions();
+
+            return $item->fresh(['event:id,title,start_at,end_at']);
+        });
+
+        $this->forgetItemsCache();
+
+        return $this->mapAdminItem($item);
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>
+     */
+    public function updateFeaturedEvent(MonthlyFeaturedEvent $item, array $payload): array
+    {
+        $targetIsActive = array_key_exists('is_active', $payload)
+            ? (bool) $payload['is_active']
+            : (bool) $item->is_active;
+
+        if ($targetIsActive && ! $item->is_active && $this->activeCount() >= self::MAX_ACTIVE_ITEMS) {
+            throw ValidationException::withMessages([
+                'is_active' => ['Maximum 10 active featured events are allowed.'],
+            ]);
+        }
+
+        $updated = DB::transaction(function () use ($item, $payload): MonthlyFeaturedEvent {
+            if (array_key_exists('position', $payload)) {
+                $item->position = max(0, (int) $payload['position']);
+            }
+
+            if (array_key_exists('is_active', $payload)) {
+                $item->is_active = (bool) $payload['is_active'];
+            }
+
+            $item->save();
+            $this->normalizePositions();
+
+            return $item->fresh(['event:id,title,start_at,end_at']);
+        });
+
+        $this->forgetItemsCache();
+
+        return $this->mapAdminItem($updated);
+    }
+
+    public function deleteFeaturedEvent(MonthlyFeaturedEvent $item): void
+    {
+        DB::transaction(function () use ($item): void {
+            $item->delete();
+            $this->normalizePositions();
+        });
+
+        $this->forgetItemsCache();
+    }
+
+    /**
+     * @return array{enabled: bool, force_version: int, force_at: ?string}
+     */
+    public function settingsPayload(): array
+    {
+        return [
+            'enabled' => $this->isEnabled(),
+            'force_version' => $this->forceVersion(),
+            'force_at' => $this->forceAt(),
+        ];
+    }
+
+    /**
+     * @return array{enabled: bool, force_version: int, force_at: ?string}
+     */
+    public function updateEnabled(bool $enabled): array
+    {
+        AppSetting::put(self::SETTINGS_ENABLED_KEY, $enabled ? '1' : '0');
+
+        return $this->settingsPayload();
+    }
+
+    /**
+     * @return array{force_version: int, force_at: string}
+     */
+    public function forceShowNow(): array
+    {
+        $nextVersion = $this->forceVersion() + 1;
+        $forcedAt = now()->toIso8601String();
+
+        AppSetting::put(self::SETTINGS_FORCE_VERSION_KEY, $nextVersion);
+        AppSetting::put(self::SETTINGS_FORCE_AT_KEY, $forcedAt);
+
+        return [
+            'force_version' => $nextVersion,
+            'force_at' => $forcedAt,
+        ];
+    }
+
+    private function isEnabled(): bool
+    {
+        return AppSetting::getBool(self::SETTINGS_ENABLED_KEY, true);
+    }
+
+    private function forceVersion(): int
+    {
+        return AppSetting::getInt(self::SETTINGS_FORCE_VERSION_KEY, 0);
+    }
+
+    private function forceAt(): ?string
+    {
+        $raw = AppSetting::getString(self::SETTINGS_FORCE_AT_KEY);
+        if (! $raw) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($raw)->toIso8601String();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @return array<int, array{id:int,title:string,slug:string,start_at:?string,end_at:?string}>
+     */
+    private function cachedActiveItems(): array
+    {
+        $activeCount = MonthlyFeaturedEvent::query()->where('is_active', true)->count();
+        $maxUpdatedAt = MonthlyFeaturedEvent::query()->where('is_active', true)->max('updated_at');
+        $cacheKey = sprintf(
+            'popup:mark-calendar:items:%d:%s',
+            $activeCount,
+            md5((string) $maxUpdatedAt)
+        );
+
+        return Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function (): array {
+            return MonthlyFeaturedEvent::query()
+                ->with(['event:id,title,start_at,end_at'])
+                ->where('is_active', true)
+                ->orderBy('position')
+                ->orderBy('id')
+                ->limit(self::MAX_ACTIVE_ITEMS)
+                ->get()
+                ->map(function (MonthlyFeaturedEvent $item): ?array {
+                    if (! $item->event) {
+                        return null;
+                    }
+
+                    return [
+                        'id' => $item->event->id,
+                        'title' => $item->event->title,
+                        'slug' => Str::slug($item->event->title),
+                        'start_at' => optional($item->event->start_at)->toIso8601String(),
+                        'end_at' => optional($item->event->end_at)->toIso8601String(),
+                    ];
+                })
+                ->filter()
+                ->values()
+                ->all();
+        });
+    }
+
+    private function forgetItemsCache(): void
+    {
+        // Cache keys include active row count and max updated_at, so no explicit invalidation is needed.
+    }
+
+    private function monthKey(Carbon $value): string
+    {
+        return $value->copy()->setTimezone(config('app.timezone'))->format('Y-m');
+    }
+
+    private function activeCount(): int
+    {
+        return MonthlyFeaturedEvent::query()->where('is_active', true)->count();
+    }
+
+    private function nextPosition(): int
+    {
+        return (int) MonthlyFeaturedEvent::query()->max('position') + 1;
+    }
+
+    private function normalizePositions(): void
+    {
+        $rows = MonthlyFeaturedEvent::query()
+            ->orderBy('position')
+            ->orderBy('id')
+            ->get(['id']);
+
+        foreach ($rows as $index => $row) {
+            MonthlyFeaturedEvent::query()
+                ->whereKey($row->id)
+                ->update(['position' => $index]);
+        }
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function mapAdminItem(MonthlyFeaturedEvent $item): array
+    {
+        return [
+            'id' => $item->id,
+            'event_id' => $item->event_id,
+            'position' => (int) $item->position,
+            'is_active' => (bool) $item->is_active,
+            'event' => $item->event ? [
+                'id' => $item->event->id,
+                'title' => $item->event->title,
+                'start_at' => optional($item->event->start_at)->toIso8601String(),
+                'end_at' => optional($item->event->end_at)->toIso8601String(),
+            ] : null,
+        ];
+    }
+}
