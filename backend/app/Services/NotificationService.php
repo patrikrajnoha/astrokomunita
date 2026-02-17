@@ -100,6 +100,23 @@ class NotificationService
         });
     }
 
+    public function createContestWinner(int $recipientId, int $contestId, string $contestName, int $postId): ?Notification
+    {
+        if (!$this->shouldDeliverInApp($recipientId, 'system')) {
+            return null;
+        }
+
+        return Notification::create([
+            'user_id' => $recipientId,
+            'type' => 'contest_winner',
+            'data' => [
+                'contest_id' => $contestId,
+                'contest_name' => $contestName,
+                'post_id' => $postId,
+            ],
+        ]);
+    }
+
     public function markRead(int $notificationId, int $userId): Notification
     {
         $notification = Notification::query()
