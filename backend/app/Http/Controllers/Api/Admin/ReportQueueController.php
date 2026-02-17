@@ -107,6 +107,8 @@ class ReportQueueController extends Controller
         $post = $report->target;
         if ($post && $post->user) {
             $post->user->is_banned = true;
+            $post->user->banned_at = now();
+            $post->user->ban_reason = trim((string) ($report->reason ?: $report->message ?: 'Banned by moderation action.'));
             $post->user->save();
         }
 

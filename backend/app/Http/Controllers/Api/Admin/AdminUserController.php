@@ -21,7 +21,18 @@ class AdminUserController extends Controller
         }
 
         $users = User::query()
-            ->select(['id', 'name', 'username', 'email', 'role', 'is_banned', 'is_active', 'avatar_path'])
+            ->select([
+                'id',
+                'name',
+                'username',
+                'email',
+                'role',
+                'is_banned',
+                'banned_at',
+                'ban_reason',
+                'is_active',
+                'avatar_path',
+            ])
             ->orderByDesc('id')
             ->paginate($perPage);
 
@@ -31,7 +42,19 @@ class AdminUserController extends Controller
     public function show(int $id)
     {
         $user = User::query()
-            ->select(['id', 'name', 'username', 'email', 'role', 'is_banned', 'is_active', 'avatar_path', 'created_at'])
+            ->select([
+                'id',
+                'name',
+                'username',
+                'email',
+                'role',
+                'is_banned',
+                'banned_at',
+                'ban_reason',
+                'is_active',
+                'avatar_path',
+                'created_at',
+            ])
             ->findOrFail($id);
 
         return response()->json($user);
@@ -79,23 +102,29 @@ class AdminUserController extends Controller
         return response()->json($query->paginate($perPage));
     }
 
-    public function ban(Request $request, int $id)
+    public function ban(Request $request, User $user)
     {
-        $user = User::findOrFail($id);
         $this->ensureAllowed($request, 'ban', $user);
 
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
         $user->is_banned = true;
+        $user->banned_at = now();
+        $user->ban_reason = trim((string) $validated['reason']);
         $user->save();
 
         return response()->json($this->mapUser($user));
     }
 
-    public function unban(Request $request, int $id)
+    public function unban(Request $request, User $user)
     {
-        $user = User::findOrFail($id);
         $this->ensureAllowed($request, 'unban', $user);
 
         $user->is_banned = false;
+        $user->banned_at = null;
+        $user->ban_reason = null;
         $user->save();
 
         return response()->json($this->mapUser($user));
@@ -143,6 +172,8 @@ class AdminUserController extends Controller
             'email',
             'role',
             'is_banned',
+            'banned_at',
+            'ban_reason',
             'is_active',
             'avatar_path',
         ]);

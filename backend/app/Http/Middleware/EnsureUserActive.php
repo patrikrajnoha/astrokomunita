@@ -18,9 +18,19 @@ class EnsureUserActive
             ], 401);
         }
 
-        if ($user->is_banned || !$user->is_active) {
+        if ($user->isBanned()) {
             return response()->json([
-                'message' => 'Forbidden',
+                'message' => 'Your account has been banned.',
+                'code' => 'ACCOUNT_BANNED',
+                'reason' => $user->ban_reason,
+                'banned_at' => optional($user->banned_at)->toIso8601String(),
+            ], 403);
+        }
+
+        if (!$user->is_active) {
+            return response()->json([
+                'message' => 'Your account is inactive.',
+                'code' => 'ACCOUNT_INACTIVE',
             ], 403);
         }
 
