@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\AdminPostController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\TranslationHealthController;
+use App\Http\Controllers\Api\Admin\AdminStatsController;
 use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
 use App\Http\Controllers\Api\SidebarSectionController;
 use App\Http\Controllers\Api\Admin\SidebarConfigController as AdminSidebarConfigController;
@@ -267,6 +268,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
 
         // Dashboard
         Route::get('/dashboard', DashboardController::class);
+        Route::get('/stats', [AdminStatsController::class, 'index']);
+        Route::get('/stats/export', [AdminStatsController::class, 'export']);
 
         // Candidates (list + detail)
         Route::get('/event-candidates',                  [EventCandidateController::class, 'index']);
@@ -323,8 +326,10 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::get('/users', [AdminUserController::class, 'index']);
         Route::get('/users/{id}', [AdminUserController::class, 'show']);
         Route::get('/users/{id}/reports', [AdminUserController::class, 'reports']);
-        Route::post('/users/{id}/ban', [AdminUserController::class, 'ban']);
-        Route::post('/users/{id}/unban', [AdminUserController::class, 'unban']);
+        Route::patch('/users/{user}/ban', [AdminUserController::class, 'ban']);
+        Route::post('/users/{user}/ban', [AdminUserController::class, 'ban']);
+        Route::patch('/users/{user}/unban', [AdminUserController::class, 'unban']);
+        Route::post('/users/{user}/unban', [AdminUserController::class, 'unban']);
         Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivate']);
         Route::post('/users/{id}/reset-profile', [AdminUserController::class, 'resetProfile']);
 

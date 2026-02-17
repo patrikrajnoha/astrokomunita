@@ -36,6 +36,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'is_bot',     // Automated bot user (AstroBot)
         'role',
         'is_banned',
+        'banned_at',
+        'ban_reason',
         'is_active',
         'warning_count',
     ];
@@ -75,6 +77,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_admin' => 'boolean',
             'is_bot' => 'boolean',
             'is_banned' => 'boolean',
+            'banned_at' => 'datetime',
             'is_active' => 'boolean',
             'warning_count' => 'integer',
         ];
@@ -264,7 +267,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isBanned(): bool
     {
-        return (bool) $this->is_banned;
+        return !is_null($this->banned_at) || (bool) $this->is_banned;
     }
 
     /**

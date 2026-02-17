@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Support\SidebarSectionRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -21,10 +22,12 @@ class SidebarConfigTest extends TestCase
 
         $response = $this->getJson('/api/admin/sidebar-config?scope=home');
 
+        $defaultSectionsCount = count(SidebarSectionRegistry::sections());
+
         $response
             ->assertOk()
             ->assertJsonPath('scope', 'home')
-            ->assertJsonCount(5, 'data')
+            ->assertJsonCount($defaultSectionsCount, 'data')
             ->assertJsonPath('data.0.section_key', 'search')
             ->assertJsonPath('data.0.order', 0)
             ->assertJsonPath('data.0.is_enabled', true);
