@@ -36,6 +36,12 @@ const appShellChildren = [
     ],
   },
   {
+    path: 'contests',
+    name: 'contests',
+    meta: { requiresAuth: false },
+    component: () => import('../views/ContestsView.vue'),
+  },
+  {
     path: 'calendar',
     name: 'calendar',
     redirect: (to) => ({
@@ -167,6 +173,11 @@ const appShellChildren = [
         path: 'events',
         name: 'admin.events',
         component: () => import('@/views/admin/EventsUnifiedView.vue'),
+      },
+      {
+        path: 'contests',
+        name: 'admin.contests',
+        component: () => import('@/views/admin/ContestsView.vue'),
       },
       {
         path: 'events/create',

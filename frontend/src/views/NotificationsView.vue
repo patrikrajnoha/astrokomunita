@@ -139,6 +139,9 @@ const formatTitle = (item) => {
   if (item.type === 'event_reminder') {
     return 'Upcoming event reminder'
   }
+  if (item.type === 'contest_winner') {
+    return 'You won the contest'
+  }
   return 'Notification'
 }
 
@@ -149,6 +152,9 @@ const formatSubtitle = (item) => {
   }
   if (item.type === 'event_reminder') {
     return item.data?.event_title || 'Event starts soon'
+  }
+  if (item.type === 'contest_winner') {
+    return item.data?.contest_name || 'Contest winner'
   }
   return 'New update'
 }

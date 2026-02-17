@@ -624,6 +624,7 @@ const primaryLinks = computed(() => {
     search: ['M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z', 'm20 20-3.5-3.5'],
     notifications: ['M6 8a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6', 'M9.5 20a2.5 2.5 0 0 0 5 0'],
     events: ['M7 3v3', 'M17 3v3', 'M4 8h16', 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z'],
+    contests: ['M12 4l2.3 4.7 5.2.8-3.8 3.7.9 5.2-4.6-2.4-4.6 2.4.9-5.2-3.8-3.7 5.2-.8Z'],
     learn: ['M4 6.5A2.5 2.5 0 0 1 6.5 4H20v14H6.5A2.5 2.5 0 0 0 4 20.5z', 'M8 8h8', 'M8 11h8'],
   }
 
@@ -645,6 +646,14 @@ const primaryLinks = computed(() => {
       icon: 'U',
       iconPaths: navIcons.events,
       matchPrefix: '/events',
+    },
+    {
+      key: 'contests',
+      to: '/contests',
+      label: 'Sutaze',
+      icon: 'S',
+      iconPaths: navIcons.contests,
+      matchPrefix: '/contests',
     },
     { key: 'learn', to: '/learn', label: 'Vzdelavanie', icon: 'V', iconPaths: navIcons.learn },
   ]
