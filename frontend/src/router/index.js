@@ -223,6 +223,11 @@ const appShellChildren = [
         component: () => import('@/views/admin/EventSourcesView.vue'),
       },
       {
+        path: 'featured-events',
+        name: 'admin.featured-events',
+        component: () => import('@/views/admin/AdminFeaturedEventsView.vue'),
+      },
+      {
         path: 'astrobot',
         name: 'admin.astrobot',
         component: () => import('@/views/admin/AstroBotView.vue'),
