@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useEventPreferencesStore } from '@/stores/eventPreferences'
 
 const wipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCase() === 'true'
 
@@ -268,6 +269,12 @@ const router = createRouter({
       component: () => import('../views/VerifyEmailView.vue'),
     },
     {
+      path: '/onboarding',
+      name: 'onboarding',
+      meta: { requiresAuth: true },
+      component: () => import('../views/OnboardingView.vue'),
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('../views/NotFoundView.vue'),
@@ -276,8 +283,9 @@ const router = createRouter({
 })
 
 export function applyAuthGuards(routerInstance) {
-  routerInstance.beforeEach((to) => {
+  routerInstance.beforeEach(async (to) => {
     const auth = useAuthStore()
+    const preferences = useEventPreferencesStore()
 
     if (!auth.bootstrapDone && auth.status === 'idle' && !auth.loading) {
       auth.bootstrapAuth()
@@ -295,6 +303,41 @@ export function applyAuthGuards(routerInstance) {
       return {
         name: 'login',
         query: { redirect: redirectTarget },
+      }
+    }
+
+    const isVerifyEmailRoute = to.name === 'verify-email.required' || to.name === 'verify-email.link'
+    const isOnboardingRoute = to.name === 'onboarding'
+    const isVerifiedUser = Boolean(auth.isAuthed && auth.user?.email_verified_at)
+
+    if (auth.isAuthed && !auth.user?.email_verified_at && !isVerifyEmailRoute) {
+      return {
+        name: 'verify-email.required',
+        query: { redirect: redirectTarget },
+      }
+    }
+
+    if (isVerifiedUser) {
+      if (!preferences.loaded) {
+        try {
+          await preferences.fetchPreferences()
+        } catch {
+          // Skip onboarding redirect when preferences are temporarily unavailable.
+        }
+      }
+
+      if (!preferences.isOnboardingCompleted && !isOnboardingRoute && !isVerifyEmailRoute) {
+        return {
+          name: 'onboarding',
+          query: { redirect: redirectTarget },
+        }
+      }
+
+      if (preferences.isOnboardingCompleted && isOnboardingRoute) {
+        const redirect = typeof to.query?.redirect === 'string' && to.query.redirect.startsWith('/')
+          ? to.query.redirect
+          : '/'
+        return redirect
       }
     }
 
