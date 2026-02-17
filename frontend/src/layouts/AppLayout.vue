@@ -390,6 +390,13 @@
       </section>
     </transition>
 
+    <MarkYourCalendarModal
+      v-if="isCalendarPopupVisible"
+      :items="calendarPopupPayload?.items || []"
+      @close="closeCalendarPopup"
+      @go-calendar="goToCalendarFromPopup"
+    />
+
   </div>
 </template>
 
@@ -397,14 +404,17 @@
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import MainNavbar from '@/components/MainNavbar.vue'
 import DynamicSidebar from '@/components/DynamicSidebar.vue'
 import PostComposer from '@/components/PostComposer.vue'
 import MobileFab from '@/components/MobileFab.vue'
 import TypingText from '@/components/TypingText.vue'
+import MarkYourCalendarModal from '@/components/MarkYourCalendarModal.vue'
 import { useToast } from '@/composables/useToast'
 import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
+import { getMarkYourCalendarPopup, markYourCalendarPopupSeen } from '@/services/popup'
 import {
   getEnabledSidebarSections,
   normalizeSidebarSections,
@@ -415,6 +425,7 @@ import {
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const preferences = useEventPreferencesStore()
 const sidebarConfigStore = useSidebarConfigStore()
 const { showToast } = useToast()
 const isDrawerOpen = ref(false)
@@ -437,6 +448,10 @@ const brandGreetingText = ref('')
 const lastWidgetStorageKey = 'mobile_sidebar_last_widget'
 const lastWidgetKey = ref('')
 let brandGreetingHideTimer = null
+const calendarPopupSessionChecked = ref(false)
+const isCalendarPopupVisible = ref(false)
+const calendarPopupPayload = ref(null)
+const calendarPopupAckInFlight = ref(false)
 const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
@@ -492,6 +507,13 @@ const authBannerMessage = computed(() => {
   }
 
   return authFallbackMessage.value
+})
+const canCheckCalendarPopup = computed(() => {
+  return auth.bootstrapDone &&
+    auth.isAuthed &&
+    Boolean(auth.user?.email_verified_at) &&
+    preferences.isOnboardingCompleted &&
+    !calendarPopupSessionChecked.value
 })
 
 const parseStringValue = (value) => {
@@ -683,6 +705,48 @@ const retryAuthFetch = async () => {
   await auth.retryFetchUser()
 }
 
+const maybeCheckCalendarPopup = async () => {
+  if (!canCheckCalendarPopup.value) return
+
+  calendarPopupSessionChecked.value = true
+  try {
+    const response = await getMarkYourCalendarPopup()
+    const payload = response?.data || null
+
+    if (payload?.should_show) {
+      calendarPopupPayload.value = payload
+      isCalendarPopupVisible.value = true
+    }
+  } catch {
+    // Session check is best effort.
+  }
+}
+
+const closeCalendarPopup = async () => {
+  if (!isCalendarPopupVisible.value || calendarPopupAckInFlight.value) {
+    return
+  }
+
+  calendarPopupAckInFlight.value = true
+  try {
+    const payload = calendarPopupPayload.value || {}
+    await markYourCalendarPopupSeen({
+      force_version: Number(payload.force_version || 0),
+      month_key: payload.month_key || null,
+    })
+  } catch {
+    // Do not block dismissal when acknowledge fails.
+  } finally {
+    isCalendarPopupVisible.value = false
+    calendarPopupAckInFlight.value = false
+  }
+}
+
+const goToCalendarFromPopup = async () => {
+  await closeCalendarPopup()
+  await router.push('/calendar')
+}
+
 const warmSidebarConfig = async () => {
   const scope = currentSidebarScope.value
   if (!scope) {
@@ -801,8 +865,33 @@ watch(
   (nextUser) => {
     if (!nextUser) {
       hideBrandGreetingNow()
+      calendarPopupSessionChecked.value = false
+      isCalendarPopupVisible.value = false
+      calendarPopupPayload.value = null
     }
   },
+)
+
+watch(
+  () => [
+    auth.bootstrapDone,
+    auth.isAuthed,
+    auth.user?.email_verified_at,
+    preferences.loaded,
+    preferences.isOnboardingCompleted,
+  ],
+  async () => {
+    if (auth.isAuthed && Boolean(auth.user?.email_verified_at) && !preferences.loaded && !preferences.loading) {
+      try {
+        await preferences.fetchPreferences()
+      } catch {
+        return
+      }
+    }
+
+    await maybeCheckCalendarPopup()
+  },
+  { immediate: true },
 )
 
 watch(
