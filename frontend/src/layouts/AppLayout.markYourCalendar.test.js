@@ -114,6 +114,26 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(wrapper.find('mark-your-calendar-modal-stub').exists()).toBe(true)
   })
 
+  it('renders centered desktop app shell classes', async () => {
+    const router = makeRouter()
+    await router.push('/')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+
+    const shell = wrapper.find('[data-testid="app-shell"]')
+    expect(shell.exists()).toBe(true)
+    expect(shell.classes()).toContain('xl:grid')
+    expect(shell.classes()).toContain('xl:max-w-[1440px]')
+    expect(shell.classes()).toContain('xl:grid-cols-[16rem_minmax(0,760px)_22rem]')
+  })
+
   it('calls seen endpoint once when modal closes', async () => {
     popupResponse.value = {
       should_show: true,

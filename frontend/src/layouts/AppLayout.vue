@@ -40,12 +40,12 @@
     </header>
 
     <aside
-      class="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 md:flex"
+      class="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 md:flex xl:hidden"
     >
       <MainNavbar />
     </aside>
 
-    <div class="md:pl-64">
+    <div class="md:pl-64 xl:pl-0">
       <div
         v-if="showAuthFallbackBanner || showAuthBannedBanner"
         class="authFallbackBanner"
@@ -57,14 +57,14 @@
         <button v-if="showAuthFallbackBanner" type="button" class="authFallbackRetry" @click="retryAuthFetch">Skusit znova</button>
       </div>
 
-      <div
-        :class="[
-          'mx-auto w-full',
-          isAdminRoute
-            ? 'max-w-[1560px]'
-            : 'xl:grid xl:max-w-[1160px] xl:grid-cols-[minmax(0,760px)_22rem] xl:gap-6',
-        ]"
-      >
+      <div :class="appShellClass" data-testid="app-shell">
+        <aside
+          v-if="showDesktopMainSidebar"
+          class="hidden h-screen overflow-y-auto border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 xl:sticky xl:top-0 xl:block"
+        >
+          <MainNavbar />
+        </aside>
+
         <main :class="['px-4 py-6 md:px-8', isAdminRoute ? 'xl:px-6' : 'xl:px-0']">
           <div :class="['mx-auto w-full', isAdminRoute ? 'max-w-none' : 'max-w-[760px]']">
             <RouterView />
@@ -456,6 +456,18 @@ const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
+const showDesktopMainSidebar = computed(() => !isAdminRoute.value)
+const appShellClass = computed(() => {
+  if (isAdminRoute.value) {
+    return 'mx-auto w-full max-w-[1560px]'
+  }
+
+  if (showRightSidebar.value) {
+    return 'mx-auto w-full xl:grid xl:max-w-[1440px] xl:grid-cols-[16rem_minmax(0,760px)_22rem] xl:gap-6'
+  }
+
+  return 'mx-auto w-full xl:grid xl:max-w-[1040px] xl:grid-cols-[16rem_minmax(0,760px)] xl:gap-6'
+})
 const enabledMobileSections = computed(() => getEnabledSidebarSections(mobileSidebarSections.value))
 const activeWidgetComponent = computed(() => resolveSidebarComponent(activeWidgetKey.value))
 const lastOpenedWidget = computed(() => {
