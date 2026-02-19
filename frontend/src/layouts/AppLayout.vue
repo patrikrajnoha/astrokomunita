@@ -57,7 +57,7 @@
         <button v-if="showAuthFallbackBanner" type="button" class="authFallbackRetry" @click="retryAuthFetch">Skusit znova</button>
       </div>
 
-      <div :class="appShellClass" data-testid="app-shell">
+      <div :class="appShellClass" :style="appShellStyle" data-testid="app-shell">
         <aside
           v-if="showDesktopMainSidebar"
           class="hidden h-screen overflow-y-auto border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 xl:sticky xl:top-0 xl:block"
@@ -66,7 +66,7 @@
         </aside>
 
         <main :class="['px-4 py-6 md:px-8', isAdminRoute ? 'xl:px-6' : 'xl:px-0']">
-          <div :class="['mx-auto w-full', isAdminRoute ? 'max-w-none' : 'max-w-[760px]']">
+          <div :class="mainContentClass">
             <RouterView />
           </div>
         </main>
@@ -457,16 +457,45 @@ const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.pat
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
 const showDesktopMainSidebar = computed(() => !isAdminRoute.value)
+const isLayoutDebugEnabled = computed(() => {
+  return import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_LAYOUT || '') === 'true'
+})
 const appShellClass = computed(() => {
   if (isAdminRoute.value) {
     return 'mx-auto w-full max-w-[1560px]'
   }
 
   if (showRightSidebar.value) {
-    return 'mx-auto w-full xl:grid xl:max-w-[1440px] xl:grid-cols-[16rem_minmax(0,760px)_22rem] xl:gap-6'
+    return 'appShellGrid mx-auto w-full xl:grid xl:max-w-[1560px] 2xl:max-w-[1760px] xl:gap-5 2xl:gap-6'
   }
 
-  return 'mx-auto w-full xl:grid xl:max-w-[1040px] xl:grid-cols-[16rem_minmax(0,760px)] xl:gap-6'
+  return 'appShellGrid mx-auto w-full xl:grid xl:max-w-[1280px] 2xl:max-w-[1480px] xl:gap-5 2xl:gap-6'
+})
+const appShellColumns = computed(() => {
+  if (isAdminRoute.value) return null
+
+  if (showRightSidebar.value) {
+    return '16rem clamp(680px, 44vw, 920px) 22rem'
+  }
+
+  return '16rem clamp(680px, 56vw, 980px)'
+})
+const appShellStyle = computed(() => {
+  if (isAdminRoute.value) {
+    return null
+  }
+
+  return {
+    '--app-shell-cols': appShellColumns.value,
+    outline: isLayoutDebugEnabled.value ? '1px solid rgb(var(--color-primary-rgb) / 0.4)' : undefined,
+  }
+})
+const mainContentClass = computed(() => {
+  if (isAdminRoute.value) {
+    return 'mx-auto w-full max-w-none'
+  }
+
+  return 'mx-auto w-full max-w-[760px] xl:max-w-none'
 })
 const enabledMobileSections = computed(() => getEnabledSidebarSections(mobileSidebarSections.value))
 const activeWidgetComponent = computed(() => resolveSidebarComponent(activeWidgetKey.value))
@@ -1206,6 +1235,12 @@ onBeforeUnmount(() => {
   .sheetOverlay,
   .sheetDialog {
     display: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  .appShellGrid {
+    grid-template-columns: var(--app-shell-cols);
   }
 }
 </style>
