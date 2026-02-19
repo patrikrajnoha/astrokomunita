@@ -64,7 +64,10 @@ function flush() {
 function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/', component: AppLayout }],
+    routes: [
+      { path: '/', component: AppLayout },
+      { path: '/login', component: AppLayout },
+    ],
   })
 }
 
@@ -114,7 +117,7 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(wrapper.find('mark-your-calendar-modal-stub').exists()).toBe(true)
   })
 
-  it('renders centered desktop app shell classes', async () => {
+  it('renders centered desktop app shell classes for routes with right sidebar', async () => {
     const router = makeRouter()
     await router.push('/')
     await router.isReady()
@@ -129,9 +132,32 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     const shell = wrapper.find('[data-testid="app-shell"]')
     expect(shell.exists()).toBe(true)
+    expect(shell.classes()).toContain('appShellGrid')
     expect(shell.classes()).toContain('xl:grid')
-    expect(shell.classes()).toContain('xl:max-w-[1440px]')
-    expect(shell.classes()).toContain('xl:grid-cols-[16rem_minmax(0,760px)_22rem]')
+    expect(shell.classes()).toContain('xl:max-w-[1560px]')
+    expect(shell.classes()).toContain('2xl:max-w-[1760px]')
+    expect(shell.attributes('style')).toContain('--app-shell-cols: 16rem clamp(680px, 44vw, 920px) 22rem;')
+  })
+
+  it('uses two-column shell for routes without right sidebar', async () => {
+    const router = makeRouter()
+    await router.push('/login')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+
+    const shell = wrapper.find('[data-testid="app-shell"]')
+    expect(shell.exists()).toBe(true)
+    expect(shell.classes()).toContain('xl:max-w-[1280px]')
+    expect(shell.classes()).toContain('2xl:max-w-[1480px]')
+    expect(shell.attributes('style')).toContain('--app-shell-cols: 16rem clamp(680px, 56vw, 980px);')
+    expect(shell.attributes('style')).not.toContain('22rem')
   })
 
   it('calls seen endpoint once when modal closes', async () => {
