@@ -5,6 +5,7 @@ return [
     'paths' => [
         'api/*',
         'sanctum/csrf-cookie',
+        'broadcasting/auth',
         'login',
         'logout',
         'auth/*',
@@ -19,6 +20,7 @@ return [
     'allowed_headers' => [
         'Content-Type',
         'X-Requested-With',
+        'X-CSRF-TOKEN',
         'X-XSRF-TOKEN',
         'Authorization',
         'Accept',

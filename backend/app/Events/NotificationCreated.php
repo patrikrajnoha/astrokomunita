@@ -1,0 +1,43 @@
+<?php
+
+namespace App\Events;
+
+use App\Http\Resources\NotificationResource;
+use App\Models\Notification;
+use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Http\Request;
+use Illuminate\Queue\SerializesModels;
+
+class NotificationCreated implements ShouldBroadcastNow
+{
+    use Dispatchable;
+    use InteractsWithSockets;
+    use SerializesModels;
+
+    public function __construct(private readonly Notification $notification)
+    {
+    }
+
+    public function broadcastOn(): array
+    {
+        return [
+            new PrivateChannel('users.' . $this->notification->user_id),
+        ];
+    }
+
+    public function broadcastAs(): string
+    {
+        return 'notification.created';
+    }
+
+    public function broadcastWith(): array
+    {
+        return [
+            'notification' => (new NotificationResource($this->notification))
+                ->toArray(new Request()),
+        ];
+    }
+}
