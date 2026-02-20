@@ -9,6 +9,14 @@ return [
         'all_unavailable_ttl_seconds' => env('OBSERVING_CACHE_ALL_UNAVAILABLE_TTL_SECONDS', 90),
     ],
 
+    'concurrency_driver' => env('OBSERVING_CONCURRENCY_DRIVER', 'process'),
+
+    'circuit_breaker' => [
+        'failure_threshold' => env('OBSERVING_CB_FAILURE_THRESHOLD', 3),
+        'failure_ttl_seconds' => env('OBSERVING_CB_FAILURE_TTL_SECONDS', 300),
+        'cooldown_seconds' => env('OBSERVING_CB_COOLDOWN_SECONDS', 120),
+    ],
+
     'http' => [
         'timeout_seconds' => env('OBSERVING_HTTP_TIMEOUT_SECONDS', 8),
         'retry_times' => env('OBSERVING_HTTP_RETRY_TIMES', 2),

@@ -15,7 +15,7 @@ class ObserveSummaryTest extends TestCase
         $this->getJson('/api/observe/summary')->assertStatus(422);
     }
 
-    public function test_it_returns_summary_payload_when_providers_succeed(): void
+    public function test_it_returns_extended_summary_payload_when_providers_succeed(): void
     {
         config()->set('observing.providers.openaq.key', 'test-key');
 
@@ -26,20 +26,33 @@ class ObserveSummaryTest extends TestCase
             'https://api.openaq.org/v3/locations*' => Http::response($this->openAqLocationsPayload(), 200),
         ]);
 
-        $response = $this->getJson('/api/observe/summary?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava');
+        $response = $this->getJson('/api/observe/summary?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava&mode=deep_sky');
 
         $response->assertOk();
         $response->assertJsonPath('sun.sunrise', '07:07');
         $response->assertJsonPath('moon.phase_name', 'Waning Crescent');
         $response->assertJsonPath('moon.illumination_pct', 91);
-        $response->assertJsonPath('moon.warning', 'Mesiac je veľmi jasný – slabšie objekty budú horšie viditeľné.');
         $response->assertJsonPath('atmosphere.humidity.current_pct', 82);
+        $response->assertJsonPath('atmosphere.cloud_cover.current_pct', 68);
         $response->assertJsonPath('atmosphere.air_quality.pm25', 12.4);
-        $response->assertJsonPath('atmosphere.air_quality.pm10', 28.7);
-        $response->assertJsonPath('atmosphere.air_quality.label', 'OK');
+        $response->assertJsonPath('observing_mode', 'deep_sky');
+        $response->assertJsonStructure([
+            'observing_index',
+            'observing_mode',
+            'factors' => ['humidity', 'cloud', 'air_quality', 'moon', 'darkness', 'seeing'],
+            'weights',
+            'alerts',
+            'overall' => ['label', 'reason', 'alert_level'],
+            'best_time_local',
+            'best_time_index',
+            'best_time_reason',
+            'timeline' => ['hourly', 'sunset', 'sunrise', 'civil_twilight_end', 'civil_twilight_begin'],
+        ]);
+        $this->assertIsInt($response->json('observing_index'));
+        $this->assertIsArray($response->json('timeline.hourly'));
     }
 
-    public function test_it_returns_partial_unavailable_sections_when_one_provider_times_out(): void
+    public function test_it_returns_partial_unavailable_sections_when_weather_provider_times_out(): void
     {
         config()->set('observing.providers.openaq.key', 'test-key');
 
@@ -52,13 +65,15 @@ class ObserveSummaryTest extends TestCase
             'https://api.openaq.org/v3/locations*' => Http::response($this->openAqLocationsPayload(), 200),
         ]);
 
-        $response = $this->getJson('/api/observe/summary?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava');
+        $response = $this->getJson('/api/observe/summary?lat=48.1486&lon=17.1077&date=2026-02-10&tz=Europe/Bratislava&mode=planets');
 
         $response->assertOk();
         $response->assertJsonPath('sun.status', 'ok');
         $response->assertJsonPath('moon.status', 'ok');
         $response->assertJsonPath('atmosphere.humidity.status', 'unavailable');
+        $response->assertJsonPath('atmosphere.cloud_cover.status', 'unavailable');
         $response->assertJsonPath('atmosphere.air_quality.status', 'ok');
+        $this->assertIsInt($response->json('observing_index'));
     }
 
     private function usnoPayload(): array
@@ -84,6 +99,8 @@ class ObserveSummaryTest extends TestCase
         return [
             'current' => [
                 'relative_humidity_2m' => 82,
+                'cloud_cover' => 68,
+                'wind_speed_10m' => 15.4,
             ],
             'hourly' => [
                 'time' => [
@@ -93,6 +110,8 @@ class ObserveSummaryTest extends TestCase
                     '2026-02-10T21:00',
                 ],
                 'relative_humidity_2m' => [80, 81, 83, 85],
+                'cloud_cover' => [40, 45, 35, 30],
+                'windspeed_10m' => [12.0, 14.0, 13.0, 12.0],
             ],
         ];
     }

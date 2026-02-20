@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\Observing\ObservingSummaryService;
+use App\Services\Observing\ObservingWeights;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -11,7 +12,8 @@ use Illuminate\Support\Facades\Cache;
 class ObserveSummaryController extends Controller
 {
     public function __construct(
-        private readonly ObservingSummaryService $summaryService
+        private readonly ObservingSummaryService $summaryService,
+        private readonly ObservingWeights $observingWeights
     ) {
     }
 
@@ -22,12 +24,14 @@ class ObserveSummaryController extends Controller
             'lon' => ['required', 'numeric', 'between:-180,180'],
             'date' => ['required', 'date_format:Y-m-d'],
             'tz' => ['nullable', 'string'],
+            'mode' => ['nullable', 'string'],
         ]);
 
         $lat = (float) $validated['lat'];
         $lon = (float) $validated['lon'];
         $date = (string) $validated['date'];
         $tz = $this->sanitizeTimezone((string) ($validated['tz'] ?? ''));
+        $mode = $this->observingWeights->sanitizeMode((string) ($validated['mode'] ?? ''));
 
         $cacheKey = implode(':', [
             'observe_summary',
@@ -35,6 +39,7 @@ class ObserveSummaryController extends Controller
             number_format($lon, 6, '.', ''),
             $date,
             str_replace(':', '_', $tz),
+            'mode_' . $mode,
         ]);
 
         $cached = Cache::get($cacheKey);
@@ -42,7 +47,7 @@ class ObserveSummaryController extends Controller
             return response()->json($cached);
         }
 
-        $result = $this->summaryService->getSummary($lat, $lon, $date, $tz);
+        $result = $this->summaryService->getSummary($lat, $lon, $date, $tz, $mode);
         $summary = $result['summary'];
         $isPartial = (bool) ($result['is_partial'] ?? false);
 
