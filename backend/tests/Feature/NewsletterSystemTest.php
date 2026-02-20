@@ -131,6 +131,38 @@ class NewsletterSystemTest extends TestCase
         );
     }
 
+    public function test_admin_preview_endpoint_sends_preview_mail_with_subject_prefix(): void
+    {
+        Mail::fake();
+        $this->seedNewsletterContent();
+
+        $target = User::factory()->create([
+            'newsletter_subscribed' => false,
+            'is_active' => true,
+            'is_bot' => false,
+        ]);
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/admin/newsletter/preview', [
+            'email' => $target->email,
+        ])
+            ->assertStatus(202)
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.email', $target->email);
+
+        Mail::assertSent(WeeklyNewsletterMail::class, function (WeeklyNewsletterMail $mail) use ($target): bool {
+            return $mail->hasTo($target->email)
+                && str_starts_with((string) $mail->envelope()->subject, '[PREVIEW] ');
+        });
+    }
+
     public function test_dry_run_does_not_send_mail(): void
     {
         Mail::fake();

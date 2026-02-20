@@ -331,6 +331,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
 
         // Newsletter (admin)
         Route::get('/newsletter/preview', [AdminNewsletterController::class, 'preview']);
+        Route::post('/newsletter/preview', [AdminNewsletterController::class, 'sendPreview']);
         Route::post('/newsletter/feature-events', [AdminNewsletterController::class, 'featureEvents']);
         Route::post('/newsletter/send', [AdminNewsletterController::class, 'send'])->middleware('throttle:newsletter-send');
         Route::get('/newsletter/runs', [AdminNewsletterController::class, 'runs']);

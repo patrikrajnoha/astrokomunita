@@ -4,6 +4,10 @@ export function getNewsletterPreview() {
   return api.get('/admin/newsletter/preview')
 }
 
+export function sendNewsletterPreview(payload = {}) {
+  return api.post('/admin/newsletter/preview', payload)
+}
+
 export function updateNewsletterFeaturedEvents(payload) {
   return api.post('/admin/newsletter/feature-events', payload)
 }

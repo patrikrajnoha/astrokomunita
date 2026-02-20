@@ -5,6 +5,7 @@ import { getEvents } from '@/services/api/admin/events'
 import {
   getNewsletterPreview,
   getNewsletterRuns,
+  sendNewsletterPreview,
   sendNewsletter,
   updateNewsletterFeaturedEvents,
 } from '@/services/api/admin/newsletter'
@@ -12,8 +13,10 @@ import {
 const loading = ref(false)
 const savingSelection = ref(false)
 const sending = ref(false)
+const previewSending = ref(false)
 const error = ref('')
 const success = ref('')
+const previewEmail = ref('')
 
 const preview = ref(null)
 const runs = ref([])
@@ -132,6 +135,37 @@ async function triggerSend() {
   }
 }
 
+async function triggerPreviewSend() {
+  if (previewSending.value) return
+
+  const normalizedEmail = String(previewEmail.value || '').trim()
+  if (!normalizedEmail) {
+    error.value = 'Preview email is required.'
+    success.value = ''
+    return
+  }
+
+  previewSending.value = true
+  error.value = ''
+  success.value = ''
+  try {
+    const response = await sendNewsletterPreview({
+      email: normalizedEmail,
+    })
+
+    const data = response?.data?.data || {}
+    const email = data?.email || normalizedEmail
+    const eventsCount = Number(data?.events_count || 0)
+    const articlesCount = Number(data?.articles_count || 0)
+
+    success.value = `Preview sent to ${email} (${eventsCount} events, ${articlesCount} articles).`
+  } catch (e) {
+    error.value = e?.response?.data?.message || e?.userMessage || 'Failed to send preview email.'
+  } finally {
+    previewSending.value = false
+  }
+}
+
 function formatDateTime(value) {
   if (!value) return '-'
   const parsed = new Date(value)
@@ -224,6 +258,22 @@ onMounted(load)
       <button type="button" :disabled="sending || loading" @click="triggerSend">
         {{ sending ? 'Sending...' : 'Trigger newsletter run' }}
       </button>
+    </section>
+
+    <section class="card">
+      <h3>Preview</h3>
+      <p class="muted">Send a preview email to an existing user account.</p>
+      <div class="actions">
+        <input
+          v-model.trim="previewEmail"
+          type="email"
+          class="previewInput"
+          placeholder="user@example.com"
+        />
+        <button type="button" :disabled="previewSending || loading" @click="triggerPreviewSend">
+          {{ previewSending ? 'Sending...' : 'Send preview' }}
+        </button>
+      </div>
     </section>
 
     <section class="card">
@@ -381,5 +431,14 @@ button:disabled {
   border: 1px solid rgb(34 197 94 / 0.35);
   background: rgb(34 197 94 / 0.12);
   color: rgb(22 101 52);
+}
+
+.previewInput {
+  min-width: 260px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.7);
+  color: inherit;
+  padding: 8px 10px;
 }
 </style>

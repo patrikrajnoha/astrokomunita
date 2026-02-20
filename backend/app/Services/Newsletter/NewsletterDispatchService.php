@@ -213,6 +213,18 @@ class NewsletterDispatchService
         return true;
     }
 
+    public function sendPreviewToUser(User $user, array $payload): bool
+    {
+        $email = trim((string) $user->email);
+        if ($email === '') {
+            return false;
+        }
+
+        Mail::to($email)->send(new WeeklyNewsletterMail($payload, $user, true));
+
+        return true;
+    }
+
     public function markUserSent(int $runId): void
     {
         NewsletterRun::query()
