@@ -24,6 +24,7 @@ const groups = [
     items: [
       { label: 'Events', to: '/admin/events', icon: 'E' },
       { label: 'Featured popup', to: '/admin/featured-events', icon: 'P' },
+      { label: 'Newsletter', to: '/admin/newsletter', icon: 'N' },
       { label: 'Contests', to: '/admin/contests', icon: 'C' },
       { label: 'Articles', to: '/admin/blog', icon: 'B' },
       { label: 'Sidebar', to: '/admin/sidebar', icon: 'S' },

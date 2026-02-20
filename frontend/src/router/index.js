@@ -228,6 +228,11 @@ const appShellChildren = [
         component: () => import('@/views/admin/AdminFeaturedEventsView.vue'),
       },
       {
+        path: 'newsletter',
+        name: 'admin.newsletter',
+        component: () => import('@/views/admin/AdminNewsletterView.vue'),
+      },
+      {
         path: 'astrobot',
         name: 'admin.astrobot',
         component: () => import('@/views/admin/AstroBotView.vue'),
