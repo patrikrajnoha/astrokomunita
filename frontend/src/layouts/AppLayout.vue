@@ -412,6 +412,7 @@ import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
+import { useNotificationsStore } from '@/stores/notifications'
 import MainNavbar from '@/components/MainNavbar.vue'
 import DynamicSidebar from '@/components/DynamicSidebar.vue'
 import PostComposer from '@/components/PostComposer.vue'
@@ -433,6 +434,7 @@ const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 const preferences = useEventPreferencesStore()
+const notifications = useNotificationsStore()
 const sidebarConfigStore = useSidebarConfigStore()
 const { showToast } = useToast()
 const isDrawerOpen = ref(false)
@@ -920,6 +922,23 @@ watch(
 )
 
 watch(
+  () => auth.user?.id,
+  async (nextUserId) => {
+    if (nextUserId) {
+      await notifications.startRealtime()
+      await notifications.fetchUnreadCount()
+      return
+    }
+
+    notifications.stopRealtime({
+      disconnect: true,
+      clearState: true,
+    })
+  },
+  { immediate: true },
+)
+
+watch(
   () => [
     auth.bootstrapDone,
     auth.isAuthed,
@@ -981,6 +1000,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
   window.removeEventListener('appinstalled', handleInstalled)
   window.removeEventListener('resize', updateViewportState)
+  notifications.stopRealtime({ disconnect: true })
   clearBrandGreetingTimer()
 })
 </script>
