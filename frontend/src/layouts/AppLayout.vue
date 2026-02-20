@@ -57,7 +57,7 @@
         <button v-if="showAuthFallbackBanner" type="button" class="authFallbackRetry" @click="retryAuthFetch">Skusit znova</button>
       </div>
 
-      <div :class="desktopLayoutClass" data-testid="desktop-layout">
+      <div :class="desktopFrameClass" data-testid="desktop-frame">
         <div :class="centerShellClass" :style="centerShellStyle" data-testid="center-shell">
           <aside
             v-if="showDesktopMainSidebar"
@@ -75,12 +75,12 @@
 
         <aside
           v-if="showRightSidebar"
-          class="hidden xl:col-start-3 xl:block xl:pr-[clamp(16px,2vw,32px)]"
+          class="hidden xl:col-start-3 xl:block xl:justify-self-end xl:self-start xl:pr-[clamp(16px,2vw,32px)]"
           data-testid="right-rail"
           aria-label="Right sidebar"
         >
           <div
-            class="h-screen overflow-y-auto border-l border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-5 py-6 xl:sticky xl:top-0"
+            class="h-screen w-[22rem] overflow-y-auto border-l border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-5 py-6 xl:sticky xl:top-0"
           >
             <DynamicSidebar
               :observing-lat="observingLat"
@@ -467,23 +467,19 @@ const showDesktopMainSidebar = computed(() => !isAdminRoute.value)
 const isLayoutDebugEnabled = computed(() => {
   return import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_LAYOUT || '') === 'true'
 })
-const desktopLayoutClass = computed(() => {
+const desktopFrameClass = computed(() => {
   if (isAdminRoute.value) {
     return 'mx-auto w-full'
   }
 
-  if (showRightSidebar.value) {
-    return 'desktopLayout desktopLayoutWithRail mx-auto w-full xl:grid'
-  }
-
-  return 'desktopLayout desktopLayoutNoRail mx-auto w-full xl:grid'
+  return 'desktopFrame mx-auto w-full xl:grid'
 })
 const centerShellClass = computed(() => {
   if (isAdminRoute.value) {
     return 'mx-auto w-full max-w-[1560px]'
   }
 
-  return 'centerShellGrid mx-auto w-full xl:col-start-2 xl:grid xl:max-w-[1440px] 2xl:max-w-[1560px] xl:gap-5 2xl:gap-6'
+  return 'centerShellGrid mx-auto w-full xl:col-start-2 xl:grid xl:justify-center xl:max-w-[1440px] 2xl:max-w-[1560px] xl:gap-5 2xl:gap-6'
 })
 const centerShellColumns = computed(() => {
   if (isAdminRoute.value) return null
@@ -1253,21 +1249,20 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 1280px) {
-  .desktopLayoutWithRail,
-  .desktopLayoutNoRail {
+  .desktopFrame {
+    --shell-w: 1440px;
     align-items: start;
-  }
-
-  .desktopLayoutWithRail {
-    grid-template-columns: 1fr auto minmax(320px, 22rem);
-  }
-
-  .desktopLayoutNoRail {
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: 1fr minmax(0, var(--shell-w)) 1fr;
   }
 
   .centerShellGrid {
     grid-template-columns: var(--center-shell-cols);
+  }
+}
+
+@media (min-width: 1536px) {
+  .desktopFrame {
+    --shell-w: 1560px;
   }
 }
 </style>
