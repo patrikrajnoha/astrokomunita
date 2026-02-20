@@ -57,32 +57,39 @@
         <button v-if="showAuthFallbackBanner" type="button" class="authFallbackRetry" @click="retryAuthFetch">Skusit znova</button>
       </div>
 
-      <div :class="appShellClass" :style="appShellStyle" data-testid="app-shell">
-        <aside
-          v-if="showDesktopMainSidebar"
-          class="hidden h-screen overflow-y-auto border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 xl:sticky xl:top-0 xl:block"
-        >
-          <MainNavbar />
-        </aside>
+      <div :class="desktopLayoutClass" data-testid="desktop-layout">
+        <div :class="centerShellClass" :style="centerShellStyle" data-testid="center-shell">
+          <aside
+            v-if="showDesktopMainSidebar"
+            class="hidden h-screen overflow-y-auto border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 xl:sticky xl:top-0 xl:block"
+          >
+            <MainNavbar />
+          </aside>
 
-        <main :class="['px-4 py-6 md:px-8', isAdminRoute ? 'xl:px-6' : 'xl:px-0']">
-          <div :class="mainContentClass">
-            <RouterView />
-          </div>
-        </main>
+          <main :class="['min-w-0 px-4 py-6 md:px-8', isAdminRoute ? 'xl:px-6' : 'xl:px-0']">
+            <div :class="mainContentClass">
+              <RouterView />
+            </div>
+          </main>
+        </div>
 
         <aside
           v-if="showRightSidebar"
-          class="hidden border-l border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-5 py-6 xl:block"
+          class="hidden xl:col-start-3 xl:block xl:pr-[clamp(16px,2vw,32px)]"
+          data-testid="right-rail"
           aria-label="Right sidebar"
         >
-          <DynamicSidebar
-            :observing-lat="observingLat"
-            :observing-lon="observingLon"
-            :observing-date="observingDate"
-            :observing-tz="observingTz"
-            :observing-location-name="observingLocationName"
-          />
+          <div
+            class="h-screen overflow-y-auto border-l border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-5 py-6 xl:sticky xl:top-0"
+          >
+            <DynamicSidebar
+              :observing-lat="observingLat"
+              :observing-lon="observingLon"
+              :observing-date="observingDate"
+              :observing-tz="observingTz"
+              :observing-location-name="observingLocationName"
+            />
+          </div>
         </aside>
       </div>
     </div>
@@ -460,33 +467,40 @@ const showDesktopMainSidebar = computed(() => !isAdminRoute.value)
 const isLayoutDebugEnabled = computed(() => {
   return import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_LAYOUT || '') === 'true'
 })
-const appShellClass = computed(() => {
+const desktopLayoutClass = computed(() => {
+  if (isAdminRoute.value) {
+    return 'mx-auto w-full'
+  }
+
+  if (showRightSidebar.value) {
+    return 'desktopLayout desktopLayoutWithRail mx-auto w-full xl:grid'
+  }
+
+  return 'desktopLayout desktopLayoutNoRail mx-auto w-full xl:grid'
+})
+const centerShellClass = computed(() => {
   if (isAdminRoute.value) {
     return 'mx-auto w-full max-w-[1560px]'
   }
 
-  if (showRightSidebar.value) {
-    return 'appShellGrid mx-auto w-full xl:grid xl:max-w-[1560px] 2xl:max-w-[1760px] xl:gap-5 2xl:gap-6'
-  }
-
-  return 'appShellGrid mx-auto w-full xl:grid xl:max-w-[1280px] 2xl:max-w-[1480px] xl:gap-5 2xl:gap-6'
+  return 'centerShellGrid mx-auto w-full xl:col-start-2 xl:grid xl:max-w-[1440px] 2xl:max-w-[1560px] xl:gap-5 2xl:gap-6'
 })
-const appShellColumns = computed(() => {
+const centerShellColumns = computed(() => {
   if (isAdminRoute.value) return null
 
   if (showRightSidebar.value) {
-    return '16rem clamp(680px, 44vw, 920px) 22rem'
+    return '16rem clamp(680px, 44vw, 920px)'
   }
 
   return '16rem clamp(680px, 56vw, 980px)'
 })
-const appShellStyle = computed(() => {
+const centerShellStyle = computed(() => {
   if (isAdminRoute.value) {
     return null
   }
 
   return {
-    '--app-shell-cols': appShellColumns.value,
+    '--center-shell-cols': centerShellColumns.value,
     outline: isLayoutDebugEnabled.value ? '1px solid rgb(var(--color-primary-rgb) / 0.4)' : undefined,
   }
 })
@@ -1239,8 +1253,21 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 1280px) {
-  .appShellGrid {
-    grid-template-columns: var(--app-shell-cols);
+  .desktopLayoutWithRail,
+  .desktopLayoutNoRail {
+    align-items: start;
+  }
+
+  .desktopLayoutWithRail {
+    grid-template-columns: 1fr auto minmax(320px, 22rem);
+  }
+
+  .desktopLayoutNoRail {
+    grid-template-columns: 1fr auto 1fr;
+  }
+
+  .centerShellGrid {
+    grid-template-columns: var(--center-shell-cols);
   }
 }
 </style>
