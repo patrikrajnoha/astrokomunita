@@ -913,14 +913,9 @@ defineExpose({ load, prepend })
 
 /* Header */
 .feed-header {
-  position: sticky;
-  top: 0;
-  z-index: 18;
+  position: relative;
   margin-bottom: 12px;
-  padding: 0 4px;
-  background: rgb(var(--color-bg-rgb) / 0.86);
-  backdrop-filter: blur(9px);
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
+  padding: 0;
 }
 
 .feed-title-section {
