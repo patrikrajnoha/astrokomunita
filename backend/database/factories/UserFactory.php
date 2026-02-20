@@ -36,6 +36,7 @@ class UserFactory extends Factory
             'is_banned' => false,
             'is_active' => true,
             'warning_count' => 0,
+            'newsletter_subscribed' => false,
             'remember_token' => Str::random(10),
         ];
     }

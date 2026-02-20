@@ -42,6 +42,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'warning_count',
         'last_calendar_popup_at',
         'calendar_popup_last_force_version',
+        'newsletter_subscribed',
     ];
 
     /**
@@ -84,6 +85,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'warning_count' => 'integer',
             'last_calendar_popup_at' => 'datetime',
             'calendar_popup_last_force_version' => 'integer',
+            'newsletter_subscribed' => 'boolean',
         ];
     }
 
@@ -262,6 +264,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function notificationPreference(): HasOne
     {
         return $this->hasOne(NotificationPreference::class);
+    }
+
+    public function newsletterRuns(): HasMany
+    {
+        return $this->hasMany(NewsletterRun::class, 'admin_user_id');
     }
 
     public function isAdmin(): bool
