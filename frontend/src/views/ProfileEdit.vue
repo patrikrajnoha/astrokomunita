@@ -3,15 +3,14 @@
     <header class="top">
       <button class="iconBtn" @click="back">←</button>
       <div>
-        <div class="title">Upraviť profil</div>
+        <div class="title">Upravit profil</div>
         <div class="subtitle">Meno, bio a poloha</div>
       </div>
       <button class="btn ghost" @click="resetForm" :disabled="saving">Reset</button>
     </header>
 
-    <div v-if="!auth.initialized" class="card muted">Načítavam…</div>
-
-    <div v-else-if="!auth.user" class="card err">Nie si prihlásený.</div>
+    <div v-if="!auth.initialized" class="card muted">Nacitavam...</div>
+    <div v-else-if="!auth.user" class="card err">Nie si prihlaseny.</div>
 
     <template v-else>
       <div class="card">
@@ -27,18 +26,13 @@
 
           <div class="field">
             <label>O mne</label>
-            <textarea
-              class="input textarea"
-              v-model="form.bio"
-              rows="4"
-              maxlength="160"
-            ></textarea>
+            <textarea class="input textarea" v-model="form.bio" rows="4" maxlength="160"></textarea>
             <div class="hint">{{ (form.bio || '').length }}/160</div>
             <p v-if="fieldErr.bio" class="fieldErr">{{ fieldErr.bio }}</p>
           </div>
 
           <div id="location" class="field">
-            <label>Poloha</label>
+            <label>Poloha (label)</label>
             <select class="input" v-model="form.location">
               <option value="">— Vyber polohu —</option>
               <option v-for="x in locations" :key="x" :value="x">{{ x }}</option>
@@ -46,11 +40,36 @@
             <p v-if="fieldErr.location" class="fieldErr">{{ fieldErr.location }}</p>
           </div>
 
+          <div class="fieldGrid">
+            <div class="field">
+              <label>Latitude</label>
+              <input class="input" v-model="form.latitude" type="number" step="0.0000001" />
+              <p v-if="fieldErr.latitude" class="fieldErr">{{ fieldErr.latitude }}</p>
+            </div>
+            <div class="field">
+              <label>Longitude</label>
+              <input class="input" v-model="form.longitude" type="number" step="0.0000001" />
+              <p v-if="fieldErr.longitude" class="fieldErr">{{ fieldErr.longitude }}</p>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Timezone</label>
+            <input class="input" v-model.trim="form.timezone" type="text" placeholder="Europe/Bratislava" />
+            <p v-if="fieldErr.timezone" class="fieldErr">{{ fieldErr.timezone }}</p>
+          </div>
+
+          <div class="actions left">
+            <button class="btn ghost" type="button" @click="useMyLocation" :disabled="saving || geolocating">
+              {{ geolocating ? 'Ziskavam GPS...' : 'Pouzit moju polohu' }}
+            </button>
+          </div>
+
           <div class="actions">
             <button class="btn" @click="save" :disabled="saving">
-              {{ saving ? 'Ukladám…' : 'Uložiť' }}
+              {{ saving ? 'Ukladam...' : 'Ulozit' }}
             </button>
-            <button class="btn ghost" @click="back" :disabled="saving">Zrušiť</button>
+            <button class="btn ghost" @click="back" :disabled="saving">Zrusit</button>
           </div>
         </div>
       </div>
@@ -68,19 +87,34 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const locations = [
-  'Bratislava', 'Košice', 'Prešov', 'Žilina', 'Nitra', 'Banská Bystrica', 'Trnava', 'Trenčín',
-  'Slovensko (iné)', 'Česko', 'Európa', 'Mimo Európy'
+  'Bratislava', 'Kosice', 'Presov', 'Zilina', 'Nitra', 'Banska Bystrica', 'Trnava', 'Trencin',
+  'Slovensko (ine)', 'Cesko', 'Europa', 'Mimo Europy',
 ]
 
-// ✅ email držíme v state “na pozadí”, aby backend (email required) nepadal na 422
-const form = reactive({ name: '', email: '', bio: '', location: '' })
+const form = reactive({
+  name: '',
+  email: '',
+  bio: '',
+  location: '',
+  latitude: '',
+  longitude: '',
+  timezone: '',
+})
 
 const saving = ref(false)
+const geolocating = ref(false)
 const msg = ref('')
 const err = ref('')
 
-// 422 field errors
-const fieldErr = reactive({ name: '', email: '', bio: '', location: '' })
+const fieldErr = reactive({
+  name: '',
+  email: '',
+  bio: '',
+  location: '',
+  latitude: '',
+  longitude: '',
+  timezone: '',
+})
 
 function back() {
   router.push({ name: 'profile' })
@@ -93,20 +127,40 @@ function clearErrors() {
   fieldErr.email = ''
   fieldErr.bio = ''
   fieldErr.location = ''
+  fieldErr.latitude = ''
+  fieldErr.longitude = ''
+  fieldErr.timezone = ''
 }
 
 function resetForm() {
   if (!auth.user) return
   clearErrors()
   form.name = auth.user.name || ''
-  form.email = auth.user.email || ''     // ✅ dôležité
+  form.email = auth.user.email || ''
   form.bio = auth.user.bio || ''
   form.location = auth.user.location || ''
+
+  const meta = auth.user.location_meta || null
+  const lat = Number(meta?.lat ?? auth.user.latitude)
+  const lon = Number(meta?.lon ?? auth.user.longitude)
+  form.latitude = Number.isFinite(lat) ? String(lat) : ''
+  form.longitude = Number.isFinite(lon) ? String(lon) : ''
+  form.timezone = String(meta?.tz || auth.user.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC')
 }
 
 function extractFirstError(errorsObj, field) {
   const v = errorsObj?.[field]
   return Array.isArray(v) && v.length ? String(v[0]) : ''
+}
+
+function parseCoordinate(value) {
+  if (typeof value !== 'string' || value.trim() === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function hasPreciseLocation() {
+  return parseCoordinate(form.latitude) !== null && parseCoordinate(form.longitude) !== null
 }
 
 async function save() {
@@ -116,15 +170,27 @@ async function save() {
   try {
     await auth.csrf()
 
-    const { data } = await http.patch('/profile', {
+    const profileResponse = await http.patch('/profile', {
       name: form.name,
-      email: form.email,        // ✅ backend vyžaduje email
+      email: form.email,
       bio: form.bio,
       location: form.location,
     })
 
-    auth.user = data
-    msg.value = 'Profil uložený.'
+    let userPayload = profileResponse?.data || null
+
+    if (hasPreciseLocation()) {
+      const locationResponse = await http.put('/me/location', {
+        latitude: parseCoordinate(form.latitude),
+        longitude: parseCoordinate(form.longitude),
+        timezone: form.timezone || null,
+        location: form.location || null,
+      })
+      userPayload = locationResponse?.data || userPayload
+    }
+
+    auth.user = userPayload
+    msg.value = 'Profil ulozeny.'
   } catch (e) {
     const status = e?.response?.status
     const data = e?.response?.data
@@ -134,18 +200,60 @@ async function save() {
       fieldErr.email = extractFirstError(data.errors, 'email')
       fieldErr.bio = extractFirstError(data.errors, 'bio')
       fieldErr.location = extractFirstError(data.errors, 'location')
+      fieldErr.latitude = extractFirstError(data.errors, 'latitude')
+      fieldErr.longitude = extractFirstError(data.errors, 'longitude')
+      fieldErr.timezone = extractFirstError(data.errors, 'timezone')
 
       err.value =
         fieldErr.name ||
         fieldErr.email ||
         fieldErr.bio ||
         fieldErr.location ||
-        'Skontroluj označené polia.'
+        fieldErr.latitude ||
+        fieldErr.longitude ||
+        fieldErr.timezone ||
+        'Skontroluj oznacene polia.'
     } else {
-      err.value = data?.message || 'Uloženie zlyhalo.'
+      err.value = data?.message || 'Ulozenie zlyhalo.'
     }
   } finally {
     saving.value = false
+  }
+}
+
+async function useMyLocation() {
+  clearErrors()
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    err.value = 'Geolokacia nie je podporovana v tomto prehliadaci.'
+    return
+  }
+
+  geolocating.value = true
+  try {
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000,
+      })
+    })
+
+    const lat = Number(position?.coords?.latitude)
+    const lon = Number(position?.coords?.longitude)
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      err.value = 'Nepodarilo sa ziskat suradnice.'
+      return
+    }
+
+    form.latitude = lat.toFixed(7)
+    form.longitude = lon.toFixed(7)
+    if (!form.timezone) {
+      form.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    }
+  } catch {
+    err.value = 'Nepodarilo sa ziskat GPS polohu.'
+  } finally {
+    geolocating.value = false
   }
 }
 
@@ -199,6 +307,12 @@ onMounted(async () => {
   margin-bottom: 0.35rem;
 }
 
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
 .input {
   width: 100%;
   padding: 0.7rem 0.85rem;
@@ -208,8 +322,8 @@ onMounted(async () => {
   color: var(--color-surface);
   outline: none;
 }
-.input:focus { border-color: rgb(var(--color-primary-rgb) / 0.9); }
 
+.input:focus { border-color: rgb(var(--color-primary-rgb) / 0.9); }
 .textarea { resize: vertical; }
 
 .hint {
@@ -232,6 +346,10 @@ onMounted(async () => {
   justify-content: flex-end;
 }
 
+.actions.left {
+  justify-content: flex-start;
+}
+
 .btn {
   padding: 0.6rem 0.95rem;
   border-radius: 999px;
@@ -240,6 +358,7 @@ onMounted(async () => {
   color: var(--color-surface);
   font-weight: 800;
 }
+
 .btn:hover { background: rgb(var(--color-primary-rgb) / 0.25); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
@@ -248,6 +367,7 @@ onMounted(async () => {
   background: rgb(var(--color-bg-rgb) / 0.2);
   color: var(--color-surface);
 }
+
 .btn.ghost:hover { border-color: rgb(var(--color-primary-rgb) / 0.85); color: var(--color-surface); }
 
 .msg { margin-bottom: 0.75rem; padding: 0.6rem 0.8rem; border-radius: 1rem; font-size: 0.95rem; }
