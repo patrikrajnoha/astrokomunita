@@ -20,13 +20,19 @@ class WeeklyNewsletterMail extends Mailable
     public function __construct(
         public readonly array $payload,
         public readonly User $user,
+        public readonly bool $preview = false,
     ) {
     }
 
     public function envelope(): Envelope
     {
+        $subject = 'Nebesky sprievodca: Tyzdenny newsletter';
+        if ($this->preview) {
+            $subject = '[PREVIEW] ' . $subject;
+        }
+
         return new Envelope(
-            subject: 'Nebesky sprievodca: Tyzdenny newsletter',
+            subject: $subject,
         );
     }
 

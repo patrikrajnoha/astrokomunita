@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\NewsletterRun;
+use App\Models\User;
 use App\Services\Newsletter\NewsletterDispatchService;
 use App\Services\Newsletter\NewsletterSelectionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class AdminNewsletterController extends Controller
 {
@@ -66,6 +68,43 @@ class AdminNewsletterController extends Controller
             'reason' => $result['reason'],
             'data' => $run ? $this->mapRun($run) : null,
         ], $statusCode);
+    }
+
+    public function sendPreview(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $targetEmail = mb_strtolower(trim((string) $validated['email']));
+        $targetUser = User::query()
+            ->whereRaw('LOWER(email) = ?', [$targetEmail])
+            ->first();
+
+        if (! $targetUser) {
+            throw ValidationException::withMessages([
+                'email' => ['No user with this email exists.'],
+            ]);
+        }
+
+        $payload = $this->selectionService->buildNewsletterPayload();
+        $sent = $this->dispatchService->sendPreviewToUser($targetUser, $payload);
+
+        if (! $sent) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Preview email could not be sent.',
+            ], 422);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'data' => [
+                'email' => $targetUser->email,
+                'events_count' => count((array) ($payload['top_events'] ?? [])),
+                'articles_count' => count((array) ($payload['top_articles'] ?? [])),
+            ],
+        ], 202);
     }
 
     public function runs(Request $request): JsonResponse
