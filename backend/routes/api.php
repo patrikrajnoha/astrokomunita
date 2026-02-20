@@ -468,6 +468,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
         Route::get('/notification-preferences', [NotificationPreferenceController::class, 'show']);
         Route::put('/notification-preferences', [NotificationPreferenceController::class, 'update']);
+        if (app()->environment('local') && config('app.debug')) {
+            Route::post('/notifications/dev-test', [NotificationController::class, 'devTest']);
+        }
         Route::middleware('throttle:30,1')->group(function () {
             Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
             Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);

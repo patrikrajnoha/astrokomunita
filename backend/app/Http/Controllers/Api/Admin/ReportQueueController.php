@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Report;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class ReportQueueController extends Controller
 {
+    public function __construct(private readonly NotificationService $notifications)
+    {
+    }
+
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 20);
@@ -110,6 +115,12 @@ class ReportQueueController extends Controller
             $post->user->banned_at = now();
             $post->user->ban_reason = trim((string) ($report->reason ?: $report->message ?: 'Banned by moderation action.'));
             $post->user->save();
+
+            $this->notifications->createAccountRestricted(
+                (int) $post->user->id,
+                (string) $post->user->ban_reason,
+                (int) $request->user()->id
+            );
         }
 
         $report->status = 'action_taken';
