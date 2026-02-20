@@ -84,6 +84,10 @@ Schedule::command('notifications:send-event-reminders')
     ->everyFiveMinutes()
     ->withoutOverlapping();
 
+Schedule::command('newsletter:send-weekly')
+    ->weeklyOn(1, '08:00')
+    ->withoutOverlapping();
+
 // ------------------------------------------------------------------
 // AstroBot Scheduler (authoritative NASA RSS sync path)
 // ------------------------------------------------------------------

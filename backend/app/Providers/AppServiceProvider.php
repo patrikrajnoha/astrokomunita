@@ -7,6 +7,7 @@ use App\Console\Commands\ImportNasaNewsCommand;
 use App\Console\Commands\CrawlAstropixelsEventsCommand;
 use App\Console\Commands\SendEventReminders;
 use App\Console\Commands\SendEventNotificationReminders;
+use App\Console\Commands\SendWeeklyNewsletterCommand;
 use App\Console\Commands\AstroBotSyncRss;
 use App\Console\Commands\GenerateEventDescriptionsCommand;
 use App\Support\Http\SslVerificationPolicy;
@@ -52,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
             CrawlAstropixelsEventsCommand::class,
             SendEventReminders::class,
             SendEventNotificationReminders::class,
+            SendWeeklyNewsletterCommand::class,
             AstroBotSyncRss::class,
             GenerateEventDescriptionsCommand::class,
         ]);
@@ -96,6 +98,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('gif-search', function (Request $request) {
             $userId = $request->user()?->id ?? 'guest';
             return Limit::perMinute(30)->by('gif-search|' . $userId . '|' . $request->ip());
+        });
+
+        RateLimiter::for('newsletter-send', function (Request $request) {
+            $userId = $request->user()?->id ?? $request->ip();
+            return Limit::perMinute(2)->by('newsletter-send|' . $userId);
         });
     }
 }

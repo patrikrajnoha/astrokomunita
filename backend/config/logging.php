@@ -123,6 +123,14 @@ return [
             'handler' => NullHandler::class,
         ],
 
+        'newsletter' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/newsletter.log'),
+            'level' => env('LOG_LEVEL', 'info'),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
         ],
