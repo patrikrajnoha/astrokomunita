@@ -130,15 +130,15 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     await flush()
 
-    const desktopLayout = wrapper.find('[data-testid="desktop-layout"]')
-    expect(desktopLayout.exists()).toBe(true)
-    expect(desktopLayout.classes()).toContain('desktopLayout')
-    expect(desktopLayout.classes()).toContain('desktopLayoutWithRail')
-    expect(desktopLayout.classes()).toContain('xl:grid')
+    const desktopFrame = wrapper.find('[data-testid="desktop-frame"]')
+    expect(desktopFrame.exists()).toBe(true)
+    expect(desktopFrame.classes()).toContain('desktopFrame')
+    expect(desktopFrame.classes()).toContain('xl:grid')
 
     const shell = wrapper.find('[data-testid="center-shell"]')
     expect(shell.exists()).toBe(true)
     expect(shell.classes()).toContain('centerShellGrid')
+    expect(shell.classes()).toContain('xl:col-start-2')
     expect(shell.classes()).toContain('xl:max-w-[1440px]')
     expect(shell.classes()).toContain('2xl:max-w-[1560px]')
     expect(shell.attributes('style')).toContain('--center-shell-cols: 16rem clamp(680px, 44vw, 920px);')
@@ -160,14 +160,14 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     await flush()
 
-    const desktopLayout = wrapper.find('[data-testid="desktop-layout"]')
-    expect(desktopLayout.exists()).toBe(true)
-    expect(desktopLayout.classes()).toContain('desktopLayout')
-    expect(desktopLayout.classes()).toContain('desktopLayoutNoRail')
-    expect(desktopLayout.classes()).not.toContain('desktopLayoutWithRail')
+    const desktopFrame = wrapper.find('[data-testid="desktop-frame"]')
+    expect(desktopFrame.exists()).toBe(true)
+    expect(desktopFrame.classes()).toContain('desktopFrame')
+    expect(desktopFrame.classes()).toContain('xl:grid')
 
     const shell = wrapper.find('[data-testid="center-shell"]')
     expect(shell.exists()).toBe(true)
+    expect(shell.classes()).toContain('xl:col-start-2')
     expect(shell.classes()).toContain('xl:max-w-[1440px]')
     expect(shell.classes()).toContain('2xl:max-w-[1560px]')
     expect(shell.attributes('style')).toContain('--center-shell-cols: 16rem clamp(680px, 56vw, 980px);')
