@@ -54,6 +54,36 @@ For realtime client config, frontend reads:
 - `VITE_REVERB_PORT`
 - `VITE_REVERB_SCHEME`
 
+### Newsletter (admin + unsubscribe)
+
+Backend env keys for newsletter dispatch:
+- `NEWSLETTER_QUEUE`
+- `NEWSLETTER_BATCH_SIZE`
+- `NEWSLETTER_RATE_LIMIT_PER_MINUTE`
+- `NEWSLETTER_SLEEP_MS_BETWEEN_BATCHES`
+- `NEWSLETTER_MAX_RECIPIENTS_PER_RUN`
+- `NEWSLETTER_PREVIEW_RATE_LIMIT_PER_MINUTE`
+- `NEWSLETTER_UNSUBSCRIBE_URL_TTL_DAYS`
+
+Run weekly dispatch manually:
+
+```bash
+php artisan newsletter:send-weekly
+```
+
+Admin preview email endpoint:
+
+```bash
+POST /api/admin/newsletter/preview
+{
+  "email": "existing-user@example.com"
+}
+```
+
+Public unsubscribe endpoint (signed URL in email):
+- Route name: `newsletter.unsubscribe`
+- URL shape: `/unsubscribe/newsletter/{user}?run={runId}&expires=...&signature=...`
+
 Realtime checks:
 - Browser DevTools -> Network -> `WS` should show an active Reverb socket connection.
 - Backend route `POST /broadcasting/auth` should return `200` for your private channel.
