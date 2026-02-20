@@ -181,12 +181,23 @@ class NewsletterSystemTest extends TestCase
         ])
             ->assertStatus(202)
             ->assertJsonPath('ok', true)
-            ->assertJsonPath('data.email', $target->email);
+            ->assertJsonPath('data.email', $target->email)
+            ->assertJsonPath('data.preview_count', 1);
 
         Mail::assertSent(WeeklyNewsletterMail::class, function (WeeklyNewsletterMail $mail) use ($target): bool {
             return $mail->hasTo($target->email)
                 && str_starts_with((string) $mail->envelope()->subject, '[PREVIEW] ');
         });
+
+        $this->assertTrue(
+            NewsletterRun::query()
+                ->whereDate('week_start_date', '2026-02-23')
+                ->where('status', NewsletterRun::STATUS_COMPLETED)
+                ->where('dry_run', true)
+                ->where('total_recipients', 0)
+                ->where('preview_count', 1)
+                ->exists()
+        );
     }
 
     public function test_dry_run_does_not_send_mail(): void
