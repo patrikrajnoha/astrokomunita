@@ -27,6 +27,12 @@ const sidebarConfigStore = vi.hoisted(() => ({
   fetchScope: vi.fn(async () => []),
 }))
 
+const notificationsStore = vi.hoisted(() => ({
+  startRealtime: vi.fn(async () => {}),
+  stopRealtime: vi.fn(() => {}),
+  fetchUnreadCount: vi.fn(async () => {}),
+}))
+
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => authStore,
 }))
@@ -37,6 +43,10 @@ vi.mock('@/stores/eventPreferences', () => ({
 
 vi.mock('@/stores/sidebarConfig', () => ({
   useSidebarConfigStore: () => sidebarConfigStore,
+}))
+
+vi.mock('@/stores/notifications', () => ({
+  useNotificationsStore: () => notificationsStore,
 }))
 
 vi.mock('@/services/popup', () => ({
