@@ -240,6 +240,66 @@ class NewsletterDispatchService
         return true;
     }
 
+    public function recordPreviewDispatch(?User $adminUser = null): NewsletterRun
+    {
+        $weekStartDate = (string) $this->selectionService->getNextWeekRange()['week_start_date'];
+
+        $runQuery = NewsletterRun::query()
+            ->whereDate('week_start_date', $weekStartDate)
+            ->where('status', NewsletterRun::STATUS_COMPLETED)
+            ->where('dry_run', true)
+            ->where('total_recipients', 0);
+
+        if ($adminUser?->id) {
+            $runQuery->where('admin_user_id', (int) $adminUser->id);
+        } else {
+            $runQuery->whereNull('admin_user_id');
+        }
+
+        $run = $runQuery->latest('id')->first();
+
+        if (! $run) {
+            $run = NewsletterRun::query()->create([
+                'week_start_date' => $weekStartDate,
+                'status' => NewsletterRun::STATUS_COMPLETED,
+                'total_recipients' => 0,
+                'sent_count' => 0,
+                'preview_count' => 0,
+                'unsubscribe_count' => 0,
+                'failed_count' => 0,
+                'started_at' => now(),
+                'finished_at' => now(),
+                'admin_user_id' => $adminUser?->id,
+                'forced' => true,
+                'dry_run' => true,
+                'error' => null,
+                'meta' => [
+                    'trigger' => 'preview',
+                    'triggered_at' => now()->toIso8601String(),
+                ],
+            ]);
+        }
+
+        NewsletterRun::query()
+            ->whereKey($run->id)
+            ->update([
+                'preview_count' => DB::raw('preview_count + 1'),
+                'updated_at' => now(),
+            ]);
+
+        return $run->fresh();
+    }
+
+    public function incrementUnsubscribeCount(int $runId): void
+    {
+        NewsletterRun::query()
+            ->whereKey($runId)
+            ->update([
+                'unsubscribe_count' => DB::raw('unsubscribe_count + 1'),
+                'updated_at' => now(),
+            ]);
+    }
+
     public function markUserSent(int $runId): void
     {
         NewsletterRun::query()

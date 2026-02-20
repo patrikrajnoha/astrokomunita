@@ -287,6 +287,8 @@ onMounted(load)
             <th>Status</th>
             <th>Total</th>
             <th>Sent</th>
+            <th>Preview</th>
+            <th>Unsubscribe</th>
             <th>Failed</th>
             <th>Flags</th>
             <th>Created</th>
@@ -299,6 +301,8 @@ onMounted(load)
             <td>{{ run.status }}</td>
             <td>{{ run.total_recipients }}</td>
             <td>{{ run.sent_count }}</td>
+            <td>{{ run.preview_count }}</td>
+            <td>{{ run.unsubscribe_count }}</td>
             <td>{{ run.failed_count }}</td>
             <td>
               <span v-if="run.forced">forced </span>

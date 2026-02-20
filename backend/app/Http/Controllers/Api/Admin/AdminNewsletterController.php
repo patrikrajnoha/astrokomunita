@@ -97,12 +97,16 @@ class AdminNewsletterController extends Controller
             ], 422);
         }
 
+        $previewRun = $this->dispatchService->recordPreviewDispatch($request->user());
+
         return response()->json([
             'ok' => true,
             'data' => [
                 'email' => $targetUser->email,
                 'events_count' => count((array) ($payload['top_events'] ?? [])),
                 'articles_count' => count((array) ($payload['top_articles'] ?? [])),
+                'run_id' => (int) $previewRun->id,
+                'preview_count' => (int) $previewRun->preview_count,
             ],
         ], 202);
     }
@@ -141,6 +145,8 @@ class AdminNewsletterController extends Controller
             'status' => (string) $run->status,
             'total_recipients' => (int) $run->total_recipients,
             'sent_count' => (int) $run->sent_count,
+            'preview_count' => (int) $run->preview_count,
+            'unsubscribe_count' => (int) $run->unsubscribe_count,
             'failed_count' => (int) $run->failed_count,
             'forced' => (bool) $run->forced,
             'dry_run' => (bool) $run->dry_run,
