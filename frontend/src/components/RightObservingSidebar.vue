@@ -2,7 +2,7 @@
   <section class="card shell">
     <header class="head">
       <h3 class="title">Astronomicke podmienky</h3>
-      <p class="subtitle">Minimalny prehlad na dnesny vecer</p>
+      <p class="subtitle">Observing Conditions</p>
       <p class="location">{{ locationLabel }}</p>
     </header>
 
@@ -29,10 +29,55 @@
     </div>
 
     <div v-else class="body">
+      <div class="modeRow">
+        <button
+          v-for="option in modeOptions"
+          :key="option.key"
+          class="modeBtn"
+          :class="{ isActive: selectedMode === option.key }"
+          :title="option.description"
+          type="button"
+          @click="setMode(option.key)"
+        >
+          {{ option.label }}
+        </button>
+      </div>
+
       <div v-if="error" class="notice">
         <p class="noticeText">{{ error }}</p>
         <button class="btnGhost" type="button" @click="fetchSummary">Skusit znova</button>
       </div>
+
+      <section class="panel indexPanel">
+        <p class="indexLabel" :title="weightsTooltip">
+          Observing Index
+          <strong>{{ observingIndexLabel }}</strong>
+        </p>
+        <div class="progressTrack" role="progressbar" :aria-valuenow="observingIndexForAria" aria-valuemin="0" aria-valuemax="100">
+          <div class="progressFill" :style="indexProgressStyle"></div>
+        </div>
+        <p class="indexMeta">
+          <span class="chip" :class="badgeFromLabel(observeSummary?.overall?.label)">{{ observeSummary?.overall?.label || 'Nedostupne' }}</span>
+          <span>{{ overallReason }}</span>
+        </p>
+      </section>
+
+      <section v-if="bestTimeLine" class="panel">
+        <p class="row compact">
+          <span>Najlepsi cas dnes</span>
+          <strong>{{ bestTimeLine }}</strong>
+        </p>
+      </section>
+
+      <section v-if="alerts.length > 0" class="panel">
+        <h4 class="sectionTitle">Alerts</h4>
+        <ul class="alertList">
+          <li v-for="(alert, index) in alerts" :key="`${alert.code || 'alert'}-${index}`" class="alertItem">
+            <span class="badge" :class="badgeFromLevel(alert.level)">{{ alert.level || 'info' }}</span>
+            <span>{{ alert.message || '-' }}</span>
+          </li>
+        </ul>
+      </section>
 
       <section class="chips">
         <span class="chip" :class="badgeForSun(observeSummary?.sun?.status)">
@@ -42,6 +87,27 @@
         <span class="chip" :class="badgeFromLabel(observeSummary?.overall?.label)">
           Atmosfera: {{ observeSummary?.overall?.label || 'Nedostupne' }}
         </span>
+      </section>
+
+      <section class="panel">
+        <h4 class="sectionTitle">24h trend</h4>
+        <div v-if="hasGraphData" class="graphWrap">
+          <svg class="graph" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <line v-if="sunsetMarkerX !== null" :x1="sunsetMarkerX" y1="6" :x2="sunsetMarkerX" y2="94" class="marker markerSunset" />
+            <line v-if="sunriseMarkerX !== null" :x1="sunriseMarkerX" y1="6" :x2="sunriseMarkerX" y2="94" class="marker markerSunrise" />
+            <path :d="humidityPath" class="line lineHumidity" />
+            <path :d="cloudPath" class="line lineCloud" />
+            <path :d="moonPath" class="line lineMoon" />
+          </svg>
+          <div class="legend">
+            <span><i class="dot humidity"></i>Humidity</span>
+            <span><i class="dot cloud"></i>Cloud</span>
+            <span><i class="dot moon"></i>Moon alt</span>
+            <span v-if="sunsetMarkerX !== null"><i class="dot sunset"></i>Sunset</span>
+            <span v-if="sunriseMarkerX !== null"><i class="dot sunrise"></i>Sunrise</span>
+          </div>
+        </div>
+        <p v-else class="stateText">24h graf je docasne nedostupny.</p>
       </section>
 
       <section class="panel">
@@ -86,6 +152,14 @@
           <strong>{{ pct(observeSummary?.atmosphere?.humidity?.evening_pct ?? observeSummary?.atmosphere?.humidity?.current_pct) }}</strong>
         </p>
         <p class="row compact">
+          <span>Cloud cover (vecer)</span>
+          <strong>{{ pct(observeSummary?.atmosphere?.cloud_cover?.evening_pct ?? observeSummary?.atmosphere?.cloud_cover?.current_pct) }}</strong>
+        </p>
+        <p class="row compact">
+          <span>Seeing proxy</span>
+          <strong>{{ pct(observeSummary?.atmosphere?.seeing?.score) }}</strong>
+        </p>
+        <p class="row compact">
           <span>Smog PM2.5 / PM10</span>
           <strong>{{ pm(observeSummary?.atmosphere?.air_quality?.pm25) }} / {{ pm(observeSummary?.atmosphere?.air_quality?.pm10) }}</strong>
         </p>
@@ -108,6 +182,12 @@ const props = defineProps({
   locationName: { type: String, default: '' },
 })
 
+const modeOptions = [
+  { key: 'deep_sky', label: 'Deep Sky', description: 'Priorita: cloud, humidity, moon glow.' },
+  { key: 'planets', label: 'Planety', description: 'Priorita: seeing proxy + cloud.' },
+  { key: 'meteors', label: 'Meteory', description: 'Priorita: darkness + cloud + moon.' },
+]
+
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
@@ -116,6 +196,7 @@ const observeSummary = ref(null)
 const skySummary = ref(null)
 const loading = ref(false)
 const error = ref('')
+const selectedMode = ref('deep_sky')
 let debounceTimer = null
 let requestCounter = 0
 
@@ -179,9 +260,86 @@ const moonIllumination = computed(() => {
   return '-'
 })
 
+const observingIndex = computed(() => {
+  const raw = Number(observeSummary.value?.observing_index)
+  if (!Number.isFinite(raw)) return null
+  return Math.max(0, Math.min(100, Math.round(raw)))
+})
+
+const observingIndexLabel = computed(() => (observingIndex.value === null ? '-' : String(observingIndex.value)))
+const observingIndexForAria = computed(() => (observingIndex.value === null ? 0 : observingIndex.value))
+const indexProgressStyle = computed(() => ({
+  width: `${observingIndexForAria.value}%`,
+}))
+
+const overallReason = computed(() => {
+  const reason = observeSummary.value?.overall?.reason
+  if (typeof reason === 'string' && reason.trim() !== '') return reason.trim()
+  return 'Bez detailneho dovodu.'
+})
+
+const weightsTooltip = computed(() => {
+  const mode = observeSummary.value?.observing_mode || selectedMode.value
+  const weights = observeSummary.value?.weights
+  if (!weights || typeof weights !== 'object') return `Mode: ${mode}`
+
+  const items = Object.entries(weights)
+    .filter(([, value]) => Number.isFinite(Number(value)))
+    .map(([key, value]) => `${key}: ${Math.round(Number(value) * 100)}%`)
+
+  return `Mode ${mode} | ${items.join(', ')}`
+})
+
+const alerts = computed(() => (Array.isArray(observeSummary.value?.alerts) ? observeSummary.value.alerts : []))
+
+const bestTimeLine = computed(() => {
+  const time = observeSummary.value?.best_time_local
+  const index = Number(observeSummary.value?.best_time_index)
+  const reason = observeSummary.value?.best_time_reason
+  if (typeof time !== 'string' || time.trim() === '') return ''
+
+  const parts = [`${time}`]
+  if (Number.isFinite(index)) parts.push(`${Math.round(index)}/100`)
+  if (typeof reason === 'string' && reason.trim() !== '') parts.push(reason.trim())
+  return parts.join(' - ')
+})
+
+const graphSeries = computed(() => {
+  const hourly = Array.isArray(observeSummary.value?.timeline?.hourly) ? observeSummary.value.timeline.hourly : []
+  const moonHourly = Array.isArray(skySummary.value?.moon?.altitude_hourly) ? skySummary.value.moon.altitude_hourly : []
+  const moonMap = new Map(
+    moonHourly
+      .filter((item) => typeof item?.local_time === 'string')
+      .map((item) => [item.local_time, Number(item.altitude_deg)]),
+  )
+
+  return hourly
+    .filter((item) => typeof item?.local_time === 'string')
+    .map((item) => ({
+      local_time: item.local_time,
+      humidity_pct: Number(item.humidity_pct),
+      cloud_cover_pct: Number(item.cloud_cover_pct),
+      moon_altitude_deg: moonMap.get(item.local_time),
+    }))
+})
+
+const hasGraphData = computed(() => graphSeries.value.length > 1)
+
+const humidityPath = computed(() => buildLinePath(graphSeries.value, 'humidity_pct', 'percent'))
+const cloudPath = computed(() => buildLinePath(graphSeries.value, 'cloud_cover_pct', 'percent'))
+const moonPath = computed(() => buildLinePath(graphSeries.value, 'moon_altitude_deg', 'moon'))
+
+const sunsetMarkerX = computed(() => markerX(observeSummary.value?.timeline?.sunset))
+const sunriseMarkerX = computed(() => markerX(observeSummary.value?.timeline?.sunrise))
+
 function queueFetch() {
   if (debounceTimer) window.clearTimeout(debounceTimer)
   debounceTimer = window.setTimeout(fetchSummary, 220)
+}
+
+function setMode(mode) {
+  if (typeof mode !== 'string') return
+  selectedMode.value = normalizeMode(mode)
 }
 
 async function fetchSummary() {
@@ -202,6 +360,7 @@ async function fetchSummary() {
     lon: numericLon.value,
     date: safeDate.value,
     tz: safeTimezone.value,
+    mode: selectedMode.value,
   }
 
   const [observeResult, skyResult] = await Promise.allSettled([
@@ -216,6 +375,8 @@ async function fetchSummary() {
 
   if (observeResult.status === 'rejected' && skyResult.status === 'rejected') {
     error.value = 'Nepodarilo sa nacitat data pre pozorovanie. Skus to znovu.'
+  } else if (observeResult.status === 'rejected') {
+    error.value = 'Observing index je docasne nedostupny. Planety a meteory su dostupne.'
   } else if (skyResult.status === 'rejected') {
     error.value = 'Planetarne a meteoricke data su docasne nedostupne.'
   }
@@ -232,14 +393,20 @@ function goToProfileLocation() {
 }
 
 watch(
-  () => [props.lat, props.lon, props.date, props.tz, auth.initialized, auth.isAuthed],
+  () => [props.lat, props.lon, props.date, props.tz, auth.initialized, auth.isAuthed, selectedMode.value],
   queueFetch,
-  { immediate: true }
+  { immediate: true },
 )
 
 onBeforeUnmount(() => {
   if (debounceTimer) window.clearTimeout(debounceTimer)
 })
+
+function normalizeMode(value) {
+  const candidate = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  if (candidate === 'planets' || candidate === 'meteors') return candidate
+  return 'deep_sky'
+}
 
 function toNumber(value) {
   if (typeof value === 'number') return value
@@ -286,10 +453,28 @@ function signedDays(value) {
   return parsed > 0 ? `+${parsed} d` : `${parsed} d`
 }
 
+function normalizeLabelKey(label) {
+  if (typeof label !== 'string') return ''
+  return label
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z]/g, '')
+}
+
 function badgeFromLabel(label) {
-  if (label === 'OK') return 'isOk'
-  if (label === 'Pozor') return 'isWarn'
-  if (label === 'Zle') return 'isBad'
+  const key = normalizeLabelKey(label)
+  if (key === 'ok') return 'isOk'
+  if (key.startsWith('pozor')) return 'isWarn'
+  if (key.startsWith('zl')) return 'isBad'
+  return 'isUnknown'
+}
+
+function badgeFromLevel(level) {
+  const key = normalizeLabelKey(level)
+  if (key === 'severe') return 'isBad'
+  if (key === 'warn') return 'isWarn'
+  if (key === 'info') return 'isInfo'
   return 'isUnknown'
 }
 
@@ -342,6 +527,67 @@ function translateMoonPhase(value) {
 
   return dictionary[normalized] || value.trim()
 }
+
+function buildLinePath(series, field, kind) {
+  if (!Array.isArray(series) || series.length < 2) return ''
+
+  let path = ''
+  let started = false
+
+  series.forEach((point, index) => {
+    const raw = Number(point?.[field])
+    if (!Number.isFinite(raw)) {
+      started = false
+      return
+    }
+
+    const x = xPoint(index, series.length)
+    const y = yPoint(raw, kind)
+    if (!Number.isFinite(y)) {
+      started = false
+      return
+    }
+
+    if (!started) {
+      path += `M ${x} ${y}`
+      started = true
+    } else {
+      path += ` L ${x} ${y}`
+    }
+  })
+
+  return path
+}
+
+function xPoint(index, total) {
+  if (!Number.isFinite(index) || !Number.isFinite(total) || total <= 1) return 0
+  return Number(((index / (total - 1)) * 100).toFixed(2))
+}
+
+function yPoint(value, kind) {
+  if (!Number.isFinite(value)) return NaN
+
+  if (kind === 'moon') {
+    const normalized = Math.max(0, Math.min(100, ((value + 20) / 100) * 100))
+    return Number((90 - (normalized / 100) * 80).toFixed(2))
+  }
+
+  const normalized = Math.max(0, Math.min(100, value))
+  return Number((90 - (normalized / 100) * 80).toFixed(2))
+}
+
+function markerX(time) {
+  if (typeof time !== 'string' || !/^\d{2}:\d{2}$/.test(time)) return null
+  const points = graphSeries.value
+  if (!Array.isArray(points) || points.length < 2) return null
+
+  const matchedIndex = points.findIndex((item) => item.local_time === time)
+  if (matchedIndex >= 0) return xPoint(matchedIndex, points.length)
+
+  const hour = Number(time.slice(0, 2))
+  if (!Number.isFinite(hour)) return null
+  return Number(((hour / 23) * 100).toFixed(2))
+}
 </script>
 
 <style scoped>
@@ -377,6 +623,68 @@ function translateMoonPhase(value) {
   margin: 0;
   font-size: 0.78rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.modeRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.3rem;
+}
+
+.modeBtn {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  border-radius: 0.62rem;
+  padding: 0.34rem 0.45rem;
+  font-size: 0.69rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  background: rgb(var(--color-bg-rgb) / 0.38);
+}
+
+.modeBtn.isActive {
+  border-color: rgb(var(--color-primary-rgb) / 0.75);
+  color: var(--color-surface);
+  background: rgb(var(--color-primary-rgb) / 0.16);
+}
+
+.indexPanel {
+  gap: 0.5rem;
+}
+
+.indexLabel {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.indexLabel strong {
+  font-size: 0.96rem;
+  color: var(--color-surface);
+}
+
+.indexMeta {
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.progressTrack {
+  width: 100%;
+  height: 0.62rem;
+  border-radius: 999px;
+  background: rgb(var(--color-bg-rgb) / 0.7);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.23);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, rgb(34 197 94 / 0.8), rgb(59 130 246 / 0.8));
+  transition: width 180ms ease;
 }
 
 .chips {
@@ -430,6 +738,108 @@ function translateMoonPhase(value) {
 
 .compact {
   font-size: 0.76rem;
+}
+
+.alertList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.alertItem {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  font-size: 0.74rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.98);
+}
+
+.graphWrap {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.graph {
+  width: 100%;
+  height: 94px;
+  border-radius: 0.52rem;
+  background: rgb(var(--color-bg-rgb) / 0.48);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
+}
+
+.line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lineHumidity {
+  stroke: rgb(45 212 191 / 0.95);
+}
+
+.lineCloud {
+  stroke: rgb(251 191 36 / 0.95);
+}
+
+.lineMoon {
+  stroke: rgb(167 139 250 / 0.95);
+}
+
+.marker {
+  stroke-width: 1.4;
+  stroke-dasharray: 2 2;
+}
+
+.markerSunset {
+  stroke: rgb(244 114 182 / 0.9);
+}
+
+.markerSunrise {
+  stroke: rgb(96 165 250 / 0.9);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  font-size: 0.66rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.26rem;
+}
+
+.dot {
+  width: 0.46rem;
+  height: 0.46rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.dot.humidity {
+  background: rgb(45 212 191 / 0.95);
+}
+
+.dot.cloud {
+  background: rgb(251 191 36 / 0.95);
+}
+
+.dot.moon {
+  background: rgb(167 139 250 / 0.95);
+}
+
+.dot.sunset {
+  background: rgb(244 114 182 / 0.9);
+}
+
+.dot.sunrise {
+  background: rgb(96 165 250 / 0.9);
 }
 
 .planet,
@@ -544,6 +954,12 @@ function translateMoonPhase(value) {
   color: rgb(254 202 202);
   border-color: rgb(244 63 94 / 0.62);
   background: rgb(190 24 93 / 0.2);
+}
+
+.isInfo {
+  color: rgb(186 230 253);
+  border-color: rgb(56 189 248 / 0.62);
+  background: rgb(14 116 144 / 0.2);
 }
 
 .isUnknown {
