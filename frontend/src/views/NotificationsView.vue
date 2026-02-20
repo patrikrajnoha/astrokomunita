@@ -142,6 +142,12 @@ const formatTitle = (item) => {
   if (item.type === 'contest_winner') {
     return 'You won the contest'
   }
+  if (item.type === 'event_invite') {
+    return 'You received an event invite'
+  }
+  if (item.type === 'account_restricted') {
+    return 'Account restricted'
+  }
   return 'Notification'
 }
 
@@ -155,6 +161,16 @@ const formatSubtitle = (item) => {
   }
   if (item.type === 'contest_winner') {
     return item.data?.contest_name || 'Contest winner'
+  }
+  if (item.type === 'event_invite') {
+    const inviter = item.data?.actor_name || item.data?.actor_username
+    const title = item.data?.event_title
+    if (inviter && title) return `${inviter} invited you to ${title}`
+    if (inviter) return `${inviter} invited you to an event`
+    return title || 'You were invited to an event'
+  }
+  if (item.type === 'account_restricted') {
+    return item.data?.reason || 'Contact support for details.'
   }
   return 'New update'
 }
