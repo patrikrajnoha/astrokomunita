@@ -76,6 +76,7 @@ class SkySummaryService
             'illumination' => $this->roundFloat($payload['illumination'] ?? null, 1),
             'rise_local' => $this->toTimeOrNull($payload['rise_local'] ?? null),
             'set_local' => $this->toTimeOrNull($payload['set_local'] ?? null),
+            'altitude_hourly' => $this->normalizeMoonAltitudeSeries($payload['altitude_hourly'] ?? []),
         ];
     }
 
@@ -156,6 +157,40 @@ class SkySummaryService
         $trimmed = trim($value);
 
         return preg_match('/^\d{2}:\d{2}$/', $trimmed) ? $trimmed : null;
+    }
+
+    /**
+     * @param mixed $payload
+     * @return array<int,array<string,mixed>>
+     */
+    private function normalizeMoonAltitudeSeries(mixed $payload): array
+    {
+        if (!is_array($payload)) {
+            return [];
+        }
+
+        $series = [];
+
+        foreach ($payload as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $time = $this->toTimeOrNull($item['local_time'] ?? null);
+            $altitude = $this->roundFloat($item['altitude_deg'] ?? null, 1);
+            if ($time === null || $altitude === null) {
+                continue;
+            }
+
+            $series[] = [
+                'local_time' => $time,
+                'altitude_deg' => $altitude,
+            ];
+        }
+
+        usort($series, static fn (array $a, array $b): int => strcmp($a['local_time'], $b['local_time']));
+
+        return array_slice($series, 0, 24);
     }
 
     /**
