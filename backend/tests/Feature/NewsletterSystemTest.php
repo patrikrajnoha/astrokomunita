@@ -200,6 +200,25 @@ class NewsletterSystemTest extends TestCase
         );
     }
 
+    public function test_admin_preview_endpoint_requires_existing_user_email(): void
+    {
+        $this->seedNewsletterContent();
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/admin/newsletter/preview', [
+            'email' => 'missing-user@example.com',
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
     public function test_dry_run_does_not_send_mail(): void
     {
         Mail::fake();
