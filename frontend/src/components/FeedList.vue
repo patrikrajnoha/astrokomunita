@@ -7,6 +7,8 @@
       </div>
     </header>
 
+    <slot name="top-content" />
+
     <section
       v-for="tab in tabs"
       :id="tab.panelId"

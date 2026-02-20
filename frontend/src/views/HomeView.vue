@@ -1,11 +1,13 @@
 <template>
   <section class="centerCol">
-    <PostComposer
-      v-if="auth?.isAuthed"
-      @created="onPostCreated"
-    />
-
-    <FeedList ref="feed" :key="$route.fullPath" />
+    <FeedList ref="feed" :key="$route.fullPath">
+      <template #top-content>
+        <PostComposer
+          v-if="auth?.isAuthed"
+          @created="onPostCreated"
+        />
+      </template>
+    </FeedList>
   </section>
 </template>
 
