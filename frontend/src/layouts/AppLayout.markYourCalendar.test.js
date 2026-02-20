@@ -117,7 +117,7 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(wrapper.find('mark-your-calendar-modal-stub').exists()).toBe(true)
   })
 
-  it('renders centered desktop app shell classes for routes with right sidebar', async () => {
+  it('renders three-zone desktop layout and right rail for routes with right sidebar', async () => {
     const router = makeRouter()
     await router.push('/')
     await router.isReady()
@@ -130,16 +130,24 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     await flush()
 
-    const shell = wrapper.find('[data-testid="app-shell"]')
+    const desktopLayout = wrapper.find('[data-testid="desktop-layout"]')
+    expect(desktopLayout.exists()).toBe(true)
+    expect(desktopLayout.classes()).toContain('desktopLayout')
+    expect(desktopLayout.classes()).toContain('desktopLayoutWithRail')
+    expect(desktopLayout.classes()).toContain('xl:grid')
+
+    const shell = wrapper.find('[data-testid="center-shell"]')
     expect(shell.exists()).toBe(true)
-    expect(shell.classes()).toContain('appShellGrid')
-    expect(shell.classes()).toContain('xl:grid')
-    expect(shell.classes()).toContain('xl:max-w-[1560px]')
-    expect(shell.classes()).toContain('2xl:max-w-[1760px]')
-    expect(shell.attributes('style')).toContain('--app-shell-cols: 16rem clamp(680px, 44vw, 920px) 22rem;')
+    expect(shell.classes()).toContain('centerShellGrid')
+    expect(shell.classes()).toContain('xl:max-w-[1440px]')
+    expect(shell.classes()).toContain('2xl:max-w-[1560px]')
+    expect(shell.attributes('style')).toContain('--center-shell-cols: 16rem clamp(680px, 44vw, 920px);')
+
+    const rightRail = wrapper.find('[data-testid="right-rail"]')
+    expect(rightRail.exists()).toBe(true)
   })
 
-  it('uses two-column shell for routes without right sidebar', async () => {
+  it('collapses desktop grid without phantom right column when sidebar is disabled', async () => {
     const router = makeRouter()
     await router.push('/login')
     await router.isReady()
@@ -152,12 +160,21 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     await flush()
 
-    const shell = wrapper.find('[data-testid="app-shell"]')
+    const desktopLayout = wrapper.find('[data-testid="desktop-layout"]')
+    expect(desktopLayout.exists()).toBe(true)
+    expect(desktopLayout.classes()).toContain('desktopLayout')
+    expect(desktopLayout.classes()).toContain('desktopLayoutNoRail')
+    expect(desktopLayout.classes()).not.toContain('desktopLayoutWithRail')
+
+    const shell = wrapper.find('[data-testid="center-shell"]')
     expect(shell.exists()).toBe(true)
-    expect(shell.classes()).toContain('xl:max-w-[1280px]')
-    expect(shell.classes()).toContain('2xl:max-w-[1480px]')
-    expect(shell.attributes('style')).toContain('--app-shell-cols: 16rem clamp(680px, 56vw, 980px);')
+    expect(shell.classes()).toContain('xl:max-w-[1440px]')
+    expect(shell.classes()).toContain('2xl:max-w-[1560px]')
+    expect(shell.attributes('style')).toContain('--center-shell-cols: 16rem clamp(680px, 56vw, 980px);')
     expect(shell.attributes('style')).not.toContain('22rem')
+
+    const rightRail = wrapper.find('[data-testid="right-rail"]')
+    expect(rightRail.exists()).toBe(false)
   })
 
   it('calls seen endpoint once when modal closes', async () => {
