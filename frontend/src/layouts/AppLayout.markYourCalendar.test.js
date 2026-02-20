@@ -138,7 +138,7 @@ describe('AppLayout mark-your-calendar popup', () => {
     const shell = wrapper.find('[data-testid="center-shell"]')
     expect(shell.exists()).toBe(true)
     expect(shell.classes()).toContain('centerShellGrid')
-    expect(shell.classes()).toContain('xl:col-start-2')
+    expect(shell.classes()).toContain('xl:col-start-1')
     expect(shell.classes()).toContain('xl:max-w-[1440px]')
     expect(shell.classes()).toContain('2xl:max-w-[1560px]')
     expect(shell.attributes('style')).toContain('--center-shell-cols: 16rem clamp(680px, 44vw, 920px);')
@@ -167,7 +167,7 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     const shell = wrapper.find('[data-testid="center-shell"]')
     expect(shell.exists()).toBe(true)
-    expect(shell.classes()).toContain('xl:col-start-2')
+    expect(shell.classes()).toContain('xl:col-start-1')
     expect(shell.classes()).toContain('xl:max-w-[1440px]')
     expect(shell.classes()).toContain('2xl:max-w-[1560px]')
     expect(shell.attributes('style')).toContain('--center-shell-cols: 16rem clamp(680px, 56vw, 980px);')
