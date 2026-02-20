@@ -104,5 +104,12 @@ class AppServiceProvider extends ServiceProvider
             $userId = $request->user()?->id ?? $request->ip();
             return Limit::perMinute(2)->by('newsletter-send|' . $userId);
         });
+
+        RateLimiter::for('newsletter-preview', function (Request $request) {
+            $userId = $request->user()?->id ?? $request->ip();
+            $perMinute = max(1, (int) config('newsletter.preview_rate_limit_per_minute', 20));
+
+            return Limit::perMinute($perMinute)->by('newsletter-preview|' . $userId);
+        });
     }
 }
