@@ -75,7 +75,7 @@
 
         <aside
           v-if="showRightSidebar"
-          class="hidden xl:col-start-3 xl:block xl:justify-self-end xl:self-start xl:pr-[clamp(16px,2vw,32px)]"
+          class="hidden xl:col-start-2 xl:block xl:justify-self-end xl:self-start xl:pr-[clamp(16px,2vw,32px)]"
           data-testid="right-rail"
           aria-label="Right sidebar"
         >
@@ -472,14 +472,14 @@ const desktopFrameClass = computed(() => {
     return 'mx-auto w-full'
   }
 
-  return 'desktopFrame mx-auto w-full xl:grid'
+  return 'desktopFrame w-full xl:grid'
 })
 const centerShellClass = computed(() => {
   if (isAdminRoute.value) {
     return 'mx-auto w-full max-w-[1560px]'
   }
 
-  return 'centerShellGrid mx-auto w-full xl:col-start-2 xl:grid xl:justify-center xl:max-w-[1440px] 2xl:max-w-[1560px] xl:gap-5 2xl:gap-6'
+  return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:max-w-[1440px] 2xl:max-w-[1560px] xl:gap-5 2xl:gap-6'
 })
 const centerShellColumns = computed(() => {
   if (isAdminRoute.value) return null
@@ -1252,7 +1252,7 @@ onBeforeUnmount(() => {
   .desktopFrame {
     --shell-w: 1440px;
     align-items: start;
-    grid-template-columns: 1fr minmax(0, var(--shell-w)) 1fr;
+    grid-template-columns: minmax(0, var(--shell-w)) minmax(0, 1fr);
   }
 
   .centerShellGrid {
