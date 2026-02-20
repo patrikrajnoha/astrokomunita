@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\AdminPostController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\TranslationHealthController;
+use App\Http\Controllers\Api\Admin\AdminNewsletterController;
 use App\Http\Controllers\Api\Admin\ContestController as AdminContestController;
 use App\Http\Controllers\Api\Admin\AdminStatsController;
 use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
@@ -58,6 +59,7 @@ use App\Http\Controllers\Api\ObserveDiagnosticsController;
 use App\Http\Controllers\Api\ObservingSkySummaryController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\MarkYourCalendarPopupController;
+use App\Http\Controllers\Api\NewsletterSubscriptionController;
 use App\Http\Controllers\CsrfTestController;
 use App\Http\Controllers\Api\Admin\FeaturedEventController;
 
@@ -327,6 +329,12 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::post('/featured-events/force-popup', [FeaturedEventController::class, 'forcePopup']);
         Route::patch('/featured-events/popup-settings', [FeaturedEventController::class, 'updatePopupSettings']);
 
+        // Newsletter (admin)
+        Route::get('/newsletter/preview', [AdminNewsletterController::class, 'preview']);
+        Route::post('/newsletter/feature-events', [AdminNewsletterController::class, 'featureEvents']);
+        Route::post('/newsletter/send', [AdminNewsletterController::class, 'send'])->middleware('throttle:newsletter-send');
+        Route::get('/newsletter/runs', [AdminNewsletterController::class, 'runs']);
+
         /*
         |--------------------------------------------------------------------------
         | Blog posts (admin)
@@ -471,6 +479,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/me/reminders', [EventReminderController::class, 'index']);
         Route::get('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'show']);
         Route::put('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);
+        Route::patch('/me/newsletter', [NewsletterSubscriptionController::class, 'update']);
         Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);
 
         // Mark your calendar popup
