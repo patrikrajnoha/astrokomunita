@@ -8,9 +8,19 @@ class ResizeObserverMock {
   disconnect() {}
 }
 
+const tabs = [
+  { id: 'for_you', label: 'Pre vas', tabId: 'tab-for-you', panelId: 'panel-for-you' },
+  { id: 'astrobot', label: 'AstroBot', tabId: 'tab-astrobot', panelId: 'panel-astrobot' },
+]
+
 describe('FeedSwitcher', () => {
   beforeEach(() => {
     vi.stubGlobal('ResizeObserver', ResizeObserverMock)
+    Object.defineProperty(window, 'scrollY', {
+      value: 0,
+      writable: true,
+      configurable: true,
+    })
   })
 
   afterEach(() => {
@@ -22,10 +32,7 @@ describe('FeedSwitcher', () => {
     const wrapper = mount(FeedSwitcher, {
       props: {
         modelValue: 'for_you',
-        tabs: [
-          { id: 'for_you', label: 'Pre vas', tabId: 'tab-for-you', panelId: 'panel-for-you' },
-          { id: 'astrobot', label: 'AstroBot', tabId: 'tab-astrobot', panelId: 'panel-astrobot' },
-        ],
+        tabs,
       },
       attachTo: document.body,
     })
@@ -42,43 +49,74 @@ describe('FeedSwitcher', () => {
     expect(wrapper.emitted('update:modelValue')[0][0]).toBe('astrobot')
   })
 
-  it('shows arrow buttons only when strip overflows', async () => {
+  it('moves single ink bar when active tab changes', async () => {
     const wrapper = mount(FeedSwitcher, {
       props: {
         modelValue: 'for_you',
-        tabs: [
-          { id: 'for_you', label: 'Pre vas', tabId: 'tab-for-you', panelId: 'panel-for-you' },
-          { id: 'astrobot', label: 'AstroBot', tabId: 'tab-astrobot', panelId: 'panel-astrobot' },
-        ],
+        tabs,
       },
       attachTo: document.body,
     })
 
-    const strip = wrapper.get('[data-testid="tab-strip"]').element
+    const firstButton = wrapper.get('#tab-for-you').element
+    const secondButton = wrapper.get('#tab-astrobot').element
+    const labels = wrapper.findAll('button[role="tab"] > span')
 
-    Object.defineProperty(strip, 'clientWidth', { value: 200, configurable: true })
-    Object.defineProperty(strip, 'scrollWidth', { value: 500, configurable: true })
-    Object.defineProperty(strip, 'scrollLeft', { value: 0, writable: true, configurable: true })
+    Object.defineProperty(firstButton, 'offsetWidth', { value: 180, configurable: true })
+    Object.defineProperty(firstButton, 'offsetLeft', { value: 0, configurable: true })
+    Object.defineProperty(secondButton, 'offsetWidth', { value: 180, configurable: true })
+    Object.defineProperty(secondButton, 'offsetLeft', { value: 180, configurable: true })
+    Object.defineProperty(labels[0].element, 'offsetWidth', { value: 62, configurable: true })
+    Object.defineProperty(labels[1].element, 'offsetWidth', { value: 74, configurable: true })
 
-    strip.dispatchEvent(new Event('scroll'))
+    window.dispatchEvent(new Event('resize'))
+    await nextTick()
     await nextTick()
 
-    expect(wrapper.find('[data-testid="strip-arrow-left"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="strip-arrow-right"]').exists()).toBe(true)
+    const inkBar = wrapper.get('[data-testid="feed-tabs-ink-bar"]')
+    const initialStyle = inkBar.attributes('style')
+    expect(initialStyle).toContain('translateX(')
+    expect(initialStyle).toContain('width:')
 
-    strip.scrollLeft = 120
-    strip.dispatchEvent(new Event('scroll'))
+    await wrapper.setProps({ modelValue: 'astrobot' })
+    Object.defineProperty(secondButton, 'offsetWidth', { value: 240, configurable: true })
+    Object.defineProperty(secondButton, 'offsetLeft', { value: 520, configurable: true })
+    Object.defineProperty(labels[1].element, 'offsetWidth', { value: 82, configurable: true })
+    window.dispatchEvent(new Event('resize'))
+    await nextTick()
     await nextTick()
 
-    expect(wrapper.find('[data-testid="strip-arrow-left"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="strip-arrow-right"]').exists()).toBe(true)
+    const movedStyle = wrapper.get('[data-testid="feed-tabs-ink-bar"]').attributes('style')
+    expect(movedStyle).toContain('translateX(')
+    expect(movedStyle).not.toBe(initialStyle)
+  })
 
-    Object.defineProperty(strip, 'clientWidth', { value: 600, configurable: true })
-    strip.scrollLeft = 0
-    strip.dispatchEvent(new Event('scroll'))
+  it('adds sticky elevation when the page is scrolled', async () => {
+    const wrapper = mount(FeedSwitcher, {
+      props: {
+        modelValue: 'for_you',
+        tabs,
+      },
+      attachTo: document.body,
+    })
+
+    const sticky = wrapper.get('[data-testid="feed-tabs-sticky"]')
+    const fade = wrapper.get('[data-testid="feed-tabs-fade"]')
+
+    expect(sticky.classes()).toContain('shadow-none')
+    expect(fade.classes()).toContain('opacity-0')
+
+    window.scrollY = 28
+    Object.defineProperty(document.documentElement, 'scrollTop', {
+      value: 28,
+      writable: true,
+      configurable: true,
+    })
+    window.dispatchEvent(new Event('scroll'))
+    await nextTick()
     await nextTick()
 
-    expect(wrapper.find('[data-testid="strip-arrow-left"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="strip-arrow-right"]').exists()).toBe(false)
+    expect(sticky.classes()).not.toContain('shadow-none')
+    expect(fade.classes()).toContain('opacity-100')
   })
 })
