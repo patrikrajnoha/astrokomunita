@@ -6,6 +6,7 @@
   $tip = (string) data_get($payload, 'astronomical_tip', '');
   $calendarUrl = (string) data_get($payload, 'cta.calendar_url', '#');
   $eventsUrl = (string) data_get($payload, 'cta.events_url', '#');
+  $unsubscribeUrl = (string) ($unsubscribeUrl ?? '#');
 @endphp
 <!doctype html>
 <html lang="en">
@@ -88,6 +89,10 @@
                   </td>
                 </tr>
               </table>
+              <p style="margin:14px 0 0;font-size:12px;line-height:1.5;color:#9fb2d1;">
+                Tento email ste dostali, pretoze mate zapnuty tyzdenny newsletter.
+                <a href="{{ $unsubscribeUrl }}" style="color:#93c5fd;text-decoration:underline;">Odhlasit sa z newslettera</a>
+              </p>
             </td>
           </tr>
         </table>
