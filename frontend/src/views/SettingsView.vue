@@ -50,6 +50,32 @@
     </section>
 
     <section class="settings-card">
+      <h2 class="card-title">Weekly newsletter</h2>
+      <p class="card-subtitle">Receive weekly top events, articles, and one astronomy tip.</p>
+
+      <div v-if="newsletterState.success" class="status status-success" role="status">
+        {{ newsletterState.success }}
+      </div>
+      <div v-if="newsletterState.error" class="status status-error" role="alert">
+        {{ newsletterState.error }}
+      </div>
+
+      <label class="toggle-box" for="settings-newsletter">
+        <div class="toggle-meta">
+          <p class="toggle-title">{{ newsletterSubscribed ? 'Subscribed' : 'Not subscribed' }}</p>
+          <p class="toggle-hint">You can change this anytime.</p>
+        </div>
+        <input
+          id="settings-newsletter"
+          type="checkbox"
+          :checked="newsletterSubscribed"
+          :disabled="newsletterState.loading"
+          @change="submitNewsletter($event.target.checked)"
+        />
+      </label>
+    </section>
+
+    <section class="settings-card">
       <h2 class="card-title">Change password</h2>
       <p class="card-subtitle">Set a new password for your account.</p>
 
@@ -149,7 +175,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import http from '@/services/api'
@@ -189,6 +215,13 @@ const deactivateForm = reactive({
 const deactivateState = reactive({
   loading: false,
   error: '',
+})
+
+const newsletterSubscribed = ref(false)
+const newsletterState = reactive({
+  loading: false,
+  error: '',
+  success: '',
 })
 
 const extractFirstError = (errorsObj, field) => {
@@ -332,6 +365,37 @@ const submitDeactivate = async () => {
   }
 }
 
+const submitNewsletter = async (checked) => {
+  newsletterState.error = ''
+  newsletterState.success = ''
+  newsletterState.loading = true
+
+  try {
+    if (!auth.user) {
+      throw new Error('You are not signed in.')
+    }
+
+    await auth.csrf()
+    const { data } = await http.patch('/me/newsletter', {
+      newsletter_subscribed: Boolean(checked),
+    })
+
+    newsletterSubscribed.value = Boolean(data?.data?.newsletter_subscribed ?? checked)
+    auth.user = {
+      ...auth.user,
+      newsletter_subscribed: newsletterSubscribed.value,
+    }
+    newsletterState.success = newsletterSubscribed.value
+      ? 'Newsletter subscription enabled.'
+      : 'Newsletter subscription disabled.'
+  } catch (e) {
+    newsletterState.error = e?.response?.data?.message || e?.message || 'Newsletter update failed.'
+    newsletterSubscribed.value = Boolean(auth.user?.newsletter_subscribed)
+  } finally {
+    newsletterState.loading = false
+  }
+}
+
 onMounted(async () => {
   if (!auth.initialized) {
     await auth.fetchUser()
@@ -340,6 +404,7 @@ onMounted(async () => {
   if (auth.user) {
     emailForm.email = auth.user.email || ''
     emailForm.name = auth.user.name || ''
+    newsletterSubscribed.value = Boolean(auth.user.newsletter_subscribed)
   }
 })
 </script>
@@ -541,6 +606,41 @@ onMounted(async () => {
 .btn-danger:hover {
   border-color: rgb(251 113 133 / 0.8);
   background: linear-gradient(145deg, rgb(225 29 72 / 0.45), rgb(127 29 29 / 0.4));
+}
+
+.toggle-box {
+  margin-top: 0.8rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  border-radius: 0.8rem;
+  padding: 0.72rem 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  background:
+    linear-gradient(130deg, rgb(var(--color-primary-rgb) / 0.14), rgb(var(--color-bg-rgb) / 0.6));
+}
+
+.toggle-meta {
+  min-width: 0;
+}
+
+.toggle-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.toggle-hint {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+}
+
+.toggle-box input[type='checkbox'] {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: rgb(var(--color-primary-rgb));
 }
 
 .settings-glow {
