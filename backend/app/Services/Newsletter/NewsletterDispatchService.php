@@ -83,6 +83,12 @@ class NewsletterDispatchService
                 ->map(static fn ($id): int => (int) $id)
                 ->all();
 
+            $originalRecipientCount = count($recipientIds);
+            $maxRecipientsPerRun = max(0, (int) config('newsletter.max_recipients_per_run', 0));
+            if ($maxRecipientsPerRun > 0 && $originalRecipientCount > $maxRecipientsPerRun) {
+                $recipientIds = array_slice($recipientIds, 0, $maxRecipientsPerRun);
+            }
+
             $run = NewsletterRun::query()->create([
                 'week_start_date' => $weekStartDate,
                 'status' => NewsletterRun::STATUS_RUNNING,
@@ -99,6 +105,8 @@ class NewsletterDispatchService
                     'payload' => $payload,
                     'trigger' => $adminUser ? 'admin' : 'scheduler',
                     'triggered_at' => now()->toIso8601String(),
+                    'max_recipients_per_run' => $maxRecipientsPerRun,
+                    'original_recipient_count' => $originalRecipientCount,
                 ],
             ]);
 
@@ -133,23 +141,30 @@ class NewsletterDispatchService
                 ];
             }
 
-            $chunkSize = max(1, (int) config('newsletter.chunk_size', 100));
+            $batchSize = $this->resolveBatchSize();
+            $batchDelayMs = $this->resolveBatchDelayMs($batchSize);
             $queueName = (string) config('newsletter.queue', 'default');
 
-            foreach (array_chunk($recipientIds, $chunkSize) as $chunk) {
-                SendNewsletterToUserJob::dispatch(
+            foreach (array_chunk($recipientIds, $batchSize) as $batchIndex => $chunk) {
+                $pendingDispatch = SendNewsletterToUserJob::dispatch(
                     runId: (int) $run->id,
                     userIds: array_values($chunk),
                     payload: $payloadWithRun,
                     dryRun: $dryRun
                 )->onQueue($queueName);
+
+                if ($batchDelayMs > 0 && $batchIndex > 0) {
+                    $pendingDispatch->delay(now()->addMilliseconds($batchDelayMs * $batchIndex));
+                }
             }
 
             Log::channel('newsletter')->info('Newsletter run dispatched.', [
                 'run_id' => $run->id,
                 'week_start_date' => $weekStartDate,
                 'total_recipients' => $run->total_recipients,
-                'chunk_size' => $chunkSize,
+                'batch_size' => $batchSize,
+                'batch_delay_ms' => $batchDelayMs,
+                'max_recipients_per_run' => $maxRecipientsPerRun,
                 'dry_run' => $dryRun,
                 'forced' => $forced,
                 'admin_user_id' => $adminUser?->id,
@@ -300,6 +315,35 @@ class NewsletterDispatchService
             ->with('adminUser:id,name,email')
             ->orderByDesc('id')
             ->paginate(max(1, min($perPage, 100)));
+    }
+
+    private function resolveBatchSize(): int
+    {
+        $batchSize = (int) config('newsletter.batch_size', 0);
+        if ($batchSize <= 0) {
+            $batchSize = (int) config('newsletter.chunk_size', 100);
+        }
+
+        return max(1, $batchSize);
+    }
+
+    private function resolveBatchDelayMs(int $batchSize): int
+    {
+        if (app()->runningUnitTests() && (bool) config('newsletter.disable_throttling_in_tests', true)) {
+            return 0;
+        }
+
+        $explicitDelayMs = max(0, (int) config('newsletter.sleep_ms_between_batches', 0));
+        if ($explicitDelayMs > 0) {
+            return $explicitDelayMs;
+        }
+
+        $rateLimitPerMinute = max(0, (int) config('newsletter.rate_limit_per_minute', 0));
+        if ($rateLimitPerMinute <= 0) {
+            return 0;
+        }
+
+        return (int) ceil(($batchSize / $rateLimitPerMinute) * 60000);
     }
 
     private function latestRunForWeek(string $weekStartDate): ?NewsletterRun

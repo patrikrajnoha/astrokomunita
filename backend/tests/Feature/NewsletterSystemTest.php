@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -101,6 +102,31 @@ class NewsletterSystemTest extends TestCase
 
         Mail::assertSent(WeeklyNewsletterMail::class, 1);
         $this->assertSame(1, NewsletterRun::query()->where('dry_run', false)->count());
+    }
+
+    public function test_dispatch_respects_configured_batch_size_when_queueing_jobs(): void
+    {
+        Queue::fake();
+        $this->seedNewsletterContent();
+
+        User::factory()->count(3)->create([
+            'newsletter_subscribed' => true,
+            'is_active' => true,
+            'is_bot' => false,
+        ]);
+
+        config()->set('newsletter.batch_size', 2);
+        config()->set('newsletter.max_recipients_per_run', 0);
+
+        app(NewsletterDispatchService::class)->dispatchWeeklyNewsletter();
+
+        Queue::assertPushed(SendNewsletterToUserJob::class, 2);
+        Queue::assertPushed(SendNewsletterToUserJob::class, function (SendNewsletterToUserJob $job): bool {
+            return count($job->userIds) === 2;
+        });
+        Queue::assertPushed(SendNewsletterToUserJob::class, function (SendNewsletterToUserJob $job): bool {
+            return count($job->userIds) === 1;
+        });
     }
 
     public function test_admin_manual_send_creates_run(): void
