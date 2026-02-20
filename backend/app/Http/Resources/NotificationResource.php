@@ -56,6 +56,24 @@ class NotificationResource extends JsonResource
             ];
         }
 
+        if ($this->type === 'event_invite') {
+            $eventId = $data['event_id'] ?? null;
+
+            return [
+                'kind' => 'event',
+                'id' => $eventId,
+                'url' => $eventId ? '/events/' . $eventId : '/events',
+            ];
+        }
+
+        if ($this->type === 'account_restricted') {
+            return [
+                'kind' => 'account',
+                'id' => null,
+                'url' => '/login',
+            ];
+        }
+
         return [
             'kind' => Str::before($this->type, '_') ?: 'unknown',
             'id' => null,

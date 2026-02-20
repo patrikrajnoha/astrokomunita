@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\NotificationCreated;
 use App\Models\Event;
 use App\Models\Notification;
 use App\Models\NotificationEvent;
@@ -10,6 +11,7 @@ use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
@@ -40,14 +42,17 @@ class NotificationService
                 'updated_at' => now(),
             ])->save();
 
-            return $existing->refresh();
+            $existing = $existing->refresh();
+            $this->broadcastNotification($existing);
+
+            return $existing;
         }
 
         $actor = User::query()->select(['id', 'name', 'username'])->find($actorId);
 
         // TODO(notifications-email): When social notification emails are introduced,
         // check NotificationPreference.email_enabled here and dispatch email delivery.
-        return Notification::create([
+        $notification = Notification::create([
             'user_id' => $recipientId,
             'type' => 'post_liked',
             'data' => [
@@ -57,6 +62,10 @@ class NotificationService
                 'post_id' => $postId,
             ],
         ]);
+
+        $this->broadcastNotification($notification);
+
+        return $notification;
     }
 
     public function createEventReminder(int $recipientId, int $eventId, string $remindAtWindowKey): ?Notification
@@ -93,6 +102,8 @@ class NotificationService
                 'notification_id' => $notification->id,
             ]);
 
+            $this->broadcastNotification($notification);
+
             // TODO(notifications-email): If event reminder emails are moved to this flow,
             // respect NotificationPreference.email_enabled before dispatching mail jobs.
 
@@ -106,7 +117,7 @@ class NotificationService
             return null;
         }
 
-        return Notification::create([
+        $notification = Notification::create([
             'user_id' => $recipientId,
             'type' => 'contest_winner',
             'data' => [
@@ -115,6 +126,60 @@ class NotificationService
                 'post_id' => $postId,
             ],
         ]);
+
+        $this->broadcastNotification($notification);
+
+        return $notification;
+    }
+
+    public function createEventInvite(
+        int $recipientId,
+        int $actorId,
+        ?int $eventId = null,
+        ?string $eventTitle = null,
+    ): ?Notification {
+        if ($recipientId === $actorId) {
+            return null;
+        }
+
+        if (!$this->shouldDeliverInApp($recipientId, 'system')) {
+            return null;
+        }
+
+        $actor = User::query()->select(['id', 'name', 'username'])->find($actorId);
+
+        $notification = Notification::create([
+            'user_id' => $recipientId,
+            'type' => 'event_invite',
+            'data' => [
+                'actor_id' => $actorId,
+                'actor_name' => $actor?->name,
+                'actor_username' => $actor?->username,
+                'event_id' => $eventId,
+                'event_title' => $eventTitle ?: null,
+            ],
+        ]);
+
+        $this->broadcastNotification($notification);
+
+        return $notification;
+    }
+
+    public function createAccountRestricted(int $recipientId, string $reason, ?int $actorId = null): Notification
+    {
+        $notification = Notification::create([
+            'user_id' => $recipientId,
+            'type' => 'account_restricted',
+            'data' => [
+                'reason' => trim($reason),
+                'actor_id' => $actorId,
+                'restricted_at' => now()->toIso8601String(),
+            ],
+        ]);
+
+        $this->broadcastNotification($notification);
+
+        return $notification;
     }
 
     public function markRead(int $notificationId, int $userId): Notification
@@ -169,5 +234,35 @@ class NotificationService
         }
 
         return (bool) ($this->inAppPreferenceCache[$userId][$preferenceKey] ?? true);
+    }
+
+    private function broadcastNotification(Notification $notification): void
+    {
+        $dispatch = function () use ($notification) {
+            try {
+                $freshNotification = $notification->fresh();
+                if (!$freshNotification) {
+                    return;
+                }
+
+                event(new NotificationCreated($freshNotification));
+            } catch (\Throwable $error) {
+                if (app()->environment('local')) {
+                    Log::warning('Notification realtime broadcast failed', [
+                        'notification_id' => $notification->id,
+                        'user_id' => $notification->user_id,
+                        'type' => $notification->type,
+                        'message' => $error->getMessage(),
+                    ]);
+                }
+            }
+        };
+
+        if (DB::transactionLevel() > 0 && !app()->runningUnitTests()) {
+            DB::afterCommit($dispatch);
+            return;
+        }
+
+        $dispatch();
     }
 }

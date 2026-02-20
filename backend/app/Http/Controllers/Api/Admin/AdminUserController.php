@@ -5,11 +5,16 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Report;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class AdminUserController extends Controller
 {
+    public function __construct(private readonly NotificationService $notifications)
+    {
+    }
+
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 20);
@@ -114,6 +119,12 @@ class AdminUserController extends Controller
         $user->banned_at = now();
         $user->ban_reason = trim((string) $validated['reason']);
         $user->save();
+
+        $this->notifications->createAccountRestricted(
+            (int) $user->id,
+            (string) $user->ban_reason,
+            (int) $request->user()->id
+        );
 
         return response()->json($this->mapUser($user));
     }
