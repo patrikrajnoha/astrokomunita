@@ -48,4 +48,21 @@ class UserLocationMetaTest extends TestCase
         $this->assertSame(17.1077, $meta['lon']);
         $this->assertSame('Europe/Bratislava', $meta['tz']);
     }
+
+    public function test_user_location_meta_prefers_precise_coordinates_when_set(): void
+    {
+        $user = User::factory()->make([
+            'location' => 'Anywhere',
+            'latitude' => 49.1234567,
+            'longitude' => 18.7654321,
+            'timezone' => 'Europe/Prague',
+        ]);
+
+        $meta = $user->location_meta;
+
+        $this->assertIsArray($meta);
+        $this->assertSame(49.1234567, $meta['lat']);
+        $this->assertSame(18.7654321, $meta['lon']);
+        $this->assertSame('Europe/Prague', $meta['tz']);
+    }
 }

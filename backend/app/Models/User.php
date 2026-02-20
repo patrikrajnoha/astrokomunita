@@ -2,24 +2,22 @@
 
 namespace App\Models;
 
+use App\Services\Storage\MediaStorageService;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Services\Storage\MediaStorageService;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
-     *
      * @var list<string>
      */
     protected $fillable = [
@@ -30,10 +28,13 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'avatar_path',
         'cover_path',
-        'bio',        // Twitter-like "O mne"
-        'location',   // Poloha používateľa
-        'is_admin',   // Role
-        'is_bot',     // Automated bot user (AstroBot)
+        'bio',
+        'location',
+        'latitude',
+        'longitude',
+        'timezone',
+        'is_admin',
+        'is_bot',
         'role',
         'is_banned',
         'banned_at',
@@ -46,8 +47,6 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
      * @var list<string>
      */
     protected $hidden = [
@@ -56,8 +55,6 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
-     * The accessors to append to the model's array form.
-     *
      * @var list<string>
      */
     protected $appends = [
@@ -67,8 +64,6 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
-     * The attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -76,13 +71,15 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'date_of_birth' => 'date',
-            'password' => 'hashed', // Laravel automaticky hashne heslo
+            'password' => 'hashed',
             'is_admin' => 'boolean',
             'is_bot' => 'boolean',
             'is_banned' => 'boolean',
             'banned_at' => 'datetime',
             'is_active' => 'boolean',
             'warning_count' => 'integer',
+            'latitude' => 'float',
+            'longitude' => 'float',
             'last_calendar_popup_at' => 'datetime',
             'calendar_popup_last_force_version' => 'integer',
             'newsletter_subscribed' => 'boolean',
@@ -122,12 +119,26 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getLocationMetaAttribute(): ?array
     {
         $rawLocation = trim((string) ($this->location ?? ''));
+        $fallbackTimezone = (string) config('user_locations.fallback_timezone', 'Europe/Bratislava');
+
+        $explicitLat = is_numeric($this->latitude) ? (float) $this->latitude : null;
+        $explicitLon = is_numeric($this->longitude) ? (float) $this->longitude : null;
+        $explicitTz = $this->resolveValidTimezone($this->timezone) ?? $fallbackTimezone;
+
+        if ($explicitLat !== null && $explicitLon !== null) {
+            return [
+                'name' => $rawLocation !== '' ? $rawLocation : 'Custom location',
+                'lat' => $explicitLat,
+                'lon' => $explicitLon,
+                'tz' => $explicitTz,
+            ];
+        }
+
         if ($rawLocation === '') {
             return null;
         }
 
         $known = config('user_locations.map', []);
-        $fallbackTimezone = (string) config('user_locations.fallback_timezone', 'Europe/Bratislava');
         $item = null;
 
         if (isset($known[$rawLocation]) && is_array($known[$rawLocation])) {
@@ -139,9 +150,7 @@ class User extends Authenticatable implements MustVerifyEmail
         if (is_array($item)) {
             $lat = isset($item['lat']) && is_numeric($item['lat']) ? (float) $item['lat'] : null;
             $lon = isset($item['lon']) && is_numeric($item['lon']) ? (float) $item['lon'] : null;
-            $tz = is_string($item['tz'] ?? null) && trim($item['tz']) !== ''
-                ? trim($item['tz'])
-                : $fallbackTimezone;
+            $tz = $this->resolveValidTimezone($item['tz'] ?? null) ?? $fallbackTimezone;
 
             if ($lat !== null && $lon !== null) {
                 return [
@@ -157,7 +166,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'name' => $rawLocation,
             'lat' => null,
             'lon' => null,
-            'tz' => $fallbackTimezone,
+            'tz' => $explicitTz,
         ];
     }
 
@@ -191,6 +200,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return null;
     }
 
+    /**
+     * @return list<string>
+     */
     private function locationLookupCandidates(string $rawLocation): array
     {
         $candidates = [];
@@ -227,9 +239,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $clean;
     }
 
-    /**
-     * Posty, ktorĂ˝ pouĹľĂ­vateÄľ lajkol.
-     */
+    private function resolveValidTimezone(mixed $value): ?string
+    {
+        $raw = is_string($value) ? trim($value) : '';
+        if ($raw === '') {
+            return null;
+        }
+
+        return in_array($raw, timezone_identifiers_list(), true) ? $raw : null;
+    }
+
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class);
@@ -281,10 +300,6 @@ class User extends Authenticatable implements MustVerifyEmail
         return !is_null($this->banned_at) || (bool) $this->is_banned;
     }
 
-    /**
-     * Check if user is a bot (e.g., AstroBot).
-     * Bot users publish automated content and should not receive replies.
-     */
     public function isBot(): bool
     {
         return (bool) $this->is_bot;
