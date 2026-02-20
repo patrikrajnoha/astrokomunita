@@ -15,6 +15,21 @@ php artisan serve --host=127.0.0.1 --port=8000
 Backend URL: `http://127.0.0.1:8000`  
 Health check: `http://127.0.0.1:8000/api/health`
 
+### Realtime (Laravel Reverb)
+
+Run Reverb in a separate terminal from `backend/`:
+
+```bash
+php artisan reverb:start --host=0.0.0.0 --port=8080
+```
+
+Required `.env` keys:
+- `BROADCAST_CONNECTION=reverb`
+- `REVERB_HOST=127.0.0.1`
+- `REVERB_PORT=8080`
+- `REVERB_SCHEME=http`
+- `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`
+
 ## 2) Frontend (Vue + Vite)
 
 From `frontend/`:
@@ -32,6 +47,31 @@ The frontend API base URL is read from:
 - `VITE_API_URL` (legacy fallback)
 
 Default expected backend for local dev is `http://127.0.0.1:8000`.
+
+For realtime client config, frontend reads:
+- `VITE_REVERB_APP_KEY`
+- `VITE_REVERB_HOST`
+- `VITE_REVERB_PORT`
+- `VITE_REVERB_SCHEME`
+
+Realtime checks:
+- Browser DevTools -> Network -> `WS` should show an active Reverb socket connection.
+- Backend route `POST /broadcasting/auth` should return `200` for your private channel.
+
+Smoke scenario (local/dev):
+1. Log in with user A in browser tab 1.
+2. Call `POST /api/notifications/dev-test` as user A (or admin), payload:
+   ```json
+   {
+     "type": "event_invite",
+     "recipient_id": <USER_A_ID>,
+     "event_id": 123,
+     "event_title": "Meteor Shower Meetup"
+   }
+   ```
+3. Verify without refresh:
+   - unread badge increments in navbar/sidebar
+   - notification appears in `/notifications` list when open
 
 ## Default Users
 
