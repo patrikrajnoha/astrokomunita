@@ -139,9 +139,12 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(shell.exists()).toBe(true)
     expect(shell.classes()).toContain('centerShellGrid')
     expect(shell.classes()).toContain('xl:col-start-1')
-    expect(shell.classes()).toContain('xl:max-w-[1440px]')
-    expect(shell.classes()).toContain('2xl:max-w-[1560px]')
-    expect(shell.attributes('style')).toContain('--center-shell-cols: 16rem clamp(680px, 44vw, 920px);')
+    expect(shell.attributes('style')).toContain('--center-shell-cols: 16rem minmax(0, 1fr);')
+
+    const mainContent = wrapper.find('main > div')
+    expect(mainContent.exists()).toBe(true)
+    expect(mainContent.classes()).toContain('mx-auto')
+    expect(mainContent.classes()).toContain('max-w-[760px]')
 
     const rightRail = wrapper.find('[data-testid="right-rail"]')
     expect(rightRail.exists()).toBe(true)
@@ -168,9 +171,7 @@ describe('AppLayout mark-your-calendar popup', () => {
     const shell = wrapper.find('[data-testid="center-shell"]')
     expect(shell.exists()).toBe(true)
     expect(shell.classes()).toContain('xl:col-start-1')
-    expect(shell.classes()).toContain('xl:max-w-[1440px]')
-    expect(shell.classes()).toContain('2xl:max-w-[1560px]')
-    expect(shell.attributes('style')).toContain('--center-shell-cols: 16rem clamp(680px, 56vw, 980px);')
+    expect(shell.attributes('style')).toContain('--center-shell-cols: 16rem minmax(0, 1fr);')
     expect(shell.attributes('style')).not.toContain('22rem')
 
     const rightRail = wrapper.find('[data-testid="right-rail"]')

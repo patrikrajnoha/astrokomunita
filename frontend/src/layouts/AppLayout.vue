@@ -66,7 +66,7 @@
             <MainNavbar />
           </aside>
 
-          <main :class="['min-w-0 px-4 py-6 md:px-8', isAdminRoute ? 'xl:px-6' : 'xl:px-0']">
+          <main :class="['min-w-0 px-4 py-6 md:px-8', isAdminRoute ? 'xl:px-6' : 'xl:px-4 2xl:px-6']">
             <div :class="mainContentClass">
               <RouterView />
             </div>
@@ -479,16 +479,12 @@ const centerShellClass = computed(() => {
     return 'mx-auto w-full max-w-[1560px]'
   }
 
-  return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:max-w-[1440px] 2xl:max-w-[1560px] xl:gap-5 2xl:gap-6'
+  return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:gap-5 2xl:gap-6'
 })
 const centerShellColumns = computed(() => {
   if (isAdminRoute.value) return null
 
-  if (showRightSidebar.value) {
-    return '16rem clamp(680px, 44vw, 920px)'
-  }
-
-  return '16rem clamp(680px, 56vw, 980px)'
+  return '16rem minmax(0, 1fr)'
 })
 const centerShellStyle = computed(() => {
   if (isAdminRoute.value) {
@@ -1250,19 +1246,12 @@ onBeforeUnmount(() => {
 
 @media (min-width: 1280px) {
   .desktopFrame {
-    --shell-w: 1440px;
     align-items: start;
-    grid-template-columns: minmax(0, var(--shell-w)) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .centerShellGrid {
     grid-template-columns: var(--center-shell-cols);
-  }
-}
-
-@media (min-width: 1536px) {
-  .desktopFrame {
-    --shell-w: 1560px;
   }
 }
 </style>
