@@ -75,6 +75,15 @@ describe('AdminNewsletterView', () => {
     expect(wrapper.text()).toContain('Sky guide')
   })
 
+  it('renders preview send form', async () => {
+    const wrapper = mount(AdminNewsletterView)
+    await flush()
+    await flush()
+
+    expect(wrapper.get('input[type="email"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Send preview')
+  })
+
   it('sends preview email via admin endpoint', async () => {
     const wrapper = mount(AdminNewsletterView)
     await flush()
