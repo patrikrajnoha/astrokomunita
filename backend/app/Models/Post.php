@@ -40,9 +40,18 @@ class Post extends Model
         'hidden_reason',
         'hidden_at',
         'attachment_path',
+        'attachment_original_path',
+        'attachment_web_path',
         'attachment_mime',
+        'attachment_original_mime',
+        'attachment_web_mime',
         'attachment_original_name',
         'attachment_size',
+        'attachment_original_size',
+        'attachment_web_size',
+        'attachment_web_width',
+        'attachment_web_height',
+        'attachment_variants_json',
         'attachment_moderation_status',
         'attachment_moderation_summary',
         'attachment_is_blurred',
@@ -52,6 +61,10 @@ class Post extends Model
 
     protected $appends = [
         'attachment_url',
+        'attachment_download_url',
+        'attachment_width',
+        'attachment_height',
+        'attachment_size_web',
     ];
 
     protected $casts = [
@@ -61,6 +74,11 @@ class Post extends Model
         'depth' => 'integer',
         'views' => 'integer',
         'attachment_size' => 'integer',
+        'attachment_original_size' => 'integer',
+        'attachment_web_size' => 'integer',
+        'attachment_web_width' => 'integer',
+        'attachment_web_height' => 'integer',
+        'attachment_variants_json' => 'array',
         'source_published_at' => 'datetime',
         'translated_at' => 'datetime',
         'expires_at' => 'datetime',
@@ -148,11 +166,56 @@ class Post extends Model
      */
     public function getAttachmentUrlAttribute(): ?string
     {
-        if (!$this->attachment_path) {
+        $path = $this->attachment_web_path ?: $this->attachment_path;
+        if (!$path) {
             return null;
         }
 
-        return app(MediaStorageService::class)->absoluteUrl($this->attachment_path);
+        return app(MediaStorageService::class)->absoluteUrl($path);
+    }
+
+    public function getAttachmentDownloadUrlAttribute(): ?string
+    {
+        if (!$this->isImageAttachment()) {
+            return null;
+        }
+
+        if (!$this->attachment_original_path && !$this->attachment_path) {
+            return null;
+        }
+
+        return route('media.download', ['media' => $this->id], false);
+    }
+
+    public function getAttachmentWidthAttribute(): ?int
+    {
+        if ($this->attachment_web_width !== null) {
+            return (int) $this->attachment_web_width;
+        }
+
+        return null;
+    }
+
+    public function getAttachmentHeightAttribute(): ?int
+    {
+        if ($this->attachment_web_height !== null) {
+            return (int) $this->attachment_web_height;
+        }
+
+        return null;
+    }
+
+    public function getAttachmentSizeWebAttribute(): ?int
+    {
+        if ($this->attachment_web_size !== null) {
+            return (int) $this->attachment_web_size;
+        }
+
+        if ($this->attachment_size !== null && $this->isImageAttachment()) {
+            return (int) $this->attachment_size;
+        }
+
+        return null;
     }
 
     /**
@@ -227,14 +290,27 @@ class Post extends Model
         'hidden_reason',
         'hidden_at',
         'attachment_path',
+        'attachment_original_path',
+        'attachment_web_path',
         'attachment_mime',
+        'attachment_original_mime',
+        'attachment_web_mime',
         'attachment_original_name',
         'attachment_size',
+        'attachment_original_size',
+        'attachment_web_size',
+        'attachment_web_width',
+        'attachment_web_height',
+        'attachment_variants_json',
         'attachment_moderation_status',
         'attachment_moderation_summary',
         'attachment_is_blurred',
         'attachment_hidden_at',
         'attachment_url',
+        'attachment_download_url',
+        'attachment_width',
+        'attachment_height',
+        'attachment_size_web',
         'pinned_at',
         'expires_at',
         'created_at',
@@ -245,6 +321,21 @@ class Post extends Model
         'is_bookmarked',
         'bookmarked_at',
     ];
+
+    private function isImageAttachment(): bool
+    {
+        $mime = strtolower(trim((string) ($this->attachment_original_mime ?: $this->attachment_mime)));
+        if (str_starts_with($mime, 'image/')) {
+            return true;
+        }
+
+        $name = strtolower((string) ($this->attachment_original_name ?: ''));
+        return str_ends_with($name, '.jpg')
+            || str_ends_with($name, '.jpeg')
+            || str_ends_with($name, '.png')
+            || str_ends_with($name, '.gif')
+            || str_ends_with($name, '.webp');
+    }
 }
 
 
