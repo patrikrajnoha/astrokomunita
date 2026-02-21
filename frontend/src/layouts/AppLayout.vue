@@ -517,15 +517,32 @@ const observingLocationMeta = computed(() => {
   if (!value || typeof value !== 'object') return null
   return value
 })
-const observingLat = computed(() => parseNumericValue(observingLocationMeta.value?.lat))
-const observingLon = computed(() => parseNumericValue(observingLocationMeta.value?.lon))
+const observingLocationData = computed(() => {
+  const value = auth.user?.location_data
+  if (!value || typeof value !== 'object') return null
+  return value
+})
+const observingLat = computed(() => {
+  const fromCanonical = parseNumericValue(observingLocationData.value?.latitude)
+  if (fromCanonical !== null) return fromCanonical
+  return parseNumericValue(observingLocationMeta.value?.lat)
+})
+const observingLon = computed(() => {
+  const fromCanonical = parseNumericValue(observingLocationData.value?.longitude)
+  if (fromCanonical !== null) return fromCanonical
+  return parseNumericValue(observingLocationMeta.value?.lon)
+})
 const observingLocationName = computed(() => {
+  const fromCanonical = parseStringValue(observingLocationData.value?.label)
+  if (fromCanonical) return fromCanonical
   const fromMeta = parseStringValue(observingLocationMeta.value?.name)
   if (fromMeta) return fromMeta
   return parseStringValue(auth.user?.location)
 })
 const observingDate = computed(() => parseDateQuery(route.query.date) ?? localIsoDate(new Date()))
 const observingTz = computed(() => {
+  const canonicalTz = parseStringValue(observingLocationData.value?.timezone)
+  if (canonicalTz) return canonicalTz
   const metaTz = parseStringValue(observingLocationMeta.value?.tz)
   if (metaTz) return metaTz
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Bratislava'
