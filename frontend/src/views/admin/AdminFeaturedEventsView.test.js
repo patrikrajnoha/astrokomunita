@@ -8,6 +8,7 @@ const updateFeaturedEventMock = vi.hoisted(() => vi.fn())
 const deleteFeaturedEventMock = vi.hoisted(() => vi.fn())
 const forceFeaturedEventsPopupMock = vi.hoisted(() => vi.fn())
 const updateFeaturedPopupSettingsMock = vi.hoisted(() => vi.fn())
+const applyFallbackAsFeaturedMock = vi.hoisted(() => vi.fn())
 const getEventsMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/services/api/admin/featuredEvents', () => ({
@@ -17,6 +18,7 @@ vi.mock('@/services/api/admin/featuredEvents', () => ({
   deleteFeaturedEvent: (...args) => deleteFeaturedEventMock(...args),
   forceFeaturedEventsPopup: (...args) => forceFeaturedEventsPopupMock(...args),
   updateFeaturedPopupSettings: (...args) => updateFeaturedPopupSettingsMock(...args),
+  applyFallbackAsFeatured: (...args) => applyFallbackAsFeaturedMock(...args),
 }))
 
 vi.mock('@/services/api/admin/events', () => ({
@@ -30,8 +32,11 @@ function flush() {
 describe('AdminFeaturedEventsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+
     getFeaturedEventsMock.mockResolvedValue({
       data: {
+        month: '2026-02',
+        selection_mode: 'fallback',
         data: [
           {
             id: 5,
@@ -41,42 +46,74 @@ describe('AdminFeaturedEventsView', () => {
             event: { id: 12, title: 'Lunar Eclipse' },
           },
         ],
+        fallback_preview: [
+          {
+            id: 18,
+            title: 'Meteor Shower',
+            start_at: '2026-02-20T20:00:00+00:00',
+            fallback_score: 76,
+          },
+        ],
+        resolved_events: [
+          {
+            id: 18,
+            title: 'Meteor Shower',
+            start_at: '2026-02-20T20:00:00+00:00',
+            google_calendar_url: 'https://calendar.google.com/calendar/render?action=TEMPLATE',
+            ics_url: 'http://localhost/api/events/18/calendar.ics',
+          },
+        ],
+        calendar: { bundle_ics_url: 'http://localhost/api/featured-events/2026-02/calendar.ics' },
         settings: { enabled: true, force_version: 2, force_at: null },
         meta: { max_items: 10 },
       },
     })
+
     getEventsMock.mockResolvedValue({
       data: {
         data: [{ id: 12, title: 'Lunar Eclipse' }],
       },
     })
+
     forceFeaturedEventsPopupMock.mockResolvedValue({
       data: { force_version: 3, force_at: '2026-02-17T12:00:00+00:00' },
     })
+
+    applyFallbackAsFeaturedMock.mockResolvedValue({
+      data: {
+        data: {
+          month: '2026-02',
+          applied_count: 4,
+        },
+      },
+    })
   })
 
-  it('renders list from API', async () => {
+  it('renders mode badge from selection_mode', async () => {
     const wrapper = mount(AdminFeaturedEventsView)
     await flush()
     await flush()
 
     expect(getFeaturedEventsMock).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('Lunar Eclipse')
-    expect(wrapper.text()).toContain('1/10')
+    expect(wrapper.text()).toContain('Pouziva sa: Auto fallback')
+    expect(wrapper.text()).toContain('Meteor Shower')
   })
 
-  it('calls force endpoint once when force button is clicked', async () => {
+  it('calls apply fallback endpoint and refreshes view', async () => {
     const wrapper = mount(AdminFeaturedEventsView)
     await flush()
     await flush()
 
-    const button = wrapper.findAll('button').find((node) => node.text().includes('Show popup to everyone now'))
+    const button = wrapper.findAll('button').find((node) => node.text().includes('Use fallback as featured'))
     expect(button).toBeTruthy()
 
     await button.trigger('click')
     await flush()
+    await flush()
 
-    expect(forceFeaturedEventsPopupMock).toHaveBeenCalledTimes(1)
+    expect(applyFallbackAsFeaturedMock).toHaveBeenCalledTimes(1)
+    const payload = applyFallbackAsFeaturedMock.mock.calls[0]?.[0] || {}
+    expect(payload.month).toMatch(/^\d{4}-\d{2}$/)
+    expect(getFeaturedEventsMock).toHaveBeenCalledTimes(2)
   })
 })
-

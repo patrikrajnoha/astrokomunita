@@ -17,10 +17,31 @@
             >
               <p class="eventDate">{{ formatDate(item.start_at, item.end_at) }}</p>
               <p class="eventTitle">{{ item.title }}</p>
+              <div class="calendarActions">
+                <a
+                  v-if="item.google_calendar_url || item.calendar?.google_calendar_url"
+                  class="tileLink"
+                  :href="item.google_calendar_url || item.calendar?.google_calendar_url"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Pridat do Google Kalendara
+                </a>
+                <a
+                  v-if="item.ics_url || item.calendar?.ics_url"
+                  class="tileLink"
+                  :href="item.ics_url || item.calendar?.ics_url"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Stiahnut .ics
+                </a>
+              </div>
             </article>
           </div>
 
           <footer class="popupActions">
+            <a v-if="bundleIcsUrl" class="btnGhost" :href="bundleIcsUrl" target="_blank" rel="noopener">Stiahnut vsetky .ics</a>
             <button type="button" class="btnGhost" @click="$emit('close')">Zavriet</button>
             <button type="button" class="btnPrimary" @click="$emit('go-calendar')">Prejst do kalendara</button>
           </footer>
@@ -37,6 +58,10 @@ const props = defineProps({
   items: {
     type: Array,
     default: () => [],
+  },
+  bundleIcsUrl: {
+    type: String,
+    default: '',
   },
 })
 
@@ -136,6 +161,18 @@ function parseDate(value) {
   line-height: 1.25;
 }
 
+.calendarActions {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+
+.tileLink {
+  color: rgb(var(--color-primary-rgb) / 1);
+  font-size: 0.72rem;
+  text-decoration: underline;
+}
+
 .popupActions {
   display: flex;
   justify-content: flex-end;
@@ -214,4 +251,3 @@ function parseDate(value) {
   }
 }
 </style>
-

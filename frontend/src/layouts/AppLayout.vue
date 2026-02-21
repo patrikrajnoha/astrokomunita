@@ -400,6 +400,7 @@
     <MarkYourCalendarModal
       v-if="isCalendarPopupVisible"
       :items="calendarPopupPayload?.items || []"
+      :bundle-ics-url="calendarPopupPayload?.calendar?.bundle_ics_url || ''"
       @close="closeCalendarPopup"
       @go-calendar="goToCalendarFromPopup"
     />

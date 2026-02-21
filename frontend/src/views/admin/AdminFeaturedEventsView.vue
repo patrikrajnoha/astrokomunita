@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import { getEvents } from '@/services/api/admin/events'
 import {
+  applyFallbackAsFeatured,
   createFeaturedEvent,
   deleteFeaturedEvent,
   forceFeaturedEventsPopup,
@@ -14,30 +15,59 @@ import {
 const loading = ref(false)
 const saving = ref(false)
 const forcing = ref(false)
+const applyingFallback = ref(false)
+const refreshingFallback = ref(false)
 const error = ref('')
 const success = ref('')
 const featured = ref([])
+const fallbackPreview = ref([])
+const resolvedEvents = ref([])
+const selectionMode = ref('fallback')
+const selectedMonth = ref(currentMonthKey())
 const settings = ref({ enabled: true, force_version: 0, force_at: null })
 const maxItems = ref(10)
 const candidateEvents = ref([])
 const selectedEventId = ref('')
+const calendarBundleUrl = ref('')
 
 const activeCount = computed(() => featured.value.filter((item) => item.is_active).length)
 const canAdd = computed(() => Number(selectedEventId.value) > 0 && !saving.value)
+const modeBadgeText = computed(() => {
+  return selectionMode.value === 'admin' ? 'Pouziva sa: Admin vyber' : 'Pouziva sa: Auto fallback'
+})
 
-async function load() {
+const monthOptions = computed(() => {
+  const current = currentMonthKey()
+  const next = addMonths(current, 1)
+
+  return [
+    { value: current, label: `${formatMonthLabel(current)} (aktualny)` },
+    { value: next, label: `${formatMonthLabel(next)} (dalsi)` },
+  ]
+})
+
+async function load({ refreshFallback = false } = {}) {
   loading.value = true
   error.value = ''
 
   try {
     const [featuredRes, eventsRes] = await Promise.all([
-      getFeaturedEvents(),
+      getFeaturedEvents({
+        month: selectedMonth.value,
+        refresh_fallback: refreshFallback ? 1 : 0,
+      }),
       getEvents({ per_page: 50 }),
     ])
 
-    featured.value = Array.isArray(featuredRes?.data?.data) ? featuredRes.data.data : []
-    settings.value = featuredRes?.data?.settings || settings.value
-    maxItems.value = Number(featuredRes?.data?.meta?.max_items || 10)
+    const payload = featuredRes?.data || {}
+
+    featured.value = Array.isArray(payload?.data) ? payload.data : []
+    fallbackPreview.value = Array.isArray(payload?.fallback_preview) ? payload.fallback_preview : []
+    resolvedEvents.value = Array.isArray(payload?.resolved_events) ? payload.resolved_events : []
+    selectionMode.value = payload?.selection_mode || 'fallback'
+    settings.value = payload?.settings || settings.value
+    maxItems.value = Number(payload?.meta?.max_items || 10)
+    calendarBundleUrl.value = payload?.calendar?.bundle_ics_url || ''
 
     const eventsPayload = eventsRes?.data?.data || []
     candidateEvents.value = Array.isArray(eventsPayload)
@@ -64,6 +94,7 @@ async function addFeaturedEvent() {
   try {
     await createFeaturedEvent({
       event_id: Number(selectedEventId.value),
+      month: selectedMonth.value,
     })
 
     selectedEventId.value = ''
@@ -138,6 +169,32 @@ async function forceNow() {
   }
 }
 
+async function refreshFallbackPreview() {
+  refreshingFallback.value = true
+  error.value = ''
+  try {
+    await load({ refreshFallback: true })
+  } finally {
+    refreshingFallback.value = false
+  }
+}
+
+async function useFallbackAsFeatured() {
+  applyingFallback.value = true
+  error.value = ''
+  success.value = ''
+
+  try {
+    await applyFallbackAsFeatured({ month: selectedMonth.value })
+    success.value = 'Fallback vyber bol ulozeny ako admin vyber pre zvoleny mesiac.'
+    await load({ refreshFallback: true })
+  } catch (fetchError) {
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to apply fallback as featured.'
+  } finally {
+    applyingFallback.value = false
+  }
+}
+
 async function toggleEnabled(checked) {
   saving.value = true
   error.value = ''
@@ -158,6 +215,30 @@ function formatDateTime(value) {
   return parsed.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+function onMonthChange() {
+  load({ refreshFallback: true })
+}
+
+function currentMonthKey() {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+function addMonths(monthKey, monthsToAdd) {
+  const [yearRaw, monthRaw] = String(monthKey).split('-')
+  const year = Number(yearRaw)
+  const month = Number(monthRaw)
+  const date = new Date(Date.UTC(year, month - 1 + monthsToAdd, 1))
+
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
+}
+
+function formatMonthLabel(monthKey) {
+  const parsed = new Date(`${monthKey}-01T00:00:00Z`)
+  if (Number.isNaN(parsed.getTime())) return monthKey
+  return parsed.toLocaleDateString('sk-SK', { month: 'long', year: 'numeric' })
+}
+
 onMounted(load)
 </script>
 
@@ -165,6 +246,32 @@ onMounted(load)
   <AdminPageShell title="Featured events popup" subtitle="Manage events for the monthly Mark your calendar popup.">
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="success" class="alert alert-success">{{ success }}</div>
+
+    <section class="card">
+      <div class="monthBar">
+        <div>
+          <p class="muted">Month</p>
+          <select v-model="selectedMonth" :disabled="loading || saving" @change="onMonthChange">
+            <option v-for="option in monthOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+        </div>
+        <span class="modeBadge" :class="selectionMode === 'admin' ? 'modeAdmin' : 'modeFallback'">{{ modeBadgeText }}</span>
+      </div>
+
+      <div class="ctaRow">
+        <button type="button" class="forceBtn" :disabled="refreshingFallback || loading" @click="refreshFallbackPreview">
+          {{ refreshingFallback ? 'Loading...' : 'Generate fallback preview' }}
+        </button>
+        <button type="button" class="forceBtn" :disabled="applyingFallback || loading" @click="useFallbackAsFeatured">
+          {{ applyingFallback ? 'Applying...' : 'Use fallback as featured' }}
+        </button>
+      </div>
+
+      <p v-if="calendarBundleUrl" class="muted">
+        Bundle ICS:
+        <a :href="calendarBundleUrl" target="_blank" rel="noopener">Download featured bundle .ics</a>
+      </p>
+    </section>
 
     <section class="card">
       <div class="cardHead">
@@ -188,7 +295,7 @@ onMounted(load)
 
     <section class="card">
       <div class="cardHead">
-        <h3>Top events</h3>
+        <h3>Admin selection</h3>
         <p class="counter">{{ activeCount }}/{{ maxItems }}</p>
       </div>
 
@@ -240,6 +347,54 @@ onMounted(load)
         </tbody>
       </table>
     </section>
+
+    <section class="card">
+      <div class="cardHead">
+        <h3>Auto fallback preview</h3>
+        <p class="muted">Read-only</p>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Date</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in fallbackPreview" :key="`fallback-${item.id}`">
+            <td>{{ item.title }}</td>
+            <td>{{ formatDateTime(item.start_at) }}</td>
+            <td>{{ item.fallback_score ?? '-' }}</td>
+          </tr>
+          <tr v-if="fallbackPreview.length === 0">
+            <td colspan="3" class="muted">Fallback found no events for this month.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <div class="cardHead">
+        <h3>What popup will show</h3>
+        <p class="muted">{{ selectionMode === 'admin' ? 'Admin selection' : 'Auto fallback' }}</p>
+      </div>
+
+      <ul class="resolvedList">
+        <li v-for="item in resolvedEvents" :key="`resolved-${item.id}`" class="resolvedItem">
+          <span>
+            <strong>{{ item.title }}</strong>
+            <small class="muted">{{ formatDateTime(item.start_at) }}</small>
+          </span>
+          <span class="resolvedActions">
+            <a v-if="item.google_calendar_url" :href="item.google_calendar_url" target="_blank" rel="noopener">Google</a>
+            <a v-if="item.ics_url" :href="item.ics_url" target="_blank" rel="noopener">ICS</a>
+          </span>
+        </li>
+        <li v-if="resolvedEvents.length === 0" class="muted">No events to display for this month.</li>
+      </ul>
+    </section>
   </AdminPageShell>
 </template>
 
@@ -260,6 +415,46 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.monthBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.monthBar select {
+  min-width: 220px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  color: inherit;
+}
+
+.modeBadge {
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.modeAdmin {
+  border: 1px solid rgb(34 197 94 / 0.45);
+  background: rgb(34 197 94 / 0.12);
+}
+
+.modeFallback {
+  border: 1px solid rgb(245 158 11 / 0.45);
+  background: rgb(245 158 11 / 0.12);
+}
+
+.ctaRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
 }
 
 .counter {
@@ -332,6 +527,29 @@ button:disabled {
   gap: 8px;
 }
 
+.resolvedList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.resolvedItem {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.resolvedActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .alert {
   margin-bottom: 12px;
   padding: 10px 12px;
@@ -361,4 +579,3 @@ button:disabled {
   border: 0;
 }
 </style>
-
