@@ -23,6 +23,7 @@ class PostService
         private readonly MediaStorageService $mediaStorage,
         private readonly ImageVariantService $imageVariants,
         private readonly PollService $polls,
+        private readonly UserActivityService $userActivity,
     ) {
     }
 
@@ -170,6 +171,8 @@ class PostService
                 ModeratePostJob::dispatch((int) $post->id)->afterCommit();
             }
 
+            DB::afterCommit(fn () => $this->userActivity->forgetActivity($user));
+
             return $post->load([
                 'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
@@ -218,6 +221,8 @@ class PostService
                 ModeratePostJob::dispatch((int) $reply->id)->afterCommit();
             }
 
+            DB::afterCommit(fn () => $this->userActivity->forgetActivity($user));
+
             return $reply->load([
                 'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
@@ -237,11 +242,14 @@ class PostService
 
     public function deletePost(Post $post): void
     {
+        $ownerId = (int) $post->user_id;
+
         $this->mediaStorage->delete($post->attachment_path);
         $this->mediaStorage->delete($post->attachment_web_path);
         $this->mediaStorage->delete($post->attachment_original_path, $this->mediaStorage->privateDiskName());
 
         $post->delete();
+        $this->userActivity->forgetActivity($ownerId);
     }
 
     public function likePost(Post $post, User $user): array

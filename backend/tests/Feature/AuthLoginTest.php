@@ -11,6 +11,26 @@ class AuthLoginTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_last_login_updates_on_login_event(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'fresh-login@example.com',
+            'password' => 'password',
+            'last_login_at' => null,
+            'is_active' => true,
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'fresh-login@example.com',
+            'password' => 'password',
+        ])->assertOk();
+
+        $user->refresh();
+
+        $this->assertNotNull($user->last_login_at);
+        $this->assertTrue($user->last_login_at->greaterThan(now()->subMinute()));
+    }
+
     public function test_login_accepts_legacy_plaintext_password_and_rehashes(): void
     {
         $user = User::factory()->create([

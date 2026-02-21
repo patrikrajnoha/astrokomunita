@@ -10,7 +10,9 @@ use App\Console\Commands\SendEventNotificationReminders;
 use App\Console\Commands\SendWeeklyNewsletterCommand;
 use App\Console\Commands\AstroBotSyncRss;
 use App\Console\Commands\GenerateEventDescriptionsCommand;
+use App\Listeners\UpdateLastLoginListener;
 use App\Support\Http\SslVerificationPolicy;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Client\PendingRequest;
 use App\Services\Observing\Contracts\AirQualityProvider;
@@ -24,6 +26,7 @@ use App\Services\Translation\Grammar\LanguageToolGrammarChecker;
 use App\Services\Translation\Grammar\OllamaGrammarChecker;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -64,6 +67,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Event::listen(Login::class, UpdateLastLoginListener::class);
+
         Http::macro('secure', function (): PendingRequest {
             /** @var HttpFactory $this */
             $verifySsl = app(SslVerificationPolicy::class)->shouldVerifySsl();

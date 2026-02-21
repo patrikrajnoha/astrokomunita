@@ -13,8 +13,10 @@ use Illuminate\Validation\ValidationException;
 
 class EventInviteService
 {
-    public function __construct(private readonly NotificationService $notifications)
-    {
+    public function __construct(
+        private readonly NotificationService $notifications,
+        private readonly UserActivityService $activityService,
+    ) {
     }
 
     public function createInvite(User $inviter, Event $event, array $payload): EventInvite
@@ -128,6 +130,10 @@ class EventInviteService
                         'attendee_name' => $fresh->attendee_name,
                     ],
                 );
+            }
+
+            if ($status === EventInviteStatus::Accepted) {
+                DB::afterCommit(fn () => $this->activityService->forgetActivity($user));
             }
 
             return $fresh->load(['event', 'inviter', 'invitee']);
