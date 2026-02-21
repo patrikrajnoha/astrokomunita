@@ -35,8 +35,16 @@ class ObserveSummaryTest extends TestCase
         $response->assertJsonPath('atmosphere.humidity.current_pct', 82);
         $response->assertJsonPath('atmosphere.cloud_cover.current_pct', 68);
         $response->assertJsonPath('atmosphere.air_quality.pm25', 12.4);
+        $response->assertJsonPath('weather_now.temperature_c', 3.7);
+        $response->assertJsonPath('weather_now.apparent_temperature_c', 0.8);
+        $response->assertJsonPath('weather_now.wind_speed', 15.4);
+        $response->assertJsonPath('weather_now.weather_code', 2);
+        $response->assertJsonPath('weather_now.weather_label_sk', 'Polojasno');
         $response->assertJsonPath('observing_mode', 'deep_sky');
         $response->assertJsonStructure([
+            'is_partial',
+            'all_unavailable',
+            'weather_now' => ['temperature_c', 'apparent_temperature_c', 'wind_speed', 'weather_code', 'weather_label_sk'],
             'observing_index',
             'observing_mode',
             'factors' => ['humidity', 'cloud', 'air_quality', 'moon', 'darkness', 'seeing'],
@@ -48,7 +56,14 @@ class ObserveSummaryTest extends TestCase
             'best_time_reason',
             'timeline' => ['hourly', 'sunset', 'sunrise', 'civil_twilight_end', 'civil_twilight_begin'],
         ]);
+        $this->assertIsBool($response->json('is_partial'));
+        $this->assertIsBool($response->json('all_unavailable'));
         $this->assertIsInt($response->json('observing_index'));
+        $this->assertIsFloat($response->json('weather_now.temperature_c'));
+        $this->assertIsFloat($response->json('weather_now.apparent_temperature_c'));
+        $this->assertIsFloat($response->json('weather_now.wind_speed'));
+        $this->assertIsInt($response->json('weather_now.weather_code'));
+        $this->assertIsString($response->json('weather_now.weather_label_sk'));
         $this->assertIsArray($response->json('timeline.hourly'));
     }
 
@@ -101,6 +116,9 @@ class ObserveSummaryTest extends TestCase
                 'relative_humidity_2m' => 82,
                 'cloud_cover' => 68,
                 'wind_speed_10m' => 15.4,
+                'temperature_2m' => 3.7,
+                'apparent_temperature' => 0.8,
+                'weather_code' => 2,
             ],
             'hourly' => [
                 'time' => [

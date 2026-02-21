@@ -12,6 +12,10 @@ interface WeatherProvider
      *   evening_cloud_pct:?int,
      *   current_wind_kmh:?float,
      *   evening_wind_kmh:?float,
+     *   current_temperature_c:?float,
+     *   current_apparent_temperature_c:?float,
+     *   current_weather_code:?int,
+     *   current_weather_label_sk:string,
      *   hourly:array<int,array<string,mixed>>,
      *   status:string
      * }

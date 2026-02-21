@@ -70,6 +70,14 @@ class ObservingSummaryService
             'status' => 'unavailable',
         ];
 
+        $weatherNow = [
+            'temperature_c' => null,
+            'apparent_temperature_c' => null,
+            'wind_speed' => null,
+            'weather_code' => null,
+            'weather_label_sk' => 'Neznáme',
+        ];
+
         $weatherRaw = null;
         $sunMoonRaw = null;
 
@@ -135,6 +143,23 @@ class ObservingSummaryService
             $hourlyTimeline = is_array($weatherRaw['hourly'] ?? null) ? $weatherRaw['hourly'] : [];
 
             $weatherRaw['selected_evening_wind_kmh'] = $selectedEveningWind ?? ($weatherRaw['evening_wind_kmh'] ?? null);
+            $weatherNow = [
+                'temperature_c' => is_numeric($weatherRaw['current_temperature_c'] ?? null)
+                    ? round((float) $weatherRaw['current_temperature_c'], 1)
+                    : null,
+                'apparent_temperature_c' => is_numeric($weatherRaw['current_apparent_temperature_c'] ?? null)
+                    ? round((float) $weatherRaw['current_apparent_temperature_c'], 1)
+                    : null,
+                'wind_speed' => is_numeric($weatherRaw['current_wind_kmh'] ?? null)
+                    ? round((float) $weatherRaw['current_wind_kmh'], 1)
+                    : null,
+                'weather_code' => is_numeric($weatherRaw['current_weather_code'] ?? null)
+                    ? (int) round((float) $weatherRaw['current_weather_code'])
+                    : null,
+                'weather_label_sk' => is_string($weatherRaw['current_weather_label_sk'] ?? null)
+                    ? trim((string) $weatherRaw['current_weather_label_sk'])
+                    : 'Neznáme',
+            ];
         }
 
         $modeWeights = $this->observingWeights->forMode($resolvedMode);
@@ -207,7 +232,7 @@ class ObservingSummaryService
         $overall = $indexResult['overall'];
         if ($allUnavailable) {
             $overall['label'] = 'Nedostupné';
-            $overall['reason'] = 'Data providerov su docasne nedostupne.';
+            $overall['reason'] = 'Dáta providerov sú dočasne nedostupné.';
             $overall['alert_level'] = 'severe';
         }
 
@@ -218,6 +243,8 @@ class ObservingSummaryService
                 'tz' => $tz,
             ],
             'date' => $date,
+            'is_partial' => $isPartial,
+            'all_unavailable' => $allUnavailable,
             'sun' => $sun,
             'moon' => $moon,
             'atmosphere' => [
@@ -234,6 +261,7 @@ class ObservingSummaryService
                         : 'ok',
                 ],
             ],
+            'weather_now' => $weatherNow,
             'observing_mode' => $resolvedMode,
             'observing_index' => $indexResult['observing_index'],
             'factors' => $indexResult['factors'],
@@ -456,7 +484,15 @@ class ObservingSummaryService
         }
 
         $configured = strtolower(trim((string) config('observing.concurrency_driver', 'process')));
-        return in_array($configured, ['process', 'fork', 'sync'], true) ? $configured : 'process';
+        if (!in_array($configured, ['process', 'fork', 'sync'], true)) {
+            $configured = 'process';
+        }
+
+        if ($configured === 'process' && PHP_OS_FAMILY === 'Windows') {
+            return 'sync';
+        }
+
+        return $configured;
     }
 
     /**
@@ -554,7 +590,7 @@ class ObservingSummaryService
             'current_pct' => $current,
             'evening_pct' => $evening,
             'label' => $label,
-            'note' => 'Vyssia oblacnost znizuje viditelnost objektov.',
+            'note' => 'Vyššia oblačnosť znižuje viditeľnosť objektov.',
             'status' => $providerStatus === 'ok' ? 'ok' : 'unavailable',
         ];
     }
