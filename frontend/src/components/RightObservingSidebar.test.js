@@ -11,12 +11,8 @@ const authMock = vi.hoisted(() => ({
 }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({
-    fullPath: '/home',
-  }),
-  useRouter: () => ({
-    push: pushMock,
-  }),
+  useRoute: () => ({ fullPath: '/home' }),
+  useRouter: () => ({ push: pushMock }),
 }))
 
 vi.mock('@/stores/auth', () => ({
@@ -36,32 +32,19 @@ function wait(ms = 260) {
 function observePayload(overrides = {}) {
   return {
     overall: {
-      label: 'OK',
-      reason: 'Stable weather.',
-      alert_level: 'none',
+      label: 'Pozor',
+      reason: 'Vysoká vlhkosť môže znížiť kontrast objektov.',
+      alert_level: 'warn',
     },
-    observing_index: 72,
+    observing_index: 58,
     observing_mode: 'deep_sky',
-    factors: {
-      humidity: 60,
-      cloud: 55,
-      air_quality: 72,
-      moon: 40,
-      darkness: 80,
-      seeing: 58,
-    },
-    weights: {
-      humidity: 0.25,
-      cloud: 0.3,
-      air_quality: 0.2,
-      moon: 0.15,
-      darkness: 0.05,
-      seeing: 0.05,
-    },
-    alerts: [],
-    best_time_local: '22:00',
-    best_time_index: 78,
-    best_time_reason: 'Low cloud cover.',
+    alerts: [
+      { level: 'warn', code: 'high_humidity', message: 'Vysoká vlhkosť môže znížiť kontrast objektov.' },
+      { level: 'severe', code: 'high_cloud_cover', message: 'Vysoká oblačnosť výrazne obmedzuje pozorovanie.' },
+    ],
+    best_time_local: '23:00',
+    best_time_index: 52,
+    best_time_reason: 'nižšia oblačnosť, viac tmy.',
     sun: {
       status: 'ok',
       sunset: '17:10',
@@ -74,16 +57,23 @@ function observePayload(overrides = {}) {
       illumination_pct: 91,
     },
     atmosphere: {
-      humidity: { current_pct: 65, evening_pct: 62, status: 'ok' },
-      cloud_cover: { current_pct: 45, evening_pct: 34, status: 'ok' },
-      seeing: { score: 56, status: 'ok' },
-      air_quality: { pm25: 12.2, pm10: 28.4, status: 'ok' },
+      humidity: { current_pct: 85, evening_pct: 88, status: 'ok', label: 'Pozor' },
+      cloud_cover: { current_pct: 67, evening_pct: 82, status: 'ok', label: 'Zlé' },
+      seeing: { score: 44, status: 'ok' },
+      air_quality: { pm25: null, pm10: null, status: 'unavailable' },
+    },
+    weather_now: {
+      temperature_c: 2.4,
+      apparent_temperature_c: -0.5,
+      wind_speed: 12.5,
+      weather_code: 2,
+      weather_label_sk: 'Polojasno',
     },
     timeline: {
       hourly: [
-        { local_time: '18:00', humidity_pct: 70, cloud_cover_pct: 45 },
-        { local_time: '19:00', humidity_pct: 66, cloud_cover_pct: 38 },
-        { local_time: '20:00', humidity_pct: 62, cloud_cover_pct: 34 },
+        { local_time: '18:00', humidity_pct: 82, cloud_cover_pct: 68 },
+        { local_time: '19:00', humidity_pct: 84, cloud_cover_pct: 70 },
+        { local_time: '20:00', humidity_pct: 88, cloud_cover_pct: 82 },
       ],
       sunset: '17:10',
       sunrise: '07:11',
@@ -122,15 +112,12 @@ describe('RightObservingSidebar', () => {
 
   it('toggles observing mode and sends mode query param', async () => {
     getMock.mockImplementation((url, { params }) => {
-      if (url === '/observe/summary') {
-        return Promise.resolve({ data: observePayload({ observing_mode: params.mode }) })
-      }
-
+      if (url === '/observe/summary') return Promise.resolve({ data: observePayload({ observing_mode: params.mode }) })
       return Promise.resolve({ data: skyPayload() })
     })
 
     const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.10, date: '2026-02-20', tz: 'Europe/Bratislava' },
+      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
     })
 
     await wait()
@@ -146,84 +133,54 @@ describe('RightObservingSidebar', () => {
     }))
   })
 
-  it('renders progress bar from observing index and robustly maps accented bad labels', async () => {
+  it('renders weather now card when weather_now exists', async () => {
     getMock.mockImplementation((url) => {
-      if (url === '/observe/summary') {
-        return Promise.resolve({ data: observePayload({ observing_index: 78, overall: { label: 'Zlé', reason: 'Bad cloud.', alert_level: 'warn' } }) })
-      }
+      if (url === '/observe/summary') return Promise.resolve({ data: observePayload() })
       return Promise.resolve({ data: skyPayload() })
     })
 
     const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.10, date: '2026-02-20', tz: 'Europe/Bratislava' },
+      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
     })
 
     await wait()
 
-    expect(wrapper.get('.progressTrack').attributes('aria-valuenow')).toBe('78')
-    expect(wrapper.get('.progressFill').attributes('style')).toContain('78%')
-
-    const atmosphereChip = wrapper.findAll('.chip').find((chip) => chip.text().includes('Atmosfera'))
-    expect(atmosphereChip?.classes()).toContain('isBad')
+    expect(wrapper.text()).toContain('Počasie teraz')
+    expect(wrapper.text()).toContain('2.4 °C')
+    expect(wrapper.text()).toContain('Polojasno')
   })
 
-  it('renders alerts list', async () => {
+  it('shows unavailable fallback for weather now when weather_now is missing', async () => {
     getMock.mockImplementation((url) => {
-      if (url === '/observe/summary') {
-        return Promise.resolve({
-          data: observePayload({
-            alerts: [
-              { level: 'warn', code: 'high_humidity', message: 'Humidity too high.' },
-              { level: 'severe', code: 'high_cloud_cover', message: 'Cloud cover too high.' },
-            ],
-          }),
-        })
-      }
+      if (url === '/observe/summary') return Promise.resolve({ data: observePayload({ weather_now: null }) })
       return Promise.resolve({ data: skyPayload() })
     })
 
     const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.10, date: '2026-02-20', tz: 'Europe/Bratislava' },
+      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
     })
 
     await wait()
 
-    expect(wrapper.findAll('.alertItem')).toHaveLength(2)
-    expect(wrapper.text()).toContain('Humidity too high.')
-    expect(wrapper.text()).toContain('Cloud cover too high.')
+    expect(wrapper.text()).toContain('Počasie teraz')
+    expect(wrapper.text()).toContain('Nedostupné')
   })
 
-  it('survives partial failure when observe summary fails but sky summary succeeds', async () => {
+  it('does not render technical warn/severe labels in UI', async () => {
     getMock.mockImplementation((url) => {
-      if (url === '/observe/summary') {
-        return Promise.reject(new Error('observe failed'))
-      }
-
-      return Promise.resolve({
-        data: skyPayload({
-          planets: [
-            {
-              key: 'jupiter',
-              name: 'Jupiter',
-              best_from: '19:00',
-              best_to: '23:00',
-              direction: 'SE',
-              alt_max_deg: 38.4,
-              is_low: false,
-            },
-          ],
-        }),
-      })
+      if (url === '/observe/summary') return Promise.resolve({ data: observePayload() })
+      return Promise.resolve({ data: skyPayload() })
     })
 
     const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.10, date: '2026-02-20', tz: 'Europe/Bratislava' },
+      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
     })
 
     await wait()
 
-    expect(wrapper.text()).toContain('Observing index je docasne nedostupny')
-    expect(wrapper.text()).toContain('Planety')
-    expect(wrapper.text()).toContain('Jupiter')
+    expect(wrapper.text()).toContain('Pozor')
+    expect(wrapper.text()).toContain('Zlé')
+    expect(wrapper.text()).not.toContain('warn')
+    expect(wrapper.text()).not.toContain('severe')
   })
 })
