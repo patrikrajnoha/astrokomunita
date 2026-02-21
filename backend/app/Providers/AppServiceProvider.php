@@ -111,5 +111,11 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute($perMinute)->by('newsletter-preview|' . $userId);
         });
+
+        RateLimiter::for('me-export', function (Request $request) {
+            $userId = $request->user()?->id ?? 'guest';
+
+            return Limit::perMinute(1)->by('me-export|' . $userId . '|' . $request->ip());
+        });
     }
 }

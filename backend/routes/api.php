@@ -62,6 +62,7 @@ use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\MarkYourCalendarPopupController;
 use App\Http\Controllers\Api\NewsletterSubscriptionController;
 use App\Http\Controllers\Api\MeLocationController;
+use App\Http\Controllers\Api\MeDataExportController;
 use App\Http\Controllers\CsrfTestController;
 use App\Http\Controllers\Api\Admin\FeaturedEventController;
 
@@ -491,6 +492,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'show']);
         Route::put('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);
         Route::put('/me/location', [MeLocationController::class, 'update']);
+        Route::get('/me/export', MeDataExportController::class)->middleware('throttle:me-export');
         Route::patch('/me/newsletter', [NewsletterSubscriptionController::class, 'update']);
         Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);
 
