@@ -9,6 +9,7 @@ class MonthlyFeaturedEvent extends Model
 {
     protected $fillable = [
         'event_id',
+        'month_key',
         'position',
         'is_active',
         'created_by',
@@ -18,6 +19,7 @@ class MonthlyFeaturedEvent extends Model
         'position' => 'integer',
         'is_active' => 'boolean',
         'event_id' => 'integer',
+        'month_key' => 'string',
         'created_by' => 'integer',
     ];
 
@@ -31,4 +33,3 @@ class MonthlyFeaturedEvent extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 }
-
