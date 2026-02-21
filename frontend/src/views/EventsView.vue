@@ -103,7 +103,7 @@
         </template>
       </section>
 
-      <section v-if="isCalendarView" class="calendar-panel">
+      <section v-if="isCalendarView" class="calendar-panel" data-tour="calendar">
         <CalendarView />
       </section>
 
