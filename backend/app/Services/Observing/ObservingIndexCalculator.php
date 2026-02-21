@@ -182,7 +182,7 @@ class ObservingIndexCalculator
             $alerts[] = [
                 'level' => 'warn',
                 'code' => 'high_humidity',
-                'message' => 'Vysoka vlhkost moze znizit kontrast objektov.',
+                'message' => 'Vysoká vlhkosť môže znížiť kontrast objektov.',
             ];
         }
 
@@ -191,7 +191,7 @@ class ObservingIndexCalculator
             $alerts[] = [
                 'level' => 'severe',
                 'code' => 'high_cloud_cover',
-                'message' => 'Vysoka oblacnost vyrazne obmedzuje pozorovanie.',
+                'message' => 'Vysoká oblačnosť výrazne obmedzuje pozorovanie.',
             ];
         }
 
@@ -201,7 +201,7 @@ class ObservingIndexCalculator
             $alerts[] = [
                 'level' => 'warn',
                 'code' => 'air_quality',
-                'message' => 'Zvysene aerosoly mozu znizit transparentnost oblohy.',
+                'message' => 'Zvýšené aerosóly môžu znížiť transparentnosť oblohy.',
             ];
         }
 
@@ -212,7 +212,7 @@ class ObservingIndexCalculator
             $alerts[] = [
                 'level' => 'warn',
                 'code' => 'bright_moon',
-                'message' => 'Jasny Mesiac znizuje viditelnost slabsich objektov.',
+                'message' => 'Jasný Mesiac znižuje viditeľnosť slabších objektov.',
             ];
         }
 
@@ -220,7 +220,7 @@ class ObservingIndexCalculator
             $alerts[] = [
                 'level' => 'severe',
                 'code' => 'low_darkness',
-                'message' => 'Obloha je stale prilis svetla.',
+                'message' => 'Obloha je stále príliš svetlá.',
             ];
         }
 
@@ -228,7 +228,7 @@ class ObservingIndexCalculator
             $alerts[] = [
                 'level' => 'warn',
                 'code' => 'poor_seeing',
-                'message' => 'Seeing proxy indikuje nestabilny obraz planety.',
+                'message' => 'Seeing proxy indikuje nestabilný obraz planéty.',
             ];
         }
 
@@ -252,9 +252,9 @@ class ObservingIndexCalculator
         }
 
         $reason = $alerts[0]['message'] ?? match (true) {
-            $index >= 75 => 'Podmienky su dobre pre pozorovanie.',
-            $index >= 45 => 'Podmienky su priemerne, sleduj lokalne zmeny.',
-            default => 'Podmienky su momentalne slabe.',
+            $index >= 75 => 'Podmienky sú dobré na pozorovanie.',
+            $index >= 45 => 'Podmienky sú priemerné, sleduj lokálne zmeny.',
+            default => 'Podmienky sú momentálne slabé.',
         };
 
         return [
@@ -298,21 +298,21 @@ class ObservingIndexCalculator
     {
         $reasons = [];
         if (isset($point['cloud_cover_pct']) && is_numeric($point['cloud_cover_pct']) && (int) $point['cloud_cover_pct'] <= 35) {
-            $reasons[] = 'nizka oblacnost';
+            $reasons[] = 'nižšia oblačnosť';
         }
 
         if (isset($point['humidity_pct']) && is_numeric($point['humidity_pct']) && (int) $point['humidity_pct'] <= 65) {
-            $reasons[] = 'prijatelna vlhkost';
+            $reasons[] = 'prijateľná vlhkosť';
         }
 
         if (isset($point['darkness_score']) && is_numeric($point['darkness_score']) && (int) $point['darkness_score'] >= 50) {
-            $reasons[] = 'dostatocna tma';
+            $reasons[] = 'viac tmy';
         }
 
         if ($reasons === []) {
-            return 'Najlepsia dostupna kombinacia faktorov v ramci dneska.';
+            return 'Najlepšia dostupná kombinácia faktorov v rámci dneška.';
         }
 
-        return 'Najlepsi cas: ' . implode(', ', $reasons) . '.';
+        return 'Relatívne najlepšie: ' . implode(', ', $reasons) . '.';
     }
 }

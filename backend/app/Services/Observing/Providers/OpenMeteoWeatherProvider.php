@@ -3,6 +3,7 @@
 namespace App\Services\Observing\Providers;
 
 use App\Services\Observing\Contracts\WeatherProvider;
+use App\Services\Observing\OpenMeteoWeatherCodeMapper;
 use App\Services\Observing\Support\ObservingHttp;
 use App\Services\Observing\Support\ObservingProviderException;
 use DateTimeImmutable;
@@ -10,7 +11,8 @@ use DateTimeImmutable;
 class OpenMeteoWeatherProvider implements WeatherProvider
 {
     public function __construct(
-        private readonly ObservingHttp $http
+        private readonly ObservingHttp $http,
+        private readonly OpenMeteoWeatherCodeMapper $weatherCodeMapper
     ) {
     }
 
@@ -20,8 +22,8 @@ class OpenMeteoWeatherProvider implements WeatherProvider
             'latitude' => number_format($lat, 6, '.', ''),
             'longitude' => number_format($lon, 6, '.', ''),
             'timezone' => $tz,
-            'current' => 'relative_humidity_2m,cloud_cover,wind_speed_10m',
-            'hourly' => 'relative_humidity_2m,cloud_cover,windspeed_10m',
+            'current' => 'relative_humidity_2m,cloud_cover,wind_speed_10m,temperature_2m,apparent_temperature,weather_code',
+            'hourly' => 'relative_humidity_2m,cloud_cover,wind_speed_10m',
             'forecast_days' => 1,
         ];
 
@@ -50,11 +52,18 @@ class OpenMeteoWeatherProvider implements WeatherProvider
         $currentCloudPct = is_numeric($currentCloud) ? (int) round((float) $currentCloud) : null;
         $currentWindRaw = data_get($payload, 'current.wind_speed_10m', data_get($payload, 'current.windspeed_10m'));
         $currentWindKmh = is_numeric($currentWindRaw) ? round((float) $currentWindRaw, 1) : null;
+        $currentTemperatureRaw = data_get($payload, 'current.temperature_2m');
+        $currentTemperatureC = is_numeric($currentTemperatureRaw) ? round((float) $currentTemperatureRaw, 1) : null;
+        $currentApparentTemperatureRaw = data_get($payload, 'current.apparent_temperature');
+        $currentApparentTemperatureC = is_numeric($currentApparentTemperatureRaw) ? round((float) $currentApparentTemperatureRaw, 1) : null;
+        $currentWeatherCodeRaw = data_get($payload, 'current.weather_code');
+        $currentWeatherCode = is_numeric($currentWeatherCodeRaw) ? (int) round((float) $currentWeatherCodeRaw) : null;
+        $currentWeatherLabelSk = $this->weatherCodeMapper->labelSk($currentWeatherCode);
 
         $hourlyTimes = data_get($payload, 'hourly.time', []);
         $hourlyHumidity = data_get($payload, 'hourly.relative_humidity_2m', []);
         $hourlyCloud = data_get($payload, 'hourly.cloud_cover', []);
-        $hourlyWind = data_get($payload, 'hourly.windspeed_10m', data_get($payload, 'hourly.wind_speed_10m', []));
+        $hourlyWind = data_get($payload, 'hourly.wind_speed_10m', data_get($payload, 'hourly.windspeed_10m', []));
         $eveningPct = $this->pickClosestHumidity($date, $hourlyTimes, $hourlyHumidity, $targetEveningTime);
         $eveningCloudPct = $this->pickClosestCloudCover($date, $hourlyTimes, $hourlyCloud, $targetEveningTime);
         $eveningWindKmh = $this->pickClosestWindSpeed($date, $hourlyTimes, $hourlyWind, $targetEveningTime);
@@ -80,6 +89,10 @@ class OpenMeteoWeatherProvider implements WeatherProvider
             'evening_cloud_pct' => $eveningCloudPct,
             'current_wind_kmh' => $currentWindKmh,
             'evening_wind_kmh' => $eveningWindKmh,
+            'current_temperature_c' => $currentTemperatureC,
+            'current_apparent_temperature_c' => $currentApparentTemperatureC,
+            'current_weather_code' => $currentWeatherCode,
+            'current_weather_label_sk' => $currentWeatherLabelSk,
             'hourly' => $hourlyPoints,
             'status' => ($currentPct === null && $eveningPct === null && $currentCloudPct === null && $eveningCloudPct === null && $hourlyPoints === []) ? 'unavailable' : 'ok',
         ];
