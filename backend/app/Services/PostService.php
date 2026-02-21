@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\ModeratePostJob;
 use App\Models\Post;
 use App\Models\User;
+use App\Services\Storage\ImageVariantService;
 use App\Services\Storage\MediaStorageService;
 use App\Support\HashtagParser;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -20,6 +21,7 @@ class PostService
         private readonly NotificationService $notifications,
         private readonly FeedQueryBuilder $feedQueryBuilder,
         private readonly MediaStorageService $mediaStorage,
+        private readonly ImageVariantService $imageVariants,
         private readonly PollService $polls,
     ) {
     }
@@ -154,19 +156,12 @@ class PostService
             }
 
             if ($attachment) {
-                $path = $this->mediaStorage->storePostAttachment($attachment, (int) $post->id);
-                $post->attachment_path = $path;
-                $post->attachment_mime = $attachment->getClientMimeType();
-                $post->attachment_original_name = $attachment->getClientOriginalName();
-                $post->attachment_size = $attachment->getSize();
-                $isImageAttachment = str_starts_with((string) $post->attachment_mime, 'image/');
-                $post->attachment_moderation_status = ($moderationEnabled && $isImageAttachment)
-                    ? 'pending'
-                    : null;
-                $post->attachment_moderation_summary = null;
-                $post->attachment_is_blurred = $moderationEnabled && $isImageAttachment;
-                $post->attachment_hidden_at = null;
-                $post->save();
+                $this->attachFileToPost(
+                    post: $post,
+                    attachment: $attachment,
+                    user: $user,
+                    moderationEnabled: $moderationEnabled
+                );
             }
 
             HashtagParser::syncHashtags($post, $content);
@@ -209,19 +204,12 @@ class PostService
             $reply->save();
 
             if ($attachment) {
-                $path = $this->mediaStorage->storePostAttachment($attachment, (int) $reply->id);
-                $reply->attachment_path = $path;
-                $reply->attachment_mime = $attachment->getClientMimeType();
-                $reply->attachment_original_name = $attachment->getClientOriginalName();
-                $reply->attachment_size = $attachment->getSize();
-                $isImageAttachment = str_starts_with((string) $reply->attachment_mime, 'image/');
-                $reply->attachment_moderation_status = ($moderationEnabled && $isImageAttachment)
-                    ? 'pending'
-                    : null;
-                $reply->attachment_moderation_summary = null;
-                $reply->attachment_is_blurred = $moderationEnabled && $isImageAttachment;
-                $reply->attachment_hidden_at = null;
-                $reply->save();
+                $this->attachFileToPost(
+                    post: $reply,
+                    attachment: $attachment,
+                    user: $user,
+                    moderationEnabled: $moderationEnabled
+                );
             }
 
             HashtagParser::syncHashtags($reply, $content);
@@ -250,6 +238,8 @@ class PostService
     public function deletePost(Post $post): void
     {
         $this->mediaStorage->delete($post->attachment_path);
+        $this->mediaStorage->delete($post->attachment_web_path);
+        $this->mediaStorage->delete($post->attachment_original_path, $this->mediaStorage->privateDiskName());
 
         $post->delete();
     }
@@ -308,6 +298,67 @@ class PostService
         }
 
         return $post;
+    }
+
+    private function attachFileToPost(Post $post, UploadedFile $attachment, User $user, bool $moderationEnabled): void
+    {
+        $mime = strtolower(trim((string) ($attachment->getMimeType() ?: $attachment->getClientMimeType())));
+        $isImageAttachment = str_starts_with($mime, 'image/');
+
+        if ($isImageAttachment && !$this->imageVariants->isAllowedImageMime($mime)) {
+            throw ValidationException::withMessages([
+                'attachment' => 'Unsupported image format.',
+            ]);
+        }
+
+        $post->attachment_original_name = $attachment->getClientOriginalName();
+        $post->attachment_moderation_summary = null;
+        $post->attachment_hidden_at = null;
+
+        if ($isImageAttachment) {
+            $variants = $this->imageVariants->storePostImageVariants(
+                uploadedFile: $attachment,
+                postId: (int) $post->id,
+                mediaId: (int) $post->id,
+                userId: (int) $user->id
+            );
+
+            $post->attachment_path = $variants['web_path'];
+            $post->attachment_web_path = $variants['web_path'];
+            $post->attachment_original_path = $variants['original_path'];
+            $post->attachment_mime = $variants['web_mime'];
+            $post->attachment_web_mime = $variants['web_mime'];
+            $post->attachment_original_mime = $variants['original_mime'];
+            $post->attachment_size = $variants['web_size'];
+            $post->attachment_web_size = $variants['web_size'];
+            $post->attachment_original_size = $variants['original_size'];
+            $post->attachment_web_width = $variants['width'];
+            $post->attachment_web_height = $variants['height'];
+            $post->attachment_variants_json = $variants['variants_json'];
+        } else {
+            $path = $this->mediaStorage->storePostAttachment($attachment, (int) $post->id);
+            $size = (int) ($attachment->getSize() ?? 0);
+            $mimeValue = (string) ($attachment->getClientMimeType() ?: $attachment->getMimeType());
+
+            $post->attachment_path = $path;
+            $post->attachment_mime = $mimeValue;
+            $post->attachment_size = $size;
+            $post->attachment_web_path = null;
+            $post->attachment_original_path = null;
+            $post->attachment_web_mime = null;
+            $post->attachment_original_mime = null;
+            $post->attachment_web_size = null;
+            $post->attachment_original_size = null;
+            $post->attachment_web_width = null;
+            $post->attachment_web_height = null;
+            $post->attachment_variants_json = null;
+        }
+
+        $post->attachment_moderation_status = ($moderationEnabled && $isImageAttachment)
+            ? 'pending'
+            : null;
+        $post->attachment_is_blurred = $moderationEnabled && $isImageAttachment;
+        $post->save();
     }
 
     private function logModerationQueueDiagnostics(): void

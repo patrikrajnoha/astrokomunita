@@ -12,6 +12,7 @@ return [
     |
     */
     'disk' => env('FILES_DISK', 'public'),
+    'private_disk' => env('FILES_PRIVATE_DISK', 'local'),
 
     /*
     |--------------------------------------------------------------------------
@@ -33,6 +34,16 @@ return [
         'doc',
         'docx',
     ],
+    'post_image_allowed_mimes' => [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/gif',
+    ],
+    'post_image_max_pixels' => 10000,
+    'post_image_web_max_width' => 1600,
+    'post_image_webp_quality' => 80,
+    'post_image_jpeg_quality' => 82,
 
     /*
     |--------------------------------------------------------------------------
@@ -41,4 +52,3 @@ return [
     */
     'poll_option_image_max_kb' => 5120,
 ];
-
