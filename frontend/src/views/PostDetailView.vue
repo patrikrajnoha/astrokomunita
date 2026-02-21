@@ -333,12 +333,14 @@ import api from '@/services/api'
 import ReplyComposer from '@/components/ReplyComposer.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 import { canReportPost } from '@/utils/postPermissions'
 import { formatRelativeShort } from '@/utils/dateUtils'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const { info: toastInfo, error: toastError } = useToast()
 
 const post = ref(null)
 const root = ref(null)
@@ -406,6 +408,18 @@ function attachmentSrc(p) {
   return origin + '/' + u
 }
 
+function attachmentDownloadSrc(p) {
+  const u = p?.attachment_download_url
+  if (!u) return ''
+  if (/^https?:\/\//i.test(u)) return u
+
+  const base = api?.defaults?.baseURL || ''
+  const origin = base.replace(/\/api\/?$/, '')
+
+  if (u.startsWith('/')) return origin + u
+  return origin + '/' + u
+}
+
 function onReplyCreated(newReply) {
   if (!newReply?.id) return
 
@@ -448,6 +462,10 @@ function openReport(post) {
 function menuItemsForPost(post) {
   const items = []
 
+  if (hasOriginalDownload(post)) {
+    items.push({ key: 'download_original', label: 'Stiahnut v plnej kvalite', danger: false })
+  }
+
   if (canReportPost(post, auth.user)) {
     items.push({ key: 'report', label: 'Report', danger: false })
   }
@@ -457,8 +475,28 @@ function menuItemsForPost(post) {
 
 function onMenuAction(item, post) {
   if (!item?.key || !post?.id) return
+  if (item.key === 'download_original') {
+    downloadOriginalAttachment(post)
+    return
+  }
   if (item.key === 'report') {
     openReport(post)
+  }
+}
+
+function hasOriginalDownload(post) {
+  return isImage(post) && Boolean(post?.attachment_download_url)
+}
+
+function downloadOriginalAttachment(post) {
+  const url = attachmentDownloadSrc(post)
+  if (!url) return
+
+  toastInfo('Stahujem...')
+  try {
+    window.open(url, '_blank', 'noopener')
+  } catch {
+    toastError('Stiahnutie zlyhalo.')
   }
 }
 

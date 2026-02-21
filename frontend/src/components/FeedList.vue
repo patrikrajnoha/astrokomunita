@@ -336,7 +336,7 @@ const props = defineProps({
 const router = useRouter()
 const auth = useAuthStore()
 const bookmarks = useBookmarksStore()
-const { error: toastError } = useToast()
+const { error: toastError, info: toastInfo } = useToast()
 const HOME_TABS = [
   { id: 'for_you', label: 'Pre vas', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
   { id: 'astrobot', label: 'AstroBot', tabId: 'feed-tab-astrobot', panelId: 'feed-panel-astrobot' },
@@ -406,6 +406,10 @@ function canReport(post) {
 function menuItemsForPost(post) {
   const items = []
 
+  if (hasOriginalDownload(post)) {
+    items.push({ key: 'download_original', label: 'Stiahnut v plnej kvalite', danger: false })
+  }
+
   if (canReport(post)) {
     items.push({ key: 'report', label: 'Report', danger: false })
   }
@@ -427,6 +431,11 @@ function menuItemsForPost(post) {
 
 function onMenuAction(item, post) {
   if (!item?.key || !post?.id) return
+
+  if (item.key === 'download_original') {
+    downloadOriginalAttachment(post)
+    return
+  }
 
   if (item.key === 'report') {
     openReport(post)
@@ -645,6 +654,18 @@ function attachmentSrc(p) {
   return origin + '/' + u
 }
 
+function attachmentDownloadSrc(p) {
+  const u = p?.attachment_download_url
+  if (!u) return ''
+  if (/^https?:\/\//i.test(u)) return u
+
+  const base = api?.defaults?.baseURL || ''
+  const origin = base.replace(/\/api\/?$/, '')
+
+  if (u.startsWith('/')) return origin + u
+  return origin + '/' + u
+}
+
 function avatarSrc(url) {
   const u = url || ''
   if (!u) return ''
@@ -677,6 +698,22 @@ function isAttachmentPending(post) {
 
 function isAttachmentBlocked(post) {
   return post?.attachment_moderation_status === 'blocked' || !!post?.attachment_hidden_at
+}
+
+function hasOriginalDownload(post) {
+  return isImage(post) && Boolean(post?.attachment_download_url)
+}
+
+function downloadOriginalAttachment(post) {
+  const url = attachmentDownloadSrc(post)
+  if (!url) return
+
+  toastInfo('Stahujem...')
+  try {
+    window.open(url, '_blank', 'noopener')
+  } catch {
+    toastError('Stiahnutie zlyhalo.')
+  }
 }
 
 function normalizeFeedError(error) {
