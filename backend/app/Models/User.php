@@ -45,6 +45,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'warning_count',
         'last_calendar_popup_at',
         'calendar_popup_last_force_version',
+        'last_login_at',
         'newsletter_subscribed',
     ];
 
@@ -85,6 +86,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'longitude' => 'float',
             'last_calendar_popup_at' => 'datetime',
             'calendar_popup_last_force_version' => 'integer',
+            'last_login_at' => 'datetime',
             'newsletter_subscribed' => 'boolean',
         ];
     }

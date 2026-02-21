@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
 use App\Services\Auth\EmailVerificationSettingService;
+use App\Services\UserActivityService;
 use App\Support\UsernameRules;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
@@ -19,12 +20,18 @@ class AuthController extends Controller
 {
     public function __construct(
         private readonly EmailVerificationSettingService $emailVerificationSettingService,
+        private readonly UserActivityService $activityService,
     ) {
     }
 
     public function me(Request $request)
     {
-        return response()->json($request->user());
+        $user = $request->user();
+
+        return response()->json([
+            ...$user->toArray(),
+            'activity' => $this->activityService->getActivity($user),
+        ]);
     }
 
     public function register(RegisterRequest $request)
