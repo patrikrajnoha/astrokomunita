@@ -31,6 +31,8 @@ class UserDataExportService
                 'latitude',
                 'longitude',
                 'timezone',
+                'location_label',
+                'location_source',
                 'newsletter_subscribed',
             ])
             ->with('eventPreference')
