@@ -25,11 +25,13 @@ class UserExportResource extends JsonResource
             'created_at' => optional($this->created_at)?->toIso8601String(),
             'updated_at' => optional($this->updated_at)?->toIso8601String(),
             'location' => $this->when(
-                $this->latitude !== null || $this->longitude !== null || !empty($this->timezone),
+                $this->latitude !== null || $this->longitude !== null || !empty($this->timezone) || !empty($this->location_label),
                 [
                     'latitude' => $this->latitude,
                     'longitude' => $this->longitude,
                     'timezone' => $this->timezone,
+                    'label' => $this->location_label,
+                    'source' => $this->location_source,
                 ]
             ),
             'preferences' => [

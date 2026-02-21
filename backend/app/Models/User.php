@@ -33,6 +33,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'latitude',
         'longitude',
         'timezone',
+        'location_label',
+        'location_source',
         'is_admin',
         'is_bot',
         'role',
@@ -60,6 +62,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $appends = [
         'avatar_url',
         'cover_url',
+        'location_data',
         'location_meta',
     ];
 
@@ -118,56 +121,112 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function getLocationMetaAttribute(): ?array
     {
-        $rawLocation = trim((string) ($this->location ?? ''));
-        $fallbackTimezone = (string) config('user_locations.fallback_timezone', 'Europe/Bratislava');
+        $location = $this->resolveCanonicalLocation();
+        if ($location === null) {
+            return null;
+        }
 
+        return [
+            'name' => $location['label'],
+            'label' => $location['label'],
+            'lat' => $location['lat'],
+            'lon' => $location['lon'],
+            'tz' => $location['tz'],
+            'source' => $location['source'],
+        ];
+    }
+
+    public function getLocationDataAttribute(): ?array
+    {
+        $location = $this->resolveCanonicalLocation();
+        if ($location === null) {
+            return null;
+        }
+
+        return [
+            'latitude' => $location['lat'],
+            'longitude' => $location['lon'],
+            'timezone' => $location['tz'],
+            'label' => $location['label'],
+            'source' => $location['source'],
+        ];
+    }
+
+    /**
+     * @return array{lat:?float,lon:?float,tz:string,label:string,source:?string}|null
+     */
+    private function resolveCanonicalLocation(): ?array
+    {
+        $fallbackTimezone = (string) config('user_locations.fallback_timezone', 'Europe/Bratislava');
         $explicitLat = is_numeric($this->latitude) ? (float) $this->latitude : null;
         $explicitLon = is_numeric($this->longitude) ? (float) $this->longitude : null;
         $explicitTz = $this->resolveValidTimezone($this->timezone) ?? $fallbackTimezone;
+        $label = $this->resolveLocationLabel();
+        $source = $this->resolveLocationSource();
 
         if ($explicitLat !== null && $explicitLon !== null) {
             return [
-                'name' => $rawLocation !== '' ? $rawLocation : 'Custom location',
                 'lat' => $explicitLat,
                 'lon' => $explicitLon,
                 'tz' => $explicitTz,
+                'label' => $label ?? 'Custom location',
+                'source' => $source ?? 'manual',
             ];
         }
 
-        if ($rawLocation === '') {
+        if ($label === null) {
             return null;
         }
 
         $known = config('user_locations.map', []);
         $item = null;
 
-        if (isset($known[$rawLocation]) && is_array($known[$rawLocation])) {
-            $item = $known[$rawLocation];
+        if (isset($known[$label]) && is_array($known[$label])) {
+            $item = $known[$label];
         } else {
-            $item = $this->resolveLocationMetaFromNormalizedMap($rawLocation, $known);
+            $item = $this->resolveLocationMetaFromNormalizedMap($label, $known);
         }
 
         if (is_array($item)) {
             $lat = isset($item['lat']) && is_numeric($item['lat']) ? (float) $item['lat'] : null;
             $lon = isset($item['lon']) && is_numeric($item['lon']) ? (float) $item['lon'] : null;
-            $tz = $this->resolveValidTimezone($item['tz'] ?? null) ?? $fallbackTimezone;
+            $tz = $this->resolveValidTimezone($item['tz'] ?? null) ?? $explicitTz;
 
             if ($lat !== null && $lon !== null) {
                 return [
-                    'name' => $rawLocation,
                     'lat' => $lat,
                     'lon' => $lon,
                     'tz' => $tz,
+                    'label' => $label,
+                    'source' => $source ?? 'preset',
                 ];
             }
         }
 
         return [
-            'name' => $rawLocation,
             'lat' => null,
             'lon' => null,
             'tz' => $explicitTz,
+            'label' => $label,
+            'source' => $source,
         ];
+    }
+
+    private function resolveLocationLabel(): ?string
+    {
+        $storedLabel = trim((string) ($this->location_label ?? ''));
+        if ($storedLabel !== '') {
+            return $storedLabel;
+        }
+
+        $legacyLabel = trim((string) ($this->location ?? ''));
+        return $legacyLabel !== '' ? $legacyLabel : null;
+    }
+
+    private function resolveLocationSource(): ?string
+    {
+        $raw = strtolower(trim((string) ($this->location_source ?? '')));
+        return in_array($raw, ['preset', 'gps', 'manual'], true) ? $raw : null;
     }
 
     private function resolveLocationMetaFromNormalizedMap(string $rawLocation, array $known): ?array
