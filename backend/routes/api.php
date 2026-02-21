@@ -44,6 +44,7 @@ use App\Http\Controllers\Api\Admin\AdminPostController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\TranslationHealthController;
 use App\Http\Controllers\Api\Admin\AdminNewsletterController;
+use App\Http\Controllers\Api\Admin\AuthSettingsController;
 use App\Http\Controllers\Api\Admin\ContestController as AdminContestController;
 use App\Http\Controllers\Api\Admin\AdminStatsController;
 use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
@@ -289,6 +290,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::get('/dashboard', DashboardController::class);
         Route::get('/stats', [AdminStatsController::class, 'index']);
         Route::get('/stats/export', [AdminStatsController::class, 'export']);
+        Route::get('/auth-settings', [AuthSettingsController::class, 'show']);
+        Route::patch('/auth-settings', [AuthSettingsController::class, 'update']);
 
         // Candidates (list + detail)
         Route::get('/event-candidates',                  [EventCandidateController::class, 'index']);

@@ -2,9 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\AppSetting;
 use App\Models\User;
+use App\Services\Auth\EmailVerificationSettingService;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class AuthRegistrationTest extends TestCase
@@ -210,5 +214,66 @@ class AuthRegistrationTest extends TestCase
             'email' => 'lowercase@example.com',
             'username' => 'mixed_case_9',
         ]);
+    }
+
+    public function test_registration_requires_email_verification_by_default(): void
+    {
+        Notification::fake();
+
+        $this->postJson('/api/auth/register', [
+            'name' => 'Tester',
+            'email' => 'verify-default@example.com',
+            'username' => 'verify_default',
+            'date_of_birth' => now()->subYears(18)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertCreated();
+
+        $user = User::query()->where('email', 'verify-default@example.com')->firstOrFail();
+
+        $this->assertNull($user->email_verified_at);
+        Notification::assertSentTo($user, VerifyEmail::class);
+    }
+
+    public function test_registration_auto_verifies_user_when_email_verification_is_disabled(): void
+    {
+        Notification::fake();
+        AppSetting::put(EmailVerificationSettingService::REQUIRE_EMAIL_VERIFICATION_KEY, '0');
+
+        $this->postJson('/api/auth/register', [
+            'name' => 'Tester',
+            'email' => 'verify-disabled@example.com',
+            'username' => 'verify_disabled',
+            'date_of_birth' => now()->subYears(18)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertCreated();
+
+        $user = User::query()->where('email', 'verify-disabled@example.com')->firstOrFail();
+
+        $this->assertNotNull($user->email_verified_at);
+        Notification::assertNotSentTo($user, VerifyEmail::class);
+    }
+
+    public function test_registration_returns_human_readable_min_length_error_for_password(): void
+    {
+        config()->set('app.locale', 'sk');
+        config()->set('app.fallback_locale', 'sk');
+        app()->setLocale('sk');
+
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Tester',
+            'email' => 'short-password@example.com',
+            'username' => 'short_password',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => '123',
+            'password_confirmation' => '123',
+        ]);
+
+        $response->assertStatus(422);
+        $firstPasswordError = (string) data_get($response->json(), 'errors.password.0', '');
+
+        $this->assertStringNotContainsString('validation.min.string', $firstPasswordError);
+        $this->assertStringContainsString('heslo', mb_strtolower($firstPasswordError));
     }
 }
