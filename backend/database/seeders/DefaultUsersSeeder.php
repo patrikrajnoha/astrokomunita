@@ -49,21 +49,25 @@ class DefaultUsersSeeder extends Seeder
         foreach ($defaults as $defaultUser) {
             $email = (string) $defaultUser['email'];
             $username = (string) $defaultUser['username'];
-            $alreadyExists = User::query()->where('email', $email)->exists();
+            $user = $this->findExistingUser($email, $username);
+            $alreadyExists = $user !== null;
 
-            $user = User::query()->updateOrCreate(
-                ['email' => $email],
-                [
-                    'name' => (string) $defaultUser['name'],
-                    'username' => $username,
-                    'password' => Hash::make((string) $defaultUser['password']),
-                    'is_admin' => (bool) $defaultUser['is_admin'],
-                    'is_bot' => (bool) $defaultUser['is_bot'],
-                    'role' => (string) $defaultUser['role'],
-                    'is_active' => true,
-                    'is_banned' => false,
-                ]
-            );
+            if ($user === null) {
+                $user = new User();
+            }
+
+            $user->fill([
+                'name' => (string) $defaultUser['name'],
+                'username' => $username,
+                'email' => $email,
+                'password' => Hash::make((string) $defaultUser['password']),
+                'is_admin' => (bool) $defaultUser['is_admin'],
+                'is_bot' => (bool) $defaultUser['is_bot'],
+                'role' => (string) $defaultUser['role'],
+                'is_active' => true,
+                'is_banned' => false,
+            ]);
+            $user->save();
 
             // email_verified_at is intentionally forced because User::fillable excludes it.
             $user->forceFill([
@@ -81,6 +85,21 @@ class DefaultUsersSeeder extends Seeder
             'created' => $created,
             'updated' => $updated,
         ];
+    }
+
+    private function findExistingUser(string $email, string $username): ?User
+    {
+        $userByEmail = User::query()
+            ->where('email', $email)
+            ->first();
+
+        if ($userByEmail !== null) {
+            return $userByEmail;
+        }
+
+        return User::query()
+            ->where('username', $username)
+            ->first();
     }
 
     public function run(): void
