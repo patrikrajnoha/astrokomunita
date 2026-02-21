@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventWidgetController;
 use App\Http\Controllers\Api\EventEmailAlertController;
 use App\Http\Controllers\Api\EventCalendarController;
+use App\Http\Controllers\Api\FeaturedEventsCalendarController;
 use App\Http\Controllers\Api\EventReminderController;
 use App\Http\Controllers\Api\EventInviteController;
 use App\Http\Controllers\Api\NotificationController;
@@ -159,6 +160,9 @@ Route::get('/events/next', [EventController::class, 'next']);
 Route::get('/events/widget/upcoming', [EventWidgetController::class, 'upcoming']);
 Route::get('/events/{id}', [EventController::class, 'show']);
 Route::get('/events/{event}/ics', [EventCalendarController::class, 'show']);
+Route::get('/events/{event}/calendar.ics', [EventCalendarController::class, 'showCalendarIcs']);
+Route::get('/featured-events/{month}/calendar.ics', [FeaturedEventsCalendarController::class, 'showBundle'])
+    ->where('month', '^\\d{4}-\\d{2}$');
 Route::post('/events/{event}/notify-email', [EventEmailAlertController::class, 'store']);
 Route::get('/invites/public/{token}', [EventInviteController::class, 'publicShow']);
 

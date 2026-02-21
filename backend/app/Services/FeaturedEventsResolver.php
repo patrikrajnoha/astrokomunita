@@ -15,6 +15,11 @@ class FeaturedEventsResolver
     public const DEFAULT_FALLBACK_LIMIT = 4;
     public const FALLBACK_CACHE_TTL_SECONDS = 3600;
 
+    public function __construct(
+        private readonly EventCalendarLinksService $calendarLinks,
+    ) {
+    }
+
     /**
      * @return array{month_key:string,mode:'admin'|'fallback',fallback_reason:?string,events:array<int,array<string,mixed>>}
      */
@@ -259,12 +264,21 @@ class FeaturedEventsResolver
             return null;
         }
 
+        $googleCalendarUrl = $this->calendarLinks->googleCalendarUrl($event);
+        $icsUrl = $this->calendarLinks->eventIcsUrl($event);
+
         return [
             'id' => (int) $event->id,
             'title' => (string) $event->title,
             'slug' => Str::slug((string) $event->title),
             'start_at' => optional($event->start_at)->toIso8601String(),
             'end_at' => optional($event->end_at)->toIso8601String(),
+            'calendar' => [
+                'google_calendar_url' => $googleCalendarUrl,
+                'ics_url' => $icsUrl,
+            ],
+            'google_calendar_url' => $googleCalendarUrl,
+            'ics_url' => $icsUrl,
         ];
     }
 
