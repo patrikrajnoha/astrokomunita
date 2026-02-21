@@ -63,6 +63,7 @@
 
             <p class="ticketKicker">Vstupenka do Nebeského divadla</p>
             <h3>{{ eventTitle }}</h3>
+            <p class="ticketAltTitle">Vstupenka do Astronomického divadla</p>
             <p class="ticketMeta">{{ eventDateTime }}</p>
             <p class="ticketMeta" v-if="eventPlace">{{ eventPlace }}</p>
 
@@ -419,8 +420,9 @@ async function copyText(value) {
   display: grid;
   gap: 1.3rem;
   transform: rotate(-24deg);
-  opacity: 0.12;
+  opacity: 0.1;
   pointer-events: none;
+  mix-blend-mode: screen;
 }
 
 .watermarkLayer span {
@@ -442,6 +444,12 @@ async function copyText(value) {
   margin: 0;
   font-size: 1.28rem;
   line-height: 1.2;
+}
+
+.ticketAltTitle {
+  margin: -0.2rem 0 0;
+  color: rgb(210 231 255 / 0.9);
+  font-size: 0.82rem;
 }
 
 .ticketMeta {

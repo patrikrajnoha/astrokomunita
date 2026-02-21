@@ -24,8 +24,16 @@ function normalizeNotificationPayload(payload) {
 
 function toastMessageFor(notification) {
   if (notification.type === 'event_invite') {
-    const inviter = notification.data?.actor_name || notification.data?.actor_username || 'Someone'
-    return `${inviter} sent you an event invite.`
+    const inviter = notification.data?.actor_name || notification.data?.actor_username || 'Niekto'
+    return `${inviter} ta pozval na astronomicke podujatie.`
+  }
+
+  if (notification.type === 'event_invite_response') {
+    const actor = notification.data?.actor_name || notification.data?.actor_username || 'Niekto'
+    const status = String(notification.data?.response_status || '').toLowerCase()
+    if (status === 'accepted') return `${actor} prijal tvoju pozvanku.`
+    if (status === 'declined') return `${actor} odmietol tvoju pozvanku.`
+    return `${actor} odpovedal na tvoju pozvanku.`
   }
 
   if (notification.type === 'contest_winner') {
