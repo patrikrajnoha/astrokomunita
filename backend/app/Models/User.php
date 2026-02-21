@@ -290,6 +290,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(NewsletterRun::class, 'admin_user_id');
     }
 
+    public function sentEventInvites(): HasMany
+    {
+        return $this->hasMany(EventInvite::class, 'inviter_user_id');
+    }
+
+    public function receivedEventInvites(): HasMany
+    {
+        return $this->hasMany(EventInvite::class, 'invitee_user_id');
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin' || (bool) $this->is_admin;

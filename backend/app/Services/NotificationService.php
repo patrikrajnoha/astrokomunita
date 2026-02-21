@@ -137,6 +137,7 @@ class NotificationService
         int $actorId,
         ?int $eventId = null,
         ?string $eventTitle = null,
+        array $extraData = [],
     ): ?Notification {
         if ($recipientId === $actorId) {
             return null;
@@ -151,13 +152,49 @@ class NotificationService
         $notification = Notification::create([
             'user_id' => $recipientId,
             'type' => 'event_invite',
-            'data' => [
+            'data' => array_merge([
                 'actor_id' => $actorId,
                 'actor_name' => $actor?->name,
                 'actor_username' => $actor?->username,
                 'event_id' => $eventId,
                 'event_title' => $eventTitle ?: null,
-            ],
+            ], $extraData),
+        ]);
+
+        $this->broadcastNotification($notification);
+
+        return $notification;
+    }
+
+    public function createEventInviteResponse(
+        int $recipientId,
+        int $actorId,
+        ?int $eventId = null,
+        ?string $eventTitle = null,
+        ?string $responseStatus = null,
+        array $extraData = [],
+    ): ?Notification {
+        if ($recipientId === $actorId) {
+            return null;
+        }
+
+        if (!$this->shouldDeliverInApp($recipientId, 'system')) {
+            return null;
+        }
+
+        $actor = User::query()->select(['id', 'name', 'username'])->find($actorId);
+
+        $notification = Notification::create([
+            'user_id' => $recipientId,
+            'type' => 'event_invite_response',
+            'data' => array_merge([
+                'actor_id' => $actorId,
+                'actor_name' => $actor?->name,
+                'actor_username' => $actor?->username,
+                'event_id' => $eventId,
+                'event_title' => $eventTitle ?: null,
+                'response_status' => $responseStatus,
+            ], $extraData),
         ]);
 
         $this->broadcastNotification($notification);

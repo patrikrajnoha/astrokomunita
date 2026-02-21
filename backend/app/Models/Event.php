@@ -93,4 +93,9 @@ class Event extends Model
     {
         return $this->hasMany(Favorite::class);
     }
+
+    public function invites(): HasMany
+    {
+        return $this->hasMany(EventInvite::class);
+    }
 }

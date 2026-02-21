@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\EventWidgetController;
 use App\Http\Controllers\Api\EventEmailAlertController;
 use App\Http\Controllers\Api\EventCalendarController;
 use App\Http\Controllers\Api\EventReminderController;
+use App\Http\Controllers\Api\EventInviteController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\NotificationPreferenceController;
 use App\Http\Controllers\Api\FavoriteController;
@@ -158,6 +159,7 @@ Route::get('/events/widget/upcoming', [EventWidgetController::class, 'upcoming']
 Route::get('/events/{id}', [EventController::class, 'show']);
 Route::get('/events/{event}/ics', [EventCalendarController::class, 'show']);
 Route::post('/events/{event}/notify-email', [EventEmailAlertController::class, 'store']);
+Route::get('/invites/public/{token}', [EventInviteController::class, 'publicShow']);
 
 Route::get('/nasa/iotd', [NasaIotdController::class, 'show']);
 Route::get('/observe/summary', ObserveSummaryController::class);
@@ -480,6 +482,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
         // Event reminders
         Route::post('/events/{event}/reminders', [EventReminderController::class, 'store']);
+        Route::post('/events/{event}/invites', [EventInviteController::class, 'store']);
+        Route::get('/me/invites', [EventInviteController::class, 'index']);
+        Route::post('/invites/{invite}/accept', [EventInviteController::class, 'accept']);
+        Route::post('/invites/{invite}/decline', [EventInviteController::class, 'decline']);
         Route::get('/me/bookmarks', [BookmarkController::class, 'index'])->middleware('throttle:60,1');
         Route::get('/me/reminders', [EventReminderController::class, 'index']);
         Route::get('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'show']);
