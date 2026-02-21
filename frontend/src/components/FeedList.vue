@@ -1,5 +1,5 @@
 <template>
-  <section class="feed-container">
+  <section class="feed-container" data-tour="feed">
     <!-- Header -->
     <header class="feed-header">
       <div class="feed-actions">

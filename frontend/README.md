@@ -113,3 +113,15 @@ const reason = await prompt({
 - Sidebar reads coordinates from `auth.user.location_meta` generated on backend from user `location`.
 - Supported values include canonical profile locations (for example `Bratislava`) and normalized variants (for example `Bratislava, SK`).
 - If user location is empty or unknown, placeholder `Zvol lokalitu` is expected.
+
+## Mini Onboarding Tour
+
+- Tour component: `src/components/onboarding/OnboardingTour.vue`
+- Store + persistence: `src/stores/onboardingTour.ts` (localStorage key `ns_onboarding_v1`)
+- Current steps order: feed -> calendar -> conditions
+
+To add a new step:
+
+1. Add stable marker to target element, e.g. `data-tour="your-step-id"`.
+2. Add step object in `OnboardingTour.vue` with `selector`, `title`, `body`, and optional `route`.
+3. If route is required, ensure the target is rendered on that route before step resolves.

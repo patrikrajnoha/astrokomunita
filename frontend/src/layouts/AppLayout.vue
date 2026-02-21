@@ -405,6 +405,8 @@
       @go-calendar="goToCalendarFromPopup"
     />
 
+    <OnboardingTour v-if="onboardingTour.isOpen" />
+
   </div>
 </template>
 
@@ -420,9 +422,11 @@ import PostComposer from '@/components/PostComposer.vue'
 import MobileFab from '@/components/MobileFab.vue'
 import TypingText from '@/components/TypingText.vue'
 import MarkYourCalendarModal from '@/components/MarkYourCalendarModal.vue'
+import OnboardingTour from '@/components/onboarding/OnboardingTour.vue'
 import { useToast } from '@/composables/useToast'
 import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
+import { useOnboardingTourStore } from '@/stores/onboardingTour'
 import { getMarkYourCalendarPopup, markYourCalendarPopupSeen } from '@/services/popup'
 import {
   getEnabledSidebarSections,
@@ -437,6 +441,7 @@ const auth = useAuthStore()
 const preferences = useEventPreferencesStore()
 const notifications = useNotificationsStore()
 const sidebarConfigStore = useSidebarConfigStore()
+const onboardingTour = useOnboardingTourStore()
 const { showToast } = useToast()
 const isDrawerOpen = ref(false)
 const isComposerOpen = ref(false)
@@ -582,6 +587,16 @@ const canCheckCalendarPopup = computed(() => {
     preferences.isOnboardingCompleted &&
     !calendarPopupSessionChecked.value
 })
+
+const maybeAutoOpenOnboardingTour = () => {
+  if (typeof window === 'undefined') return
+  if (!auth.isAuthed || isAdminRoute.value) return
+
+  onboardingTour.hydrate()
+  if (onboardingTour.shouldAutoOpen) {
+    onboardingTour.openTour()
+  }
+}
 
 const parseStringValue = (value) => {
   if (typeof value !== 'string') return null
@@ -932,11 +947,25 @@ watch(
   (nextUser) => {
     if (!nextUser) {
       hideBrandGreetingNow()
+      onboardingTour.closeTour()
       calendarPopupSessionChecked.value = false
       isCalendarPopupVisible.value = false
       calendarPopupPayload.value = null
     }
   },
+)
+
+watch(
+  () => [auth.isAuthed, isAdminRoute.value],
+  ([isAuthed, isAdmin]) => {
+    if (!isAuthed || isAdmin) {
+      onboardingTour.closeTour()
+      return
+    }
+
+    maybeAutoOpenOnboardingTour()
+  },
+  { immediate: true },
 )
 
 watch(

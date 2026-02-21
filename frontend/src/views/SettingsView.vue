@@ -10,6 +10,22 @@
     </header>
 
     <section class="settings-card">
+      <h2 class="card-title">Onboarding tour</h2>
+      <p class="card-subtitle">Replay quick guide for feed, calendar, and observing conditions.</p>
+
+      <div class="settings-form">
+        <button
+          type="button"
+          class="btn btn-primary"
+          aria-label="Start onboarding tour"
+          @click="startOnboardingTour"
+        >
+          Spustit onboarding
+        </button>
+      </div>
+    </section>
+
+    <section class="settings-card">
       <h2 class="card-title">Change email</h2>
       <p class="card-subtitle">Update the email address associated with your account.</p>
 
@@ -204,10 +220,12 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useOnboardingTourStore } from '@/stores/onboardingTour'
 import http from '@/services/api'
 
 const auth = useAuthStore()
 const router = useRouter()
+const onboardingTour = useOnboardingTourStore()
 
 const emailForm = reactive({
   email: '',
@@ -497,6 +515,10 @@ const downloadProfileExport = async () => {
   } finally {
     exportState.loading = false
   }
+}
+
+const startOnboardingTour = () => {
+  onboardingTour.restartTour()
 }
 
 onMounted(async () => {

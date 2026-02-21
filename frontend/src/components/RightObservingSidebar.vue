@@ -1,5 +1,5 @@
 <template>
-  <section class="card shell">
+  <section class="card shell" data-tour="conditions">
     <header class="hero">
       <div class="heroLeft">
         <h3 class="title">Astronomické podmienky</h3>
