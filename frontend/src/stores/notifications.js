@@ -51,6 +51,7 @@ export const useNotificationsStore = defineStore('notifications', {
   state: () => ({
     items: [],
     unreadCount: 0,
+    unreadCountHydrated: false,
     loading: false,
     error: '',
     page: 1,
@@ -70,6 +71,7 @@ export const useNotificationsStore = defineStore('notifications', {
     resetState() {
       this.items = []
       this.unreadCount = 0
+      this.unreadCountHydrated = false
       this.loading = false
       this.error = ''
       this.page = 1
@@ -114,6 +116,7 @@ export const useNotificationsStore = defineStore('notifications', {
       const auth = useAuthStore()
       if (!auth.isAuthed) {
         this.unreadCount = 0
+        this.unreadCountHydrated = true
         return
       }
 
@@ -126,6 +129,8 @@ export const useNotificationsStore = defineStore('notifications', {
           this.error = 'Account does not have access to notifications.'
         }
         console.warn('Unread count fetch failed:', err?.message || err)
+      } finally {
+        this.unreadCountHydrated = true
       }
     },
 
