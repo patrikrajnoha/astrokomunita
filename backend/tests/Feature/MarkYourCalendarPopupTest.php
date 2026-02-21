@@ -141,6 +141,15 @@ class MarkYourCalendarPopupTest extends TestCase
             ->assertJsonMissingPath('items.3.id')
             ->assertJsonPath('meta.max_items', 10)
             ->assertJsonPath('meta.max_rows', 2);
+
+        $this->assertStringEndsWith(
+            '/api/events/' . $eventB->id . '/calendar.ics',
+            (string) $response->json('items.0.calendar.ics_url')
+        );
+        $this->assertStringContainsString(
+            'calendar.google.com/calendar/render',
+            (string) $response->json('items.0.calendar.google_calendar_url')
+        );
     }
 
     private function createEvent(string $title): Event

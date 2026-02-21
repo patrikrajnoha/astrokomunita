@@ -21,6 +21,7 @@ class MarkYourCalendarPopupService
 
     public function __construct(
         private readonly FeaturedEventsResolver $featuredResolver,
+        private readonly EventCalendarLinksService $calendarLinks,
     ) {
     }
 
@@ -61,6 +62,9 @@ class MarkYourCalendarPopupService
             'selection_mode' => $resolved['mode'],
             'fallback_reason' => $resolved['fallback_reason'],
             'items' => $items,
+            'calendar' => [
+                'bundle_ics_url' => $this->calendarLinks->featuredBundleIcsUrl($monthKey),
+            ],
             'meta' => [
                 'max_items' => self::MAX_ACTIVE_ITEMS,
                 'max_rows' => self::MAX_ROWS,
@@ -97,6 +101,9 @@ class MarkYourCalendarPopupService
             'data' => $this->adminFeaturedEvents($resolvedMonth),
             'fallback_preview' => $fallbackPreview['events'],
             'resolved_events' => $resolved['events'],
+            'calendar' => [
+                'bundle_ics_url' => $this->calendarLinks->featuredBundleIcsUrl($resolvedMonth),
+            ],
             'settings' => $this->settingsPayload(),
             'meta' => [
                 'max_items' => self::MAX_ACTIVE_ITEMS,
