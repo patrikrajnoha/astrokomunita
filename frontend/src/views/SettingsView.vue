@@ -76,6 +76,32 @@
     </section>
 
     <section class="settings-card">
+      <h2 class="card-title">Data export</h2>
+      <p class="card-subtitle">Download your profile data as JSON for backup or GDPR requests.</p>
+
+      <div v-if="exportState.success" class="status status-success" role="status">
+        {{ exportState.success }}
+      </div>
+      <div v-if="exportState.error" class="status status-error" role="alert">
+        {{ exportState.error }}
+      </div>
+
+      <div class="settings-form">
+        <button
+          id="settings-export-button"
+          type="button"
+          class="btn btn-primary"
+          :disabled="exportState.loading"
+          aria-label="Export profile data"
+          @click="downloadProfileExport"
+        >
+          {{ exportState.loading ? 'Preparing export...' : 'Export my profile' }}
+        </button>
+        <p class="export-note">Includes user profile, posts, invites, and newsletter status.</p>
+      </div>
+    </section>
+
+    <section class="settings-card">
       <h2 class="card-title">Change password</h2>
       <p class="card-subtitle">Set a new password for your account.</p>
 
@@ -219,6 +245,11 @@ const deactivateState = reactive({
 
 const newsletterSubscribed = ref(false)
 const newsletterState = reactive({
+  loading: false,
+  error: '',
+  success: '',
+})
+const exportState = reactive({
   loading: false,
   error: '',
   success: '',
@@ -393,6 +424,78 @@ const submitNewsletter = async (checked) => {
     newsletterSubscribed.value = Boolean(auth.user?.newsletter_subscribed)
   } finally {
     newsletterState.loading = false
+  }
+}
+
+const resolveExportFilename = (contentDisposition) => {
+  const header = String(contentDisposition || '')
+
+  const utfMatch = header.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utfMatch?.[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1].trim().replace(/^["']|["']$/g, ''))
+    } catch {
+      // Ignore malformed encodings and fallback to other filename formats.
+    }
+  }
+
+  const defaultMatch = header.match(/filename="?([^";]+)"?/i)
+  if (defaultMatch?.[1]) {
+    return defaultMatch[1].trim()
+  }
+
+  const rawIdentifier = String(auth.user?.username || auth.user?.name || 'user')
+  const safeIdentifier = rawIdentifier
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return `nebesky-sprievodca-export-${safeIdentifier || 'user'}-${new Date().toISOString().slice(0, 10)}.json`
+}
+
+const downloadProfileExport = async () => {
+  if (exportState.loading) return
+
+  exportState.error = ''
+  exportState.success = ''
+  exportState.loading = true
+
+  try {
+    if (!auth.user) {
+      throw new Error('You are not signed in.')
+    }
+
+    const response = await http.get('/me/export', {
+      responseType: 'blob',
+      meta: { skipErrorToast: true },
+    })
+
+    const filename = resolveExportFilename(response?.headers?.['content-disposition'])
+    const blob =
+      response?.data instanceof Blob
+        ? response.data
+        : new Blob([JSON.stringify(response?.data || {})], { type: 'application/json' })
+
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = filename
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(url)
+
+    exportState.success = 'Export downloaded.'
+  } catch (e) {
+    const status = Number(e?.response?.status || 0)
+
+    if (status === 429) {
+      exportState.error = 'Too many export requests. Try again in a minute.'
+    } else {
+      exportState.error = e?.response?.data?.message || e?.userMessage || e?.message || 'Data export failed.'
+    }
+  } finally {
+    exportState.loading = false
   }
 }
 
@@ -634,6 +737,12 @@ onMounted(async () => {
 .toggle-hint {
   margin: 0.2rem 0 0;
   font-size: 0.8rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+}
+
+.export-note {
+  margin: 0;
+  font-size: 0.82rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.92);
 }
 

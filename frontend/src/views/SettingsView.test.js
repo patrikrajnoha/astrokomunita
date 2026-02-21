@@ -20,6 +20,7 @@ const authMock = vi.hoisted(() => ({
 const httpMock = vi.hoisted(() => ({
   patch: vi.fn(),
   delete: vi.fn(),
+  get: vi.fn(),
 }))
 
 vi.mock('vue-router', () => ({
@@ -57,6 +58,12 @@ describe('SettingsView', () => {
         },
       },
     })
+    httpMock.get.mockResolvedValue({
+      data: new Blob(['{"export_version":"1.0"}'], { type: 'application/json' }),
+      headers: {
+        'content-disposition': 'attachment; filename="nebesky-sprievodca-export-tester-20260221_173000.json"',
+      },
+    })
   })
 
   it('updates newsletter toggle via API', async () => {
@@ -72,5 +79,36 @@ describe('SettingsView', () => {
       newsletter_subscribed: true,
     })
     expect(authMock.user.newsletter_subscribed).toBe(true)
+  })
+
+  it('downloads profile export via API', async () => {
+    if (!URL.createObjectURL) {
+      URL.createObjectURL = () => 'blob:export'
+    }
+    if (!URL.revokeObjectURL) {
+      URL.revokeObjectURL = () => {}
+    }
+
+    const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:export')
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    const wrapper = mount(SettingsView, { attachTo: document.body })
+    await flush()
+
+    await wrapper.get('#settings-export-button').trigger('click')
+    await flush()
+
+    expect(httpMock.get).toHaveBeenCalledWith('/me/export', {
+      responseType: 'blob',
+      meta: { skipErrorToast: true },
+    })
+    expect(createObjectUrlSpy).toHaveBeenCalledTimes(1)
+    expect(anchorClickSpy).toHaveBeenCalledTimes(1)
+
+    createObjectUrlSpy.mockRestore()
+    revokeObjectUrlSpy.mockRestore()
+    anchorClickSpy.mockRestore()
+    wrapper.unmount()
   })
 })
