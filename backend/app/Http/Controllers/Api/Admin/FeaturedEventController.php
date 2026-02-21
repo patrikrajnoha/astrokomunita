@@ -15,15 +15,19 @@ class FeaturedEventController extends Controller
     ) {
     }
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json([
-            'data' => $this->popupService->adminFeaturedEvents(),
-            'settings' => $this->popupService->settingsPayload(),
-            'meta' => [
-                'max_items' => MarkYourCalendarPopupService::MAX_ACTIVE_ITEMS,
-            ],
+        $validated = $request->validate([
+            'month' => ['nullable', 'string', 'regex:/^\d{4}-\d{2}$/'],
+            'refresh_fallback' => ['nullable', 'boolean'],
         ]);
+
+        return response()->json(
+            $this->popupService->adminOverview(
+                $validated['month'] ?? null,
+                (bool) ($validated['refresh_fallback'] ?? false)
+            )
+        );
     }
 
     public function store(Request $request): JsonResponse
@@ -31,12 +35,14 @@ class FeaturedEventController extends Controller
         $validated = $request->validate([
             'event_id' => ['required', 'integer', 'exists:events,id'],
             'position' => ['nullable', 'integer', 'min:0'],
+            'month' => ['nullable', 'string', 'regex:/^\d{4}-\d{2}$/'],
         ]);
 
         $item = $this->popupService->createFeaturedEvent(
             $request->user(),
             (int) $validated['event_id'],
-            isset($validated['position']) ? (int) $validated['position'] : null
+            isset($validated['position']) ? (int) $validated['position'] : null,
+            $validated['month'] ?? null
         );
 
         return response()->json([
@@ -82,5 +88,18 @@ class FeaturedEventController extends Controller
             'data' => $this->popupService->updateEnabled((bool) $validated['enabled']),
         ]);
     }
-}
 
+    public function applyFallback(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'month' => ['nullable', 'string', 'regex:/^\d{4}-\d{2}$/'],
+        ]);
+
+        return response()->json([
+            'data' => $this->popupService->applyFallbackAsFeatured(
+                $request->user(),
+                $validated['month'] ?? null
+            ),
+        ]);
+    }
+}

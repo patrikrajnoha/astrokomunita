@@ -330,6 +330,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::post('/featured-events', [FeaturedEventController::class, 'store']);
         Route::patch('/featured-events/{featuredEvent}', [FeaturedEventController::class, 'update']);
         Route::delete('/featured-events/{featuredEvent}', [FeaturedEventController::class, 'destroy']);
+        Route::post('/featured-events/apply-fallback', [FeaturedEventController::class, 'applyFallback']);
         Route::post('/featured-events/force-popup', [FeaturedEventController::class, 'forcePopup']);
         Route::patch('/featured-events/popup-settings', [FeaturedEventController::class, 'updatePopupSettings']);
 

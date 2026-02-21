@@ -134,6 +134,7 @@ class MarkYourCalendarPopupTest extends TestCase
         $response = $this->getJson('/api/popup/mark-your-calendar');
 
         $response->assertOk()
+            ->assertJsonPath('selection_mode', 'admin')
             ->assertJsonPath('items.0.id', $eventB->id)
             ->assertJsonPath('items.1.id', $eventC->id)
             ->assertJsonPath('items.2.id', $eventA->id)
@@ -155,4 +156,3 @@ class MarkYourCalendarPopupTest extends TestCase
         ]);
     }
 }
-
