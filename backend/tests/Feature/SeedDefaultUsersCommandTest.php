@@ -11,6 +11,37 @@ class SeedDefaultUsersCommandTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_command_updates_user_when_username_exists_with_legacy_email(): void
+    {
+        User::query()->create([
+            'name' => 'Legacy AstroBot',
+            'username' => 'astrobot',
+            'email' => 'astrobot@astrokomunita.local',
+            'password' => Hash::make('legacy-password'),
+            'is_admin' => false,
+            'is_bot' => false,
+            'role' => 'user',
+            'is_active' => false,
+            'is_banned' => true,
+            'email_verified_at' => null,
+        ]);
+
+        $this->artisan('app:seed-default-users')
+            ->expectsOutputToContain('Created:')
+            ->expectsOutputToContain('Updated:')
+            ->assertExitCode(0);
+
+        $this->assertSame(3, User::query()->count());
+
+        $astrobot = User::query()->where('username', 'astrobot')->firstOrFail();
+        $this->assertSame('astrobot@astrobot.sk', $astrobot->email);
+        $this->assertTrue((bool) $astrobot->is_bot);
+        $this->assertFalse((bool) $astrobot->is_banned);
+        $this->assertTrue((bool) $astrobot->is_active);
+        $this->assertNotNull($astrobot->email_verified_at);
+        $this->assertTrue(Hash::check('astrobot', (string) $astrobot->password));
+    }
+
     public function test_command_is_idempotent_and_corrects_existing_user_flags(): void
     {
         User::query()->create([
