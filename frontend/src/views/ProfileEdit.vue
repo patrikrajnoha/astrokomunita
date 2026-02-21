@@ -52,6 +52,12 @@
               </button>
             </div>
 
+            <div class="quickGps">
+              <button class="btn ghost quickGpsBtn" type="button" @click="useMyLocation" :disabled="saving || geolocating">
+                {{ geolocating ? 'Ziskavam GPS...' : 'Pouzit moju polohu' }}
+              </button>
+            </div>
+
             <div class="field">
               <label>Nazov polohy</label>
               <input
@@ -78,9 +84,6 @@
 
             <div v-if="form.locationMode === 'gps'" class="field">
               <label>GPS</label>
-              <button class="btn ghost" type="button" @click="useMyLocation" :disabled="saving || geolocating">
-                {{ geolocating ? 'Ziskavam GPS...' : 'Pouzit moju polohu' }}
-              </button>
               <p class="hint">Ak GPS zlyha, prepni na manualny rezim.</p>
             </div>
 
@@ -664,6 +667,15 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.45rem;
+}
+
+.quickGps {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.quickGpsBtn {
+  width: fit-content;
 }
 
 .modeBtn {

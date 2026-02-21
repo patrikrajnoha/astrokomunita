@@ -7,6 +7,7 @@ use App\Services\Storage\MediaStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -37,11 +38,17 @@ class ProfileController extends Controller
             'location_label' => ['nullable', 'string', 'max:80'],
         ]);
 
-        $user->fill($validated);
-        if (array_key_exists('location_label', $validated)) {
+        $supportsLocationLabel = Schema::hasColumn('users', 'location_label');
+        $payload = $validated;
+        if (!$supportsLocationLabel) {
+            unset($payload['location_label']);
+        }
+
+        $user->fill($payload);
+        if ($supportsLocationLabel && array_key_exists('location_label', $validated)) {
             $label = trim((string) ($validated['location_label'] ?? ''));
             $user->location = $label !== '' ? Str::substr($label, 0, 60) : null;
-        } elseif (array_key_exists('location', $validated)) {
+        } elseif ($supportsLocationLabel && array_key_exists('location', $validated)) {
             $legacy = trim((string) ($validated['location'] ?? ''));
             $user->location_label = $legacy !== '' ? Str::substr($legacy, 0, 80) : null;
         }

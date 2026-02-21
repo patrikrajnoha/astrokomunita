@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -37,14 +38,20 @@ class MeLocationController extends Controller
         $label = $this->normalizeLabel(
             $validated['location_label']
                 ?? $validated['location']
-                ?? $user->location_label
+                ?? ($this->supportsLocationLabelColumn() ? $user->location_label : null)
                 ?? $user->location
                 ?? null
         );
         $source = $this->normalizeSource($validated['location_source'] ?? null) ?? 'manual';
 
-        $user->location_label = $label;
-        $user->location_source = $source;
+        if ($this->supportsLocationLabelColumn()) {
+            $user->location_label = $label;
+        }
+
+        if ($this->supportsLocationSourceColumn()) {
+            $user->location_source = $source;
+        }
+
         $user->location = $label !== null ? Str::substr($label, 0, 60) : null;
 
         $user->save();
@@ -72,5 +79,25 @@ class MeLocationController extends Controller
     {
         $source = strtolower(trim((string) $raw));
         return in_array($source, ['preset', 'gps', 'manual'], true) ? $source : null;
+    }
+
+    private function supportsLocationLabelColumn(): bool
+    {
+        static $hasColumn;
+        if ($hasColumn === null) {
+            $hasColumn = Schema::hasColumn('users', 'location_label');
+        }
+
+        return $hasColumn;
+    }
+
+    private function supportsLocationSourceColumn(): bool
+    {
+        static $hasColumn;
+        if ($hasColumn === null) {
+            $hasColumn = Schema::hasColumn('users', 'location_source');
+        }
+
+        return $hasColumn;
     }
 }
