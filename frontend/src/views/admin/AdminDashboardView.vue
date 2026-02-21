@@ -6,6 +6,7 @@ import KpiCard from '@/components/admin/dashboard/KpiCard.vue'
 import QuickActionTile from '@/components/admin/dashboard/QuickActionTile.vue'
 import StatsChart from '@/components/admin/dashboard/StatsChart.vue'
 import { getStats, downloadStatsCsv } from '@/services/api/admin/stats'
+import { getAuthSettings, updateAuthSettings } from '@/services/api/admin/authSettings'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
@@ -15,6 +16,10 @@ const exporting = ref(false)
 const error = ref('')
 const stats = ref(null)
 const trendMetric = ref('new_posts')
+const authSettings = ref({ require_email_verification: true })
+const authSettingsLoading = ref(false)
+const authSettingsSaving = ref(false)
+const authSettingsError = ref('')
 
 const trendMetricOptions = [
   { key: 'new_posts', label: 'New posts' },
@@ -113,8 +118,53 @@ async function exportCsv() {
   }
 }
 
+async function loadAuthSettings() {
+  authSettingsLoading.value = true
+  authSettingsError.value = ''
+
+  try {
+    const response = await getAuthSettings()
+    const payload = response?.data?.data
+    if (payload && typeof payload.require_email_verification === 'boolean') {
+      authSettings.value = payload
+    }
+  } catch (e) {
+    authSettingsError.value = e?.response?.data?.message || 'Failed to load auth settings.'
+  } finally {
+    authSettingsLoading.value = false
+  }
+}
+
+async function toggleEmailVerification(required) {
+  if (authSettingsSaving.value) return
+
+  authSettingsSaving.value = true
+  authSettingsError.value = ''
+
+  try {
+    const response = await updateAuthSettings({
+      require_email_verification: required,
+    })
+
+    const payload = response?.data?.data
+    if (payload && typeof payload.require_email_verification === 'boolean') {
+      authSettings.value = payload
+    } else {
+      authSettings.value = { require_email_verification: required }
+    }
+
+    toast.success(required ? 'Email verification enabled.' : 'Email verification disabled for new users.')
+  } catch (e) {
+    authSettingsError.value = e?.response?.data?.message || 'Failed to update auth settings.'
+    toast.error(authSettingsError.value)
+  } finally {
+    authSettingsSaving.value = false
+  }
+}
+
 onMounted(() => {
   loadDashboard(false)
+  loadAuthSettings()
 })
 </script>
 
@@ -133,6 +183,29 @@ onMounted(() => {
       <span>{{ error }}</span>
       <button type="button" class="btn" @click="loadDashboard(true)">Retry</button>
     </div>
+
+    <section class="policyCard sectionFade" aria-label="Authentication settings">
+      <div class="policyRow">
+        <div>
+          <h3>Email verification for new users</h3>
+          <p class="policyMuted">
+            If disabled, newly registered users are auto-verified and no verification email is sent.
+          </p>
+          <p class="policyMuted">Existing users are not changed.</p>
+        </div>
+        <label class="toggleLabel">
+          <input
+            :checked="Boolean(authSettings.require_email_verification)"
+            type="checkbox"
+            :disabled="authSettingsLoading || authSettingsSaving"
+            @change="toggleEmailVerification($event.target.checked)"
+          />
+          <span>{{ authSettings.require_email_verification ? 'Required' : 'Disabled' }}</span>
+        </label>
+      </div>
+
+      <p v-if="authSettingsError" class="policyError">{{ authSettingsError }}</p>
+    </section>
 
     <section class="kpiGrid sectionFade" aria-label="KPI overview">
       <template v-if="loading && !stats">
@@ -230,6 +303,45 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
+.policyCard {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 14px;
+  padding: 14px;
+  background: rgb(var(--color-bg-rgb) / 0.55);
+}
+
+.policyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.policyRow h3 {
+  margin: 0;
+}
+
+.policyMuted {
+  margin: 2px 0 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  font-size: 13px;
+}
+
+.policyError {
+  margin: 10px 0 0;
+  color: var(--color-danger);
+}
+
+.toggleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  border-radius: 999px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
 .kpiGrid {
   display: grid;
   gap: 10px;
@@ -298,6 +410,13 @@ onMounted(() => {
 @media (min-width: 720px) {
   .actionGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .policyRow {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 

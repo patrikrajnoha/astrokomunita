@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
+use App\Services\Auth\EmailVerificationSettingService;
 use App\Support\UsernameRules;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
@@ -16,6 +17,11 @@ use RuntimeException;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly EmailVerificationSettingService $emailVerificationSettingService,
+    ) {
+    }
+
     public function me(Request $request)
     {
         return response()->json($request->user());
@@ -33,7 +39,14 @@ class AuthController extends Controller
             'password' => $validated['password'],
         ]);
 
-        event(new Registered($user));
+        if ($this->emailVerificationSettingService->requiresEmailVerification()) {
+            event(new Registered($user));
+        } else {
+            $user->forceFill([
+                'email_verified_at' => now(),
+            ])->save();
+        }
+
         Auth::login($user);
 
         return response()->json($user, 201);
