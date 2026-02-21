@@ -1,7 +1,7 @@
 import api from '@/services/api'
 
-export function getFeaturedEvents() {
-  return api.get('/admin/featured-events')
+export function getFeaturedEvents(params = {}) {
+  return api.get('/admin/featured-events', { params })
 }
 
 export function createFeaturedEvent(payload) {
@@ -24,3 +24,6 @@ export function updateFeaturedPopupSettings(payload) {
   return api.patch('/admin/featured-events/popup-settings', payload)
 }
 
+export function applyFallbackAsFeatured(payload = {}) {
+  return api.post('/admin/featured-events/apply-fallback', payload)
+}
