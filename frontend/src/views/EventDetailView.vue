@@ -75,6 +75,15 @@
         @favorite="nextEvent('button')"
         @calendar="addToCalendar('button')"
       />
+
+      <div v-if="auth.isAuthed && currentEvent" class="inviteActions">
+        <button type="button" class="inviteBtn inviteBtn-primary" @click="openInviteModal('invite')">
+          Pozvať
+        </button>
+        <button type="button" class="inviteBtn inviteBtn-secondary" @click="openInviteModal('share_ticket')">
+          Zdieľať vstupenku
+        </button>
+      </div>
     </section>
 
     <EventDetailSheet
@@ -94,6 +103,13 @@
       @update:notify-email="notifyEmail = $event"
     />
 
+    <InviteTicketModal
+      :open="inviteModalOpen"
+      :event="currentEvent"
+      @close="closeInviteModal"
+      @created="onInviteCreated"
+    />
+
   </main>
 </template>
 
@@ -104,6 +120,7 @@ import api from '@/services/api'
 import EventCard from '@/components/events/EventCard.vue'
 import EventActions from '@/components/events/EventActions.vue'
 import EventDetailSheet from '@/components/events/EventDetailSheet.vue'
+import InviteTicketModal from '@/components/events/InviteTicketModal.vue'
 import { useSwipeCard } from '@/composables/useSwipeCard'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useAuthStore } from '@/stores/auth'
@@ -127,6 +144,7 @@ const notifyLoading = ref(false)
 const notifyMsg = ref('')
 const notifyErr = ref('')
 const liveMessage = ref('')
+const inviteModalOpen = ref(false)
 const preloadedHeroUrls = new Set()
 
 const eventId = computed(() => Number(route.params.id))
@@ -242,6 +260,27 @@ function openSheet(source = 'button') {
 
 function closeSheet() {
   sheetOpen.value = false
+}
+
+function openInviteModal(source = 'invite') {
+  if (!auth.isAuthed || !currentEvent.value?.id) return
+  trackEvent('event_invite_modal_open', {
+    source,
+    event_id: currentEvent.value.id,
+  })
+  inviteModalOpen.value = true
+}
+
+function closeInviteModal() {
+  inviteModalOpen.value = false
+}
+
+function onInviteCreated(payload) {
+  if (!payload) return
+  trackEvent('event_invite_created', {
+    event_id: currentEvent.value?.id || null,
+    invite_id: payload?.id || null,
+  })
 }
 
 async function fetchEventDetail() {
@@ -516,7 +555,13 @@ async function onKeyDown(event) {
     return
   }
 
-  if (!currentEvent.value || loading.value || sheetOpen.value) return
+  if (event.key === 'Escape' && inviteModalOpen.value) {
+    event.preventDefault()
+    closeInviteModal()
+    return
+  }
+
+  if (!currentEvent.value || loading.value || sheetOpen.value || inviteModalOpen.value) return
 
   if (event.key === 'ArrowLeft') {
     event.preventDefault()
@@ -694,6 +739,33 @@ watch(
 
 .actions {
   margin-top: 0.4rem;
+}
+
+.inviteActions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: -0.2rem;
+}
+
+.inviteBtn {
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
+  padding: 0.45rem 0.86rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: rgb(var(--color-bg-rgb) / 0.72);
+  color: var(--color-surface);
+}
+
+.inviteBtn-primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.55);
+  background: rgb(var(--color-primary-rgb) / 0.16);
+}
+
+.inviteBtn-secondary {
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.34);
 }
 
 .state {
