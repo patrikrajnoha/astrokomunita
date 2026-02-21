@@ -16,4 +16,13 @@ class PostPolicy
     {
         return $user->isAdmin();
     }
+
+    public function downloadOriginal(User $user, Post $post): bool
+    {
+        if ((int) $post->user_id === (int) $user->id || $user->isAdmin()) {
+            return true;
+        }
+
+        return !$post->is_hidden && $post->hidden_at === null && $post->moderation_status !== 'blocked';
+    }
 }

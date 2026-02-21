@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\BookmarkController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\MediaDownloadController;
 use App\Http\Controllers\Api\PollController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\GifSearchController;
@@ -190,6 +191,7 @@ Route::get('/sidebar-config', [SidebarConfigController::class, 'index']);
 Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/{post}', [PostController::class, 'show']);
 Route::post('/posts/{post}/view', [PostController::class, 'view']);
+Route::get('/media/{media}/download', MediaDownloadController::class)->name('media.download');
 Route::get('/polls/{poll}', [PollController::class, 'show']);
 
 /*
