@@ -6,9 +6,12 @@ use App\Models\AppSetting;
 use App\Models\Event;
 use App\Models\MonthlyFeaturedEvent;
 use App\Models\User;
+use App\Repositories\MarkYourCalendarRepository;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class MarkYourCalendarPopupService
@@ -18,10 +21,12 @@ class MarkYourCalendarPopupService
     public const SETTINGS_FORCE_AT_KEY = 'calendar_popup_force_at';
     public const MAX_ACTIVE_ITEMS = 10;
     public const MAX_ROWS = 2;
+    public const FALLBACK_ITEMS = 3;
 
     public function __construct(
         private readonly FeaturedEventsResolver $featuredResolver,
         private readonly EventCalendarLinksService $calendarLinks,
+        private readonly MarkYourCalendarRepository $popupRepository,
     ) {
     }
 
@@ -30,17 +35,35 @@ class MarkYourCalendarPopupService
      */
     public function payloadForUser(User $user): array
     {
+        $now = now();
         $enabled = $this->isEnabled();
-        $monthKey = $this->monthKey(now());
-        $resolved = $this->featuredResolver->resolveForMonth($monthKey, FeaturedEventsResolver::DEFAULT_FALLBACK_LIMIT);
-        $items = $resolved['events'];
+        $monthKey = $this->monthKey($now);
         $forceVersion = $this->forceVersion();
 
+        try {
+            $resolved = $this->resolvePopupEvents($monthKey, $now);
+        } catch (\Throwable $exception) {
+            Log::error('Failed to resolve mark-your-calendar popup payload.', [
+                'user_id' => $user->id,
+                'month_key' => $monthKey,
+                'message' => $exception->getMessage(),
+            ]);
+
+            $resolved = [
+                'mode' => 'empty',
+                'fallback_reason' => 'resolution_error',
+                'events' => [],
+            ];
+        }
+
+        $items = $resolved['events'];
         $reason = 'already_seen';
         $shouldShow = false;
 
-        if (! $enabled || $items === []) {
+        if (! $enabled) {
             $reason = 'disabled';
+        } elseif ($items === []) {
+            $reason = 'empty';
         } elseif ($forceVersion > (int) $user->calendar_popup_last_force_version) {
             $shouldShow = true;
             $reason = 'forced';
@@ -55,6 +78,8 @@ class MarkYourCalendarPopupService
         }
 
         return [
+            'mode' => $resolved['mode'],
+            'events' => $items,
             'should_show' => $shouldShow,
             'reason' => $reason,
             'force_version' => $forceVersion,
@@ -69,7 +94,7 @@ class MarkYourCalendarPopupService
                 'max_items' => self::MAX_ACTIVE_ITEMS,
                 'max_rows' => self::MAX_ROWS,
             ],
-            'generated_at' => now()->toIso8601String(),
+            'generated_at' => $now->toIso8601String(),
         ];
     }
 
@@ -149,6 +174,7 @@ class MarkYourCalendarPopupService
     public function createFeaturedEvent(User $admin, int $eventId, ?int $position, ?string $monthKey = null): array
     {
         $resolvedMonth = $this->resolveMonthKey($monthKey);
+        $supportsMonthKey = $this->popupRepository->supportsMonthlyFeaturedMonthKeyColumn();
 
         Event::query()->findOrFail($eventId);
 
@@ -164,14 +190,19 @@ class MarkYourCalendarPopupService
             ]);
         }
 
-        $item = DB::transaction(function () use ($admin, $eventId, $position, $resolvedMonth): MonthlyFeaturedEvent {
-            $item = MonthlyFeaturedEvent::query()->create([
+        $item = DB::transaction(function () use ($admin, $eventId, $position, $resolvedMonth, $supportsMonthKey): MonthlyFeaturedEvent {
+            $attributes = [
                 'event_id' => $eventId,
-                'month_key' => $resolvedMonth,
                 'position' => $this->nextPosition($resolvedMonth),
                 'is_active' => true,
                 'created_by' => $admin->id,
-            ]);
+            ];
+
+            if ($supportsMonthKey) {
+                $attributes['month_key'] = $resolvedMonth;
+            }
+
+            $item = MonthlyFeaturedEvent::query()->create($attributes);
 
             if ($position !== null) {
                 $item->position = max(0, $position);
@@ -244,13 +275,14 @@ class MarkYourCalendarPopupService
     public function applyFallbackAsFeatured(User $admin, ?string $monthKey = null): array
     {
         $resolvedMonth = $this->resolveMonthKey($monthKey);
+        $supportsMonthKey = $this->popupRepository->supportsMonthlyFeaturedMonthKeyColumn();
         $fallback = $this->featuredResolver->fallbackPreviewForMonth(
             $resolvedMonth,
             FeaturedEventsResolver::DEFAULT_FALLBACK_LIMIT,
             true
         );
 
-        DB::transaction(function () use ($resolvedMonth, $fallback, $admin): void {
+        DB::transaction(function () use ($resolvedMonth, $fallback, $admin, $supportsMonthKey): void {
             $this->monthSelectionQuery($resolvedMonth)->delete();
 
             $rows = [];
@@ -262,15 +294,20 @@ class MarkYourCalendarPopupService
                     continue;
                 }
 
-                $rows[] = [
+                $row = [
                     'event_id' => $eventId,
-                    'month_key' => $resolvedMonth,
                     'position' => $index,
                     'is_active' => true,
                     'created_by' => $admin->id,
                     'created_at' => $timestamp,
                     'updated_at' => $timestamp,
                 ];
+
+                if ($supportsMonthKey) {
+                    $row['month_key'] = $resolvedMonth;
+                }
+
+                $rows[] = $row;
             }
 
             if ($rows !== []) {
@@ -352,6 +389,84 @@ class MarkYourCalendarPopupService
         return $normalized;
     }
 
+    /**
+     * @return array{mode:'admin'|'fallback'|'empty',fallback_reason:?string,events:array<int,array<string,mixed>>}
+     */
+    private function resolvePopupEvents(string $monthKey, Carbon $now): array
+    {
+        $adminEvents = $this->popupRepository->adminFeaturedEvents($monthKey, $now, self::MAX_ACTIVE_ITEMS);
+        $mappedAdminEvents = $this->mapPopupEvents($adminEvents, $monthKey, 'admin');
+        if ($mappedAdminEvents !== []) {
+            return [
+                'mode' => 'admin',
+                'fallback_reason' => null,
+                'events' => $mappedAdminEvents,
+            ];
+        }
+
+        $fallbackEvents = $this->popupRepository->fallbackEventsForCurrentMonth($now, self::FALLBACK_ITEMS);
+        $mappedFallbackEvents = $this->mapPopupEvents($fallbackEvents, $monthKey, 'fallback');
+        if ($mappedFallbackEvents !== []) {
+            return [
+                'mode' => 'fallback',
+                'fallback_reason' => 'no_admin_selection',
+                'events' => $mappedFallbackEvents,
+            ];
+        }
+
+        return [
+            'mode' => 'empty',
+            'fallback_reason' => 'no_events_in_month',
+            'events' => [],
+        ];
+    }
+
+    /**
+     * @param array<int,Event> $events
+     * @return array<int,array<string,mixed>>
+     */
+    private function mapPopupEvents(array $events, string $monthKey, string $source): array
+    {
+        return collect($events)
+            ->map(function (Event $event) use ($monthKey, $source): ?array {
+                try {
+                    $startAt = optional($event->start_at)->toIso8601String();
+                    if (! $startAt) {
+                        return null;
+                    }
+
+                    $googleCalendarUrl = $this->calendarLinks->googleCalendarUrl($event);
+                    $icsUrl = $this->calendarLinks->eventIcsUrl($event);
+
+                    return [
+                        'id' => (int) $event->id,
+                        'title' => (string) $event->title,
+                        'slug' => Str::slug((string) $event->title),
+                        'start_at' => $startAt,
+                        'end_at' => optional($event->end_at)->toIso8601String(),
+                        'calendar' => [
+                            'google_calendar_url' => $googleCalendarUrl,
+                            'ics_url' => $icsUrl,
+                        ],
+                        'google_calendar_url' => $googleCalendarUrl,
+                        'ics_url' => $icsUrl,
+                    ];
+                } catch (\Throwable $exception) {
+                    Log::warning('Skipping popup event due to invalid event payload.', [
+                        'event_id' => optional($event)->id,
+                        'month_key' => $monthKey,
+                        'source' => $source,
+                        'message' => $exception->getMessage(),
+                    ]);
+
+                    return null;
+                }
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
     private function isEnabled(): bool
     {
         return AppSetting::getBool(self::SETTINGS_ENABLED_KEY, true);
@@ -383,14 +498,19 @@ class MarkYourCalendarPopupService
 
     private function monthSelectionQuery(string $monthKey): Builder
     {
-        return MonthlyFeaturedEvent::query()
-            ->where(function (Builder $query) use ($monthKey): void {
-                $query->where('month_key', $monthKey);
+        $query = MonthlyFeaturedEvent::query();
 
-                if ($this->includeLegacyRows($monthKey)) {
-                    $query->orWhereNull('month_key');
-                }
-            });
+        if (! $this->popupRepository->supportsMonthlyFeaturedMonthKeyColumn()) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $builder) use ($monthKey): void {
+            $builder->where('month_key', $monthKey);
+
+            if ($this->includeLegacyRows($monthKey)) {
+                $builder->orWhereNull('month_key');
+            }
+        });
     }
 
     private function includeLegacyRows(string $monthKey): bool
