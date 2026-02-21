@@ -16,6 +16,8 @@ vi.mock('@/stores/auth', () => ({
 vi.mock('@/stores/notifications', () => ({
   useNotificationsStore: () => ({
     unreadBadge: '',
+    unreadCount: 0,
+    unreadCountHydrated: true,
     fetchUnreadCount: vi.fn(async () => {}),
   }),
 }))

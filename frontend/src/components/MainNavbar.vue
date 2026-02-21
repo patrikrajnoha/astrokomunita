@@ -446,7 +446,8 @@
           <span class="flex-1">{{ item.label }}</span>
           <span
             v-if="item.badge"
-            class="rounded-full bg-[color:rgb(var(--color-bg-rgb)/0.55)] px-2 py-0.5 text-[0.65rem] font-semibold text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)]"
+            class="notificationBadge rounded-full bg-[color:rgb(var(--color-bg-rgb)/0.55)] px-2 py-0.5 text-[0.65rem] font-semibold text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)]"
+            :class="{ 'notificationBadge--ping': item.key === 'notifications' && shouldAnimateUnreadBadge }"
           >
             {{ item.badge }}
           </span>
@@ -571,6 +572,7 @@ import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useBadgeAnimateOnIncrease } from '@/composables/useBadgeAnimateOnIncrease'
 import TypingText from '@/components/TypingText.vue'
 
 const auth = useAuthStore()
@@ -584,6 +586,11 @@ const isAdminOpen = ref(false)
 const adminWrapperRef = ref(null)
 const showGreeting = ref(false)
 const greetingText = ref('')
+const unreadCount = computed(() => Number(notifications.unreadCount || 0))
+const unreadCountHydrated = computed(() => Boolean(notifications.unreadCountHydrated))
+const { shouldAnimate: shouldAnimateUnreadBadge } = useBadgeAnimateOnIncrease(unreadCount, {
+  readyRef: unreadCountHydrated,
+})
 
 let greetingHideTimer = null
 
@@ -834,5 +841,72 @@ const logout = async () => {
 .brand-fade-enter-from,
 .brand-fade-leave-to {
   opacity: 0;
+}
+
+.notificationBadge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.notificationBadge::after {
+  content: '';
+  position: absolute;
+  inset: -0.2rem;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0.38);
+}
+
+.notificationBadge--ping {
+  animation: badge-bounce 550ms ease-out;
+}
+
+.notificationBadge--ping::after {
+  animation: badge-pulse 650ms ease-out;
+}
+
+@keyframes badge-bounce {
+  0% {
+    transform: scale(0.95);
+  }
+  40% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes badge-pulse {
+  0% {
+    opacity: 0.45;
+    transform: scale(0.85);
+    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0.38);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.35);
+    box-shadow: 0 0 0 0.45rem rgb(var(--color-primary-rgb) / 0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+    box-shadow: 0 0 0 0.45rem rgb(var(--color-primary-rgb) / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notificationBadge,
+  .notificationBadge::after,
+  .notificationBadge--ping,
+  .notificationBadge--ping::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 </style>
