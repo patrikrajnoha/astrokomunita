@@ -1,117 +1,119 @@
 <template>
-  <section class="card">
-    <header class="head">
-      <h3>Astronomické podmienky</h3>
-      <p class="location">{{ locationLabel }}</p>
-
-      <div v-if="showWeatherNowCard" class="weatherNow">
-        <img v-if="weatherIconSrc" :src="weatherIconSrc" alt="" class="weatherIcon" />
-        <span v-else class="weatherEmoji">{{ weatherEmoji }}</span>
-        <div>
-          <p class="miniTitle">Počasie teraz</p>
-          <p class="temp">{{ weatherNowTemperature }}</p>
-          <p class="meta">{{ weatherNowLabel }}<span v-if="weatherNowApparent"> · Pocitovo {{ weatherNowApparent }}</span><span v-if="weatherNowWind"> · Vietor {{ weatherNowWind }}</span></p>
-        </div>
+  <section class="card shell">
+    <header class="hero">
+      <div class="heroLeft">
+        <h3 class="title">Astronomické podmienky</h3>
+        <p class="location">{{ locationLabel }}</p>
       </div>
+
+      <section v-if="showWeatherNowCard" class="weatherNow">
+        <div class="weatherNowIconWrap">
+          <img v-if="weatherIconSrc" :src="weatherIconSrc" alt="" class="weatherNowIcon" />
+          <span v-else class="weatherNowEmoji">{{ weatherEmoji }}</span>
+        </div>
+        <div class="weatherNowMeta">
+          <p class="miniLabel">Počasie teraz</p>
+          <p class="weatherTemp">{{ weatherNowTemperature }}</p>
+          <p class="weatherText">
+            {{ weatherNowLabel }}
+            <span v-if="weatherNowApparent"> · Pocitovo {{ weatherNowApparent }}</span>
+            <span v-if="weatherNowWind"> · Vietor {{ weatherNowWind }}</span>
+          </p>
+        </div>
+      </section>
     </header>
 
     <div v-if="authPending" class="state">Načítavam...</div>
     <div v-else-if="!isAuthenticated" class="state">
       <p>Widget je dostupný po prihlásení.</p>
-      <button type="button" @click="goToLogin">Prihlásiť sa</button>
+      <button class="btn" type="button" @click="goToLogin">Prihlásiť sa</button>
     </div>
     <div v-else-if="!hasLocationCoords" class="state">
       <p>Chýbajú súradnice lokality.</p>
-      <button type="button" @click="goToProfileLocation">Nastaviť lokalitu</button>
+      <button class="btn" type="button" @click="goToProfileLocation">Nastaviť lokalitu</button>
     </div>
     <div v-else-if="loading" class="state">Načítavam dáta...</div>
 
     <div v-else class="body">
-      <div class="modes">
-        <button v-for="option in modeOptions" :key="option.key" class="modeBtn" :class="{ isActive: selectedMode === option.key }" @click="setMode(option.key)">
-          {{ option.label }}
-        </button>
-      </div>
-
-      <div v-if="error" class="notice">
+      <div v-if="error" class="notice error">
         <p>{{ error }}</p>
-        <button type="button" @click="fetchSummary">Skúsiť znova</button>
+        <button class="btnGhost" type="button" @click="fetchSummary">Skúsiť znova</button>
       </div>
-      <p v-if="skyWarning" class="infoNotice">{{ skyWarning }}</p>
 
-      <section class="panel">
-        <p class="row"><span>Observing Index</span><strong>{{ observingIndexLabel }}</strong></p>
-        <div class="bar"><span class="fill" :style="indexProgressStyle"></span></div>
-        <p class="row"><span class="chip" :class="badgeFromLabel(overallStatusLabel)">{{ overallStatusLabel }}</span><span>{{ primaryReason }}</span></p>
+      <section class="primaryGrid">
+        <article class="panel strong">
+          <p class="miniLabel">Index pozorovania</p>
+          <p class="indexValue">{{ observingIndexLabel }}</p>
+          <div class="bar" role="progressbar" :aria-valuenow="observingIndexForAria" aria-valuemin="0" aria-valuemax="100">
+            <span class="fill" :style="indexProgressStyle"></span>
+          </div>
+          <p class="statusRow">
+            <span class="chip" :class="badgeFromLabel(overallStatusLabel)">{{ overallStatusLabel }}</span>
+            <span>{{ primaryReason }}</span>
+          </p>
+        </article>
+
+        <article class="panel">
+          <p class="miniLabel">Najlepší čas dnes</p>
+          <p class="bestLine">{{ bestTimeLine }}</p>
+          <p v-if="bestTimeIsWeak" class="muted">Relatívne najlepšie v rámci dneška.</p>
+          <p v-if="bestTimeIsWeak" class="chip isWarn weakChip">Dnes celkovo slabšie podmienky</p>
+        </article>
       </section>
 
-      <section class="panel">
-        <p class="row"><span>Najlepší čas dnes</span><strong>{{ bestTimeLine }}</strong></p>
-        <p v-if="bestTimeIsWeak" class="row"><span class="chip isWarn">Dnes celkovo slabšie podmienky</span><span>Relatívne najlepšie v rámci dneška</span></p>
+      <section class="metricsGrid">
+        <article class="metric">
+          <p class="metricLabel">Oblačnosť</p>
+          <p class="metricValue">{{ cloudChipValue }}</p>
+        </article>
+        <article class="metric">
+          <p class="metricLabel">Vlhkosť</p>
+          <p class="metricValue">{{ humidityChipValue }}</p>
+        </article>
+        <article class="metric">
+          <p class="metricLabel">Mesiac</p>
+          <p class="metricValue">{{ moonChipValue }}</p>
+        </article>
+        <article class="metric">
+          <p class="metricLabel">Seeing proxy</p>
+          <p class="metricValue">{{ seeingDisplay }}</p>
+        </article>
       </section>
 
-      <section class="chips">
-        <span class="chip" :class="humidityChipClass">Vlhkosť: {{ humidityChipValue }}</span>
-        <span class="chip" :class="cloudChipClass">Oblačnosť: {{ cloudChipValue }}</span>
-        <span class="chip" :class="moonBadge">Mesiac: {{ moonChipValue }}</span>
-        <span class="chip" :class="badgeForSun(observeSummary?.sun?.status)">Tma: {{ sunStatusLabel(observeSummary?.sun?.status) }}</span>
-      </section>
-
-      <details class="panel">
-        <summary>Upozornenia ({{ additionalAlerts.length }})</summary>
-        <ul v-if="additionalAlerts.length > 0" class="alerts">
+      <section v-if="additionalAlerts.length > 0" class="panel">
+        <p class="miniLabel">Upozornenia</p>
+        <ul class="alerts">
           <li v-for="(alert, index) in additionalAlerts" :key="`${alert.code || 'alert'}-${index}`">
             <span class="chip" :class="badgeFromAlertLevel(alert.level)">{{ alertLevelLabel(alert.level) }}</span>
-            <span>{{ alert.message || 'Nedostupné' }}</span>
+            <span>{{ alert.message }}</span>
           </li>
         </ul>
-        <p v-else>Žiadne ďalšie upozornenia.</p>
-      </details>
+      </section>
 
       <details class="panel">
         <summary>24h trend ({{ hasGraphData ? 'dostupný' : 'nedostupný' }})</summary>
         <div v-if="hasGraphData" class="graphWrap">
           <svg class="graph" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <line v-if="sunsetMarkerX !== null" :x1="sunsetMarkerX" y1="6" :x2="sunsetMarkerX" y2="94" class="marker" />
-            <line v-if="twilightMarkerX !== null" :x1="twilightMarkerX" y1="6" :x2="twilightMarkerX" y2="94" class="marker marker2" />
-            <line v-if="sunriseMarkerX !== null" :x1="sunriseMarkerX" y1="6" :x2="sunriseMarkerX" y2="94" class="marker marker3" />
-            <path :d="humidityPath" class="line h" />
-            <path :d="cloudPath" class="line c" />
-            <path :d="moonPath" class="line m" />
+            <line v-if="sunsetMarkerX !== null" :x1="sunsetMarkerX" y1="6" :x2="sunsetMarkerX" y2="94" class="marker markerSunset" />
+            <line v-if="twilightMarkerX !== null" :x1="twilightMarkerX" y1="6" :x2="twilightMarkerX" y2="94" class="marker markerTwilight" />
+            <line v-if="sunriseMarkerX !== null" :x1="sunriseMarkerX" y1="6" :x2="sunriseMarkerX" y2="94" class="marker markerSunrise" />
+            <path :d="humidityPath" class="line humidityLine" />
+            <path :d="cloudPath" class="line cloudLine" />
           </svg>
-          <p class="legend">Vlhkosť (%) · Oblačnosť (%) · Mesiac (alt.)</p>
-          <p class="legend" v-if="timelineMarkers.length > 0">
+          <p class="legend">Vlhkosť (%) · Oblačnosť (%)</p>
+          <p v-if="timelineMarkers.length > 0" class="legend">
             <span v-for="marker in timelineMarkers" :key="marker.label">{{ marker.label }}: {{ marker.time }}</span>
           </p>
         </div>
-        <p v-else>24h trend je dočasne nedostupný.</p>
-        <p class="row"><span>Seeing</span><strong>{{ seeingDisplay }}</strong></p>
-        <p class="row"><span>PM2.5 / PM10</span><strong>{{ pmDisplay }}</strong></p>
+        <p v-else class="muted">24h trend je dočasne nedostupný.</p>
       </details>
 
-      <section class="panel">
-        <h4>Detaily</h4>
-        <p class="row"><span>Moonrise / Moonset</span><strong>{{ moonRiseSetText }}</strong></p>
-        <p v-if="moonRiseSetReason" class="row"><span>Dôvod</span><strong>{{ moonRiseSetReason }}</strong></p>
-        <p class="row"><span>Fáza</span><strong>{{ moonPhaseLabel }}</strong></p>
-        <p class="row"><span>Osvietenie</span><strong>{{ moonIllumination }}</strong></p>
-        <p class="row"><span>PM2.5 / PM10</span><strong>{{ pmDisplay }}</strong></p>
-      </section>
-
-      <section v-if="planets.length > 0" class="panel">
-        <h4>Planéty</h4>
-        <article v-for="planet in planets.slice(0, 3)" :key="planet.key" class="item">
-          <p class="row"><strong>{{ planet.name }}</strong><span>{{ localizeDirection(planet.direction) }}</span></p>
-          <p class="row"><span>Najlepšie</span><strong>{{ planet.best_from }} - {{ planet.best_to }}</strong></p>
-        </article>
-      </section>
-
-      <section v-if="meteors.length > 0" class="panel">
-        <h4>Aktívne meteory</h4>
-        <article v-for="shower in meteors" :key="shower.id" class="item">
-          <p class="row"><strong>{{ shower.name }}</strong><span class="chip isOk">aktívny</span></p>
-          <p class="row"><span>Peak</span><strong>{{ shower.peak_date }} ({{ signedDays(shower.peak_in_days) }})</strong></p>
-        </article>
+      <section v-if="detailRows.length > 0" class="panel">
+        <p class="miniLabel">Detaily</p>
+        <p v-for="detail in detailRows" :key="detail.key" class="detailRow">
+          <span>{{ detail.label }}</span>
+          <strong>{{ detail.value }}</strong>
+        </p>
       </section>
     </div>
   </section>
@@ -139,22 +141,13 @@ const props = defineProps({
   locationName: { type: String, default: '' },
 })
 
-const modeOptions = [
-  { key: 'deep_sky', label: 'Deep Sky' },
-  { key: 'planets', label: 'Planéty' },
-  { key: 'meteors', label: 'Meteory' },
-]
-
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
 const observeSummary = ref(null)
-const skySummary = ref(null)
 const loading = ref(false)
 const error = ref('')
-const skyWarning = ref('')
-const selectedMode = ref('deep_sky')
 let debounceTimer = null
 let requestCounter = 0
 
@@ -163,9 +156,7 @@ const numericLon = computed(() => toNumber(props.lon))
 const hasLocationCoords = computed(() => Number.isFinite(numericLat.value) && Number.isFinite(numericLon.value))
 const isAuthenticated = computed(() => auth.isAuthed)
 const authPending = computed(() => !auth.initialized)
-const locationLabel = computed(() => (props.locationName || 'Nezvolená lokalita'))
-const planets = computed(() => (Array.isArray(skySummary.value?.planets) ? skySummary.value.planets : []))
-const meteors = computed(() => (Array.isArray(skySummary.value?.meteors) ? skySummary.value.meteors : []))
+const locationLabel = computed(() => cleanString(props.locationName) || 'Nezvolená lokalita')
 const alerts = computed(() => (Array.isArray(observeSummary.value?.alerts) ? observeSummary.value.alerts : []))
 
 const observingIndex = computed(() => {
@@ -173,13 +164,20 @@ const observingIndex = computed(() => {
   return raw === null ? null : Math.max(0, Math.min(100, Math.round(raw)))
 })
 const observingIndexLabel = computed(() => (observingIndex.value === null ? '-' : String(observingIndex.value)))
-const indexProgressStyle = computed(() => ({ width: `${observingIndex.value ?? 0}%` }))
-
+const observingIndexForAria = computed(() => observingIndex.value ?? 0)
+const indexProgressStyle = computed(() => ({ width: `${observingIndexForAria.value}%` }))
 const overallStatusLabel = computed(() => normalizeStatusLabel(observeSummary.value?.overall?.label))
-const primaryReason = computed(() => cleanString(observeSummary.value?.overall?.reason) || cleanString(alerts.value[0]?.message) || 'Bez doplňujúceho dôvodu.')
+
+const primaryReason = computed(() => {
+  const reason = cleanString(observeSummary.value?.overall?.reason)
+  if (reason) return reason
+  return cleanString(alerts.value[0]?.message) || 'Bez doplňujúceho dôvodu.'
+})
+
 const additionalAlerts = computed(() => {
   const primary = normalizeMessage(primaryReason.value)
   const seen = new Set()
+
   return alerts.value.filter((alert) => {
     const message = cleanString(alert?.message)
     if (!message) return false
@@ -193,77 +191,71 @@ const additionalAlerts = computed(() => {
 const bestTimeLine = computed(() => {
   const time = cleanString(observeSummary.value?.best_time_local)
   if (!time) return 'Nedostupné'
+
   const index = asFiniteNumber(observeSummary.value?.best_time_index)
-  const reason = cleanString(observeSummary.value?.best_time_reason)
-  const suffix = index !== null && index < 60
-    ? `Relatívne najlepšie: ${reason || 'nižšia oblačnosť, viac tmy.'}`
-    : (reason || 'Najlepšia dostupná kombinácia faktorov.')
-  return `${time}${index === null ? '' : ` (${Math.round(index)}/100)`} – ${suffix}`
+  const reasonRaw = cleanString(observeSummary.value?.best_time_reason).replace(/^relatívne najlepšie:\s*/i, '')
+  const reason = reasonRaw || 'nižšia oblačnosť, viac tmy.'
+  const summary = index !== null && index < 60 ? `Relatívne najlepšie: ${reason}` : reason
+  return `${time}${index === null ? '' : ` (${Math.round(index)}/100)`} – ${summary}`
 })
+
 const bestTimeIsWeak = computed(() => {
   const index = asFiniteNumber(observeSummary.value?.best_time_index)
   return index !== null && index < 60
 })
 
-const moonPhaseLabel = computed(() => translateMoonPhase(skySummary.value?.moon?.phase_name || observeSummary.value?.moon?.phase_name) || 'Nedostupné')
+const moonPhaseLabel = computed(() => translateMoonPhase(observeSummary.value?.moon?.phase_name) || 'Nedostupné')
 const moonIllumination = computed(() => {
-  const value = asFiniteNumber(skySummary.value?.moon?.illumination ?? observeSummary.value?.moon?.illumination_pct)
-  return value === null ? 'Nedostupné' : `${Math.round(value)}%`
+  const value = asFiniteNumber(observeSummary.value?.moon?.illumination_pct)
+  return value === null ? null : `${Math.round(value)}%`
 })
-const moonChipValue = computed(() => `${moonPhaseLabel.value}${moonIllumination.value === 'Nedostupné' ? '' : ` (${moonIllumination.value})`}`)
-const moonBadge = computed(() => {
-  const value = asFiniteNumber(skySummary.value?.moon?.illumination ?? observeSummary.value?.moon?.illumination_pct)
-  if (value === null) return 'isUnknown'
-  return value >= 90 ? 'isWarn' : 'isOk'
-})
-const moonRiseSetText = computed(() => {
-  const rise = cleanString(skySummary.value?.moon?.rise_local)
-  const set = cleanString(skySummary.value?.moon?.set_local)
-  return rise && set ? `${rise} / ${set}` : 'Nedostupné'
-})
-const moonRiseSetReason = computed(() => (moonRiseSetText.value === 'Nedostupné'
-  ? (skySummary.value?.moon ? 'nevychádza/nezapadá v sledovanom okne' : 'chýbajú dáta')
-  : ''))
+const moonChipValue = computed(() => (moonIllumination.value ? `${moonPhaseLabel.value} (${moonIllumination.value})` : moonPhaseLabel.value))
 
 const humidityChipValue = computed(() => pct(observeSummary.value?.atmosphere?.humidity?.evening_pct ?? observeSummary.value?.atmosphere?.humidity?.current_pct))
 const cloudChipValue = computed(() => pct(observeSummary.value?.atmosphere?.cloud_cover?.evening_pct ?? observeSummary.value?.atmosphere?.cloud_cover?.current_pct))
-const humidityChipClass = computed(() => badgeFromLabel(observeSummary.value?.atmosphere?.humidity?.label))
-const cloudChipClass = computed(() => badgeFromLabel(observeSummary.value?.atmosphere?.cloud_cover?.label))
+
 const seeingDisplay = computed(() => {
-  const score = asFiniteNumber(observeSummary.value?.atmosphere?.seeing?.score)
   const status = observeSummary.value?.atmosphere?.seeing?.status
+  const score = asFiniteNumber(observeSummary.value?.atmosphere?.seeing?.score)
   return status === 'unavailable' || score === null ? 'Nedostupné' : `${Math.round(score)} / 100`
 })
-const pmDisplay = computed(() => {
-  const pm25 = asFiniteNumber(observeSummary.value?.atmosphere?.air_quality?.pm25)
-  const pm10 = asFiniteNumber(observeSummary.value?.atmosphere?.air_quality?.pm10)
-  if (pm25 === null && pm10 === null) return 'Nedostupné (chýbajú dáta)'
-  return `${pm25 === null ? 'Nedostupné' : pm25.toFixed(1)} / ${pm10 === null ? 'Nedostupné' : pm10.toFixed(1)} µg/m³`
+
+const pm25 = computed(() => asFiniteNumber(observeSummary.value?.atmosphere?.air_quality?.pm25))
+const pm10 = computed(() => asFiniteNumber(observeSummary.value?.atmosphere?.air_quality?.pm10))
+const showPm = computed(() => pm25.value !== null || pm10.value !== null)
+const pmDisplay = computed(() => `${pm25.value === null ? 'Nedostupné' : pm25.value.toFixed(1)} / ${pm10.value === null ? 'Nedostupné' : pm10.value.toFixed(1)} µg/m³`)
+
+const detailRows = computed(() => {
+  const rows = []
+  if (moonPhaseLabel.value !== 'Nedostupné') rows.push({ key: 'moon-phase', label: 'Fáza', value: moonPhaseLabel.value })
+  if (moonIllumination.value) rows.push({ key: 'moon-illumination', label: 'Osvietenie', value: moonIllumination.value })
+  if (showPm.value) rows.push({ key: 'pm', label: 'PM2.5 / PM10', value: pmDisplay.value })
+  return rows
 })
 
 const graphSeries = computed(() => {
   const hourly = Array.isArray(observeSummary.value?.timeline?.hourly) ? observeSummary.value.timeline.hourly : []
-  const moonHourly = Array.isArray(skySummary.value?.moon?.altitude_hourly) ? skySummary.value.moon.altitude_hourly : []
-  const moonMap = new Map(moonHourly.filter((row) => typeof row?.local_time === 'string').map((row) => [row.local_time, asFiniteNumber(row.altitude_deg)]))
-  return hourly.filter((row) => typeof row?.local_time === 'string').map((row) => ({
-    local_time: row.local_time,
-    humidity_pct: asFiniteNumber(row.humidity_pct),
-    cloud_cover_pct: asFiniteNumber(row.cloud_cover_pct),
-    moon_altitude_deg: moonMap.get(row.local_time),
-  }))
+  return hourly
+    .filter((row) => typeof row?.local_time === 'string')
+    .map((row) => ({
+      local_time: row.local_time,
+      humidity_pct: asFiniteNumber(row.humidity_pct),
+      cloud_cover_pct: asFiniteNumber(row.cloud_cover_pct),
+      moon_altitude_deg: null,
+    }))
 })
+
 const hasGraphData = computed(() => graphSeries.value.length > 1)
 const humidityPath = computed(() => buildLinePath(graphSeries.value, 'humidity_pct', 'percent'))
 const cloudPath = computed(() => buildLinePath(graphSeries.value, 'cloud_cover_pct', 'percent'))
-const moonPath = computed(() => buildLinePath(graphSeries.value, 'moon_altitude_deg', 'moon'))
 const sunsetMarkerX = computed(() => markerX(observeSummary.value?.timeline?.sunset))
 const twilightMarkerX = computed(() => markerX(observeSummary.value?.timeline?.civil_twilight_end))
 const sunriseMarkerX = computed(() => markerX(observeSummary.value?.timeline?.sunrise))
-const timelineMarkers = computed(() => [
+const timelineMarkers = computed(() => ([
   { label: 'Západ Slnka', time: cleanString(observeSummary.value?.timeline?.sunset) },
   { label: 'Tma od', time: cleanString(observeSummary.value?.timeline?.civil_twilight_end) },
   { label: 'Východ Slnka', time: cleanString(observeSummary.value?.timeline?.sunrise) },
-].filter((row) => row.time))
+]).filter((marker) => marker.time))
 
 const showWeatherNowCard = computed(() => Boolean(observeSummary.value))
 const weatherNowCode = computed(() => {
@@ -287,7 +279,7 @@ const weatherIconSrc = computed(() => weatherIconByCode(weatherNowCode.value))
 const weatherEmoji = computed(() => weatherEmojiByCode(weatherNowCode.value))
 
 watch(
-  () => [props.lat, props.lon, props.date, props.tz, auth.initialized, auth.isAuthed, selectedMode.value],
+  () => [props.lat, props.lon, props.date, props.tz, auth.initialized, auth.isAuthed],
   queueFetch,
   { immediate: true },
 )
@@ -301,51 +293,38 @@ function queueFetch() {
   debounceTimer = window.setTimeout(fetchSummary, 220)
 }
 
-function setMode(mode) {
-  selectedMode.value = mode === 'planets' || mode === 'meteors' ? mode : 'deep_sky'
-}
-
 async function fetchSummary() {
   if (!isAuthenticated.value || !hasLocationCoords.value) {
     observeSummary.value = null
-    skySummary.value = null
     error.value = ''
-    skyWarning.value = ''
+    loading.value = false
     return
   }
 
   const runId = ++requestCounter
   loading.value = true
   error.value = ''
-  skyWarning.value = ''
 
-  const params = {
-    lat: numericLat.value,
-    lon: numericLon.value,
-    date: safeDate(props.date),
-    tz: safeTz(props.tz),
-    mode: selectedMode.value,
-  }
+  try {
+    const response = await api.get('/observe/summary', {
+      params: {
+        lat: numericLat.value,
+        lon: numericLon.value,
+        date: safeDate(props.date),
+        tz: safeTz(props.tz),
+        mode: 'deep_sky',
+      },
+    })
 
-  const [observeResult, skyResult] = await Promise.allSettled([
-    api.get('/observe/summary', { params }),
-    api.get('/observing/sky-summary', { params }),
-  ])
-  if (runId !== requestCounter) return
-
-  observeSummary.value = observeResult.status === 'fulfilled' ? observeResult.value?.data ?? null : null
-  skySummary.value = skyResult.status === 'fulfilled' ? skyResult.value?.data ?? null : null
-  const skyMetaError = cleanString(skySummary.value?.meta?.error)
-
-  if (observeResult.status === 'rejected' && skyResult.status === 'rejected') {
-    error.value = 'Nepodarilo sa načítať astronomické podmienky ani planéty/meteory.'
-  } else if (observeResult.status === 'rejected') {
+    if (runId !== requestCounter) return
+    observeSummary.value = response?.data ?? null
+  } catch {
+    if (runId !== requestCounter) return
+    observeSummary.value = null
     error.value = 'Nepodarilo sa načítať astronomické podmienky.'
-  } else if (skyResult.status === 'rejected' || skyMetaError) {
-    skyWarning.value = 'Nepodarilo sa načítať planéty/meteory (sky microservice nedostupná).'
+  } finally {
+    if (runId === requestCounter) loading.value = false
   }
-
-  loading.value = false
 }
 
 function goToLogin() {
@@ -363,7 +342,7 @@ function safeDate(value) {
 }
 
 function safeTz(value) {
-  const candidate = typeof value === 'string' ? value.trim() : ''
+  const candidate = cleanString(value)
   if (!candidate) return 'UTC'
   try {
     Intl.DateTimeFormat('en-US', { timeZone: candidate }).format(new Date())
@@ -432,35 +411,9 @@ function badgeFromAlertLevel(level) {
   return badgeFromLabel(alertLevelLabel(level))
 }
 
-function badgeForSun(status) {
-  if (status === 'ok') return 'isOk'
-  if (status === 'continuous_day' || status === 'continuous_night') return 'isWarn'
-  return 'isUnknown'
-}
-
-function sunStatusLabel(status) {
-  if (status === 'ok') return 'OK'
-  if (status === 'continuous_day') return 'Polárny deň'
-  if (status === 'continuous_night') return 'Polárna noc'
-  return 'Nedostupné'
-}
-
 function pct(value) {
   const parsed = asFiniteNumber(value)
   return parsed === null ? 'Nedostupné' : `${Math.round(parsed)}%`
-}
-
-function signedDays(value) {
-  const parsed = asFiniteNumber(value)
-  if (parsed === null) return 'Nedostupné'
-  if (parsed === 0) return 'dnes'
-  return parsed > 0 ? `+${parsed} d` : `${parsed} d`
-}
-
-function localizeDirection(value) {
-  const dictionary = { N: 'S', NE: 'SV', E: 'V', SE: 'JV', S: 'J', SW: 'JZ', W: 'Z', NW: 'SZ' }
-  const normalized = cleanString(value).toUpperCase()
-  return dictionary[normalized] || 'Nedostupné'
 }
 
 function translateMoonPhase(value) {
@@ -483,21 +436,25 @@ function buildLinePath(series, field, kind) {
   if (!Array.isArray(series) || series.length < 2) return ''
   let path = ''
   let started = false
+
   series.forEach((point, index) => {
     const raw = asFiniteNumber(point?.[field])
     if (raw === null) {
       started = false
       return
     }
+
     const x = xPoint(index, series.length)
     const y = yPoint(raw, kind)
     if (!Number.isFinite(y)) {
       started = false
       return
     }
+
     path += started ? ` L ${x} ${y}` : `M ${x} ${y}`
     started = true
   })
+
   return path
 }
 
@@ -567,43 +524,338 @@ function weatherEmojiByCode(code) {
 </script>
 
 <style scoped>
-.card { border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25); border-radius: 1rem; padding: 0.9rem; display: grid; gap: 0.7rem; }
-.head { display: grid; gap: 0.2rem; }
-h3 { margin: 0; font-size: 1rem; }
-.location { margin: 0; font-size: 0.78rem; color: rgb(var(--color-text-secondary-rgb) / 0.9); }
-.weatherNow { border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25); border-radius: 0.8rem; padding: 0.45rem; display: grid; grid-template-columns: auto 1fr; gap: 0.45rem; }
-.weatherIcon { width: 1.4rem; height: 1.4rem; }
-.weatherEmoji { font-size: 1.2rem; line-height: 1.2rem; }
-.miniTitle { margin: 0; font-size: 0.66rem; text-transform: uppercase; color: rgb(var(--color-text-secondary-rgb) / 0.9); }
-.temp { margin: 0; font-size: 0.9rem; font-weight: 700; }
-.meta { margin: 0; font-size: 0.72rem; color: rgb(var(--color-text-secondary-rgb) / 0.95); }
-.state, .body { display: grid; gap: 0.6rem; }
-.modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.3rem; }
-.modeBtn { border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35); border-radius: 0.6rem; padding: 0.3rem; font-size: 0.7rem; background: transparent; }
-.modeBtn.isActive { border-color: rgb(var(--color-primary-rgb) / 0.7); }
-.panel { border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22); border-radius: 0.85rem; padding: 0.6rem; display: grid; gap: 0.36rem; }
-.row { margin: 0; display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.78rem; }
-.bar { width: 100%; height: 0.6rem; border-radius: 999px; overflow: hidden; background: rgb(var(--color-text-secondary-rgb) / 0.15); }
-.fill { display: block; height: 100%; background: linear-gradient(90deg, rgb(34 197 94 / 0.8), rgb(59 130 246 / 0.8)); }
-.chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.chip { border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32); border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.68rem; }
-.alerts { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.3rem; }
-.alerts li { display: flex; gap: 0.4rem; align-items: flex-start; }
-.graph { width: 100%; height: 90px; background: rgb(var(--color-text-secondary-rgb) / 0.08); border-radius: 0.5rem; }
-.line { fill: none; stroke-width: 2; }
-.line.h { stroke: rgb(45 212 191 / 0.95); }
-.line.c { stroke: rgb(251 191 36 / 0.95); }
-.line.m { stroke: rgb(167 139 250 / 0.95); }
-.marker { stroke: rgb(244 114 182 / 0.9); stroke-width: 1.4; stroke-dasharray: 2 2; }
-.marker2 { stroke: rgb(34 197 94 / 0.9); }
-.marker3 { stroke: rgb(96 165 250 / 0.9); }
-.legend { margin: 0; display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; font-size: 0.68rem; color: rgb(var(--color-text-secondary-rgb) / 0.9); }
-.item { border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.15); padding-top: 0.35rem; display: grid; gap: 0.2rem; }
-.notice p, .infoNotice { margin: 0; font-size: 0.74rem; }
-.notice p { color: rgb(251 113 133 / 0.95); }
-.infoNotice { color: rgb(186 230 253 / 0.98); border: 1px solid rgb(56 189 248 / 0.3); border-radius: 0.6rem; padding: 0.4rem 0.5rem; }
-.isOk { color: rgb(167 243 208); border-color: rgb(34 197 94 / 0.55); background: rgb(22 163 74 / 0.18); }
-.isWarn { color: rgb(254 240 138); border-color: rgb(234 179 8 / 0.58); background: rgb(202 138 4 / 0.18); }
-.isBad { color: rgb(254 202 202); border-color: rgb(244 63 94 / 0.62); background: rgb(190 24 93 / 0.2); }
-.isUnknown { color: rgb(var(--color-text-secondary-rgb) / 0.96); border-color: rgb(var(--color-text-secondary-rgb) / 0.3); background: rgb(var(--color-bg-rgb) / 0.45); }
+.card {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  border-radius: 1.2rem;
+  padding: 0.95rem;
+  background: linear-gradient(180deg, rgb(var(--color-bg-rgb) / 0.85), rgb(var(--color-bg-rgb) / 0.66));
+  backdrop-filter: blur(8px);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr minmax(170px, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.location {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.weatherNow {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  border-radius: 0.95rem;
+  padding: 0.48rem;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.45rem;
+  background: rgb(var(--color-text-secondary-rgb) / 0.06);
+}
+
+.weatherNowIconWrap {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.6rem;
+  background: rgb(var(--color-text-secondary-rgb) / 0.12);
+  display: grid;
+  place-items: center;
+}
+
+.weatherNowIcon {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.weatherNowEmoji {
+  font-size: 1.2rem;
+}
+
+.miniLabel {
+  margin: 0;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+}
+
+.weatherTemp {
+  margin: 0.04rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.weatherText {
+  margin: 0.08rem 0 0;
+  font-size: 0.72rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.94);
+}
+
+.state,
+.body {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.btn,
+.btnGhost {
+  width: fit-content;
+  border-radius: 0.75rem;
+  padding: 0.42rem 0.68rem;
+  font-size: 0.76rem;
+}
+
+.btn {
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
+  background: rgb(var(--color-primary-rgb) / 0.15);
+  color: var(--color-surface);
+}
+
+.btnGhost {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  background: rgb(var(--color-text-secondary-rgb) / 0.08);
+  color: var(--color-surface);
+}
+
+.notice {
+  margin: 0;
+  border-radius: 0.8rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.75rem;
+}
+
+.notice.error {
+  border: 1px solid rgb(251 113 133 / 0.35);
+  color: rgb(251 113 133 / 0.95);
+  background: rgb(190 24 93 / 0.1);
+}
+
+.primaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.panel {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  border-radius: 0.95rem;
+  padding: 0.62rem;
+  display: grid;
+  gap: 0.36rem;
+  background: rgb(var(--color-text-secondary-rgb) / 0.045);
+}
+
+.panel.strong {
+  border-color: rgb(var(--color-primary-rgb) / 0.28);
+}
+
+.indexValue {
+  margin: 0;
+  font-size: 1.42rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.bar {
+  width: 100%;
+  height: 0.56rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgb(var(--color-text-secondary-rgb) / 0.15);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, rgb(34 197 94 / 0.8), rgb(59 130 246 / 0.8));
+}
+
+.statusRow {
+  margin: 0;
+  display: flex;
+  gap: 0.42rem;
+  align-items: flex-start;
+  font-size: 0.74rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.bestLine {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.38;
+}
+
+.weakChip {
+  width: fit-content;
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+
+.metric {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
+  border-radius: 0.82rem;
+  padding: 0.46rem;
+  background: rgb(var(--color-text-secondary-rgb) / 0.04);
+}
+
+.metricLabel,
+.metricValue {
+  margin: 0;
+}
+
+.metricLabel {
+  font-size: 0.68rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.84);
+}
+
+.metricValue {
+  margin-top: 0.14rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.alerts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.alerts li {
+  display: flex;
+  gap: 0.42rem;
+  align-items: flex-start;
+  font-size: 0.74rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.graphWrap {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.graph {
+  width: 100%;
+  height: 94px;
+  border-radius: 0.56rem;
+  background: rgb(var(--color-text-secondary-rgb) / 0.08);
+}
+
+.line {
+  fill: none;
+  stroke-width: 2;
+}
+
+.humidityLine {
+  stroke: rgb(45 212 191 / 0.95);
+}
+
+.cloudLine {
+  stroke: rgb(251 191 36 / 0.95);
+}
+
+.marker {
+  stroke-width: 1.4;
+  stroke-dasharray: 2 2;
+}
+
+.markerSunset {
+  stroke: rgb(244 114 182 / 0.9);
+}
+
+.markerTwilight {
+  stroke: rgb(34 197 94 / 0.9);
+}
+
+.markerSunrise {
+  stroke: rgb(96 165 250 / 0.9);
+}
+
+.legend {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem 0.6rem;
+  font-size: 0.68rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.detailRow {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.detailRow strong {
+  text-align: right;
+}
+
+.muted {
+  margin: 0;
+  font-size: 0.74rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.isOk {
+  color: rgb(167 243 208);
+  border-color: rgb(34 197 94 / 0.55);
+  background: rgb(22 163 74 / 0.18);
+}
+
+.isWarn {
+  color: rgb(254 240 138);
+  border-color: rgb(234 179 8 / 0.58);
+  background: rgb(202 138 4 / 0.18);
+}
+
+.isBad {
+  color: rgb(254 202 202);
+  border-color: rgb(244 63 94 / 0.62);
+  background: rgb(190 24 93 / 0.2);
+}
+
+.isUnknown {
+  color: rgb(var(--color-text-secondary-rgb) / 0.96);
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: rgb(var(--color-bg-rgb) / 0.45);
+}
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .primaryGrid,
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

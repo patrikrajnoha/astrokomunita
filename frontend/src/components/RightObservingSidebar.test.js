@@ -44,7 +44,7 @@ function observePayload(overrides = {}) {
     ],
     best_time_local: '23:00',
     best_time_index: 52,
-    best_time_reason: 'nižšia oblačnosť, viac tmy.',
+    best_time_reason: 'Relatívne najlepšie: nižšia oblačnosť, viac tmy.',
     sun: {
       status: 'ok',
       sunset: '17:10',
@@ -53,8 +53,8 @@ function observePayload(overrides = {}) {
       civil_twilight_begin: '06:40',
     },
     moon: {
-      phase_name: 'Full moon',
-      illumination_pct: 91,
+      phase_name: 'Waxing crescent',
+      illumination_pct: 18,
     },
     atmosphere: {
       humidity: { current_pct: 85, evening_pct: 88, status: 'ok', label: 'Pozor' },
@@ -84,25 +84,6 @@ function observePayload(overrides = {}) {
   }
 }
 
-function skyPayload(overrides = {}) {
-  return {
-    planets: [],
-    meteors: [],
-    moon: {
-      phase_name: 'Full moon',
-      illumination: 91,
-      rise_local: '18:00',
-      set_local: '06:00',
-      altitude_hourly: [
-        { local_time: '18:00', altitude_deg: 10.0 },
-        { local_time: '19:00', altitude_deg: 18.5 },
-        { local_time: '20:00', altitude_deg: 26.1 },
-      ],
-    },
-    ...overrides,
-  }
-}
-
 describe('RightObservingSidebar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -110,34 +91,23 @@ describe('RightObservingSidebar', () => {
     authMock.initialized = true
   })
 
-  it('toggles observing mode and sends mode query param', async () => {
-    getMock.mockImplementation((url, { params }) => {
-      if (url === '/observe/summary') return Promise.resolve({ data: observePayload({ observing_mode: params.mode }) })
-      return Promise.resolve({ data: skyPayload() })
-    })
+  it('fetches only observe summary in deep-sky mode', async () => {
+    getMock.mockResolvedValue({ data: observePayload() })
 
-    const wrapper = mount(RightObservingSidebar, {
+    mount(RightObservingSidebar, {
       props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
     })
 
     await wait()
+
+    expect(getMock).toHaveBeenCalledTimes(1)
     expect(getMock).toHaveBeenCalledWith('/observe/summary', expect.objectContaining({
       params: expect.objectContaining({ mode: 'deep_sky' }),
-    }))
-
-    await wrapper.findAll('.modeBtn')[1].trigger('click')
-    await wait()
-
-    expect(getMock).toHaveBeenCalledWith('/observe/summary', expect.objectContaining({
-      params: expect.objectContaining({ mode: 'planets' }),
     }))
   })
 
   it('renders weather now card when weather_now exists', async () => {
-    getMock.mockImplementation((url) => {
-      if (url === '/observe/summary') return Promise.resolve({ data: observePayload() })
-      return Promise.resolve({ data: skyPayload() })
-    })
+    getMock.mockResolvedValue({ data: observePayload() })
 
     const wrapper = mount(RightObservingSidebar, {
       props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
@@ -150,27 +120,8 @@ describe('RightObservingSidebar', () => {
     expect(wrapper.text()).toContain('Polojasno')
   })
 
-  it('shows unavailable fallback for weather now when weather_now is missing', async () => {
-    getMock.mockImplementation((url) => {
-      if (url === '/observe/summary') return Promise.resolve({ data: observePayload({ weather_now: null }) })
-      return Promise.resolve({ data: skyPayload() })
-    })
-
-    const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
-    })
-
-    await wait()
-
-    expect(wrapper.text()).toContain('Počasie teraz')
-    expect(wrapper.text()).toContain('Nedostupné')
-  })
-
-  it('does not render technical warn/severe labels in UI', async () => {
-    getMock.mockImplementation((url) => {
-      if (url === '/observe/summary') return Promise.resolve({ data: observePayload() })
-      return Promise.resolve({ data: skyPayload() })
-    })
+  it('does not show sky microservice warning and does not use warn/severe labels', async () => {
+    getMock.mockResolvedValue({ data: observePayload() })
 
     const wrapper = mount(RightObservingSidebar, {
       props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
@@ -182,5 +133,40 @@ describe('RightObservingSidebar', () => {
     expect(wrapper.text()).toContain('Zlé')
     expect(wrapper.text()).not.toContain('warn')
     expect(wrapper.text()).not.toContain('severe')
+    expect(wrapper.text()).not.toContain('Nepodarilo sa načítať planéty/meteory')
+  })
+
+  it('keeps best-time sentence clean without duplicated prefix', async () => {
+    getMock.mockResolvedValue({ data: observePayload() })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Relatívne najlepšie: nižšia oblačnosť, viac tmy.')
+    expect(wrapper.text()).not.toContain('Relatívne najlepšie: Relatívne najlepšie:')
+  })
+
+  it('hides PM rows when PM data is unavailable', async () => {
+    getMock.mockResolvedValue({
+      data: observePayload({
+        atmosphere: {
+          humidity: { current_pct: 85, evening_pct: 88, status: 'ok', label: 'Pozor' },
+          cloud_cover: { current_pct: 67, evening_pct: 82, status: 'ok', label: 'Zlé' },
+          seeing: { score: 44, status: 'ok' },
+          air_quality: { pm25: null, pm10: null, status: 'unavailable' },
+        },
+      }),
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).not.toContain('PM2.5 / PM10')
   })
 })
