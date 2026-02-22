@@ -242,7 +242,8 @@ Route::get('/contests/{contest}/participants', [ContestController::class, 'parti
 */
 Route::get('/recommendations/users', [RecommendationController::class, 'users'])
     ->middleware(['auth:sanctum', 'active', 'verified']);
-Route::get('/recommendations/posts', [RecommendationController::class, 'posts']);
+Route::get('/recommendations/posts', [RecommendationController::class, 'posts'])
+    ->middleware(['auth:sanctum', 'active', 'verified']);
 
 /*
 |--------------------------------------------------------------------------

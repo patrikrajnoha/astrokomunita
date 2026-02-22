@@ -6,6 +6,7 @@ use App\Models\Post;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -47,5 +48,36 @@ class UserPostsRelationTest extends TestCase
                 'id' => $recommended->id,
                 'username' => $recommended->username,
             ]);
+    }
+
+    public function test_recommendations_endpoints_require_authentication(): void
+    {
+        $this->getJson('/api/recommendations/users')->assertStatus(401);
+        $this->getJson('/api/recommendations/posts')->assertStatus(401);
+    }
+
+    public function test_recommendations_endpoints_are_available_for_authenticated_users(): void
+    {
+        $viewer = User::factory()->create();
+        $author = User::factory()->create();
+
+        $post = Post::factory()->for($author)->create([
+            'parent_id' => null,
+            'is_hidden' => false,
+            'moderation_status' => 'ok',
+            'created_at' => now()->subHour(),
+        ]);
+        DB::table('post_likes')->insert([
+            'user_id' => $viewer->id,
+            'post_id' => $post->id,
+            'created_at' => now(),
+        ]);
+
+        Sanctum::actingAs($viewer);
+
+        $this->getJson('/api/recommendations/users')
+            ->assertOk();
+        $this->getJson('/api/recommendations/posts')
+            ->assertOk();
     }
 }
