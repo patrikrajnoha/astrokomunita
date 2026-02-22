@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
-use App\Models\EventCandidate;
+use App\Services\Events\PublishedEventQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 
 class EventWidgetController extends Controller
 {
+    public function __construct(
+        private readonly PublishedEventQuery $publishedEventQuery,
+    ) {
+    }
+
     public function upcoming(): JsonResponse
     {
         $ttlSeconds = max((int) config('widgets.upcoming_events.cache_ttl_seconds', 120), 1);
@@ -41,17 +46,6 @@ class EventWidgetController extends Controller
 
     private function basePublishedQuery()
     {
-        return Event::query()
-            ->where('visibility', 1)
-            ->published()
-            ->where(function ($sub) {
-                $sub->where('source_name', 'manual')
-                    ->orWhereExists(function ($q) {
-                        $q->selectRaw('1')
-                            ->from('event_candidates')
-                            ->whereColumn('event_candidates.published_event_id', 'events.id')
-                            ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
-                    });
-            });
+        return $this->publishedEventQuery->base();
     }
 }
