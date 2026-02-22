@@ -13,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class EventInviteService
 {
+    private const TOKEN_TTL_DAYS = 14;
+
     public function __construct(
         private readonly NotificationService $notifications,
         private readonly UserActivityService $activityService,
@@ -53,6 +55,7 @@ class EventInviteService
                 'message' => isset($payload['message']) ? trim((string) $payload['message']) : null,
                 'status' => EventInviteStatus::Pending,
                 'token' => $this->generateToken(),
+                'token_expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
             ]);
 
             if ($invite->invitee_user_id) {
@@ -154,7 +157,15 @@ class EventInviteService
                 EventInviteStatus::Accepted->value,
                 EventInviteStatus::Declined->value,
             ])
-            ->with(['event', 'inviter', 'invitee'])
+            ->where(function ($query): void {
+                $query
+                    ->where('token_expires_at', '>=', now())
+                    ->orWhere(function ($fallback): void {
+                        $fallback->whereNull('token_expires_at')
+                            ->where('created_at', '>=', now()->subDays(self::TOKEN_TTL_DAYS));
+                    });
+            })
+            ->with(['event', 'inviter'])
             ->first();
     }
 

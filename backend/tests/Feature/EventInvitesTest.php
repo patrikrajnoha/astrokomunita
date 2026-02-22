@@ -45,7 +45,8 @@ class EventInvitesTest extends TestCase
             ->assertJsonPath('data.inviter_user_id', $inviter->id)
             ->assertJsonPath('data.invitee_user_id', $invitee->id)
             ->assertJsonPath('data.attendee_name', 'Marek Hvezdar')
-            ->assertJsonPath('data.status', EventInviteStatus::Pending->value);
+            ->assertJsonPath('data.status', EventInviteStatus::Pending->value)
+            ->assertJsonMissingPath('data.token');
 
         $this->assertDatabaseHas('event_invites', [
             'event_id' => $event->id,
@@ -217,13 +218,16 @@ class EventInvitesTest extends TestCase
             'attendee_name' => 'Lucia',
             'status' => EventInviteStatus::Pending,
             'token' => 'public-token-xyz',
+            'token_expires_at' => now()->addDays(3),
         ]);
 
         $this->getJson('/api/invites/public/public-token-xyz')
             ->assertOk()
             ->assertJsonPath('data.id', $invite->id)
             ->assertJsonPath('data.status', EventInviteStatus::Pending->value)
-            ->assertJsonPath('data.event.id', $event->id);
+            ->assertJsonPath('data.event.id', $event->id)
+            ->assertJsonMissingPath('data.invitee_email')
+            ->assertJsonMissingPath('data.token');
 
         $invite->status = EventInviteStatus::Accepted;
         $invite->responded_at = now();
@@ -231,7 +235,29 @@ class EventInvitesTest extends TestCase
 
         $this->getJson('/api/invites/public/public-token-xyz')
             ->assertOk()
-            ->assertJsonPath('data.status', EventInviteStatus::Accepted->value);
+            ->assertJsonPath('data.status', EventInviteStatus::Accepted->value)
+            ->assertJsonMissingPath('data.invitee_email')
+            ->assertJsonMissingPath('data.token');
+    }
+
+    public function test_public_token_endpoint_returns_404_for_expired_token(): void
+    {
+        $inviter = User::factory()->create();
+        $event = $this->createEvent('Expired invite event');
+
+        EventInvite::query()->create([
+            'event_id' => $event->id,
+            'inviter_user_id' => $inviter->id,
+            'invitee_user_id' => null,
+            'invitee_email' => 'invitee@example.com',
+            'attendee_name' => 'Nina',
+            'status' => EventInviteStatus::Pending,
+            'token' => 'expired-public-token',
+            'token_expires_at' => now()->subMinute(),
+        ]);
+
+        $this->getJson('/api/invites/public/expired-public-token')
+            ->assertNotFound();
     }
 
     private function createEvent(string $title = 'Meteor shower'): Event

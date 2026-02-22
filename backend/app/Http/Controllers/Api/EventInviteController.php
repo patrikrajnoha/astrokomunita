@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Enums\EventInviteStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\EventInviteResource;
+use App\Http\Resources\PublicEventInviteResource;
 use App\Models\Event;
 use App\Models\EventInvite;
 use App\Services\EventInviteService;
@@ -93,6 +94,6 @@ class EventInviteController extends Controller
         $invite = $this->service->findPublicByToken($token);
         abort_unless($invite, 404);
 
-        return new EventInviteResource($invite);
+        return new PublicEventInviteResource($invite);
     }
 }
