@@ -17,6 +17,7 @@ class EventInvite extends Model
         'message',
         'status',
         'token',
+        'token_expires_at',
         'responded_at',
     ];
 
@@ -27,6 +28,7 @@ class EventInvite extends Model
             'inviter_user_id' => 'integer',
             'invitee_user_id' => 'integer',
             'status' => EventInviteStatus::class,
+            'token_expires_at' => 'datetime',
             'responded_at' => 'datetime',
         ];
     }
