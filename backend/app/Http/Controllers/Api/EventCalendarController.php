@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Event;
-use App\Models\EventCandidate;
 use App\Services\EventIcsService;
+use App\Services\Events\PublishedEventQuery;
 use Illuminate\Http\Response;
 
 class EventCalendarController extends Controller
 {
     public function __construct(
         private readonly EventIcsService $icsService,
+        private readonly PublishedEventQuery $publishedEventQuery,
     ) {
     }
 
@@ -33,18 +33,7 @@ class EventCalendarController extends Controller
 
     private function downloadEventIcs(int $id): Response
     {
-        $event = Event::query()
-            ->where('visibility', 1)
-            ->published()
-            ->where(function ($sub): void {
-                $sub->where('source_name', 'manual')
-                    ->orWhereExists(function ($approved): void {
-                        $approved->selectRaw('1')
-                            ->from('event_candidates')
-                            ->whereColumn('event_candidates.published_event_id', 'events.id')
-                            ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
-                    });
-            })
+        $event = $this->publishedEventQuery->base()
             ->findOrFail($id);
 
         if (! $event->start_at && ! $event->max_at) {

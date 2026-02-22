@@ -8,12 +8,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\EventIndexRequest;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
-use App\Models\EventCandidate;
+use App\Services\Events\PublishedEventQuery;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 
 class EventController extends Controller
 {
+    public function __construct(
+        private readonly PublishedEventQuery $publishedEventQuery,
+    ) {
+    }
+
     /**
      * GET /api/events
      * Filtre: type, from, to, q, per_page
@@ -180,18 +185,7 @@ class EventController extends Controller
 
     private function basePublishedQuery()
     {
-        return Event::query()
-            ->where('visibility', 1)
-            ->published()
-            ->where(function ($sub) {
-                $sub->where('source_name', 'manual')
-                    ->orWhereExists(function ($q) {
-                        $q->selectRaw('1')
-                            ->from('event_candidates')
-                            ->whereColumn('event_candidates.published_event_id', 'events.id')
-                            ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
-                    });
-            });
+        return $this->publishedEventQuery->base();
     }
 
     /**

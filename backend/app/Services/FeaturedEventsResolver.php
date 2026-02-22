@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Event;
-use App\Models\EventCandidate;
 use App\Models\MonthlyFeaturedEvent;
+use App\Services\Events\PublishedEventQuery;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
@@ -17,6 +17,7 @@ class FeaturedEventsResolver
 
     public function __construct(
         private readonly EventCalendarLinksService $calendarLinks,
+        private readonly PublishedEventQuery $publishedEventQuery,
     ) {
     }
 
@@ -202,18 +203,7 @@ class FeaturedEventsResolver
 
     private function publishedMonthEventsQuery(CarbonImmutable $monthStartUtc, CarbonImmutable $monthEndUtc): Builder
     {
-        return Event::query()
-            ->where('visibility', 1)
-            ->published()
-            ->where(function (Builder $query): void {
-                $query->where('source_name', 'manual')
-                    ->orWhereExists(function ($sub): void {
-                        $sub->selectRaw('1')
-                            ->from('event_candidates')
-                            ->whereColumn('event_candidates.published_event_id', 'events.id')
-                            ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
-                    });
-            })
+        return $this->publishedEventQuery->base()
             ->where(function (Builder $query) use ($monthStartUtc, $monthEndUtc): void {
                 $query->whereBetween('start_at', [$monthStartUtc, $monthEndUtc])
                     ->orWhere(function (Builder $sub) use ($monthStartUtc, $monthEndUtc): void {
