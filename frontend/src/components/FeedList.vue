@@ -338,8 +338,8 @@ const auth = useAuthStore()
 const bookmarks = useBookmarksStore()
 const { error: toastError, info: toastInfo } = useToast()
 const HOME_TABS = [
-  { id: 'for_you', label: 'Pre vas', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
-  { id: 'astrobot', label: 'AstroBot', tabId: 'feed-tab-astrobot', panelId: 'feed-panel-astrobot' },
+  { id: 'for_you', label: 'Komunita', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
+  { id: 'astrobot', label: 'AstroFeed', tabId: 'feed-tab-astrobot', panelId: 'feed-panel-astrobot' },
 ]
 const BOOKMARK_TABS = [{ id: 'bookmarks', label: 'Zalozky', tabId: 'feed-tab-bookmarks', panelId: 'feed-panel-bookmarks' }]
 const isBookmarksMode = computed(() => props.mode === 'bookmarks')
