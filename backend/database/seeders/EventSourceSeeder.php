@@ -24,6 +24,18 @@ class EventSourceSeeder extends Seeder
                 'base_url' => 'https://www.nasa.gov/',
                 'is_enabled' => true,
             ],
+            [
+                'key' => EventSource::NASA_WATCH_THE_SKIES->value,
+                'name' => EventSource::NASA_WATCH_THE_SKIES->label(),
+                'base_url' => 'https://science.nasa.gov/skywatching/',
+                'is_enabled' => false,
+            ],
+            [
+                'key' => EventSource::IMO->value,
+                'name' => EventSource::IMO->label(),
+                'base_url' => 'https://www.imo.net/',
+                'is_enabled' => false,
+            ],
         ];
 
         foreach ($rows as $row) {

@@ -112,6 +112,8 @@ class CrawlerOrchestrator
                 $year
             ),
             EventSource::NASA => (string) config('astrobot.nasa_rss_url', 'https://www.nasa.gov/rss/dyn/breaking_news.rss'),
+            EventSource::NASA_WATCH_THE_SKIES => (string) config('events.nasa_watch_the_skies.url', 'https://science.nasa.gov/skywatching/'),
+            EventSource::IMO => (string) config('events.imo.url', 'https://www.imo.net/'),
         };
     }
 

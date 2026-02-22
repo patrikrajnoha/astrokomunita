@@ -92,6 +92,9 @@ class EventImportService
                 'source_uid' => $sourceUid,
                 'external_id' => $sourceUid,
                 'stable_key' => $sourceUid,
+                'confidence_score' => $item->confidenceScore,
+                'canonical_key' => $this->normalizeText($item->canonicalKey),
+                'matched_sources' => $this->normalizeMatchedSources($item->matchedSources),
                 'source_hash' => $sourceHash,
 
                 'title' => $title,
@@ -321,5 +324,29 @@ class EventImportService
         }
 
         return true;
+    }
+
+    /**
+     * @param array<int,mixed>|null $matchedSources
+     * @return array<int,string>|null
+     */
+    private function normalizeMatchedSources(?array $matchedSources): ?array
+    {
+        if ($matchedSources === null) {
+            return null;
+        }
+
+        $normalized = array_values(array_unique(array_filter(array_map(
+            static fn (mixed $item): string => strtolower(trim((string) $item)),
+            $matchedSources
+        ), static fn (string $item): bool => $item !== '')));
+
+        if ($normalized === []) {
+            return null;
+        }
+
+        sort($normalized);
+
+        return $normalized;
     }
 }

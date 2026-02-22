@@ -26,6 +26,9 @@ class EventCandidate extends Model
         'source_uid',
         'external_id',
         'stable_key',
+        'confidence_score',
+        'canonical_key',
+        'matched_sources',
         'source_hash',
 
         'title',
@@ -61,6 +64,8 @@ class EventCandidate extends Model
         'end_at'      => 'datetime',
         'translated_at' => 'datetime',
         'reviewed_at' => 'datetime',
+        'confidence_score' => 'decimal:2',
+        'matched_sources' => 'array',
     ];
 
     public function reviewer(): BelongsTo

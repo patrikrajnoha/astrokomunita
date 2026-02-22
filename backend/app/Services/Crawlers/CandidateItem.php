@@ -15,6 +15,9 @@ class CandidateItem
         public ?string $externalId,
         public array $rawPayload = [],
         public ?string $eventType = null,
+        public ?string $canonicalKey = null,
+        public ?float $confidenceScore = null,
+        public ?array $matchedSources = null,
     ) {
     }
 }
