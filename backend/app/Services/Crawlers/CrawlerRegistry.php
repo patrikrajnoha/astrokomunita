@@ -22,6 +22,8 @@ class CrawlerRegistry
         return match ($enum) {
             EventSource::ASTROPIXELS => $this->astropixelsCrawler,
             EventSource::NASA => null,
+            EventSource::NASA_WATCH_THE_SKIES => null,
+            EventSource::IMO => null,
         };
     }
 }
