@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Services\Storage\MediaStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -82,8 +84,20 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        if ($user?->tokens()) {
-            $user->tokens()->delete();
+        try {
+            DB::transaction(function () use ($user): void {
+                if ($user?->tokens()) {
+                    $user->tokens()->delete();
+                }
+
+                $user->delete();
+            });
+        } catch (\Throwable $e) {
+            Log::error('Failed to delete user account.', [
+                'user_id' => $user?->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
         }
 
         Auth::guard('web')->logout();
@@ -92,8 +106,6 @@ class ProfileController extends Controller
             $request->session()->invalidate();
             $request->session()->regenerateToken();
         }
-
-        $user->delete();
 
         return response()->json(['message' => 'Account deactivated.']);
     }
