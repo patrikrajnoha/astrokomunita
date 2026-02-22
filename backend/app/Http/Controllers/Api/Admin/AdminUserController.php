@@ -40,6 +40,7 @@ class AdminUserController extends Controller
             ])
             ->orderByDesc('id')
             ->paginate($perPage);
+        $users->getCollection()->each->makeVisible('email');
 
         return response()->json($users);
     }
@@ -61,6 +62,7 @@ class AdminUserController extends Controller
                 'created_at',
             ])
             ->findOrFail($id);
+        $user->makeVisible('email');
 
         return response()->json($user);
     }
