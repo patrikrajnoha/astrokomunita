@@ -94,10 +94,10 @@ class TagController extends Controller
                 $q->where('tags.id', $tagModel->id);
             })
             ->with(array_merge([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
-                'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
+                'replies.user:id,name,username,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
             ], $this->polls->pollRelations($viewer?->id)))
             ->withCount(['likes', 'replies'])
             ->publiclyVisible()
