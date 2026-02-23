@@ -161,6 +161,10 @@ const appShellChildren = [
         component: () => import('@/views/admin/CandidatesListView.vue'),
       },
       {
+        path: 'candidates',
+        redirect: { name: 'admin.event-candidates' },
+      },
+      {
         path: 'candidates/:id',
         name: 'admin.candidate.detail',
         component: () => import('@/views/admin/CandidateDetailView.vue'),
@@ -221,6 +225,11 @@ const appShellChildren = [
         path: 'event-sources',
         name: 'admin.event-sources',
         component: () => import('@/views/admin/EventSourcesView.vue'),
+      },
+      {
+        path: 'crawl-runs/:id',
+        name: 'admin.crawl-run.detail',
+        component: () => import('@/views/admin/CrawlRunDetailView.vue'),
       },
       {
         path: 'featured-events',
@@ -317,6 +326,15 @@ const router = createRouter({
 
 export function applyAuthGuards(routerInstance) {
   routerInstance.beforeEach(async (to) => {
+    if (to.path.includes('//')) {
+      return {
+        path: to.path.replace(/\/{2,}/g, '/'),
+        query: to.query,
+        hash: to.hash,
+        replace: true,
+      }
+    }
+
     const auth = useAuthStore()
     const preferences = useEventPreferencesStore()
 
@@ -342,6 +360,7 @@ export function applyAuthGuards(routerInstance) {
     const isVerifyEmailRoute = to.name === 'verify-email.required' || to.name === 'verify-email.link'
     const isOnboardingRoute = to.name === 'onboarding'
     const isVerifiedUser = Boolean(auth.isAuthed && auth.user?.email_verified_at)
+    const isAdminUser = Boolean(auth.isAdmin)
 
     if (auth.isAuthed && !auth.user?.email_verified_at && !isVerifyEmailRoute) {
       return {
@@ -350,7 +369,7 @@ export function applyAuthGuards(routerInstance) {
       }
     }
 
-    if (isVerifiedUser) {
+    if (isVerifiedUser && !isAdminUser) {
       if (!preferences.loaded) {
         try {
           await preferences.fetchPreferences()
@@ -372,6 +391,10 @@ export function applyAuthGuards(routerInstance) {
           : '/'
         return redirect
       }
+    }
+
+    if (isAdminUser && isOnboardingRoute) {
+      return { name: 'home' }
     }
 
     if (to.meta?.admin && !auth.isAdmin) {

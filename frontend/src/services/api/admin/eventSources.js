@@ -15,3 +15,7 @@ export function runEventSourceCrawl(payload) {
 export function getCrawlRuns(params = {}) {
   return api.get('/admin/crawl-runs', { params })
 }
+
+export function getCrawlRun(id) {
+  return api.get(`/admin/crawl-runs/${id}`)
+}

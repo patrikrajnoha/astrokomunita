@@ -262,6 +262,15 @@ function viewRunCandidates(run) {
   })
 }
 
+function openRunDetails(run) {
+  if (!run?.id) return
+
+  router.push({
+    name: 'admin.crawl-run.detail',
+    params: { id: String(run.id) },
+  })
+}
+
 onMounted(load)
 </script>
 
@@ -429,7 +438,10 @@ onMounted(load)
                 </div>
               </td>
               <td>
-                <button type="button" class="ghostBtn" @click="viewRunCandidates(run)">View candidates</button>
+                <div class="actionRow">
+                  <button type="button" class="ghostBtn" @click="viewRunCandidates(run)">View candidates</button>
+                  <button type="button" class="ghostBtn" @click="openRunDetails(run)">Details</button>
+                </div>
               </td>
             </tr>
           </tbody>
