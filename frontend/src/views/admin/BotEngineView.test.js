@@ -76,6 +76,18 @@ function flush() {
   return Promise.resolve().then(() => nextTick())
 }
 
+function mountView() {
+  return mount(BotEngineView, {
+    global: {
+      stubs: {
+        AdminPageShell: { template: '<div><slot /></div>' },
+        routerLink: true,
+        teleport: true,
+      },
+    },
+  })
+}
+
 describe('BotEngineView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -88,10 +100,21 @@ describe('BotEngineView', () => {
           finished_at: '2026-02-23T10:01:00Z',
           status: 'success',
           stats: { published_count: 1 },
+          meta: { mode: 'dry', publish_limit: 3 },
+          error_text: null,
+        },
+        {
+          id: 12,
+          source_key: 'nasa_apod_daily',
+          started_at: '2026-02-23T10:05:00Z',
+          finished_at: '2026-02-23T10:06:00Z',
+          status: 'success',
+          stats: { published_count: 0 },
+          meta: { mode: 'auto' },
           error_text: null,
         },
       ],
-      meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
+      meta: { current_page: 1, last_page: 1, per_page: 20, total: 2 },
     }
     store.runItemsPage.value = {
       data: [
@@ -111,6 +134,8 @@ describe('BotEngineView', () => {
           title_translated: 'Translated title',
           content_translated: 'Translated body',
           url: 'https://example.test/item-91',
+          source_key: 'nasa_rss_breaking',
+          published_manually: false,
         },
       ],
       meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
@@ -167,32 +192,36 @@ describe('BotEngineView', () => {
     expect(String(toastErrorMock.mock.calls[0][0])).toContain('Retry in 120s')
   })
 
-  it('publishes selected item and disables publish button after success', async () => {
-    store.publishItem.mockImplementationOnce(async () => {
-      store.runItemsPage.value = {
-        data: [
-          {
-            ...store.runItemsPage.value.data[0],
-            publish_status: 'published',
-            post_id: 777,
-          },
-        ],
-        meta: { ...store.runItemsPage.value.meta },
-      }
+  it('renders DRY/AUTO badges with publish limit text from run meta', async () => {
+    const wrapper = mountView()
+    await flush()
+    await flush()
 
-      return { item: { id: 91, publish_status: 'published' } }
-    })
+    const modeBadges = wrapper.findAll('[data-testid="run-mode-badge"]')
+    expect(modeBadges).toHaveLength(2)
+    expect(modeBadges[0].text()).toBe('DRY')
+    expect(modeBadges[1].text()).toBe('AUTO')
 
-    const wrapper = mount(BotEngineView, {
-      global: {
-        stubs: {
-          AdminPageShell: { template: '<div><slot /></div>' },
-          routerLink: true,
-          teleport: true,
+    const modeLimits = wrapper.findAll('[data-testid="run-mode-limit"]')
+    expect(modeLimits).toHaveLength(1)
+    expect(modeLimits[0].text()).toContain('limit: 3')
+  })
+
+  it('asks for confirm before publishing wiki onthisday item', async () => {
+    store.runItemsPage.value = {
+      data: [
+        {
+          ...store.runItemsPage.value.data[0],
+          id: 92,
+          stable_key: 'stable-92',
+          source_key: 'wiki_onthisday_astronomy',
         },
-      },
-    })
+      ],
+      meta: { ...store.runItemsPage.value.meta },
+    }
 
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const wrapper = mountView()
     await flush()
     await flush()
 
@@ -200,34 +229,37 @@ describe('BotEngineView', () => {
     await flush()
 
     const publishButton = wrapper.findAll('button').find((node) => node.text() === 'Publish')
-    expect(publishButton).toBeTruthy()
-
     await publishButton.trigger('click')
     await flush()
 
-    expect(store.publishItem).toHaveBeenCalledWith(91, { force: false })
-    const publishButtonAfter = wrapper.findAll('button').find((node) => node.text() === 'Publish')
-    expect(publishButtonAfter.attributes('disabled')).toBeDefined()
+    expect(confirmSpy).toHaveBeenCalledWith('Publikovať do AstroFeed?')
+    expect(store.publishItem).toHaveBeenCalledWith(92, { force: false })
+
+    confirmSpy.mockRestore()
+  })
+
+  it('uses default publish all limit 3 in run detail', async () => {
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    const detailButtons = wrapper.findAll('button').filter((node) => node.text().includes('Detail'))
+    await detailButtons[1].trigger('click')
+    await flush()
+
+    const limitInput = wrapper.find('[data-testid="publish-all-limit"]')
+    expect(limitInput.element.value).toBe('3')
   })
 
   it('publish all action calls run publish endpoint with selected limit', async () => {
-    const wrapper = mount(BotEngineView, {
-      global: {
-        stubs: {
-          AdminPageShell: { template: '<div><slot /></div>' },
-          routerLink: true,
-          teleport: true,
-        },
-      },
-    })
-
+    const wrapper = mountView()
     await flush()
     await flush()
 
     await wrapper.findAll('button').find((node) => node.text().includes('Detail')).trigger('click')
     await flush()
 
-    const limitInput = wrapper.find('input[type="number"]')
+    const limitInput = wrapper.find('[data-testid="publish-all-limit"]')
     await limitInput.setValue('3')
 
     const publishAllButton = wrapper.findAll('button').find((node) => node.text() === 'Publish all')

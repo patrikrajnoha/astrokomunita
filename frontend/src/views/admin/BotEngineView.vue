@@ -7,11 +7,12 @@ import { useToast } from '@/composables/useToast'
 
 const store = useBotEngineStore()
 const toast = useToast()
+const DEFAULT_PUBLISH_ALL_LIMIT = 3
 
 const { sources, runsPage, runItemsPage, filters, loadingSources, loadingRuns, loadingRunItems } = storeToRefs(store)
 const selectedRun = ref(null)
 const selectedPreviewItem = ref(null)
-const publishAllLimit = ref(10)
+const publishAllLimit = ref(DEFAULT_PUBLISH_ALL_LIMIT)
 
 const filterForm = ref({
   sourceKey: '',
@@ -119,6 +120,109 @@ function itemStatusClass(status) {
   return 'statusBadge statusBadge--muted'
 }
 
+function toPositiveIntOrNull(value) {
+  const parsed = Number(value)
+  if (Number.isInteger(parsed) && parsed > 0) {
+    return parsed
+  }
+
+  return null
+}
+
+function normalizeRunMode(value) {
+  return String(value || '').trim().toLowerCase() === 'dry' ? 'dry' : 'auto'
+}
+
+function runModeLabel(run) {
+  return normalizeRunMode(run?.meta?.mode) === 'dry' ? 'DRY' : 'AUTO'
+}
+
+function runModeClass(run) {
+  return runModeLabel(run) === 'DRY' ? 'modeBadge modeBadge--dry' : 'modeBadge modeBadge--auto'
+}
+
+function runPublishLimit(run) {
+  return toPositiveIntOrNull(run?.meta?.publish_limit)
+}
+
+function resolvePublishAllLimitDefault(run) {
+  return runPublishLimit(run) ?? DEFAULT_PUBLISH_ALL_LIMIT
+}
+
+function normalizeMaybeBool(value) {
+  if (value === true) return true
+  if (value === false) return false
+
+  if (typeof value === 'number') {
+    if (value === 1) return true
+    if (value === 0) return false
+    return null
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (['1', 'true', 'yes'].includes(normalized)) return true
+    if (['0', 'false', 'no'].includes(normalized)) return false
+  }
+
+  return null
+}
+
+function isPublishedItem(item) {
+  const status = String(item?.publish_status || '').toLowerCase()
+  if (status === 'published') return true
+  return Number(item?.post_id || 0) > 0
+}
+
+function isManualPublishedItem(item) {
+  if (!isPublishedItem(item)) {
+    return false
+  }
+
+  const candidates = [
+    item?.published_manually,
+    item?.meta?.published_manually,
+    item?.post_meta?.published_manually,
+    item?.post?.meta?.published_manually,
+  ]
+
+  return candidates.some((value) => normalizeMaybeBool(value) === true)
+}
+
+function resolveItemSourceKey(item) {
+  const candidates = [
+    item?.source_key,
+    item?.bot_source_key,
+    item?.meta?.bot_source_key,
+    item?.meta?.source_key,
+    item?.post_meta?.bot_source_key,
+    item?.post?.bot_source_key,
+    item?.post?.meta?.bot_source_key,
+    selectedRun.value?.source_key,
+  ]
+
+  for (const candidate of candidates) {
+    const normalized = String(candidate || '').trim().toLowerCase()
+    if (normalized !== '') {
+      return normalized
+    }
+  }
+
+  return ''
+}
+
+function requiresPublishConfirm(item) {
+  return resolveItemSourceKey(item) === 'wiki_onthisday_astronomy'
+}
+
+function confirmPublishToAstroFeed() {
+  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+    return window.confirm('Publikovať do AstroFeed?')
+  }
+
+  return true
+}
+
 function syncFilterFormFromStore() {
   filterForm.value = {
     sourceKey: String(filters.value?.sourceKey || ''),
@@ -198,6 +302,7 @@ async function dryRun(sourceKey) {
 
 async function openRunDetail(run) {
   selectedRun.value = run
+  publishAllLimit.value = resolvePublishAllLimitDefault(run)
 
   try {
     await store.fetchItemsForRun(run?.id, { page: 1, per_page: 20 })
@@ -209,6 +314,7 @@ async function openRunDetail(run) {
 function closeRunDetail() {
   selectedRun.value = null
   selectedPreviewItem.value = null
+  publishAllLimit.value = DEFAULT_PUBLISH_ALL_LIMIT
   store.clearRunItems()
 }
 
@@ -243,6 +349,7 @@ async function goToItemsPage(page) {
 
 async function publishItem(item) {
   if (!item?.id || !canPublishItem(item)) return
+  if (requiresPublishConfirm(item) && !confirmPublishToAstroFeed()) return
 
   try {
     const response = await store.publishItem(item.id, { force: false })
@@ -266,7 +373,7 @@ async function publishAllForRun() {
   if (!Number.isInteger(runId) || runId <= 0) return
 
   const limit = Number(publishAllLimit.value)
-  const normalizedLimit = Number.isInteger(limit) && limit > 0 ? limit : 10
+  const normalizedLimit = Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_PUBLISH_ALL_LIMIT
 
   try {
     const response = await store.publishRun(runId, { publish_limit: normalizedLimit })
@@ -438,6 +545,7 @@ onMounted(async () => {
               <th>started_at</th>
               <th>source_key</th>
               <th>status</th>
+              <th>mode</th>
               <th>stats summary</th>
               <th class="alignRight">actions</th>
             </tr>
@@ -445,13 +553,13 @@ onMounted(async () => {
           <tbody>
             <template v-if="loadingRuns">
               <tr v-for="index in 6" :key="`runs-skeleton-${index}`">
-                <td colspan="5">
+                <td colspan="6">
                   <div class="skeletonRow"></div>
                 </td>
               </tr>
             </template>
             <tr v-else-if="runs.length === 0">
-              <td colspan="5" class="emptyCell">No runs found for selected filters.</td>
+              <td colspan="6" class="emptyCell">No runs found for selected filters.</td>
             </tr>
             <tr v-else v-for="run in runs" :key="run.id">
               <td>{{ formatDateTime(run.started_at) }}</td>
@@ -460,6 +568,14 @@ onMounted(async () => {
                 <span :class="statusClass(run.status)">
                   {{ run.status || 'unknown' }}
                 </span>
+              </td>
+              <td>
+                <div class="runModeCell">
+                  <span :class="runModeClass(run)" data-testid="run-mode-badge">{{ runModeLabel(run) }}</span>
+                  <span v-if="runPublishLimit(run) !== null" class="modeHint" data-testid="run-mode-limit">
+                    limit: {{ runPublishLimit(run) }}
+                  </span>
+                </div>
               </td>
               <td>{{ statsSummary(run.stats) }}</td>
               <td class="alignRight">
@@ -532,7 +648,7 @@ onMounted(async () => {
               <div class="inlineActions">
                 <label class="inlineField">
                   <span>Limit</span>
-                  <input v-model.number="publishAllLimit" type="number" min="1" max="100" />
+                  <input v-model.number="publishAllLimit" data-testid="publish-all-limit" type="number" min="1" max="100" />
                 </label>
                 <button
                   type="button"
@@ -583,9 +699,12 @@ onMounted(async () => {
                       <code :title="item.stable_key">{{ formatStableKey(item.stable_key) }}</code>
                     </td>
                     <td>
-                      <span :class="itemStatusClass(item.publish_status)">
-                        {{ item.publish_status || 'unknown' }}
-                      </span>
+                      <div class="itemStatusCell">
+                        <span :class="itemStatusClass(item.publish_status)">
+                          {{ item.publish_status || 'unknown' }}
+                        </span>
+                        <span v-if="isManualPublishedItem(item)" class="manualBadge">MANUAL</span>
+                      </div>
                     </td>
                     <td>
                       <span :class="itemStatusClass(item.translation_status)">
@@ -845,6 +964,40 @@ onMounted(async () => {
   padding: 6px 8px;
 }
 
+.runModeCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.modeBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  padding: 2px 7px;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+.modeBadge--dry {
+  border-color: rgb(245 158 11 / 0.56);
+  color: rgb(254 243 199);
+}
+
+.modeBadge--auto {
+  border-color: rgb(34 197 94 / 0.5);
+  color: rgb(187 247 208);
+}
+
+.modeHint {
+  font-size: 0.72rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.88);
+}
+
 .statusBadge {
   display: inline-flex;
   align-items: center;
@@ -879,6 +1032,25 @@ onMounted(async () => {
 
 .statusBadge--muted {
   opacity: 0.72;
+}
+
+.itemStatusCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.manualBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgb(148 163 184 / 0.55);
+  padding: 2px 7px;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: rgb(226 232 240);
 }
 
 .filters {
