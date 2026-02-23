@@ -33,6 +33,14 @@ const notificationsStore = vi.hoisted(() => ({
   fetchUnreadCount: vi.fn(async () => {}),
 }))
 
+const onboardingTourStore = vi.hoisted(() => ({
+  isOpen: false,
+  shouldAutoOpen: false,
+  hydrate: vi.fn(),
+  openTour: vi.fn(),
+  closeTour: vi.fn(),
+}))
+
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => authStore,
 }))
@@ -47,6 +55,10 @@ vi.mock('@/stores/sidebarConfig', () => ({
 
 vi.mock('@/stores/notifications', () => ({
   useNotificationsStore: () => notificationsStore,
+}))
+
+vi.mock('@/stores/onboardingTour', () => ({
+  useOnboardingTourStore: () => onboardingTourStore,
 }))
 
 vi.mock('@/services/popup', () => ({

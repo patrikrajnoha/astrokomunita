@@ -29,6 +29,7 @@ const groups = [
       { label: 'Articles', to: '/admin/blog', icon: 'B' },
       { label: 'Sidebar', to: '/admin/sidebar', icon: 'S' },
       { label: 'AstroBot', to: '/admin/astrobot', icon: 'A' },
+      { label: 'Bot Engine', to: '/admin/bots', icon: 'B' },
     ],
   },
 ]

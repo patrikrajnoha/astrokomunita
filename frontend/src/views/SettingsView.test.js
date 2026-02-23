@@ -33,6 +33,17 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: () => authMock,
 }))
 
+vi.mock('@/stores/onboardingTour', () => ({
+  useOnboardingTourStore: () => ({
+    restartTour: vi.fn(),
+    isOpen: false,
+    shouldAutoOpen: false,
+    hydrate: vi.fn(),
+    openTour: vi.fn(),
+    closeTour: vi.fn(),
+  }),
+}))
+
 vi.mock('@/services/api', () => ({
   default: httpMock,
 }))
@@ -61,7 +72,8 @@ describe('SettingsView', () => {
     httpMock.get.mockResolvedValue({
       data: new Blob(['{"export_version":"1.0"}'], { type: 'application/json' }),
       headers: {
-        'content-disposition': 'attachment; filename="nebesky-sprievodca-export-tester-20260221_173000.json"',
+        'content-disposition':
+          'attachment; filename="nebesky-sprievodca-export-tester-20260221_173000.json"',
       },
     })
   })
@@ -91,7 +103,9 @@ describe('SettingsView', () => {
 
     const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:export')
     const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
-    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const anchorClickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {})
 
     const wrapper = mount(SettingsView, { attachTo: document.body })
     await flush()
