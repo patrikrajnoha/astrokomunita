@@ -100,6 +100,45 @@ class BotPostTranslationBackfillServiceTest extends TestCase
         $this->assertSame(1, Post::query()->count());
     }
 
+    public function test_backfill_uses_legacy_meta_post_id_when_post_id_column_is_null(): void
+    {
+        $source = $this->createSource();
+        $post = $this->createEnglishBotPost();
+
+        $item = BotItem::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'run_id' => null,
+            'post_id' => null,
+            'stable_key' => 'guid-backfill-legacy-meta-post-id',
+            'title' => 'English legacy meta post id title',
+            'summary' => 'English legacy meta post id body text long enough for publish.',
+            'content' => 'English legacy meta post id body text long enough for publish.',
+            'url' => 'https://www.nasa.gov/news-release/backfill-meta-post-id/',
+            'published_at' => now(),
+            'fetched_at' => now(),
+            'lang_original' => 'en',
+            'translation_status' => 'pending',
+            'publish_status' => 'published',
+            'meta' => [
+                'post_id' => $post->id,
+            ],
+        ]);
+
+        $this->mockTranslator();
+        $service = app(BotPostTranslationBackfillService::class);
+
+        $result = $service->backfill($source, 10, null);
+
+        $item->refresh();
+        $post->refresh();
+
+        $this->assertSame(1, (int) $result['scanned']);
+        $this->assertSame(1, (int) $result['updated_posts']);
+        $this->assertSame($post->id, (int) $item->post_id);
+        $this->assertStringContainsString('SK English legacy meta post id title', (string) $post->content);
+    }
+
     private function createSource(): BotSource
     {
         return BotSource::query()->create([
@@ -159,4 +198,3 @@ class BotPostTranslationBackfillServiceTest extends TestCase
         });
     }
 }
-

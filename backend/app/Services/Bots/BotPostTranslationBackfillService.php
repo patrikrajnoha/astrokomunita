@@ -37,7 +37,11 @@ class BotPostTranslationBackfillService
 
         $query = BotItem::query()
             ->where('source_id', $source->id)
-            ->whereNotNull('post_id')
+            ->where(function (Builder $builder): void {
+                $builder
+                    ->whereNotNull('post_id')
+                    ->orWhereNotNull('meta->post_id');
+            })
             ->orderByDesc('fetched_at')
             ->orderByDesc('id');
 
@@ -57,11 +61,26 @@ class BotPostTranslationBackfillService
         $failures = [];
 
         foreach ($items as $item) {
+            $postId = (int) ($item->post_id ?: data_get($item->meta, 'post_id'));
+            if ($postId <= 0) {
+                $failed++;
+                $failures[] = [
+                    'post_id' => null,
+                    'reason' => 'linked_post_not_found',
+                ];
+                continue;
+            }
+
+            if ((int) $item->post_id !== $postId) {
+                $item->forceFill(['post_id' => $postId])->save();
+                $item = $item->fresh() ?? $item;
+            }
+
             $post = $item->post()->first();
             if (!$post) {
                 $failed++;
                 $failures[] = [
-                    'post_id' => $item->post_id ? (int) $item->post_id : null,
+                    'post_id' => $postId,
                     'reason' => 'linked_post_not_found',
                 ];
                 continue;
@@ -230,4 +249,3 @@ class BotPostTranslationBackfillService
         return substr($normalized, 0, $maxLength);
     }
 }
-
