@@ -108,12 +108,6 @@
         </div>
       </section>
 
-      <UserActivityCard
-        v-if="auth.user"
-        :loading="activityLoading && !activity"
-        :activity="activity"
-      />
-
       <section v-if="editOpen" class="card editCard">
         <div v-if="editMsg" class="msg ok">{{ editMsg }}</div>
         <div v-if="editErr" class="msg err">{{ editErr }}</div>
@@ -295,7 +289,6 @@ import { useAuthStore } from '@/stores/auth'
 import http from '@/services/api'
 import api from '@/services/api'
 import { useConfirm } from '@/composables/useConfirm'
-import UserActivityCard from '@/components/profile/UserActivityCard.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -341,8 +334,6 @@ const pinnedPost = ref(null)
 const favoriteEvents = ref([])
 const favoritesLoading = ref(false)
 const favoritesError = ref('')
-const activity = ref(null)
-const activityLoading = ref(false)
 
 const displayName = computed(() => auth.user?.name || 'Profil')
 
@@ -423,63 +414,6 @@ function parentHandle(post) {
   const parentUser = post?.parent?.user
   const base = parentUser?.email?.split('@')[0] || parentUser?.name || 'user'
   return String(base).toLowerCase().replace(/[^a-z0-9_]+/g, '').slice(0, 20) || 'user'
-}
-
-function normalizeCount(value) {
-  const parsed = Number(value)
-  if (!Number.isFinite(parsed) || parsed < 0) return 0
-  return Math.floor(parsed)
-}
-
-function normalizeActivity(payload) {
-  if (!payload || typeof payload !== 'object') {
-    return null
-  }
-
-  return {
-    last_login_at: payload.last_login_at || null,
-    posts_count: normalizeCount(payload.posts_count),
-    event_participations_count: normalizeCount(payload.event_participations_count),
-  }
-}
-
-async function loadActivity(options = {}) {
-  if (!auth.user) {
-    activity.value = null
-    return
-  }
-
-  const force = options.force === true
-  const fromAuthUser = normalizeActivity(auth.user.activity)
-
-  if (!force && fromAuthUser) {
-    activity.value = fromAuthUser
-    return
-  }
-
-  activityLoading.value = true
-
-  try {
-    const { data } = await http.get('/me/activity', {
-      meta: { skipErrorToast: true },
-    })
-
-    const normalized = normalizeActivity(data)
-    activity.value = normalized
-
-    if (auth.user && normalized) {
-      auth.user = {
-        ...auth.user,
-        activity: normalized,
-      }
-    }
-  } catch {
-    if (!activity.value && fromAuthUser) {
-      activity.value = fromAuthUser
-    }
-  } finally {
-    activityLoading.value = false
-  }
 }
 
 function toggleEdit() {
@@ -599,9 +533,10 @@ async function saveEdit() {
       location: editForm.location,
     })
 
-    auth.user = activity.value
-      ? { ...data, activity: activity.value }
-      : data
+    auth.user = {
+      ...data,
+      activity: auth.user?.activity || null,
+    }
     editMsg.value = 'Profil ulozeny.'
   } catch (e) {
     const status = e?.response?.status
@@ -695,7 +630,6 @@ async function deletePost(post) {
 
     actionMsg.value = 'Post zmazany.'
     await loadCounts()
-    await loadActivity({ force: true })
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) actionErr.value = 'Prihlas sa.'
@@ -817,25 +751,6 @@ watch(
   }
 )
 
-watch(
-  () => auth.user?.activity,
-  (nextActivity) => {
-    const normalized = normalizeActivity(nextActivity)
-    if (normalized) {
-      activity.value = normalized
-    }
-  }
-)
-
-watch(
-  () => auth.user?.id,
-  (nextUserId) => {
-    if (!nextUserId) {
-      activity.value = null
-    }
-  }
-)
-
 onMounted(async () => {
   if (!auth.initialized) await auth.fetchUser()
 
@@ -843,7 +758,6 @@ onMounted(async () => {
     loadPinned()
     await loadCounts()
     await loadFavorites()
-    await loadActivity()
     await loadTab(activeTab.value, true)
   }
 })

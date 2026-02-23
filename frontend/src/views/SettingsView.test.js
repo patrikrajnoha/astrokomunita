@@ -125,4 +125,27 @@ describe('SettingsView', () => {
     anchorClickSpy.mockRestore()
     wrapper.unmount()
   })
+
+  it('keeps user activity hidden by default and loads it on demand', async () => {
+    httpMock.get.mockResolvedValueOnce({
+      data: {
+        last_login_at: '2026-02-23T10:00:00Z',
+        posts_count: 7,
+        event_participations_count: 3,
+      },
+    })
+
+    const wrapper = mount(SettingsView)
+    await flush()
+
+    expect(wrapper.find('[data-testid="activity-values"]').exists()).toBe(false)
+
+    await wrapper.get('#settings-activity-toggle').trigger('click')
+    await flush()
+
+    expect(httpMock.get).toHaveBeenCalledWith('/me/activity', {
+      meta: { skipErrorToast: true },
+    })
+    expect(wrapper.find('[data-testid="activity-values"]').exists()).toBe(true)
+  })
 })
