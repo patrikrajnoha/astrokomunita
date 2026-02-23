@@ -43,11 +43,16 @@ const sourceOptions = computed(() => {
 })
 
 function toErrorMessage(error, fallbackMessage) {
+  const status = Number(error?.response?.status || 0)
+  const retryAfter = Number(error?.response?.data?.retry_after || 0)
+  const baseMessage = error?.response?.data?.message || error?.userMessage || error?.message || fallbackMessage
+
+  if (status === 429 && retryAfter > 0) {
+    return `${baseMessage} Retry in ${retryAfter}s.`
+  }
+
   return (
-    error?.response?.data?.message ||
-    error?.userMessage ||
-    error?.message ||
-    fallbackMessage
+    baseMessage
   )
 }
 
