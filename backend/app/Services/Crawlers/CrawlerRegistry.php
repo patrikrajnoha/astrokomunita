@@ -8,6 +8,7 @@ class CrawlerRegistry
 {
     public function __construct(
         private readonly AstropixelsCrawlerService $astropixelsCrawler,
+        private readonly ImoCrawlerService $imoCrawler,
     ) {
     }
 
@@ -23,7 +24,7 @@ class CrawlerRegistry
             EventSource::ASTROPIXELS => $this->astropixelsCrawler,
             EventSource::NASA => null,
             EventSource::NASA_WATCH_THE_SKIES => null,
-            EventSource::IMO => null,
+            EventSource::IMO => $this->imoCrawler,
         };
     }
 }

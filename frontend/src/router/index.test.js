@@ -114,4 +114,40 @@ describe('router auth guard', () => {
 
     expect(router.currentRoute.value.name).toBe('settings')
   })
+
+  it('skips onboarding and preferences fetch for admin users', async () => {
+    authState.isAuthed = true
+    authState.isAdmin = true
+    authState.user = { email_verified_at: '2026-02-17T00:00:00Z' }
+    preferencesState.loaded = false
+    preferencesState.isOnboardingCompleted = false
+
+    const router = makeRouter()
+    await router.push('/settings')
+    await router.isReady()
+
+    expect(preferencesState.fetchPreferences).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.name).toBe('settings')
+  })
+
+  it('redirects admin users away from onboarding route', async () => {
+    authState.isAuthed = true
+    authState.isAdmin = true
+    authState.user = { email_verified_at: '2026-02-17T00:00:00Z' }
+
+    const router = makeRouter()
+    await router.push('/onboarding')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('home')
+  })
+
+  it('normalizes duplicated slashes in path', async () => {
+    const router = makeRouter()
+    await router.push('//events')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('events')
+    expect(router.currentRoute.value.path).toBe('/events')
+  })
 })

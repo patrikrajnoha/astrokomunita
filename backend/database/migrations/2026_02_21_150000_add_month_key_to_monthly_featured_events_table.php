@@ -20,18 +20,24 @@ return new class extends Migration
             ->update(['month_key' => $defaultMonth]);
 
         Schema::table('monthly_featured_events', function (Blueprint $table): void {
+            $table->dropForeign(['event_id']);
             $table->dropUnique('monthly_featured_events_event_id_unique');
+            $table->index('event_id', 'monthly_featured_events_event_id_index');
             $table->unique(['month_key', 'event_id'], 'monthly_featured_events_month_event_unique');
             $table->index(['month_key', 'is_active', 'position'], 'monthly_featured_events_month_active_position_index');
+            $table->foreign('event_id')->references('id')->on('events')->cascadeOnDelete();
         });
     }
 
     public function down(): void
     {
         Schema::table('monthly_featured_events', function (Blueprint $table): void {
+            $table->dropForeign(['event_id']);
             $table->dropIndex('monthly_featured_events_month_active_position_index');
             $table->dropUnique('monthly_featured_events_month_event_unique');
+            $table->dropIndex('monthly_featured_events_event_id_index');
             $table->unique('event_id');
+            $table->foreign('event_id')->references('id')->on('events')->cascadeOnDelete();
             $table->dropColumn('month_key');
         });
     }

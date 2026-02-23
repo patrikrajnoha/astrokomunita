@@ -10,6 +10,7 @@ class SidebarSectionRegistry
     public const SCOPE_LEARNING = 'learning';
     public const SCOPE_NOTIFICATIONS = 'notifications';
     public const SCOPE_POST_DETAIL = 'post_detail';
+    public const SCOPE_PROFILE = 'profile';
 
     /** @return array<int, string> */
     public static function scopes(): array
@@ -21,6 +22,7 @@ class SidebarSectionRegistry
             self::SCOPE_LEARNING,
             self::SCOPE_NOTIFICATIONS,
             self::SCOPE_POST_DETAIL,
+            self::SCOPE_PROFILE,
         ];
     }
 

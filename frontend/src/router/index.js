@@ -39,8 +39,7 @@ const appShellChildren = [
   {
     path: 'contests',
     name: 'contests',
-    meta: { requiresAuth: false },
-    component: () => import('../views/ContestsView.vue'),
+    redirect: { name: 'admin.contests' },
   },
   {
     path: 'calendar',
@@ -62,16 +61,29 @@ const appShellChildren = [
       }]
     : []),
   {
-    path: 'learn',
+    path: 'clanky',
     name: 'learn',
     meta: { requiresAuth: false },
     component: () => import('../views/LearnView.vue'),
   },
   {
-    path: 'learn/:slug',
+    path: 'clanky/:slug',
     name: 'learn-detail',
     meta: { requiresAuth: false },
     component: () => import('../views/LearnDetailView.vue'),
+  },
+  {
+    path: 'learn',
+    redirect: { name: 'learn' },
+  },
+  {
+    path: 'learn/:slug',
+    redirect: (to) => ({
+      name: 'learn-detail',
+      params: { slug: to.params.slug },
+      query: to.query,
+      hash: to.hash,
+    }),
   },
   {
     path: 'search',
@@ -254,20 +266,12 @@ const appShellChildren = [
       {
         path: 'kozmobot',
         name: 'admin.bots.kozmo',
-        component: () => import('@/views/admin/BotEngineView.vue'),
-        props: {
-          presetBotIdentity: 'kozmo',
-          presetLabel: 'Kozmo',
-        },
+        redirect: { name: 'admin.bots' },
       },
       {
         path: 'stellarbot',
         name: 'admin.bots.stellar',
-        component: () => import('@/views/admin/BotEngineView.vue'),
-        props: {
-          presetBotIdentity: 'stela',
-          presetLabel: 'Stellar',
-        },
+        redirect: { name: 'admin.bots' },
       },
       {
         path: 'sidebar',

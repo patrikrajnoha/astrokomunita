@@ -136,4 +136,34 @@ class SidebarConfigTest extends TestCase
                 'is_enabled' => false,
             ]);
     }
+
+    public function test_profile_scope_can_be_configured(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $putResponse = $this->putJson('/api/admin/sidebar-config?scope=profile', [
+            'items' => [
+                ['kind' => 'builtin', 'section_key' => 'search', 'order' => 0, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'upcoming_events', 'order' => 1, 'is_enabled' => false],
+            ],
+        ]);
+
+        $putResponse
+            ->assertOk()
+            ->assertJsonPath('scope', 'profile');
+
+        $getResponse = $this->getJson('/api/admin/sidebar-config?scope=profile');
+
+        $getResponse
+            ->assertOk()
+            ->assertJsonPath('scope', 'profile')
+            ->assertJsonFragment([
+                'section_key' => 'upcoming_events',
+                'is_enabled' => false,
+            ]);
+    }
 }

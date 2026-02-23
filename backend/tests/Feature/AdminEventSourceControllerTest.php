@@ -132,6 +132,39 @@ class AdminEventSourceControllerTest extends TestCase
         ]);
     }
 
+    public function test_manual_run_executes_imo_source(): void
+    {
+        EventSource::query()->create([
+            'key' => EventSourceEnum::IMO->value,
+            'name' => EventSourceEnum::IMO->label(),
+            'base_url' => 'https://www.imo.net/resources/calendar/',
+            'is_enabled' => true,
+        ]);
+
+        $this->actingAsAdmin();
+
+        $html = File::get(base_path('tests/Fixtures/imo/calendar_sample.html'));
+        Http::fake([
+            'https://www.imo.net/resources/calendar/*' => Http::response($html, 200),
+        ]);
+
+        $response = $this->postJson('/api/admin/event-sources/run', [
+            'source_keys' => [EventSourceEnum::IMO->value],
+            'year' => 2026,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('results.0.source_key', EventSourceEnum::IMO->value);
+        $response->assertJsonPath('results.0.status', 'success');
+        $response->assertJsonPath('results.0.created_candidates_count', 2);
+
+        $this->assertDatabaseHas('crawl_runs', [
+            'source_name' => EventSourceEnum::IMO->value,
+            'status' => 'success',
+            'created_candidates_count' => 2,
+        ]);
+    }
+
     public function test_manual_run_rejects_go_astronomy_source_key(): void
     {
         EventSource::query()->create([

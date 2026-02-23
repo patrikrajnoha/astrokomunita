@@ -10,6 +10,7 @@ const seenPopupMock = vi.hoisted(() => vi.fn())
 const authStore = vi.hoisted(() => ({
   bootstrapDone: true,
   isAuthed: true,
+  isAdmin: false,
   user: { email_verified_at: '2026-02-17T10:00:00Z', location_meta: null, location: null },
   error: null,
   loginSequence: 0,
@@ -89,6 +90,7 @@ function makeRouter() {
     routes: [
       { path: '/', component: AppLayout },
       { path: '/login', component: AppLayout },
+      { path: '/profile', component: AppLayout },
     ],
   })
 }
@@ -96,6 +98,7 @@ function makeRouter() {
 describe('AppLayout mark-your-calendar popup', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authStore.isAdmin = false
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation(() => ({
@@ -172,6 +175,25 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(rightRail.exists()).toBe(true)
   })
 
+  it('renders explicit profile layout landmarks', async () => {
+    const router = makeRouter()
+    await router.push('/profile')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+
+    expect(wrapper.find('[data-testid="layout-left"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="layout-center"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
+  })
+
   it('collapses desktop grid without phantom right column when sidebar is disabled', async () => {
     const router = makeRouter()
     await router.push('/login')
@@ -231,5 +253,26 @@ describe('AppLayout mark-your-calendar popup', () => {
       force_version: 5,
       month_key: '2026-02',
     })
+  })
+
+  it('does not call popup endpoint for admin users', async () => {
+    authStore.isAdmin = true
+    popupResponse.value = { should_show: true, items: [] }
+
+    const router = makeRouter()
+    await router.push('/')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(getPopupMock).not.toHaveBeenCalled()
+    expect(wrapper.find('mark-your-calendar-modal-stub').exists()).toBe(false)
   })
 })

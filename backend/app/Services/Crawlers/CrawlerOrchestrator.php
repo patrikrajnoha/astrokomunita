@@ -113,7 +113,7 @@ class CrawlerOrchestrator
             ),
             EventSource::NASA => (string) config('astrobot.nasa_rss_url', 'https://www.nasa.gov/rss/dyn/breaking_news.rss'),
             EventSource::NASA_WATCH_THE_SKIES => (string) config('events.nasa_watch_the_skies.url', 'https://science.nasa.gov/skywatching/'),
-            EventSource::IMO => (string) config('events.imo.url', 'https://www.imo.net/'),
+            EventSource::IMO => (string) config('events.imo.url', 'https://www.imo.net/resources/calendar/'),
         };
     }
 
@@ -149,6 +149,12 @@ class CrawlerOrchestrator
         }
         if (str_contains($message, 'ASTROPIXELS_PARSE_ERROR')) {
             return 'astropixels_parse_error';
+        }
+        if (str_contains($message, 'IMO_HTTP_ERROR')) {
+            return 'imo_http_error';
+        }
+        if (str_contains($message, 'IMO_PARSE_ERROR')) {
+            return 'imo_parse_error';
         }
         if (str_contains($message, 'SSL')) {
             return 'crawler_ssl_error';

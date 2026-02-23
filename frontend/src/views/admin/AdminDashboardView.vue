@@ -72,8 +72,8 @@ const generatedAtLabel = computed(() => {
 })
 
 const quickActions = [
-  { title: 'Event sources', subtitle: 'Sources and crawl runs in one place', to: '/admin/event-sources' },
-  { title: 'Crawl runs', subtitle: 'Open event sources and inspect recent runs', to: '/admin/event-sources' },
+  { title: 'Crawling hub', subtitle: 'Sources, crawl runs and candidate queue in one place', to: '/admin/event-sources' },
+  { title: 'Candidates review', subtitle: 'Open full queue for approve/reject workflow', to: '/admin/event-candidates' },
   { title: 'User management', subtitle: 'Review profiles, roles, bans and status', to: '/admin/users' },
   { title: 'Moderation queue', subtitle: 'Process flagged and pending content', to: '/admin/moderation' },
 ]

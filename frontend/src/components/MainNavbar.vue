@@ -408,55 +408,6 @@
                 </a>
               </RouterLink>
 
-              <RouterLink
-                to="/admin/kozmobot"
-                custom
-                v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
-              >
-                <a
-                  :href="adminHref"
-                  @click="() => { closeAdmin(); adminNavigate(); }"
-                  class="group relative mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
-                  :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
-                    : ''"
-                  role="menuitem"
-                  aria-label="KozmoBot"
-                >
-                  <span
-                    class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
-                    aria-hidden="true"
-                  >
-                    K
-                  </span>
-                  <span class="flex-1">KozmoBot</span>
-                </a>
-              </RouterLink>
-
-              <RouterLink
-                to="/admin/stellarbot"
-                custom
-                v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
-              >
-                <a
-                  :href="adminHref"
-                  @click="() => { closeAdmin(); adminNavigate(); }"
-                  class="group relative mt-1 flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
-                  :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
-                    : ''"
-                  role="menuitem"
-                  aria-label="StellarBot"
-                >
-                  <span
-                    class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
-                    aria-hidden="true"
-                  >
-                    T
-                  </span>
-                  <span class="flex-1">StellarBot</span>
-                </a>
-              </RouterLink>
             </div>
           </div>
         </div>
@@ -681,17 +632,16 @@ const primaryLinks = computed(() => {
     search: ['M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z', 'm20 20-3.5-3.5'],
     notifications: ['M6 8a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6', 'M9.5 20a2.5 2.5 0 0 0 5 0'],
     events: ['M7 3v3', 'M17 3v3', 'M4 8h16', 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z'],
-    contests: ['M12 4l2.3 4.7 5.2.8-3.8 3.7.9 5.2-4.6-2.4-4.6 2.4.9-5.2-3.8-3.7 5.2-.8Z'],
     learn: ['M4 6.5A2.5 2.5 0 0 1 6.5 4H20v14H6.5A2.5 2.5 0 0 0 4 20.5z', 'M8 8h8', 'M8 11h8'],
   }
 
   const links = [
     { key: 'home', to: '/', label: 'Domov', icon: 'D', iconPaths: navIcons.home },
-    { key: 'search', to: '/search', label: 'Preskumat', icon: 'P', iconPaths: navIcons.search },
+    { key: 'search', to: '/search', label: 'Prehľadávať', icon: 'P', iconPaths: navIcons.search },
     {
       key: 'notifications',
       to: '/notifications',
-      label: 'Upozornenia',
+      label: 'Notifikácie',
       icon: 'U',
       iconPaths: navIcons.notifications,
       badge: auth.isAuthed ? notifications.unreadBadge : null,
@@ -704,15 +654,7 @@ const primaryLinks = computed(() => {
       iconPaths: navIcons.events,
       matchPrefix: '/events',
     },
-    {
-      key: 'contests',
-      to: '/contests',
-      label: 'Sutaze',
-      icon: 'S',
-      iconPaths: navIcons.contests,
-      matchPrefix: '/contests',
-    },
-    { key: 'learn', to: '/learn', label: 'Vzdelavanie', icon: 'V', iconPaths: navIcons.learn },
+    { key: 'learn', to: '/clanky', label: 'Články', icon: 'V', iconPaths: navIcons.learn },
   ]
 
   if (auth.isAdmin) {
