@@ -182,6 +182,31 @@
       </form>
     </section>
 
+    <section class="settings-card">
+      <div class="card-head-row">
+        <div>
+          <h2 class="card-title">User activity</h2>
+          <p class="card-subtitle">Hidden by default. Open only when you need it.</p>
+        </div>
+        <button
+          id="settings-activity-toggle"
+          type="button"
+          class="btn btn-ghost"
+          :disabled="activityLoading"
+          @click="toggleActivitySection"
+        >
+          {{ activityExpanded ? 'Skryt aktivitu' : 'Zobrazit aktivitu' }}
+        </button>
+      </div>
+
+      <div v-if="activityExpanded" class="activity-panel">
+        <div v-if="activityError" class="status status-error" role="alert">
+          {{ activityError }}
+        </div>
+        <UserActivityCard :loading="activityLoading && !activity" :activity="activity" />
+      </div>
+    </section>
+
     <section class="settings-card settings-card-danger">
       <h2 class="card-title">Deactivate account</h2>
       <p class="card-subtitle">This action permanently removes your account and signs you out.</p>
@@ -222,6 +247,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useOnboardingTourStore } from '@/stores/onboardingTour'
 import http from '@/services/api'
+import UserActivityCard from '@/components/profile/UserActivityCard.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -272,6 +298,10 @@ const exportState = reactive({
   error: '',
   success: '',
 })
+const activity = ref(null)
+const activityLoading = ref(false)
+const activityError = ref('')
+const activityExpanded = ref(false)
 
 const extractFirstError = (errorsObj, field) => {
   const value = errorsObj?.[field]
@@ -521,6 +551,63 @@ const startOnboardingTour = () => {
   onboardingTour.restartTour()
 }
 
+const normalizeCount = (value) => {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 0) return 0
+  return Math.floor(parsed)
+}
+
+const normalizeActivity = (payload) => {
+  if (!payload || typeof payload !== 'object') return null
+
+  return {
+    last_login_at: payload.last_login_at || null,
+    posts_count: normalizeCount(payload.posts_count),
+    event_participations_count: normalizeCount(payload.event_participations_count),
+  }
+}
+
+const loadUserActivity = async () => {
+  if (!auth.user) return
+
+  const fromAuth = normalizeActivity(auth.user.activity)
+  if (fromAuth && !activity.value) {
+    activity.value = fromAuth
+  }
+
+  activityLoading.value = true
+  activityError.value = ''
+
+  try {
+    const { data } = await http.get('/me/activity', {
+      meta: { skipErrorToast: true },
+    })
+    const normalized = normalizeActivity(data)
+    activity.value = normalized
+    if (auth.user && normalized) {
+      auth.user = {
+        ...auth.user,
+        activity: normalized,
+      }
+    }
+  } catch (e) {
+    if (!activity.value && fromAuth) {
+      activity.value = fromAuth
+    } else if (!activity.value) {
+      activityError.value = e?.response?.data?.message || 'Nacitavanie aktivity zlyhalo.'
+    }
+  } finally {
+    activityLoading.value = false
+  }
+}
+
+const toggleActivitySection = async () => {
+  activityExpanded.value = !activityExpanded.value
+  if (activityExpanded.value && !activity.value && !activityLoading.value) {
+    await loadUserActivity()
+  }
+}
+
 onMounted(async () => {
   if (!auth.initialized) {
     await auth.fetchUser()
@@ -530,6 +617,7 @@ onMounted(async () => {
     emailForm.email = auth.user.email || ''
     emailForm.name = auth.user.name || ''
     newsletterSubscribed.value = Boolean(auth.user.newsletter_subscribed)
+    activity.value = normalizeActivity(auth.user.activity)
   }
 })
 </script>
@@ -605,6 +693,28 @@ onMounted(async () => {
   margin: 0.35rem 0 0;
   font-size: 0.92rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.card-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.btn-ghost {
+  color: var(--color-surface);
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.24);
+  background: rgb(var(--color-bg-rgb) / 0.45);
+}
+
+.btn-ghost:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.55);
+  background: rgb(var(--color-bg-rgb) / 0.6);
+}
+
+.activity-panel {
+  margin-top: 0.75rem;
 }
 
 .settings-form {
