@@ -38,6 +38,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Wikipedia + Wikidata Classification
+    |--------------------------------------------------------------------------
+    */
+    'wikipedia_mediawiki_api_url' => env('WIKIPEDIA_MEDIAWIKI_API_URL', 'https://en.wikipedia.org/w/api.php'),
+    'wikidata_api_url' => env('WIKIDATA_API_URL', 'https://www.wikidata.org/w/api.php'),
+    'wiki_max_candidate_pages' => (int) env('WIKI_MAX_CANDIDATE_PAGES', 15),
+    'wiki_max_wikidata_entity_requests' => (int) env('WIKI_MAX_WIKIDATA_ENTITY_REQUESTS', 15),
+    'wiki_wikidata_cache_ttl_days' => (int) env('WIKI_WIKIDATA_CACHE_TTL_DAYS', 30),
+    'wiki_high_keyword_threshold' => (int) env('WIKI_HIGH_KEYWORD_THRESHOLD', 4),
+    'wiki_allowlist_qids' => array_values(array_filter(array_map(
+        static fn (string $qid): string => strtoupper(trim($qid)),
+        explode(',', (string) env('WIKI_ALLOWLIST_QIDS', ''))
+    ))),
+    'wiki_denylist_qids' => array_values(array_filter(array_map(
+        static fn (string $qid): string => strtoupper(trim($qid)),
+        explode(',', (string) env('WIKI_DENYLIST_QIDS', ''))
+    ))),
+
+    /*
+    |--------------------------------------------------------------------------
     | Legacy keys kept for backward compatibility
     |--------------------------------------------------------------------------
     */
