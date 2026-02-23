@@ -41,7 +41,10 @@ class AdminBotControllerTest extends TestCase
         $this->getJson('/api/admin/bots/runs')->assertStatus(403);
         $this->getJson('/api/admin/bots/items?run_id=1')->assertStatus(403);
         $this->postJson('/api/admin/bots/run/' . $source->key)->assertStatus(403);
+        $this->postJson('/api/admin/bots/translation/test')->assertStatus(403);
+        $this->postJson('/api/admin/bots/translation/retry/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/items/1/publish')->assertStatus(403);
+        $this->deleteJson('/api/admin/bots/items/1/post')->assertStatus(403);
         $this->postJson('/api/admin/bots/runs/1/publish')->assertStatus(403);
     }
 
@@ -134,6 +137,26 @@ class AdminBotControllerTest extends TestCase
             ->assertJsonStructure(['message', 'retry_after']);
 
         $this->assertGreaterThanOrEqual(1, (int) $second->json('retry_after'));
+    }
+
+    public function test_admin_post_run_force_manual_override_bypasses_throttle(): void
+    {
+        $source = $this->createRssSource('throttle_override_rss_source');
+        $this->actingAsAdmin();
+
+        Http::fake([
+            $source->url => Http::response($this->singleItemRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $first = $this->postJson('/api/admin/bots/run/' . $source->key);
+        $second = $this->postJson('/api/admin/bots/run/' . $source->key, [
+            'force_manual_override' => true,
+        ]);
+
+        $first->assertOk();
+        $second
+            ->assertOk()
+            ->assertJsonPath('source_key', $source->key);
     }
 
     public function test_admin_get_runs_returns_latest_run_with_pagination_payload(): void
@@ -316,6 +339,79 @@ class AdminBotControllerTest extends TestCase
             ->assertJsonCount(10, 'data');
     }
 
+    public function test_admin_translation_test_endpoint_returns_provider_and_translated_text(): void
+    {
+        $this->actingAsAdmin();
+
+        config()->set('astrobot.translation_provider', 'http');
+        config()->set('astrobot.translation_fallback_provider', '');
+        config()->set('astrobot.translation_base_url', 'http://translation.test');
+        config()->set('astrobot.translation_timeout_seconds', 5);
+
+        Http::fake([
+            'http://translation.test/translate' => Http::response([
+                'translatedText' => 'SK Test translation payload.',
+            ], 200),
+        ]);
+
+        $response = $this->postJson('/api/admin/bots/translation/test', [
+            'text' => 'Test translation payload.',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('provider', 'libretranslate')
+            ->assertJsonPath('translated_text', 'SK Test translation payload.');
+
+        $this->assertGreaterThanOrEqual(0, (int) $response->json('latency_ms'));
+    }
+
+    public function test_admin_retry_translation_retries_failed_items_and_marks_them_done(): void
+    {
+        $source = $this->createRssSource('retry_translation_source');
+        $failedItem = $this->createBotItem($source, 'retry-1', now(), [
+            'translation_status' => 'failed',
+            'translation_error' => 'previous_failure',
+            'translation_provider' => null,
+            'title' => 'English retry title',
+            'content' => 'English retry body long enough to pass validation checks.',
+        ]);
+
+        $this->actingAsAdmin();
+
+        config()->set('astrobot.translation_provider', 'http');
+        config()->set('astrobot.translation_fallback_provider', '');
+        config()->set('astrobot.translation_base_url', 'http://translation.test');
+        config()->set('astrobot.translation_timeout_seconds', 5);
+
+        Http::fake([
+            'http://translation.test/translate' => function ($request) {
+                $sourceText = trim((string) ($request['q'] ?? ''));
+
+                return Http::response([
+                    'translatedText' => 'SK ' . $sourceText,
+                ], 200);
+            },
+        ]);
+
+        $response = $this->postJson('/api/admin/bots/translation/retry/' . $source->key . '?limit=10');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('source_key', $source->key)
+            ->assertJsonPath('retried_count', 1)
+            ->assertJsonPath('done_count', 1)
+            ->assertJsonPath('failed_count', 0);
+
+        $failedItem->refresh();
+        $this->assertSame('done', (string) $failedItem->translation_status->value);
+        $this->assertSame('libretranslate', (string) $failedItem->translation_provider);
+        $this->assertNull($failedItem->translation_error);
+        $this->assertNotNull($failedItem->translated_at);
+        $this->assertSame('SK English retry title', (string) $failedItem->title_translated);
+    }
+
     public function test_admin_publish_item_endpoint_publishes_pending_item_and_marks_manual_audit(): void
     {
         $source = $this->createRssSource('publish_single_source');
@@ -400,6 +496,68 @@ class AdminBotControllerTest extends TestCase
 
         $this->assertSame(2, BotItem::query()->where('run_id', $run->id)->whereNotNull('post_id')->count());
         $this->assertSame(1, BotItem::query()->where('run_id', $run->id)->whereNull('post_id')->count());
+    }
+
+    public function test_admin_delete_item_post_endpoint_deletes_post_and_unlinks_item(): void
+    {
+        $source = $this->createRssSource('delete_item_post_source');
+        $botUser = User::factory()->create([
+            'is_bot' => true,
+            'username' => 'kozmo',
+            'email' => 'kozmo.delete@example.test',
+        ]);
+
+        $post = Post::query()->create([
+            'user_id' => $botUser->id,
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'kozmo',
+            'content' => 'Bot post for delete endpoint test.',
+            'moderation_status' => 'ok',
+        ]);
+
+        $item = $this->createBotItem($source, 'delete-item-post', now(), [
+            'post_id' => $post->id,
+            'publish_status' => 'published',
+            'translation_status' => 'done',
+            'meta' => [
+                'published_manually' => true,
+            ],
+        ]);
+
+        $this->actingAsAdmin();
+
+        $response = $this->deleteJson('/api/admin/bots/items/' . $item->id . '/post');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('deleted_post_id', $post->id)
+            ->assertJsonPath('item.id', $item->id)
+            ->assertJsonPath('item.post_id', null)
+            ->assertJsonPath('item.publish_status', 'pending');
+
+        $this->assertDatabaseMissing('posts', ['id' => $post->id]);
+
+        $item->refresh();
+        $this->assertNull($item->post_id);
+        $this->assertSame('pending', (string) $item->publish_status->value);
+        $this->assertTrue((bool) data_get($item->meta, 'deleted_manually'));
+        $this->assertSame($post->id, (int) data_get($item->meta, 'deleted_post_id'));
+    }
+
+    public function test_admin_delete_item_post_endpoint_rejects_item_without_post_link(): void
+    {
+        $source = $this->createRssSource('delete_item_no_post_source');
+        $item = $this->createBotItem($source, 'delete-item-no-post', now(), [
+            'post_id' => null,
+            'publish_status' => 'pending',
+        ]);
+
+        $this->actingAsAdmin();
+
+        $this->deleteJson('/api/admin/bots/items/' . $item->id . '/post')
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Item has no published post to delete.');
     }
 
     private function actingAsAdmin(): void

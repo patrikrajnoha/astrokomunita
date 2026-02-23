@@ -5,21 +5,78 @@ import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import { useBotEngineStore } from '@/stores/botEngine'
 import { useToast } from '@/composables/useToast'
 
+const props = defineProps({
+  presetBotIdentity: {
+    type: String,
+    default: '',
+  },
+  presetLabel: {
+    type: String,
+    default: '',
+  },
+})
+
 const store = useBotEngineStore()
 const toast = useToast()
 const DEFAULT_PUBLISH_ALL_LIMIT = 3
+const VALID_BOT_IDENTITIES = ['kozmo', 'stela']
+const BOT_LABELS = Object.freeze({
+  kozmo: 'KozmoBot',
+  stela: 'StellarBot',
+})
 
 const { sources, runsPage, runItemsPage, filters, loadingSources, loadingRuns, loadingRunItems } = storeToRefs(store)
 const selectedRun = ref(null)
 const selectedPreviewItem = ref(null)
 const publishAllLimit = ref(DEFAULT_PUBLISH_ALL_LIMIT)
+const retryTranslationLimit = ref(10)
+const translationTestText = ref('NASA studies the Sun and planets in our Solar System.')
+const translationTestResult = ref(null)
 
 const filterForm = ref({
   sourceKey: '',
+  bot_identity: '',
   status: '',
   date_from: '',
   date_to: '',
   per_page: 20,
+})
+
+function normalizeBotIdentity(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  return VALID_BOT_IDENTITIES.includes(normalized) ? normalized : ''
+}
+
+const normalizedPresetBotIdentity = computed(() => normalizeBotIdentity(props.presetBotIdentity))
+const hasPresetBotIdentity = computed(() => normalizedPresetBotIdentity.value !== '')
+const effectiveBotIdentity = computed(() => {
+  if (hasPresetBotIdentity.value) {
+    return normalizedPresetBotIdentity.value
+  }
+  return normalizeBotIdentity(filterForm.value.bot_identity)
+})
+
+const pageTitle = computed(() => {
+  if (String(props.presetLabel || '').trim() !== '') {
+    return `${props.presetLabel} Bot Engine`
+  }
+  if (effectiveBotIdentity.value === 'kozmo') {
+    return 'KozmoBot Engine'
+  }
+  if (effectiveBotIdentity.value === 'stela') {
+    return 'StelaBot Engine'
+  }
+  return 'Bot Engine'
+})
+
+const pageSubtitle = computed(() => {
+  if (effectiveBotIdentity.value === 'kozmo') {
+    return 'Run Kozmo sources manually and inspect run history.'
+  }
+  if (effectiveBotIdentity.value === 'stela') {
+    return 'Run Stela sources manually and inspect run history.'
+  }
+  return 'Run bot sources manually and inspect run history.'
 })
 
 const runs = computed(() => (Array.isArray(runsPage.value?.data) ? runsPage.value.data : []))
@@ -39,11 +96,47 @@ const canNextItemsPage = computed(() => {
   return current < last
 })
 
+const filteredSources = computed(() => {
+  if (!Array.isArray(sources.value)) {
+    return []
+  }
+
+  if (effectiveBotIdentity.value === '') {
+    return sources.value
+  }
+
+  return sources.value.filter((source) => normalizeBotIdentity(source?.bot_identity) === effectiveBotIdentity.value)
+})
+
 const sourceOptions = computed(() => {
-  return Array.isArray(sources.value)
-    ? sources.value.map((source) => String(source?.key || '')).filter((key) => key !== '')
+  return Array.isArray(filteredSources.value)
+    ? filteredSources.value.map((source) => String(source?.key || '')).filter((key) => key !== '')
     : []
 })
+
+const enabledSourcesByIdentity = computed(() => {
+  const grouped = {
+    kozmo: [],
+    stela: [],
+  }
+
+  for (const source of Array.isArray(sources.value) ? sources.value : []) {
+    const identity = normalizeBotIdentity(source?.bot_identity)
+    if (!identity || !source?.is_enabled) {
+      continue
+    }
+
+    if (!Array.isArray(grouped[identity])) {
+      continue
+    }
+
+    grouped[identity].push(source)
+  }
+
+  return grouped
+})
+
+const quickRunBusyIdentity = ref('')
 
 function toErrorMessage(error, fallbackMessage) {
   const status = Number(error?.response?.status || 0)
@@ -118,6 +211,23 @@ function itemStatusClass(status) {
   if (normalized === 'skipped') return 'statusBadge statusBadge--partial'
   if (normalized === 'failed') return 'statusBadge statusBadge--failed'
   return 'statusBadge statusBadge--muted'
+}
+
+function translationProviderLabel(provider) {
+  const normalized = String(provider || '').trim().toLowerCase()
+  if (!normalized) return '-'
+  if (normalized === 'libretranslate') return 'LT'
+  if (normalized === 'ollama') return 'Ollama'
+  if (normalized === 'mixed') return 'Mixed'
+  return normalized
+}
+
+function translationProviderClass(provider) {
+  const normalized = String(provider || '').trim().toLowerCase()
+  if (normalized === 'libretranslate') return 'providerBadge providerBadge--lt'
+  if (normalized === 'ollama') return 'providerBadge providerBadge--ollama'
+  if (normalized === 'mixed') return 'providerBadge providerBadge--mixed'
+  return 'providerBadge providerBadge--muted'
 }
 
 function toPositiveIntOrNull(value) {
@@ -224,8 +334,13 @@ function confirmPublishToAstroFeed() {
 }
 
 function syncFilterFormFromStore() {
+  const nextBotIdentity = hasPresetBotIdentity.value
+    ? normalizedPresetBotIdentity.value
+    : normalizeBotIdentity(filters.value?.bot_identity)
+
   filterForm.value = {
     sourceKey: String(filters.value?.sourceKey || ''),
+    bot_identity: nextBotIdentity,
     status: String(filters.value?.status || ''),
     date_from: String(filters.value?.date_from || ''),
     date_to: String(filters.value?.date_to || ''),
@@ -233,9 +348,44 @@ function syncFilterFormFromStore() {
   }
 }
 
+function withBotIdentityConstraint(input = {}) {
+  const next = { ...(input || {}) }
+  if (hasPresetBotIdentity.value) {
+    next.bot_identity = normalizedPresetBotIdentity.value
+  } else {
+    next.bot_identity = normalizeBotIdentity(next.bot_identity)
+  }
+  return next
+}
+
+function botIdentityLabel(identity) {
+  return BOT_LABELS[identity] || identity
+}
+
+function normalizeSourceKeyForVisibleSources() {
+  const selectedSourceKey = String(filterForm.value.sourceKey || '')
+  if (selectedSourceKey === '') {
+    return
+  }
+
+  if (!Array.isArray(filteredSources.value) || filteredSources.value.length === 0) {
+    return
+  }
+
+  if (sourceOptions.value.includes(selectedSourceKey)) {
+    return
+  }
+
+  filterForm.value = {
+    ...filterForm.value,
+    sourceKey: '',
+  }
+}
+
 async function loadSources() {
   try {
     await store.fetchSources()
+    normalizeSourceKeyForVisibleSources()
   } catch (error) {
     toast.error(toErrorMessage(error, 'Failed to load bot sources.'))
   }
@@ -243,8 +393,9 @@ async function loadSources() {
 
 async function loadRuns(params = {}) {
   try {
-    await store.fetchRuns(params)
+    await store.fetchRuns(withBotIdentityConstraint(params))
     syncFilterFormFromStore()
+    normalizeSourceKeyForVisibleSources()
   } catch (error) {
     toast.error(toErrorMessage(error, 'Failed to load bot runs.'))
   }
@@ -255,16 +406,17 @@ async function initialize() {
 }
 
 async function applyRunsFilters() {
-  await loadRuns({
+  await loadRuns(withBotIdentityConstraint({
     ...filterForm.value,
     page: 1,
-  })
+  }))
 }
 
 async function resetRunsFilters() {
-  const defaults = store.resetFilters()
+  const defaults = withBotIdentityConstraint(store.resetFilters())
   filterForm.value = {
     sourceKey: defaults.sourceKey,
+    bot_identity: defaults.bot_identity,
     status: defaults.status,
     date_from: defaults.date_from,
     date_to: defaults.date_to,
@@ -296,6 +448,69 @@ async function runNow(sourceKey, mode = 'auto') {
   }
 }
 
+async function quickRunIdentity(identity) {
+  const normalizedIdentity = normalizeBotIdentity(identity)
+  if (normalizedIdentity === '') {
+    return
+  }
+
+  const enabledSources = Array.isArray(enabledSourcesByIdentity.value[normalizedIdentity])
+    ? enabledSourcesByIdentity.value[normalizedIdentity]
+    : []
+
+  if (enabledSources.length === 0) {
+    toast.info(`${botIdentityLabel(normalizedIdentity)} has no enabled sources.`)
+    return
+  }
+
+  quickRunBusyIdentity.value = normalizedIdentity
+
+  let successCount = 0
+  let partialCount = 0
+  let failedCount = 0
+  let lastErrorMessage = ''
+
+  for (const source of enabledSources) {
+    try {
+      const result = await store.runSource(source.key, {
+        mode: 'auto',
+        force_manual_override: true,
+      })
+      const status = String(result?.status || '').toLowerCase()
+
+      if (status === 'success') {
+        successCount++
+      } else if (status === 'partial') {
+        partialCount++
+      } else {
+        failedCount++
+      }
+    } catch (error) {
+      failedCount++
+      lastErrorMessage = toErrorMessage(error, `Failed to run source "${source.key}".`)
+    }
+  }
+
+  quickRunBusyIdentity.value = ''
+
+  await Promise.all([loadSources(), loadRuns()])
+
+  const processedCount = successCount + partialCount + failedCount
+  const summary = `${botIdentityLabel(normalizedIdentity)} run done. Sources ${processedCount}, success ${successCount}, partial ${partialCount}, failed ${failedCount}.`
+
+  if (failedCount > 0 && lastErrorMessage !== '') {
+    toast.error(`${summary} ${lastErrorMessage}`)
+    return
+  }
+
+  if (failedCount > 0) {
+    toast.error(summary)
+    return
+  }
+
+  toast.success(summary)
+}
+
 async function dryRun(sourceKey) {
   await runNow(sourceKey, 'dry')
 }
@@ -315,6 +530,7 @@ function closeRunDetail() {
   selectedRun.value = null
   selectedPreviewItem.value = null
   publishAllLimit.value = DEFAULT_PUBLISH_ALL_LIMIT
+  retryTranslationLimit.value = 10
   store.clearRunItems()
 }
 
@@ -330,6 +546,19 @@ function canPublishItem(item) {
   const status = String(item?.publish_status || '').toLowerCase()
   if (status === 'published' || status === 'skipped') return false
   return !item?.post_id
+}
+
+function canDeleteItemPost(item) {
+  const postId = Number(item?.post_id || 0)
+  return Number.isInteger(postId) && postId > 0
+}
+
+function confirmDeletePublishedPost() {
+  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+    return window.confirm('Delete published bot post from feed?')
+  }
+
+  return true
 }
 
 async function goToItemsPage(page) {
@@ -368,6 +597,23 @@ async function publishItem(item) {
   }
 }
 
+async function deleteItemPost(item) {
+  if (!item?.id || !canDeleteItemPost(item)) return
+  if (!confirmDeletePublishedPost()) return
+
+  try {
+    await store.deleteItemPost(item.id)
+    toast.success('Published post deleted.')
+
+    await store.fetchItemsForRun(selectedRun.value?.id, {
+      page: runItemsMeta.value?.current_page || 1,
+      per_page: runItemsMeta.value?.per_page || 20,
+    })
+  } catch (error) {
+    toast.error(toErrorMessage(error, 'Failed to delete published post.'))
+  }
+}
+
 async function publishAllForRun() {
   const runId = Number(selectedRun.value?.id || 0)
   if (!Number.isInteger(runId) || runId <= 0) return
@@ -394,6 +640,56 @@ async function publishAllForRun() {
   }
 }
 
+async function testTranslation() {
+  try {
+    const payload = {
+      text: String(translationTestText.value || '').trim(),
+    }
+    const result = await store.testTranslation(payload)
+    if (!result) {
+      return
+    }
+
+    translationTestResult.value = result
+    const provider = translationProviderLabel(result.provider)
+    toast.success(`Translation test OK (${provider}, ${Number(result.latency_ms || 0)} ms).`)
+  } catch (error) {
+    translationTestResult.value = null
+    toast.error(toErrorMessage(error, 'Translation test failed.'))
+  }
+}
+
+async function retryTranslateForRun() {
+  const sourceKey = String(selectedRun.value?.source_key || '').trim()
+  if (!sourceKey) {
+    return
+  }
+
+  const limit = Number(retryTranslationLimit.value)
+  const normalizedLimit = Number.isInteger(limit) && limit > 0 ? limit : 10
+
+  try {
+    const result = await store.retryTranslation(sourceKey, {
+      limit: normalizedLimit,
+      run_id: selectedRun.value?.id,
+    })
+    if (!result) {
+      return
+    }
+
+    toast.success(
+      `Retry done: ${Number(result.done_count || 0)} ok, ${Number(result.skipped_count || 0)} skipped, ${Number(result.failed_count || 0)} failed.`,
+    )
+
+    await store.fetchItemsForRun(selectedRun.value?.id, {
+      page: runItemsMeta.value?.current_page || 1,
+      per_page: runItemsMeta.value?.per_page || 20,
+    })
+  } catch (error) {
+    toast.error(toErrorMessage(error, 'Retry translation failed.'))
+  }
+}
+
 function statusClass(status) {
   const normalized = String(status || '').toLowerCase()
   if (normalized === 'success') return 'statusBadge statusBadge--success'
@@ -404,12 +700,52 @@ function statusClass(status) {
 
 onMounted(async () => {
   syncFilterFormFromStore()
+  if (hasPresetBotIdentity.value) {
+    filterForm.value = {
+      ...filterForm.value,
+      bot_identity: normalizedPresetBotIdentity.value,
+      sourceKey: '',
+    }
+  }
   await initialize()
 })
 </script>
 
 <template>
-  <AdminPageShell title="Bot Engine" subtitle="Run bot sources manually and inspect run history.">
+  <AdminPageShell :title="pageTitle" :subtitle="pageSubtitle">
+    <section class="card">
+      <header class="sectionHeader">
+        <div>
+          <h2 class="sectionTitle">Quick Run</h2>
+          <p class="sectionSubtitle">One click run in AUTO mode. New items are published immediately.</p>
+        </div>
+      </header>
+
+      <div class="quickRunGrid">
+        <button
+          type="button"
+          class="runBtn quickRunBtn"
+          data-testid="quick-run-kozmo"
+          :disabled="quickRunBusyIdentity !== ''"
+          @click="quickRunIdentity('kozmo')"
+        >
+          {{ quickRunBusyIdentity === 'kozmo' ? 'Running KozmoBot...' : 'Run KozmoBot' }}
+          <small class="quickRunHint">{{ enabledSourcesByIdentity.kozmo.length }} enabled source(s)</small>
+        </button>
+
+        <button
+          type="button"
+          class="runBtn quickRunBtn"
+          data-testid="quick-run-stela"
+          :disabled="quickRunBusyIdentity !== ''"
+          @click="quickRunIdentity('stela')"
+        >
+          {{ quickRunBusyIdentity === 'stela' ? 'Running StellarBot...' : 'Run StellarBot' }}
+          <small class="quickRunHint">{{ enabledSourcesByIdentity.stela.length }} enabled source(s)</small>
+        </button>
+      </div>
+    </section>
+
     <section class="card">
       <header class="sectionHeader">
         <div>
@@ -441,10 +777,10 @@ onMounted(async () => {
                 </td>
               </tr>
             </template>
-            <tr v-else-if="sources.length === 0">
+            <tr v-else-if="filteredSources.length === 0">
               <td colspan="6" class="emptyCell">No sources available.</td>
             </tr>
-            <tr v-else v-for="source in sources" :key="source.id || source.key">
+            <tr v-else v-for="source in filteredSources" :key="source.id || source.key">
               <td><code>{{ source.key }}</code></td>
               <td>{{ source.bot_identity || '-' }}</td>
               <td>{{ source.source_type || '-' }}</td>
@@ -483,6 +819,41 @@ onMounted(async () => {
     <section class="card">
       <header class="sectionHeader">
         <div>
+          <h2 class="sectionTitle">Translation Tools</h2>
+          <p class="sectionSubtitle">1-click test for EN→SK translation via primary provider with fallback.</p>
+        </div>
+      </header>
+
+      <div class="translationTools">
+        <label class="filterField">
+          <span>test text</span>
+          <textarea
+            v-model="translationTestText"
+            rows="3"
+            maxlength="5000"
+            placeholder="Enter short English text for translation test."
+          />
+        </label>
+        <div class="inlineActions">
+          <button type="button" class="runBtn" :disabled="store.testingTranslation" @click="testTranslation">
+            {{ store.testingTranslation ? 'Testing...' : 'Test translation' }}
+          </button>
+        </div>
+        <div v-if="translationTestResult" class="translationResult">
+          <div class="inlineActions">
+            <span :class="translationProviderClass(translationTestResult.provider)">
+              {{ translationProviderLabel(translationTestResult.provider) }}
+            </span>
+            <span class="modeHint">{{ Number(translationTestResult.latency_ms || 0) }} ms</span>
+          </div>
+          <p>{{ translationTestResult.translated_text || '-' }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header class="sectionHeader">
+        <div>
           <h2 class="sectionTitle">Runs</h2>
           <p class="sectionSubtitle">Filter and inspect historical bot runs.</p>
         </div>
@@ -492,6 +863,19 @@ onMounted(async () => {
       </header>
 
       <form class="filters" @submit.prevent="applyRunsFilters">
+        <label v-if="!hasPresetBotIdentity" class="filterField">
+          <span>bot_identity</span>
+          <select v-model="filterForm.bot_identity">
+            <option value="">All</option>
+            <option value="kozmo">kozmo</option>
+            <option value="stela">stela</option>
+          </select>
+        </label>
+        <label v-else class="filterField">
+          <span>bot_identity</span>
+          <input :value="filterForm.bot_identity || '-'" type="text" readonly />
+        </label>
+
         <label class="filterField">
           <span>sourceKey</span>
           <select v-model="filterForm.sourceKey">
@@ -650,6 +1034,10 @@ onMounted(async () => {
                   <span>Limit</span>
                   <input v-model.number="publishAllLimit" data-testid="publish-all-limit" type="number" min="1" max="100" />
                 </label>
+                <label class="inlineField">
+                  <span>Retry N</span>
+                  <input v-model.number="retryTranslationLimit" type="number" min="1" max="100" />
+                </label>
                 <button
                   type="button"
                   class="runBtn"
@@ -657,6 +1045,14 @@ onMounted(async () => {
                   @click="publishAllForRun"
                 >
                   {{ store.isRunPublishing(selectedRun?.id) ? 'Publishing...' : 'Publish all' }}
+                </button>
+                <button
+                  type="button"
+                  class="ghostBtn"
+                  :disabled="store.isTranslationRetrying(selectedRun?.source_key)"
+                  @click="retryTranslateForRun"
+                >
+                  {{ store.isTranslationRetrying(selectedRun?.source_key) ? 'Retrying...' : 'Retry translate' }}
                 </button>
                 <button
                   type="button"
@@ -676,6 +1072,7 @@ onMounted(async () => {
                     <th>stable_key</th>
                     <th>publish_status</th>
                     <th>translation_status</th>
+                    <th>provider</th>
                     <th>post_id</th>
                     <th>used_translation</th>
                     <th>skip_reason</th>
@@ -686,13 +1083,13 @@ onMounted(async () => {
                 <tbody>
                   <template v-if="loadingRunItems">
                     <tr v-for="index in 4" :key="`items-skeleton-${index}`">
-                      <td colspan="8">
+                      <td colspan="9">
                         <div class="skeletonRow"></div>
                       </td>
                     </tr>
                   </template>
                   <tr v-else-if="runItems.length === 0">
-                    <td colspan="8" class="emptyCell">No items found for this run.</td>
+                    <td colspan="9" class="emptyCell">No items found for this run.</td>
                   </tr>
                   <tr v-else v-for="item in runItems" :key="item.id || item.stable_key">
                     <td>
@@ -707,8 +1104,13 @@ onMounted(async () => {
                       </div>
                     </td>
                     <td>
-                      <span :class="itemStatusClass(item.translation_status)">
+                      <span :class="itemStatusClass(item.translation_status)" :title="item.translation_error || ''">
                         {{ item.translation_status || 'unknown' }}
+                      </span>
+                    </td>
+                    <td>
+                      <span :class="translationProviderClass(item.translation_provider)" :title="item.translation_error || ''">
+                        {{ translationProviderLabel(item.translation_provider) }}
                       </span>
                     </td>
                     <td>
@@ -730,10 +1132,18 @@ onMounted(async () => {
                         <button
                           type="button"
                           class="runBtn"
-                          :disabled="!canPublishItem(item) || store.isItemPublishing(item.id)"
+                          :disabled="!canPublishItem(item) || store.isItemPublishing(item.id) || store.isItemDeleting(item.id)"
                           @click="publishItem(item)"
                         >
                           {{ store.isItemPublishing(item.id) ? 'Publishing...' : 'Publish' }}
+                        </button>
+                        <button
+                          type="button"
+                          class="dangerBtn"
+                          :disabled="!canDeleteItemPost(item) || store.isItemDeleting(item.id) || store.isItemPublishing(item.id)"
+                          @click="deleteItemPost(item)"
+                        >
+                          {{ store.isItemDeleting(item.id) ? 'Deleting...' : 'Delete post' }}
                         </button>
                       </div>
                     </td>
@@ -910,7 +1320,8 @@ onMounted(async () => {
 }
 
 .runBtn,
-.ghostBtn {
+.ghostBtn,
+.dangerBtn {
   border-radius: 9px;
   padding: 7px 11px;
   font-size: 0.82rem;
@@ -930,10 +1341,37 @@ onMounted(async () => {
   color: rgb(var(--color-surface-rgb) / 0.95);
 }
 
+.dangerBtn {
+  border: 1px solid rgb(248 113 113 / 0.58);
+  background: rgb(248 113 113 / 0.16);
+  color: rgb(254 202 202);
+}
+
 .runBtn:disabled,
-.ghostBtn:disabled {
+.ghostBtn:disabled,
+.dangerBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.quickRunGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quickRunBtn {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  text-align: left;
+  min-height: 62px;
+}
+
+.quickRunHint {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
 }
 
 .inlineActions {
@@ -1055,7 +1493,7 @@ onMounted(async () => {
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(5, minmax(140px, 1fr)) auto;
+  grid-template-columns: repeat(6, minmax(140px, 1fr)) auto;
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -1080,6 +1518,63 @@ onMounted(async () => {
   color: rgb(var(--color-surface-rgb) / 0.96);
   padding: 8px 10px;
   min-height: 36px;
+}
+
+.filterField textarea {
+  border-radius: 9px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: rgb(var(--color-bg-rgb) / 0.5);
+  color: rgb(var(--color-surface-rgb) / 0.96);
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.translationTools {
+  display: grid;
+  gap: 10px;
+}
+
+.translationResult p {
+  margin: 8px 0 0;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.17);
+  border-radius: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.65);
+  padding: 10px;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+}
+
+.providerBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  padding: 2px 7px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.providerBadge--lt {
+  border-color: rgb(16 185 129 / 0.58);
+  background: rgb(16 185 129 / 0.2);
+  color: rgb(167 243 208);
+}
+
+.providerBadge--ollama {
+  border-color: rgb(14 165 233 / 0.58);
+  background: rgb(14 165 233 / 0.2);
+  color: rgb(186 230 253);
+}
+
+.providerBadge--mixed {
+  border-color: rgb(245 158 11 / 0.58);
+  background: rgb(245 158 11 / 0.2);
+  color: rgb(254 243 199);
+}
+
+.providerBadge--muted {
+  opacity: 0.7;
 }
 
 .filterActions {
@@ -1239,6 +1734,10 @@ onMounted(async () => {
 }
 
 @media (max-width: 680px) {
+  .quickRunGrid {
+    grid-template-columns: 1fr;
+  }
+
   .detailGrid {
     grid-template-columns: 1fr;
   }

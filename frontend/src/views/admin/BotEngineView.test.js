@@ -17,6 +17,14 @@ const store = {
       is_enabled: true,
       last_run_at: null,
     },
+    {
+      id: 2,
+      key: 'nasa_apod_daily',
+      bot_identity: 'stela',
+      source_type: 'api',
+      is_enabled: true,
+      last_run_at: null,
+    },
   ]),
   runsPage: ref({
     data: [],
@@ -28,6 +36,7 @@ const store = {
   }),
   filters: ref({
     sourceKey: '',
+    bot_identity: '',
     status: '',
     date_from: '',
     date_to: '',
@@ -36,18 +45,25 @@ const store = {
   loadingSources: ref(false),
   loadingRuns: ref(false),
   loadingRunItems: ref(false),
+  testingTranslation: false,
   fetchSources: vi.fn().mockResolvedValue([]),
   fetchRuns: vi.fn().mockResolvedValue([]),
   runSource: vi.fn(),
   publishItem: vi.fn(),
   publishRun: vi.fn(),
+  retryTranslation: vi.fn(),
+  testTranslation: vi.fn(),
+  deleteItemPost: vi.fn(),
   fetchItemsForRun: vi.fn().mockResolvedValue([]),
   clearRunItems: vi.fn(),
   isSourceRunning: vi.fn(() => false),
   isItemPublishing: vi.fn(() => false),
+  isItemDeleting: vi.fn(() => false),
   isRunPublishing: vi.fn(() => false),
+  isTranslationRetrying: vi.fn(() => false),
   resetFilters: vi.fn(() => ({
     sourceKey: '',
+    bot_identity: '',
     status: '',
     date_from: '',
     date_to: '',
@@ -76,14 +92,16 @@ function flush() {
   return Promise.resolve().then(() => nextTick())
 }
 
-function mountView() {
+function mountView(options = {}) {
   return mount(BotEngineView, {
+    ...options,
     global: {
       stubs: {
         AdminPageShell: { template: '<div><slot /></div>' },
         routerLink: true,
         teleport: true,
       },
+      ...(options.global || {}),
     },
   })
 }
@@ -154,6 +172,51 @@ describe('BotEngineView', () => {
       skipped_count: 0,
       failed_count: 0,
     })
+    store.retryTranslation.mockResolvedValue({
+      source_key: 'nasa_rss_breaking',
+      retried_count: 1,
+      done_count: 1,
+      skipped_count: 0,
+      failed_count: 0,
+    })
+    store.testTranslation.mockResolvedValue({
+      ok: true,
+      provider: 'libretranslate',
+      latency_ms: 40,
+      translated_text: 'SK test translation',
+    })
+    store.deleteItemPost.mockResolvedValue({
+      message: 'Published post deleted.',
+      item: { id: 91, post_id: null, publish_status: 'pending' },
+    })
+  })
+
+  it('applies preset bot identity filter for dedicated bot menu routes', async () => {
+    mountView({
+      props: {
+        presetBotIdentity: 'kozmo',
+        presetLabel: 'Kozmo',
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(store.fetchRuns).toHaveBeenCalled()
+    expect(store.fetchRuns.mock.calls[0][0]).toMatchObject({ bot_identity: 'kozmo' })
+  })
+
+  it('quick run executes enabled sources for selected bot identity', async () => {
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    const quickRunKozmoButton = wrapper.find('[data-testid="quick-run-kozmo"]')
+    await quickRunKozmoButton.trigger('click')
+    await flush()
+
+    expect(store.runSource).toHaveBeenCalledWith('nasa_rss_breaking', { mode: 'auto', force_manual_override: true })
+    expect(store.runSource).not.toHaveBeenCalledWith('nasa_apod_daily', { mode: 'auto', force_manual_override: true })
   })
 
   it('shows retry_after detail when manual run is throttled', async () => {
@@ -267,5 +330,66 @@ describe('BotEngineView', () => {
     await flush()
 
     expect(store.publishRun).toHaveBeenCalledWith(11, { publish_limit: 3 })
+  })
+
+  it('deletes published bot post from item row after confirm', async () => {
+    store.runItemsPage.value = {
+      data: [
+        {
+          ...store.runItemsPage.value.data[0],
+          id: 93,
+          post_id: 1234,
+          publish_status: 'published',
+        },
+      ],
+      meta: { ...store.runItemsPage.value.meta },
+    }
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    await wrapper.findAll('button').find((node) => node.text().includes('Detail')).trigger('click')
+    await flush()
+
+    const deleteButton = wrapper.findAll('button').find((node) => node.text() === 'Delete post')
+    await deleteButton.trigger('click')
+    await flush()
+
+    expect(confirmSpy).toHaveBeenCalledWith('Delete published bot post from feed?')
+    expect(store.deleteItemPost).toHaveBeenCalledWith(93)
+
+    confirmSpy.mockRestore()
+  })
+
+  it('does not delete published post when confirm is cancelled', async () => {
+    store.runItemsPage.value = {
+      data: [
+        {
+          ...store.runItemsPage.value.data[0],
+          id: 94,
+          post_id: 4321,
+          publish_status: 'published',
+        },
+      ],
+      meta: { ...store.runItemsPage.value.meta },
+    }
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    await wrapper.findAll('button').find((node) => node.text().includes('Detail')).trigger('click')
+    await flush()
+
+    const deleteButton = wrapper.findAll('button').find((node) => node.text() === 'Delete post')
+    await deleteButton.trigger('click')
+    await flush()
+
+    expect(store.deleteItemPost).not.toHaveBeenCalledWith(94)
+
+    confirmSpy.mockRestore()
   })
 })
