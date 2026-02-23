@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 
 class RunBotSourceCommand extends Command
 {
-    protected $signature = 'bots:run {sourceKey}';
+    protected $signature = 'bots:run {sourceKey} {--context=cli} {--force-manual-override}';
 
     protected $description = 'Run one bot source end-to-end (fetch, dedupe, publish, audit).';
 
@@ -21,6 +21,8 @@ class RunBotSourceCommand extends Command
     public function handle(): int
     {
         $sourceKey = strtolower(trim((string) $this->argument('sourceKey')));
+        $runContext = strtolower(trim((string) $this->option('context')));
+        $forceManualOverride = (bool) $this->option('force-manual-override');
 
         $source = BotSource::query()->where('key', $sourceKey)->first();
         if (!$source) {
@@ -35,7 +37,7 @@ class RunBotSourceCommand extends Command
             return self::FAILURE;
         }
 
-        $run = $this->runner->run($source);
+        $run = $this->runner->run($source, $runContext, $forceManualOverride);
         $stats = is_array($run->stats) ? $run->stats : [];
 
         $this->info(sprintf('Run #%d finished with status: %s', $run->id, (string) ($run->status?->value ?? $run->status)));
@@ -51,6 +53,13 @@ class RunBotSourceCommand extends Command
 
         if (!empty($run->error_text)) {
             $this->warn((string) $run->error_text);
+        }
+
+        if ((int) ($stats['run_locked'] ?? 0) === 1) {
+            $this->warn(sprintf(
+                'Run skipped due to lock: %s',
+                (string) ($stats['lock_key'] ?? 'unknown_lock')
+            ));
         }
 
         $status = $run->status?->value ?? (string) $run->status;
