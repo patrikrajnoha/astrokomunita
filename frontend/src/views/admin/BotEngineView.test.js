@@ -193,6 +193,9 @@ describe('BotEngineView', () => {
       provider: 'libretranslate',
       latency_ms: 40,
       translated_text: 'SK test translation',
+      mode: 'lt_only',
+      provider_chain: ['libretranslate'],
+      quality_flags: [],
     })
     store.deleteItemPost.mockResolvedValue({
       message: 'Published post deleted.',
@@ -419,5 +422,30 @@ describe('BotEngineView', () => {
     expect(store.backfillTranslation).toHaveBeenCalledWith('nasa_rss_breaking', { limit: 10, run_id: 11 })
 
     confirmSpy.mockRestore()
+  })
+
+  it('shows translation mode, provider chain and quality flags in test summary', async () => {
+    store.testTranslation.mockResolvedValueOnce({
+      ok: true,
+      provider: 'ollama_postedit',
+      latency_ms: 55,
+      translated_text: 'Prirodzeny slovensky text.',
+      mode: 'lt_ollama_postedit',
+      provider_chain: ['libretranslate', 'ollama_postedit'],
+      quality_flags: ['too_short'],
+    })
+
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    const button = wrapper.findAll('button').find((node) => node.text() === 'Test translation')
+    await button.trigger('click')
+    await flush()
+
+    const text = wrapper.text()
+    expect(text).toContain('LT+Ollama post-edit')
+    expect(text).toContain('libretranslate -> ollama_postedit')
+    expect(text).toContain('too_short')
   })
 })
