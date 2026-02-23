@@ -40,7 +40,7 @@ class RunBotSourceCommandTest extends TestCase
 
         $this->assertSame(2, BotItem::query()->whereNotNull('post_id')->count());
         $this->assertSame(2, BotItem::query()->where('publish_status', 'published')->count());
-        $this->assertSame(2, BotItem::query()->where('translation_status', 'done')->count());
+        $this->assertSame(2, BotItem::query()->whereIn('translation_status', ['done', 'skipped'])->count());
 
         $run = BotRun::query()->latest('id')->firstOrFail();
         $this->assertSame(0, (int) ($run->stats['skipped_count'] ?? -1));
@@ -62,6 +62,10 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertNotSame('', (string) data_get($post->meta, 'source_url'));
         $this->assertSame('bot-engine', (string) data_get($post->meta, 'published_by'));
         $this->assertNotSame('', (string) data_get($post->meta, 'published_at_utc'));
+
+        $kozmoBot = User::query()->where('is_bot', true)->where('username', 'kozmobot')->first();
+        $this->assertNotNull($kozmoBot);
+        $this->assertSame('Kozmo', (string) $kozmoBot->name);
     }
 
     public function test_source_label_and_attribution_are_loaded_from_config_mapping(): void
@@ -157,10 +161,41 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame('nasa_apod_daily', (string) data_get($post->meta, 'bot_source_key'));
         $this->assertNotSame('', (string) data_get($post->meta, 'source_url'));
 
+        $stelaBot = User::query()->where('is_bot', true)->where('username', 'stellarbot')->first();
+        $this->assertNotNull($stelaBot);
+        $this->assertSame('Stela', (string) $stelaBot->name);
+
         $run = BotRun::query()->latest('id')->firstOrFail();
         $this->assertSame(1, (int) ($run->stats['published_count'] ?? 0));
         $this->assertSame(0, (int) ($run->stats['skipped_count'] ?? 0));
         $this->assertSame(0, (int) ($run->stats['failed_count'] ?? 0));
+    }
+
+    public function test_publish_repairs_legacy_bot_username_and_display_name_to_configured_identity(): void
+    {
+        config()->set('astrobot.identities.kozmo.username', 'kozmobot');
+        config()->set('astrobot.identities.kozmo.display_name', 'Kozmo');
+
+        $legacyBot = User::factory()->create([
+            'is_bot' => true,
+            'is_active' => true,
+            'email_verified_at' => now(),
+            'username' => 'kozmo',
+            'name' => 'Legacy Kozmo',
+            'email' => 'kozmo@astrokomunita.local',
+        ]);
+
+        $source = $this->createSource();
+        Http::fake([
+            $source->url => Http::response($this->fixtureRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+        $this->assertSame(0, $exitCode);
+
+        $legacyBot->refresh();
+        $this->assertSame('kozmobot', (string) $legacyBot->username);
+        $this->assertSame('Kozmo', (string) $legacyBot->name);
     }
 
     public function test_apod_video_item_is_skipped_and_no_post_is_created(): void
@@ -745,7 +780,7 @@ class RunBotSourceCommandTest extends TestCase
 
     private function wikiEndpointForDate(string $baseUrl, Carbon $date): string
     {
-        return rtrim($baseUrl, '/') . '/' . $date->month . '/' . $date->day;
+        return sprintf('%s/%02d/%02d', rtrim($baseUrl, '/'), $date->month, $date->day);
     }
 
     /**

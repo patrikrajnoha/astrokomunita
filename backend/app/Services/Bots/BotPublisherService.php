@@ -90,7 +90,8 @@ class BotPublisherService
             $publishPayload['body'],
             trim((string) ($item->url ?? '')),
             $botIdentity,
-            $item
+            $item,
+            $source
         );
 
         try {
@@ -120,6 +121,8 @@ class BotPublisherService
             $this->cleanupTemporaryFile($temporaryAttachmentPath);
         }
 
+        $this->syncPostTranslationAudit($post, $item, $postMeta);
+
         $item->forceFill([
             'post_id' => $post->id,
             'publish_status' => BotPublishStatus::PUBLISHED->value,
@@ -132,39 +135,112 @@ class BotPublisherService
     private function ensureBotUser(string $botIdentity): User
     {
         $identity = strtolower(trim($botIdentity));
-        $email = sprintf('%s@astrokomunita.local', $identity);
+        $profile = $this->botIdentityProfile($identity);
+        $targetUsername = $profile['username'];
+        $targetName = $profile['display_name'];
+        $preferredEmail = sprintf('%s@astrokomunita.local', $targetUsername);
+        $legacyEmail = sprintf('%s@astrokomunita.local', $identity);
+        $candidateUsernames = array_values(array_unique(array_filter([$targetUsername, $identity])));
+        $candidateEmails = array_values(array_unique(array_filter([$preferredEmail, $legacyEmail])));
 
-        return User::query()->firstOrCreate(
-            ['email' => $email],
-            [
-                'name' => Str::title($identity),
-                'username' => $identity,
+        $user = User::query()
+            ->where('is_bot', true)
+            ->where(function ($query) use ($candidateUsernames, $candidateEmails): void {
+                $applied = false;
+                foreach ($candidateEmails as $email) {
+                    if (!$applied) {
+                        $query->where('email', $email);
+                        $applied = true;
+                    } else {
+                        $query->orWhere('email', $email);
+                    }
+                }
+
+                foreach ($candidateUsernames as $username) {
+                    if (!$applied) {
+                        $query->where('username', $username);
+                        $applied = true;
+                    } else {
+                        $query->orWhere('username', $username);
+                    }
+                }
+            })
+            ->orderBy('id')
+            ->first();
+
+        if (!$user) {
+            $user = User::query()->create([
+                'name' => $targetName,
+                'username' => $targetUsername,
+                'email' => $preferredEmail,
                 'bio' => 'Automated bot account',
                 'password' => Str::random(40),
                 'is_bot' => true,
                 'is_active' => true,
                 'email_verified_at' => now(),
-            ]
-        );
-    }
+            ]);
 
-    private function buildPostContent(string $headline, string $body, string $url, string $botIdentity, BotItem $item): string
-    {
-        if ($this->isStelaIdentity($botIdentity)) {
-            return $this->buildStelaPostContent($headline, $body, $url, $item);
+            return $user;
         }
 
-        return $this->buildKozmoPostContent($headline, $body, $url);
+        $updates = [];
+        if ((string) $user->username !== $targetUsername) {
+            $updates['username'] = $targetUsername;
+        }
+        if ((string) $user->name !== $targetName) {
+            $updates['name'] = $targetName;
+        }
+        if (!in_array((string) $user->email, $candidateEmails, true) || trim((string) $user->email) === '') {
+            $updates['email'] = $preferredEmail;
+        }
+        if (!(bool) $user->is_bot) {
+            $updates['is_bot'] = true;
+        }
+        if (!(bool) $user->is_active) {
+            $updates['is_active'] = true;
+        }
+        if ($user->email_verified_at === null) {
+            $updates['email_verified_at'] = now();
+        }
+        if (trim((string) $user->bio) === '') {
+            $updates['bio'] = 'Automated bot account';
+        }
+
+        if ($updates !== []) {
+            $user->forceFill($updates)->save();
+        }
+
+        return $user->fresh() ?? $user;
     }
 
-    private function buildKozmoPostContent(string $headline, string $body, string $url): string
+    private function buildPostContent(
+        string $headline,
+        string $body,
+        string $url,
+        string $botIdentity,
+        BotItem $item,
+        BotSource $source
+    ): string
+    {
+        $sourceKey = strtolower(trim((string) $source->key));
+        $sourceLabel = $this->sourceLabelForPostMeta($sourceKey);
+        $sourceAttribution = $this->sourceAttributionForPostMeta($sourceKey);
+
+        if ($this->isStelaIdentity($botIdentity)) {
+            return $this->buildStelaPostContent($headline, $body, $url, $item, $sourceLabel);
+        }
+
+        return $this->buildKozmoPostContent($headline, $body, $url, $sourceAttribution);
+    }
+
+    private function buildKozmoPostContent(string $headline, string $body, string $url, string $sourceAttribution): string
     {
         if ($headline === '') {
-            $headline = 'NASA update';
+            $headline = $sourceAttribution . ' update';
         }
 
         $lines = [
-            sprintf('NASA | %s', $headline),
+            sprintf('%s | %s', $sourceAttribution, $headline),
         ];
 
         if ($body !== '') {
@@ -173,7 +249,7 @@ class BotPublisherService
         }
 
         $lines[] = '';
-        $lines[] = 'Source: NASA';
+        $lines[] = sprintf('Source: %s', $sourceAttribution);
 
         if ($url !== '') {
             $lines[] = $url;
@@ -182,18 +258,24 @@ class BotPublisherService
         return implode("\n", $lines);
     }
 
-    private function buildStelaPostContent(string $headline, string $body, string $url, BotItem $item): string
+    private function buildStelaPostContent(
+        string $headline,
+        string $body,
+        string $url,
+        BotItem $item,
+        string $sourceLabel
+    ): string
     {
         $title = trim($headline);
         if ($title === '') {
-            $title = 'NASA APOD';
+            $title = $sourceLabel;
         }
         $title = $this->limitText($title, 300);
 
         $apodDate = trim((string) data_get($item->meta, 'apod_date', ''));
         $copyright = trim((string) data_get($item->meta, 'copyright', ''));
 
-        $attributionParts = ['NASA APOD'];
+        $attributionParts = [$sourceLabel];
         if ($apodDate !== '') {
             $attributionParts[] = $apodDate;
         }
@@ -247,11 +329,8 @@ class BotPublisherService
         $botIdentity = strtolower(trim((string) ($item->bot_identity?->value ?? $item->bot_identity)));
         $sourceKey = strtolower(trim((string) $source->key));
         $translationStatus = strtolower(trim((string) ($item->translation_status?->value ?? $item->translation_status)));
-        $itemMeta = is_array($item->meta) ? $item->meta : [];
-        $translationProvider = trim((string) data_get($itemMeta, 'translation.provider', ''));
-        if ($translationProvider === '') {
-            $translationProvider = strtolower(trim((string) config('astrobot.translation_provider', 'dummy')));
-        }
+        $translationAudit = $this->translationAuditForItem($item);
+        $translationProvider = trim((string) ($translationAudit['provider'] ?? ''));
 
         return [
             'bot_identity' => $botIdentity !== '' ? $botIdentity : null,
@@ -270,6 +349,89 @@ class BotPublisherService
             'translation_status' => $translationStatus !== '' ? $translationStatus : null,
             'used_translation' => (bool) ($publishPayload['used_translation'] ?? false),
             'translation_provider' => $translationProvider !== '' ? $translationProvider : null,
+            'translation' => $translationAudit,
+        ];
+    }
+
+    /**
+     * @return array{
+     *   provider:?string,
+     *   model:?string,
+     *   target_lang:string,
+     *   duration_ms:int,
+     *   chars:int,
+     *   error:?string,
+     *   translated_at:?string
+     * }
+     */
+    private function translationAuditForItem(BotItem $item): array
+    {
+        $itemMeta = is_array($item->meta) ? $item->meta : [];
+        $translationMeta = is_array(data_get($itemMeta, 'translation')) ? data_get($itemMeta, 'translation') : [];
+
+        $provider = $this->nullableString($item->translation_provider)
+            ?? $this->nullableString(data_get($translationMeta, 'provider'))
+            ?? strtolower(trim((string) config('astrobot.translation.primary', config('astrobot.translation_provider', 'libretranslate'))));
+
+        $translatedAt = $item->translated_at?->toIso8601String()
+            ?? $this->nullableString(data_get($translationMeta, 'translated_at'));
+
+        return [
+            'provider' => $provider !== '' ? $provider : null,
+            'model' => $this->nullableString(data_get($translationMeta, 'model')),
+            'target_lang' => strtolower(trim((string) data_get($translationMeta, 'target_lang', 'sk'))),
+            'duration_ms' => (int) data_get($translationMeta, 'duration_ms', 0),
+            'chars' => (int) data_get($translationMeta, 'chars', 0),
+            'error' => $this->nullableString($item->translation_error)
+                ?? $this->nullableString(data_get($translationMeta, 'error'))
+                ?? $this->nullableString(data_get($itemMeta, 'translation_error')),
+            'translated_at' => $translatedAt,
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $postMeta
+     */
+    private function syncPostTranslationAudit(Post $post, BotItem $item, array $postMeta): void
+    {
+        $translationStatus = strtolower(trim((string) ($item->translation_status?->value ?? $item->translation_status)));
+        $audit = $this->translationAuditForItem($item);
+
+        $post->forceFill([
+            'original_title' => $this->nullableString($item->title),
+            'original_body' => $this->nullableString($item->content ?: $item->summary),
+            'translated_title' => $this->nullableString($item->title_translated),
+            'translated_body' => $this->nullableString($item->content_translated),
+            'translation_status' => $translationStatus !== '' ? $translationStatus : null,
+            'translation_error' => $this->nullableString($audit['error'] ?? null),
+            'translated_at' => $item->translated_at ?? $this->parseDateTimeNullable($audit['translated_at'] ?? null),
+            'meta' => $postMeta,
+        ])->save();
+    }
+
+    /**
+     * @return array{username:string,display_name:string}
+     */
+    private function botIdentityProfile(string $identity): array
+    {
+        $normalizedIdentity = strtolower(trim($identity));
+        $defaults = match ($normalizedIdentity) {
+            PostBotIdentity::STELA->value => [
+                'username' => 'stellarbot',
+                'display_name' => 'Stela',
+            ],
+            default => [
+                'username' => 'kozmobot',
+                'display_name' => 'Kozmo',
+            ],
+        };
+
+        $configuredUsername = strtolower(trim((string) config("astrobot.identities.{$normalizedIdentity}.username", $defaults['username'])));
+        $configuredDisplayName = trim((string) config("astrobot.identities.{$normalizedIdentity}.display_name", $defaults['display_name']));
+
+        return [
+            'username' => $configuredUsername !== '' ? $configuredUsername : $defaults['username'],
+            'display_name' => $configuredDisplayName !== '' ? $configuredDisplayName : $defaults['display_name'],
         ];
     }
 
@@ -594,6 +756,24 @@ class BotPublisherService
         $normalized = trim((string) $value);
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    private function parseDateTimeNullable(mixed $value): ?\Carbon\Carbon
+    {
+        if ($value instanceof \Carbon\Carbon) {
+            return $value;
+        }
+
+        $normalized = trim((string) $value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        try {
+            return \Carbon\Carbon::parse($normalized);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function cleanupTemporaryFile(?string $path): void

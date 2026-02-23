@@ -10,8 +10,10 @@ use App\Models\BotItem;
 use App\Models\BotRun;
 use App\Models\BotSource;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
+use Carbon\Carbon;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Collection;
 use Throwable;
 
@@ -307,6 +309,8 @@ class BotRunner
             ->where('publish_status', BotPublishStatus::PENDING->value)
             ->get();
 
+        $sourceKey = strtolower(trim((string) $source->key));
+
         foreach ($items as $item) {
             $this->stampItemRunContext($item, $runContext);
             $currentStatus = $item->translation_status?->value ?? (string) $item->translation_status;
@@ -317,12 +321,7 @@ class BotRunner
             $langOriginal = strtolower(trim((string) $item->lang_original));
             if ($langOriginal === 'sk' || str_starts_with($langOriginal, 'sk-')) {
                 $meta = is_array($item->meta) ? $item->meta : [];
-                $meta['run_context'] = $runContext;
-                $item->forceFill([
-                    'translation_status' => BotTranslationStatus::SKIPPED->value,
-                    'meta' => $meta,
-                ])->save();
-
+                $this->markTranslationSkipped($item, $meta, $runContext, 'source_lang_sk', 'source_lang');
                 continue;
             }
 
@@ -331,12 +330,13 @@ class BotRunner
 
             if ($title === '' && $content === '') {
                 $meta = is_array($item->meta) ? $item->meta : [];
-                $meta['run_context'] = $runContext;
-                $item->forceFill([
-                    'translation_status' => BotTranslationStatus::SKIPPED->value,
-                    'meta' => $meta,
-                ])->save();
+                $this->markTranslationSkipped($item, $meta, $runContext, 'empty_input', 'none');
+                continue;
+            }
 
+            if ($this->isLikelySlovakText($title, $content)) {
+                $meta = is_array($item->meta) ? $item->meta : [];
+                $this->markTranslationSkipped($item, $meta, $runContext, 'already_slovak_heuristic', 'heuristic');
                 continue;
             }
 
@@ -349,6 +349,9 @@ class BotRunner
                     $meta['run_context'] = $runContext;
                     $item->forceFill([
                         'translation_status' => BotTranslationStatus::DONE->value,
+                        'translation_error' => null,
+                        'translation_provider' => $this->nullableString((string) data_get($meta, 'translation.provider')),
+                        'translated_at' => $item->translated_at ?? now(),
                         'meta' => $meta,
                     ])->save();
                     $stats['translation_done_count'] = (int) ($stats['translation_done_count'] ?? 0) + 1;
@@ -367,27 +370,163 @@ class BotRunner
                     $meta['translation'] = $translationMeta;
                 }
                 $meta['run_context'] = $runContext;
+                $translatedTitle = $this->nullableString($result['translated_title'] ?? $result['title_translated'] ?? null);
+                $translatedContent = $this->nullableString($result['translated_content'] ?? $result['content_translated'] ?? null);
+                $status = strtolower(trim((string) ($result['status'] ?? BotTranslationStatus::DONE->value)));
+                if (!in_array($status, [
+                    BotTranslationStatus::DONE->value,
+                    BotTranslationStatus::SKIPPED->value,
+                    BotTranslationStatus::FAILED->value,
+                ], true)) {
+                    $status = BotTranslationStatus::DONE->value;
+                }
+
+                $translationProvider = $this->resolveTranslationProvider($translationMeta, $item->translation_provider);
+                $translationError = $this->nullableString(data_get($translationMeta, 'error'));
+                $translatedAt = $this->resolveTranslatedAt(data_get($translationMeta, 'translated_at')) ?? now();
 
                 $item->forceFill([
-                    'title_translated' => $this->nullableString($result['translated_title'] ?? $result['title_translated'] ?? null),
-                    'content_translated' => $this->nullableString($result['translated_content'] ?? $result['content_translated'] ?? null),
-                    'translation_status' => BotTranslationStatus::DONE->value,
+                    'title_translated' => $translatedTitle,
+                    'content_translated' => $translatedContent,
+                    'translation_status' => $status,
+                    'translation_error' => $translationError,
+                    'translation_provider' => $translationProvider,
+                    'translated_at' => $translatedAt,
                     'meta' => $meta,
                 ])->save();
-                $stats['translation_done_count'] = (int) ($stats['translation_done_count'] ?? 0) + 1;
+
+                if ($status === BotTranslationStatus::DONE->value) {
+                    $stats['translation_done_count'] = (int) ($stats['translation_done_count'] ?? 0) + 1;
+                } elseif ($status === BotTranslationStatus::FAILED->value) {
+                    $stats['failed_count']++;
+                    $stats['translation_failed_count'] = (int) ($stats['translation_failed_count'] ?? 0) + 1;
+                }
             } catch (Throwable $e) {
                 $stats['failed_count']++;
                 $stats['translation_failed_count'] = (int) ($stats['translation_failed_count'] ?? 0) + 1;
                 $this->recordErrorFingerprint($stats, $e);
-                $meta['translation_error'] = $this->limitText($e->getMessage(), 300);
+                $errorMessage = $this->limitText($e->getMessage(), 300);
+                $meta['translation_error'] = $errorMessage;
                 $meta['run_context'] = $runContext;
+                Log::warning('Bot translation failed for item.', [
+                    'source_key' => $sourceKey,
+                    'stable_key' => (string) $item->stable_key,
+                    'provider' => $this->resolveConfiguredTranslationProvider(),
+                    'error' => $errorMessage,
+                ]);
 
                 $item->forceFill([
                     'translation_status' => BotTranslationStatus::FAILED->value,
+                    'translation_error' => $errorMessage,
+                    'translation_provider' => null,
+                    'translated_at' => now(),
                     'meta' => $meta,
                 ])->save();
             }
         }
+    }
+
+    /**
+     * @param array<string,mixed> $meta
+     */
+    private function markTranslationSkipped(
+        BotItem $item,
+        array $meta,
+        string $runContext,
+        string $reason,
+        string $provider
+    ): void
+    {
+        $existingTranslationMeta = is_array($meta['translation'] ?? null) ? $meta['translation'] : [];
+        $meta['translation'] = array_replace($existingTranslationMeta, [
+            'provider' => $provider,
+            'reason' => $reason,
+            'target_lang' => 'sk',
+            'translated_at' => now()->toIso8601String(),
+            'error' => null,
+        ]);
+        unset($meta['translation_error']);
+        $meta['run_context'] = $runContext;
+
+        $item->forceFill([
+            'translation_status' => BotTranslationStatus::SKIPPED->value,
+            'translation_error' => null,
+            'translation_provider' => $provider,
+            'translated_at' => now(),
+            'meta' => $meta,
+        ])->save();
+    }
+
+    /**
+     * @param array<string,mixed>|null $translationMeta
+     */
+    private function resolveTranslationProvider(?array $translationMeta, ?string $currentProvider): ?string
+    {
+        $candidate = $this->nullableString(data_get($translationMeta, 'provider'));
+        if ($candidate !== null) {
+            return strtolower($candidate);
+        }
+
+        $candidate = $this->nullableString(data_get($translationMeta, 'provider_content'));
+        if ($candidate !== null) {
+            return strtolower($candidate);
+        }
+
+        $candidate = $this->nullableString(data_get($translationMeta, 'provider_title'));
+        if ($candidate !== null) {
+            return strtolower($candidate);
+        }
+
+        return $this->nullableString($currentProvider);
+    }
+
+    private function resolveTranslatedAt(mixed $value): ?Carbon
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof Carbon) {
+            return $value;
+        }
+
+        $normalized = trim((string) $value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($normalized);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function resolveConfiguredTranslationProvider(): string
+    {
+        $configuredPrimary = strtolower(trim((string) config('astrobot.translation.primary', '')));
+        if ($configuredPrimary !== '') {
+            return $configuredPrimary;
+        }
+
+        return strtolower(trim((string) config('astrobot.translation_provider', 'unknown')));
+    }
+
+    private function isLikelySlovakText(string $title, string $content): bool
+    {
+        $combined = trim($title . ' ' . $content);
+        if ($combined === '') {
+            return false;
+        }
+
+        if ($this->stringLength($combined) < 60) {
+            return false;
+        }
+
+        preg_match_all('/[áäčďéíĺľňóôŕšťúýžÁÄČĎÉÍĹĽŇÓÔŔŠŤÚÝŽ]/u', $combined, $matches);
+        $diacriticsCount = count($matches[0] ?? []);
+
+        return $diacriticsCount >= 5;
     }
 
     private function normalizeRunContext(string $runContext): string
@@ -522,6 +661,15 @@ class BotRunner
     {
         $text = trim((string) $value);
         return $text !== '' ? $text : null;
+    }
+
+    private function stringLength(string $value): int
+    {
+        if (function_exists('mb_strlen')) {
+            return mb_strlen($value);
+        }
+
+        return strlen($value);
     }
 
     private function limitText(string $value, int $maxLength): string
