@@ -11,9 +11,7 @@ const groups = [
     items: [
       { label: 'Dashboard', to: '/admin/dashboard', icon: 'D' },
       { label: 'Users', to: '/admin/users', icon: 'U' },
-      { label: 'Candidates', to: '/admin/event-candidates', icon: 'C' },
-      { label: 'Event sources', to: '/admin/event-sources', icon: 'S' },
-      { label: 'Crawl runs', to: '/admin/event-sources', icon: 'R' },
+      { label: 'Crawling hub', to: '/admin/event-sources', icon: 'C' },
       { label: 'Reports', to: '/admin/reports', icon: 'R' },
       { label: 'Moderation', to: '/admin/moderation', icon: 'M' },
       ...(wipEnabled ? [{ label: 'Banned words', to: '/admin/banned-words', icon: 'W' }] : []),
@@ -29,8 +27,6 @@ const groups = [
       { label: 'Articles', to: '/admin/blog', icon: 'B' },
       { label: 'Sidebar', to: '/admin/sidebar', icon: 'S' },
       { label: 'Bot Engine', to: '/admin/bots', icon: 'B' },
-      { label: 'KozmoBot', to: '/admin/kozmobot', icon: 'K' },
-      { label: 'StellarBot', to: '/admin/stellarbot', icon: 'T' },
     ],
   },
 ]
@@ -39,6 +35,9 @@ function isActive(path) {
   if (path === '/admin/users') return route.path === path || route.path.startsWith('/admin/users/')
   if (path === '/admin/event-candidates') {
     return route.path === path || route.path.startsWith('/admin/candidates/')
+  }
+  if (path === '/admin/event-sources') {
+    return route.path === path || route.path === '/admin/event-candidates' || route.path.startsWith('/admin/candidates/')
   }
   if (path === '/admin/events') {
     return route.path === path || route.path.startsWith('/admin/events/')

@@ -4,7 +4,7 @@
       <button class="iconBtn" @click="goHome">&larr;</button>
       <div class="topmeta">
         <div class="topname">{{ displayName }}</div>
-        <div class="topsmall">@{{ handle }}</div>
+        <div class="topsmall">{{ auth.user ? `${stats.posts} postov` : `@${handle}` }}</div>
       </div>
     </header>
 
@@ -67,9 +67,9 @@
               class="btn outline"
               @click="toggleEdit"
             >
-              {{ editOpen ? 'Zatvorit edit' : 'Edit profile' }}
+              {{ editOpen ? 'Zatvorit edit' : 'Upravit profil' }}
             </button>
-            <button class="btn ghost" @click="copyProfileLink">{{ copyLabel }}</button>
+            <button class="btn ghost copyBtn" @click="copyProfileLink">{{ copyLabel }}</button>
           </div>
         </div>
 
@@ -92,20 +92,6 @@
           </div>
         </div>
 
-        <div class="statsRow">
-          <div class="stat">
-            <div class="statNum">{{ stats.posts }}</div>
-            <div class="statLabel">Posts</div>
-          </div>
-          <div class="stat">
-            <div class="statNum">{{ stats.replies }}</div>
-            <div class="statLabel">Replies</div>
-          </div>
-          <div class="stat">
-            <div class="statNum">{{ stats.media }}</div>
-            <div class="statLabel">Media</div>
-          </div>
-        </div>
       </section>
 
       <section v-if="editOpen" class="card editCard">
@@ -161,33 +147,6 @@
         </div>
       </section>
 
-      <section v-if="auth.user" class="card favCard">
-        <div class="favHeader">
-          <div class="favTitle">Obľúbené udalosti</div>
-        </div>
-
-        <div v-if="favoritesLoading" class="muted">Načítavam obľúbené…</div>
-        <div v-else-if="favoritesError" class="msg err">{{ favoritesError }}</div>
-        <div v-else-if="favoriteEvents.length === 0" class="muted">
-          Zatiaľ nemáš žiadne obľúbené udalosti.
-        </div>
-
-        <div v-else class="favGrid">
-          <article v-for="e in favoriteEvents" :key="e.id" class="favItem">
-            <div class="favMeta">
-              <div class="favTitleRow">
-                <div class="favName">{{ e.title }}</div>
-                <button class="btn ghost" @click="removeFavorite(e.id)">Odobrať</button>
-              </div>
-              <div class="favTime">Max: {{ formatEventDate(e.max_at) }}</div>
-              <div class="favDesc">{{ e.short || '—' }}</div>
-            </div>
-            <div class="favActions">
-              <button class="btn outline" @click="openEvent(e.id)">Detail</button>
-            </div>
-          </article>
-        </div>
-      </section>
 
       <section class="feedShell">
         <div class="tabs">
@@ -199,7 +158,6 @@
             @click="setActiveTab(t.key)"
           >
             {{ t.label }}
-            <span v-if="tabState[t.key].total !== null" class="tabCount">{{ tabState[t.key].total }}</span>
           </button>
         </div>
 
@@ -295,10 +253,12 @@ const auth = useAuthStore()
 const { confirm } = useConfirm()
 
 const tabs = [
-  { key: 'posts', label: 'Posts', kind: 'roots' },
-  { key: 'replies', label: 'Replies', kind: 'replies' },
-  { key: 'media', label: 'Media', kind: 'media' },
+  { key: 'posts', label: 'Prispevky', kind: 'roots' },
+  { key: 'replies', label: 'Odpovede', kind: 'replies' },
+  { key: 'events', label: 'Udalosti', kind: 'events' },
   { key: 'bookmarks', label: 'Zalozky', kind: 'bookmarks' },
+  { key: 'media', label: 'Media', kind: 'media' },
+  { key: 'likes', label: 'Paci sa', kind: 'likes' },
 ]
 
 const stats = reactive({ posts: '--', replies: '--', media: '--' })
@@ -307,8 +267,10 @@ const activeTab = ref('posts')
 const tabState = reactive({
   posts: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   replies: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
-  media: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
+  events: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   bookmarks: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
+  media: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
+  likes: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
 })
 
 const editOpen = ref(false)
@@ -527,8 +489,6 @@ async function saveEdit() {
     await auth.csrf()
 
     const { data } = await http.patch('/profile', {
-      name: auth.user.name,
-      email: auth.user.email,
       bio: editForm.bio,
       location: editForm.location,
     })
@@ -547,7 +507,11 @@ async function saveEdit() {
     } else if (status === 422 && data?.errors) {
       editFieldErr.bio = extractFirstError(data.errors, 'bio')
       editFieldErr.location = extractFirstError(data.errors, 'location')
-      editErr.value = editFieldErr.bio || editFieldErr.location || 'Skontroluj polia.'
+      const fallbackFieldError = Object.values(data.errors)
+        .flat()
+        .map((value) => String(value))
+        .find(Boolean)
+      editErr.value = editFieldErr.bio || editFieldErr.location || fallbackFieldError || 'Skontroluj polia.'
     } else {
       editErr.value = data?.message || 'Ulozenie zlyhalo.'
     }
@@ -714,6 +678,22 @@ async function loadTab(key, reset = true) {
   state.err = ''
 
   try {
+    if (tab.kind === 'events') {
+      state.items = []
+      state.next = null
+      state.total = String(favoriteEvents.value.length || 0)
+      state.loaded = true
+      return
+    }
+
+    if (tab.kind === 'likes') {
+      state.items = []
+      state.next = null
+      state.total = '0'
+      state.loaded = true
+      return
+    }
+
     const url = reset ? (tab.kind === 'bookmarks' ? '/me/bookmarks' : '/posts') : state.next
     if (!url) return
 
@@ -770,27 +750,27 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .page {
-  max-width: 820px;
+  width: 100%;
   margin: 0 auto;
-  padding: 0 1rem 2rem;
+  padding: 0 0 1.2rem;
 }
 
 .topbar {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgb(var(--color-bg-rgb) / 0.72);
+  background: rgb(var(--color-bg-rgb) / 0.92);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
-  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
+  padding: 0.4rem 0.8rem;
   display: flex;
-  gap: 0.75rem;
+  gap: 0.65rem;
   align-items: center;
 }
 
 .iconBtn {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.8);
   background: rgb(var(--color-bg-rgb) / 0.35);
@@ -799,19 +779,19 @@ onBeforeUnmount(() => {
 .iconBtn:hover { border-color: rgb(var(--color-primary-rgb) / 0.85); }
 
 .topmeta { display: grid; line-height: 1.1; }
-.topname { font-weight: 900; color: var(--color-surface); }
-.topsmall { color: var(--color-text-secondary); font-size: 0.85rem; }
+.topname { font-weight: 850; color: var(--color-surface); font-size: 1.05rem; }
+.topsmall { color: var(--color-text-secondary); font-size: 0.78rem; }
 
 .profileShell {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.75);
-  border-radius: 1.25rem;
+  border: 0;
+  border-radius: 0;
   overflow: hidden;
-  margin-top: 1rem;
-  background: rgb(var(--color-bg-rgb) / 0.55);
+  margin-top: 0;
+  background: transparent;
 }
 
 .cover {
-  height: 220px;
+  height: 158px;
   position: relative;
   background:
     radial-gradient(900px 220px at 20% 20%, rgb(var(--color-primary-rgb) / 0.25), transparent 60%),
@@ -841,13 +821,13 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 0 1rem;
-  transform: translateY(-40px);
+  padding: 0 0.85rem;
+  transform: translateY(-26px);
 }
 
 .avatar {
-  width: 112px;
-  height: 112px;
+  width: 92px;
+  height: 92px;
   border-radius: 999px;
   display: grid;
   place-items: center;
@@ -921,14 +901,16 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  margin-left: auto;
 }
 
 .identity {
-  padding: 0 1rem 1rem;
-  margin-top: -18px;
+  padding: 0 0.85rem 0.85rem;
+  margin-top: -6px;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.42);
 }
 .nameRow { display: flex; align-items: center; gap: 0.5rem; }
-.name { margin: 0; font-size: 1.35rem; font-weight: 950; color: var(--color-surface); }
+.name { margin: 0; font-size: 1.9rem; font-weight: 900; color: var(--color-surface); line-height: 1.05; }
 .badge {
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;
@@ -938,63 +920,35 @@ onBeforeUnmount(() => {
   color: var(--color-success);
 }
 .handle { color: var(--color-text-secondary); margin-top: 0.15rem; }
-.bio { margin: 0.75rem 0 0; color: var(--color-surface); }
+.bio { margin: 0.55rem 0 0; color: var(--color-surface); }
 .meta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem 1rem;
-  margin-top: 0.75rem;
+  margin-top: 0.6rem;
   color: var(--color-text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.84rem;
 }
 .metaItem { white-space: nowrap; }
-
-.statsRow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
-}
-.stat { padding: 0.85rem 1rem; }
-.statNum { font-weight: 950; font-size: 1.05rem; color: var(--color-surface); }
-.statLabel { color: var(--color-text-secondary); font-size: 0.85rem; margin-top: 0.25rem; }
 
 .card {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.85);
   background: rgb(var(--color-bg-rgb) / 0.55);
-  border-radius: 1.25rem;
-  padding: 1rem;
-  margin-top: 1rem;
+  border-radius: 0.75rem;
+  padding: 0.72rem;
+  margin-top: 0.6rem;
 }
 
 .infoTitle { font-weight: 900; color: var(--color-surface); }
 .infoSub { color: var(--color-text-secondary); margin-top: 0.35rem; }
 
-.editCard { margin-top: 1rem; }
+.editCard { margin-top: 0.7rem; }
 
-.pinCard { margin-top: 1rem; }
+.pinCard { margin-top: 0.7rem; }
 .pinHeader { display: flex; justify-content: space-between; align-items: center; }
 .pinTitle { font-weight: 900; color: var(--color-surface); }
 .pinBody { margin-top: 0.5rem; }
 .pinContent { color: var(--color-surface); white-space: pre-wrap; }
-
-.favCard { margin-top: 1rem; }
-.favHeader { display: flex; justify-content: space-between; align-items: center; }
-.favTitle { font-weight: 900; color: var(--color-surface); }
-.favGrid { margin-top: 0.75rem; display: grid; gap: 0.75rem; }
-.favItem {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
-  border-radius: 1rem;
-  padding: 0.85rem;
-  background: rgb(var(--color-bg-rgb) / 0.35);
-  display: grid;
-  gap: 0.5rem;
-}
-.favTitleRow { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
-.favName { color: var(--color-surface); font-weight: 900; }
-.favTime { color: var(--color-text-secondary); font-size: 0.85rem; margin-top: 0.25rem; }
-.favDesc { color: var(--color-surface); margin-top: 0.35rem; }
-.favActions { display: flex; justify-content: flex-end; }
 
 .form { margin-top: 0.75rem; display: grid; gap: 0.9rem; }
 
@@ -1038,12 +992,13 @@ onBeforeUnmount(() => {
 }
 
 .btn {
-  padding: 0.6rem 0.9rem;
+  padding: 0.45rem 0.75rem;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-primary-rgb) / 0.85);
   background: rgb(var(--color-primary-rgb) / 0.15);
   color: var(--color-surface);
-  font-weight: 800;
+  font-weight: 750;
+  font-size: 0.82rem;
 }
 .btn:hover { background: rgb(var(--color-primary-rgb) / 0.25); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -1065,56 +1020,61 @@ onBeforeUnmount(() => {
 .btn.ghost:hover { border-color: rgb(var(--color-primary-rgb) / 0.85); color: var(--color-surface); }
 
 .feedShell {
-  margin-top: 1rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.75);
-  border-radius: 1.25rem;
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  padding: 1rem;
+  margin-top: 0.6rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.5rem;
+  display: flex;
+  gap: 0.15rem;
+  position: sticky;
+  top: calc(var(--app-header-h, 56px) + 4px);
+  z-index: 8;
+  background: rgb(var(--color-bg-rgb) / 0.86);
+  backdrop-filter: blur(8px);
+  padding: 0 0 0.25rem;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.42);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .tab {
-  padding: 0.6rem 0.8rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.75);
-  background: rgb(var(--color-bg-rgb) / 0.35);
+  padding: 0.7rem 0.25rem 0.55rem;
+  border-radius: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
   color: var(--color-surface);
-  font-weight: 800;
+  font-weight: 700;
+  font-size: 0.86rem;
   display: inline-flex;
-  gap: 0.4rem;
+  gap: 0.35rem;
   justify-content: center;
   align-items: center;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 .tab.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.85);
-  background: rgb(var(--color-primary-rgb) / 0.2);
-}
-
-.tabCount {
-  font-size: 0.75rem;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.65);
-  color: var(--color-text-secondary);
+  border-bottom-color: rgb(var(--color-primary-rgb) / 0.9);
+  color: rgb(var(--color-surface-rgb) / 0.98);
 }
 
 .padTop { margin-top: 0.75rem; }
 
 .postList {
-  margin-top: 0.75rem;
+  margin-top: 0;
   display: grid;
 }
 
 .postItem {
   display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 0.85rem;
-  padding: 0.9rem 0.1rem;
+  grid-template-columns: 48px 1fr;
+  gap: 0.7rem;
+  padding: 0.6rem 0.1rem;
   border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
 }
 .postItem:first-child { border-top: 0; }
@@ -1167,8 +1127,9 @@ onBeforeUnmount(() => {
 
 .postActions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 0.6rem;
+  margin-top: 0.5rem;
 }
 
 .loadMore {
@@ -1188,4 +1149,38 @@ onBeforeUnmount(() => {
 .msg.info { border: 1px solid rgb(var(--color-primary-rgb) / 0.45); background: rgb(var(--color-primary-rgb) / 0.12); color: var(--color-primary); }
 
 .muted { color: var(--color-text-secondary); }
+
+@media (max-width: 767px) {
+  .page {
+    padding-bottom: 1.4rem;
+  }
+
+  .cover {
+    height: 136px;
+  }
+
+  .avatar {
+    width: 78px;
+    height: 78px;
+  }
+
+  .tabs {
+    top: calc(var(--app-header-h, 56px) + 2px);
+  }
+
+  .copyBtn {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .topbar {
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+  }
+
+  .copyBtn {
+    display: none;
+  }
+}
 </style>

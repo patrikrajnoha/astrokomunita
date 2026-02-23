@@ -270,7 +270,7 @@ onMounted(() => {
           <div class="space-y-3 p-5">
             <p class="text-xs uppercase tracking-[0.18em] text-[color:rgb(var(--color-text-secondary-rgb)/0.8)]">Featured</p>
             <h2 class="text-xl font-bold text-[var(--color-surface)] sm:text-2xl">
-              <router-link :to="`/learn/${featuredPost.slug || featuredPost.id}`" class="hover:text-[var(--color-primary)]">{{ featuredPost.title }}</router-link>
+              <router-link :to="`/clanky/${featuredPost.slug || featuredPost.id}`" class="hover:text-[var(--color-primary)]">{{ featuredPost.title }}</router-link>
             </h2>
             <p class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" v-html="highlight(excerpt(featuredPost.content, 260))"></p>
             <div class="flex flex-wrap gap-2 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
@@ -280,7 +280,7 @@ onMounted(() => {
               <span>•</span>
               <span>{{ readTime(featuredPost.content) }}</span>
             </div>
-            <router-link :to="`/learn/${featuredPost.slug || featuredPost.id}`" class="inline-flex rounded-xl border border-[color:rgb(var(--color-primary-rgb)/0.5)] bg-[color:rgb(var(--color-primary-rgb)/0.18)] px-3 py-1.5 text-sm font-semibold text-[var(--color-surface)]">
+            <router-link :to="`/clanky/${featuredPost.slug || featuredPost.id}`" class="inline-flex rounded-xl border border-[color:rgb(var(--color-primary-rgb)/0.5)] bg-[color:rgb(var(--color-primary-rgb)/0.18)] px-3 py-1.5 text-sm font-semibold text-[var(--color-surface)]">
               Otvorit clanok
             </router-link>
           </div>
@@ -290,7 +290,7 @@ onMounted(() => {
           <article v-for="post in listPosts" :key="post.id" class="flex h-full flex-col rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.16)] bg-[color:rgb(var(--color-bg-rgb)/0.54)] p-4">
             <p class="text-xs uppercase tracking-[0.15em] text-[color:rgb(var(--color-text-secondary-rgb)/0.8)]">Learning</p>
             <h3 class="mt-2 text-lg font-semibold text-[var(--color-surface)]">
-              <router-link :to="`/learn/${post.slug || post.id}`" class="hover:text-[var(--color-primary)]">{{ post.title }}</router-link>
+              <router-link :to="`/clanky/${post.slug || post.id}`" class="hover:text-[var(--color-primary)]">{{ post.title }}</router-link>
             </h3>
             <p class="mt-2 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" v-html="highlight(excerpt(post.content))"></p>
             <div class="mt-auto pt-3 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.85)]">

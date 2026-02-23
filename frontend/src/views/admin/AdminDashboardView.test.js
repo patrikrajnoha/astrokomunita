@@ -64,6 +64,7 @@ function makeRouter() {
       { path: '/admin/moderation', component: { template: '<div>moderation</div>' } },
       { path: '/admin/events', component: { template: '<div>events</div>' } },
       { path: '/admin/event-sources', component: { template: '<div>sources</div>' } },
+      { path: '/admin/event-candidates', component: { template: '<div>candidates</div>' } },
     ],
   })
 }

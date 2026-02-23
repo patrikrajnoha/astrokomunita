@@ -7,14 +7,22 @@ use App\Enums\RegionScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateUserPreferencesRequest;
 use App\Models\UserPreference;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 
 class UserPreferenceController extends Controller
 {
-    public function show(Request $request)
+    public function show(Request $request): JsonResponse
     {
-        $preferences = $request->user()->eventPreference;
+        $user = $request->user();
+        abort_unless($user !== null, 401);
+
+        if ($user->isAdmin()) {
+            return response()->json($this->disabledPayload());
+        }
+
+        $preferences = $user->eventPreference;
 
         return response()->json([
             'data' => [
@@ -37,8 +45,15 @@ class UserPreferenceController extends Controller
         ]);
     }
 
-    public function update(UpdateUserPreferencesRequest $request)
+    public function update(UpdateUserPreferencesRequest $request): JsonResponse
     {
+        $user = $request->user();
+        abort_unless($user !== null, 401);
+
+        if ($user->isAdmin()) {
+            return response()->json($this->disabledPayload());
+        }
+
         $validated = $request->validated();
 
         $eventTypes = collect($validated['event_types'] ?? [])
@@ -54,7 +69,7 @@ class UserPreferenceController extends Controller
             ->all();
 
         /** @var UserPreference $preferences */
-        $preferences = $request->user()->eventPreference()->firstOrNew([]);
+        $preferences = $user->eventPreference()->firstOrNew([]);
 
         if (array_key_exists('event_types', $validated)) {
             $preferences->event_types = $eventTypes;
@@ -113,5 +128,31 @@ class UserPreferenceController extends Controller
                 'supported_interests' => config('onboarding.interests', []),
             ],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function disabledPayload(): array
+    {
+        return [
+            'data' => [
+                'event_types' => [],
+                'interests' => [],
+                'region' => RegionScope::Global->value,
+                'location_label' => null,
+                'location_place_id' => null,
+                'location_lat' => null,
+                'location_lon' => null,
+                'onboarding_completed_at' => null,
+                'has_preferences' => false,
+                'updated_at' => null,
+            ],
+            'meta' => [
+                'supported_event_types' => EventType::values(),
+                'supported_regions' => RegionScope::values(),
+                'supported_interests' => config('onboarding.interests', []),
+            ],
+        ];
     }
 }

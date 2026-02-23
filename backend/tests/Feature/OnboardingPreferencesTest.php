@@ -45,4 +45,33 @@ class OnboardingPreferencesTest extends TestCase
             ->assertJsonPath('data.location_lon', 17.1077)
             ->assertJsonPath('data.onboarding_completed_at', $completedAt->toIso8601String());
     }
+
+    public function test_admin_user_preferences_are_disabled(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+        ]);
+        Sanctum::actingAs($admin);
+
+        $completedAt = Carbon::parse('2026-02-17T10:00:00+00:00');
+
+        $this->putJson('/api/me/preferences', [
+            'region' => RegionScope::Global->value,
+            'interests' => ['meteory'],
+            'onboarding_completed_at' => $completedAt->toIso8601String(),
+        ])->assertOk()
+            ->assertJsonPath('data.has_preferences', false)
+            ->assertJsonPath('data.onboarding_completed_at', null);
+
+        $this->getJson('/api/me/preferences')
+            ->assertOk()
+            ->assertJsonPath('data.has_preferences', false)
+            ->assertJsonPath('data.onboarding_completed_at', null)
+            ->assertJsonPath('data.interests', []);
+
+        $this->assertDatabaseMissing('user_preferences', [
+            'user_id' => $admin->id,
+        ]);
+    }
 }

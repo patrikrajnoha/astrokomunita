@@ -309,7 +309,7 @@ watch(
 
 <template>
   <article class="detail">
-    <router-link class="back" to="/learn">← Späť na články</router-link>
+    <router-link class="back" to="/clanky">← Späť na články</router-link>
 
     <div v-if="error" class="error">{{ error }}</div>
     <div v-else-if="loading" class="muted">Načítavam článok…</div>
@@ -492,7 +492,7 @@ watch(
                 </span>
               </div>
               <h3>
-                <router-link :to="`/learn/${item.slug || item.id}`">
+                <router-link :to="`/clanky/${item.slug || item.id}`">
                   {{ item.title }}
                 </router-link>
               </h3>

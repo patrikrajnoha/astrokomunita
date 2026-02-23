@@ -19,7 +19,7 @@
 
     <transition-group v-else tag="ul" name="articleSwap" class="articleList articleViewport">
       <li v-for="post in activeArticles" :key="`${mode}-${post.id}`" class="articleItem">
-        <router-link class="articleLink" :to="`/learn/${post.slug}`">
+        <router-link class="articleLink" :to="`/clanky/${post.slug}`">
           {{ post.title }}
         </router-link>
       </li>

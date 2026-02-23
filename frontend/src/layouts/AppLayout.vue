@@ -42,7 +42,9 @@
     <aside
       class="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 md:flex xl:hidden"
     >
-      <MainNavbar />
+      <nav aria-label="Main navigation">
+        <MainNavbar />
+      </nav>
     </aside>
 
     <div class="md:pl-64 xl:pl-0">
@@ -62,11 +64,22 @@
           <aside
             v-if="showDesktopMainSidebar"
             class="hidden h-screen overflow-y-auto border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 xl:sticky xl:top-0 xl:block"
+            data-testid="layout-left"
           >
-            <MainNavbar />
+            <nav aria-label="Main navigation">
+              <MainNavbar />
+            </nav>
           </aside>
 
-          <main :class="['min-w-0 px-4 py-6 md:px-8', isAdminRoute ? 'xl:px-6' : 'xl:px-4 2xl:px-6']">
+          <main
+            :class="[
+              'min-w-0',
+              isProfileRoute ? 'px-0 py-0 md:px-0 md:py-0' : 'px-4 py-6 md:px-8',
+              isAdminRoute ? 'xl:px-6' : isProfileRoute ? 'xl:px-0 2xl:px-0' : 'xl:px-4 2xl:px-6',
+              isProfileRoute ? 'lg:border-x lg:border-[color:rgb(var(--color-text-secondary-rgb)/0.5)]' : '',
+            ]"
+            data-testid="layout-center"
+          >
             <div :class="mainContentClass">
               <RouterView />
             </div>
@@ -76,10 +89,11 @@
         <aside
           v-if="showRightSidebar"
           class="hidden xl:col-start-2 xl:block xl:justify-self-end xl:self-start xl:pr-[clamp(16px,2vw,32px)]"
-          data-testid="right-rail"
+          data-testid="layout-right"
           aria-label="Right sidebar"
         >
           <div
+            data-testid="right-rail"
             class="h-screen w-[22rem] overflow-y-auto border-l border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-5 py-6 xl:sticky xl:top-0"
           >
             <DynamicSidebar
@@ -471,6 +485,7 @@ const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
+const isProfileRoute = computed(() => String(route.path || '') === '/profile')
 const showDesktopMainSidebar = computed(() => !isAdminRoute.value)
 const isLayoutDebugEnabled = computed(() => {
   return import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_LAYOUT || '') === 'true'
@@ -507,6 +522,10 @@ const centerShellStyle = computed(() => {
 const mainContentClass = computed(() => {
   if (isAdminRoute.value) {
     return 'mx-auto w-full max-w-none'
+  }
+
+  if (isProfileRoute.value) {
+    return 'mx-auto w-full max-w-[620px]'
   }
 
   return 'mx-auto w-full max-w-[760px] xl:max-w-none'
@@ -583,6 +602,7 @@ const authBannerMessage = computed(() => {
 const canCheckCalendarPopup = computed(() => {
   return auth.bootstrapDone &&
     auth.isAuthed &&
+    !auth.isAdmin &&
     Boolean(auth.user?.email_verified_at) &&
     preferences.isOnboardingCompleted &&
     !calendarPopupSessionChecked.value
@@ -590,7 +610,7 @@ const canCheckCalendarPopup = computed(() => {
 
 const maybeAutoOpenOnboardingTour = () => {
   if (typeof window === 'undefined') return
-  if (!auth.isAuthed || isAdminRoute.value) return
+  if (!auth.isAuthed || auth.isAdmin) return
 
   onboardingTour.hydrate()
   if (onboardingTour.shouldAutoOpen) {
@@ -956,7 +976,7 @@ watch(
 )
 
 watch(
-  () => [auth.isAuthed, isAdminRoute.value],
+  () => [auth.isAuthed, auth.isAdmin],
   ([isAuthed, isAdmin]) => {
     if (!isAuthed || isAdmin) {
       onboardingTour.closeTour()
@@ -994,7 +1014,7 @@ watch(
     preferences.isOnboardingCompleted,
   ],
   async () => {
-    if (auth.isAuthed && Boolean(auth.user?.email_verified_at) && !preferences.loaded && !preferences.loading) {
+    if (auth.isAuthed && !auth.isAdmin && Boolean(auth.user?.email_verified_at) && !preferences.loaded && !preferences.loading) {
       try {
         await preferences.fetchPreferences()
       } catch {

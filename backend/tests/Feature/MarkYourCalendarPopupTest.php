@@ -152,6 +152,32 @@ class MarkYourCalendarPopupTest extends TestCase
         );
     }
 
+    public function test_admin_user_never_sees_popup(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-02-17 10:00:00', 'UTC'));
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+        ]);
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/popup/mark-your-calendar')
+            ->assertOk()
+            ->assertJsonPath('should_show', false)
+            ->assertJsonPath('reason', 'admin_disabled')
+            ->assertJsonPath('items', []);
+
+        $this->postJson('/api/popup/mark-your-calendar/seen', [
+            'force_version' => 99,
+            'month_key' => '2026-02',
+        ])->assertOk()
+            ->assertJsonPath('ok', true);
+
+        $admin->refresh();
+        $this->assertNull($admin->last_calendar_popup_at);
+        $this->assertSame(0, (int) $admin->calendar_popup_last_force_version);
+    }
+
     private function createEvent(string $title): Event
     {
         return Event::query()->create([

@@ -10,6 +10,8 @@ function makeRouter() {
       { path: '/admin/dashboard', component: { template: '<div>dashboard</div>' } },
       { path: '/admin/banned-words', component: { template: '<div>banned</div>' } },
       { path: '/admin/event-sources', component: { template: '<div>sources</div>' } },
+      { path: '/admin/event-candidates', component: { template: '<div>candidates</div>' } },
+      { path: '/admin/:pathMatch(.*)*', component: { template: '<div>admin-any</div>' } },
     ],
   })
 }
@@ -27,6 +29,22 @@ describe('AdminSubNav', () => {
     })
 
     expect(wrapper.text()).not.toContain('Banned words')
-    expect(wrapper.text()).toContain('Event sources')
+    expect(wrapper.text()).toContain('Crawling hub')
+  })
+
+  it('marks crawling hub active on candidates routes too', async () => {
+    const router = makeRouter()
+    await router.push('/admin/event-candidates')
+    await router.isReady()
+
+    const wrapper = mount(AdminSubNav, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    const activeItems = wrapper.findAll('.adminSubNav__item.active')
+    expect(activeItems).toHaveLength(1)
+    expect(activeItems[0].text()).toContain('Crawling hub')
   })
 })
