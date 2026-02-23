@@ -1,17 +1,21 @@
 import { defineStore } from 'pinia'
 import {
+  deleteBotItemPost,
   getBotItems,
   getBotRuns,
   getBotSources,
   publishBotItem,
   publishBotRun,
+  retryBotTranslation,
   runBotSource,
+  testBotTranslation,
 } from '@/services/api/admin/bots'
 
 const DEFAULT_FILTERS = Object.freeze({
   per_page: 20,
   page: 1,
   sourceKey: '',
+  bot_identity: '',
   status: '',
   date_from: '',
   date_to: '',
@@ -28,10 +32,13 @@ function toPositiveInt(value, fallback) {
 
 function normalizeFilters(input = {}) {
   const source = { ...DEFAULT_FILTERS, ...(input || {}) }
+  const normalizedBotIdentity = String(source.bot_identity || '').trim().toLowerCase()
+
   return {
     per_page: toPositiveInt(source.per_page, DEFAULT_FILTERS.per_page),
     page: toPositiveInt(source.page, DEFAULT_FILTERS.page),
     sourceKey: String(source.sourceKey || '').trim(),
+    bot_identity: ['kozmo', 'stela'].includes(normalizedBotIdentity) ? normalizedBotIdentity : '',
     status: String(source.status || '').trim(),
     date_from: String(source.date_from || '').trim(),
     date_to: String(source.date_to || '').trim(),
@@ -74,7 +81,10 @@ export const useBotEngineStore = defineStore('botEngine', {
     loadingRunItems: false,
     runningSourceKeys: new Set(),
     publishingItemIds: new Set(),
+    deletingItemIds: new Set(),
     publishingRunIds: new Set(),
+    retryingTranslationSourceKeys: new Set(),
+    testingTranslation: false,
   }),
 
   getters: {
@@ -97,6 +107,18 @@ export const useBotEngineStore = defineStore('botEngine', {
       const normalized = Number(runId)
       if (!Number.isInteger(normalized) || normalized <= 0) return false
       return this.publishingRunIds.has(normalized)
+    },
+
+    isItemDeleting(itemId) {
+      const normalized = Number(itemId)
+      if (!Number.isInteger(normalized) || normalized <= 0) return false
+      return this.deletingItemIds.has(normalized)
+    },
+
+    isTranslationRetrying(sourceKey) {
+      const normalized = String(sourceKey || '').trim().toLowerCase()
+      if (!normalized) return false
+      return this.retryingTranslationSourceKeys.has(normalized)
     },
 
     updateFilters(nextFilters = {}, { resetPage = false } = {}) {
@@ -239,6 +261,61 @@ export const useBotEngineStore = defineStore('botEngine', {
         return response?.data || null
       } finally {
         this.publishingRunIds.delete(normalizedRunId)
+      }
+    },
+
+    async deleteItemPost(botItemId) {
+      const normalizedItemId = Number(botItemId)
+      if (!Number.isInteger(normalizedItemId) || normalizedItemId <= 0) {
+        return null
+      }
+
+      if (this.deletingItemIds.has(normalizedItemId)) {
+        return null
+      }
+
+      this.deletingItemIds.add(normalizedItemId)
+
+      try {
+        const response = await deleteBotItemPost(normalizedItemId)
+        return response?.data || null
+      } finally {
+        this.deletingItemIds.delete(normalizedItemId)
+      }
+    },
+
+    async testTranslation(payload = {}) {
+      if (this.testingTranslation) {
+        return null
+      }
+
+      this.testingTranslation = true
+
+      try {
+        const response = await testBotTranslation(payload)
+        return response?.data || null
+      } finally {
+        this.testingTranslation = false
+      }
+    },
+
+    async retryTranslation(sourceKey, payload = {}) {
+      const normalizedSourceKey = String(sourceKey || '').trim().toLowerCase()
+      if (!normalizedSourceKey) {
+        return null
+      }
+
+      if (this.retryingTranslationSourceKeys.has(normalizedSourceKey)) {
+        return null
+      }
+
+      this.retryingTranslationSourceKeys.add(normalizedSourceKey)
+
+      try {
+        const response = await retryBotTranslation(normalizedSourceKey, payload)
+        return response?.data || null
+      } finally {
+        this.retryingTranslationSourceKeys.delete(normalizedSourceKey)
       }
     },
   },

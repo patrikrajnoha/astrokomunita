@@ -3,24 +3,32 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Enums\BotPublishStatus;
+use App\Enums\BotTranslationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\BotItem;
 use App\Models\BotRun;
 use App\Models\BotSource;
+use App\Models\Post;
+use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use App\Services\Bots\BotPublisherService;
 use App\Services\Bots\BotRunner;
+use App\Services\PostService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class AdminBotController extends Controller
 {
     public function __construct(
         private readonly BotRunner $runner,
         private readonly BotPublisherService $publisherService,
+        private readonly PostService $postService,
+        private readonly BotTranslationServiceInterface $translationService,
     ) {
     }
 
@@ -108,6 +116,7 @@ class AdminBotController extends Controller
             'mode' => 'sometimes|string|in:auto,dry',
             'publish_limit' => 'nullable|integer|min:1|max:100',
         ]);
+        $forceManualOverride = (bool) ($validated['force_manual_override'] ?? false);
 
         $source = BotSource::query()
             ->where('key', $normalizedSourceKey)
@@ -125,16 +134,18 @@ class AdminBotController extends Controller
             ], 422);
         }
 
-        $throttleSeconds = 120;
-        $throttleKey = sprintf('bots:throttle:manual:%s', $normalizedSourceKey);
-        $throttleExpiresAt = now()->addSeconds($throttleSeconds)->timestamp;
-        if (!Cache::add($throttleKey, $throttleExpiresAt, $throttleSeconds)) {
-            $retryAfter = max(1, (int) Cache::get($throttleKey, 0) - now()->timestamp);
+        if (!$forceManualOverride) {
+            $throttleSeconds = 120;
+            $throttleKey = sprintf('bots:throttle:manual:%s', $normalizedSourceKey);
+            $throttleExpiresAt = now()->addSeconds($throttleSeconds)->timestamp;
+            if (!Cache::add($throttleKey, $throttleExpiresAt, $throttleSeconds)) {
+                $retryAfter = max(1, (int) Cache::get($throttleKey, 0) - now()->timestamp);
 
-            return response()->json([
-                'message' => sprintf('Manual run for "%s" is temporarily throttled.', $normalizedSourceKey),
-                'retry_after' => $retryAfter,
-            ], 429);
+                return response()->json([
+                    'message' => sprintf('Manual run for "%s" is temporarily throttled.', $normalizedSourceKey),
+                    'retry_after' => $retryAfter,
+                ], 429);
+            }
         }
 
         $mode = strtolower(trim((string) ($validated['mode'] ?? $this->defaultModeForSource($source->key))));
@@ -149,7 +160,7 @@ class AdminBotController extends Controller
         $run = $this->runner->run(
             $source,
             'admin',
-            (bool) ($validated['force_manual_override'] ?? false),
+            $forceManualOverride,
             $mode,
             $publishLimit
         );
@@ -237,6 +248,189 @@ class AdminBotController extends Controller
         );
 
         return response()->json($paginator);
+    }
+
+    public function translationTest(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'text' => 'nullable|string|max:5000',
+        ]);
+
+        $text = trim((string) ($validated['text'] ?? 'The Solar System contains eight planets orbiting the Sun.'));
+        if ($text === '') {
+            $text = 'The Solar System contains eight planets orbiting the Sun.';
+        }
+
+        $startedAt = microtime(true);
+
+        try {
+            $result = $this->translationService->translate($text, null, 'sk');
+        } catch (Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Translation test failed.',
+                'error' => $this->truncateErrorText($e->getMessage(), 300),
+            ], 422);
+        }
+
+        $meta = is_array($result['meta'] ?? null) ? $result['meta'] : [];
+        $translatedText = trim((string) ($result['translated_title'] ?? $result['title_translated'] ?? ''));
+        $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
+        $provider = trim((string) data_get($meta, 'provider', ''));
+
+        return response()->json([
+            'ok' => true,
+            'provider' => $provider !== '' ? $provider : null,
+            'latency_ms' => $durationMs,
+            'status' => strtolower(trim((string) ($result['status'] ?? 'done'))),
+            'translated_text' => $translatedText !== '' ? $translatedText : null,
+            'meta' => [
+                'target_lang' => strtolower(trim((string) data_get($meta, 'target_lang', 'sk'))),
+                'model' => $this->nullableString(data_get($meta, 'model')),
+                'fallback_used' => (bool) data_get($meta, 'fallback_used', false),
+            ],
+        ]);
+    }
+
+    public function retryTranslation(Request $request, string $sourceKey): JsonResponse
+    {
+        $validated = $request->validate([
+            'limit' => 'nullable|integer|min:1|max:100',
+            'run_id' => 'nullable|integer|min:1|exists:bot_runs,id',
+        ]);
+
+        $normalizedSourceKey = strtolower(trim($sourceKey));
+        $source = BotSource::query()->where('key', $normalizedSourceKey)->first();
+        if (!$source) {
+            return response()->json([
+                'message' => sprintf('Bot source "%s" was not found.', $normalizedSourceKey),
+            ], 404);
+        }
+
+        $limit = (int) ($validated['limit'] ?? (int) $request->query('limit', 10));
+        if ($limit <= 0) {
+            $limit = 10;
+        }
+        $runId = isset($validated['run_id']) ? (int) $validated['run_id'] : null;
+
+        $query = BotItem::query()
+            ->where('source_id', $source->id)
+            ->whereIn('translation_status', [
+                BotTranslationStatus::FAILED->value,
+                BotTranslationStatus::PENDING->value,
+            ])
+            ->orderByDesc('fetched_at')
+            ->orderByDesc('id');
+
+        if ($runId !== null) {
+            $query->where(function (Builder $builder) use ($runId): void {
+                $builder
+                    ->where('run_id', $runId)
+                    ->orWhere('meta->last_seen_run_id', $runId);
+            });
+        }
+
+        $items = $query->limit($limit)->get();
+
+        $doneCount = 0;
+        $skippedCount = 0;
+        $failedCount = 0;
+        $updatedItemIds = [];
+
+        foreach ($items as $item) {
+            $meta = is_array($item->meta) ? $item->meta : [];
+            $title = trim((string) $item->title);
+            $content = trim((string) ($item->content ?: $item->summary ?: ''));
+
+            if ($title === '' && $content === '') {
+                $meta['translation'] = array_replace(
+                    is_array($meta['translation'] ?? null) ? $meta['translation'] : [],
+                    [
+                        'provider' => 'none',
+                        'reason' => 'empty_input',
+                        'target_lang' => 'sk',
+                        'error' => null,
+                        'translated_at' => now()->toIso8601String(),
+                    ]
+                );
+                unset($meta['translation_error']);
+                $item->forceFill([
+                    'translation_status' => BotTranslationStatus::SKIPPED->value,
+                    'translation_error' => null,
+                    'translation_provider' => 'none',
+                    'translated_at' => now(),
+                    'meta' => $meta,
+                ])->save();
+
+                $skippedCount++;
+                $updatedItemIds[] = $item->id;
+                continue;
+            }
+
+            try {
+                $result = $this->translationService->translate($title, $content, 'sk');
+                $resultMeta = is_array($result['meta'] ?? null) ? $result['meta'] : [];
+                $status = strtolower(trim((string) ($result['status'] ?? BotTranslationStatus::DONE->value)));
+                if (!in_array($status, [
+                    BotTranslationStatus::DONE->value,
+                    BotTranslationStatus::SKIPPED->value,
+                    BotTranslationStatus::FAILED->value,
+                ], true)) {
+                    $status = BotTranslationStatus::DONE->value;
+                }
+
+                $meta['translation'] = $resultMeta;
+                unset($meta['translation_error']);
+                $translationProvider = $this->nullableString(data_get($resultMeta, 'provider'));
+
+                $item->forceFill([
+                    'title_translated' => $this->nullableString($result['translated_title'] ?? $result['title_translated'] ?? null),
+                    'content_translated' => $this->nullableString($result['translated_content'] ?? $result['content_translated'] ?? null),
+                    'translation_status' => $status,
+                    'translation_error' => $this->nullableString(data_get($resultMeta, 'error')),
+                    'translation_provider' => $translationProvider,
+                    'translated_at' => now(),
+                    'meta' => $meta,
+                ])->save();
+
+                if ($status === BotTranslationStatus::DONE->value) {
+                    $doneCount++;
+                } elseif ($status === BotTranslationStatus::SKIPPED->value) {
+                    $skippedCount++;
+                } else {
+                    $failedCount++;
+                }
+                $updatedItemIds[] = $item->id;
+            } catch (Throwable $e) {
+                $failedCount++;
+                $errorMessage = $this->truncateErrorText($e->getMessage(), 300);
+                $meta['translation_error'] = $errorMessage;
+                Log::warning('Admin bot translation retry failed.', [
+                    'source_key' => $normalizedSourceKey,
+                    'stable_key' => (string) $item->stable_key,
+                    'error' => $errorMessage,
+                ]);
+
+                $item->forceFill([
+                    'translation_status' => BotTranslationStatus::FAILED->value,
+                    'translation_error' => $errorMessage,
+                    'translation_provider' => null,
+                    'translated_at' => now(),
+                    'meta' => $meta,
+                ])->save();
+            }
+        }
+
+        return response()->json([
+            'source_key' => $normalizedSourceKey,
+            'run_id' => $runId,
+            'limit' => $limit,
+            'retried_count' => $items->count(),
+            'done_count' => $doneCount,
+            'skipped_count' => $skippedCount,
+            'failed_count' => $failedCount,
+            'updated_item_ids' => $updatedItemIds,
+        ]);
     }
 
     public function publishItem(Request $request, int $botItemId): JsonResponse
@@ -346,6 +540,36 @@ class AdminBotController extends Controller
         ]);
     }
 
+    public function deleteItemPost(int $botItemId): JsonResponse
+    {
+        $item = BotItem::query()->find($botItemId);
+        if (!$item) {
+            return response()->json([
+                'message' => 'Bot item was not found.',
+            ], 404);
+        }
+
+        $postId = (int) ($item->post_id ?? 0);
+        if ($postId <= 0) {
+            return response()->json([
+                'message' => 'Item has no published post to delete.',
+            ], 422);
+        }
+
+        $post = Post::query()->find($postId);
+        if ($post) {
+            $this->postService->deletePost($post);
+        }
+
+        $item = $this->markItemPostDeletedManually($item, $postId);
+
+        return response()->json([
+            'message' => 'Published post deleted.',
+            'item' => $this->serializeItem($item),
+            'deleted_post_id' => $postId,
+        ]);
+    }
+
     /**
      * @return array<string,mixed>
      */
@@ -400,6 +624,9 @@ class AdminBotController extends Controller
             'stable_key' => (string) $item->stable_key,
             'publish_status' => $item->publish_status?->value ?? (string) $item->publish_status,
             'translation_status' => $item->translation_status?->value ?? (string) $item->translation_status,
+            'translation_provider' => $this->nullableString($item->translation_provider),
+            'translation_error' => $this->nullableString($item->translation_error),
+            'translated_at' => $item->translated_at?->toIso8601String(),
             'post_id' => $item->post_id,
             'url' => $item->url,
             'title' => $resolvedTitle,
@@ -454,6 +681,23 @@ class AdminBotController extends Controller
         $meta['manual_published_at'] = now()->toIso8601String();
 
         $item->forceFill(['meta' => $meta])->save();
+
+        return $item->fresh() ?? $item;
+    }
+
+    private function markItemPostDeletedManually(BotItem $item, int $postId): BotItem
+    {
+        $meta = is_array($item->meta) ? $item->meta : [];
+        $meta['deleted_manually'] = true;
+        $meta['manual_deleted_at'] = now()->toIso8601String();
+        $meta['deleted_post_id'] = $postId;
+        unset($meta['published_to_posts_at']);
+
+        $item->forceFill([
+            'post_id' => null,
+            'publish_status' => BotPublishStatus::PENDING->value,
+            'meta' => $meta,
+        ])->save();
 
         return $item->fresh() ?? $item;
     }

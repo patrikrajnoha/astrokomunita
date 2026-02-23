@@ -32,6 +32,10 @@ export function runBotSource(sourceKey, payload = {}) {
     body.publish_limit = publishLimit
   }
 
+  if (payload?.force_manual_override === true) {
+    body.force_manual_override = true
+  }
+
   return api.post(
     `/admin/bots/run/${encodeURIComponent(sourceKey)}`,
     Object.keys(body).length > 0 ? body : null,
@@ -41,8 +45,38 @@ export function runBotSource(sourceKey, payload = {}) {
   )
 }
 
+export function testBotTranslation(payload = {}) {
+  return api.post('/admin/bots/translation/test', payload, {
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function retryBotTranslation(sourceKey, payload = {}) {
+  const params = {}
+  const limit = Number(payload?.limit)
+  if (Number.isInteger(limit) && limit > 0) {
+    params.limit = limit
+  }
+
+  const runId = Number(payload?.run_id)
+  if (Number.isInteger(runId) && runId > 0) {
+    params.run_id = runId
+  }
+
+  return api.post(`/admin/bots/translation/retry/${encodeURIComponent(sourceKey)}`, null, {
+    params,
+    meta: { skipErrorToast: true },
+  })
+}
+
 export function publishBotItem(botItemId, payload = {}) {
   return api.post(`/admin/bots/items/${encodeURIComponent(botItemId)}/publish`, payload, {
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function deleteBotItemPost(botItemId) {
+  return api.delete(`/admin/bots/items/${encodeURIComponent(botItemId)}/post`, {
     meta: { skipErrorToast: true },
   })
 }
