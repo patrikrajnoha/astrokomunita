@@ -73,9 +73,10 @@ class BotPublisherService
         $temporaryAttachmentPath = null;
         if ($this->isStelaIdentity($botIdentity)) {
             $downloaded = $this->downloadStelaImageAttachment($item);
-            if ($downloaded === null) {
-                $this->markSkipped($item, 'image_download_failed', $publishPayload['used_translation']);
-                return PublishResult::skipped('image_download_failed');
+            if (($downloaded['error'] ?? null) !== null) {
+                $reason = (string) $downloaded['error'];
+                $this->markSkipped($item, $reason, $publishPayload['used_translation']);
+                return PublishResult::skipped($reason);
             }
 
             $attachment = $downloaded['attachment'];
@@ -366,49 +367,74 @@ class BotPublisherService
     }
 
     /**
-     * @return array{attachment:UploadedFile,temporary_path:string}|null
+     * @return array{
+     *   attachment:UploadedFile|null,
+     *   temporary_path:?string,
+     *   error:?string
+     * }
      */
-    private function downloadStelaImageAttachment(BotItem $item): ?array
+    private function downloadStelaImageAttachment(BotItem $item): array
     {
         $imageUrl = $this->resolveStelaImageUrl($item);
         if ($imageUrl === '') {
-            return null;
+            return $this->downloadFailure('image_download_failed');
+        }
+
+        if (!$this->isAllowedDownloadScheme($imageUrl)) {
+            return $this->downloadFailure('image_policy_violation');
         }
 
         $timeoutSeconds = max(1, (int) config('astrobot.rss_timeout_seconds', 10));
         $retryTimes = max(0, (int) config('astrobot.rss_retry_times', 2));
         $retrySleepMs = max(0, (int) config('astrobot.rss_retry_sleep_ms', 250));
         $attempts = $retryTimes + 1;
+        $maxBytes = max(1024, (int) config('astrobot.stela_image_max_bytes', 20 * 1024 * 1024));
 
         try {
             $response = Http::secure()
                 ->accept('image/*,*/*;q=0.8')
                 ->timeout($timeoutSeconds)
+                ->withOptions([
+                    'allow_redirects' => [
+                        'max' => 3,
+                        'strict' => true,
+                        'protocols' => ['http', 'https'],
+                    ],
+                ])
                 ->retry($attempts, $retrySleepMs, null, false)
                 ->get($imageUrl);
         } catch (\Throwable) {
-            return null;
+            return $this->downloadFailure('image_download_failed');
         }
 
         if (!$response->successful()) {
-            return null;
+            return $this->downloadFailure('image_download_failed');
+        }
+
+        $contentLengthHeader = (int) ($response->header('Content-Length') ?? 0);
+        if ($contentLengthHeader > 0 && $contentLengthHeader > $maxBytes) {
+            return $this->downloadFailure('image_policy_violation');
         }
 
         $body = (string) $response->body();
         if ($body === '') {
-            return null;
+            return $this->downloadFailure('image_download_failed');
+        }
+
+        if (strlen($body) > $maxBytes) {
+            return $this->downloadFailure('image_policy_violation');
         }
 
         $contentType = (string) ($response->header('Content-Type') ?? '');
         $mime = $this->detectImageMime($contentType, $body);
         if ($mime === null || !$this->isAllowedStelaImageMime($mime)) {
-            return null;
+            return $this->downloadFailure('image_policy_violation');
         }
 
         $extension = $this->extensionForImageMime($mime);
         $tempPath = tempnam(sys_get_temp_dir(), 'apod_');
         if ($tempPath === false) {
-            return null;
+            return $this->downloadFailure('image_download_failed');
         }
 
         if ($extension !== 'tmp') {
@@ -421,7 +447,7 @@ class BotPublisherService
         $written = @file_put_contents($tempPath, $body);
         if (!is_int($written) || $written <= 0) {
             $this->cleanupTemporaryFile($tempPath);
-            return null;
+            return $this->downloadFailure('image_download_failed');
         }
 
         $datePart = preg_replace('/[^0-9]/', '', (string) data_get($item->meta, 'apod_date', '')) ?? '';
@@ -431,6 +457,7 @@ class BotPublisherService
         return [
             'attachment' => new UploadedFile($tempPath, $filename, $mime, UPLOAD_ERR_OK, true),
             'temporary_path' => $tempPath,
+            'error' => null,
         ];
     }
 
@@ -458,12 +485,8 @@ class BotPublisherService
 
         $allowed = array_values(array_filter(array_map(
             static fn (mixed $value): string => strtolower(trim((string) $value)),
-            (array) config('media.post_image_allowed_mimes', [])
+            (array) config('astrobot.stela_image_allowed_mimes', ['image/jpeg', 'image/png', 'image/webp'])
         )));
-
-        if ($allowed === []) {
-            return true;
-        }
 
         return in_array($normalized, $allowed, true);
     }
@@ -494,9 +517,26 @@ class BotPublisherService
             'image/jpeg' => 'jpg',
             'image/png' => 'png',
             'image/webp' => 'webp',
-            'image/gif' => 'gif',
             default => 'tmp',
         };
+    }
+
+    private function isAllowedDownloadScheme(string $url): bool
+    {
+        $scheme = strtolower(trim((string) parse_url($url, PHP_URL_SCHEME)));
+        return in_array($scheme, ['http', 'https'], true);
+    }
+
+    /**
+     * @return array{attachment:null,temporary_path:null,error:string}
+     */
+    private function downloadFailure(string $reason): array
+    {
+        return [
+            'attachment' => null,
+            'temporary_path' => null,
+            'error' => $reason,
+        ];
     }
 
     private function isStelaIdentity(string $botIdentity): bool

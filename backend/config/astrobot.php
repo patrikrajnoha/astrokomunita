@@ -59,6 +59,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Stela image download policy
+    |--------------------------------------------------------------------------
+    */
+    'stela_image_max_bytes' => (int) env('STELA_IMAGE_MAX_BYTES', 20 * 1024 * 1024),
+    'stela_image_allowed_mimes' => array_values(array_filter(array_map(
+        static fn (string $mime): string => strtolower(trim($mime)),
+        explode(',', (string) env('STELA_IMAGE_ALLOWED_MIMES', 'image/jpeg,image/png,image/webp'))
+    ))),
+
+    /*
+    |--------------------------------------------------------------------------
     | Legacy keys kept for backward compatibility
     |--------------------------------------------------------------------------
     */

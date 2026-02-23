@@ -169,6 +169,52 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame(0, (int) ($run->stats['failed_count'] ?? 0));
     }
 
+    public function test_apod_image_larger_than_policy_limit_is_skipped(): void
+    {
+        config()->set('astrobot.stela_image_max_bytes', 1024);
+
+        $source = $this->createApodSource();
+        Http::fake([
+            $source->url . '*' => Http::response($this->apodPayload(), 200, ['Content-Type' => 'application/json']),
+            'https://apod.nasa.gov/apod/image/test-hd.jpg*' => Http::response(
+                str_repeat('x', 2048),
+                200,
+                ['Content-Type' => 'image/jpeg', 'Content-Length' => '2048']
+            ),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertDatabaseCount('posts', 0);
+
+        $item = BotItem::query()->firstOrFail();
+        $this->assertSame('skipped', (string) $item->publish_status->value);
+        $this->assertSame('image_policy_violation', (string) data_get($item->meta, 'skip_reason'));
+    }
+
+    public function test_apod_image_with_non_image_mime_is_skipped_by_policy(): void
+    {
+        $source = $this->createApodSource();
+        Http::fake([
+            $source->url . '*' => Http::response($this->apodPayload(), 200, ['Content-Type' => 'application/json']),
+            'https://apod.nasa.gov/apod/image/test-hd.jpg*' => Http::response(
+                '<html>not an image</html>',
+                200,
+                ['Content-Type' => 'text/html']
+            ),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertDatabaseCount('posts', 0);
+
+        $item = BotItem::query()->firstOrFail();
+        $this->assertSame('skipped', (string) $item->publish_status->value);
+        $this->assertSame('image_policy_violation', (string) data_get($item->meta, 'skip_reason'));
+    }
+
     public function test_apod_second_run_is_idempotent_and_does_not_create_duplicate_posts(): void
     {
         $source = $this->createApodSource();
