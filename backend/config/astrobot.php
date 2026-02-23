@@ -8,6 +8,8 @@ return [
     */
     'enabled' => env('ASTROBOT_ENABLED', true),
     'nasa_rss_url' => env('ASTROBOT_NASA_RSS_URL', 'https://www.nasa.gov/news-release/feed/'),
+    'nasa_apod_url' => env('NASA_APOD_URL', env('ASTROBOT_NASA_APOD_URL', 'https://api.nasa.gov/planetary/apod')),
+    'wikipedia_onthisday_url' => env('WIKIPEDIA_ONTHISDAY_URL', 'https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/all'),
     'keep_max_items' => (int) env('ASTROBOT_KEEP_MAX_ITEMS', 30),
     'keep_max_days' => (int) env('ASTROBOT_KEEP_MAX_DAYS', 14),
     'lock_ttl_seconds' => (int) env('ASTROBOT_LOCK_TTL_SECONDS', 3300),
@@ -24,6 +26,15 @@ return [
     'max_items_per_sync' => (int) env('ASTROBOT_MAX_ITEMS_PER_SYNC', 100),
     'ssl_verify' => filter_var(env('ASTROBOT_SSL_VERIFY', true), FILTER_VALIDATE_BOOL),
     'ssl_ca_bundle' => env('ASTROBOT_SSL_CA_BUNDLE'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Translation
+    |--------------------------------------------------------------------------
+    */
+    'translation_provider' => strtolower(trim((string) env('TRANSLATION_PROVIDER', 'dummy'))),
+    'translation_base_url' => env('TRANSLATION_BASE_URL', 'http://127.0.0.1:5000'),
+    'translation_timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SECONDS', 8),
 
     /*
     |--------------------------------------------------------------------------

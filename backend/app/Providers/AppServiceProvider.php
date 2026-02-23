@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Console\Commands\ImportEventCandidates;
 use App\Console\Commands\ImportNasaNewsCommand;
 use App\Console\Commands\CrawlAstropixelsEventsCommand;
+use App\Console\Commands\RunBotSourceCommand;
 use App\Console\Commands\SendEventReminders;
 use App\Console\Commands\SendEventNotificationReminders;
 use App\Console\Commands\SendWeeklyNewsletterCommand;
@@ -18,6 +19,9 @@ use Illuminate\Http\Client\PendingRequest;
 use App\Services\Observing\Contracts\AirQualityProvider;
 use App\Services\Observing\Contracts\SunMoonProvider;
 use App\Services\Observing\Contracts\WeatherProvider;
+use App\Services\Bots\Contracts\BotTranslationServiceInterface;
+use App\Services\Bots\DummyBotTranslationService;
+use App\Services\Bots\HttpBotTranslationService;
 use App\Services\Observing\Providers\OpenAqAirQualityProvider;
 use App\Services\Observing\Providers\OpenMeteoWeatherProvider;
 use App\Services\Observing\Providers\UsnoSunMoonProvider;
@@ -41,6 +45,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SunMoonProvider::class, UsnoSunMoonProvider::class);
         $this->app->bind(WeatherProvider::class, OpenMeteoWeatherProvider::class);
         $this->app->bind(AirQualityProvider::class, OpenAqAirQualityProvider::class);
+        $this->app->bind(BotTranslationServiceInterface::class, function ($app) {
+            $provider = strtolower(trim((string) config('astrobot.translation_provider', 'dummy')));
+
+            return match ($provider) {
+                'http' => $app->make(HttpBotTranslationService::class),
+                default => $app->make(DummyBotTranslationService::class),
+            };
+        });
         $this->app->bind(GrammarCheckerInterface::class, function ($app) {
             $provider = strtolower(trim((string) config('translation.grammar.provider', 'languagetool')));
 
@@ -54,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
             ImportEventCandidates::class,
             ImportNasaNewsCommand::class,
             CrawlAstropixelsEventsCommand::class,
+            RunBotSourceCommand::class,
             SendEventReminders::class,
             SendEventNotificationReminders::class,
             SendWeeklyNewsletterCommand::class,
