@@ -11,6 +11,9 @@
         />
       </div>
     </header>
+    <div v-if="$slots.composer" class="feed-composer-slot">
+      <slot name="composer" />
+    </div>
 
     <section
       v-for="tab in tabs"
@@ -1257,18 +1260,18 @@ defineExpose({ load, prepend })
 <style scoped>
 /* Modern Feed Styles */
 .feed-container {
-  max-width: 760px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   padding: 0;
   width: 100%;
   min-width: 0;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 /* Header */
 .feed-header {
   position: relative;
-  margin-bottom: 12px;
+  margin-bottom: 0;
   padding: 0;
 }
 
@@ -1292,31 +1295,35 @@ defineExpose({ load, prepend })
 
 .feed-actions {
   width: 100%;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
 }
 
 .feed-panel {
   min-width: 0;
 }
 
+.feed-composer-slot {
+  width: 100%;
+}
+
 .empty-state {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.3);
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
+  background: rgb(var(--color-bg-rgb) / 0.16);
   color: var(--color-text-secondary);
-  padding: 16px;
+  padding: 0.9rem 0.85rem;
   display: grid;
-  gap: 10px;
+  gap: 0.45rem;
   justify-items: start;
 }
 
 .retry-btn {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.26);
   border-radius: 999px;
-  background: rgb(var(--color-bg-rgb) / 0.55);
+  background: transparent;
   color: var(--color-surface);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  padding: 0.35rem 0.8rem;
+  padding: 0.26rem 0.68rem;
   cursor: pointer;
 }
 
@@ -1384,15 +1391,15 @@ defineExpose({ load, prepend })
 .skeleton-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 0 4px;
+  gap: 0;
+  padding: 0;
 }
 
 .skeleton-post {
-  background: rgb(var(--color-bg-rgb) / 0.3);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  border-radius: 12px;
-  padding: 16px;
+  background: transparent;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.12);
+  border-radius: 0;
+  padding: 0.75rem 0.75rem 0.85rem;
   overflow: hidden;
 }
 
@@ -1403,8 +1410,8 @@ defineExpose({ load, prepend })
 }
 
 .skeleton-avatar {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: linear-gradient(
     90deg,
@@ -1431,8 +1438,8 @@ defineExpose({ load, prepend })
 }
 
 .skeleton-media {
-  height: 200px;
-  border-radius: 8px;
+  height: 180px;
+  border-radius: 12px;
   background: rgb(var(--color-text-secondary-rgb) / 0.08);
 }
 
@@ -1475,39 +1482,36 @@ defineExpose({ load, prepend })
 .feed-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 0 4px;
+  gap: 0;
+  padding: 0;
   min-width: 0;
 }
 
 .post-card {
-  background: rgb(var(--color-bg-rgb) / 0.4);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.15);
-  border-radius: 12px;
-  padding: 14px;
-  transition: all 0.2s ease;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
+  border-radius: 0;
+  padding: 0.72rem 0.75rem;
+  transition: background-color 0.16s ease;
   cursor: pointer;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   width: 100%;
   min-width: 0;
 }
 
 .post-card:hover {
-  background: rgb(var(--color-bg-rgb) / 0.6);
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.25);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: rgb(var(--color-text-secondary-rgb) / 0.06);
 }
 
 .post-card:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  background: rgb(var(--color-text-secondary-rgb) / 0.1);
 }
 
 .post-card--new {
   animation: newPostReveal 760ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  border-color: rgb(var(--color-primary-rgb) / 0.48);
+  border-bottom-color: rgb(var(--color-primary-rgb) / 0.4);
 }
 
 @keyframes newPostReveal {
@@ -1528,11 +1532,11 @@ defineExpose({ load, prepend })
 
 /* Pinned posts */
 .post-card--pinned {
-  border-color: rgb(var(--color-warning-rgb) / 0.4);
+  border-bottom-color: rgb(var(--color-warning-rgb) / 0.45);
   background: linear-gradient(
     135deg,
     rgb(var(--color-warning-rgb) / 0.08) 0%,
-    rgb(var(--color-bg-rgb) / 0.4) 100%
+    rgb(var(--color-bg-rgb) / 0.16) 100%
   );
 }
 
@@ -1547,11 +1551,11 @@ defineExpose({ load, prepend })
 
 /* AstroBot posts */
 .post-card--astrobot {
-  border-color: rgb(var(--color-success-rgb) / 0.3);
+  border-bottom-color: rgb(var(--color-success-rgb) / 0.35);
   background: linear-gradient(
     135deg,
-    rgb(var(--color-success-rgb) / 0.05) 0%,
-    rgb(var(--color-bg-rgb) / 0.4) 100%
+    rgb(var(--color-success-rgb) / 0.06) 0%,
+    rgb(var(--color-bg-rgb) / 0.14) 100%
   );
 }
 
@@ -1567,7 +1571,7 @@ defineExpose({ load, prepend })
 /* Post Layout */
 .post-card {
   display: flex;
-  gap: 12px;
+  gap: 0.62rem;
 }
 
 .post-avatar {
@@ -1600,8 +1604,8 @@ defineExpose({ load, prepend })
 }
 
 .avatar-image {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   object-fit: cover;
   display: block;
@@ -1609,8 +1613,8 @@ defineExpose({ load, prepend })
 }
 
 .avatar-fallback {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1622,17 +1626,17 @@ defineExpose({ load, prepend })
   );
   color: white;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 14px;
   border: 2px solid rgb(var(--color-text-secondary-rgb) / 0.2);
 }
 
 /* Modern Post Header */
 .post-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
+  gap: 0.5rem;
+  margin-bottom: 0.32rem;
 }
 
 .post-meta {
@@ -1643,9 +1647,9 @@ defineExpose({ load, prepend })
 .post-author {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.42rem;
   flex-wrap: wrap;
-  margin-bottom: 4px;
+  margin-bottom: 0.12rem;
   min-width: 0;
 }
 
@@ -1655,7 +1659,7 @@ defineExpose({ load, prepend })
   padding: 0;
   color: var(--color-surface);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 0.92rem;
   cursor: pointer;
   border-radius: 4px;
   transition: background-color 0.2s ease;
@@ -1672,14 +1676,14 @@ defineExpose({ load, prepend })
 
 .author-username {
   color: var(--color-text-secondary);
-  font-size: 14px;
+  font-size: 0.82rem;
   font-weight: 400;
 }
 
 .author-time {
   color: var(--color-text-secondary);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 
 .astrobot-badge {
@@ -1722,7 +1726,7 @@ defineExpose({ load, prepend })
   gap: 8px;
   flex-wrap: wrap;
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: 0.74rem;
   font-weight: 400;
 }
 
@@ -1762,8 +1766,9 @@ defineExpose({ load, prepend })
 .post-actions-menu {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .action-button {
@@ -1796,11 +1801,11 @@ defineExpose({ load, prepend })
 
 /* Modern Post Content */
 .post-text {
-  margin-bottom: 10px;
+  margin-bottom: 0.46rem;
   color: var(--color-surface);
   white-space: pre-wrap;
-  line-height: 1.68;
-  font-size: 15.5px;
+  line-height: 1.52;
+  font-size: 0.91rem;
   word-wrap: break-word;
   word-break: break-word;
   overflow-wrap: break-word;
@@ -1865,7 +1870,7 @@ defineExpose({ load, prepend })
 
 /* Source URL */
 .source-url {
-  margin-top: 12px;
+  margin-top: 0.42rem;
 }
 
 .source-url--bot {
@@ -1885,7 +1890,7 @@ defineExpose({ load, prepend })
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 0.36rem 0.58rem;
   border-radius: 8px;
   background: linear-gradient(
     135deg,
@@ -1895,7 +1900,7 @@ defineExpose({ load, prepend })
   border: 1px solid rgb(var(--color-primary-rgb) / 0.2);
   color: var(--color-primary);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 0.75rem;
   font-weight: 500;
   transition: all 0.2s ease;
 }
@@ -1912,11 +1917,11 @@ defineExpose({ load, prepend })
 
 /* Media */
 .post-media {
-  margin-top: 12px;
+  margin-top: 0.4rem;
 }
 
 .post-media--stela {
-  margin-top: 14px;
+  margin-top: 0.48rem;
 }
 
 .media-removed {
@@ -1933,8 +1938,8 @@ defineExpose({ load, prepend })
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  border-radius: 8px;
+  padding: 0.55rem 0.62rem;
+  border-radius: 12px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.15);
   background: rgb(var(--color-bg-rgb) / 0.2);
   color: var(--color-surface);
@@ -1991,12 +1996,12 @@ defineExpose({ load, prepend })
 
 /* Modern Action Buttons */
 .post-actions {
-  margin-top: 10px;
+  margin-top: 0.48rem;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding-top: 10px;
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.1);
+  gap: 0.15rem;
+  padding-top: 0.35rem;
+  border-top: 0;
   flex-wrap: wrap;
   min-width: 0;
 }
@@ -2004,18 +2009,18 @@ defineExpose({ load, prepend })
 .action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
+  gap: 0.28rem;
+  padding: 0.3rem 0.42rem;
   border: none;
   background: transparent;
   color: var(--color-text-secondary);
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: 999px;
+  font-size: 0.77rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 40px;
-  min-width: 40px;
+  min-height: 30px;
+  min-width: 30px;
   text-decoration: none;
 }
 
@@ -2122,14 +2127,14 @@ defineExpose({ load, prepend })
 }
 
 .action-count {
-  font-size: 12px;
+  font-size: 0.72rem;
   font-weight: 500;
   min-width: 16px;
   text-align: center;
 }
 
 .view-count {
-  font-size: 12px;
+  font-size: 0.72rem;
   color: var(--color-text-secondary);
   font-weight: 500;
   line-height: 1;
@@ -2160,20 +2165,20 @@ defineExpose({ load, prepend })
 .load-more {
   display: flex;
   justify-content: center;
-  padding: 20px 4px;
+  padding: 0.7rem 0.6rem 0.9rem;
 }
 
 .load-more-btn {
-  padding: 12px 24px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: rgb(var(--color-bg-rgb) / 0.4);
+  padding: 0.4rem 0.72rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  background: transparent;
   color: var(--color-surface);
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 999px;
+  font-size: 0.76rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 44px;
+  min-height: 32px;
 }
 
 .load-more-btn:hover:not(:disabled) {
@@ -2334,45 +2339,26 @@ defineExpose({ load, prepend })
 
 @media (max-width: 480px) {
   .feed-container {
-    padding: 0 6px;
+    padding: 0;
   }
 
   .feed-header {
-    margin-bottom: 16px;
-  }
-
-  .feed-title {
-    font-size: 1.2rem;
-  }
-
-  .feed-subtitle {
-    font-size: 0.85rem;
-  }
-
-  .feed-tabs {
-    width: 100%;
-  }
-
-  .tab-button {
-    padding: 10px 12px;
-    font-size: 0.82rem;
+    margin-bottom: 0;
   }
 
   .post-card {
-    padding: 10px;
-    gap: 8px;
-    border-radius: 10px;
+    padding: 0.62rem 0.62rem 0.66rem;
+    gap: 0.52rem;
   }
 
   .post-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+    align-items: center;
+    gap: 0.4rem;
   }
 
   .post-actions-menu {
-    width: 100%;
-    justify-content: flex-end;
+    width: auto;
+    justify-content: flex-start;
   }
 
   .avatar-image,
@@ -2383,35 +2369,35 @@ defineExpose({ load, prepend })
   }
 
   .author-name {
-    font-size: 13px;
+    font-size: 0.86rem;
   }
 
   .author-username {
-    font-size: 12px;
+    font-size: 0.76rem;
   }
 
   .author-time {
-    font-size: 11px;
+    font-size: 0.72rem;
   }
 
   .post-text {
-    font-size: 14px;
-    line-height: 1.58;
+    font-size: 0.86rem;
+    line-height: 1.48;
   }
 
   .post-time {
-    font-size: 12px;
+    font-size: 0.72rem;
   }
 
   .action-btn {
-    padding: 6px 8px;
-    font-size: 12px;
-    min-height: 38px;
-    min-width: 38px;
+    padding: 0.24rem 0.34rem;
+    font-size: 0.72rem;
+    min-height: 28px;
+    min-width: 28px;
   }
 
   .action-count {
-    font-size: 11px;
+    font-size: 0.68rem;
   }
 
   .action-spacer {
@@ -2426,16 +2412,12 @@ defineExpose({ load, prepend })
 
 @media (min-width: 481px) and (max-width: 768px) {
   .feed-container {
-    padding: 0 10px;
-  }
-
-  .feed-title {
-    font-size: 1.32rem;
+    padding: 0;
   }
 
   .post-card {
-    padding: 12px;
-    gap: 10px;
+    padding: 0.68rem 0.68rem 0.72rem;
+    gap: 0.56rem;
   }
 
   .post-header {
@@ -2462,15 +2444,15 @@ defineExpose({ load, prepend })
   }
 
   .post-text {
-    font-size: 14.5px;
-    line-height: 1.6;
+    font-size: 0.89rem;
+    line-height: 1.52;
   }
 
   .action-btn {
-    padding: 6px 10px;
-    font-size: 12px;
-    min-height: 38px;
-    min-width: 38px;
+    padding: 0.28rem 0.4rem;
+    font-size: 0.74rem;
+    min-height: 29px;
+    min-width: 29px;
   }
 
   .report-content {
@@ -2481,12 +2463,12 @@ defineExpose({ load, prepend })
 
 @media (min-width: 769px) {
   .feed-container {
-    padding: 0 4px;
+    padding: 0;
   }
 
   .post-card {
-    padding: 16px;
-    gap: 12px;
+    padding: 0.75rem 0.78rem 0.82rem;
+    gap: 0.62rem;
   }
 }
 </style>
