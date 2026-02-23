@@ -1,6 +1,6 @@
 <template>
   <div
-    class="min-h-screen bg-[var(--color-bg)] text-[var(--color-surface)]"
+    class="min-h-screen overflow-x-hidden bg-[var(--color-bg)] text-[var(--color-surface)]"
     style="--mobile-bottom-nav-offset: 74px;"
   >
     <header
@@ -43,7 +43,7 @@
     </header>
 
     <aside
-      class="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 md:flex xl:hidden"
+      class="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 md:left-3 md:inset-y-3 md:rounded-2xl md:flex xl:hidden"
     >
       <nav aria-label="Main navigation">
         <MainNavbar />
@@ -71,7 +71,7 @@
         <div :class="centerShellClass" :style="centerShellStyle" data-testid="center-shell">
           <aside
             v-if="showDesktopMainSidebar"
-            class="hidden h-screen overflow-y-auto border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 xl:sticky xl:top-0 xl:block"
+            class="hidden h-screen overflow-y-auto border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 xl:pl-6 2xl:pl-8 xl:sticky xl:top-0 xl:block"
             data-testid="layout-left"
           >
             <nav aria-label="Main navigation">
@@ -83,7 +83,7 @@
             :class="[
               'min-w-0',
               isProfileRoute ? 'px-0 py-0 md:px-0 md:py-0' : 'px-4 py-6 md:px-8',
-              isAdminRoute ? 'xl:px-6' : isProfileRoute ? 'xl:px-0 2xl:px-0' : 'xl:px-4 2xl:px-6',
+              isAdminRoute ? 'xl:px-6' : isProfileRoute ? 'xl:px-4 2xl:px-6' : 'xl:px-2 2xl:px-4',
               isProfileRoute ? 'lg:border-x lg:border-[color:rgb(var(--color-text-secondary-rgb)/0.5)]' : '',
             ]"
             data-testid="layout-center"
@@ -96,13 +96,13 @@
 
         <aside
           v-if="showRightSidebar"
-          class="hidden xl:col-start-2 xl:block xl:justify-self-end xl:self-start xl:pr-[clamp(16px,2vw,32px)]"
+          class="hidden xl:col-start-2 xl:block xl:justify-self-end xl:self-start xl:pr-3 2xl:pr-4"
           data-testid="layout-right"
           aria-label="Right sidebar"
         >
           <div
             data-testid="right-rail"
-            class="h-screen w-[22rem] overflow-y-auto border-l border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-5 py-6 xl:sticky xl:top-0"
+            class="rightRail h-screen w-[22rem] overflow-y-auto border-l border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-5 py-6 xl:sticky xl:top-0"
           >
             <DynamicSidebar
               :observing-lat="observingLat"
@@ -447,14 +447,14 @@
     </transition>
 
     <MarkYourCalendarModal
-      v-if="isCalendarPopupVisible"
+      v-if="isCalendarPopupVisible && !isOnboardingFlowActive"
       :items="calendarPopupPayload?.items || []"
       :bundle-ics-url="calendarPopupPayload?.calendar?.bundle_ics_url || ''"
       @close="closeCalendarPopup"
       @go-calendar="goToCalendarFromPopup"
     />
 
-    <OnboardingTour v-if="onboardingTour.isOpen" />
+    <OnboardingTour v-if="onboardingTour.isOpen && !isCalendarPopupVisible && !isOnboardingFlowActive" />
 
   </div>
 </template>
@@ -547,19 +547,19 @@ const desktopFrameClass = computed(() => {
     return 'mx-auto w-full'
   }
 
-  return 'desktopFrame w-full xl:grid'
+  return 'desktopFrame mx-auto w-full max-w-[1500px] xl:grid'
 })
 const centerShellClass = computed(() => {
   if (isAdminRoute.value) {
     return 'mx-auto w-full max-w-[1560px]'
   }
 
-  return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:gap-5 2xl:gap-6'
+  return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:gap-3 2xl:gap-4'
 })
 const centerShellColumns = computed(() => {
   if (isAdminRoute.value) return null
 
-  return '16rem minmax(0, 1fr)'
+  return '14rem minmax(0, 1fr)'
 })
 const centerShellStyle = computed(() => {
   if (isAdminRoute.value) {
@@ -580,7 +580,7 @@ const mainContentClass = computed(() => {
     return 'mx-auto w-full max-w-[620px]'
   }
 
-  return 'mx-auto w-full max-w-[760px] xl:max-w-none'
+  return 'mx-auto w-full max-w-[760px]'
 })
 const enabledMobileSections = computed(() => getEnabledSidebarSections(mobileSidebarSections.value))
 const activeWidgetComponent = computed(() => resolveSidebarComponent(activeWidgetKey.value))
@@ -651,11 +651,18 @@ const authBannerMessage = computed(() => {
 
   return authFallbackMessage.value
 })
+const isOnboardingRoute = computed(() => route.name === 'onboarding')
+const isOnboardingFlowActive = computed(() => {
+  if (!auth.isAuthed || auth.isAdmin) return false
+  return isOnboardingRoute.value || !preferences.loaded || preferences.loading || !preferences.isOnboardingCompleted
+})
 const canCheckCalendarPopup = computed(() => {
   return auth.bootstrapDone &&
     auth.isAuthed &&
     !auth.isAdmin &&
     Boolean(auth.user?.email_verified_at) &&
+    !isOnboardingFlowActive.value &&
+    !onboardingTour.isOpen &&
     preferences.isOnboardingCompleted &&
     !calendarPopupSessionChecked.value
 })
@@ -663,6 +670,8 @@ const canCheckCalendarPopup = computed(() => {
 const maybeAutoOpenOnboardingTour = () => {
   if (typeof window === 'undefined') return
   if (!auth.isAuthed || auth.isAdmin) return
+  if (isOnboardingFlowActive.value) return
+  if (isCalendarPopupVisible.value) return
 
   onboardingTour.hydrate()
   if (onboardingTour.shouldAutoOpen) {
@@ -874,6 +883,9 @@ const maybeCheckCalendarPopup = async () => {
     const payload = response?.data || null
 
     if (payload?.should_show) {
+      if (onboardingTour.isOpen) {
+        onboardingTour.closeTour()
+      }
       calendarPopupPayload.value = payload
       isCalendarPopupVisible.value = true
     }
@@ -1046,6 +1058,18 @@ watch(
     maybeAutoOpenOnboardingTour()
   },
   { immediate: true },
+)
+
+watch(
+  () => [isOnboardingFlowActive.value, isCalendarPopupVisible.value],
+  ([onboardingFlowActive, calendarPopupVisible]) => {
+    if (onboardingFlowActive || calendarPopupVisible) {
+      onboardingTour.closeTour()
+      return
+    }
+
+    maybeAutoOpenOnboardingTour()
+  },
 )
 
 watch(
@@ -1430,6 +1454,27 @@ onBeforeUnmount(() => {
   color: var(--color-text-secondary);
   text-align: center;
   font-size: 0.88rem;
+}
+
+.rightRail {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+
+.rightRail::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.rightRail > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.rightRail :is(img, svg, video, canvas, iframe) {
+  max-width: 100%;
 }
 
 @media (min-width: 768px) {

@@ -17,20 +17,45 @@ const normalized = computed(() => {
   })
 })
 
+const displayed = computed(() => {
+  const safe = normalized.value
+  const maxBars = 20
+  if (safe.length <= maxBars) return safe
+
+  const step = Math.ceil(safe.length / maxBars)
+  const sampled = safe.filter((_, index) => index % step === 0)
+  const last = safe[safe.length - 1]
+  if (sampled[sampled.length - 1]?.date !== last?.date) {
+    sampled.push(last)
+  }
+
+  return sampled
+})
+
 const maxValue = computed(() => {
-  const all = normalized.value.map((point) => point.value)
+  const all = displayed.value.map((point) => point.value)
   const max = Math.max(0, ...all)
   return max > 0 ? max : 1
+})
+
+const yTicks = computed(() => {
+  const max = maxValue.value
+  return [max, Math.round(max / 2), 0]
 })
 </script>
 
 <template>
   <div class="chartRoot" role="img" aria-label="Trend chart">
-    <div v-if="!normalized.length" class="chartEmpty">No trend data.</div>
-    <div v-else class="bars">
-      <div v-for="point in normalized" :key="point.date" class="barWrap">
-        <div class="bar" :style="{ height: `${Math.max(4, (point.value / maxValue) * 100)}%` }" :title="`${point.date}: ${point.value}`"></div>
-        <div class="xLabel">{{ point.date.slice(5) }}</div>
+    <div v-if="!displayed.length" class="chartEmpty">No trend data.</div>
+    <div v-else class="chartGrid">
+      <div class="yAxis">
+        <span v-for="tick in yTicks" :key="`tick-${tick}`" class="yTick">{{ tick }}</span>
+      </div>
+      <div class="bars" :style="{ gridTemplateColumns: `repeat(${displayed.length}, minmax(0, 1fr))` }">
+        <div v-for="point in displayed" :key="point.date" class="barWrap">
+          <div class="bar" :style="{ height: `${Math.max(4, (point.value / maxValue) * 100)}%` }" :title="`${point.date}: ${point.value}`"></div>
+          <div class="xLabel">{{ point.date.slice(5) }}</div>
+        </div>
       </div>
     </div>
   </div>
@@ -49,11 +74,30 @@ const maxValue = computed(() => {
   color: rgb(var(--color-text-secondary-rgb) / 0.92);
 }
 
+.chartGrid {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.yAxis {
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.yTick {
+  font-size: 10px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+}
+
 .bars {
   min-height: 180px;
   display: grid;
-  grid-template-columns: repeat(30, minmax(0, 1fr));
-  gap: 3px;
+  gap: 4px;
   align-items: end;
 }
 
@@ -75,4 +119,3 @@ const maxValue = computed(() => {
   text-align: center;
 }
 </style>
-

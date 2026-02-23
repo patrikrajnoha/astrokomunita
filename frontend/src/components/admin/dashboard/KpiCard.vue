@@ -22,6 +22,8 @@ function deltaText(delta) {
   const sign = rounded > 0 ? '+' : ''
   return `${sign}${rounded}%`
 }
+
+const hasDelta = (delta) => delta !== null && !Number.isNaN(Number(delta))
 </script>
 
 <template>
@@ -34,7 +36,7 @@ function deltaText(delta) {
     <div class="kpiValue">{{ props.value }}</div>
 
     <div class="kpiMeta">
-      <span class="kpiDelta" :class="deltaClass(props.delta)">{{ deltaText(props.delta) }}</span>
+      <span v-if="hasDelta(props.delta)" class="kpiDelta" :class="deltaClass(props.delta)">{{ deltaText(props.delta) }}</span>
       <span class="kpiHint">{{ props.hint || '-' }}</span>
     </div>
   </article>

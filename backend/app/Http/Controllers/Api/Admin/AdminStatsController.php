@@ -51,6 +51,9 @@ class AdminStatsController extends Controller
             foreach ($payload['demographics']['by_region'] as $metric => $value) {
                 fputcsv($handle, ['demographics.by_region', (string) $metric, (int) $value]);
             }
+            foreach (($payload['queues'] ?? []) as $metric => $value) {
+                fputcsv($handle, ['queues', (string) $metric, (int) $value]);
+            }
 
             fputcsv($handle, ['trend', 'range_days', (int) $payload['trend']['range_days']]);
             fputcsv($handle, []);
@@ -86,4 +89,3 @@ class AdminStatsController extends Controller
         return Cache::remember($cacheKey, now()->addSeconds($ttl), fn () => $this->statsService->build(30));
     }
 }
-

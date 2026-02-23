@@ -12,6 +12,7 @@ class AdminStatsService
      * @return array{
      *     kpi: array<string,int>,
      *     demographics: array{by_role: array<string,int>, by_region: array<string,int>},
+     *     queues: array{event_candidates_pending:int, moderation_pending:int, moderation_flagged:int},
      *     trend: array{range_days:int, points: array<int,array{date:string,new_users:int,new_posts:int,new_events:int}>},
      *     generated_at: string
      * }
@@ -40,6 +41,15 @@ class AdminStatsService
         $eventsTotal = (int) DB::table('events')->count();
         $postsModeratedTotal = Schema::hasColumn('posts', 'moderation_status')
             ? (int) DB::table('posts')->whereIn('moderation_status', $moderationStatuses)->count()
+            : 0;
+        $eventCandidatesPending = Schema::hasTable('event_candidates') && Schema::hasColumn('event_candidates', 'status')
+            ? (int) DB::table('event_candidates')->where('status', 'pending')->count()
+            : 0;
+        $moderationPending = Schema::hasColumn('posts', 'moderation_status')
+            ? (int) DB::table('posts')->where('moderation_status', 'pending')->count()
+            : 0;
+        $moderationFlagged = Schema::hasColumn('posts', 'moderation_status')
+            ? (int) DB::table('posts')->where('moderation_status', 'flagged')->count()
             : 0;
 
         $roleRows = DB::table('users')
@@ -131,6 +141,11 @@ class AdminStatsService
                 'by_role' => $byRole,
                 'by_region' => $byRegion,
             ],
+            'queues' => [
+                'event_candidates_pending' => $eventCandidatesPending,
+                'moderation_pending' => $moderationPending,
+                'moderation_flagged' => $moderationFlagged,
+            ],
             'trend' => [
                 'range_days' => $rangeDays,
                 'points' => $points,
@@ -139,4 +154,3 @@ class AdminStatsService
         ];
     }
 }
-
