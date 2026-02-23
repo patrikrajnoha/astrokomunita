@@ -2,9 +2,15 @@
 
 namespace App\Http\Requests\Post;
 
+use App\Enums\PostAuthorKind;
+use App\Enums\PostBotIdentity;
+use App\Enums\PostFeedKey;
+use App\Models\User;
+use App\Services\PostService;
 use App\Services\PollService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
 
@@ -50,8 +56,26 @@ class StorePostRequest extends FormRequest
         $pollImageMaxKb = (int) config('media.poll_option_image_max_kb', 5120);
 
         return [
-            'content' => ['required', 'string', 'min:1', 'max:2000'],
+            'content' => [
+                'required',
+                'string',
+                'min:1',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $max = $this->isKozmoPayload()
+                        ? PostService::KOZMO_CONTENT_MAX
+                        : PostService::USER_CONTENT_MAX;
+
+                    if (mb_strlen((string) $value) <= $max) {
+                        return;
+                    }
+
+                    $fail(sprintf('Post content may not be greater than %d characters.', $max));
+                },
+            ],
             'attachment' => ['nullable', 'file', 'max:' . $maxKb, 'mimes:' . $mimes],
+            'feed_key' => ['sometimes', 'string', Rule::in([PostFeedKey::COMMUNITY->value, PostFeedKey::ASTRO->value])],
+            'author_kind' => ['sometimes', 'string', Rule::in([PostAuthorKind::USER->value, PostAuthorKind::BOT->value])],
+            'bot_identity' => ['nullable', 'string', Rule::in([PostBotIdentity::KOZMO->value, PostBotIdentity::STELA->value])],
             'poll' => ['nullable', 'array'],
             'poll.options' => ['required_with:poll', 'array', 'min:2', 'max:4'],
             'poll.options.*.text' => ['required', 'string', 'min:1', 'max:25'],
@@ -78,7 +102,9 @@ class StorePostRequest extends FormRequest
         return [
             'content.required' => 'Post content is required.',
             'content.min' => 'Post content must contain at least 1 character.',
-            'content.max' => 'Post content may not be greater than 2000 characters.',
+            'feed_key.in' => 'Feed key must be community or astro.',
+            'author_kind.in' => 'Author kind must be either user or bot.',
+            'bot_identity.in' => 'Bot identity must be kozmo or stela.',
             'poll.options.min' => 'Poll must have at least 2 options.',
             'poll.options.max' => 'Poll can have at most 4 options.',
             'poll.options.*.text.max' => 'Each poll option may not be greater than 25 characters.',
@@ -91,7 +117,17 @@ class StorePostRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $this->validateAttachmentImageConstraints($validator);
+            $this->validateBotAuthoring($validator);
         });
+    }
+
+    public function postAttributes(): array
+    {
+        return [
+            'feed_key' => $this->validated('feed_key'),
+            'author_kind' => strtolower((string) ($this->validated('author_kind') ?? ($this->user()?->isBot() ? PostAuthorKind::BOT->value : PostAuthorKind::USER->value))),
+            'bot_identity' => $this->validated('bot_identity'),
+        ];
     }
 
     protected function passedValidation(): void
@@ -172,5 +208,88 @@ class StorePostRequest extends FormRequest
         if ($maxPixels > 0 && ($width > $maxPixels || $height > $maxPixels)) {
             $validator->errors()->add('attachment', sprintf('Image dimensions cannot exceed %d px.', $maxPixels));
         }
+    }
+
+    private function validateBotAuthoring(Validator $validator): void
+    {
+        $requestedKind = strtolower((string) ($this->input('author_kind') ?? ($this->user()?->isBot() ? PostAuthorKind::BOT->value : PostAuthorKind::USER->value)));
+        $feedKey = strtolower(trim((string) ($this->input('feed_key') ?? '')));
+        $identity = strtolower(trim((string) ($this->input('bot_identity') ?? '')));
+
+        if ($requestedKind !== PostAuthorKind::BOT->value) {
+            if ($feedKey === PostFeedKey::ASTRO->value) {
+                $validator->errors()->add('author_kind', 'Astro feed accepts only bot root posts.');
+            }
+
+            if ($identity !== '') {
+                $validator->errors()->add('bot_identity', 'Bot identity can only be used for bot posts.');
+            }
+
+            return;
+        }
+
+        $user = $this->user();
+        if (!$user || (!$user->isBot() && !$user->isAdmin())) {
+            $validator->errors()->add('author_kind', 'Bot posts can only be created by bot or admin users.');
+            return;
+        }
+
+        if ($feedKey !== '' && $feedKey !== PostFeedKey::ASTRO->value) {
+            $validator->errors()->add('feed_key', 'Bot posts must target astro feed.');
+        }
+
+        if ($identity !== '') {
+            return;
+        }
+
+        if ($this->inferBotIdentityFromUser($user) !== null) {
+            return;
+        }
+
+        $validator->errors()->add('bot_identity', 'Bot identity is required for bot posts.');
+    }
+
+    private function isKozmoPayload(): bool
+    {
+        $requestedKind = strtolower((string) ($this->input('author_kind') ?? ($this->user()?->isBot() ? PostAuthorKind::BOT->value : PostAuthorKind::USER->value)));
+        if ($requestedKind !== PostAuthorKind::BOT->value) {
+            return false;
+        }
+
+        $identity = strtolower(trim((string) ($this->input('bot_identity') ?? '')));
+        if ($identity === PostBotIdentity::KOZMO->value) {
+            return true;
+        }
+
+        $inferred = $this->inferBotIdentityFromUser($this->user());
+
+        return $inferred === PostBotIdentity::KOZMO->value;
+    }
+
+    private function inferBotIdentityFromUser(?User $user): ?string
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $username = strtolower(trim((string) $user->username));
+        if ($username === PostBotIdentity::KOZMO->value) {
+            return PostBotIdentity::KOZMO->value;
+        }
+
+        if ($username === PostBotIdentity::STELA->value || $username === 'astrobot') {
+            return PostBotIdentity::STELA->value;
+        }
+
+        $email = strtolower(trim((string) $user->email));
+        if (str_contains($email, PostBotIdentity::KOZMO->value)) {
+            return PostBotIdentity::KOZMO->value;
+        }
+
+        if (str_contains($email, PostBotIdentity::STELA->value) || str_contains($email, 'astrobot')) {
+            return PostBotIdentity::STELA->value;
+        }
+
+        return null;
     }
 }

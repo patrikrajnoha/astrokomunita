@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Services\FeedQueryBuilder;
 use App\Services\PostPayloadService;
+use App\Enums\PostAuthorKind;
+use App\Enums\PostFeedKey;
 use App\Models\User;
 
 class FeedController extends Controller
@@ -19,8 +21,7 @@ class FeedController extends Controller
     /**
      * GET /api/feed
      *
-     * Main public feed - user posts only (AstroBot excluded).
-     * Ordering is strictly chronological (created_at DESC, id DESC).
+     * Main community feed.
      * Supports pagination, filtering, and same parameters as other feeds
      */
     public function index(Request $request)
@@ -42,8 +43,8 @@ class FeedController extends Controller
             'kind' => $kind,
             'with_counts' => $withCounts,
             'include_hidden' => $request->boolean('include_hidden'),
+            'feed_key' => PostFeedKey::COMMUNITY->value,
             'order' => 'created_desc',
-            'sources_exclude' => ['astrobot', 'nasa_rss'],
             'tag' => $tag ? strtolower((string) $tag) : null,
         ], $user);
 
@@ -56,11 +57,20 @@ class FeedController extends Controller
 
     /**
      * GET /api/feed/astrobot
-     * 
-     * Returns paginated AstroBot posts only.
-     * Supports same pagination parameters as main feed.
+     * Legacy alias for Astro feed.
      */
     public function astrobot(Request $request)
+    {
+        return $this->astro($request);
+    }
+
+    /**
+     * GET /api/astro-feed
+     *
+     * Returns paginated AstroFeed bot posts only.
+     * Supports same pagination parameters as main feed.
+     */
+    public function astro(Request $request)
     {
         $perPage = (int) $request->query('per_page', 20);
         if ($perPage < 1) {
@@ -78,8 +88,9 @@ class FeedController extends Controller
             'kind' => $kind,
             'with_counts' => $withCounts,
             'include_hidden' => $request->boolean('include_hidden'),
+            'feed_key' => PostFeedKey::ASTRO->value,
+            'author_kind' => PostAuthorKind::BOT->value,
             'order' => 'created_desc',
-            'sources_include' => ['astrobot', 'nasa_rss'],
         ], $user);
 
         // Filter by tag - try both name and slug for robustness

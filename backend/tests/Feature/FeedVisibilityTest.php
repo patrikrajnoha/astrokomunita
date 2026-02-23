@@ -23,22 +23,33 @@ class FeedVisibilityTest extends TestCase
 
         $userPost = Post::factory()->for($user)->create([
             'content' => 'Human post',
+            'feed_key' => 'community',
+            'author_kind' => 'user',
             'source_name' => null,
         ]);
 
         Post::factory()->for($astrobotUser)->create([
             'content' => 'AstroBot post',
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'stela',
             'source_name' => 'astrobot',
         ]);
 
         Post::factory()->for($astrobotUser)->create([
             'content' => 'Pinned AstroBot post',
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'stela',
             'source_name' => 'astrobot',
             'pinned_at' => now(),
         ]);
 
         Post::factory()->for($astrobotUser)->create([
             'content' => 'NASA RSS post',
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'stela',
             'source_name' => 'nasa_rss',
         ]);
 
@@ -61,20 +72,28 @@ class FeedVisibilityTest extends TestCase
 
         Post::factory()->for($user)->create([
             'content' => 'Human post',
+            'feed_key' => 'community',
+            'author_kind' => 'user',
             'source_name' => null,
         ]);
 
         $astrobotPost = Post::factory()->for($astrobotUser)->create([
             'content' => 'AstroBot post',
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'stela',
             'source_name' => 'astrobot',
         ]);
 
         Post::factory()->for($astrobotUser)->create([
             'content' => 'NASA RSS post',
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'stela',
             'source_name' => 'nasa_rss',
         ]);
 
-        $response = $this->getJson('/api/feed/astrobot?with=counts');
+        $response = $this->getJson('/api/astro-feed?with=counts');
 
         $response->assertOk();
         $response->assertJsonCount(2, 'data');

@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\PostAuthorKind;
+use App\Enums\PostBotIdentity;
+use App\Enums\PostFeedKey;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,6 +23,9 @@ class Post extends Model
         'parent_id',
         'root_id',
         'depth',
+        'feed_key',
+        'author_kind',
+        'bot_identity',
         'content',
         'original_title',
         'original_body',
@@ -72,6 +78,9 @@ class Post extends Model
         'parent_id' => 'integer',
         'root_id' => 'integer',
         'depth' => 'integer',
+        'feed_key' => PostFeedKey::class,
+        'author_kind' => PostAuthorKind::class,
+        'bot_identity' => PostBotIdentity::class,
         'views' => 'integer',
         'attachment_size' => 'integer',
         'attachment_original_size' => 'integer',
@@ -223,6 +232,15 @@ class Post extends Model
      */
     public function isFromBot(): bool
     {
+        $kind = $this->author_kind;
+        if ($kind instanceof PostAuthorKind) {
+            return $kind === PostAuthorKind::BOT;
+        }
+
+        if (is_string($kind) && strtolower($kind) === PostAuthorKind::BOT->value) {
+            return true;
+        }
+
         return $this->user?->isBot() ?? false;
     }
 
@@ -276,6 +294,9 @@ class Post extends Model
         'root',
         'root_id',
         'depth',
+        'feed_key',
+        'author_kind',
+        'bot_identity',
         'content',
         'views',
         'tags',        // Hashtag tags
