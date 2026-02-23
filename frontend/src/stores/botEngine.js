@@ -1,5 +1,12 @@
 import { defineStore } from 'pinia'
-import { getBotItems, getBotRuns, getBotSources, runBotSource } from '@/services/api/admin/bots'
+import {
+  getBotItems,
+  getBotRuns,
+  getBotSources,
+  publishBotItem,
+  publishBotRun,
+  runBotSource,
+} from '@/services/api/admin/bots'
 
 const DEFAULT_FILTERS = Object.freeze({
   per_page: 20,
@@ -66,6 +73,8 @@ export const useBotEngineStore = defineStore('botEngine', {
     loadingRuns: false,
     loadingRunItems: false,
     runningSourceKeys: new Set(),
+    publishingItemIds: new Set(),
+    publishingRunIds: new Set(),
   }),
 
   getters: {
@@ -76,6 +85,18 @@ export const useBotEngineStore = defineStore('botEngine', {
   actions: {
     isSourceRunning(sourceKey) {
       return this.runningSourceKeys.has(String(sourceKey || '').toLowerCase())
+    },
+
+    isItemPublishing(itemId) {
+      const normalized = Number(itemId)
+      if (!Number.isInteger(normalized) || normalized <= 0) return false
+      return this.publishingItemIds.has(normalized)
+    },
+
+    isRunPublishing(runId) {
+      const normalized = Number(runId)
+      if (!Number.isInteger(normalized) || normalized <= 0) return false
+      return this.publishingRunIds.has(normalized)
     },
 
     updateFilters(nextFilters = {}, { resetPage = false } = {}) {
@@ -165,7 +186,7 @@ export const useBotEngineStore = defineStore('botEngine', {
       }
     },
 
-    async runSource(sourceKey) {
+    async runSource(sourceKey, options = {}) {
       const normalizedSourceKey = String(sourceKey || '').trim().toLowerCase()
       if (!normalizedSourceKey || this.runningSourceKeys.has(normalizedSourceKey)) {
         return null
@@ -174,10 +195,50 @@ export const useBotEngineStore = defineStore('botEngine', {
       this.runningSourceKeys.add(normalizedSourceKey)
 
       try {
-        const response = await runBotSource(normalizedSourceKey)
+        const response = await runBotSource(normalizedSourceKey, options)
         return response?.data || null
       } finally {
         this.runningSourceKeys.delete(normalizedSourceKey)
+      }
+    },
+
+    async publishItem(botItemId, options = {}) {
+      const normalizedItemId = Number(botItemId)
+      if (!Number.isInteger(normalizedItemId) || normalizedItemId <= 0) {
+        return null
+      }
+
+      if (this.publishingItemIds.has(normalizedItemId)) {
+        return null
+      }
+
+      this.publishingItemIds.add(normalizedItemId)
+
+      try {
+        const response = await publishBotItem(normalizedItemId, options)
+        return response?.data || null
+      } finally {
+        this.publishingItemIds.delete(normalizedItemId)
+      }
+    },
+
+    async publishRun(runId, options = {}) {
+      const normalizedRunId = Number(runId)
+      if (!Number.isInteger(normalizedRunId) || normalizedRunId <= 0) {
+        return null
+      }
+
+      if (this.publishingRunIds.has(normalizedRunId)) {
+        return null
+      }
+
+      this.publishingRunIds.add(normalizedRunId)
+
+      try {
+        const response = await publishBotRun(normalizedRunId, options)
+        return response?.data || null
+      } finally {
+        this.publishingRunIds.delete(normalizedRunId)
       }
     },
   },

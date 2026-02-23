@@ -6,6 +6,7 @@ use App\Enums\BotSourceType;
 use App\Models\BotItem;
 use App\Models\BotRun;
 use App\Models\BotSource;
+use App\Models\Post;
 use App\Models\User;
 use Carbon\Carbon;
 use Database\Seeders\BotSourceSeeder;
@@ -40,6 +41,8 @@ class AdminBotControllerTest extends TestCase
         $this->getJson('/api/admin/bots/runs')->assertStatus(403);
         $this->getJson('/api/admin/bots/items?run_id=1')->assertStatus(403);
         $this->postJson('/api/admin/bots/run/' . $source->key)->assertStatus(403);
+        $this->postJson('/api/admin/bots/items/1/publish')->assertStatus(403);
+        $this->postJson('/api/admin/bots/runs/1/publish')->assertStatus(403);
     }
 
     public function test_admin_get_sources_returns_seeded_bot_sources(): void
@@ -84,6 +87,33 @@ class AdminBotControllerTest extends TestCase
             'source_id' => $source->id,
             'status' => 'success',
         ]);
+        $this->assertSame('admin', (string) data_get($response->json(), 'meta.run_context'));
+        $this->assertSame('auto', (string) data_get($response->json(), 'meta.mode'));
+    }
+
+    public function test_admin_post_run_supports_dry_mode_and_publish_limit_meta(): void
+    {
+        $source = $this->createRssSource('admin_dry_run_source');
+        $this->actingAsAdmin();
+
+        Http::fake([
+            $source->url => Http::response($this->singleItemRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $response = $this->postJson('/api/admin/bots/run/' . $source->key, [
+            'mode' => 'dry',
+            'publish_limit' => 3,
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('stats.published_count', 0)
+            ->assertJsonPath('meta.run_context', 'admin')
+            ->assertJsonPath('meta.mode', 'dry')
+            ->assertJsonPath('meta.publish_limit', 3);
+
+        $this->assertSame(0, Post::query()->count());
     }
 
     public function test_admin_post_run_is_throttled_on_second_quick_call(): void
@@ -147,7 +177,7 @@ class AdminBotControllerTest extends TestCase
         $this->assertLessThanOrEqual(1000, $length);
     }
 
-    public function test_admin_get_items_by_run_id_returns_items_in_run_window_with_buffer(): void
+    public function test_admin_get_items_by_run_id_returns_only_items_linked_to_run(): void
     {
         $source = $this->createRssSource('items_run_source');
         $otherSource = $this->createRssSource('items_other_source');
@@ -164,8 +194,18 @@ class AdminBotControllerTest extends TestCase
             'stats' => ['published_count' => 1],
             'error_text' => null,
         ]);
+        $otherRun = BotRun::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'started_at' => $runStart->copy()->addHour(),
+            'finished_at' => $runFinish->copy()->addHour(),
+            'status' => 'success',
+            'stats' => ['published_count' => 1],
+            'error_text' => null,
+        ]);
 
         $insideOne = $this->createBotItem($source, 'inside-one', $runStart->copy()->addMinute(), [
+            'run_id' => $run->id,
             'title' => 'Inside One',
             'publish_status' => 'published',
             'translation_status' => 'done',
@@ -175,18 +215,18 @@ class AdminBotControllerTest extends TestCase
             ],
         ]);
         $insideTwo = $this->createBotItem($source, 'inside-two', $runFinish->copy()->addMinute(), [
+            'run_id' => $otherRun->id,
             'title' => 'Inside Two',
-            'publish_status' => 'skipped',
-            'translation_status' => 'skipped',
+            'publish_status' => 'pending',
+            'translation_status' => 'pending',
             'meta' => [
-                'skip_reason' => 'no_relevant_events',
-                'used_translation' => false,
+                'last_seen_run_id' => $run->id,
             ],
         ]);
 
-        $this->createBotItem($source, 'outside-before', $runStart->copy()->subMinutes(3));
-        $this->createBotItem($source, 'outside-after', $runFinish->copy()->addMinutes(3));
-        $this->createBotItem($otherSource, 'other-source', $runStart->copy()->addMinute());
+        $this->createBotItem($source, 'other-run-id', $runStart->copy()->addMinute(), ['run_id' => $otherRun->id]);
+        $this->createBotItem($source, 'legacy-item', $runFinish->copy()->addMinute());
+        $this->createBotItem($otherSource, 'other-source', $runStart->copy()->addMinute(), ['run_id' => $run->id]);
 
         $this->actingAsAdmin();
 
@@ -200,15 +240,41 @@ class AdminBotControllerTest extends TestCase
         $keys = collect($response->json('data'))->pluck('stable_key')->all();
         $this->assertContains($insideOne->stable_key, $keys);
         $this->assertContains($insideTwo->stable_key, $keys);
-        $this->assertNotContains('outside-before', $keys);
-        $this->assertNotContains('outside-after', $keys);
+        $this->assertNotContains('other-run-id', $keys);
+        $this->assertNotContains('legacy-item', $keys);
         $this->assertNotContains('other-source', $keys);
+    }
 
-        $insideTwoPayload = collect($response->json('data'))
-            ->first(fn (array $row): bool => (string) ($row['stable_key'] ?? '') === 'inside-two');
-        $this->assertSame('skipped', (string) ($insideTwoPayload['publish_status'] ?? ''));
-        $this->assertSame('no_relevant_events', (string) ($insideTwoPayload['skip_reason'] ?? ''));
-        $this->assertFalse((bool) ($insideTwoPayload['used_translation'] ?? true));
+    public function test_admin_get_items_by_run_id_falls_back_to_run_window_for_legacy_rows(): void
+    {
+        $source = $this->createRssSource('items_fallback_source');
+
+        $runStart = Carbon::parse('2026-02-22 09:00:00');
+        $runFinish = Carbon::parse('2026-02-22 09:05:00');
+        $run = BotRun::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'started_at' => $runStart,
+            'finished_at' => $runFinish,
+            'status' => 'success',
+            'stats' => ['published_count' => 1],
+            'error_text' => null,
+        ]);
+
+        $this->createBotItem($source, 'legacy-inside', $runStart->copy()->addMinute());
+        $this->createBotItem($source, 'legacy-outside', $runFinish->copy()->addMinutes(5));
+
+        $this->actingAsAdmin();
+
+        $response = $this->getJson('/api/admin/bots/items?run_id=' . $run->id . '&per_page=50');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('total', 1);
+
+        $keys = collect($response->json('data'))->pluck('stable_key')->all();
+        $this->assertContains('legacy-inside', $keys);
+        $this->assertNotContains('legacy-outside', $keys);
     }
 
     public function test_admin_get_items_pagination_works_for_run_id_filter(): void
@@ -250,6 +316,92 @@ class AdminBotControllerTest extends TestCase
             ->assertJsonCount(10, 'data');
     }
 
+    public function test_admin_publish_item_endpoint_publishes_pending_item_and_marks_manual_audit(): void
+    {
+        $source = $this->createRssSource('publish_single_source');
+        $item = $this->createBotItem($source, 'publish-single', now(), [
+            'run_id' => null,
+            'publish_status' => 'pending',
+            'translation_status' => 'done',
+            'title' => 'Publish single item',
+            'content' => 'Content long enough for publish validation to pass quickly.',
+            'url' => 'https://example.test/publish-single',
+        ]);
+
+        $this->actingAsAdmin();
+
+        $response = $this->postJson('/api/admin/bots/items/' . $item->id . '/publish');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('item.id', $item->id)
+            ->assertJsonPath('item.publish_status', 'published')
+            ->assertJsonPath('item.published_manually', true);
+
+        $item->refresh();
+        $this->assertNotNull($item->post_id);
+        $this->assertSame('published', (string) $item->publish_status->value);
+        $this->assertTrue((bool) data_get($item->meta, 'published_manually'));
+        $this->assertNotSame('', (string) data_get($item->meta, 'manual_published_at'));
+    }
+
+    public function test_admin_publish_item_endpoint_rejects_skipped_item(): void
+    {
+        $source = $this->createRssSource('publish_single_skipped_source');
+        $item = $this->createBotItem($source, 'publish-single-skipped', now(), [
+            'publish_status' => 'skipped',
+            'meta' => ['skip_reason' => 'missing_title_or_url'],
+        ]);
+
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/admin/bots/items/' . $item->id . '/publish')
+            ->assertStatus(422)
+            ->assertJsonPath('skip_reason', 'missing_title_or_url');
+    }
+
+    public function test_admin_publish_run_endpoint_respects_publish_limit(): void
+    {
+        $source = $this->createRssSource('publish_run_source');
+        $run = BotRun::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'started_at' => now()->subMinutes(2),
+            'finished_at' => now()->subMinute(),
+            'status' => 'success',
+            'stats' => ['published_count' => 0],
+            'error_text' => null,
+            'meta' => ['run_context' => 'admin', 'mode' => 'dry'],
+        ]);
+
+        for ($i = 1; $i <= 3; $i++) {
+            $this->createBotItem($source, 'publish-run-' . $i, now()->addSeconds($i), [
+                'run_id' => $run->id,
+                'publish_status' => 'pending',
+                'translation_status' => 'done',
+                'title' => 'Publish run item ' . $i,
+                'content' => 'Content long enough for publish validation number ' . $i . '.',
+                'url' => 'https://example.test/publish-run-' . $i,
+            ]);
+        }
+
+        $this->actingAsAdmin();
+
+        $response = $this->postJson('/api/admin/bots/runs/' . $run->id . '/publish', [
+            'publish_limit' => 2,
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('run_id', $run->id)
+            ->assertJsonPath('publish_limit', 2)
+            ->assertJsonPath('attempted_count', 2)
+            ->assertJsonPath('published_count', 2);
+
+        $this->assertSame(2, BotItem::query()->where('run_id', $run->id)->whereNotNull('post_id')->count());
+        $this->assertSame(1, BotItem::query()->where('run_id', $run->id)->whereNull('post_id')->count());
+    }
+
     private function actingAsAdmin(): void
     {
         $admin = User::factory()->create([
@@ -281,6 +433,7 @@ class AdminBotControllerTest extends TestCase
         $payload = array_replace([
             'bot_identity' => 'kozmo',
             'source_id' => $source->id,
+            'run_id' => null,
             'post_id' => null,
             'stable_key' => $stableKey,
             'title' => 'Test item title',

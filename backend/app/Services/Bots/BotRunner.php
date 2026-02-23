@@ -17,6 +17,9 @@ use Throwable;
 
 class BotRunner
 {
+    private const MODE_AUTO = 'auto';
+    private const MODE_DRY = 'dry';
+
     public function __construct(
         private readonly BotRunService $runService,
         private readonly RssFetchService $rssFetchService,
@@ -28,36 +31,66 @@ class BotRunner
     ) {
     }
 
-    public function runSource(string $sourceKey, string $runContext = 'manual', bool $forceManualOverride = false): BotRun
+    public function runSource(
+        string $sourceKey,
+        string $runContext = 'manual',
+        bool $forceManualOverride = false,
+        string $mode = self::MODE_AUTO,
+        ?int $publishLimit = null
+    ): BotRun
     {
         $source = BotSource::query()->where('key', $sourceKey)->firstOrFail();
 
-        return $this->run($source, $runContext, $forceManualOverride);
+        return $this->run($source, $runContext, $forceManualOverride, $mode, $publishLimit);
     }
 
-    public function run(BotSource $source, string $runContext = 'manual', bool $forceManualOverride = false): BotRun
+    public function run(
+        BotSource $source,
+        string $runContext = 'manual',
+        bool $forceManualOverride = false,
+        string $mode = self::MODE_AUTO,
+        ?int $publishLimit = null
+    ): BotRun
     {
         $context = $this->normalizeRunContext($runContext);
+        $runMode = $this->normalizeRunMode($mode);
+        $normalizedPublishLimit = $this->normalizePublishLimit($publishLimit);
+        $runMeta = [
+            'run_context' => $context,
+            'mode' => $runMode,
+            'publish_limit' => $normalizedPublishLimit,
+        ];
+
         $lockState = $this->acquireRunLocks($source, $context, $forceManualOverride);
 
         if (!$lockState['acquired']) {
-            $run = $this->runService->startRun($source);
+            $run = $this->runService->startRun($source, $runMeta);
             $stats = $this->createInitialStats();
             $stats['run_locked'] = 1;
             $stats['lock_key'] = $lockState['lock_key'];
             $stats['lock_context'] = $context;
             $stats['run_context'] = $context;
             $stats['manual_override'] = $forceManualOverride ? 1 : 0;
+            $stats['mode'] = $runMode;
+            $stats['publish_limit'] = $normalizedPublishLimit;
 
-            return $this->runService->finishRun($run, BotRunStatus::SKIPPED, $stats, 'Run skipped because lock is already held.');
+            return $this->runService->finishRun(
+                $run,
+                BotRunStatus::SKIPPED,
+                $stats,
+                'Run skipped because lock is already held.',
+                $runMeta
+            );
         }
 
-        $run = $this->runService->startRun($source);
+        $run = $this->runService->startRun($source, $runMeta);
         $stats = $this->createInitialStats();
         $stats['lock_key'] = $lockState['lock_key'];
         $stats['lock_context'] = $context;
         $stats['manual_override'] = $forceManualOverride ? 1 : 0;
         $stats['run_context'] = $context;
+        $stats['mode'] = $runMode;
+        $stats['publish_limit'] = $normalizedPublishLimit;
 
         $status = BotRunStatus::SUCCESS;
         $errorText = null;
@@ -66,9 +99,11 @@ class BotRunner
             $rows = $this->fetchRowsForSource($source);
             $stats['fetched_count'] = count($rows);
             $this->mergeWikidataDiagnostics($source, $stats);
-            $items = $this->dedupeRows($source, $rows, $stats, $context);
-            $this->applyTranslationStep($source, $stats, $context);
-            $this->publishRows($items, $stats, $context);
+            $items = $this->dedupeRows($source, $rows, $stats, $context, $run->id);
+            $this->applyTranslationStep($source, $stats, $context, $run->id);
+            if ($runMode === self::MODE_AUTO) {
+                $this->publishRows($items, $stats, $context, $normalizedPublishLimit);
+            }
 
             if ($stats['failed_count'] > 0) {
                 $status = BotRunStatus::PARTIAL;
@@ -82,7 +117,7 @@ class BotRunner
             $this->releaseRunLocks($lockState);
         }
 
-        return $this->runService->finishRun($run, $status, $stats, $errorText);
+        return $this->runService->finishRun($run, $status, $stats, $errorText, $runMeta);
     }
 
     /**
@@ -162,14 +197,25 @@ class BotRunner
      * @param array<string,mixed> $stats
      * @return Collection<int, BotItem>
      */
-    private function dedupeRows(BotSource $source, array $rows, array &$stats, string $runContext): Collection
+    private function dedupeRows(
+        BotSource $source,
+        array $rows,
+        array &$stats,
+        string $runContext,
+        int $runId
+    ): Collection
     {
         $items = collect();
 
         foreach ($rows as $row) {
             $item = null;
             try {
-                $item = $this->dedupeService->upsertByStableKey($source, $row['stable_key'], $row['payload']);
+                $item = $this->dedupeService->upsertByStableKey(
+                    $source,
+                    $row['stable_key'],
+                    $row['payload'],
+                    $runId
+                );
                 if ($item->wasRecentlyCreated) {
                     $stats['new_count']++;
                 } else {
@@ -202,9 +248,20 @@ class BotRunner
      * @param Collection<int, BotItem> $items
      * @param array<string,mixed> $stats
      */
-    private function publishRows(Collection $items, array &$stats, string $runContext): void
+    private function publishRows(
+        Collection $items,
+        array &$stats,
+        string $runContext,
+        ?int $publishLimit = null
+    ): void
     {
+        $publishedCount = 0;
+
         foreach ($items as $item) {
+            if ($publishLimit !== null && $publishedCount >= $publishLimit) {
+                break;
+            }
+
             try {
                 $item->refresh();
                 $this->stampItemRunContext($item, $runContext);
@@ -212,6 +269,7 @@ class BotRunner
 
                 if ($publishResult->isPublished()) {
                     $stats['published_count']++;
+                    $publishedCount++;
                 } elseif ($publishResult->isSkipped()) {
                     $stats['skipped_count']++;
                     if ((string) $publishResult->reason === 'image_policy_violation') {
@@ -236,10 +294,15 @@ class BotRunner
     /**
      * @param array<string,mixed> $stats
      */
-    private function applyTranslationStep(BotSource $source, array &$stats, string $runContext): void
+    private function applyTranslationStep(BotSource $source, array &$stats, string $runContext, int $runId): void
     {
         $items = BotItem::query()
             ->where('source_id', $source->id)
+            ->where(function ($query) use ($runId): void {
+                $query
+                    ->where('run_id', $runId)
+                    ->orWhere('meta->last_seen_run_id', $runId);
+            })
             ->whereNull('post_id')
             ->where('publish_status', BotPublishStatus::PENDING->value)
             ->get();
@@ -331,11 +394,35 @@ class BotRunner
     {
         $normalized = strtolower(trim($runContext));
 
-        if (in_array($normalized, ['manual', 'scheduled', 'cli'], true)) {
+        if (in_array($normalized, ['manual', 'scheduled', 'cli', 'admin'], true)) {
             return $normalized;
         }
 
         return 'manual';
+    }
+
+    private function normalizeRunMode(string $mode): string
+    {
+        $normalized = strtolower(trim($mode));
+
+        if ($normalized === self::MODE_DRY) {
+            return self::MODE_DRY;
+        }
+
+        return self::MODE_AUTO;
+    }
+
+    private function normalizePublishLimit(?int $publishLimit): ?int
+    {
+        if ($publishLimit === null) {
+            return null;
+        }
+
+        if ($publishLimit < 0) {
+            return null;
+        }
+
+        return $publishLimit;
     }
 
     /**
@@ -363,7 +450,7 @@ class BotRunner
         $locks[] = $contextLock;
 
         $globalLockKey = sprintf('bots:run:%s', $sourceKey);
-        if (!($forceManualOverride && $runContext === 'manual')) {
+        if (!($forceManualOverride && in_array($runContext, ['manual', 'admin'], true))) {
             $globalLock = Cache::lock($globalLockKey, $ttlSeconds);
             if (!$globalLock->get()) {
                 $this->releaseRunLocks([

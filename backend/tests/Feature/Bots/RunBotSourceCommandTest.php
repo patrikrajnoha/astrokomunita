@@ -58,9 +58,30 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame('kozmo', (string) data_get($post->meta, 'bot_identity'));
         $this->assertSame('nasa_rss_breaking', (string) data_get($post->meta, 'bot_source_key'));
         $this->assertSame('NASA RSS', (string) data_get($post->meta, 'bot_source_label'));
+        $this->assertSame('NASA', (string) data_get($post->meta, 'bot_source_attribution'));
         $this->assertNotSame('', (string) data_get($post->meta, 'source_url'));
         $this->assertSame('bot-engine', (string) data_get($post->meta, 'published_by'));
         $this->assertNotSame('', (string) data_get($post->meta, 'published_at_utc'));
+    }
+
+    public function test_source_label_and_attribution_are_loaded_from_config_mapping(): void
+    {
+        config()->set('astrobot.sources.nasa_rss_breaking.label', 'NASA News Wire');
+        config()->set('astrobot.sources.nasa_rss_breaking.attribution', 'NASA Open Data');
+
+        $source = $this->createSource();
+        Http::fake([
+            $source->url => Http::response($this->fixtureRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+
+        $post = Post::query()->latest('id')->firstOrFail();
+        $this->assertSame('NASA News Wire', (string) data_get($post->meta, 'bot_source_label'));
+        $this->assertSame('NASA Open Data', (string) data_get($post->meta, 'bot_source_attribution'));
+        $this->assertSame('NASA Open Data', (string) data_get($post->meta, 'source_attribution'));
     }
 
     public function test_second_run_is_idempotent_for_items_and_posts(): void

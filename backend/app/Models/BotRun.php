@@ -7,6 +7,7 @@ use App\Enums\PostBotIdentity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BotRun extends Model
 {
@@ -19,6 +20,7 @@ class BotRun extends Model
         'finished_at',
         'status',
         'stats',
+        'meta',
         'error_text',
     ];
 
@@ -28,11 +30,16 @@ class BotRun extends Model
         'started_at' => 'datetime',
         'finished_at' => 'datetime',
         'stats' => 'array',
+        'meta' => 'array',
     ];
 
     public function source(): BelongsTo
     {
         return $this->belongsTo(BotSource::class, 'source_id');
     }
-}
 
+    public function items(): HasMany
+    {
+        return $this->hasMany(BotItem::class, 'run_id');
+    }
+}

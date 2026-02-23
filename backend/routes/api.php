@@ -437,6 +437,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
             Route::get('/runs', [AdminBotController::class, 'runs']);
             Route::get('/items', [AdminBotController::class, 'items']);
             Route::post('/run/{sourceKey}', [AdminBotController::class, 'run']);
+            Route::post('/items/{botItemId}/publish', [AdminBotController::class, 'publishItem']);
+            Route::post('/runs/{runId}/publish', [AdminBotController::class, 'publishRun']);
         });
     });
 

@@ -16,6 +16,7 @@ class BotItem extends Model
     protected $fillable = [
         'bot_identity',
         'source_id',
+        'run_id',
         'post_id',
         'stable_key',
         'title',
@@ -45,6 +46,11 @@ class BotItem extends Model
     public function source(): BelongsTo
     {
         return $this->belongsTo(BotSource::class, 'source_id');
+    }
+
+    public function run(): BelongsTo
+    {
+        return $this->belongsTo(BotRun::class, 'run_id');
     }
 
     public function post(): BelongsTo
