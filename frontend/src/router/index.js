@@ -238,6 +238,11 @@ const appShellChildren = [
         component: () => import('@/views/admin/AstroBotView.vue'),
       },
       {
+        path: 'bots',
+        name: 'admin.bots',
+        component: () => import('@/views/admin/BotEngineView.vue'),
+      },
+      {
         path: 'sidebar',
         name: 'admin.sidebar',
         component: () => import('@/views/admin/SidebarConfigView.vue'),
