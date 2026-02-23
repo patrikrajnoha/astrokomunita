@@ -2,6 +2,12 @@
   <section class="adminHub">
     <div class="adminHub__bg" aria-hidden="true"></div>
 
+    <div class="adminHub__mainNav adminHub__mainNav--desktop">
+      <div class="adminHub__sticky">
+        <MainNavbar />
+      </div>
+    </div>
+
     <div class="adminHub__subNav adminHub__subNav--mobile">
       <AdminSubNav />
     </div>
@@ -23,6 +29,7 @@
 <script setup>
 import { RouterView } from 'vue-router'
 import AdminSubNav from '@/components/admin/AdminSubNav.vue'
+import MainNavbar from '@/components/MainNavbar.vue'
 </script>
 
 <style scoped>
@@ -48,6 +55,14 @@ import AdminSubNav from '@/components/admin/AdminSubNav.vue'
   min-width: 0;
 }
 
+.adminHub__mainNav {
+  min-width: 0;
+}
+
+.adminHub__mainNav--desktop {
+  display: none;
+}
+
 .adminHub__contentCard {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
   border-radius: 14px;
@@ -71,7 +86,7 @@ import AdminSubNav from '@/components/admin/AdminSubNav.vue'
 
 @media (min-width: 901px) {
   .adminHub {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: 250px minmax(0, 1fr) 320px;
     align-items: start;
   }
 
@@ -80,6 +95,10 @@ import AdminSubNav from '@/components/admin/AdminSubNav.vue'
   }
 
   .adminHub__subNav--desktop {
+    display: block;
+  }
+
+  .adminHub__mainNav--desktop {
     display: block;
   }
 }

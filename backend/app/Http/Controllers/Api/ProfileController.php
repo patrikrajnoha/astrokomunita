@@ -34,7 +34,7 @@ class ProfileController extends Controller
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
 
-            // ✅ nové polia
+         
             'bio' => ['nullable', 'string', 'max:160'],
             'location' => ['nullable', 'string', 'max:60'],
             'location_label' => ['nullable', 'string', 'max:80'],

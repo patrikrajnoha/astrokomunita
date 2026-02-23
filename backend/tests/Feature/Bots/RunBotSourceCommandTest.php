@@ -23,6 +23,9 @@ class RunBotSourceCommandTest extends TestCase
         parent::setUp();
 
         config()->set('moderation.enabled', false);
+        config()->set('services.nasa.key', 'test-nasa-key');
+        config()->set('astrobot.sources.nasa_apod_daily.requires_api_key', true);
+        config()->set('astrobot.sources.nasa_apod_daily.rate_limit_backoff_minutes', 360);
     }
 
     public function test_first_run_creates_bot_items_and_publishes_posts_to_astro_feed(): void
@@ -171,6 +174,70 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame(0, (int) ($run->stats['failed_count'] ?? 0));
     }
 
+    public function test_apod_http_429_marks_run_as_rate_limited_with_structured_meta_and_cooldown(): void
+    {
+        $source = $this->createApodSource();
+        Http::fake([
+            $source->url . '*' => Http::response([
+                'error' => [
+                    'code' => 'OVER_RATE_LIMIT',
+                    'message' => 'API rate limit exceeded.',
+                ],
+            ], 429, [
+                'Content-Type' => 'application/json',
+                'Retry-After' => '120',
+            ]),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertDatabaseCount('bot_items', 0);
+        $this->assertDatabaseCount('posts', 0);
+
+        $run = BotRun::query()->latest('id')->firstOrFail();
+        $this->assertSame('skipped', (string) $run->status->value);
+        $this->assertSame('rate_limited', (string) data_get($run->meta, 'failure_reason'));
+        $this->assertSame('nasa_apod', (string) data_get($run->meta, 'provider'));
+        $this->assertSame(429, (int) data_get($run->meta, 'http_status'));
+        $this->assertSame(120, (int) data_get($run->meta, 'retry_after_sec'));
+        $this->assertStringContainsString('rate limit', strtolower((string) data_get($run->meta, 'message')));
+        $this->assertNotNull(data_get($run->meta, 'cooldown_until'));
+
+        $source->refresh();
+        $this->assertNotNull($source->cooldown_until);
+        $this->assertTrue($source->cooldown_until->isFuture());
+    }
+
+    public function test_apod_missing_api_key_marks_run_as_needs_api_key_and_does_not_call_http(): void
+    {
+        config()->set('astrobot.sources.nasa_apod_daily.requires_api_key', true);
+        config()->set('services.nasa.key', '');
+        config()->set('services.nasa.apod_api_key', '');
+
+        $source = $this->createApodSource();
+        Http::fake([
+            '*' => Http::response(['ok' => true], 200),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+        Http::assertNothingSent();
+
+        $run = BotRun::query()->latest('id')->firstOrFail();
+        $this->assertSame('skipped', (string) $run->status->value);
+        $this->assertSame('needs_api_key', (string) data_get($run->meta, 'failure_reason'));
+        $this->assertSame('nasa_apod', (string) data_get($run->meta, 'provider'));
+        $this->assertSame('NASA APOD API requires API key. Add NASA_API_KEY or wait.', (string) data_get($run->meta, 'message'));
+        $this->assertNotNull(data_get($run->meta, 'cooldown_until'));
+        $this->assertGreaterThan(0, (int) data_get($run->meta, 'retry_after_sec'));
+
+        $source->refresh();
+        $this->assertNotNull($source->cooldown_until);
+        $this->assertTrue($source->cooldown_until->isFuture());
+    }
+
     public function test_publish_repairs_legacy_bot_username_and_display_name_to_configured_identity(): void
     {
         config()->set('astrobot.identities.kozmo.username', 'kozmobot');
@@ -223,6 +290,29 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame(0, (int) ($run->stats['published_count'] ?? 0));
         $this->assertSame(1, (int) ($run->stats['skipped_count'] ?? 0));
         $this->assertSame(0, (int) ($run->stats['failed_count'] ?? 0));
+    }
+
+    public function test_apod_run_with_active_cooldown_is_skipped_without_api_call(): void
+    {
+        $source = $this->createApodSource();
+        $source->forceFill([
+            'cooldown_until' => now()->addHours(2),
+        ])->save();
+
+        Http::fake([
+            $source->url . '*' => Http::response($this->apodPayload(), 200, ['Content-Type' => 'application/json']),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+        Http::assertNothingSent();
+
+        $run = BotRun::query()->latest('id')->firstOrFail();
+        $this->assertSame('skipped', (string) $run->status->value);
+        $this->assertSame('cooldown_rate_limited', (string) data_get($run->meta, 'failure_reason'));
+        $this->assertNotNull(data_get($run->meta, 'cooldown_until'));
+        $this->assertSame(1, (int) data_get($run->stats, 'skipped_count', 0));
     }
 
     public function test_apod_image_larger_than_policy_limit_is_skipped(): void
@@ -684,6 +774,75 @@ class RunBotSourceCommandTest extends TestCase
 
         $item->refresh();
         $this->assertSame('done', (string) $item->translation_status->value);
+    }
+
+    public function test_legacy_dummy_item_without_post_id_is_retranslated_before_publish(): void
+    {
+        config()->set('astrobot.translation_provider', 'http');
+        config()->set('astrobot.translation_base_url', 'http://translation.test');
+        config()->set('astrobot.translation_timeout_seconds', 5);
+
+        $source = $this->createSource();
+        Http::fake([
+            $source->url => Http::response(
+                $this->rssSingleItem(
+                    guid: 'guid-legacy-published-pending-translation',
+                    title: 'English legacy title',
+                    link: 'https://www.nasa.gov/news-release/legacy-pending-translation/',
+                    description: 'English legacy body text long enough to pass publish validation checks.'
+                ),
+                200,
+                ['Content-Type' => 'application/rss+xml']
+            ),
+            'http://translation.test/translate' => function ($request) {
+                $sourceText = trim((string) ($request['q'] ?? ''));
+
+                return Http::response([
+                    'translatedText' => 'SK ' . $sourceText,
+                ], 200);
+            },
+        ]);
+
+        $legacyTitle = 'English legacy title';
+        $legacyBody = 'English legacy body text long enough to pass publish validation checks.';
+
+        BotItem::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'stable_key' => 'guid-legacy-published-pending-translation',
+            'title' => $legacyTitle,
+            'summary' => $legacyBody,
+            'content' => $legacyBody,
+            'url' => 'https://www.nasa.gov/news-release/legacy-pending-translation/',
+            'published_at' => now(),
+            'fetched_at' => now(),
+            'lang_original' => 'en',
+            'translation_status' => 'done',
+            'publish_status' => 'published',
+            'meta' => [
+                'translation_cache_key' => sha1('sk|' . $legacyTitle . '|' . $legacyBody),
+                'translation' => [
+                    'provider' => 'dummy',
+                    'reason' => 'translation_not_enabled',
+                    'target_lang' => 'sk',
+                ],
+            ],
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+        $this->assertSame(0, $exitCode);
+
+        $item = BotItem::query()->where('stable_key', 'guid-legacy-published-pending-translation')->firstOrFail();
+        $this->assertSame('done', (string) $item->translation_status->value);
+        $this->assertSame('libretranslate', (string) $item->translation_provider);
+        $this->assertStringStartsWith('SK ', (string) $item->title_translated);
+        $this->assertNotNull($item->post_id);
+
+        $post = Post::query()->findOrFail($item->post_id);
+        $this->assertStringContainsString('NASA | SK English legacy title', (string) $post->content);
+
+        $run = BotRun::query()->latest('id')->firstOrFail();
+        $this->assertSame(1, (int) ($run->stats['translation_done_count'] ?? 0));
     }
 
     private function createSource(): BotSource

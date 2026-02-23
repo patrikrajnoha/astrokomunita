@@ -3,8 +3,10 @@
 namespace App\Services\Bots;
 
 use App\Models\BotSource;
+use App\Services\Bots\Exceptions\BotSourceRunException;
 use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -34,7 +36,20 @@ class NasaApodFetchService
         $retryTimes = max(0, (int) config('astrobot.rss_retry_times', 2));
         $retrySleepMs = max(0, (int) config('astrobot.rss_retry_sleep_ms', 250));
         $attempts = $retryTimes + 1;
-        $apiKey = trim((string) config('services.nasa.apod_api_key', ''));
+        $apiKey = trim((string) config('services.nasa.key', config('services.nasa.apod_api_key', '')));
+        $requiresApiKey = (bool) config('astrobot.sources.nasa_apod_daily.requires_api_key', true);
+
+        if ($requiresApiKey && $apiKey === '') {
+            throw new BotSourceRunException(
+                'NASA APOD API requires API key. Add NASA_API_KEY or wait.',
+                'needs_api_key',
+                [
+                    'provider' => 'nasa_apod',
+                    'http_status' => null,
+                    'message' => 'NASA APOD API requires API key. Add NASA_API_KEY or wait.',
+                ]
+            );
+        }
 
         $query = [];
         if ($apiKey !== '') {
@@ -62,6 +77,19 @@ class NasaApodFetchService
         }
 
         if (!$response->successful()) {
+            if ($response->status() === 429) {
+                throw new BotSourceRunException(
+                    'NASA APOD API rate limit (HTTP 429). Add NASA_API_KEY or try later.',
+                    'rate_limited',
+                    [
+                        'provider' => 'nasa_apod',
+                        'http_status' => 429,
+                        'message' => 'NASA APOD API rate limit (HTTP 429). Add NASA_API_KEY or try later.',
+                        'retry_after_sec' => $this->resolveRetryAfterSeconds($response),
+                    ]
+                );
+            }
+
             throw new RuntimeException(sprintf(
                 'APOD fetch failed (url=%s, status=%d, snippet="%s")',
                 $url,
@@ -187,5 +215,26 @@ class NasaApodFetchService
         }
 
         return substr($normalized, 0, 500);
+    }
+
+    private function resolveRetryAfterSeconds(Response $response): ?int
+    {
+        $retryAfterRaw = trim((string) $response->header('Retry-After', ''));
+        if ($retryAfterRaw === '') {
+            return null;
+        }
+
+        if (is_numeric($retryAfterRaw)) {
+            $seconds = (int) $retryAfterRaw;
+            return $seconds > 0 ? $seconds : null;
+        }
+
+        try {
+            $retryAt = Carbon::parse($retryAfterRaw);
+            $seconds = now()->diffInSeconds($retryAt, false);
+            return $seconds > 0 ? $seconds : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

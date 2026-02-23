@@ -48,6 +48,7 @@ class AdminBotController extends Controller
             'url' => (string) $source->url,
             'is_enabled' => (bool) $source->is_enabled,
             'last_run_at' => $source->last_run_at?->toIso8601String(),
+            'cooldown_until' => $source->cooldown_until?->toIso8601String(),
         ])->values();
 
         return response()->json([
@@ -174,6 +175,9 @@ class AdminBotController extends Controller
             'stats' => is_array($run->stats) ? $run->stats : [],
             'meta' => is_array($run->meta) ? $run->meta : [],
             'error_text' => $this->truncateErrorText($run->error_text),
+            'failure_reason' => $this->nullableString(data_get($run->meta, 'failure_reason')),
+            'ui_message' => $this->nullableString(data_get($run->meta, 'ui_message')),
+            'cooldown_until' => $this->nullableString(data_get($run->meta, 'cooldown_until')),
         ]);
     }
 
@@ -646,6 +650,9 @@ class AdminBotController extends Controller
             'stats' => is_array($run->stats) ? $run->stats : [],
             'meta' => is_array($run->meta) ? $run->meta : [],
             'error_text' => $this->truncateErrorText($run->error_text),
+            'failure_reason' => $this->nullableString(data_get($run->meta, 'failure_reason')),
+            'ui_message' => $this->nullableString(data_get($run->meta, 'ui_message')),
+            'cooldown_until' => $this->nullableString(data_get($run->meta, 'cooldown_until')),
         ];
     }
 

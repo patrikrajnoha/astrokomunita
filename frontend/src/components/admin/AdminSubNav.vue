@@ -28,8 +28,9 @@ const groups = [
       { label: 'Contests', to: '/admin/contests', icon: 'C' },
       { label: 'Articles', to: '/admin/blog', icon: 'B' },
       { label: 'Sidebar', to: '/admin/sidebar', icon: 'S' },
-      { label: 'AstroBot', to: '/admin/astrobot', icon: 'A' },
       { label: 'Bot Engine', to: '/admin/bots', icon: 'B' },
+      { label: 'KozmoBot', to: '/admin/kozmobot', icon: 'K' },
+      { label: 'StellarBot', to: '/admin/stellarbot', icon: 'T' },
     ],
   },
 ]

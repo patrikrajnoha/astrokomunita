@@ -101,9 +101,7 @@
                   </div>
                   <div v-if="p?.user?.location || isBotPost(p)" class="post-time">
                     <span v-if="p?.user?.location" class="location">📍 {{ p.user.location }}</span>
-                    <span v-if="isBotPost(p)" class="astrobot-label"
-                      >Automated news · replies disabled</span
-                    >
+                    <span v-if="isBotPost(p)" class="astrobot-label">Automated news</span>
                   </div>
                   <div v-if="isBotPost(p)" class="bot-meta-row">
                     <span class="bot-source-label">{{ botSourceLabel(p) }}</span>
@@ -221,11 +219,10 @@
               <!-- Bottom actions -->
               <div class="post-actions" @click.stop>
                 <button
-                  v-if="!isBotPost(p)"
                   class="action-btn action-btn--reply"
                   type="button"
                   title="Reagovať"
-                  disabled
+                  @click.stop="openPost(p)"
                 >
                   <svg
                     width="18"
@@ -241,26 +238,6 @@
                   </svg>
                   <span class="action-count">{{ p.replies_count ?? 0 }}</span>
                 </button>
-
-                <span
-                  v-else
-                  class="action-btn action-btn--disabled"
-                  title="Replies disabled on automated news"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
-                    />
-                  </svg>
-                  <span class="action-count">{{ p.replies_count ?? 0 }}</span>
-                </span>
 
                 <button
                   class="action-btn action-btn--share"

@@ -141,7 +141,20 @@ const quickRunBusyIdentity = ref('')
 function toErrorMessage(error, fallbackMessage) {
   const status = Number(error?.response?.status || 0)
   const retryAfter = Number(error?.response?.data?.retry_after || 0)
+  const failureReason = String(
+    error?.response?.data?.failure_reason || error?.response?.data?.meta?.failure_reason || '',
+  )
+    .trim()
+    .toLowerCase()
   const baseMessage = error?.response?.data?.message || error?.userMessage || error?.message || fallbackMessage
+
+  if (['rate_limited', 'cooldown_rate_limited', 'needs_api_key'].includes(failureReason)) {
+    return (
+      error?.response?.data?.ui_message ||
+      error?.response?.data?.meta?.ui_message ||
+      baseMessage
+    )
+  }
 
   if (status === 429 && retryAfter > 0) {
     return `${baseMessage} Retry in ${retryAfter}s.`
@@ -450,7 +463,8 @@ async function runNow(sourceKey, mode = 'auto') {
       return
     }
 
-    toast.success(`${String(result.status || 'unknown').toUpperCase()} | ${statsSummary(result.stats)}`)
+    const hint = runStatusHint(result)
+    toast.success(`${runStatusLabel(result)} | ${statsSummary(result.stats)}${hint ? ` | ${hint}` : ''}`)
 
     await Promise.all([loadSources(), loadRuns()])
   } catch (error) {
@@ -744,11 +758,37 @@ async function backfillTranslateForRun() {
 }
 
 function statusClass(status) {
-  const normalized = String(status || '').toLowerCase()
+  const normalizedReason = String(status?.failure_reason || status?.meta?.failure_reason || '').toLowerCase()
+  if (normalizedReason === 'rate_limited' || normalizedReason === 'cooldown_rate_limited' || normalizedReason === 'needs_api_key') {
+    return 'statusBadge statusBadge--partial'
+  }
+
+  const normalized = String(status?.status || status || '').toLowerCase()
   if (normalized === 'success') return 'statusBadge statusBadge--success'
   if (normalized === 'partial') return 'statusBadge statusBadge--partial'
   if (normalized === 'failed') return 'statusBadge statusBadge--failed'
-  return 'statusBadge'
+  return 'statusBadge statusBadge--muted'
+}
+
+function runStatusLabel(run) {
+  const reason = String(run?.failure_reason || run?.meta?.failure_reason || '').toLowerCase()
+  if (reason === 'rate_limited' || reason === 'cooldown_rate_limited') {
+    return 'Rate limited'
+  }
+  if (reason === 'needs_api_key') {
+    return 'Needs API key'
+  }
+
+  return String(run?.status || 'unknown')
+}
+
+function runStatusHint(run) {
+  return (
+    run?.ui_message ||
+    run?.meta?.ui_message ||
+    run?.error_text ||
+    ''
+  )
 }
 
 onMounted(async () => {
@@ -819,30 +859,39 @@ onMounted(async () => {
               <th>source_type</th>
               <th>is_enabled</th>
               <th>last_run_at</th>
+              <th>cooldown_until</th>
               <th class="alignRight">actions</th>
             </tr>
           </thead>
           <tbody>
             <template v-if="loadingSources">
               <tr v-for="index in 5" :key="`sources-skeleton-${index}`">
-                <td colspan="6">
+                <td colspan="7">
                   <div class="skeletonRow"></div>
                 </td>
               </tr>
             </template>
             <tr v-else-if="filteredSources.length === 0">
-              <td colspan="6" class="emptyCell">No sources available.</td>
+              <td colspan="7" class="emptyCell">No sources available.</td>
             </tr>
             <tr v-else v-for="source in filteredSources" :key="source.id || source.key">
               <td><code>{{ source.key }}</code></td>
               <td>{{ source.bot_identity || '-' }}</td>
-              <td>{{ source.source_type || '-' }}</td>
+              <td>
+                <div class="sourceTypeCell">
+                  <span>{{ source.source_type || '-' }}</span>
+                  <small v-if="source.key === 'nasa_apod_daily'" class="sourceHint">
+                    Set NASA_API_KEY in .env to enable APOD.
+                  </small>
+                </div>
+              </td>
               <td>
                 <span class="statusBadge" :class="source.is_enabled ? 'statusBadge--success' : 'statusBadge--muted'">
                   {{ source.is_enabled ? 'enabled' : 'disabled' }}
                 </span>
               </td>
               <td>{{ formatDateTime(source.last_run_at) }}</td>
+              <td>{{ formatDateTime(source.cooldown_until) }}</td>
               <td class="alignRight">
                 <div class="inlineActions inlineActions--end">
                   <button
@@ -1007,8 +1056,8 @@ onMounted(async () => {
               <td>{{ formatDateTime(run.started_at) }}</td>
               <td><code>{{ run.source_key || '-' }}</code></td>
               <td>
-                <span :class="statusClass(run.status)">
-                  {{ run.status || 'unknown' }}
+                <span :class="statusClass(run)" :title="runStatusHint(run)" data-testid="run-status-badge">
+                  {{ runStatusLabel(run) }}
                 </span>
               </td>
               <td>
@@ -1067,10 +1116,14 @@ onMounted(async () => {
             <div>
               <dt>status</dt>
               <dd>
-                <span :class="statusClass(selectedRun.status)">
-                  {{ selectedRun.status || 'unknown' }}
+                <span :class="statusClass(selectedRun)" :title="runStatusHint(selectedRun)">
+                  {{ runStatusLabel(selectedRun) }}
                 </span>
               </dd>
+            </div>
+            <div>
+              <dt>cooldown_until</dt>
+              <dd>{{ formatDateTime(selectedRun.cooldown_until || selectedRun.meta?.cooldown_until) }}</dd>
             </div>
           </dl>
 
@@ -1542,6 +1595,16 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.sourceTypeCell {
+  display: grid;
+  gap: 4px;
+}
+
+.sourceHint {
+  font-size: 0.7rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
 }
 
 .manualBadge {

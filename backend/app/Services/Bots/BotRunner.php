@@ -10,6 +10,7 @@ use App\Models\BotItem;
 use App\Models\BotRun;
 use App\Models\BotSource;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
+use App\Services\Bots\Exceptions\BotSourceRunException;
 use Carbon\Carbon;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Facades\Cache;
@@ -94,6 +95,17 @@ class BotRunner
         $stats['mode'] = $runMode;
         $stats['publish_limit'] = $normalizedPublishLimit;
 
+        if ($this->isSourceInRateLimitCooldown($source)) {
+            $status = BotRunStatus::SKIPPED;
+            $stats['skipped_count']++;
+            $runMeta = array_replace($runMeta, $this->buildCooldownSkipMeta($source));
+            $errorText = (string) ($runMeta['ui_message'] ?? 'Source is temporarily in cooldown due to prior rate limiting.');
+
+            $this->releaseRunLocks($lockState);
+
+            return $this->runService->finishRun($run, $status, $stats, $errorText, $runMeta);
+        }
+
         $status = BotRunStatus::SUCCESS;
         $errorText = null;
 
@@ -110,6 +122,39 @@ class BotRunner
             if ($stats['failed_count'] > 0) {
                 $status = BotRunStatus::PARTIAL;
             }
+        } catch (BotSourceRunException $e) {
+            $failureReason = strtolower(trim($e->failureReason()));
+            $exceptionMeta = $e->contextMeta();
+            $runMeta['failure_reason'] = $failureReason;
+            $runMeta['provider'] = $this->nullableString((string) ($exceptionMeta['provider'] ?? ''));
+            $runMeta['http_status'] = $this->nullableInt($exceptionMeta['http_status'] ?? null);
+            $runMeta['message'] = $this->nullableString((string) ($exceptionMeta['message'] ?? $e->getMessage()));
+            $runMeta['ui_message'] = $this->nullableString((string) ($exceptionMeta['message'] ?? $e->getMessage()));
+
+            $retryAfter = $this->resolveRetryAfterSeconds($source, $exceptionMeta['retry_after_sec'] ?? null);
+            if ($retryAfter !== null) {
+                $runMeta['retry_after_sec'] = $retryAfter;
+            }
+
+            if (in_array($failureReason, ['rate_limited', 'needs_api_key'], true)) {
+                $cooldownUntil = now()->addSeconds($retryAfter ?? 0);
+                if ($cooldownUntil->lte(now())) {
+                    $cooldownUntil = now()->addMinutes($this->rateLimitBackoffMinutes($source));
+                }
+
+                $source->forceFill(['cooldown_until' => $cooldownUntil])->save();
+                $runMeta['cooldown_until'] = $cooldownUntil->toIso8601String();
+            }
+
+            if ($e->shouldMarkAsSkipped()) {
+                $status = BotRunStatus::SKIPPED;
+                $stats['skipped_count']++;
+            } else {
+                $status = BotRunStatus::FAILED;
+                $stats['failed_count']++;
+            }
+
+            $errorText = $runMeta['ui_message'] ?? $e->getMessage();
         } catch (Throwable $e) {
             $status = BotRunStatus::FAILED;
             $errorText = $e->getMessage();
@@ -306,7 +351,10 @@ class BotRunner
                     ->orWhere('meta->last_seen_run_id', $runId);
             })
             ->whereNull('post_id')
-            ->where('publish_status', BotPublishStatus::PENDING->value)
+            ->whereIn('publish_status', [
+                BotPublishStatus::PENDING->value,
+                BotPublishStatus::PUBLISHED->value,
+            ])
             ->get();
 
         $sourceKey = strtolower(trim((string) $source->key));
@@ -314,7 +362,12 @@ class BotRunner
         foreach ($items as $item) {
             $this->stampItemRunContext($item, $runContext);
             $currentStatus = $item->translation_status?->value ?? (string) $item->translation_status;
-            if (!in_array($currentStatus, ['', BotTranslationStatus::PENDING->value, null], true)) {
+            $meta = is_array($item->meta) ? $item->meta : [];
+            $legacyPlaceholder = $currentStatus === BotTranslationStatus::DONE->value
+                && !$this->hasAnyTranslatedText($item)
+                && $this->isLegacyTranslationPlaceholder($meta);
+
+            if (!in_array($currentStatus, ['', BotTranslationStatus::PENDING->value, null], true) && !$legacyPlaceholder) {
                 continue;
             }
 
@@ -322,6 +375,20 @@ class BotRunner
             if ($langOriginal === 'sk' || str_starts_with($langOriginal, 'sk-')) {
                 $meta = is_array($item->meta) ? $item->meta : [];
                 $this->markTranslationSkipped($item, $meta, $runContext, 'source_lang_sk', 'source_lang');
+                if (config('app.debug')) {
+                    Log::debug('Bot translation skipped in runner.', [
+                        'source_key' => $sourceKey,
+                        'stable_key' => (string) $item->stable_key,
+                        'bot_run_id' => $runId,
+                        'translation_status' => BotTranslationStatus::SKIPPED->value,
+                        'provider' => 'source_lang',
+                        'reason' => 'source_lang_sk',
+                        'origin_title_hash' => $this->shortHash((string) $item->title),
+                        'origin_body_hash' => $this->shortHash((string) ($item->content ?: $item->summary ?: '')),
+                        'translated_title_hash' => null,
+                        'translated_body_hash' => null,
+                    ]);
+                }
                 continue;
             }
 
@@ -331,16 +398,43 @@ class BotRunner
             if ($title === '' && $content === '') {
                 $meta = is_array($item->meta) ? $item->meta : [];
                 $this->markTranslationSkipped($item, $meta, $runContext, 'empty_input', 'none');
+                if (config('app.debug')) {
+                    Log::debug('Bot translation skipped in runner.', [
+                        'source_key' => $sourceKey,
+                        'stable_key' => (string) $item->stable_key,
+                        'bot_run_id' => $runId,
+                        'translation_status' => BotTranslationStatus::SKIPPED->value,
+                        'provider' => 'none',
+                        'reason' => 'empty_input',
+                        'origin_title_hash' => $this->shortHash($title),
+                        'origin_body_hash' => $this->shortHash($content),
+                        'translated_title_hash' => null,
+                        'translated_body_hash' => null,
+                    ]);
+                }
                 continue;
             }
 
             if ($this->isLikelySlovakText($title, $content)) {
                 $meta = is_array($item->meta) ? $item->meta : [];
                 $this->markTranslationSkipped($item, $meta, $runContext, 'already_slovak_heuristic', 'heuristic');
+                if (config('app.debug')) {
+                    Log::debug('Bot translation skipped in runner.', [
+                        'source_key' => $sourceKey,
+                        'stable_key' => (string) $item->stable_key,
+                        'bot_run_id' => $runId,
+                        'translation_status' => BotTranslationStatus::SKIPPED->value,
+                        'provider' => 'heuristic',
+                        'reason' => 'already_slovak_heuristic',
+                        'origin_title_hash' => $this->shortHash($title),
+                        'origin_body_hash' => $this->shortHash($content),
+                        'translated_title_hash' => $this->shortHash($title),
+                        'translated_body_hash' => $this->shortHash($content),
+                    ]);
+                }
                 continue;
             }
 
-            $meta = is_array($item->meta) ? $item->meta : [];
             $cacheKey = sha1('sk|' . $title . '|' . $content);
             $existingCacheKey = trim((string) ($meta['translation_cache_key'] ?? ''));
 
@@ -356,11 +450,42 @@ class BotRunner
                     ])->save();
                     $stats['translation_done_count'] = (int) ($stats['translation_done_count'] ?? 0) + 1;
                 }
+                if (config('app.debug')) {
+                    Log::debug('Bot translation cache hit in runner.', [
+                        'source_key' => $sourceKey,
+                        'stable_key' => (string) $item->stable_key,
+                        'bot_run_id' => $runId,
+                        'translation_status' => $item->translation_status?->value ?? (string) $item->translation_status,
+                        'provider' => $item->translation_provider,
+                        'reason' => 'cache_hit',
+                        'origin_title_hash' => $this->shortHash($title),
+                        'origin_body_hash' => $this->shortHash($content),
+                        'translated_title_hash' => $this->shortHash((string) $item->title_translated),
+                        'translated_body_hash' => $this->shortHash((string) $item->content_translated),
+                    ]);
+                }
 
-                continue;
+                if ($this->hasAnyTranslatedText($item)) {
+                    continue;
+                }
+
+                // Legacy rows may carry cache keys from dummy/no-op translation without any translated payload.
+                unset($meta['translation_cache_key']);
             }
 
             try {
+                if (config('app.debug')) {
+                    Log::debug('Bot translation start in runner.', [
+                        'source_key' => $sourceKey,
+                        'stable_key' => (string) $item->stable_key,
+                        'bot_run_id' => $runId,
+                        'translation_status' => BotTranslationStatus::PENDING->value,
+                        'provider' => $this->resolveConfiguredTranslationProvider(),
+                        'origin_title_hash' => $this->shortHash($title),
+                        'origin_body_hash' => $this->shortHash($content),
+                    ]);
+                }
+
                 $result = $this->translationService->translate($title, $content, 'sk');
                 $meta['translation_cache_key'] = $cacheKey;
                 unset($meta['translation_error']);
@@ -395,6 +520,20 @@ class BotRunner
                     'meta' => $meta,
                 ])->save();
 
+                if (config('app.debug')) {
+                    Log::debug('Bot translation completed in runner.', [
+                        'source_key' => $sourceKey,
+                        'stable_key' => (string) $item->stable_key,
+                        'bot_run_id' => $runId,
+                        'translation_status' => $status,
+                        'provider' => $translationProvider,
+                        'origin_title_hash' => $this->shortHash($title),
+                        'origin_body_hash' => $this->shortHash($content),
+                        'translated_title_hash' => $this->shortHash($translatedTitle ?? ''),
+                        'translated_body_hash' => $this->shortHash($translatedContent ?? ''),
+                    ]);
+                }
+
                 if ($status === BotTranslationStatus::DONE->value) {
                     $stats['translation_done_count'] = (int) ($stats['translation_done_count'] ?? 0) + 1;
                 } elseif ($status === BotTranslationStatus::FAILED->value) {
@@ -411,8 +550,11 @@ class BotRunner
                 Log::warning('Bot translation failed for item.', [
                     'source_key' => $sourceKey,
                     'stable_key' => (string) $item->stable_key,
+                    'bot_run_id' => $runId,
                     'provider' => $this->resolveConfiguredTranslationProvider(),
                     'error' => $errorMessage,
+                    'origin_title_hash' => $this->shortHash($title),
+                    'origin_body_hash' => $this->shortHash($content),
                 ]);
 
                 $item->forceFill([
@@ -657,10 +799,32 @@ class BotRunner
             || trim((string) $item->content_translated) !== '';
     }
 
+    /**
+     * @param array<string,mixed> $meta
+     */
+    private function isLegacyTranslationPlaceholder(array $meta): bool
+    {
+        $provider = strtolower(trim((string) data_get($meta, 'translation.provider', '')));
+        $reason = strtolower(trim((string) data_get($meta, 'translation.reason', '')));
+
+        return in_array($provider, ['dummy', 'none'], true)
+            || $reason === 'translation_not_enabled';
+    }
+
     private function nullableString(mixed $value): ?string
     {
         $text = trim((string) $value);
         return $text !== '' ? $text : null;
+    }
+
+    private function shortHash(string $value): ?string
+    {
+        $normalized = trim($value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        return substr(sha1($normalized), 0, 8);
     }
 
     private function stringLength(string $value): int
@@ -670,6 +834,56 @@ class BotRunner
         }
 
         return strlen($value);
+    }
+
+    private function isSourceInRateLimitCooldown(BotSource $source): bool
+    {
+        $cooldownUntil = $source->cooldown_until;
+        if (!$cooldownUntil instanceof Carbon) {
+            return false;
+        }
+
+        return $cooldownUntil->isFuture();
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function buildCooldownSkipMeta(BotSource $source): array
+    {
+        $cooldownUntil = $source->cooldown_until instanceof Carbon
+            ? $source->cooldown_until->copy()
+            : now();
+        $retryAfter = max(0, now()->diffInSeconds($cooldownUntil, false));
+
+        return [
+            'failure_reason' => 'cooldown_rate_limited',
+            'provider' => 'nasa_apod',
+            'cooldown_until' => $cooldownUntil->toIso8601String(),
+            'retry_after_sec' => $retryAfter,
+            'message' => 'Source is in cooldown after rate limiting. NASA API call was skipped.',
+            'ui_message' => 'NASA APOD API rate limit cooldown is active. Add NASA_API_KEY or wait.',
+        ];
+    }
+
+    private function rateLimitBackoffMinutes(BotSource $source): int
+    {
+        $sourceKey = strtolower(trim((string) $source->key));
+        $configured = (int) config(sprintf('astrobot.sources.%s.rate_limit_backoff_minutes', $sourceKey), 360);
+
+        return max(1, $configured);
+    }
+
+    private function resolveRetryAfterSeconds(BotSource $source, mixed $value): ?int
+    {
+        if (is_numeric($value)) {
+            $seconds = (int) $value;
+            if ($seconds > 0) {
+                return $seconds;
+            }
+        }
+
+        return $this->rateLimitBackoffMinutes($source) * 60;
     }
 
     private function limitText(string $value, int $maxLength): string
@@ -688,5 +902,18 @@ class BotRunner
         }
 
         return substr($normalized, 0, $maxLength);
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+
+        return null;
     }
 }

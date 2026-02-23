@@ -235,12 +235,30 @@ const appShellChildren = [
       {
         path: 'astrobot',
         name: 'admin.astrobot',
-        component: () => import('@/views/admin/AstroBotView.vue'),
+        redirect: { name: 'admin.bots' },
       },
       {
         path: 'bots',
         name: 'admin.bots',
         component: () => import('@/views/admin/BotEngineView.vue'),
+      },
+      {
+        path: 'kozmobot',
+        name: 'admin.bots.kozmo',
+        component: () => import('@/views/admin/BotEngineView.vue'),
+        props: {
+          presetBotIdentity: 'kozmo',
+          presetLabel: 'Kozmo',
+        },
+      },
+      {
+        path: 'stellarbot',
+        name: 'admin.bots.stellar',
+        component: () => import('@/views/admin/BotEngineView.vue'),
+        props: {
+          presetBotIdentity: 'stela',
+          presetLabel: 'Stellar',
+        },
       },
       {
         path: 'sidebar',

@@ -20,6 +20,7 @@ class BotSource extends Model
         'is_enabled',
         'schedule',
         'last_run_at',
+        'cooldown_until',
     ];
 
     protected $casts = [
@@ -28,6 +29,7 @@ class BotSource extends Model
         'is_enabled' => 'boolean',
         'schedule' => 'array',
         'last_run_at' => 'datetime',
+        'cooldown_until' => 'datetime',
     ];
 
     public function runs(): HasMany
@@ -40,4 +42,3 @@ class BotSource extends Model
         return $this->hasMany(BotItem::class, 'source_id');
     }
 }
-
