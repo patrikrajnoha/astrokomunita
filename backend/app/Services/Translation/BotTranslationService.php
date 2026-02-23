@@ -38,6 +38,10 @@ class BotTranslationService implements BotTranslationServiceInterface
                     'chars' => 0,
                     'error' => null,
                     'translated_at' => now()->toIso8601String(),
+                    'mode' => 'none',
+                    'provider_chain' => [],
+                    'quality_flags' => [],
+                    'quality_retry_count' => 0,
                 ],
             ];
         }
@@ -57,6 +61,10 @@ class BotTranslationService implements BotTranslationServiceInterface
                     'chars' => $this->stringLength($normalizedTitle) + $this->stringLength($normalizedContent),
                     'error' => null,
                     'translated_at' => now()->toIso8601String(),
+                    'mode' => 'none',
+                    'provider_chain' => [],
+                    'quality_flags' => [],
+                    'quality_retry_count' => 0,
                 ],
             ];
         }
@@ -77,6 +85,10 @@ class BotTranslationService implements BotTranslationServiceInterface
                     'chars' => $this->stringLength($normalizedTitle) + $this->stringLength($normalizedContent),
                     'error' => null,
                     'translated_at' => now()->toIso8601String(),
+                    'mode' => 'none',
+                    'provider_chain' => [],
+                    'quality_flags' => [],
+                    'quality_retry_count' => 0,
                 ],
             ];
         }
@@ -104,6 +116,19 @@ class BotTranslationService implements BotTranslationServiceInterface
             $titleResult['model'] ?? null,
             $contentResult['model'] ?? null,
         ]);
+        $providerChain = $this->mergeStringLists(
+            $titleResult['provider_chain'] ?? [],
+            $contentResult['provider_chain'] ?? []
+        );
+        $qualityFlags = $this->mergeStringLists(
+            $titleResult['quality_flags'] ?? [],
+            $contentResult['quality_flags'] ?? []
+        );
+        $qualityRetryCount = (int) ($titleResult['quality_retry_count'] ?? 0) + (int) ($contentResult['quality_retry_count'] ?? 0);
+        $mode = $this->resolveCombinedMode(
+            $titleResult['mode'] ?? null,
+            $contentResult['mode'] ?? null
+        );
 
         $status = ($translatedTitle !== '' || $translatedContent !== '')
             ? BotTranslationStatus::DONE->value
@@ -119,11 +144,15 @@ class BotTranslationService implements BotTranslationServiceInterface
                 'provider' => $provider,
                 'provider_title' => $titleResult['provider'] ?? null,
                 'provider_content' => $contentResult['provider'] ?? null,
+                'provider_chain' => $providerChain,
+                'mode' => $mode,
                 'model' => $model,
                 'target_lang' => $targetLang,
                 'duration_ms' => $totalDurationMs,
                 'chars' => $totalChars,
                 'fallback_used' => $fallbackUsed,
+                'quality_flags' => $qualityFlags,
+                'quality_retry_count' => $qualityRetryCount,
                 'error' => null,
                 'translated_at' => now()->toIso8601String(),
             ],
@@ -132,13 +161,29 @@ class BotTranslationService implements BotTranslationServiceInterface
 
     /**
      * @param list<string> $providerOrder
-     * @return array{text:string,provider:string,model:?string,duration_ms:int,chars:int,fallback_used:bool}
+     * @return array{
+     *   text:string,
+     *   provider:string,
+     *   model:?string,
+     *   duration_ms:int,
+     *   chars:int,
+     *   fallback_used:bool,
+     *   provider_chain:list<string>,
+     *   mode:string,
+     *   quality_flags:list<string>,
+     *   quality_retry_count:int
+     * }
      */
     private function translateLongText(string $text, string $targetLang, string $sourceLang, array $providerOrder): array
     {
-        $chunks = $this->chunkText($text);
+        $protection = $this->protectTermsInText($text);
+        $chunks = $this->chunkText($protection['text']);
         $translatedChunks = [];
         $providersUsed = [];
+        $allModes = [];
+        $allQualityFlags = [];
+        $allProviderChain = [];
+        $totalQualityRetries = 0;
         $totalDuration = 0;
         $chars = 0;
         $fallbackUsed = false;
@@ -148,6 +193,10 @@ class BotTranslationService implements BotTranslationServiceInterface
             $chunkResult = $this->translateChunkWithFallback($chunk, $targetLang, $sourceLang, $providerOrder);
             $translatedChunks[] = $chunkResult['text'];
             $providersUsed[] = $chunkResult['provider'];
+            $allModes[] = $chunkResult['mode'];
+            $allQualityFlags = $this->mergeStringLists($allQualityFlags, $chunkResult['quality_flags']);
+            $allProviderChain = $this->mergeStringLists($allProviderChain, $chunkResult['provider_chain']);
+            $totalQualityRetries += (int) $chunkResult['quality_retry_count'];
             $totalDuration += (int) $chunkResult['duration_ms'];
             $chars += (int) $chunkResult['chars'];
             $fallbackUsed = $fallbackUsed || (bool) ($chunkResult['fallback_used'] ?? false);
@@ -161,7 +210,10 @@ class BotTranslationService implements BotTranslationServiceInterface
         }
 
         $translatedText = implode("\n\n", $translatedChunks);
+        $translatedText = $this->restoreProtectedTerms($translatedText, $protection['map']);
+        $translatedText = $this->applyTerminologyMap($translatedText);
         $provider = $this->resolveCombinedProviderFromList($providersUsed);
+        $mode = $this->resolveModeFromList($allModes);
 
         return [
             'text' => trim($translatedText),
@@ -170,12 +222,27 @@ class BotTranslationService implements BotTranslationServiceInterface
             'duration_ms' => $totalDuration,
             'chars' => $chars,
             'fallback_used' => $fallbackUsed,
+            'provider_chain' => $allProviderChain,
+            'mode' => $mode,
+            'quality_flags' => $allQualityFlags,
+            'quality_retry_count' => $totalQualityRetries,
         ];
     }
 
     /**
      * @param list<string> $providerOrder
-     * @return array{text:string,provider:string,model:?string,duration_ms:int,chars:int,fallback_used:bool}
+     * @return array{
+     *   text:string,
+     *   provider:string,
+     *   model:?string,
+     *   duration_ms:int,
+     *   chars:int,
+     *   fallback_used:bool,
+     *   provider_chain:list<string>,
+     *   mode:string,
+     *   quality_flags:list<string>,
+     *   quality_retry_count:int
+     * }
      */
     private function translateChunkWithFallback(
         string $chunk,
@@ -188,16 +255,61 @@ class BotTranslationService implements BotTranslationServiceInterface
 
         foreach ($providerOrder as $index => $providerName) {
             try {
-                $client = $this->resolveClient($providerName);
-                $translated = $client->translate($chunk, $targetLang, $sourceLang);
+                $translated = $this->translateUsingProvider($providerName, $chunk, $targetLang, $sourceLang);
+                $translatedText = trim((string) ($translated['text'] ?? ''));
+                $translatedProvider = strtolower(trim((string) ($translated['provider'] ?? $providerName)));
+                $translatedModel = $this->nullableString($translated['model'] ?? null);
+                $translatedDuration = (int) ($translated['duration_ms'] ?? 0);
+                $providerChain = [$translatedProvider];
+                $mode = $translated['mode'] ?? ($translatedProvider === 'ollama' ? 'ollama_direct' : 'lt_only');
+
+                if ($providerName === 'libretranslate' && $this->shouldUsePostEdit($targetLang, $providerOrder)) {
+                    try {
+                        $postEdit = $this->ollamaTranslateClient->postEdit($chunk, $translatedText, $targetLang, $sourceLang);
+                        $postEditText = trim((string) ($postEdit['text'] ?? ''));
+                        if ($postEditText !== '') {
+                            $translatedText = $postEditText;
+                            $translatedProvider = 'ollama_postedit';
+                            $translatedModel = $this->nullableString($postEdit['model'] ?? $translatedModel);
+                            $translatedDuration += (int) ($postEdit['duration_ms'] ?? 0);
+                            $providerChain[] = 'ollama_postedit';
+                            $mode = 'lt_ollama_postedit';
+                        }
+                    } catch (Throwable $exception) {
+                        Log::warning('Bot translation post-edit skipped; Ollama unavailable.', [
+                            'provider' => 'ollama',
+                            'target_lang' => $targetLang,
+                            'error' => $this->limitText($exception->getMessage(), 240),
+                        ]);
+                    }
+                }
+
+                $quality = $this->applyQualityRetryIfNeeded(
+                    originalText: $chunk,
+                    translatedText: $translatedText,
+                    targetLang: $targetLang,
+                    sourceLang: $sourceLang,
+                    providerOrder: $providerOrder
+                );
+
+                $translatedText = $quality['text'];
+                $translatedProvider = $quality['provider'] ?? $translatedProvider;
+                $translatedModel = $quality['model'] ?? $translatedModel;
+                $translatedDuration += (int) ($quality['duration_ms'] ?? 0);
+                $providerChain = $this->mergeStringLists($providerChain, $quality['provider_chain'] ?? []);
+                $mode = $quality['mode'] ?? $mode;
 
                 return [
-                    'text' => trim((string) ($translated['text'] ?? '')),
-                    'provider' => strtolower(trim((string) ($translated['provider'] ?? $providerName))),
-                    'model' => $this->nullableString($translated['model'] ?? null),
-                    'duration_ms' => (int) ($translated['duration_ms'] ?? 0),
+                    'text' => $translatedText,
+                    'provider' => $translatedProvider,
+                    'model' => $translatedModel,
+                    'duration_ms' => $translatedDuration,
                     'chars' => (int) ($translated['chars'] ?? $this->stringLength($chunk)),
                     'fallback_used' => $index > 0,
+                    'provider_chain' => $providerChain,
+                    'mode' => $mode,
+                    'quality_flags' => $quality['quality_flags'] ?? [],
+                    'quality_retry_count' => (int) ($quality['quality_retry_count'] ?? 0),
                 ];
             } catch (TranslationClientException $exception) {
                 $errors[] = $this->formatProviderError($providerName, $exception->getMessage());
@@ -220,13 +332,297 @@ class BotTranslationService implements BotTranslationServiceInterface
         throw new BotTranslationException('Translation failed. ' . $this->limitText($errorText, 500));
     }
 
-    private function resolveClient(string $providerName): LibreTranslateClient|OllamaTranslateClient
-    {
+    /**
+     * @return array{text:string,provider:string,model:?string,duration_ms:int,chars:int,mode:string}
+     */
+    private function translateUsingProvider(
+        string $providerName,
+        string $chunk,
+        string $targetLang,
+        string $sourceLang
+    ): array {
         return match ($providerName) {
-            'libretranslate' => $this->libreTranslateClient,
-            'ollama' => $this->ollamaTranslateClient,
+            'libretranslate' => $this->libreTranslateClient->translate($chunk, $targetLang, $sourceLang) + ['mode' => 'lt_only'],
+            'ollama' => $this->ollamaTranslateClient->translateDirect($chunk, $targetLang, $sourceLang) + ['mode' => 'ollama_direct'],
             default => throw new BotTranslationException(sprintf('Unsupported translation provider "%s".', $providerName)),
         };
+    }
+
+    /**
+     * @param list<string> $providerOrder
+     * @return array{
+     *   text:string,
+     *   provider:?string,
+     *   model:?string,
+     *   duration_ms:int,
+     *   provider_chain:list<string>,
+     *   mode:?string,
+     *   quality_flags:list<string>,
+     *   quality_retry_count:int
+     * }
+     */
+    private function applyQualityRetryIfNeeded(
+        string $originalText,
+        string $translatedText,
+        string $targetLang,
+        string $sourceLang,
+        array $providerOrder
+    ): array {
+        $qualityEnabled = (bool) config('astrobot.translation.quality.enabled', true);
+        $flags = $qualityEnabled
+            ? $this->evaluateQualityFlags($originalText, $translatedText)
+            : [];
+
+        if ($flags === []) {
+            return [
+                'text' => $translatedText,
+                'provider' => null,
+                'model' => null,
+                'duration_ms' => 0,
+                'provider_chain' => [],
+                'mode' => null,
+                'quality_flags' => [],
+                'quality_retry_count' => 0,
+            ];
+        }
+
+        if (!in_array('ollama', $providerOrder, true)) {
+            return [
+                'text' => $translatedText,
+                'provider' => null,
+                'model' => null,
+                'duration_ms' => 0,
+                'provider_chain' => [],
+                'mode' => null,
+                'quality_flags' => $flags,
+                'quality_retry_count' => 0,
+            ];
+        }
+
+        $maxRetries = max(0, (int) config('astrobot.translation.quality.max_retries', 1));
+        if ($maxRetries === 0) {
+            return [
+                'text' => $translatedText,
+                'provider' => null,
+                'model' => null,
+                'duration_ms' => 0,
+                'provider_chain' => [],
+                'mode' => null,
+                'quality_flags' => $flags,
+                'quality_retry_count' => 0,
+            ];
+        }
+
+        $resultText = $translatedText;
+        $durationMs = 0;
+        $provider = null;
+        $model = null;
+        $providerChain = [];
+        $mode = null;
+        $retryCount = 0;
+
+        while ($flags !== [] && $retryCount < $maxRetries) {
+            try {
+                $retry = $this->ollamaTranslateClient->translateDirect($originalText, $targetLang, $sourceLang);
+                $retryText = trim((string) ($retry['text'] ?? ''));
+                if ($retryText === '') {
+                    break;
+                }
+
+                $resultText = $retryText;
+                $provider = 'ollama';
+                $model = $this->nullableString($retry['model'] ?? null);
+                $durationMs += (int) ($retry['duration_ms'] ?? 0);
+                $providerChain[] = 'ollama_direct';
+                $mode = 'ollama_direct';
+                $retryCount++;
+                $flags = $this->evaluateQualityFlags($originalText, $resultText);
+            } catch (Throwable $exception) {
+                Log::warning('Bot translation quality retry failed.', [
+                    'provider' => 'ollama',
+                    'target_lang' => $targetLang,
+                    'error' => $this->limitText($exception->getMessage(), 240),
+                ]);
+                break;
+            }
+        }
+
+        return [
+            'text' => $resultText,
+            'provider' => $provider,
+            'model' => $model,
+            'duration_ms' => $durationMs,
+            'provider_chain' => $providerChain,
+            'mode' => $mode,
+            'quality_flags' => $flags,
+            'quality_retry_count' => $retryCount,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function evaluateQualityFlags(string $originalText, string $translatedText): array
+    {
+        $flags = [];
+        $original = trim($originalText);
+        $translated = trim($translatedText);
+
+        if ($translated === '') {
+            $flags[] = 'empty_result';
+            return $flags;
+        }
+
+        $originalLength = max(1, $this->stringLength($original));
+        $translatedLength = $this->stringLength($translated);
+        $minLengthRatio = max(0.1, (float) config('astrobot.translation.quality.min_length_ratio', 0.70));
+        if (($translatedLength / $originalLength) < $minLengthRatio) {
+            $flags[] = 'too_short';
+        }
+
+        if ($this->normalizedForComparison($translated) === $this->normalizedForComparison($original)) {
+            $flags[] = 'identical';
+        }
+
+        $englishRatio = $this->englishTokenRatio($translated);
+        $maxEnglishRatio = max(0.0, min(1.0, (float) config('astrobot.translation.quality.max_english_ratio', 0.20)));
+        if ($englishRatio > $maxEnglishRatio) {
+            $flags[] = 'too_much_en';
+        }
+
+        return array_values(array_unique($flags));
+    }
+
+    private function normalizedForComparison(string $value): string
+    {
+        return strtolower(trim(preg_replace('/\s+/u', ' ', $value) ?? ''));
+    }
+
+    private function englishTokenRatio(string $text): float
+    {
+        $matches = [];
+        preg_match_all('/\b[\pL]{2,}\b/u', $text, $matches);
+        $tokens = $matches[0] ?? [];
+        $total = count($tokens);
+        if ($total === 0) {
+            return 0.0;
+        }
+
+        $englishCount = 0;
+        foreach ($tokens as $token) {
+            $tokenText = trim((string) $token);
+            if ($tokenText === '') {
+                continue;
+            }
+            if (!preg_match('/^[a-z]{3,}$/i', $tokenText)) {
+                continue;
+            }
+            if (strtoupper($tokenText) === $tokenText && strlen($tokenText) <= 6) {
+                continue;
+            }
+            $englishCount++;
+        }
+
+        return $englishCount / $total;
+    }
+
+    /**
+     * @param list<string> $providerOrder
+     */
+    private function shouldUsePostEdit(string $targetLang, array $providerOrder): bool
+    {
+        if (strtolower(trim($targetLang)) !== 'sk') {
+            return false;
+        }
+        if (!(bool) config('astrobot.translation.post_edit.enabled', true)) {
+            return false;
+        }
+        if (!in_array('ollama', $providerOrder, true)) {
+            return false;
+        }
+
+        $requireFallback = (bool) config('astrobot.translation.post_edit.require_ollama_fallback', true);
+        if (!$requireFallback) {
+            return true;
+        }
+
+        $configuredFallback = $this->normalizeProviderName((string) config('astrobot.translation.fallback', 'ollama'));
+        return $configuredFallback === 'ollama';
+    }
+
+    /**
+     * @return array{text:string,map:array<string,string>}
+     */
+    private function protectTermsInText(string $text): array
+    {
+        $protectedTerms = config('astrobot.translation.protected_terms', []);
+        if (!is_array($protectedTerms) || $protectedTerms === []) {
+            return ['text' => $text, 'map' => []];
+        }
+
+        $terms = array_values(array_filter(array_map(
+            static fn (mixed $term): string => trim((string) $term),
+            $protectedTerms
+        ), static fn (string $term): bool => $term !== ''));
+        if ($terms === []) {
+            return ['text' => $text, 'map' => []];
+        }
+
+        usort($terms, static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+
+        $protectedText = $text;
+        $map = [];
+        $counter = 0;
+
+        foreach ($terms as $term) {
+            $pattern = '/' . preg_quote($term, '/') . '/iu';
+            $protectedText = (string) preg_replace_callback(
+                $pattern,
+                function (array $matches) use (&$map, &$counter): string {
+                    $counter++;
+                    $placeholder = sprintf('__TERM_%d__', $counter);
+                    $map[$placeholder] = (string) ($matches[0] ?? '');
+                    return $placeholder;
+                },
+                $protectedText
+            );
+        }
+
+        return ['text' => $protectedText, 'map' => $map];
+    }
+
+    /**
+     * @param array<string,string> $map
+     */
+    private function restoreProtectedTerms(string $text, array $map): string
+    {
+        if ($map === []) {
+            return $text;
+        }
+
+        return str_replace(array_keys($map), array_values($map), $text);
+    }
+
+    private function applyTerminologyMap(string $text): string
+    {
+        $map = config('astrobot.translation.terminology_map', []);
+        if (!is_array($map) || $map === []) {
+            return $text;
+        }
+
+        $result = $text;
+        foreach ($map as $from => $to) {
+            $source = trim((string) $from);
+            $target = trim((string) $to);
+            if ($source === '' || $target === '') {
+                continue;
+            }
+
+            $pattern = '/(?<!\pL)' . preg_quote($source, '/') . '(?!\pL)/iu';
+            $result = (string) preg_replace($pattern, $target, $result);
+        }
+
+        return $result;
     }
 
     /**
@@ -469,6 +865,17 @@ class BotTranslationService implements BotTranslationServiceInterface
         return $title !== '' ? $title : ($content !== '' ? $content : 'unknown');
     }
 
+    private function resolveCombinedMode(?string $titleMode, ?string $contentMode): string
+    {
+        $title = strtolower(trim((string) $titleMode));
+        $content = strtolower(trim((string) $contentMode));
+        if ($title !== '' && $content !== '' && $title !== $content) {
+            return 'mixed';
+        }
+
+        return $title !== '' ? $title : ($content !== '' ? $content : 'unknown');
+    }
+
     /**
      * @param list<string> $providers
      */
@@ -489,6 +896,44 @@ class BotTranslationService implements BotTranslationServiceInterface
         }
 
         return 'mixed';
+    }
+
+    /**
+     * @param list<string> $modes
+     */
+    private function resolveModeFromList(array $modes): string
+    {
+        $clean = array_values(array_filter(array_map(
+            static fn (string $mode): string => strtolower(trim($mode)),
+            $modes
+        ), static fn (string $mode): bool => $mode !== ''));
+
+        if ($clean === []) {
+            return 'unknown';
+        }
+
+        $unique = array_values(array_unique($clean));
+        if (count($unique) === 1) {
+            return $unique[0];
+        }
+
+        return 'mixed';
+    }
+
+    /**
+     * @param list<string> $a
+     * @param list<string> $b
+     * @return list<string>
+     */
+    private function mergeStringLists(array $a, array $b): array
+    {
+        $merged = array_merge($a, $b);
+        $clean = array_values(array_filter(array_map(
+            static fn (mixed $value): string => strtolower(trim((string) $value)),
+            $merged
+        ), static fn (string $value): bool => $value !== ''));
+
+        return array_values(array_unique($clean));
     }
 
     private function firstNonEmptyString(array $values): ?string
@@ -515,7 +960,7 @@ class BotTranslationService implements BotTranslationServiceInterface
             return false;
         }
 
-        preg_match_all('/[áäčďéíĺľňóôŕšťúýžÁÄČĎÉÍĹĽŇÓÔŔŠŤÚÝŽ]/u', $combined, $matches);
+        preg_match_all('/[^\x00-\x7F]/u', $combined, $matches);
         $diacriticsCount = count($matches[0] ?? []);
 
         return $diacriticsCount >= 5;

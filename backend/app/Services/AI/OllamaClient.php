@@ -31,6 +31,7 @@ class OllamaClient
             'stream' => false,
             'options' => [
                 'temperature' => (float) ($options['temperature'] ?? ($config['temperature'] ?? 0.1)),
+                'top_p' => (float) ($options['top_p'] ?? ($config['top_p'] ?? 0.9)),
                 'num_predict' => (int) ($options['num_predict'] ?? ($config['num_predict'] ?? 256)),
             ],
         ];

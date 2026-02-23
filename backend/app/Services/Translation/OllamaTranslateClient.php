@@ -10,6 +10,9 @@ use Throwable;
 
 class OllamaTranslateClient implements TranslationClientInterface
 {
+    public const MODE_DIRECT_TRANSLATE = 'direct_translate';
+    public const MODE_POST_EDIT = 'post_edit';
+
     public function __construct(
         private readonly OllamaClient $ollamaClient,
     ) {
@@ -22,6 +25,60 @@ class OllamaTranslateClient implements TranslationClientInterface
 
     public function translate(string $text, string $targetLang, string $sourceLang = 'auto'): array
     {
+        return $this->translateDirect($text, $targetLang, $sourceLang);
+    }
+
+    public function translateDirect(string $text, string $targetLang, string $sourceLang = 'auto'): array
+    {
+        return $this->generate(
+            text: $text,
+            targetLang: $targetLang,
+            sourceLang: $sourceLang,
+            mode: self::MODE_DIRECT_TRANSLATE,
+        );
+    }
+
+    public function postEdit(
+        string $originalText,
+        string $draftTranslation,
+        string $targetLang,
+        string $sourceLang = 'auto'
+    ): array {
+        $normalizedOriginal = trim($originalText);
+        $normalizedDraft = trim($draftTranslation);
+        if ($normalizedOriginal === '' || $normalizedDraft === '') {
+            return [
+                'text' => $normalizedDraft,
+                'provider' => $this->provider(),
+                'model' => $this->configuredModel(),
+                'duration_ms' => 0,
+                'chars' => $this->stringLength($normalizedDraft),
+                'mode' => self::MODE_POST_EDIT,
+            ];
+        }
+
+        return $this->generate(
+            text: $normalizedDraft,
+            targetLang: $targetLang,
+            sourceLang: $sourceLang,
+            mode: self::MODE_POST_EDIT,
+            context: [
+                'original_text' => $normalizedOriginal,
+                'draft_translation' => $normalizedDraft,
+            ],
+        );
+    }
+
+    /**
+     * @param array<string,string> $context
+     */
+    private function generate(
+        string $text,
+        string $targetLang,
+        string $sourceLang,
+        string $mode,
+        array $context = []
+    ): array {
         $payloadText = trim($text);
         if ($payloadText === '') {
             return [
@@ -30,6 +87,7 @@ class OllamaTranslateClient implements TranslationClientInterface
                 'model' => $this->configuredModel(),
                 'duration_ms' => 0,
                 'chars' => 0,
+                'mode' => $mode,
             ];
         }
 
@@ -37,11 +95,12 @@ class OllamaTranslateClient implements TranslationClientInterface
 
         try {
             $response = $this->ollamaClient->generate(
-                prompt: $this->buildPrompt($payloadText, $target),
-                system: $this->buildSystemPrompt($target, $sourceLang),
+                prompt: $this->buildPrompt($payloadText, $target, $mode, $context),
+                system: $this->buildSystemPrompt($target, $sourceLang, $mode),
                 options: [
                     'model' => $this->configuredModel(),
-                    'temperature' => (float) config('astrobot.translation.ollama.temperature', config('astrobot.translation_ollama_temperature', 0.0)),
+                    'temperature' => (float) config('astrobot.translation.ollama.temperature', config('astrobot.translation_ollama_temperature', 0.15)),
+                    'top_p' => (float) config('astrobot.translation.ollama.top_p', 0.4),
                     'num_predict' => (int) config('astrobot.translation.ollama.num_predict', config('astrobot.translation_ollama_num_predict', 700)),
                     'timeout' => max(
                         1,
@@ -66,6 +125,7 @@ class OllamaTranslateClient implements TranslationClientInterface
             'model' => trim((string) ($response['model'] ?? $this->configuredModel())),
             'duration_ms' => (int) ($response['duration_ms'] ?? 0),
             'chars' => $this->stringLength($payloadText),
+            'mode' => $mode,
         ];
     }
 
@@ -74,25 +134,53 @@ class OllamaTranslateClient implements TranslationClientInterface
         return trim((string) config('astrobot.translation.ollama.model', config('astrobot.translation_ollama_model', config('ai.ollama.model', 'mistral'))));
     }
 
-    private function buildSystemPrompt(string $targetLang, string $sourceLang): string
+    private function buildSystemPrompt(string $targetLang, string $sourceLang, string $mode): string
     {
         $source = trim(strtolower($sourceLang)) !== '' && strtolower($sourceLang) !== 'auto'
             ? strtoupper(trim($sourceLang))
             : 'AUTO';
         $target = $targetLang === 'sk' ? 'Slovak' : strtoupper($targetLang);
 
+        if ($mode === self::MODE_POST_EDIT) {
+            return sprintf(
+                'You are a deterministic Slovak post-editor for astronomy content. '
+                . 'Task: improve a draft translation from %s to %s into natural standard Slovak. '
+                . 'Keep exact meaning. Do not add or remove facts. Keep URLs, numbers, units, mission names, telescope names, and organization names unchanged. '
+                . 'Output only final edited text without markdown, notes, or explanations.',
+                $source,
+                $target
+            );
+        }
+
         return sprintf(
-            'You are a precise translation engine. Translate from %s to %s. '
-            . 'Preserve meaning, names, numbers, URLs, hashtags and markdown. '
-            . 'Return only translated text.',
+            'You are a deterministic translation engine. Translate from %s to %s. '
+            . 'Keep exact meaning. Do not add or remove facts. Keep URLs, numbers, units, mission names, telescope names, and organization names unchanged. '
+            . 'Output only translated text without markdown, notes, or explanations.',
             $source,
             $target
         );
     }
 
-    private function buildPrompt(string $text, string $targetLang): string
+    /**
+     * @param array<string,string> $context
+     */
+    private function buildPrompt(string $text, string $targetLang, string $mode, array $context = []): string
     {
-        return "Translate this text to {$targetLang}:\n\n{$text}";
+        if ($mode === self::MODE_POST_EDIT) {
+            $original = trim((string) ($context['original_text'] ?? ''));
+            $draft = trim((string) ($context['draft_translation'] ?? $text));
+
+            return "POST-EDIT TASK\n"
+                . "Target language: {$targetLang}\n"
+                . "Return only edited Slovak text.\n\n"
+                . "[ORIGINAL]\n{$original}\n\n"
+                . "[DRAFT_TRANSLATION]\n{$draft}";
+        }
+
+        return "DIRECT TRANSLATE TASK\n"
+            . "Target language: {$targetLang}\n"
+            . "Return only translated text.\n\n"
+            . "[TEXT]\n{$text}";
     }
 
     private function normalizeModelOutput(string $value): string
@@ -122,4 +210,3 @@ class OllamaTranslateClient implements TranslationClientInterface
         return strlen($value);
     }
 }
-
