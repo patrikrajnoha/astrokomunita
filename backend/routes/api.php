@@ -48,6 +48,7 @@ use App\Http\Controllers\Api\Admin\AdminNewsletterController;
 use App\Http\Controllers\Api\Admin\AuthSettingsController;
 use App\Http\Controllers\Api\Admin\ContestController as AdminContestController;
 use App\Http\Controllers\Api\Admin\AdminStatsController;
+use App\Http\Controllers\Api\Admin\AdminBotController;
 use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
 use App\Http\Controllers\Api\SidebarSectionController;
 use App\Http\Controllers\Api\Admin\SidebarConfigController as AdminSidebarConfigController;
@@ -201,6 +202,8 @@ Route::get('/polls/{poll}', [PollController::class, 'show']);
 |--------------------------------------------------------------------------
 */
 Route::get('/feed', [FeedController::class, 'index']);
+Route::get('/astro-feed', [FeedController::class, 'astro']);
+Route::get('/feed/astro', [FeedController::class, 'astro']);
 Route::get('/feed/astrobot', [FeedController::class, 'astrobot']);
 
 // Tag suggestions for autocomplete
@@ -449,6 +452,13 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
             Route::post('/rss-items/retranslate-pending', [AstroBotController::class, 'retranslatePending']);
             Route::post('/sync', [AstroBotController::class, 'syncRss'])->middleware('throttle:astrobot-sync');
             Route::post('/rss/refresh', [AstroBotController::class, 'refreshRss'])->middleware('throttle:astrobot-sync');
+        });
+
+        Route::prefix('bots')->group(function () {
+            Route::get('/sources', [AdminBotController::class, 'sources']);
+            Route::get('/runs', [AdminBotController::class, 'runs']);
+            Route::get('/items', [AdminBotController::class, 'items']);
+            Route::post('/run/{sourceKey}', [AdminBotController::class, 'run']);
         });
     });
 
