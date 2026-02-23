@@ -69,6 +69,8 @@ import MainNavbar from '@/components/MainNavbar.vue'
   background: rgb(var(--color-bg-rgb) / 0.72);
   box-shadow: 0 20px 38px rgb(0 0 0 / 0.2);
   backdrop-filter: blur(6px);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .adminHub__subNav {
@@ -110,6 +112,79 @@ import MainNavbar from '@/components/MainNavbar.vue'
 
   .adminHub__contentCard {
     border-radius: 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  .adminHub {
+    gap: 10px;
+  }
+
+  .adminHub__bg {
+    inset: -4px -6px;
+    border-radius: 14px;
+  }
+
+  .adminHub__subNav--mobile {
+    position: sticky;
+    top: 58px;
+    z-index: 8;
+  }
+
+  :deep(.adminPageShell) {
+    padding: 14px 10px;
+  }
+
+  :deep(.adminPageShell__title) {
+    font-size: 1.35rem;
+  }
+
+  :deep(.adminPageShell__subtitle) {
+    font-size: 13px;
+  }
+
+  :deep(.adminToolbar) {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  :deep(.adminToolbar__slot) {
+    min-width: 0;
+    width: 100%;
+  }
+
+  :deep(.adminToolbar input),
+  :deep(.adminToolbar select),
+  :deep(.adminToolbar button) {
+    min-height: 40px;
+  }
+
+  :deep(.adminPagination) {
+    display: grid;
+    gap: 8px;
+  }
+
+  :deep(.adminPagination__controls) {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  :deep(.adminPagination__btn) {
+    min-height: 40px;
+  }
+
+  :deep(.adminTableWrap) {
+    border-radius: 10px;
+  }
+
+  :deep(.adminTable) {
+    min-width: 640px;
+  }
+
+  :deep(.adminTable__head),
+  :deep(.adminTable__cell) {
+    padding: 10px;
   }
 }
 </style>

@@ -1,5 +1,8 @@
 <template>
-  <div class="min-h-screen bg-[var(--color-bg)] text-[var(--color-surface)]">
+  <div
+    class="min-h-screen bg-[var(--color-bg)] text-[var(--color-surface)]"
+    style="--mobile-bottom-nav-offset: 74px;"
+  >
     <header
       class="sticky top-0 z-40 flex items-center justify-between border-b border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.85)] px-4 py-3 backdrop-blur md:hidden"
     >
@@ -47,7 +50,12 @@
       </nav>
     </aside>
 
-    <div class="md:pl-64 xl:pl-0">
+    <div
+      :class="[
+        showMobileBottomNav ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-0',
+        'md:pb-0 md:pl-64 xl:pl-0',
+      ]"
+    >
       <div
         v-if="showAuthFallbackBanner || showAuthBannedBanner"
         class="authFallbackBanner"
@@ -107,6 +115,33 @@
         </aside>
       </div>
     </div>
+
+    <nav
+      v-if="showMobileBottomNav"
+      class="mobileBottomNav md:hidden"
+      aria-label="Mobile bottom navigation"
+    >
+      <RouterLink
+        v-for="item in mobileBottomLinks"
+        :key="item.to"
+        :to="item.to"
+        class="mobileBottomNav__item"
+        :class="{ 'is-active': isMobileBottomActive(item) }"
+      >
+        <span class="mobileBottomNav__icon" aria-hidden="true">{{ item.icon }}</span>
+        <span class="mobileBottomNav__label">{{ item.label }}</span>
+      </RouterLink>
+
+      <button
+        type="button"
+        class="mobileBottomNav__item"
+        aria-label="Open menu"
+        @click="openDrawer"
+      >
+        <span class="mobileBottomNav__icon" aria-hidden="true">☰</span>
+        <span class="mobileBottomNav__label">Menu</span>
+      </button>
+    </nav>
 
     <MobileFab
       v-if="auth.isAuthed && !isDrawerOpen && !isComposerOpen && !isWidgetMenuOpen && !isWidgetSheetOpen"
@@ -468,6 +503,7 @@ const mobileSidebarSections = ref([])
 const deferredInstallPrompt = ref(null)
 const canInstall = ref(false)
 const isMobileViewport = ref(false)
+const isCoarsePointer = ref(false)
 const widgetSheetOffsetY = ref(0)
 const widgetMenuOffsetY = ref(0)
 const touchStartY = ref(0)
@@ -482,6 +518,22 @@ const isCalendarPopupVisible = ref(false)
 const calendarPopupPayload = ref(null)
 const calendarPopupAckInFlight = ref(false)
 const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
+const showMobileBottomNav = computed(() => isMobileViewport.value && isCoarsePointer.value)
+const mobileBottomLinks = computed(() => {
+  const links = [
+    { to: '/', label: 'Domov', icon: 'D' },
+    { to: '/search', label: 'Hľadať', icon: 'H' },
+    { to: '/events', label: 'Udalosti', icon: 'U', matchPrefix: '/events' },
+    { to: '/clanky', label: 'Články', icon: 'Č', matchPrefix: '/clanky' },
+    { to: '/notifications', label: 'Notifikácie', icon: 'N' },
+  ]
+
+  if (auth.isAdmin) {
+    links[4] = { to: '/admin/dashboard', label: 'Admin', icon: 'A', matchPrefix: '/admin' }
+  }
+
+  return links
+})
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
@@ -647,6 +699,12 @@ const localIsoDate = (date) => {
 const openDrawer = () => {
   closeComposerModal()
   isDrawerOpen.value = true
+}
+
+const isMobileBottomActive = (item) => {
+  if (!item?.to) return false
+  if (item.matchPrefix) return route.path.startsWith(item.matchPrefix)
+  return route.path === item.to
 }
 
 const closeDrawer = () => {
@@ -863,10 +921,12 @@ const warmSidebarConfig = async () => {
 const updateViewportState = () => {
   if (typeof window === 'undefined') {
     isMobileViewport.value = false
+    isCoarsePointer.value = false
     return
   }
 
   isMobileViewport.value = window.matchMedia('(max-width: 767px)').matches
+  isCoarsePointer.value = window.matchMedia('(hover: none) and (pointer: coarse)').matches
 }
 
 const onSheetTouchStart = (event, mode) => {
@@ -1085,6 +1145,56 @@ onBeforeUnmount(() => {
   padding: 0.55rem 0.9rem;
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.mobileBottomNav {
+  position: fixed;
+  left: 0.65rem;
+  right: 0.65rem;
+  bottom: max(0.65rem, env(safe-area-inset-bottom));
+  z-index: 65;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.35rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
+  border-radius: 1rem;
+  background: rgb(var(--color-bg-rgb) / 0.94);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 16px 38px rgb(0 0 0 / 0.4);
+  padding: 0.4rem;
+}
+
+.mobileBottomNav__item {
+  min-height: 3.1rem;
+  border-radius: 0.8rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  text-decoration: none;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.15rem;
+  padding: 0.2rem 0.15rem;
+}
+
+.mobileBottomNav__item.is-active {
+  border-color: rgb(var(--color-primary-rgb) / 0.5);
+  background: rgb(var(--color-primary-rgb) / 0.18);
+  color: var(--color-surface);
+}
+
+.mobileBottomNav__icon {
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mobileBottomNav__label {
+  font-size: 0.61rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
 }
 
 .authFallbackBanner {
