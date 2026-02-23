@@ -452,7 +452,6 @@ const BOOKMARK_TABS = [
 ]
 const BOT_CONTENT_PREVIEW_LIMIT = 800
 const HOME_FEED_TAB_STORAGE_KEY = 'astrokomunita.feed.activeTab'
-const URL_PATTERN = /https?:\/\/[^\s<>"')\]]+/i
 const isBookmarksMode = computed(() => props.mode === 'bookmarks')
 const tabs = computed(() => (isBookmarksMode.value ? BOOKMARK_TABS : HOME_TABS))
 
@@ -559,26 +558,12 @@ function botBadgeLabel(post) {
 
 function botSourceLabel(post) {
   if (!isBotPost(post)) return ''
-
-  const identity = botIdentity(post)
-  const content = String(post?.content || '')
-  const wikiContent = /wikipedia|on this day/i.test(content)
-
-  if (identity === 'stela') return 'NASA APOD'
-  if (identity === 'kozmo' && wikiContent) return 'Wikipedia'
-  if (wikiContent) return 'Wikipedia'
-
-  return 'NASA RSS'
+  const sourceLabel = String(post?.meta?.bot_source_label || '').trim()
+  return sourceLabel || 'Bot'
 }
 
 function sourceAttributionLabel(post) {
-  return botSourceLabel(post) === 'Wikipedia' ? 'Wikipedia' : 'NASA'
-}
-
-function extractFirstUrl(text) {
-  const match = String(text || '').match(URL_PATTERN)
-  if (!match?.[0]) return ''
-  return match[0].replace(/[),.;!?]+$/, '')
+  return botSourceLabel(post)
 }
 
 function absoluteUrl(url) {
@@ -595,7 +580,7 @@ function absoluteUrl(url) {
 }
 
 function sourceLink(post) {
-  const candidate = post?.source_url || post?.url || extractFirstUrl(post?.content)
+  const candidate = post?.meta?.source_url
   return absoluteUrl(candidate)
 }
 

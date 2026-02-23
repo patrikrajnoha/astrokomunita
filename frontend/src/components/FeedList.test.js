@@ -154,7 +154,7 @@ describe('FeedList tabs', () => {
     expect(wrapper.find('.action-btn--bookmark').classes()).toContain('action-btn--bookmarked')
   })
 
-  it('renders bot badge, source label and source link', async () => {
+  it('renders bot source label and source link from post meta only', async () => {
     window.localStorage.setItem(STORAGE_KEY, 'astrobot')
 
     api.get.mockImplementationOnce(() =>
@@ -165,7 +165,11 @@ describe('FeedList tabs', () => {
               id: 301,
               author_kind: 'bot',
               bot_identity: 'kozmo',
-              content: 'Wikipedia On This Day item https://en.wikipedia.org/wiki/Moon',
+              content: 'Any body text',
+              meta: {
+                bot_source_label: 'Wikipedia On This Day',
+                source_url: 'https://en.wikipedia.org/wiki/Moon',
+              },
               user: { username: 'kozmo', name: 'Kozmo' },
             },
           ],
@@ -178,11 +182,39 @@ describe('FeedList tabs', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Kozmo')
-    expect(wrapper.text()).toContain('Wikipedia')
-    expect(wrapper.text()).toContain('Zdroj: Wikipedia')
+    expect(wrapper.text()).toContain('Wikipedia On This Day')
+    expect(wrapper.text()).toContain('Zdroj: Wikipedia On This Day')
     expect(wrapper.find('.source-link').attributes('href')).toBe(
       'https://en.wikipedia.org/wiki/Moon',
     )
+  })
+
+  it('falls back to generic Bot label for legacy posts without meta', async () => {
+    window.localStorage.setItem(STORAGE_KEY, 'astrobot')
+
+    api.get.mockImplementationOnce(() =>
+      Promise.resolve({
+        data: {
+          data: [
+            {
+              id: 303,
+              author_kind: 'bot',
+              bot_identity: 'kozmo',
+              content: 'Wikipedia https://en.wikipedia.org/wiki/Moon',
+              user: { username: 'kozmo', name: 'Kozmo' },
+            },
+          ],
+          next_page_url: null,
+        },
+      }),
+    )
+
+    const wrapper = mountFeed()
+    await flushPromises()
+
+    expect(wrapper.find('.bot-source-label').text()).toBe('Bot')
+    expect(wrapper.find('.source-attribution').text()).toBe('Zdroj: Bot')
+    expect(wrapper.find('.source-link').exists()).toBe(false)
   })
 
   it('collapses long bot content and toggles show-more state', async () => {
