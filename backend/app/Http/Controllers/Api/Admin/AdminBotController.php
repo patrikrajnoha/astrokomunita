@@ -10,6 +10,7 @@ use App\Services\Bots\BotRunner;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class AdminBotController extends Controller
@@ -95,7 +96,7 @@ class AdminBotController extends Controller
         return response()->json($paginator);
     }
 
-    public function run(string $sourceKey): JsonResponse
+    public function run(Request $request, string $sourceKey): JsonResponse
     {
         $normalizedSourceKey = strtolower(trim($sourceKey));
 
@@ -115,7 +116,23 @@ class AdminBotController extends Controller
             ], 422);
         }
 
-        $run = $this->runner->run($source);
+        $throttleSeconds = 120;
+        $throttleKey = sprintf('bots:throttle:manual:%s', $normalizedSourceKey);
+        $throttleExpiresAt = now()->addSeconds($throttleSeconds)->timestamp;
+        if (!Cache::add($throttleKey, $throttleExpiresAt, $throttleSeconds)) {
+            $retryAfter = max(1, (int) Cache::get($throttleKey, 0) - now()->timestamp);
+
+            return response()->json([
+                'message' => sprintf('Manual run for "%s" is temporarily throttled.', $normalizedSourceKey),
+                'retry_after' => $retryAfter,
+            ], 429);
+        }
+
+        $run = $this->runner->run(
+            $source,
+            'manual',
+            $request->boolean('force_manual_override')
+        );
 
         return response()->json([
             'run_id' => $run->id,
