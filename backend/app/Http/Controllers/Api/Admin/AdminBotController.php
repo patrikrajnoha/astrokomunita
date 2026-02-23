@@ -286,10 +286,20 @@ class AdminBotController extends Controller
             'latency_ms' => $durationMs,
             'status' => strtolower(trim((string) ($result['status'] ?? 'done'))),
             'translated_text' => $translatedText !== '' ? $translatedText : null,
+            'mode' => $this->nullableString(data_get($meta, 'mode')),
+            'quality_flags' => array_values(array_filter(
+                array_map('strval', (array) data_get($meta, 'quality_flags', [])),
+                static fn (string $flag): bool => trim($flag) !== ''
+            )),
+            'provider_chain' => array_values(array_filter(
+                array_map('strval', (array) data_get($meta, 'provider_chain', [])),
+                static fn (string $providerName): bool => trim($providerName) !== ''
+            )),
             'meta' => [
                 'target_lang' => strtolower(trim((string) data_get($meta, 'target_lang', 'sk'))),
                 'model' => $this->nullableString(data_get($meta, 'model')),
                 'fallback_used' => (bool) data_get($meta, 'fallback_used', false),
+                'quality_retry_count' => (int) data_get($meta, 'quality_retry_count', 0),
             ],
         ]);
     }
