@@ -69,6 +69,24 @@ export function retryBotTranslation(sourceKey, payload = {}) {
   })
 }
 
+export function backfillBotTranslation(sourceKey, payload = {}) {
+  const params = {}
+  const limit = Number(payload?.limit)
+  if (Number.isInteger(limit) && limit > 0) {
+    params.limit = limit
+  }
+
+  const runId = Number(payload?.run_id)
+  if (Number.isInteger(runId) && runId > 0) {
+    params.run_id = runId
+  }
+
+  return api.post(`/admin/bots/translation/backfill/${encodeURIComponent(sourceKey)}`, null, {
+    params,
+    meta: { skipErrorToast: true },
+  })
+}
+
 export function publishBotItem(botItemId, payload = {}) {
   return api.post(`/admin/bots/items/${encodeURIComponent(botItemId)}/publish`, payload, {
     meta: { skipErrorToast: true },
