@@ -53,6 +53,14 @@ class RunBotSourceCommandTest extends TestCase
                 ->where('bot_identity', 'kozmo')
                 ->count()
         );
+
+        $post = Post::query()->latest('id')->firstOrFail();
+        $this->assertSame('kozmo', (string) data_get($post->meta, 'bot_identity'));
+        $this->assertSame('nasa_rss_breaking', (string) data_get($post->meta, 'bot_source_key'));
+        $this->assertSame('NASA RSS', (string) data_get($post->meta, 'bot_source_label'));
+        $this->assertNotSame('', (string) data_get($post->meta, 'source_url'));
+        $this->assertSame('bot-engine', (string) data_get($post->meta, 'published_by'));
+        $this->assertNotSame('', (string) data_get($post->meta, 'published_at_utc'));
     }
 
     public function test_second_run_is_idempotent_for_items_and_posts(): void
@@ -124,6 +132,9 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertNotNull($post->attachment_path);
         $this->assertStringContainsString('APOD Test Title', (string) $post->content);
         $this->assertStringContainsString('Attribution: NASA APOD | 2026-02-20 | Credit: NASA/ESA', (string) $post->content);
+        $this->assertSame('stela', (string) data_get($post->meta, 'bot_identity'));
+        $this->assertSame('nasa_apod_daily', (string) data_get($post->meta, 'bot_source_key'));
+        $this->assertNotSame('', (string) data_get($post->meta, 'source_url'));
 
         $run = BotRun::query()->latest('id')->firstOrFail();
         $this->assertSame(1, (int) ($run->stats['published_count'] ?? 0));
