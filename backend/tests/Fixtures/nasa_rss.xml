@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>NASA News Releases</title>
+    <link>https://www.nasa.gov/news-release/</link>
+    <description>NASA official news</description>
+    <item>
+      <title>NASA Discovers Something New</title>
+      <link>https://www.nasa.gov/news-release/discovery-one/</link>
+      <guid isPermaLink="false">nasa-guid-1</guid>
+      <pubDate>Mon, 16 Feb 2026 12:00:00 GMT</pubDate>
+      <description><![CDATA[<p>First summary from NASA.</p>]]></description>
+    </item>
+    <item>
+      <title>Mission Update Two</title>
+      <link>https://www.nasa.gov/news-release/mission-two/</link>
+      <pubDate>Tue, 17 Feb 2026 09:30:00 GMT</pubDate>
+      <description><![CDATA[<p>Second summary from NASA.</p>]]></description>
+    </item>
+  </channel>
+</rss>
