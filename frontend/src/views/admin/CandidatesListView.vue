@@ -1,11 +1,13 @@
 <script setup>
-import { onMounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { computed, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import api from "@/services/api";
 import { eventCandidates } from "@/services/eventCandidates";
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { candidateDisplayShort, candidateDisplayTitle } from '@/utils/translatedFields'
 
+const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm()
 const toast = useToast()
@@ -44,7 +46,64 @@ const manualForm = ref({
   ends_at: "",
 });
 
+const runFilter = computed(() => {
+  const runId = Number(route.query?.run_id);
+  if (!Number.isFinite(runId) || runId <= 0) {
+    return null;
+  }
+
+  const sourceKey = String(route.query?.source_key || route.query?.source || "")
+    .trim()
+    .toLowerCase();
+
+  const yearValue = Number(route.query?.year);
+  const year = Number.isFinite(yearValue) && yearValue >= 2000 ? yearValue : null;
+
+  return {
+    runId,
+    sourceKey,
+    year,
+  };
+});
+
 // --- helpers ---
+function normalizeTranslationStatus(value) {
+  const statusValue = String(value || "").trim().toLowerCase();
+  if (statusValue === "done" || statusValue === "translated") return "Translated";
+  if (statusValue === "failed" || statusValue === "error") return "Failed";
+  return "Pending";
+}
+
+function translationStatusStyle(value) {
+  const normalized = normalizeTranslationStatus(value);
+  if (normalized === "Translated") {
+    return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(22,163,74,.35); background:rgba(22,163,74,.12); font-size:12px;";
+  }
+  if (normalized === "Failed") {
+    return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(239,68,68,.35); background:rgba(239,68,68,.12); font-size:12px;";
+  }
+  return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(245,158,11,.35); background:rgba(245,158,11,.12); font-size:12px;";
+}
+
+function applyRunFilterFromRoute() {
+  if (!runFilter.value) return;
+
+  if (runFilter.value.sourceKey) {
+    source.value = runFilter.value.sourceKey;
+  }
+  status.value = "pending";
+  page.value = 1;
+}
+
+function clearRunFilter() {
+  const query = { ...route.query };
+  delete query.run_id;
+  delete query.source_key;
+  delete query.source;
+  delete query.year;
+  router.replace({ query });
+}
+
 function formatDate(value) {
   if (!value) return "-";
   const d = new Date(value);
@@ -52,8 +111,49 @@ function formatDate(value) {
   return d.toLocaleString("sk-SK", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function formatConfidence(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) return "-";
+  return numeric.toFixed(2);
+}
+
+function normalizeSources(values) {
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((item) => String(item || "").trim().toLowerCase())
+    .filter((item) => item.length > 0);
+}
+
+function sourceLabel(source) {
+  const key = String(source || "").toLowerCase();
+  if (key === "astropixels") return "AstroPixels";
+  if (key === "imo") return "IMO";
+  if (key === "nasa_watch_the_skies") return "NASA WTS";
+  if (key === "nasa") return "NASA";
+  return key || "-";
+}
+
+function sourceBadgeStyle(source) {
+  const key = String(source || "").toLowerCase();
+  if (key === "astropixels") {
+    return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(30,64,175,.35); background:rgba(30,64,175,.12); font-size:12px;";
+  }
+  if (key === "imo") {
+    return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(6,95,70,.35); background:rgba(6,95,70,.12); font-size:12px;";
+  }
+  if (key === "nasa") {
+    return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(107,33,168,.35); background:rgba(107,33,168,.12); font-size:12px;";
+  }
+  return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:rgb(var(--color-surface-rgb) / .08); font-size:12px;";
+}
+
 function openCandidate(id) {
   router.push(`/admin/candidates/${id}`);
+}
+
+function openCrawlingHub() {
+  router.push('/admin/event-sources');
 }
 
 function resetToFirstPage() {
@@ -61,10 +161,14 @@ function resetToFirstPage() {
 }
 
 function buildParams() {
+  const sourceValue = source.value?.trim() ? source.value.trim() : undefined;
+
   return {
     status: status.value || undefined,
     type: type.value || undefined,
-    source: source.value?.trim() ? source.value.trim() : undefined,
+    source: sourceValue,
+    source_key: sourceValue,
+    run_id: runFilter.value?.runId ? Number(runFilter.value.runId) : undefined,
     q: q.value?.trim() ? q.value.trim() : undefined,
     page: page.value,
     per_page: per_page.value,
@@ -306,7 +410,20 @@ function setTab(tab) {
   if (tab === "manual" && !manualData.value) loadManual();
 }
 
-onMounted(load);
+watch(
+  () => route.query,
+  () => {
+    if (activeTab.value !== "crawled") return;
+    applyRunFilterFromRoute();
+    load();
+  },
+  { deep: true }
+);
+
+onMounted(() => {
+  applyRunFilterFromRoute();
+  load();
+});
 </script>
 
 <template>
@@ -317,6 +434,13 @@ onMounted(load);
       </div>
 
       <div style="display:flex; gap:10px;">
+        <button
+          @click="openCrawlingHub"
+          :disabled="loading || manualLoading"
+          style="padding:8px 12px; border:1px solid rgb(var(--color-primary-rgb) / .35); border-radius:8px; background:rgb(var(--color-primary-rgb) / .12); color:inherit;"
+        >
+          Crawling hub
+        </button>
         <button
           @click="setTab('crawled')"
           :disabled="loading || manualLoading"
@@ -339,6 +463,22 @@ onMounted(load);
     </div>
 
     <div v-if="activeTab === 'crawled'">
+      <div
+        v-if="runFilter"
+        style="margin-top: 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;"
+      >
+        <span style="display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; border:1px solid rgb(var(--color-primary-rgb) / .35); background:rgb(var(--color-primary-rgb) / .12); font-size:12px;">
+          Run #{{ runFilter.runId }} / {{ sourceLabel(runFilter.sourceKey || '-') }}<span v-if="runFilter.year"> / {{ runFilter.year }}</span>
+        </span>
+        <button
+          type="button"
+          @click="clearRunFilter"
+          style="padding:6px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
+        >
+          Clear run filter
+        </button>
+      </div>
+
       <div style="display:flex; justify-content:flex-end; margin-top: 12px;">
         <button
           @click="clearFilters"
@@ -460,8 +600,11 @@ onMounted(load);
               <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Type</th>
               <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Title</th>
               <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Source</th>
+              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Confidence</th>
+              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Matched sources</th>
               <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Start</th>
               <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Status</th>
+              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Translation</th>
               <th style="text-align:right; padding:12px; font-size:12px; opacity:.85;">Action</th>
             </tr>
           </thead>
@@ -475,14 +618,34 @@ onMounted(load);
               <td style="padding:12px; white-space:nowrap;">{{ c.id }}</td>
               <td style="padding:12px; white-space:nowrap;">{{ c.type }}</td>
               <td style="padding:12px;">
-                <div style="font-weight:600;">{{ c.title }}</div>
-                <div v-if="c.short" style="opacity:.75; font-size:12px; margin-top:4px;">
-                  {{ c.short }}
+                <div style="font-weight:600;">{{ candidateDisplayTitle(c) }}</div>
+                <div v-if="candidateDisplayShort(c) && candidateDisplayShort(c) !== '-'" style="opacity:.75; font-size:12px; margin-top:4px;">
+                  {{ candidateDisplayShort(c) }}
                 </div>
               </td>
-              <td style="padding:12px; white-space:nowrap;">{{ c.source_name }}</td>
+              <td style="padding:12px; white-space:nowrap;">
+                <span :style="sourceBadgeStyle(c.source_name)">{{ sourceLabel(c.source_name) }}</span>
+              </td>
+              <td style="padding:12px; white-space:nowrap;">{{ formatConfidence(c.confidence_score) }}</td>
+              <td style="padding:12px;">
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                  <span
+                    v-for="src in normalizeSources(c.matched_sources)"
+                    :key="`matched-${c.id}-${src}`"
+                    :style="sourceBadgeStyle(src)"
+                  >
+                    {{ sourceLabel(src) }}
+                  </span>
+                  <span v-if="normalizeSources(c.matched_sources).length === 0" style="opacity:.75;">-</span>
+                </div>
+              </td>
               <td style="padding:12px; white-space:nowrap;">{{ formatDate(c.start_at) }}</td>
               <td style="padding:12px; white-space:nowrap;">{{ c.status }}</td>
+              <td style="padding:12px; white-space:nowrap;">
+                <span :style="translationStatusStyle(c.translation_status)">
+                  {{ normalizeTranslationStatus(c.translation_status) }}
+                </span>
+              </td>
               <td style="padding:12px; text-align:right;">
                 <button
                   @click="openCandidate(c.id)"
@@ -494,7 +657,7 @@ onMounted(load);
             </tr>
 
             <tr v-if="data.data.length === 0">
-              <td colspan="7" style="padding:0;"></td>
+              <td colspan="10" style="padding:0;"></td>
             </tr>
           </tbody>
         </table>

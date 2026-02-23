@@ -5,7 +5,7 @@
         v-if="heroImage"
         class="hero-image"
         :src="heroImage"
-        :alt="event?.title ? `Obrazok udalosti ${event.title}` : 'Obrazok udalosti'"
+        :alt="title !== '-' ? `Obrazok udalosti ${title}` : 'Obrazok udalosti'"
         loading="lazy"
         decoding="async"
       />
@@ -14,7 +14,7 @@
     </div>
 
     <div class="card-body">
-      <h2 class="title">{{ event?.title || 'Bez nazvu' }}</h2>
+      <h2 class="title">{{ title !== '-' ? title : 'Bez nazvu' }}</h2>
       <p class="meta-row">{{ formattedTime }}</p>
       <p class="visibility-row" :aria-label="`Viditelnost zo Slovenska: ${visibilityText || 'neznamy stav'}`">
         {{ `${SK_FLAG} ${visibilityIcon}` }}
@@ -48,6 +48,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { eventDisplayDescription, eventDisplayTitle } from '@/utils/translatedFields'
 
 const props = defineProps({
   event: {
@@ -77,7 +78,11 @@ defineEmits(['toggle-bio', 'open-sheet'])
 const SK_FLAG = '\ud83c\uddf8\ud83c\uddf0'
 const BIO_ID = 'event-bio'
 
-const description = computed(() => props.event?.description || props.event?.short || 'Bez popisu.')
+const title = computed(() => eventDisplayTitle(props.event))
+const description = computed(() => {
+  const value = eventDisplayDescription(props.event)
+  return value === '-' ? 'Bez popisu.' : value
+})
 const heroImage = computed(
   () => props.event?.image || props.event?.image_url || props.event?.hero_image || props.event?.cover_image_url || ''
 )

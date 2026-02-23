@@ -6,6 +6,8 @@ use App\Jobs\TranslateEventCandidateJob;
 use App\Models\EventCandidate;
 use App\Services\Crawlers\CandidateItem;
 use App\Services\EventImport\Parsers\EventSourceParser;
+use App\Services\Events\CanonicalKeyService;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -15,6 +17,7 @@ class EventImportService
     public function __construct(
         private HtmlSourceFetcher $fetcher,
         private EventTypeClassifier $typeClassifier,
+        private CanonicalKeyService $canonicalKeyService,
     ) {
     }
 
@@ -82,6 +85,22 @@ class EventImportService
                 $maxAt
             );
 
+            $canonicalKey = $this->resolveCanonicalKey(
+                providedCanonicalKey: $item->canonicalKey,
+                normalizedType: $normalizedType ?: 'other',
+                startAt: $startAt,
+                title: $title
+            );
+            $matchedSources = $this->collectCanonicalMatchedSources(
+                canonicalKey: $canonicalKey,
+                currentSourceName: $sourceName,
+                incomingMatchedSources: $item->matchedSources
+            );
+            $confidenceScore = $this->resolveDeterministicConfidenceScore(
+                canonicalKey: $canonicalKey,
+                matchedSources: $matchedSources
+            );
+
             $payloadString = json_encode($item->rawPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
             $sourceHash = $this->buildSourceHash($sourceName, $sourceUid, $payloadString);
 
@@ -92,9 +111,9 @@ class EventImportService
                 'source_uid' => $sourceUid,
                 'external_id' => $sourceUid,
                 'stable_key' => $sourceUid,
-                'confidence_score' => $item->confidenceScore,
-                'canonical_key' => $this->normalizeText($item->canonicalKey),
-                'matched_sources' => $this->normalizeMatchedSources($item->matchedSources),
+                'confidence_score' => $confidenceScore,
+                'canonical_key' => $canonicalKey,
+                'matched_sources' => $matchedSources,
                 'source_hash' => $sourceHash,
 
                 'title' => $title,
@@ -130,6 +149,11 @@ class EventImportService
                 if (!$dryRun) {
                     $candidate = EventCandidate::create($attributes);
                     $candidateId = (int) $candidate->id;
+                    $this->syncCanonicalSignals(
+                        canonicalKey: $canonicalKey,
+                        matchedSources: $matchedSources,
+                        confidenceScore: $confidenceScore
+                    );
                 }
                 $imported++;
                 if ($candidateId !== null) {
@@ -151,6 +175,11 @@ class EventImportService
             if (!$dryRun) {
                 $existing->fill($attributes);
                 $existing->save();
+                $this->syncCanonicalSignals(
+                    canonicalKey: $canonicalKey,
+                    matchedSources: $matchedSources,
+                    confidenceScore: $confidenceScore
+                );
                 $this->dispatchCandidateTranslation((int) $existing->id, $sourceName);
             }
 
@@ -227,6 +256,9 @@ class EventImportService
             'source_uid',
             'external_id',
             'stable_key',
+            'confidence_score',
+            'canonical_key',
+            'matched_sources',
             'source_hash',
             'title',
             'raw_type',
@@ -240,8 +272,8 @@ class EventImportService
         ];
 
         foreach ($fields as $field) {
-            $current = $this->normalizeComparableValue($candidate->getAttribute($field));
-            $incoming = $this->normalizeComparableValue($attributes[$field] ?? null);
+            $current = $this->normalizeComparableValue($candidate->getAttribute($field), $field);
+            $incoming = $this->normalizeComparableValue($attributes[$field] ?? null, $field);
             if ($current !== $incoming) {
                 return true;
             }
@@ -250,14 +282,29 @@ class EventImportService
         return false;
     }
 
-    private function normalizeComparableValue(mixed $value): ?string
+    private function normalizeComparableValue(mixed $value, ?string $field = null): ?string
     {
         if ($value === null) {
             return null;
         }
 
+        if ($field === 'confidence_score') {
+            return number_format((float) $value, 2, '.', '');
+        }
+
         if ($value instanceof \DateTimeInterface) {
             return $value->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+        }
+
+        if (is_array($value)) {
+            $normalized = array_values(array_filter(array_map(
+                static fn (mixed $item): string => strtolower(trim((string) $item)),
+                $value
+            ), static fn (string $item): bool => $item !== ''));
+            sort($normalized);
+
+            $json = json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return $json !== false ? $json : null;
         }
 
         return trim((string) $value);
@@ -319,11 +366,90 @@ class EventImportService
             return false;
         }
 
-        if (! (bool) config('translation.allow_sync_queue', false) && config('queue.default') === 'sync') {
-            return false;
+        return true;
+    }
+
+    private function resolveCanonicalKey(
+        ?string $providedCanonicalKey,
+        string $normalizedType,
+        ?\DateTimeInterface $startAt,
+        string $title
+    ): ?string {
+        $canonicalKey = $this->normalizeText($providedCanonicalKey);
+        if ($canonicalKey !== null) {
+            return $canonicalKey;
         }
 
-        return true;
+        $generated = $this->canonicalKeyService->make(
+            type: $normalizedType,
+            date: $startAt ? CarbonImmutable::instance($startAt)->utc() : null,
+            title: $title
+        );
+
+        return $this->normalizeText($generated);
+    }
+
+    /**
+     * @param array<int,mixed>|null $incomingMatchedSources
+     * @return array<int,string>|null
+     */
+    private function collectCanonicalMatchedSources(
+        ?string $canonicalKey,
+        string $currentSourceName,
+        ?array $incomingMatchedSources
+    ): ?array {
+        $sources = [$currentSourceName];
+
+        if ($incomingMatchedSources !== null) {
+            $sources = array_merge($sources, $incomingMatchedSources);
+        }
+
+        if ($canonicalKey !== null && $canonicalKey !== '') {
+            $existing = EventCandidate::query()
+                ->where('canonical_key', $canonicalKey)
+                ->get(['source_name', 'matched_sources']);
+
+            foreach ($existing as $row) {
+                $sources[] = (string) $row->source_name;
+
+                $matched = $row->matched_sources;
+                if (is_array($matched)) {
+                    $sources = array_merge($sources, $matched);
+                }
+            }
+        }
+
+        return $this->normalizeMatchedSources($sources);
+    }
+
+    /**
+     * @param array<int,string>|null $matchedSources
+     */
+    private function resolveDeterministicConfidenceScore(?string $canonicalKey, ?array $matchedSources): ?float
+    {
+        if ($canonicalKey === null || $canonicalKey === '') {
+            return null;
+        }
+
+        $count = is_array($matchedSources) ? count($matchedSources) : 0;
+        return $count >= 2 ? 1.0 : 0.7;
+    }
+
+    /**
+     * @param array<int,string>|null $matchedSources
+     */
+    private function syncCanonicalSignals(?string $canonicalKey, ?array $matchedSources, ?float $confidenceScore): void
+    {
+        if ($canonicalKey === null || $canonicalKey === '') {
+            return;
+        }
+
+        EventCandidate::query()
+            ->where('canonical_key', $canonicalKey)
+            ->update([
+                'matched_sources' => $matchedSources,
+                'confidence_score' => $confidenceScore,
+            ]);
     }
 
     /**

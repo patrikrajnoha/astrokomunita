@@ -14,14 +14,14 @@
       <div v-if="currentEvent" class="deck-shell">
         <div v-if="thirdCard" class="stack-card stack-3" aria-hidden="true">
           <div class="stack-preview">
-            <p class="stack-title">{{ thirdCard.title }}</p>
+            <p class="stack-title">{{ displayEventTitle(thirdCard) }}</p>
             <p class="stack-time">{{ formatDateRange(thirdCard) }}</p>
           </div>
         </div>
 
         <div v-if="secondCard" class="stack-card stack-2" aria-hidden="true">
           <div class="stack-preview">
-            <p class="stack-title">{{ secondCard.title }}</p>
+            <p class="stack-title">{{ displayEventTitle(secondCard) }}</p>
             <p class="stack-time">{{ formatDateRange(secondCard) }}</p>
           </div>
         </div>
@@ -125,6 +125,7 @@ import { useSwipeCard } from '@/composables/useSwipeCard'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { eventDisplayTitle } from '@/utils/translatedFields'
 
 const route = useRoute()
 const router = useRouter()
@@ -386,6 +387,10 @@ function typeLabel(type) {
     other: 'Ine',
   }
   return map[type] || type || '—'
+}
+
+function displayEventTitle(item) {
+  return eventDisplayTitle(item)
 }
 
 function formatDateTime(value) {

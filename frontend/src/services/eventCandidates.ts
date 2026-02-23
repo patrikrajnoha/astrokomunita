@@ -13,9 +13,17 @@ export type CandidateListItem = {
   source_name: string;
   source_url: string;
   title: string;
+  translated_title: string | null;
+  translated_description: string | null;
+  translation_status: string | null;
+  translation_error: string | null;
+  translated_at: string | null;
   status: CandidateStatus;
   raw_type: string | null;
   type: CandidateType;
+  canonical_key: string | null;
+  confidence_score: string | number | null;
+  matched_sources: string[] | null;
 
   max_at: string | null;
   start_at: string | null;
@@ -66,6 +74,8 @@ export const eventCandidates = {
     status?: CandidateStatus;
     type?: CandidateType;
     source?: string;
+    source_key?: string;
+    run_id?: number;
     q?: string;
     page?: number;
     per_page?: number;
@@ -91,6 +101,11 @@ export const eventCandidates = {
 
   async reject(id: number) {
     const res = await api.post(`/admin/event-candidates/${id}/reject`);
+    return res.data;
+  },
+
+  async retranslate(id: number) {
+    const res = await api.post(`/admin/event-candidates/${id}/retranslate`);
     return res.data;
   },
 };
