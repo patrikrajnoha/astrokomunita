@@ -122,6 +122,28 @@
               </div>
               <!-- Content -->
               <div class="post-text">
+                <div
+                  v-if="showBotTranslationToggle(p)"
+                  class="bot-translation-toggle"
+                  @click.stop
+                >
+                  <button
+                    type="button"
+                    class="bot-toggle-btn bot-toggle-btn--translated"
+                    :class="{ 'bot-toggle-btn--active': isBotVariantActive(p, 'translated') }"
+                    @click="setBotContentVariant(p, 'translated')"
+                  >
+                    Preklad
+                  </button>
+                  <button
+                    type="button"
+                    class="bot-toggle-btn bot-toggle-btn--original"
+                    :class="{ 'bot-toggle-btn--active': isBotVariantActive(p, 'original') }"
+                    @click="setBotContentVariant(p, 'original')"
+                  >
+                    Originál
+                  </button>
+                </div>
                 <HashtagText :content="displayPostContent(p)" />
                 <button
                   v-if="isBotContentCollapsible(p)"
@@ -477,6 +499,7 @@ const reportMessage = ref('')
 const highlightedPostId = ref(null)
 const shareTarget = ref(null)
 const expandedPostIds = ref(new Set())
+const botContentVariantById = ref({})
 let highlightTimer = null
 
 function createFeedState() {
@@ -584,12 +607,82 @@ function sourceLink(post) {
   return absoluteUrl(candidate)
 }
 
+function showBotTranslationToggle(post) {
+  if (!isBotPost(post)) return false
+  const hasOriginal =
+    String(post?.meta?.original_title || '').trim() !== '' ||
+    String(post?.meta?.original_content || '').trim() !== ''
+  const hasTranslated =
+    String(post?.meta?.translated_title || '').trim() !== '' ||
+    String(post?.meta?.translated_content || '').trim() !== ''
+  return hasOriginal && hasTranslated
+}
+
+function normalizeBool(value) {
+  if (value === true || value === false) return value
+  if (typeof value === 'number') return value === 1
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+  if (normalized === '1' || normalized === 'true' || normalized === 'yes') return true
+  if (normalized === '0' || normalized === 'false' || normalized === 'no') return false
+  return false
+}
+
+function defaultBotVariant(post) {
+  return normalizeBool(post?.meta?.used_translation) ? 'translated' : 'original'
+}
+
+function resolvedBotVariant(post) {
+  if (!showBotTranslationToggle(post)) return null
+  const id = Number(post?.id || 0)
+  if (!id) return defaultBotVariant(post)
+  const current = botContentVariantById.value[id]
+  if (current === 'translated' || current === 'original') {
+    return current
+  }
+  return defaultBotVariant(post)
+}
+
+function setBotContentVariant(post, variant) {
+  if (!showBotTranslationToggle(post)) return
+  if (variant !== 'translated' && variant !== 'original') return
+  const id = Number(post?.id || 0)
+  if (!id) return
+  botContentVariantById.value = {
+    ...botContentVariantById.value,
+    [id]: variant,
+  }
+}
+
+function isBotVariantActive(post, variant) {
+  return resolvedBotVariant(post) === variant
+}
+
+function variantText(post, variant) {
+  const title = String(post?.meta?.[`${variant}_title`] || '').trim()
+  const content = String(post?.meta?.[`${variant}_content`] || '').trim()
+  return [title, content].filter(Boolean).join('\n\n')
+}
+
+function resolvedDisplayText(post) {
+  if (showBotTranslationToggle(post)) {
+    const variant = resolvedBotVariant(post) || defaultBotVariant(post)
+    const text = variantText(post, variant)
+    if (text !== '') {
+      return text
+    }
+  }
+
+  return String(post?.content || '')
+}
+
 function isPostContentExpanded(post) {
   return expandedPostIds.value.has(post?.id)
 }
 
 function isBotContentCollapsible(post) {
-  const content = String(post?.content || '')
+  const content = resolvedDisplayText(post)
   return isBotPost(post) && content.length > BOT_CONTENT_PREVIEW_LIMIT
 }
 
@@ -604,7 +697,7 @@ function togglePostContent(post) {
 }
 
 function displayPostContent(post) {
-  const content = String(post?.content || '')
+  const content = resolvedDisplayText(post)
   if (!isBotContentCollapsible(post) || isPostContentExpanded(post)) return content
   return content.slice(0, BOT_CONTENT_PREVIEW_LIMIT).trimEnd() + '...'
 }
@@ -1744,6 +1837,33 @@ defineExpose({ load, prepend })
 
 .post-text a:hover {
   border-bottom-color: var(--color-primary);
+}
+
+.bot-translation-toggle {
+  margin-bottom: 10px;
+  display: inline-flex;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bot-toggle-btn {
+  border: none;
+  background: rgb(var(--color-bg-rgb) / 0.6);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.bot-toggle-btn--active {
+  background: rgb(var(--color-primary-rgb) / 0.16);
+  color: var(--color-primary);
+}
+
+.bot-toggle-btn:hover {
+  color: var(--color-surface);
 }
 
 .show-more-btn {
