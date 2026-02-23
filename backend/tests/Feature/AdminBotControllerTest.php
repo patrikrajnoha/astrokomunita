@@ -86,6 +86,26 @@ class AdminBotControllerTest extends TestCase
         ]);
     }
 
+    public function test_admin_post_run_is_throttled_on_second_quick_call(): void
+    {
+        $source = $this->createRssSource('throttle_rss_source');
+        $this->actingAsAdmin();
+
+        Http::fake([
+            $source->url => Http::response($this->singleItemRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $first = $this->postJson('/api/admin/bots/run/' . $source->key);
+        $second = $this->postJson('/api/admin/bots/run/' . $source->key);
+
+        $first->assertOk();
+        $second
+            ->assertStatus(429)
+            ->assertJsonStructure(['message', 'retry_after']);
+
+        $this->assertGreaterThanOrEqual(1, (int) $second->json('retry_after'));
+    }
+
     public function test_admin_get_runs_returns_latest_run_with_pagination_payload(): void
     {
         $source = $this->createRssSource('runs_rss_source');
