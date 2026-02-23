@@ -14,6 +14,7 @@ use App\Services\PostService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class BotPublisherService
@@ -93,6 +94,23 @@ class BotPublisherService
             $item,
             $source
         );
+        if (config('app.debug')) {
+            $currentMeta = is_array($item->meta) ? $item->meta : [];
+            Log::debug('Bot publisher payload before createPost.', [
+                'source_key' => strtolower(trim((string) $source->key)),
+                'stable_key' => (string) $item->stable_key,
+                'bot_run_id' => $item->run_id ?? data_get($currentMeta, 'last_seen_run_id'),
+                'translation_status' => $item->translation_status?->value ?? (string) $item->translation_status,
+                'provider' => $item->translation_provider ?? data_get($currentMeta, 'translation.provider'),
+                'origin_title_hash' => $this->shortHash((string) $item->title),
+                'origin_body_hash' => $this->shortHash((string) ($item->content ?: $item->summary ?: '')),
+                'translated_title_hash' => $this->shortHash((string) $item->title_translated),
+                'translated_body_hash' => $this->shortHash((string) $item->content_translated),
+                'publish_title_hash' => $this->shortHash((string) $publishPayload['title']),
+                'publish_body_hash' => $this->shortHash((string) $publishPayload['body']),
+                'used_translation' => (bool) $publishPayload['used_translation'],
+            ]);
+        }
 
         try {
             try {
@@ -130,6 +148,83 @@ class BotPublisherService
         ])->save();
 
         return PublishResult::published($post);
+    }
+
+    public function syncLinkedPostFromItem(BotItem $item, string $runContext = 'admin_backfill'): bool
+    {
+        $postId = $item->post_id ? (int) $item->post_id : 0;
+        if ($postId <= 0) {
+            return false;
+        }
+
+        $post = Post::query()->find($postId);
+        if (!$post) {
+            return false;
+        }
+
+        $source = $item->source()->firstOrFail();
+        $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
+        $publishPayload = $this->resolvePublishPayload($item);
+        $postMeta = $this->buildPostMeta($source, $item, $publishPayload, $this->normalizeRunContext($runContext));
+        $content = $this->buildPostContent(
+            $publishPayload['title'],
+            $publishPayload['body'],
+            trim((string) ($item->url ?? '')),
+            $botIdentity,
+            $item,
+            $source
+        );
+
+        $desiredOriginalTitle = $this->nullableString($item->title);
+        $desiredOriginalBody = $this->nullableString($item->content ?: $item->summary);
+        $desiredTranslatedTitle = $this->nullableString($item->title_translated);
+        $desiredTranslatedBody = $this->nullableString($item->content_translated);
+        $desiredTranslationStatus = strtolower(trim((string) ($item->translation_status?->value ?? $item->translation_status)));
+        $desiredTranslationError = $this->nullableString($item->translation_error);
+        $desiredTranslatedAt = $item->translated_at;
+        $desiredSourceUrl = $postMeta['source_url'] ?? $item->url;
+
+        $currentMeta = is_array($post->meta) ? $post->meta : [];
+        $contentChanged = trim((string) $post->content) !== trim((string) $content);
+        $translationFieldsChanged = $this->nullableString($post->original_title) !== $desiredOriginalTitle
+            || $this->nullableString($post->original_body) !== $desiredOriginalBody
+            || $this->nullableString($post->translated_title) !== $desiredTranslatedTitle
+            || $this->nullableString($post->translated_body) !== $desiredTranslatedBody
+            || strtolower(trim((string) $post->translation_status)) !== $desiredTranslationStatus
+            || $this->nullableString($post->translation_error) !== $desiredTranslationError
+            || (($post->translated_at?->toIso8601String() ?? null) !== ($desiredTranslatedAt?->toIso8601String() ?? null));
+        $metaChanged = $currentMeta !== $postMeta;
+        $sourceUrlChanged = $this->nullableString($post->source_url) !== $this->nullableString($desiredSourceUrl);
+
+        if (!$contentChanged && !$translationFieldsChanged && !$metaChanged && !$sourceUrlChanged) {
+            return false;
+        }
+
+        $post->forceFill([
+            'content' => $content,
+            'source_url' => $desiredSourceUrl,
+            'original_title' => $desiredOriginalTitle,
+            'original_body' => $desiredOriginalBody,
+            'translated_title' => $desiredTranslatedTitle,
+            'translated_body' => $desiredTranslatedBody,
+            'translation_status' => $desiredTranslationStatus !== '' ? $desiredTranslationStatus : null,
+            'translation_error' => $desiredTranslationError,
+            'translated_at' => $desiredTranslatedAt,
+            'meta' => $postMeta,
+        ])->save();
+
+        if (config('app.debug')) {
+            Log::debug('Bot publisher backfill updated linked post.', [
+                'source_key' => strtolower(trim((string) $source->key)),
+                'stable_key' => (string) $item->stable_key,
+                'post_id' => $post->id,
+                'translation_status' => $desiredTranslationStatus,
+                'provider' => $item->translation_provider ?? data_get($postMeta, 'translation.provider'),
+                'used_translation' => (bool) ($publishPayload['used_translation'] ?? false),
+            ]);
+        }
+
+        return true;
     }
 
     private function ensureBotUser(string $botIdentity): User
@@ -756,6 +851,16 @@ class BotPublisherService
         $normalized = trim((string) $value);
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    private function shortHash(string $value): ?string
+    {
+        $normalized = trim($value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        return substr(sha1($normalized), 0, 8);
     }
 
     private function parseDateTimeNullable(mixed $value): ?\Carbon\Carbon
