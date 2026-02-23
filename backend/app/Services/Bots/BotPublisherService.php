@@ -257,6 +257,8 @@ class BotPublisherService
             'bot_identity' => $botIdentity !== '' ? $botIdentity : null,
             'bot_source_key' => $sourceKey !== '' ? $sourceKey : null,
             'bot_source_label' => $this->sourceLabelForPostMeta($sourceKey),
+            'bot_source_attribution' => $this->sourceAttributionForPostMeta($sourceKey),
+            'source_attribution' => $this->sourceAttributionForPostMeta($sourceKey),
             'source_url' => $this->canonicalSourceUrl($source, $item),
             'published_by' => 'bot-engine',
             'published_at_utc' => now()->utc()->toIso8601String(),
@@ -273,12 +275,39 @@ class BotPublisherService
 
     private function sourceLabelForPostMeta(string $sourceKey): string
     {
+        $configured = $this->sourceConfigValue($sourceKey, 'label');
+        if ($configured !== null) {
+            return $configured;
+        }
+
         return match ($sourceKey) {
             'nasa_rss_breaking' => 'NASA RSS',
             'nasa_apod_daily' => 'NASA APOD',
             'wiki_onthisday_astronomy' => 'Wikipedia On This Day',
             default => 'Bot',
         };
+    }
+
+    private function sourceAttributionForPostMeta(string $sourceKey): string
+    {
+        $configured = $this->sourceConfigValue($sourceKey, 'attribution');
+        if ($configured !== null) {
+            return $configured;
+        }
+
+        return match ($sourceKey) {
+            'nasa_rss_breaking' => 'NASA',
+            'nasa_apod_daily' => 'NASA',
+            'wiki_onthisday_astronomy' => 'Wikipedia',
+            default => $this->sourceLabelForPostMeta($sourceKey),
+        };
+    }
+
+    private function sourceConfigValue(string $sourceKey, string $field): ?string
+    {
+        $value = trim((string) config(sprintf('astrobot.sources.%s.%s', $sourceKey, $field), ''));
+
+        return $value !== '' ? $value : null;
     }
 
     private function canonicalSourceUrl(BotSource $source, BotItem $item): ?string
@@ -553,7 +582,7 @@ class BotPublisherService
     {
         $normalized = strtolower(trim($runContext));
 
-        if (in_array($normalized, ['manual', 'scheduled', 'cli'], true)) {
+        if (in_array($normalized, ['manual', 'scheduled', 'cli', 'admin'], true)) {
             return $normalized;
         }
 

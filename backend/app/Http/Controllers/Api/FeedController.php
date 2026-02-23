@@ -9,6 +9,7 @@ use App\Services\PostPayloadService;
 use App\Enums\PostAuthorKind;
 use App\Enums\PostFeedKey;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class FeedController extends Controller
@@ -62,10 +63,22 @@ class FeedController extends Controller
      */
     public function astrobot(Request $request)
     {
-        // TODO(2026-06-30): Remove legacy /api/feed/astrobot alias after migration window.
-        Log::warning('DEPRECATED: /api/feed/astrobot used');
+        $cacheKey = 'deprecated:feed:astrobot';
+        if (Cache::add($cacheKey, true, now()->addMinutes(5))) {
+            Log::warning('DEPRECATED: /api/feed/astrobot used', [
+                'user_id' => $request->user()?->id,
+                'ip' => $request->ip(),
+                'user_agent' => $this->truncateText((string) $request->userAgent(), 120),
+            ]);
+        }
 
-        return $this->astro($request);
+        // TODO(2026-06-30): Remove legacy /api/feed/astrobot alias after migration window.
+        $response = $this->astro($request);
+        $response->headers->set('X-Deprecated-Endpoint', '/api/feed/astrobot');
+        $response->headers->set('X-Deprecated-Successor', '/api/astro-feed');
+        $response->headers->set('Sunset', '2026-06-30');
+
+        return $response;
     }
 
     /**
@@ -115,5 +128,27 @@ class FeedController extends Controller
     private function resolveViewer(Request $request): ?User
     {
         return $request->user() ?? $request->user('sanctum');
+    }
+
+    private function truncateText(string $value, int $maxLength): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '' || $maxLength <= 0) {
+            return '';
+        }
+
+        if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+            if (mb_strlen($normalized) <= $maxLength) {
+                return $normalized;
+            }
+
+            return mb_substr($normalized, 0, $maxLength);
+        }
+
+        if (strlen($normalized) <= $maxLength) {
+            return $normalized;
+        }
+
+        return substr($normalized, 0, $maxLength);
     }
 }

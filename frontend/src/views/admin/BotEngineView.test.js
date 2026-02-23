@@ -5,6 +5,7 @@ import BotEngineView from '@/views/admin/BotEngineView.vue'
 
 const toastErrorMock = vi.fn()
 const toastSuccessMock = vi.fn()
+const toastInfoMock = vi.fn()
 
 const store = {
   sources: ref([
@@ -38,9 +39,13 @@ const store = {
   fetchSources: vi.fn().mockResolvedValue([]),
   fetchRuns: vi.fn().mockResolvedValue([]),
   runSource: vi.fn(),
+  publishItem: vi.fn(),
+  publishRun: vi.fn(),
   fetchItemsForRun: vi.fn().mockResolvedValue([]),
   clearRunItems: vi.fn(),
   isSourceRunning: vi.fn(() => false),
+  isItemPublishing: vi.fn(() => false),
+  isRunPublishing: vi.fn(() => false),
   resetFilters: vi.fn(() => ({
     sourceKey: '',
     status: '',
@@ -63,6 +68,7 @@ vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
     success: (...args) => toastSuccessMock(...args),
     error: (...args) => toastErrorMock(...args),
+    info: (...args) => toastInfoMock(...args),
   }),
 }))
 
@@ -73,11 +79,55 @@ function flush() {
 describe('BotEngineView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    store.runsPage.value = {
+      data: [
+        {
+          id: 11,
+          source_key: 'nasa_rss_breaking',
+          started_at: '2026-02-23T10:00:00Z',
+          finished_at: '2026-02-23T10:01:00Z',
+          status: 'success',
+          stats: { published_count: 1 },
+          error_text: null,
+        },
+      ],
+      meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
+    }
+    store.runItemsPage.value = {
+      data: [
+        {
+          id: 91,
+          stable_key: 'stable-91',
+          publish_status: 'pending',
+          translation_status: 'done',
+          post_id: null,
+          used_translation: true,
+          skip_reason: null,
+          fetched_at: '2026-02-23T10:00:10Z',
+          title: 'Preview title',
+          content: 'Preview body',
+          title_original: 'Original title',
+          content_original: 'Original body',
+          title_translated: 'Translated title',
+          content_translated: 'Translated body',
+          url: 'https://example.test/item-91',
+        },
+      ],
+      meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
+    }
     store.fetchSources.mockResolvedValue([])
     store.fetchRuns.mockResolvedValue([])
+    store.fetchItemsForRun.mockResolvedValue([])
     store.runSource.mockResolvedValue({
       status: 'success',
       stats: {},
+    })
+    store.publishItem.mockResolvedValue({ item: { id: 91, publish_status: 'published' } })
+    store.publishRun.mockResolvedValue({
+      run_id: 11,
+      published_count: 1,
+      skipped_count: 0,
+      failed_count: 0,
     })
   })
 
@@ -115,5 +165,75 @@ describe('BotEngineView', () => {
 
     expect(toastErrorMock).toHaveBeenCalledTimes(1)
     expect(String(toastErrorMock.mock.calls[0][0])).toContain('Retry in 120s')
+  })
+
+  it('publishes selected item and disables publish button after success', async () => {
+    store.publishItem.mockImplementationOnce(async () => {
+      store.runItemsPage.value = {
+        data: [
+          {
+            ...store.runItemsPage.value.data[0],
+            publish_status: 'published',
+            post_id: 777,
+          },
+        ],
+        meta: { ...store.runItemsPage.value.meta },
+      }
+
+      return { item: { id: 91, publish_status: 'published' } }
+    })
+
+    const wrapper = mount(BotEngineView, {
+      global: {
+        stubs: {
+          AdminPageShell: { template: '<div><slot /></div>' },
+          routerLink: true,
+          teleport: true,
+        },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    await wrapper.findAll('button').find((node) => node.text().includes('Detail')).trigger('click')
+    await flush()
+
+    const publishButton = wrapper.findAll('button').find((node) => node.text() === 'Publish')
+    expect(publishButton).toBeTruthy()
+
+    await publishButton.trigger('click')
+    await flush()
+
+    expect(store.publishItem).toHaveBeenCalledWith(91, { force: false })
+    const publishButtonAfter = wrapper.findAll('button').find((node) => node.text() === 'Publish')
+    expect(publishButtonAfter.attributes('disabled')).toBeDefined()
+  })
+
+  it('publish all action calls run publish endpoint with selected limit', async () => {
+    const wrapper = mount(BotEngineView, {
+      global: {
+        stubs: {
+          AdminPageShell: { template: '<div><slot /></div>' },
+          routerLink: true,
+          teleport: true,
+        },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    await wrapper.findAll('button').find((node) => node.text().includes('Detail')).trigger('click')
+    await flush()
+
+    const limitInput = wrapper.find('input[type="number"]')
+    await limitInput.setValue('3')
+
+    const publishAllButton = wrapper.findAll('button').find((node) => node.text() === 'Publish all')
+    await publishAllButton.trigger('click')
+    await flush()
+
+    expect(store.publishRun).toHaveBeenCalledWith(11, { publish_limit: 3 })
   })
 })

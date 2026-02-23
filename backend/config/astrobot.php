@@ -10,6 +10,23 @@ return [
     'nasa_rss_url' => env('ASTROBOT_NASA_RSS_URL', 'https://www.nasa.gov/news-release/feed/'),
     'nasa_apod_url' => env('NASA_APOD_URL', env('ASTROBOT_NASA_APOD_URL', 'https://api.nasa.gov/planetary/apod')),
     'wikipedia_onthisday_url' => env('WIKIPEDIA_ONTHISDAY_URL', 'https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/all'),
+    'sources' => [
+        'nasa_rss_breaking' => [
+            'label' => env('BOT_SOURCE_NASA_RSS_LABEL', 'NASA RSS'),
+            'attribution' => env('BOT_SOURCE_NASA_RSS_ATTRIBUTION', 'NASA'),
+            'default_mode' => env('BOT_SOURCE_NASA_RSS_DEFAULT_MODE', 'auto'),
+        ],
+        'nasa_apod_daily' => [
+            'label' => env('BOT_SOURCE_NASA_APOD_LABEL', 'NASA APOD'),
+            'attribution' => env('BOT_SOURCE_NASA_APOD_ATTRIBUTION', 'NASA'),
+            'default_mode' => env('BOT_SOURCE_NASA_APOD_DEFAULT_MODE', 'auto'),
+        ],
+        'wiki_onthisday_astronomy' => [
+            'label' => env('BOT_SOURCE_WIKI_ONTHISDAY_LABEL', 'Wikipedia On This Day'),
+            'attribution' => env('BOT_SOURCE_WIKI_ONTHISDAY_ATTRIBUTION', 'Wikipedia'),
+            'default_mode' => env('BOT_SOURCE_WIKI_ONTHISDAY_DEFAULT_MODE', 'auto'),
+        ],
+    ],
     'keep_max_items' => (int) env('ASTROBOT_KEEP_MAX_ITEMS', 30),
     'keep_max_days' => (int) env('ASTROBOT_KEEP_MAX_DAYS', 14),
     'lock_ttl_seconds' => (int) env('ASTROBOT_LOCK_TTL_SECONDS', 3300),

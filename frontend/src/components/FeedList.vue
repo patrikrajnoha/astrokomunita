@@ -586,7 +586,10 @@ function botSourceLabel(post) {
 }
 
 function sourceAttributionLabel(post) {
-  return botSourceLabel(post)
+  const attribution = String(
+    post?.meta?.bot_source_attribution || post?.meta?.source_attribution || '',
+  ).trim()
+  return attribution || botSourceLabel(post)
 }
 
 function absoluteUrl(url) {

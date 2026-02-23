@@ -26,7 +26,10 @@ class BotRunServiceTest extends TestCase
 
         $service = app(BotRunService::class);
 
-        $run = $service->startRun($source);
+        $run = $service->startRun($source, [
+            'run_context' => 'admin',
+            'mode' => 'dry',
+        ]);
 
         $this->assertDatabaseHas('bot_runs', [
             'id' => $run->id,
@@ -36,6 +39,8 @@ class BotRunServiceTest extends TestCase
         $this->assertNotNull($run->started_at);
         $this->assertNull($run->finished_at);
         $this->assertNull($run->status);
+        $this->assertSame('admin', (string) data_get($run->meta, 'run_context'));
+        $this->assertSame('dry', (string) data_get($run->meta, 'mode'));
 
         $stats = [
             'fetched' => 10,
@@ -45,15 +50,19 @@ class BotRunServiceTest extends TestCase
             'published' => 0,
         ];
 
-        $finished = $service->finishRun($run, BotRunStatus::PARTIAL, $stats, 'translation skipped');
+        $finished = $service->finishRun($run, BotRunStatus::PARTIAL, $stats, 'translation skipped', [
+            'publish_limit' => 10,
+        ]);
 
         $this->assertNotNull($finished->finished_at);
         $this->assertSame(BotRunStatus::PARTIAL, $finished->status);
         $this->assertSame($stats, $finished->stats);
         $this->assertSame('translation skipped', $finished->error_text);
+        $this->assertSame('admin', (string) data_get($finished->meta, 'run_context'));
+        $this->assertSame('dry', (string) data_get($finished->meta, 'mode'));
+        $this->assertSame(10, (int) data_get($finished->meta, 'publish_limit'));
 
         $source->refresh();
         $this->assertNotNull($source->last_run_at);
     }
 }
-

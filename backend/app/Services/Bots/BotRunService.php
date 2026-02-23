@@ -8,7 +8,10 @@ use App\Models\BotSource;
 
 class BotRunService
 {
-    public function startRun(BotSource $source): BotRun
+    /**
+     * @param array<string,mixed> $meta
+     */
+    public function startRun(BotSource $source, array $meta = []): BotRun
     {
         return BotRun::query()->create([
             'bot_identity' => $source->bot_identity?->value ?? (string) $source->bot_identity,
@@ -17,25 +20,33 @@ class BotRunService
             'finished_at' => null,
             'status' => null,
             'stats' => null,
+            'meta' => $meta !== [] ? $meta : null,
             'error_text' => null,
         ]);
     }
 
     /**
      * @param array<string, mixed> $stats
+     * @param array<string,mixed> $meta
      */
     public function finishRun(
         BotRun $run,
         BotRunStatus|string $status,
         array $stats = [],
-        ?string $errorText = null
+        ?string $errorText = null,
+        array $meta = [],
     ): BotRun {
         $statusValue = $status instanceof BotRunStatus ? $status->value : strtolower(trim((string) $status));
+        $mergedMeta = array_replace(
+            is_array($run->meta) ? $run->meta : [],
+            $meta
+        );
 
         $run->forceFill([
             'finished_at' => now(),
             'status' => $statusValue,
             'stats' => $stats,
+            'meta' => $mergedMeta !== [] ? $mergedMeta : null,
             'error_text' => $errorText,
         ])->save();
 
@@ -48,4 +59,3 @@ class BotRunService
         return $run->fresh() ?? $run;
     }
 }
-

@@ -100,4 +100,50 @@ class FeedVisibilityTest extends TestCase
         $response->assertJsonFragment(['id' => $astrobotPost->id]);
         $response->assertJsonMissing(['content' => 'Human post']);
     }
+
+    public function test_legacy_astrobot_alias_returns_same_payload_and_deprecation_headers(): void
+    {
+        $user = User::factory()->create();
+        $astrobotUser = User::factory()->create([
+            'name' => 'AstroBot',
+            'username' => 'astrobot',
+            'email' => 'astrobot@astrokomunita.local',
+            'is_bot' => true,
+        ]);
+
+        Post::factory()->for($user)->create([
+            'content' => 'Human post',
+            'feed_key' => 'community',
+            'author_kind' => 'user',
+            'source_name' => null,
+        ]);
+
+        Post::factory()->for($astrobotUser)->create([
+            'content' => 'AstroBot post',
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'stela',
+            'source_name' => 'astrobot',
+        ]);
+
+        Post::factory()->for($astrobotUser)->create([
+            'content' => 'NASA RSS post',
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'stela',
+            'source_name' => 'nasa_rss',
+        ]);
+
+        $aliasResponse = $this->getJson('/api/feed/astrobot?with=counts');
+        $successorResponse = $this->getJson('/api/astro-feed?with=counts');
+
+        $aliasResponse
+            ->assertOk()
+            ->assertHeader('X-Deprecated-Endpoint', '/api/feed/astrobot')
+            ->assertHeader('X-Deprecated-Successor', '/api/astro-feed');
+
+        $successorResponse->assertOk();
+
+        $this->assertSame($successorResponse->json('data'), $aliasResponse->json('data'));
+    }
 }

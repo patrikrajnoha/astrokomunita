@@ -10,6 +10,8 @@ const toast = useToast()
 
 const { sources, runsPage, runItemsPage, filters, loadingSources, loadingRuns, loadingRunItems } = storeToRefs(store)
 const selectedRun = ref(null)
+const selectedPreviewItem = ref(null)
+const publishAllLimit = ref(10)
 
 const filterForm = ref({
   sourceKey: '',
@@ -175,9 +177,9 @@ async function goToPage(page) {
   await loadRuns({ page })
 }
 
-async function runNow(sourceKey) {
+async function runNow(sourceKey, mode = 'auto') {
   try {
-    const result = await store.runSource(sourceKey)
+    const result = await store.runSource(sourceKey, { mode })
     if (!result) {
       return
     }
@@ -188,6 +190,10 @@ async function runNow(sourceKey) {
   } catch (error) {
     toast.error(toErrorMessage(error, 'Bot run failed.'))
   }
+}
+
+async function dryRun(sourceKey) {
+  await runNow(sourceKey, 'dry')
 }
 
 async function openRunDetail(run) {
@@ -202,7 +208,22 @@ async function openRunDetail(run) {
 
 function closeRunDetail() {
   selectedRun.value = null
+  selectedPreviewItem.value = null
   store.clearRunItems()
+}
+
+function openItemPreview(item) {
+  selectedPreviewItem.value = item || null
+}
+
+function closeItemPreview() {
+  selectedPreviewItem.value = null
+}
+
+function canPublishItem(item) {
+  const status = String(item?.publish_status || '').toLowerCase()
+  if (status === 'published' || status === 'skipped') return false
+  return !item?.post_id
 }
 
 async function goToItemsPage(page) {
@@ -217,6 +238,52 @@ async function goToItemsPage(page) {
     })
   } catch (error) {
     toast.error(toErrorMessage(error, 'Failed to load run items.'))
+  }
+}
+
+async function publishItem(item) {
+  if (!item?.id || !canPublishItem(item)) return
+
+  try {
+    const response = await store.publishItem(item.id, { force: false })
+    if (response?.already_published) {
+      toast.info('Item is already published.')
+    } else {
+      toast.success('Item published.')
+    }
+
+    await store.fetchItemsForRun(selectedRun.value?.id, {
+      page: runItemsMeta.value?.current_page || 1,
+      per_page: runItemsMeta.value?.per_page || 20,
+    })
+  } catch (error) {
+    toast.error(toErrorMessage(error, 'Failed to publish item.'))
+  }
+}
+
+async function publishAllForRun() {
+  const runId = Number(selectedRun.value?.id || 0)
+  if (!Number.isInteger(runId) || runId <= 0) return
+
+  const limit = Number(publishAllLimit.value)
+  const normalizedLimit = Number.isInteger(limit) && limit > 0 ? limit : 10
+
+  try {
+    const response = await store.publishRun(runId, { publish_limit: normalizedLimit })
+    const publishedCount = Number(response?.published_count || 0)
+    const skippedCount = Number(response?.skipped_count || 0)
+    const failedCount = Number(response?.failed_count || 0)
+
+    toast.success(
+      `Published ${publishedCount} item(s). Skipped ${skippedCount}, failed ${failedCount}.`,
+    )
+
+    await store.fetchItemsForRun(runId, {
+      page: runItemsMeta.value?.current_page || 1,
+      per_page: runItemsMeta.value?.per_page || 20,
+    })
+  } catch (error) {
+    toast.error(toErrorMessage(error, 'Failed to publish run items.'))
   }
 }
 
@@ -281,14 +348,24 @@ onMounted(async () => {
               </td>
               <td>{{ formatDateTime(source.last_run_at) }}</td>
               <td class="alignRight">
-                <button
-                  type="button"
-                  class="runBtn"
-                  :disabled="!source.is_enabled || store.isSourceRunning(source.key)"
-                  @click="runNow(source.key)"
-                >
-                  {{ store.isSourceRunning(source.key) ? 'Running...' : 'Run now' }}
-                </button>
+                <div class="inlineActions inlineActions--end">
+                  <button
+                    type="button"
+                    class="runBtn"
+                    :disabled="!source.is_enabled || store.isSourceRunning(source.key)"
+                    @click="runNow(source.key, 'auto')"
+                  >
+                    {{ store.isSourceRunning(source.key) ? 'Running...' : 'Run now' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="ghostBtn"
+                    :disabled="!source.is_enabled || store.isSourceRunning(source.key)"
+                    @click="dryRun(source.key)"
+                  >
+                    Dry run
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -452,14 +529,28 @@ onMounted(async () => {
           <div class="detailBlock">
             <div class="detailBlockHeader">
               <h4>items</h4>
-              <button
-                type="button"
-                class="ghostBtn"
-                :disabled="loadingRunItems"
-                @click="goToItemsPage(1)"
-              >
-                Refresh items
-              </button>
+              <div class="inlineActions">
+                <label class="inlineField">
+                  <span>Limit</span>
+                  <input v-model.number="publishAllLimit" type="number" min="1" max="100" />
+                </label>
+                <button
+                  type="button"
+                  class="runBtn"
+                  :disabled="store.isRunPublishing(selectedRun?.id)"
+                  @click="publishAllForRun"
+                >
+                  {{ store.isRunPublishing(selectedRun?.id) ? 'Publishing...' : 'Publish all' }}
+                </button>
+                <button
+                  type="button"
+                  class="ghostBtn"
+                  :disabled="loadingRunItems"
+                  @click="goToItemsPage(1)"
+                >
+                  Refresh items
+                </button>
+              </div>
             </div>
 
             <div class="tableWrap">
@@ -473,18 +564,19 @@ onMounted(async () => {
                     <th>used_translation</th>
                     <th>skip_reason</th>
                     <th>fetched_at</th>
+                    <th class="alignRight">actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   <template v-if="loadingRunItems">
                     <tr v-for="index in 4" :key="`items-skeleton-${index}`">
-                      <td colspan="7">
+                      <td colspan="8">
                         <div class="skeletonRow"></div>
                       </td>
                     </tr>
                   </template>
                   <tr v-else-if="runItems.length === 0">
-                    <td colspan="7" class="emptyCell">No items found for this run.</td>
+                    <td colspan="8" class="emptyCell">No items found for this run.</td>
                   </tr>
                   <tr v-else v-for="item in runItems" :key="item.id || item.stable_key">
                     <td>
@@ -513,6 +605,19 @@ onMounted(async () => {
                     <td>{{ formatBool(item.used_translation) }}</td>
                     <td>{{ item.skip_reason || '-' }}</td>
                     <td>{{ formatDateTime(item.fetched_at) }}</td>
+                    <td class="alignRight">
+                      <div class="inlineActions inlineActions--end">
+                        <button type="button" class="ghostBtn" @click="openItemPreview(item)">Preview</button>
+                        <button
+                          type="button"
+                          class="runBtn"
+                          :disabled="!canPublishItem(item) || store.isItemPublishing(item.id)"
+                          @click="publishItem(item)"
+                        >
+                          {{ store.isItemPublishing(item.id) ? 'Publishing...' : 'Publish' }}
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -541,6 +646,63 @@ onMounted(async () => {
                 </button>
               </div>
             </footer>
+          </div>
+        </article>
+      </div>
+
+      <div v-if="selectedPreviewItem" class="modalBackdrop modalBackdrop--inner" @click.self="closeItemPreview">
+        <article class="modalCard modalCard--preview" role="dialog" aria-modal="true" aria-label="Bot item preview">
+          <header class="modalHeader">
+            <h3>Item preview</h3>
+            <button type="button" class="ghostBtn" @click="closeItemPreview">Close</button>
+          </header>
+
+          <dl class="detailGrid detailGrid--single">
+            <div>
+              <dt>source link</dt>
+              <dd>
+                <a
+                  v-if="selectedPreviewItem.url"
+                  class="itemLink"
+                  :href="selectedPreviewItem.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {{ selectedPreviewItem.url }}
+                </a>
+                <span v-else>-</span>
+              </dd>
+            </div>
+          </dl>
+
+          <div class="detailBlock">
+            <h4>status</h4>
+            <div class="inlineActions">
+              <span :class="itemStatusClass(selectedPreviewItem.publish_status)">
+                publish: {{ selectedPreviewItem.publish_status || 'unknown' }}
+              </span>
+              <span :class="itemStatusClass(selectedPreviewItem.translation_status)">
+                translation: {{ selectedPreviewItem.translation_status || 'unknown' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="detailBlock">
+            <h4>translation preview</h4>
+            <p>{{ selectedPreviewItem.title || '-' }}</p>
+            <p>{{ selectedPreviewItem.content || '-' }}</p>
+          </div>
+
+          <div class="detailBlock">
+            <h4>originál</h4>
+            <p>{{ selectedPreviewItem.title_original || '-' }}</p>
+            <p>{{ selectedPreviewItem.content_original || '-' }}</p>
+          </div>
+
+          <div class="detailBlock">
+            <h4>preklad</h4>
+            <p>{{ selectedPreviewItem.title_translated || '-' }}</p>
+            <p>{{ selectedPreviewItem.content_translated || '-' }}</p>
           </div>
         </article>
       </div>
@@ -655,6 +817,34 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
+.inlineActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inlineActions--end {
+  justify-content: flex-end;
+}
+
+.inlineField {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.inlineField input {
+  width: 68px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: rgb(var(--color-bg-rgb) / 0.55);
+  color: rgb(var(--color-surface-rgb) / 0.96);
+  padding: 6px 8px;
+}
+
 .statusBadge {
   display: inline-flex;
   align-items: center;
@@ -755,6 +945,10 @@ onMounted(async () => {
   padding: 16px;
 }
 
+.modalBackdrop--inner {
+  z-index: 1400;
+}
+
 .modalCard {
   width: min(760px, 100%);
   max-height: 88vh;
@@ -764,6 +958,10 @@ onMounted(async () => {
   background: rgb(var(--color-bg-rgb) / 0.96);
   padding: 14px;
   box-shadow: 0 24px 48px rgb(0 0 0 / 0.42);
+}
+
+.modalCard--preview {
+  width: min(680px, 100%);
 }
 
 .modalHeader {
@@ -783,6 +981,10 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+
+.detailGrid--single {
+  grid-template-columns: 1fr;
 }
 
 .detailGrid dt {
