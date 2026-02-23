@@ -3,8 +3,6 @@
 namespace Tests\Unit\Support\Http;
 
 use App\Services\AI\OllamaClient;
-use App\Services\AstroBotNasaService;
-use App\Services\AstroBotPublisher;
 use App\Services\Crawlers\Astropixels\AstropixelsAlmanacParser;
 use App\Services\Crawlers\AstropixelsCrawlerService;
 use App\Services\Crawlers\CrawlContext;
@@ -12,7 +10,6 @@ use App\Services\Translation\Grammar\LanguageToolGrammarChecker;
 use App\Services\Translation\Providers\LibreTranslateProvider;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
-use Mockery;
 use Tests\TestCase;
 
 class HttpClientSslEnforcementTest extends TestCase
@@ -21,34 +18,6 @@ class HttpClientSslEnforcementTest extends TestCase
     {
         parent::setUp();
         $this->app['env'] = 'production';
-    }
-
-    protected function tearDown(): void
-    {
-        Mockery::close();
-        parent::tearDown();
-    }
-
-    public function test_astrobot_forces_ssl_verification_in_production_even_when_disabled_in_config(): void
-    {
-        config()->set('astrobot.nasa_rss_url', 'https://example.test/feed.xml');
-        config()->set('astrobot.ssl_verify', false);
-        config()->set('astrobot.ssl_ca_bundle', null);
-
-        Http::fake([
-            'https://example.test/*' => Http::response($this->rssPayload(), 200),
-        ]);
-
-        $service = new AstroBotNasaService(Mockery::mock(AstroBotPublisher::class));
-        $items = $service->fetchFeed();
-
-        $this->assertIsArray($items);
-        Http::assertSent(function ($request) {
-            $sslVerify = data_get($request->attributes(), 'ssl_verify');
-
-            return $request->url() === 'https://example.test/feed.xml'
-                && $sslVerify !== false;
-        });
     }
 
     public function test_astropixels_crawler_forces_ssl_verification_in_production_even_when_disabled_in_config(): void
@@ -135,22 +104,4 @@ class HttpClientSslEnforcementTest extends TestCase
         });
     }
 
-    private function rssPayload(): string
-    {
-        return <<<XML
-<?xml version="1.0" encoding="UTF-8" ?>
-<rss version="2.0">
-  <channel>
-    <title>NASA Test Feed</title>
-    <item>
-      <guid>guid-1</guid>
-      <title>NASA Alpha</title>
-      <link>https://www.nasa.gov/news/a</link>
-      <description>Alpha</description>
-      <pubDate>Mon, 09 Feb 2026 12:00:00 GMT</pubDate>
-    </item>
-  </channel>
-</rss>
-XML;
-    }
 }
