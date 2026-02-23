@@ -348,6 +348,7 @@ class AdminBotControllerTest extends TestCase
         config()->set('astrobot.translation_fallback_provider', '');
         config()->set('astrobot.translation_base_url', 'http://translation.test');
         config()->set('astrobot.translation_timeout_seconds', 5);
+        config()->set('astrobot.translation.quality.enabled', false);
 
         Http::fake([
             'http://translation.test/translate' => Http::response([
@@ -363,7 +364,9 @@ class AdminBotControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('provider', 'libretranslate')
-            ->assertJsonPath('translated_text', 'SK Test translation payload.');
+            ->assertJsonPath('translated_text', 'SK Test translation payload.')
+            ->assertJsonPath('mode', 'lt_only')
+            ->assertJsonPath('provider_chain.0', 'libretranslate');
 
         $this->assertGreaterThanOrEqual(0, (int) $response->json('latency_ms'));
     }
