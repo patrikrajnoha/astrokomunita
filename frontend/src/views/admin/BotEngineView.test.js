@@ -128,10 +128,16 @@ describe('BotEngineView', () => {
           source_key: 'nasa_apod_daily',
           started_at: '2026-02-23T10:05:00Z',
           finished_at: '2026-02-23T10:06:00Z',
-          status: 'success',
+          status: 'skipped',
+          failure_reason: 'rate_limited',
+          ui_message: 'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
           stats: { published_count: 0 },
-          meta: { mode: 'auto' },
-          error_text: null,
+          meta: {
+            mode: 'auto',
+            failure_reason: 'rate_limited',
+            ui_message: 'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
+          },
+          error_text: 'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
         },
       ],
       meta: { current_page: 1, last_page: 1, per_page: 20, total: 2 },
@@ -267,6 +273,30 @@ describe('BotEngineView', () => {
     expect(String(toastErrorMock.mock.calls[0][0])).toContain('Retry in 120s')
   })
 
+  it('shows structured rate-limited message instead of generic timeout text', async () => {
+    store.runSource.mockRejectedValueOnce({
+      response: {
+        status: 429,
+        data: {
+          failure_reason: 'rate_limited',
+          ui_message: 'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
+        },
+      },
+    })
+
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    const runButton = wrapper.findAll('button').find((node) => node.text().includes('Run now'))
+    await runButton.trigger('click')
+    await flush()
+
+    expect(toastErrorMock).toHaveBeenCalledTimes(1)
+    expect(String(toastErrorMock.mock.calls[0][0])).toContain('NASA APOD API rate limit')
+    expect(String(toastErrorMock.mock.calls[0][0])).not.toContain('Server neodpoveda')
+  })
+
   it('renders DRY/AUTO badges with publish limit text from run meta', async () => {
     const wrapper = mountView()
     await flush()
@@ -280,6 +310,24 @@ describe('BotEngineView', () => {
     const modeLimits = wrapper.findAll('[data-testid="run-mode-limit"]')
     expect(modeLimits).toHaveLength(1)
     expect(modeLimits[0].text()).toContain('limit: 3')
+  })
+
+  it('renders Rate limited badge for structured run reason', async () => {
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    const statusBadges = wrapper.findAll('[data-testid="run-status-badge"]')
+    expect(statusBadges.length).toBeGreaterThanOrEqual(2)
+    expect(statusBadges[1].text()).toContain('Rate limited')
+  })
+
+  it('shows APOD env hint in sources table', async () => {
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    expect(wrapper.text()).toContain('Set NASA_API_KEY in .env to enable APOD.')
   })
 
   it('asks for confirm before publishing wiki onthisday item', async () => {

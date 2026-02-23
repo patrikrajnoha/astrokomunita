@@ -153,6 +153,7 @@ class PostService
 
         return DB::transaction(function () use ($user, $content, $attachment, $pollInput, $attributes, $resolved) {
             $moderationEnabled = (bool) config('moderation.enabled', true);
+            $shouldModerate = $this->shouldModerateAuthoredPost($moderationEnabled, $resolved['author_kind'], $user);
             $post = new Post();
             $post->user_id = $user->id;
             $post->content = $content;
@@ -169,7 +170,7 @@ class PostService
             $post->expires_at = $attributes['expires_at'] ?? null;
             $post->meta = is_array($attributes['meta'] ?? null) ? $attributes['meta'] : null;
             $post->is_hidden = false;
-            $post->moderation_status = $moderationEnabled ? 'pending' : 'ok';
+            $post->moderation_status = $shouldModerate ? 'pending' : 'ok';
             $post->moderation_summary = null;
             $post->hidden_reason = null;
             $post->hidden_at = null;
@@ -185,12 +186,12 @@ class PostService
                     post: $post,
                     attachment: $attachment,
                     user: $user,
-                    moderationEnabled: $moderationEnabled
+                    moderationEnabled: $shouldModerate
                 );
             }
 
             HashtagParser::syncHashtags($post, $content);
-            if ($moderationEnabled) {
+            if ($shouldModerate) {
                 $this->logModerationQueueDiagnostics();
                 ModeratePostJob::dispatch((int) $post->id)->afterCommit();
             }
@@ -239,6 +240,7 @@ class PostService
                     ?? $this->resolveBotIdentityForUser($user)
                     ?? PostBotIdentity::STELA->value;
             }
+            $shouldModerate = $this->shouldModerateAuthoredPost($moderationEnabled, $replyAuthorKind, $user);
 
             $reply = new Post();
             $reply->user_id = $user->id;
@@ -251,7 +253,7 @@ class PostService
                 : (string) ($parent->feed_key ?: PostFeedKey::COMMUNITY->value);
             $reply->author_kind = $replyAuthorKind;
             $reply->bot_identity = $replyBotIdentity;
-            $reply->moderation_status = $moderationEnabled ? 'pending' : 'ok';
+            $reply->moderation_status = $shouldModerate ? 'pending' : 'ok';
             $reply->moderation_summary = null;
             $reply->hidden_reason = null;
             $reply->hidden_at = null;
@@ -263,12 +265,12 @@ class PostService
                     post: $reply,
                     attachment: $attachment,
                     user: $user,
-                    moderationEnabled: $moderationEnabled
+                    moderationEnabled: $shouldModerate
                 );
             }
 
             HashtagParser::syncHashtags($reply, $content);
-            if ($moderationEnabled) {
+            if ($shouldModerate) {
                 $this->logModerationQueueDiagnostics();
                 ModeratePostJob::dispatch((int) $reply->id)->afterCommit();
             }
@@ -495,6 +497,19 @@ class PostService
         }
 
         return null;
+    }
+
+    private function shouldModerateAuthoredPost(bool $moderationEnabled, string $authorKind, User $user): bool
+    {
+        if (!$moderationEnabled) {
+            return false;
+        }
+
+        if (strtolower(trim($authorKind)) === PostAuthorKind::BOT->value) {
+            return false;
+        }
+
+        return !$user->isBot();
     }
 
     private function attachFileToPost(Post $post, UploadedFile $attachment, User $user, bool $moderationEnabled): void

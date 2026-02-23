@@ -41,6 +41,39 @@ class ModerationPostFlowTest extends TestCase
         });
     }
 
+    public function test_bot_post_skips_moderation_queue_and_is_immediately_ok(): void
+    {
+        config()->set('moderation.enabled', true);
+
+        $botUser = User::factory()->create([
+            'is_bot' => true,
+            'username' => 'kozmo',
+            'email' => 'kozmo.bot@example.test',
+        ]);
+        Sanctum::actingAs($botUser);
+        Queue::fake();
+
+        $response = $this->postJson('/api/posts', [
+            'content' => 'Bot post should skip moderation',
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'kozmo',
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('moderation_status', 'ok');
+
+        $postId = (int) $response->json('id');
+
+        $this->assertDatabaseHas('posts', [
+            'id' => $postId,
+            'moderation_status' => 'ok',
+            'author_kind' => 'bot',
+        ]);
+
+        Queue::assertNotPushed(ModeratePostJob::class);
+    }
+
     public function test_feed_excludes_blocked_and_hidden_posts(): void
     {
         $user = User::factory()->create();

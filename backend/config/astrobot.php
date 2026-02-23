@@ -20,6 +20,8 @@ return [
             'label' => env('BOT_SOURCE_NASA_APOD_LABEL', 'NASA APOD'),
             'attribution' => env('BOT_SOURCE_NASA_APOD_ATTRIBUTION', 'NASA'),
             'default_mode' => env('BOT_SOURCE_NASA_APOD_DEFAULT_MODE', 'auto'),
+            'requires_api_key' => filter_var(env('ASTROBOT_NASA_APOD_REQUIRES_API_KEY', true), FILTER_VALIDATE_BOOL),
+            'rate_limit_backoff_minutes' => (int) env('ASTROBOT_NASA_APOD_RATE_LIMIT_BACKOFF_MINUTES', 360),
         ],
         'wiki_onthisday_astronomy' => [
             'label' => env('BOT_SOURCE_WIKI_ONTHISDAY_LABEL', 'Wikipedia On This Day'),

@@ -52,7 +52,8 @@ return [
     ],
 
     'nasa' => [
-        'apod_api_key' => env('NASA_APOD_API_KEY', env('NASA_API_KEY', 'DEMO_KEY')),
+        'key' => env('NASA_API_KEY', env('NASA_APOD_API_KEY', '')),
+        'apod_api_key' => env('NASA_APOD_API_KEY', env('NASA_API_KEY', '')),
     ],
 
 ];

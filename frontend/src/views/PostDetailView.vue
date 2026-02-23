@@ -48,7 +48,7 @@
                   <span v-if="root?.user?.location" class="loc">
                     Location: {{ root.user.location }}
                   </span>
-                  <span v-if="root?.source_name === 'astrobot'" class="botLabel">Automated news · replies disabled</span>
+                  <span v-if="root?.source_name === 'astrobot'" class="botLabel">Automated news</span>
                 </div>
               </div>
               <div class="postActionsMenu">
@@ -111,16 +111,12 @@
           </div>
         </article>
 
-        <!-- REPLY COMPOSER - only show for non-AstroBot posts -->
-        <div v-if="root?.source_name !== 'astrobot'" class="composerWrap">
+        <div class="composerWrap">
           <ReplyComposer
             v-if="root?.id"
             :parent-id="root.id"
             @created="onReplyCreated"
           />
-        </div>
-        <div v-else class="repliesDisabledNotice">
-          <p>Replies are disabled on automated news posts.</p>
         </div>
 
         <!-- REPLIES -->

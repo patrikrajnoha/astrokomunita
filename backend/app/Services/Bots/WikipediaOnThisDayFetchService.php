@@ -164,9 +164,15 @@ class WikipediaOnThisDayFetchService
         $retries = max(0, (int) config('astrobot.rss_retry_times', 2));
         $sleep = max(0, (int) config('astrobot.rss_retry_sleep_ms', 250));
         $attempts = $retries + 1;
+        $userAgent = $this->botUserAgent();
 
         try {
-            $response = Http::secure()->acceptJson()->timeout($timeout)->retry($attempts, $sleep, null, false)->get($url);
+            $response = Http::secure()
+                ->withUserAgent($userAgent)
+                ->acceptJson()
+                ->timeout($timeout)
+                ->retry($attempts, $sleep, null, false)
+                ->get($url);
         } catch (Throwable $e) {
             throw new RuntimeException(sprintf(
                 'Wikipedia OnThisDay fetch failed (url=%s, status=network_error, snippet="%s")',
@@ -194,7 +200,7 @@ class WikipediaOnThisDayFetchService
             throw new RuntimeException('Wikipedia OnThisDay source URL is empty.');
         }
 
-        return sprintf('%s/%d/%d', $base, $date->month, $date->day);
+        return sprintf('%s/%02d/%02d', $base, $date->month, $date->day);
     }
 
     /**
@@ -382,7 +388,10 @@ class WikipediaOnThisDayFetchService
         }
 
         try {
-            $response = Http::secure()->acceptJson()->timeout(max(1, (int) config('astrobot.rss_timeout_seconds', 10)))
+            $response = Http::secure()
+                ->withUserAgent($this->botUserAgent())
+                ->acceptJson()
+                ->timeout(max(1, (int) config('astrobot.rss_timeout_seconds', 10)))
                 ->get((string) config('astrobot.wikipedia_mediawiki_api_url', 'https://en.wikipedia.org/w/api.php'), [
                     'action' => 'query',
                     'prop' => 'pageprops',
@@ -508,7 +517,10 @@ class WikipediaOnThisDayFetchService
         $this->wikidataEntityRequests++;
 
         try {
-            $response = Http::secure()->acceptJson()->timeout(max(1, (int) config('astrobot.rss_timeout_seconds', 10)))
+            $response = Http::secure()
+                ->withUserAgent($this->botUserAgent())
+                ->acceptJson()
+                ->timeout(max(1, (int) config('astrobot.rss_timeout_seconds', 10)))
                 ->get((string) config('astrobot.wikidata_api_url', 'https://www.wikidata.org/w/api.php'), [
                     'action' => 'wbgetentities',
                     'format' => 'json',
@@ -633,5 +645,11 @@ class WikipediaOnThisDayFetchService
     {
         $qid = strtoupper(trim((string) $value));
         return $qid !== '' ? $qid : null;
+    }
+
+    private function botUserAgent(): string
+    {
+        return trim((string) config('astrobot.rss_user_agent', 'AstroKomunita/AstroBot RSS Sync'))
+            ?: 'AstroKomunita/AstroBot RSS Sync';
     }
 }
