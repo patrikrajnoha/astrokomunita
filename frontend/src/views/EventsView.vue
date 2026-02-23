@@ -122,7 +122,7 @@
           <div class="card-content">
             <div class="card-header">
               <div>
-                <h3 class="card-title">{{ e.title }}</h3>
+                <h3 class="card-title">{{ eventDisplayTitle(e) }}</h3>
                 <div class="meta-row">
                   <span class="type-badge">{{ typeLabel(e.type) }}</span>
                   <span class="card-date">{{ formatDateTime(e.max_at) }}</span>
@@ -140,7 +140,7 @@
               </button>
             </div>
 
-            <p class="card-description">{{ e.short || '-' }}</p>
+            <p class="card-description">{{ eventDisplayShort(e) }}</p>
 
             <div class="card-footer">
               <span>Region: {{ regionLabel(e.region_scope) }}</span>
@@ -167,6 +167,7 @@ import { useFavoritesStore } from '@/stores/favorites'
 import { useAuthStore } from '@/stores/auth'
 import { getEvents, getEventYears } from '@/services/events'
 import { buildPeriodQuery, resolveDefaultYear, resolvePeriodSelectionFromQuery } from '@/utils/eventFilters'
+import { eventDisplayShort, eventDisplayTitle } from '@/utils/translatedFields'
 
 const route = useRoute()
 const router = useRouter()

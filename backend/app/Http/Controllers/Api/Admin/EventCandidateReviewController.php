@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\TranslateEventCandidateJob;
 use App\Models\EventCandidate;
 use App\Services\Events\EventCandidatePublisher;
 use Illuminate\Http\Request;
@@ -65,6 +66,22 @@ class EventCandidateReviewController extends Controller
         return response()->json([
             'ok' => true,
             'candidate' => $candidate->fresh(),
+        ]);
+    }
+
+    public function retranslate(Request $request, EventCandidate $candidate)
+    {
+        $candidate->update([
+            'translation_status' => EventCandidate::TRANSLATION_PENDING,
+            'translation_error' => null,
+        ]);
+
+        TranslateEventCandidateJob::dispatch((int) $candidate->id, true)->afterCommit();
+
+        return response()->json([
+            'ok' => true,
+            'candidate' => $candidate->fresh(),
+            'message' => 'Retranslation queued.',
         ]);
     }
 }

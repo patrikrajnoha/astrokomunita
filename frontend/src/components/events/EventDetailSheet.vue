@@ -6,8 +6,8 @@
           <div class="sheet-handle"></div>
           <button type="button" class="sheet-close" @click="$emit('close')">Zavriet</button>
 
-          <h3 class="sheet-title">{{ event?.title || 'Detail udalosti' }}</h3>
-          <p class="sheet-description">{{ event?.description || event?.short || 'Bez popisu.' }}</p>
+          <h3 class="sheet-title">{{ displayTitle !== '-' ? displayTitle : 'Detail udalosti' }}</h3>
+          <p class="sheet-description">{{ displayDescription !== '-' ? displayDescription : 'Bez popisu.' }}</p>
 
           <div class="sheet-grid">
             <span class="badge">{{ typeLabel(event?.type) }}</span>
@@ -48,6 +48,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { eventDisplayDescription, eventDisplayTitle } from '@/utils/translatedFields'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -67,6 +68,8 @@ defineEmits(['close', 'send-notify', 'update:notifyEmail'])
 
 const startAt = computed(() => props.event?.start_at || props.event?.starts_at || props.event?.max_at || null)
 const endAt = computed(() => props.event?.end_at || props.event?.ends_at || null)
+const displayTitle = computed(() => eventDisplayTitle(props.event))
+const displayDescription = computed(() => eventDisplayDescription(props.event))
 </script>
 
 <style scoped>

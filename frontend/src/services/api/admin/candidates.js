@@ -39,6 +39,10 @@ export function publishCandidate(id, data = {}) {
   return approveCandidate(id, data)
 }
 
+export function retranslateCandidate(id) {
+  return api.post(`/admin/event-candidates/${id}/retranslate`)
+}
+
 export function importCandidates(data) {
   return createCandidate(data)
 }

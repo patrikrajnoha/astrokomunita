@@ -309,6 +309,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         // Review process
         Route::post('/event-candidates/{candidate}/approve', [EventCandidateReviewController::class, 'approve']);
         Route::post('/event-candidates/{candidate}/reject',  [EventCandidateReviewController::class, 'reject']);
+        Route::post('/event-candidates/{candidate}/retranslate', [EventCandidateReviewController::class, 'retranslate']);
 
         // Crawl runs
         Route::get('/crawl-runs',            [CrawlRunController::class, 'index']);
