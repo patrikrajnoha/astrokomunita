@@ -9,6 +9,7 @@ use App\Services\PostPayloadService;
 use App\Enums\PostAuthorKind;
 use App\Enums\PostFeedKey;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 
 class FeedController extends Controller
 {
@@ -61,6 +62,9 @@ class FeedController extends Controller
      */
     public function astrobot(Request $request)
     {
+        // TODO(2026-06-30): Remove legacy /api/feed/astrobot alias after migration window.
+        Log::warning('DEPRECATED: /api/feed/astrobot used');
+
         return $this->astro($request);
     }
 
