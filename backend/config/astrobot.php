@@ -27,6 +27,16 @@ return [
             'default_mode' => env('BOT_SOURCE_WIKI_ONTHISDAY_DEFAULT_MODE', 'auto'),
         ],
     ],
+    'identities' => [
+        'kozmo' => [
+            'username' => env('BOT_IDENTITY_KOZMO_USERNAME', 'kozmobot'),
+            'display_name' => env('BOT_IDENTITY_KOZMO_DISPLAY_NAME', 'Kozmo'),
+        ],
+        'stela' => [
+            'username' => env('BOT_IDENTITY_STELA_USERNAME', 'stellarbot'),
+            'display_name' => env('BOT_IDENTITY_STELA_DISPLAY_NAME', 'Stela'),
+        ],
+    ],
     'keep_max_items' => (int) env('ASTROBOT_KEEP_MAX_ITEMS', 30),
     'keep_max_days' => (int) env('ASTROBOT_KEEP_MAX_DAYS', 14),
     'lock_ttl_seconds' => (int) env('ASTROBOT_LOCK_TTL_SECONDS', 3300),

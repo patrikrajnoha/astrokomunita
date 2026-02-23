@@ -30,6 +30,9 @@ class BotItem extends Model
         'title_translated',
         'content_translated',
         'translation_status',
+        'translation_error',
+        'translation_provider',
+        'translated_at',
         'publish_status',
         'meta',
     ];
@@ -39,6 +42,7 @@ class BotItem extends Model
         'published_at' => 'datetime',
         'fetched_at' => 'datetime',
         'translation_status' => BotTranslationStatus::class,
+        'translated_at' => 'datetime',
         'publish_status' => BotPublishStatus::class,
         'meta' => 'array',
     ];

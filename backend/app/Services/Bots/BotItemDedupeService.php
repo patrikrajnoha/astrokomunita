@@ -52,6 +52,9 @@ class BotItemDedupeService
             'content_translated' => $payload['content_translated'] ?? $existing?->content_translated,
             'translation_status' => $payload['translation_status']
                 ?? ($existing?->translation_status?->value ?? BotTranslationStatus::PENDING->value),
+            'translation_error' => $payload['translation_error'] ?? $existing?->translation_error,
+            'translation_provider' => $payload['translation_provider'] ?? $existing?->translation_provider,
+            'translated_at' => $payload['translated_at'] ?? $existing?->translated_at,
             'publish_status' => $payload['publish_status']
                 ?? ($existing?->publish_status?->value ?? BotPublishStatus::PENDING->value),
             'meta' => $meta,
