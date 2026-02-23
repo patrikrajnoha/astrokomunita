@@ -218,6 +218,7 @@ function translationProviderLabel(provider) {
   if (!normalized) return '-'
   if (normalized === 'libretranslate') return 'LT'
   if (normalized === 'ollama') return 'Ollama'
+  if (normalized === 'ollama_postedit') return 'Ollama PE'
   if (normalized === 'mixed') return 'Mixed'
   return normalized
 }
@@ -226,8 +227,17 @@ function translationProviderClass(provider) {
   const normalized = String(provider || '').trim().toLowerCase()
   if (normalized === 'libretranslate') return 'providerBadge providerBadge--lt'
   if (normalized === 'ollama') return 'providerBadge providerBadge--ollama'
+  if (normalized === 'ollama_postedit') return 'providerBadge providerBadge--ollama'
   if (normalized === 'mixed') return 'providerBadge providerBadge--mixed'
   return 'providerBadge providerBadge--muted'
+}
+
+function translationModeLabel(mode) {
+  const normalized = String(mode || '').trim().toLowerCase()
+  if (normalized === 'lt_ollama_postedit') return 'LT+Ollama post-edit'
+  if (normalized === 'ollama_direct') return 'Ollama direct'
+  if (normalized === 'lt_only') return 'LT-only'
+  return normalized || '-'
 }
 
 function toPositiveIntOrNull(value) {
@@ -888,7 +898,12 @@ onMounted(async () => {
               {{ translationProviderLabel(translationTestResult.provider) }}
             </span>
             <span class="modeHint">{{ Number(translationTestResult.latency_ms || 0) }} ms</span>
+            <span class="modeHint">mode: {{ translationModeLabel(translationTestResult.mode) }}</span>
           </div>
+          <p class="translationSummary">
+            chain: {{ Array.isArray(translationTestResult.provider_chain) && translationTestResult.provider_chain.length > 0 ? translationTestResult.provider_chain.join(' -> ') : '-' }}
+            | quality: {{ Array.isArray(translationTestResult.quality_flags) && translationTestResult.quality_flags.length > 0 ? translationTestResult.quality_flags.join(', ') : 'ok' }}
+          </p>
           <p>{{ translationTestResult.translated_text || '-' }}</p>
         </div>
       </div>
@@ -1593,6 +1608,11 @@ onMounted(async () => {
   padding: 10px;
   font-size: 0.82rem;
   white-space: pre-wrap;
+}
+
+.translationResult .translationSummary {
+  font-size: 0.78rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
 }
 
 .providerBadge {
