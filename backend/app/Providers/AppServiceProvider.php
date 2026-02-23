@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Console\Commands\ImportEventCandidates;
+use App\Console\Commands\BotsPurgeCommand;
 use App\Console\Commands\CrawlAstropixelsEventsCommand;
 use App\Console\Commands\RunBotSourceCommand;
 use App\Console\Commands\SendEventReminders;
@@ -62,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->commands([
             ImportEventCandidates::class,
+            BotsPurgeCommand::class,
             CrawlAstropixelsEventsCommand::class,
             RunBotSourceCommand::class,
             SendEventReminders::class,

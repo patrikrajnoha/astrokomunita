@@ -46,6 +46,7 @@ class BotRunner
             $stats['run_locked'] = 1;
             $stats['lock_key'] = $lockState['lock_key'];
             $stats['lock_context'] = $context;
+            $stats['run_context'] = $context;
             $stats['manual_override'] = $forceManualOverride ? 1 : 0;
 
             return $this->runService->finishRun($run, BotRunStatus::SKIPPED, $stats, 'Run skipped because lock is already held.');
@@ -56,6 +57,7 @@ class BotRunner
         $stats['lock_key'] = $lockState['lock_key'];
         $stats['lock_context'] = $context;
         $stats['manual_override'] = $forceManualOverride ? 1 : 0;
+        $stats['run_context'] = $context;
 
         $status = BotRunStatus::SUCCESS;
         $errorText = null;
@@ -63,9 +65,10 @@ class BotRunner
         try {
             $rows = $this->fetchRowsForSource($source);
             $stats['fetched_count'] = count($rows);
-            $items = $this->dedupeRows($source, $rows, $stats);
-            $this->applyTranslationStep($source, $stats);
-            $this->publishRows($items, $stats);
+            $this->mergeWikidataDiagnostics($source, $stats);
+            $items = $this->dedupeRows($source, $rows, $stats, $context);
+            $this->applyTranslationStep($source, $stats, $context);
+            $this->publishRows($items, $stats, $context);
 
             if ($stats['failed_count'] > 0) {
                 $status = BotRunStatus::PARTIAL;
@@ -74,6 +77,7 @@ class BotRunner
             $status = BotRunStatus::FAILED;
             $errorText = $e->getMessage();
             $stats['failed_count']++;
+            $this->recordErrorFingerprint($stats, $e);
         } finally {
             $this->releaseRunLocks($lockState);
         }
@@ -82,7 +86,7 @@ class BotRunner
     }
 
     /**
-     * @return array{fetched_count:int,new_count:int,dupes_count:int,published_count:int,skipped_count:int,failed_count:int}
+     * @return array<string,mixed>
      */
     private function createInitialStats(): array
     {
@@ -93,6 +97,12 @@ class BotRunner
             'published_count' => 0,
             'skipped_count' => 0,
             'failed_count' => 0,
+            'translation_done_count' => 0,
+            'translation_failed_count' => 0,
+            'wikidata_checked_count' => 0,
+            'wikidata_cached_hits' => 0,
+            'image_skipped_policy_count' => 0,
+            'error_fingerprints' => [],
         ];
     }
 
@@ -132,11 +142,27 @@ class BotRunner
     }
 
     /**
+     * @param array<string,mixed> $stats
+     */
+    private function mergeWikidataDiagnostics(BotSource $source, array &$stats): void
+    {
+        $sourceKey = strtolower(trim((string) $source->key));
+        $sourceType = $source->source_type?->value ?? (string) $source->source_type;
+        if ($sourceKey !== 'wiki_onthisday_astronomy' && $sourceType !== BotSourceType::WIKIPEDIA->value) {
+            return;
+        }
+
+        $diagnostics = $this->wikipediaOnThisDayFetchService->getLastDiagnostics();
+        $stats['wikidata_checked_count'] = (int) ($stats['wikidata_checked_count'] ?? 0) + (int) ($diagnostics['wikidata_checked_count'] ?? 0);
+        $stats['wikidata_cached_hits'] = (int) ($stats['wikidata_cached_hits'] ?? 0) + (int) ($diagnostics['wikidata_cached_hits'] ?? 0);
+    }
+
+    /**
      * @param array<int, array{stable_key:string,payload:array<string,mixed>}> $rows
-     * @param array<string,int> $stats
+     * @param array<string,mixed> $stats
      * @return Collection<int, BotItem>
      */
-    private function dedupeRows(BotSource $source, array $rows, array &$stats): Collection
+    private function dedupeRows(BotSource $source, array $rows, array &$stats, string $runContext): Collection
     {
         $items = collect();
 
@@ -150,13 +176,16 @@ class BotRunner
                     $stats['dupes_count']++;
                 }
 
+                $this->stampItemRunContext($item, $runContext);
                 $items->push($item);
             } catch (Throwable $e) {
                 $stats['failed_count']++;
+                $this->recordErrorFingerprint($stats, $e);
 
                 if ($item instanceof BotItem) {
                     $meta = is_array($item->meta) ? $item->meta : [];
                     $meta['last_error'] = $this->limitText($e->getMessage(), 300);
+                    $meta['run_context'] = $runContext;
 
                     $item->forceFill([
                         'publish_status' => BotPublishStatus::FAILED->value,
@@ -171,24 +200,30 @@ class BotRunner
 
     /**
      * @param Collection<int, BotItem> $items
-     * @param array<string,int> $stats
+     * @param array<string,mixed> $stats
      */
-    private function publishRows(Collection $items, array &$stats): void
+    private function publishRows(Collection $items, array &$stats, string $runContext): void
     {
         foreach ($items as $item) {
             try {
                 $item->refresh();
-                $publishResult = $this->publisherService->publishItemToAstroFeed($item);
+                $this->stampItemRunContext($item, $runContext);
+                $publishResult = $this->publisherService->publishItemToAstroFeed($item, $runContext);
 
                 if ($publishResult->isPublished()) {
                     $stats['published_count']++;
                 } elseif ($publishResult->isSkipped()) {
                     $stats['skipped_count']++;
+                    if ((string) $publishResult->reason === 'image_policy_violation') {
+                        $stats['image_skipped_policy_count'] = (int) ($stats['image_skipped_policy_count'] ?? 0) + 1;
+                    }
                 }
             } catch (Throwable $e) {
                 $stats['failed_count']++;
+                $this->recordErrorFingerprint($stats, $e);
                 $meta = is_array($item->meta) ? $item->meta : [];
                 $meta['last_error'] = $this->limitText($e->getMessage(), 300);
+                $meta['run_context'] = $runContext;
 
                 $item->forceFill([
                     'publish_status' => BotPublishStatus::FAILED->value,
@@ -199,9 +234,9 @@ class BotRunner
     }
 
     /**
-     * @param array<string,int> $stats
+     * @param array<string,mixed> $stats
      */
-    private function applyTranslationStep(BotSource $source, array &$stats): void
+    private function applyTranslationStep(BotSource $source, array &$stats, string $runContext): void
     {
         $items = BotItem::query()
             ->where('source_id', $source->id)
@@ -210,6 +245,7 @@ class BotRunner
             ->get();
 
         foreach ($items as $item) {
+            $this->stampItemRunContext($item, $runContext);
             $currentStatus = $item->translation_status?->value ?? (string) $item->translation_status;
             if (!in_array($currentStatus, ['', BotTranslationStatus::PENDING->value, null], true)) {
                 continue;
@@ -217,8 +253,11 @@ class BotRunner
 
             $langOriginal = strtolower(trim((string) $item->lang_original));
             if ($langOriginal === 'sk' || str_starts_with($langOriginal, 'sk-')) {
+                $meta = is_array($item->meta) ? $item->meta : [];
+                $meta['run_context'] = $runContext;
                 $item->forceFill([
                     'translation_status' => BotTranslationStatus::SKIPPED->value,
+                    'meta' => $meta,
                 ])->save();
 
                 continue;
@@ -228,8 +267,11 @@ class BotRunner
             $content = trim((string) ($item->content ?: $item->summary ?: ''));
 
             if ($title === '' && $content === '') {
+                $meta = is_array($item->meta) ? $item->meta : [];
+                $meta['run_context'] = $runContext;
                 $item->forceFill([
                     'translation_status' => BotTranslationStatus::SKIPPED->value,
+                    'meta' => $meta,
                 ])->save();
 
                 continue;
@@ -241,9 +283,12 @@ class BotRunner
 
             if ($existingCacheKey !== '' && hash_equals($existingCacheKey, $cacheKey)) {
                 if ($this->hasAnyTranslatedText($item)) {
+                    $meta['run_context'] = $runContext;
                     $item->forceFill([
                         'translation_status' => BotTranslationStatus::DONE->value,
+                        'meta' => $meta,
                     ])->save();
+                    $stats['translation_done_count'] = (int) ($stats['translation_done_count'] ?? 0) + 1;
                 }
 
                 continue;
@@ -258,6 +303,7 @@ class BotRunner
                 if ($translationMeta !== null) {
                     $meta['translation'] = $translationMeta;
                 }
+                $meta['run_context'] = $runContext;
 
                 $item->forceFill([
                     'title_translated' => $this->nullableString($result['translated_title'] ?? $result['title_translated'] ?? null),
@@ -265,9 +311,13 @@ class BotRunner
                     'translation_status' => BotTranslationStatus::DONE->value,
                     'meta' => $meta,
                 ])->save();
+                $stats['translation_done_count'] = (int) ($stats['translation_done_count'] ?? 0) + 1;
             } catch (Throwable $e) {
                 $stats['failed_count']++;
+                $stats['translation_failed_count'] = (int) ($stats['translation_failed_count'] ?? 0) + 1;
+                $this->recordErrorFingerprint($stats, $e);
                 $meta['translation_error'] = $this->limitText($e->getMessage(), 300);
+                $meta['run_context'] = $runContext;
 
                 $item->forceFill([
                     'translation_status' => BotTranslationStatus::FAILED->value,
@@ -350,6 +400,29 @@ class BotRunner
                 // ignore release errors
             }
         }
+    }
+
+    private function stampItemRunContext(BotItem $item, string $runContext): void
+    {
+        $meta = is_array($item->meta) ? $item->meta : [];
+        if ((string) ($meta['run_context'] ?? '') === $runContext) {
+            return;
+        }
+
+        $meta['run_context'] = $runContext;
+        $item->forceFill(['meta' => $meta])->save();
+    }
+
+    /**
+     * @param array<string,mixed> $stats
+     */
+    private function recordErrorFingerprint(array &$stats, Throwable $e): void
+    {
+        $base = sprintf('%s|%s', $e::class, $this->limitText($e->getMessage(), 200));
+        $fingerprint = substr(sha1($base), 0, 12);
+        $existing = is_array($stats['error_fingerprints'] ?? null) ? $stats['error_fingerprints'] : [];
+        $existing[$fingerprint] = (int) ($existing[$fingerprint] ?? 0) + 1;
+        $stats['error_fingerprints'] = $existing;
     }
 
     private function hasAnyTranslatedText(BotItem $item): bool
