@@ -39,7 +39,6 @@ use App\Http\Controllers\Api\Admin\AdminEventController;
 use App\Http\Controllers\Api\Admin\EventTranslationController;
 use App\Http\Controllers\Api\Admin\ManualEventController;
 use App\Http\Controllers\Api\Admin\ReportQueueController;
-use App\Http\Controllers\Api\Admin\AstroBotController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\AdminPostController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
@@ -432,27 +431,6 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         */
         Route::patch('/posts/{post}/pin', [AdminPostController::class, 'pin']);
         Route::patch('/posts/{post}/unpin', [AdminPostController::class, 'unpin']);
-
-        /*
-        |--------------------------------------------------------------------------
-        | AstroBot Admin (RSS pipeline)
-        |--------------------------------------------------------------------------
-        */
-        Route::prefix('astrobot')->middleware('throttle:10,1')->group(function () {
-            Route::get('/nasa/status', [AstroBotController::class, 'nasaStatus']);
-            Route::post('/nasa/sync-now', [AstroBotController::class, 'syncNow'])->middleware('throttle:astrobot-sync');
-            Route::get('/items', [AstroBotController::class, 'items']);
-            Route::put('/items/{item}', [AstroBotController::class, 'update']);
-            Route::post('/items/{item}/publish', [AstroBotController::class, 'publish']);
-            Route::post('/items/{item}/reject', [AstroBotController::class, 'reject']);
-            Route::post('/items/{item}/discard', [AstroBotController::class, 'discard']);
-            Route::get('/posts', [AstroBotController::class, 'posts']);
-            Route::delete('/posts/{post}', [AstroBotController::class, 'deletePost']);
-            Route::post('/rss-items/{item}/retranslate', [AstroBotController::class, 'retranslate']);
-            Route::post('/rss-items/retranslate-pending', [AstroBotController::class, 'retranslatePending']);
-            Route::post('/sync', [AstroBotController::class, 'syncRss'])->middleware('throttle:astrobot-sync');
-            Route::post('/rss/refresh', [AstroBotController::class, 'refreshRss'])->middleware('throttle:astrobot-sync');
-        });
 
         Route::prefix('bots')->group(function () {
             Route::get('/sources', [AdminBotController::class, 'sources']);

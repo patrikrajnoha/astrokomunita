@@ -3,13 +3,11 @@
 namespace App\Providers;
 
 use App\Console\Commands\ImportEventCandidates;
-use App\Console\Commands\ImportNasaNewsCommand;
 use App\Console\Commands\CrawlAstropixelsEventsCommand;
 use App\Console\Commands\RunBotSourceCommand;
 use App\Console\Commands\SendEventReminders;
 use App\Console\Commands\SendEventNotificationReminders;
 use App\Console\Commands\SendWeeklyNewsletterCommand;
-use App\Console\Commands\AstroBotSyncRss;
 use App\Console\Commands\GenerateEventDescriptionsCommand;
 use App\Listeners\UpdateLastLoginListener;
 use App\Support\Http\SslVerificationPolicy;
@@ -64,13 +62,11 @@ class AppServiceProvider extends ServiceProvider
 
         $this->commands([
             ImportEventCandidates::class,
-            ImportNasaNewsCommand::class,
             CrawlAstropixelsEventsCommand::class,
             RunBotSourceCommand::class,
             SendEventReminders::class,
             SendEventNotificationReminders::class,
             SendWeeklyNewsletterCommand::class,
-            AstroBotSyncRss::class,
             GenerateEventDescriptionsCommand::class,
         ]);
     }
@@ -101,11 +97,6 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('auth-username-available', function (Request $request) {
             return Limit::perMinute(60)->by($request->ip() . '|username-available');
-        });
-
-        RateLimiter::for('astrobot-sync', function (Request $request) {
-            $userId = $request->user()?->id ?? $request->ip();
-            return Limit::perMinute(2)->by('astrobot-sync|' . $userId);
         });
 
         RateLimiter::for('post-create', function (Request $request) {
