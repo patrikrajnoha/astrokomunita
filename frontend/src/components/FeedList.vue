@@ -3,7 +3,12 @@
     <!-- Header -->
     <header class="feed-header">
       <div class="feed-actions">
-        <FeedSwitcher v-if="tabs.length > 1" :tabs="tabs" :model-value="activeTab" @update:modelValue="switchTab" />
+        <FeedSwitcher
+          v-if="tabs.length > 1"
+          :tabs="tabs"
+          :model-value="activeTab"
+          @update:modelValue="switchTab"
+        />
       </div>
     </header>
 
@@ -17,245 +22,329 @@
       :hidden="activeTab !== tab.id"
     >
       <template v-if="activeTab === tab.id">
-    <!-- Error -->
-    <div v-if="err" class="error-message">
-      <span>{{ err }}</span>
-      <button type="button" class="retry-btn" @click="retryCurrentTab">Skusit znova</button>
-    </div>
+        <!-- Error -->
+        <div v-if="err" class="error-message">
+          <span>{{ err }}</span>
+          <button type="button" class="retry-btn" @click="retryCurrentTab">Skusit znova</button>
+        </div>
 
-    <!-- Loading skeleton -->
-    <div v-if="loading && items.length === 0" class="skeleton-container">
-      <div class="skeleton-post" v-for="i in 3" :key="i">
-        <div class="skeleton-header">
-          <div class="skeleton-avatar"></div>
-          <div class="skeleton-meta">
-            <div class="skeleton-line skeleton-name"></div>
-            <div class="skeleton-line skeleton-time"></div>
+        <!-- Loading skeleton -->
+        <div v-if="loading && items.length === 0" class="skeleton-container">
+          <div class="skeleton-post" v-for="i in 3" :key="i">
+            <div class="skeleton-header">
+              <div class="skeleton-avatar"></div>
+              <div class="skeleton-meta">
+                <div class="skeleton-line skeleton-name"></div>
+                <div class="skeleton-line skeleton-time"></div>
+              </div>
+            </div>
+            <div class="skeleton-content">
+              <div class="skeleton-line skeleton-text"></div>
+              <div class="skeleton-line skeleton-text"></div>
+            </div>
+            <div class="skeleton-media"></div>
           </div>
         </div>
-        <div class="skeleton-content">
-          <div class="skeleton-line skeleton-text"></div>
-          <div class="skeleton-line skeleton-text"></div>
-        </div>
-        <div class="skeleton-media"></div>
-      </div>
-    </div>
 
-    <div v-else-if="!loading && items.length === 0" class="empty-state">
-      <p>{{ isBookmarksMode ? 'Zatial nemas ziadne ulozene prispevky.' : 'Zatial tu nic nie je.' }}</p>
-      <button v-if="isBookmarksMode" type="button" class="retry-btn" @click="goExplore">Preskumat</button>
-      <button v-else type="button" class="retry-btn" @click="retryCurrentTab">Obnovit feed</button>
-    </div>
-
-    <!-- Feed -->
-    <div v-else class="feed-list">
-      <article
-        v-for="p in items"
-        :key="p.id"
-        class="post-card"
-        :class="{ 
-          'post-card--pinned': p.pinned_at,
-          'post-card--astrobot': p.source_name === 'astrobot',
-          'post-card--new': highlightedPostId === p.id
-        }"
-        @click="openPost(p)"
-      >
-        <div class="post-avatar">
-          <button class="avatar-button" type="button" @click.stop="openProfile(p)">
-            <img
-              v-if="p?.user?.avatar_url"
-              class="avatar-image"
-              :src="avatarSrc(p?.user?.avatar_url)"
-              :alt="p?.user?.name || 'avatar'"
-              loading="lazy"
-            />
-            <span v-else class="avatar-fallback">{{ initials(p?.user?.name) }}</span>
+        <div v-else-if="!loading && items.length === 0" class="empty-state">
+          <p>
+            {{
+              isBookmarksMode ? 'Zatial nemas ziadne ulozene prispevky.' : 'Zatial tu nic nie je.'
+            }}
+          </p>
+          <button v-if="isBookmarksMode" type="button" class="retry-btn" @click="goExplore">
+            Preskumat
+          </button>
+          <button v-else type="button" class="retry-btn" @click="retryCurrentTab">
+            Obnovit feed
           </button>
         </div>
 
-        <div class="post-content">
-          <!-- Header -->
-          <div class="post-header">
-            <div class="post-meta">
-              <div class="post-author">
-                <button class="author-name" type="button" @click.stop="openProfile(p)">
-                  {{ p?.user?.name ?? 'User' }}
-                </button>
-                <span class="author-username">@{{ p?.user?.username }}</span>
-                <span class="author-time">{{ fmt(p?.created_at) }}</span>
-                <span v-if="p.source_name === 'astrobot'" class="astrobot-badge">🚀 AstroBot</span>
-                <span v-if="p.pinned_at" class="pinned-badge">📌 Pripnuté</span>
-              </div>
-              <div v-if="p?.user?.location || p.source_name === 'astrobot'" class="post-time">
-                <span v-if="p?.user?.location" class="location">📍 {{ p.user.location }}</span>
-                <span v-if="p.source_name === 'astrobot'" class="astrobot-label">Automated news · replies disabled</span>
-              </div>
+        <!-- Feed -->
+        <div v-else class="feed-list">
+          <article
+            v-for="p in items"
+            :key="p.id"
+            class="post-card"
+            :class="{
+              'post-card--pinned': p.pinned_at,
+              'post-card--astrobot': isBotPost(p),
+              'post-card--new': highlightedPostId === p.id,
+            }"
+            @click="openPost(p)"
+          >
+            <div class="post-avatar">
+              <button class="avatar-button" type="button" @click.stop="openProfile(p)">
+                <img
+                  v-if="p?.user?.avatar_url"
+                  class="avatar-image"
+                  :src="avatarSrc(p?.user?.avatar_url)"
+                  :alt="p?.user?.name || 'avatar'"
+                  loading="lazy"
+                />
+                <span v-else class="avatar-fallback">{{ initials(p?.user?.name) }}</span>
+              </button>
             </div>
-            <!-- Actions dropdown -->
-            <div class="post-actions-menu">
-              <DropdownMenu
-                v-if="menuItemsForPost(p).length"
-                :items="menuItemsForPost(p)"
-                label="More actions"
-                menu-label="Post actions"
-                @select="(item) => onMenuAction(item, p)"
-              />
-            </div>
-          </div>
-          <!-- Content -->
-          <div class="post-text">
-            <HashtagText :content="p.content" />
-          </div>
 
-          <PollCard
-            v-if="p.poll"
-            :poll="p.poll"
-            :post-id="p.id"
-            :is-authed="auth.isAuthed"
-            @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
-            @login-required="onPollLoginRequired"
-          />
-          
-          <!-- Source URL for AstroBot posts -->
-          <div v-if="p.source_name === 'astrobot' && p.source_url" class="source-url">
-            <a :href="p.source_url" target="_blank" rel="noopener noreferrer" class="source-link">
-              📰 Zobraziť pôvodný článok
-            </a>
-          </div>
-
-          <!-- Media attachment -->
-          <div v-if="p.attachment_url" class="post-media">
-            <div v-if="isAttachmentBlocked(p)" class="media-removed">
-              Removed
-            </div>
-            <PostMediaImage
-              v-else-if="isImage(p)"
-              :src="attachmentSrc(p)"
-              alt="Priloha prispevku"
-              :blurred="isAttachmentPending(p)"
-              pending-label="Checking..."
-            />
-
-            <a
-              v-else-if="!isAttachmentPending(p)"
-              class="file-attachment"
-              :href="attachmentSrc(p)"
-              target="_blank"
-              rel="noopener"
-              @click.stop
-            >
-              <div class="file-icon">📎</div>
-              <div class="file-info">
-                <div class="file-title">Príloha</div>
-                <div class="file-name">
-                  {{ p.attachment_original_name || 'Súbor' }}
+            <div class="post-content">
+              <!-- Header -->
+              <div class="post-header">
+                <div class="post-meta">
+                  <div class="post-author">
+                    <button class="author-name" type="button" @click.stop="openProfile(p)">
+                      {{ p?.user?.name ?? 'User' }}
+                    </button>
+                    <span class="author-username">@{{ p?.user?.username }}</span>
+                    <span class="author-time">{{ fmt(p?.created_at) }}</span>
+                    <span v-if="isBotPost(p)" class="astrobot-badge">{{ botBadgeLabel(p) }}</span>
+                    <span v-if="p.pinned_at" class="pinned-badge">📌 Pripnuté</span>
+                  </div>
+                  <div v-if="p?.user?.location || isBotPost(p)" class="post-time">
+                    <span v-if="p?.user?.location" class="location">📍 {{ p.user.location }}</span>
+                    <span v-if="isBotPost(p)" class="astrobot-label"
+                      >Automated news · replies disabled</span
+                    >
+                  </div>
+                  <div v-if="isBotPost(p)" class="bot-meta-row">
+                    <span class="bot-source-label">{{ botSourceLabel(p) }}</span>
+                  </div>
+                </div>
+                <!-- Actions dropdown -->
+                <div class="post-actions-menu">
+                  <DropdownMenu
+                    v-if="menuItemsForPost(p).length"
+                    :items="menuItemsForPost(p)"
+                    label="More actions"
+                    menu-label="Post actions"
+                    @select="(item) => onMenuAction(item, p)"
+                  />
                 </div>
               </div>
-              <div class="file-arrow">→</div>
-            </a>
-          </div>
+              <!-- Content -->
+              <div class="post-text">
+                <HashtagText :content="displayPostContent(p)" />
+                <button
+                  v-if="isBotContentCollapsible(p)"
+                  class="show-more-btn"
+                  type="button"
+                  @click.stop="togglePostContent(p)"
+                >
+                  {{ isPostContentExpanded(p) ? 'Zobrazit menej' : 'Zobrazit viac' }}
+                </button>
+              </div>
 
-          <!-- Bottom actions -->
-          <div class="post-actions" @click.stop>
-<button 
-              v-if="p.source_name !== 'astrobot'"
-              class="action-btn action-btn--reply" 
-              type="button" 
-              title="Reagovať" 
-              disabled
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-              </svg>
-              <span class="action-count">{{ p.replies_count ?? 0 }}</span>
-            </button>
-            
-            <span 
-              v-else
-              class="action-btn action-btn--disabled"
-              title="Replies disabled on automated news"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-              </svg>
-              <span class="action-count">{{ p.replies_count ?? 0 }}</span>
-            </span>
-            
-            <button
-              class="action-btn action-btn--share"
-              type="button"
-              title="Zdieľať"
-              aria-label="Zdieľať prispevok"
-              @click.stop="openShareModal(p)"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                <polyline points="16 6 12 2 8 6"/>
-                <line x1="12" y1="2" x2="12" y2="15"/>
-              </svg>
-            </button>
-            
-            <button
-              class="action-btn action-btn--like"
-              type="button"
-              :class="{ 
-                'action-btn--liked': p.liked_by_me, 
-                'action-btn--bump': likeBumpId === p.id 
-              }"
-              :disabled="!auth.isAuthed || isLikeLoading(p)"
-              :title="auth.isAuthed ? (p.liked_by_me ? 'Zrušiť like' : 'Páči sa mi') : 'Prihlás sa pre lajkovanie'"
-              @click.stop="toggleLike(p)"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-              </svg>
-              <span class="action-count">{{ p.likes_count ?? 0 }}</span>
-            </button>
-            
-            <div class="action-spacer"></div>
-            
-            <button
-              class="action-btn action-btn--thread"
-              type="button"
-              title="Počet zobrazení"
-              aria-label="Počet zobrazení"
-              @click.stop="openPost(p)"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-              <span v-if="Number(p.views ?? 0) > 0" class="view-count">{{ p.views }}</span>
-            </button>
-            
-            <button
-              class="action-btn action-btn--bookmark"
-              type="button"
-              :class="{ 'action-btn--bookmarked': p.is_bookmarked }"
-              :disabled="!auth.isAuthed || isBookmarkLoading(p)"
-              :title="auth.isAuthed ? (p.is_bookmarked ? 'Odstranit zo zaloziek' : 'Ulozit do zaloziek') : 'Prihlas sa pre zalozky'"
-              @click.stop="toggleBookmark(p)"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-              </svg>
-            </button>
-</div>
+              <PollCard
+                v-if="p.poll"
+                :poll="p.poll"
+                :post-id="p.id"
+                :is-authed="auth.isAuthed"
+                @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
+                @login-required="onPollLoginRequired"
+              />
+
+              <div v-if="isBotPost(p)" class="source-url source-url--bot" @click.stop>
+                <span class="source-attribution">Zdroj: {{ sourceAttributionLabel(p) }}</span>
+                <a
+                  v-if="sourceLink(p)"
+                  :href="sourceLink(p)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="source-link"
+                >
+                  Citat zdroj
+                </a>
+              </div>
+
+              <div v-if="stelaPreviewImageSrc(p)" class="post-media post-media--stela">
+                <div v-if="isAttachmentBlocked(p)" class="media-removed">Removed</div>
+                <PostMediaImage
+                  v-else
+                  :src="stelaPreviewImageSrc(p)"
+                  alt="Stela APOD preview"
+                  :blurred="isAttachmentPending(p)"
+                  pending-label="Checking..."
+                />
+              </div>
+
+              <!-- Media attachment -->
+              <div v-if="p.attachment_url && !stelaPreviewImageSrc(p)" class="post-media">
+                <div v-if="isAttachmentBlocked(p)" class="media-removed">Removed</div>
+                <PostMediaImage
+                  v-else-if="isImage(p)"
+                  :src="attachmentSrc(p)"
+                  alt="Priloha prispevku"
+                  :blurred="isAttachmentPending(p)"
+                  pending-label="Checking..."
+                />
+
+                <a
+                  v-else-if="!isAttachmentPending(p)"
+                  class="file-attachment"
+                  :href="attachmentSrc(p)"
+                  target="_blank"
+                  rel="noopener"
+                  @click.stop
+                >
+                  <div class="file-icon">📎</div>
+                  <div class="file-info">
+                    <div class="file-title">Príloha</div>
+                    <div class="file-name">
+                      {{ p.attachment_original_name || 'Súbor' }}
+                    </div>
+                  </div>
+                  <div class="file-arrow">→</div>
+                </a>
+              </div>
+
+              <!-- Bottom actions -->
+              <div class="post-actions" @click.stop>
+                <button
+                  v-if="!isBotPost(p)"
+                  class="action-btn action-btn--reply"
+                  type="button"
+                  title="Reagovať"
+                  disabled
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                    />
+                  </svg>
+                  <span class="action-count">{{ p.replies_count ?? 0 }}</span>
+                </button>
+
+                <span
+                  v-else
+                  class="action-btn action-btn--disabled"
+                  title="Replies disabled on automated news"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                    />
+                  </svg>
+                  <span class="action-count">{{ p.replies_count ?? 0 }}</span>
+                </span>
+
+                <button
+                  class="action-btn action-btn--share"
+                  type="button"
+                  title="Zdieľať"
+                  aria-label="Zdieľať prispevok"
+                  @click.stop="openShareModal(p)"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                    <polyline points="16 6 12 2 8 6" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </svg>
+                </button>
+
+                <button
+                  class="action-btn action-btn--like"
+                  type="button"
+                  :class="{
+                    'action-btn--liked': p.liked_by_me,
+                    'action-btn--bump': likeBumpId === p.id,
+                  }"
+                  :disabled="!auth.isAuthed || isLikeLoading(p)"
+                  :title="
+                    auth.isAuthed
+                      ? p.liked_by_me
+                        ? 'Zrušiť like'
+                        : 'Páči sa mi'
+                      : 'Prihlás sa pre lajkovanie'
+                  "
+                  @click.stop="toggleLike(p)"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                    />
+                  </svg>
+                  <span class="action-count">{{ p.likes_count ?? 0 }}</span>
+                </button>
+
+                <div class="action-spacer"></div>
+
+                <button
+                  class="action-btn action-btn--thread"
+                  type="button"
+                  title="Počet zobrazení"
+                  aria-label="Počet zobrazení"
+                  @click.stop="openPost(p)"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span v-if="Number(p.views ?? 0) > 0" class="view-count">{{ p.views }}</span>
+                </button>
+
+                <button
+                  class="action-btn action-btn--bookmark"
+                  type="button"
+                  :class="{ 'action-btn--bookmarked': p.is_bookmarked }"
+                  :disabled="!auth.isAuthed || isBookmarkLoading(p)"
+                  :title="
+                    auth.isAuthed
+                      ? p.is_bookmarked
+                        ? 'Odstranit zo zaloziek'
+                        : 'Ulozit do zaloziek'
+                      : 'Prihlas sa pre zalozky'
+                  "
+                  @click.stop="toggleBookmark(p)"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </article>
         </div>
-      </article>
-    </div>
 
         <!-- Load more -->
-    <div class="load-more">
-      <button
-        v-if="nextPageUrl"
-        class="load-more-btn"
-        :disabled="loading"
-        @click="load(false)"
-      >
-        {{ loading ? 'Loading...' : 'Load more' }}
-      </button>
-    </div>
+        <div class="load-more">
+          <button v-if="nextPageUrl" class="load-more-btn" :disabled="loading" @click="load(false)">
+            {{ loading ? 'Loading...' : 'Load more' }}
+          </button>
+        </div>
       </template>
     </section>
     <!-- Report modal -->
@@ -274,7 +363,12 @@
           </div>
           <div class="form-group">
             <label class="form-label">Message (optional)</label>
-            <textarea v-model="reportMessage" class="form-textarea" rows="3" placeholder="Popis..."></textarea>
+            <textarea
+              v-model="reportMessage"
+              class="form-textarea"
+              rows="3"
+              placeholder="Popis..."
+            ></textarea>
           </div>
           <div class="report-actions">
             <button class="btn btn-secondary" type="button" @click="closeReport">Cancel</button>
@@ -294,7 +388,9 @@
         <h3 id="delete-title" class="report-title">Delete post</h3>
         <p class="delete-copy">This action cannot be undone.</p>
         <div class="report-actions">
-          <button class="btn btn-secondary" type="button" @click="closeDeleteConfirm">Cancel</button>
+          <button class="btn btn-secondary" type="button" @click="closeDeleteConfirm">
+            Cancel
+          </button>
           <button
             class="btn btn-danger"
             type="button"
@@ -339,9 +435,24 @@ const bookmarks = useBookmarksStore()
 const { error: toastError, info: toastInfo } = useToast()
 const HOME_TABS = [
   { id: 'for_you', label: 'Komunita', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
-  { id: 'astrobot', label: 'AstroFeed', tabId: 'feed-tab-astrobot', panelId: 'feed-panel-astrobot' },
+  {
+    id: 'astrobot',
+    label: 'AstroFeed',
+    tabId: 'feed-tab-astrobot',
+    panelId: 'feed-panel-astrobot',
+  },
 ]
-const BOOKMARK_TABS = [{ id: 'bookmarks', label: 'Zalozky', tabId: 'feed-tab-bookmarks', panelId: 'feed-panel-bookmarks' }]
+const BOOKMARK_TABS = [
+  {
+    id: 'bookmarks',
+    label: 'Zalozky',
+    tabId: 'feed-tab-bookmarks',
+    panelId: 'feed-panel-bookmarks',
+  },
+]
+const BOT_CONTENT_PREVIEW_LIMIT = 800
+const HOME_FEED_TAB_STORAGE_KEY = 'astrokomunita.feed.activeTab'
+const URL_PATTERN = /https?:\/\/[^\s<>"')\]]+/i
 const isBookmarksMode = computed(() => props.mode === 'bookmarks')
 const tabs = computed(() => (isBookmarksMode.value ? BOOKMARK_TABS : HOME_TABS))
 
@@ -350,7 +461,7 @@ const feedState = reactive({
   astrobot: createFeedState(),
   bookmarks: createFeedState(),
 })
-const activeTab = ref(isBookmarksMode.value ? 'bookmarks' : 'for_you')
+const activeTab = ref(resolveInitialTab())
 const currentFeed = computed(() => feedState[activeTab.value])
 const items = computed(() => currentFeed.value.items)
 const nextPageUrl = computed(() => currentFeed.value.nextPageUrl)
@@ -366,6 +477,7 @@ const reportReason = ref('spam')
 const reportMessage = ref('')
 const highlightedPostId = ref(null)
 const shareTarget = ref(null)
+const expandedPostIds = ref(new Set())
 let highlightTimer = null
 
 function createFeedState() {
@@ -378,6 +490,25 @@ function createFeedState() {
     loaded: false,
     scrollY: 0,
   }
+}
+
+function resolveInitialTab() {
+  if (isBookmarksMode.value) return 'bookmarks'
+  if (typeof window === 'undefined') return 'for_you'
+
+  const stored = window.localStorage.getItem(HOME_FEED_TAB_STORAGE_KEY)
+  if (stored && HOME_TABS.some((tab) => tab.id === stored)) {
+    return stored
+  }
+
+  return 'for_you'
+}
+
+function persistActiveTab(tab) {
+  if (isBookmarksMode.value || typeof window === 'undefined') return
+  if (!HOME_TABS.some((entry) => entry.id === tab)) return
+
+  window.localStorage.setItem(HOME_FEED_TAB_STORAGE_KEY, tab)
 }
 
 function openPost(post) {
@@ -403,6 +534,132 @@ function canReport(post) {
   return canReportPost(post, auth.user)
 }
 
+function normalizeToken(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+}
+
+function isBotPost(post) {
+  const authorKind = normalizeToken(post?.author_kind)
+  if (authorKind) return authorKind === 'bot'
+  return normalizeToken(post?.source_name) === 'astrobot'
+}
+
+function botIdentity(post) {
+  return normalizeToken(post?.bot_identity)
+}
+
+function botBadgeLabel(post) {
+  const identity = botIdentity(post)
+  if (identity === 'stela') return 'Stela'
+  if (identity === 'kozmo') return 'Kozmo'
+  return 'AstroBot'
+}
+
+function botSourceLabel(post) {
+  if (!isBotPost(post)) return ''
+
+  const identity = botIdentity(post)
+  const content = String(post?.content || '')
+  const wikiContent = /wikipedia|on this day/i.test(content)
+
+  if (identity === 'stela') return 'NASA APOD'
+  if (identity === 'kozmo' && wikiContent) return 'Wikipedia'
+  if (wikiContent) return 'Wikipedia'
+
+  return 'NASA RSS'
+}
+
+function sourceAttributionLabel(post) {
+  return botSourceLabel(post) === 'Wikipedia' ? 'Wikipedia' : 'NASA'
+}
+
+function extractFirstUrl(text) {
+  const match = String(text || '').match(URL_PATTERN)
+  if (!match?.[0]) return ''
+  return match[0].replace(/[),.;!?]+$/, '')
+}
+
+function absoluteUrl(url) {
+  const value = String(url || '').trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+
+  const base = api?.defaults?.baseURL || ''
+  const origin = base.replace(/\/api\/?$/, '')
+  if (!origin) return value
+
+  if (value.startsWith('/')) return origin + value
+  return origin + '/' + value
+}
+
+function sourceLink(post) {
+  const candidate = post?.source_url || post?.url || extractFirstUrl(post?.content)
+  return absoluteUrl(candidate)
+}
+
+function isPostContentExpanded(post) {
+  return expandedPostIds.value.has(post?.id)
+}
+
+function isBotContentCollapsible(post) {
+  const content = String(post?.content || '')
+  return isBotPost(post) && content.length > BOT_CONTENT_PREVIEW_LIMIT
+}
+
+function togglePostContent(post) {
+  const id = post?.id
+  if (!id) return
+
+  const next = new Set(expandedPostIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  expandedPostIds.value = next
+}
+
+function displayPostContent(post) {
+  const content = String(post?.content || '')
+  if (!isBotContentCollapsible(post) || isPostContentExpanded(post)) return content
+  return content.slice(0, BOT_CONTENT_PREVIEW_LIMIT).trimEnd() + '...'
+}
+
+function isStelaPost(post) {
+  return botIdentity(post) === 'stela'
+}
+
+function isAttachmentEntryImage(entry) {
+  const type = normalizeToken(entry?.type)
+  const mime = normalizeToken(entry?.mime)
+  const url = String(entry?.url || entry?.src || entry?.href || '')
+
+  if (type === 'image') return true
+  if (mime.startsWith('image/')) return true
+  return /\.(png|jpe?g|gif|webp|avif)$/i.test(url)
+}
+
+function attachmentEntryUrl(entry) {
+  const raw = entry?.url || entry?.src || entry?.href
+  return absoluteUrl(raw)
+}
+
+function stelaPreviewImageSrc(post) {
+  if (!isStelaPost(post)) return ''
+
+  if (Array.isArray(post?.attachments)) {
+    const imageEntry = post.attachments.find(
+      (entry) => isAttachmentEntryImage(entry) && attachmentEntryUrl(entry),
+    )
+    if (imageEntry) return attachmentEntryUrl(imageEntry)
+  }
+
+  if (post?.attachment_url && isImage(post)) {
+    return attachmentSrc(post)
+  }
+
+  return ''
+}
+
 function menuItemsForPost(post) {
   const items = []
 
@@ -418,7 +675,7 @@ function menuItemsForPost(post) {
     items.push({ key: 'delete', label: 'Delete', danger: true })
   }
 
-  if (auth.user?.is_admin && post?.source_name !== 'astrobot') {
+  if (auth.user?.is_admin && !isBotPost(post)) {
     items.push({
       key: 'pin',
       label: post?.pinned_at ? 'Unpin' : 'Pin',
@@ -533,7 +790,7 @@ async function toggleBookmark(post) {
     await auth.csrf()
     const state = await bookmarks.toggleBookmark(post.id, prevBookmarked)
     post.is_bookmarked = state
-    post.bookmarked_at = state ? (post.bookmarked_at || new Date().toISOString()) : null
+    post.bookmarked_at = state ? post.bookmarked_at || new Date().toISOString() : null
   } catch (e) {
     post.is_bookmarked = prevBookmarked
     post.bookmarked_at = prevBookmarkedAt
@@ -753,6 +1010,7 @@ async function switchTab(tab) {
 
   saveTabScroll(activeTab.value)
   activeTab.value = tab
+  persistActiveTab(tab)
 
   if (!feedState[tab].loaded) {
     await load(true, tab)
@@ -784,14 +1042,14 @@ async function load(reset = true, tab = activeTab.value) {
 
   try {
     let url
-    
+
     if (reset) {
       // Reset pagination state when switching tabs
       state.nextPageUrl = null
-      
+
       // Use dedicated endpoints based on active tab
       if (tab === 'astrobot') {
-        url = '/feed/astrobot?with=counts'
+        url = '/astro-feed?with=counts'
       } else if (tab === 'bookmarks') {
         url = '/me/bookmarks?with=counts'
       } else {
@@ -801,7 +1059,7 @@ async function load(reset = true, tab = activeTab.value) {
     } else {
       url = state.nextPageUrl
     }
-    
+
     if (!url) return
 
     if (state.controller) {
@@ -854,17 +1112,17 @@ async function togglePin(post) {
     } else {
       await api.patch(`/admin/posts/${post.id}/pin`)
     }
-    
+
     // Update local state
     if (wasPinned) {
       post.pinned_at = null
     } else {
       post.pinned_at = new Date().toISOString()
     }
-    
+
     // Refresh feed to re-order
     load(true)
-    
+
     currentFeed.value.err = wasPinned ? 'Post unpinned successfully' : 'Post pinned successfully'
   } catch (e) {
     const status = e?.response?.status
@@ -917,6 +1175,7 @@ function handleGlobalKeydown(event) {
 }
 
 onMounted(() => {
+  persistActiveTab(activeTab.value)
   load(true, activeTab.value)
   window.addEventListener('keydown', handleGlobalKeydown)
 })
@@ -1048,7 +1307,6 @@ defineExpose({ load, prepend })
   outline-offset: 2px;
 }
 
-
 /* Error Message */
 .error-message {
   background: rgb(var(--color-danger-rgb) / 0.1);
@@ -1133,14 +1391,26 @@ defineExpose({ load, prepend })
   animation: shimmer 1.2s infinite;
 }
 
-.skeleton-name { width: 120px; }
-.skeleton-time { width: 80px; }
-.skeleton-text:first-child { width: 100%; }
-.skeleton-text:last-child { width: 70%; }
+.skeleton-name {
+  width: 120px;
+}
+.skeleton-time {
+  width: 80px;
+}
+.skeleton-text:first-child {
+  width: 100%;
+}
+.skeleton-text:last-child {
+  width: 70%;
+}
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* Modern Post Cards */
@@ -1411,6 +1681,26 @@ defineExpose({ load, prepend })
   color: inherit;
 }
 
+.bot-meta-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bot-source-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.25);
+  background: rgb(var(--color-primary-rgb) / 0.1);
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .post-actions-menu {
   display: flex;
   align-items: center;
@@ -1471,9 +1761,39 @@ defineExpose({ load, prepend })
   border-bottom-color: var(--color-primary);
 }
 
+.show-more-btn {
+  margin-top: 8px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  background: rgb(var(--color-bg-rgb) / 0.42);
+  color: var(--color-surface);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.show-more-btn:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.45);
+  color: var(--color-primary);
+}
+
 /* Source URL */
 .source-url {
   margin-top: 12px;
+}
+
+.source-url--bot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.source-attribution {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .source-link {
@@ -1508,6 +1828,10 @@ defineExpose({ load, prepend })
 /* Media */
 .post-media {
   margin-top: 12px;
+}
+
+.post-media--stela {
+  margin-top: 14px;
 }
 
 .media-removed {
@@ -1736,9 +2060,15 @@ defineExpose({ load, prepend })
 }
 
 @keyframes likePop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* Load More Button */
@@ -2074,5 +2404,4 @@ defineExpose({ load, prepend })
     gap: 12px;
   }
 }
-
 </style>

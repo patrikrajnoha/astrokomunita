@@ -4,6 +4,8 @@ import { nextTick } from 'vue'
 import FeedList from '@/components/FeedList.vue'
 import api from '@/services/api'
 
+const STORAGE_KEY = 'astrokomunita.feed.activeTab'
+
 const toastInfoMock = vi.fn()
 const toastErrorMock = vi.fn()
 
@@ -101,6 +103,7 @@ describe('FeedList full-quality download menu', () => {
     api.delete.mockReset()
     toastInfoMock.mockReset()
     toastErrorMock.mockReset()
+    window.localStorage.removeItem(STORAGE_KEY)
     window.scrollTo = vi.fn()
   })
 
