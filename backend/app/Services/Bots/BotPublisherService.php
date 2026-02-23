@@ -23,27 +23,28 @@ class BotPublisherService
     ) {
     }
 
-    public function publishItemToAstroFeed(BotItem $item): PublishResult
+    public function publishItemToAstroFeed(BotItem $item, string $runContext = 'manual'): PublishResult
     {
         $publishPayload = $this->resolvePublishPayload($item);
         $publishStatus = $item->publish_status?->value ?? (string) $item->publish_status;
+        $normalizedRunContext = $this->normalizeRunContext($runContext);
 
         if ($item->post_id) {
-            $this->markPublishedLinkedItem($item, 'already_linked_post', $publishPayload['used_translation']);
+            $this->markPublishedLinkedItem($item, 'already_linked_post', $publishPayload['used_translation'], $normalizedRunContext);
             return PublishResult::skipped('already_linked_post');
         }
 
         if ($publishStatus === BotPublishStatus::SKIPPED->value) {
             $reason = trim((string) data_get($item->meta, 'skip_reason', ''));
             $skipReason = $reason !== '' ? $reason : 'already_skipped';
-            $this->markSkipped($item, $skipReason, $publishPayload['used_translation']);
+            $this->markSkipped($item, $skipReason, $publishPayload['used_translation'], $normalizedRunContext);
 
             return PublishResult::skipped($skipReason);
         }
 
         $skipReason = $this->resolveSkipReason($item, $publishPayload);
         if ($skipReason !== null) {
-            $this->markSkipped($item, $skipReason, $publishPayload['used_translation']);
+            $this->markSkipped($item, $skipReason, $publishPayload['used_translation'], $normalizedRunContext);
 
             return PublishResult::skipped($skipReason);
         }
@@ -52,7 +53,7 @@ class BotPublisherService
         $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
         $sourceName = $this->sourceNameForPost($source->key);
         $sourceUid = $this->sourceUidForPost($source->key, $item->stable_key);
-        $postMeta = $this->buildPostMeta($source, $item, $publishPayload);
+        $postMeta = $this->buildPostMeta($source, $item, $publishPayload, $normalizedRunContext);
 
         $existingPost = Post::query()
             ->where('source_name', $sourceName)
@@ -63,7 +64,7 @@ class BotPublisherService
             $item->forceFill([
                 'post_id' => $existingPost->id,
                 'publish_status' => BotPublishStatus::PUBLISHED->value,
-                'meta' => $this->withPublishAudit($item->meta, $existingPost->id, 'already_published_by_source_uid', $publishPayload['used_translation']),
+                'meta' => $this->withPublishAudit($item->meta, $existingPost->id, 'already_published_by_source_uid', $publishPayload['used_translation'], $normalizedRunContext),
             ])->save();
 
             return PublishResult::skipped('already_published_by_source_uid');
@@ -75,7 +76,7 @@ class BotPublisherService
             $downloaded = $this->downloadStelaImageAttachment($item);
             if (($downloaded['error'] ?? null) !== null) {
                 $reason = (string) $downloaded['error'];
-                $this->markSkipped($item, $reason, $publishPayload['used_translation']);
+                $this->markSkipped($item, $reason, $publishPayload['used_translation'], $normalizedRunContext);
                 return PublishResult::skipped($reason);
             }
 
@@ -122,7 +123,7 @@ class BotPublisherService
         $item->forceFill([
             'post_id' => $post->id,
             'publish_status' => BotPublishStatus::PUBLISHED->value,
-            'meta' => $this->withPublishAudit($item->meta, $post->id, null, $publishPayload['used_translation']),
+            'meta' => $this->withPublishAudit($item->meta, $post->id, null, $publishPayload['used_translation'], $normalizedRunContext),
         ])->save();
 
         return PublishResult::published($post);
@@ -241,7 +242,7 @@ class BotPublisherService
      * @param array{title:string,body:string,used_translation:bool} $publishPayload
      * @return array<string,mixed>
      */
-    private function buildPostMeta(BotSource $source, BotItem $item, array $publishPayload): array
+    private function buildPostMeta(BotSource $source, BotItem $item, array $publishPayload, string $runContext): array
     {
         $botIdentity = strtolower(trim((string) ($item->bot_identity?->value ?? $item->bot_identity)));
         $sourceKey = strtolower(trim((string) $source->key));
@@ -259,6 +260,7 @@ class BotPublisherService
             'source_url' => $this->canonicalSourceUrl($source, $item),
             'published_by' => 'bot-engine',
             'published_at_utc' => now()->utc()->toIso8601String(),
+            'run_context' => $runContext,
             'original_title' => $this->nullableString($item->title),
             'original_content' => $this->nullableString($item->content ?: $item->summary),
             'translated_title' => $this->nullableString($item->title_translated),
@@ -293,12 +295,13 @@ class BotPublisherService
      * @param mixed $meta
      * @return array<string, mixed>
      */
-    private function withPublishAudit(mixed $meta, int $postId, ?string $skipReason, bool $usedTranslation): array
+    private function withPublishAudit(mixed $meta, int $postId, ?string $skipReason, bool $usedTranslation, string $runContext): array
     {
         $payload = is_array($meta) ? $meta : [];
         $payload['published_to_posts_at'] = now()->toIso8601String();
         $payload['post_id'] = $postId;
         $payload['used_translation'] = $usedTranslation;
+        $payload['run_context'] = $runContext;
         if ($skipReason !== null) {
             $payload['skip_reason'] = $skipReason;
         } else {
@@ -342,11 +345,12 @@ class BotPublisherService
         return null;
     }
 
-    private function markSkipped(BotItem $item, string $reason, bool $usedTranslation): void
+    private function markSkipped(BotItem $item, string $reason, bool $usedTranslation, string $runContext): void
     {
         $meta = is_array($item->meta) ? $item->meta : [];
         $meta['skip_reason'] = $reason;
         $meta['used_translation'] = $usedTranslation;
+        $meta['run_context'] = $runContext;
 
         $item->forceFill([
             'publish_status' => BotPublishStatus::SKIPPED->value,
@@ -354,11 +358,12 @@ class BotPublisherService
         ])->save();
     }
 
-    private function markPublishedLinkedItem(BotItem $item, string $reason, bool $usedTranslation): void
+    private function markPublishedLinkedItem(BotItem $item, string $reason, bool $usedTranslation, string $runContext): void
     {
         $meta = is_array($item->meta) ? $item->meta : [];
         $meta['skip_reason'] = $reason;
         $meta['used_translation'] = $usedTranslation;
+        $meta['run_context'] = $runContext;
 
         $item->forceFill([
             'publish_status' => BotPublishStatus::PUBLISHED->value,
@@ -542,6 +547,17 @@ class BotPublisherService
     private function isStelaIdentity(string $botIdentity): bool
     {
         return strtolower(trim($botIdentity)) === PostBotIdentity::STELA->value;
+    }
+
+    private function normalizeRunContext(string $runContext): string
+    {
+        $normalized = strtolower(trim($runContext));
+
+        if (in_array($normalized, ['manual', 'scheduled', 'cli'], true)) {
+            return $normalized;
+        }
+
+        return 'manual';
     }
 
     private function nullableString(mixed $value): ?string
