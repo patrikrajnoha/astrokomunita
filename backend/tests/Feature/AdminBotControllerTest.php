@@ -43,6 +43,7 @@ class AdminBotControllerTest extends TestCase
         $this->postJson('/api/admin/bots/run/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/translation/test')->assertStatus(403);
         $this->postJson('/api/admin/bots/translation/retry/' . $source->key)->assertStatus(403);
+        $this->postJson('/api/admin/bots/translation/backfill/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/items/1/publish')->assertStatus(403);
         $this->deleteJson('/api/admin/bots/items/1/post')->assertStatus(403);
         $this->postJson('/api/admin/bots/runs/1/publish')->assertStatus(403);
@@ -410,6 +411,126 @@ class AdminBotControllerTest extends TestCase
         $this->assertNull($failedItem->translation_error);
         $this->assertNotNull($failedItem->translated_at);
         $this->assertSame('SK English retry title', (string) $failedItem->title_translated);
+    }
+
+    public function test_admin_translation_backfill_updates_existing_post_without_duplicates(): void
+    {
+        $source = $this->createRssSource('backfill_translation_source');
+        $botUser = User::factory()->create([
+            'is_bot' => true,
+            'username' => 'kozmobot',
+            'email' => 'kozmobot-backfill@example.test',
+        ]);
+        $post = Post::query()->create([
+            'user_id' => $botUser->id,
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'kozmo',
+            'content' => 'NASA | English backfill title' . "\n\n" . 'English backfill body long enough for publish.',
+            'source_name' => 'bot_' . $source->key,
+            'source_uid' => sha1($source->key . '|guid-backfill-admin'),
+            'source_url' => 'https://example.test/news/guid-backfill-admin',
+            'translation_status' => 'pending',
+        ]);
+
+        $item = $this->createBotItem($source, 'guid-backfill-admin', now(), [
+            'post_id' => $post->id,
+            'translation_status' => 'pending',
+            'publish_status' => 'published',
+            'title' => 'English backfill title',
+            'content' => 'English backfill body long enough for publish.',
+            'url' => 'https://example.test/news/guid-backfill-admin',
+        ]);
+
+        $this->actingAsAdmin();
+        config()->set('astrobot.translation_provider', 'http');
+        config()->set('astrobot.translation_fallback_provider', '');
+        config()->set('astrobot.translation_base_url', 'http://translation.test');
+        config()->set('astrobot.translation_timeout_seconds', 5);
+
+        Http::fake([
+            'http://translation.test/translate' => function ($request) {
+                $sourceText = trim((string) ($request['q'] ?? ''));
+
+                return Http::response([
+                    'translatedText' => 'Ahoj svet ' . $sourceText,
+                ], 200);
+            },
+        ]);
+
+        $response = $this->postJson('/api/admin/bots/translation/backfill/' . $source->key . '?limit=10');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('source_key', $source->key)
+            ->assertJsonPath('scanned', 1)
+            ->assertJsonPath('updated_posts', 1)
+            ->assertJsonPath('failed', 0);
+
+        $item->refresh();
+        $post->refresh();
+        $this->assertSame('done', (string) $item->translation_status->value);
+        $this->assertNotNull($item->translated_at);
+        $this->assertStringContainsString('Ahoj svet', (string) $post->content);
+        $this->assertSame('done', (string) $post->translation_status);
+        $this->assertSame(1, Post::query()->count());
+    }
+
+    public function test_admin_translation_backfill_is_idempotent_on_second_call(): void
+    {
+        $source = $this->createRssSource('backfill_translation_idempotent_source');
+        $botUser = User::factory()->create([
+            'is_bot' => true,
+            'username' => 'kozmobot2',
+            'email' => 'kozmobot-backfill2@example.test',
+        ]);
+        $post = Post::query()->create([
+            'user_id' => $botUser->id,
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'kozmo',
+            'content' => 'NASA | English idempotent title' . "\n\n" . 'English idempotent body long enough for publish.',
+            'source_name' => 'bot_' . $source->key,
+            'source_uid' => sha1($source->key . '|guid-backfill-idempotent'),
+            'source_url' => 'https://example.test/news/guid-backfill-idempotent',
+            'translation_status' => 'pending',
+        ]);
+
+        $this->createBotItem($source, 'guid-backfill-idempotent', now(), [
+            'post_id' => $post->id,
+            'translation_status' => 'pending',
+            'publish_status' => 'published',
+            'title' => 'English idempotent title',
+            'content' => 'English idempotent body long enough for publish.',
+            'url' => 'https://example.test/news/guid-backfill-idempotent',
+        ]);
+
+        $this->actingAsAdmin();
+        config()->set('astrobot.translation_provider', 'http');
+        config()->set('astrobot.translation_fallback_provider', '');
+        config()->set('astrobot.translation_base_url', 'http://translation.test');
+        config()->set('astrobot.translation_timeout_seconds', 5);
+
+        Http::fake([
+            'http://translation.test/translate' => function ($request) {
+                $sourceText = trim((string) ($request['q'] ?? ''));
+
+                return Http::response([
+                    'translatedText' => 'Ahoj svet ' . $sourceText,
+                ], 200);
+            },
+        ]);
+
+        $first = $this->postJson('/api/admin/bots/translation/backfill/' . $source->key . '?limit=10');
+        $second = $this->postJson('/api/admin/bots/translation/backfill/' . $source->key . '?limit=10');
+
+        $first
+            ->assertOk()
+            ->assertJsonPath('updated_posts', 1);
+
+        $second
+            ->assertOk()
+            ->assertJsonPath('updated_posts', 0);
     }
 
     public function test_admin_publish_item_endpoint_publishes_pending_item_and_marks_manual_audit(): void

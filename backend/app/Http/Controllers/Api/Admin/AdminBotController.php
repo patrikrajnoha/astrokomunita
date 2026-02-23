@@ -9,6 +9,7 @@ use App\Models\BotItem;
 use App\Models\BotRun;
 use App\Models\BotSource;
 use App\Models\Post;
+use App\Services\Bots\BotPostTranslationBackfillService;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use App\Services\Bots\BotPublisherService;
 use App\Services\Bots\BotRunner;
@@ -29,6 +30,7 @@ class AdminBotController extends Controller
         private readonly BotPublisherService $publisherService,
         private readonly PostService $postService,
         private readonly BotTranslationServiceInterface $translationService,
+        private readonly BotPostTranslationBackfillService $backfillService,
     ) {
     }
 
@@ -431,6 +433,54 @@ class AdminBotController extends Controller
             'failed_count' => $failedCount,
             'updated_item_ids' => $updatedItemIds,
         ]);
+    }
+
+    public function backfillTranslation(Request $request, string $sourceKey): JsonResponse
+    {
+        $validated = $request->validate([
+            'limit' => 'nullable|integer|min:1|max:100',
+            'run_id' => 'nullable|integer|min:1|exists:bot_runs,id',
+        ]);
+
+        $normalizedSourceKey = strtolower(trim($sourceKey));
+        $source = BotSource::query()->where('key', $normalizedSourceKey)->first();
+        if (!$source) {
+            return response()->json([
+                'message' => sprintf('Bot source "%s" was not found.', $normalizedSourceKey),
+            ], 404);
+        }
+
+        $limit = (int) ($validated['limit'] ?? (int) $request->query('limit', 10));
+        if ($limit <= 0) {
+            $limit = 10;
+        }
+        $runId = isset($validated['run_id']) ? (int) $validated['run_id'] : null;
+
+        try {
+            $result = $this->backfillService->backfill($source, $limit, $runId);
+        } catch (Throwable $e) {
+            Log::warning('Admin bot translation backfill failed.', [
+                'source_key' => $normalizedSourceKey,
+                'run_id' => $runId,
+                'error' => $this->truncateErrorText($e->getMessage(), 240),
+            ]);
+
+            return response()->json([
+                'source_key' => $normalizedSourceKey,
+                'run_id' => $runId,
+                'limit' => $limit,
+                'scanned' => 0,
+                'updated_posts' => 0,
+                'skipped' => 0,
+                'failed' => 1,
+                'failures' => [[
+                    'post_id' => null,
+                    'reason' => 'backfill_failed',
+                ]],
+            ], 422);
+        }
+
+        return response()->json($result);
     }
 
     public function publishItem(Request $request, int $botItemId): JsonResponse
