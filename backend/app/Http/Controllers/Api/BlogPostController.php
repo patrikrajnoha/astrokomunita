@@ -68,7 +68,7 @@ class BlogPostController extends Controller
             ], 404);
         }
 
-        $tagIds = $blogPost->tags()->pluck('blog_tags.id')->all();
+        $tagIds = $blogPost->tags()->pluck('tags.id')->all();
 
         if (empty($tagIds)) {
             return response()->json([]);
@@ -77,10 +77,10 @@ class BlogPostController extends Controller
         $items = BlogPost::query()
             ->published()
             ->where('id', '!=', $blogPost->id)
-            ->whereHas('tags', fn ($q) => $q->whereIn('blog_tags.id', $tagIds))
+            ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $tagIds))
             ->with(['user:id,name,email,is_admin', 'tags:id,name,slug'])
             ->withCount([
-                'tags as matching_tags_count' => fn ($q) => $q->whereIn('blog_tags.id', $tagIds),
+                'tags as matching_tags_count' => fn ($q) => $q->whereIn('tags.id', $tagIds),
             ])
             ->orderByDesc('matching_tags_count')
             ->orderByDesc('published_at')
