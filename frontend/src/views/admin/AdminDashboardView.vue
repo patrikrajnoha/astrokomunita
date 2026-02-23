@@ -71,12 +71,40 @@ const generatedAtLabel = computed(() => {
   return date.toLocaleString()
 })
 
-const quickActions = [
-  { title: 'Crawling hub', subtitle: 'Sources, crawl runs and candidate queue in one place', to: '/admin/event-sources' },
-  { title: 'Candidates review', subtitle: 'Open full queue for approve/reject workflow', to: '/admin/event-candidates' },
-  { title: 'User management', subtitle: 'Review profiles, roles, bans and status', to: '/admin/users' },
-  { title: 'Moderation queue', subtitle: 'Process flagged and pending content', to: '/admin/moderation' },
-]
+const quickActions = computed(() => {
+  const queues = stats.value?.queues || {}
+  const kpi = stats.value?.kpi || {}
+  const moderationAttention = Number(queues.moderation_pending || 0) + Number(queues.moderation_flagged || 0)
+
+  return [
+    {
+      title: 'Crawling hub',
+      subtitle: 'Sources, crawl runs and candidate queue in one place',
+      to: '/admin/event-sources',
+      badge: Number(kpi.events_total || 0),
+    },
+    {
+      title: 'Candidates review',
+      subtitle: 'Open full queue for approve/reject workflow',
+      to: '/admin/event-candidates',
+      badge: Number(queues.event_candidates_pending || 0),
+      badgeTone: Number(queues.event_candidates_pending || 0) > 0 ? 'attention' : 'neutral',
+    },
+    {
+      title: 'User management',
+      subtitle: 'Review profiles, roles, bans and status',
+      to: '/admin/users',
+      badge: Number(kpi.users_total || 0),
+    },
+    {
+      title: 'Moderation queue',
+      subtitle: 'Process flagged and pending content',
+      to: '/admin/moderation',
+      badge: moderationAttention,
+      badgeTone: moderationAttention > 0 ? 'danger' : 'neutral',
+    },
+  ]
+})
 
 function formatNumber(value) {
   return new Intl.NumberFormat('sk-SK').format(Number(value || 0))
@@ -249,6 +277,8 @@ onMounted(() => {
             :title="action.title"
             :subtitle="action.subtitle"
             :to="action.to"
+            :badge="formatNumber(action.badge)"
+            :badge-tone="action.badgeTone || 'neutral'"
           />
         </div>
       </DashboardSection>
@@ -264,7 +294,7 @@ onMounted(() => {
         </div>
       </DashboardSection>
 
-      <DashboardSection title="Demographics by region" subtitle="Inferred from user location.">
+      <DashboardSection title="Demographics by region" subtitle="Based on declared profile location.">
         <div class="statList">
           <article v-for="item in byRegionList" :key="item.key" class="statRow">
             <span>{{ item.label }}</span>

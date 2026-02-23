@@ -57,7 +57,16 @@
         </header>
 
         <ul class="event-list">
-          <li v-for="ev in selectedEvents" :key="ev.id" class="event-item">
+          <li
+            v-for="ev in selectedEvents"
+            :key="ev.id"
+            class="event-item"
+            role="button"
+            tabindex="0"
+            @click="openEventDetail(ev)"
+            @keydown.enter.prevent="openEventDetail(ev)"
+            @keydown.space.prevent="openEventDetail(ev)"
+          >
             <span :class="['dot', typeDot(ev.type)]" aria-hidden="true"></span>
             <div>
               <div class="event-title">{{ ev.title }}</div>
@@ -202,6 +211,12 @@ function formatEventTime(ev) {
   if (!end) return startStr
   const endStr = end.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })
   return `${startStr} – ${endStr}`
+}
+
+function openEventDetail(ev) {
+  const eventId = ev?.id
+  if (!eventId) return
+  router.push(`/events/${eventId}`)
 }
 
 function isSameDay(a, b) {
@@ -666,6 +681,18 @@ function isoWeekStart(year, week) {
   grid-template-columns: 10px 1fr;
   column-gap: 10px;
   align-items: start;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 2px 4px;
+}
+
+.event-item:hover {
+  background: rgb(var(--color-surface-rgb) / 0.06);
+}
+
+.event-item:focus-visible {
+  outline: 2px solid rgb(var(--color-surface-rgb) / 0.35);
+  outline-offset: 2px;
 }
 
 .dot {
