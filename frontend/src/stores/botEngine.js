@@ -6,6 +6,7 @@ import {
   getBotSources,
   publishBotItem,
   publishBotRun,
+  backfillBotTranslation,
   retryBotTranslation,
   runBotSource,
   testBotTranslation,
@@ -84,6 +85,7 @@ export const useBotEngineStore = defineStore('botEngine', {
     deletingItemIds: new Set(),
     publishingRunIds: new Set(),
     retryingTranslationSourceKeys: new Set(),
+    backfillingTranslationSourceKeys: new Set(),
     testingTranslation: false,
   }),
 
@@ -119,6 +121,12 @@ export const useBotEngineStore = defineStore('botEngine', {
       const normalized = String(sourceKey || '').trim().toLowerCase()
       if (!normalized) return false
       return this.retryingTranslationSourceKeys.has(normalized)
+    },
+
+    isTranslationBackfilling(sourceKey) {
+      const normalized = String(sourceKey || '').trim().toLowerCase()
+      if (!normalized) return false
+      return this.backfillingTranslationSourceKeys.has(normalized)
     },
 
     updateFilters(nextFilters = {}, { resetPage = false } = {}) {
@@ -316,6 +324,26 @@ export const useBotEngineStore = defineStore('botEngine', {
         return response?.data || null
       } finally {
         this.retryingTranslationSourceKeys.delete(normalizedSourceKey)
+      }
+    },
+
+    async backfillTranslation(sourceKey, payload = {}) {
+      const normalizedSourceKey = String(sourceKey || '').trim().toLowerCase()
+      if (!normalizedSourceKey) {
+        return null
+      }
+
+      if (this.backfillingTranslationSourceKeys.has(normalizedSourceKey)) {
+        return null
+      }
+
+      this.backfillingTranslationSourceKeys.add(normalizedSourceKey)
+
+      try {
+        const response = await backfillBotTranslation(normalizedSourceKey, payload)
+        return response?.data || null
+      } finally {
+        this.backfillingTranslationSourceKeys.delete(normalizedSourceKey)
       }
     },
   },

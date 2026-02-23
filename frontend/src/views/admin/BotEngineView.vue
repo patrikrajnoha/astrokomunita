@@ -561,6 +561,14 @@ function confirmDeletePublishedPost() {
   return true
 }
 
+function confirmBackfillTranslation() {
+  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+    return window.confirm('Backfill translation for already published posts?')
+  }
+
+  return true
+}
+
 async function goToItemsPage(page) {
   if (!selectedRun.value?.id) {
     return
@@ -687,6 +695,41 @@ async function retryTranslateForRun() {
     })
   } catch (error) {
     toast.error(toErrorMessage(error, 'Retry translation failed.'))
+  }
+}
+
+async function backfillTranslateForRun() {
+  const sourceKey = String(selectedRun.value?.source_key || '').trim()
+  if (!sourceKey) {
+    return
+  }
+
+  if (!confirmBackfillTranslation()) {
+    return
+  }
+
+  const limit = Number(retryTranslationLimit.value)
+  const normalizedLimit = Number.isInteger(limit) && limit > 0 ? limit : 10
+
+  try {
+    const result = await store.backfillTranslation(sourceKey, {
+      limit: normalizedLimit,
+      run_id: selectedRun.value?.id,
+    })
+    if (!result) {
+      return
+    }
+
+    toast.success(
+      `Backfill done: updated ${Number(result.updated_posts || 0)}, skipped ${Number(result.skipped || 0)}, failed ${Number(result.failed || 0)}.`,
+    )
+
+    await store.fetchItemsForRun(selectedRun.value?.id, {
+      page: runItemsMeta.value?.current_page || 1,
+      per_page: runItemsMeta.value?.per_page || 20,
+    })
+  } catch (error) {
+    toast.error(toErrorMessage(error, 'Backfill translation failed.'))
   }
 }
 
@@ -1053,6 +1096,14 @@ onMounted(async () => {
                   @click="retryTranslateForRun"
                 >
                   {{ store.isTranslationRetrying(selectedRun?.source_key) ? 'Retrying...' : 'Retry translate' }}
+                </button>
+                <button
+                  type="button"
+                  class="ghostBtn"
+                  :disabled="store.isTranslationBackfilling(selectedRun?.source_key)"
+                  @click="backfillTranslateForRun"
+                >
+                  {{ store.isTranslationBackfilling(selectedRun?.source_key) ? 'Backfilling...' : 'Backfill translation (update posts)' }}
                 </button>
                 <button
                   type="button"

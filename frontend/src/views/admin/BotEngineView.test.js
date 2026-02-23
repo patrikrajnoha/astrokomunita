@@ -52,6 +52,7 @@ const store = {
   publishItem: vi.fn(),
   publishRun: vi.fn(),
   retryTranslation: vi.fn(),
+  backfillTranslation: vi.fn(),
   testTranslation: vi.fn(),
   deleteItemPost: vi.fn(),
   fetchItemsForRun: vi.fn().mockResolvedValue([]),
@@ -61,6 +62,7 @@ const store = {
   isItemDeleting: vi.fn(() => false),
   isRunPublishing: vi.fn(() => false),
   isTranslationRetrying: vi.fn(() => false),
+  isTranslationBackfilling: vi.fn(() => false),
   resetFilters: vi.fn(() => ({
     sourceKey: '',
     bot_identity: '',
@@ -178,6 +180,13 @@ describe('BotEngineView', () => {
       done_count: 1,
       skipped_count: 0,
       failed_count: 0,
+    })
+    store.backfillTranslation.mockResolvedValue({
+      source_key: 'nasa_rss_breaking',
+      scanned: 1,
+      updated_posts: 1,
+      skipped: 0,
+      failed: 0,
     })
     store.testTranslation.mockResolvedValue({
       ok: true,
@@ -389,6 +398,25 @@ describe('BotEngineView', () => {
     await flush()
 
     expect(store.deleteItemPost).not.toHaveBeenCalledWith(94)
+
+    confirmSpy.mockRestore()
+  })
+
+  it('runs translation backfill after confirm from run detail', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    await wrapper.findAll('button').find((node) => node.text().includes('Detail')).trigger('click')
+    await flush()
+
+    const backfillButton = wrapper.findAll('button').find((node) => node.text() === 'Backfill translation (update posts)')
+    await backfillButton.trigger('click')
+    await flush()
+
+    expect(confirmSpy).toHaveBeenCalledWith('Backfill translation for already published posts?')
+    expect(store.backfillTranslation).toHaveBeenCalledWith('nasa_rss_breaking', { limit: 10, run_id: 11 })
 
     confirmSpy.mockRestore()
   })
