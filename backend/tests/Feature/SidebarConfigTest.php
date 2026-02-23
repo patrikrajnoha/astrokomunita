@@ -106,4 +106,34 @@ class SidebarConfigTest extends TestCase
             ->assertJsonPath('message', 'Unknown section_key provided.')
             ->assertJsonPath('section_key', 'unknown_widget');
     }
+
+    public function test_post_detail_scope_can_be_configured(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $putResponse = $this->putJson('/api/admin/sidebar-config?scope=post_detail', [
+            'items' => [
+                ['kind' => 'builtin', 'section_key' => 'search', 'order' => 0, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'latest_articles', 'order' => 1, 'is_enabled' => true],
+            ],
+        ]);
+
+        $putResponse
+            ->assertOk()
+            ->assertJsonPath('scope', 'post_detail');
+
+        $getResponse = $this->getJson('/api/admin/sidebar-config?scope=post_detail');
+
+        $getResponse
+            ->assertOk()
+            ->assertJsonPath('scope', 'post_detail')
+            ->assertJsonFragment([
+                'section_key' => 'search',
+                'is_enabled' => false,
+            ]);
+    }
 }

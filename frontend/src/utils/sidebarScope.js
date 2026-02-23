@@ -1,4 +1,4 @@
-export const SIDEBAR_SCOPES = ['home', 'events', 'calendar', 'learning', 'notifications']
+export const SIDEBAR_SCOPES = ['home', 'events', 'calendar', 'learning', 'notifications', 'post_detail']
 
 export function resolveSidebarScopeFromPath(path) {
   const normalized = typeof path === 'string' ? path : ''
@@ -21,6 +21,10 @@ export function resolveSidebarScopeFromPath(path) {
 
   if (normalized.startsWith('/notifications')) {
     return 'notifications'
+  }
+
+  if (normalized.startsWith('/posts/')) {
+    return 'post_detail'
   }
 
   return null

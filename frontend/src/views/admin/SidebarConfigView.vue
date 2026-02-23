@@ -284,6 +284,7 @@ const scopeTabs = [
   { value: 'calendar', label: 'Calendar' },
   { value: 'learning', label: 'Learning' },
   { value: 'notifications', label: 'Notifications' },
+  { value: 'post_detail', label: 'Post detail' },
 ]
 
 const activeMode = ref('layout')
