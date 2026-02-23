@@ -34,6 +34,7 @@ class Post extends Model
         'translation_status',
         'translation_error',
         'translated_at',
+        'meta',
         'views',
         'source_name',
         'source_url',
@@ -90,6 +91,7 @@ class Post extends Model
         'attachment_variants_json' => 'array',
         'source_published_at' => 'datetime',
         'translated_at' => 'datetime',
+        'meta' => 'array',
         'expires_at' => 'datetime',
         'pinned_at' => 'datetime',
         'is_hidden' => 'boolean',
@@ -299,6 +301,7 @@ class Post extends Model
         'bot_identity',
         'content',
         'views',
+        'meta',
         'tags',        // Hashtag tags
         'hashtags',    // New hashtags
         'source_name',

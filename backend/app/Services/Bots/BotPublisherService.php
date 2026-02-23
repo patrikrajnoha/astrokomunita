@@ -7,6 +7,7 @@ use App\Enums\PostAuthorKind;
 use App\Enums\PostBotIdentity;
 use App\Enums\PostFeedKey;
 use App\Models\BotItem;
+use App\Models\BotSource;
 use App\Models\Post;
 use App\Models\User;
 use App\Services\PostService;
@@ -51,6 +52,7 @@ class BotPublisherService
         $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
         $sourceName = $this->sourceNameForPost($source->key);
         $sourceUid = $this->sourceUidForPost($source->key, $item->stable_key);
+        $postMeta = $this->buildPostMeta($source, $item, $publishPayload);
 
         $existingPost = Post::query()
             ->where('source_name', $sourceName)
@@ -96,10 +98,11 @@ class BotPublisherService
                     'author_kind' => PostAuthorKind::BOT->value,
                     'bot_identity' => $botIdentity,
                     'source_name' => $sourceName,
-                    'source_url' => $item->url,
+                    'source_url' => $postMeta['source_url'] ?? $item->url,
                     'source_uid' => $sourceUid,
                     'source_published_at' => $item->published_at,
                     'expires_at' => null,
+                    'meta' => $postMeta,
                 ]);
             } catch (QueryException $e) {
                 $post = Post::query()
@@ -231,6 +234,58 @@ class BotPublisherService
     private function sourceUidForPost(string $sourceKey, string $stableKey): string
     {
         return sha1($sourceKey . '|' . $stableKey);
+    }
+
+    /**
+     * @param array{title:string,body:string,used_translation:bool} $publishPayload
+     * @return array<string,mixed>
+     */
+    private function buildPostMeta(BotSource $source, BotItem $item, array $publishPayload): array
+    {
+        $botIdentity = strtolower(trim((string) ($item->bot_identity?->value ?? $item->bot_identity)));
+        $sourceKey = strtolower(trim((string) $source->key));
+        $translationStatus = strtolower(trim((string) ($item->translation_status?->value ?? $item->translation_status)));
+        $itemMeta = is_array($item->meta) ? $item->meta : [];
+        $translationProvider = trim((string) data_get($itemMeta, 'translation.provider', ''));
+        if ($translationProvider === '') {
+            $translationProvider = strtolower(trim((string) config('astrobot.translation_provider', 'dummy')));
+        }
+
+        return [
+            'bot_identity' => $botIdentity !== '' ? $botIdentity : null,
+            'bot_source_key' => $sourceKey !== '' ? $sourceKey : null,
+            'bot_source_label' => $this->sourceLabelForPostMeta($sourceKey),
+            'source_url' => $this->canonicalSourceUrl($source, $item),
+            'published_by' => 'bot-engine',
+            'published_at_utc' => now()->utc()->toIso8601String(),
+            'original_title' => $this->nullableString($item->title),
+            'original_content' => $this->nullableString($item->content ?: $item->summary),
+            'translated_title' => $this->nullableString($item->title_translated),
+            'translated_content' => $this->nullableString($item->content_translated),
+            'translation_status' => $translationStatus !== '' ? $translationStatus : null,
+            'used_translation' => (bool) ($publishPayload['used_translation'] ?? false),
+            'translation_provider' => $translationProvider !== '' ? $translationProvider : null,
+        ];
+    }
+
+    private function sourceLabelForPostMeta(string $sourceKey): string
+    {
+        return match ($sourceKey) {
+            'nasa_rss_breaking' => 'NASA RSS',
+            'nasa_apod_daily' => 'NASA APOD',
+            'wiki_onthisday_astronomy' => 'Wikipedia On This Day',
+            default => 'Bot',
+        };
+    }
+
+    private function canonicalSourceUrl(BotSource $source, BotItem $item): ?string
+    {
+        $itemUrl = $this->nullableString($item->url);
+        if ($itemUrl !== null) {
+            return $itemUrl;
+        }
+
+        return $this->nullableString($source->url);
     }
 
     /**
@@ -447,6 +502,13 @@ class BotPublisherService
     private function isStelaIdentity(string $botIdentity): bool
     {
         return strtolower(trim($botIdentity)) === PostBotIdentity::STELA->value;
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        $normalized = trim((string) $value);
+
+        return $normalized !== '' ? $normalized : null;
     }
 
     private function cleanupTemporaryFile(?string $path): void

@@ -167,6 +167,7 @@ class PostService
             $post->source_uid = $attributes['source_uid'] ?? null;
             $post->source_published_at = $attributes['source_published_at'] ?? null;
             $post->expires_at = $attributes['expires_at'] ?? null;
+            $post->meta = is_array($attributes['meta'] ?? null) ? $attributes['meta'] : null;
             $post->is_hidden = false;
             $post->moderation_status = $moderationEnabled ? 'pending' : 'ok';
             $post->moderation_summary = null;
