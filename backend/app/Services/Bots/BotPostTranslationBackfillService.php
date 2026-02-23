@@ -71,12 +71,14 @@ class BotPostTranslationBackfillService
                 continue;
             }
 
-            if ((int) $item->post_id !== $postId) {
-                $item->forceFill(['post_id' => $postId])->save();
-                $item = $item->fresh() ?? $item;
-            }
-
             $post = $item->post()->first();
+            if (!$post && $item->post_id === null) {
+                $post = \App\Models\Post::query()->find($postId);
+                if ($post) {
+                    $item->forceFill(['post_id' => $postId])->save();
+                    $item = $item->fresh() ?? $item;
+                }
+            }
             if (!$post) {
                 $failed++;
                 $failures[] = [
