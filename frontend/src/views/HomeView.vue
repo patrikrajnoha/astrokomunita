@@ -1,11 +1,15 @@
 <template>
-  <section class="centerCol">
-    <PostComposer
-      v-if="auth?.isAuthed"
-      @created="onPostCreated"
-    />
-
-    <FeedList ref="feed" :key="$route.fullPath" />
+  <section class="timelineWrap">
+    <div class="timelineColumn">
+      <FeedList ref="feed" :key="$route.fullPath">
+        <template #composer>
+          <PostComposer
+            v-if="auth?.isAuthed"
+            @created="onPostCreated"
+          />
+        </template>
+      </FeedList>
+    </div>
   </section>
 </template>
 
@@ -50,16 +54,34 @@ export default {
 </script>
 
 <style scoped>
-.centerCol {
-  display: grid;
-  gap: 1rem;
+.timelineWrap {
   width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.timelineColumn {
+  width: 100%;
+  max-width: 680px;
   min-width: 0;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgb(var(--color-bg-rgb) / 0.34);
+}
+
+@media (max-width: 720px) {
+  .timelineColumn {
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
+  }
 }
 
 @media (max-width: 480px) {
-  .centerCol {
-    gap: 0.75rem;
+  .timelineColumn {
+    border-top: 0;
   }
 }
+
 </style>

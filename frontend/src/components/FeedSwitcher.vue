@@ -1,8 +1,8 @@
 <template>
   <div
     ref="rootRef"
-    class="sticky top-[var(--feed-tabs-offset)] z-30 border-b border-white/10 bg-slate-950/70 backdrop-blur-md transition-shadow duration-200 md:top-0"
-    :class="isScrolled ? 'shadow-[0_10px_20px_rgba(2,6,23,0.32)]' : 'shadow-none'"
+    class="sticky top-[var(--feed-tabs-offset)] z-20 border-b border-white/10 bg-[rgb(var(--color-bg-rgb)/0.9)] backdrop-blur-sm transition-shadow duration-200 md:top-0"
+    :class="isScrolled ? 'border-white/20 shadow-[0_3px_10px_rgba(2,6,23,0.22)]' : 'shadow-none'"
     :style="{ '--feed-tabs-offset': 'var(--app-header-h, 56px)' }"
     data-testid="feed-tabs-sticky"
   >
@@ -20,8 +20,8 @@
         :ref="(el) => setTabRef(el, index)"
         role="tab"
         type="button"
-        class="relative flex h-12 flex-1 select-none items-center justify-center text-sm transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-inset"
-        :class="modelValue === tab.id ? 'font-semibold text-white' : 'text-white/60'"
+        class="relative flex h-11 flex-1 select-none items-center justify-center text-sm transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-inset"
+        :class="modelValue === tab.id ? 'font-semibold text-white' : 'text-white/65'"
         :tabindex="modelValue === tab.id ? 0 : -1"
         :aria-controls="tab.panelId"
         :aria-selected="modelValue === tab.id ? 'true' : 'false'"
@@ -35,7 +35,7 @@
       </button>
 
       <div
-        class="absolute bottom-0 h-[3px] rounded-full bg-sky-500 shadow-[0_0_12px_rgba(56,189,248,0.25)] transition-[transform,width,opacity] duration-300 ease-out"
+        class="absolute bottom-0 h-[2px] rounded-full bg-sky-500 transition-[transform,width,opacity] duration-200 ease-out"
         :style="inkBarStyle"
         data-testid="feed-tabs-ink-bar"
         aria-hidden="true"
@@ -43,7 +43,7 @@
     </div>
 
     <div
-      class="pointer-events-none absolute -bottom-4 left-0 right-0 h-4 bg-gradient-to-b from-slate-950/0 to-slate-950/40 transition-opacity duration-200"
+      class="pointer-events-none absolute -bottom-1 left-0 right-0 h-px bg-white/10 transition-opacity duration-200"
       :class="isScrolled ? 'opacity-100' : 'opacity-0'"
       data-testid="feed-tabs-fade"
       aria-hidden="true"

@@ -1,12 +1,5 @@
 ﻿<template>
   <section class="composerCard">
-    <header class="composerHead">
-      <div class="titleWrap">
-        <div class="title">Zdielaj pozorovanie</div>
-        <div class="sub">Kratky prispevok do feedu (max 2000 znakov).</div>
-      </div>
-    </header>
-
     <div class="composerRow">
       <div class="avatar" aria-hidden="true">
         <img
@@ -546,7 +539,7 @@ function autoResize() {
   const el = textareaRef.value
   if (!el) return
   el.style.height = 'auto'
-  const nextHeight = Math.min(220, Math.max(52, el.scrollHeight))
+  const nextHeight = Math.min(150, Math.max(46, el.scrollHeight))
   el.style.height = `${nextHeight}px`
 }
 
@@ -699,38 +692,16 @@ onBeforeUnmount(() => {
   --panel-strong: rgb(var(--color-bg-rgb) / 0.72);
   --primary: rgb(var(--color-primary-rgb) / 0.9);
 
-  border: 1px solid var(--border);
-  background: linear-gradient(165deg, rgb(var(--color-bg-rgb) / 0.7), rgb(var(--color-bg-rgb) / 0.52));
-  border-radius: 14px;
-  padding: 0.85rem;
-  box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
-}
-
-.composerHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.title {
-  font-size: 0.98rem;
-  font-weight: 800;
-  color: var(--surface);
-}
-
-.sub {
-  margin-top: 0.18rem;
-  color: var(--muted);
-  font-size: 0.78rem;
+  border-bottom: 1px solid var(--soft-border);
+  background: rgb(var(--color-bg-rgb) / 0.48);
+  padding: 0.65rem 0.7rem 0.55rem;
 }
 
 .composerRow {
   display: grid;
-  grid-template-columns: 42px 1fr;
+  grid-template-columns: 40px 1fr;
   align-items: flex-start;
-  gap: 0.65rem;
-  margin-top: 0.7rem;
+  gap: 0.55rem;
 }
 
 .avatar {
@@ -756,7 +727,7 @@ onBeforeUnmount(() => {
 
 .composerBody {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.45rem;
 }
 
 .srOnly {
@@ -773,17 +744,20 @@ onBeforeUnmount(() => {
 
 .composerInput {
   width: 100%;
-  min-height: 52px;
-  padding: 0.62rem 0.72rem;
-  border-radius: 12px;
-  border: 1px solid var(--soft-border);
-  background: var(--panel);
+  min-height: 46px;
+  max-height: 150px;
+  padding: 0.58rem 0.25rem;
+  border-radius: 0;
+  border: 0;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.15);
+  background: transparent;
   color: var(--surface);
   outline: none;
   resize: none;
-  overflow-y: hidden;
-  line-height: 1.55;
-  transition: min-height 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  overflow-y: auto;
+  line-height: 1.5;
+  font-size: 0.98rem;
+  transition: min-height 0.2s ease, border-color 0.2s ease;
 }
 
 .composerInput::placeholder {
@@ -791,13 +765,12 @@ onBeforeUnmount(() => {
 }
 
 .composerInput.expanded {
-  min-height: 110px;
-  background: var(--panel-strong);
+  min-height: 82px;
 }
 
 .composerInput:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.18);
+  border-color: rgb(var(--color-primary-rgb) / 0.55);
+  box-shadow: none;
 }
 
 .mediaCard {
@@ -979,14 +952,15 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.65rem;
+  gap: 0.45rem;
+  padding-top: 0.1rem;
 }
 
 .leftActions,
 .rightActions {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.45rem;
 }
 
 .fileInput {
@@ -999,18 +973,18 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  min-height: 34px;
-  border-radius: 10px;
-  font-size: 0.8rem;
+  min-height: 32px;
+  border-radius: 999px;
+  font-size: 0.77rem;
   font-weight: 700;
   transition: background-color 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
 }
 
 .attachBtn {
-  border: 1px solid var(--border);
-  background: rgb(var(--color-bg-rgb) / 0.4);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  background: transparent;
   color: var(--surface);
-  padding: 0.38rem 0.6rem;
+  padding: 0.32rem 0.55rem;
 }
 
 .attachBtn--disabledHint {
@@ -1019,9 +993,9 @@ onBeforeUnmount(() => {
 
 .publishBtn {
   border: 1px solid var(--primary);
-  background: rgb(var(--color-primary-rgb) / 0.2);
+  background: rgb(var(--color-primary-rgb) / 0.16);
   color: var(--surface);
-  padding: 0.38rem 0.66rem;
+  padding: 0.32rem 0.64rem;
 }
 
 .attachBtn:hover {
@@ -1047,7 +1021,7 @@ onBeforeUnmount(() => {
 }
 
 .counter {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   color: var(--muted);
   opacity: 0.9;
 }
@@ -1108,18 +1082,17 @@ onBeforeUnmount(() => {
 
 @media (max-width: 640px) {
   .composerCard {
-    border-radius: 12px;
-    padding: 0.75rem;
+    padding: 0.55rem 0.6rem 0.48rem;
   }
 
   .composerRow {
-    grid-template-columns: 38px 1fr;
-    gap: 0.55rem;
+    grid-template-columns: 34px 1fr;
+    gap: 0.45rem;
   }
 
   .avatar {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     font-size: 0.8rem;
   }
 
