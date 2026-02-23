@@ -217,6 +217,48 @@ describe('FeedList tabs', () => {
     expect(wrapper.find('.source-link').exists()).toBe(false)
   })
 
+  it('toggles bot content between translated and original text from meta', async () => {
+    window.localStorage.setItem(STORAGE_KEY, 'astrobot')
+
+    api.get.mockImplementationOnce(() =>
+      Promise.resolve({
+        data: {
+          data: [
+            {
+              id: 304,
+              author_kind: 'bot',
+              bot_identity: 'kozmo',
+              content: 'legacy body',
+              meta: {
+                original_title: 'EN title',
+                original_content: 'EN body content',
+                translated_title: 'SK titulok',
+                translated_content: 'SK obsah',
+                used_translation: true,
+              },
+              user: { username: 'kozmo', name: 'Kozmo' },
+            },
+          ],
+          next_page_url: null,
+        },
+      }),
+    )
+
+    const wrapper = mountFeed()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('SK titulok')
+    expect(wrapper.text()).toContain('SK obsah')
+    expect(wrapper.text()).not.toContain('EN body content')
+
+    await wrapper.find('.bot-toggle-btn--original').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('EN title')
+    expect(wrapper.text()).toContain('EN body content')
+    expect(wrapper.text()).not.toContain('SK obsah')
+  })
+
   it('collapses long bot content and toggles show-more state', async () => {
     window.localStorage.setItem(STORAGE_KEY, 'astrobot')
 
