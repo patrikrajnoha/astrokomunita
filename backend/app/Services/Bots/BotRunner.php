@@ -10,6 +10,8 @@ use App\Models\BotItem;
 use App\Models\BotRun;
 use App\Models\BotSource;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
+use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Collection;
 use Throwable;
 
@@ -26,25 +28,34 @@ class BotRunner
     ) {
     }
 
-    public function runSource(string $sourceKey): BotRun
+    public function runSource(string $sourceKey, string $runContext = 'manual', bool $forceManualOverride = false): BotRun
     {
         $source = BotSource::query()->where('key', $sourceKey)->firstOrFail();
 
-        return $this->run($source);
+        return $this->run($source, $runContext, $forceManualOverride);
     }
 
-    public function run(BotSource $source): BotRun
+    public function run(BotSource $source, string $runContext = 'manual', bool $forceManualOverride = false): BotRun
     {
-        $run = $this->runService->startRun($source);
+        $context = $this->normalizeRunContext($runContext);
+        $lockState = $this->acquireRunLocks($source, $context, $forceManualOverride);
 
-        $stats = [
-            'fetched_count' => 0,
-            'new_count' => 0,
-            'dupes_count' => 0,
-            'published_count' => 0,
-            'skipped_count' => 0,
-            'failed_count' => 0,
-        ];
+        if (!$lockState['acquired']) {
+            $run = $this->runService->startRun($source);
+            $stats = $this->createInitialStats();
+            $stats['run_locked'] = 1;
+            $stats['lock_key'] = $lockState['lock_key'];
+            $stats['lock_context'] = $context;
+            $stats['manual_override'] = $forceManualOverride ? 1 : 0;
+
+            return $this->runService->finishRun($run, BotRunStatus::SKIPPED, $stats, 'Run skipped because lock is already held.');
+        }
+
+        $run = $this->runService->startRun($source);
+        $stats = $this->createInitialStats();
+        $stats['lock_key'] = $lockState['lock_key'];
+        $stats['lock_context'] = $context;
+        $stats['manual_override'] = $forceManualOverride ? 1 : 0;
 
         $status = BotRunStatus::SUCCESS;
         $errorText = null;
@@ -63,9 +74,26 @@ class BotRunner
             $status = BotRunStatus::FAILED;
             $errorText = $e->getMessage();
             $stats['failed_count']++;
+        } finally {
+            $this->releaseRunLocks($lockState);
         }
 
         return $this->runService->finishRun($run, $status, $stats, $errorText);
+    }
+
+    /**
+     * @return array{fetched_count:int,new_count:int,dupes_count:int,published_count:int,skipped_count:int,failed_count:int}
+     */
+    private function createInitialStats(): array
+    {
+        return [
+            'fetched_count' => 0,
+            'new_count' => 0,
+            'dupes_count' => 0,
+            'published_count' => 0,
+            'skipped_count' => 0,
+            'failed_count' => 0,
+        ];
     }
 
     /**
@@ -245,6 +273,81 @@ class BotRunner
                     'translation_status' => BotTranslationStatus::FAILED->value,
                     'meta' => $meta,
                 ])->save();
+            }
+        }
+    }
+
+    private function normalizeRunContext(string $runContext): string
+    {
+        $normalized = strtolower(trim($runContext));
+
+        if (in_array($normalized, ['manual', 'scheduled', 'cli'], true)) {
+            return $normalized;
+        }
+
+        return 'manual';
+    }
+
+    /**
+     * @return array{
+     *   acquired:bool,
+     *   lock_key:string,
+     *   locks:array<int,Lock>
+     * }
+     */
+    private function acquireRunLocks(BotSource $source, string $runContext, bool $forceManualOverride): array
+    {
+        $sourceKey = strtolower(trim((string) $source->key));
+        $ttlSeconds = max(60, (int) config('astrobot.run_lock_ttl_seconds', 600));
+        $locks = [];
+
+        $contextLockKey = sprintf('bots:run:%s:%s', $runContext, $sourceKey);
+        $contextLock = Cache::lock($contextLockKey, $ttlSeconds);
+        if (!$contextLock->get()) {
+            return [
+                'acquired' => false,
+                'lock_key' => $contextLockKey,
+                'locks' => [],
+            ];
+        }
+        $locks[] = $contextLock;
+
+        $globalLockKey = sprintf('bots:run:%s', $sourceKey);
+        if (!($forceManualOverride && $runContext === 'manual')) {
+            $globalLock = Cache::lock($globalLockKey, $ttlSeconds);
+            if (!$globalLock->get()) {
+                $this->releaseRunLocks([
+                    'acquired' => true,
+                    'lock_key' => $contextLockKey,
+                    'locks' => $locks,
+                ]);
+
+                return [
+                    'acquired' => false,
+                    'lock_key' => $globalLockKey,
+                    'locks' => [],
+                ];
+            }
+            $locks[] = $globalLock;
+        }
+
+        return [
+            'acquired' => true,
+            'lock_key' => $globalLockKey,
+            'locks' => $locks,
+        ];
+    }
+
+    /**
+     * @param array{acquired:bool,lock_key:string,locks:array<int,Lock>} $lockState
+     */
+    private function releaseRunLocks(array $lockState): void
+    {
+        foreach (array_reverse($lockState['locks'] ?? []) as $lock) {
+            try {
+                $lock->release();
+            } catch (Throwable) {
+                // ignore release errors
             }
         }
     }
