@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\PostAuthorKind;
+use App\Enums\PostBotIdentity;
+use App\Enums\PostFeedKey;
 use App\Jobs\ModeratePostJob;
 use App\Models\Post;
 use App\Models\User;
@@ -17,6 +20,9 @@ use Illuminate\Validation\ValidationException;
 
 class PostService
 {
+    public const USER_CONTENT_MAX = 2000;
+    public const KOZMO_CONTENT_MAX = 50000;
+
     public function __construct(
         private readonly NotificationService $notifications,
         private readonly FeedQueryBuilder $feedQueryBuilder,
@@ -42,9 +48,9 @@ class PostService
             'kind' => $kind,
             'with_counts' => $withCounts,
             'include_hidden' => $includeHidden,
+            'feed_key' => PostFeedKey::COMMUNITY->value,
             'tag' => $tag,
             'order' => 'pinned_then_created',
-            'sources_exclude' => ['astrobot', 'nasa_rss'],
         ], $user);
 
         if ($scope === 'me' && $user) {
@@ -128,7 +134,13 @@ class PostService
         ];
     }
 
-    public function createPost(User $user, string $content, ?UploadedFile $attachment = null, ?array $pollInput = null): Post
+    public function createPost(
+        User $user,
+        string $content,
+        ?UploadedFile $attachment = null,
+        ?array $pollInput = null,
+        array $attributes = []
+    ): Post
     {
         if (is_array($pollInput) && $attachment) {
             throw ValidationException::withMessages([
@@ -136,7 +148,10 @@ class PostService
             ]);
         }
 
-        return DB::transaction(function () use ($user, $content, $attachment, $pollInput) {
+        $resolved = $this->normalizeCreatePayload($user, $attributes);
+        $this->validateContentLength($content, $resolved['author_kind'], $resolved['bot_identity']);
+
+        return DB::transaction(function () use ($user, $content, $attachment, $pollInput, $attributes, $resolved) {
             $moderationEnabled = (bool) config('moderation.enabled', true);
             $post = new Post();
             $post->user_id = $user->id;
@@ -144,6 +159,14 @@ class PostService
             $post->parent_id = null;
             $post->root_id = null;
             $post->depth = 0;
+            $post->feed_key = $resolved['feed_key'];
+            $post->author_kind = $resolved['author_kind'];
+            $post->bot_identity = $resolved['bot_identity'];
+            $post->source_name = $attributes['source_name'] ?? null;
+            $post->source_url = $attributes['source_url'] ?? null;
+            $post->source_uid = $attributes['source_uid'] ?? null;
+            $post->source_published_at = $attributes['source_published_at'] ?? null;
+            $post->expires_at = $attributes['expires_at'] ?? null;
             $post->is_hidden = false;
             $post->moderation_status = $moderationEnabled ? 'pending' : 'ok';
             $post->moderation_summary = null;
@@ -182,9 +205,15 @@ class PostService
         });
     }
 
-    public function createReply(User $user, Post $parent, string $content, ?UploadedFile $attachment = null): Post
+    public function createReply(
+        User $user,
+        Post $parent,
+        string $content,
+        ?UploadedFile $attachment = null,
+        array $options = []
+    ): Post
     {
-        return DB::transaction(function () use ($user, $parent, $content, $attachment) {
+        return DB::transaction(function () use ($user, $parent, $content, $attachment, $options) {
             $moderationEnabled = (bool) config('moderation.enabled', true);
             $parentDepth = $parent->depth;
             if ($parentDepth === null) {
@@ -192,6 +221,23 @@ class PostService
             }
             $depth = ((int) $parentDepth) + 1;
             $rootId = $parent->root_id ?: ($parent->parent_id ?: $parent->id);
+            $forceBotReply = (bool) ($options['bot_reply'] ?? false);
+
+            $replyAuthorKind = PostAuthorKind::USER->value;
+            $replyBotIdentity = null;
+
+            if ($forceBotReply) {
+                if (!$user->isBot() && !$user->isAdmin()) {
+                    throw ValidationException::withMessages([
+                        'author_kind' => 'Only bot or admin users can publish bot replies.',
+                    ]);
+                }
+
+                $replyAuthorKind = PostAuthorKind::BOT->value;
+                $replyBotIdentity = $this->normalizeBotIdentity($options['bot_identity'] ?? null)
+                    ?? $this->resolveBotIdentityForUser($user)
+                    ?? PostBotIdentity::STELA->value;
+            }
 
             $reply = new Post();
             $reply->user_id = $user->id;
@@ -199,6 +245,11 @@ class PostService
             $reply->parent_id = $parent->id;
             $reply->root_id = $rootId;
             $reply->depth = $depth;
+            $reply->feed_key = $parent->feed_key instanceof PostFeedKey
+                ? $parent->feed_key->value
+                : (string) ($parent->feed_key ?: PostFeedKey::COMMUNITY->value);
+            $reply->author_kind = $replyAuthorKind;
+            $reply->bot_identity = $replyBotIdentity;
             $reply->moderation_status = $moderationEnabled ? 'pending' : 'ok';
             $reply->moderation_summary = null;
             $reply->hidden_reason = null;
@@ -306,6 +357,143 @@ class PostService
         }
 
         return $post;
+    }
+
+    /**
+     * @param array<string, mixed> $attributes
+     * @return array{feed_key:string,author_kind:string,bot_identity:?string}
+     */
+    private function normalizeCreatePayload(User $user, array $attributes): array
+    {
+        $requestedAuthorKind = strtolower((string) ($attributes['author_kind'] ?? ($user->isBot() ? PostAuthorKind::BOT->value : PostAuthorKind::USER->value)));
+        if (!in_array($requestedAuthorKind, [PostAuthorKind::USER->value, PostAuthorKind::BOT->value], true)) {
+            $requestedAuthorKind = PostAuthorKind::USER->value;
+        }
+
+        $requestedFeedKey = $attributes['feed_key'] ?? null;
+        if (!is_string($requestedFeedKey) || trim($requestedFeedKey) === '') {
+            $requestedFeedKey = $requestedAuthorKind === PostAuthorKind::BOT->value
+                ? PostFeedKey::ASTRO->value
+                : PostFeedKey::COMMUNITY->value;
+        } else {
+            $requestedFeedKey = strtolower(trim($requestedFeedKey));
+            if (!in_array($requestedFeedKey, [PostFeedKey::COMMUNITY->value, PostFeedKey::ASTRO->value], true)) {
+                $requestedFeedKey = PostFeedKey::COMMUNITY->value;
+            }
+        }
+
+        $requestedBotIdentity = $this->normalizeBotIdentity($attributes['bot_identity'] ?? null);
+
+        if ($requestedBotIdentity !== null && $requestedAuthorKind !== PostAuthorKind::BOT->value) {
+            throw ValidationException::withMessages([
+                'bot_identity' => 'Bot identity can only be used for bot posts.',
+            ]);
+        }
+
+        if ($requestedAuthorKind === PostAuthorKind::BOT->value) {
+            if (!$user->isBot() && !$user->isAdmin()) {
+                throw ValidationException::withMessages([
+                    'author_kind' => 'Bot posts can only be created by bot or admin users.',
+                ]);
+            }
+
+            if ($requestedFeedKey !== PostFeedKey::ASTRO->value) {
+                throw ValidationException::withMessages([
+                    'feed_key' => 'Bot posts must target astro feed.',
+                ]);
+            }
+
+            $botIdentity = $requestedBotIdentity ?? $this->resolveBotIdentityForUser($user);
+            if (!in_array($botIdentity, [PostBotIdentity::KOZMO->value, PostBotIdentity::STELA->value], true)) {
+                throw ValidationException::withMessages([
+                    'bot_identity' => 'Bot identity is required for bot posts.',
+                ]);
+            }
+
+            return [
+                'feed_key' => PostFeedKey::ASTRO->value,
+                'author_kind' => PostAuthorKind::BOT->value,
+                'bot_identity' => $botIdentity,
+            ];
+        }
+
+        if ($requestedFeedKey === PostFeedKey::ASTRO->value) {
+            throw ValidationException::withMessages([
+                'author_kind' => 'Astro feed accepts only bot root posts.',
+            ]);
+        }
+
+        return [
+            'feed_key' => PostFeedKey::COMMUNITY->value,
+            'author_kind' => PostAuthorKind::USER->value,
+            'bot_identity' => null,
+        ];
+    }
+
+    private function validateContentLength(string $content, string $authorKind, ?string $botIdentity): void
+    {
+        $length = mb_strlen($content);
+        $max = self::USER_CONTENT_MAX;
+
+        if (
+            $authorKind === PostAuthorKind::BOT->value
+            && $botIdentity === PostBotIdentity::KOZMO->value
+        ) {
+            $max = self::KOZMO_CONTENT_MAX;
+        }
+
+        if ($length <= $max) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'content' => sprintf('Content may not be greater than %d characters.', $max),
+        ]);
+    }
+
+    private function normalizeBotIdentity(mixed $value): ?string
+    {
+        if ($value instanceof PostBotIdentity) {
+            return $value->value;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($value));
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (!in_array($normalized, [PostBotIdentity::KOZMO->value, PostBotIdentity::STELA->value], true)) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    private function resolveBotIdentityForUser(User $user): ?string
+    {
+        $username = strtolower(trim((string) $user->username));
+        if ($username === PostBotIdentity::KOZMO->value) {
+            return PostBotIdentity::KOZMO->value;
+        }
+
+        if ($username === PostBotIdentity::STELA->value || $username === 'astrobot') {
+            return PostBotIdentity::STELA->value;
+        }
+
+        $email = strtolower(trim((string) $user->email));
+        if (str_contains($email, PostBotIdentity::KOZMO->value)) {
+            return PostBotIdentity::KOZMO->value;
+        }
+
+        if (str_contains($email, PostBotIdentity::STELA->value) || str_contains($email, 'astrobot')) {
+            return PostBotIdentity::STELA->value;
+        }
+
+        return null;
     }
 
     private function attachFileToPost(Post $post, UploadedFile $attachment, User $user, bool $moderationEnabled): void

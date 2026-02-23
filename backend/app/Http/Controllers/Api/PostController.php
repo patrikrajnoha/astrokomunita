@@ -101,7 +101,8 @@ class PostController extends Controller
             $request->user(),
             $request->validated('content'),
             $request->file('attachment'),
-            $request->validated('poll')
+            $request->validated('poll'),
+            $request->postAttributes()
         );
 
         return response()->json($this->payloads->serializePost($post, $request->user()), 201);
@@ -109,13 +110,6 @@ class PostController extends Controller
 
     public function reply(ReplyPostRequest $request, Post $post)
     {
-        if ($post->isFromBot()) {
-            return response()->json([
-                'message' => 'Replies are disabled on automated news posts.',
-                'error' => 'replies_disabled',
-            ], 403);
-        }
-
         if ($this->posts->getReplyDepth($post) > 2) {
             return response()->json([
                 'message' => 'Max depth je 2 (root -> reply -> reply).',

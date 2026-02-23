@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\PostAuthorKind;
+use App\Enums\PostFeedKey;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,6 +22,8 @@ class FeedQueryBuilder
         $includeHidden = (bool) ($options['include_hidden'] ?? false);
         $tag = isset($options['tag']) ? strtolower((string) $options['tag']) : null;
         $order = (string) ($options['order'] ?? 'created_desc');
+        $feedKey = strtolower((string) ($options['feed_key'] ?? PostFeedKey::COMMUNITY->value));
+        $authorKind = $options['author_kind'] ?? null;
         $sourcesInclude = $options['sources_include'] ?? null;
         $sourcesExclude = $options['sources_exclude'] ?? null;
         $pinned = $options['pinned'] ?? null; // only|exclude|null
@@ -44,6 +48,15 @@ class FeedQueryBuilder
                 'likes as liked_by_me' => fn ($likesQuery) => $likesQuery->where('user_id', $viewer->id),
                 'bookmarkedBy as is_bookmarked' => fn ($bookmarksQuery) => $bookmarksQuery->where('user_id', $viewer->id),
             ]);
+        }
+
+        if (!in_array($feedKey, [PostFeedKey::COMMUNITY->value, PostFeedKey::ASTRO->value], true)) {
+            $feedKey = PostFeedKey::COMMUNITY->value;
+        }
+        $query->where('feed_key', $feedKey);
+
+        if (is_string($authorKind) && in_array($authorKind, [PostAuthorKind::USER->value, PostAuthorKind::BOT->value], true)) {
+            $query->where('author_kind', $authorKind);
         }
 
         if ($kind === 'replies') {
