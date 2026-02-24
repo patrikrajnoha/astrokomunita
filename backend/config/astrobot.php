@@ -41,8 +41,9 @@ return [
     ],
     'keep_max_items' => (int) env('ASTROBOT_KEEP_MAX_ITEMS', 30),
     'keep_max_days' => (int) env('ASTROBOT_KEEP_MAX_DAYS', 14),
-    'lock_ttl_seconds' => (int) env('ASTROBOT_LOCK_TTL_SECONDS', 3300),
-    'run_lock_ttl_seconds' => (int) env('ASTROBOT_RUN_LOCK_TTL_SECONDS', 600),
+    'lock_ttl_seconds' => (int) env('ASTROBOT_LOCK_TTL_SECONDS', 120),
+    'run_lock_ttl_seconds' => (int) env('ASTROBOT_RUN_LOCK_TTL_SECONDS', env('ASTROBOT_LOCK_TTL_SECONDS', 120)),
+    'stale_run_recovery_minutes' => (int) env('ASTROBOT_STALE_RUN_RECOVERY_MINUTES', 5),
 
     /*
     |--------------------------------------------------------------------------
@@ -66,8 +67,10 @@ return [
         'target_lang' => strtolower(trim((string) env('BOT_TRANSLATION_TARGET_LANG', 'sk'))),
         'source_lang' => strtolower(trim((string) env('BOT_TRANSLATION_SOURCE_LANG', 'en'))),
         // Supported providers: libretranslate, ollama (legacy aliases: http, dummy)
-        'primary' => strtolower(trim((string) env('BOT_TRANSLATION_PRIMARY', env('TRANSLATION_PROVIDER', 'libretranslate')))),
-        'fallback' => strtolower(trim((string) env('BOT_TRANSLATION_FALLBACK', 'ollama'))),
+        'primary' => strtolower(trim((string) env('TRANSLATION_PROVIDER', env('BOT_TRANSLATION_PRIMARY', 'libretranslate')))),
+        'fallback' => strtolower(trim((string) env('TRANSLATION_FALLBACK_PROVIDER', env('BOT_TRANSLATION_FALLBACK', 'none')))),
+        'timeout_sec' => (int) env('TRANSLATION_TIMEOUT_SEC', env('TRANSLATION_TIMEOUT_SECONDS', 12)),
+        'max_retries' => (int) env('TRANSLATION_MAX_RETRIES', env('BOT_TRANSLATION_LIBRETRANSLATE_RETRY_TIMES', 1)),
         'chunk_max_chars' => (int) env('BOT_TRANSLATION_CHUNK_MAX_CHARS', 1800),
         'chunk_hard_limit_chars' => (int) env('BOT_TRANSLATION_CHUNK_HARD_LIMIT_CHARS', 3500),
         'post_edit' => [
@@ -120,18 +123,18 @@ return [
             'gravitational lens' => 'gravitačná šošovka',
         ],
         'libretranslate' => [
-            'url' => env('BOT_TRANSLATION_LIBRETRANSLATE_URL', env('TRANSLATION_BASE_URL', 'http://127.0.0.1:5000')),
-            'timeout_seconds' => (int) env('BOT_TRANSLATION_LIBRETRANSLATE_TIMEOUT_SECONDS', env('TRANSLATION_TIMEOUT_SECONDS', 8)),
-            'retry_times' => (int) env('BOT_TRANSLATION_LIBRETRANSLATE_RETRY_TIMES', 1),
+            'url' => env('LIBRETRANSLATE_BASE_URL', env('BOT_TRANSLATION_LIBRETRANSLATE_URL', env('TRANSLATION_BASE_URL', 'http://127.0.0.1:5000'))),
+            'timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SEC', env('BOT_TRANSLATION_LIBRETRANSLATE_TIMEOUT_SECONDS', env('TRANSLATION_TIMEOUT_SECONDS', 12))),
+            'retry_times' => (int) env('TRANSLATION_MAX_RETRIES', env('BOT_TRANSLATION_LIBRETRANSLATE_RETRY_TIMES', 1)),
             'retry_sleep_ms' => (int) env('BOT_TRANSLATION_LIBRETRANSLATE_RETRY_SLEEP_MS', 200),
-            'api_key' => env('BOT_TRANSLATION_LIBRETRANSLATE_API_KEY'),
+            'api_key' => env('LIBRETRANSLATE_API_KEY', env('BOT_TRANSLATION_LIBRETRANSLATE_API_KEY')),
         ],
         'ollama' => [
-            'model' => env('BOT_TRANSLATION_OLLAMA_MODEL', env('TRANSLATION_OLLAMA_MODEL', env('OLLAMA_MODEL', 'mistral'))),
-            'timeout_seconds' => (int) env('BOT_TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('OLLAMA_TIMEOUT', 40))),
+            'model' => env('OLLAMA_MODEL', env('BOT_TRANSLATION_OLLAMA_MODEL', env('TRANSLATION_OLLAMA_MODEL', 'mistral'))),
+            'timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SEC', env('BOT_TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('OLLAMA_TIMEOUT', 12)))),
             'temperature' => (float) env('BOT_TRANSLATION_OLLAMA_TEMPERATURE', env('TRANSLATION_OLLAMA_TEMPERATURE', 0.15)),
             'top_p' => (float) env('BOT_TRANSLATION_OLLAMA_TOP_P', 0.4),
-            'num_predict' => (int) env('BOT_TRANSLATION_OLLAMA_NUM_PREDICT', env('TRANSLATION_OLLAMA_NUM_PREDICT', 700)),
+            'num_predict' => (int) env('OLLAMA_NUM_PREDICT', env('BOT_TRANSLATION_OLLAMA_NUM_PREDICT', env('TRANSLATION_OLLAMA_NUM_PREDICT', 280))),
         ],
     ],
 
@@ -141,13 +144,13 @@ return [
     |--------------------------------------------------------------------------
     */
     'translation_provider' => strtolower(trim((string) env('TRANSLATION_PROVIDER', env('BOT_TRANSLATION_PRIMARY', 'libretranslate')))),
-    'translation_fallback_provider' => strtolower(trim((string) env('TRANSLATION_FALLBACK_PROVIDER', ''))),
-    'translation_base_url' => env('TRANSLATION_BASE_URL', env('BOT_TRANSLATION_LIBRETRANSLATE_URL', 'http://127.0.0.1:5000')),
-    'translation_timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SECONDS', env('BOT_TRANSLATION_LIBRETRANSLATE_TIMEOUT_SECONDS', 8)),
-    'translation_ollama_model' => env('TRANSLATION_OLLAMA_MODEL', env('BOT_TRANSLATION_OLLAMA_MODEL', env('OLLAMA_MODEL', 'mistral'))),
-    'translation_ollama_timeout_seconds' => (int) env('TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('BOT_TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('OLLAMA_TIMEOUT', 40))),
+    'translation_fallback_provider' => strtolower(trim((string) env('TRANSLATION_FALLBACK_PROVIDER', env('BOT_TRANSLATION_FALLBACK', 'none')))),
+    'translation_base_url' => env('LIBRETRANSLATE_BASE_URL', env('TRANSLATION_BASE_URL', env('BOT_TRANSLATION_LIBRETRANSLATE_URL', 'http://127.0.0.1:5000'))),
+    'translation_timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SEC', env('TRANSLATION_TIMEOUT_SECONDS', env('BOT_TRANSLATION_LIBRETRANSLATE_TIMEOUT_SECONDS', 12))),
+    'translation_ollama_model' => env('OLLAMA_MODEL', env('TRANSLATION_OLLAMA_MODEL', env('BOT_TRANSLATION_OLLAMA_MODEL', 'mistral'))),
+    'translation_ollama_timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SEC', env('TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('BOT_TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('OLLAMA_TIMEOUT', 12)))),
     'translation_ollama_temperature' => (float) env('TRANSLATION_OLLAMA_TEMPERATURE', env('BOT_TRANSLATION_OLLAMA_TEMPERATURE', 0.0)),
-    'translation_ollama_num_predict' => (int) env('TRANSLATION_OLLAMA_NUM_PREDICT', env('BOT_TRANSLATION_OLLAMA_NUM_PREDICT', 700)),
+    'translation_ollama_num_predict' => (int) env('OLLAMA_NUM_PREDICT', env('TRANSLATION_OLLAMA_NUM_PREDICT', env('BOT_TRANSLATION_OLLAMA_NUM_PREDICT', 280))),
 
     /*
     |--------------------------------------------------------------------------

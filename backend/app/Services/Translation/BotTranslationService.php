@@ -6,6 +6,8 @@ use App\Enums\BotTranslationStatus;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use App\Services\Bots\Exceptions\BotTranslationException;
 use App\Services\Translation\Exceptions\TranslationClientException;
+use App\Services\Translation\Exceptions\TranslationProviderUnavailableException;
+use App\Services\Translation\Exceptions\TranslationTimeoutException;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -312,9 +314,12 @@ class BotTranslationService implements BotTranslationServiceInterface
                     'quality_retry_count' => (int) ($quality['quality_retry_count'] ?? 0),
                 ];
             } catch (TranslationClientException $exception) {
+                $errorType = $this->resolveTranslationErrorType($exception);
                 $errors[] = $this->formatProviderError($providerName, $exception->getMessage());
                 Log::warning('Bot translation provider failed.', [
                     'provider' => $providerName,
+                    'timeout_sec' => $this->providerTimeoutSeconds($providerName),
+                    'error_type' => $errorType,
                     'target_lang' => $targetLang,
                     'error' => $this->limitText($exception->getMessage(), 240),
                 ]);
@@ -322,6 +327,8 @@ class BotTranslationService implements BotTranslationServiceInterface
                 $errors[] = $this->formatProviderError($providerName, $exception->getMessage());
                 Log::warning('Bot translation provider threw unexpected exception.', [
                     'provider' => $providerName,
+                    'timeout_sec' => $this->providerTimeoutSeconds($providerName),
+                    'error_type' => 'unhandled_exception',
                     'target_lang' => $targetLang,
                     'error' => $this->limitText($exception->getMessage(), 240),
                 ]);
@@ -1010,5 +1017,28 @@ class BotTranslationService implements BotTranslationServiceInterface
         }
 
         return strlen($value);
+    }
+
+    private function resolveTranslationErrorType(TranslationClientException $exception): string
+    {
+        if ($exception instanceof TranslationTimeoutException) {
+            return 'translation_timeout';
+        }
+
+        if ($exception instanceof TranslationProviderUnavailableException) {
+            return 'provider_unavailable';
+        }
+
+        return 'translation_error';
+    }
+
+    private function providerTimeoutSeconds(string $providerName): int
+    {
+        $shared = max(1, (int) config('astrobot.translation.timeout_sec', 12));
+
+        return match (strtolower(trim($providerName))) {
+            'ollama' => max(1, (int) config('astrobot.translation.ollama.timeout_seconds', $shared)),
+            default => max(1, (int) config('astrobot.translation.libretranslate.timeout_seconds', $shared)),
+        };
     }
 }

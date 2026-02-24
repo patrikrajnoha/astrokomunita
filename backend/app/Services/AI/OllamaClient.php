@@ -61,9 +61,17 @@ class OllamaClient
                 ->acceptJson()
                 ->withHeaders($this->resolveHeaders($config))
                 ->post((string) ($config['generate_path'] ?? '/api/generate'), $payload);
-        } catch (ConnectionException) {
+        } catch (ConnectionException $exception) {
+            if ($this->isTimeoutException($exception)) {
+                throw new OllamaClientException('Ollama request timed out.', 'ollama_timeout_error');
+            }
+
             throw new OllamaClientException('Ollama connection failed.', 'ollama_connection_error');
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            if ($this->isTimeoutException($exception)) {
+                throw new OllamaClientException('Ollama request timed out.', 'ollama_timeout_error');
+            }
+
             throw new OllamaClientException('Ollama request failed.', 'ollama_service_error');
         }
 
@@ -107,5 +115,14 @@ class OllamaClient
         }
 
         return $headers;
+    }
+
+    private function isTimeoutException(Throwable $exception): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, 'timed out')
+            || str_contains($message, 'timeout')
+            || str_contains($message, 'curl error 28');
     }
 }

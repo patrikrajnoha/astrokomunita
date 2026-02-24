@@ -8,6 +8,10 @@ use App\Models\BotRun;
 use App\Models\BotSource;
 use App\Models\Post;
 use App\Models\User;
+use App\Enums\BotRunFailureReason;
+use App\Services\Bots\Contracts\BotTranslationServiceInterface;
+use App\Services\Translation\Exceptions\TranslationProviderUnavailableException;
+use App\Services\Translation\Exceptions\TranslationTimeoutException;
 use Carbon\Carbon;
 use Database\Seeders\BotSourceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,6 +46,7 @@ class AdminBotControllerTest extends TestCase
         $this->getJson('/api/admin/bots/items?run_id=1')->assertStatus(403);
         $this->postJson('/api/admin/bots/run/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/translation/test')->assertStatus(403);
+        $this->getJson('/api/admin/bots/translation/health')->assertStatus(403);
         $this->postJson('/api/admin/bots/translation/retry/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/translation/backfill/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/items/1/publish')->assertStatus(403);
@@ -118,6 +123,111 @@ class AdminBotControllerTest extends TestCase
             ->assertJsonPath('meta.publish_limit', 3);
 
         $this->assertSame(0, Post::query()->count());
+    }
+
+    public function test_admin_post_run_recovers_stale_unfinished_run_before_starting_new_run(): void
+    {
+        $source = $this->createRssSource('recover_stale_source');
+        $this->actingAsAdmin();
+
+        $staleRun = BotRun::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'started_at' => now()->subMinutes(9),
+            'finished_at' => null,
+            'status' => 'running',
+            'stats' => ['fetched_count' => 1],
+            'error_text' => null,
+        ]);
+        BotRun::query()->whereKey($staleRun->id)->update([
+            'created_at' => now()->subMinutes(9),
+            'updated_at' => now()->subMinutes(9),
+        ]);
+
+        Http::fake([
+            $source->url => Http::response($this->singleItemRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $response = $this->postJson('/api/admin/bots/run/' . $source->key);
+
+        $response->assertOk();
+        $newRunId = (int) $response->json('run_id');
+
+        $staleRun->refresh();
+        $this->assertSame('failed', (string) ($staleRun->status?->value ?? $staleRun->status));
+        $this->assertNotNull($staleRun->finished_at);
+        $this->assertSame('stale_run_recovered', (string) data_get($staleRun->meta, 'failure_reason'));
+        $this->assertSame($newRunId, (int) data_get($staleRun->meta, 'recovered_by_run_id'));
+    }
+
+    public function test_admin_post_run_finishes_and_publishes_item_even_when_translation_times_out(): void
+    {
+        $source = $this->createRssSource('translation_timeout_source');
+        $this->actingAsAdmin();
+
+        $this->app->bind(BotTranslationServiceInterface::class, function () {
+            return new class implements BotTranslationServiceInterface {
+                public function translate(?string $title, ?string $content, string $to = 'sk'): array
+                {
+                    throw new TranslationTimeoutException('ollama', 'Translation timed out for test.');
+                }
+            };
+        });
+
+        Http::fake([
+            $source->url => Http::response($this->singleItemRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $response = $this->postJson('/api/admin/bots/run/' . $source->key);
+        $response
+            ->assertOk()
+            ->assertJsonPath('status', 'partial');
+
+        $runId = (int) $response->json('run_id');
+        $run = BotRun::query()->findOrFail($runId);
+        $this->assertNotNull($run->finished_at);
+        $this->assertNotNull($run->status);
+
+        $item = BotItem::query()->where('run_id', $runId)->firstOrFail();
+        $this->assertSame('failed', (string) ($item->translation_status?->value ?? $item->translation_status));
+        $this->assertSame('translation_timeout', (string) data_get($item->meta, 'translation_error_type'));
+        $this->assertSame('published', (string) ($item->publish_status?->value ?? $item->publish_status));
+        $this->assertNotNull($item->post_id);
+    }
+
+    public function test_admin_post_run_finishes_and_publishes_item_when_translation_provider_is_unavailable(): void
+    {
+        $source = $this->createRssSource('translation_provider_unavailable_source');
+        $this->actingAsAdmin();
+
+        $this->app->bind(BotTranslationServiceInterface::class, function () {
+            return new class implements BotTranslationServiceInterface {
+                public function translate(?string $title, ?string $content, string $to = 'sk'): array
+                {
+                    throw new TranslationProviderUnavailableException('libretranslate', 'Provider unavailable for test.');
+                }
+            };
+        });
+
+        Http::fake([
+            $source->url => Http::response($this->singleItemRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $response = $this->postJson('/api/admin/bots/run/' . $source->key);
+        $response
+            ->assertOk()
+            ->assertJsonPath('status', 'partial');
+
+        $runId = (int) $response->json('run_id');
+        $run = BotRun::query()->findOrFail($runId);
+        $this->assertNotNull($run->finished_at);
+        $this->assertNotNull($run->status);
+
+        $item = BotItem::query()->where('run_id', $runId)->firstOrFail();
+        $this->assertSame('failed', (string) ($item->translation_status?->value ?? $item->translation_status));
+        $this->assertSame(BotRunFailureReason::PROVIDER_UNAVAILABLE->value, (string) data_get($item->meta, 'translation_error_type'));
+        $this->assertSame('published', (string) ($item->publish_status?->value ?? $item->publish_status));
+        $this->assertNotNull($item->post_id);
     }
 
     public function test_admin_post_run_is_throttled_on_second_quick_call(): void
@@ -369,6 +479,98 @@ class AdminBotControllerTest extends TestCase
             ->assertJsonPath('provider_chain.0', 'libretranslate');
 
         $this->assertGreaterThanOrEqual(0, (int) $response->json('latency_ms'));
+    }
+
+    public function test_admin_translation_test_endpoint_maps_timeout_to_structured_failure_reason(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->app->bind(BotTranslationServiceInterface::class, function () {
+            return new class implements BotTranslationServiceInterface {
+                public function translate(?string $title, ?string $content, string $to = 'sk'): array
+                {
+                    throw new TranslationTimeoutException('ollama', 'Timeout during test.');
+                }
+            };
+        });
+
+        $response = $this->postJson('/api/admin/bots/translation/test', ['text' => 'Hello']);
+        $response
+            ->assertStatus(504)
+            ->assertJsonPath('failure_reason', BotRunFailureReason::TRANSLATION_TIMEOUT->value);
+    }
+
+    public function test_admin_translation_test_endpoint_returns_only_known_failure_reason_values(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->app->bind(BotTranslationServiceInterface::class, function () {
+            return new class implements BotTranslationServiceInterface {
+                public function translate(?string $title, ?string $content, string $to = 'sk'): array
+                {
+                    throw new \RuntimeException('Unknown translation failure');
+                }
+            };
+        });
+
+        $response = $this->postJson('/api/admin/bots/translation/test', ['text' => 'Hello']);
+        $reason = (string) $response->json('failure_reason');
+
+        $response->assertStatus(422);
+        $this->assertNotNull(BotRunFailureReason::tryFrom($reason));
+    }
+
+    public function test_admin_translation_health_endpoint_returns_provider_config_without_secrets(): void
+    {
+        $this->actingAsAdmin();
+
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.timeout_sec', 12);
+        config()->set('astrobot.translation.libretranslate.url', 'http://localhost:5000');
+
+        $this->app->bind(BotTranslationServiceInterface::class, function () {
+            return new class implements BotTranslationServiceInterface {
+                public function translate(?string $title, ?string $content, string $to = 'sk'): array
+                {
+                    return [
+                        'translated_title' => 'ok',
+                        'translated_content' => null,
+                        'title_translated' => 'ok',
+                        'content_translated' => null,
+                        'status' => 'done',
+                        'meta' => ['provider' => 'libretranslate'],
+                    ];
+                }
+            };
+        });
+
+        $response = $this->getJson('/api/admin/bots/translation/health');
+        $response
+            ->assertOk()
+            ->assertJsonPath('provider', 'libretranslate')
+            ->assertJsonPath('result.ok', true)
+            ->assertJsonMissingPath('api_key');
+    }
+
+    public function test_admin_translation_health_endpoint_reports_provider_unavailable_error_type(): void
+    {
+        $this->actingAsAdmin();
+
+        $this->app->bind(BotTranslationServiceInterface::class, function () {
+            return new class implements BotTranslationServiceInterface {
+                public function translate(?string $title, ?string $content, string $to = 'sk'): array
+                {
+                    throw new TranslationProviderUnavailableException('libretranslate', 'Cannot connect');
+                }
+            };
+        });
+
+        $response = $this->getJson('/api/admin/bots/translation/health');
+        $response
+            ->assertOk()
+            ->assertJsonPath('result.ok', false)
+            ->assertJsonPath('result.error_type', BotRunFailureReason::PROVIDER_UNAVAILABLE->value);
     }
 
     public function test_admin_retry_translation_retries_failed_items_and_marks_them_done(): void

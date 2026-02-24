@@ -10,8 +10,8 @@ return [
     | provider can point to the existing Argos microservice for compatibility.
     |
     */
-    'default_provider' => env('TRANSLATION_DEFAULT_PROVIDER', 'libretranslate'),
-    'fallback_provider' => env('TRANSLATION_FALLBACK_PROVIDER', 'argos_microservice'),
+    'default_provider' => env('TRANSLATION_PROVIDER', env('TRANSLATION_DEFAULT_PROVIDER', 'libretranslate')),
+    'fallback_provider' => env('TRANSLATION_FALLBACK_PROVIDER', env('TRANSLATION_DEFAULT_FALLBACK_PROVIDER', 'argos_microservice')),
 
     /*
     |--------------------------------------------------------------------------
@@ -80,14 +80,14 @@ return [
     ],
 
     'libretranslate' => [
-        'base_url' => env('LIBRETRANSLATE_BASE_URL', 'http://127.0.0.1:5000'),
+        'base_url' => env('LIBRETRANSLATE_BASE_URL', env('TRANSLATION_BASE_URL', 'http://127.0.0.1:5000')),
         'translate_path' => env('LIBRETRANSLATE_TRANSLATE_PATH', '/translate'),
-        'timeout' => (int) env('LIBRETRANSLATE_TIMEOUT', 12),
+        'timeout' => (int) env('TRANSLATION_TIMEOUT_SEC', env('LIBRETRANSLATE_TIMEOUT', 12)),
         'connect_timeout' => (int) env('LIBRETRANSLATE_CONNECT_TIMEOUT', 3),
-        'retry' => (int) env('LIBRETRANSLATE_RETRY', 2),
+        'retry' => (int) env('TRANSLATION_MAX_RETRIES', env('LIBRETRANSLATE_RETRY', 2)),
         'retry_sleep_ms' => (int) env('LIBRETRANSLATE_RETRY_SLEEP_MS', 250),
         'internal_token' => env('LIBRETRANSLATE_INTERNAL_TOKEN', env('TRANSLATION_INTERNAL_TOKEN', env('INTERNAL_TOKEN', ''))),
-        'api_key' => env('LIBRETRANSLATE_API_KEY'),
+        'api_key' => env('LIBRETRANSLATE_API_KEY', env('BOT_TRANSLATION_LIBRETRANSLATE_API_KEY')),
         'verify_ssl' => filter_var(env('LIBRETRANSLATE_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
     ],
 

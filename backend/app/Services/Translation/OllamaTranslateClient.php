@@ -5,7 +5,8 @@ namespace App\Services\Translation;
 use App\Contracts\TranslationClientInterface;
 use App\Services\AI\OllamaClient;
 use App\Services\AI\OllamaClientException;
-use App\Services\Translation\Exceptions\TranslationClientException;
+use App\Services\Translation\Exceptions\TranslationProviderUnavailableException;
+use App\Services\Translation\Exceptions\TranslationTimeoutException;
 use Throwable;
 
 class OllamaTranslateClient implements TranslationClientInterface
@@ -102,16 +103,21 @@ class OllamaTranslateClient implements TranslationClientInterface
                     'temperature' => (float) config('astrobot.translation.ollama.temperature', config('astrobot.translation_ollama_temperature', 0.15)),
                     'top_p' => (float) config('astrobot.translation.ollama.top_p', 0.4),
                     'num_predict' => (int) config('astrobot.translation.ollama.num_predict', config('astrobot.translation_ollama_num_predict', 700)),
-                    'timeout' => max(
-                        1,
-                        (int) config('astrobot.translation.ollama.timeout_seconds', config('astrobot.translation_ollama_timeout_seconds', 40))
-                    ),
+                    'timeout' => $this->resolvedTimeoutSeconds(),
                 ]
             );
         } catch (OllamaClientException $exception) {
-            throw new TranslationClientException($this->provider(), 'Ollama translation request failed.', 0, $exception);
+            if ($exception->errorCode() === 'ollama_timeout_error') {
+                throw new TranslationTimeoutException($this->provider(), 'Ollama translation timed out.', 0, $exception);
+            }
+
+            throw new TranslationProviderUnavailableException($this->provider(), 'Ollama translation request failed.', 0, $exception);
         } catch (Throwable $exception) {
-            throw new TranslationClientException($this->provider(), 'Ollama translation failed.', 0, $exception);
+            if ($this->isTimeoutException($exception)) {
+                throw new TranslationTimeoutException($this->provider(), 'Ollama translation timed out.', 0, $exception);
+            }
+
+            throw new TranslationProviderUnavailableException($this->provider(), 'Ollama translation failed.', 0, $exception);
         }
 
         $translated = $this->normalizeModelOutput((string) ($response['text'] ?? ''));
@@ -132,6 +138,14 @@ class OllamaTranslateClient implements TranslationClientInterface
     private function configuredModel(): string
     {
         return trim((string) config('astrobot.translation.ollama.model', config('astrobot.translation_ollama_model', config('ai.ollama.model', 'mistral'))));
+    }
+
+    private function resolvedTimeoutSeconds(): int
+    {
+        $sharedTimeout = (int) config('astrobot.translation.timeout_sec', 12);
+        $configuredTimeout = (int) config('astrobot.translation.ollama.timeout_seconds', config('astrobot.translation_ollama_timeout_seconds', 12));
+
+        return max(1, $sharedTimeout > 0 ? $sharedTimeout : $configuredTimeout);
     }
 
     private function buildSystemPrompt(string $targetLang, string $sourceLang, string $mode): string
@@ -208,5 +222,14 @@ class OllamaTranslateClient implements TranslationClientInterface
         }
 
         return strlen($value);
+    }
+
+    private function isTimeoutException(Throwable $exception): bool
+    {
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, 'timed out')
+            || str_contains($message, 'timeout')
+            || str_contains($message, 'curl error 28');
     }
 }
