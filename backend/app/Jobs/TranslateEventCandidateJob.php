@@ -4,8 +4,8 @@ namespace App\Jobs;
 
 use App\Models\EventCandidate;
 use App\Services\AI\OllamaRefinementService;
-use App\Services\Translation\TranslationServiceException;
-use App\Services\TranslationService;
+use App\Services\Bots\Contracts\BotTranslationServiceInterface;
+use App\Services\Bots\Exceptions\BotTranslationException;
 use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -25,6 +25,16 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
 
     private const REFINED_DESCRIPTION_MAX_LENGTH = 600;
     private const SHORT_MAX_LENGTH = 180;
+    private const TERMINOLOGY_MAP = [
+        'FIRST QUARTER MOON' => 'Prva stvrt Mesiaca',
+        'LAST QUARTER MOON' => 'Posledna stvrt Mesiaca',
+        'FULL MOON' => 'Spln',
+        'NEW MOON' => 'Nov',
+        'LUNAR ECLIPSE' => 'Mesiacne zatmenie',
+        'SOLAR ECLIPSE' => 'Slnecne zatmenie',
+        'MOON' => 'Mesiac',
+        'SUN' => 'Slnko',
+    ];
 
     public int $tries = 4;
     public int $uniqueFor = 600;
@@ -49,7 +59,7 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
     }
 
     public function handle(
-        TranslationService $translationService,
+        BotTranslationServiceInterface $translationService,
         OllamaRefinementService $ollamaRefinementService
     ): void {
         $candidate = EventCandidate::query()->find($this->candidateId);
@@ -78,10 +88,25 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
         ]);
 
         try {
-            $translatedTitle = $translationService->translateEnToSk($originalTitle, 'astronomy');
-            $translatedDescription = $originalDescription !== null
-                ? $translationService->translateEnToSk((string) $originalDescription, 'astronomy')
+            $translationResult = $translationService->translate(
+                $originalTitle,
+                $originalDescription !== null ? (string) $originalDescription : null,
+                'sk'
+            );
+
+            $translatedTitle = trim((string) ($translationResult['translated_title'] ?? ''));
+            if ($translatedTitle === '') {
+                $translatedTitle = $originalTitle;
+            }
+            $translatedTitle = $this->applyTerminologyMap($translatedTitle);
+
+            $translatedDescriptionRaw = $translationResult['translated_content'] ?? null;
+            $translatedDescription = is_string($translatedDescriptionRaw)
+                ? trim($translatedDescriptionRaw)
                 : null;
+            if ($translatedDescription !== null) {
+                $translatedDescription = $this->applyTerminologyMap($translatedDescription);
+            }
 
             $finalDescription = $translatedDescription;
             $finalShort = $this->resolveInitialShort($candidate, $translatedDescription, $translatedTitle);
@@ -103,9 +128,10 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
                     );
 
                     $translatedTitle = (string) ($refined['refined_title'] ?? $translatedTitle);
+                    $translatedTitle = $this->applyTerminologyMap($translatedTitle);
                     $refinedDescription = $this->sanitizeRefinedDescription($refined['refined_description'] ?? null);
                     if ($refinedDescription !== null) {
-                        $finalDescription = $refinedDescription;
+                        $finalDescription = $this->applyTerminologyMap($refinedDescription);
 
                         if (! $usedTemplateFallback) {
                             $finalShort = $this->buildShort($finalDescription, $translatedTitle);
@@ -146,7 +172,7 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
                 'force' => $this->force,
                 'template_fallback_used' => $usedTemplateFallback,
             ]);
-        } catch (TranslationServiceException $exception) {
+        } catch (\Throwable $exception) {
             $template = $this->buildDeterministicSkTemplate($candidate, $originalTitle);
 
             $candidate->update([
@@ -155,14 +181,13 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
                 'translated_title' => $originalTitle,
                 'translated_description' => $this->sanitizeDescription($template['description']) ?? $template['description'],
                 'translation_status' => EventCandidate::TRANSLATION_FAILED,
-                'translation_error' => $exception->errorCode(),
+                'translation_error' => $this->resolveErrorCode($exception),
                 'translated_at' => now(),
             ]);
 
             Log::warning('Event candidate translation failed', [
                 'event_candidate_id' => $candidate->id,
-                'error_code' => $exception->errorCode(),
-                'status_code' => $exception->statusCode(),
+                'error_code' => $this->resolveErrorCode($exception),
                 'message' => $exception->getMessage(),
             ]);
 
@@ -342,5 +367,31 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
 
         $normalized = preg_replace('/\s+/u', ' ', $normalized) ?? $normalized;
         return trim($normalized);
+    }
+
+    private function resolveErrorCode(\Throwable $exception): string
+    {
+        if ($exception instanceof BotTranslationException) {
+            $message = strtolower($exception->getMessage());
+            if (str_contains($message, 'timeout')) {
+                return 'translation_timeout';
+            }
+
+            return 'translation_error';
+        }
+
+        return 'translation_error';
+    }
+
+    private function applyTerminologyMap(string $text): string
+    {
+        $result = $text;
+
+        foreach (self::TERMINOLOGY_MAP as $from => $to) {
+            $pattern = '/(?<!\pL)' . preg_quote($from, '/') . '(?!\pL)/iu';
+            $result = (string) preg_replace($pattern, $to, $result);
+        }
+
+        return $result;
     }
 }

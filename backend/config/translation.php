@@ -35,6 +35,7 @@ return [
     'allow_sync_queue' => filter_var(env('TRANSLATION_ALLOW_SYNC_QUEUE', false), FILTER_VALIDATE_BOOLEAN),
     'events' => [
         'enabled' => filter_var(env('TRANSLATION_EVENTS_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+        'prefer_sync_in_local' => filter_var(env('TRANSLATION_EVENTS_PREFER_SYNC_IN_LOCAL', true), FILTER_VALIDATE_BOOLEAN),
     ],
 
     /*

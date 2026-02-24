@@ -18,13 +18,20 @@ const api = axios.create({
   },
 })
 
-function isLongRunningBotRunPath(url) {
+function isLongRunningPath(url) {
   const normalized = String(url || '').toLowerCase()
   if (normalized === '') {
     return false
   }
 
-  return normalized.includes('/admin/bots/run/') || normalized.includes('/admin/bots/quick-run')
+  return (
+    normalized.includes('/admin/bots/run/') ||
+    normalized.includes('/admin/bots/quick-run') ||
+    normalized.includes('/admin/event-sources/run') ||
+    normalized.includes('/admin/event-sources/purge') ||
+    normalized.includes('/admin/event-candidates/approve-batch') ||
+    normalized.includes('/admin/manual-events/publish-batch')
+  )
 }
 
 const toast = useToast()
@@ -106,10 +113,15 @@ function normalizeHttpErrorMessage(error) {
 }
 
 api.interceptors.request.use((config) => {
-  if (isLongRunningBotRunPath(config?.url)) {
+  if (isLongRunningPath(config?.url)) {
+    const url = String(config?.url || '').toLowerCase()
+    const veryLongRunning =
+      url.includes('/admin/event-sources/run') ||
+      url.includes('/admin/event-sources/purge')
+
     return {
       ...config,
-      timeout: 60000,
+      timeout: veryLongRunning ? 300000 : 120000,
     }
   }
 

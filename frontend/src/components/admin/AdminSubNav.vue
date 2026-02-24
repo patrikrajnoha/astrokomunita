@@ -7,24 +7,30 @@ const wipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCa
 
 const groups = [
   {
-    title: 'Core management',
+    title: 'Publikovanie udalosti',
     items: [
-      { label: 'Dashboard', to: '/admin/dashboard', icon: 'D' },
-      { label: 'Users', to: '/admin/users', icon: 'U' },
-      { label: 'Crawling hub', to: '/admin/event-sources', icon: 'C' },
-      { label: 'Reports', to: '/admin/reports', icon: 'R' },
-      { label: 'Moderation', to: '/admin/moderation', icon: 'M' },
-      ...(wipEnabled ? [{ label: 'Banned words', to: '/admin/banned-words', icon: 'W' }] : []),
+      { label: 'Crawling', to: '/admin/event-sources', icon: '1' },
+      { label: 'Kandidati', to: '/admin/event-candidates', icon: '2' },
+      { label: 'Udalosti', to: '/admin/events', icon: '3' },
     ],
   },
   {
-    title: 'Content & configuration',
+    title: 'Sprava',
     items: [
-      { label: 'Events', to: '/admin/events', icon: 'E' },
-      { label: 'Featured popup', to: '/admin/featured-events', icon: 'P' },
+      { label: 'Dashboard', to: '/admin/dashboard', icon: 'D' },
+      { label: 'Pouzivatelia', to: '/admin/users', icon: 'U' },
+      { label: 'Reporty', to: '/admin/reports', icon: 'R' },
+      { label: 'Moderacia', to: '/admin/moderation', icon: 'M' },
+      ...(wipEnabled ? [{ label: 'Zakazane slova', to: '/admin/banned-words', icon: 'W' }] : []),
+    ],
+  },
+  {
+    title: 'Obsah a konfiguracia',
+    items: [
+      { label: 'Vybrane udalosti popup', to: '/admin/featured-events', icon: 'P' },
       { label: 'Newsletter', to: '/admin/newsletter', icon: 'N' },
-      { label: 'Contests', to: '/admin/contests', icon: 'C' },
-      { label: 'Articles', to: '/admin/blog', icon: 'B' },
+      { label: 'Sutaze', to: '/admin/contests', icon: 'C' },
+      { label: 'Clanky', to: '/admin/blog', icon: 'B' },
       { label: 'Sidebar', to: '/admin/sidebar', icon: 'S' },
       { label: 'Bot Engine', to: '/admin/bots', icon: 'B' },
     ],
@@ -37,7 +43,7 @@ function isActive(path) {
     return route.path === path || route.path.startsWith('/admin/candidates/')
   }
   if (path === '/admin/event-sources') {
-    return route.path === path || route.path === '/admin/event-candidates' || route.path.startsWith('/admin/candidates/')
+    return route.path === path
   }
   if (path === '/admin/events') {
     return route.path === path || route.path.startsWith('/admin/events/')

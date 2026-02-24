@@ -12,10 +12,18 @@ export function runEventSourceCrawl(payload) {
   return api.post('/admin/event-sources/run', payload)
 }
 
+export function purgeEventSources(payload) {
+  return api.post('/admin/event-sources/purge', payload)
+}
+
 export function getCrawlRuns(params = {}) {
   return api.get('/admin/crawl-runs', { params })
 }
 
 export function getCrawlRun(id) {
   return api.get(`/admin/crawl-runs/${id}`)
+}
+
+export function getEventTranslationHealth() {
+  return api.get('/admin/event-translation-health')
 }

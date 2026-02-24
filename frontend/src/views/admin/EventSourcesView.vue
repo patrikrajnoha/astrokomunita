@@ -1,10 +1,12 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import {
   getCrawlRuns,
+  getEventTranslationHealth,
   getEventSources,
+  purgeEventSources,
   runEventSourceCrawl,
   updateEventSource,
 } from '@/services/api/admin/eventSources'
@@ -16,7 +18,11 @@ const toast = useToast()
 const loading = ref(false)
 const error = ref('')
 const runningSelected = ref(false)
+const purging = ref(false)
 const runningByKey = ref({})
+const purgeDryRun = ref(true)
+const purgeModalOpen = ref(false)
+const purgeConfirmInput = ref('')
 
 const sources = ref([])
 const selectedKeys = ref([])
@@ -25,6 +31,12 @@ const latestRunBySourceKey = ref({})
 
 const yearTouched = ref(false)
 const year = ref(new Date().getFullYear())
+const activeOps = ref(0)
+const progressValue = ref(0)
+let progressIntervalId = null
+const translationHealth = ref(null)
+const translationHealthLoading = ref(false)
+let translationPollId = null
 
 const supportedSelectedKeys = computed(() => {
   const selectedSet = new Set(selectedKeys.value.map((key) => normalizeSourceKey(key)))
@@ -37,6 +49,48 @@ const supportedSelectedKeys = computed(() => {
 
 const canRunSelected = computed(() => {
   return !runningSelected.value && supportedSelectedKeys.value.length > 0
+})
+
+const isBusy = computed(() => activeOps.value > 0)
+
+const progressLabel = computed(() => {
+  if (runningSelected.value) return 'Prebieha crawling vybranych zdrojov...'
+  if (purging.value) return 'Prebieha mazanie crawlnutych dat...'
+  if (isBusy.value) return 'Prebieha nacitavanie...'
+  return ''
+})
+
+const translationPendingCount = computed(() => Number(translationHealth.value?.pending_candidates_total || 0))
+
+const translationQueuedJobs = computed(() => Number(translationHealth.value?.queue?.queued_event_translation_jobs || 0))
+
+const translationCounts = computed(() => translationHealth.value?.counts_24h || {})
+
+const translationProgressPercent = computed(() => {
+  const done = Number(translationCounts.value?.done || 0)
+  const failed = Number(translationCounts.value?.failed || 0)
+  const pending = Number(translationCounts.value?.pending || 0)
+  const total = done + failed + pending
+  if (total <= 0) return 0
+  return Math.max(0, Math.min(100, Math.round(((done + failed) / total) * 100)))
+})
+
+const translationIsActive = computed(() => {
+  return translationPendingCount.value > 0 || translationQueuedJobs.value > 0
+})
+
+const translationProgressLabel = computed(() => {
+  if (!translationIsActive.value) return 'Preklad udalosti momentalne nebezi.'
+  return `Prekladaju sa udalosti... pending ${translationPendingCount.value}, vo fronte ${translationQueuedJobs.value}.`
+})
+
+const purgeTargetKeys = computed(() => {
+  const selectedSet = new Set(selectedKeys.value.map((key) => normalizeSourceKey(key)))
+
+  return sources.value
+    .filter((source) => selectedSet.size === 0 || selectedSet.has(normalizeSourceKey(source.key)))
+    .filter((source) => Boolean(source?.manual_run_supported))
+    .map((source) => normalizeSourceKey(source.key))
 })
 
 function normalizeSourceKey(value) {
@@ -65,8 +119,8 @@ function isSourceSupported(source) {
 }
 
 function sourceStatusLabel(source) {
-  if (!isSourceSupported(source)) return 'Unsupported'
-  return source?.is_enabled ? 'Enabled' : 'Disabled'
+  if (!isSourceSupported(source)) return 'Nepodporovane'
+  return source?.is_enabled ? 'Zapnute' : 'Vypnute'
 }
 
 function sourceStatusTone(source) {
@@ -119,9 +173,9 @@ function findLatestRunForSource(sourceKey) {
 }
 
 function runStatusLabel(run) {
-  if (!run) return 'Never'
+  if (!run) return 'Nikdy'
   const status = String(run.status || '').trim()
-  return status !== '' ? status : 'Unknown'
+  return status !== '' ? status : 'Nezname'
 }
 
 function isSourceCheckboxDisabled(source) {
@@ -135,17 +189,44 @@ function isRowRunDisabled(source) {
 
 function rowRunDisabledReason(source) {
   if (!isSourceSupported(source)) {
-    return 'Deferred in MVP'
+    return 'Nepodporovane v MVP'
   }
 
   if (!source?.is_enabled) {
-    return 'Enable source first'
+    return 'Najprv zapni zdroj'
   }
 
   return ''
 }
 
+function beginOperation() {
+  activeOps.value += 1
+  if (progressIntervalId !== null) return
+  progressValue.value = 8
+  progressIntervalId = window.setInterval(() => {
+    if (progressValue.value < 92) {
+      progressValue.value += Math.max(1, Math.floor((100 - progressValue.value) / 14))
+    }
+  }, 220)
+}
+
+function endOperation() {
+  activeOps.value = Math.max(0, activeOps.value - 1)
+  if (activeOps.value > 0) return
+  if (progressIntervalId !== null) {
+    window.clearInterval(progressIntervalId)
+    progressIntervalId = null
+  }
+  progressValue.value = 100
+  window.setTimeout(() => {
+    if (activeOps.value === 0) {
+      progressValue.value = 0
+    }
+  }, 200)
+}
+
 async function load() {
+  beginOperation()
   loading.value = true
   error.value = ''
 
@@ -176,10 +257,36 @@ async function load() {
       year.value = Number.isFinite(latestYear) && latestYear >= 2000 ? latestYear : new Date().getFullYear()
     }
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to load crawling data.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa nacitat crawling data.'
   } finally {
     loading.value = false
+    endOperation()
   }
+}
+
+async function loadTranslationHealth() {
+  translationHealthLoading.value = true
+  try {
+    const response = await getEventTranslationHealth()
+    translationHealth.value = response?.data || null
+  } catch {
+    // Neriesime toast, je to iba doplnkova diagnostika.
+  } finally {
+    translationHealthLoading.value = false
+  }
+}
+
+function startTranslationPoll() {
+  if (translationPollId !== null) return
+  translationPollId = window.setInterval(() => {
+    loadTranslationHealth()
+  }, 3500)
+}
+
+function stopTranslationPoll() {
+  if (translationPollId === null) return
+  window.clearInterval(translationPollId)
+  translationPollId = null
 }
 
 async function toggleSource(source, checked) {
@@ -192,7 +299,7 @@ async function toggleSource(source, checked) {
       selectedKeys.value = selectedKeys.value.filter((item) => normalizeSourceKey(item) !== key)
     }
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to update source.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa aktualizovat zdroj.'
   }
 }
 
@@ -202,6 +309,7 @@ async function runSelected() {
   }
 
   runningSelected.value = true
+  beginOperation()
   error.value = ''
 
   try {
@@ -209,13 +317,59 @@ async function runSelected() {
       source_keys: supportedSelectedKeys.value,
       year: Number(year.value),
     })
-    toast.success('Crawl run created for selected sources.')
+    toast.success('Crawl run bol vytvoreny pre vybrane zdroje.')
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Manual run failed.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Rucne spustenie zlyhalo.'
   } finally {
     runningSelected.value = false
+    endOperation()
   }
+}
+
+async function purgeCrawledData() {
+  if (purging.value) {
+    return
+  }
+
+  purging.value = true
+  beginOperation()
+  error.value = ''
+
+  try {
+    const response = await purgeEventSources({
+      source_keys: purgeTargetKeys.value,
+      dry_run: Boolean(purgeDryRun.value),
+      confirm: 'delete_crawled_events',
+    })
+
+    const deleted = response?.data?.deleted || {}
+    const events = Number(deleted.events || 0)
+    const candidates = Number(deleted.event_candidates || 0)
+    const runs = Number(deleted.crawl_runs || 0)
+    const mode = Boolean(purgeDryRun.value) ? 'Dry run:' : 'Vymazane:'
+    toast.success(`${mode} udalosti ${events}, kandidati ${candidates}, runy ${runs}.`)
+
+    await load()
+  } catch (fetchError) {
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Mazanie zlyhalo.'
+  } finally {
+    purging.value = false
+    purgeModalOpen.value = false
+    purgeConfirmInput.value = ''
+    endOperation()
+  }
+}
+
+function openPurgeModal() {
+  purgeConfirmInput.value = ''
+  purgeModalOpen.value = true
+}
+
+function closePurgeModal() {
+  if (purging.value) return
+  purgeModalOpen.value = false
+  purgeConfirmInput.value = ''
 }
 
 async function runSingleSource(source) {
@@ -229,6 +383,7 @@ async function runSingleSource(source) {
     [key]: true,
   }
 
+  beginOperation()
   error.value = ''
 
   try {
@@ -236,15 +391,16 @@ async function runSingleSource(source) {
       source_keys: [key],
       year: Number(year.value),
     })
-    toast.success(`Crawl run created for ${sourceLabel(key)}.`)
+    toast.success(`Crawl run bol vytvoreny pre ${sourceLabel(key)}.`)
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Manual run failed.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Rucne spustenie zlyhalo.'
   } finally {
     runningByKey.value = {
       ...runningByKey.value,
       [key]: false,
     }
+    endOperation()
   }
 }
 
@@ -271,22 +427,51 @@ function openRunDetails(run) {
   })
 }
 
-onMounted(load)
+onMounted(async () => {
+  await Promise.all([load(), loadTranslationHealth()])
+  startTranslationPoll()
+})
+
+onUnmounted(() => {
+  stopTranslationPoll()
+})
 </script>
 
 <template>
-  <AdminPageShell title="Crawling" subtitle="Enable source -> run -> review candidates from the run.">
+  <AdminPageShell title="Crawling" subtitle="Zapni zdroj -> spusti crawling -> skontroluj kandidatov z runu.">
     <div v-if="error" class="alert">{{ error }}</div>
+    <section v-if="isBusy || progressValue > 0" class="progressPanel" data-testid="crawl-progress-panel">
+      <div class="progressPanel__label">{{ progressLabel }}</div>
+      <div class="progressBar">
+        <div class="progressBar__fill" :style="{ width: `${progressValue}%` }"></div>
+      </div>
+    </section>
+
+    <section
+      v-if="translationHealthLoading || translationIsActive"
+      class="progressPanel"
+      data-testid="translation-progress-panel"
+    >
+      <div class="progressPanel__label">{{ translationProgressLabel }}</div>
+      <div class="progressBar progressBar--translation">
+        <div class="progressBar__fill progressBar__fill--translation" :style="{ width: `${translationProgressPercent}%` }"></div>
+      </div>
+      <div class="progressPanel__meta">
+        <span>Done: {{ Number(translationCounts.done || 0) }}</span>
+        <span>Failed: {{ Number(translationCounts.failed || 0) }}</span>
+        <span>Pending: {{ Number(translationCounts.pending || 0) }}</span>
+      </div>
+    </section>
 
     <section class="card runPanel">
       <div class="runPanel__head">
-        <h2>Run panel</h2>
-        <div class="runPanel__meta">Selected {{ supportedSelectedKeys.length }} supported source(s)</div>
+        <h2>Panel spustenia</h2>
+        <div class="runPanel__meta">Vybranych podporovanych zdrojov: {{ supportedSelectedKeys.length }}</div>
       </div>
 
       <div class="runPanel__actions">
         <label class="runPanel__field" for="run-year">
-          <span>Year</span>
+          <span>Rok</span>
           <input
             id="run-year"
             v-model.number="year"
@@ -305,29 +490,76 @@ onMounted(load)
           :disabled="!canRunSelected"
           @click="runSelected"
         >
-          {{ runningSelected ? 'Running...' : 'Run selected' }}
+          {{ runningSelected ? 'Spusta sa...' : 'Spustit vybrane' }}
+        </button>
+
+        <label class="runPanel__switch" for="purge-dry-run">
+          <input id="purge-dry-run" v-model="purgeDryRun" type="checkbox" :disabled="purging" />
+          <span>Dry run mazania</span>
+        </label>
+
+        <button
+          type="button"
+          class="dangerBtn"
+          data-testid="purge-crawled-btn"
+          :disabled="purging"
+          @click="openPurgeModal"
+        >
+          {{ purging ? 'Maze sa...' : 'Vymazat crawlnute udalosti' }}
         </button>
       </div>
 
-      <p class="runPanel__hint">Creates crawl run and imports candidates (staging).</p>
+      <p class="runPanel__hint">Vytvori crawl run a naimportuje kandidatov. Ciel mazania = vybrane podporovane zdroje (alebo vsetky, ak nic nie je vybrane).</p>
     </section>
+
+    <div v-if="purgeModalOpen" class="modalBackdrop" @click.self="closePurgeModal">
+      <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="purge-modal-title">
+        <h3 id="purge-modal-title">Potvrdit mazanie</h3>
+        <p class="modalText">
+          Toto vymaze crawlnute udalosti, kandidatov a crawl runy pre vybrane podporovane zdroje.
+          Pre pokracovanie napis <code>delete_crawled_events</code>.
+        </p>
+        <input
+          v-model="purgeConfirmInput"
+          data-testid="purge-confirm-input"
+          class="modalInput"
+          type="text"
+          autocomplete="off"
+          :disabled="purging"
+        />
+        <div class="modalActions">
+          <button type="button" class="ghostBtn" data-testid="purge-cancel-btn" :disabled="purging" @click="closePurgeModal">
+            Zrusit
+          </button>
+          <button
+            type="button"
+            class="dangerBtn"
+            data-testid="purge-confirm-btn"
+            :disabled="purging || purgeConfirmInput !== 'delete_crawled_events'"
+            @click="purgeCrawledData"
+          >
+            {{ purging ? 'Maze sa...' : (purgeDryRun ? 'Spustit dry run' : 'Vymazat teraz') }}
+          </button>
+        </div>
+      </div>
+    </div>
 
     <section class="card">
       <div class="cardHead">
-        <h2>Sources</h2>
+        <h2>Zdroje</h2>
       </div>
 
-      <div v-if="loading" class="muted">Loading sources...</div>
+      <div v-if="loading" class="muted">Nacitavam zdroje...</div>
       <div v-else class="tableWrap">
         <table class="table compact">
           <thead>
             <tr>
-              <th aria-label="Select source">[ ]</th>
-              <th>Source</th>
-              <th>Status</th>
-              <th>Last run</th>
-              <th>Counters</th>
-              <th>Actions</th>
+              <th aria-label="Vyber zdroja">[ ]</th>
+              <th>Zdroj</th>
+              <th>Stav</th>
+              <th>Posledny run</th>
+              <th>Pocitadla</th>
+              <th>Akcie</th>
             </tr>
           </thead>
           <tbody>
@@ -379,7 +611,7 @@ onMounted(load)
                       :disabled="runningSelected"
                       @change="toggleSource(source, $event.target.checked)"
                     />
-                    <span>{{ source.is_enabled ? 'On' : 'Off' }}</span>
+                    <span>{{ source.is_enabled ? 'Zap' : 'Vyp' }}</span>
                   </label>
 
                   <button
@@ -390,7 +622,7 @@ onMounted(load)
                     :title="rowRunDisabledReason(source)"
                     @click="runSingleSource(source)"
                   >
-                    {{ runningByKey[normalizeSourceKey(source.key)] ? 'Running...' : 'Run' }}
+                    {{ runningByKey[normalizeSourceKey(source.key)] ? 'Spusta sa...' : 'Spustit' }}
                   </button>
                 </div>
               </td>
@@ -402,21 +634,21 @@ onMounted(load)
 
     <section class="card">
       <div class="cardHead">
-        <h2>Recent runs</h2>
-        <span class="muted">Last 10</span>
+        <h2>Posledne runy</h2>
+        <span class="muted">Poslednych 10</span>
       </div>
 
-      <div v-if="recentRuns.length === 0" class="muted">No runs yet.</div>
+      <div v-if="recentRuns.length === 0" class="muted">Zatial ziadne runy.</div>
       <div v-else class="tableWrap">
         <table class="table compact">
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Source</th>
-              <th>Year</th>
-              <th>Status</th>
-              <th>Counters</th>
-              <th>Action</th>
+              <th>Cas</th>
+              <th>Zdroj</th>
+              <th>Rok</th>
+              <th>Stav</th>
+              <th>Pocitadla</th>
+              <th>Akcia</th>
             </tr>
           </thead>
           <tbody>
@@ -427,7 +659,7 @@ onMounted(load)
               </td>
               <td>{{ run.year || '-' }}</td>
               <td>
-                <span class="pill" :class="`pill--${runStatusTone(run.status)}`">{{ run.status || 'unknown' }}</span>
+                <span class="pill" :class="`pill--${runStatusTone(run.status)}`">{{ run.status || 'nezname' }}</span>
               </td>
               <td>
                 <div class="counterRow">
@@ -439,8 +671,8 @@ onMounted(load)
               </td>
               <td>
                 <div class="actionRow">
-                  <button type="button" class="ghostBtn" @click="viewRunCandidates(run)">View candidates</button>
-                  <button type="button" class="ghostBtn" @click="openRunDetails(run)">Details</button>
+                  <button type="button" class="ghostBtn" @click="viewRunCandidates(run)">Kandidati</button>
+                  <button type="button" class="ghostBtn" @click="openRunDetails(run)">Detail</button>
                 </div>
               </td>
             </tr>
@@ -524,10 +756,112 @@ onMounted(load)
   background: rgb(var(--color-primary-rgb) / 0.12);
 }
 
+.dangerBtn {
+  border: 1px solid rgb(220 38 38 / 0.35);
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: rgb(220 38 38 / 0.12);
+  color: inherit;
+}
+
 .ghostBtn:disabled,
-.primaryBtn:disabled {
+.primaryBtn:disabled,
+.dangerBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.runPanel__switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.progressPanel {
+  margin-bottom: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.progressPanel__label {
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.progressPanel__meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgb(var(--color-surface-rgb) / 0.18);
+  overflow: hidden;
+}
+
+.progressBar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, rgb(14 116 144 / 0.9), rgb(59 130 246 / 0.9));
+  transition: width 180ms linear;
+}
+
+.progressBar--translation {
+  background: rgb(16 185 129 / 0.18);
+}
+
+.progressBar__fill--translation {
+  background: linear-gradient(90deg, rgb(5 150 105 / 0.9), rgb(22 163 74 / 0.9));
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 0.45);
+  padding: 16px;
+}
+
+.modalCard {
+  width: min(520px, 100%);
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border-radius: 12px;
+  background: rgb(var(--color-bg-rgb));
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.modalCard h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.modalText {
+  margin: 0;
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.modalInput {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  color: inherit;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .tableWrap {

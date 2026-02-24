@@ -5,14 +5,18 @@ import EventSourcesView from './EventSourcesView.vue'
 
 const getEventSourcesMock = vi.fn()
 const getCrawlRunsMock = vi.fn()
+const getEventTranslationHealthMock = vi.fn()
 const runEventSourceCrawlMock = vi.fn()
+const purgeEventSourcesMock = vi.fn()
 const updateEventSourceMock = vi.fn()
 const toastSuccessMock = vi.fn()
 
 vi.mock('@/services/api/admin/eventSources', () => ({
   getEventSources: (...args) => getEventSourcesMock(...args),
   getCrawlRuns: (...args) => getCrawlRunsMock(...args),
+  getEventTranslationHealth: (...args) => getEventTranslationHealthMock(...args),
   runEventSourceCrawl: (...args) => runEventSourceCrawlMock(...args),
+  purgeEventSources: (...args) => purgeEventSourcesMock(...args),
   updateEventSource: (...args) => updateEventSourceMock(...args),
 }))
 
@@ -86,6 +90,16 @@ describe('EventSourcesView', () => {
     runEventSourceCrawlMock.mockResolvedValue({
       data: { results: [] },
     })
+    getEventTranslationHealthMock.mockResolvedValue({
+      data: {
+        counts_24h: { done: 5, failed: 1, pending: 2 },
+        pending_candidates_total: 2,
+        queue: { queued_event_translation_jobs: 1 },
+      },
+    })
+    purgeEventSourcesMock.mockResolvedValue({
+      data: { status: 'ok', deleted: { events: 1, event_candidates: 2, crawl_runs: 3 } },
+    })
     updateEventSourceMock.mockResolvedValue({ data: { ok: true } })
   })
 
@@ -107,9 +121,9 @@ describe('EventSourcesView', () => {
   it('renders run panel, sources table and recent runs', async () => {
     const { wrapper } = await mountView()
 
-    expect(wrapper.text()).toContain('Run panel')
-    expect(wrapper.text()).toContain('Sources')
-    expect(wrapper.text()).toContain('Recent runs')
+    expect(wrapper.text()).toContain('Panel spustenia')
+    expect(wrapper.text()).toContain('Zdroje')
+    expect(wrapper.text()).toContain('Posledne runy')
     expect(wrapper.text()).toContain('IMO')
   })
 
@@ -120,7 +134,7 @@ describe('EventSourcesView', () => {
 
     expect(unsupportedRunButton.exists()).toBe(true)
     expect(unsupportedRunButton.attributes('disabled')).toBeDefined()
-    expect(unsupportedRunButton.attributes('title')).toBe('Deferred in MVP')
+    expect(unsupportedRunButton.attributes('title')).toBe('Nepodporovane v MVP')
   })
 
   it('enables run selected only after selecting a supported source', async () => {
@@ -143,6 +157,31 @@ describe('EventSourcesView', () => {
     expect(runEventSourceCrawlMock).toHaveBeenCalledWith({
       source_keys: ['imo'],
       year: 2026,
+    })
+  })
+
+  it('triggers purge from modal with confirm token', async () => {
+    const { wrapper } = await mountView()
+
+    const purgeButton = wrapper.find('[data-testid="purge-crawled-btn"]')
+    expect(purgeButton.exists()).toBe(true)
+
+    await purgeButton.trigger('click')
+    await flush()
+
+    const confirmInput = wrapper.find('[data-testid="purge-confirm-input"]')
+    expect(confirmInput.exists()).toBe(true)
+    await confirmInput.setValue('delete_crawled_events')
+
+    const confirmButton = wrapper.find('[data-testid="purge-confirm-btn"]')
+    expect(confirmButton.attributes('disabled')).toBeUndefined()
+    await confirmButton.trigger('click')
+    await flush()
+
+    expect(purgeEventSourcesMock).toHaveBeenCalledWith({
+      source_keys: ['imo'],
+      dry_run: true,
+      confirm: 'delete_crawled_events',
     })
   })
 })

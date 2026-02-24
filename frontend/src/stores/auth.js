@@ -256,17 +256,26 @@ export const useAuthStore = defineStore('auth', {
     async login(payload) {
       this.loading = true
       try {
-        await this.postWithCsrfRetry('/auth/login', payload)
-        const user = await this.fetchUser({ source: 'login', retry: false, markBootstrap: true })
-        if (user) {
-          this.loginSequence += 1
-          return user
+        const response = await this.postWithCsrfRetry('/auth/login', payload)
+        const loginUser = response?.data || null
+
+        if (!loginUser) {
+          const fallbackMessage = this.error?.message || 'Prihlasenie zlyhalo.'
+          const loginFailure = new Error(fallbackMessage)
+          loginFailure.authError = this.error
+          throw loginFailure
         }
 
-        const fallbackMessage = this.error?.message || 'Prihlasenie zlyhalo.'
-        const loginFailure = new Error(fallbackMessage)
-        loginFailure.authError = this.error
-        throw loginFailure
+        this.user = loginUser
+        this.status = 'authenticated'
+        this.error = null
+        this.bootstrapDone = true
+        this.initialized = true
+        this.loginSequence += 1
+
+        // Non-blocking refresh for enriched payload (/auth/me adds activity fields).
+        this.fetchUser({ source: 'login-bg-refresh', retry: false, markBootstrap: false }).catch(() => {})
+        return loginUser
       } finally {
         this.loading = false
       }
@@ -275,9 +284,21 @@ export const useAuthStore = defineStore('auth', {
     async register(payload) {
       this.loading = true
       try {
-        await this.postWithCsrfRetry('/auth/register', payload)
-        const user = await this.fetchUser({ source: 'register', retry: false, markBootstrap: true })
-        if (user) this.loginSequence += 1
+        const response = await this.postWithCsrfRetry('/auth/register', payload)
+        const registerUser = response?.data || null
+
+        if (registerUser) {
+          this.user = registerUser
+          this.status = 'authenticated'
+          this.error = null
+          this.bootstrapDone = true
+          this.initialized = true
+          this.loginSequence += 1
+          this.fetchUser({ source: 'register-bg-refresh', retry: false, markBootstrap: false }).catch(() => {})
+          return
+        }
+
+        await this.fetchUser({ source: 'register', retry: false, markBootstrap: true })
       } finally {
         this.loading = false
       }
