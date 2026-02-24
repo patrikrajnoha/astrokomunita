@@ -18,6 +18,15 @@ const api = axios.create({
   },
 })
 
+function isLongRunningBotRunPath(url) {
+  const normalized = String(url || '').toLowerCase()
+  if (normalized === '') {
+    return false
+  }
+
+  return normalized.includes('/admin/bots/run/') || normalized.includes('/admin/bots/quick-run')
+}
+
 const toast = useToast()
 let lastErrorToastKey = ''
 let lastErrorToastAt = 0
@@ -95,6 +104,17 @@ function normalizeHttpErrorMessage(error) {
 
   return String(error?.response?.data?.message || message || 'Request failed.')
 }
+
+api.interceptors.request.use((config) => {
+  if (isLongRunningBotRunPath(config?.url)) {
+    return {
+      ...config,
+      timeout: 60000,
+    }
+  }
+
+  return config
+})
 
 api.interceptors.response.use(
   (response) => response,

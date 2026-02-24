@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import { useBotEngineStore } from '@/stores/botEngine'
 import { useToast } from '@/composables/useToast'
+import { BOT_FAILURE_REASONS, BOT_FAILURE_REASON_MESSAGES } from '@/constants/botFailureReasons'
 
 const props = defineProps({
   presetBotIdentity: {
@@ -140,6 +141,8 @@ const quickRunBusyIdentity = ref('')
 
 function toErrorMessage(error, fallbackMessage) {
   const status = Number(error?.response?.status || 0)
+  const code = String(error?.code || '').trim().toUpperCase()
+  const messageText = String(error?.message || '').trim().toLowerCase()
   const retryAfter = Number(error?.response?.data?.retry_after || 0)
   const failureReason = String(
     error?.response?.data?.failure_reason || error?.response?.data?.meta?.failure_reason || '',
@@ -147,13 +150,27 @@ function toErrorMessage(error, fallbackMessage) {
     .trim()
     .toLowerCase()
   const baseMessage = error?.response?.data?.message || error?.userMessage || error?.message || fallbackMessage
+  const isTimeoutOrNetwork = code === 'ECONNABORTED' || code === 'ERR_NETWORK' || messageText.includes('timeout')
 
-  if (['rate_limited', 'cooldown_rate_limited', 'needs_api_key'].includes(failureReason)) {
+  if (isTimeoutOrNetwork) {
+    return 'Run trva dlhsie. Skus to o chvilu, alebo otvor detail runu.'
+  }
+
+  if ([
+    BOT_FAILURE_REASONS.RATE_LIMITED,
+    BOT_FAILURE_REASONS.COOLDOWN_RATE_LIMITED,
+    BOT_FAILURE_REASONS.NEEDS_API_KEY,
+  ].includes(failureReason)) {
     return (
       error?.response?.data?.ui_message ||
       error?.response?.data?.meta?.ui_message ||
+      BOT_FAILURE_REASON_MESSAGES[failureReason] ||
       baseMessage
     )
+  }
+
+  if (BOT_FAILURE_REASON_MESSAGES[failureReason]) {
+    return BOT_FAILURE_REASON_MESSAGES[failureReason]
   }
 
   if (status === 429 && retryAfter > 0) {
@@ -759,7 +776,11 @@ async function backfillTranslateForRun() {
 
 function statusClass(status) {
   const normalizedReason = String(status?.failure_reason || status?.meta?.failure_reason || '').toLowerCase()
-  if (normalizedReason === 'rate_limited' || normalizedReason === 'cooldown_rate_limited' || normalizedReason === 'needs_api_key') {
+  if ([
+    BOT_FAILURE_REASONS.RATE_LIMITED,
+    BOT_FAILURE_REASONS.COOLDOWN_RATE_LIMITED,
+    BOT_FAILURE_REASONS.NEEDS_API_KEY,
+  ].includes(normalizedReason)) {
     return 'statusBadge statusBadge--partial'
   }
 
@@ -772,10 +793,10 @@ function statusClass(status) {
 
 function runStatusLabel(run) {
   const reason = String(run?.failure_reason || run?.meta?.failure_reason || '').toLowerCase()
-  if (reason === 'rate_limited' || reason === 'cooldown_rate_limited') {
+  if (reason === BOT_FAILURE_REASONS.RATE_LIMITED || reason === BOT_FAILURE_REASONS.COOLDOWN_RATE_LIMITED) {
     return 'Rate limited'
   }
-  if (reason === 'needs_api_key') {
+  if (reason === BOT_FAILURE_REASONS.NEEDS_API_KEY) {
     return 'Needs API key'
   }
 

@@ -297,6 +297,70 @@ describe('BotEngineView', () => {
     expect(String(toastErrorMock.mock.calls[0][0])).not.toContain('Server neodpoveda')
   })
 
+  it('shows dedicated long-running run message on Axios timeout', async () => {
+    store.runSource.mockRejectedValueOnce({
+      code: 'ECONNABORTED',
+      message: 'timeout of 60000ms exceeded',
+    })
+
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    const runButton = wrapper.findAll('button').find((node) => node.text().includes('Run now'))
+    await runButton.trigger('click')
+    await flush()
+
+    expect(toastErrorMock).toHaveBeenCalledTimes(1)
+    expect(String(toastErrorMock.mock.calls[0][0])).toContain('Run trva dlhsie')
+  })
+
+  it('shows friendly translation provider message for structured provider_unavailable error', async () => {
+    store.runSource.mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: {
+          failure_reason: 'provider_unavailable',
+          message: 'Translation provider unavailable.',
+        },
+      },
+    })
+
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    const runButton = wrapper.findAll('button').find((node) => node.text().includes('Run now'))
+    await runButton.trigger('click')
+    await flush()
+
+    expect(toastErrorMock).toHaveBeenCalledTimes(1)
+    expect(String(toastErrorMock.mock.calls[0][0])).toContain('Prekladovy provider je nedostupny')
+  })
+
+  it('shows friendly translation timeout message for structured translation_timeout error', async () => {
+    store.runSource.mockRejectedValueOnce({
+      response: {
+        status: 504,
+        data: {
+          failure_reason: 'translation_timeout',
+          message: 'Translation timed out.',
+        },
+      },
+    })
+
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    const runButton = wrapper.findAll('button').find((node) => node.text().includes('Run now'))
+    await runButton.trigger('click')
+    await flush()
+
+    expect(toastErrorMock).toHaveBeenCalledTimes(1)
+    expect(String(toastErrorMock.mock.calls[0][0])).toContain('Preklad timeoutol')
+  })
+
   it('renders DRY/AUTO badges with publish limit text from run meta', async () => {
     const wrapper = mountView()
     await flush()
