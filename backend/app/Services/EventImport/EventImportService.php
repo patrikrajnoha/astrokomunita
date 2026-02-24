@@ -346,6 +346,25 @@ class EventImportService
         }
 
         try {
+            $queueConnection = strtolower(trim((string) config('queue.default', 'sync')));
+            $allowSyncQueue = (bool) config('translation.allow_sync_queue', false);
+
+            // During crawl/import we should not block the HTTP request with translation
+            // when queue driver is sync. Keep candidates pending and let explicit
+            // retranslate/manual actions handle immediate translation if needed.
+            if ($queueConnection === 'sync' && ! $allowSyncQueue) {
+                Log::info('Skipped event candidate translation dispatch during import (sync queue).', [
+                    'candidate_id' => $candidateId,
+                    'source_name' => $sourceName,
+                ]);
+                return;
+            }
+
+            if ($queueConnection === 'sync' && $allowSyncQueue) {
+                TranslateEventCandidateJob::dispatchSync($candidateId);
+                return;
+            }
+
             TranslateEventCandidateJob::dispatch($candidateId)->afterCommit();
         } catch (Throwable $exception) {
             Log::warning('Event candidate translation dispatch failed', [

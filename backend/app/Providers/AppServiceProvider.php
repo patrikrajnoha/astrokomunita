@@ -28,6 +28,7 @@ use App\Services\Translation\Grammar\LanguageToolGrammarChecker;
 use App\Services\Translation\Grammar\OllamaGrammarChecker;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -143,6 +144,11 @@ class AppServiceProvider extends ServiceProvider
         $this->collectAliasUsage($aliasUsage, 'OLLAMA_NUM_PREDICT', ['BOT_TRANSLATION_OLLAMA_NUM_PREDICT', 'TRANSLATION_OLLAMA_NUM_PREDICT']);
 
         if ($aliasUsage === []) {
+            return;
+        }
+
+        $cacheKey = 'translation:deprecated-env-aliases:logged';
+        if (! Cache::add($cacheKey, true, now()->addMinutes(30))) {
             return;
         }
 

@@ -99,6 +99,33 @@ export const eventCandidates = {
     return res.data;
   },
 
+  async approveBatch(params: {
+    status?: CandidateStatus;
+    type?: CandidateType;
+    source?: string;
+    source_key?: string;
+    run_id?: number;
+    q?: string;
+    year?: number;
+    month?: number;
+    limit?: number;
+  }) {
+    const res = await api.post(`/admin/event-candidates/approve-batch`, params);
+    return res.data as { ok: boolean; published: number; failed: number; total_selected: number; limit_applied: number };
+  },
+
+  async publishManualBatch(params: {
+    status?: string;
+    type?: CandidateType;
+    q?: string;
+    year?: number;
+    month?: number;
+    limit?: number;
+  }) {
+    const res = await api.post(`/admin/manual-events/publish-batch`, params);
+    return res.data as { ok: boolean; published: number; failed: number; total_selected: number; limit_applied: number };
+  },
+
   async reject(id: number) {
     const res = await api.post(`/admin/event-candidates/${id}/reject`);
     return res.data;
@@ -106,6 +133,29 @@ export const eventCandidates = {
 
   async retranslate(id: number) {
     const res = await api.post(`/admin/event-candidates/${id}/retranslate`);
+    return res.data;
+  },
+
+  async retranslateBatch(params: {
+    status?: CandidateStatus;
+    type?: CandidateType;
+    source?: string;
+    source_key?: string;
+    run_id?: number;
+    q?: string;
+    year?: number;
+    month?: number;
+    limit?: number;
+  }) {
+    const res = await api.post(`/admin/event-candidates/retranslate-batch`, params);
+    return res.data as { ok: boolean; queued: number; failed: number; total_selected: number; limit_applied: number };
+  },
+
+  async updateTranslation(
+    id: number,
+    payload: { translated_title: string; translated_description?: string | null }
+  ) {
+    const res = await api.patch(`/admin/event-candidates/${id}/translation`, payload);
     return res.data;
   },
 };

@@ -28,11 +28,12 @@ describe('AdminSubNav', () => {
       },
     })
 
-    expect(wrapper.text()).not.toContain('Banned words')
-    expect(wrapper.text()).toContain('Crawling hub')
+    expect(wrapper.text()).not.toContain('Zakazane slova')
+    expect(wrapper.text()).toContain('Crawling')
+    expect(wrapper.text()).toContain('Kandidati')
   })
 
-  it('marks crawling hub active on candidates routes too', async () => {
+  it('marks candidates active on candidates routes', async () => {
     const router = makeRouter()
     await router.push('/admin/event-candidates')
     await router.isReady()
@@ -45,6 +46,6 @@ describe('AdminSubNav', () => {
 
     const activeItems = wrapper.findAll('.adminSubNav__item.active')
     expect(activeItems).toHaveLength(1)
-    expect(activeItems[0].text()).toContain('Crawling hub')
+    expect(activeItems[0].text()).toContain('Kandidati')
   })
 })

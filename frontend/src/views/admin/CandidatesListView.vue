@@ -35,6 +35,7 @@ const manualQ = ref("");
 const manualPage = ref(1);
 const manualPerPage = ref(20);
 const manualData = ref(null);
+const publishMode = ref("crawled");
 
 const showManualForm = ref(false);
 const manualEditingId = ref(null);
@@ -45,6 +46,34 @@ const manualForm = ref({
   starts_at: "",
   ends_at: "",
 });
+
+const manualTypeOptions = [
+  { value: "meteor_shower", label: "Meteoricky roj" },
+  { value: "eclipse_lunar", label: "Zatmenie Mesiaca" },
+  { value: "eclipse_solar", label: "Zatmenie Slnka" },
+  { value: "planetary_event", label: "Planetarny ukaz" },
+  { value: "other", label: "Ina udalost" },
+];
+
+const manualFormErrors = computed(() => {
+  const errors = [];
+  if (!String(manualForm.value.title || "").trim()) {
+    errors.push("Nazov je povinny.");
+  }
+  if (!manualForm.value.starts_at) {
+    errors.push("Cas zaciatku je povinny.");
+  }
+  if (manualForm.value.starts_at && manualForm.value.ends_at) {
+    const start = new Date(manualForm.value.starts_at);
+    const end = new Date(manualForm.value.ends_at);
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end < start) {
+      errors.push("Koniec nemoze byt skor ako zaciatok.");
+    }
+  }
+  return errors;
+});
+
+const manualCanSave = computed(() => manualFormErrors.value.length === 0);
 
 const runFilter = computed(() => {
   const runId = Number(route.query?.run_id);
@@ -66,20 +95,62 @@ const runFilter = computed(() => {
   };
 });
 
+const visiblePendingCandidateIds = computed(() => {
+  const rows = Array.isArray(data.value?.data) ? data.value.data : [];
+  return rows
+    .filter((row) => String(row?.status || "").toLowerCase() === "pending")
+    .map((row) => Number(row.id))
+    .filter((id) => Number.isFinite(id) && id > 0);
+});
+
+const crawledStats = computed(() => {
+  const rows = Array.isArray(data.value?.data) ? data.value.data : [];
+  const stats = {
+    total: rows.length,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    translated: 0,
+    failedTranslation: 0,
+  };
+
+  for (const row of rows) {
+    const rowStatus = String(row?.status || "").toLowerCase();
+    if (rowStatus === "pending") stats.pending += 1;
+    if (rowStatus === "approved") stats.approved += 1;
+    if (rowStatus === "rejected") stats.rejected += 1;
+
+    const translationStatus = String(row?.translation_status || "").toLowerCase();
+    if (translationStatus === "done" || translationStatus === "translated") stats.translated += 1;
+    if (translationStatus === "failed" || translationStatus === "error") stats.failedTranslation += 1;
+  }
+
+  return stats;
+});
+
+const manualStats = computed(() => {
+  const rows = Array.isArray(manualData.value?.data) ? manualData.value.data : [];
+  return {
+    total: rows.length,
+    draft: rows.filter((row) => String(row?.status || "").toLowerCase() === "draft").length,
+    published: rows.filter((row) => String(row?.status || "").toLowerCase() === "published").length,
+  };
+});
+
 // --- helpers ---
 function normalizeTranslationStatus(value) {
   const statusValue = String(value || "").trim().toLowerCase();
-  if (statusValue === "done" || statusValue === "translated") return "Translated";
-  if (statusValue === "failed" || statusValue === "error") return "Failed";
-  return "Pending";
+  if (statusValue === "done" || statusValue === "translated") return "Prelozene";
+  if (statusValue === "failed" || statusValue === "error") return "Zlyhalo";
+  return "Caka";
 }
 
 function translationStatusStyle(value) {
   const normalized = normalizeTranslationStatus(value);
-  if (normalized === "Translated") {
+  if (normalized === "Prelozene") {
     return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(22,163,74,.35); background:rgba(22,163,74,.12); font-size:12px;";
   }
-  if (normalized === "Failed") {
+  if (normalized === "Zlyhalo") {
     return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(239,68,68,.35); background:rgba(239,68,68,.12); font-size:12px;";
   }
   return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(245,158,11,.35); background:rgba(245,158,11,.12); font-size:12px;";
@@ -150,6 +221,276 @@ function sourceBadgeStyle(source) {
 
 function openCandidate(id) {
   router.push(`/admin/candidates/${id}`);
+}
+
+async function publishCandidateQuick(candidate) {
+  if (!candidate?.id || String(candidate?.status || '') !== 'pending') return;
+
+  const ok = await confirm({
+    title: 'Publikovat kandidata',
+    message: `Publikovat "${candidateDisplayTitle(candidate)}" do udalosti?`,
+    confirmText: 'Publikovat',
+    cancelText: 'Zrusit',
+  });
+  if (!ok) return;
+
+  loading.value = true;
+  error.value = null;
+  try {
+    await eventCandidates.approve(candidate.id);
+    toast.success('Kandidat bol publikovany.');
+    await load();
+  } catch (e) {
+    error.value = e?.response?.data?.message || 'Publikovanie zlyhalo';
+    toast.error(error.value);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function publishAllVisiblePending() {
+  const ids = visiblePendingCandidateIds.value;
+  if (ids.length === 0) {
+    toast.warn("Na tejto stranke nie su ziadni pending kandidati.");
+    return;
+  }
+
+  const ok = await confirm({
+    title: "Publikovat vsetko",
+    message: `Naozaj publikovat ${ids.length} pending kandidatov na aktualnej stranke?`,
+    confirmText: "Publikovat",
+    cancelText: "Zrusit",
+    variant: "danger",
+  });
+  if (!ok) return;
+
+  loading.value = true;
+  error.value = null;
+
+  let successCount = 0;
+  let failCount = 0;
+
+  try {
+    for (const candidateId of ids) {
+      try {
+        await eventCandidates.approve(candidateId);
+        successCount += 1;
+      } catch {
+        failCount += 1;
+      }
+    }
+
+    if (failCount === 0) {
+      toast.success(`Publikovanych ${successCount} kandidatov.`);
+    } else {
+      toast.warn(`Publikovane: ${successCount}, zlyhalo: ${failCount}.`);
+    }
+
+    await load();
+  } catch (e) {
+    error.value = e?.response?.data?.message || "Hromadne publikovanie zlyhalo";
+    toast.error(error.value);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function publishAllByFilter() {
+  const ok = await confirm({
+    title: "Publikovat vsetko podla filtra",
+    message: "Naozaj publikovat vsetky pending udalosti podla aktualneho filtra? (max 1000)",
+    confirmText: "Publikovat",
+    cancelText: "Zrusit",
+    variant: "danger",
+  });
+  if (!ok) return;
+
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const params = buildParams();
+    const payload = {
+      status: params.status,
+      type: params.type,
+      source: params.source,
+      source_key: params.source_key,
+      run_id: params.run_id,
+      q: params.q,
+      year: runFilter.value?.year || undefined,
+      limit: 1000,
+    };
+
+    const result = await eventCandidates.approveBatch(payload);
+    if (result.failed > 0) {
+      toast.warn(`Publikovane: ${result.published}, zlyhalo: ${result.failed}.`);
+    } else {
+      toast.success(`Publikovanych ${result.published} kandidatov.`);
+    }
+    await load();
+  } catch (e) {
+    error.value = e?.response?.data?.message || "Hromadne publikovanie podla filtra zlyhalo";
+    toast.error(error.value);
+  } finally {
+    loading.value = false;
+  }
+}
+
+function buildManualBatchPayload() {
+  return {
+    status: manualStatus.value || "draft",
+    type: manualType.value || undefined,
+    q: manualQ.value?.trim() ? manualQ.value.trim() : undefined,
+    year: runFilter.value?.year || undefined,
+    limit: 1000,
+  };
+}
+
+async function publishBySelectedMode() {
+  const labels = {
+    crawled: "crawlovane",
+    manual: "manualne",
+    all: "crawlovane aj manualne",
+  };
+
+  const ok = await confirm({
+    title: "Publikovat podla rezimu",
+    message: `Naozaj publikovat ${labels[publishMode.value] || "vybrane"} udalosti podla filtra? (max 1000 na typ)` ,
+    confirmText: "Publikovat",
+    cancelText: "Zrusit",
+    variant: "danger",
+  });
+  if (!ok) return;
+
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const crawledPayload = {
+      status: buildParams().status,
+      type: buildParams().type,
+      source: buildParams().source,
+      source_key: buildParams().source_key,
+      run_id: buildParams().run_id,
+      q: buildParams().q,
+      year: runFilter.value?.year || undefined,
+      limit: 1000,
+    };
+    const manualPayload = buildManualBatchPayload();
+
+    let crawledResult = { published: 0, failed: 0 };
+    let manualResult = { published: 0, failed: 0 };
+
+    if (publishMode.value === "crawled" || publishMode.value === "all") {
+      crawledResult = await eventCandidates.approveBatch(crawledPayload);
+    }
+
+    if (publishMode.value === "manual" || publishMode.value === "all") {
+      manualResult = await eventCandidates.publishManualBatch(manualPayload);
+    }
+
+    const totalPublished = Number(crawledResult.published || 0) + Number(manualResult.published || 0);
+    const totalFailed = Number(crawledResult.failed || 0) + Number(manualResult.failed || 0);
+
+    if (totalFailed > 0) {
+      toast.warn(`Publikovane spolu: ${totalPublished}, zlyhalo: ${totalFailed}.`);
+    } else {
+      toast.success(`Publikovanych spolu: ${totalPublished}.`);
+    }
+
+    await Promise.all([load(), loadManual()]);
+  } catch (e) {
+    error.value = e?.response?.data?.message || "Hromadne publikovanie podla rezimu zlyhalo";
+    toast.error(error.value);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function retranslateVisiblePending() {
+  const ids = visiblePendingCandidateIds.value;
+  if (ids.length === 0) {
+    toast.warn("Na tejto stranke nie su ziadni pending kandidati.");
+    return;
+  }
+
+  const ok = await confirm({
+    title: "Prelozit znova viditelnych",
+    message: `Spustit novy preklad pre ${ids.length} pending kandidatov na aktualnej stranke?`,
+    confirmText: "Spustit",
+    cancelText: "Zrusit",
+  });
+  if (!ok) return;
+
+  loading.value = true;
+  error.value = null;
+
+  let successCount = 0;
+  let failCount = 0;
+
+  try {
+    for (const candidateId of ids) {
+      try {
+        await eventCandidates.retranslate(candidateId);
+        successCount += 1;
+      } catch {
+        failCount += 1;
+      }
+    }
+
+    if (failCount === 0) {
+      toast.success(`Preklad bol spusteny pre ${successCount} kandidatov.`);
+    } else {
+      toast.warn(`Preklad spusteny: ${successCount}, zlyhalo: ${failCount}.`);
+    }
+
+    await load();
+  } catch (e) {
+    error.value = e?.response?.data?.message || "Hromadny retranslate zlyhal";
+    toast.error(error.value);
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function retranslateByFilter() {
+  const ok = await confirm({
+    title: "Prelozit znova podla filtra",
+    message: "Spustit novy preklad pre kandidatov podla aktualneho filtra? (max 1000)",
+    confirmText: "Spustit",
+    cancelText: "Zrusit",
+  });
+  if (!ok) return;
+
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const params = buildParams();
+    const payload = {
+      status: params.status,
+      type: params.type,
+      source: params.source,
+      source_key: params.source_key,
+      run_id: params.run_id,
+      q: params.q,
+      year: runFilter.value?.year || undefined,
+      limit: 1000,
+    };
+
+    const result = await eventCandidates.retranslateBatch(payload);
+    if (result.failed > 0) {
+      toast.warn(`Retranslate podla filtra: queued ${result.queued}, failed ${result.failed}.`);
+    } else {
+      toast.success(`Retranslate podla filtra: queued ${result.queued}.`);
+    }
+    await load();
+  } catch (e) {
+    error.value = e?.response?.data?.message || "Hromadny retranslate podla filtra zlyhal";
+    toast.error(error.value);
+  } finally {
+    loading.value = false;
+  }
 }
 
 function openCrawlingHub() {
@@ -308,6 +649,25 @@ function toLocalInput(value) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function nowLocalInput() {
+  return toLocalInput(new Date().toISOString());
+}
+
+function addHoursToLocalInput(value, hours) {
+  const base = value ? new Date(value) : new Date();
+  if (Number.isNaN(base.getTime())) return "";
+  base.setHours(base.getHours() + hours);
+  return toLocalInput(base.toISOString());
+}
+
+function setManualStartNow() {
+  manualForm.value.starts_at = nowLocalInput();
+}
+
+function setManualEndByHours(hours) {
+  manualForm.value.ends_at = addHoursToLocalInput(manualForm.value.starts_at || nowLocalInput(), hours);
+}
+
 function updateManualRow(updated) {
   if (!manualData.value || !updated) return;
   const rows = manualData.value.data || [];
@@ -318,6 +678,11 @@ function updateManualRow(updated) {
 }
 
 async function saveManual() {
+  if (!manualCanSave.value) {
+    manualError.value = manualFormErrors.value[0] || "Skontroluj formular.";
+    return;
+  }
+
   manualLoading.value = true;
   manualError.value = null;
 
@@ -352,8 +717,8 @@ async function deleteManual(row) {
   const ok = await confirm({
     title: 'Zmazat draft',
     message: `Zmazat draft "${row.title}"?`,
-    confirmText: 'Delete',
-    cancelText: 'Cancel',
+    confirmText: 'Zmazat',
+    cancelText: 'Zrusit',
     variant: 'danger',
   });
   if (!ok) return;
@@ -380,8 +745,8 @@ async function publishManual(row) {
   const ok = await confirm({
     title: 'Publikovat draft',
     message: `Publikovat "${row.title}" do events?`,
-    confirmText: 'Publish',
-    cancelText: 'Cancel',
+    confirmText: 'Publikovat',
+    cancelText: 'Zrusit',
   });
   if (!ok) return;
 
@@ -427,42 +792,61 @@ onMounted(() => {
 </script>
 
 <template>
-  <div style="max-width: 1100px; margin: 0 auto; padding: 24px 16px;">
-    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px;">
+  <div style="max-width: 980px; margin: 0 auto; padding: 10px 8px;">
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:10px;">
       <div>
-        <h1 style="margin:0 0 6px;">Event candidates</h1>
+        <h1 style="margin:0 0 4px;">Kandidati udalosti</h1>
       </div>
 
-      <div style="display:flex; gap:10px;">
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
         <button
           @click="openCrawlingHub"
           :disabled="loading || manualLoading"
-          style="padding:8px 12px; border:1px solid rgb(var(--color-primary-rgb) / .35); border-radius:8px; background:rgb(var(--color-primary-rgb) / .12); color:inherit;"
+          style="padding:7px 10px; border:1px solid rgb(var(--color-primary-rgb) / .35); border-radius:8px; background:rgb(var(--color-primary-rgb) / .12); color:inherit;"
         >
-          Crawling hub
+          Centrum crawlovania
         </button>
         <button
           @click="setTab('crawled')"
           :disabled="loading || manualLoading"
           :style="activeTab === 'crawled'
-            ? 'padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .4); border-radius:8px; background:rgb(var(--color-surface-rgb) / .08); color:inherit;'
-            : 'padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;'"
+            ? 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .4); border-radius:8px; background:rgb(var(--color-surface-rgb) / .08); color:inherit;'
+            : 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;'"
         >
-          Crawled candidates
+          Crawlovani kandidati
         </button>
         <button
           @click="setTab('manual')"
           :disabled="loading || manualLoading"
           :style="activeTab === 'manual'
-            ? 'padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .4); border-radius:8px; background:rgb(var(--color-surface-rgb) / .08); color:inherit;'
-            : 'padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;'"
+            ? 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .4); border-radius:8px; background:rgb(var(--color-surface-rgb) / .08); color:inherit;'
+            : 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;'"
         >
-          Manual drafts
+          Manualne navrhy
         </button>
       </div>
     </div>
 
     <div v-if="activeTab === 'crawled'">
+      <div class="uxOverview">
+        <div class="uxOverview__item">
+          <span>Na stranke</span>
+          <strong>{{ crawledStats.total }}</strong>
+        </div>
+        <div class="uxOverview__item">
+          <span>Pending</span>
+          <strong>{{ crawledStats.pending }}</strong>
+        </div>
+        <div class="uxOverview__item">
+          <span>Prelozene</span>
+          <strong>{{ crawledStats.translated }}</strong>
+        </div>
+        <div class="uxOverview__item">
+          <span>Chyba prekladu</span>
+          <strong>{{ crawledStats.failedTranslation }}</strong>
+        </div>
+      </div>
+
       <div
         v-if="runFilter"
         style="margin-top: 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;"
@@ -475,52 +859,96 @@ onMounted(() => {
           @click="clearRunFilter"
           style="padding:6px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
         >
-          Clear run filter
+          Zrusit filter runu
         </button>
       </div>
 
-      <div style="display:flex; justify-content:flex-end; margin-top: 12px;">
+      <div class="uxActionBar">
+        <select
+          v-model="publishMode"
+          :disabled="loading"
+          style="padding:8px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit; margin-right:8px;"
+        >
+          <option value="crawled">Publikovat: Crawlovane</option>
+          <option value="manual">Publikovat: Manualne</option>
+          <option value="all">Publikovat: Oboje</option>
+        </select>
+        <button
+          @click="publishBySelectedMode"
+          :disabled="loading"
+          style="padding:8px 12px; border:1px solid rgb(var(--color-success-rgb) / .35); border-radius:8px; background:rgb(var(--color-success-rgb) / .10); color:inherit; margin-right:8px;"
+        >
+          Publikovat podla rezimu
+        </button>
+        <button
+          @click="publishAllByFilter"
+          :disabled="loading"
+          style="padding:8px 12px; border:1px solid rgb(var(--color-success-rgb) / .35); border-radius:8px; background:rgb(var(--color-success-rgb) / .10); color:inherit; margin-right:8px;"
+        >
+          Publikovat vsetko (podla filtra)
+        </button>
+        <button
+          @click="publishAllVisiblePending"
+          :disabled="loading || visiblePendingCandidateIds.length === 0"
+          style="padding:8px 12px; border:1px solid rgb(var(--color-success-rgb) / .35); border-radius:8px; background:rgb(var(--color-success-rgb) / .10); color:inherit; margin-right:8px;"
+        >
+          Publikovat vsetko (viditelne)
+        </button>
+        <button
+          @click="retranslateByFilter"
+          :disabled="loading"
+          style="padding:8px 12px; border:1px solid rgb(var(--color-primary-rgb) / .35); border-radius:8px; background:rgb(var(--color-primary-rgb) / .12); color:inherit; margin-right:8px;"
+        >
+          Prelozit znova (podla filtra)
+        </button>
+        <button
+          @click="retranslateVisiblePending"
+          :disabled="loading || visiblePendingCandidateIds.length === 0"
+          style="padding:8px 12px; border:1px solid rgb(var(--color-primary-rgb) / .35); border-radius:8px; background:rgb(var(--color-primary-rgb) / .12); color:inherit; margin-right:8px;"
+        >
+          Prelozit znova (viditelne)
+        </button>
         <button
           @click="clearFilters"
           :disabled="loading"
           style="padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
         >
-          Reset
+          Resetovat filtre
         </button>
       </div>
 
       <div
         style="
-          margin-top: 12px;
-          padding: 12px;
+          margin-top: 10px;
+          padding: 7px;
           border: 1px solid rgb(var(--color-surface-rgb) / .12);
           border-radius: 12px;
           display: grid;
           grid-template-columns: repeat(12, 1fr);
-          gap: 12px;
+          gap: 6px;
         "
       >
         <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Status</label>
+          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Stav</label>
           <select
             v-model="status"
             :disabled="loading"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            <option value="pending">pending</option>
-            <option value="approved">approved</option>
-            <option value="rejected">rejected</option>
+            <option value="pending">Cakajuce</option>
+            <option value="approved">Schvalene</option>
+            <option value="rejected">Zamietnute</option>
           </select>
         </div>
 
         <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Type</label>
+          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Typ</label>
           <select
             v-model="type"
             :disabled="loading"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            <option value="">all</option>
+            <option value="">vsetky</option>
             <option value="eclipse_lunar">eclipse_lunar</option>
             <option value="eclipse_solar">eclipse_solar</option>
             <option value="meteor_shower">meteor_shower</option>
@@ -530,22 +958,22 @@ onMounted(() => {
         </div>
 
         <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Source</label>
+          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Zdroj</label>
           <input
             v-model="source"
             :disabled="loading"
             placeholder="napr. astropixels"
             @keyup.enter="resetToFirstPage(); load()"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           />
         </div>
 
         <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Per page</label>
+          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Na stranku</label>
           <select
             v-model.number="per_page"
             :disabled="loading"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
             <option :value="10">10</option>
             <option :value="20">20</option>
@@ -555,13 +983,13 @@ onMounted(() => {
         </div>
 
         <div style="grid-column: span 9;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Search</label>
+          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Hladaj</label>
           <input
             v-model="q"
             :disabled="loading"
             placeholder="hladaj v title/short/description (q)"
             @keyup.enter="resetToFirstPage(); load()"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           />
         </div>
 
@@ -569,9 +997,9 @@ onMounted(() => {
           <button
             @click="resetToFirstPage(); load()"
             :disabled="loading"
-            style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
+            style="width:100%; padding:7px 9px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
           >
-            Search
+            Hladat
           </button>
         </div>
       </div>
@@ -581,13 +1009,13 @@ onMounted(() => {
       </div>
 
       <div v-if="loading" style="margin-top: 12px; opacity: .85;">
-        Loading...
+        Nacitavam...
       </div>
 
       <div
         v-if="data && !loading"
         style="
-          margin-top: 16px;
+          margin-top: 12px;
           border: 1px solid rgb(var(--color-surface-rgb) / .12);
           border-radius: 12px;
           overflow: hidden;
@@ -596,16 +1024,15 @@ onMounted(() => {
         <table style="width:100%; border-collapse:collapse;">
           <thead style="background: rgb(var(--color-surface-rgb) / .05);">
             <tr>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">ID</th>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Type</th>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Title</th>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Source</th>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Confidence</th>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Matched sources</th>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Start</th>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Status</th>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Translation</th>
-              <th style="text-align:right; padding:12px; font-size:12px; opacity:.85;">Action</th>
+              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">ID</th>
+              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Typ</th>
+              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Nazov</th>
+              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Zdroj</th>
+              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Dovera</th>
+              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Sparovane zdroje</th>
+              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Zaciatok</th>
+              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Stav</th>
+              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Preklad a akcie</th>
             </tr>
           </thead>
 
@@ -615,19 +1042,19 @@ onMounted(() => {
               :key="c.id"
               style="border-top: 1px solid rgb(var(--color-surface-rgb) / .08);"
             >
-              <td style="padding:12px; white-space:nowrap;">{{ c.id }}</td>
-              <td style="padding:12px; white-space:nowrap;">{{ c.type }}</td>
-              <td style="padding:12px;">
+              <td style="padding:6px; white-space:nowrap;">{{ c.id }}</td>
+              <td style="padding:6px; white-space:nowrap;">{{ c.type }}</td>
+              <td style="padding:6px;">
                 <div style="font-weight:600;">{{ candidateDisplayTitle(c) }}</div>
                 <div v-if="candidateDisplayShort(c) && candidateDisplayShort(c) !== '-'" style="opacity:.75; font-size:12px; margin-top:4px;">
                   {{ candidateDisplayShort(c) }}
                 </div>
               </td>
-              <td style="padding:12px; white-space:nowrap;">
+              <td style="padding:6px; white-space:nowrap;">
                 <span :style="sourceBadgeStyle(c.source_name)">{{ sourceLabel(c.source_name) }}</span>
               </td>
-              <td style="padding:12px; white-space:nowrap;">{{ formatConfidence(c.confidence_score) }}</td>
-              <td style="padding:12px;">
+              <td style="padding:6px; white-space:nowrap;">{{ formatConfidence(c.confidence_score) }}</td>
+              <td style="padding:6px;">
                 <div style="display:flex; flex-wrap:wrap; gap:6px;">
                   <span
                     v-for="src in normalizeSources(c.matched_sources)"
@@ -639,25 +1066,33 @@ onMounted(() => {
                   <span v-if="normalizeSources(c.matched_sources).length === 0" style="opacity:.75;">-</span>
                 </div>
               </td>
-              <td style="padding:12px; white-space:nowrap;">{{ formatDate(c.start_at) }}</td>
-              <td style="padding:12px; white-space:nowrap;">{{ c.status }}</td>
-              <td style="padding:12px; white-space:nowrap;">
+              <td style="padding:6px; white-space:nowrap;">{{ formatDate(c.start_at) }}</td>
+              <td style="padding:6px; white-space:nowrap;">{{ c.status }}</td>
+              <td style="padding:6px; white-space:nowrap;">
                 <span :style="translationStatusStyle(c.translation_status)">
                   {{ normalizeTranslationStatus(c.translation_status) }}
                 </span>
-              </td>
-              <td style="padding:12px; text-align:right;">
-                <button
-                  @click="openCandidate(c.id)"
-                  style="padding:8px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
-                >
-                  Open
-                </button>
+                <div style="display:flex; gap:6px; margin-top:6px;">
+                  <button
+                    v-if="c.status === 'pending'"
+                    @click="publishCandidateQuick(c)"
+                    :disabled="loading"
+                    style="padding:6px 8px; border-radius:8px; border:1px solid rgb(var(--color-success-rgb) / .35); background:rgb(var(--color-success-rgb) / .10); color:inherit;"
+                  >
+                    Publikovat
+                  </button>
+                  <button
+                    @click="openCandidate(c.id)"
+                    style="padding:6px 8px; border-radius:8px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
+                  >
+                    Otvorit
+                  </button>
+                </div>
               </td>
             </tr>
 
             <tr v-if="data.data.length === 0">
-              <td colspan="10" style="padding:0;"></td>
+              <td colspan="9" style="padding:0;"></td>
             </tr>
           </tbody>
         </table>
@@ -675,7 +1110,7 @@ onMounted(() => {
         "
       >
         <div style="opacity:.85; font-size: 14px;">
-          Page {{ data.current_page }} / {{ data.last_page }} (total {{ data.total }})
+          Strana {{ data.current_page }} / {{ data.last_page }} (spolu {{ data.total }})
         </div>
 
         <div style="display:flex; gap:10px;">
@@ -684,68 +1119,83 @@ onMounted(() => {
             :disabled="loading || page <= 1"
             style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            Prev
+            Pred
           </button>
           <button
             @click="nextPage"
             :disabled="loading || (data && page >= data.last_page)"
             style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            Next
+            Dalsia
           </button>
         </div>
       </div>
     </div>
 
     <div v-else>
+      <div class="uxOverview">
+        <div class="uxOverview__item">
+          <span>Na stranke</span>
+          <strong>{{ manualStats.total }}</strong>
+        </div>
+        <div class="uxOverview__item">
+          <span>Draft</span>
+          <strong>{{ manualStats.draft }}</strong>
+        </div>
+        <div class="uxOverview__item">
+          <span>Publikovane</span>
+          <strong>{{ manualStats.published }}</strong>
+        </div>
+      </div>
+
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 12px;">
         <button
           @click="openManualFormCreate"
           :disabled="manualLoading"
           style="padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
         >
-          Create manual event
+          Vytvorit manualnu udalost
         </button>
         <button
           @click="clearManualFilters"
           :disabled="manualLoading"
           style="padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
         >
-          Reset
+          Resetovat filtre
         </button>
       </div>
 
       <div
         style="
           margin-top: 12px;
-          padding: 12px;
+          padding: 8px;
           border: 1px solid rgb(var(--color-surface-rgb) / .12);
           border-radius: 12px;
           display: grid;
           grid-template-columns: repeat(12, 1fr);
-          gap: 12px;
+          gap: 8px;
         "
       >
         <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Status</label>
+          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Stav</label>
           <select
             v-model="manualStatus"
             :disabled="manualLoading"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            style="width:100%; padding:8px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            <option value="draft">draft</option>
-            <option value="published">published</option>
+            <option value="draft">Navrh</option>
+            <option value="published">Publikovane</option>
           </select>
         </div>
 
         <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Type</label>
+          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Typ</label>
           <select
             v-model="manualType"
             :disabled="manualLoading"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            style="width:100%; padding:8px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            <option value="">all</option>
+            <option value="">vsetky</option>
             <option value="eclipse_lunar">eclipse_lunar</option>
             <option value="eclipse_solar">eclipse_solar</option>
             <option value="meteor_shower">meteor_shower</option>
@@ -755,11 +1205,11 @@ onMounted(() => {
         </div>
 
         <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Per page</label>
+          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Na stranku</label>
           <select
             v-model.number="manualPerPage"
             :disabled="manualLoading"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            style="width:100%; padding:8px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
             <option :value="10">10</option>
             <option :value="20">20</option>
@@ -769,13 +1219,13 @@ onMounted(() => {
         </div>
 
         <div style="grid-column: span 9;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Search</label>
+          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Hladaj</label>
           <input
             v-model="manualQ"
             :disabled="manualLoading"
             placeholder="hladaj v title (q)"
             @keyup.enter="resetManualToFirstPage(); loadManual()"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            style="width:100%; padding:8px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           />
         </div>
 
@@ -783,73 +1233,124 @@ onMounted(() => {
           <button
             @click="resetManualToFirstPage(); loadManual()"
             :disabled="manualLoading"
-            style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
+            style="width:100%; padding:8px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
           >
-            Search
+            Hladat
           </button>
         </div>
       </div>
 
-      <div v-if="showManualForm" style="margin-top: 12px; border:1px solid rgb(var(--color-surface-rgb) / .12); border-radius:12px; padding:12px;">
-        <div style="font-weight:600; margin-bottom:8px;">
-          {{ manualEditingId ? 'Edit draft' : 'Create draft' }}
+      <div v-if="showManualForm" style="margin-top: 12px; border:1px solid rgb(var(--color-surface-rgb) / .14); border-radius:14px; background:rgb(var(--color-surface-rgb) / .03); padding:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+          <div>
+            <div style="font-weight:700;">{{ manualEditingId ? 'Upravit manualny navrh' : 'Novy manualny navrh' }}</div>
+            <div style="font-size:12px; opacity:.78; margin-top:2px;">Vypln nazov, typ a termin. Zvysok mozes doplnit neskor.</div>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button
+              @click="setManualStartNow"
+              :disabled="manualLoading"
+              style="padding:6px 9px; border-radius:999px; border:1px solid rgb(var(--color-primary-rgb) / .3); background:rgb(var(--color-primary-rgb) / .11); color:inherit; font-size:12px;"
+            >
+              Zaciatok teraz
+            </button>
+            <button
+              @click="setManualEndByHours(1)"
+              :disabled="manualLoading"
+              style="padding:6px 9px; border-radius:999px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit; font-size:12px;"
+            >
+              Koniec +1h
+            </button>
+            <button
+              @click="setManualEndByHours(2)"
+              :disabled="manualLoading"
+              style="padding:6px 9px; border-radius:999px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit; font-size:12px;"
+            >
+              Koniec +2h
+            </button>
+          </div>
         </div>
-        <div style="display:grid; gap:10px;">
-          <input
-            v-model="manualForm.title"
-            type="text"
-            placeholder="Title"
-            :disabled="manualLoading"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-          />
-          <textarea
-            v-model="manualForm.description"
-            rows="3"
-            placeholder="Description"
-            :disabled="manualLoading"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-          ></textarea>
-          <div style="display:grid; grid-template-columns: repeat(12, 1fr); gap:12px;">
+
+        <div style="display:grid; grid-template-columns: repeat(12, 1fr); gap:10px;">
+          <div style="grid-column: span 8;">
+            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Nazov udalosti *</label>
+            <input
+              v-model="manualForm.title"
+              type="text"
+              placeholder="napr. Pozorovanie Mesiaca na hvezdarni"
+              :disabled="manualLoading"
+              style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
+            />
+          </div>
+
+          <div style="grid-column: span 4;">
+            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Typ *</label>
             <select
               v-model="manualForm.event_type"
               :disabled="manualLoading"
-              style="grid-column: span 4; width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+              style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
             >
-              <option value="meteor_shower">meteor_shower</option>
-              <option value="eclipse_lunar">eclipse_lunar</option>
-              <option value="eclipse_solar">eclipse_solar</option>
-              <option value="planetary_event">planetary_event</option>
-              <option value="other">other</option>
+              <option
+                v-for="opt in manualTypeOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </option>
             </select>
+          </div>
+
+          <div style="grid-column: span 6;">
+            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Zaciatok *</label>
             <input
               v-model="manualForm.starts_at"
               type="datetime-local"
               :disabled="manualLoading"
-              style="grid-column: span 4; width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+              style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
             />
+          </div>
+
+          <div style="grid-column: span 6;">
+            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Koniec (volitelne)</label>
             <input
               v-model="manualForm.ends_at"
               type="datetime-local"
               :disabled="manualLoading"
-              style="grid-column: span 4; width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+              style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
             />
           </div>
-          <div style="display:flex; gap:10px; justify-content:flex-end;">
-            <button
-              @click="closeManualForm"
+
+          <div style="grid-column: span 12;">
+            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Popis</label>
+            <textarea
+              v-model="manualForm.description"
+              rows="4"
+              placeholder="Kratky popis, co sa deje a kedy je najlepsie pozorovanie."
               :disabled="manualLoading"
-              style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-            >
-              Cancel
-            </button>
-            <button
-              @click="saveManual"
-              :disabled="manualLoading"
-              style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
-            >
-              Save
-            </button>
+              style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
+            ></textarea>
           </div>
+        </div>
+
+        <div v-if="manualFormErrors.length > 0" style="margin-top:10px; padding:8px 10px; border:1px solid rgb(239 68 68 / .35); border-radius:10px; background:rgb(239 68 68 / .08); font-size:12px;">
+          {{ manualFormErrors[0] }}
+        </div>
+
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+          <button
+            @click="closeManualForm"
+            :disabled="manualLoading"
+            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
+          >
+            Zrusit
+          </button>
+          <button
+            @click="saveManual"
+            :disabled="manualLoading || !manualCanSave"
+            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-primary-rgb) / .32); background:rgb(var(--color-primary-rgb) / .12); color:inherit;"
+          >
+            {{ manualLoading ? 'Uklada sa...' : 'Ulozit navrh' }}
+          </button>
         </div>
       </div>
 
@@ -858,7 +1359,7 @@ onMounted(() => {
       </div>
 
       <div v-if="manualLoading" style="margin-top: 12px; opacity: .85;">
-        Loading...
+        Nacitavam...
       </div>
 
       <div
@@ -873,11 +1374,11 @@ onMounted(() => {
         <table style="width:100%; border-collapse:collapse;">
           <thead style="background: rgb(var(--color-surface-rgb) / .05);">
             <tr>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Title</th>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Type</th>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Starts</th>
-              <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Status</th>
-              <th style="text-align:right; padding:12px; font-size:12px; opacity:.85;">Actions</th>
+              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Nazov</th>
+              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Typ</th>
+              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Zaciatok</th>
+              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Stav</th>
+              <th style="text-align:right; padding:8px; font-size:12px; opacity:.85;">Akcie</th>
             </tr>
           </thead>
 
@@ -887,31 +1388,31 @@ onMounted(() => {
               :key="row.id"
               style="border-top: 1px solid rgb(var(--color-surface-rgb) / .08);"
             >
-              <td style="padding:12px;">{{ row.title }}</td>
-              <td style="padding:12px; white-space:nowrap;">{{ row.event_type }}</td>
-              <td style="padding:12px; white-space:nowrap;">{{ formatDate(row.starts_at) }}</td>
-              <td style="padding:12px; white-space:nowrap;">{{ row.status }}</td>
-              <td style="padding:12px; text-align:right; white-space:nowrap;">
+              <td style="padding:8px;">{{ row.title }}</td>
+              <td style="padding:8px; white-space:nowrap;">{{ row.event_type }}</td>
+              <td style="padding:8px; white-space:nowrap;">{{ formatDate(row.starts_at) }}</td>
+              <td style="padding:8px; white-space:nowrap;">{{ row.status }}</td>
+              <td style="padding:8px; text-align:right; white-space:nowrap;">
                 <button
                   @click="openManualFormEdit(row)"
                   :disabled="manualLoading"
                   style="padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
                 >
-                  Edit
+                  Upravit
                 </button>
                 <button
                   @click="deleteManual(row)"
                   :disabled="manualLoading"
                   style="margin-left:6px; padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
                 >
-                  Delete
+                  Zmazat
                 </button>
                 <button
                   @click="publishManual(row)"
                   :disabled="manualLoading || row.status === 'published'"
                   style="margin-left:6px; padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
                 >
-                  Publish
+                  Publikovat
                 </button>
               </td>
             </tr>
@@ -937,7 +1438,7 @@ onMounted(() => {
         "
       >
         <div style="opacity:.85; font-size: 14px;">
-          Page {{ manualData.current_page }} / {{ manualData.last_page }} (total {{ manualData.total }})
+          Strana {{ manualData.current_page }} / {{ manualData.last_page }} (spolu {{ manualData.total }})
         </div>
 
         <div style="display:flex; gap:10px;">
@@ -946,17 +1447,70 @@ onMounted(() => {
             :disabled="manualLoading || manualPage <= 1"
             style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            Prev
+            Pred
           </button>
           <button
             @click="nextManualPage"
             :disabled="manualLoading || (manualData && manualPage >= manualData.last_page)"
             style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            Next
+            Dalsia
           </button>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.uxOverview {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.uxOverview__item {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 10px;
+  background: rgb(var(--color-surface-rgb) / 0.04);
+  padding: 6px 8px;
+  display: grid;
+  gap: 2px;
+}
+
+.uxOverview__item span {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.uxOverview__item strong {
+  font-size: 14px;
+}
+
+.uxActionBar {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 8px;
+  z-index: 4;
+  padding: 6px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.88);
+  backdrop-filter: blur(4px);
+}
+
+@media (max-width: 900px) {
+  .uxOverview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .uxActionBar {
+    position: static;
+  }
+}
+</style>

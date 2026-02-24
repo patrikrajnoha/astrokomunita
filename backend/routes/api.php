@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\Admin\AdminBlogPostController;
 use App\Http\Controllers\Api\Admin\AdminUserController;
 use App\Http\Controllers\Api\Admin\AdminEventController;
 use App\Http\Controllers\Api\Admin\EventTranslationController;
+use App\Http\Controllers\Api\Admin\EventTranslationHealthController;
 use App\Http\Controllers\Api\Admin\ManualEventController;
 use App\Http\Controllers\Api\Admin\ReportQueueController;
 use App\Http\Controllers\Api\Admin\DashboardController;
@@ -308,8 +309,11 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
 
         // Review process
         Route::post('/event-candidates/{candidate}/approve', [EventCandidateReviewController::class, 'approve']);
+        Route::post('/event-candidates/approve-batch', [EventCandidateReviewController::class, 'approveBatch']);
         Route::post('/event-candidates/{candidate}/reject',  [EventCandidateReviewController::class, 'reject']);
         Route::post('/event-candidates/{candidate}/retranslate', [EventCandidateReviewController::class, 'retranslate']);
+        Route::post('/event-candidates/retranslate-batch', [EventCandidateReviewController::class, 'retranslateBatch']);
+        Route::patch('/event-candidates/{candidate}/translation', [EventCandidateReviewController::class, 'updateTranslation']);
 
         // Crawl runs
         Route::get('/crawl-runs',            [CrawlRunController::class, 'index']);
@@ -317,7 +321,9 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::get('/event-sources', [EventSourceController::class, 'index']);
         Route::patch('/event-sources/{eventSource}', [EventSourceController::class, 'update']);
         Route::post('/event-sources/run', [EventSourceController::class, 'run']);
+        Route::post('/event-sources/purge', [EventSourceController::class, 'purge']);
         Route::get('/translation-health', TranslationHealthController::class);
+        Route::get('/event-translation-health', EventTranslationHealthController::class);
         Route::get('/contests', [AdminContestController::class, 'index']);
         Route::post('/contests', [AdminContestController::class, 'store']);
         Route::patch('/contests/{contest}', [AdminContestController::class, 'update']);
@@ -403,6 +409,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::put('/manual-events/{manualEvent}', [ManualEventController::class, 'update']);
         Route::delete('/manual-events/{manualEvent}', [ManualEventController::class, 'destroy']);
         Route::post('/manual-events/{manualEvent}/publish', [ManualEventController::class, 'publish']);
+        Route::post('/manual-events/publish-batch', [ManualEventController::class, 'publishBatch']);
 
         /*
         |----------------------------------------------------------------------

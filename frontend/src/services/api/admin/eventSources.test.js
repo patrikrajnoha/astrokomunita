@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import api from '@/services/api'
-import { getCrawlRuns, getEventSources, runEventSourceCrawl, updateEventSource } from './eventSources'
+import { getCrawlRuns, getEventSources, purgeEventSources, runEventSourceCrawl, updateEventSource } from './eventSources'
 
 vi.mock('@/services/api', () => ({
   default: {
@@ -42,5 +42,21 @@ describe('admin event sources api client', () => {
 
     expect(api.post).toHaveBeenCalledWith('/admin/event-sources/run', { source_keys: ['astropixels'], year: 2026 })
     expect(api.get).toHaveBeenCalledWith('/admin/crawl-runs', { params: { per_page: 10 } })
+  })
+
+  it('purges crawled event data', async () => {
+    api.post.mockResolvedValue({ data: { status: 'ok' } })
+
+    await purgeEventSources({
+      source_keys: ['astropixels', 'imo'],
+      dry_run: false,
+      confirm: 'delete_crawled_events',
+    })
+
+    expect(api.post).toHaveBeenCalledWith('/admin/event-sources/purge', {
+      source_keys: ['astropixels', 'imo'],
+      dry_run: false,
+      confirm: 'delete_crawled_events',
+    })
   })
 })

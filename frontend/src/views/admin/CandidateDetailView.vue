@@ -17,6 +17,11 @@ const loading = ref(false)
 const error = ref(null)
 const candidate = ref(null)
 const showRaw = ref(false)
+const showTranslationEditor = ref(false)
+const translationForm = ref({
+  translated_title: '',
+  translated_description: '',
+})
 
 function formatDate(value) {
   if (!value) return '-'
@@ -90,6 +95,10 @@ async function load() {
 
   try {
     candidate.value = await eventCandidates.get(id.value)
+    translationForm.value = {
+      translated_title: candidateDisplayTitle(candidate.value) || '',
+      translated_description: candidateDisplayDescription(candidate.value) || '',
+    }
   } catch (fetchError) {
     error.value = fetchError?.response?.data?.message || 'Chyba pri nacitani detailu'
   } finally {
@@ -156,11 +165,47 @@ async function retranslate() {
 
   try {
     await eventCandidates.retranslate(candidate.value.id)
-    toast.success('Candidate was queued for retranslation.')
+    toast.success('Kandidat bol zaradeny na novy preklad.')
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || 'Retranslate failed'
+    error.value = fetchError?.response?.data?.message || 'Retranslate zlyhal'
     toast.error(error.value)
+    loading.value = false
+  }
+}
+
+function openTranslationEditor() {
+  if (!candidate.value) return
+  translationForm.value = {
+    translated_title: candidateDisplayTitle(candidate.value) || '',
+    translated_description: candidateDisplayDescription(candidate.value) || '',
+  }
+  showTranslationEditor.value = true
+}
+
+async function saveTranslationEdit() {
+  if (!candidate.value) return
+
+  const title = String(translationForm.value.translated_title || '').trim()
+  if (!title) {
+    toast.error('Prelozeny nazov je povinny.')
+    return
+  }
+
+  loading.value = true
+  error.value = null
+  try {
+    await eventCandidates.updateTranslation(candidate.value.id, {
+      translated_title: title,
+      translated_description: String(translationForm.value.translated_description || '').trim() || null,
+    })
+    toast.success('Preklad bol ulozeny.')
+    showTranslationEditor.value = false
+    await load()
+  } catch (fetchError) {
+    error.value = fetchError?.response?.data?.message || 'Ulozenie prekladu zlyhalo'
+    toast.error(error.value)
+  } finally {
     loading.value = false
   }
 }
@@ -176,7 +221,7 @@ onMounted(load)
           @click="router.back()"
           style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
         >
-          <- Back
+          <- Spat
         </button>
 
         <h1 style="margin:12px 0 6px;">Candidate #{{ id }}</h1>
@@ -260,13 +305,60 @@ onMounted(load)
         <div style="margin-top:12px;">
           <button
             type="button"
+            :disabled="loading"
+            @click="openTranslationEditor"
+            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit; margin-right:8px;"
+          >
+            Upravit preklad
+          </button>
+          <button
+            type="button"
             data-testid="retranslate-btn"
             :disabled="loading"
             @click="retranslate"
             style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-primary-rgb) / .35); background:rgb(var(--color-primary-rgb) / .12); color:inherit;"
           >
-            Retranslate
+            Prelozit znova
           </button>
+        </div>
+
+        <div
+          v-if="showTranslationEditor"
+          style="margin-top:12px; padding:12px; border:1px solid rgb(var(--color-surface-rgb) / .12); border-radius:12px; display:grid; gap:8px;"
+        >
+          <div style="font-weight:600;">Rucna uprava prekladu</div>
+          <input
+            v-model="translationForm.translated_title"
+            type="text"
+            :disabled="loading"
+            placeholder="Prelozeny nazov"
+            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+          />
+          <textarea
+            v-model="translationForm.translated_description"
+            rows="5"
+            :disabled="loading"
+            placeholder="Prelozeny popis"
+            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+          ></textarea>
+          <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button
+              type="button"
+              :disabled="loading"
+              @click="showTranslationEditor = false"
+              style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            >
+              Zrusit
+            </button>
+            <button
+              type="button"
+              :disabled="loading"
+              @click="saveTranslationEdit"
+              style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-primary-rgb) / .35); background:rgb(var(--color-primary-rgb) / .12); color:inherit;"
+            >
+              Ulozit preklad
+            </button>
+          </div>
         </div>
       </section>
 
@@ -307,7 +399,7 @@ onMounted(load)
             :disabled="!canReview()"
             style="padding:10px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-success-rgb) / .10); color:inherit;"
           >
-            Approve
+            Publikovat
           </button>
 
           <button
@@ -315,7 +407,7 @@ onMounted(load)
             :disabled="!canReview()"
             style="padding:10px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-danger-rgb) / .10); color:inherit;"
           >
-            Reject
+            Zamietnut
           </button>
         </div>
       </section>

@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CrawlRun;
+use App\Models\Event;
+use App\Models\EventCandidate;
 use App\Models\EventSource;
 use App\Services\Crawlers\CrawlContext;
 use App\Services\Crawlers\CrawlerOrchestrator;
 use App\Services\Crawlers\CrawlerRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class EventSourceController extends Controller
 {
@@ -64,6 +68,10 @@ class EventSourceController extends Controller
 
     public function run(Request $request): JsonResponse
     {
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+
         $payload = $request->validate([
             'source_keys' => ['required', 'array', 'min:1'],
             'source_keys.*' => ['string', 'distinct'],
@@ -155,6 +163,79 @@ class EventSourceController extends Controller
             'year' => $year,
             'dry_run' => $dryRun,
             'results' => $results,
+        ]);
+    }
+
+    public function purge(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'source_keys' => ['nullable', 'array'],
+            'source_keys.*' => ['string', 'distinct'],
+            'dry_run' => ['sometimes', 'boolean'],
+            'confirm' => ['required', 'string', 'in:delete_crawled_events'],
+        ]);
+
+        $dryRun = (bool) ($payload['dry_run'] ?? false);
+        $requestedKeys = array_values(array_unique(array_map(
+            static fn (mixed $v): string => strtolower(trim((string) $v)),
+            (array) ($payload['source_keys'] ?? [])
+        )));
+
+        $availableKeys = EventSource::query()
+            ->orderBy('key')
+            ->get()
+            ->filter(fn (EventSource $source): bool => $this->crawlerRegistry->forSourceKey($source->key) !== null)
+            ->map(fn (EventSource $source): string => (string) $source->key)
+            ->values()
+            ->all();
+
+        $targetKeys = $requestedKeys === []
+            ? $availableKeys
+            : array_values(array_intersect($requestedKeys, $availableKeys));
+
+        if ($targetKeys === []) {
+            return response()->json([
+                'status' => 'noop',
+                'dry_run' => $dryRun,
+                'source_keys' => [],
+                'message' => 'No crawl-capable source keys selected.',
+            ]);
+        }
+
+        $sourceIds = EventSource::query()
+            ->whereIn('key', $targetKeys)
+            ->pluck('id')
+            ->map(fn (mixed $id): int => (int) $id)
+            ->all();
+
+        $eventQuery = Event::query()->whereIn('source_name', $targetKeys);
+        $candidateQuery = EventCandidate::query()
+            ->whereIn('source_name', $targetKeys)
+            ->orWhereIn('event_source_id', $sourceIds);
+        $crawlRunQuery = CrawlRun::query()
+            ->whereIn('source_name', $targetKeys)
+            ->orWhereIn('event_source_id', $sourceIds);
+
+        $counts = [
+            'events' => (clone $eventQuery)->count(),
+            'event_candidates' => (clone $candidateQuery)->count(),
+            'crawl_runs' => (clone $crawlRunQuery)->count(),
+        ];
+
+        if (! $dryRun) {
+            DB::transaction(function () use ($eventQuery, $candidateQuery, $crawlRunQuery): void {
+                $crawlRunQuery->delete();
+                $candidateQuery->delete();
+                $eventQuery->delete();
+            });
+        }
+
+        return response()->json([
+            'status' => $dryRun ? 'dry_run' : 'ok',
+            'dry_run' => $dryRun,
+            'source_keys' => $targetKeys,
+            'deleted' => $counts,
+            'confirm_token' => 'delete_crawled_events',
         ]);
     }
 }
