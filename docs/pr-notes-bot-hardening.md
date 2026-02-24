@@ -7,6 +7,7 @@
 - Added typed timeout/unavailable error mapping and stronger timeout/connect-timeout handling.
 - Added stale run recovery checks/tests for older vs younger unfinished runs.
 - Added admin diagnostics endpoint for bot translation provider health.
+- Added admin outage simulation toggle (`none|ollama|libretranslate`) persisted in settings (`translation.simulate_outage_provider`).
 - Added lock-release resilience test for throwable path.
 
 ## Canonical env setup

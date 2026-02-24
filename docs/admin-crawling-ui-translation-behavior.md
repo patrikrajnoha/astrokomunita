@@ -70,6 +70,9 @@ docker run --rm -p 5000:5000 libretranslate/libretranslate:latest
   - returns provider, base URL, timeout, `degraded`, and `result.ok/error_type`
   - `degraded=true` means primary failed but fallback provider succeeded
   - API keys are never returned
+- Admin endpoint: `POST /api/admin/bots/translation/simulate-outage`
+  - payload: `{ "provider": "none|ollama|libretranslate" }`
+  - persists `translation.simulate_outage_provider` (admin-only, audited log with old/new value)
 - Failure reasons are normalized and shared across FE/BE (single source of truth).
 
 ## Debug checklist

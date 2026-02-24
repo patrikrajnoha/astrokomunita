@@ -51,6 +51,18 @@ export function testBotTranslation(payload = {}) {
   })
 }
 
+export function getBotTranslationHealth() {
+  return api.get('/admin/bots/translation/health', {
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function setBotTranslationSimulateOutage(provider = 'none') {
+  return api.post('/admin/bots/translation/simulate-outage', { provider }, {
+    meta: { skipErrorToast: true },
+  })
+}
+
 export function retryBotTranslation(sourceKey, payload = {}) {
   const params = {}
   const limit = Number(payload?.limit)

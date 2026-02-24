@@ -6,6 +6,7 @@ use App\Services\Translation\BotTranslationService;
 use App\Services\Translation\Exceptions\TranslationClientException;
 use App\Services\Translation\LibreTranslateClient;
 use App\Services\Translation\OllamaTranslateClient;
+use App\Services\Translation\TranslationOutageSimulationService;
 use Tests\TestCase;
 
 class BotTranslationServiceTest extends TestCase
@@ -35,7 +36,7 @@ class BotTranslationServiceTest extends TestCase
                 'chars' => 30,
             ]);
 
-        $service = new BotTranslationService($libre, $ollama);
+        $service = $this->makeService($libre, $ollama);
         $result = $service->translate('English title for fallback', null, 'sk');
 
         $this->assertSame('done', $result['status']);
@@ -78,7 +79,7 @@ class BotTranslationServiceTest extends TestCase
         $ollama = $this->createMock(OllamaTranslateClient::class);
         $ollama->expects($this->never())->method('translateDirect');
 
-        $service = new BotTranslationService($libre, $ollama);
+        $service = $this->makeService($libre, $ollama);
         $result = $service->translate(null, $input, 'sk');
 
         $this->assertCount(3, $captured);
@@ -122,7 +123,7 @@ class BotTranslationServiceTest extends TestCase
                 'chars' => 120,
             ]);
 
-        $service = new BotTranslationService($libre, $ollama);
+        $service = $this->makeService($libre, $ollama);
         $result = $service->translate(null, str_repeat('English source text ', 8), 'sk');
 
         $this->assertSame('done', $result['status']);
@@ -164,7 +165,7 @@ class BotTranslationServiceTest extends TestCase
                 'chars' => 64,
             ]);
 
-        $service = new BotTranslationService($libre, $ollama);
+        $service = $this->makeService($libre, $ollama);
         $result = $service->translate($source, null, 'sk');
 
         $this->assertSame('done', $result['status']);
@@ -202,7 +203,7 @@ class BotTranslationServiceTest extends TestCase
             ]);
         $ollama->expects($this->never())->method('translateDirect');
 
-        $service = new BotTranslationService($libre, $ollama);
+        $service = $this->makeService($libre, $ollama);
         $result = $service->translate('Raw title', null, 'sk');
 
         $this->assertSame('Prirodzeny a spisovny preklad.', $result['translated_title']);
@@ -236,9 +237,17 @@ class BotTranslationServiceTest extends TestCase
         $ollama->expects($this->never())->method('translateDirect');
         $ollama->expects($this->never())->method('postEdit');
 
-        $service = new BotTranslationService($libre, $ollama);
+        $service = $this->makeService($libre, $ollama);
         $result = $service->translate('NASA observes with James Webb Space Telescope.', null, 'sk');
 
         $this->assertStringContainsString('James Webb Space Telescope', (string) $result['translated_title']);
+    }
+
+    private function makeService(LibreTranslateClient $libre, OllamaTranslateClient $ollama): BotTranslationService
+    {
+        $outageSimulation = $this->createMock(TranslationOutageSimulationService::class);
+        $outageSimulation->method('shouldSimulateFor')->willReturn(false);
+
+        return new BotTranslationService($libre, $ollama, $outageSimulation);
     }
 }

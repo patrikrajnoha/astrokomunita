@@ -16,6 +16,7 @@ use App\Services\Bots\BotPublisherService;
 use App\Services\Bots\BotRunner;
 use App\Services\Translation\Exceptions\TranslationProviderUnavailableException;
 use App\Services\Translation\Exceptions\TranslationTimeoutException;
+use App\Services\Translation\TranslationOutageSimulationService;
 use App\Services\PostService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,6 +35,7 @@ class AdminBotController extends Controller
         private readonly PostService $postService,
         private readonly BotTranslationServiceInterface $translationService,
         private readonly BotPostTranslationBackfillService $backfillService,
+        private readonly TranslationOutageSimulationService $outageSimulationService,
     ) {
     }
 
@@ -329,6 +331,7 @@ class AdminBotController extends Controller
         $fallbackProvider = strtolower(trim((string) config('astrobot.translation.fallback', 'none')));
         $timeoutSec = max(1, (int) config('astrobot.translation.timeout_sec', 12));
         $degraded = false;
+        $simulateOutageProvider = $this->outageSimulationService->getProvider();
 
         $baseUrl = match ($provider) {
             'ollama' => trim((string) config('ai.ollama.base_url', config('ai.ollama_base_url', ''))),
@@ -374,8 +377,33 @@ class AdminBotController extends Controller
             'fallback_provider' => $fallbackProvider,
             'base_url' => $baseUrl !== '' ? $baseUrl : null,
             'timeout_sec' => $timeoutSec,
+            'simulate_outage_provider' => $simulateOutageProvider,
             'degraded' => $degraded,
             'result' => $result,
+        ]);
+    }
+
+    public function updateTranslationSimulateOutage(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'provider' => 'required|string|in:none,ollama,libretranslate',
+        ]);
+
+        $admin = $request->user();
+        $changed = $this->outageSimulationService->setProvider((string) $validated['provider']);
+
+        Log::info('Admin updated translation outage simulation provider.', [
+            'admin_user_id' => $admin?->id,
+            'admin_email' => $admin?->email,
+            'setting_key' => TranslationOutageSimulationService::SETTING_KEY,
+            'old_value' => $changed['old'],
+            'new_value' => $changed['new'],
+        ]);
+
+        return response()->json([
+            'key' => TranslationOutageSimulationService::SETTING_KEY,
+            'old_value' => $changed['old'],
+            'new_value' => $changed['new'],
         ]);
     }
 

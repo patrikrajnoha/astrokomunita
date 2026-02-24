@@ -9,6 +9,8 @@ import {
   backfillBotTranslation,
   retryBotTranslation,
   runBotSource,
+  getBotTranslationHealth,
+  setBotTranslationSimulateOutage,
   testBotTranslation,
 } from '@/services/api/admin/bots'
 
@@ -87,6 +89,9 @@ export const useBotEngineStore = defineStore('botEngine', {
     retryingTranslationSourceKeys: new Set(),
     backfillingTranslationSourceKeys: new Set(),
     testingTranslation: false,
+    translationHealth: null,
+    loadingTranslationHealth: false,
+    savingTranslationOutage: false,
   }),
 
   getters: {
@@ -304,6 +309,33 @@ export const useBotEngineStore = defineStore('botEngine', {
         return response?.data || null
       } finally {
         this.testingTranslation = false
+      }
+    },
+
+    async fetchTranslationHealth() {
+      this.loadingTranslationHealth = true
+
+      try {
+        const response = await getBotTranslationHealth()
+        this.translationHealth = response?.data || null
+        return this.translationHealth
+      } finally {
+        this.loadingTranslationHealth = false
+      }
+    },
+
+    async setTranslationOutageProvider(provider = 'none') {
+      if (this.savingTranslationOutage) {
+        return null
+      }
+
+      this.savingTranslationOutage = true
+
+      try {
+        const response = await setBotTranslationSimulateOutage(provider)
+        return response?.data || null
+      } finally {
+        this.savingTranslationOutage = false
       }
     },
 
