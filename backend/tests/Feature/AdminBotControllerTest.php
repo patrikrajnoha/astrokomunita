@@ -7,6 +7,7 @@ use App\Models\BotItem;
 use App\Models\BotRun;
 use App\Models\BotSource;
 use App\Models\Post;
+use App\Models\AppSetting;
 use App\Models\User;
 use App\Enums\BotRunFailureReason;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
@@ -47,6 +48,7 @@ class AdminBotControllerTest extends TestCase
         $this->postJson('/api/admin/bots/run/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/translation/test')->assertStatus(403);
         $this->getJson('/api/admin/bots/translation/health')->assertStatus(403);
+        $this->postJson('/api/admin/bots/translation/simulate-outage', ['provider' => 'none'])->assertStatus(403);
         $this->postJson('/api/admin/bots/translation/retry/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/translation/backfill/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/items/1/publish')->assertStatus(403);
@@ -549,6 +551,7 @@ class AdminBotControllerTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('provider', 'libretranslate')
+            ->assertJsonPath('simulate_outage_provider', 'none')
             ->assertJsonPath('degraded', false)
             ->assertJsonPath('result.ok', true)
             ->assertJsonMissingPath('api_key');
@@ -581,22 +584,15 @@ class AdminBotControllerTest extends TestCase
 
         config()->set('astrobot.translation.primary', 'ollama');
         config()->set('astrobot.translation.fallback', 'libretranslate');
+        AppSetting::put('translation.simulate_outage_provider', 'ollama');
 
-        $invocationCount = 0;
-        $this->app->bind(BotTranslationServiceInterface::class, function () use (&$invocationCount) {
-            return new class($invocationCount) implements BotTranslationServiceInterface {
-                private int $invocationCount = 0;
-
-                public function __construct(int &$invocationCount)
-                {
-                    $this->invocationCount =& $invocationCount;
-                }
-
+        $this->app->bind(BotTranslationServiceInterface::class, function () {
+            return new class implements BotTranslationServiceInterface {
                 public function translate(?string $title, ?string $content, string $to = 'sk'): array
                 {
-                    $this->invocationCount++;
-
-                    if ($this->invocationCount === 1) {
+                    $currentProvider = strtolower(trim((string) config('astrobot.translation.primary', '')));
+                    $simulatedOutageProvider = strtolower(trim((string) AppSetting::getString('translation.simulate_outage_provider', 'none')));
+                    if ($simulatedOutageProvider !== 'none' && $simulatedOutageProvider === $currentProvider) {
                         throw new TranslationProviderUnavailableException('ollama', 'Primary provider unavailable');
                     }
 
@@ -615,10 +611,29 @@ class AdminBotControllerTest extends TestCase
         $response = $this->getJson('/api/admin/bots/translation/health');
         $response
             ->assertOk()
+            ->assertJsonPath('simulate_outage_provider', 'ollama')
             ->assertJsonPath('degraded', true)
             ->assertJsonPath('result.ok', true)
             ->assertJsonPath('result.error_type', null)
             ->assertJsonPath('result.primary_error_type', BotRunFailureReason::PROVIDER_UNAVAILABLE->value);
+    }
+
+    public function test_admin_can_update_translation_simulate_outage_setting(): void
+    {
+        $this->actingAsAdmin();
+        AppSetting::put('translation.simulate_outage_provider', 'none');
+
+        $response = $this->postJson('/api/admin/bots/translation/simulate-outage', [
+            'provider' => 'ollama',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('key', 'translation.simulate_outage_provider')
+            ->assertJsonPath('old_value', 'none')
+            ->assertJsonPath('new_value', 'ollama');
+
+        $this->assertSame('ollama', AppSetting::getString('translation.simulate_outage_provider', 'none'));
     }
 
     public function test_admin_retry_translation_retries_failed_items_and_marks_them_done(): void

@@ -45,6 +45,14 @@ const store = {
   loadingSources: ref(false),
   loadingRuns: ref(false),
   loadingRunItems: ref(false),
+  translationHealth: ref({
+    provider: 'libretranslate',
+    simulate_outage_provider: 'none',
+    degraded: false,
+    result: { ok: true, error_type: null },
+  }),
+  loadingTranslationHealth: ref(false),
+  savingTranslationOutage: ref(false),
   testingTranslation: false,
   fetchSources: vi.fn().mockResolvedValue([]),
   fetchRuns: vi.fn().mockResolvedValue([]),
@@ -54,6 +62,8 @@ const store = {
   retryTranslation: vi.fn(),
   backfillTranslation: vi.fn(),
   testTranslation: vi.fn(),
+  fetchTranslationHealth: vi.fn(),
+  setTranslationOutageProvider: vi.fn(),
   deleteItemPost: vi.fn(),
   fetchItemsForRun: vi.fn().mockResolvedValue([]),
   clearRunItems: vi.fn(),
@@ -169,6 +179,17 @@ describe('BotEngineView', () => {
     store.fetchSources.mockResolvedValue([])
     store.fetchRuns.mockResolvedValue([])
     store.fetchItemsForRun.mockResolvedValue([])
+    store.fetchTranslationHealth.mockResolvedValue({
+      provider: 'libretranslate',
+      simulate_outage_provider: 'none',
+      degraded: false,
+      result: { ok: true, error_type: null },
+    })
+    store.setTranslationOutageProvider.mockResolvedValue({
+      key: 'translation.simulate_outage_provider',
+      old_value: 'none',
+      new_value: 'none',
+    })
     store.runSource.mockResolvedValue({
       status: 'success',
       stats: {},
@@ -559,5 +580,36 @@ describe('BotEngineView', () => {
     expect(text).toContain('LT+Ollama post-edit')
     expect(text).toContain('libretranslate -> ollama_postedit')
     expect(text).toContain('too_short')
+  })
+
+  it('saves outage simulation toggle and refreshes translation health', async () => {
+    store.setTranslationOutageProvider.mockResolvedValueOnce({
+      key: 'translation.simulate_outage_provider',
+      old_value: 'none',
+      new_value: 'ollama',
+    })
+    store.fetchTranslationHealth.mockImplementationOnce(async () => {
+      store.translationHealth.value = {
+        provider: 'ollama',
+        simulate_outage_provider: 'ollama',
+        degraded: true,
+        result: { ok: true, primary_error_type: 'provider_unavailable', error_type: null },
+      }
+      return store.translationHealth.value
+    })
+
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    const select = wrapper.find('[data-testid="translation-outage-provider"]')
+    await select.setValue('ollama')
+    const saveButton = wrapper.find('[data-testid="translation-outage-save"]')
+    await saveButton.trigger('click')
+    await flush()
+
+    expect(store.setTranslationOutageProvider).toHaveBeenCalledWith('ollama')
+    expect(store.fetchTranslationHealth).toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="translation-health-state"]').text()).toContain('degraded')
   })
 })

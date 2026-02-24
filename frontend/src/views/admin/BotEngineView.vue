@@ -26,13 +26,25 @@ const BOT_LABELS = Object.freeze({
   stela: 'StellarBot',
 })
 
-const { sources, runsPage, runItemsPage, filters, loadingSources, loadingRuns, loadingRunItems } = storeToRefs(store)
+const {
+  sources,
+  runsPage,
+  runItemsPage,
+  filters,
+  loadingSources,
+  loadingRuns,
+  loadingRunItems,
+  translationHealth,
+  loadingTranslationHealth,
+  savingTranslationOutage,
+} = storeToRefs(store)
 const selectedRun = ref(null)
 const selectedPreviewItem = ref(null)
 const publishAllLimit = ref(DEFAULT_PUBLISH_ALL_LIMIT)
 const retryTranslationLimit = ref(10)
 const translationTestText = ref('NASA studies the Sun and planets in our Solar System.')
 const translationTestResult = ref(null)
+const translationOutageProvider = ref('none')
 
 const filterForm = ref({
   sourceKey: '',
@@ -441,8 +453,22 @@ async function loadRuns(params = {}) {
   }
 }
 
+function normalizeOutageProvider(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  return ['none', 'ollama', 'libretranslate'].includes(normalized) ? normalized : 'none'
+}
+
+async function loadTranslationHealth() {
+  try {
+    const health = await store.fetchTranslationHealth()
+    translationOutageProvider.value = normalizeOutageProvider(health?.simulate_outage_provider)
+  } catch (error) {
+    toast.error(toErrorMessage(error, 'Failed to load translation health.'))
+  }
+}
+
 async function initialize() {
-  await Promise.all([loadSources(), loadRuns()])
+  await Promise.all([loadSources(), loadRuns(), loadTranslationHealth()])
 }
 
 async function applyRunsFilters() {
@@ -708,6 +734,19 @@ async function testTranslation() {
   }
 }
 
+async function saveTranslationOutageSimulation() {
+  const provider = normalizeOutageProvider(translationOutageProvider.value)
+
+  try {
+    const response = await store.setTranslationOutageProvider(provider)
+    translationOutageProvider.value = normalizeOutageProvider(response?.new_value || provider)
+    await loadTranslationHealth()
+    toast.success(`Outage simulation saved (${translationOutageProvider.value}).`)
+  } catch (error) {
+    toast.error(toErrorMessage(error, 'Failed to save outage simulation setting.'))
+  }
+}
+
 async function retryTranslateForRun() {
   const sourceKey = String(selectedRun.value?.source_key || '').trim()
   if (!sourceKey) {
@@ -949,6 +988,34 @@ onMounted(async () => {
 
       <div class="translationTools">
         <label class="filterField">
+          <span>simulate provider outage</span>
+          <div class="inlineActions">
+            <select v-model="translationOutageProvider" data-testid="translation-outage-provider">
+              <option value="none">none</option>
+              <option value="ollama">ollama</option>
+              <option value="libretranslate">libretranslate</option>
+            </select>
+            <button
+              type="button"
+              class="ghostBtn"
+              data-testid="translation-outage-save"
+              :disabled="savingTranslationOutage"
+              @click="saveTranslationOutageSimulation"
+            >
+              {{ savingTranslationOutage ? 'Saving...' : 'Save outage toggle' }}
+            </button>
+          </div>
+        </label>
+        <p
+          v-if="translationHealth"
+          data-testid="translation-health-state"
+          class="translationSummary"
+        >
+          Health: {{ translationHealth.degraded ? 'degraded (fallback active)' : (translationHealth.result?.ok ? 'ok' : 'down') }}
+          | provider: {{ translationHealth.provider || '-' }}
+          | simulated outage: {{ translationHealth.simulate_outage_provider || 'none' }}
+        </p>
+        <label class="filterField">
           <span>test text</span>
           <textarea
             v-model="translationTestText"
@@ -958,7 +1025,7 @@ onMounted(async () => {
           />
         </label>
         <div class="inlineActions">
-          <button type="button" class="runBtn" :disabled="store.testingTranslation" @click="testTranslation">
+          <button type="button" class="runBtn" :disabled="store.testingTranslation || loadingTranslationHealth" @click="testTranslation">
             {{ store.testingTranslation ? 'Testing...' : 'Test translation' }}
           </button>
         </div>

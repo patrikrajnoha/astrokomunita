@@ -16,6 +16,7 @@ class BotTranslationService implements BotTranslationServiceInterface
     public function __construct(
         private readonly LibreTranslateClient $libreTranslateClient,
         private readonly OllamaTranslateClient $ollamaTranslateClient,
+        private readonly TranslationOutageSimulationService $outageSimulation,
     ) {
     }
 
@@ -348,6 +349,13 @@ class BotTranslationService implements BotTranslationServiceInterface
         string $targetLang,
         string $sourceLang
     ): array {
+        if ($this->outageSimulation->shouldSimulateFor($providerName)) {
+            throw new TranslationProviderUnavailableException(
+                $providerName,
+                sprintf('Simulated outage for provider "%s".', $providerName)
+            );
+        }
+
         return match ($providerName) {
             'libretranslate' => $this->libreTranslateClient->translate($chunk, $targetLang, $sourceLang) + ['mode' => 'lt_only'],
             'ollama' => $this->ollamaTranslateClient->translateDirect($chunk, $targetLang, $sourceLang) + ['mode' => 'ollama_direct'],
