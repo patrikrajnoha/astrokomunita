@@ -549,6 +549,7 @@ class AdminBotControllerTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('provider', 'libretranslate')
+            ->assertJsonPath('degraded', false)
             ->assertJsonPath('result.ok', true)
             ->assertJsonMissingPath('api_key');
     }
@@ -569,8 +570,55 @@ class AdminBotControllerTest extends TestCase
         $response = $this->getJson('/api/admin/bots/translation/health');
         $response
             ->assertOk()
+            ->assertJsonPath('degraded', false)
             ->assertJsonPath('result.ok', false)
             ->assertJsonPath('result.error_type', BotRunFailureReason::PROVIDER_UNAVAILABLE->value);
+    }
+
+    public function test_admin_translation_health_endpoint_reports_degraded_when_primary_fails_but_fallback_succeeds(): void
+    {
+        $this->actingAsAdmin();
+
+        config()->set('astrobot.translation.primary', 'ollama');
+        config()->set('astrobot.translation.fallback', 'libretranslate');
+
+        $invocationCount = 0;
+        $this->app->bind(BotTranslationServiceInterface::class, function () use (&$invocationCount) {
+            return new class($invocationCount) implements BotTranslationServiceInterface {
+                private int $invocationCount = 0;
+
+                public function __construct(int &$invocationCount)
+                {
+                    $this->invocationCount =& $invocationCount;
+                }
+
+                public function translate(?string $title, ?string $content, string $to = 'sk'): array
+                {
+                    $this->invocationCount++;
+
+                    if ($this->invocationCount === 1) {
+                        throw new TranslationProviderUnavailableException('ollama', 'Primary provider unavailable');
+                    }
+
+                    return [
+                        'translated_title' => 'ok',
+                        'translated_content' => null,
+                        'title_translated' => 'ok',
+                        'content_translated' => null,
+                        'status' => 'done',
+                        'meta' => ['provider' => 'libretranslate'],
+                    ];
+                }
+            };
+        });
+
+        $response = $this->getJson('/api/admin/bots/translation/health');
+        $response
+            ->assertOk()
+            ->assertJsonPath('degraded', true)
+            ->assertJsonPath('result.ok', true)
+            ->assertJsonPath('result.error_type', null)
+            ->assertJsonPath('result.primary_error_type', BotRunFailureReason::PROVIDER_UNAVAILABLE->value);
     }
 
     public function test_admin_retry_translation_retries_failed_items_and_marks_them_done(): void

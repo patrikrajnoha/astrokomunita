@@ -34,3 +34,5 @@
 - [x] FE timeout for bot run endpoints verified.
 - [x] Stale run recovery behavior verified.
 - [x] Translation fail-open behavior verified.
+- [x] CI backend jobs split (`Unit`, `Feature`, `Bots/Translation sanity`).
+- [x] Translation health `degraded` behavior verified.
