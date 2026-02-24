@@ -67,7 +67,8 @@ docker run --rm -p 5000:5000 libretranslate/libretranslate:latest
 ## Bot translation diagnostics
 
 - Admin endpoint: `GET /api/admin/bots/translation/health`
-  - returns provider, base URL, timeout, and `result.ok/error_type`
+  - returns provider, base URL, timeout, `degraded`, and `result.ok/error_type`
+  - `degraded=true` means primary failed but fallback provider succeeded
   - API keys are never returned
 - Failure reasons are normalized and shared across FE/BE (single source of truth).
 
@@ -76,3 +77,4 @@ docker run --rm -p 5000:5000 libretranslate/libretranslate:latest
 - FE timeout verified for bot run endpoints (`60s` only for run/quick-run).
 - Stale run recovery verified (`stale_run_recovered`, `recovered_by_run_id`).
 - Translation fail-open verified (run finishes; publish uses original text on translation failure).
+- Backend CI split verified (`Unit`, `Feature`, `Bots/Translation sanity` jobs).

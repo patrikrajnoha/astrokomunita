@@ -328,6 +328,7 @@ class AdminBotController extends Controller
         $provider = strtolower(trim((string) config('astrobot.translation.primary', 'libretranslate')));
         $fallbackProvider = strtolower(trim((string) config('astrobot.translation.fallback', 'none')));
         $timeoutSec = max(1, (int) config('astrobot.translation.timeout_sec', 12));
+        $degraded = false;
 
         $baseUrl = match ($provider) {
             'ollama' => trim((string) config('ai.ollama.base_url', config('ai.ollama_base_url', ''))),
@@ -335,26 +336,37 @@ class AdminBotController extends Controller
         };
 
         try {
-            $this->translationService->translate('health check', null, 'sk');
+            $probeResult = $this->runTranslationHealthProbe();
             $result = [
                 'ok' => true,
                 'error_type' => null,
             ];
-        } catch (TranslationTimeoutException $exception) {
-            $result = [
-                'ok' => false,
-                'error_type' => BotRunFailureReason::TRANSLATION_TIMEOUT->value,
-            ];
-        } catch (TranslationProviderUnavailableException $exception) {
-            $result = [
-                'ok' => false,
-                'error_type' => BotRunFailureReason::PROVIDER_UNAVAILABLE->value,
-            ];
+            $degraded = (bool) data_get($probeResult, 'meta.fallback_used', false);
         } catch (Throwable $exception) {
-            $result = [
-                'ok' => false,
-                'error_type' => BotRunFailureReason::UNKNOWN->value,
-            ];
+            $primaryErrorType = $this->translationHealthErrorType($exception);
+            $hasFallback = $fallbackProvider !== '' && $fallbackProvider !== 'none' && $fallbackProvider !== $provider;
+
+            if ($hasFallback) {
+                try {
+                    $this->runTranslationHealthProbe($fallbackProvider);
+                    $degraded = true;
+                    $result = [
+                        'ok' => true,
+                        'error_type' => null,
+                        'primary_error_type' => $primaryErrorType,
+                    ];
+                } catch (Throwable $fallbackException) {
+                    $result = [
+                        'ok' => false,
+                        'error_type' => $this->translationHealthErrorType($fallbackException),
+                    ];
+                }
+            } else {
+                $result = [
+                    'ok' => false,
+                    'error_type' => $primaryErrorType,
+                ];
+            }
         }
 
         return response()->json([
@@ -362,8 +374,45 @@ class AdminBotController extends Controller
             'fallback_provider' => $fallbackProvider,
             'base_url' => $baseUrl !== '' ? $baseUrl : null,
             'timeout_sec' => $timeoutSec,
+            'degraded' => $degraded,
             'result' => $result,
         ]);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function runTranslationHealthProbe(?string $forceProvider = null): array
+    {
+        $originalPrimary = (string) config('astrobot.translation.primary', 'libretranslate');
+        $originalFallback = (string) config('astrobot.translation.fallback', 'none');
+
+        if ($forceProvider !== null) {
+            config()->set('astrobot.translation.primary', strtolower(trim($forceProvider)));
+            config()->set('astrobot.translation.fallback', 'none');
+        }
+
+        try {
+            return $this->translationService->translate('health check', null, 'sk');
+        } finally {
+            if ($forceProvider !== null) {
+                config()->set('astrobot.translation.primary', $originalPrimary);
+                config()->set('astrobot.translation.fallback', $originalFallback);
+            }
+        }
+    }
+
+    private function translationHealthErrorType(Throwable $exception): string
+    {
+        if ($exception instanceof TranslationTimeoutException) {
+            return BotRunFailureReason::TRANSLATION_TIMEOUT->value;
+        }
+
+        if ($exception instanceof TranslationProviderUnavailableException) {
+            return BotRunFailureReason::PROVIDER_UNAVAILABLE->value;
+        }
+
+        return BotRunFailureReason::UNKNOWN->value;
     }
 
     public function retryTranslation(Request $request, string $sourceKey): JsonResponse
