@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Event;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -18,6 +19,27 @@ class ObserveSummaryTest extends TestCase
     public function test_it_returns_extended_summary_payload_when_providers_succeed(): void
     {
         config()->set('observing.providers.openaq.key', 'test-key');
+        Event::query()->create([
+            'title' => 'New Moon',
+            'type' => 'moon_phase',
+            'start_at' => '2026-02-17 12:00:00',
+            'source_name' => 'test',
+            'source_uid' => 'moon-new-1',
+        ]);
+        Event::query()->create([
+            'title' => 'First Quarter',
+            'type' => 'moon_phase',
+            'start_at' => '2026-02-24 17:30:00',
+            'source_name' => 'test',
+            'source_uid' => 'moon-first-1',
+        ]);
+        Event::query()->create([
+            'title' => 'Full Moon',
+            'type' => 'moon_phase',
+            'start_at' => '2026-03-03 03:10:00',
+            'source_name' => 'test',
+            'source_uid' => 'moon-full-1',
+        ]);
 
         Http::fake([
             'https://aa.usno.navy.mil/*' => Http::response($this->usnoPayload(), 200),
@@ -32,6 +54,9 @@ class ObserveSummaryTest extends TestCase
         $response->assertJsonPath('sun.sunrise', '07:07');
         $response->assertJsonPath('moon.phase_name', 'Waning Crescent');
         $response->assertJsonPath('moon.illumination_pct', 91);
+        $response->assertJsonPath('moon.phase_schedule.0.phase', 'new moon');
+        $response->assertJsonPath('moon.phase_schedule.1.phase', 'first quarter');
+        $response->assertJsonMissingPath('moon.phase_schedule.2.phase');
         $response->assertJsonPath('atmosphere.humidity.current_pct', 82);
         $response->assertJsonPath('atmosphere.cloud_cover.current_pct', 68);
         $response->assertJsonPath('atmosphere.air_quality.pm25', 12.4);
@@ -55,6 +80,7 @@ class ObserveSummaryTest extends TestCase
             'best_time_index',
             'best_time_reason',
             'timeline' => ['hourly', 'sunset', 'sunrise', 'civil_twilight_end', 'civil_twilight_begin'],
+            'moon' => ['phase_schedule' => [['event_id', 'phase', 'at_local', 'event_title']]],
         ]);
         $this->assertIsBool($response->json('is_partial'));
         $this->assertIsBool($response->json('all_unavailable'));

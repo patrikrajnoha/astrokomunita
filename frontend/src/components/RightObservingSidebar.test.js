@@ -87,6 +87,7 @@ function observePayload(overrides = {}) {
 describe('RightObservingSidebar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.useRealTimers()
     authMock.isAuthed = true
     authMock.initialized = true
   })
@@ -118,6 +119,42 @@ describe('RightObservingSidebar', () => {
     expect(wrapper.text()).toContain('Počasie teraz')
     expect(wrapper.text()).toContain('2.4 °C')
     expect(wrapper.text()).toContain('Polojasno')
+  })
+
+  it('shows moon symbol for clear weather during night', async () => {
+    try {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-24T20:05:00Z'))
+      getMock.mockResolvedValue({
+        data: observePayload({
+          weather_now: {
+            temperature_c: 1.1,
+            apparent_temperature_c: -1.0,
+            wind_speed: 4.5,
+            weather_code: 0,
+            weather_label_sk: 'Jasno',
+          },
+          sun: {
+            status: 'ok',
+            sunset: '17:10',
+            sunrise: '07:11',
+            civil_twilight_end: '17:40',
+            civil_twilight_begin: '06:40',
+          },
+        }),
+      })
+
+      const wrapper = mount(RightObservingSidebar, {
+        props: { lat: 48.14, lon: 17.1, date: '2026-02-24', tz: 'Europe/Bratislava' },
+      })
+
+      await vi.advanceTimersByTimeAsync(300)
+
+      expect(wrapper.find('.weatherNowIcon').exists()).toBe(false)
+      expect(wrapper.find('.weatherNowEmoji').text()).toContain('🌙')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('does not show sky microservice warning and does not use warn/severe labels', async () => {
@@ -168,5 +205,28 @@ describe('RightObservingSidebar', () => {
     await wait()
 
     expect(wrapper.text()).not.toContain('PM2.5 / PM10')
+  })
+
+  it('opens event detail when moon phase row is clicked', async () => {
+    getMock.mockResolvedValue({
+      data: observePayload({
+        moon: {
+          phase_name: 'Waxing crescent',
+          illumination_pct: 18,
+          phase_schedule: [
+            { event_id: 42, phase: 'full moon', at_local: '2026-02-28 20:00' },
+          ],
+        },
+      }),
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
+    })
+
+    await wait()
+
+    await wrapper.find('.phaseLink').trigger('click')
+    expect(pushMock).toHaveBeenCalledWith('/events/42')
   })
 })

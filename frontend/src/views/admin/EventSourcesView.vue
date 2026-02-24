@@ -347,7 +347,7 @@ async function purgeCrawledData() {
     const events = Number(deleted.events || 0)
     const candidates = Number(deleted.event_candidates || 0)
     const runs = Number(deleted.crawl_runs || 0)
-    const mode = Boolean(purgeDryRun.value) ? 'Dry run:' : 'Vymazane:'
+    const mode = purgeDryRun.value ? 'Dry run:' : 'Vymazane:'
     toast.success(`${mode} udalosti ${events}, kandidati ${candidates}, runy ${runs}.`)
 
     await load()

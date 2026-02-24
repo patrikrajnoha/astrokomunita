@@ -6,6 +6,7 @@ use App\Services\Observing\Contracts\AirQualityProvider;
 use App\Services\Observing\Contracts\SunMoonProvider;
 use App\Services\Observing\Contracts\WeatherProvider;
 use App\Services\Observing\Support\ObservingProviderException;
+use App\Models\Event;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Concurrency;
@@ -29,6 +30,7 @@ class ObservingSummaryService
     {
         $resolvedMode = $this->observingWeights->sanitizeMode($mode);
         $providerDebug = [];
+        $moonPhaseSchedule = $this->loadMoonPhaseSchedule($date, $tz);
 
         $sun = [
             'sunrise' => null,
@@ -41,6 +43,7 @@ class ObservingSummaryService
         $moon = [
             'phase_name' => null,
             'illumination_pct' => null,
+            'phase_schedule' => $moonPhaseSchedule,
             'warning' => null,
             'status' => 'unavailable',
         ];
@@ -112,6 +115,7 @@ class ObservingSummaryService
             $moon = [
                 'phase_name' => $sunMoonRaw['phase_name'] ?? null,
                 'illumination_pct' => $illuminationPct,
+                'phase_schedule' => $moonPhaseSchedule,
                 'warning' => ObservingHeuristics::moonWarning($illuminationPct),
                 'status' => (($sunMoonRaw['phase_name'] ?? null) || $illuminationPct !== null) ? 'ok' : 'unavailable',
             ];
@@ -475,6 +479,88 @@ class ObservingSummaryService
             'reason' => mb_substr($exception->getMessage(), 0, 200),
             'status' => null,
         ];
+    }
+
+    /**
+     * @return array<int,array{event_id:int,phase:string,at_local:string,event_title:string}>
+     */
+    private function loadMoonPhaseSchedule(string $date, string $tz): array
+    {
+        try {
+            $base = CarbonImmutable::createFromFormat('Y-m-d', $date, $tz)->startOfDay();
+        } catch (\Throwable) {
+            $base = CarbonImmutable::now($tz)->startOfDay();
+        }
+        $start = $base->startOfMonth();
+        $end = $base->endOfMonth();
+
+        $events = Event::query()
+            ->select(['id', 'title', 'start_at', 'max_at', 'source_name', 'source_uid'])
+            ->whereNotNull('source_name')
+            ->whereNotNull('source_uid')
+            ->where(function ($query): void {
+                $query->where('title', 'like', '%Full Moon%')
+                    ->orWhere('title', 'like', '%New Moon%')
+                    ->orWhere('title', 'like', '%First Quarter%')
+                    ->orWhere('title', 'like', '%Last Quarter%')
+                    ->orWhere('title', 'like', '%Spln%')
+                    ->orWhere('title', 'like', '%Nov%')
+                    ->orWhere('title', 'like', '%Prvá štvrť%')
+                    ->orWhere('title', 'like', '%Posledná štvrť%');
+            })
+            ->where(function ($query) use ($start, $end): void {
+                $query->whereBetween('start_at', [$start->utc(), $end->utc()])
+                    ->orWhere(function ($sub) use ($start, $end): void {
+                        $sub->whereNull('start_at')->whereBetween('max_at', [$start->utc(), $end->utc()]);
+                    });
+            })
+            ->orderByRaw('COALESCE(start_at, max_at) ASC')
+            ->limit(12)
+            ->get();
+
+        $result = [];
+
+        foreach ($events as $event) {
+            $title = trim((string) ($event->title ?? ''));
+            $phase = $this->normalizeMoonPhaseTitle($title);
+            if ($phase === null) {
+                continue;
+            }
+
+            $whenUtc = $event->start_at ?? $event->max_at;
+            if ($whenUtc === null) {
+                continue;
+            }
+
+            $local = CarbonImmutable::instance($whenUtc)->setTimezone($tz);
+            $result[] = [
+                'event_id' => (int) $event->id,
+                'phase' => $phase,
+                'at_local' => $local->format('Y-m-d H:i'),
+                'event_title' => $title,
+            ];
+        }
+
+        return $result;
+    }
+
+    private function normalizeMoonPhaseTitle(string $title): ?string
+    {
+        $normalized = mb_strtolower($title);
+        if (str_contains($normalized, 'new moon') || str_contains($normalized, ' nov')) {
+            return 'new moon';
+        }
+        if (str_contains($normalized, 'first quarter') || str_contains($normalized, 'prvá štvrť') || str_contains($normalized, 'prva stvrt')) {
+            return 'first quarter';
+        }
+        if (str_contains($normalized, 'full moon') || str_contains($normalized, 'spln')) {
+            return 'full moon';
+        }
+        if (str_contains($normalized, 'last quarter') || str_contains($normalized, 'posledná štvrť') || str_contains($normalized, 'posledna stvrt')) {
+            return 'last quarter';
+        }
+
+        return null;
     }
 
     private function resolveConcurrencyDriver(): string

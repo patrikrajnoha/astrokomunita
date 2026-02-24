@@ -377,6 +377,20 @@ class AdminBotController extends Controller
             }
         }
 
+        $translationCounts = BotItem::query()
+            ->selectRaw('translation_status, COUNT(*) as total')
+            ->groupBy('translation_status')
+            ->pluck('total', 'translation_status');
+        $doneCount = (int) ($translationCounts[BotTranslationStatus::DONE->value] ?? 0);
+        $skippedCount = (int) ($translationCounts[BotTranslationStatus::SKIPPED->value] ?? 0);
+        $failedCount = (int) ($translationCounts[BotTranslationStatus::FAILED->value] ?? 0);
+        $pendingCount = (int) ($translationCounts[BotTranslationStatus::PENDING->value] ?? 0);
+        $processedCount = $doneCount + $skippedCount + $failedCount;
+        $totalCount = $processedCount + $pendingCount;
+        $progressPercent = $totalCount > 0
+            ? (int) round(($processedCount / $totalCount) * 100)
+            : 100;
+
         return response()->json([
             'provider' => $provider,
             'fallback_provider' => $fallbackProvider,
@@ -385,6 +399,15 @@ class AdminBotController extends Controller
             'simulate_outage_provider' => $simulateOutageProvider,
             'degraded' => $degraded,
             'result' => $result,
+            'translation_queue' => [
+                'done' => $doneCount,
+                'skipped' => $skippedCount,
+                'failed' => $failedCount,
+                'pending' => $pendingCount,
+                'processed' => $processedCount,
+                'total' => $totalCount,
+                'progress_percent' => $progressPercent,
+            ],
         ]);
     }
 
@@ -771,6 +794,105 @@ class AdminBotController extends Controller
             'message' => 'Published post deleted.',
             'item' => $this->serializeItem($item),
             'deleted_post_id' => $postId,
+        ]);
+    }
+
+    public function deleteAllPosts(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'source_key' => 'nullable|string|max:120',
+            'bot_identity' => 'nullable|string|in:kozmo,stela',
+        ]);
+
+        $sourceKey = strtolower(trim((string) ($validated['source_key'] ?? '')));
+        $botIdentity = strtolower(trim((string) ($validated['bot_identity'] ?? '')));
+
+        $query = BotItem::query()
+            ->whereNotNull('post_id')
+            ->where('post_id', '>', 0);
+
+        if ($sourceKey !== '') {
+            $source = BotSource::query()->where('key', $sourceKey)->first();
+            if (!$source) {
+                return response()->json([
+                    'message' => sprintf('Bot source "%s" was not found.', $sourceKey),
+                ], 404);
+            }
+
+            $query->where('source_id', (int) $source->id);
+        }
+
+        if ($botIdentity !== '') {
+            $query->where('bot_identity', $botIdentity);
+        }
+
+        $matchedCount = (clone $query)->count();
+        if ($matchedCount <= 0) {
+            return response()->json([
+                'message' => 'No published bot posts found for selected filters.',
+                'matched_items' => 0,
+                'deleted_posts' => 0,
+                'missing_posts' => 0,
+                'updated_items' => 0,
+                'failed_items' => 0,
+                'sample_deleted_post_ids' => [],
+            ]);
+        }
+
+        $deletedPosts = 0;
+        $missingPosts = 0;
+        $updatedItems = 0;
+        $failedItems = 0;
+        $sampleDeletedPostIds = [];
+
+        $query
+            ->orderBy('id')
+            ->chunkById(100, function ($items) use (
+                &$deletedPosts,
+                &$missingPosts,
+                &$updatedItems,
+                &$failedItems,
+                &$sampleDeletedPostIds
+            ): void {
+                foreach ($items as $item) {
+                    $postId = (int) ($item->post_id ?? 0);
+                    if ($postId <= 0) {
+                        continue;
+                    }
+
+                    try {
+                        $post = Post::query()->find($postId);
+                        if ($post) {
+                            $this->postService->deletePost($post);
+                            $deletedPosts++;
+                            if (count($sampleDeletedPostIds) < 50) {
+                                $sampleDeletedPostIds[] = $postId;
+                            }
+                        } else {
+                            $missingPosts++;
+                        }
+
+                        $this->markItemPostDeletedManually($item, $postId);
+                        $updatedItems++;
+                    } catch (Throwable $e) {
+                        $failedItems++;
+                        Log::warning('Admin failed to delete published bot post in bulk.', [
+                            'bot_item_id' => $item->id,
+                            'post_id' => $postId,
+                            'error' => $this->truncateErrorText($e->getMessage(), 240),
+                        ]);
+                    }
+                }
+            }, 'id');
+
+        return response()->json([
+            'message' => 'Bulk delete completed.',
+            'matched_items' => $matchedCount,
+            'deleted_posts' => $deletedPosts,
+            'missing_posts' => $missingPosts,
+            'updated_items' => $updatedItems,
+            'failed_items' => $failedItems,
+            'sample_deleted_post_ids' => $sampleDeletedPostIds,
         ]);
     }
 
