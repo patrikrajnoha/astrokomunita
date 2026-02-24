@@ -244,6 +244,56 @@ onMounted(load)
     </section>
 
     <section class="card">
+      <h3>Preview emailu</h3>
+      <p v-if="loading" class="muted">Loading preview...</p>
+      <article v-else class="emailPreview">
+        <header class="emailHero">
+          <p class="emailEyebrow">Nebesky sprievodca</p>
+          <h4 class="emailTitle">Top udalosti buduceho tyzdna</h4>
+          <p class="emailIntro">
+            Prehlad na tyzden {{ preview?.week?.start || '-' }} az {{ preview?.week?.end || '-' }}.
+          </p>
+        </header>
+
+        <section class="emailSection">
+          <h5>Top udalosti</h5>
+          <ul>
+            <li v-for="event in preview?.top_events || []" :key="`email-event-${event.id}`">
+              <a :href="event.url || '#'" target="_blank" rel="noopener">{{ event.title || 'Udalost' }}</a>
+              <span>{{ event.start_at || '-' }}</span>
+            </li>
+            <li v-if="(preview?.top_events || []).length === 0">Tento tyzden zatial nema vybrane udalosti.</li>
+          </ul>
+        </section>
+
+        <section class="emailSection">
+          <h5>Najcitanejsie clanky (7 dni)</h5>
+          <ul>
+            <li v-for="article in preview?.top_articles || []" :key="`email-article-${article.id}`">
+              <a :href="article.url || '#'" target="_blank" rel="noopener">{{ article.title || 'Clanok' }}</a>
+              <span>Citania: {{ Number(article.views || 0) }}</span>
+            </li>
+            <li v-if="(preview?.top_articles || []).length === 0">Za posledny tyzden este nie su dostupne clanky.</li>
+          </ul>
+        </section>
+
+        <section class="emailSection">
+          <h5>Astronomicky tip tyzdna</h5>
+          <p>{{ preview?.astronomical_tip || '-' }}</p>
+        </section>
+
+        <footer class="emailFooter">
+          <a class="emailBtn emailBtnPrimary" :href="preview?.cta?.calendar_url || '#'" target="_blank" rel="noopener">
+            Open calendar
+          </a>
+          <a class="emailBtn emailBtnSecondary" :href="preview?.cta?.events_url || '#'" target="_blank" rel="noopener">
+            Browse events
+          </a>
+        </footer>
+      </article>
+    </section>
+
+    <section class="card">
       <h3>Manual send</h3>
       <div class="toggles">
         <label class="toggleLabel">
@@ -444,5 +494,107 @@ button:disabled {
   background: rgb(var(--color-bg-rgb) / 0.7);
   color: inherit;
   padding: 8px 10px;
+}
+
+.emailPreview {
+  margin-top: 10px;
+  border: 1px solid #263247;
+  border-radius: 16px;
+  background: #121a2a;
+  color: #e5ecff;
+  overflow: hidden;
+}
+
+.emailHero {
+  padding: 24px;
+  background: linear-gradient(135deg, #1f3c88, #0f7490);
+}
+
+.emailEyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #dbeafe;
+}
+
+.emailTitle {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.2;
+  color: #ffffff;
+}
+
+.emailIntro {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #e2e8f0;
+}
+
+.emailSection {
+  padding: 16px 24px 4px;
+}
+
+.emailSection h5 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  color: #ffffff;
+}
+
+.emailSection ul {
+  margin: 0;
+  padding: 0 0 0 18px;
+  color: #dbeafe;
+}
+
+.emailSection li {
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
+
+.emailSection a {
+  color: #93c5fd;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.emailSection span {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: #9fb2d1;
+}
+
+.emailSection p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #dbeafe;
+}
+
+.emailFooter {
+  padding: 18px 24px 24px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.emailBtn {
+  display: inline-block;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.emailBtnPrimary {
+  background: #2563eb;
+}
+
+.emailBtnSecondary {
+  background: #0f766e;
 }
 </style>
