@@ -24,7 +24,7 @@ return [
         'generate_path' => env('OLLAMA_GENERATE_PATH', '/api/generate'),
         'model' => env('OLLAMA_MODEL', 'mistral'),
         'timeout' => (int) env('OLLAMA_TIMEOUT', 60),
-        'connect_timeout' => (int) env('OLLAMA_CONNECT_TIMEOUT', 5),
+        'connect_timeout' => (int) env('OLLAMA_CONNECT_TIMEOUT', 3),
         'retry' => (int) env('OLLAMA_RETRY', 1),
         'retry_sleep_ms' => (int) env('OLLAMA_RETRY_SLEEP_MS', 250),
         'verify_ssl' => filter_var(env('OLLAMA_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),

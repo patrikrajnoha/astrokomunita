@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Enums\BotPublishStatus;
+use App\Enums\BotRunFailureReason;
 use App\Enums\BotTranslationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\BotItem;
@@ -13,6 +14,8 @@ use App\Services\Bots\BotPostTranslationBackfillService;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use App\Services\Bots\BotPublisherService;
 use App\Services\Bots\BotRunner;
+use App\Services\Translation\Exceptions\TranslationProviderUnavailableException;
+use App\Services\Translation\Exceptions\TranslationTimeoutException;
 use App\Services\PostService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -175,7 +178,7 @@ class AdminBotController extends Controller
             'stats' => is_array($run->stats) ? $run->stats : [],
             'meta' => is_array($run->meta) ? $run->meta : [],
             'error_text' => $this->truncateErrorText($run->error_text),
-            'failure_reason' => $this->nullableString(data_get($run->meta, 'failure_reason')),
+            'failure_reason' => BotRunFailureReason::fromNullable(data_get($run->meta, 'failure_reason'))->value,
             'ui_message' => $this->nullableString(data_get($run->meta, 'ui_message')),
             'cooldown_until' => $this->nullableString(data_get($run->meta, 'cooldown_until')),
         ]);
@@ -272,11 +275,23 @@ class AdminBotController extends Controller
         try {
             $result = $this->translationService->translate($text, null, 'sk');
         } catch (Throwable $e) {
+            $failureReason = BotRunFailureReason::UNKNOWN->value;
+            $statusCode = 422;
+
+            if ($e instanceof TranslationTimeoutException) {
+                $failureReason = BotRunFailureReason::TRANSLATION_TIMEOUT->value;
+                $statusCode = 504;
+            } elseif ($e instanceof TranslationProviderUnavailableException) {
+                $failureReason = BotRunFailureReason::PROVIDER_UNAVAILABLE->value;
+                $statusCode = 503;
+            }
+
             return response()->json([
                 'ok' => false,
                 'message' => 'Translation test failed.',
+                'failure_reason' => $failureReason,
                 'error' => $this->truncateErrorText($e->getMessage(), 300),
-            ], 422);
+            ], $statusCode);
         }
 
         $meta = is_array($result['meta'] ?? null) ? $result['meta'] : [];
@@ -305,6 +320,49 @@ class AdminBotController extends Controller
                 'fallback_used' => (bool) data_get($meta, 'fallback_used', false),
                 'quality_retry_count' => (int) data_get($meta, 'quality_retry_count', 0),
             ],
+        ]);
+    }
+
+    public function translationHealth(): JsonResponse
+    {
+        $provider = strtolower(trim((string) config('astrobot.translation.primary', 'libretranslate')));
+        $fallbackProvider = strtolower(trim((string) config('astrobot.translation.fallback', 'none')));
+        $timeoutSec = max(1, (int) config('astrobot.translation.timeout_sec', 12));
+
+        $baseUrl = match ($provider) {
+            'ollama' => trim((string) config('ai.ollama.base_url', config('ai.ollama_base_url', ''))),
+            default => trim((string) config('astrobot.translation.libretranslate.url', '')),
+        };
+
+        try {
+            $this->translationService->translate('health check', null, 'sk');
+            $result = [
+                'ok' => true,
+                'error_type' => null,
+            ];
+        } catch (TranslationTimeoutException $exception) {
+            $result = [
+                'ok' => false,
+                'error_type' => BotRunFailureReason::TRANSLATION_TIMEOUT->value,
+            ];
+        } catch (TranslationProviderUnavailableException $exception) {
+            $result = [
+                'ok' => false,
+                'error_type' => BotRunFailureReason::PROVIDER_UNAVAILABLE->value,
+            ];
+        } catch (Throwable $exception) {
+            $result = [
+                'ok' => false,
+                'error_type' => BotRunFailureReason::UNKNOWN->value,
+            ];
+        }
+
+        return response()->json([
+            'provider' => $provider,
+            'fallback_provider' => $fallbackProvider,
+            'base_url' => $baseUrl !== '' ? $baseUrl : null,
+            'timeout_sec' => $timeoutSec,
+            'result' => $result,
         ]);
     }
 
@@ -650,7 +708,7 @@ class AdminBotController extends Controller
             'stats' => is_array($run->stats) ? $run->stats : [],
             'meta' => is_array($run->meta) ? $run->meta : [],
             'error_text' => $this->truncateErrorText($run->error_text),
-            'failure_reason' => $this->nullableString(data_get($run->meta, 'failure_reason')),
+            'failure_reason' => BotRunFailureReason::fromNullable(data_get($run->meta, 'failure_reason'))->value,
             'ui_message' => $this->nullableString(data_get($run->meta, 'ui_message')),
             'cooldown_until' => $this->nullableString(data_get($run->meta, 'cooldown_until')),
         ];

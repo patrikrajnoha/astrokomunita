@@ -30,6 +30,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -70,6 +71,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->logTranslationEnvAliasUsage();
+
         Event::listen(Login::class, UpdateLastLoginListener::class);
 
         Http::macro('secure', function (): PendingRequest {
@@ -120,5 +123,51 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(1)->by('me-export|' . $userId . '|' . $request->ip());
         });
+    }
+
+    private function logTranslationEnvAliasUsage(): void
+    {
+        if (!config('app.debug')) {
+            return;
+        }
+
+        $aliasUsage = [];
+
+        $this->collectAliasUsage($aliasUsage, 'TRANSLATION_PROVIDER', ['BOT_TRANSLATION_PRIMARY']);
+        $this->collectAliasUsage($aliasUsage, 'TRANSLATION_FALLBACK_PROVIDER', ['BOT_TRANSLATION_FALLBACK']);
+        $this->collectAliasUsage($aliasUsage, 'TRANSLATION_TIMEOUT_SEC', ['TRANSLATION_TIMEOUT_SECONDS', 'BOT_TRANSLATION_LIBRETRANSLATE_TIMEOUT_SECONDS']);
+        $this->collectAliasUsage($aliasUsage, 'TRANSLATION_MAX_RETRIES', ['BOT_TRANSLATION_LIBRETRANSLATE_RETRY_TIMES']);
+        $this->collectAliasUsage($aliasUsage, 'LIBRETRANSLATE_BASE_URL', ['BOT_TRANSLATION_LIBRETRANSLATE_URL', 'TRANSLATION_BASE_URL']);
+        $this->collectAliasUsage($aliasUsage, 'LIBRETRANSLATE_API_KEY', ['BOT_TRANSLATION_LIBRETRANSLATE_API_KEY']);
+        $this->collectAliasUsage($aliasUsage, 'OLLAMA_MODEL', ['BOT_TRANSLATION_OLLAMA_MODEL', 'TRANSLATION_OLLAMA_MODEL']);
+        $this->collectAliasUsage($aliasUsage, 'OLLAMA_NUM_PREDICT', ['BOT_TRANSLATION_OLLAMA_NUM_PREDICT', 'TRANSLATION_OLLAMA_NUM_PREDICT']);
+
+        if ($aliasUsage === []) {
+            return;
+        }
+
+        Log::debug('Translation config using deprecated env aliases.', [
+            'aliases_in_use' => $aliasUsage,
+        ]);
+    }
+
+    /**
+     * @param array<string,string> $aliasUsage
+     * @param array<int,string> $aliases
+     */
+    private function collectAliasUsage(array &$aliasUsage, string $canonical, array $aliases): void
+    {
+        $canonicalValue = getenv($canonical);
+        if (is_string($canonicalValue) && trim($canonicalValue) !== '') {
+            return;
+        }
+
+        foreach ($aliases as $alias) {
+            $aliasValue = getenv($alias);
+            if (is_string($aliasValue) && trim($aliasValue) !== '') {
+                $aliasUsage[$canonical] = $alias;
+                return;
+            }
+        }
     }
 }

@@ -439,6 +439,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
             Route::get('/items', [AdminBotController::class, 'items']);
             Route::post('/run/{sourceKey}', [AdminBotController::class, 'run']);
             Route::post('/translation/test', [AdminBotController::class, 'translationTest']);
+            Route::get('/translation/health', [AdminBotController::class, 'translationHealth']);
             Route::post('/translation/retry/{sourceKey}', [AdminBotController::class, 'retryTranslation']);
             Route::post('/translation/backfill/{sourceKey}', [AdminBotController::class, 'backfillTranslation']);
             Route::post('/items/{botItemId}/publish', [AdminBotController::class, 'publishItem']);

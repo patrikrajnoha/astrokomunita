@@ -4,6 +4,7 @@ namespace App\Services\Bots;
 
 use App\Enums\BotSourceType;
 use App\Enums\BotPublishStatus;
+use App\Enums\BotRunFailureReason;
 use App\Enums\BotRunStatus;
 use App\Enums\BotTranslationStatus;
 use App\Models\BotItem;
@@ -11,11 +12,14 @@ use App\Models\BotRun;
 use App\Models\BotSource;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use App\Services\Bots\Exceptions\BotSourceRunException;
+use App\Services\Translation\Exceptions\TranslationProviderUnavailableException;
+use App\Services\Translation\Exceptions\TranslationTimeoutException;
 use Carbon\Carbon;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 class BotRunner
@@ -62,11 +66,14 @@ class BotRunner
             'run_context' => $context,
             'mode' => $runMode,
             'publish_limit' => $normalizedPublishLimit,
+            'runner_host' => gethostname() ?: php_uname('n'),
+            'runner_pid' => getmypid() ?: null,
         ];
 
         $lockState = $this->acquireRunLocks($source, $context, $forceManualOverride);
 
         if (!$lockState['acquired']) {
+            $runMeta['failure_reason'] = BotRunFailureReason::LOCK_CONFLICT->value;
             $run = $this->runService->startRun($source, $runMeta);
             $stats = $this->createInitialStats();
             $stats['run_locked'] = 1;
@@ -77,7 +84,7 @@ class BotRunner
             $stats['mode'] = $runMode;
             $stats['publish_limit'] = $normalizedPublishLimit;
 
-            return $this->runService->finishRun(
+            return $this->finalizeRunSafely(
                 $run,
                 BotRunStatus::SKIPPED,
                 $stats,
@@ -94,6 +101,9 @@ class BotRunner
         $stats['run_context'] = $context;
         $stats['mode'] = $runMode;
         $stats['publish_limit'] = $normalizedPublishLimit;
+        $stats['stale_recovered_count'] = 0;
+
+        $this->recoverStaleRunsIfNeeded($source, $run, $stats, $runMeta);
 
         if ($this->isSourceInRateLimitCooldown($source)) {
             $status = BotRunStatus::SKIPPED;
@@ -103,7 +113,7 @@ class BotRunner
 
             $this->releaseRunLocks($lockState);
 
-            return $this->runService->finishRun($run, $status, $stats, $errorText, $runMeta);
+            return $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
         }
 
         $status = BotRunStatus::SUCCESS;
@@ -125,7 +135,7 @@ class BotRunner
         } catch (BotSourceRunException $e) {
             $failureReason = strtolower(trim($e->failureReason()));
             $exceptionMeta = $e->contextMeta();
-            $runMeta['failure_reason'] = $failureReason;
+            $runMeta['failure_reason'] = BotRunFailureReason::fromNullable($failureReason)->value;
             $runMeta['provider'] = $this->nullableString((string) ($exceptionMeta['provider'] ?? ''));
             $runMeta['http_status'] = $this->nullableInt($exceptionMeta['http_status'] ?? null);
             $runMeta['message'] = $this->nullableString((string) ($exceptionMeta['message'] ?? $e->getMessage()));
@@ -136,7 +146,10 @@ class BotRunner
                 $runMeta['retry_after_sec'] = $retryAfter;
             }
 
-            if (in_array($failureReason, ['rate_limited', 'needs_api_key'], true)) {
+            if (in_array($runMeta['failure_reason'], [
+                BotRunFailureReason::RATE_LIMITED->value,
+                BotRunFailureReason::NEEDS_API_KEY->value,
+            ], true)) {
                 $cooldownUntil = now()->addSeconds($retryAfter ?? 0);
                 if ($cooldownUntil->lte(now())) {
                     $cooldownUntil = now()->addMinutes($this->rateLimitBackoffMinutes($source));
@@ -160,11 +173,13 @@ class BotRunner
             $errorText = $e->getMessage();
             $stats['failed_count']++;
             $this->recordErrorFingerprint($stats, $e);
+            $runMeta['failure_reason'] = BotRunFailureReason::UNHANDLED_EXCEPTION->value;
+            $runMeta['exception_class'] = $e::class;
         } finally {
             $this->releaseRunLocks($lockState);
         }
 
-        return $this->runService->finishRun($run, $status, $stats, $errorText, $runMeta);
+        return $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
     }
 
     /**
@@ -545,13 +560,27 @@ class BotRunner
                 $stats['translation_failed_count'] = (int) ($stats['translation_failed_count'] ?? 0) + 1;
                 $this->recordErrorFingerprint($stats, $e);
                 $errorMessage = $this->limitText($e->getMessage(), 300);
+                $errorType = $this->resolveTranslationErrorType($e);
                 $meta['translation_error'] = $errorMessage;
+                $meta['translation_error_type'] = $errorType;
+                $meta['translation'] = array_replace(
+                    is_array($meta['translation'] ?? null) ? $meta['translation'] : [],
+                    [
+                        'provider' => $this->resolveConfiguredTranslationProvider(),
+                        'reason' => $errorType,
+                        'target_lang' => 'sk',
+                        'translated_at' => now()->toIso8601String(),
+                        'error' => $errorMessage,
+                    ]
+                );
                 $meta['run_context'] = $runContext;
                 Log::warning('Bot translation failed for item.', [
                     'source_key' => $sourceKey,
                     'stable_key' => (string) $item->stable_key,
                     'bot_run_id' => $runId,
                     'provider' => $this->resolveConfiguredTranslationProvider(),
+                    'error_type' => $errorType,
+                    'timeout_sec' => max(1, (int) config('astrobot.translation.timeout_sec', 12)),
                     'error' => $errorMessage,
                     'origin_title_hash' => $this->shortHash($title),
                     'origin_body_hash' => $this->shortHash($content),
@@ -719,7 +748,7 @@ class BotRunner
         $ttlSeconds = max(60, (int) config('astrobot.run_lock_ttl_seconds', 600));
         $locks = [];
 
-        $contextLockKey = sprintf('bots:run:%s:%s', $runContext, $sourceKey);
+        $contextLockKey = $this->buildContextLockKey($runContext, $sourceKey);
         $contextLock = Cache::lock($contextLockKey, $ttlSeconds);
         if (!$contextLock->get()) {
             return [
@@ -730,7 +759,7 @@ class BotRunner
         }
         $locks[] = $contextLock;
 
-        $globalLockKey = sprintf('bots:run:%s', $sourceKey);
+        $globalLockKey = $this->buildGlobalLockKey($sourceKey);
         if (!($forceManualOverride && in_array($runContext, ['manual', 'admin'], true))) {
             $globalLock = Cache::lock($globalLockKey, $ttlSeconds);
             if (!$globalLock->get()) {
@@ -857,7 +886,7 @@ class BotRunner
         $retryAfter = max(0, now()->diffInSeconds($cooldownUntil, false));
 
         return [
-            'failure_reason' => 'cooldown_rate_limited',
+            'failure_reason' => BotRunFailureReason::COOLDOWN_RATE_LIMITED->value,
             'provider' => 'nasa_apod',
             'cooldown_until' => $cooldownUntil->toIso8601String(),
             'retry_after_sec' => $retryAfter,
@@ -915,5 +944,116 @@ class BotRunner
         }
 
         return null;
+    }
+
+    private function resolveTranslationErrorType(Throwable $exception): string
+    {
+        if ($exception instanceof TranslationTimeoutException) {
+            return BotRunFailureReason::TRANSLATION_TIMEOUT->value;
+        }
+
+        if ($exception instanceof TranslationProviderUnavailableException) {
+            return BotRunFailureReason::PROVIDER_UNAVAILABLE->value;
+        }
+
+        return BotRunFailureReason::UNKNOWN->value;
+    }
+
+    /**
+     * @param array<string,mixed> $stats
+     * @param array<string,mixed> $meta
+     */
+    private function finalizeRunSafely(
+        BotRun $run,
+        BotRunStatus|string $status,
+        array $stats,
+        ?string $errorText,
+        array $meta
+    ): BotRun {
+        try {
+            return $this->runService->finishRun($run, $status, $stats, $errorText, $meta);
+        } catch (Throwable $exception) {
+            Log::error('Bot run finish failed, applying direct fallback update.', [
+                'run_id' => $run->id,
+                'status' => $status instanceof BotRunStatus ? $status->value : (string) $status,
+                'error' => $this->limitText($exception->getMessage(), 240),
+            ]);
+
+            $statusValue = $status instanceof BotRunStatus ? $status->value : strtolower(trim((string) $status));
+            $mergedMeta = array_replace(is_array($run->meta) ? $run->meta : [], $meta);
+
+            DB::table('bot_runs')
+                ->where('id', $run->id)
+                ->update([
+                    'finished_at' => now(),
+                    'status' => $statusValue,
+                    'stats' => json_encode($stats, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    'meta' => $mergedMeta !== [] ? json_encode($mergedMeta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
+                    'error_text' => $errorText,
+                    'updated_at' => now(),
+                ]);
+
+            return BotRun::query()->find($run->id) ?? $run;
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $stats
+     * @param array<string,mixed> $runMeta
+     */
+    private function recoverStaleRunsIfNeeded(BotSource $source, BotRun $run, array &$stats, array &$runMeta): void
+    {
+        $staleMinutes = max(1, (int) config('astrobot.stale_run_recovery_minutes', 5));
+        $recoveredCount = $this->runService->recoverStaleRunsForSource($source, $run->id, $staleMinutes);
+
+        if ($recoveredCount <= 0) {
+            return;
+        }
+
+        $stats['stale_recovered_count'] = $recoveredCount;
+        $runMeta['stale_recovered_count'] = $recoveredCount;
+
+        $sourceKey = strtolower(trim((string) $source->key));
+        $this->releaseKnownSourceLocks($sourceKey);
+
+        Log::warning('Recovered stale bot runs before executing a new run.', [
+            'source_key' => $sourceKey,
+            'current_run_id' => $run->id,
+            'recovered_count' => $recoveredCount,
+            'stale_minutes' => $staleMinutes,
+        ]);
+    }
+
+    private function releaseKnownSourceLocks(string $sourceKey): void
+    {
+        if ($sourceKey === '') {
+            return;
+        }
+
+        $lockKeys = [
+            $this->buildGlobalLockKey($sourceKey),
+            $this->buildContextLockKey('manual', $sourceKey),
+            $this->buildContextLockKey('admin', $sourceKey),
+            $this->buildContextLockKey('scheduled', $sourceKey),
+            $this->buildContextLockKey('cli', $sourceKey),
+        ];
+
+        foreach ($lockKeys as $lockKey) {
+            try {
+                Cache::lock($lockKey)->forceRelease();
+            } catch (Throwable) {
+                // ignore lock cleanup errors
+            }
+        }
+    }
+
+    private function buildContextLockKey(string $runContext, string $sourceKey): string
+    {
+        return sprintf('bots:run:%s:%s', strtolower(trim($runContext)), strtolower(trim($sourceKey)));
+    }
+
+    private function buildGlobalLockKey(string $sourceKey): string
+    {
+        return sprintf('bots:run:%s', strtolower(trim($sourceKey)));
     }
 }

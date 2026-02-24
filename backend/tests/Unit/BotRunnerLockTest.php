@@ -41,4 +41,32 @@ class BotRunnerLockTest extends TestCase
             $lock->release();
         }
     }
+
+    public function test_runner_releases_locks_when_run_throws_exception(): void
+    {
+        config()->set('moderation.enabled', false);
+
+        $source = BotSource::query()->create([
+            'key' => 'unsupported_api_source_for_lock_test',
+            'bot_identity' => 'kozmo',
+            'source_type' => BotSourceType::API->value,
+            'url' => 'https://example.test/api',
+            'is_enabled' => true,
+            'schedule' => null,
+        ]);
+
+        $run = app(BotRunner::class)->run($source, 'scheduled');
+        $this->assertSame('failed', (string) ($run->status?->value ?? $run->status));
+
+        $contextLock = Cache::lock('bots:run:scheduled:' . $source->key, 600);
+        $globalLock = Cache::lock('bots:run:' . $source->key, 600);
+
+        try {
+            $this->assertTrue($contextLock->get());
+            $this->assertTrue($globalLock->get());
+        } finally {
+            $contextLock->release();
+            $globalLock->release();
+        }
+    }
 }
