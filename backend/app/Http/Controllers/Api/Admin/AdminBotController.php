@@ -118,6 +118,11 @@ class AdminBotController extends Controller
 
     public function run(Request $request, string $sourceKey): JsonResponse
     {
+        $executionBudget = max(30, (int) config('astrobot.run_max_execution_seconds', 120));
+        if (function_exists('set_time_limit')) {
+            @set_time_limit($executionBudget);
+        }
+
         $normalizedSourceKey = strtolower(trim($sourceKey));
         $validated = $request->validate([
             'force_manual_override' => 'sometimes|boolean',

@@ -122,7 +122,14 @@ describe('FeedList tabs', () => {
   })
 
   it('persists selected home feed tab to localStorage', async () => {
-    const wrapper = mountFeed()
+    const wrapper = mountFeed({
+      DropdownMenu: {
+        props: ['items'],
+        emits: ['select'],
+        template:
+          '<div class="dropdown-stub"><button v-for="item in items" :key="item.key" :data-key="item.key" @click="$emit(\'select\', item)">{{ item.label }}</button></div>',
+      },
+    })
     await flushPromises()
 
     await wrapper.get('#feed-tab-astrobot').trigger('click')
@@ -251,7 +258,8 @@ describe('FeedList tabs', () => {
     expect(wrapper.text()).toContain('SK obsah')
     expect(wrapper.text()).not.toContain('EN body content')
 
-    await wrapper.find('.bot-toggle-btn--original').trigger('click')
+    const post = wrapper.vm.currentFeed.items[0]
+    wrapper.vm.onMenuAction({ key: 'variant_original' }, post)
     await flushPromises()
 
     expect(wrapper.text()).toContain('EN title')

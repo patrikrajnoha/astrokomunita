@@ -334,23 +334,43 @@ class BotPublisherService
             $headline = $sourceAttribution . ' update';
         }
 
+        $normalizedBody = $this->normalizeKozmoBody($body);
+
         $lines = [
             sprintf('%s | %s', $sourceAttribution, $headline),
         ];
 
-        if ($body !== '') {
+        if ($normalizedBody !== '') {
             $lines[] = '';
-            $lines[] = $body;
+            $lines[] = $normalizedBody;
         }
 
-        $lines[] = '';
-        $lines[] = sprintf('Source: %s', $sourceAttribution);
+        $bodyHasSourceLine = preg_match('/^\s*(source|zdroj)\s*:/imu', $normalizedBody) === 1;
+        $bodyHasUrl = $url !== '' && str_contains($normalizedBody, $url);
 
-        if ($url !== '') {
+        if (!$bodyHasSourceLine) {
+            $lines[] = '';
+            $lines[] = sprintf('Source: %s', $sourceAttribution);
+        }
+
+        if ($url !== '' && !$bodyHasUrl) {
             $lines[] = $url;
         }
 
         return implode("\n", $lines);
+    }
+
+    private function normalizeKozmoBody(string $body): string
+    {
+        $normalized = trim($body);
+        if ($normalized === '') {
+            return '';
+        }
+
+        // Common SK phrasing fix for generated timeline entries.
+        $normalized = str_ireplace('poslednom letiaci', 'poslednom lete', $normalized);
+
+        return $normalized;
     }
 
     private function buildStelaPostContent(
