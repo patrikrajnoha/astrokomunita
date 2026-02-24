@@ -7,6 +7,11 @@ use App\Models\User;
 
 class PostPolicy
 {
+    public function update(User $user, Post $post): bool
+    {
+        return (int) $post->user_id === (int) $user->id || (bool) $user->is_admin;
+    }
+
     public function delete(User $user, Post $post): bool
     {
         return (int) $post->user_id === (int) $user->id || (bool) $user->is_admin;

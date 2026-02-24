@@ -44,6 +44,7 @@ return [
     'lock_ttl_seconds' => (int) env('ASTROBOT_LOCK_TTL_SECONDS', 120),
     'run_lock_ttl_seconds' => (int) env('ASTROBOT_RUN_LOCK_TTL_SECONDS', env('ASTROBOT_LOCK_TTL_SECONDS', 120)),
     'stale_run_recovery_minutes' => (int) env('ASTROBOT_STALE_RUN_RECOVERY_MINUTES', 5),
+    'run_max_execution_seconds' => (int) env('ASTROBOT_RUN_MAX_EXECUTION_SECONDS', 120),
 
     /*
     |--------------------------------------------------------------------------
@@ -70,6 +71,7 @@ return [
         'primary' => strtolower(trim((string) env('TRANSLATION_PROVIDER', env('BOT_TRANSLATION_PRIMARY', 'libretranslate')))),
         'fallback' => strtolower(trim((string) env('TRANSLATION_FALLBACK_PROVIDER', env('BOT_TRANSLATION_FALLBACK', 'none')))),
         'timeout_sec' => (int) env('TRANSLATION_TIMEOUT_SEC', env('TRANSLATION_TIMEOUT_SECONDS', 12)),
+        'connect_timeout_sec' => (int) env('TRANSLATION_CONNECT_TIMEOUT_SEC', env('TRANSLATION_CONNECT_TIMEOUT_SECONDS', 3)),
         'max_retries' => (int) env('TRANSLATION_MAX_RETRIES', env('BOT_TRANSLATION_LIBRETRANSLATE_RETRY_TIMES', 1)),
         'chunk_max_chars' => (int) env('BOT_TRANSLATION_CHUNK_MAX_CHARS', 1800),
         'chunk_hard_limit_chars' => (int) env('BOT_TRANSLATION_CHUNK_HARD_LIMIT_CHARS', 3500),

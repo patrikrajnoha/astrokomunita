@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="wrap">
     <div class="card">
       <!-- top -->
@@ -35,7 +35,6 @@
                   </button>
                   <span class="nameTime">{{ fmt(root?.created_at) }}</span>
                 </div>
-                <span v-if="root?.source_name === 'astrobot'" class="badge badgeAstrobot">🚀 AstroBot</span>
                 <div class="meta">
                   <span class="viewMeta" title="Počet zobrazení" aria-label="Počet zobrazení">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -63,7 +62,33 @@
             </div>
 
             <div class="postText">
-              <HashtagText :content="root?.content" />
+              <template v-if="isEditingPost(root)">
+                <textarea
+                  v-model="editContentDraft"
+                  class="inlineEditTextarea"
+                  rows="6"
+                  maxlength="5000"
+                ></textarea>
+                <div class="inlineEditActions">
+                  <button
+                    class="replyBtn"
+                    type="button"
+                    :disabled="editSavingId === root?.id"
+                    @click="saveInlineEdit(root)"
+                  >
+                    {{ editSavingId === root?.id ? 'Ukladam...' : 'Ulozit' }}
+                  </button>
+                  <button
+                    class="replyBtn"
+                    type="button"
+                    :disabled="editSavingId === root?.id"
+                    @click="cancelInlineEdit"
+                  >
+                    Zrusit
+                  </button>
+                </div>
+              </template>
+              <HashtagText v-else :content="root?.content" />
             </div>
 
             <PollCard
@@ -170,7 +195,33 @@
                 </div>
 
                 <div class="replyText">
-                  <HashtagText :content="r.content" />
+                  <template v-if="isEditingPost(r)">
+                    <textarea
+                      v-model="editContentDraft"
+                      class="inlineEditTextarea"
+                      rows="5"
+                      maxlength="5000"
+                    ></textarea>
+                    <div class="inlineEditActions">
+                      <button
+                        class="replyBtn"
+                        type="button"
+                        :disabled="editSavingId === r.id"
+                        @click="saveInlineEdit(r)"
+                      >
+                        {{ editSavingId === r.id ? 'Ukladam...' : 'Ulozit' }}
+                      </button>
+                      <button
+                        class="replyBtn"
+                        type="button"
+                        :disabled="editSavingId === r.id"
+                        @click="cancelInlineEdit"
+                      >
+                        Zrusit
+                      </button>
+                    </div>
+                  </template>
+                  <HashtagText v-else :content="r.content" />
                 </div>
 
                 <div v-if="r.attachment_url" class="mediaWrapSm">
@@ -254,7 +305,33 @@
                       </div>
 
                     <div class="replyText">
-                      <HashtagText :content="c.content" />
+                      <template v-if="isEditingPost(c)">
+                        <textarea
+                          v-model="editContentDraft"
+                          class="inlineEditTextarea"
+                          rows="5"
+                          maxlength="5000"
+                        ></textarea>
+                        <div class="inlineEditActions">
+                          <button
+                            class="replyBtn"
+                            type="button"
+                            :disabled="editSavingId === c.id"
+                            @click="saveInlineEdit(c)"
+                          >
+                            {{ editSavingId === c.id ? 'Ukladam...' : 'Ulozit' }}
+                          </button>
+                          <button
+                            class="replyBtn"
+                            type="button"
+                            :disabled="editSavingId === c.id"
+                            @click="cancelInlineEdit"
+                          >
+                            Zrusit
+                          </button>
+                        </div>
+                      </template>
+                      <HashtagText v-else :content="c.content" />
                     </div>
 
                       <div v-if="c.attachment_url" class="mediaWrapSm">
@@ -349,6 +426,9 @@ const reportTarget = ref(null)
 const reportReason = ref('spam')
 const reportMessage = ref('')
 const reportNotice = ref('')
+const editingPostId = ref(null)
+const editContentDraft = ref('')
+const editSavingId = ref(null)
 const lastTrackedViewKey = ref('')
 let viewAnimationFrame = null
 
@@ -455,6 +535,23 @@ function openReport(post) {
   reportNotice.value = ''
 }
 
+function normalizeToken(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+}
+
+function canAdminEditBotPost(post) {
+  const isAdmin = Boolean(auth.user?.is_admin || auth.user?.role === 'admin')
+  if (!isAdmin) return false
+
+  const isBot = normalizeToken(post?.author_kind) === 'bot' || normalizeToken(post?.source_name) === 'astrobot'
+  if (!isBot) return false
+
+  const identity = normalizeToken(post?.bot_identity)
+  return identity === 'kozmo' || identity === 'stela'
+}
+
 function menuItemsForPost(post) {
   const items = []
 
@@ -464,6 +561,10 @@ function menuItemsForPost(post) {
 
   if (canReportPost(post, auth.user)) {
     items.push({ key: 'report', label: 'Report', danger: false })
+  }
+
+  if (canAdminEditBotPost(post)) {
+    items.push({ key: 'edit', label: 'Edit', danger: false })
   }
 
   return items
@@ -477,6 +578,85 @@ function onMenuAction(item, post) {
   }
   if (item.key === 'report') {
     openReport(post)
+    return
+  }
+  if (item.key === 'edit') {
+    startInlineEdit(post)
+  }
+}
+
+function isEditingPost(post) {
+  return Number(editingPostId.value) === Number(post?.id)
+}
+
+function startInlineEdit(post) {
+  if (!post?.id || !canAdminEditBotPost(post)) return
+
+  editingPostId.value = Number(post.id)
+  editContentDraft.value = String(post?.content || '')
+}
+
+function cancelInlineEdit() {
+  editingPostId.value = null
+  editContentDraft.value = ''
+}
+
+async function saveInlineEdit(post) {
+  if (!post?.id || !isEditingPost(post) || editSavingId.value) return
+  if (!canAdminEditBotPost(post)) return
+
+  const currentContent = String(post?.content || '')
+  const trimmed = editContentDraft.value.trim()
+  if (!trimmed || trimmed === currentContent) {
+    cancelInlineEdit()
+    return
+  }
+
+  try {
+    editSavingId.value = post.id
+    let res = null
+    try {
+      await auth.csrf()
+      res = await api.patch(
+        `/posts/${post.id}`,
+        { content: trimmed, edit_variant: 'translated' },
+        { meta: { skipErrorToast: true } },
+      )
+    } catch (e) {
+      const status = Number(e?.response?.status || 0)
+      if (status !== 401 && status !== 419) throw e
+      await auth.fetchUser({ source: 'inline-post-edit', retry: false, markBootstrap: true })
+      await auth.csrf()
+      res = await api.patch(
+        `/posts/${post.id}`,
+        { content: trimmed, edit_variant: 'translated' },
+        { meta: { skipErrorToast: true } },
+      )
+    }
+
+    const updated = res?.data
+    if (updated && typeof updated === 'object') {
+      Object.assign(post, updated)
+    }
+
+    post.content = trimmed
+    if (post?.meta && typeof post.meta === 'object') {
+      const nextMeta = { ...post.meta }
+      nextMeta.translated_content = trimmed
+      nextMeta.used_translation = true
+      post.meta = nextMeta
+    }
+    cancelInlineEdit()
+  } catch (e) {
+    const status = Number(e?.response?.status || 0)
+    const message =
+      status === 401 || status === 419
+        ? 'Relacia vyprsala. Prihlas sa znova.'
+        : e?.response?.data?.message || 'Uprava prispevku zlyhala.'
+    reportNotice.value = message
+    toastError(message)
+  } finally {
+    editSavingId.value = null
   }
 }
 
@@ -815,6 +995,24 @@ const repliesCount = computed(() => {
   word-break: break-word;
 }
 
+.inlineEditTextarea {
+  width: 100%;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.4);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.35);
+  color: var(--color-surface);
+  padding: 0.55rem 0.65rem;
+  resize: vertical;
+  font: inherit;
+}
+
+.inlineEditActions {
+  margin-top: 0.45rem;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
 /* media */
 .mediaWrap {
   margin-top: 0.75rem;
@@ -1060,11 +1258,6 @@ const repliesCount = computed(() => {
   color: var(--color-success);
   background: rgb(var(--color-success-rgb) / 0.25);
 }
-.badgeAstrobot {
-  border-color: rgb(var(--color-success-rgb) / 0.55);
-  color: var(--color-success);
-  background: rgb(var(--color-success-rgb) / 0.25);
-}
 .botLabel {
   color: var(--color-text-secondary);
   font-size: 0.8rem;
@@ -1156,3 +1349,4 @@ const repliesCount = computed(() => {
   }
 }
 </style>
+

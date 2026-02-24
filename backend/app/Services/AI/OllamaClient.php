@@ -47,10 +47,10 @@ class OllamaClient
         try {
             $response = Http::baseUrl((string) ($config['base_url'] ?? 'http://127.0.0.1:11434'))
                 ->timeout((int) ($options['timeout'] ?? ($config['timeout'] ?? 60)))
-                ->connectTimeout((int) ($config['connect_timeout'] ?? 5))
+                ->connectTimeout((int) ($options['connect_timeout'] ?? ($config['connect_timeout'] ?? 5)))
                 ->retry(
-                    (int) ($config['retry'] ?? 1),
-                    (int) ($config['retry_sleep_ms'] ?? 250),
+                    (int) ($options['retry'] ?? ($config['retry'] ?? 1)),
+                    (int) ($options['retry_sleep_ms'] ?? ($config['retry_sleep_ms'] ?? 250)),
                     null,
                     false
                 )

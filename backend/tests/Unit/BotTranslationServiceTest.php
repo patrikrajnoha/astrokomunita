@@ -243,6 +243,98 @@ class BotTranslationServiceTest extends TestCase
         $this->assertStringContainsString('James Webb Space Telescope', (string) $result['translated_title']);
     }
 
+    public function test_protected_terms_restore_when_provider_normalizes_placeholder_to_term_number(): void
+    {
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'dummy');
+        config()->set('astrobot.translation.post_edit.enabled', false);
+        config()->set('astrobot.translation.quality.enabled', false);
+        config()->set('astrobot.translation.protected_terms', ['Science Activation Programme']);
+
+        $libre = $this->createMock(LibreTranslateClient::class);
+        $libre->expects($this->once())
+            ->method('translate')
+            ->willReturn([
+                'text' => 'Program TERM 1 podporuje vzdelavanie.',
+                'provider' => 'libretranslate',
+                'model' => null,
+                'duration_ms' => 12,
+                'chars' => 80,
+            ]);
+
+        $ollama = $this->createMock(OllamaTranslateClient::class);
+        $ollama->expects($this->never())->method('translateDirect');
+        $ollama->expects($this->never())->method('postEdit');
+
+        $service = $this->makeService($libre, $ollama);
+        $result = $service->translate('Program Science Activation Programme supports education.', null, 'sk');
+
+        $this->assertStringNotContainsString('TERM 1', (string) $result['translated_title']);
+        $this->assertStringContainsString('Science Activation Programme', (string) $result['translated_title']);
+    }
+
+    public function test_does_not_skip_english_nasa_text_as_slovak_heuristic(): void
+    {
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'dummy');
+        config()->set('astrobot.translation.post_edit.enabled', false);
+        config()->set('astrobot.translation.quality.enabled', false);
+
+        $libre = $this->createMock(LibreTranslateClient::class);
+        $libre->expects($this->exactly(2))
+            ->method('translate')
+            ->willReturnCallback(function (string $text): array {
+                $isTitle = str_contains($text, 'Meet Regina Senegal');
+
+                return [
+                    'text' => $isTitle ? 'NASA skúma nové údaje.' : 'Bezpečnosť a kvalita sú kľúčové pre programy NASA.',
+                    'provider' => 'libretranslate',
+                    'model' => null,
+                    'duration_ms' => 10,
+                    'chars' => 90,
+                ];
+            });
+
+        $ollama = $this->createMock(OllamaTranslateClient::class);
+        $ollama->expects($this->never())->method('translateDirect');
+        $ollama->expects($this->never())->method('postEdit');
+
+        $service = $this->makeService($libre, $ollama);
+        $result = $service->translate(
+            "Meet Regina Senegal, Acting Chief of Johnson’s Quality and Flight Equipment Division",
+            "Safety and quality management are integral to every program at NASA's Johnson Space Center.",
+            'sk'
+        );
+
+        $this->assertSame('done', $result['status']);
+        $this->assertSame('libretranslate', $result['meta']['provider']);
+    }
+
+    public function test_skips_text_that_is_likely_slovak(): void
+    {
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'dummy');
+        config()->set('astrobot.translation.post_edit.enabled', false);
+        config()->set('astrobot.translation.quality.enabled', false);
+
+        $libre = $this->createMock(LibreTranslateClient::class);
+        $libre->expects($this->never())->method('translate');
+
+        $ollama = $this->createMock(OllamaTranslateClient::class);
+        $ollama->expects($this->never())->method('translateDirect');
+        $ollama->expects($this->never())->method('postEdit');
+
+        $service = $this->makeService($libre, $ollama);
+        $result = $service->translate(
+            'Vesmírna agentúra dnes zverejnila nové údaje o hviezdach.',
+            'Táto správa je v slovenčine a obsahuje diakritiku pre správnu detekciu.',
+            'sk'
+        );
+
+        $this->assertSame('skipped', $result['status']);
+        $this->assertSame('already_slovak_heuristic', $result['meta']['reason']);
+    }
+
     private function makeService(LibreTranslateClient $libre, OllamaTranslateClient $ollama): BotTranslationService
     {
         $outageSimulation = $this->createMock(TranslationOutageSimulationService::class);

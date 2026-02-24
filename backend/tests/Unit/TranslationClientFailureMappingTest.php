@@ -58,4 +58,37 @@ class TranslationClientFailureMappingTest extends TestCase
         $this->expectException(TranslationProviderUnavailableException::class);
         $client->translate('hello', 'sk', 'en');
     }
+
+    public function test_ollama_translate_client_uses_shared_timeout_and_translation_transport_options(): void
+    {
+        config()->set('astrobot.translation.timeout_sec', 8);
+        config()->set('astrobot.translation.ollama.timeout_seconds', 45);
+        config()->set('astrobot.translation.connect_timeout_sec', 2);
+        config()->set('astrobot.translation.max_retries', 0);
+
+        $ollamaClient = $this->createMock(OllamaClient::class);
+        $ollamaClient
+            ->expects($this->once())
+            ->method('generate')
+            ->with(
+                $this->isType('string'),
+                $this->isType('string'),
+                $this->callback(function (array $options): bool {
+                    return (int) ($options['timeout'] ?? 0) === 8
+                        && (int) ($options['connect_timeout'] ?? 0) === 2
+                        && (int) ($options['retry'] ?? -1) === 0;
+                })
+            )
+            ->willReturn([
+                'text' => 'Ahoj',
+                'model' => 'mistral',
+                'duration_ms' => 12,
+                'raw' => [],
+            ]);
+
+        $client = new OllamaTranslateClient($ollamaClient);
+        $result = $client->translate('hello', 'sk', 'en');
+
+        $this->assertSame('Ahoj', $result['text']);
+    }
 }

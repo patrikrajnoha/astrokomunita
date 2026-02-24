@@ -474,6 +474,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/posts/{post}/like', [PostController::class, 'unlike']);
         Route::post('/posts/{post}/bookmark', [BookmarkController::class, 'store'])->middleware('throttle:60,1');
         Route::delete('/posts/{post}/bookmark', [BookmarkController::class, 'destroy'])->middleware('throttle:60,1');
+        Route::patch('/posts/{post}', [PostController::class, 'update']);
         Route::delete('/posts/{post}', [PostController::class, 'destroy']);
         Route::post('/polls/{poll}/vote', [PollController::class, 'vote']);
 

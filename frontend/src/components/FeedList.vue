@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="feed-container" data-tour="feed">
     <!-- Header -->
     <header class="feed-header">
@@ -99,12 +99,10 @@
                     </button>
                     <span class="author-username">@{{ p?.user?.username }}</span>
                     <span class="author-time">{{ fmt(p?.created_at) }}</span>
-                    <span v-if="isBotPost(p)" class="astrobot-badge">{{ botBadgeLabel(p) }}</span>
                     <span v-if="p.pinned_at" class="pinned-badge">📌 Pripnuté</span>
                   </div>
                   <div v-if="p?.user?.location || isBotPost(p)" class="post-time">
                     <span v-if="p?.user?.location" class="location">📍 {{ p.user.location }}</span>
-                    <span v-if="isBotPost(p)" class="astrobot-label">Automated news</span>
                   </div>
                   <div v-if="isBotPost(p)" class="bot-meta-row">
                     <span class="bot-source-label">{{ botSourceLabel(p) }}</span>
@@ -122,38 +120,44 @@
                 </div>
               </div>
               <!-- Content -->
-              <div class="post-text">
-                <div
-                  v-if="showBotTranslationToggle(p)"
-                  class="bot-translation-toggle"
-                  @click.stop
-                >
+              <div class="post-text" @click.stop>
+                <template v-if="isEditingPost(p)">
+                  <textarea
+                    v-model="editContentDraft"
+                    class="inline-edit-textarea"
+                    rows="6"
+                    maxlength="5000"
+                  ></textarea>
+                  <div class="inline-edit-actions">
+                    <button
+                      type="button"
+                      class="action-btn action-btn--bookmark"
+                      :disabled="editSavingId === p.id"
+                      @click.stop="saveInlineEdit(p)"
+                    >
+                      {{ editSavingId === p.id ? 'Ukladam...' : 'Ulozit' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="action-btn action-btn--thread"
+                      :disabled="editSavingId === p.id"
+                      @click.stop="cancelInlineEdit"
+                    >
+                      Zrusit
+                    </button>
+                  </div>
+                </template>
+                <template v-else>
+                  <HashtagText :content="displayPostContent(p)" />
                   <button
+                    v-if="isBotContentCollapsible(p)"
+                    class="show-more-btn"
                     type="button"
-                    class="bot-toggle-btn bot-toggle-btn--translated"
-                    :class="{ 'bot-toggle-btn--active': isBotVariantActive(p, 'translated') }"
-                    @click="setBotContentVariant(p, 'translated')"
+                    @click.stop="togglePostContent(p)"
                   >
-                    Preklad
+                    {{ isPostContentExpanded(p) ? 'Zobrazit menej' : 'Zobrazit viac' }}
                   </button>
-                  <button
-                    type="button"
-                    class="bot-toggle-btn bot-toggle-btn--original"
-                    :class="{ 'bot-toggle-btn--active': isBotVariantActive(p, 'original') }"
-                    @click="setBotContentVariant(p, 'original')"
-                  >
-                    Originál
-                  </button>
-                </div>
-                <HashtagText :content="displayPostContent(p)" />
-                <button
-                  v-if="isBotContentCollapsible(p)"
-                  class="show-more-btn"
-                  type="button"
-                  @click.stop="togglePostContent(p)"
-                >
-                  {{ isPostContentExpanded(p) ? 'Zobrazit menej' : 'Zobrazit viac' }}
-                </button>
+                </template>
               </div>
 
               <PollCard
@@ -174,7 +178,7 @@
                   rel="noopener noreferrer"
                   class="source-link"
                 >
-                  Citat zdroj
+                  Zdroj
                 </a>
               </div>
 
@@ -480,6 +484,9 @@ const highlightedPostId = ref(null)
 const shareTarget = ref(null)
 const expandedPostIds = ref(new Set())
 const botContentVariantById = ref({})
+const editingPostId = ref(null)
+const editContentDraft = ref('')
+const editSavingId = ref(null)
 let highlightTimer = null
 
 function createFeedState() {
@@ -548,15 +555,22 @@ function isBotPost(post) {
   return normalizeToken(post?.source_name) === 'astrobot'
 }
 
-function botIdentity(post) {
-  return normalizeToken(post?.bot_identity)
+function canAdminEditBotPost(post) {
+  const isAdmin = Boolean(auth.user?.is_admin || auth.user?.role === 'admin')
+  if (!isAdmin || !isBotPost(post)) return false
+
+  const identity = normalizeToken(post?.bot_identity)
+  return identity === 'kozmo' || identity === 'stela'
 }
 
-function botBadgeLabel(post) {
-  const identity = botIdentity(post)
-  if (identity === 'stela') return 'Stela'
-  if (identity === 'kozmo') return 'Kozmo'
-  return 'AstroBot'
+function canEditTranslatedVariant(post) {
+  if (!canAdminEditBotPost(post)) return false
+  if (!showBotTranslationToggle(post)) return true
+  return (resolvedBotVariant(post) || defaultBotVariant(post)) === 'translated'
+}
+
+function botIdentity(post) {
+  return normalizeToken(post?.bot_identity)
 }
 
 function botSourceLabel(post) {
@@ -724,6 +738,19 @@ function stelaPreviewImageSrc(post) {
 function menuItemsForPost(post) {
   const items = []
 
+  if (showBotTranslationToggle(post)) {
+    items.push({
+      key: 'variant_translated',
+      label: isBotVariantActive(post, 'translated') ? 'Jazyk: SK (aktivne)' : 'Jazyk: SK',
+      danger: false,
+    })
+    items.push({
+      key: 'variant_original',
+      label: isBotVariantActive(post, 'original') ? 'Jazyk: EN (aktivne)' : 'Jazyk: EN',
+      danger: false,
+    })
+  }
+
   if (hasOriginalDownload(post)) {
     items.push({ key: 'download_original', label: 'Stiahnut v plnej kvalite', danger: false })
   }
@@ -734,6 +761,10 @@ function menuItemsForPost(post) {
 
   if (canDelete(post)) {
     items.push({ key: 'delete', label: 'Delete', danger: true })
+  }
+
+  if (canEditTranslatedVariant(post)) {
+    items.push({ key: 'edit', label: 'Edit', danger: false })
   }
 
   if (auth.user?.is_admin && !isBotPost(post)) {
@@ -750,6 +781,16 @@ function menuItemsForPost(post) {
 function onMenuAction(item, post) {
   if (!item?.key || !post?.id) return
 
+  if (item.key === 'variant_translated') {
+    setBotContentVariant(post, 'translated')
+    return
+  }
+
+  if (item.key === 'variant_original') {
+    setBotContentVariant(post, 'original')
+    return
+  }
+
   if (item.key === 'download_original') {
     downloadOriginalAttachment(post)
     return
@@ -765,8 +806,87 @@ function onMenuAction(item, post) {
     return
   }
 
+  if (item.key === 'edit') {
+    startInlineEdit(post)
+    return
+  }
+
   if (item.key === 'pin') {
     togglePin(post)
+  }
+}
+
+function isEditingPost(post) {
+  return Number(editingPostId.value) === Number(post?.id)
+}
+
+function startInlineEdit(post) {
+  if (!post?.id || !canEditTranslatedVariant(post)) return
+
+  editingPostId.value = Number(post.id)
+  editContentDraft.value = String(post?.content || '')
+}
+
+function cancelInlineEdit() {
+  editingPostId.value = null
+  editContentDraft.value = ''
+}
+
+async function saveInlineEdit(post) {
+  if (!post?.id || !isEditingPost(post) || editSavingId.value) return
+  if (!canEditTranslatedVariant(post)) return
+
+  const currentContent = String(post?.content || '')
+  const trimmed = editContentDraft.value.trim()
+  if (!trimmed || trimmed === currentContent) {
+    cancelInlineEdit()
+    return
+  }
+
+  try {
+    editSavingId.value = post.id
+    let res = null
+    try {
+      await auth.csrf()
+      res = await api.patch(
+        `/posts/${post.id}`,
+        { content: trimmed, edit_variant: 'translated' },
+        { meta: { skipErrorToast: true } },
+      )
+    } catch (e) {
+      const status = Number(e?.response?.status || 0)
+      if (status !== 401 && status !== 419) throw e
+      await auth.fetchUser({ source: 'inline-post-edit', retry: false, markBootstrap: true })
+      await auth.csrf()
+      res = await api.patch(
+        `/posts/${post.id}`,
+        { content: trimmed, edit_variant: 'translated' },
+        { meta: { skipErrorToast: true } },
+      )
+    }
+
+    const updated = res?.data
+    if (updated && typeof updated === 'object') {
+      Object.assign(post, updated)
+    }
+
+    post.content = trimmed
+    if (post?.meta && typeof post.meta === 'object') {
+      const nextMeta = { ...post.meta }
+      nextMeta.translated_content = trimmed
+      nextMeta.used_translation = true
+      post.meta = nextMeta
+    }
+    cancelInlineEdit()
+  } catch (e) {
+    const status = Number(e?.response?.status || 0)
+    const message =
+      status === 401 || status === 419
+        ? 'Relacia vyprsala. Prihlas sa znova.'
+        : e?.response?.data?.message || 'Uprava prispevku zlyhala.'
+    toastError(message)
+  } finally {
+    editSavingId.value = null
   }
 }
 
@@ -1551,21 +1671,13 @@ defineExpose({ load, prepend })
 
 /* AstroBot posts */
 .post-card--astrobot {
-  border-bottom-color: rgb(var(--color-success-rgb) / 0.35);
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-success-rgb) / 0.06) 0%,
-    rgb(var(--color-bg-rgb) / 0.14) 100%
-  );
+  border-bottom-color: rgb(var(--color-text-secondary-rgb) / 0.14);
+  background: transparent;
 }
 
 .post-card--astrobot:hover {
-  border-color: rgb(var(--color-success-rgb) / 0.5);
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-success-rgb) / 0.08) 0%,
-    rgb(var(--color-bg-rgb) / 0.6) 100%
-  );
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.14);
+  background: rgb(var(--color-text-secondary-rgb) / 0.06);
 }
 
 /* Post Layout */
@@ -1686,24 +1798,7 @@ defineExpose({ load, prepend })
   font-weight: 500;
 }
 
-.astrobot-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-success-rgb) / 0.2) 0%,
-    rgb(var(--color-success-rgb) / 0.1) 100%
-  );
-  color: var(--color-success);
-  border: 1px solid rgb(var(--color-success-rgb) / 0.3);
-}
-
-.pinned-badge {
+\.pinned-badge {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
@@ -1744,7 +1839,7 @@ defineExpose({ load, prepend })
 }
 
 .bot-meta-row {
-  margin-top: 6px;
+  margin-top: 4px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1753,14 +1848,15 @@ defineExpose({ load, prepend })
 .bot-source-label {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.25);
-  background: rgb(var(--color-primary-rgb) / 0.1);
-  color: var(--color-primary);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  opacity: 0.9;
 }
 
 .post-actions-menu {
@@ -1812,6 +1908,23 @@ defineExpose({ load, prepend })
   max-width: 100%;
 }
 
+.inline-edit-textarea {
+  width: 100%;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  border-radius: 12px;
+  background: rgb(var(--color-bg-rgb) / 0.45);
+  color: var(--color-surface);
+  padding: 0.55rem 0.65rem;
+  resize: vertical;
+  font: inherit;
+}
+
+.inline-edit-actions {
+  margin-top: 0.45rem;
+  display: flex;
+  gap: 0.35rem;
+}
+
 .post-text a {
   color: var(--color-primary);
   text-decoration: none;
@@ -1825,7 +1938,7 @@ defineExpose({ load, prepend })
 }
 
 .bot-translation-toggle {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   display: inline-flex;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
   border-radius: 999px;
@@ -1834,11 +1947,12 @@ defineExpose({ load, prepend })
 
 .bot-toggle-btn {
   border: none;
-  background: rgb(var(--color-bg-rgb) / 0.6);
+  background: transparent;
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 4px 10px;
+  min-width: 34px;
+  padding: 3px 8px;
   cursor: pointer;
 }
 
@@ -1889,30 +2003,22 @@ defineExpose({ load, prepend })
 .source-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0.36rem 0.58rem;
-  border-radius: 8px;
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-primary-rgb) / 0.1) 0%,
-    rgb(var(--color-primary-rgb) / 0.05) 100%
-  );
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.2);
+  gap: 4px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
   color: var(--color-primary);
   text-decoration: none;
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   font-weight: 500;
   transition: all 0.2s ease;
+  opacity: 0.95;
 }
 
 .source-link:hover {
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-primary-rgb) / 0.15) 0%,
-    rgb(var(--color-primary-rgb) / 0.08) 100%
-  );
-  border-color: rgb(var(--color-primary-rgb) / 0.3);
-  transform: translateY(-1px);
+  text-decoration: underline;
+  opacity: 1;
 }
 
 /* Media */
@@ -2472,3 +2578,5 @@ defineExpose({ load, prepend })
   }
 }
 </style>
+
+

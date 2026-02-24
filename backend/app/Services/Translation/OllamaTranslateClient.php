@@ -104,6 +104,9 @@ class OllamaTranslateClient implements TranslationClientInterface
                     'top_p' => (float) config('astrobot.translation.ollama.top_p', 0.4),
                     'num_predict' => (int) config('astrobot.translation.ollama.num_predict', config('astrobot.translation_ollama_num_predict', 700)),
                     'timeout' => $this->resolvedTimeoutSeconds(),
+                    'connect_timeout' => $this->resolvedConnectTimeoutSeconds(),
+                    'retry' => $this->resolvedRetryAttempts(),
+                    'retry_sleep_ms' => 150,
                 ]
             );
         } catch (OllamaClientException $exception) {
@@ -142,10 +145,20 @@ class OllamaTranslateClient implements TranslationClientInterface
 
     private function resolvedTimeoutSeconds(): int
     {
-        $sharedTimeout = (int) config('astrobot.translation.timeout_sec', 12);
-        $configuredTimeout = (int) config('astrobot.translation.ollama.timeout_seconds', config('astrobot.translation_ollama_timeout_seconds', 12));
+        $sharedTimeout = max(1, (int) config('astrobot.translation.timeout_sec', 12));
+        $configuredTimeout = max(1, (int) config('astrobot.translation.ollama.timeout_seconds', config('astrobot.translation_ollama_timeout_seconds', $sharedTimeout)));
 
-        return max(1, $sharedTimeout > 0 ? $sharedTimeout : $configuredTimeout);
+        return min($sharedTimeout, $configuredTimeout);
+    }
+
+    private function resolvedConnectTimeoutSeconds(): int
+    {
+        return max(1, (int) config('astrobot.translation.connect_timeout_sec', 3));
+    }
+
+    private function resolvedRetryAttempts(): int
+    {
+        return max(0, (int) config('astrobot.translation.max_retries', 1));
     }
 
     private function buildSystemPrompt(string $targetLang, string $sourceLang, string $mode): string

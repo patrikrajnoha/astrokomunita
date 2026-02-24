@@ -595,7 +595,7 @@ class BotTranslationService implements BotTranslationServiceInterface
                 $pattern,
                 function (array $matches) use (&$map, &$counter): string {
                     $counter++;
-                    $placeholder = sprintf('__TERM_%d__', $counter);
+                    $placeholder = sprintf('__AKPH_%d__', $counter);
                     $map[$placeholder] = (string) ($matches[0] ?? '');
                     return $placeholder;
                 },
@@ -615,7 +615,28 @@ class BotTranslationService implements BotTranslationServiceInterface
             return $text;
         }
 
-        return str_replace(array_keys($map), array_values($map), $text);
+        $restored = str_replace(array_keys($map), array_values($map), $text);
+
+        foreach ($map as $placeholder => $original) {
+            if (!is_string($placeholder) || !is_string($original) || $original === '') {
+                continue;
+            }
+
+            if (preg_match('/^__AKPH_(\d+)__$/i', $placeholder, $matches) !== 1) {
+                continue;
+            }
+
+            $id = (string) ($matches[1] ?? '');
+            if ($id === '') {
+                continue;
+            }
+
+            // Some providers normalize placeholders into "AKPH 1" or legacy "TERM 1".
+            $variantPattern = '/\b(?:AKPH|TERM)[\s_]*' . preg_quote($id, '/') . '\b/iu';
+            $restored = (string) preg_replace($variantPattern, $original, $restored);
+        }
+
+        return $restored;
     }
 
     private function applyTerminologyMap(string $text): string
@@ -975,10 +996,50 @@ class BotTranslationService implements BotTranslationServiceInterface
             return false;
         }
 
-        preg_match_all('/[^\x00-\x7F]/u', $combined, $matches);
-        $diacriticsCount = count($matches[0] ?? []);
+        $normalized = function_exists('mb_strtolower')
+            ? mb_strtolower($combined, 'UTF-8')
+            : strtolower($combined);
 
-        return $diacriticsCount >= 5;
+        preg_match_all('/[áäčďéíĺľňóôŕšťúýž]/u', $normalized, $diacriticsMatches);
+        $diacriticsCount = count($diacriticsMatches[0] ?? []);
+        if ($diacriticsCount < 3) {
+            return false;
+        }
+
+        $slovakHints = [
+            ' je ',
+            ' sa ',
+            ' v ',
+            ' na ',
+            ' že ',
+            ' pre ',
+            ' ako ',
+            ' ktorý ',
+            ' ktorá ',
+            ' ktoré ',
+            ' sú ',
+            ' sme ',
+            ' bol ',
+            ' bola ',
+        ];
+        $englishHintsPattern = '/\b(the|and|with|for|from|this|that|are|was|were|mission|space|telescope)\b/u';
+
+        $slovakHintCount = 0;
+        $padded = ' ' . $normalized . ' ';
+        foreach ($slovakHints as $hint) {
+            if (str_contains($padded, $hint)) {
+                $slovakHintCount++;
+            }
+        }
+
+        preg_match_all($englishHintsPattern, $normalized, $englishMatches);
+        $englishHintCount = count($englishMatches[0] ?? []);
+
+        if ($slovakHintCount === 0) {
+            return false;
+        }
+
+        return $englishHintCount <= ($slovakHintCount * 2);
     }
 
     private function nullableString(mixed $value): ?string
@@ -1045,7 +1106,7 @@ class BotTranslationService implements BotTranslationServiceInterface
         $shared = max(1, (int) config('astrobot.translation.timeout_sec', 12));
 
         return match (strtolower(trim($providerName))) {
-            'ollama' => max(1, (int) config('astrobot.translation.ollama.timeout_seconds', $shared)),
+            'ollama' => min($shared, max(1, (int) config('astrobot.translation.ollama.timeout_seconds', $shared))),
             default => max(1, (int) config('astrobot.translation.libretranslate.timeout_seconds', $shared)),
         };
     }
