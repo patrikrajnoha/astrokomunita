@@ -34,3 +34,45 @@
 - If direct `crawl_run_id` linkage is not available, backend filters by:
   - run source (`event_source_id` / `source_name`)
   - candidate `created_at` in run time window (`started_at..finished_at`, with small tolerance)
+
+## Bot run hardening (follow-up)
+
+- Canonical translation env naming:
+  - `TRANSLATION_PROVIDER=ollama|libretranslate`
+  - `TRANSLATION_TIMEOUT_SEC=12`
+  - `TRANSLATION_MAX_RETRIES=1`
+  - `TRANSLATION_FALLBACK_PROVIDER=libretranslate|none`
+  - `LIBRETRANSLATE_BASE_URL=http://127.0.0.1:5000`
+  - `LIBRETRANSLATE_API_KEY=` (optional)
+  - `OLLAMA_BASE_URL=http://127.0.0.1:11434`
+  - `OLLAMA_MODEL=mistral`
+  - `OLLAMA_NUM_PREDICT=280`
+- Backward-compatible aliases are still accepted temporarily:
+  - `BOT_TRANSLATION_LIBRETRANSLATE_URL`, `TRANSLATION_BASE_URL`
+  - `BOT_TRANSLATION_LIBRETRANSLATE_API_KEY`
+  - `BOT_TRANSLATION_PRIMARY`, `BOT_TRANSLATION_FALLBACK`
+  - `TRANSLATION_TIMEOUT_SECONDS`, `BOT_TRANSLATION_LIBRETRANSLATE_TIMEOUT_SECONDS`
+- Debug mode logs alias usage (alias names only, no secret values).
+
+## LibreTranslate local run
+
+```bash
+docker run --rm -p 5000:5000 libretranslate/libretranslate:latest
+```
+
+- Then set:
+  - `TRANSLATION_PROVIDER=libretranslate`
+  - `LIBRETRANSLATE_BASE_URL=http://127.0.0.1:5000`
+
+## Bot translation diagnostics
+
+- Admin endpoint: `GET /api/admin/bots/translation/health`
+  - returns provider, base URL, timeout, and `result.ok/error_type`
+  - API keys are never returned
+- Failure reasons are normalized and shared across FE/BE (single source of truth).
+
+## Debug checklist
+
+- FE timeout verified for bot run endpoints (`60s` only for run/quick-run).
+- Stale run recovery verified (`stale_run_recovered`, `recovered_by_run_id`).
+- Translation fail-open verified (run finishes; publish uses original text on translation failure).
