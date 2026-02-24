@@ -104,7 +104,7 @@ describe('AdminFeaturedEventsView', () => {
     await flush()
     await flush()
 
-    const button = wrapper.findAll('button').find((node) => node.text().includes('Use fallback as featured'))
+    const button = wrapper.findAll('button').find((node) => node.text().includes('Pouzit fallback ako admin vyber'))
     expect(button).toBeTruthy()
 
     await button.trigger('click')

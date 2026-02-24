@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
+import MarkYourCalendarModal from '@/components/MarkYourCalendarModal.vue'
 import { getEvents } from '@/services/api/admin/events'
 import {
   applyFallbackAsFeatured,
@@ -29,6 +30,7 @@ const maxItems = ref(10)
 const candidateEvents = ref([])
 const selectedEventId = ref('')
 const calendarBundleUrl = ref('')
+const previewOpen = ref(false)
 
 const activeCount = computed(() => featured.value.filter((item) => item.is_active).length)
 const canAdd = computed(() => Number(selectedEventId.value) > 0 && !saving.value)
@@ -74,7 +76,7 @@ async function load({ refreshFallback = false } = {}) {
       ? eventsPayload.map((row) => ({ id: row.id, title: row.title }))
       : []
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to load featured events.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa nacitat vybrane udalosti.'
   } finally {
     loading.value = false
   }
@@ -101,7 +103,7 @@ async function addFeaturedEvent() {
     success.value = 'Event bol pridany do popup zoznamu.'
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to add featured event.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa pridat udalost do vyberu.'
   } finally {
     saving.value = false
   }
@@ -117,7 +119,7 @@ async function moveItem(item, direction) {
     await updateFeaturedEvent(item.id, { position: next })
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to reorder event.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa zmenit poradie udalosti.'
   } finally {
     saving.value = false
   }
@@ -131,7 +133,7 @@ async function toggleActive(item, checked) {
     item.is_active = checked
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to update active state.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa aktualizovat aktivny stav.'
   } finally {
     saving.value = false
   }
@@ -144,7 +146,7 @@ async function removeItem(item) {
     await deleteFeaturedEvent(item.id)
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to remove event.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa odstranit udalost.'
   } finally {
     saving.value = false
   }
@@ -163,7 +165,7 @@ async function forceNow() {
     }
     success.value = 'Popup bol naplanovany pre vsetkych pouzivatelov.'
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to force popup.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa vynutit popup.'
   } finally {
     forcing.value = false
   }
@@ -189,7 +191,7 @@ async function useFallbackAsFeatured() {
     success.value = 'Fallback vyber bol ulozeny ako admin vyber pre zvoleny mesiac.'
     await load({ refreshFallback: true })
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to apply fallback as featured.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa pouzit fallback ako admin vyber.'
   } finally {
     applyingFallback.value = false
   }
@@ -202,7 +204,7 @@ async function toggleEnabled(checked) {
     const response = await updateFeaturedPopupSettings({ enabled: checked })
     settings.value = response?.data?.data || settings.value
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to update popup setting.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa ulozit nastavenie popupu.'
   } finally {
     saving.value = false
   }
@@ -243,14 +245,14 @@ onMounted(load)
 </script>
 
 <template>
-  <AdminPageShell title="Featured events popup" subtitle="Manage events for the monthly Mark your calendar popup.">
+  <AdminPageShell title="Popup vyberanych udalosti" subtitle="Sprava udalosti pre mesacny popup Mark your calendar.">
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="success" class="alert alert-success">{{ success }}</div>
 
     <section class="card">
       <div class="monthBar">
         <div>
-          <p class="muted">Month</p>
+          <p class="muted">Mesiac</p>
           <select v-model="selectedMonth" :disabled="loading || saving" @change="onMonthChange">
             <option v-for="option in monthOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select>
@@ -260,22 +262,22 @@ onMounted(load)
 
       <div class="ctaRow">
         <button type="button" class="forceBtn" :disabled="refreshingFallback || loading" @click="refreshFallbackPreview">
-          {{ refreshingFallback ? 'Loading...' : 'Generate fallback preview' }}
+          {{ refreshingFallback ? 'Nacitavam...' : 'Vygenerovat fallback preview' }}
         </button>
         <button type="button" class="forceBtn" :disabled="applyingFallback || loading" @click="useFallbackAsFeatured">
-          {{ applyingFallback ? 'Applying...' : 'Use fallback as featured' }}
+          {{ applyingFallback ? 'Aplikujem...' : 'Pouzit fallback ako admin vyber' }}
         </button>
       </div>
 
       <p v-if="calendarBundleUrl" class="muted">
-        Bundle ICS:
-        <a :href="calendarBundleUrl" target="_blank" rel="noopener">Download featured bundle .ics</a>
+        Balik ICS:
+        <a :href="calendarBundleUrl" target="_blank" rel="noopener">Stiahnut balicek .ics</a>
       </p>
     </section>
 
     <section class="card">
       <div class="cardHead">
-        <h3>Popup settings</h3>
+        <h3>Nastavenia popupu</h3>
         <label class="toggleLabel">
           <input
             :checked="Boolean(settings.enabled)"
@@ -283,41 +285,41 @@ onMounted(load)
             :disabled="saving"
             @change="toggleEnabled($event.target.checked)"
           />
-          <span>{{ settings.enabled ? 'Enabled' : 'Disabled' }}</span>
+          <span>{{ settings.enabled ? 'Zapnute' : 'Vypnute' }}</span>
         </label>
       </div>
-      <p class="muted">Force version: {{ settings.force_version || 0 }}</p>
-      <p class="muted">Last forced at: {{ formatDateTime(settings.force_at) }}</p>
+      <p class="muted">Verzia vynutenia: {{ settings.force_version || 0 }}</p>
+      <p class="muted">Naposledy vynutene: {{ formatDateTime(settings.force_at) }}</p>
       <button type="button" class="forceBtn" :disabled="forcing || loading" @click="forceNow">
-        {{ forcing ? 'Sending...' : 'Show popup to everyone now' }}
+        {{ forcing ? 'Odosielam...' : 'Zobrazit popup vsetkym teraz' }}
       </button>
     </section>
 
     <section class="card">
       <div class="cardHead">
-        <h3>Admin selection</h3>
+        <h3>Admin vyber</h3>
         <p class="counter">{{ activeCount }}/{{ maxItems }}</p>
       </div>
 
       <div class="addRow">
-        <label for="event-select" class="srOnly">Event ID</label>
+        <label for="event-select" class="srOnly">ID udalosti</label>
         <select id="event-select" v-model="selectedEventId" :disabled="saving || loading">
-          <option value="">Select event...</option>
+          <option value="">Vyber udalost...</option>
           <option v-for="event in candidateEvents" :key="event.id" :value="String(event.id)">
             {{ event.id }} - {{ event.title }}
           </option>
         </select>
-        <button type="button" :disabled="!canAdd" @click="addFeaturedEvent">Add</button>
+        <button type="button" :disabled="!canAdd" @click="addFeaturedEvent">Pridat</button>
       </div>
 
-      <div v-if="loading" class="muted">Loading...</div>
+      <div v-if="loading" class="muted">Nacitavam...</div>
       <table v-else class="table">
         <thead>
           <tr>
-            <th>Position</th>
-            <th>Event</th>
-            <th>Active</th>
-            <th>Actions</th>
+            <th>Pozicia</th>
+            <th>Udalost</th>
+            <th>Aktivne</th>
+            <th>Akcie</th>
           </tr>
         </thead>
         <tbody>
@@ -332,17 +334,17 @@ onMounted(load)
                   :disabled="saving"
                   @change="toggleActive(item, $event.target.checked)"
                 />
-                <span>{{ item.is_active ? 'on' : 'off' }}</span>
+                <span>{{ item.is_active ? 'zapnute' : 'vypnute' }}</span>
               </label>
             </td>
             <td class="actions">
-              <button type="button" :disabled="saving || item.position <= 0" @click="moveItem(item, -1)">Up</button>
-              <button type="button" :disabled="saving" @click="moveItem(item, 1)">Down</button>
-              <button type="button" class="danger" :disabled="saving" @click="removeItem(item)">Delete</button>
+              <button type="button" :disabled="saving || item.position <= 0" @click="moveItem(item, -1)">Vyssie</button>
+              <button type="button" :disabled="saving" @click="moveItem(item, 1)">Nizsie</button>
+              <button type="button" class="danger" :disabled="saving" @click="removeItem(item)">Odstranit</button>
             </td>
           </tr>
           <tr v-if="featured.length === 0">
-            <td colspan="4" class="muted">No featured events yet.</td>
+            <td colspan="4" class="muted">Zatial tu nie su ziadne vybrane udalosti.</td>
           </tr>
         </tbody>
       </table>
@@ -350,15 +352,15 @@ onMounted(load)
 
     <section class="card">
       <div class="cardHead">
-        <h3>Auto fallback preview</h3>
-        <p class="muted">Read-only</p>
+        <h3>Fallback preview (automaticky vyber)</h3>
+        <p class="muted">Iba na citanie</p>
       </div>
 
       <table class="table">
         <thead>
           <tr>
-            <th>Event</th>
-            <th>Date</th>
+            <th>Udalost</th>
+            <th>Datum</th>
             <th>Score</th>
           </tr>
         </thead>
@@ -369,7 +371,7 @@ onMounted(load)
             <td>{{ item.fallback_score ?? '-' }}</td>
           </tr>
           <tr v-if="fallbackPreview.length === 0">
-            <td colspan="3" class="muted">Fallback found no events for this month.</td>
+            <td colspan="3" class="muted">Fallback nenasiel pre tento mesiac ziadne udalosti.</td>
           </tr>
         </tbody>
       </table>
@@ -377,8 +379,13 @@ onMounted(load)
 
     <section class="card">
       <div class="cardHead">
-        <h3>What popup will show</h3>
-        <p class="muted">{{ selectionMode === 'admin' ? 'Admin selection' : 'Auto fallback' }}</p>
+        <h3>Co sa zobrazi v popupe</h3>
+        <p class="muted">{{ selectionMode === 'admin' ? 'Admin vyber' : 'Auto fallback' }}</p>
+      </div>
+      <div class="ctaRow">
+        <button type="button" class="forceBtn" :disabled="resolvedEvents.length === 0" @click="previewOpen = true">
+          Zobrazit preview popupu
+        </button>
       </div>
 
       <ul class="resolvedList">
@@ -392,9 +399,16 @@ onMounted(load)
             <a v-if="item.ics_url" :href="item.ics_url" target="_blank" rel="noopener">ICS</a>
           </span>
         </li>
-        <li v-if="resolvedEvents.length === 0" class="muted">No events to display for this month.</li>
+        <li v-if="resolvedEvents.length === 0" class="muted">Pre tento mesiac nie su udalosti na zobrazenie.</li>
       </ul>
     </section>
+    <MarkYourCalendarModal
+      v-if="previewOpen"
+      :items="resolvedEvents"
+      :bundle-ics-url="calendarBundleUrl"
+      @close="previewOpen = false"
+      @go-calendar="previewOpen = false"
+    />
   </AdminPageShell>
 </template>
 
