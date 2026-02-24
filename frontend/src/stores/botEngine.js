@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import {
   deleteBotItemPost,
+  deleteAllBotPosts,
   getBotItems,
   getBotRuns,
   getBotSources,
@@ -85,6 +86,7 @@ export const useBotEngineStore = defineStore('botEngine', {
     runningSourceKeys: new Set(),
     publishingItemIds: new Set(),
     deletingItemIds: new Set(),
+    deletingAllPosts: false,
     publishingRunIds: new Set(),
     retryingTranslationSourceKeys: new Set(),
     backfillingTranslationSourceKeys: new Set(),
@@ -294,6 +296,21 @@ export const useBotEngineStore = defineStore('botEngine', {
         return response?.data || null
       } finally {
         this.deletingItemIds.delete(normalizedItemId)
+      }
+    },
+
+    async deleteAllPosts(params = {}) {
+      if (this.deletingAllPosts) {
+        return null
+      }
+
+      this.deletingAllPosts = true
+
+      try {
+        const response = await deleteAllBotPosts(params)
+        return response?.data || null
+      } finally {
+        this.deletingAllPosts = false
       }
     },
 

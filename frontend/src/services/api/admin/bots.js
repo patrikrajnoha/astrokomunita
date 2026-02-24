@@ -111,6 +111,24 @@ export function deleteBotItemPost(botItemId) {
   })
 }
 
+export function deleteAllBotPosts(params = {}) {
+  const query = {}
+  const sourceKey = String(params?.source_key || '').trim().toLowerCase()
+  if (sourceKey) {
+    query.source_key = sourceKey
+  }
+
+  const botIdentity = String(params?.bot_identity || '').trim().toLowerCase()
+  if (['kozmo', 'stela'].includes(botIdentity)) {
+    query.bot_identity = botIdentity
+  }
+
+  return api.delete('/admin/bots/posts', {
+    params: query,
+    meta: { skipErrorToast: true },
+  })
+}
+
 export function publishBotRun(runId, payload = {}) {
   return api.post(`/admin/bots/runs/${encodeURIComponent(runId)}/publish`, payload, {
     meta: { skipErrorToast: true },

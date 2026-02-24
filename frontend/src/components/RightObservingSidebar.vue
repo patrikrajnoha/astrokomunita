@@ -72,10 +72,10 @@
         </article>
         <article class="metric">
           <p class="metricLabel">Mesiac</p>
-          <p class="metricValue">{{ moonChipValue }}</p>
+          <p class="metricValue"><span class="phaseIcon">{{ moonPhaseIcon }}</span> {{ moonChipValue }}</p>
         </article>
         <article class="metric">
-          <p class="metricLabel">Seeing proxy</p>
+          <p class="metricLabel">Seeing (vietor+vlhkosť)</p>
           <p class="metricValue">{{ seeingDisplay }}</p>
         </article>
       </section>
@@ -114,6 +114,28 @@
           <span>{{ detail.label }}</span>
           <strong>{{ detail.value }}</strong>
         </p>
+      </section>
+
+      <section class="panel">
+        <p class="miniLabel">Fázy Mesiaca</p>
+        <div v-if="moonPhaseCards.length > 0" class="moonPhaseRail">
+          <button
+            v-for="(phase, index) in moonPhaseCards"
+            :key="`moon-phase-card-${index}-${phase.from_local || phase.at_local || 'now'}`"
+            type="button"
+            class="moonPhaseCard phaseLink"
+            :class="{ isCurrent: isCurrentMoonPhase(phase.phase) }"
+            @click="openMoonPhaseEvent(phase)"
+          >
+            <div class="moonPhaseDiscWrap">
+              <span class="moonPhaseDisc">{{ moonPhaseEmoji(phase.phase) }}</span>
+            </div>
+            <p class="moonPhaseTitle">{{ translateMoonPhase(phase.phase) }}</p>
+            <p v-if="isCurrentMoonPhase(phase.phase) && moonIllumination" class="moonPhaseIllum">{{ moonIllumination }}</p>
+            <p class="moonPhaseDate">{{ formatMoonPhaseRange(phase.from_local, phase.to_local, phase.at_local) }}</p>
+          </button>
+        </div>
+        <p v-else class="muted">Mesačný rozpis fáz zatiaľ nie je dostupný.</p>
       </section>
     </div>
   </section>
@@ -205,11 +227,40 @@ const bestTimeIsWeak = computed(() => {
 })
 
 const moonPhaseLabel = computed(() => translateMoonPhase(observeSummary.value?.moon?.phase_name) || 'Nedostupné')
+const moonPhaseIcon = computed(() => moonPhaseEmoji(observeSummary.value?.moon?.phase_name))
 const moonIllumination = computed(() => {
   const value = asFiniteNumber(observeSummary.value?.moon?.illumination_pct)
   return value === null ? null : `${Math.round(value)}%`
 })
 const moonChipValue = computed(() => (moonIllumination.value ? `${moonPhaseLabel.value} (${moonIllumination.value})` : moonPhaseLabel.value))
+const moonPhaseSchedule = computed(() => {
+  const rows = Array.isArray(observeSummary.value?.moon?.phase_schedule) ? observeSummary.value.moon.phase_schedule : []
+  return rows
+    .filter((row) => cleanString(row?.phase) && cleanString(row?.at_local))
+    .slice(0, 16)
+})
+const moonPhaseCards = computed(() => {
+  if (moonPhaseSchedule.value.length > 1) {
+    return buildMoonPhaseCards(moonPhaseSchedule.value, safeDate(props.date))
+  }
+  if (moonPhaseSchedule.value.length === 1) {
+    const one = moonPhaseSchedule.value[0]
+    const synthetic = buildSyntheticMoonPhaseCards(safeDate(props.date), safeTz(props.tz))
+    return [{ ...one, from_local: one.at_local, to_local: one.at_local }, ...synthetic]
+  }
+  const synthetic = buildSyntheticMoonPhaseCards(safeDate(props.date), safeTz(props.tz))
+  if (synthetic.length > 0) return synthetic
+  if (cleanString(observeSummary.value?.moon?.phase_name)) {
+    return [{
+      phase: observeSummary.value.moon.phase_name,
+      at_local: null,
+      from_local: null,
+      to_local: null,
+      event_id: null,
+    }]
+  }
+  return []
+})
 
 const humidityChipValue = computed(() => pct(observeSummary.value?.atmosphere?.humidity?.evening_pct ?? observeSummary.value?.atmosphere?.humidity?.current_pct))
 const cloudChipValue = computed(() => pct(observeSummary.value?.atmosphere?.cloud_cover?.evening_pct ?? observeSummary.value?.atmosphere?.cloud_cover?.current_pct))
@@ -217,7 +268,13 @@ const cloudChipValue = computed(() => pct(observeSummary.value?.atmosphere?.clou
 const seeingDisplay = computed(() => {
   const status = observeSummary.value?.atmosphere?.seeing?.status
   const score = asFiniteNumber(observeSummary.value?.atmosphere?.seeing?.score)
-  return status === 'unavailable' || score === null ? 'Nedostupné' : `${Math.round(score)} / 100`
+  if (status === 'unavailable' || score === null) return 'Nedostupné'
+  const wind = asFiniteNumber(observeSummary.value?.atmosphere?.seeing?.wind_speed_kmh)
+  const humidity = asFiniteNumber(observeSummary.value?.atmosphere?.seeing?.humidity_pct)
+  const suffix = []
+  if (wind !== null) suffix.push(`${wind.toFixed(1)} km/h`)
+  if (humidity !== null) suffix.push(`${Math.round(humidity)}%`)
+  return suffix.length > 0 ? `${Math.round(score)} / 100 · ${suffix.join(' · ')}` : `${Math.round(score)} / 100`
 })
 
 const pm25 = computed(() => asFiniteNumber(observeSummary.value?.atmosphere?.air_quality?.pm25))
@@ -227,8 +284,6 @@ const pmDisplay = computed(() => `${pm25.value === null ? 'Nedostupné' : pm25.v
 
 const detailRows = computed(() => {
   const rows = []
-  if (moonPhaseLabel.value !== 'Nedostupné') rows.push({ key: 'moon-phase', label: 'Fáza', value: moonPhaseLabel.value })
-  if (moonIllumination.value) rows.push({ key: 'moon-illumination', label: 'Osvietenie', value: moonIllumination.value })
   if (showPm.value) rows.push({ key: 'pm', label: 'PM2.5 / PM10', value: pmDisplay.value })
   return rows
 })
@@ -275,8 +330,15 @@ const weatherNowWind = computed(() => {
   const value = asFiniteNumber(observeSummary.value?.weather_now?.wind_speed)
   return value === null ? '' : `${value.toFixed(1)} km/h`
 })
-const weatherIconSrc = computed(() => weatherIconByCode(weatherNowCode.value))
-const weatherEmoji = computed(() => weatherEmojiByCode(weatherNowCode.value))
+const isNightNow = computed(() => {
+  const sunset = parseClockTime(observeSummary.value?.sun?.sunset)
+  const sunrise = parseClockTime(observeSummary.value?.sun?.sunrise)
+  const nowMinutes = localNowMinutes(safeTz(props.tz))
+  if (sunset === null || sunrise === null || nowMinutes === null) return false
+  return nowMinutes >= sunset || nowMinutes < sunrise
+})
+const weatherIconSrc = computed(() => weatherIconByCode(weatherNowCode.value, isNightNow.value))
+const weatherEmoji = computed(() => weatherEmojiByCode(weatherNowCode.value, isNightNow.value))
 
 watch(
   () => [props.lat, props.lon, props.date, props.tz, auth.initialized, auth.isAuthed],
@@ -333,6 +395,144 @@ function goToLogin() {
 
 function goToProfileLocation() {
   router.push({ name: 'profile.edit', hash: '#location' })
+}
+
+function openMoonPhaseEvent(phase) {
+  const eventId = Number(phase?.event_id)
+  if (Number.isInteger(eventId) && eventId > 0) {
+    router.push(`/events/${eventId}`)
+  }
+}
+
+function normalizeMoonPhaseKey(value) {
+  return cleanString(value).toLowerCase().replace(/\s+/g, ' ')
+}
+
+function isCurrentMoonPhase(value) {
+  const current = normalizeMoonPhaseKey(observeSummary.value?.moon?.phase_name)
+  const candidate = normalizeMoonPhaseKey(value)
+  if (!current || !candidate) return false
+  return candidate === current
+}
+
+function buildMoonPhaseCards(schedule, targetDate) {
+  const targetMonth = cleanString(targetDate).slice(0, 7)
+  const events = [...schedule]
+    .map((row) => ({
+      phase: normalizeMoonPhaseKey(row.phase),
+      at_local: cleanString(row.at_local),
+      event_id: Number.isInteger(Number(row.event_id)) ? Number(row.event_id) : null,
+    }))
+    .filter((row) => row.phase && row.at_local)
+    .sort((a, b) => a.at_local.localeCompare(b.at_local))
+
+  if (events.length === 0) return []
+  const cards = []
+
+  for (let i = 0; i < events.length; i += 1) {
+    const current = events[i]
+    const next = events[i + 1]
+
+    cards.push({
+      phase: current.phase,
+      at_local: current.at_local,
+      from_local: current.at_local,
+      to_local: current.at_local,
+      event_id: current.event_id,
+    })
+
+    if (!next) continue
+    const between = intermediatePhase(current.phase, next.phase)
+    if (!between) continue
+    cards.push({
+      phase: between,
+      at_local: null,
+      from_local: current.at_local,
+      to_local: next.at_local,
+      event_id: null,
+    })
+  }
+
+  if (!targetMonth) return cards
+  const inMonth = cards.filter((card) => {
+    const fromMonth = cleanString(card.from_local).slice(0, 7)
+    const toMonth = cleanString(card.to_local).slice(0, 7)
+    const atMonth = cleanString(card.at_local).slice(0, 7)
+    return fromMonth === targetMonth || toMonth === targetMonth || atMonth === targetMonth
+  })
+
+  return inMonth.length > 0 ? inMonth : cards
+}
+
+function intermediatePhase(fromPhase, toPhase) {
+  const from = normalizeMoonPhaseKey(fromPhase)
+  const to = normalizeMoonPhaseKey(toPhase)
+  const key = `${from}->${to}`
+  const map = {
+    'new moon->first quarter': 'waxing crescent',
+    'first quarter->full moon': 'waxing gibbous',
+    'full moon->last quarter': 'waning gibbous',
+    'last quarter->new moon': 'waning crescent',
+  }
+  return map[key] || null
+}
+
+function buildSyntheticMoonPhaseCards(dateYmd, tz) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanString(dateYmd))) return []
+  const [y, m] = dateYmd.split('-').map((v) => Number(v))
+  if (!Number.isInteger(y) || !Number.isInteger(m)) return []
+
+  const monthStartUtcMs = Date.UTC(y, m - 1, 1, 0, 0, 0)
+  const monthEndUtcMs = Date.UTC(y, m, 0, 23, 59, 59)
+
+  const synodicDays = 29.530588853
+  const stepMs = (synodicDays / 8) * 86400000
+  const epochMs = Date.UTC(2000, 0, 6, 18, 14, 0) // known new moon reference
+  const phaseOrder = ['new moon', 'waxing crescent', 'first quarter', 'waxing gibbous', 'full moon', 'waning gibbous', 'last quarter', 'waning crescent']
+
+  const startIndex = Math.floor((monthStartUtcMs - epochMs) / stepMs) - 2
+  const endIndex = Math.ceil((monthEndUtcMs - epochMs) / stepMs) + 2
+  const cards = []
+
+  for (let i = startIndex; i < endIndex; i += 1) {
+    const fromMs = epochMs + (i * stepMs)
+    const toMs = epochMs + ((i + 1) * stepMs)
+    if (toMs < monthStartUtcMs || fromMs > monthEndUtcMs) continue
+
+    const phase = phaseOrder[((i % 8) + 8) % 8]
+    cards.push({
+      phase,
+      at_local: null,
+      from_local: formatUtcAsLocalYmdHm(fromMs, tz),
+      to_local: formatUtcAsLocalYmdHm(toMs, tz),
+      event_id: null,
+    })
+  }
+
+  return cards
+}
+
+function formatUtcAsLocalYmdHm(utcMs, tz) {
+  const date = new Date(utcMs)
+  try {
+    const fmt = new Intl.DateTimeFormat('sv-SE', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    return fmt.format(date).replace(' ', ' ')
+  } catch {
+    const y = date.getUTCFullYear()
+    const mo = String(date.getUTCMonth() + 1).padStart(2, '0')
+    const d = String(date.getUTCDate()).padStart(2, '0')
+    const h = String(date.getUTCHours()).padStart(2, '0')
+    const mi = String(date.getUTCMinutes()).padStart(2, '0')
+    return `${y}-${mo}-${d} ${h}:${mi}`
+  }
 }
 
 function safeDate(value) {
@@ -432,6 +632,22 @@ function translateMoonPhase(value) {
   return dictionary[normalized] || cleanString(value)
 }
 
+function moonPhaseEmoji(value) {
+  const normalized = cleanString(value).toLowerCase().replace(/\s+/g, ' ')
+  const dictionary = {
+    'new moon': '\uD83C\uDF11',
+    'waxing crescent': '\uD83C\uDF12',
+    'first quarter': '\uD83C\uDF13',
+    'waxing gibbous': '\uD83C\uDF14',
+    'full moon': '\uD83C\uDF15',
+    'waning gibbous': '\uD83C\uDF16',
+    'last quarter': '\uD83C\uDF17',
+    'third quarter': '\uD83C\uDF17',
+    'waning crescent': '\uD83C\uDF18',
+  }
+  return dictionary[normalized] || '\uD83C\uDF19'
+}
+
 function buildLinePath(series, field, kind) {
   if (!Array.isArray(series) || series.length < 2) return ''
   let path = ''
@@ -483,6 +699,34 @@ function markerX(time) {
   return Number.isFinite(hour) ? Number(((hour / 23) * 100).toFixed(2)) : null
 }
 
+function parseClockTime(value) {
+  const normalized = cleanString(value)
+  if (!/^\d{2}:\d{2}$/.test(normalized)) return null
+  const hours = Number(normalized.slice(0, 2))
+  const minutes = Number(normalized.slice(3, 5))
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null
+  return (hours * 60) + minutes
+}
+
+function localNowMinutes(timeZone) {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    const parts = formatter.formatToParts(new Date())
+    const hours = Number(parts.find((part) => part.type === 'hour')?.value)
+    const minutes = Number(parts.find((part) => part.type === 'minute')?.value)
+    if (!Number.isInteger(hours) || !Number.isInteger(minutes)) return null
+    return (hours * 60) + minutes
+  } catch {
+    return null
+  }
+}
+
 function weatherLabelFromCode(code) {
   if (!Number.isInteger(code)) return 'Neznáme'
   if (code === 0) return 'Jasno'
@@ -497,8 +741,9 @@ function weatherLabelFromCode(code) {
   return 'Neznáme'
 }
 
-function weatherIconByCode(code) {
+function weatherIconByCode(code, isNight = false) {
   if (!Number.isInteger(code)) return null
+  if (code === 0 && isNight) return null
   if (code === 0) return iconClear
   if ([1, 2].includes(code)) return iconPartlyCloudy
   if (code === 3) return iconOvercast
@@ -510,16 +755,51 @@ function weatherIconByCode(code) {
   return iconOvercast
 }
 
-function weatherEmojiByCode(code) {
-  if (!Number.isInteger(code)) return '☁️'
-  if (code === 0) return '☀️'
-  if ([1, 2].includes(code)) return '⛅'
-  if (code === 3) return '☁️'
-  if ([45, 48].includes(code)) return '🌫️'
-  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return '🌧️'
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return '❄️'
-  if ([95, 96, 99].includes(code)) return '⚡'
-  return '☁️'
+function weatherEmojiByCode(code, isNight = false) {
+  if (!Number.isInteger(code)) return '\u2601\uFE0F'
+  if (code === 0 && isNight) return '\u{1F319}'
+  if (code === 0) return '\u2600\uFE0F'
+  if ([1, 2].includes(code)) return '\u26C5'
+  if (code === 3) return '\u2601\uFE0F'
+  if ([45, 48].includes(code)) return '\u{1F32B}\uFE0F'
+  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return '\u{1F327}\uFE0F'
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return '\u2744\uFE0F'
+  if ([95, 96, 99].includes(code)) return '\u26A1'
+  return '\u2601\uFE0F'
+}
+
+function formatMoonPhaseDate(value) {
+  const normalized = cleanString(value)
+  if (!normalized) return 'Aktuálne'
+  const candidate = normalized.includes('T') ? normalized : normalized.replace(' ', 'T')
+  const date = new Date(candidate)
+  if (Number.isNaN(date.getTime())) return normalized
+
+  try {
+    return new Intl.DateTimeFormat('sk-SK', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date)
+  } catch {
+    return normalized
+  }
+}
+
+function formatMoonPhaseRange(fromValue, toValue, pointValue) {
+  const from = cleanString(fromValue)
+  const to = cleanString(toValue)
+  const point = cleanString(pointValue)
+
+  if (from && to && from !== to) {
+    return `${formatMoonPhaseDate(from)} - ${formatMoonPhaseDate(to)}`
+  }
+  if (point) return formatMoonPhaseDate(point)
+  if (from) return formatMoonPhaseDate(from)
+  if (to) return formatMoonPhaseDate(to)
+  return 'Aktuálne'
 }
 </script>
 
@@ -818,6 +1098,79 @@ function weatherEmojiByCode(code) {
   text-align: right;
 }
 
+.phaseLink {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.phaseIcon {
+  display: inline-block;
+  min-width: 1.1rem;
+  text-align: center;
+}
+
+.moonPhaseRail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.moonPhaseCard {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  border-radius: 0.8rem;
+  padding: 0.45rem 0.35rem;
+  background: linear-gradient(180deg, rgb(var(--color-bg-rgb) / 0.62), rgb(var(--color-bg-rgb) / 0.35));
+  display: grid;
+  gap: 0.2rem;
+  justify-items: center;
+}
+
+.moonPhaseCard.isCurrent {
+  border-color: rgb(251 191 36 / 0.7);
+  box-shadow: inset 0 0 0 1px rgb(251 191 36 / 0.35);
+}
+
+.moonPhaseDiscWrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgb(var(--color-text-secondary-rgb) / 0.12);
+}
+
+.moonPhaseDisc {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.moonPhaseTitle {
+  margin: 0.05rem 0 0;
+  text-align: center;
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+
+.moonPhaseIllum {
+  margin: 0;
+  font-size: 0.66rem;
+  color: rgb(251 191 36 / 0.95);
+  font-weight: 700;
+}
+
+.moonPhaseDate {
+  margin: 0;
+  font-size: 0.62rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  text-align: center;
+}
+
 .muted {
   margin: 0;
   font-size: 0.74rem;
@@ -856,6 +1209,16 @@ function weatherEmojiByCode(code) {
   .primaryGrid,
   .metricsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .moonPhaseRail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .moonPhaseRail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

@@ -1,5 +1,10 @@
 <?php
 
+$translationFastMode = filter_var(
+    env('TRANSLATION_FAST_MODE', env('BOT_TRANSLATION_FAST_MODE', true)),
+    FILTER_VALIDATE_BOOLEAN
+);
+
 return [
     /*
     |--------------------------------------------------------------------------
@@ -65,23 +70,24 @@ return [
     |--------------------------------------------------------------------------
     */
     'translation' => [
+        'fast_mode' => $translationFastMode,
         'target_lang' => strtolower(trim((string) env('BOT_TRANSLATION_TARGET_LANG', 'sk'))),
         'source_lang' => strtolower(trim((string) env('BOT_TRANSLATION_SOURCE_LANG', 'en'))),
         // Supported providers: libretranslate, ollama (legacy aliases: http, dummy)
         'primary' => strtolower(trim((string) env('TRANSLATION_PROVIDER', env('BOT_TRANSLATION_PRIMARY', 'libretranslate')))),
         'fallback' => strtolower(trim((string) env('TRANSLATION_FALLBACK_PROVIDER', env('BOT_TRANSLATION_FALLBACK', 'none')))),
-        'timeout_sec' => (int) env('TRANSLATION_TIMEOUT_SEC', env('TRANSLATION_TIMEOUT_SECONDS', 12)),
+        'timeout_sec' => (int) env('TRANSLATION_TIMEOUT_SEC', env('TRANSLATION_TIMEOUT_SECONDS', $translationFastMode ? 8 : 12)),
         'connect_timeout_sec' => (int) env('TRANSLATION_CONNECT_TIMEOUT_SEC', env('TRANSLATION_CONNECT_TIMEOUT_SECONDS', 3)),
-        'max_retries' => (int) env('TRANSLATION_MAX_RETRIES', env('BOT_TRANSLATION_LIBRETRANSLATE_RETRY_TIMES', 1)),
+        'max_retries' => (int) env('TRANSLATION_MAX_RETRIES', env('BOT_TRANSLATION_LIBRETRANSLATE_RETRY_TIMES', $translationFastMode ? 1 : 1)),
         'chunk_max_chars' => (int) env('BOT_TRANSLATION_CHUNK_MAX_CHARS', 1800),
         'chunk_hard_limit_chars' => (int) env('BOT_TRANSLATION_CHUNK_HARD_LIMIT_CHARS', 3500),
         'post_edit' => [
-            'enabled' => filter_var(env('BOT_TRANSLATION_POST_EDIT_ENABLED', true), FILTER_VALIDATE_BOOL),
+            'enabled' => filter_var(env('BOT_TRANSLATION_POST_EDIT_ENABLED', $translationFastMode ? false : true), FILTER_VALIDATE_BOOL),
             'require_ollama_fallback' => filter_var(env('BOT_TRANSLATION_POST_EDIT_REQUIRE_OLLAMA_FALLBACK', true), FILTER_VALIDATE_BOOL),
         ],
         'quality' => [
-            'enabled' => filter_var(env('BOT_TRANSLATION_QUALITY_ENABLED', true), FILTER_VALIDATE_BOOL),
-            'max_retries' => (int) env('BOT_TRANSLATION_QUALITY_MAX_RETRIES', 1),
+            'enabled' => filter_var(env('BOT_TRANSLATION_QUALITY_ENABLED', $translationFastMode ? false : true), FILTER_VALIDATE_BOOL),
+            'max_retries' => (int) env('BOT_TRANSLATION_QUALITY_MAX_RETRIES', $translationFastMode ? 0 : 1),
             'min_length_ratio' => (float) env('BOT_TRANSLATION_QUALITY_MIN_LENGTH_RATIO', 0.70),
             'max_english_ratio' => (float) env('BOT_TRANSLATION_QUALITY_MAX_ENGLISH_RATIO', 0.20),
         ],
@@ -126,14 +132,14 @@ return [
         ],
         'libretranslate' => [
             'url' => env('LIBRETRANSLATE_BASE_URL', env('BOT_TRANSLATION_LIBRETRANSLATE_URL', env('TRANSLATION_BASE_URL', 'http://127.0.0.1:5000'))),
-            'timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SEC', env('BOT_TRANSLATION_LIBRETRANSLATE_TIMEOUT_SECONDS', env('TRANSLATION_TIMEOUT_SECONDS', 12))),
-            'retry_times' => (int) env('TRANSLATION_MAX_RETRIES', env('BOT_TRANSLATION_LIBRETRANSLATE_RETRY_TIMES', 1)),
+            'timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SEC', env('BOT_TRANSLATION_LIBRETRANSLATE_TIMEOUT_SECONDS', env('TRANSLATION_TIMEOUT_SECONDS', $translationFastMode ? 8 : 12))),
+            'retry_times' => (int) env('TRANSLATION_MAX_RETRIES', env('BOT_TRANSLATION_LIBRETRANSLATE_RETRY_TIMES', $translationFastMode ? 1 : 1)),
             'retry_sleep_ms' => (int) env('BOT_TRANSLATION_LIBRETRANSLATE_RETRY_SLEEP_MS', 200),
             'api_key' => env('LIBRETRANSLATE_API_KEY', env('BOT_TRANSLATION_LIBRETRANSLATE_API_KEY')),
         ],
         'ollama' => [
             'model' => env('OLLAMA_MODEL', env('BOT_TRANSLATION_OLLAMA_MODEL', env('TRANSLATION_OLLAMA_MODEL', 'mistral'))),
-            'timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SEC', env('BOT_TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('OLLAMA_TIMEOUT', 12)))),
+            'timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SEC', env('BOT_TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('OLLAMA_TIMEOUT', $translationFastMode ? 8 : 12)))),
             'temperature' => (float) env('BOT_TRANSLATION_OLLAMA_TEMPERATURE', env('TRANSLATION_OLLAMA_TEMPERATURE', 0.15)),
             'top_p' => (float) env('BOT_TRANSLATION_OLLAMA_TOP_P', 0.4),
             'num_predict' => (int) env('OLLAMA_NUM_PREDICT', env('BOT_TRANSLATION_OLLAMA_NUM_PREDICT', env('TRANSLATION_OLLAMA_NUM_PREDICT', 280))),

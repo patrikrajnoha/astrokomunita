@@ -1,8 +1,9 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import { useBotEngineStore } from '@/stores/botEngine'
+import { deleteAllBotPosts } from '@/services/api/admin/bots'
 import { useToast } from '@/composables/useToast'
 import { BOT_FAILURE_REASONS, BOT_FAILURE_REASON_MESSAGES } from '@/constants/botFailureReasons'
 
@@ -150,6 +151,22 @@ const enabledSourcesByIdentity = computed(() => {
 })
 
 const quickRunBusyIdentity = ref('')
+const translationHealthPollTimer = ref(null)
+
+const translationQueue = computed(() => {
+  const queue = translationHealth.value?.translation_queue
+  return {
+    done: Number(queue?.done || 0),
+    skipped: Number(queue?.skipped || 0),
+    failed: Number(queue?.failed || 0),
+    pending: Number(queue?.pending || 0),
+    processed: Number(queue?.processed || 0),
+    total: Number(queue?.total || 0),
+    progressPercent: Math.max(0, Math.min(100, Number(queue?.progress_percent || 0))),
+  }
+})
+
+const isTranslationQueueActive = computed(() => translationQueue.value.pending > 0)
 
 function toErrorMessage(error, fallbackMessage) {
   const status = Number(error?.response?.status || 0)
@@ -471,6 +488,20 @@ async function initialize() {
   await Promise.all([loadSources(), loadRuns(), loadTranslationHealth()])
 }
 
+function startTranslationHealthPolling() {
+  stopTranslationHealthPolling()
+  translationHealthPollTimer.value = setInterval(() => {
+    loadTranslationHealth()
+  }, 5000)
+}
+
+function stopTranslationHealthPolling() {
+  if (translationHealthPollTimer.value) {
+    clearInterval(translationHealthPollTimer.value)
+    translationHealthPollTimer.value = null
+  }
+}
+
 async function applyRunsFilters() {
   await loadRuns(withBotIdentityConstraint({
     ...filterForm.value,
@@ -689,6 +720,52 @@ async function deleteItemPost(item) {
   }
 }
 
+function confirmDeleteAllBotPosts() {
+  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+    return window.confirm('Naozaj vymazat vsetky publikovane bot prispevky podla aktualneho filtra?')
+  }
+
+  return true
+}
+
+async function deleteAllBotPostsForFilter() {
+  if (!confirmDeleteAllBotPosts()) {
+    return
+  }
+
+  try {
+    const deleteAllPostsAction = typeof store.deleteAllPosts === 'function'
+      ? store.deleteAllPosts.bind(store)
+      : async (params) => {
+          const response = await deleteAllBotPosts(params)
+          return response?.data || null
+        }
+
+    const result = await deleteAllPostsAction({
+      source_key: filterForm.value.sourceKey || '',
+      bot_identity: effectiveBotIdentity.value || '',
+    })
+    if (!result) {
+      return
+    }
+
+    toast.success(
+      `Vymazane posty: ${Number(result.deleted_posts || 0)} | bez postu: ${Number(result.missing_posts || 0)} | chyby: ${Number(result.failed_items || 0)}.`,
+    )
+
+    await Promise.all([loadRuns(), loadTranslationHealth()])
+
+    if (selectedRun.value?.id) {
+      await store.fetchItemsForRun(selectedRun.value.id, {
+        page: runItemsMeta.value?.current_page || 1,
+        per_page: runItemsMeta.value?.per_page || 20,
+      })
+    }
+  } catch (error) {
+    toast.error(toErrorMessage(error, 'Bulk delete failed.'))
+  }
+}
+
 async function publishAllForRun() {
   const runId = Number(selectedRun.value?.id || 0)
   if (!Number.isInteger(runId) || runId <= 0) return
@@ -861,6 +938,11 @@ onMounted(async () => {
     }
   }
   await initialize()
+  startTranslationHealthPolling()
+})
+
+onBeforeUnmount(() => {
+  stopTranslationHealthPolling()
 })
 </script>
 
@@ -984,6 +1066,14 @@ onMounted(async () => {
           <h2 class="sectionTitle">Translation Tools</h2>
           <p class="sectionSubtitle">1-click test for EN→SK translation via primary provider with fallback.</p>
         </div>
+        <button
+          type="button"
+          class="dangerBtn"
+          :disabled="store.deletingAllPosts"
+          @click="deleteAllBotPostsForFilter"
+        >
+          {{ store.deletingAllPosts ? 'Mazem prispevky...' : 'Vymazat bot prispevky' }}
+        </button>
       </header>
 
       <div class="translationTools">
@@ -1015,6 +1105,17 @@ onMounted(async () => {
           | provider: {{ translationHealth.provider || '-' }}
           | simulated outage: {{ translationHealth.simulate_outage_provider || 'none' }}
         </p>
+        <div v-if="translationHealth" class="progressWrap">
+          <div class="progressHeader">
+            <span>
+              Preklad: hotovo {{ translationQueue.done + translationQueue.skipped }}, failed {{ translationQueue.failed }}, pending {{ translationQueue.pending }}
+            </span>
+            <strong>{{ translationQueue.progressPercent }}%</strong>
+          </div>
+          <div class="progressTrack" role="progressbar" :aria-valuenow="translationQueue.progressPercent" aria-valuemin="0" aria-valuemax="100">
+            <div class="progressFill" :class="{ 'progressFill--active': isTranslationQueueActive }" :style="{ width: `${translationQueue.progressPercent}%` }"></div>
+          </div>
+        </div>
         <label class="filterField">
           <span>test text</span>
           <textarea
@@ -1460,6 +1561,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .sectionTitle {
@@ -1529,11 +1631,16 @@ onMounted(async () => {
 .runBtn,
 .ghostBtn,
 .dangerBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 9px;
   padding: 7px 11px;
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .runBtn {
@@ -1586,10 +1693,12 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  max-width: 100%;
 }
 
 .inlineActions--end {
   justify-content: flex-end;
+  width: 100%;
 }
 
 .inlineField {
@@ -1710,7 +1819,7 @@ onMounted(async () => {
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(6, minmax(140px, 1fr)) auto;
+  grid-template-columns: repeat(6, minmax(120px, 1fr)) auto;
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -1749,6 +1858,39 @@ onMounted(async () => {
 .translationTools {
   display: grid;
   gap: 10px;
+}
+
+.progressWrap {
+  display: grid;
+  gap: 6px;
+}
+
+.progressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.progressTrack {
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: rgb(var(--color-surface-rgb) / 0.12);
+}
+
+.progressFill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, rgb(34 197 94 / 0.75), rgb(16 185 129 / 0.95));
+  transition: width 0.3s ease;
+}
+
+.progressFill--active {
+  box-shadow: 0 0 0 1px rgb(16 185 129 / 0.35) inset;
 }
 
 .translationResult p {
@@ -1803,6 +1945,7 @@ onMounted(async () => {
   display: flex;
   align-items: flex-end;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .pagination {
@@ -1895,9 +2038,10 @@ onMounted(async () => {
 .detailBlockHeader {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 
 .detailBlock h4 {
@@ -1920,7 +2064,7 @@ onMounted(async () => {
 }
 
 .table--compact {
-  min-width: 680px;
+  min-width: 760px;
 }
 
 .itemLink {
@@ -1952,10 +2096,15 @@ onMounted(async () => {
 
   .filterActions {
     grid-column: span 2;
+    justify-content: flex-start;
   }
 }
 
 @media (max-width: 680px) {
+  .card {
+    padding: 12px;
+  }
+
   .quickRunGrid {
     grid-template-columns: 1fr;
   }
@@ -1967,6 +2116,53 @@ onMounted(async () => {
   .sectionHeader {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .sectionHeader > .ghostBtn,
+  .sectionHeader > .dangerBtn,
+  .sectionHeader > .runBtn {
+    width: 100%;
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .filterActions {
+    grid-column: auto;
+  }
+
+  .inlineActions {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .inlineActions .runBtn,
+  .inlineActions .ghostBtn,
+  .inlineActions .dangerBtn {
+    width: 100%;
+  }
+
+  .progressHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .modalCard {
+    width: 100%;
+    max-height: 92vh;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .filterActions {
+    grid-column: span 3;
   }
 }
 </style>
