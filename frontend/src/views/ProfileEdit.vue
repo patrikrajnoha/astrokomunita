@@ -446,12 +446,23 @@ async function save() {
 
     await auth.csrf()
 
-    const profileResponse = await http.patch('/profile', {
-      name: form.name,
-      email: form.email,
-      bio: form.bio,
-      location_label: locationPayload.location_label,
-    })
+    const profilePayload = {}
+    const normalizedName = String(form.name || '').trim()
+    const normalizedBio = String(form.bio || '')
+    const normalizedLocationLabel = String(locationPayload.location_label || '').trim()
+
+    if (normalizedName) {
+      profilePayload.name = normalizedName
+    }
+    profilePayload.bio = normalizedBio
+    profilePayload.location_label = normalizedLocationLabel || null
+
+    const normalizedEmail = String(form.email || '').trim()
+    if (normalizedEmail) {
+      profilePayload.email = normalizedEmail
+    }
+
+    const profileResponse = await http.patch('/profile', profilePayload)
 
     const locationResponse = await http.put('/me/location', locationPayload)
     let userPayload = locationResponse?.data || profileResponse?.data || null

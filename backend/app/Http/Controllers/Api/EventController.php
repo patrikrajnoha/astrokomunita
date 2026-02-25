@@ -68,7 +68,7 @@ class EventController extends Controller
 
         /**
          * Filter: date range
-         * PrimĂˇrne podÄľa start_at, fallback na max_at.
+         * Primarily by start_at, with fallback to max_at.
          */
         $hasFrom = !empty($v['from']);
         $hasTo = !empty($v['to']);
@@ -99,7 +99,7 @@ class EventController extends Controller
             }
         }
 
-        // Radenie: najbliĹľĹˇie dopredu (start_at alebo max_at)
+        // Sort nearest upcoming first (start_at or max_at).
         $query->orderByRaw('COALESCE(start_at, max_at) ASC');
 
         if ($hasFrom && $hasTo) {
@@ -143,7 +143,7 @@ class EventController extends Controller
         $now = CarbonImmutable::now();
         $base = $this->basePublishedQuery();
 
-        // 1) NajbliĹľĹˇia budĂşca
+        // 1) Nearest upcoming event.
         $event = (clone $base)
             ->where(function ($q) use ($now) {
                 $q->where('start_at', '>=', $now)
@@ -155,7 +155,7 @@ class EventController extends Controller
             ->orderByRaw('COALESCE(start_at, max_at) ASC')
             ->first();
 
-        // 2) Fallback: najbliĹľĹˇia minulĂˇ
+        // 2) Fallback: nearest past event.
         if (!$event) {
             $event = (clone $base)
                 ->orderByRaw('COALESCE(start_at, max_at) DESC')

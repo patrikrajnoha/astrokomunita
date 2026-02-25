@@ -557,7 +557,6 @@ async function quickRunIdentity(identity) {
     : []
 
   if (enabledSources.length === 0) {
-    toast.info(`${botIdentityLabel(normalizedIdentity)} has no enabled sources.`)
     return
   }
 
@@ -961,7 +960,7 @@ onBeforeUnmount(() => {
           type="button"
           class="runBtn quickRunBtn"
           data-testid="quick-run-kozmo"
-          :disabled="quickRunBusyIdentity !== ''"
+          :disabled="quickRunBusyIdentity !== '' || enabledSourcesByIdentity.kozmo.length === 0"
           @click="quickRunIdentity('kozmo')"
         >
           {{ quickRunBusyIdentity === 'kozmo' ? 'Running KozmoBot...' : 'Run KozmoBot' }}
@@ -972,7 +971,7 @@ onBeforeUnmount(() => {
           type="button"
           class="runBtn quickRunBtn"
           data-testid="quick-run-stela"
-          :disabled="quickRunBusyIdentity !== ''"
+          :disabled="quickRunBusyIdentity !== '' || enabledSourcesByIdentity.stela.length === 0"
           @click="quickRunIdentity('stela')"
         >
           {{ quickRunBusyIdentity === 'stela' ? 'Running StellarBot...' : 'Run StellarBot' }}

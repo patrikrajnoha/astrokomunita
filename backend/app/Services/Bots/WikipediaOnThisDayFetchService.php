@@ -67,7 +67,7 @@ class WikipediaOnThisDayFetchService
         $events = $this->extractEvents($payload);
         $selected = $this->selectRelevantEvents($events, $targetDate->toDateString(), $requestUrl, 3, 1);
 
-        $title = sprintf('Dnes v astronĂłmii (%s)', $targetDate->format('d.m.'));
+        $title = sprintf("Dnes v astron\u{00F3}mii (%s)", $targetDate->format('d.m.'));
         $stableKey = 'onthisday:' . $targetDate->toDateString();
         $wikidataStatus = $selected[0]['wikidata_status'] ?? ($this->wikidataFailed ? 'failed' : 'ok');
 

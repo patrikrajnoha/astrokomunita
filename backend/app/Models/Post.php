@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\Hashtag;
-use App\Services\Storage\MediaStorageService;
 
 class Post extends Model
 {
@@ -177,12 +176,11 @@ class Post extends Model
      */
     public function getAttachmentUrlAttribute(): ?string
     {
-        $path = $this->attachment_web_path ?: $this->attachment_path;
-        if (!$path) {
+        if (!$this->attachment_web_path && !$this->attachment_path) {
             return null;
         }
 
-        return app(MediaStorageService::class)->absoluteUrl($path);
+        return route('media.view', ['media' => $this->id], false);
     }
 
     public function getAttachmentDownloadUrlAttribute(): ?string

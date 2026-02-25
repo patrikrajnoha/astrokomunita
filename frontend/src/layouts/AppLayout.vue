@@ -525,11 +525,18 @@ const mobileBottomLinks = computed(() => {
     { to: '/search', label: 'Hľadať', icon: 'H' },
     { to: '/events', label: 'Udalosti', icon: 'U', matchPrefix: '/events' },
     { to: '/clanky', label: 'Články', icon: 'Č', matchPrefix: '/clanky' },
-    { to: '/notifications', label: 'Notifikácie', icon: 'N' },
   ]
+  if (auth.isAuthed) {
+    links.push({ to: '/notifications', label: 'Notifikácie', icon: 'N' })
+  }
 
   if (auth.isAdmin) {
-    links[4] = { to: '/admin/dashboard', label: 'Admin', icon: 'A', matchPrefix: '/admin' }
+    const replaceIndex = links.findIndex((item) => item.to === '/notifications')
+    if (replaceIndex >= 0) {
+      links[replaceIndex] = { to: '/admin/dashboard', label: 'Admin', icon: 'A', matchPrefix: '/admin' }
+    } else {
+      links.push({ to: '/admin/dashboard', label: 'Admin', icon: 'A', matchPrefix: '/admin' })
+    }
   }
 
   return links
@@ -1497,3 +1504,4 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+

@@ -72,6 +72,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (function_exists('mb_internal_encoding')) {
+            mb_internal_encoding('UTF-8');
+        }
+
         $this->logTranslationEnvAliasUsage();
 
         Event::listen(Login::class, UpdateLastLoginListener::class);

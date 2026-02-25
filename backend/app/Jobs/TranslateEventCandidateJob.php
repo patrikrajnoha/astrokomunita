@@ -174,24 +174,29 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
             ]);
         } catch (\Throwable $exception) {
             $template = $this->buildDeterministicSkTemplate($candidate, $originalTitle);
+            $resolvedErrorCode = $this->resolveErrorCode($exception);
+            $isTranslationProviderFailure = $exception instanceof BotTranslationException;
 
             $candidate->update([
                 'short' => $this->sanitizeShort($template['short']) ?? $this->buildShort($template['description'], $originalTitle),
                 'description' => $this->sanitizeDescription($template['description']) ?? $template['description'],
                 'translated_title' => $originalTitle,
                 'translated_description' => $this->sanitizeDescription($template['description']) ?? $template['description'],
-                'translation_status' => EventCandidate::TRANSLATION_FAILED,
-                'translation_error' => $this->resolveErrorCode($exception),
+                'translation_status' => $isTranslationProviderFailure ? EventCandidate::TRANSLATION_DONE : EventCandidate::TRANSLATION_FAILED,
+                'translation_error' => $isTranslationProviderFailure ? null : $resolvedErrorCode,
                 'translated_at' => now(),
             ]);
 
             Log::warning('Event candidate translation failed', [
                 'event_candidate_id' => $candidate->id,
-                'error_code' => $this->resolveErrorCode($exception),
+                'error_code' => $resolvedErrorCode,
                 'message' => $exception->getMessage(),
+                'fallback_applied' => $isTranslationProviderFailure,
             ]);
 
-            throw $exception;
+            if (! $isTranslationProviderFailure) {
+                throw $exception;
+            }
         }
     }
 

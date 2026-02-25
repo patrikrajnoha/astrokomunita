@@ -49,18 +49,18 @@ INTERNAL_TOKEN = os.getenv("INTERNAL_TOKEN", "")
 MAX_TRANSLATE_CHARS = int(os.getenv("TRANSLATION_CHUNK_MAX_CHARS", "4000"))
 
 ASTRONOMY_TERMS = {
-    "meteor shower": "meteorický roj",
+    "meteor shower": "meteorick\u00FD roj",
     "lunar eclipse": "zatmenie Mesiaca",
     "solar eclipse": "zatmenie Slnka",
-    "International Space Station": "Medzinárodná vesmírna stanica",
-    "Milky Way": "Mliečna cesta",
-    "black hole": "čierna diera",
+    "International Space Station": "Medzin\u00E1rodn\u00E1 vesm\u00EDrna stanica",
+    "Milky Way": "Mlie\u010Dna cesta",
+    "black hole": "\u010Dierna diera",
     "supernova": "supernova",
-    "exoplanet": "exoplanéta",
-    "deep space": "hlboký vesmír",
-    "space telescope": "vesmírny teleskop",
+    "exoplanet": "exoplan\u00E9ta",
+    "deep space": "hlbok\u00FD vesm\u00EDr",
+    "space telescope": "vesm\u00EDrny teleskop",
     "nebula": "hmlovina",
-    "rocket launch": "štart rakety",
+    "rocket launch": "\u0161tart rakety",
 }
 
 app = FastAPI(title="Sky Summary Service", version=SERVICE_VERSION)
