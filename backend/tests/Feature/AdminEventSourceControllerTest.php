@@ -60,6 +60,24 @@ class AdminEventSourceControllerTest extends TestCase
         $this->assertNotContains('go_astronomy', $keys);
     }
 
+    public function test_admin_list_auto_seeds_sources_when_table_is_empty(): void
+    {
+        $this->assertDatabaseCount('event_sources', 0);
+
+        $this->actingAsAdmin();
+
+        $response = $this->getJson('/api/admin/event-sources');
+
+        $response->assertOk();
+        $response->assertJsonCount(4, 'data');
+
+        $keys = collect($response->json('data'))->pluck('key')->all();
+        $this->assertContains(EventSourceEnum::ASTROPIXELS->value, $keys);
+        $this->assertContains(EventSourceEnum::NASA->value, $keys);
+        $this->assertContains(EventSourceEnum::IMO->value, $keys);
+        $this->assertContains(EventSourceEnum::NASA_WATCH_THE_SKIES->value, $keys);
+    }
+
     public function test_admin_can_toggle_source_enabled_state(): void
     {
         $source = EventSource::query()->create([
