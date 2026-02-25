@@ -33,6 +33,7 @@ const groups = [
       { label: 'Clanky', to: '/admin/blog', icon: 'B' },
       { label: 'Sidebar', to: '/admin/sidebar', icon: 'S' },
       { label: 'Bot Engine', to: '/admin/bots', icon: 'B' },
+      { label: 'Performance', to: '/admin/performance-metrics', icon: 'P' },
     ],
   },
 ]

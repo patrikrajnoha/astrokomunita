@@ -278,6 +278,11 @@ const appShellChildren = [
         name: 'admin.sidebar',
         component: () => import('@/views/admin/SidebarConfigView.vue'),
       },
+      {
+        path: 'performance-metrics',
+        name: 'admin.performance-metrics',
+        component: () => import('@/views/admin/PerformanceMetricsView.vue'),
+      },
     ],
   },
 ]
