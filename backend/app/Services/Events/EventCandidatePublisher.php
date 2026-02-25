@@ -11,6 +11,11 @@ use RuntimeException;
 
 class EventCandidatePublisher
 {
+    public function __construct(
+        private readonly EventFeedRealtimePublisher $eventFeedRealtimePublisher,
+    ) {
+    }
+
     public function approve(EventCandidate $candidate, int $reviewerUserId): Event
     {
         return DB::transaction(function () use ($candidate, $reviewerUserId) {
@@ -81,6 +86,7 @@ class EventCandidatePublisher
             }
 
             $this->updateCandidateAsApproved($candidate, $event->id, $reviewerUserId);
+            $this->eventFeedRealtimePublisher->publish($event);
 
             return $event;
         });
@@ -220,4 +226,3 @@ class EventCandidatePublisher
         return $normalized !== '' ? $normalized : null;
     }
 }
-

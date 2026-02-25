@@ -117,8 +117,25 @@
         <p>{{ error }}</p>
       </div>
 
-      <section v-else class="events-grid">
-        <RouterLink v-for="e in events" :key="e.id" :to="`/events/${e.id}`" class="event-card">
+      <section v-else-if="events.length > 0">
+        <button
+          v-if="pendingRealtimeIds.length > 0"
+          class="realtime-banner"
+          type="button"
+          :disabled="loadingRealtimePending"
+          @click="loadPendingRealtimeEvents"
+        >
+          Nove udalosti ({{ pendingRealtimeIds.length }}) - klikni pre nacitanie
+        </button>
+
+        <div class="events-grid">
+          <RouterLink
+            v-for="e in events"
+            :key="e.id"
+            :to="`/events/${e.id}`"
+            class="event-card"
+            :class="{ 'event-card-new': isEventFresh(e.id) }"
+          >
           <div class="card-content">
             <div class="card-header">
               <div>
@@ -147,7 +164,8 @@
               <span class="open-label">Zobrazit detail</span>
             </div>
           </div>
-        </RouterLink>
+          </RouterLink>
+        </div>
       </section>
 
       <div v-if="!isCalendarView && !loading && !error && events.length === 0" class="state-card state-empty">
@@ -160,14 +178,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import CalendarView from './CalendarView.vue'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useAuthStore } from '@/stores/auth'
-import { getEvents, getEventYears } from '@/services/events'
+import { getEvents, getEventYears, lookupEventsByIds } from '@/services/events'
 import { buildPeriodQuery, resolveDefaultYear, resolvePeriodSelectionFromQuery } from '@/utils/eventFilters'
 import { eventDisplayShort, eventDisplayTitle } from '@/utils/translatedFields'
+import { getEcho, initEcho } from '@/realtime/echo'
 
 const route = useRoute()
 const router = useRouter()
@@ -189,6 +208,11 @@ const isApplyingRoute = ref(false)
 const events = ref([])
 const loading = ref(false)
 const error = ref('')
+const pendingRealtimeIds = ref([])
+const loadingRealtimePending = ref(false)
+const freshEventIds = ref(new Set())
+const MAX_PENDING_REALTIME_IDS = 20
+let activeRealtimeChannel = ''
 
 const isCalendarView = computed(() => route.query?.view === 'calendar')
 const weekOptions = computed(() => Array.from({ length: 53 }, (_, idx) => idx + 1))
@@ -261,6 +285,104 @@ async function fetchEvents() {
   } finally {
     loading.value = false
   }
+}
+
+function isNearTopOfPage() {
+  if (typeof window === 'undefined') return false
+  return window.scrollY <= 50
+}
+
+function isEventFresh(eventId) {
+  return freshEventIds.value.has(Number(eventId))
+}
+
+function markEventFresh(eventId) {
+  const normalized = Number(eventId)
+  if (!Number.isInteger(normalized) || normalized <= 0) return
+
+  const next = new Set(freshEventIds.value)
+  next.add(normalized)
+  freshEventIds.value = next
+
+  window.setTimeout(() => {
+    const snapshot = new Set(freshEventIds.value)
+    snapshot.delete(normalized)
+    freshEventIds.value = snapshot
+  }, 2600)
+}
+
+function isEventAlreadyPresent(eventId) {
+  const normalized = Number(eventId)
+  return events.value.some((eventItem) => Number(eventItem?.id) === normalized)
+}
+
+function enqueuePendingRealtimeEvent(eventId) {
+  const normalized = Number(eventId)
+  if (!Number.isInteger(normalized) || normalized <= 0) return
+  if (isEventAlreadyPresent(normalized)) return
+  if (pendingRealtimeIds.value.includes(normalized)) return
+
+  const next = [...pendingRealtimeIds.value, normalized]
+  pendingRealtimeIds.value = next.slice(-MAX_PENDING_REALTIME_IDS)
+}
+
+async function loadPendingRealtimeEvents(options = {}) {
+  if (loadingRealtimePending.value) return
+  if (pendingRealtimeIds.value.length === 0) return
+
+  loadingRealtimePending.value = true
+
+  try {
+    const idsToLoad = [...pendingRealtimeIds.value]
+    const response = await lookupEventsByIds(idsToLoad)
+    const fetched = Array.isArray(response?.data?.data) ? response.data.data : []
+
+    pendingRealtimeIds.value = pendingRealtimeIds.value.filter((id) => !idsToLoad.includes(id))
+
+    for (let index = fetched.length - 1; index >= 0; index -= 1) {
+      const eventItem = fetched[index]
+      if (!eventItem?.id || isEventAlreadyPresent(eventItem.id)) continue
+      events.value = [eventItem, ...events.value]
+      markEventFresh(eventItem.id)
+    }
+
+    if (options.refetchAfter !== false) {
+      await fetchEvents()
+    }
+  } catch (err) {
+    console.warn('Realtime event fetch failed:', err?.message || err)
+  } finally {
+    loadingRealtimePending.value = false
+  }
+}
+
+function startRealtimeFeed() {
+  if (isCalendarView.value) return
+  if (activeRealtimeChannel === 'events.feed') return
+
+  const echo = initEcho()
+  if (!echo) return
+
+  activeRealtimeChannel = 'events.feed'
+  echo.channel(activeRealtimeChannel).listen('.event.published', async (payload) => {
+    const eventId = Number(payload?.event_id || payload?.id || 0)
+    if (!Number.isInteger(eventId) || eventId <= 0) return
+    if (isEventAlreadyPresent(eventId)) return
+
+    enqueuePendingRealtimeEvent(eventId)
+
+    if (isNearTopOfPage()) {
+      await loadPendingRealtimeEvents({ refetchAfter: false })
+    }
+  })
+}
+
+function stopRealtimeFeed() {
+  const echo = getEcho()
+  if (echo && activeRealtimeChannel) {
+    echo.leaveChannel(activeRealtimeChannel)
+  }
+  activeRealtimeChannel = ''
 }
 
 function setView(view) {
@@ -427,6 +549,8 @@ onMounted(async () => {
   if (!isCalendarView.value && auth.isAuthed && favorites.ids.size === 0 && !favorites.loading) {
     await favorites.fetch()
   }
+
+  startRealtimeFeed()
 })
 
 watch(
@@ -439,6 +563,19 @@ watch(
   },
   { deep: true },
 )
+
+watch(isCalendarView, (calendarView) => {
+  if (calendarView) {
+    stopRealtimeFeed()
+    return
+  }
+
+  startRealtimeFeed()
+})
+
+onBeforeUnmount(() => {
+  stopRealtimeFeed()
+})
 </script>
 
 <style scoped>
@@ -717,6 +854,10 @@ watch(
   text-decoration: none;
 }
 
+.event-card-new {
+  animation: realtime-pulse 2.4s ease;
+}
+
 .card-content {
   padding: 0.72rem;
 }
@@ -788,6 +929,20 @@ watch(
   font-weight: 700;
 }
 
+.realtime-banner {
+  width: 100%;
+  margin-top: 0.65rem;
+  margin-bottom: 0.35rem;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.42);
+  border-radius: 0.75rem;
+  background: rgb(var(--color-primary-rgb) / 0.16);
+  color: var(--color-surface);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -807,6 +962,23 @@ watch(
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes realtime-pulse {
+  0% {
+    transform: scale(0.985);
+    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0.3);
+  }
+
+  50% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgb(var(--color-primary-rgb) / 0);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: none;
   }
 }
 
