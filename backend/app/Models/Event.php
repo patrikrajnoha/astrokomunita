@@ -103,4 +103,9 @@ class Event extends Model
     {
         return $this->hasMany(EventInvite::class);
     }
+
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(EventReminder::class);
+    }
 }
