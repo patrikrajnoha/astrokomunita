@@ -77,14 +77,14 @@
       </section>
 
       <section class="panel">
-        <p class="miniLabel">Sky Quality</p>
+        <p class="miniLabel">Bortle: {{ skyQualityLabel }}</p>
         <p class="detailRow">
-          <span title="Nižšie číslo = tmavšia obloha">Bortle</span>
+          <span title="1 = tmavá obloha, 9 = silné svetelné znečistenie (mesto). Ovplyvňuje najmä deep-sky pozorovanie.">Bortle</span>
           <strong>{{ skyQualityLabel }}</strong>
         </p>
         <p class="muted">{{ skyQualityImpactNote }}</p>
         <label v-if="isAuthenticated" class="bortleControl">
-          <span>Bortle class: {{ selectedBortleClass }}/9</span>
+          <span>Bortle: {{ selectedBortleClass }}/9</span>
           <input type="range" min="1" max="9" step="1" :value="selectedBortleClass" @input="onBortleInput" />
         </label>
       </section>
@@ -198,7 +198,7 @@ const skyQualityClass = computed(() => {
   return Math.min(9, Math.max(1, value))
 })
 const skyQualityLabel = computed(() => `${skyQualityClass.value}/9`)
-const skyQualityImpactNote = computed(() => cleanString(observeSummary.value?.sky_quality?.impact_note) || 'Nižšie číslo znamená tmavšiu oblohu.')
+const skyQualityImpactNote = computed(() => cleanString(observeSummary.value?.sky_quality?.impact_note) || '1 = tmavá obloha, 9 = silné svetelné znečistenie (mesto). Ovplyvňuje najmä deep-sky pozorovanie.')
 
 const observingIndex = computed(() => {
   const raw = asFiniteNumber(observeSummary.value?.observing_index)
