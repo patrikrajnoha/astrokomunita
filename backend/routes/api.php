@@ -50,6 +50,7 @@ use App\Http\Controllers\Api\Admin\AuthSettingsController;
 use App\Http\Controllers\Api\Admin\ContestController as AdminContestController;
 use App\Http\Controllers\Api\Admin\AdminStatsController;
 use App\Http\Controllers\Api\Admin\AdminBotController;
+use App\Http\Controllers\Api\Admin\PerformanceMetricsController;
 use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
 use App\Http\Controllers\Api\SidebarSectionController;
 use App\Http\Controllers\Api\Admin\SidebarConfigController as AdminSidebarConfigController;
@@ -300,6 +301,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::get('/dashboard', DashboardController::class);
         Route::get('/stats', [AdminStatsController::class, 'index']);
         Route::get('/stats/export', [AdminStatsController::class, 'export']);
+        Route::get('/performance-metrics', [PerformanceMetricsController::class, 'index']);
+        Route::post('/performance-metrics/run', [PerformanceMetricsController::class, 'run']);
         Route::get('/auth-settings', [AuthSettingsController::class, 'show']);
         Route::patch('/auth-settings', [AuthSettingsController::class, 'update']);
 
