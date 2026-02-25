@@ -118,15 +118,24 @@
       </div>
 
       <section v-else-if="events.length > 0">
-        <button
-          v-if="pendingRealtimeIds.length > 0"
-          class="realtime-banner"
-          type="button"
-          :disabled="loadingRealtimePending"
-          @click="loadPendingRealtimeEvents"
-        >
-          Nove udalosti ({{ pendingRealtimeIds.length }}) - klikni pre nacitanie
-        </button>
+        <div v-if="shouldShowRealtimeBanner" class="realtime-banner" role="status" aria-live="polite">
+          <button
+            class="realtime-banner-main"
+            type="button"
+            :disabled="loadingRealtimePending"
+            @click="loadPendingRealtimeEvents"
+          >
+            Nove udalosti ({{ pendingRealtimeIds.length }}) - klikni pre nacitanie
+          </button>
+          <button
+            class="realtime-banner-dismiss"
+            type="button"
+            aria-label="Skryt banner novych udalosti"
+            @click="dismissRealtimeBanner"
+          >
+            x
+          </button>
+        </div>
 
         <div class="events-grid">
           <RouterLink
@@ -211,10 +220,12 @@ const error = ref('')
 const pendingRealtimeIds = ref([])
 const loadingRealtimePending = ref(false)
 const freshEventIds = ref(new Set())
+const realtimeBannerDismissed = ref(false)
 const MAX_PENDING_REALTIME_IDS = 20
 let activeRealtimeChannel = ''
 
 const isCalendarView = computed(() => route.query?.view === 'calendar')
+const shouldShowRealtimeBanner = computed(() => pendingRealtimeIds.value.length > 0 && !realtimeBannerDismissed.value)
 const weekOptions = computed(() => Array.from({ length: 53 }, (_, idx) => idx + 1))
 const monthOptions = [
   { value: 1, label: 'Januar' },
@@ -324,6 +335,7 @@ function enqueuePendingRealtimeEvent(eventId) {
 
   const next = [...pendingRealtimeIds.value, normalized]
   pendingRealtimeIds.value = next.slice(-MAX_PENDING_REALTIME_IDS)
+  realtimeBannerDismissed.value = false
 }
 
 async function loadPendingRealtimeEvents(options = {}) {
@@ -369,12 +381,27 @@ function startRealtimeFeed() {
     if (!Number.isInteger(eventId) || eventId <= 0) return
     if (isEventAlreadyPresent(eventId)) return
 
-    enqueuePendingRealtimeEvent(eventId)
-
     if (isNearTopOfPage()) {
-      await loadPendingRealtimeEvents({ refetchAfter: false })
+      try {
+        const response = await lookupEventsByIds([eventId])
+        const fetched = Array.isArray(response?.data?.data) ? response.data.data : []
+        const eventItem = fetched[0]
+        if (eventItem?.id && !isEventAlreadyPresent(eventItem.id)) {
+          events.value = [eventItem, ...events.value]
+          markEventFresh(eventItem.id)
+        }
+      } catch (err) {
+        console.warn('Realtime single event fetch failed:', err?.message || err)
+      }
+      return
     }
+
+    enqueuePendingRealtimeEvent(eventId)
   })
+}
+
+function dismissRealtimeBanner() {
+  realtimeBannerDismissed.value = true
 }
 
 function stopRealtimeFeed() {
@@ -936,11 +963,29 @@ onBeforeUnmount(() => {
   border: 1px solid rgb(var(--color-primary-rgb) / 0.42);
   border-radius: 0.75rem;
   background: rgb(var(--color-primary-rgb) / 0.16);
+  display: flex;
+  align-items: center;
+}
+
+.realtime-banner-main {
+  flex: 1;
+  border: 0;
+  background: transparent;
   color: var(--color-surface);
   font-size: 0.8rem;
   font-weight: 700;
   padding: 0.5rem 0.7rem;
   text-align: left;
+}
+
+.realtime-banner-dismiss {
+  border: 0;
+  border-left: 1px solid rgb(var(--color-primary-rgb) / 0.35);
+  background: transparent;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.5rem 0.7rem;
 }
 
 @keyframes spin {
