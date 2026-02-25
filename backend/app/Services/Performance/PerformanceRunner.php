@@ -78,7 +78,7 @@ class PerformanceRunner
         }
 
         return $this->persistMetric(
-            key: 'events_list_200',
+            key: 'events_list_' . $sampleSize,
             sampleSize: $sampleSize,
             durationsMs: $durations,
             queryCounts: $queryCounts,
@@ -165,7 +165,7 @@ class PerformanceRunner
         }
 
         return $this->persistMetric(
-            key: 'canonical_publish_100',
+            key: 'canonical_publish_' . $sampleSize,
             sampleSize: $sampleSize,
             durationsMs: $durations,
             queryCounts: $queryCounts,

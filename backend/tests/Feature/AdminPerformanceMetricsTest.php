@@ -69,8 +69,7 @@ class AdminPerformanceMetricsTest extends TestCase
 
         $this->assertDatabaseCount('performance_logs', 1);
         $this->assertTrue(
-            PerformanceLog::query()->where('key', 'events_list_200')->exists()
+            PerformanceLog::query()->where('key', 'events_list_3')->exists()
         );
     }
 }
-
