@@ -30,7 +30,8 @@ function isLongRunningPath(url) {
     normalized.includes('/admin/event-sources/run') ||
     normalized.includes('/admin/event-sources/purge') ||
     normalized.includes('/admin/event-candidates/approve-batch') ||
-    normalized.includes('/admin/manual-events/publish-batch')
+    normalized.includes('/admin/manual-events/publish-batch') ||
+    normalized.includes('/admin/performance-metrics/run')
   )
 }
 
