@@ -169,6 +169,18 @@
                 @login-required="onPollLoginRequired"
               />
 
+              <div v-if="attachedEventForPost(p)" class="attached-event-card" @click.stop>
+                <div class="attached-event-copy">
+                  <p class="attached-event-title">{{ attachedEventForPost(p).title || 'Udalost' }}</p>
+                  <p class="attached-event-date">
+                    {{ formatEventRange(attachedEventForPost(p).start_at, attachedEventForPost(p).end_at) }}
+                  </p>
+                </div>
+                <button type="button" class="attached-event-btn" @click.stop="openAttachedEvent(p)">
+                  Otvorit udalost
+                </button>
+              </div>
+
               <div v-if="isBotPost(p)" class="source-url source-url--bot" @click.stop>
                 <span class="source-attribution">Zdroj: {{ sourceAttributionLabel(p) }}</span>
                 <a
@@ -191,6 +203,10 @@
                   :blurred="isAttachmentPending(p)"
                   pending-label="Checking..."
                 />
+              </div>
+
+              <div v-if="postGifUrl(p) && !stelaPreviewImageSrc(p)" class="post-media post-media--gif">
+                <img class="gifEmbed" :src="postGifUrl(p)" :alt="postGifTitle(p)" loading="lazy" />
               </div>
 
               <!-- Media attachment -->
@@ -733,6 +749,65 @@ function stelaPreviewImageSrc(post) {
   }
 
   return ''
+}
+
+function postGifUrl(post) {
+  const gif = post?.meta?.gif
+  if (!gif || typeof gif !== 'object') return ''
+
+  const original = absoluteUrl(gif.original_url)
+  if (original) return original
+
+  return absoluteUrl(gif.preview_url)
+}
+
+function postGifTitle(post) {
+  const title = String(post?.meta?.gif?.title || '').trim()
+  return title || 'GIF'
+}
+
+function attachedEventForPost(post) {
+  const event = post?.attached_event
+  if (event && typeof event === 'object') {
+    return event
+  }
+
+  const fallbackId = Number(post?.meta?.event?.event_id || 0)
+  if (!Number.isInteger(fallbackId) || fallbackId <= 0) {
+    return null
+  }
+
+  return {
+    id: fallbackId,
+    title: `Udalost #${fallbackId}`,
+    start_at: null,
+    end_at: null,
+  }
+}
+
+function openAttachedEvent(post) {
+  const eventId = Number(attachedEventForPost(post)?.id || 0)
+  if (!Number.isInteger(eventId) || eventId <= 0) return
+  router.push(`/events/${eventId}`)
+}
+
+function parseEventDate(value) {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function formatEventRange(startAt, endAt) {
+  const start = parseEventDate(startAt)
+  const end = parseEventDate(endAt)
+
+  if (!start && !end) return 'Datum upresnime'
+  if (start && !end) return start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
+  if (!start && end) return end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  const startLabel = start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
+  const endLabel = end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
+  return startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`
 }
 
 function menuItemsForPost(post) {
@@ -2028,6 +2103,64 @@ defineExpose({ load, prepend })
 
 .post-media--stela {
   margin-top: 0.48rem;
+}
+
+.post-media--gif {
+  margin-top: 0.48rem;
+}
+
+.attached-event-card {
+  margin-top: 0.48rem;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.28);
+  border-radius: 12px;
+  background: rgb(var(--color-primary-rgb) / 0.09);
+  padding: 0.55rem 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.attached-event-copy {
+  min-width: 0;
+}
+
+.attached-event-title {
+  margin: 0;
+  color: var(--color-surface);
+  font-size: 0.85rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.attached-event-date {
+  margin: 0.18rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.74rem;
+}
+
+.attached-event-btn {
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.5);
+  background: rgb(var(--color-primary-rgb) / 0.15);
+  color: var(--color-surface);
+  border-radius: 999px;
+  padding: 0.26rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.attached-event-btn:hover {
+  background: rgb(var(--color-primary-rgb) / 0.24);
+}
+
+.gifEmbed {
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
+  display: block;
 }
 
 .media-removed {
