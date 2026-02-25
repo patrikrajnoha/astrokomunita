@@ -845,6 +845,72 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame(1, (int) ($run->stats['translation_done_count'] ?? 0));
     }
 
+    public function test_legacy_skipped_item_without_translated_payload_is_retranslated_before_publish(): void
+    {
+        config()->set('astrobot.translation_provider', 'http');
+        config()->set('astrobot.translation_base_url', 'http://translation.test');
+        config()->set('astrobot.translation_timeout_seconds', 5);
+
+        $source = $this->createSource();
+        Http::fake([
+            $source->url => Http::response(
+                $this->rssSingleItem(
+                    guid: 'guid-legacy-skipped-pending-translation',
+                    title: 'English skipped title',
+                    link: 'https://www.nasa.gov/news-release/legacy-skipped-translation/',
+                    description: 'English skipped body text long enough to pass publish validation checks.'
+                ),
+                200,
+                ['Content-Type' => 'application/rss+xml']
+            ),
+            'http://translation.test/translate' => function ($request) {
+                $sourceText = trim((string) ($request['q'] ?? ''));
+
+                return Http::response([
+                    'translatedText' => 'SK ' . $sourceText,
+                ], 200);
+            },
+        ]);
+
+        $legacyTitle = 'English skipped title';
+        $legacyBody = 'English skipped body text long enough to pass publish validation checks.';
+
+        BotItem::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'stable_key' => 'guid-legacy-skipped-pending-translation',
+            'title' => $legacyTitle,
+            'summary' => $legacyBody,
+            'content' => $legacyBody,
+            'url' => 'https://www.nasa.gov/news-release/legacy-skipped-translation/',
+            'published_at' => now(),
+            'fetched_at' => now(),
+            'lang_original' => 'en',
+            'translation_status' => 'skipped',
+            'publish_status' => 'published',
+            'meta' => [
+                'translation_cache_key' => sha1('sk|' . $legacyTitle . '|' . $legacyBody),
+                'translation' => [
+                    'provider' => 'none',
+                    'reason' => 'translation_not_enabled',
+                    'target_lang' => 'sk',
+                ],
+            ],
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+        $this->assertSame(0, $exitCode);
+
+        $item = BotItem::query()->where('stable_key', 'guid-legacy-skipped-pending-translation')->firstOrFail();
+        $this->assertSame('done', (string) $item->translation_status->value);
+        $this->assertSame('libretranslate', (string) $item->translation_provider);
+        $this->assertStringStartsWith('SK ', (string) $item->title_translated);
+        $this->assertNotNull($item->post_id);
+
+        $post = Post::query()->findOrFail($item->post_id);
+        $this->assertStringContainsString('NASA | SK English skipped title', (string) $post->content);
+    }
+
     private function createSource(): BotSource
     {
         return BotSource::query()->create([
