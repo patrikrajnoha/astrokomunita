@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Post;
+use App\Models\Event;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -266,5 +267,43 @@ class PostThreadsTest extends TestCase
         $response->assertOk();
         $response->assertJsonCount(1, 'data');
         $response->assertJsonPath('data.0.user_id', $me->id);
+    }
+
+    public function test_attached_event_is_included_in_post_payloads(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $event = Event::query()->create([
+            'title' => 'Lunar Eclipse',
+            'type' => 'lunar_eclipse',
+            'start_at' => now()->addDay(),
+            'end_at' => now()->addDays(2),
+            'source_name' => 'test',
+            'source_uid' => 'evt-1',
+        ]);
+
+        $createResponse = $this->postJson('/api/posts', [
+            'content' => 'Post with event',
+            'event_id' => $event->id,
+        ]);
+
+        $createResponse->assertCreated();
+        $createResponse->assertJsonPath('meta.event.event_id', $event->id);
+        $createResponse->assertJsonPath('attached_event.id', $event->id);
+        $createResponse->assertJsonPath('attached_event.title', 'Lunar Eclipse');
+
+        $createdId = (int) $createResponse->json('id');
+
+        $this->getJson('/api/posts')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $createdId)
+            ->assertJsonPath('data.0.attached_event.id', $event->id);
+
+        $this->getJson('/api/posts/' . $createdId)
+            ->assertOk()
+            ->assertJsonPath('root.id', $createdId)
+            ->assertJsonPath('root.attached_event.id', $event->id)
+            ->assertJsonPath('root.attached_event.title', 'Lunar Eclipse');
     }
 }

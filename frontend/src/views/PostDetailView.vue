@@ -100,6 +100,22 @@
               @login-required="onPollLoginRequired"
             />
 
+            <div v-if="attachedEventForPost(root)" class="attachedEventCard">
+              <div class="attachedEventCopy">
+                <p class="attachedEventTitle">{{ attachedEventForPost(root).title || 'Udalost' }}</p>
+                <p class="attachedEventDate">
+                  {{ formatEventRange(attachedEventForPost(root).start_at, attachedEventForPost(root).end_at) }}
+                </p>
+              </div>
+              <button class="replyBtn" type="button" @click="openAttachedEvent(root)">
+                Otvorit udalost
+              </button>
+            </div>
+
+            <div v-if="postGifUrl(root)" class="mediaWrap">
+              <img class="gifEmbed" :src="postGifUrl(root)" :alt="postGifTitle(root)" loading="lazy" />
+            </div>
+
             <div v-if="root?.attachment_url" class="mediaWrap">
               <div v-if="isAttachmentBlocked(root)" class="removedMedia">Removed</div>
               <PostMediaImage
@@ -224,6 +240,10 @@
                   <HashtagText v-else :content="r.content" />
                 </div>
 
+                <div v-if="postGifUrl(r)" class="mediaWrapSm">
+                  <img class="gifEmbed" :src="postGifUrl(r)" :alt="postGifTitle(r)" loading="lazy" />
+                </div>
+
                 <div v-if="r.attachment_url" class="mediaWrapSm">
                   <div v-if="isAttachmentBlocked(r)" class="removedMedia">Removed</div>
                   <PostMediaImage
@@ -333,6 +353,10 @@
                       </template>
                       <HashtagText v-else :content="c.content" />
                     </div>
+
+                      <div v-if="postGifUrl(c)" class="mediaWrapSm">
+                        <img class="gifEmbed" :src="postGifUrl(c)" :alt="postGifTitle(c)" loading="lazy" />
+                      </div>
 
                       <div v-if="c.attachment_url" class="mediaWrapSm">
                         <div v-if="isAttachmentBlocked(c)" class="removedMedia">Removed</div>
@@ -494,6 +518,78 @@ function attachmentDownloadSrc(p) {
 
   if (u.startsWith('/')) return origin + u
   return origin + '/' + u
+}
+
+function postGifUrl(post) {
+  const gif = post?.meta?.gif
+  if (!gif || typeof gif !== 'object') return ''
+
+  const original = normalizeAbsoluteUrl(gif.original_url)
+  if (original) return original
+
+  return normalizeAbsoluteUrl(gif.preview_url)
+}
+
+function postGifTitle(post) {
+  const title = String(post?.meta?.gif?.title || '').trim()
+  return title || 'GIF'
+}
+
+function attachedEventForPost(post) {
+  const event = post?.attached_event
+  if (event && typeof event === 'object') {
+    return event
+  }
+
+  const fallbackId = Number(post?.meta?.event?.event_id || 0)
+  if (!Number.isInteger(fallbackId) || fallbackId <= 0) {
+    return null
+  }
+
+  return {
+    id: fallbackId,
+    title: `Udalost #${fallbackId}`,
+    start_at: null,
+    end_at: null,
+  }
+}
+
+function parseEventDate(value) {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function formatEventRange(startAt, endAt) {
+  const start = parseEventDate(startAt)
+  const end = parseEventDate(endAt)
+
+  if (!start && !end) return 'Datum upresnime'
+  if (start && !end) return start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
+  if (!start && end) return end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  const startLabel = start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
+  const endLabel = end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
+  return startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`
+}
+
+function openAttachedEvent(post) {
+  const eventId = Number(attachedEventForPost(post)?.id || 0)
+  if (!Number.isInteger(eventId) || eventId <= 0) return
+  router.push(`/events/${eventId}`)
+}
+
+function normalizeAbsoluteUrl(url) {
+  const value = String(url || '').trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+
+  const base = api?.defaults?.baseURL || ''
+  const origin = base.replace(/\/api\/?$/, '')
+  if (!origin) return value
+
+  if (value.startsWith('/')) return origin + value
+  return origin + '/' + value
 }
 
 function onReplyCreated(newReply) {
@@ -1013,9 +1109,48 @@ const repliesCount = computed(() => {
   flex-wrap: wrap;
 }
 
+.attachedEventCard {
+  margin-top: 0.6rem;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.35);
+  border-radius: 0.95rem;
+  padding: 0.6rem 0.65rem;
+  background: rgb(var(--color-primary-rgb) / 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.attachedEventCopy {
+  min-width: 0;
+}
+
+.attachedEventTitle {
+  margin: 0;
+  color: var(--color-surface);
+  font-weight: 900;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.attachedEventDate {
+  margin: 0.2rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+}
+
 /* media */
 .mediaWrap {
   margin-top: 0.75rem;
+}
+
+.gifEmbed {
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  display: block;
 }
 
 .removedMedia {
