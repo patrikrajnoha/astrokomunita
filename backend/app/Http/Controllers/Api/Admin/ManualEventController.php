@@ -7,12 +7,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
 use App\Models\ManualEvent;
+use App\Services\Events\EventFeedRealtimePublisher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ManualEventController extends Controller
 {
+    public function __construct(
+        private readonly EventFeedRealtimePublisher $eventFeedRealtimePublisher,
+    ) {
+    }
+
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 20);
@@ -102,6 +108,7 @@ class ManualEventController extends Controller
         $event->source_name = 'manual';
         $event->source_uid = (string) Str::uuid();
         $event->save();
+        $this->eventFeedRealtimePublisher->publish($event);
 
         $manualEvent->status = 'published';
         $manualEvent->published_event_id = $event->id;
@@ -180,6 +187,7 @@ class ManualEventController extends Controller
                 $event->source_name = 'manual';
                 $event->source_uid = (string) Str::uuid();
                 $event->save();
+                $this->eventFeedRealtimePublisher->publish($event);
 
                 $manual->status = 'published';
                 $manual->published_event_id = $event->id;

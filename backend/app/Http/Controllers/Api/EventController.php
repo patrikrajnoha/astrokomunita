@@ -183,6 +183,36 @@ class EventController extends Controller
         return new EventResource($event);
     }
 
+    /**
+     * GET /api/events/lookup?ids=1,2,3
+     */
+    public function lookup(Request $request)
+    {
+        $rawIds = explode(',', (string) $request->query('ids', ''));
+        $ids = collect($rawIds)
+            ->map(static fn (string $id): int => (int) trim($id))
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->unique()
+            ->take(50)
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return response()->json(['data' => []]);
+        }
+
+        $eventsById = $this->basePublishedQuery()
+            ->whereIn('id', $ids->all())
+            ->get()
+            ->keyBy('id');
+
+        $ordered = $ids
+            ->map(static fn (int $id) => $eventsById->get($id))
+            ->filter()
+            ->values();
+
+        return EventResource::collection($ordered);
+    }
+
     private function basePublishedQuery()
     {
         return $this->publishedEventQuery->base();

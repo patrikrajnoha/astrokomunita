@@ -23,6 +23,24 @@ export function getEventYears() {
   return api.get('/events/years')
 }
 
+export function lookupEventsByIds(ids = []) {
+  const normalized = Array.from(
+    new Set(
+      ids
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0),
+    ),
+  )
+
+  if (normalized.length === 0) {
+    return Promise.resolve({ data: { data: [] } })
+  }
+
+  return api.get('/events/lookup', {
+    params: { ids: normalized.join(',') },
+  })
+}
+
 export function getMyPreferences() {
   return api.get('/me/preferences', {
     meta: { requiresAuth: true },

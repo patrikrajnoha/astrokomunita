@@ -10,3 +10,4 @@ $authorizeUserChannel = static function ($user, $id): bool {
 
 Broadcast::channel('users.{id}', $authorizeUserChannel);
 Broadcast::channel('private-users.{id}', $authorizeUserChannel);
+Broadcast::channel('events.feed', static fn (): bool => true);
