@@ -380,8 +380,17 @@ class BotRunner
             $legacyPlaceholder = $currentStatus === BotTranslationStatus::DONE->value
                 && !$this->hasAnyTranslatedText($item)
                 && $this->isLegacyTranslationPlaceholder($meta);
+            $legacySkippedPlaceholder = $currentStatus === BotTranslationStatus::SKIPPED->value
+                && !$this->hasAnyTranslatedText($item)
+                && $this->isLegacyTranslationPlaceholder($meta);
+            $heuristicSkippedRetry = $currentStatus === BotTranslationStatus::SKIPPED->value
+                && !$this->hasAnyTranslatedText($item)
+                && $this->isHeuristicSkippedEnglishSource($item, $meta);
 
-            if (!in_array($currentStatus, ['', BotTranslationStatus::PENDING->value, BotTranslationStatus::FAILED->value, null], true) && !$legacyPlaceholder) {
+            if (!in_array($currentStatus, ['', BotTranslationStatus::PENDING->value, BotTranslationStatus::FAILED->value, null], true)
+                && !$legacyPlaceholder
+                && !$legacySkippedPlaceholder
+                && !$heuristicSkippedRetry) {
                 continue;
             }
 
@@ -429,7 +438,8 @@ class BotRunner
                 continue;
             }
 
-            if ($this->isLikelySlovakText($title, $content)) {
+            $isEnglishSource = $langOriginal === 'en' || str_starts_with($langOriginal, 'en-');
+            if (!$isEnglishSource && $this->isLikelySlovakText($title, $content)) {
                 $meta = is_array($item->meta) ? $item->meta : [];
                 $this->markTranslationSkipped($item, $meta, $runContext, 'already_slovak_heuristic', 'heuristic');
                 if (config('app.debug')) {
@@ -851,6 +861,20 @@ class BotRunner
 
         return in_array($provider, ['dummy', 'none'], true)
             || $reason === 'translation_not_enabled';
+    }
+
+    /**
+     * @param array<string,mixed> $meta
+     */
+    private function isHeuristicSkippedEnglishSource(BotItem $item, array $meta): bool
+    {
+        $reason = strtolower(trim((string) data_get($meta, 'translation.reason', '')));
+        if ($reason !== 'already_slovak_heuristic') {
+            return false;
+        }
+
+        $langOriginal = strtolower(trim((string) $item->lang_original));
+        return $langOriginal === 'en' || str_starts_with($langOriginal, 'en-');
     }
 
     private function nullableString(mixed $value): ?string

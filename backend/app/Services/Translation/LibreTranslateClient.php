@@ -33,7 +33,8 @@ class LibreTranslateClient implements TranslationClientInterface
         $startedAt = microtime(true);
         $legacyBaseUrl = trim((string) config('astrobot.translation_base_url', ''));
         $configuredBaseUrl = trim((string) config('astrobot.translation.libretranslate.url', ''));
-        $baseUrl = $legacyBaseUrl !== '' ? $legacyBaseUrl : $configuredBaseUrl;
+        // Prefer current config namespace; legacy flat key is fallback only.
+        $baseUrl = $configuredBaseUrl !== '' ? $configuredBaseUrl : $legacyBaseUrl;
 
         $sharedTimeout = (int) config('astrobot.translation.timeout_sec', 12);
         $legacyTimeout = (int) config('astrobot.translation_timeout_seconds', 0);
