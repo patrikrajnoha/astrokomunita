@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use Database\Seeders\EventSourceSeeder;
 use App\Http\Controllers\Controller;
 use App\Models\CrawlRun;
 use App\Models\Event;
@@ -13,6 +14,7 @@ use App\Services\Crawlers\CrawlerRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class EventSourceController extends Controller
 {
@@ -26,6 +28,8 @@ class EventSourceController extends Controller
 
     public function index(): JsonResponse
     {
+        $this->ensureDefaultSources();
+
         $sources = EventSource::query()
             ->whereNotIn('key', self::DISABLED_SOURCE_KEYS)
             ->orderBy('key')
@@ -68,6 +72,8 @@ class EventSourceController extends Controller
 
     public function run(Request $request): JsonResponse
     {
+        $this->ensureDefaultSources();
+
         if (function_exists('set_time_limit')) {
             @set_time_limit(0);
         }
@@ -168,6 +174,8 @@ class EventSourceController extends Controller
 
     public function purge(Request $request): JsonResponse
     {
+        $this->ensureDefaultSources();
+
         $payload = $request->validate([
             'source_keys' => ['nullable', 'array'],
             'source_keys.*' => ['string', 'distinct'],
@@ -237,5 +245,20 @@ class EventSourceController extends Controller
             'deleted' => $counts,
             'confirm_token' => 'delete_crawled_events',
         ]);
+    }
+
+    private function ensureDefaultSources(): void
+    {
+        if (EventSource::query()->exists()) {
+            return;
+        }
+
+        try {
+            app(EventSourceSeeder::class)->run();
+        } catch (\Throwable $error) {
+            Log::warning('Failed to auto-seed event sources.', [
+                'message' => $error->getMessage(),
+            ]);
+        }
     }
 }

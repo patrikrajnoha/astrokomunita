@@ -167,6 +167,66 @@ function runCounters(run) {
   }
 }
 
+function runTranslation(run) {
+  const summary = run?.translation || {}
+  const breakdown = summary?.done_breakdown || {}
+
+  return {
+    total: toCount(summary.total),
+    done: toCount(summary.done),
+    failed: toCount(summary.failed),
+    pending: toCount(summary.pending),
+    both: toCount(breakdown.both),
+    titleOnly: toCount(breakdown.title_only),
+    descriptionOnly: toCount(breakdown.description_only),
+    withoutText: toCount(breakdown.without_text),
+  }
+}
+
+function runTranslationModeLabel(run) {
+  const t = runTranslation(run)
+
+  if (t.done <= 0) {
+    return t.pending > 0 ? 'cakajuce' : 'zatial nic'
+  }
+
+  if (t.both > 0 && t.titleOnly === 0 && t.descriptionOnly === 0 && t.withoutText === 0) {
+    return 'title+popis'
+  }
+
+  if (t.titleOnly > 0 && t.both === 0 && t.descriptionOnly === 0) {
+    return 'iba title'
+  }
+
+  if (t.descriptionOnly > 0 && t.both === 0 && t.titleOnly === 0) {
+    return 'iba popis'
+  }
+
+  return 'mix'
+}
+
+function isRunTranslationFullyCorrect(run) {
+  const t = runTranslation(run)
+  if (t.total <= 0) return false
+  if (t.failed > 0 || t.pending > 0) return false
+  if (t.done !== t.total) return false
+  if (t.withoutText > 0) return false
+  if (t.titleOnly > 0 || t.descriptionOnly > 0) return false
+  return true
+}
+
+function runTranslationQualityLabel(run) {
+  const t = runTranslation(run)
+  if (t.total <= 0) return 'Nehodnotene'
+  return isRunTranslationFullyCorrect(run) ? 'Preklad OK' : 'Problem'
+}
+
+function runTranslationQualityTone(run) {
+  const t = runTranslation(run)
+  if (t.total <= 0) return 'muted'
+  return isRunTranslationFullyCorrect(run) ? 'success' : 'danger'
+}
+
 function findLatestRunForSource(sourceKey) {
   const key = normalizeSourceKey(sourceKey)
   return latestRunBySourceKey.value[key] || null
@@ -648,6 +708,7 @@ onUnmounted(() => {
               <th>Rok</th>
               <th>Stav</th>
               <th>Pocitadla</th>
+              <th>Preklad</th>
               <th>Akcia</th>
             </tr>
           </thead>
@@ -668,6 +729,20 @@ onUnmounted(() => {
                   <span>U {{ runCounters(run).updated }}</span>
                   <span>S {{ runCounters(run).skipped }}</span>
                 </div>
+              </td>
+              <td>
+                <div v-if="runTranslation(run).total > 0" class="stackTiny">
+                  <span class="pill" :class="`pill--${runTranslationQualityTone(run)}`">
+                    {{ runTranslationQualityLabel(run) }}
+                  </span>
+                  <div class="counterRow">
+                    <span>D {{ runTranslation(run).done }}</span>
+                    <span>F {{ runTranslation(run).failed }}</span>
+                    <span>P {{ runTranslation(run).pending }}</span>
+                  </div>
+                  <span class="muted">Forma: {{ runTranslationModeLabel(run) }}</span>
+                </div>
+                <span v-else class="muted">-</span>
               </td>
               <td>
                 <div class="actionRow">

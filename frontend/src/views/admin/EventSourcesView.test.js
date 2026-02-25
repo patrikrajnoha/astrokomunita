@@ -82,6 +82,18 @@ describe('EventSourcesView', () => {
             created_candidates_count: 2,
             updated_candidates_count: 1,
             skipped_duplicates_count: 2,
+            translation: {
+              total: 3,
+              done: 2,
+              failed: 1,
+              pending: 0,
+              done_breakdown: {
+                both: 2,
+                title_only: 0,
+                description_only: 0,
+                without_text: 0,
+              },
+            },
           },
         ],
       },
@@ -125,6 +137,10 @@ describe('EventSourcesView', () => {
     expect(wrapper.text()).toContain('Zdroje')
     expect(wrapper.text()).toContain('Posledne runy')
     expect(wrapper.text()).toContain('IMO')
+    expect(wrapper.text()).toContain('Preklad')
+    expect(wrapper.text()).toContain('Problem')
+    expect(wrapper.text()).toContain('D 2')
+    expect(wrapper.text()).toContain('Forma: title+popis')
   })
 
   it('disables unsupported source run button with deferred tooltip', async () => {
