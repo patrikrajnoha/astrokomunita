@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use Database\Seeders\DefaultUsersSeeder;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class AuthController extends Controller
@@ -80,6 +82,8 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        $this->ensureDefaultUsersForLocal();
+
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
@@ -107,6 +111,25 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         return response()->json($request->user());
+    }
+
+    private function ensureDefaultUsersForLocal(): void
+    {
+        if (! app()->environment('local')) {
+            return;
+        }
+
+        if (User::query()->exists()) {
+            return;
+        }
+
+        try {
+            app(DefaultUsersSeeder::class)->seed();
+        } catch (\Throwable $error) {
+            Log::warning('Failed to auto-seed default users before login.', [
+                'message' => $error->getMessage(),
+            ]);
+        }
     }
 
     private function attemptLegacyPlaintextLogin(string $email, string $password): bool
