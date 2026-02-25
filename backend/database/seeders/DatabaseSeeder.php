@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
         $this->call(BotSourceSeeder::class);
         $this->call(SidebarSectionSeeder::class);
         $this->call(EventSourceSeeder::class);
+        $this->call(DefaultUsersSeeder::class);
         $this->call(TranslationOverrideSeeder::class);
 
         User::factory()->create([
