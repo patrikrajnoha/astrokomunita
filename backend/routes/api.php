@@ -230,6 +230,7 @@ Route::middleware('throttle:60,1')->prefix('search')->group(function () {
     Route::get('/global', [SearchController::class, 'global']);
     Route::get('/events', [SearchController::class, 'events']);
     Route::get('/articles', [SearchController::class, 'articles']);
+    Route::get('/hashtags', [SearchController::class, 'hashtags']);
     Route::get('/keywords', [SearchController::class, 'keywords']);
     Route::get('/discovery', [SearchController::class, 'discovery']);
     Route::get('/users', [SearchController::class, 'users']);

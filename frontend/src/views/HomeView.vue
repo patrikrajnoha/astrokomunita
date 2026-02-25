@@ -2,9 +2,9 @@
   <section class="timelineWrap">
     <div class="timelineColumn">
       <FeedList ref="feed" :key="$route.fullPath">
-        <template #composer>
+        <template #composer="{ activeTab }">
           <PostComposer
-            v-if="auth?.isAuthed"
+            v-if="auth?.isAuthed && activeTab === 'for_you'"
             @created="onPostCreated"
           />
         </template>

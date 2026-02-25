@@ -8,6 +8,7 @@ return [
         'Prešov' => ['lat' => 48.9984, 'lon' => 21.2339, 'tz' => 'Europe/Bratislava'],
         'Žilina' => ['lat' => 49.2231, 'lon' => 18.7394, 'tz' => 'Europe/Bratislava'],
         'Nitra' => ['lat' => 48.3064, 'lon' => 18.0764, 'tz' => 'Europe/Bratislava'],
+        'Ivanka pri Nitre' => ['lat' => 48.2930, 'lon' => 18.1889, 'tz' => 'Europe/Bratislava'],
         'Banská Bystrica' => ['lat' => 48.7363, 'lon' => 19.1462, 'tz' => 'Europe/Bratislava'],
         'Trnava' => ['lat' => 48.3774, 'lon' => 17.5872, 'tz' => 'Europe/Bratislava'],
         'Trenčín' => ['lat' => 48.8945, 'lon' => 18.0444, 'tz' => 'Europe/Bratislava'],
@@ -17,4 +18,3 @@ return [
         'Mimo Európy' => ['lat' => 40.7128, 'lon' => -74.0060, 'tz' => 'America/New_York'],
     ],
 ];
-

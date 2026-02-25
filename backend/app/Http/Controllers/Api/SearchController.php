@@ -17,6 +17,18 @@ use Illuminate\Support\Carbon;
 
 class SearchController extends Controller
 {
+    private function isKozmoOrStelaQuery(string $query): bool
+    {
+        $normalized = mb_strtolower(trim($query));
+        if ($normalized === '') {
+            return false;
+        }
+
+        return str_starts_with($normalized, 'kozmo')
+            || str_starts_with($normalized, 'stela')
+            || str_starts_with($normalized, 'stellar');
+    }
+
     /**
      * Unified search suggestions for autocomplete.
      */
@@ -39,6 +51,7 @@ class SearchController extends Controller
         $users = User::query()
             ->where('is_active', true)
             ->where('is_banned', false)
+            ->where('is_bot', false)
             ->where(function ($q) use ($query) {
                 $q->where('username', 'LIKE', $query . '%')
                     ->orWhere('name', 'LIKE', $query . '%');
@@ -103,12 +116,21 @@ class SearchController extends Controller
             'limit' => 'nullable|integer|min:1|max:50',
         ]);
 
-        $query = $request->get('q');
+        $query = trim((string) $request->get('q', ''));
         $limit = $request->get('limit', 20);
-
+        $allowCommunityBots = $this->isKozmoOrStelaQuery($query);
         $users = User::query()
             ->where('is_active', true)
             ->where('is_banned', false)
+            ->where(function (Builder $builder) use ($allowCommunityBots): void {
+                $builder->where('is_bot', false);
+                if ($allowCommunityBots) {
+                    $builder->orWhere(function (Builder $botScope): void {
+                        $botScope->where('is_bot', true)
+                            ->whereIn('username', ['kozmobot', 'stellarbot']);
+                    });
+                }
+            })
             ->where(function ($q) use ($query) {
                 $q->where('username', 'LIKE', $query . '%')
                     ->orWhere('name', 'LIKE', $query . '%');
@@ -134,9 +156,8 @@ class SearchController extends Controller
             'limit' => 'nullable|integer|min:1|max:50',
         ]);
 
-        $query = $request->get('q');
+        $query = trim((string) $request->get('q', ''));
         $limit = $request->get('limit', 20);
-
         $posts = Post::query()
             ->whereNull('parent_id')
             ->publiclyVisible()
@@ -250,6 +271,37 @@ class SearchController extends Controller
         ]);
     }
 
+    public function hashtags(Request $request): JsonResponse
+    {
+        $request->validate([
+            'q' => 'required|string|min:1|max:255',
+            'limit' => 'nullable|integer|min:1|max:30',
+        ]);
+
+        $query = ltrim(trim((string) $request->get('q', '')), '#');
+        $limit = max(1, min((int) $request->get('limit', 12), 30));
+
+        $hashtags = Hashtag::query()
+            ->where('name', 'like', '%' . $query . '%')
+            ->withCount('posts')
+            ->orderByDesc('posts_count')
+            ->orderBy('name')
+            ->limit($limit)
+            ->get(['id', 'name']);
+
+        $items = $hashtags->map(static fn (Hashtag $hashtag): array => [
+            'id' => $hashtag->id,
+            'name' => $hashtag->name,
+            'value' => '#' . $hashtag->name,
+            'posts_count' => (int) $hashtag->posts_count,
+        ])->values();
+
+        return response()->json([
+            'data' => $items,
+            'total' => $items->count(),
+        ]);
+    }
+
     public function global(Request $request): JsonResponse
     {
         $request->validate([
@@ -259,10 +311,19 @@ class SearchController extends Controller
 
         $query = trim((string) $request->get('q', ''));
         $limit = max(1, min((int) $request->get('limit', 6), 20));
-
+        $allowCommunityBots = $this->isKozmoOrStelaQuery($query);
         $users = User::query()
             ->where('is_active', true)
             ->where('is_banned', false)
+            ->where(function (Builder $builder) use ($allowCommunityBots): void {
+                $builder->where('is_bot', false);
+                if ($allowCommunityBots) {
+                    $builder->orWhere(function (Builder $botScope): void {
+                        $botScope->where('is_bot', true)
+                            ->whereIn('username', ['kozmobot', 'stellarbot']);
+                    });
+                }
+            })
             ->where(function (Builder $builder) use ($query): void {
                 $builder->where('username', 'like', $query . '%')
                     ->orWhere('name', 'like', $query . '%');
@@ -276,7 +337,9 @@ class SearchController extends Controller
             ->whereNull('parent_id')
             ->publiclyVisible()
             ->notExpired()
-            ->where('content', 'like', '%' . $query . '%')
+            ->where(function (Builder $builder) use ($query): void {
+                $builder->where('content', 'like', '%' . $query . '%');
+            })
             ->with(['user:id,name,username,avatar_path'])
             ->withCount(['likes', 'replies'])
             ->orderByRaw('(likes_count * 3 + replies_count * 2 + views * 0.2) desc')
@@ -309,7 +372,7 @@ class SearchController extends Controller
             ->limit($limit)
             ->get(['id', 'title', 'slug', 'published_at', 'views']);
 
-        $keywords = Hashtag::query()
+        $hashtags = Hashtag::query()
             ->where('name', 'like', $query . '%')
             ->withCount('posts')
             ->orderByDesc('posts_count')
@@ -318,6 +381,7 @@ class SearchController extends Controller
             ->get(['id', 'name'])
             ->map(static fn (Hashtag $hashtag): array => [
                 'id' => $hashtag->id,
+                'name' => $hashtag->name,
                 'value' => '#' . $hashtag->name,
                 'posts_count' => (int) $hashtag->posts_count,
                 'source' => 'hashtag',
@@ -330,7 +394,8 @@ class SearchController extends Controller
                 'posts' => $posts,
                 'events' => EventResource::collection($events)->resolve(),
                 'articles' => $articles,
-                'keywords' => $keywords,
+                'hashtags' => $hashtags,
+                'keywords' => $hashtags,
             ],
         ]);
     }

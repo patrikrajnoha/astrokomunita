@@ -77,4 +77,18 @@ class UserLocationMetaTest extends TestCase
         $this->assertSame('My place', $locationData['label']);
         $this->assertSame('manual', $locationData['source']);
     }
+
+    public function test_user_location_meta_contains_coordinates_for_ivanka_pri_nitre(): void
+    {
+        $user = User::factory()->make([
+            'location' => 'Ivanka pri Nitre',
+        ]);
+
+        $meta = $user->location_meta;
+
+        $this->assertIsArray($meta);
+        $this->assertSame(48.293, $meta['lat']);
+        $this->assertSame(18.1889, $meta['lon']);
+        $this->assertSame('Europe/Bratislava', $meta['tz']);
+    }
 }
