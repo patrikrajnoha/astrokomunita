@@ -56,4 +56,17 @@ return [
         'apod_api_key' => env('NASA_APOD_API_KEY', env('NASA_API_KEY', '')),
     ],
 
+    'giphy' => [
+        'api_key' => env('GIPHY_API_KEY', ''),
+        'base_url' => env('GIPHY_BASE_URL', 'https://api.giphy.com/v1'),
+        'timeout_seconds' => (int) env('GIPHY_TIMEOUT_SECONDS', 4),
+        'connect_timeout_seconds' => (int) env('GIPHY_CONNECT_TIMEOUT_SECONDS', 2),
+        'cache_ttl_seconds' => (int) env('GIPHY_CACHE_TTL_SECONDS', 600),
+        'global_hourly_limit' => (int) env('GIPHY_GLOBAL_HOURLY_LIMIT', 80),
+        'allowed_media_hosts' => array_values(array_filter(array_map(
+            static fn (string $host): string => strtolower(trim($host)),
+            explode(',', (string) env('GIPHY_ALLOWED_MEDIA_HOSTS', 'media.giphy.com,i.giphy.com,media0.giphy.com,media1.giphy.com,media2.giphy.com,media3.giphy.com,media4.giphy.com'))
+        ))),
+    ],
+
 ];

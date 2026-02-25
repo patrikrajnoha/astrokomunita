@@ -94,6 +94,14 @@ class StorePostRequest extends FormRequest
                 'max:' . PollService::MAX_DURATION_SECONDS,
             ],
             'poll.ends_at' => ['nullable', 'date'],
+            'gif' => ['nullable', 'array'],
+            'gif.id' => ['required_with:gif', 'string', 'max:120'],
+            'gif.title' => ['nullable', 'string', 'max:255'],
+            'gif.preview_url' => ['required_with:gif', 'url', 'max:2000'],
+            'gif.original_url' => ['required_with:gif', 'url', 'max:2000'],
+            'gif.width' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'gif.height' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'event_id' => ['nullable', 'integer', 'exists:events,id'],
         ];
     }
 
@@ -123,10 +131,33 @@ class StorePostRequest extends FormRequest
 
     public function postAttributes(): array
     {
+        $meta = [];
+
+        $gif = $this->validated('gif');
+        if (is_array($gif)) {
+            $meta['gif'] = [
+                'id' => (string) ($gif['id'] ?? ''),
+                'title' => trim((string) ($gif['title'] ?? '')),
+                'preview_url' => (string) ($gif['preview_url'] ?? ''),
+                'original_url' => (string) ($gif['original_url'] ?? ''),
+                'width' => isset($gif['width']) ? (int) $gif['width'] : null,
+                'height' => isset($gif['height']) ? (int) $gif['height'] : null,
+            ];
+        }
+
+        $eventId = $this->validated('event_id');
+        if ($eventId !== null) {
+            $meta['event'] = [
+                'event_id' => (int) $eventId,
+                'attached_type' => 'event',
+            ];
+        }
+
         return [
             'feed_key' => $this->validated('feed_key'),
             'author_kind' => strtolower((string) ($this->validated('author_kind') ?? ($this->user()?->isBot() ? PostAuthorKind::BOT->value : PostAuthorKind::USER->value))),
             'bot_identity' => $this->validated('bot_identity'),
+            'meta' => $meta !== [] ? $meta : null,
         ];
     }
 
@@ -140,6 +171,12 @@ class StorePostRequest extends FormRequest
         if ($this->hasFile('attachment')) {
             throw ValidationException::withMessages([
                 'attachment' => 'Poll a prilohy sa nedaju kombinovat.',
+            ]);
+        }
+
+        if (is_array($this->validated('gif'))) {
+            throw ValidationException::withMessages([
+                'gif' => 'Poll a GIF sa nedaju kombinovat.',
             ]);
         }
 
@@ -166,6 +203,12 @@ class StorePostRequest extends FormRequest
                     'poll.ends_at' => 'Poll end must be between 5 minutes and 7 days from now.',
                 ]);
             }
+        }
+
+        if ($this->hasFile('attachment') && is_array($this->validated('gif'))) {
+            throw ValidationException::withMessages([
+                'attachment' => 'Priloha a GIF sa nedaju kombinovat.',
+            ]);
         }
     }
 
