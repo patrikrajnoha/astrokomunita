@@ -125,7 +125,7 @@
             :disabled="loadingRealtimePending"
             @click="loadPendingRealtimeEvents"
           >
-            Nove udalosti ({{ pendingRealtimeIds.length }}) - klikni pre nacitanie
+            {{ realtimeBannerLabel }}
           </button>
           <button
             class="realtime-banner-dismiss"
@@ -223,9 +223,15 @@ const freshEventIds = ref(new Set())
 const realtimeBannerDismissed = ref(false)
 const MAX_PENDING_REALTIME_IDS = 20
 let activeRealtimeChannel = ''
+const freshTimeouts = new Map()
 
 const isCalendarView = computed(() => route.query?.view === 'calendar')
 const shouldShowRealtimeBanner = computed(() => pendingRealtimeIds.value.length > 0 && !realtimeBannerDismissed.value)
+const realtimeBannerLabel = computed(() => {
+  const count = pendingRealtimeIds.value.length
+  const noun = count === 1 ? 'Nova udalost' : 'Nove udalosti'
+  return `${noun} (${count}) - klikni pre nacitanie`
+})
 const weekOptions = computed(() => Array.from({ length: 53 }, (_, idx) => idx + 1))
 const monthOptions = [
   { value: 1, label: 'Januar' },
@@ -315,16 +321,33 @@ function markEventFresh(eventId) {
   next.add(normalized)
   freshEventIds.value = next
 
-  window.setTimeout(() => {
+  const existingTimeout = freshTimeouts.get(normalized)
+  if (existingTimeout) {
+    window.clearTimeout(existingTimeout)
+  }
+
+  const timeoutId = window.setTimeout(() => {
     const snapshot = new Set(freshEventIds.value)
     snapshot.delete(normalized)
     freshEventIds.value = snapshot
+    freshTimeouts.delete(normalized)
   }, 2600)
+  freshTimeouts.set(normalized, timeoutId)
 }
 
 function isEventAlreadyPresent(eventId) {
   const normalized = Number(eventId)
   return events.value.some((eventItem) => Number(eventItem?.id) === normalized)
+}
+
+function prependEventIfMissing(eventItem) {
+  const eventId = Number(eventItem?.id || 0)
+  if (!Number.isInteger(eventId) || eventId <= 0) return false
+  if (isEventAlreadyPresent(eventId)) return false
+
+  events.value = [eventItem, ...events.value]
+  markEventFresh(eventId)
+  return true
 }
 
 function enqueuePendingRealtimeEvent(eventId) {
@@ -353,9 +376,7 @@ async function loadPendingRealtimeEvents(options = {}) {
 
     for (let index = fetched.length - 1; index >= 0; index -= 1) {
       const eventItem = fetched[index]
-      if (!eventItem?.id || isEventAlreadyPresent(eventItem.id)) continue
-      events.value = [eventItem, ...events.value]
-      markEventFresh(eventItem.id)
+      prependEventIfMissing(eventItem)
     }
 
     if (options.refetchAfter !== false) {
@@ -386,10 +407,7 @@ function startRealtimeFeed() {
         const response = await lookupEventsByIds([eventId])
         const fetched = Array.isArray(response?.data?.data) ? response.data.data : []
         const eventItem = fetched[0]
-        if (eventItem?.id && !isEventAlreadyPresent(eventItem.id)) {
-          events.value = [eventItem, ...events.value]
-          markEventFresh(eventItem.id)
-        }
+        prependEventIfMissing(eventItem)
       } catch (err) {
         console.warn('Realtime single event fetch failed:', err?.message || err)
       }
@@ -602,6 +620,8 @@ watch(isCalendarView, (calendarView) => {
 
 onBeforeUnmount(() => {
   stopRealtimeFeed()
+  freshTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId))
+  freshTimeouts.clear()
 })
 </script>
 
