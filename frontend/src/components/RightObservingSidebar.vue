@@ -482,7 +482,7 @@ async function fetchSummary() {
 }
 
 function goToProfileLocation() {
-  router.push({ name: 'profile.edit', hash: '#location' })
+  router.push({ name: 'profile', query: { edit: '1', section: 'location' } })
 }
 
 function openMoonPhaseEvent(phase) {

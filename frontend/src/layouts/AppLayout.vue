@@ -53,6 +53,7 @@
     <div
       :class="[
         showMobileBottomNav ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-0',
+        'guest-cta-safe',
         'md:pb-0 md:pl-64 xl:pl-0',
       ]"
     >
@@ -455,6 +456,7 @@
     />
 
     <OnboardingTour v-if="onboardingTour.isOpen && !isCalendarPopupVisible && !isOnboardingFlowActive" />
+    <GuestBottomCTA />
 
   </div>
 </template>
@@ -469,6 +471,7 @@ import MainNavbar from '@/components/MainNavbar.vue'
 import DynamicSidebar from '@/components/DynamicSidebar.vue'
 import PostComposer from '@/components/PostComposer.vue'
 import MobileFab from '@/components/MobileFab.vue'
+import GuestBottomCTA from '@/components/GuestBottomCTA.vue'
 import TypingText from '@/components/TypingText.vue'
 import MarkYourCalendarModal from '@/components/MarkYourCalendarModal.vue'
 import OnboardingTour from '@/components/onboarding/OnboardingTour.vue'
@@ -561,12 +564,12 @@ const centerShellClass = computed(() => {
     return 'mx-auto w-full max-w-[1560px]'
   }
 
-  return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:gap-3 2xl:gap-4'
+  return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:gap-1 2xl:gap-2'
 })
 const centerShellColumns = computed(() => {
   if (isAdminRoute.value) return null
 
-  return '14rem minmax(0, 1fr)'
+  return '16rem minmax(600px, 640px)'
 })
 const centerShellStyle = computed(() => {
   if (isAdminRoute.value) {
@@ -587,7 +590,7 @@ const mainContentClass = computed(() => {
     return 'mx-auto w-full max-w-[620px]'
   }
 
-  return 'mx-auto w-full max-w-[760px]'
+  return 'mx-auto w-full max-w-[640px]'
 })
 const enabledMobileSections = computed(() => getEnabledSidebarSections(mobileSidebarSections.value))
 const activeWidgetComponent = computed(() => resolveSidebarComponent(activeWidgetKey.value))
@@ -1496,12 +1499,24 @@ onBeforeUnmount(() => {
 @media (min-width: 1280px) {
   .desktopFrame {
     align-items: start;
-    grid-template-columns: minmax(0, 1fr) auto;
+    justify-content: center;
+    column-gap: 0.75rem;
+    grid-template-columns: auto auto;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    transform: translateX(-2rem);
   }
 
   .centerShellGrid {
     grid-template-columns: var(--center-shell-cols);
   }
 }
+
+@media (min-width: 1536px) {
+  .desktopFrame {
+    transform: translateX(-1rem);
+  }
+}
+
 </style>
 

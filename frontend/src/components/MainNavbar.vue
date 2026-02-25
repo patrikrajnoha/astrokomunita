@@ -509,61 +509,6 @@
         </button>
       </template>
 
-      <template v-else>
-        <RouterLink
-          to="/login"
-          custom
-          v-slot="{ href, navigate, isActive }"
-        >
-          <a
-            :href="href"
-            @click="navigate"
-            title="Log in"
-            aria-label="Log in"
-            :class="[
-              'group relative flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
-              isActive
-                ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
-                : 'text-[var(--color-surface)]',
-            ]"
-          >
-            <span
-              class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
-              aria-hidden="true"
-            >
-              L
-            </span>
-            <span class="flex-1">Login</span>
-          </a>
-        </RouterLink>
-
-        <RouterLink
-          to="/register"
-          custom
-          v-slot="{ href, navigate, isActive }"
-        >
-          <a
-            :href="href"
-            @click="navigate"
-            title="Register"
-            aria-label="Register"
-            :class="[
-              'group relative flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
-              isActive
-                ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
-                : 'text-[var(--color-surface)]',
-            ]"
-          >
-            <span
-              class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
-              aria-hidden="true"
-            >
-              R
-            </span>
-            <span class="flex-1">Register</span>
-          </a>
-        </RouterLink>
-      </template>
     </div>
   </nav>
 </template>

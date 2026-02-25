@@ -104,7 +104,7 @@ export function formatRelativeShort(value) {
   const hourMs = 60 * minuteMs;
   const dayMs = 24 * hourMs;
 
-  if (diffMs < minuteMs) return 'now';
+  if (diffMs < minuteMs) return 'teraz';
   if (diffMs < hourMs) return `${Math.floor(diffMs / minuteMs)} m`;
   if (diffMs < dayMs) return `${Math.floor(diffMs / hourMs)} h`;
   return `${Math.floor(diffMs / dayMs)} d`;

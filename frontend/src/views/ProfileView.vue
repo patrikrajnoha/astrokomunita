@@ -242,13 +242,14 @@
 
 <script setup>
 import { computed, reactive, ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import http from '@/services/api'
 import api from '@/services/api'
 import { useConfirm } from '@/composables/useConfirm'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const { confirm } = useConfirm()
 
@@ -389,6 +390,12 @@ function toggleEdit() {
     editFieldErr.bio = ''
     editFieldErr.location = ''
   }
+}
+
+function openEditFromRoute() {
+  if (!auth.user) return
+  if (String(route.query?.edit || '') !== '1') return
+  if (!editOpen.value) toggleEdit()
 }
 
 function clearEditErrors() {
@@ -731,10 +738,18 @@ watch(
   }
 )
 
+watch(
+  () => route.query?.edit,
+  () => {
+    openEditFromRoute()
+  }
+)
+
 onMounted(async () => {
   if (!auth.initialized) await auth.fetchUser()
 
   if (auth.user) {
+    openEditFromRoute()
     loadPinned()
     await loadCounts()
     await loadFavorites()
