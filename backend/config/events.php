@@ -51,4 +51,11 @@ return [
         'region' => 'global',
         'event_types' => [],
     ],
+
+    'public_confidence' => [
+        'verified_score' => (int) env('EVENTS_CONFIDENCE_VERIFIED_SCORE', 80),
+        'partial_score' => (int) env('EVENTS_CONFIDENCE_PARTIAL_SCORE', 60),
+        'verified_min_sources' => (int) env('EVENTS_CONFIDENCE_VERIFIED_MIN_SOURCES', 2),
+        'partial_min_sources' => (int) env('EVENTS_CONFIDENCE_PARTIAL_MIN_SOURCES', 1),
+    ],
 ];

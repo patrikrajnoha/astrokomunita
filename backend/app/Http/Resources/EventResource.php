@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Events\PublicConfidenceService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -32,6 +33,7 @@ class EventResource extends JsonResource
                 'uid'  => $this->source_uid,
                 'hash' => $this->source_hash,
             ],
+            'public_confidence' => app(PublicConfidenceService::class)->badgeFor($this->resource),
 
             'created_at' => optional($this->created_at)?->toIso8601String(),
             'updated_at' => optional($this->updated_at)?->toIso8601String(),
