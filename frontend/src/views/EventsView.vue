@@ -151,6 +151,14 @@
                 <h3 class="card-title">{{ eventDisplayTitle(e) }}</h3>
                 <div class="meta-row">
                   <span class="type-badge">{{ typeLabel(e.type) }}</span>
+                  <span
+                    v-if="publicConfidenceBadgeLabel(e)"
+                    class="confidence-badge"
+                    :class="`confidence-${e?.public_confidence?.level || 'unknown'}`"
+                    :title="publicConfidenceTooltip(e)"
+                  >
+                    {{ publicConfidenceBadgeLabel(e) }}
+                  </span>
                   <span class="card-date">{{ formatDateTime(e.max_at) }}</span>
                 </div>
               </div>
@@ -548,6 +556,30 @@ function typeLabel(type) {
   return map[type] || type
 }
 
+function publicConfidenceBadgeLabel(event) {
+  const level = event?.public_confidence?.level
+  if (!level || level === 'unknown') return ''
+  if (level === 'verified') return 'Overene'
+  if (level === 'partial') return 'Ciastocne'
+  if (level === 'low') return 'Nizka dovera'
+  return ''
+}
+
+function publicConfidenceTooltip(event) {
+  const confidence = event?.public_confidence
+  if (!confidence) return ''
+
+  const parts = []
+  if (confidence.reason) {
+    parts.push(confidence.reason)
+  }
+  if (typeof confidence.score === 'number') {
+    const sources = typeof confidence.sources_count === 'number' ? confidence.sources_count : '?'
+    parts.push(`Skore: ${confidence.score}/100, zdrojov: ${sources}`)
+  }
+  return parts.join(' ')
+}
+
 function formatDateTime(value) {
   if (!value) return '-'
   const date = new Date(value)
@@ -939,6 +971,32 @@ onBeforeUnmount(() => {
   font-size: 0.62rem;
   font-weight: 700;
   padding: 0.12rem 0.36rem;
+}
+
+.confidence-badge {
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0.12rem 0.36rem;
+  border: 1px solid transparent;
+}
+
+.confidence-verified {
+  color: #0f5132;
+  background: #d1e7dd;
+  border-color: #badbcc;
+}
+
+.confidence-partial {
+  color: #664d03;
+  background: #fff3cd;
+  border-color: #ffecb5;
+}
+
+.confidence-low {
+  color: #842029;
+  background: #f8d7da;
+  border-color: #f5c2c7;
 }
 
 .card-date,
