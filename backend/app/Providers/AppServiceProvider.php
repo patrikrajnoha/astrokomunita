@@ -108,7 +108,7 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('gif-search', function (Request $request) {
             $userId = $request->user()?->id ?? 'guest';
-            return Limit::perMinute(30)->by('gif-search|' . $userId . '|' . $request->ip());
+            return Limit::perMinute(5)->by('gif-search|' . $userId . '|' . $request->ip());
         });
 
         RateLimiter::for('newsletter-send', function (Request $request) {
