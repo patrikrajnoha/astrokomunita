@@ -89,6 +89,19 @@
             </RouterLink>
           </section>
 
+          <section v-if="globalResults.hashtags.length" class="resultSection">
+            <h3 class="sectionTitle">Hashtagy</h3>
+            <RouterLink
+              v-for="tag in globalResults.hashtags"
+              :key="`h-${tag.id}`"
+              :to="{ name: 'hashtag-feed', params: { name: tag.name } }"
+              class="listItem"
+            >
+              <div class="font-semibold">{{ tag.value }}</div>
+              <div class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.92)]">{{ tag.posts_count || 0 }} prispevkov</div>
+            </RouterLink>
+          </section>
+
           <section v-if="globalResults.keywords.length" class="resultSection">
             <h3 class="sectionTitle">Klucove slova</h3>
             <div class="flex flex-wrap gap-2">
@@ -213,6 +226,7 @@ const globalResults = ref({
   posts: [],
   events: [],
   articles: [],
+  hashtags: [],
   keywords: [],
 })
 const discovery = ref({
@@ -233,6 +247,7 @@ const hasAnyGlobalResults = computed(() => (
   globalResults.value.posts.length > 0 ||
   globalResults.value.events.length > 0 ||
   globalResults.value.articles.length > 0 ||
+  globalResults.value.hashtags.length > 0 ||
   globalResults.value.keywords.length > 0
 ))
 
@@ -265,7 +280,7 @@ const syncRouteQuery = () => {
 
 const loadGlobalResults = async () => {
   if (!showSearchResults.value) {
-    globalResults.value = { users: [], posts: [], events: [], articles: [], keywords: [] }
+    globalResults.value = { users: [], posts: [], events: [], articles: [], hashtags: [], keywords: [] }
     return
   }
 
@@ -289,11 +304,12 @@ const loadGlobalResults = async () => {
       posts: Array.isArray(data.posts) ? data.posts : [],
       events: Array.isArray(data.events) ? data.events : [],
       articles: Array.isArray(data.articles) ? data.articles : [],
+      hashtags: Array.isArray(data.hashtags) ? data.hashtags : [],
       keywords: Array.isArray(data.keywords) ? data.keywords : [],
     }
   } catch (error) {
     if (error?.code !== 'ERR_CANCELED' && error?.name !== 'CanceledError') {
-      globalResults.value = { users: [], posts: [], events: [], articles: [], keywords: [] }
+      globalResults.value = { users: [], posts: [], events: [], articles: [], hashtags: [], keywords: [] }
     }
   } finally {
     isGlobalLoading.value = false

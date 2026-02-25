@@ -12,7 +12,7 @@
       </div>
     </header>
     <div v-if="$slots.composer" class="feed-composer-slot">
-      <slot name="composer" />
+      <slot name="composer" :active-tab="activeTab" />
     </div>
 
     <section
@@ -100,9 +100,6 @@
                     <span class="author-username">@{{ p?.user?.username }}</span>
                     <span class="author-time">{{ fmt(p?.created_at) }}</span>
                     <span v-if="p.pinned_at" class="pinned-badge">📌 Pripnuté</span>
-                  </div>
-                  <div v-if="p?.user?.location || isBotPost(p)" class="post-time">
-                    <span v-if="p?.user?.location" class="location">📍 {{ p.user.location }}</span>
                   </div>
                   <div v-if="isBotPost(p)" class="bot-meta-row">
                     <span class="bot-source-label">{{ botSourceLabel(p) }}</span>

@@ -197,6 +197,22 @@
 
                 <div class="postContent">{{ p.content }}</div>
 
+                <div v-if="attachedEventForPost(p)" class="attachedEventCard">
+                  <div class="attachedEventCopy">
+                    <p class="attachedEventTitle">{{ attachedEventForPost(p).title || 'Udalost' }}</p>
+                    <p class="attachedEventDate">
+                      {{ formatEventRange(attachedEventForPost(p).start_at, attachedEventForPost(p).end_at) }}
+                    </p>
+                  </div>
+                  <button type="button" class="btn outline" @click="openAttachedEvent(p)">
+                    Otvorit udalost
+                  </button>
+                </div>
+
+                <div v-if="postGifUrl(p)" class="attachment">
+                  <img class="attachmentImg" :src="postGifUrl(p)" :alt="postGifTitle(p)" />
+                </div>
+
                 <div v-if="p.attachment_url" class="attachment">
                   <img
                     v-if="isImage(p)"
@@ -294,9 +310,6 @@ const avatarInput = ref(null)
 const coverInput = ref(null)
 
 const pinnedPost = ref(null)
-const favoriteEvents = ref([])
-const favoritesLoading = ref(false)
-const favoritesError = ref('')
 
 const displayName = computed(() => auth.user?.name || 'Profil')
 
@@ -335,11 +348,6 @@ function openPost(post) {
   router.push(`/posts/${post.id}`)
 }
 
-function openEvent(eventId) {
-  if (!eventId) return
-  router.push(`/events/${eventId}`)
-}
-
 function setActiveTab(key) {
   activeTab.value = key
 }
@@ -364,13 +372,72 @@ function isImage(post) {
   return mime.startsWith('image/')
 }
 
-function formatEventDate(value) {
-  if (!value) return '—'
-  try {
-    return new Date(value).toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
-  } catch {
-    return String(value)
+function absoluteUrl(url) {
+  const value = String(url || '').trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+
+  const base = api?.defaults?.baseURL || ''
+  const origin = base.replace(/\/api\/?$/, '')
+  if (!origin) return value
+
+  if (value.startsWith('/')) return origin + value
+  return origin + '/' + value
+}
+
+function postGifUrl(post) {
+  const gif = post?.meta?.gif
+  if (!gif || typeof gif !== 'object') return ''
+
+  const original = absoluteUrl(gif.original_url)
+  if (original) return original
+
+  return absoluteUrl(gif.preview_url)
+}
+
+function postGifTitle(post) {
+  const title = String(post?.meta?.gif?.title || '').trim()
+  return title || 'GIF'
+}
+
+function attachedEventForPost(post) {
+  const event = post?.attached_event
+  if (event && typeof event === 'object') return event
+
+  const fallbackId = Number(post?.meta?.event?.event_id || 0)
+  if (!Number.isInteger(fallbackId) || fallbackId <= 0) return null
+
+  return {
+    id: fallbackId,
+    title: `Udalost #${fallbackId}`,
+    start_at: null,
+    end_at: null,
   }
+}
+
+function openAttachedEvent(post) {
+  const eventId = Number(attachedEventForPost(post)?.id || 0)
+  if (!Number.isInteger(eventId) || eventId <= 0) return
+  router.push(`/events/${eventId}`)
+}
+
+function parseEventDate(value) {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function formatEventRange(startAt, endAt) {
+  const start = parseEventDate(startAt)
+  const end = parseEventDate(endAt)
+
+  if (!start && !end) return 'Datum upresnime'
+  if (start && !end) return start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
+  if (!start && end) return end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  const startLabel = start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
+  const endLabel = end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
+  return startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`
 }
 
 function parentHandle(post) {
@@ -641,35 +708,6 @@ async function loadCounts() {
   }
 }
 
-async function loadFavorites() {
-  if (!auth.user) {
-    favoriteEvents.value = []
-    return
-  }
-
-  favoritesLoading.value = true
-  favoritesError.value = ''
-
-  try {
-    const res = await api.get('/favorites')
-    const items = Array.isArray(res.data) ? res.data : []
-    favoriteEvents.value = items
-      .map((f) => f.event)
-      .filter((e) => e && e.id)
-  } catch (e) {
-    favoritesError.value =
-      e?.response?.data?.message || 'Nepodarilo sa načítať obľúbené udalosti.'
-  } finally {
-    favoritesLoading.value = false
-  }
-}
-
-async function removeFavorite(eventId) {
-  await auth.csrf()
-  await api.delete(`/favorites/${eventId}`)
-  favoriteEvents.value = favoriteEvents.value.filter((e) => e.id !== eventId)
-}
-
 async function loadTab(key, reset = true) {
   const tab = tabs.find((t) => t.key === key)
   const state = tabState[key]
@@ -685,14 +723,6 @@ async function loadTab(key, reset = true) {
   state.err = ''
 
   try {
-    if (tab.kind === 'events') {
-      state.items = []
-      state.next = null
-      state.total = String(favoriteEvents.value.length || 0)
-      state.loaded = true
-      return
-    }
-
     if (tab.kind === 'likes') {
       state.items = []
       state.next = null
@@ -752,7 +782,6 @@ onMounted(async () => {
     openEditFromRoute()
     loadPinned()
     await loadCounts()
-    await loadFavorites()
     await loadTab(activeTab.value, true)
   }
 })
@@ -1121,6 +1150,30 @@ onBeforeUnmount(() => {
   color: var(--color-surface);
   white-space: pre-wrap;
   line-height: 1.55;
+}
+
+.attachedEventCard {
+  margin-top: 0.55rem;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.45);
+  background: rgb(var(--color-primary-rgb) / 0.08);
+  border-radius: 0.85rem;
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.attachedEventTitle {
+  margin: 0;
+  color: var(--color-surface);
+  font-weight: 800;
+}
+
+.attachedEventDate {
+  margin: 0.2rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
 }
 
 .attachment { margin-top: 0.6rem; }

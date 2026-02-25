@@ -43,10 +43,6 @@
                     </svg>
                     <span>{{ Number(root?.views ?? 0) }}</span>
                   </span>
-                  <span v-if="root?.user?.location" class="dot">.</span>
-                  <span v-if="root?.user?.location" class="loc">
-                    Location: {{ root.user.location }}
-                  </span>
                   <span v-if="root?.source_name === 'astrobot'" class="botLabel">Automated news</span>
                 </div>
               </div>
@@ -145,8 +141,38 @@
             </div>
 
             <div class="postActions">
+              <button class="replyBtn" type="button" @click="focusReplyComposer">
+                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                </svg>
+                <span>Komentare {{ Number(root?.replies_count ?? repliesCount) }}</span>
+              </button>
+              <button class="replyBtn" type="button" :disabled="isLikeLoading(root)" @click="toggleLike(root)">
+                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" :fill="root?.liked_by_me ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                <span>{{ root?.liked_by_me ? 'Unlike' : 'Like' }} {{ Number(root?.likes_count ?? 0) }}</span>
+              </button>
+              <button class="replyBtn" type="button" :disabled="isBookmarkLoading(root)" @click="toggleBookmark(root)">
+                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>{{ root?.is_bookmarked ? 'Unsave' : 'Save' }}</span>
+              </button>
+              <button class="replyBtn" type="button" @click="openShareModal(root)">
+                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                  <polyline points="16 6 12 2 8 6"/>
+                  <line x1="12" y1="2" x2="12" y2="15"/>
+                </svg>
+                <span>Share</span>
+              </button>
               <button class="replyBtn" type="button" @click="openReport(root)">
-                Report
+                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h12l-2 4 2 4H4z"/>
+                  <line x1="4" y1="4" x2="4" y2="21"/>
+                </svg>
+                <span>Report</span>
               </button>
             </div>
           </div>
@@ -193,10 +219,6 @@
                         {{ r?.user?.name ?? 'User' }}
                       </button>
                       <span class="nameTime">{{ fmt(r?.created_at) }}</span>
-                    </div>
-                    <div v-if="r?.user?.location" class="meta">
-                      <span class="dot">.</span>
-                      <span class="loc">Location: {{ r.user.location }}</span>
                     </div>
                   </div>
                   <div class="postActionsMenu">
@@ -308,10 +330,6 @@
                             </button>
                             <span class="nameTime">{{ fmt(c?.created_at) }}</span>
                           </div>
-                          <div v-if="c?.user?.location" class="meta">
-                            <span class="dot">.</span>
-                            <span class="loc">Location: {{ c.user.location }}</span>
-                          </div>
                         </div>
                         <div class="postActionsMenu">
                           <DropdownMenu
@@ -416,6 +434,7 @@
           <button class="replyBtn" type="button" @click="submitReport">Submit</button>
         </div>
       </div>
+      <ShareModal :open="!!shareTarget" :post="shareTarget" @close="closeShareModal" />
     </div>
   </div>
 </template>
@@ -426,10 +445,12 @@ import { useRoute, useRouter } from 'vue-router'
 import HashtagText from '@/components/HashtagText.vue'
 import PollCard from '@/components/PollCard.vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
+import ShareModal from '@/components/share/ShareModal.vue'
 import api from '@/services/api'
 import ReplyComposer from '@/components/ReplyComposer.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useBookmarksStore } from '@/stores/bookmarks'
 import { useToast } from '@/composables/useToast'
 import { canReportPost } from '@/utils/postPermissions'
 import { formatRelativeShort } from '@/utils/dateUtils'
@@ -437,6 +458,7 @@ import { formatRelativeShort } from '@/utils/dateUtils'
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const bookmarks = useBookmarksStore()
 const { info: toastInfo, error: toastError } = useToast()
 
 const post = ref(null)
@@ -453,6 +475,8 @@ const reportNotice = ref('')
 const editingPostId = ref(null)
 const editContentDraft = ref('')
 const editSavingId = ref(null)
+const likeLoadingIds = ref(new Set())
+const shareTarget = ref(null)
 const lastTrackedViewKey = ref('')
 let viewAnimationFrame = null
 
@@ -623,6 +647,97 @@ function onReplyCreated(newReply) {
 
 function toggleReplyComposer(id) {
   activeReplyId.value = activeReplyId.value === id ? null : id
+}
+
+function focusReplyComposer() {
+  if (!root.value?.id) return
+  activeReplyId.value = root.value.id
+}
+
+function isLikeLoading(item) {
+  return likeLoadingIds.value.has(item?.id)
+}
+
+function setLikeLoading(id, on) {
+  const next = new Set(likeLoadingIds.value)
+  if (on) next.add(id)
+  else next.delete(id)
+  likeLoadingIds.value = next
+}
+
+function isBookmarkLoading(item) {
+  return bookmarks.isLoading(item?.id)
+}
+
+async function toggleLike(item) {
+  if (!item?.id || isLikeLoading(item)) return
+  if (!auth.isAuthed) {
+    reportNotice.value = 'Prihlas sa pre lajkovanie.'
+    return
+  }
+
+  reportNotice.value = ''
+  const prevLiked = !!item.liked_by_me
+  const prevCount = Number(item.likes_count ?? 0) || 0
+
+  item.liked_by_me = !prevLiked
+  item.likes_count = Math.max(0, prevCount + (prevLiked ? -1 : 1))
+  setLikeLoading(item.id, true)
+
+  try {
+    await auth.csrf()
+    const res = prevLiked
+      ? await api.delete(`/posts/${item.id}/like`)
+      : await api.post(`/posts/${item.id}/like`)
+
+    const data = res?.data
+    if (data?.likes_count !== undefined) item.likes_count = data.likes_count
+    if (data?.liked_by_me !== undefined) item.liked_by_me = data.liked_by_me
+  } catch (e) {
+    item.liked_by_me = prevLiked
+    item.likes_count = prevCount
+    reportNotice.value = e?.response?.data?.message || 'Lajk zlyhal.'
+  } finally {
+    setLikeLoading(item.id, false)
+  }
+}
+
+async function toggleBookmark(item) {
+  if (!item?.id || isBookmarkLoading(item)) return
+  if (!auth.isAuthed) {
+    reportNotice.value = 'Prihlas sa pre zalozky.'
+    return
+  }
+
+  reportNotice.value = ''
+  const prevBookmarked = !!item.is_bookmarked
+  const prevBookmarkedAt = item.bookmarked_at || null
+  const nextBookmarked = !prevBookmarked
+
+  item.is_bookmarked = nextBookmarked
+  item.bookmarked_at = nextBookmarked ? new Date().toISOString() : null
+  bookmarks.setBookmarked(item.id, nextBookmarked)
+
+  try {
+    await auth.csrf()
+    const state = await bookmarks.toggleBookmark(item.id, prevBookmarked)
+    item.is_bookmarked = state
+    item.bookmarked_at = state ? item.bookmarked_at || new Date().toISOString() : null
+  } catch (e) {
+    item.is_bookmarked = prevBookmarked
+    item.bookmarked_at = prevBookmarkedAt
+    bookmarks.setBookmarked(item.id, prevBookmarked)
+    reportNotice.value = e?.response?.data?.message || 'Ulozenie zalozky zlyhalo.'
+  }
+}
+
+function openShareModal(item) {
+  if (!item?.id) return
+  shareTarget.value = item
+}
+
+function closeShareModal() {
+  shareTarget.value = null
 }
 
 function openReport(post) {
@@ -885,6 +1000,9 @@ async function loadPost() {
 
     post.value = payload.post ?? null
     root.value = payload.root ?? payload.post ?? null
+    if (root.value?.id) {
+      bookmarks.hydrateFromPosts([root.value])
+    }
 
     if (Array.isArray(payload.replies) && payload.replies.length > 0) {
       replies.value = payload.replies
@@ -1342,6 +1460,9 @@ const repliesCount = computed(() => {
 }
 .postActions {
   margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 .reportNotice {
   margin-top: 0.75rem;
@@ -1418,7 +1539,13 @@ const repliesCount = computed(() => {
   white-space: nowrap;
   font-size: 0.82rem;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+.btnIcon {
+  flex: 0 0 auto;
 }
 .replyBtn:hover {
   border-color: rgb(var(--color-primary-rgb) / 0.72);

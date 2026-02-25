@@ -67,3 +67,7 @@ Schedule::command('bots:run wiki_onthisday_astronomy --context=scheduled')
 Schedule::command('bots:run nasa_apod_daily --context=scheduled')
     ->dailyAt('09:00')
     ->withoutOverlapping();
+
+Schedule::command('bots:sources:sync --quiet-summary')
+    ->dailyAt('00:10')
+    ->withoutOverlapping();

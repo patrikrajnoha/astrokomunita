@@ -63,10 +63,31 @@ class FeedQueryBuilder
             $query->whereNotNull('parent_id')->with([
                 'parent.user:id,name,username,location,bio,is_admin,avatar_path',
             ]);
+        } elseif ($kind === 'events') {
+            $query
+                ->whereNull('parent_id')
+                ->whereNotNull('meta->event->event_id');
+        } elseif ($kind === 'gifs') {
+            $query
+                ->whereNull('parent_id')
+                ->where(function (Builder $gifQuery): void {
+                    $gifQuery
+                        ->whereNotNull('meta->gif->id')
+                        ->orWhereNotNull('meta->gif->original_url')
+                        ->orWhereNotNull('meta->gif->preview_url');
+                });
         } elseif ($kind === 'media') {
-            $query->whereNotNull('attachment_path')->with([
-                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
-            ]);
+            $query
+                ->where(function (Builder $mediaQuery): void {
+                    $mediaQuery
+                        ->whereNotNull('attachment_path')
+                        ->orWhereNotNull('meta->gif->id')
+                        ->orWhereNotNull('meta->gif->original_url')
+                        ->orWhereNotNull('meta->gif->preview_url');
+                })
+                ->with([
+                    'parent.user:id,name,username,location,bio,is_admin,avatar_path',
+                ]);
         } else {
             $query->whereNull('parent_id');
         }
