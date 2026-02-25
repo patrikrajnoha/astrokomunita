@@ -147,7 +147,7 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.text()).toContain('Sky Quality')
+    expect(wrapper.text()).toContain('Bortle:')
     expect(wrapper.text()).toContain('6/9')
   })
 

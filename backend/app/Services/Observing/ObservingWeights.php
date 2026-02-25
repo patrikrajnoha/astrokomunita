@@ -23,7 +23,7 @@ class ObservingWeights
                 'moon' => 0.05,
                 'darkness' => 0.10,
                 'air_quality' => 0.20,
-                'light_pollution' => 0.10,
+                'light_pollution' => 0.08,
             ],
             self::MODE_METEORS => [
                 'darkness' => 0.20,

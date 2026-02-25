@@ -238,7 +238,17 @@ class ObservingIndexCalculator
         $bortleClass = isset($input['bortle_class']) && is_numeric($input['bortle_class'])
             ? (int) $input['bortle_class']
             : null;
-        if ($bortleClass !== null && $bortleClass >= 8) {
+        $lightPollutionScore = isset($factors['light_pollution']) && is_numeric($factors['light_pollution'])
+            ? (int) $factors['light_pollution']
+            : null;
+        $lightPollutionRelevantMode = in_array($mode, [ObservingWeights::MODE_DEEP_SKY, ObservingWeights::MODE_METEORS], true);
+        if (
+            $lightPollutionRelevantMode
+            && (
+                ($bortleClass !== null && $bortleClass >= 7)
+                || ($lightPollutionScore !== null && $lightPollutionScore <= 25)
+            )
+        ) {
             $alerts[] = [
                 'level' => 'warn',
                 'code' => 'high_light_pollution',

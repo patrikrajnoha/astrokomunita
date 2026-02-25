@@ -62,9 +62,17 @@ class ObservingNormalization
             return 50;
         }
 
-        $normalized = (max(1, min(9, $bortleClass)) - 1) / 8;
+        // Piecewise mapping: mild penalty for Bortle 1-5, steeper from 6+.
+        $normalized = (max(1, min(9, $bortleClass)) - 1) / 8; // 0..1
+        $breakpoint = 4 / 8; // Bortle 5
 
-        return $this->clamp(100 - ($normalized * 100));
+        if ($bortleClass <= 5) {
+            $factor = 0.6 * $normalized;
+        } else {
+            $factor = (0.6 * $breakpoint) + (1.6 * ($normalized - $breakpoint));
+        }
+
+        return $this->clamp(100 * (1 - max(0, min(1, $factor))));
     }
 
     public function darknessScore(
