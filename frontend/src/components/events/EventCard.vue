@@ -103,14 +103,14 @@ const publicConfidenceBadge = computed(() => {
   if (!level || level === 'unknown') return null
 
   const shortLabels = {
-    verified: 'Overene',
-    partial: 'Ciastocne',
-    low: 'Nizka dovera',
+    verified: 'Overené',
+    partial: 'Čiastočne',
+    low: 'Nízka dôvera',
   }
 
   return {
     level,
-    shortLabel: shortLabels[level] || 'Nezname',
+    shortLabel: shortLabels[level] || 'Neznáme',
     reason: confidence?.reason || '',
     score: confidence?.score,
     sourcesCount: confidence?.sources_count,
@@ -119,16 +119,13 @@ const publicConfidenceBadge = computed(() => {
 const publicConfidenceTooltip = computed(() => {
   const badge = publicConfidenceBadge.value
   if (!badge) return ''
+  if (badge.level === 'unknown') return 'Nie sú dostupné údaje o dôveryhodnosti.'
 
-  const parts = []
-  if (badge.reason) {
-    parts.push(badge.reason)
+  if (typeof badge.score === 'number' && typeof badge.sourcesCount === 'number') {
+    return `${badge.reason} Skóre: ${badge.score}/100 • Zdrojov: ${badge.sourcesCount}`
   }
-  if (typeof badge.score === 'number') {
-    const sourcesText = typeof badge.sourcesCount === 'number' ? badge.sourcesCount : '?'
-    parts.push(`Skore: ${badge.score}/100, zdrojov: ${sourcesText}`)
-  }
-  return parts.join(' ')
+
+  return badge.reason || 'Nie sú dostupné údaje o dôveryhodnosti.'
 })
 </script>
 

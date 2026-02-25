@@ -25,8 +25,8 @@ class PublicConfidenceService
                 'score' => null,
                 'sources_count' => $sourcesCount,
                 'level' => 'unknown',
-                'label' => 'Nezname',
-                'reason' => 'Skore nie je dostupne.',
+                'label' => 'Neznáme',
+                'reason' => 'Nie sú dostupné údaje o dôveryhodnosti.',
             ];
         }
 
@@ -37,26 +37,24 @@ class PublicConfidenceService
         $safeSourcesCount = $sourcesCount ?? 0;
 
         if ($score >= $verifiedScore && $safeSourcesCount >= $verifiedMinSources) {
-            return $this->makeBadge('verified', 'Overene', $score, $sourcesCount);
+            return $this->makeBadge('verified', 'Overené', 'Potvrdené viacerými zdrojmi.', $score, $sourcesCount);
         }
 
         if ($score >= $partialScore && $safeSourcesCount >= $partialMinSources) {
-            return $this->makeBadge('partial', 'Ciastocne overene', $score, $sourcesCount);
+            return $this->makeBadge('partial', 'Čiastočne overené', 'Potvrdené aspoň jedným zdrojom.', $score, $sourcesCount);
         }
 
-        return $this->makeBadge('low', 'Nizka dovera', $score, $sourcesCount);
+        return $this->makeBadge('low', 'Nízka dôvera', 'Nedostatočné potvrdenie z viacerých zdrojov.', $score, $sourcesCount);
     }
 
-    private function makeBadge(string $level, string $label, int $score, ?int $sourcesCount): array
+    private function makeBadge(string $level, string $label, string $reason, int $score, ?int $sourcesCount): array
     {
-        $sourcesText = $sourcesCount === null ? 'neznamym poctom zdrojov' : "{$sourcesCount} zdrojmi";
-
         return [
             'score' => $score,
             'sources_count' => $sourcesCount,
             'level' => $level,
             'label' => $label,
-            'reason' => "Skore {$score}/100, potvrdene {$sourcesText}.",
+            'reason' => $reason,
         ];
     }
 

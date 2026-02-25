@@ -559,25 +559,22 @@ function typeLabel(type) {
 function publicConfidenceBadgeLabel(event) {
   const level = event?.public_confidence?.level
   if (!level || level === 'unknown') return ''
-  if (level === 'verified') return 'Overene'
-  if (level === 'partial') return 'Ciastocne'
-  if (level === 'low') return 'Nizka dovera'
+  if (level === 'verified') return 'Overené'
+  if (level === 'partial') return 'Čiastočne'
+  if (level === 'low') return 'Nízka dôvera'
   return ''
 }
 
 function publicConfidenceTooltip(event) {
   const confidence = event?.public_confidence
   if (!confidence) return ''
+  if (confidence.level === 'unknown') return 'Nie sú dostupné údaje o dôveryhodnosti.'
 
-  const parts = []
-  if (confidence.reason) {
-    parts.push(confidence.reason)
+  if (typeof confidence.score === 'number' && typeof confidence.sources_count === 'number') {
+    return `${confidence.reason} Skóre: ${confidence.score}/100 • Zdrojov: ${confidence.sources_count}`
   }
-  if (typeof confidence.score === 'number') {
-    const sources = typeof confidence.sources_count === 'number' ? confidence.sources_count : '?'
-    parts.push(`Skore: ${confidence.score}/100, zdrojov: ${sources}`)
-  }
-  return parts.join(' ')
+
+  return confidence.reason || 'Nie sú dostupné údaje o dôveryhodnosti.'
 }
 
 function formatDateTime(value) {
