@@ -366,7 +366,7 @@ export function applyAuthGuards(routerInstance) {
     const isVerifiedUser = Boolean(auth.isAuthed && auth.user?.email_verified_at)
     const isAdminUser = Boolean(auth.isAdmin)
 
-    if (auth.isAuthed && !auth.user?.email_verified_at && !isVerifyEmailRoute) {
+    if (auth.isAuthed && !isAdminUser && !auth.user?.email_verified_at && !isVerifyEmailRoute) {
       return {
         name: 'verify-email.required',
         query: { redirect: redirectTarget },

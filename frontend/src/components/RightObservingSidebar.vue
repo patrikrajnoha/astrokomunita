@@ -124,14 +124,14 @@
             :key="`moon-phase-card-${index}-${phase.from_local || phase.at_local || 'now'}`"
             type="button"
             class="moonPhaseCard phaseLink"
-            :class="{ isCurrent: isCurrentMoonPhase(phase.phase) }"
+            :class="{ isCurrent: isCurrentMoonPhase(phase, index) }"
             @click="openMoonPhaseEvent(phase)"
           >
             <div class="moonPhaseDiscWrap">
               <span class="moonPhaseDisc">{{ moonPhaseEmoji(phase.phase) }}</span>
             </div>
             <p class="moonPhaseTitle">{{ translateMoonPhase(phase.phase) }}</p>
-            <p v-if="isCurrentMoonPhase(phase.phase) && moonIllumination" class="moonPhaseIllum">{{ moonIllumination }}</p>
+            <p v-if="isCurrentMoonPhase(phase, index) && moonIllumination" class="moonPhaseIllum">{{ moonIllumination }}</p>
             <p class="moonPhaseDate">{{ formatMoonPhaseRange(phase.from_local, phase.to_local, phase.at_local) }}</p>
           </button>
         </div>
@@ -240,16 +240,20 @@ const moonPhaseSchedule = computed(() => {
     .slice(0, 16)
 })
 const moonPhaseCards = computed(() => {
+  const targetDate = safeDate(props.date)
+
   if (moonPhaseSchedule.value.length > 1) {
-    return buildMoonPhaseCards(moonPhaseSchedule.value, safeDate(props.date))
+    const cards = buildMoonPhaseCards(moonPhaseSchedule.value, targetDate)
+    return filterCurrentAndFutureMoonPhases(cards, targetDate, observeSummary.value?.moon?.phase_name)
   }
   if (moonPhaseSchedule.value.length === 1) {
     const one = moonPhaseSchedule.value[0]
-    const synthetic = buildSyntheticMoonPhaseCards(safeDate(props.date), safeTz(props.tz))
-    return [{ ...one, from_local: one.at_local, to_local: one.at_local }, ...synthetic]
+    const synthetic = buildSyntheticMoonPhaseCards(targetDate, safeTz(props.tz))
+    const merged = mergeSingleScheduledMoonPhase(one, synthetic)
+    return filterCurrentAndFutureMoonPhases(merged, targetDate, observeSummary.value?.moon?.phase_name)
   }
-  const synthetic = buildSyntheticMoonPhaseCards(safeDate(props.date), safeTz(props.tz))
-  if (synthetic.length > 0) return synthetic
+  const synthetic = buildSyntheticMoonPhaseCards(targetDate, safeTz(props.tz))
+  if (synthetic.length > 0) return filterCurrentAndFutureMoonPhases(synthetic, targetDate, observeSummary.value?.moon?.phase_name)
   if (cleanString(observeSummary.value?.moon?.phase_name)) {
     return [{
       phase: observeSummary.value.moon.phase_name,
@@ -260,6 +264,54 @@ const moonPhaseCards = computed(() => {
     }]
   }
   return []
+})
+const currentMoonCardIndex = computed(() => {
+  const currentPhase = normalizeMoonPhaseKey(observeSummary.value?.moon?.phase_name)
+  if (!currentPhase || moonPhaseCards.value.length === 0) return -1
+
+  const reference = localNowYmdHm(safeTz(props.tz)) || `${safeDate(props.date)} 00:00`
+  let containingIndex = -1
+  let earliestFutureIndex = -1
+  let earliestFuturePoint = ''
+  let latestPastIndex = -1
+  let latestPastPoint = ''
+
+  moonPhaseCards.value.forEach((card, index) => {
+    const phase = normalizeMoonPhaseKey(card?.phase)
+    if (phase !== currentPhase) return
+
+    const fromLocal = cleanString(card?.from_local)
+    const toLocal = cleanString(card?.to_local)
+    const atLocal = cleanString(card?.at_local)
+    const point = atLocal || fromLocal || toLocal
+
+    if (fromLocal && toLocal && fromLocal <= reference && reference <= toLocal) {
+      containingIndex = index
+      return
+    }
+
+    if (!point) {
+      if (latestPastIndex === -1) latestPastIndex = index
+      return
+    }
+
+    if (point >= reference) {
+      if (!earliestFuturePoint || point < earliestFuturePoint) {
+        earliestFuturePoint = point
+        earliestFutureIndex = index
+      }
+      return
+    }
+
+    if (!latestPastPoint || point > latestPastPoint) {
+      latestPastPoint = point
+      latestPastIndex = index
+    }
+  })
+
+  if (containingIndex !== -1) return containingIndex
+  if (earliestFutureIndex !== -1) return earliestFutureIndex
+  return latestPastIndex
 })
 
 const humidityChipValue = computed(() => pct(observeSummary.value?.atmosphere?.humidity?.evening_pct ?? observeSummary.value?.atmosphere?.humidity?.current_pct))
@@ -334,7 +386,12 @@ const isNightNow = computed(() => {
   const sunset = parseClockTime(observeSummary.value?.sun?.sunset)
   const sunrise = parseClockTime(observeSummary.value?.sun?.sunrise)
   const nowMinutes = localNowMinutes(safeTz(props.tz))
-  if (sunset === null || sunrise === null || nowMinutes === null) return false
+  if (nowMinutes === null) return false
+  if (sunset === null || sunrise === null) {
+    // Fallback when sunrise/sunset are unavailable: treat late evening and night as dark hours.
+    const hour = Math.floor(nowMinutes / 60)
+    return hour >= 20 || hour < 6
+  }
   return nowMinutes >= sunset || nowMinutes < sunrise
 })
 const weatherIconSrc = computed(() => weatherIconByCode(weatherNowCode.value, isNightNow.value))
@@ -408,11 +465,11 @@ function normalizeMoonPhaseKey(value) {
   return cleanString(value).toLowerCase().replace(/\s+/g, ' ')
 }
 
-function isCurrentMoonPhase(value) {
+function isCurrentMoonPhase(card, index) {
+  const candidate = normalizeMoonPhaseKey(card?.phase)
   const current = normalizeMoonPhaseKey(observeSummary.value?.moon?.phase_name)
-  const candidate = normalizeMoonPhaseKey(value)
-  if (!current || !candidate) return false
-  return candidate === current
+  if (!candidate || !current || candidate !== current) return false
+  return index === currentMoonCardIndex.value
 }
 
 function buildMoonPhaseCards(schedule, targetDate) {
@@ -510,6 +567,79 @@ function buildSyntheticMoonPhaseCards(dateYmd, tz) {
   }
 
   return cards
+}
+
+function mergeSingleScheduledMoonPhase(scheduled, syntheticCards) {
+  const scheduledCard = {
+    phase: normalizeMoonPhaseKey(scheduled?.phase),
+    at_local: cleanString(scheduled?.at_local),
+    from_local: cleanString(scheduled?.at_local),
+    to_local: cleanString(scheduled?.at_local),
+    event_id: Number.isInteger(Number(scheduled?.event_id)) ? Number(scheduled.event_id) : null,
+  }
+  if (!scheduledCard.phase || !scheduledCard.at_local) return syntheticCards
+  if (!Array.isArray(syntheticCards) || syntheticCards.length === 0) return [scheduledCard]
+
+  const merged = syntheticCards.map((card) => {
+    const phase = normalizeMoonPhaseKey(card?.phase)
+    const fromLocal = cleanString(card?.from_local)
+    const toLocal = cleanString(card?.to_local)
+    if (!phase || !fromLocal || !toLocal) return card
+
+    const isSamePhase = phase === scheduledCard.phase
+    const coversScheduledTime = fromLocal <= scheduledCard.at_local && scheduledCard.at_local <= toLocal
+    if (!isSamePhase || !coversScheduledTime) return card
+
+    return {
+      ...card,
+      at_local: scheduledCard.at_local,
+      event_id: scheduledCard.event_id,
+    }
+  })
+
+  const hasPlacedScheduled = merged.some((card) => Number(card?.event_id) === scheduledCard.event_id && cleanString(card?.at_local) === scheduledCard.at_local)
+  return hasPlacedScheduled ? merged : [scheduledCard, ...merged]
+}
+
+function filterCurrentAndFutureMoonPhases(cards, targetDate, currentPhaseName) {
+  if (!Array.isArray(cards) || cards.length === 0) return []
+  const fallbackDate = cleanString(targetDate)
+  const reference = localNowYmdHm(safeTz(props.tz)) || (/^\d{4}-\d{2}-\d{2}$/.test(fallbackDate) ? `${fallbackDate} 00:00` : '')
+  if (!reference) return cards
+  const currentPhase = normalizeMoonPhaseKey(currentPhaseName)
+  const filtered = cards.filter((card) => {
+    const atLocal = cleanString(card?.at_local)
+    const fromLocal = cleanString(card?.from_local)
+    const toLocal = cleanString(card?.to_local)
+    const phase = normalizeMoonPhaseKey(card?.phase)
+
+    if (phase && phase === currentPhase) return true
+
+    if (atLocal) return atLocal >= reference
+    if (toLocal) return toLocal >= reference
+    if (fromLocal) return fromLocal >= reference
+
+    return phase && phase === currentPhase
+  })
+
+  return filtered.length > 0 ? filtered : cards
+}
+
+function localNowYmdHm(timeZone) {
+  try {
+    const formatter = new Intl.DateTimeFormat('sv-SE', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    return formatter.format(new Date())
+  } catch {
+    return ''
+  }
 }
 
 function formatUtcAsLocalYmdHm(utcMs, tz) {

@@ -80,7 +80,7 @@ export default {
       this.error = null
       try {
         await this.auth.login({ email: this.email, password: this.password })
-        if (!this.auth.user?.email_verified_at) {
+        if (!this.auth.isAdmin && !this.auth.user?.email_verified_at) {
           this.$router.push({ name: 'verify-email.required', query: { redirect: this.redirect } })
           return
         }

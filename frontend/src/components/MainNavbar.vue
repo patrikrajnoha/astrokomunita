@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <nav class="flex h-full flex-col gap-3" aria-label="Primary navigation">
     <RouterLink
       to="/"
@@ -54,7 +54,7 @@
               {{ item.icon }}
             </span>
             <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
-            <span class="shrink-0 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">▾</span>
+            <span class="shrink-0 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">?</span>
           </button>
 
           <div
@@ -136,7 +136,7 @@
               {{ item.icon }}
             </span>
             <span class="flex-1">{{ item.label }}</span>
-            <span class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">▾</span>
+            <span class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">?</span>
           </button>
 
           <div
@@ -617,7 +617,7 @@ const userAvatarUrl = computed(() => {
   if (!raw) return ''
   if (/^https?:\/\//i.test(raw)) return raw
 
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
   if (raw.startsWith('/')) return `${base}${raw}`
   return `${base}/${raw}`
 })
@@ -639,14 +639,6 @@ const primaryLinks = computed(() => {
     { key: 'home', to: '/', label: 'Domov', icon: 'D', iconPaths: navIcons.home },
     { key: 'search', to: '/search', label: 'Prehľadávať', icon: 'P', iconPaths: navIcons.search },
     {
-      key: 'notifications',
-      to: '/notifications',
-      label: 'Notifikácie',
-      icon: 'U',
-      iconPaths: navIcons.notifications,
-      badge: auth.isAuthed ? notifications.unreadBadge : null,
-    },
-    {
       key: 'events',
       to: '/events',
       label: 'Udalosti',
@@ -656,12 +648,25 @@ const primaryLinks = computed(() => {
     },
     { key: 'learn', to: '/clanky', label: 'Články', icon: 'V', iconPaths: navIcons.learn },
   ]
+  if (auth.isAuthed) {
+    links.splice(2, 0, {
+      key: 'notifications',
+      to: '/notifications',
+      label: 'Notifikácie',
+      icon: 'U',
+      iconPaths: navIcons.notifications,
+      badge: notifications.unreadBadge,
+    })
+  }
 
   if (auth.isAdmin) {
     links.push({ key: 'admin', to: '/admin/dashboard', label: 'Admin Hub', icon: 'A', matchPrefix: '/admin' })
   }
 
-  links.push({ key: 'more', to: '/more', label: 'More', icon: 'M', isMore: true })
+  links.push({ key: 'settings', to: '/settings', label: 'Settings', icon: 'S' })
+  if (isWipEnabled) {
+    links.push({ key: 'creator-studio', to: '/creator-studio', label: 'Creator Studio', icon: 'C' })
+  }
 
   return links
 })
@@ -902,3 +907,6 @@ const logout = async () => {
   }
 }
 </style>
+
+
+

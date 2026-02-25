@@ -24,6 +24,14 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $user = $request->user();
+        $rawEmail = $request->input('email');
+        if (is_string($rawEmail) && trim($rawEmail) === '') {
+            $request->request->remove('email');
+        }
+        $rawName = $request->input('name');
+        if (is_string($rawName) && trim($rawName) === '') {
+            $request->request->remove('name');
+        }
 
         $validated = $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:255'],

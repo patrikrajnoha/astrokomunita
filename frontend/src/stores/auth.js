@@ -3,7 +3,7 @@ import http from '@/services/api'
 import axios from 'axios'
 
 const AUTH_TIMEOUTS_MS = [5000, 8000]
-const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 const csrfBaseUrl = rawApiBaseUrl.replace(/\/api\/?$/i, '')
 
 // Separate axios instance for CSRF (no baseURL)
@@ -322,3 +322,4 @@ export const useAuthStore = defineStore('auth', {
     },
   },
 })
+

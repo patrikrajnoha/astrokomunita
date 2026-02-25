@@ -365,7 +365,6 @@ class BotRunner
                     ->where('run_id', $runId)
                     ->orWhere('meta->last_seen_run_id', $runId);
             })
-            ->whereNull('post_id')
             ->whereIn('publish_status', [
                 BotPublishStatus::PENDING->value,
                 BotPublishStatus::PUBLISHED->value,
@@ -382,7 +381,7 @@ class BotRunner
                 && !$this->hasAnyTranslatedText($item)
                 && $this->isLegacyTranslationPlaceholder($meta);
 
-            if (!in_array($currentStatus, ['', BotTranslationStatus::PENDING->value, null], true) && !$legacyPlaceholder) {
+            if (!in_array($currentStatus, ['', BotTranslationStatus::PENDING->value, BotTranslationStatus::FAILED->value, null], true) && !$legacyPlaceholder) {
                 continue;
             }
 
@@ -534,6 +533,20 @@ class BotRunner
                     'translated_at' => $translatedAt,
                     'meta' => $meta,
                 ])->save();
+
+                if ($item->post_id) {
+                    try {
+                        $this->publisherService->syncLinkedPostFromItem($item, $runContext);
+                    } catch (Throwable $syncError) {
+                        Log::warning('Bot translation sync to linked post failed.', [
+                            'source_key' => $sourceKey,
+                            'stable_key' => (string) $item->stable_key,
+                            'bot_run_id' => $runId,
+                            'post_id' => (int) $item->post_id,
+                            'error' => $this->limitText($syncError->getMessage(), 220),
+                        ]);
+                    }
+                }
 
                 if (config('app.debug')) {
                     Log::debug('Bot translation completed in runner.', [
@@ -694,7 +707,7 @@ class BotRunner
             return false;
         }
 
-        preg_match_all('/[áäčďéíĺľňóôŕšťúýžÁÄČĎÉÍĹĽŇÓÔŔŠŤÚÝŽ]/u', $combined, $matches);
+        preg_match_all('/[^\x00-\x7F]/u', $combined, $matches);
         $diacriticsCount = count($matches[0] ?? []);
 
         return $diacriticsCount >= 5;

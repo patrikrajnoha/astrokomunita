@@ -229,4 +229,35 @@ describe('RightObservingSidebar', () => {
     await wrapper.find('.phaseLink').trigger('click')
     expect(pushMock).toHaveBeenCalledWith('/events/42')
   })
+
+  it('does not duplicate current moon phase when single scheduled phase is merged with synthetic cards', async () => {
+    try {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-02-24T20:05:00Z'))
+
+      getMock.mockResolvedValue({
+        data: observePayload({
+          moon: {
+            phase_name: 'First quarter',
+            illumination_pct: 50,
+            phase_schedule: [
+              { event_id: 77, phase: 'first quarter', at_local: '2026-02-24 18:00' },
+            ],
+          },
+        }),
+      })
+
+      const wrapper = mount(RightObservingSidebar, {
+        props: { lat: 48.14, lon: 17.1, date: '2026-02-24', tz: 'Europe/Bratislava' },
+      })
+
+      await vi.advanceTimersByTimeAsync(300)
+
+      const currentIlluminationLabels = wrapper.findAll('.moonPhaseIllum').map((node) => node.text().trim())
+      const fiftyPercentCount = currentIlluminationLabels.filter((text) => text === '50%').length
+      expect(fiftyPercentCount).toBe(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

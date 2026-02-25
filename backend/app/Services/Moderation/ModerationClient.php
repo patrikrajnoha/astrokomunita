@@ -10,6 +10,39 @@ use Throwable;
 
 class ModerationClient
 {
+    public function health(): array
+    {
+        $path = '/health';
+        $this->logRequestDiagnostics($path);
+
+        try {
+            $response = $this->baseRequest()->get($path);
+        } catch (ConnectionException $exception) {
+            $this->logFailureDiagnostics($path, 0, 'connection_error');
+            throw new ModerationClientException(
+                'Unable to connect to moderation service.',
+                'connection_error'
+            );
+        } catch (Throwable $exception) {
+            $this->logFailureDiagnostics($path, 0, 'service_error');
+            throw new ModerationClientException(
+                'Moderation health request failed.',
+                'service_error'
+            );
+        }
+
+        if ($response->failed()) {
+            $this->logFailureDiagnostics($path, $response->status(), (string) ($response->json('error.code') ?? 'service_error'));
+            throw new ModerationClientException(
+                (string) ($response->json('error.message') ?? 'Moderation health request failed.'),
+                (string) ($response->json('error.code') ?? 'service_error'),
+                $response->status()
+            );
+        }
+
+        return $response->json() ?? [];
+    }
+
     public function moderateText(string $text, ?string $lang = null): array
     {
         $this->logRequestDiagnostics('/moderate/text');

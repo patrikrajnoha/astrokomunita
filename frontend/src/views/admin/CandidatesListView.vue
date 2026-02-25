@@ -16,6 +16,9 @@ const activeTab = ref("crawled");
 
 const loading = ref(false);
 const error = ref(null);
+const publishProgressActive = ref(false);
+const publishProgressLabel = ref("");
+const publishProgressPercent = ref(0);
 
 const status = ref("pending"); // crawled: default MVP
 const type = ref("");          // crawled: all
@@ -223,6 +226,28 @@ function openCandidate(id) {
   router.push(`/admin/candidates/${id}`);
 }
 
+function startPublishProgress(label, totalSteps = 1) {
+  publishProgressActive.value = true;
+  publishProgressLabel.value = label;
+  publishProgressPercent.value = totalSteps > 0 ? 1 : 0;
+}
+
+function advancePublishProgress(doneSteps, totalSteps) {
+  if (!publishProgressActive.value || totalSteps <= 0) return;
+  const safeDone = Math.max(0, Math.min(totalSteps, Number(doneSteps) || 0));
+  publishProgressPercent.value = Math.max(1, Math.round((safeDone / totalSteps) * 100));
+}
+
+function finishPublishProgress() {
+  if (!publishProgressActive.value) return;
+  publishProgressPercent.value = 100;
+  window.setTimeout(() => {
+    publishProgressActive.value = false;
+    publishProgressLabel.value = "";
+    publishProgressPercent.value = 0;
+  }, 500);
+}
+
 async function publishCandidateQuick(candidate) {
   if (!candidate?.id || String(candidate?.status || '') !== 'pending') return;
 
@@ -236,14 +261,17 @@ async function publishCandidateQuick(candidate) {
 
   loading.value = true;
   error.value = null;
+  startPublishProgress("Publikovanie kandidata...", 1);
   try {
     await eventCandidates.approve(candidate.id);
+    advancePublishProgress(1, 1);
     toast.success('Kandidat bol publikovany.');
     await load();
   } catch (e) {
     error.value = e?.response?.data?.message || 'Publikovanie zlyhalo';
     toast.error(error.value);
   } finally {
+    finishPublishProgress();
     loading.value = false;
   }
 }
@@ -269,8 +297,11 @@ async function publishAllVisiblePending() {
 
   let successCount = 0;
   let failCount = 0;
+  const total = ids.length;
 
   try {
+    startPublishProgress("Publikujem viditelnych kandidatov...", total);
+    let doneCount = 0;
     for (const candidateId of ids) {
       try {
         await eventCandidates.approve(candidateId);
@@ -278,6 +309,8 @@ async function publishAllVisiblePending() {
       } catch {
         failCount += 1;
       }
+      doneCount += 1;
+      advancePublishProgress(doneCount, total);
     }
 
     if (failCount === 0) {
@@ -291,6 +324,7 @@ async function publishAllVisiblePending() {
     error.value = e?.response?.data?.message || "Hromadne publikovanie zlyhalo";
     toast.error(error.value);
   } finally {
+    finishPublishProgress();
     loading.value = false;
   }
 }
@@ -307,6 +341,7 @@ async function publishAllByFilter() {
 
   loading.value = true;
   error.value = null;
+  startPublishProgress("Publikujem podla filtra...", 1);
 
   try {
     const params = buildParams();
@@ -322,6 +357,7 @@ async function publishAllByFilter() {
     };
 
     const result = await eventCandidates.approveBatch(payload);
+    advancePublishProgress(1, 1);
     if (result.failed > 0) {
       toast.warn(`Publikovane: ${result.published}, zlyhalo: ${result.failed}.`);
     } else {
@@ -332,6 +368,7 @@ async function publishAllByFilter() {
     error.value = e?.response?.data?.message || "Hromadne publikovanie podla filtra zlyhalo";
     toast.error(error.value);
   } finally {
+    finishPublishProgress();
     loading.value = false;
   }
 }
@@ -364,6 +401,9 @@ async function publishBySelectedMode() {
 
   loading.value = true;
   error.value = null;
+  const modeSteps = publishMode.value === "all" ? 2 : 1;
+  startPublishProgress("Publikujem podla rezimu...", modeSteps);
+  let completedSteps = 0;
 
   try {
     const crawledPayload = {
@@ -383,10 +423,14 @@ async function publishBySelectedMode() {
 
     if (publishMode.value === "crawled" || publishMode.value === "all") {
       crawledResult = await eventCandidates.approveBatch(crawledPayload);
+      completedSteps += 1;
+      advancePublishProgress(completedSteps, modeSteps);
     }
 
     if (publishMode.value === "manual" || publishMode.value === "all") {
       manualResult = await eventCandidates.publishManualBatch(manualPayload);
+      completedSteps += 1;
+      advancePublishProgress(completedSteps, modeSteps);
     }
 
     const totalPublished = Number(crawledResult.published || 0) + Number(manualResult.published || 0);
@@ -403,6 +447,7 @@ async function publishBySelectedMode() {
     error.value = e?.response?.data?.message || "Hromadne publikovanie podla rezimu zlyhalo";
     toast.error(error.value);
   } finally {
+    finishPublishProgress();
     loading.value = false;
   }
 }
@@ -915,6 +960,22 @@ onMounted(() => {
         >
           Resetovat filtre
         </button>
+      </div>
+
+      <div
+        v-if="publishProgressActive"
+        style="margin-top: 10px; border: 1px solid rgb(var(--color-surface-rgb) / .14); border-radius: 10px; padding: 8px 10px; background: rgb(var(--color-surface-rgb) / .04);"
+      >
+        <div style="display:flex; justify-content:space-between; gap:10px; font-size:12px; margin-bottom:6px;">
+          <span>{{ publishProgressLabel || 'Publikujem...' }}</span>
+          <strong>{{ publishProgressPercent }}%</strong>
+        </div>
+        <div style="height: 7px; border-radius: 999px; background: rgb(var(--color-surface-rgb) / .16); overflow: hidden;">
+          <div
+            style="height: 100%; background: linear-gradient(90deg, rgb(var(--color-primary-rgb) / .95), rgb(var(--color-success-rgb) / .95)); transition: width .25s ease;"
+            :style="{ width: `${publishProgressPercent}%` }"
+          ></div>
+        </div>
       </div>
 
       <div

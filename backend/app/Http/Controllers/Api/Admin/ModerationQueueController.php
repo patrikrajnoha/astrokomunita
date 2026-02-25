@@ -6,10 +6,41 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ModerationActionRequest;
 use App\Models\ModerationLog;
 use App\Models\Post;
+use App\Services\Moderation\ModerationClient;
+use App\Services\Moderation\ModerationClientException;
 use Illuminate\Http\Request;
 
 class ModerationQueueController extends Controller
 {
+    public function health(ModerationClient $moderationClient)
+    {
+        try {
+            $service = $moderationClient->health();
+
+            return response()->json([
+                'ok' => true,
+                'status' => 'running',
+                'checked_at' => now()->toIso8601String(),
+                'service' => [
+                    'status' => (string) ($service['status'] ?? 'ok'),
+                    'device' => $service['device'] ?? null,
+                    'models' => $service['models'] ?? [],
+                ],
+            ]);
+        } catch (ModerationClientException $exception) {
+            return response()->json([
+                'ok' => false,
+                'status' => 'down',
+                'checked_at' => now()->toIso8601String(),
+                'error' => [
+                    'code' => $exception->errorCode(),
+                    'message' => $exception->getMessage(),
+                    'http_status' => $exception->statusCode(),
+                ],
+            ], 503);
+        }
+    }
+
     public function index(Request $request)
     {
         $perPage = max(1, min((int) $request->query('per_page', 20), 50));
