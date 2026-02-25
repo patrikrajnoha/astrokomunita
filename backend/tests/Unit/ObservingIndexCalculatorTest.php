@@ -70,4 +70,39 @@ class ObservingIndexCalculatorTest extends TestCase
         $this->assertNotNull($best['best_time_reason']);
         $this->assertCount(3, $best['series']);
     }
+
+    public function test_higher_bortle_class_reduces_observing_index_for_same_inputs(): void
+    {
+        /** @var ObservingIndexCalculator $calculator */
+        $calculator = app(ObservingIndexCalculator::class);
+
+        $baseInput = [
+            'humidity_pct' => 54,
+            'cloud_cover_pct' => 28,
+            'pm25' => 12.0,
+            'pm10' => 26.0,
+            'moon_illumination_pct' => 45,
+            'wind_speed_kmh' => 9.5,
+            'sun' => [
+                'status' => 'ok',
+                'sunset' => '17:15',
+                'sunrise' => '07:02',
+                'civil_twilight_end' => '17:45',
+                'civil_twilight_begin' => '06:32',
+            ],
+            'date' => '2026-02-20',
+            'tz' => 'Europe/Bratislava',
+        ];
+
+        $lowLightPollution = $calculator->calculate(ObservingWeights::MODE_DEEP_SKY, array_merge($baseInput, [
+            'bortle_class' => 1,
+        ]));
+        $highLightPollution = $calculator->calculate(ObservingWeights::MODE_DEEP_SKY, array_merge($baseInput, [
+            'bortle_class' => 9,
+        ]));
+
+        $this->assertGreaterThan($highLightPollution['observing_index'], $lowLightPollution['observing_index']);
+        $this->assertArrayHasKey('light_pollution', $lowLightPollution['factors']);
+        $this->assertArrayHasKey('light_pollution', $highLightPollution['factors']);
+    }
 }

@@ -10,6 +10,8 @@ use Illuminate\Support\Carbon;
 
 class UserPreference extends Model
 {
+    public const DEFAULT_BORTLE_CLASS = 6;
+
     protected $fillable = [
         'user_id',
         'event_types',
@@ -20,6 +22,7 @@ class UserPreference extends Model
         'location_lat',
         'location_lon',
         'onboarding_completed_at',
+        'bortle_class',
     ];
 
     protected $casts = [
@@ -28,7 +31,15 @@ class UserPreference extends Model
         'location_lat' => 'float',
         'location_lon' => 'float',
         'onboarding_completed_at' => 'datetime',
+        'bortle_class' => 'integer',
     ];
+
+    public function resolvedBortleClass(): int
+    {
+        $value = is_numeric($this->bortle_class) ? (int) $this->bortle_class : self::DEFAULT_BORTLE_CLASS;
+
+        return max(1, min(9, $value));
+    }
 
     /**
      * @return list<string>

@@ -56,6 +56,17 @@ class ObservingNormalization
         return (int) round(array_sum($parts) / count($parts));
     }
 
+    public function lightPollutionScore(?int $bortleClass): int
+    {
+        if ($bortleClass === null) {
+            return 50;
+        }
+
+        $normalized = (max(1, min(9, $bortleClass)) - 1) / 8;
+
+        return $this->clamp(100 - ($normalized * 100));
+    }
+
     public function darknessScore(
         ?string $sunStatus,
         ?string $sunset,

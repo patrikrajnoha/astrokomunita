@@ -3,6 +3,7 @@ import { getMyPreferences, updateMyPreferences, getOnboardingInterests } from '@
 
 const DEFAULT_REGION = 'global'
 const DEFAULT_INTERESTS = []
+const DEFAULT_BORTLE_CLASS = 6
 
 export const useEventPreferencesStore = defineStore('eventPreferences', {
   state: () => ({
@@ -17,6 +18,7 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
     locationPlaceId: '',
     locationLat: null,
     locationLon: null,
+    bortleClass: DEFAULT_BORTLE_CLASS,
     onboardingCompletedAt: null,
     supportedEventTypes: [],
     supportedRegions: ['sk', 'eu', 'global'],
@@ -42,6 +44,7 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
       this.locationPlaceId = ''
       this.locationLat = null
       this.locationLon = null
+      this.bortleClass = DEFAULT_BORTLE_CLASS
       this.onboardingCompletedAt = null
       this.supportedEventTypes = []
       this.supportedRegions = ['sk', 'eu', 'global']
@@ -68,6 +71,9 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
         this.locationPlaceId = typeof data.location_place_id === 'string' ? data.location_place_id : ''
         this.locationLat = Number.isFinite(Number(data.location_lat)) ? Number(data.location_lat) : null
         this.locationLon = Number.isFinite(Number(data.location_lon)) ? Number(data.location_lon) : null
+        this.bortleClass = Number.isInteger(Number(data.bortle_class))
+          ? Math.min(9, Math.max(1, Number(data.bortle_class)))
+          : DEFAULT_BORTLE_CLASS
         this.onboardingCompletedAt = typeof data.onboarding_completed_at === 'string' && data.onboarding_completed_at
           ? data.onboarding_completed_at
           : null
@@ -105,6 +111,9 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
         this.locationPlaceId = typeof data.location_place_id === 'string' ? data.location_place_id : this.locationPlaceId
         this.locationLat = Number.isFinite(Number(data.location_lat)) ? Number(data.location_lat) : this.locationLat
         this.locationLon = Number.isFinite(Number(data.location_lon)) ? Number(data.location_lon) : this.locationLon
+        this.bortleClass = Number.isInteger(Number(data.bortle_class))
+          ? Math.min(9, Math.max(1, Number(data.bortle_class)))
+          : this.bortleClass
         this.onboardingCompletedAt = typeof data.onboarding_completed_at === 'string' && data.onboarding_completed_at
           ? data.onboarding_completed_at
           : this.onboardingCompletedAt

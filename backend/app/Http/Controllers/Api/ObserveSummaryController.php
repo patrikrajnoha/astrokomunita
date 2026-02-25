@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\UserPreference;
 use App\Services\Observing\ObservingSummaryService;
 use App\Services\Observing\ObservingWeights;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +26,7 @@ class ObserveSummaryController extends Controller
             'date' => ['required', 'date_format:Y-m-d'],
             'tz' => ['nullable', 'string'],
             'mode' => ['nullable', 'string'],
+            'bortle_class' => ['nullable', 'integer', 'between:1,9'],
         ]);
 
         $lat = (float) $validated['lat'];
@@ -32,6 +34,7 @@ class ObserveSummaryController extends Controller
         $date = (string) $validated['date'];
         $tz = $this->sanitizeTimezone((string) ($validated['tz'] ?? ''));
         $mode = $this->observingWeights->sanitizeMode((string) ($validated['mode'] ?? ''));
+        $bortleClass = $this->resolveBortleClass($request, $validated);
 
         $cacheKey = implode(':', [
             'observe_summary',
@@ -40,6 +43,7 @@ class ObserveSummaryController extends Controller
             $date,
             str_replace(':', '_', $tz),
             'mode_' . $mode,
+            'bortle_' . $bortleClass,
         ]);
 
         $cached = Cache::get($cacheKey);
@@ -47,7 +51,7 @@ class ObserveSummaryController extends Controller
             return response()->json($cached);
         }
 
-        $result = $this->summaryService->getSummary($lat, $lon, $date, $tz, $mode);
+        $result = $this->summaryService->getSummary($lat, $lon, $date, $tz, $mode, $bortleClass);
         $summary = $result['summary'];
         $isPartial = (bool) ($result['is_partial'] ?? false);
 
@@ -78,5 +82,27 @@ class ObserveSummaryController extends Controller
         }
 
         return in_array($trimmed, timezone_identifiers_list(), true) ? $trimmed : $default;
+    }
+
+    /**
+     * @param array<string,mixed> $validated
+     */
+    private function resolveBortleClass(Request $request, array $validated): int
+    {
+        if (isset($validated['bortle_class']) && is_numeric($validated['bortle_class'])) {
+            return max(1, min(9, (int) $validated['bortle_class']));
+        }
+
+        $user = $request->user();
+        if ($user === null) {
+            return UserPreference::DEFAULT_BORTLE_CLASS;
+        }
+
+        $preference = $user->eventPreference;
+        if ($preference === null) {
+            return UserPreference::DEFAULT_BORTLE_CLASS;
+        }
+
+        return $preference->resolvedBortleClass();
     }
 }

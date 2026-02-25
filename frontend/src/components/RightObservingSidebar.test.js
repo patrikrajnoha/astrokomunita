@@ -9,6 +9,10 @@ const authMock = vi.hoisted(() => ({
   isAuthed: true,
   initialized: true,
 }))
+const preferencesMock = vi.hoisted(() => ({
+  bortleClass: 6,
+  savePreferences: vi.fn().mockResolvedValue({}),
+}))
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ fullPath: '/home' }),
@@ -17,6 +21,10 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => authMock,
+}))
+
+vi.mock('@/stores/eventPreferences', () => ({
+  useEventPreferencesStore: () => preferencesMock,
 }))
 
 vi.mock('@/services/api', () => ({
@@ -90,6 +98,7 @@ describe('RightObservingSidebar', () => {
     vi.useRealTimers()
     authMock.isAuthed = true
     authMock.initialized = true
+    preferencesMock.bortleClass = 6
   })
 
   it('fetches only observe summary in deep-sky mode', async () => {
@@ -119,6 +128,27 @@ describe('RightObservingSidebar', () => {
     expect(wrapper.text()).toContain('Počasie teraz')
     expect(wrapper.text()).toContain('2.4 °C')
     expect(wrapper.text()).toContain('Polojasno')
+  })
+
+  it('renders sky quality from summary payload', async () => {
+    getMock.mockResolvedValue({
+      data: observePayload({
+        sky_quality: {
+          bortle_class: 6,
+          label: 'Bortle 6/9',
+          impact_note: 'Mestská obloha - deep-sky objekty budú menej viditeľné.',
+        },
+      }),
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Sky Quality')
+    expect(wrapper.text()).toContain('6/9')
   })
 
   it('shows moon symbol for clear weather during night', async () => {

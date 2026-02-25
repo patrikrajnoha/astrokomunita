@@ -26,9 +26,10 @@ class ObservingSummaryService
     /**
      * @return array{summary:array<string,mixed>,is_partial:bool,all_unavailable:bool}
      */
-    public function getSummary(float $lat, float $lon, string $date, string $tz, ?string $mode = null): array
+    public function getSummary(float $lat, float $lon, string $date, string $tz, ?string $mode = null, ?int $bortleClass = null): array
     {
         $resolvedMode = $this->observingWeights->sanitizeMode($mode);
+        $resolvedBortleClass = $this->resolveBortleClass($bortleClass);
         $providerDebug = [];
         $moonPhaseSchedule = $this->loadMoonPhaseSchedule($date, $tz);
 
@@ -214,6 +215,7 @@ class ObservingSummaryService
             'sun' => $sun,
             'date' => $date,
             'tz' => $tz,
+            'bortle_class' => $resolvedBortleClass,
         ];
 
         $indexResult = $this->indexCalculator->calculate($resolvedMode, $indexInput);
@@ -267,6 +269,11 @@ class ObservingSummaryService
             ],
             'weather_now' => $weatherNow,
             'observing_mode' => $resolvedMode,
+            'sky_quality' => [
+                'bortle_class' => $resolvedBortleClass,
+                'label' => sprintf('Bortle %d/9', $resolvedBortleClass),
+                'impact_note' => $this->bortleImpactNote($resolvedBortleClass),
+            ],
             'observing_index' => $indexResult['observing_index'],
             'factors' => $indexResult['factors'],
             'weights' => $indexResult['weights'],
@@ -359,9 +366,29 @@ class ObservingSummaryService
      * @deprecated Use getSummary() instead.
      * @return array{summary:array<string,mixed>,is_partial:bool,all_unavailable:bool}
      */
-    public function buildSummary(float $lat, float $lon, string $date, string $tz, ?string $mode = null): array
+    public function buildSummary(float $lat, float $lon, string $date, string $tz, ?string $mode = null, ?int $bortleClass = null): array
     {
-        return $this->getSummary($lat, $lon, $date, $tz, $mode);
+        return $this->getSummary($lat, $lon, $date, $tz, $mode, $bortleClass);
+    }
+
+    private function resolveBortleClass(?int $bortleClass): int
+    {
+        if ($bortleClass === null) {
+            return 6;
+        }
+
+        return max(1, min(9, $bortleClass));
+    }
+
+    private function bortleImpactNote(int $bortleClass): string
+    {
+        return match (true) {
+            $bortleClass <= 2 => 'Velmi tmava obloha - vhodne pre slabe deep-sky objekty.',
+            $bortleClass <= 4 => 'Relativne tmava obloha - dobre podmienky pre vacsinu objektov.',
+            $bortleClass <= 6 => 'Predmestska obloha - slabsi kontrast pri deep-sky objektoch.',
+            $bortleClass <= 8 => 'Mestska obloha - deep-sky objekty budu menej viditelne.',
+            default => 'Vnutorne mesto - viditelne su najma jasne objekty.',
+        };
     }
 
     /**

@@ -54,6 +54,9 @@ class ObservingIndexCalculator
                 $hourLocal
             ),
             'seeing' => $seeing['score'],
+            'light_pollution' => $this->normalization->lightPollutionScore(
+                isset($input['bortle_class']) && is_numeric($input['bortle_class']) ? (int) $input['bortle_class'] : null
+            ),
         ];
 
         $weightedTotal = 0.0;
@@ -229,6 +232,17 @@ class ObservingIndexCalculator
                 'level' => 'warn',
                 'code' => 'poor_seeing',
                 'message' => 'Seeing proxy indikuje nestabilný obraz planéty.',
+            ];
+        }
+
+        $bortleClass = isset($input['bortle_class']) && is_numeric($input['bortle_class'])
+            ? (int) $input['bortle_class']
+            : null;
+        if ($bortleClass !== null && $bortleClass >= 8) {
+            $alerts[] = [
+                'level' => 'warn',
+                'code' => 'high_light_pollution',
+                'message' => 'Silne svetelne znecistenie obmedzuje slabe deep-sky objekty.',
             ];
         }
 
