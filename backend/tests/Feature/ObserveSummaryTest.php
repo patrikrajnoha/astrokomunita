@@ -66,13 +66,16 @@ class ObserveSummaryTest extends TestCase
         $response->assertJsonPath('weather_now.weather_code', 2);
         $response->assertJsonPath('weather_now.weather_label_sk', 'Polojasno');
         $response->assertJsonPath('observing_mode', 'deep_sky');
+        $response->assertJsonPath('sky_quality.bortle_class', 6);
+        $response->assertJsonPath('sky_quality.label', 'Bortle 6/9');
         $response->assertJsonStructure([
             'is_partial',
             'all_unavailable',
             'weather_now' => ['temperature_c', 'apparent_temperature_c', 'wind_speed', 'weather_code', 'weather_label_sk'],
+            'sky_quality' => ['bortle_class', 'label', 'impact_note'],
             'observing_index',
             'observing_mode',
-            'factors' => ['humidity', 'cloud', 'air_quality', 'moon', 'darkness', 'seeing'],
+            'factors' => ['humidity', 'cloud', 'air_quality', 'moon', 'darkness', 'seeing', 'light_pollution'],
             'weights',
             'alerts',
             'overall' => ['label', 'reason', 'alert_level'],

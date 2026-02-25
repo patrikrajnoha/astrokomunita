@@ -34,6 +34,7 @@ class UserPreferenceController extends Controller
                 'location_lat' => $preferences?->location_lat,
                 'location_lon' => $preferences?->location_lon,
                 'onboarding_completed_at' => $preferences?->onboardingCompletedAtIso(),
+                'bortle_class' => $preferences?->resolvedBortleClass() ?? UserPreference::DEFAULT_BORTLE_CLASS,
                 'has_preferences' => (bool) $preferences,
                 'updated_at' => optional($preferences?->updated_at)?->toIso8601String(),
             ],
@@ -107,6 +108,12 @@ class UserPreferenceController extends Controller
                 : null;
         }
 
+        if (array_key_exists('bortle_class', $validated)) {
+            $preferences->bortle_class = $validated['bortle_class'];
+        } elseif (!is_numeric($preferences->bortle_class)) {
+            $preferences->bortle_class = UserPreference::DEFAULT_BORTLE_CLASS;
+        }
+
         $preferences->save();
 
         return response()->json([
@@ -119,6 +126,7 @@ class UserPreferenceController extends Controller
                 'location_lat' => $preferences->location_lat,
                 'location_lon' => $preferences->location_lon,
                 'onboarding_completed_at' => $preferences->onboardingCompletedAtIso(),
+                'bortle_class' => $preferences->resolvedBortleClass(),
                 'has_preferences' => true,
                 'updated_at' => optional($preferences->updated_at)?->toIso8601String(),
             ],
@@ -145,6 +153,7 @@ class UserPreferenceController extends Controller
                 'location_lat' => null,
                 'location_lon' => null,
                 'onboarding_completed_at' => null,
+                'bortle_class' => UserPreference::DEFAULT_BORTLE_CLASS,
                 'has_preferences' => false,
                 'updated_at' => null,
             ],

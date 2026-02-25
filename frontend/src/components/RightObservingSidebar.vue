@@ -24,10 +24,6 @@
     </header>
 
     <div v-if="authPending" class="state">Načítavam...</div>
-    <div v-else-if="!isAuthenticated" class="state">
-      <p>Widget je dostupný po prihlásení.</p>
-      <button class="btn" type="button" @click="goToLogin">Prihlásiť sa</button>
-    </div>
     <div v-else-if="!hasLocationCoords" class="state">
       <p>Chýbajú súradnice lokality.</p>
       <button class="btn" type="button" @click="goToProfileLocation">Nastaviť lokalitu</button>
@@ -78,6 +74,19 @@
           <p class="metricLabel">Seeing (vietor+vlhkosť)</p>
           <p class="metricValue">{{ seeingDisplay }}</p>
         </article>
+      </section>
+
+      <section class="panel">
+        <p class="miniLabel">Sky Quality</p>
+        <p class="detailRow">
+          <span title="Nižšie číslo = tmavšia obloha">Bortle</span>
+          <strong>{{ skyQualityLabel }}</strong>
+        </p>
+        <p class="muted">{{ skyQualityImpactNote }}</p>
+        <label v-if="isAuthenticated" class="bortleControl">
+          <span>Bortle class: {{ selectedBortleClass }}/9</span>
+          <input type="range" min="1" max="9" step="1" :value="selectedBortleClass" @input="onBortleInput" />
+        </label>
       </section>
 
       <section v-if="additionalAlerts.length > 0" class="panel">
@@ -143,8 +152,9 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import api from '@/services/api'
 import iconClear from '@/assets/weather-icons/clear.svg'
 import iconPartlyCloudy from '@/assets/weather-icons/partly-cloudy.svg'
@@ -164,13 +174,14 @@ const props = defineProps({
 })
 
 const auth = useAuthStore()
-const route = useRoute()
+const preferences = useEventPreferencesStore()
 const router = useRouter()
 
 const observeSummary = ref(null)
 const loading = ref(false)
 const error = ref('')
 let debounceTimer = null
+let saveBortleTimer = null
 let requestCounter = 0
 
 const numericLat = computed(() => toNumber(props.lat))
@@ -180,6 +191,14 @@ const isAuthenticated = computed(() => auth.isAuthed)
 const authPending = computed(() => !auth.initialized)
 const locationLabel = computed(() => cleanString(props.locationName) || 'Nezvolená lokalita')
 const alerts = computed(() => (Array.isArray(observeSummary.value?.alerts) ? observeSummary.value.alerts : []))
+const selectedBortleClass = ref(6)
+const skyQualityClass = computed(() => {
+  const value = Number(observeSummary.value?.sky_quality?.bortle_class ?? selectedBortleClass.value)
+  if (!Number.isInteger(value)) return 6
+  return Math.min(9, Math.max(1, value))
+})
+const skyQualityLabel = computed(() => `${skyQualityClass.value}/9`)
+const skyQualityImpactNote = computed(() => cleanString(observeSummary.value?.sky_quality?.impact_note) || 'Nižšie číslo znamená tmavšiu oblohu.')
 
 const observingIndex = computed(() => {
   const raw = asFiniteNumber(observeSummary.value?.observing_index)
@@ -403,8 +422,23 @@ watch(
   { immediate: true },
 )
 
+watch(
+  () => [auth.isAuthed, preferences.bortleClass],
+  ([isAuthed, bortle]) => {
+    if (!isAuthed) {
+      selectedBortleClass.value = 6
+      return
+    }
+    const parsed = Number(bortle)
+    selectedBortleClass.value = Number.isInteger(parsed) ? Math.min(9, Math.max(1, parsed)) : 6
+    queueFetch()
+  },
+  { immediate: true },
+)
+
 onBeforeUnmount(() => {
   if (debounceTimer) window.clearTimeout(debounceTimer)
+  if (saveBortleTimer) window.clearTimeout(saveBortleTimer)
 })
 
 function queueFetch() {
@@ -413,7 +447,7 @@ function queueFetch() {
 }
 
 async function fetchSummary() {
-  if (!isAuthenticated.value || !hasLocationCoords.value) {
+  if (!hasLocationCoords.value) {
     observeSummary.value = null
     error.value = ''
     loading.value = false
@@ -432,6 +466,7 @@ async function fetchSummary() {
         date: safeDate(props.date),
         tz: safeTz(props.tz),
         mode: 'deep_sky',
+        bortle_class: selectedBortleClass.value,
       },
     })
 
@@ -446,10 +481,6 @@ async function fetchSummary() {
   }
 }
 
-function goToLogin() {
-  router.push({ name: 'login', query: { redirect: route.fullPath } })
-}
-
 function goToProfileLocation() {
   router.push({ name: 'profile.edit', hash: '#location' })
 }
@@ -459,6 +490,26 @@ function openMoonPhaseEvent(phase) {
   if (Number.isInteger(eventId) && eventId > 0) {
     router.push(`/events/${eventId}`)
   }
+}
+
+function onBortleInput(event) {
+  const value = Number(event?.target?.value)
+  if (!Number.isInteger(value)) return
+  selectedBortleClass.value = Math.min(9, Math.max(1, value))
+
+  if (saveBortleTimer) window.clearTimeout(saveBortleTimer)
+  saveBortleTimer = window.setTimeout(async () => {
+    if (!isAuthenticated.value) {
+      queueFetch()
+      return
+    }
+
+    try {
+      await preferences.savePreferences({ bortle_class: selectedBortleClass.value })
+    } finally {
+      queueFetch()
+    }
+  }, 260)
 }
 
 function normalizeMoonPhaseKey(value) {
@@ -1226,6 +1277,16 @@ function formatMoonPhaseRange(fromValue, toValue, pointValue) {
 
 .detailRow strong {
   text-align: right;
+}
+
+.bortleControl {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.74rem;
+}
+
+.bortleControl input[type='range'] {
+  width: 100%;
 }
 
 .phaseLink {

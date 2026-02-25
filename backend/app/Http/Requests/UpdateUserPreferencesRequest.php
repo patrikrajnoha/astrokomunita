@@ -33,6 +33,7 @@ class UpdateUserPreferencesRequest extends FormRequest
             'location_lat' => ['nullable', 'numeric', 'between:-90,90'],
             'location_lon' => ['nullable', 'numeric', 'between:-180,180'],
             'onboarding_completed_at' => ['nullable', 'date'],
+            'bortle_class' => ['nullable', 'integer', 'between:1,9'],
         ];
     }
 }

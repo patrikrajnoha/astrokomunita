@@ -513,6 +513,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/me/reminders', [EventReminderController::class, 'index']);
         Route::get('/me/activity', MeActivityController::class);
         Route::get('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'show']);
+        Route::post('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);
         Route::put('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);
         Route::put('/me/location', [MeLocationController::class, 'update']);
         Route::get('/me/export', MeDataExportController::class)->middleware('throttle:me-export');

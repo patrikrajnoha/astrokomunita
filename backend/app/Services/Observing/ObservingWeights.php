@@ -18,26 +18,29 @@ class ObservingWeights
         return match ($resolved) {
             self::MODE_PLANETS => [
                 'seeing' => 0.25,
-                'cloud' => 0.25,
-                'humidity' => 0.15,
+                'cloud' => 0.20,
+                'humidity' => 0.10,
                 'moon' => 0.05,
                 'darkness' => 0.10,
                 'air_quality' => 0.20,
+                'light_pollution' => 0.10,
             ],
             self::MODE_METEORS => [
-                'darkness' => 0.25,
-                'cloud' => 0.30,
+                'darkness' => 0.20,
+                'cloud' => 0.25,
                 'humidity' => 0.15,
                 'moon' => 0.20,
                 'air_quality' => 0.10,
+                'light_pollution' => 0.10,
             ],
             default => [
-                'humidity' => 0.25,
-                'cloud' => 0.30,
-                'air_quality' => 0.20,
+                'humidity' => 0.20,
+                'cloud' => 0.25,
+                'air_quality' => 0.15,
                 'moon' => 0.15,
                 'darkness' => 0.05,
                 'seeing' => 0.05,
+                'light_pollution' => 0.15,
             ],
         };
     }
