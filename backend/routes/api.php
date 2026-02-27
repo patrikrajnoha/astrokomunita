@@ -64,6 +64,7 @@ use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\ObserveSummaryController;
 use App\Http\Controllers\Api\ObserveDiagnosticsController;
 use App\Http\Controllers\Api\ObservingSkySummaryController;
+use App\Http\Controllers\Api\SkyController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\MarkYourCalendarPopupController;
 use App\Http\Controllers\Api\NewsletterSubscriptionController;
@@ -177,6 +178,9 @@ Route::get('/nasa/iotd', [NasaIotdController::class, 'show']);
 Route::get('/observe/summary', ObserveSummaryController::class);
 Route::get('/observe/diagnostics', ObserveDiagnosticsController::class);
 Route::get('/observing/sky-summary', ObservingSkySummaryController::class);
+Route::get('/sky/weather', [SkyController::class, 'weather']);
+Route::get('/sky/astronomy', [SkyController::class, 'astronomy']);
+Route::get('/sky/visible-planets', [SkyController::class, 'visiblePlanets']);
 Route::get('/meta/interests', [MetaController::class, 'interests']);
 Route::get('/meta/locations', [MetaController::class, 'locations']);
 
