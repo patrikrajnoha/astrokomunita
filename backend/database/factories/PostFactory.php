@@ -17,6 +17,9 @@ class PostFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
+            'feed_key' => 'community',
+            'author_kind' => 'user',
+            'bot_identity' => null,
             'content' => $this->faker->paragraph(),
             'created_at' => now(),
             'updated_at' => now(),

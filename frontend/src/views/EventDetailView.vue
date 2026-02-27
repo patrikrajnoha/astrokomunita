@@ -14,14 +14,14 @@
       <div v-if="currentEvent" class="deck-shell">
         <div v-if="thirdCard" class="stack-card stack-3" aria-hidden="true">
           <div class="stack-preview">
-            <p class="stack-title">{{ thirdCard.title }}</p>
+            <p class="stack-title">{{ displayEventTitle(thirdCard) }}</p>
             <p class="stack-time">{{ formatDateRange(thirdCard) }}</p>
           </div>
         </div>
 
         <div v-if="secondCard" class="stack-card stack-2" aria-hidden="true">
           <div class="stack-preview">
-            <p class="stack-title">{{ secondCard.title }}</p>
+            <p class="stack-title">{{ displayEventTitle(secondCard) }}</p>
             <p class="stack-time">{{ formatDateRange(secondCard) }}</p>
           </div>
         </div>
@@ -75,6 +75,15 @@
         @favorite="nextEvent('button')"
         @calendar="addToCalendar('button')"
       />
+
+      <div v-if="auth.isAuthed && currentEvent" class="inviteActions">
+        <button type="button" class="inviteBtn inviteBtn-primary" @click="openInviteModal('invite')">
+          Pozvať
+        </button>
+        <button type="button" class="inviteBtn inviteBtn-secondary" @click="openInviteModal('share_ticket')">
+          Zdieľať vstupenku
+        </button>
+      </div>
     </section>
 
     <EventDetailSheet
@@ -94,6 +103,13 @@
       @update:notify-email="notifyEmail = $event"
     />
 
+    <InviteTicketModal
+      :open="inviteModalOpen"
+      :event="currentEvent"
+      @close="closeInviteModal"
+      @created="onInviteCreated"
+    />
+
   </main>
 </template>
 
@@ -104,10 +120,12 @@ import api from '@/services/api'
 import EventCard from '@/components/events/EventCard.vue'
 import EventActions from '@/components/events/EventActions.vue'
 import EventDetailSheet from '@/components/events/EventDetailSheet.vue'
+import InviteTicketModal from '@/components/events/InviteTicketModal.vue'
 import { useSwipeCard } from '@/composables/useSwipeCard'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { eventDisplayTitle } from '@/utils/translatedFields'
 
 const route = useRoute()
 const router = useRouter()
@@ -127,6 +145,7 @@ const notifyLoading = ref(false)
 const notifyMsg = ref('')
 const notifyErr = ref('')
 const liveMessage = ref('')
+const inviteModalOpen = ref(false)
 const preloadedHeroUrls = new Set()
 
 const eventId = computed(() => Number(route.params.id))
@@ -244,6 +263,27 @@ function closeSheet() {
   sheetOpen.value = false
 }
 
+function openInviteModal(source = 'invite') {
+  if (!auth.isAuthed || !currentEvent.value?.id) return
+  trackEvent('event_invite_modal_open', {
+    source,
+    event_id: currentEvent.value.id,
+  })
+  inviteModalOpen.value = true
+}
+
+function closeInviteModal() {
+  inviteModalOpen.value = false
+}
+
+function onInviteCreated(payload) {
+  if (!payload) return
+  trackEvent('event_invite_created', {
+    event_id: currentEvent.value?.id || null,
+    invite_id: payload?.id || null,
+  })
+}
+
 async function fetchEventDetail() {
   const res = await api.get(`/events/${eventId.value}`)
   return res.data?.data ?? res.data
@@ -349,6 +389,10 @@ function typeLabel(type) {
   return map[type] || type || '—'
 }
 
+function displayEventTitle(item) {
+  return eventDisplayTitle(item)
+}
+
 function formatDateTime(value) {
   if (!value) return '—'
   const date = new Date(value)
@@ -435,7 +479,15 @@ function addToCalendar(source = 'button') {
 
   router.push({
     name: 'events',
-    query: ymd ? { view: 'calendar', date: ymd } : { view: 'calendar' },
+    query: ymd
+      ? {
+          view: 'calendar',
+          date: ymd,
+          period: 'month',
+          year: String(new Date(date).getFullYear()),
+          month: String(new Date(date).getMonth() + 1),
+        }
+      : { view: 'calendar' },
   })
 }
 
@@ -508,7 +560,13 @@ async function onKeyDown(event) {
     return
   }
 
-  if (!currentEvent.value || loading.value || sheetOpen.value) return
+  if (event.key === 'Escape' && inviteModalOpen.value) {
+    event.preventDefault()
+    closeInviteModal()
+    return
+  }
+
+  if (!currentEvent.value || loading.value || sheetOpen.value || inviteModalOpen.value) return
 
   if (event.key === 'ArrowLeft') {
     event.preventDefault()
@@ -686,6 +744,33 @@ watch(
 
 .actions {
   margin-top: 0.4rem;
+}
+
+.inviteActions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: -0.2rem;
+}
+
+.inviteBtn {
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
+  padding: 0.45rem 0.86rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: rgb(var(--color-bg-rgb) / 0.72);
+  color: var(--color-surface);
+}
+
+.inviteBtn-primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.55);
+  background: rgb(var(--color-primary-rgb) / 0.16);
+}
+
+.inviteBtn-secondary {
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.34);
 }
 
 .state {

@@ -18,8 +18,11 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         $this->call(AstroBotSeeder::class);
+        $this->call(BotSourceSeeder::class);
         $this->call(SidebarSectionSeeder::class);
-        $this->call(DemoEventsSeeder::class);
+        $this->call(EventSourceSeeder::class);
+        $this->call(DefaultUsersSeeder::class);
+        $this->call(TranslationOverrideSeeder::class);
 
         User::factory()->create([
             'name' => 'Test User',

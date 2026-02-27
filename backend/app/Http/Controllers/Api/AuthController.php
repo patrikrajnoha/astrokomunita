@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use Database\Seeders\DefaultUsersSeeder;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
+use App\Services\Auth\EmailVerificationSettingService;
+use App\Services\UserActivityService;
 use App\Support\UsernameRules;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
@@ -12,13 +15,25 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly EmailVerificationSettingService $emailVerificationSettingService,
+        private readonly UserActivityService $activityService,
+    ) {
+    }
+
     public function me(Request $request)
     {
-        return response()->json($request->user());
+        $user = $request->user();
+
+        return response()->json([
+            ...$user->toArray(),
+            'activity' => $this->activityService->getActivity($user),
+        ]);
     }
 
     public function register(RegisterRequest $request)
@@ -33,7 +48,14 @@ class AuthController extends Controller
             'password' => $validated['password'],
         ]);
 
-        event(new Registered($user));
+        if ($this->emailVerificationSettingService->requiresEmailVerification()) {
+            event(new Registered($user));
+        } else {
+            $user->forceFill([
+                'email_verified_at' => now(),
+            ])->save();
+        }
+
         Auth::login($user);
 
         return response()->json($user, 201);
@@ -60,6 +82,8 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        $this->ensureDefaultUsersForLocal();
+
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
@@ -87,6 +111,25 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         return response()->json($request->user());
+    }
+
+    private function ensureDefaultUsersForLocal(): void
+    {
+        if (! app()->environment('local')) {
+            return;
+        }
+
+        if (User::query()->exists()) {
+            return;
+        }
+
+        try {
+            app(DefaultUsersSeeder::class)->seed();
+        } catch (\Throwable $error) {
+            Log::warning('Failed to auto-seed default users before login.', [
+                'message' => $error->getMessage(),
+            ]);
+        }
     }
 
     private function attemptLegacyPlaintextLogin(string $email, string $password): bool

@@ -6,7 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Services\Storage\MediaStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -20,22 +24,45 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $user = $request->user();
+        $rawEmail = $request->input('email');
+        if (is_string($rawEmail) && trim($rawEmail) === '') {
+            $request->request->remove('email');
+        }
+        $rawName = $request->input('name');
+        if (is_string($rawName) && trim($rawName) === '') {
+            $request->request->remove('name');
+        }
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
             'email' => [
+                'sometimes',
                 'required',
                 'email',
                 'max:255',
                 Rule::unique('users', 'email')->ignore($user->id),
             ],
 
-            // ✅ nové polia
+         
             'bio' => ['nullable', 'string', 'max:160'],
             'location' => ['nullable', 'string', 'max:60'],
+            'location_label' => ['nullable', 'string', 'max:80'],
         ]);
 
-        $user->fill($validated);
+        $supportsLocationLabel = Schema::hasColumn('users', 'location_label');
+        $payload = $validated;
+        if (!$supportsLocationLabel) {
+            unset($payload['location_label']);
+        }
+
+        $user->fill($payload);
+        if ($supportsLocationLabel && array_key_exists('location_label', $validated)) {
+            $label = trim((string) ($validated['location_label'] ?? ''));
+            $user->location = $label !== '' ? Str::substr($label, 0, 60) : null;
+        } elseif ($supportsLocationLabel && array_key_exists('location', $validated)) {
+            $legacy = trim((string) ($validated['location'] ?? ''));
+            $user->location_label = $legacy !== '' ? Str::substr($legacy, 0, 80) : null;
+        }
         $user->save();
 
         return response()->json($user);
@@ -66,8 +93,20 @@ class ProfileController extends Controller
     {
         $user = $request->user();
 
-        if ($user?->tokens()) {
-            $user->tokens()->delete();
+        try {
+            DB::transaction(function () use ($user): void {
+                if ($user?->tokens()) {
+                    $user->tokens()->delete();
+                }
+
+                $user->delete();
+            });
+        } catch (\Throwable $e) {
+            Log::error('Failed to delete user account.', [
+                'user_id' => $user?->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
         }
 
         Auth::guard('web')->logout();
@@ -76,8 +115,6 @@ class ProfileController extends Controller
             $request->session()->invalidate();
             $request->session()->regenerateToken();
         }
-
-        $user->delete();
 
         return response()->json(['message' => 'Account deactivated.']);
     }

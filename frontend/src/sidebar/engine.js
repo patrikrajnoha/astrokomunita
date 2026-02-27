@@ -3,6 +3,7 @@ import RightObservingSidebar from '@/components/RightObservingSidebar.vue'
 import LatestArticlesWidget from '@/components/widgets/LatestArticlesWidget.vue'
 import NasaApodWidget from '@/components/widgets/NasaApodWidget.vue'
 import NextEventWidget from '@/components/widgets/NextEventWidget.vue'
+import UpcomingEventsWidget from '@/components/widgets/UpcomingEventsWidget.vue'
 import SidebarSpecialEventCard from '@/components/widgets/SidebarSpecialEventCard.vue'
 
 export const sidebarComponentMap = {
@@ -11,6 +12,7 @@ export const sidebarComponentMap = {
   nasa_apod: NasaApodWidget,
   next_event: NextEventWidget,
   latest_articles: LatestArticlesWidget,
+  upcoming_events: UpcomingEventsWidget,
 }
 
 export const customSidebarComponentMap = {
@@ -44,6 +46,15 @@ const sidebarIconMap = {
   latest_articles: {
     viewBox: '0 0 24 24',
     paths: ['M5 5h14v14H5z', 'M8 9h8', 'M8 12h8', 'M8 15h5'],
+  },
+  upcoming_events: {
+    viewBox: '0 0 24 24',
+    paths: [
+      'M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z',
+      'M8 9h8',
+      'M8 13h5',
+      'M8 17h6',
+    ],
   },
   custom_component: {
     viewBox: '0 0 24 24',

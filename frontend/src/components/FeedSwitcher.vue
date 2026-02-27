@@ -1,59 +1,53 @@
 <template>
-  <div class="switcherRoot">
-    <button
-      v-if="showLeftArrow"
-      type="button"
-      class="stripArrow stripArrowLeft"
-      data-testid="strip-arrow-left"
-      aria-label="Posunut taby dolava"
-      @click="scrollStrip(-1)"
+  <div
+    ref="rootRef"
+    class="sticky top-[var(--feed-tabs-offset)] z-20 border-b border-white/10 bg-[rgb(var(--color-bg-rgb)/0.9)] backdrop-blur-sm transition-shadow duration-200 md:top-0"
+    :class="isScrolled ? 'border-white/20 shadow-[0_3px_10px_rgba(2,6,23,0.22)]' : 'shadow-none'"
+    :style="{ '--feed-tabs-offset': 'var(--app-header-h, 56px)' }"
+    data-testid="feed-tabs-sticky"
+  >
+    <div
+      ref="tabListRef"
+      class="relative flex w-full"
+      role="tablist"
+      aria-label="Feed sekcie"
+      data-testid="feed-tabs-list"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-        <path d="m15 18-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
-      </svg>
-    </button>
-
-    <div ref="stripRef" class="tabStrip" data-testid="tab-strip" @scroll.passive="handleStripScroll">
-      <div ref="tabListRef" class="tabList" role="tablist" aria-label="Feed sekcie">
-        <button
-          v-for="(tab, index) in tabs"
-          :id="tab.tabId"
-          :key="tab.id"
-          :ref="(el) => setTabRef(el, index)"
-          role="tab"
-          type="button"
-          class="tabButton"
-          :class="{ tabButtonActive: modelValue === tab.id }"
-          :tabindex="modelValue === tab.id ? 0 : -1"
-          :aria-controls="tab.panelId"
-          :aria-selected="modelValue === tab.id ? 'true' : 'false'"
-          @click="activateTab(index)"
-          @focus="focusedIndex = index"
-          @keydown="onTabKeydown($event, index)"
-        >
+      <button
+        v-for="(tab, index) in tabs"
+        :id="tab.tabId"
+        :key="tab.id"
+        :ref="(el) => setTabRef(el, index)"
+        role="tab"
+        type="button"
+        class="relative flex h-11 flex-1 select-none items-center justify-center text-sm transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-inset"
+        :class="modelValue === tab.id ? 'font-semibold text-white' : 'text-white/65'"
+        :tabindex="modelValue === tab.id ? 0 : -1"
+        :aria-controls="tab.panelId"
+        :aria-selected="modelValue === tab.id ? 'true' : 'false'"
+        @click="activateTab(index)"
+        @focus="focusedIndex = index"
+        @keydown="onTabKeydown($event, index)"
+      >
+        <span :ref="(el) => setLabelRef(el, index)">
           {{ tab.label }}
-        </button>
+        </span>
+      </button>
 
-        <span
-          class="tabIndicator"
-          :style="indicatorStyle"
-          aria-hidden="true"
-        ></span>
-      </div>
+      <div
+        class="absolute bottom-0 h-[2px] rounded-full bg-sky-500 transition-[transform,width,opacity] duration-200 ease-out"
+        :style="inkBarStyle"
+        data-testid="feed-tabs-ink-bar"
+        aria-hidden="true"
+      ></div>
     </div>
 
-    <button
-      v-if="showRightArrow"
-      type="button"
-      class="stripArrow stripArrowRight"
-      data-testid="strip-arrow-right"
-      aria-label="Posunut taby doprava"
-      @click="scrollStrip(1)"
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-        <path d="m9 6 6 6-6 6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" />
-      </svg>
-    </button>
+    <div
+      class="pointer-events-none absolute -bottom-1 left-0 right-0 h-px bg-white/10 transition-opacity duration-200"
+      :class="isScrolled ? 'opacity-100' : 'opacity-0'"
+      data-testid="feed-tabs-fade"
+      aria-hidden="true"
+    ></div>
   </div>
 </template>
 
@@ -73,26 +67,27 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const stripRef = ref(null)
+const rootRef = ref(null)
 const tabListRef = ref(null)
 const tabButtonRefs = ref([])
+const tabLabelRefs = ref([])
 const focusedIndex = ref(0)
-const showLeftArrow = ref(false)
-const showRightArrow = ref(false)
-const indicatorLeft = ref(0)
-const indicatorWidth = ref(0)
+const inkBarX = ref(0)
+const inkBarWidth = ref(0)
+const isScrolled = ref(false)
 
 let resizeObserver = null
+let scrollTarget = null
 
 const activeIndex = computed(() => {
   const index = props.tabs.findIndex((tab) => tab.id === props.modelValue)
   return index >= 0 ? index : 0
 })
 
-const indicatorStyle = computed(() => ({
-  width: `${indicatorWidth.value}px`,
-  transform: `translateX(${indicatorLeft.value}px)`,
-  opacity: indicatorWidth.value > 0 ? 1 : 0,
+const inkBarStyle = computed(() => ({
+  width: `${inkBarWidth.value}px`,
+  transform: `translateX(${inkBarX.value}px)`,
+  opacity: inkBarWidth.value > 0 ? 1 : 0,
 }))
 
 const setTabRef = (element, index) => {
@@ -100,47 +95,96 @@ const setTabRef = (element, index) => {
   tabButtonRefs.value[index] = element
 }
 
-const updateOverflowState = () => {
-  const strip = stripRef.value
-  if (!strip) return
-
-  const maxScrollLeft = Math.max(0, strip.scrollWidth - strip.clientWidth)
-  showLeftArrow.value = strip.scrollLeft > 2
-  showRightArrow.value = strip.scrollLeft < maxScrollLeft - 2
+const setLabelRef = (element, index) => {
+  if (!element) return
+  tabLabelRefs.value[index] = element
 }
 
-const updateIndicator = () => {
-  const strip = stripRef.value
-  const activeButton = tabButtonRefs.value[activeIndex.value]
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
-  if (!strip || !activeButton) {
-    indicatorLeft.value = 0
-    indicatorWidth.value = 0
+const updateInkBar = () => {
+  const activeButton = tabButtonRefs.value[activeIndex.value]
+  if (!activeButton) {
+    inkBarX.value = 0
+    inkBarWidth.value = 0
     return
   }
 
-  indicatorLeft.value = activeButton.offsetLeft - strip.scrollLeft
-  indicatorWidth.value = activeButton.offsetWidth
+  const tabWidth = activeButton.offsetWidth
+  const tabLeft = activeButton.offsetLeft
+  const labelWidth = tabLabelRefs.value[activeIndex.value]?.offsetWidth || tabWidth * 0.5
+
+  if (!tabWidth) {
+    inkBarX.value = 0
+    inkBarWidth.value = 0
+    return
+  }
+
+  const minWidth = tabWidth * 0.46
+  const maxWidth = tabWidth * 0.62
+  const nextWidth = clamp(labelWidth + 24, minWidth, maxWidth)
+
+  inkBarWidth.value = nextWidth
+  inkBarX.value = tabLeft + (tabWidth - nextWidth) / 2
 }
 
-const updateLayout = () => {
-  updateOverflowState()
-  updateIndicator()
+const findScrollTarget = () => {
+  if (typeof window === 'undefined') return null
+
+  let node = rootRef.value?.parentElement || null
+  while (node && node !== document.body) {
+    const style = window.getComputedStyle(node)
+    const isScrollable = /(auto|scroll|overlay)/.test(style.overflowY)
+    if (isScrollable && node.scrollHeight > node.clientHeight + 1) {
+      return node
+    }
+    node = node.parentElement
+  }
+
+  return window
+}
+
+const resolveScrollTop = () => {
+  if (!scrollTarget || scrollTarget === window) {
+    return window.scrollY || document.documentElement.scrollTop || 0
+  }
+
+  return scrollTarget.scrollTop || 0
+}
+
+const updateScrolledState = () => {
+  isScrolled.value = resolveScrollTop() > 10
+}
+
+const onScroll = () => {
+  updateScrolledState()
+}
+
+const bindScrollListener = () => {
+  const nextTarget = findScrollTarget()
+  if (!nextTarget || nextTarget === scrollTarget) {
+    updateScrolledState()
+    return
+  }
+
+  if (scrollTarget) {
+    scrollTarget.removeEventListener('scroll', onScroll)
+  }
+
+  scrollTarget = nextTarget
+  scrollTarget.addEventListener('scroll', onScroll, { passive: true })
+  updateScrolledState()
 }
 
 const focusTabByIndex = (index) => {
+  if (!props.tabs.length) return
+
   const normalized = (index + props.tabs.length) % props.tabs.length
   const button = tabButtonRefs.value[normalized]
   if (!button) return
 
   focusedIndex.value = normalized
   button.focus()
-
-  const strip = stripRef.value
-  if (strip) {
-    const targetLeft = Math.max(0, button.offsetLeft - strip.clientWidth / 2 + button.offsetWidth / 2)
-    strip.scrollTo({ left: targetLeft, behavior: 'smooth' })
-  }
 }
 
 const activateTab = (index) => {
@@ -180,20 +224,9 @@ const onTabKeydown = (event, index) => {
   }
 }
 
-const handleStripScroll = () => {
-  updateOverflowState()
-  updateIndicator()
-}
-
-const scrollStrip = (direction) => {
-  const strip = stripRef.value
-  if (!strip) return
-
-  const amount = Math.max(120, Math.round(strip.clientWidth * 0.7))
-  strip.scrollBy({
-    left: direction * amount,
-    behavior: 'smooth',
-  })
+const updateLayout = () => {
+  bindScrollListener()
+  updateInkBar()
 }
 
 watch(
@@ -201,7 +234,7 @@ watch(
   async () => {
     focusedIndex.value = activeIndex.value
     await nextTick()
-    updateIndicator()
+    updateInkBar()
   },
   { immediate: true },
 )
@@ -209,29 +242,37 @@ watch(
 watch(
   () => props.tabs.length,
   async () => {
-    await nextTick()
+    tabButtonRefs.value = tabButtonRefs.value.slice(0, props.tabs.length)
+    tabLabelRefs.value = tabLabelRefs.value.slice(0, props.tabs.length)
     focusedIndex.value = activeIndex.value
+    await nextTick()
     updateLayout()
   },
 )
+
+const handleWindowResize = () => {
+  updateLayout()
+}
 
 onMounted(async () => {
   await nextTick()
   focusedIndex.value = activeIndex.value
   updateLayout()
 
-  if (typeof ResizeObserver !== 'undefined' && stripRef.value) {
+  if (typeof ResizeObserver !== 'undefined' && tabListRef.value) {
     resizeObserver = new ResizeObserver(() => {
-      updateLayout()
+      updateInkBar()
     })
 
-    resizeObserver.observe(stripRef.value)
-    if (tabListRef.value) {
-      resizeObserver.observe(tabListRef.value)
-    }
+    resizeObserver.observe(tabListRef.value)
+    tabButtonRefs.value.forEach((button) => {
+      if (button) {
+        resizeObserver.observe(button)
+      }
+    })
   }
 
-  window.addEventListener('resize', updateLayout)
+  window.addEventListener('resize', handleWindowResize)
 })
 
 onBeforeUnmount(() => {
@@ -240,116 +281,11 @@ onBeforeUnmount(() => {
     resizeObserver = null
   }
 
-  window.removeEventListener('resize', updateLayout)
+  if (scrollTarget) {
+    scrollTarget.removeEventListener('scroll', onScroll)
+    scrollTarget = null
+  }
+
+  window.removeEventListener('resize', handleWindowResize)
 })
 </script>
-
-<style scoped>
-.switcherRoot {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  width: 100%;
-}
-
-.tabStrip {
-  width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.tabStrip::-webkit-scrollbar {
-  display: none;
-}
-
-.tabList {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  min-width: 100%;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-}
-
-.tabButton {
-  position: relative;
-  appearance: none;
-  border: 0;
-  background: transparent;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
-  font-size: 0.92rem;
-  font-weight: 600;
-  white-space: nowrap;
-  min-height: 2.85rem;
-  padding: 0.75rem 1rem 0.8rem;
-  cursor: pointer;
-  transition: color 140ms ease;
-}
-
-.tabButton:hover {
-  color: var(--color-surface);
-}
-
-.tabButton:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
-}
-
-.tabButtonActive {
-  color: var(--color-surface);
-}
-
-.tabIndicator {
-  position: absolute;
-  left: 0;
-  bottom: -1px;
-  height: 3px;
-  border-radius: 99px;
-  background: var(--color-primary);
-  transition: transform 180ms ease, width 180ms ease, opacity 180ms ease;
-  will-change: transform, width;
-}
-
-.stripArrow {
-  flex-shrink: 0;
-  width: 1.9rem;
-  height: 1.9rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
-  background: rgb(var(--color-bg-rgb) / 0.82);
-  color: var(--color-surface);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease;
-}
-
-.stripArrow:hover {
-  background: rgb(var(--color-bg-rgb) / 0.95);
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.54);
-}
-
-.stripArrow:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-.stripArrow svg {
-  width: 0.95rem;
-  height: 0.95rem;
-}
-
-@media (max-width: 768px) {
-  .stripArrow {
-    display: none;
-  }
-
-  .tabButton {
-    padding-left: 0.9rem;
-    padding-right: 0.9rem;
-  }
-}
-</style>

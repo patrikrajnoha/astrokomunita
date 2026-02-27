@@ -5,10 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Tag;
 use App\Models\Post;
+use App\Services\PollService;
+use App\Services\PostPayloadService;
 use Illuminate\Http\Request;
 
 class TagController extends Controller
 {
+    public function __construct(
+        private readonly PollService $polls,
+        private readonly PostPayloadService $payloads,
+    ) {
+    }
+
     /**
      * GET /api/tags/suggest?q=per&limit=8
      * 
@@ -79,16 +87,18 @@ class TagController extends Controller
         $perPage = (int) $request->query('per_page', 20);
         $perPage = max(1, min($perPage, 50)); // Clamp between 1-50
 
+        $viewer = $request->user() ?? $request->user('sanctum');
+
         $posts = Post::query()
             ->whereHas('tags', function ($q) use ($tagModel) {
                 $q->where('tags.id', $tagModel->id);
             })
-            ->with([
-                'user:id,name,username,email,location,bio,is_admin,avatar_path',
+            ->with(array_merge([
+                'user:id,name,username,location,bio,is_admin,avatar_path',
                 'tags:id,name',
-                'replies.user:id,name,username,email,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,email,location,bio,is_admin,avatar_path',
-            ])
+                'replies.user:id,name,username,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
+            ], $this->polls->pollRelations($viewer?->id)))
             ->withCount(['likes', 'replies'])
             ->publiclyVisible()
             ->notExpired() // Exclude expired AstroBot posts
@@ -101,7 +111,7 @@ class TagController extends Controller
                 'slug' => $tagModel->slug,
                 'posts_count' => $tagModel->posts()->count()
             ],
-            'posts' => $posts
+            'posts' => $this->payloads->serializePaginator($posts, $viewer),
         ]);
     }
 }

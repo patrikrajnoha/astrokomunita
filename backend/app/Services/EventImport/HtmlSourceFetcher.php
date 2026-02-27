@@ -28,7 +28,7 @@ class HtmlSourceFetcher
             return $content;
         }
 
-        return Http::withoutVerifying()
+        return Http::secure()
             ->accept('text/html')
             ->get($url)
             ->throw()

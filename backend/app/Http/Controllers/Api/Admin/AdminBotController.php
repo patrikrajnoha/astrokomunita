@@ -1,0 +1,1102 @@
+<?php
+
+namespace App\Http\Controllers\Api\Admin;
+
+use App\Enums\BotPublishStatus;
+use App\Enums\BotRunFailureReason;
+use App\Enums\BotTranslationStatus;
+use App\Http\Controllers\Controller;
+use App\Models\BotItem;
+use App\Models\BotRun;
+use App\Models\BotSource;
+use App\Models\Post;
+use App\Services\Bots\BotPostTranslationBackfillService;
+use App\Services\Bots\Contracts\BotTranslationServiceInterface;
+use App\Services\Bots\BotPublisherService;
+use App\Services\Bots\BotRunner;
+use App\Services\Translation\Exceptions\TranslationProviderUnavailableException;
+use App\Services\Translation\Exceptions\TranslationTimeoutException;
+use App\Services\Translation\TranslationOutageSimulationService;
+use App\Services\PostService;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+use Throwable;
+
+class AdminBotController extends Controller
+{
+    public function __construct(
+        private readonly BotRunner $runner,
+        private readonly BotPublisherService $publisherService,
+        private readonly PostService $postService,
+        private readonly BotTranslationServiceInterface $translationService,
+        private readonly BotPostTranslationBackfillService $backfillService,
+        private readonly TranslationOutageSimulationService $outageSimulationService,
+    ) {
+    }
+
+    public function sources(): JsonResponse
+    {
+        $sources = BotSource::query()
+            ->orderBy('key')
+            ->get();
+
+        $data = $sources->map(fn (BotSource $source): array => [
+            'id' => $source->id,
+            'key' => (string) $source->key,
+            'bot_identity' => $source->bot_identity?->value ?? (string) $source->bot_identity,
+            'source_type' => $source->source_type?->value ?? (string) $source->source_type,
+            'url' => (string) $source->url,
+            'is_enabled' => (bool) $source->is_enabled,
+            'last_run_at' => $source->last_run_at?->toIso8601String(),
+            'cooldown_until' => $source->cooldown_until?->toIso8601String(),
+        ])->values();
+
+        return response()->json([
+            'data' => $data,
+        ]);
+    }
+
+    public function runs(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'sourceKey' => 'nullable|string|max:120',
+            'bot_identity' => 'nullable|string|max:20',
+            'status' => 'nullable|string|max:20',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+            'per_page' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        $query = BotRun::query()
+            ->with('source:id,key');
+
+        $sourceKey = strtolower(trim((string) ($validated['sourceKey'] ?? '')));
+        if ($sourceKey !== '') {
+            $query->whereHas('source', function ($sourceQuery) use ($sourceKey): void {
+                $sourceQuery->where('key', $sourceKey);
+            });
+        }
+
+        $botIdentity = strtolower(trim((string) ($validated['bot_identity'] ?? '')));
+        if ($botIdentity !== '') {
+            $query->where('bot_identity', $botIdentity);
+        }
+
+        $status = strtolower(trim((string) ($validated['status'] ?? '')));
+        if ($status !== '') {
+            $query->where('status', $status);
+        }
+
+        $dateFrom = trim((string) ($validated['date_from'] ?? ''));
+        if ($dateFrom !== '') {
+            $query->where('started_at', '>=', Carbon::parse($dateFrom)->startOfDay());
+        }
+
+        $dateTo = trim((string) ($validated['date_to'] ?? ''));
+        if ($dateTo !== '') {
+            $query->where('started_at', '<=', Carbon::parse($dateTo)->endOfDay());
+        }
+
+        $perPage = (int) ($validated['per_page'] ?? 20);
+        $paginator = $query
+            ->orderByDesc('started_at')
+            ->orderByDesc('id')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $paginator->setCollection(
+            $paginator->getCollection()->map(fn (BotRun $run): array => $this->serializeRun($run))
+        );
+
+        return response()->json($paginator);
+    }
+
+    public function run(Request $request, string $sourceKey): JsonResponse
+    {
+        $executionBudget = max(30, (int) config('astrobot.run_max_execution_seconds', 120));
+        if (function_exists('set_time_limit')) {
+            @set_time_limit($executionBudget);
+        }
+
+        $normalizedSourceKey = strtolower(trim($sourceKey));
+        $validated = $request->validate([
+            'force_manual_override' => 'sometimes|boolean',
+            'mode' => 'sometimes|string|in:auto,dry',
+            'publish_limit' => 'nullable|integer|min:1|max:100',
+        ]);
+        $forceManualOverride = (bool) ($validated['force_manual_override'] ?? false);
+
+        $source = BotSource::query()
+            ->where('key', $normalizedSourceKey)
+            ->first();
+
+        if (!$source) {
+            return response()->json([
+                'message' => sprintf('Bot source "%s" was not found.', $normalizedSourceKey),
+            ], 404);
+        }
+
+        if (!$source->is_enabled) {
+            return response()->json([
+                'message' => sprintf('Bot source "%s" is disabled.', $normalizedSourceKey),
+            ], 422);
+        }
+
+        if (!$forceManualOverride) {
+            $throttleSeconds = 120;
+            $throttleKey = sprintf('bots:throttle:manual:%s', $normalizedSourceKey);
+            $throttleExpiresAt = now()->addSeconds($throttleSeconds)->timestamp;
+            if (!Cache::add($throttleKey, $throttleExpiresAt, $throttleSeconds)) {
+                $retryAfter = max(1, (int) Cache::get($throttleKey, 0) - now()->timestamp);
+
+                return response()->json([
+                    'message' => sprintf('Manual run for "%s" is temporarily throttled.', $normalizedSourceKey),
+                    'retry_after' => $retryAfter,
+                ], 429);
+            }
+        }
+
+        $mode = strtolower(trim((string) ($validated['mode'] ?? $this->defaultModeForSource($source->key))));
+        if (!in_array($mode, ['auto', 'dry'], true)) {
+            $mode = 'auto';
+        }
+
+        $publishLimit = isset($validated['publish_limit'])
+            ? (int) $validated['publish_limit']
+            : null;
+
+        $run = $this->runner->run(
+            $source,
+            'admin',
+            $forceManualOverride,
+            $mode,
+            $publishLimit
+        );
+
+        return response()->json([
+            'run_id' => $run->id,
+            'source_key' => $source->key,
+            'status' => $run->status?->value ?? (string) $run->status,
+            'stats' => is_array($run->stats) ? $run->stats : [],
+            'meta' => is_array($run->meta) ? $run->meta : [],
+            'error_text' => $this->truncateErrorText($run->error_text),
+            'failure_reason' => BotRunFailureReason::fromNullable(data_get($run->meta, 'failure_reason'))->value,
+            'ui_message' => $this->nullableString(data_get($run->meta, 'ui_message')),
+            'cooldown_until' => $this->nullableString(data_get($run->meta, 'cooldown_until')),
+        ]);
+    }
+
+    public function items(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'run_id' => 'nullable|integer|min:1|exists:bot_runs,id',
+            'sourceKey' => 'nullable|string|max:120|required_without:run_id',
+            'date' => 'nullable|date_format:Y-m-d|required_with:sourceKey|required_without:run_id',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'page' => 'nullable|integer|min:1',
+        ]);
+
+        $runId = isset($validated['run_id']) ? (int) $validated['run_id'] : null;
+        $sourceId = null;
+        $windowStart = null;
+        $windowEnd = null;
+
+        if ($runId !== null) {
+            $run = BotRun::query()->find($runId);
+            if (!$run) {
+                throw ValidationException::withMessages([
+                    'run_id' => 'Selected run_id is invalid.',
+                ]);
+            }
+
+            $sourceId = (int) $run->source_id;
+            $runLinkedItemsQuery = $this->runLinkedItemsQuery($run);
+            $query = (clone $runLinkedItemsQuery)
+                ->orderByDesc('fetched_at')
+                ->orderByDesc('id');
+
+            if (!(clone $runLinkedItemsQuery)->exists()) {
+                [$windowStart, $windowEnd] = $this->resolveRunWindow($run);
+                $query = BotItem::query()
+                    ->where('source_id', $sourceId)
+                    ->whereBetween('fetched_at', [$windowStart, $windowEnd])
+                    ->orderByDesc('fetched_at')
+                    ->orderByDesc('id');
+            }
+        } else {
+            $sourceKey = strtolower(trim((string) ($validated['sourceKey'] ?? '')));
+            $date = trim((string) ($validated['date'] ?? ''));
+
+            if ($sourceKey === '' || $date === '') {
+                throw ValidationException::withMessages([
+                    'run_id' => 'Provide run_id or sourceKey and date.',
+                ]);
+            }
+
+            $source = BotSource::query()->where('key', $sourceKey)->first();
+            if (!$source) {
+                return response()->json([
+                    'message' => sprintf('Bot source "%s" was not found.', $sourceKey),
+                ], 404);
+            }
+
+            $sourceId = (int) $source->id;
+            $dateStart = Carbon::createFromFormat('Y-m-d', $date)->startOfDay();
+            $windowStart = $dateStart->copy();
+            $windowEnd = $dateStart->copy()->endOfDay();
+
+            $query = BotItem::query()
+                ->where('source_id', $sourceId)
+                ->whereBetween('fetched_at', [$windowStart, $windowEnd])
+                ->orderByDesc('fetched_at')
+                ->orderByDesc('id');
+        }
+
+        $perPage = (int) ($validated['per_page'] ?? 20);
+        $paginator = $query->paginate($perPage)->withQueryString();
+        $paginator->setCollection(
+            $paginator->getCollection()->map(fn (BotItem $item): array => $this->serializeItem($item))
+        );
+
+        return response()->json($paginator);
+    }
+
+    public function translationTest(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'text' => 'nullable|string|max:5000',
+        ]);
+
+        $text = trim((string) ($validated['text'] ?? 'The Solar System contains eight planets orbiting the Sun.'));
+        if ($text === '') {
+            $text = 'The Solar System contains eight planets orbiting the Sun.';
+        }
+
+        $startedAt = microtime(true);
+
+        try {
+            $result = $this->translationService->translate($text, null, 'sk');
+        } catch (Throwable $e) {
+            $failureReason = BotRunFailureReason::UNKNOWN->value;
+            $statusCode = 422;
+
+            if ($e instanceof TranslationTimeoutException) {
+                $failureReason = BotRunFailureReason::TRANSLATION_TIMEOUT->value;
+                $statusCode = 504;
+            } elseif ($e instanceof TranslationProviderUnavailableException) {
+                $failureReason = BotRunFailureReason::PROVIDER_UNAVAILABLE->value;
+                $statusCode = 503;
+            }
+
+            return response()->json([
+                'ok' => false,
+                'message' => 'Translation test failed.',
+                'failure_reason' => $failureReason,
+                'error' => $this->truncateErrorText($e->getMessage(), 300),
+            ], $statusCode);
+        }
+
+        $meta = is_array($result['meta'] ?? null) ? $result['meta'] : [];
+        $translatedText = trim((string) ($result['translated_title'] ?? $result['title_translated'] ?? ''));
+        $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
+        $provider = trim((string) data_get($meta, 'provider', ''));
+
+        return response()->json([
+            'ok' => true,
+            'provider' => $provider !== '' ? $provider : null,
+            'latency_ms' => $durationMs,
+            'status' => strtolower(trim((string) ($result['status'] ?? 'done'))),
+            'translated_text' => $translatedText !== '' ? $translatedText : null,
+            'mode' => $this->nullableString(data_get($meta, 'mode')),
+            'quality_flags' => array_values(array_filter(
+                array_map('strval', (array) data_get($meta, 'quality_flags', [])),
+                static fn (string $flag): bool => trim($flag) !== ''
+            )),
+            'provider_chain' => array_values(array_filter(
+                array_map('strval', (array) data_get($meta, 'provider_chain', [])),
+                static fn (string $providerName): bool => trim($providerName) !== ''
+            )),
+            'meta' => [
+                'target_lang' => strtolower(trim((string) data_get($meta, 'target_lang', 'sk'))),
+                'model' => $this->nullableString(data_get($meta, 'model')),
+                'fallback_used' => (bool) data_get($meta, 'fallback_used', false),
+                'quality_retry_count' => (int) data_get($meta, 'quality_retry_count', 0),
+            ],
+        ]);
+    }
+
+    public function translationHealth(): JsonResponse
+    {
+        $provider = strtolower(trim((string) config('astrobot.translation.primary', 'libretranslate')));
+        $fallbackProvider = strtolower(trim((string) config('astrobot.translation.fallback', 'none')));
+        $timeoutSec = max(1, (int) config('astrobot.translation.timeout_sec', 12));
+        $degraded = false;
+        $simulateOutageProvider = $this->outageSimulationService->getProvider();
+
+        $baseUrl = match ($provider) {
+            'ollama' => trim((string) config('ai.ollama.base_url', config('ai.ollama_base_url', ''))),
+            default => trim((string) config('astrobot.translation.libretranslate.url', '')),
+        };
+
+        try {
+            $probeResult = $this->runTranslationHealthProbe();
+            $result = [
+                'ok' => true,
+                'error_type' => null,
+            ];
+            $degraded = (bool) data_get($probeResult, 'meta.fallback_used', false);
+        } catch (Throwable $exception) {
+            $primaryErrorType = $this->translationHealthErrorType($exception);
+            $hasFallback = $fallbackProvider !== '' && $fallbackProvider !== 'none' && $fallbackProvider !== $provider;
+
+            if ($hasFallback) {
+                try {
+                    $this->runTranslationHealthProbe($fallbackProvider);
+                    $degraded = true;
+                    $result = [
+                        'ok' => true,
+                        'error_type' => null,
+                        'primary_error_type' => $primaryErrorType,
+                    ];
+                } catch (Throwable $fallbackException) {
+                    $result = [
+                        'ok' => false,
+                        'error_type' => $this->translationHealthErrorType($fallbackException),
+                    ];
+                }
+            } else {
+                $result = [
+                    'ok' => false,
+                    'error_type' => $primaryErrorType,
+                ];
+            }
+        }
+
+        $translationCounts = BotItem::query()
+            ->selectRaw('translation_status, COUNT(*) as total')
+            ->groupBy('translation_status')
+            ->pluck('total', 'translation_status');
+        $doneCount = (int) ($translationCounts[BotTranslationStatus::DONE->value] ?? 0);
+        $skippedCount = (int) ($translationCounts[BotTranslationStatus::SKIPPED->value] ?? 0);
+        $failedCount = (int) ($translationCounts[BotTranslationStatus::FAILED->value] ?? 0);
+        $pendingCount = (int) ($translationCounts[BotTranslationStatus::PENDING->value] ?? 0);
+        $processedCount = $doneCount + $skippedCount + $failedCount;
+        $totalCount = $processedCount + $pendingCount;
+        $progressPercent = $totalCount > 0
+            ? (int) round(($processedCount / $totalCount) * 100)
+            : 100;
+
+        return response()->json([
+            'provider' => $provider,
+            'fallback_provider' => $fallbackProvider,
+            'base_url' => $baseUrl !== '' ? $baseUrl : null,
+            'timeout_sec' => $timeoutSec,
+            'simulate_outage_provider' => $simulateOutageProvider,
+            'degraded' => $degraded,
+            'result' => $result,
+            'translation_queue' => [
+                'done' => $doneCount,
+                'skipped' => $skippedCount,
+                'failed' => $failedCount,
+                'pending' => $pendingCount,
+                'processed' => $processedCount,
+                'total' => $totalCount,
+                'progress_percent' => $progressPercent,
+            ],
+        ]);
+    }
+
+    public function updateTranslationSimulateOutage(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'provider' => 'required|string|in:none,ollama,libretranslate',
+        ]);
+
+        $admin = $request->user();
+        $changed = $this->outageSimulationService->setProvider((string) $validated['provider']);
+
+        Log::info('Admin updated translation outage simulation provider.', [
+            'admin_user_id' => $admin?->id,
+            'admin_email' => $admin?->email,
+            'setting_key' => TranslationOutageSimulationService::SETTING_KEY,
+            'old_value' => $changed['old'],
+            'new_value' => $changed['new'],
+        ]);
+
+        return response()->json([
+            'key' => TranslationOutageSimulationService::SETTING_KEY,
+            'old_value' => $changed['old'],
+            'new_value' => $changed['new'],
+        ]);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function runTranslationHealthProbe(?string $forceProvider = null): array
+    {
+        $originalPrimary = (string) config('astrobot.translation.primary', 'libretranslate');
+        $originalFallback = (string) config('astrobot.translation.fallback', 'none');
+
+        if ($forceProvider !== null) {
+            config()->set('astrobot.translation.primary', strtolower(trim($forceProvider)));
+            config()->set('astrobot.translation.fallback', 'none');
+        }
+
+        try {
+            return $this->translationService->translate('health check', null, 'sk');
+        } finally {
+            if ($forceProvider !== null) {
+                config()->set('astrobot.translation.primary', $originalPrimary);
+                config()->set('astrobot.translation.fallback', $originalFallback);
+            }
+        }
+    }
+
+    private function translationHealthErrorType(Throwable $exception): string
+    {
+        if ($exception instanceof TranslationTimeoutException) {
+            return BotRunFailureReason::TRANSLATION_TIMEOUT->value;
+        }
+
+        if ($exception instanceof TranslationProviderUnavailableException) {
+            return BotRunFailureReason::PROVIDER_UNAVAILABLE->value;
+        }
+
+        return BotRunFailureReason::UNKNOWN->value;
+    }
+
+    public function retryTranslation(Request $request, string $sourceKey): JsonResponse
+    {
+        $validated = $request->validate([
+            'limit' => 'nullable|integer|min:1|max:100',
+            'run_id' => 'nullable|integer|min:1|exists:bot_runs,id',
+        ]);
+
+        $normalizedSourceKey = strtolower(trim($sourceKey));
+        $source = BotSource::query()->where('key', $normalizedSourceKey)->first();
+        if (!$source) {
+            return response()->json([
+                'message' => sprintf('Bot source "%s" was not found.', $normalizedSourceKey),
+            ], 404);
+        }
+
+        $limit = (int) ($validated['limit'] ?? (int) $request->query('limit', 10));
+        if ($limit <= 0) {
+            $limit = 10;
+        }
+        $runId = isset($validated['run_id']) ? (int) $validated['run_id'] : null;
+
+        $query = BotItem::query()
+            ->where('source_id', $source->id)
+            ->whereIn('translation_status', [
+                BotTranslationStatus::FAILED->value,
+                BotTranslationStatus::PENDING->value,
+            ])
+            ->orderByDesc('fetched_at')
+            ->orderByDesc('id');
+
+        if ($runId !== null) {
+            $query->where(function (Builder $builder) use ($runId): void {
+                $builder
+                    ->where('run_id', $runId)
+                    ->orWhere('meta->last_seen_run_id', $runId);
+            });
+        }
+
+        $items = $query->limit($limit)->get();
+
+        $doneCount = 0;
+        $skippedCount = 0;
+        $failedCount = 0;
+        $updatedItemIds = [];
+
+        foreach ($items as $item) {
+            $meta = is_array($item->meta) ? $item->meta : [];
+            $title = trim((string) $item->title);
+            $content = trim((string) ($item->content ?: $item->summary ?: ''));
+
+            if ($title === '' && $content === '') {
+                $meta['translation'] = array_replace(
+                    is_array($meta['translation'] ?? null) ? $meta['translation'] : [],
+                    [
+                        'provider' => 'none',
+                        'reason' => 'empty_input',
+                        'target_lang' => 'sk',
+                        'error' => null,
+                        'translated_at' => now()->toIso8601String(),
+                    ]
+                );
+                unset($meta['translation_error']);
+                $item->forceFill([
+                    'translation_status' => BotTranslationStatus::SKIPPED->value,
+                    'translation_error' => null,
+                    'translation_provider' => 'none',
+                    'translated_at' => now(),
+                    'meta' => $meta,
+                ])->save();
+
+                $skippedCount++;
+                $updatedItemIds[] = $item->id;
+                continue;
+            }
+
+            try {
+                $result = $this->translationService->translate($title, $content, 'sk');
+                $resultMeta = is_array($result['meta'] ?? null) ? $result['meta'] : [];
+                $status = strtolower(trim((string) ($result['status'] ?? BotTranslationStatus::DONE->value)));
+                if (!in_array($status, [
+                    BotTranslationStatus::DONE->value,
+                    BotTranslationStatus::SKIPPED->value,
+                    BotTranslationStatus::FAILED->value,
+                ], true)) {
+                    $status = BotTranslationStatus::DONE->value;
+                }
+
+                $meta['translation'] = $resultMeta;
+                unset($meta['translation_error']);
+                $translationProvider = $this->nullableString(data_get($resultMeta, 'provider'));
+
+                $item->forceFill([
+                    'title_translated' => $this->nullableString($result['translated_title'] ?? $result['title_translated'] ?? null),
+                    'content_translated' => $this->nullableString($result['translated_content'] ?? $result['content_translated'] ?? null),
+                    'translation_status' => $status,
+                    'translation_error' => $this->nullableString(data_get($resultMeta, 'error')),
+                    'translation_provider' => $translationProvider,
+                    'translated_at' => now(),
+                    'meta' => $meta,
+                ])->save();
+
+                if ($status === BotTranslationStatus::DONE->value) {
+                    $doneCount++;
+                } elseif ($status === BotTranslationStatus::SKIPPED->value) {
+                    $skippedCount++;
+                } else {
+                    $failedCount++;
+                }
+                $updatedItemIds[] = $item->id;
+            } catch (Throwable $e) {
+                $failedCount++;
+                $errorMessage = $this->truncateErrorText($e->getMessage(), 300);
+                $meta['translation_error'] = $errorMessage;
+                Log::warning('Admin bot translation retry failed.', [
+                    'source_key' => $normalizedSourceKey,
+                    'stable_key' => (string) $item->stable_key,
+                    'error' => $errorMessage,
+                ]);
+
+                $item->forceFill([
+                    'translation_status' => BotTranslationStatus::FAILED->value,
+                    'translation_error' => $errorMessage,
+                    'translation_provider' => null,
+                    'translated_at' => now(),
+                    'meta' => $meta,
+                ])->save();
+            }
+        }
+
+        return response()->json([
+            'source_key' => $normalizedSourceKey,
+            'run_id' => $runId,
+            'limit' => $limit,
+            'retried_count' => $items->count(),
+            'done_count' => $doneCount,
+            'skipped_count' => $skippedCount,
+            'failed_count' => $failedCount,
+            'updated_item_ids' => $updatedItemIds,
+        ]);
+    }
+
+    public function backfillTranslation(Request $request, string $sourceKey): JsonResponse
+    {
+        $validated = $request->validate([
+            'limit' => 'nullable|integer|min:1|max:100',
+            'run_id' => 'nullable|integer|min:1|exists:bot_runs,id',
+        ]);
+
+        $normalizedSourceKey = strtolower(trim($sourceKey));
+        $source = BotSource::query()->where('key', $normalizedSourceKey)->first();
+        if (!$source) {
+            return response()->json([
+                'message' => sprintf('Bot source "%s" was not found.', $normalizedSourceKey),
+            ], 404);
+        }
+
+        $limit = (int) ($validated['limit'] ?? (int) $request->query('limit', 10));
+        if ($limit <= 0) {
+            $limit = 10;
+        }
+        $runId = isset($validated['run_id']) ? (int) $validated['run_id'] : null;
+
+        try {
+            $result = $this->backfillService->backfill($source, $limit, $runId);
+        } catch (Throwable $e) {
+            Log::warning('Admin bot translation backfill failed.', [
+                'source_key' => $normalizedSourceKey,
+                'run_id' => $runId,
+                'error' => $this->truncateErrorText($e->getMessage(), 240),
+            ]);
+
+            return response()->json([
+                'source_key' => $normalizedSourceKey,
+                'run_id' => $runId,
+                'limit' => $limit,
+                'scanned' => 0,
+                'updated_posts' => 0,
+                'skipped' => 0,
+                'failed' => 1,
+                'failures' => [[
+                    'post_id' => null,
+                    'reason' => 'backfill_failed',
+                ]],
+            ], 422);
+        }
+
+        return response()->json($result);
+    }
+
+    public function publishItem(Request $request, int $botItemId): JsonResponse
+    {
+        $request->validate([
+            'force' => 'sometimes|boolean',
+        ]);
+
+        $item = BotItem::query()->find($botItemId);
+        if (!$item) {
+            return response()->json([
+                'message' => 'Bot item was not found.',
+            ], 404);
+        }
+
+        $publishStatus = strtolower(trim((string) ($item->publish_status?->value ?? $item->publish_status)));
+        if ($item->post_id || $publishStatus === BotPublishStatus::PUBLISHED->value) {
+            return response()->json([
+                'message' => 'Item is already published.',
+                'already_published' => true,
+                'item' => $this->serializeItem($item->fresh() ?? $item),
+            ]);
+        }
+
+        if ($publishStatus === BotPublishStatus::SKIPPED->value) {
+            $skipReason = $this->nullableString(data_get($item->meta, 'skip_reason'));
+
+            return response()->json([
+                'message' => 'Item is skipped and cannot be published.',
+                'skip_reason' => $skipReason,
+            ], 422);
+        }
+
+        $result = $this->publisherService->publishItemToAstroFeed($item, 'admin');
+        $item = $item->fresh() ?? $item;
+
+        if ($result->isPublished() || $item->post_id || $this->isPublishedStatus($item)) {
+            $item = $this->markItemPublishedManually($item);
+
+            return response()->json([
+                'message' => 'Item published.',
+                'already_published' => false,
+                'item' => $this->serializeItem($item),
+            ]);
+        }
+
+        $skipReason = $result->reason ?? $this->nullableString(data_get($item->meta, 'skip_reason'));
+
+        return response()->json([
+            'message' => 'Item could not be published.',
+            'skip_reason' => $skipReason,
+            'item' => $this->serializeItem($item),
+        ], 422);
+    }
+
+    public function publishRun(Request $request, int $runId): JsonResponse
+    {
+        $validated = $request->validate([
+            'publish_limit' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $run = BotRun::query()->find($runId);
+        if (!$run) {
+            return response()->json([
+                'message' => 'Run was not found.',
+            ], 404);
+        }
+
+        $limit = isset($validated['publish_limit']) ? (int) $validated['publish_limit'] : 10;
+        $items = $this->runLinkedItemsQuery($run)
+            ->whereNull('post_id')
+            ->where('publish_status', BotPublishStatus::PENDING->value)
+            ->orderBy('fetched_at')
+            ->orderBy('id')
+            ->limit($limit)
+            ->get();
+
+        $publishedItemIds = [];
+        $skippedCount = 0;
+        $failedCount = 0;
+
+        foreach ($items as $item) {
+            try {
+                $result = $this->publisherService->publishItemToAstroFeed($item, 'admin');
+                $item = $item->fresh() ?? $item;
+
+                if ($result->isPublished() || $item->post_id || $this->isPublishedStatus($item)) {
+                    $item = $this->markItemPublishedManually($item);
+                    $publishedItemIds[] = $item->id;
+                    continue;
+                }
+
+                $skippedCount++;
+            } catch (\Throwable) {
+                $failedCount++;
+            }
+        }
+
+        return response()->json([
+            'run_id' => $run->id,
+            'publish_limit' => $limit,
+            'attempted_count' => $items->count(),
+            'published_count' => count($publishedItemIds),
+            'skipped_count' => $skippedCount,
+            'failed_count' => $failedCount,
+            'published_item_ids' => $publishedItemIds,
+        ]);
+    }
+
+    public function deleteItemPost(int $botItemId): JsonResponse
+    {
+        $item = BotItem::query()->find($botItemId);
+        if (!$item) {
+            return response()->json([
+                'message' => 'Bot item was not found.',
+            ], 404);
+        }
+
+        $postId = (int) ($item->post_id ?? 0);
+        if ($postId <= 0) {
+            return response()->json([
+                'message' => 'Item has no published post to delete.',
+            ], 422);
+        }
+
+        $post = Post::query()->find($postId);
+        if ($post) {
+            $this->postService->deletePost($post);
+        }
+
+        $item = $this->markItemPostDeletedManually($item, $postId);
+
+        return response()->json([
+            'message' => 'Published post deleted.',
+            'item' => $this->serializeItem($item),
+            'deleted_post_id' => $postId,
+        ]);
+    }
+
+    public function deleteAllPosts(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'source_key' => 'nullable|string|max:120',
+            'bot_identity' => 'nullable|string|in:kozmo,stela',
+        ]);
+
+        $sourceKey = strtolower(trim((string) ($validated['source_key'] ?? '')));
+        $botIdentity = strtolower(trim((string) ($validated['bot_identity'] ?? '')));
+
+        $query = BotItem::query()
+            ->whereNotNull('post_id')
+            ->where('post_id', '>', 0);
+
+        if ($sourceKey !== '') {
+            $source = BotSource::query()->where('key', $sourceKey)->first();
+            if (!$source) {
+                return response()->json([
+                    'message' => sprintf('Bot source "%s" was not found.', $sourceKey),
+                ], 404);
+            }
+
+            $query->where('source_id', (int) $source->id);
+        }
+
+        if ($botIdentity !== '') {
+            $query->where('bot_identity', $botIdentity);
+        }
+
+        $matchedCount = (clone $query)->count();
+        if ($matchedCount <= 0) {
+            return response()->json([
+                'message' => 'No published bot posts found for selected filters.',
+                'matched_items' => 0,
+                'deleted_posts' => 0,
+                'missing_posts' => 0,
+                'updated_items' => 0,
+                'failed_items' => 0,
+                'sample_deleted_post_ids' => [],
+            ]);
+        }
+
+        $deletedPosts = 0;
+        $missingPosts = 0;
+        $updatedItems = 0;
+        $failedItems = 0;
+        $sampleDeletedPostIds = [];
+
+        $query
+            ->orderBy('id')
+            ->chunkById(100, function ($items) use (
+                &$deletedPosts,
+                &$missingPosts,
+                &$updatedItems,
+                &$failedItems,
+                &$sampleDeletedPostIds
+            ): void {
+                foreach ($items as $item) {
+                    $postId = (int) ($item->post_id ?? 0);
+                    if ($postId <= 0) {
+                        continue;
+                    }
+
+                    try {
+                        $post = Post::query()->find($postId);
+                        if ($post) {
+                            $this->postService->deletePost($post);
+                            $deletedPosts++;
+                            if (count($sampleDeletedPostIds) < 50) {
+                                $sampleDeletedPostIds[] = $postId;
+                            }
+                        } else {
+                            $missingPosts++;
+                        }
+
+                        $this->markItemPostDeletedManually($item, $postId);
+                        $updatedItems++;
+                    } catch (Throwable $e) {
+                        $failedItems++;
+                        Log::warning('Admin failed to delete published bot post in bulk.', [
+                            'bot_item_id' => $item->id,
+                            'post_id' => $postId,
+                            'error' => $this->truncateErrorText($e->getMessage(), 240),
+                        ]);
+                    }
+                }
+            }, 'id');
+
+        return response()->json([
+            'message' => 'Bulk delete completed.',
+            'matched_items' => $matchedCount,
+            'deleted_posts' => $deletedPosts,
+            'missing_posts' => $missingPosts,
+            'updated_items' => $updatedItems,
+            'failed_items' => $failedItems,
+            'sample_deleted_post_ids' => $sampleDeletedPostIds,
+        ]);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function serializeRun(BotRun $run): array
+    {
+        return [
+            'id' => $run->id,
+            'source_id' => $run->source_id,
+            'source_key' => $run->source?->key,
+            'bot_identity' => $run->bot_identity?->value ?? (string) $run->bot_identity,
+            'status' => $run->status?->value ?? (string) $run->status,
+            'started_at' => $run->started_at?->toIso8601String(),
+            'finished_at' => $run->finished_at?->toIso8601String(),
+            'stats' => is_array($run->stats) ? $run->stats : [],
+            'meta' => is_array($run->meta) ? $run->meta : [],
+            'error_text' => $this->truncateErrorText($run->error_text),
+            'failure_reason' => BotRunFailureReason::fromNullable(data_get($run->meta, 'failure_reason'))->value,
+            'ui_message' => $this->nullableString(data_get($run->meta, 'ui_message')),
+            'cooldown_until' => $this->nullableString(data_get($run->meta, 'cooldown_until')),
+        ];
+    }
+
+    /**
+     * @return array{0:Carbon,1:Carbon}
+     */
+    private function resolveRunWindow(BotRun $run): array
+    {
+        $start = ($run->started_at?->copy() ?? now())->subMinutes(2);
+        $end = ($run->finished_at?->copy() ?? now())->addMinutes(2);
+
+        if ($end->lt($start)) {
+            [$start, $end] = [$end, $start];
+        }
+
+        return [$start, $end];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function serializeItem(BotItem $item): array
+    {
+        $meta = is_array($item->meta) ? $item->meta : [];
+
+        $titleOriginal = trim((string) $item->title);
+        $titleTranslated = trim((string) $item->title_translated);
+        $resolvedTitle = $titleTranslated !== '' ? $titleTranslated : $titleOriginal;
+        $contentOriginal = trim((string) ($item->content ?: $item->summary ?: ''));
+        $contentTranslated = trim((string) $item->content_translated);
+        $resolvedContent = $contentTranslated !== '' ? $contentTranslated : $contentOriginal;
+
+        return [
+            'id' => $item->id,
+            'run_id' => $item->run_id,
+            'stable_key' => (string) $item->stable_key,
+            'publish_status' => $item->publish_status?->value ?? (string) $item->publish_status,
+            'translation_status' => $item->translation_status?->value ?? (string) $item->translation_status,
+            'translation_provider' => $this->nullableString($item->translation_provider),
+            'translation_error' => $this->nullableString($item->translation_error),
+            'translated_at' => $item->translated_at?->toIso8601String(),
+            'post_id' => $item->post_id,
+            'url' => $item->url,
+            'title' => $resolvedTitle,
+            'title_original' => $titleOriginal,
+            'title_translated' => $titleTranslated !== '' ? $titleTranslated : null,
+            'content' => $resolvedContent !== '' ? $resolvedContent : null,
+            'content_original' => $contentOriginal !== '' ? $contentOriginal : null,
+            'content_translated' => $contentTranslated !== '' ? $contentTranslated : null,
+            'fetched_at' => $item->fetched_at?->toIso8601String(),
+            'published_at' => $item->published_at?->toIso8601String(),
+            'skip_reason' => $this->nullableString(data_get($meta, 'skip_reason')),
+            'used_translation' => $this->nullableBool(data_get($meta, 'used_translation')),
+            'last_seen_run_id' => $this->nullableInt(data_get($meta, 'last_seen_run_id')),
+            'published_manually' => $this->nullableBool(data_get($meta, 'published_manually')),
+            'manual_published_at' => $this->nullableString(data_get($meta, 'manual_published_at')),
+        ];
+    }
+
+    private function defaultModeForSource(string $sourceKey): string
+    {
+        $configured = strtolower(trim((string) config(sprintf('astrobot.sources.%s.default_mode', $sourceKey), 'auto')));
+
+        return in_array($configured, ['auto', 'dry'], true) ? $configured : 'auto';
+    }
+
+    private function runLinkedItemsQuery(BotRun $run): Builder
+    {
+        if (!$run->source_id) {
+            return BotItem::query()->whereRaw('1 = 0');
+        }
+
+        return BotItem::query()
+            ->where('source_id', (int) $run->source_id)
+            ->where(function (Builder $query) use ($run): void {
+                $query
+                    ->where('run_id', $run->id)
+                    ->orWhere('meta->last_seen_run_id', $run->id);
+            });
+    }
+
+    private function isPublishedStatus(BotItem $item): bool
+    {
+        $status = strtolower(trim((string) ($item->publish_status?->value ?? $item->publish_status)));
+
+        return $status === BotPublishStatus::PUBLISHED->value;
+    }
+
+    private function markItemPublishedManually(BotItem $item): BotItem
+    {
+        $meta = is_array($item->meta) ? $item->meta : [];
+        $meta['published_manually'] = true;
+        $meta['manual_published_at'] = now()->toIso8601String();
+
+        $item->forceFill(['meta' => $meta])->save();
+
+        return $item->fresh() ?? $item;
+    }
+
+    private function markItemPostDeletedManually(BotItem $item, int $postId): BotItem
+    {
+        $meta = is_array($item->meta) ? $item->meta : [];
+        $meta['deleted_manually'] = true;
+        $meta['manual_deleted_at'] = now()->toIso8601String();
+        $meta['deleted_post_id'] = $postId;
+        unset($meta['published_to_posts_at']);
+
+        $item->forceFill([
+            'post_id' => null,
+            'publish_status' => BotPublishStatus::PENDING->value,
+            'meta' => $meta,
+        ])->save();
+
+        return $item->fresh() ?? $item;
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        $normalized = trim((string) $value);
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function nullableBool(mixed $value): ?bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value)) {
+            return $value === 1 ? true : ($value === 0 ? false : null);
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            if (in_array($normalized, ['1', 'true', 'yes'], true)) {
+                return true;
+            }
+            if (in_array($normalized, ['0', 'false', 'no'], true)) {
+                return false;
+            }
+        }
+
+        return null;
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return (int) $value;
+        }
+
+        return null;
+    }
+
+    private function truncateErrorText(?string $value, int $maxLength = 1000): ?string
+    {
+        $normalized = trim((string) $value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        if ($maxLength <= 0) {
+            return null;
+        }
+
+        if (function_exists('mb_strlen') && function_exists('mb_substr')) {
+            if (mb_strlen($normalized) <= $maxLength) {
+                return $normalized;
+            }
+
+            return mb_substr($normalized, 0, $maxLength);
+        }
+
+        if (strlen($normalized) <= $maxLength) {
+            return $normalized;
+        }
+
+        return substr($normalized, 0, $maxLength);
+    }
+}

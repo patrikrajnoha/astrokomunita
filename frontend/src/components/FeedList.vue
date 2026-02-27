@@ -1,15 +1,19 @@
-<template>
-  <section class="feed-container">
+﻿<template>
+  <section class="feed-container" data-tour="feed">
     <!-- Header -->
     <header class="feed-header">
       <div class="feed-actions">
         <FeedSwitcher
+          v-if="tabs.length > 1"
           :tabs="tabs"
           :model-value="activeTab"
           @update:modelValue="switchTab"
         />
       </div>
     </header>
+    <div v-if="$slots.composer" class="feed-composer-slot">
+      <slot name="composer" :active-tab="activeTab" />
+    </div>
 
     <section
       v-for="tab in tabs"
@@ -21,228 +25,345 @@
       :hidden="activeTab !== tab.id"
     >
       <template v-if="activeTab === tab.id">
-    <!-- Error -->
-    <div v-if="err" class="error-message">
-      <span>{{ err }}</span>
-      <button type="button" class="retry-btn" @click="retryCurrentTab">Skusit znova</button>
-    </div>
+        <!-- Error -->
+        <div v-if="err" class="error-message">
+          <span>{{ err }}</span>
+          <button type="button" class="retry-btn" @click="retryCurrentTab">Skusit znova</button>
+        </div>
 
-    <!-- Loading skeleton -->
-    <div v-if="loading && items.length === 0" class="skeleton-container">
-      <div class="skeleton-post" v-for="i in 3" :key="i">
-        <div class="skeleton-header">
-          <div class="skeleton-avatar"></div>
-          <div class="skeleton-meta">
-            <div class="skeleton-line skeleton-name"></div>
-            <div class="skeleton-line skeleton-time"></div>
+        <!-- Loading skeleton -->
+        <div v-if="loading && items.length === 0" class="skeleton-container">
+          <div class="skeleton-post" v-for="i in 3" :key="i">
+            <div class="skeleton-header">
+              <div class="skeleton-avatar"></div>
+              <div class="skeleton-meta">
+                <div class="skeleton-line skeleton-name"></div>
+                <div class="skeleton-line skeleton-time"></div>
+              </div>
+            </div>
+            <div class="skeleton-content">
+              <div class="skeleton-line skeleton-text"></div>
+              <div class="skeleton-line skeleton-text"></div>
+            </div>
+            <div class="skeleton-media"></div>
           </div>
         </div>
-        <div class="skeleton-content">
-          <div class="skeleton-line skeleton-text"></div>
-          <div class="skeleton-line skeleton-text"></div>
-        </div>
-        <div class="skeleton-media"></div>
-      </div>
-    </div>
 
-    <div v-else-if="!loading && items.length === 0" class="empty-state">
-      <p>Zatial tu nic nie je.</p>
-      <button type="button" class="retry-btn" @click="retryCurrentTab">Obnovit feed</button>
-    </div>
-
-    <!-- Feed -->
-    <div v-else class="feed-list">
-      <article
-        v-for="p in items"
-        :key="p.id"
-        class="post-card"
-        :class="{ 
-          'post-card--pinned': p.pinned_at,
-          'post-card--astrobot': p.source_name === 'astrobot',
-          'post-card--new': highlightedPostId === p.id
-        }"
-        @click="openPost(p)"
-      >
-        <div class="post-avatar">
-          <button class="avatar-button" type="button" @click.stop="openProfile(p)">
-            <img
-              v-if="p?.user?.avatar_url"
-              class="avatar-image"
-              :src="avatarSrc(p?.user?.avatar_url)"
-              :alt="p?.user?.name || 'avatar'"
-              loading="lazy"
-            />
-            <span v-else class="avatar-fallback">{{ initials(p?.user?.name) }}</span>
+        <div v-else-if="!loading && items.length === 0" class="empty-state">
+          <p>
+            {{
+              isBookmarksMode ? 'Zatial nemas ziadne ulozene prispevky.' : 'Zatial tu nic nie je.'
+            }}
+          </p>
+          <button v-if="isBookmarksMode" type="button" class="retry-btn" @click="goExplore">
+            Preskumat
+          </button>
+          <button v-else type="button" class="retry-btn" @click="retryCurrentTab">
+            Obnovit feed
           </button>
         </div>
 
-        <div class="post-content">
-          <!-- Header -->
-          <div class="post-header">
-            <div class="post-meta">
-              <div class="post-author">
-                <button class="author-name" type="button" @click.stop="openProfile(p)">
-                  {{ p?.user?.name ?? 'User' }}
-                </button>
-                <span class="author-username">@{{ p?.user?.username }}</span>
-                <span class="author-time">{{ fmt(p?.created_at) }}</span>
-                <span v-if="p.source_name === 'astrobot'" class="astrobot-badge">🚀 AstroBot</span>
-                <span v-if="p.pinned_at" class="pinned-badge">📌 Pripnuté</span>
-              </div>
-              <div v-if="p?.user?.location || p.source_name === 'astrobot'" class="post-time">
-                <span v-if="p?.user?.location" class="location">📍 {{ p.user.location }}</span>
-                <span v-if="p.source_name === 'astrobot'" class="astrobot-label">Automated news · replies disabled</span>
-              </div>
+        <!-- Feed -->
+        <div v-else class="feed-list">
+          <article
+            v-for="p in items"
+            :key="p.id"
+            class="post-card"
+            :class="{
+              'post-card--pinned': p.pinned_at,
+              'post-card--astrobot': isBotPost(p),
+              'post-card--new': highlightedPostId === p.id,
+            }"
+            @click="openPost(p)"
+          >
+            <div class="post-avatar">
+              <button class="avatar-button" type="button" @click.stop="openProfile(p)">
+                <img
+                  v-if="p?.user?.avatar_url"
+                  class="avatar-image"
+                  :src="avatarSrc(p?.user?.avatar_url)"
+                  :alt="p?.user?.name || 'avatar'"
+                  loading="lazy"
+                />
+                <span v-else class="avatar-fallback">{{ initials(p?.user?.name) }}</span>
+              </button>
             </div>
-            <!-- Actions dropdown -->
-            <div class="post-actions-menu">
-              <DropdownMenu
-                v-if="menuItemsForPost(p).length"
-                :items="menuItemsForPost(p)"
-                label="More actions"
-                menu-label="Post actions"
-                @select="(item) => onMenuAction(item, p)"
-              />
-            </div>
-          </div>
-          <!-- Content -->
-          <div class="post-text">
-            <HashtagText :content="p.content" />
-          </div>
-          
-          <!-- Source URL for AstroBot posts -->
-          <div v-if="p.source_name === 'astrobot' && p.source_url" class="source-url">
-            <a :href="p.source_url" target="_blank" rel="noopener noreferrer" class="source-link">
-              📰 Zobraziť pôvodný článok
-            </a>
-          </div>
 
-          <!-- Media attachment -->
-          <div v-if="p.attachment_url" class="post-media">
-            <div v-if="isAttachmentBlocked(p)" class="media-removed">
-              Removed
-            </div>
-            <PostMediaImage
-              v-else-if="isImage(p)"
-              :src="attachmentSrc(p)"
-              alt="Priloha prispevku"
-              :blurred="isAttachmentPending(p)"
-              pending-label="Checking..."
-            />
-
-            <a
-              v-else-if="!isAttachmentPending(p)"
-              class="file-attachment"
-              :href="attachmentSrc(p)"
-              target="_blank"
-              rel="noopener"
-              @click.stop
-            >
-              <div class="file-icon">📎</div>
-              <div class="file-info">
-                <div class="file-title">Príloha</div>
-                <div class="file-name">
-                  {{ p.attachment_original_name || 'Súbor' }}
+            <div class="post-content">
+              <!-- Header -->
+              <div class="post-header">
+                <div class="post-meta">
+                  <div class="post-author">
+                    <button class="author-name" type="button" @click.stop="openProfile(p)">
+                      {{ p?.user?.name ?? 'User' }}
+                    </button>
+                    <span class="author-username">@{{ p?.user?.username }}</span>
+                    <span class="author-time">{{ fmt(p?.created_at) }}</span>
+                    <span v-if="p.pinned_at" class="pinned-badge">📌 Pripnuté</span>
+                  </div>
+                  <div v-if="isBotPost(p)" class="bot-meta-row">
+                    <span class="bot-source-label">{{ botSourceLabel(p) }}</span>
+                  </div>
+                </div>
+                <!-- Actions dropdown -->
+                <div class="post-actions-menu">
+                  <DropdownMenu
+                    v-if="menuItemsForPost(p).length"
+                    :items="menuItemsForPost(p)"
+                    label="More actions"
+                    menu-label="Post actions"
+                    @select="(item) => onMenuAction(item, p)"
+                  />
                 </div>
               </div>
-              <div class="file-arrow">→</div>
-            </a>
-          </div>
+              <!-- Content -->
+              <div class="post-text" @click.stop>
+                <template v-if="isEditingPost(p)">
+                  <textarea
+                    v-model="editContentDraft"
+                    class="inline-edit-textarea"
+                    rows="6"
+                    maxlength="5000"
+                  ></textarea>
+                  <div class="inline-edit-actions">
+                    <button
+                      type="button"
+                      class="action-btn action-btn--bookmark"
+                      :disabled="editSavingId === p.id"
+                      @click.stop="saveInlineEdit(p)"
+                    >
+                      {{ editSavingId === p.id ? 'Ukladam...' : 'Ulozit' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="action-btn action-btn--thread"
+                      :disabled="editSavingId === p.id"
+                      @click.stop="cancelInlineEdit"
+                    >
+                      Zrusit
+                    </button>
+                  </div>
+                </template>
+                <template v-else>
+                  <HashtagText :content="displayPostContent(p)" />
+                  <button
+                    v-if="isBotContentCollapsible(p)"
+                    class="show-more-btn"
+                    type="button"
+                    @click.stop="togglePostContent(p)"
+                  >
+                    {{ isPostContentExpanded(p) ? 'Zobrazit menej' : 'Zobrazit viac' }}
+                  </button>
+                </template>
+              </div>
 
-          <!-- Bottom actions -->
-          <div class="post-actions" @click.stop>
-<button 
-              v-if="p.source_name !== 'astrobot'"
-              class="action-btn action-btn--reply" 
-              type="button" 
-              title="Reagovať" 
-              disabled
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-              </svg>
-              <span class="action-count">{{ p.replies_count ?? 0 }}</span>
-            </button>
-            
-            <span 
-              v-else
-              class="action-btn action-btn--disabled"
-              title="Replies disabled on automated news"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-              </svg>
-              <span class="action-count">{{ p.replies_count ?? 0 }}</span>
-            </span>
-            
-            <button
-              class="action-btn action-btn--share"
-              type="button"
-              title="Zdieľať"
-              aria-label="Zdieľať prispevok"
-              @click.stop="openShareModal(p)"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                <polyline points="16 6 12 2 8 6"/>
-                <line x1="12" y1="2" x2="12" y2="15"/>
-              </svg>
-            </button>
-            
-            <button
-              class="action-btn action-btn--like"
-              type="button"
-              :class="{ 
-                'action-btn--liked': p.liked_by_me, 
-                'action-btn--bump': likeBumpId === p.id 
-              }"
-              :disabled="!auth.isAuthed || isLikeLoading(p)"
-              :title="auth.isAuthed ? (p.liked_by_me ? 'Zrušiť like' : 'Páči sa mi') : 'Prihlás sa pre lajkovanie'"
-              @click.stop="toggleLike(p)"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-              </svg>
-              <span class="action-count">{{ p.likes_count ?? 0 }}</span>
-            </button>
-            
-            <div class="action-spacer"></div>
-            
-            <button
-              class="action-btn action-btn--thread"
-              type="button"
-              title="Počet zobrazení"
-              aria-label="Počet zobrazení"
-              @click.stop="openPost(p)"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-              <span v-if="Number(p.views ?? 0) > 0" class="view-count">{{ p.views }}</span>
-            </button>
-            
-            <button class="action-btn action-btn--save" type="button" title="Uložiť" disabled>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-              </svg>
-            </button>
-</div>
+              <PollCard
+                v-if="p.poll"
+                :poll="p.poll"
+                :post-id="p.id"
+                :is-authed="auth.isAuthed"
+                @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
+                @login-required="onPollLoginRequired"
+              />
+
+              <div v-if="attachedEventForPost(p)" class="attached-event-card" @click.stop>
+                <div class="attached-event-copy">
+                  <p class="attached-event-title">{{ attachedEventForPost(p).title || 'Udalost' }}</p>
+                  <p class="attached-event-date">
+                    {{ formatEventRange(attachedEventForPost(p).start_at, attachedEventForPost(p).end_at) }}
+                  </p>
+                </div>
+                <button type="button" class="attached-event-btn" @click.stop="openAttachedEvent(p)">
+                  Otvorit udalost
+                </button>
+              </div>
+
+              <div v-if="isBotPost(p)" class="source-url source-url--bot" @click.stop>
+                <span class="source-attribution">Zdroj: {{ sourceAttributionLabel(p) }}</span>
+                <a
+                  v-if="sourceLink(p)"
+                  :href="sourceLink(p)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="source-link"
+                >
+                  Zdroj
+                </a>
+              </div>
+
+              <div v-if="stelaPreviewImageSrc(p)" class="post-media post-media--stela">
+                <div v-if="isAttachmentBlocked(p)" class="media-removed">Removed</div>
+                <PostMediaImage
+                  v-else
+                  :src="stelaPreviewImageSrc(p)"
+                  alt="Stela APOD preview"
+                  :blurred="isAttachmentPending(p)"
+                  pending-label="Checking..."
+                />
+              </div>
+
+              <div v-if="postGifUrl(p) && !stelaPreviewImageSrc(p)" class="post-media post-media--gif">
+                <img class="gifEmbed" :src="postGifUrl(p)" :alt="postGifTitle(p)" loading="lazy" />
+              </div>
+
+              <!-- Media attachment -->
+              <div v-if="p.attachment_url && !stelaPreviewImageSrc(p)" class="post-media">
+                <div v-if="isAttachmentBlocked(p)" class="media-removed">Removed</div>
+                <PostMediaImage
+                  v-else-if="isImage(p)"
+                  :src="attachmentSrc(p)"
+                  alt="Priloha prispevku"
+                  :blurred="isAttachmentPending(p)"
+                  pending-label="Checking..."
+                />
+
+                <a
+                  v-else-if="!isAttachmentPending(p)"
+                  class="file-attachment"
+                  :href="attachmentSrc(p)"
+                  target="_blank"
+                  rel="noopener"
+                  @click.stop
+                >
+                  <div class="file-icon">📎</div>
+                  <div class="file-info">
+                    <div class="file-title">Príloha</div>
+                    <div class="file-name">
+                      {{ p.attachment_original_name || 'Súbor' }}
+                    </div>
+                  </div>
+                  <div class="file-arrow">→</div>
+                </a>
+              </div>
+
+              <!-- Bottom actions -->
+              <div class="post-actions" @click.stop>
+                <button
+                  class="action-btn action-btn--reply"
+                  type="button"
+                  title="Reagovať"
+                  @click.stop="openPost(p)"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                    />
+                  </svg>
+                  <span class="action-count">{{ p.replies_count ?? 0 }}</span>
+                </button>
+
+                <button
+                  class="action-btn action-btn--share"
+                  type="button"
+                  title="Zdieľať"
+                  aria-label="Zdieľať prispevok"
+                  @click.stop="openShareModal(p)"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                    <polyline points="16 6 12 2 8 6" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </svg>
+                </button>
+
+                <button
+                  class="action-btn action-btn--like"
+                  type="button"
+                  :class="{
+                    'action-btn--liked': p.liked_by_me,
+                    'action-btn--bump': likeBumpId === p.id,
+                  }"
+                  :disabled="!auth.isAuthed || isLikeLoading(p)"
+                  :title="
+                    auth.isAuthed
+                      ? p.liked_by_me
+                        ? 'Zrušiť like'
+                        : 'Páči sa mi'
+                      : 'Prihlás sa pre lajkovanie'
+                  "
+                  @click.stop="toggleLike(p)"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                      d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                    />
+                  </svg>
+                  <span class="action-count">{{ p.likes_count ?? 0 }}</span>
+                </button>
+
+                <div class="action-spacer"></div>
+
+                <button
+                  class="action-btn action-btn--thread"
+                  type="button"
+                  title="Počet zobrazení"
+                  aria-label="Počet zobrazení"
+                  @click.stop="openPost(p)"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  <span v-if="Number(p.views ?? 0) > 0" class="view-count">{{ p.views }}</span>
+                </button>
+
+                <button
+                  class="action-btn action-btn--bookmark"
+                  type="button"
+                  :class="{ 'action-btn--bookmarked': p.is_bookmarked }"
+                  :disabled="!auth.isAuthed || isBookmarkLoading(p)"
+                  :title="
+                    auth.isAuthed
+                      ? p.is_bookmarked
+                        ? 'Odstranit zo zaloziek'
+                        : 'Ulozit do zaloziek'
+                      : 'Prihlas sa pre zalozky'
+                  "
+                  @click.stop="toggleBookmark(p)"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </article>
         </div>
-      </article>
-    </div>
 
         <!-- Load more -->
-    <div class="load-more">
-      <button
-        v-if="nextPageUrl"
-        class="load-more-btn"
-        :disabled="loading"
-        @click="load(false)"
-      >
-        {{ loading ? 'Loading...' : 'Load more' }}
-      </button>
-    </div>
+        <div class="load-more">
+          <button v-if="nextPageUrl" class="load-more-btn" :disabled="loading" @click="load(false)">
+            {{ loading ? 'Loading...' : 'Load more' }}
+          </button>
+        </div>
       </template>
     </section>
     <!-- Report modal -->
@@ -261,7 +382,12 @@
           </div>
           <div class="form-group">
             <label class="form-label">Message (optional)</label>
-            <textarea v-model="reportMessage" class="form-textarea" rows="3" placeholder="Popis..."></textarea>
+            <textarea
+              v-model="reportMessage"
+              class="form-textarea"
+              rows="3"
+              placeholder="Popis..."
+            ></textarea>
           </div>
           <div class="report-actions">
             <button class="btn btn-secondary" type="button" @click="closeReport">Cancel</button>
@@ -281,7 +407,9 @@
         <h3 id="delete-title" class="report-title">Delete post</h3>
         <p class="delete-copy">This action cannot be undone.</p>
         <div class="report-actions">
-          <button class="btn btn-secondary" type="button" @click="closeDeleteConfirm">Cancel</button>
+          <button class="btn btn-secondary" type="button" @click="closeDeleteConfirm">
+            Cancel
+          </button>
           <button
             class="btn btn-danger"
             type="button"
@@ -302,26 +430,56 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'v
 import { useRouter } from 'vue-router'
 import FeedSwitcher from '@/components/FeedSwitcher.vue'
 import HashtagText from './HashtagText.vue'
+import PollCard from '@/components/PollCard.vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import ShareModal from '@/components/share/ShareModal.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { useBookmarksStore } from '@/stores/bookmarks'
+import { useToast } from '@/composables/useToast'
 import { canDeletePost, canReportPost } from '@/utils/postPermissions'
 import { formatRelativeShort } from '@/utils/dateUtils'
 
+const props = defineProps({
+  mode: {
+    type: String,
+    default: 'home',
+  },
+})
+
 const router = useRouter()
 const auth = useAuthStore()
-const tabs = [
-  { id: 'for_you', label: 'Pre vas', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
-  { id: 'astrobot', label: 'AstroBot', tabId: 'feed-tab-astrobot', panelId: 'feed-panel-astrobot' },
+const bookmarks = useBookmarksStore()
+const { error: toastError, info: toastInfo } = useToast()
+const HOME_TABS = [
+  { id: 'for_you', label: 'Komunita', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
+  {
+    id: 'astrobot',
+    label: 'AstroFeed',
+    tabId: 'feed-tab-astrobot',
+    panelId: 'feed-panel-astrobot',
+  },
 ]
+const BOOKMARK_TABS = [
+  {
+    id: 'bookmarks',
+    label: 'Zalozky',
+    tabId: 'feed-tab-bookmarks',
+    panelId: 'feed-panel-bookmarks',
+  },
+]
+const BOT_CONTENT_PREVIEW_LIMIT = 800
+const HOME_FEED_TAB_STORAGE_KEY = 'astrokomunita.feed.activeTab'
+const isBookmarksMode = computed(() => props.mode === 'bookmarks')
+const tabs = computed(() => (isBookmarksMode.value ? BOOKMARK_TABS : HOME_TABS))
 
 const feedState = reactive({
   for_you: createFeedState(),
   astrobot: createFeedState(),
+  bookmarks: createFeedState(),
 })
-const activeTab = ref('for_you')
+const activeTab = ref(resolveInitialTab())
 const currentFeed = computed(() => feedState[activeTab.value])
 const items = computed(() => currentFeed.value.items)
 const nextPageUrl = computed(() => currentFeed.value.nextPageUrl)
@@ -337,6 +495,11 @@ const reportReason = ref('spam')
 const reportMessage = ref('')
 const highlightedPostId = ref(null)
 const shareTarget = ref(null)
+const expandedPostIds = ref(new Set())
+const botContentVariantById = ref({})
+const editingPostId = ref(null)
+const editContentDraft = ref('')
+const editSavingId = ref(null)
 let highlightTimer = null
 
 function createFeedState() {
@@ -351,6 +514,25 @@ function createFeedState() {
   }
 }
 
+function resolveInitialTab() {
+  if (isBookmarksMode.value) return 'bookmarks'
+  if (typeof window === 'undefined') return 'for_you'
+
+  const stored = window.localStorage.getItem(HOME_FEED_TAB_STORAGE_KEY)
+  if (stored && HOME_TABS.some((tab) => tab.id === stored)) {
+    return stored
+  }
+
+  return 'for_you'
+}
+
+function persistActiveTab(tab) {
+  if (isBookmarksMode.value || typeof window === 'undefined') return
+  if (!HOME_TABS.some((entry) => entry.id === tab)) return
+
+  window.localStorage.setItem(HOME_FEED_TAB_STORAGE_KEY, tab)
+}
+
 function openPost(post) {
   if (!post?.id) return
   router.push(`/posts/${post.id}`)
@@ -362,6 +544,10 @@ function openProfile(post) {
   router.push(`/u/${username}`)
 }
 
+function goExplore() {
+  router.push('/search')
+}
+
 function canDelete(post) {
   return canDeletePost(post, auth.user)
 }
@@ -370,8 +556,276 @@ function canReport(post) {
   return canReportPost(post, auth.user)
 }
 
+function normalizeToken(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+}
+
+function isBotPost(post) {
+  const authorKind = normalizeToken(post?.author_kind)
+  if (authorKind) return authorKind === 'bot'
+  return normalizeToken(post?.source_name) === 'astrobot'
+}
+
+function canAdminEditBotPost(post) {
+  const isAdmin = Boolean(auth.user?.is_admin || auth.user?.role === 'admin')
+  if (!isAdmin || !isBotPost(post)) return false
+
+  const identity = normalizeToken(post?.bot_identity)
+  return identity === 'kozmo' || identity === 'stela'
+}
+
+function canEditTranslatedVariant(post) {
+  if (!canAdminEditBotPost(post)) return false
+  if (!showBotTranslationToggle(post)) return true
+  return (resolvedBotVariant(post) || defaultBotVariant(post)) === 'translated'
+}
+
+function botIdentity(post) {
+  return normalizeToken(post?.bot_identity)
+}
+
+function botSourceLabel(post) {
+  if (!isBotPost(post)) return ''
+  const sourceLabel = String(post?.meta?.bot_source_label || '').trim()
+  return sourceLabel || 'Bot'
+}
+
+function sourceAttributionLabel(post) {
+  const attribution = String(
+    post?.meta?.bot_source_attribution || post?.meta?.source_attribution || '',
+  ).trim()
+  return attribution || botSourceLabel(post)
+}
+
+function absoluteUrl(url) {
+  const value = String(url || '').trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+
+  const base = api?.defaults?.baseURL || ''
+  const origin = base.replace(/\/api\/?$/, '')
+  if (!origin) return value
+
+  if (value.startsWith('/')) return origin + value
+  return origin + '/' + value
+}
+
+function sourceLink(post) {
+  const candidate = post?.meta?.source_url
+  return absoluteUrl(candidate)
+}
+
+function showBotTranslationToggle(post) {
+  if (!isBotPost(post)) return false
+  const hasOriginal =
+    String(post?.meta?.original_title || '').trim() !== '' ||
+    String(post?.meta?.original_content || '').trim() !== ''
+  const hasTranslated =
+    String(post?.meta?.translated_title || '').trim() !== '' ||
+    String(post?.meta?.translated_content || '').trim() !== ''
+  return hasOriginal && hasTranslated
+}
+
+function normalizeBool(value) {
+  if (value === true || value === false) return value
+  if (typeof value === 'number') return value === 1
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
+  if (normalized === '1' || normalized === 'true' || normalized === 'yes') return true
+  if (normalized === '0' || normalized === 'false' || normalized === 'no') return false
+  return false
+}
+
+function defaultBotVariant(post) {
+  return normalizeBool(post?.meta?.used_translation) ? 'translated' : 'original'
+}
+
+function resolvedBotVariant(post) {
+  if (!showBotTranslationToggle(post)) return null
+  const id = Number(post?.id || 0)
+  if (!id) return defaultBotVariant(post)
+  const current = botContentVariantById.value[id]
+  if (current === 'translated' || current === 'original') {
+    return current
+  }
+  return defaultBotVariant(post)
+}
+
+function setBotContentVariant(post, variant) {
+  if (!showBotTranslationToggle(post)) return
+  if (variant !== 'translated' && variant !== 'original') return
+  const id = Number(post?.id || 0)
+  if (!id) return
+  botContentVariantById.value = {
+    ...botContentVariantById.value,
+    [id]: variant,
+  }
+}
+
+function isBotVariantActive(post, variant) {
+  return resolvedBotVariant(post) === variant
+}
+
+function variantText(post, variant) {
+  const title = String(post?.meta?.[`${variant}_title`] || '').trim()
+  const content = String(post?.meta?.[`${variant}_content`] || '').trim()
+  return [title, content].filter(Boolean).join('\n\n')
+}
+
+function resolvedDisplayText(post) {
+  if (showBotTranslationToggle(post)) {
+    const variant = resolvedBotVariant(post) || defaultBotVariant(post)
+    const text = variantText(post, variant)
+    if (text !== '') {
+      return text
+    }
+  }
+
+  return String(post?.content || '')
+}
+
+function isPostContentExpanded(post) {
+  return expandedPostIds.value.has(post?.id)
+}
+
+function isBotContentCollapsible(post) {
+  const content = resolvedDisplayText(post)
+  return isBotPost(post) && content.length > BOT_CONTENT_PREVIEW_LIMIT
+}
+
+function togglePostContent(post) {
+  const id = post?.id
+  if (!id) return
+
+  const next = new Set(expandedPostIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  expandedPostIds.value = next
+}
+
+function displayPostContent(post) {
+  const content = resolvedDisplayText(post)
+  if (!isBotContentCollapsible(post) || isPostContentExpanded(post)) return content
+  return content.slice(0, BOT_CONTENT_PREVIEW_LIMIT).trimEnd() + '...'
+}
+
+function isStelaPost(post) {
+  return botIdentity(post) === 'stela'
+}
+
+function isAttachmentEntryImage(entry) {
+  const type = normalizeToken(entry?.type)
+  const mime = normalizeToken(entry?.mime)
+  const url = String(entry?.url || entry?.src || entry?.href || '')
+
+  if (type === 'image') return true
+  if (mime.startsWith('image/')) return true
+  return /\.(png|jpe?g|gif|webp|avif)$/i.test(url)
+}
+
+function attachmentEntryUrl(entry) {
+  const raw = entry?.url || entry?.src || entry?.href
+  return absoluteUrl(raw)
+}
+
+function stelaPreviewImageSrc(post) {
+  if (!isStelaPost(post)) return ''
+
+  if (Array.isArray(post?.attachments)) {
+    const imageEntry = post.attachments.find(
+      (entry) => isAttachmentEntryImage(entry) && attachmentEntryUrl(entry),
+    )
+    if (imageEntry) return attachmentEntryUrl(imageEntry)
+  }
+
+  if (post?.attachment_url && isImage(post)) {
+    return attachmentSrc(post)
+  }
+
+  return ''
+}
+
+function postGifUrl(post) {
+  const gif = post?.meta?.gif
+  if (!gif || typeof gif !== 'object') return ''
+
+  const original = absoluteUrl(gif.original_url)
+  if (original) return original
+
+  return absoluteUrl(gif.preview_url)
+}
+
+function postGifTitle(post) {
+  const title = String(post?.meta?.gif?.title || '').trim()
+  return title || 'GIF'
+}
+
+function attachedEventForPost(post) {
+  const event = post?.attached_event
+  if (event && typeof event === 'object') {
+    return event
+  }
+
+  const fallbackId = Number(post?.meta?.event?.event_id || 0)
+  if (!Number.isInteger(fallbackId) || fallbackId <= 0) {
+    return null
+  }
+
+  return {
+    id: fallbackId,
+    title: `Udalost #${fallbackId}`,
+    start_at: null,
+    end_at: null,
+  }
+}
+
+function openAttachedEvent(post) {
+  const eventId = Number(attachedEventForPost(post)?.id || 0)
+  if (!Number.isInteger(eventId) || eventId <= 0) return
+  router.push(`/events/${eventId}`)
+}
+
+function parseEventDate(value) {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function formatEventRange(startAt, endAt) {
+  const start = parseEventDate(startAt)
+  const end = parseEventDate(endAt)
+
+  if (!start && !end) return 'Datum upresnime'
+  if (start && !end) return start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
+  if (!start && end) return end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  const startLabel = start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
+  const endLabel = end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
+  return startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`
+}
+
 function menuItemsForPost(post) {
   const items = []
+
+  if (showBotTranslationToggle(post)) {
+    items.push({
+      key: 'variant_translated',
+      label: isBotVariantActive(post, 'translated') ? 'Jazyk: SK (aktivne)' : 'Jazyk: SK',
+      danger: false,
+    })
+    items.push({
+      key: 'variant_original',
+      label: isBotVariantActive(post, 'original') ? 'Jazyk: EN (aktivne)' : 'Jazyk: EN',
+      danger: false,
+    })
+  }
+
+  if (hasOriginalDownload(post)) {
+    items.push({ key: 'download_original', label: 'Stiahnut v plnej kvalite', danger: false })
+  }
 
   if (canReport(post)) {
     items.push({ key: 'report', label: 'Report', danger: false })
@@ -381,7 +835,11 @@ function menuItemsForPost(post) {
     items.push({ key: 'delete', label: 'Delete', danger: true })
   }
 
-  if (auth.user?.is_admin && post?.source_name !== 'astrobot') {
+  if (canEditTranslatedVariant(post)) {
+    items.push({ key: 'edit', label: 'Edit', danger: false })
+  }
+
+  if (auth.user?.is_admin && !isBotPost(post)) {
     items.push({
       key: 'pin',
       label: post?.pinned_at ? 'Unpin' : 'Pin',
@@ -395,6 +853,21 @@ function menuItemsForPost(post) {
 function onMenuAction(item, post) {
   if (!item?.key || !post?.id) return
 
+  if (item.key === 'variant_translated') {
+    setBotContentVariant(post, 'translated')
+    return
+  }
+
+  if (item.key === 'variant_original') {
+    setBotContentVariant(post, 'original')
+    return
+  }
+
+  if (item.key === 'download_original') {
+    downloadOriginalAttachment(post)
+    return
+  }
+
   if (item.key === 'report') {
     openReport(post)
     return
@@ -405,8 +878,87 @@ function onMenuAction(item, post) {
     return
   }
 
+  if (item.key === 'edit') {
+    startInlineEdit(post)
+    return
+  }
+
   if (item.key === 'pin') {
     togglePin(post)
+  }
+}
+
+function isEditingPost(post) {
+  return Number(editingPostId.value) === Number(post?.id)
+}
+
+function startInlineEdit(post) {
+  if (!post?.id || !canEditTranslatedVariant(post)) return
+
+  editingPostId.value = Number(post.id)
+  editContentDraft.value = String(post?.content || '')
+}
+
+function cancelInlineEdit() {
+  editingPostId.value = null
+  editContentDraft.value = ''
+}
+
+async function saveInlineEdit(post) {
+  if (!post?.id || !isEditingPost(post) || editSavingId.value) return
+  if (!canEditTranslatedVariant(post)) return
+
+  const currentContent = String(post?.content || '')
+  const trimmed = editContentDraft.value.trim()
+  if (!trimmed || trimmed === currentContent) {
+    cancelInlineEdit()
+    return
+  }
+
+  try {
+    editSavingId.value = post.id
+    let res = null
+    try {
+      await auth.csrf()
+      res = await api.patch(
+        `/posts/${post.id}`,
+        { content: trimmed, edit_variant: 'translated' },
+        { meta: { skipErrorToast: true } },
+      )
+    } catch (e) {
+      const status = Number(e?.response?.status || 0)
+      if (status !== 401 && status !== 419) throw e
+      await auth.fetchUser({ source: 'inline-post-edit', retry: false, markBootstrap: true })
+      await auth.csrf()
+      res = await api.patch(
+        `/posts/${post.id}`,
+        { content: trimmed, edit_variant: 'translated' },
+        { meta: { skipErrorToast: true } },
+      )
+    }
+
+    const updated = res?.data
+    if (updated && typeof updated === 'object') {
+      Object.assign(post, updated)
+    }
+
+    post.content = trimmed
+    if (post?.meta && typeof post.meta === 'object') {
+      const nextMeta = { ...post.meta }
+      nextMeta.translated_content = trimmed
+      nextMeta.used_translation = true
+      post.meta = nextMeta
+    }
+    cancelInlineEdit()
+  } catch (e) {
+    const status = Number(e?.response?.status || 0)
+    const message =
+      status === 401 || status === 419
+        ? 'Relacia vyprsala. Prihlas sa znova.'
+        : e?.response?.data?.message || 'Uprava prispevku zlyhala.'
+    toastError(message)
+  } finally {
+    editSavingId.value = null
   }
 }
 
@@ -465,6 +1017,40 @@ function applyLikeResponse(post, res) {
   if (!data || !post) return
   if (data.likes_count !== undefined) post.likes_count = data.likes_count
   if (data.liked_by_me !== undefined) post.liked_by_me = data.liked_by_me
+}
+
+function isBookmarkLoading(post) {
+  return bookmarks.isLoading(post?.id)
+}
+
+async function toggleBookmark(post) {
+  if (!post?.id || isBookmarkLoading(post)) return
+  if (!auth.isAuthed) {
+    currentFeed.value.err = 'Prihlas sa pre zalozky.'
+    return
+  }
+
+  currentFeed.value.err = ''
+  const prevBookmarked = !!post.is_bookmarked
+  const prevBookmarkedAt = post.bookmarked_at || null
+  const nextBookmarked = !prevBookmarked
+
+  post.is_bookmarked = nextBookmarked
+  post.bookmarked_at = nextBookmarked ? new Date().toISOString() : null
+  bookmarks.setBookmarked(post.id, nextBookmarked)
+
+  try {
+    await auth.csrf()
+    const state = await bookmarks.toggleBookmark(post.id, prevBookmarked)
+    post.is_bookmarked = state
+    post.bookmarked_at = state ? post.bookmarked_at || new Date().toISOString() : null
+  } catch (e) {
+    post.is_bookmarked = prevBookmarked
+    post.bookmarked_at = prevBookmarkedAt
+    bookmarks.setBookmarked(post.id, prevBookmarked)
+    currentFeed.value.err = e?.response?.data?.message || 'Ulozenie zalozky zlyhalo.'
+    toastError('Ulozenie zalozky zlyhalo.')
+  }
 }
 
 async function toggleLike(post) {
@@ -540,6 +1126,15 @@ function closeDeleteConfirm() {
   deleteTarget.value = null
 }
 
+function updatePostPoll(post, nextPoll) {
+  if (!post || !nextPoll) return
+  post.poll = nextPoll
+}
+
+function onPollLoginRequired() {
+  currentFeed.value.err = 'Prihlas sa pre hlasovanie.'
+}
+
 async function confirmDelete() {
   if (!deleteTarget.value?.id) return
   await deletePost(deleteTarget.value)
@@ -559,6 +1154,18 @@ function fmt(iso) {
 
 function attachmentSrc(p) {
   const u = p?.attachment_url
+  if (!u) return ''
+  if (/^https?:\/\//i.test(u)) return u
+
+  const base = api?.defaults?.baseURL || ''
+  const origin = base.replace(/\/api\/?$/, '')
+
+  if (u.startsWith('/')) return origin + u
+  return origin + '/' + u
+}
+
+function attachmentDownloadSrc(p) {
+  const u = p?.attachment_download_url
   if (!u) return ''
   if (/^https?:\/\//i.test(u)) return u
 
@@ -603,6 +1210,22 @@ function isAttachmentBlocked(post) {
   return post?.attachment_moderation_status === 'blocked' || !!post?.attachment_hidden_at
 }
 
+function hasOriginalDownload(post) {
+  return isImage(post) && Boolean(post?.attachment_download_url)
+}
+
+function downloadOriginalAttachment(post) {
+  const url = attachmentDownloadSrc(post)
+  if (!url) return
+
+  toastInfo('Stahujem...')
+  try {
+    window.open(url, '_blank', 'noopener')
+  } catch {
+    toastError('Stiahnutie zlyhalo.')
+  }
+}
+
 function normalizeFeedError(error) {
   const status = Number(error?.response?.status || 0)
   const code = String(error?.code || '')
@@ -640,6 +1263,7 @@ async function switchTab(tab) {
 
   saveTabScroll(activeTab.value)
   activeTab.value = tab
+  persistActiveTab(tab)
 
   if (!feedState[tab].loaded) {
     await load(true, tab)
@@ -671,14 +1295,16 @@ async function load(reset = true, tab = activeTab.value) {
 
   try {
     let url
-    
+
     if (reset) {
       // Reset pagination state when switching tabs
       state.nextPageUrl = null
-      
+
       // Use dedicated endpoints based on active tab
       if (tab === 'astrobot') {
-        url = '/feed/astrobot?with=counts'
+        url = '/astro-feed?with=counts'
+      } else if (tab === 'bookmarks') {
+        url = '/me/bookmarks?with=counts'
       } else {
         // for_you tab uses new unified feed endpoint
         url = '/feed?with=counts'
@@ -686,7 +1312,7 @@ async function load(reset = true, tab = activeTab.value) {
     } else {
       url = state.nextPageUrl
     }
-    
+
     if (!url) return
 
     if (state.controller) {
@@ -701,6 +1327,7 @@ async function load(reset = true, tab = activeTab.value) {
     })
     const payload = res.data || {}
     const rows = payload.data || []
+    bookmarks.hydrateFromPosts(rows)
 
     if (reset) state.items = rows
     else state.items = [...state.items, ...rows]
@@ -738,17 +1365,17 @@ async function togglePin(post) {
     } else {
       await api.patch(`/admin/posts/${post.id}/pin`)
     }
-    
+
     // Update local state
     if (wasPinned) {
       post.pinned_at = null
     } else {
       post.pinned_at = new Date().toISOString()
     }
-    
+
     // Refresh feed to re-order
     load(true)
-    
+
     currentFeed.value.err = wasPinned ? 'Post unpinned successfully' : 'Post pinned successfully'
   } catch (e) {
     const status = e?.response?.status
@@ -777,14 +1404,21 @@ function prepend(post) {
 }
 
 function handleGlobalKeydown(event) {
+  if (tabs.value.length < 2) {
+    if (event.key !== 'Escape') return
+    if (reportTarget.value) closeReport()
+    if (deleteTarget.value) closeDeleteConfirm()
+    return
+  }
+
   if (event.ctrlKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
     event.preventDefault()
-    const currentIndex = tabs.findIndex((tab) => tab.id === activeTab.value)
+    const currentIndex = tabs.value.findIndex((tab) => tab.id === activeTab.value)
     if (currentIndex < 0) return
 
     const direction = event.key === 'ArrowRight' ? 1 : -1
-    const nextIndex = (currentIndex + direction + tabs.length) % tabs.length
-    switchTab(tabs[nextIndex].id)
+    const nextIndex = (currentIndex + direction + tabs.value.length) % tabs.value.length
+    switchTab(tabs.value[nextIndex].id)
     return
   }
 
@@ -794,6 +1428,7 @@ function handleGlobalKeydown(event) {
 }
 
 onMounted(() => {
+  persistActiveTab(activeTab.value)
   load(true, activeTab.value)
   window.addEventListener('keydown', handleGlobalKeydown)
 })
@@ -817,24 +1452,19 @@ defineExpose({ load, prepend })
 <style scoped>
 /* Modern Feed Styles */
 .feed-container {
-  max-width: 760px;
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   padding: 0;
   width: 100%;
   min-width: 0;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 /* Header */
 .feed-header {
-  position: sticky;
-  top: 0;
-  z-index: 18;
-  margin-bottom: 12px;
-  padding: 0 4px;
-  background: rgb(var(--color-bg-rgb) / 0.86);
-  backdrop-filter: blur(9px);
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
+  position: relative;
+  margin-bottom: 0;
+  padding: 0;
 }
 
 .feed-title-section {
@@ -857,31 +1487,35 @@ defineExpose({ load, prepend })
 
 .feed-actions {
   width: 100%;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
 }
 
 .feed-panel {
   min-width: 0;
 }
 
+.feed-composer-slot {
+  width: 100%;
+}
+
 .empty-state {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.3);
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
+  background: rgb(var(--color-bg-rgb) / 0.16);
   color: var(--color-text-secondary);
-  padding: 16px;
+  padding: 0.9rem 0.85rem;
   display: grid;
-  gap: 10px;
+  gap: 0.45rem;
   justify-items: start;
 }
 
 .retry-btn {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.26);
   border-radius: 999px;
-  background: rgb(var(--color-bg-rgb) / 0.55);
+  background: transparent;
   color: var(--color-surface);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  padding: 0.35rem 0.8rem;
+  padding: 0.26rem 0.68rem;
   cursor: pointer;
 }
 
@@ -930,7 +1564,6 @@ defineExpose({ load, prepend })
   outline-offset: 2px;
 }
 
-
 /* Error Message */
 .error-message {
   background: rgb(var(--color-danger-rgb) / 0.1);
@@ -950,15 +1583,15 @@ defineExpose({ load, prepend })
 .skeleton-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 0 4px;
+  gap: 0;
+  padding: 0;
 }
 
 .skeleton-post {
-  background: rgb(var(--color-bg-rgb) / 0.3);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  border-radius: 12px;
-  padding: 16px;
+  background: transparent;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.12);
+  border-radius: 0;
+  padding: 0.75rem 0.75rem 0.85rem;
   overflow: hidden;
 }
 
@@ -969,8 +1602,8 @@ defineExpose({ load, prepend })
 }
 
 .skeleton-avatar {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: linear-gradient(
     90deg,
@@ -997,8 +1630,8 @@ defineExpose({ load, prepend })
 }
 
 .skeleton-media {
-  height: 200px;
-  border-radius: 8px;
+  height: 180px;
+  border-radius: 12px;
   background: rgb(var(--color-text-secondary-rgb) / 0.08);
 }
 
@@ -1015,53 +1648,62 @@ defineExpose({ load, prepend })
   animation: shimmer 1.2s infinite;
 }
 
-.skeleton-name { width: 120px; }
-.skeleton-time { width: 80px; }
-.skeleton-text:first-child { width: 100%; }
-.skeleton-text:last-child { width: 70%; }
+.skeleton-name {
+  width: 120px;
+}
+.skeleton-time {
+  width: 80px;
+}
+.skeleton-text:first-child {
+  width: 100%;
+}
+.skeleton-text:last-child {
+  width: 70%;
+}
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* Modern Post Cards */
 .feed-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 0 4px;
+  gap: 0;
+  padding: 0;
   min-width: 0;
 }
 
 .post-card {
-  background: rgb(var(--color-bg-rgb) / 0.4);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.15);
-  border-radius: 12px;
-  padding: 14px;
-  transition: all 0.2s ease;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
+  border-radius: 0;
+  padding: 0.72rem 0.75rem;
+  transition: background-color 0.16s ease;
   cursor: pointer;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   width: 100%;
   min-width: 0;
 }
 
 .post-card:hover {
-  background: rgb(var(--color-bg-rgb) / 0.6);
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.25);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: rgb(var(--color-text-secondary-rgb) / 0.06);
 }
 
 .post-card:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  background: rgb(var(--color-text-secondary-rgb) / 0.1);
 }
 
 .post-card--new {
   animation: newPostReveal 760ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  border-color: rgb(var(--color-primary-rgb) / 0.48);
+  border-bottom-color: rgb(var(--color-primary-rgb) / 0.4);
 }
 
 @keyframes newPostReveal {
@@ -1082,11 +1724,11 @@ defineExpose({ load, prepend })
 
 /* Pinned posts */
 .post-card--pinned {
-  border-color: rgb(var(--color-warning-rgb) / 0.4);
+  border-bottom-color: rgb(var(--color-warning-rgb) / 0.45);
   background: linear-gradient(
     135deg,
     rgb(var(--color-warning-rgb) / 0.08) 0%,
-    rgb(var(--color-bg-rgb) / 0.4) 100%
+    rgb(var(--color-bg-rgb) / 0.16) 100%
   );
 }
 
@@ -1101,27 +1743,19 @@ defineExpose({ load, prepend })
 
 /* AstroBot posts */
 .post-card--astrobot {
-  border-color: rgb(var(--color-success-rgb) / 0.3);
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-success-rgb) / 0.05) 0%,
-    rgb(var(--color-bg-rgb) / 0.4) 100%
-  );
+  border-bottom-color: rgb(var(--color-text-secondary-rgb) / 0.14);
+  background: transparent;
 }
 
 .post-card--astrobot:hover {
-  border-color: rgb(var(--color-success-rgb) / 0.5);
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-success-rgb) / 0.08) 0%,
-    rgb(var(--color-bg-rgb) / 0.6) 100%
-  );
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.14);
+  background: rgb(var(--color-text-secondary-rgb) / 0.06);
 }
 
 /* Post Layout */
 .post-card {
   display: flex;
-  gap: 12px;
+  gap: 0.62rem;
 }
 
 .post-avatar {
@@ -1154,8 +1788,8 @@ defineExpose({ load, prepend })
 }
 
 .avatar-image {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   object-fit: cover;
   display: block;
@@ -1163,8 +1797,8 @@ defineExpose({ load, prepend })
 }
 
 .avatar-fallback {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -1176,17 +1810,17 @@ defineExpose({ load, prepend })
   );
   color: white;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 14px;
   border: 2px solid rgb(var(--color-text-secondary-rgb) / 0.2);
 }
 
 /* Modern Post Header */
 .post-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
+  gap: 0.5rem;
+  margin-bottom: 0.32rem;
 }
 
 .post-meta {
@@ -1197,9 +1831,9 @@ defineExpose({ load, prepend })
 .post-author {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.42rem;
   flex-wrap: wrap;
-  margin-bottom: 4px;
+  margin-bottom: 0.12rem;
   min-width: 0;
 }
 
@@ -1209,7 +1843,7 @@ defineExpose({ load, prepend })
   padding: 0;
   color: var(--color-surface);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 0.92rem;
   cursor: pointer;
   border-radius: 4px;
   transition: background-color 0.2s ease;
@@ -1226,34 +1860,17 @@ defineExpose({ load, prepend })
 
 .author-username {
   color: var(--color-text-secondary);
-  font-size: 14px;
+  font-size: 0.82rem;
   font-weight: 400;
 }
 
 .author-time {
   color: var(--color-text-secondary);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 500;
 }
 
-.astrobot-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-success-rgb) / 0.2) 0%,
-    rgb(var(--color-success-rgb) / 0.1) 100%
-  );
-  color: var(--color-success);
-  border: 1px solid rgb(var(--color-success-rgb) / 0.3);
-}
-
-.pinned-badge {
+\.pinned-badge {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
@@ -1276,7 +1893,7 @@ defineExpose({ load, prepend })
   gap: 8px;
   flex-wrap: wrap;
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: 0.74rem;
   font-weight: 400;
 }
 
@@ -1293,11 +1910,33 @@ defineExpose({ load, prepend })
   color: inherit;
 }
 
+.bot-meta-row {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bot-source-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
 .post-actions-menu {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 0;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .action-button {
@@ -1330,15 +1969,32 @@ defineExpose({ load, prepend })
 
 /* Modern Post Content */
 .post-text {
-  margin-bottom: 10px;
+  margin-bottom: 0.46rem;
   color: var(--color-surface);
   white-space: pre-wrap;
-  line-height: 1.68;
-  font-size: 15.5px;
+  line-height: 1.52;
+  font-size: 0.91rem;
   word-wrap: break-word;
   word-break: break-word;
   overflow-wrap: break-word;
   max-width: 100%;
+}
+
+.inline-edit-textarea {
+  width: 100%;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  border-radius: 12px;
+  background: rgb(var(--color-bg-rgb) / 0.45);
+  color: var(--color-surface);
+  padding: 0.55rem 0.65rem;
+  resize: vertical;
+  font: inherit;
+}
+
+.inline-edit-actions {
+  margin-top: 0.45rem;
+  display: flex;
+  gap: 0.35rem;
 }
 
 .post-text a {
@@ -1353,43 +2009,155 @@ defineExpose({ load, prepend })
   border-bottom-color: var(--color-primary);
 }
 
+.bot-translation-toggle {
+  margin-bottom: 8px;
+  display: inline-flex;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bot-toggle-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 34px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.bot-toggle-btn--active {
+  background: rgb(var(--color-primary-rgb) / 0.16);
+  color: var(--color-primary);
+}
+
+.bot-toggle-btn:hover {
+  color: var(--color-surface);
+}
+
+.show-more-btn {
+  margin-top: 8px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  background: rgb(var(--color-bg-rgb) / 0.42);
+  color: var(--color-surface);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.show-more-btn:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.45);
+  color: var(--color-primary);
+}
+
 /* Source URL */
 .source-url {
-  margin-top: 12px;
+  margin-top: 0.42rem;
+}
+
+.source-url--bot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.source-attribution {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .source-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-primary-rgb) / 0.1) 0%,
-    rgb(var(--color-primary-rgb) / 0.05) 100%
-  );
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.2);
+  gap: 4px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
   color: var(--color-primary);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 0.74rem;
   font-weight: 500;
   transition: all 0.2s ease;
+  opacity: 0.95;
 }
 
 .source-link:hover {
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-primary-rgb) / 0.15) 0%,
-    rgb(var(--color-primary-rgb) / 0.08) 100%
-  );
-  border-color: rgb(var(--color-primary-rgb) / 0.3);
-  transform: translateY(-1px);
+  text-decoration: underline;
+  opacity: 1;
 }
 
 /* Media */
 .post-media {
-  margin-top: 12px;
+  margin-top: 0.4rem;
+}
+
+.post-media--stela {
+  margin-top: 0.48rem;
+}
+
+.post-media--gif {
+  margin-top: 0.48rem;
+}
+
+.attached-event-card {
+  margin-top: 0.48rem;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.28);
+  border-radius: 12px;
+  background: rgb(var(--color-primary-rgb) / 0.09);
+  padding: 0.55rem 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.attached-event-copy {
+  min-width: 0;
+}
+
+.attached-event-title {
+  margin: 0;
+  color: var(--color-surface);
+  font-size: 0.85rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.attached-event-date {
+  margin: 0.18rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.74rem;
+}
+
+.attached-event-btn {
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.5);
+  background: rgb(var(--color-primary-rgb) / 0.15);
+  color: var(--color-surface);
+  border-radius: 999px;
+  padding: 0.26rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.attached-event-btn:hover {
+  background: rgb(var(--color-primary-rgb) / 0.24);
+}
+
+.gifEmbed {
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
+  display: block;
 }
 
 .media-removed {
@@ -1406,8 +2174,8 @@ defineExpose({ load, prepend })
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  border-radius: 8px;
+  padding: 0.55rem 0.62rem;
+  border-radius: 12px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.15);
   background: rgb(var(--color-bg-rgb) / 0.2);
   color: var(--color-surface);
@@ -1464,12 +2232,12 @@ defineExpose({ load, prepend })
 
 /* Modern Action Buttons */
 .post-actions {
-  margin-top: 10px;
+  margin-top: 0.48rem;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding-top: 10px;
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.1);
+  gap: 0.15rem;
+  padding-top: 0.35rem;
+  border-top: 0;
   flex-wrap: wrap;
   min-width: 0;
 }
@@ -1477,18 +2245,18 @@ defineExpose({ load, prepend })
 .action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
+  gap: 0.28rem;
+  padding: 0.3rem 0.42rem;
   border: none;
   background: transparent;
   color: var(--color-text-secondary);
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: 999px;
+  font-size: 0.77rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 40px;
-  min-width: 40px;
+  min-height: 30px;
+  min-width: 30px;
   text-decoration: none;
 }
 
@@ -1572,13 +2340,18 @@ defineExpose({ load, prepend })
   color: var(--color-primary);
 }
 
-.action-btn--save {
+.action-btn--bookmark {
   color: var(--color-text-secondary);
 }
 
-.action-btn--save:hover:not(:disabled) {
+.action-btn--bookmark:hover:not(:disabled) {
   background: rgb(var(--color-warning-rgb) / 0.1);
   color: var(--color-warning);
+}
+
+.action-btn--bookmark.action-btn--bookmarked {
+  color: var(--color-warning);
+  font-weight: 600;
 }
 
 .action-btn--delete {
@@ -1590,14 +2363,14 @@ defineExpose({ load, prepend })
 }
 
 .action-count {
-  font-size: 12px;
+  font-size: 0.72rem;
   font-weight: 500;
   min-width: 16px;
   text-align: center;
 }
 
 .view-count {
-  font-size: 12px;
+  font-size: 0.72rem;
   color: var(--color-text-secondary);
   font-weight: 500;
   line-height: 1;
@@ -1613,29 +2386,35 @@ defineExpose({ load, prepend })
 }
 
 @keyframes likePop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* Load More Button */
 .load-more {
   display: flex;
   justify-content: center;
-  padding: 20px 4px;
+  padding: 0.7rem 0.6rem 0.9rem;
 }
 
 .load-more-btn {
-  padding: 12px 24px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: rgb(var(--color-bg-rgb) / 0.4);
+  padding: 0.4rem 0.72rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  background: transparent;
   color: var(--color-surface);
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 999px;
+  font-size: 0.76rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 44px;
+  min-height: 32px;
 }
 
 .load-more-btn:hover:not(:disabled) {
@@ -1796,45 +2575,26 @@ defineExpose({ load, prepend })
 
 @media (max-width: 480px) {
   .feed-container {
-    padding: 0 6px;
+    padding: 0;
   }
 
   .feed-header {
-    margin-bottom: 16px;
-  }
-
-  .feed-title {
-    font-size: 1.2rem;
-  }
-
-  .feed-subtitle {
-    font-size: 0.85rem;
-  }
-
-  .feed-tabs {
-    width: 100%;
-  }
-
-  .tab-button {
-    padding: 10px 12px;
-    font-size: 0.82rem;
+    margin-bottom: 0;
   }
 
   .post-card {
-    padding: 10px;
-    gap: 8px;
-    border-radius: 10px;
+    padding: 0.62rem 0.62rem 0.66rem;
+    gap: 0.52rem;
   }
 
   .post-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
+    align-items: center;
+    gap: 0.4rem;
   }
 
   .post-actions-menu {
-    width: 100%;
-    justify-content: flex-end;
+    width: auto;
+    justify-content: flex-start;
   }
 
   .avatar-image,
@@ -1845,35 +2605,35 @@ defineExpose({ load, prepend })
   }
 
   .author-name {
-    font-size: 13px;
+    font-size: 0.86rem;
   }
 
   .author-username {
-    font-size: 12px;
+    font-size: 0.76rem;
   }
 
   .author-time {
-    font-size: 11px;
+    font-size: 0.72rem;
   }
 
   .post-text {
-    font-size: 14px;
-    line-height: 1.58;
+    font-size: 0.86rem;
+    line-height: 1.48;
   }
 
   .post-time {
-    font-size: 12px;
+    font-size: 0.72rem;
   }
 
   .action-btn {
-    padding: 6px 8px;
-    font-size: 12px;
-    min-height: 38px;
-    min-width: 38px;
+    padding: 0.24rem 0.34rem;
+    font-size: 0.72rem;
+    min-height: 28px;
+    min-width: 28px;
   }
 
   .action-count {
-    font-size: 11px;
+    font-size: 0.68rem;
   }
 
   .action-spacer {
@@ -1888,16 +2648,12 @@ defineExpose({ load, prepend })
 
 @media (min-width: 481px) and (max-width: 768px) {
   .feed-container {
-    padding: 0 10px;
-  }
-
-  .feed-title {
-    font-size: 1.32rem;
+    padding: 0;
   }
 
   .post-card {
-    padding: 12px;
-    gap: 10px;
+    padding: 0.68rem 0.68rem 0.72rem;
+    gap: 0.56rem;
   }
 
   .post-header {
@@ -1924,15 +2680,15 @@ defineExpose({ load, prepend })
   }
 
   .post-text {
-    font-size: 14.5px;
-    line-height: 1.6;
+    font-size: 0.89rem;
+    line-height: 1.52;
   }
 
   .action-btn {
-    padding: 6px 10px;
-    font-size: 12px;
-    min-height: 38px;
-    min-width: 38px;
+    padding: 0.28rem 0.4rem;
+    font-size: 0.74rem;
+    min-height: 29px;
+    min-width: 29px;
   }
 
   .report-content {
@@ -1943,15 +2699,14 @@ defineExpose({ load, prepend })
 
 @media (min-width: 769px) {
   .feed-container {
-    padding: 0 4px;
+    padding: 0;
   }
 
   .post-card {
-    padding: 16px;
-    gap: 12px;
+    padding: 0.75rem 0.78rem 0.82rem;
+    gap: 0.62rem;
   }
 }
-
 </style>
 
 

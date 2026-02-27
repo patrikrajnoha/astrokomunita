@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Support\SidebarSectionRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -21,10 +22,12 @@ class SidebarConfigTest extends TestCase
 
         $response = $this->getJson('/api/admin/sidebar-config?scope=home');
 
+        $defaultSectionsCount = count(SidebarSectionRegistry::sections());
+
         $response
             ->assertOk()
             ->assertJsonPath('scope', 'home')
-            ->assertJsonCount(5, 'data')
+            ->assertJsonCount($defaultSectionsCount, 'data')
             ->assertJsonPath('data.0.section_key', 'search')
             ->assertJsonPath('data.0.order', 0)
             ->assertJsonPath('data.0.is_enabled', true);
@@ -102,5 +105,65 @@ class SidebarConfigTest extends TestCase
             ->assertStatus(400)
             ->assertJsonPath('message', 'Unknown section_key provided.')
             ->assertJsonPath('section_key', 'unknown_widget');
+    }
+
+    public function test_post_detail_scope_can_be_configured(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $putResponse = $this->putJson('/api/admin/sidebar-config?scope=post_detail', [
+            'items' => [
+                ['kind' => 'builtin', 'section_key' => 'search', 'order' => 0, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'latest_articles', 'order' => 1, 'is_enabled' => true],
+            ],
+        ]);
+
+        $putResponse
+            ->assertOk()
+            ->assertJsonPath('scope', 'post_detail');
+
+        $getResponse = $this->getJson('/api/admin/sidebar-config?scope=post_detail');
+
+        $getResponse
+            ->assertOk()
+            ->assertJsonPath('scope', 'post_detail')
+            ->assertJsonFragment([
+                'section_key' => 'search',
+                'is_enabled' => false,
+            ]);
+    }
+
+    public function test_profile_scope_can_be_configured(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $putResponse = $this->putJson('/api/admin/sidebar-config?scope=profile', [
+            'items' => [
+                ['kind' => 'builtin', 'section_key' => 'search', 'order' => 0, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'upcoming_events', 'order' => 1, 'is_enabled' => false],
+            ],
+        ]);
+
+        $putResponse
+            ->assertOk()
+            ->assertJsonPath('scope', 'profile');
+
+        $getResponse = $this->getJson('/api/admin/sidebar-config?scope=profile');
+
+        $getResponse
+            ->assertOk()
+            ->assertJsonPath('scope', 'profile')
+            ->assertJsonFragment([
+                'section_key' => 'upcoming_events',
+                'is_enabled' => false,
+            ]);
     }
 }

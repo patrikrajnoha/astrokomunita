@@ -12,31 +12,32 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use App\Support\ApiResponse;
-
-// ✅ pridané
 use App\Http\Middleware\IsAdmin;
 use App\Http\Middleware\EnsureUserActive;
+use App\Http\Middleware\EnsureEmailIsVerifiedOrAdmin;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // CORS (API + web)
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
 
-        // ✅ DÔLEŽITÉ: Sanctum SPA – session-based auth pre API
+        // Sanctum SPA session-based auth for API routes.
         $middleware->api(prepend: [
             EnsureFrontendRequestsAreStateful::class,
         ]);
 
-        // ✅ Admin route middleware alias (Laravel 12 namiesto Kernel.php)
+        // Admin route middleware aliases (Laravel 12, no Kernel.php).
         $middleware->alias([
             'admin' => IsAdmin::class,
             'active' => EnsureUserActive::class,
+            'verified' => EnsureEmailIsVerifiedOrAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

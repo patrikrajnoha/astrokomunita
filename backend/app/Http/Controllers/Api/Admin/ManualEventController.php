@@ -7,11 +7,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
 use App\Models\ManualEvent;
+use App\Services\Events\EventFeedRealtimePublisher;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class ManualEventController extends Controller
 {
+    public function __construct(
+        private readonly EventFeedRealtimePublisher $eventFeedRealtimePublisher,
+    ) {
+    }
+
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 20);
@@ -101,12 +108,108 @@ class ManualEventController extends Controller
         $event->source_name = 'manual';
         $event->source_uid = (string) Str::uuid();
         $event->save();
+        $this->eventFeedRealtimePublisher->publish($event);
 
         $manualEvent->status = 'published';
         $manualEvent->published_event_id = $event->id;
         $manualEvent->save();
 
         return new EventResource($event);
+    }
+
+    public function publishBatch(Request $request)
+    {
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+
+        $validated = $request->validate([
+            'status' => ['nullable', 'string', 'max:50'],
+            'type' => ['nullable', 'string', 'in:' . implode(',', EventType::values())],
+            'q' => ['nullable', 'string', 'max:200'],
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'month' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:5000'],
+        ]);
+
+        $status = $validated['status'] ?? 'draft';
+        $type = $validated['type'] ?? null;
+        $q = isset($validated['q']) ? trim((string) $validated['q']) : null;
+        $year = $validated['year'] ?? null;
+        $month = $validated['month'] ?? null;
+        $limit = (int) ($validated['limit'] ?? 1000);
+
+        $query = ManualEvent::query()
+            ->when($status, fn ($qq) => $qq->where('status', $status))
+            ->when($type, fn ($qq) => $qq->where('event_type', $type))
+            ->when($year && $month, function ($qq) use ($year, $month) {
+                $start = sprintf('%04d-%02d-01 00:00:00', (int) $year, (int) $month);
+                $end = date('Y-m-t 23:59:59', strtotime($start));
+                $qq->whereBetween('starts_at', [$start, $end]);
+            })
+            ->when($q !== null && $q !== '', function ($qq) use ($q) {
+                $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
+                $qq->where(function ($sub) use ($like) {
+                    $sub->where('title', 'like', $like)
+                        ->orWhere('description', 'like', $like);
+                });
+            });
+
+        $ids = $query->orderByDesc('id')->limit($limit)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($ids === []) {
+            return response()->json([
+                'ok' => true,
+                'published' => 0,
+                'failed' => 0,
+                'total_selected' => 0,
+                'limit_applied' => $limit,
+            ]);
+        }
+
+        $published = 0;
+        $failed = 0;
+
+        foreach ($ids as $manualEventId) {
+            try {
+                $manual = ManualEvent::query()->find($manualEventId);
+                if (! $manual || $manual->status === 'published') {
+                    continue;
+                }
+
+                $event = new Event();
+                $event->title = $manual->title;
+                $event->description = $manual->description;
+                $event->type = $manual->event_type;
+                $event->start_at = $manual->starts_at;
+                $event->end_at = $manual->ends_at;
+                $event->max_at = $manual->starts_at;
+                $event->visibility = $manual->visibility ?? 1;
+                $event->source_name = 'manual';
+                $event->source_uid = (string) Str::uuid();
+                $event->save();
+                $this->eventFeedRealtimePublisher->publish($event);
+
+                $manual->status = 'published';
+                $manual->published_event_id = $event->id;
+                $manual->save();
+
+                $published++;
+            } catch (\Throwable $exception) {
+                $failed++;
+                Log::warning('Manual event batch publish failed', [
+                    'manual_event_id' => $manualEventId,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return response()->json([
+            'ok' => true,
+            'published' => $published,
+            'failed' => $failed,
+            'total_selected' => count($ids),
+            'limit_applied' => $limit,
+        ]);
     }
 
     private function validateManual(Request $request): array

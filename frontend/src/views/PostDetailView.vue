@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="wrap">
     <div class="card">
       <!-- top -->
@@ -35,7 +35,6 @@
                   </button>
                   <span class="nameTime">{{ fmt(root?.created_at) }}</span>
                 </div>
-                <span v-if="root?.source_name === 'astrobot'" class="badge badgeAstrobot">🚀 AstroBot</span>
                 <div class="meta">
                   <span class="viewMeta" title="Počet zobrazení" aria-label="Počet zobrazení">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -44,11 +43,7 @@
                     </svg>
                     <span>{{ Number(root?.views ?? 0) }}</span>
                   </span>
-                  <span v-if="root?.user?.location" class="dot">.</span>
-                  <span v-if="root?.user?.location" class="loc">
-                    Location: {{ root.user.location }}
-                  </span>
-                  <span v-if="root?.source_name === 'astrobot'" class="botLabel">Automated news · replies disabled</span>
+                  <span v-if="root?.source_name === 'astrobot'" class="botLabel">Automated news</span>
                 </div>
               </div>
               <div class="postActionsMenu">
@@ -63,7 +58,58 @@
             </div>
 
             <div class="postText">
-              <HashtagText :content="root?.content" />
+              <template v-if="isEditingPost(root)">
+                <textarea
+                  v-model="editContentDraft"
+                  class="inlineEditTextarea"
+                  rows="6"
+                  maxlength="5000"
+                ></textarea>
+                <div class="inlineEditActions">
+                  <button
+                    class="replyBtn"
+                    type="button"
+                    :disabled="editSavingId === root?.id"
+                    @click="saveInlineEdit(root)"
+                  >
+                    {{ editSavingId === root?.id ? 'Ukladam...' : 'Ulozit' }}
+                  </button>
+                  <button
+                    class="replyBtn"
+                    type="button"
+                    :disabled="editSavingId === root?.id"
+                    @click="cancelInlineEdit"
+                  >
+                    Zrusit
+                  </button>
+                </div>
+              </template>
+              <HashtagText v-else :content="root?.content" />
+            </div>
+
+            <PollCard
+              v-if="root?.poll"
+              :poll="root.poll"
+              :post-id="root.id"
+              :is-authed="auth.isAuthed"
+              @updated="updateRootPoll"
+              @login-required="onPollLoginRequired"
+            />
+
+            <div v-if="attachedEventForPost(root)" class="attachedEventCard">
+              <div class="attachedEventCopy">
+                <p class="attachedEventTitle">{{ attachedEventForPost(root).title || 'Udalost' }}</p>
+                <p class="attachedEventDate">
+                  {{ formatEventRange(attachedEventForPost(root).start_at, attachedEventForPost(root).end_at) }}
+                </p>
+              </div>
+              <button class="replyBtn" type="button" @click="openAttachedEvent(root)">
+                Otvorit udalost
+              </button>
+            </div>
+
+            <div v-if="postGifUrl(root)" class="mediaWrap">
+              <img class="gifEmbed" :src="postGifUrl(root)" :alt="postGifTitle(root)" loading="lazy" />
             </div>
 
             <div v-if="root?.attachment_url" class="mediaWrap">
@@ -95,23 +141,49 @@
             </div>
 
             <div class="postActions">
+              <button class="replyBtn" type="button" @click="focusReplyComposer">
+                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                </svg>
+                <span>Komentare {{ Number(root?.replies_count ?? repliesCount) }}</span>
+              </button>
+              <button class="replyBtn" type="button" :disabled="isLikeLoading(root)" @click="toggleLike(root)">
+                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" :fill="root?.liked_by_me ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                <span>{{ root?.liked_by_me ? 'Unlike' : 'Like' }} {{ Number(root?.likes_count ?? 0) }}</span>
+              </button>
+              <button class="replyBtn" type="button" :disabled="isBookmarkLoading(root)" @click="toggleBookmark(root)">
+                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>{{ root?.is_bookmarked ? 'Unsave' : 'Save' }}</span>
+              </button>
+              <button class="replyBtn" type="button" @click="openShareModal(root)">
+                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                  <polyline points="16 6 12 2 8 6"/>
+                  <line x1="12" y1="2" x2="12" y2="15"/>
+                </svg>
+                <span>Share</span>
+              </button>
               <button class="replyBtn" type="button" @click="openReport(root)">
-                Report
+                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h12l-2 4 2 4H4z"/>
+                  <line x1="4" y1="4" x2="4" y2="21"/>
+                </svg>
+                <span>Report</span>
               </button>
             </div>
           </div>
         </article>
 
-        <!-- REPLY COMPOSER - only show for non-AstroBot posts -->
-        <div v-if="root?.source_name !== 'astrobot'" class="composerWrap">
+        <div class="composerWrap">
           <ReplyComposer
             v-if="root?.id"
             :parent-id="root.id"
             @created="onReplyCreated"
           />
-        </div>
-        <div v-else class="repliesDisabledNotice">
-          <p>Replies are disabled on automated news posts.</p>
         </div>
 
         <!-- REPLIES -->
@@ -148,10 +220,6 @@
                       </button>
                       <span class="nameTime">{{ fmt(r?.created_at) }}</span>
                     </div>
-                    <div v-if="r?.user?.location" class="meta">
-                      <span class="dot">.</span>
-                      <span class="loc">Location: {{ r.user.location }}</span>
-                    </div>
                   </div>
                   <div class="postActionsMenu">
                     <DropdownMenu
@@ -165,7 +233,37 @@
                 </div>
 
                 <div class="replyText">
-                  <HashtagText :content="r.content" />
+                  <template v-if="isEditingPost(r)">
+                    <textarea
+                      v-model="editContentDraft"
+                      class="inlineEditTextarea"
+                      rows="5"
+                      maxlength="5000"
+                    ></textarea>
+                    <div class="inlineEditActions">
+                      <button
+                        class="replyBtn"
+                        type="button"
+                        :disabled="editSavingId === r.id"
+                        @click="saveInlineEdit(r)"
+                      >
+                        {{ editSavingId === r.id ? 'Ukladam...' : 'Ulozit' }}
+                      </button>
+                      <button
+                        class="replyBtn"
+                        type="button"
+                        :disabled="editSavingId === r.id"
+                        @click="cancelInlineEdit"
+                      >
+                        Zrusit
+                      </button>
+                    </div>
+                  </template>
+                  <HashtagText v-else :content="r.content" />
+                </div>
+
+                <div v-if="postGifUrl(r)" class="mediaWrapSm">
+                  <img class="gifEmbed" :src="postGifUrl(r)" :alt="postGifTitle(r)" loading="lazy" />
                 </div>
 
                 <div v-if="r.attachment_url" class="mediaWrapSm">
@@ -232,10 +330,6 @@
                             </button>
                             <span class="nameTime">{{ fmt(c?.created_at) }}</span>
                           </div>
-                          <div v-if="c?.user?.location" class="meta">
-                            <span class="dot">.</span>
-                            <span class="loc">Location: {{ c.user.location }}</span>
-                          </div>
                         </div>
                         <div class="postActionsMenu">
                           <DropdownMenu
@@ -249,8 +343,38 @@
                       </div>
 
                     <div class="replyText">
-                      <HashtagText :content="c.content" />
+                      <template v-if="isEditingPost(c)">
+                        <textarea
+                          v-model="editContentDraft"
+                          class="inlineEditTextarea"
+                          rows="5"
+                          maxlength="5000"
+                        ></textarea>
+                        <div class="inlineEditActions">
+                          <button
+                            class="replyBtn"
+                            type="button"
+                            :disabled="editSavingId === c.id"
+                            @click="saveInlineEdit(c)"
+                          >
+                            {{ editSavingId === c.id ? 'Ukladam...' : 'Ulozit' }}
+                          </button>
+                          <button
+                            class="replyBtn"
+                            type="button"
+                            :disabled="editSavingId === c.id"
+                            @click="cancelInlineEdit"
+                          >
+                            Zrusit
+                          </button>
+                        </div>
+                      </template>
+                      <HashtagText v-else :content="c.content" />
                     </div>
+
+                      <div v-if="postGifUrl(c)" class="mediaWrapSm">
+                        <img class="gifEmbed" :src="postGifUrl(c)" :alt="postGifTitle(c)" loading="lazy" />
+                      </div>
 
                       <div v-if="c.attachment_url" class="mediaWrapSm">
                         <div v-if="isAttachmentBlocked(c)" class="removedMedia">Removed</div>
@@ -310,6 +434,7 @@
           <button class="replyBtn" type="button" @click="submitReport">Submit</button>
         </div>
       </div>
+      <ShareModal :open="!!shareTarget" :post="shareTarget" @close="closeShareModal" />
     </div>
   </div>
 </template>
@@ -318,17 +443,23 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HashtagText from '@/components/HashtagText.vue'
+import PollCard from '@/components/PollCard.vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
+import ShareModal from '@/components/share/ShareModal.vue'
 import api from '@/services/api'
 import ReplyComposer from '@/components/ReplyComposer.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useBookmarksStore } from '@/stores/bookmarks'
+import { useToast } from '@/composables/useToast'
 import { canReportPost } from '@/utils/postPermissions'
 import { formatRelativeShort } from '@/utils/dateUtils'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const bookmarks = useBookmarksStore()
+const { info: toastInfo, error: toastError } = useToast()
 
 const post = ref(null)
 const root = ref(null)
@@ -341,6 +472,11 @@ const reportTarget = ref(null)
 const reportReason = ref('spam')
 const reportMessage = ref('')
 const reportNotice = ref('')
+const editingPostId = ref(null)
+const editContentDraft = ref('')
+const editSavingId = ref(null)
+const likeLoadingIds = ref(new Set())
+const shareTarget = ref(null)
 const lastTrackedViewKey = ref('')
 let viewAnimationFrame = null
 
@@ -396,6 +532,90 @@ function attachmentSrc(p) {
   return origin + '/' + u
 }
 
+function attachmentDownloadSrc(p) {
+  const u = p?.attachment_download_url
+  if (!u) return ''
+  if (/^https?:\/\//i.test(u)) return u
+
+  const base = api?.defaults?.baseURL || ''
+  const origin = base.replace(/\/api\/?$/, '')
+
+  if (u.startsWith('/')) return origin + u
+  return origin + '/' + u
+}
+
+function postGifUrl(post) {
+  const gif = post?.meta?.gif
+  if (!gif || typeof gif !== 'object') return ''
+
+  const original = normalizeAbsoluteUrl(gif.original_url)
+  if (original) return original
+
+  return normalizeAbsoluteUrl(gif.preview_url)
+}
+
+function postGifTitle(post) {
+  const title = String(post?.meta?.gif?.title || '').trim()
+  return title || 'GIF'
+}
+
+function attachedEventForPost(post) {
+  const event = post?.attached_event
+  if (event && typeof event === 'object') {
+    return event
+  }
+
+  const fallbackId = Number(post?.meta?.event?.event_id || 0)
+  if (!Number.isInteger(fallbackId) || fallbackId <= 0) {
+    return null
+  }
+
+  return {
+    id: fallbackId,
+    title: `Udalost #${fallbackId}`,
+    start_at: null,
+    end_at: null,
+  }
+}
+
+function parseEventDate(value) {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function formatEventRange(startAt, endAt) {
+  const start = parseEventDate(startAt)
+  const end = parseEventDate(endAt)
+
+  if (!start && !end) return 'Datum upresnime'
+  if (start && !end) return start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
+  if (!start && end) return end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  const startLabel = start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
+  const endLabel = end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
+  return startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`
+}
+
+function openAttachedEvent(post) {
+  const eventId = Number(attachedEventForPost(post)?.id || 0)
+  if (!Number.isInteger(eventId) || eventId <= 0) return
+  router.push(`/events/${eventId}`)
+}
+
+function normalizeAbsoluteUrl(url) {
+  const value = String(url || '').trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+
+  const base = api?.defaults?.baseURL || ''
+  const origin = base.replace(/\/api\/?$/, '')
+  if (!origin) return value
+
+  if (value.startsWith('/')) return origin + value
+  return origin + '/' + value
+}
+
 function onReplyCreated(newReply) {
   if (!newReply?.id) return
 
@@ -429,17 +649,133 @@ function toggleReplyComposer(id) {
   activeReplyId.value = activeReplyId.value === id ? null : id
 }
 
+function focusReplyComposer() {
+  if (!root.value?.id) return
+  activeReplyId.value = root.value.id
+}
+
+function isLikeLoading(item) {
+  return likeLoadingIds.value.has(item?.id)
+}
+
+function setLikeLoading(id, on) {
+  const next = new Set(likeLoadingIds.value)
+  if (on) next.add(id)
+  else next.delete(id)
+  likeLoadingIds.value = next
+}
+
+function isBookmarkLoading(item) {
+  return bookmarks.isLoading(item?.id)
+}
+
+async function toggleLike(item) {
+  if (!item?.id || isLikeLoading(item)) return
+  if (!auth.isAuthed) {
+    reportNotice.value = 'Prihlas sa pre lajkovanie.'
+    return
+  }
+
+  reportNotice.value = ''
+  const prevLiked = !!item.liked_by_me
+  const prevCount = Number(item.likes_count ?? 0) || 0
+
+  item.liked_by_me = !prevLiked
+  item.likes_count = Math.max(0, prevCount + (prevLiked ? -1 : 1))
+  setLikeLoading(item.id, true)
+
+  try {
+    await auth.csrf()
+    const res = prevLiked
+      ? await api.delete(`/posts/${item.id}/like`)
+      : await api.post(`/posts/${item.id}/like`)
+
+    const data = res?.data
+    if (data?.likes_count !== undefined) item.likes_count = data.likes_count
+    if (data?.liked_by_me !== undefined) item.liked_by_me = data.liked_by_me
+  } catch (e) {
+    item.liked_by_me = prevLiked
+    item.likes_count = prevCount
+    reportNotice.value = e?.response?.data?.message || 'Lajk zlyhal.'
+  } finally {
+    setLikeLoading(item.id, false)
+  }
+}
+
+async function toggleBookmark(item) {
+  if (!item?.id || isBookmarkLoading(item)) return
+  if (!auth.isAuthed) {
+    reportNotice.value = 'Prihlas sa pre zalozky.'
+    return
+  }
+
+  reportNotice.value = ''
+  const prevBookmarked = !!item.is_bookmarked
+  const prevBookmarkedAt = item.bookmarked_at || null
+  const nextBookmarked = !prevBookmarked
+
+  item.is_bookmarked = nextBookmarked
+  item.bookmarked_at = nextBookmarked ? new Date().toISOString() : null
+  bookmarks.setBookmarked(item.id, nextBookmarked)
+
+  try {
+    await auth.csrf()
+    const state = await bookmarks.toggleBookmark(item.id, prevBookmarked)
+    item.is_bookmarked = state
+    item.bookmarked_at = state ? item.bookmarked_at || new Date().toISOString() : null
+  } catch (e) {
+    item.is_bookmarked = prevBookmarked
+    item.bookmarked_at = prevBookmarkedAt
+    bookmarks.setBookmarked(item.id, prevBookmarked)
+    reportNotice.value = e?.response?.data?.message || 'Ulozenie zalozky zlyhalo.'
+  }
+}
+
+function openShareModal(item) {
+  if (!item?.id) return
+  shareTarget.value = item
+}
+
+function closeShareModal() {
+  shareTarget.value = null
+}
+
 function openReport(post) {
   if (!post?.id) return
   reportTarget.value = post
   reportNotice.value = ''
 }
 
+function normalizeToken(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+}
+
+function canAdminEditBotPost(post) {
+  const isAdmin = Boolean(auth.user?.is_admin || auth.user?.role === 'admin')
+  if (!isAdmin) return false
+
+  const isBot = normalizeToken(post?.author_kind) === 'bot' || normalizeToken(post?.source_name) === 'astrobot'
+  if (!isBot) return false
+
+  const identity = normalizeToken(post?.bot_identity)
+  return identity === 'kozmo' || identity === 'stela'
+}
+
 function menuItemsForPost(post) {
   const items = []
 
+  if (hasOriginalDownload(post)) {
+    items.push({ key: 'download_original', label: 'Stiahnut v plnej kvalite', danger: false })
+  }
+
   if (canReportPost(post, auth.user)) {
     items.push({ key: 'report', label: 'Report', danger: false })
+  }
+
+  if (canAdminEditBotPost(post)) {
+    items.push({ key: 'edit', label: 'Edit', danger: false })
   }
 
   return items
@@ -447,8 +783,107 @@ function menuItemsForPost(post) {
 
 function onMenuAction(item, post) {
   if (!item?.key || !post?.id) return
+  if (item.key === 'download_original') {
+    downloadOriginalAttachment(post)
+    return
+  }
   if (item.key === 'report') {
     openReport(post)
+    return
+  }
+  if (item.key === 'edit') {
+    startInlineEdit(post)
+  }
+}
+
+function isEditingPost(post) {
+  return Number(editingPostId.value) === Number(post?.id)
+}
+
+function startInlineEdit(post) {
+  if (!post?.id || !canAdminEditBotPost(post)) return
+
+  editingPostId.value = Number(post.id)
+  editContentDraft.value = String(post?.content || '')
+}
+
+function cancelInlineEdit() {
+  editingPostId.value = null
+  editContentDraft.value = ''
+}
+
+async function saveInlineEdit(post) {
+  if (!post?.id || !isEditingPost(post) || editSavingId.value) return
+  if (!canAdminEditBotPost(post)) return
+
+  const currentContent = String(post?.content || '')
+  const trimmed = editContentDraft.value.trim()
+  if (!trimmed || trimmed === currentContent) {
+    cancelInlineEdit()
+    return
+  }
+
+  try {
+    editSavingId.value = post.id
+    let res = null
+    try {
+      await auth.csrf()
+      res = await api.patch(
+        `/posts/${post.id}`,
+        { content: trimmed, edit_variant: 'translated' },
+        { meta: { skipErrorToast: true } },
+      )
+    } catch (e) {
+      const status = Number(e?.response?.status || 0)
+      if (status !== 401 && status !== 419) throw e
+      await auth.fetchUser({ source: 'inline-post-edit', retry: false, markBootstrap: true })
+      await auth.csrf()
+      res = await api.patch(
+        `/posts/${post.id}`,
+        { content: trimmed, edit_variant: 'translated' },
+        { meta: { skipErrorToast: true } },
+      )
+    }
+
+    const updated = res?.data
+    if (updated && typeof updated === 'object') {
+      Object.assign(post, updated)
+    }
+
+    post.content = trimmed
+    if (post?.meta && typeof post.meta === 'object') {
+      const nextMeta = { ...post.meta }
+      nextMeta.translated_content = trimmed
+      nextMeta.used_translation = true
+      post.meta = nextMeta
+    }
+    cancelInlineEdit()
+  } catch (e) {
+    const status = Number(e?.response?.status || 0)
+    const message =
+      status === 401 || status === 419
+        ? 'Relacia vyprsala. Prihlas sa znova.'
+        : e?.response?.data?.message || 'Uprava prispevku zlyhala.'
+    reportNotice.value = message
+    toastError(message)
+  } finally {
+    editSavingId.value = null
+  }
+}
+
+function hasOriginalDownload(post) {
+  return isImage(post) && Boolean(post?.attachment_download_url)
+}
+
+function downloadOriginalAttachment(post) {
+  const url = attachmentDownloadSrc(post)
+  if (!url) return
+
+  toastInfo('Stahujem...')
+  try {
+    window.open(url, '_blank', 'noopener')
+  } catch {
+    toastError('Stiahnutie zlyhalo.')
   }
 }
 
@@ -456,6 +891,15 @@ function closeReport() {
   reportTarget.value = null
   reportReason.value = 'spam'
   reportMessage.value = ''
+}
+
+function updateRootPoll(nextPoll) {
+  if (!root.value || !nextPoll) return
+  root.value.poll = nextPoll
+}
+
+function onPollLoginRequired() {
+  reportNotice.value = 'Prihlas sa pre hlasovanie.'
 }
 
 function stopViewAnimation() {
@@ -556,6 +1000,9 @@ async function loadPost() {
 
     post.value = payload.post ?? null
     root.value = payload.root ?? payload.post ?? null
+    if (root.value?.id) {
+      bookmarks.hydrateFromPosts([root.value])
+    }
 
     if (Array.isArray(payload.replies) && payload.replies.length > 0) {
       replies.value = payload.replies
@@ -762,9 +1209,66 @@ const repliesCount = computed(() => {
   word-break: break-word;
 }
 
+.inlineEditTextarea {
+  width: 100%;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.4);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.35);
+  color: var(--color-surface);
+  padding: 0.55rem 0.65rem;
+  resize: vertical;
+  font: inherit;
+}
+
+.inlineEditActions {
+  margin-top: 0.45rem;
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.attachedEventCard {
+  margin-top: 0.6rem;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.35);
+  border-radius: 0.95rem;
+  padding: 0.6rem 0.65rem;
+  background: rgb(var(--color-primary-rgb) / 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+}
+
+.attachedEventCopy {
+  min-width: 0;
+}
+
+.attachedEventTitle {
+  margin: 0;
+  color: var(--color-surface);
+  font-weight: 900;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.attachedEventDate {
+  margin: 0.2rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+}
+
 /* media */
 .mediaWrap {
   margin-top: 0.75rem;
+}
+
+.gifEmbed {
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  display: block;
 }
 
 .removedMedia {
@@ -956,6 +1460,9 @@ const repliesCount = computed(() => {
 }
 .postActions {
   margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 .reportNotice {
   margin-top: 0.75rem;
@@ -1007,11 +1514,6 @@ const repliesCount = computed(() => {
   color: var(--color-success);
   background: rgb(var(--color-success-rgb) / 0.25);
 }
-.badgeAstrobot {
-  border-color: rgb(var(--color-success-rgb) / 0.55);
-  color: var(--color-success);
-  background: rgb(var(--color-success-rgb) / 0.25);
-}
 .botLabel {
   color: var(--color-text-secondary);
   font-size: 0.8rem;
@@ -1037,7 +1539,13 @@ const repliesCount = computed(() => {
   white-space: nowrap;
   font-size: 0.82rem;
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+.btnIcon {
+  flex: 0 0 auto;
 }
 .replyBtn:hover {
   border-color: rgb(var(--color-primary-rgb) / 0.72);

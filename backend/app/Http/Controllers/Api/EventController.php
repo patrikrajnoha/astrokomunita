@@ -8,12 +8,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\EventIndexRequest;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
-use App\Models\EventCandidate;
+use App\Services\Events\PublishedEventQuery;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 
 class EventController extends Controller
 {
+    public function __construct(
+        private readonly PublishedEventQuery $publishedEventQuery,
+    ) {
+    }
+
     /**
      * GET /api/events
      * Filtre: type, from, to, q, per_page
@@ -21,6 +26,7 @@ class EventController extends Controller
     public function index(EventIndexRequest $request)
     {
         $v = $request->validated();
+        $v = $this->applyPeriodWrappers($v);
 
         $feed = $v['feed'] ?? 'all';
         $user = $request->user();
@@ -62,7 +68,7 @@ class EventController extends Controller
 
         /**
          * Filter: date range
-         * PrimĂˇrne podÄľa start_at, fallback na max_at.
+         * Primarily by start_at, with fallback to max_at.
          */
         $hasFrom = !empty($v['from']);
         $hasTo = !empty($v['to']);
@@ -93,7 +99,7 @@ class EventController extends Controller
             }
         }
 
-        // Radenie: najbliĹľĹˇie dopredu (start_at alebo max_at)
+        // Sort nearest upcoming first (start_at or max_at).
         $query->orderByRaw('COALESCE(start_at, max_at) ASC');
 
         if ($hasFrom && $hasTo) {
@@ -110,6 +116,26 @@ class EventController extends Controller
     }
 
     /**
+     * GET /api/events/years
+     */
+    public function years()
+    {
+        $minYear = (int) config('events.astropixels.min_year', 2021);
+        $maxYear = (int) config('events.astropixels.max_year', 2030);
+        $currentYear = (int) now()->year;
+        $currentYearBounded = max($minYear, min($maxYear, $currentYear));
+        $defaultYear = $currentYearBounded;
+
+        return response()->json([
+            'years' => range($minYear, $maxYear),
+            'defaultYear' => $defaultYear,
+            'currentYearBounded' => $currentYearBounded,
+            'minYear' => $minYear,
+            'maxYear' => $maxYear,
+        ]);
+    }
+
+    /**
      * GET /api/events/next
      */
     public function next(Request $request)
@@ -117,7 +143,7 @@ class EventController extends Controller
         $now = CarbonImmutable::now();
         $base = $this->basePublishedQuery();
 
-        // 1) NajbliĹľĹˇia budĂşca
+        // 1) Nearest upcoming event.
         $event = (clone $base)
             ->where(function ($q) use ($now) {
                 $q->where('start_at', '>=', $now)
@@ -129,7 +155,7 @@ class EventController extends Controller
             ->orderByRaw('COALESCE(start_at, max_at) ASC')
             ->first();
 
-        // 2) Fallback: najbliĹľĹˇia minulĂˇ
+        // 2) Fallback: nearest past event.
         if (!$event) {
             $event = (clone $base)
                 ->orderByRaw('COALESCE(start_at, max_at) DESC')
@@ -157,20 +183,39 @@ class EventController extends Controller
         return new EventResource($event);
     }
 
+    /**
+     * GET /api/events/lookup?ids=1,2,3
+     */
+    public function lookup(Request $request)
+    {
+        $rawIds = explode(',', (string) $request->query('ids', ''));
+        $ids = collect($rawIds)
+            ->map(static fn (string $id): int => (int) trim($id))
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->unique()
+            ->take(50)
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return response()->json(['data' => []]);
+        }
+
+        $eventsById = $this->basePublishedQuery()
+            ->whereIn('id', $ids->all())
+            ->get()
+            ->keyBy('id');
+
+        $ordered = $ids
+            ->map(static fn (int $id) => $eventsById->get($id))
+            ->filter()
+            ->values();
+
+        return EventResource::collection($ordered);
+    }
+
     private function basePublishedQuery()
     {
-        return Event::query()
-            ->where('visibility', 1)
-            ->published()
-            ->where(function ($sub) {
-                $sub->where('source_name', 'manual')
-                    ->orWhereExists(function ($q) {
-                        $q->selectRaw('1')
-                            ->from('event_candidates')
-                            ->whereColumn('event_candidates.published_event_id', 'events.id')
-                            ->where('event_candidates.status', EventCandidate::STATUS_APPROVED);
-                    });
-            });
+        return $this->publishedEventQuery->base();
     }
 
     /**
@@ -193,5 +238,47 @@ class EventController extends Controller
         }
 
         return $types->unique()->values()->all();
+    }
+
+    private function applyPeriodWrappers(array $validated): array
+    {
+        if (!empty($validated['from']) || !empty($validated['to'])) {
+            return $validated;
+        }
+
+        $timezone = (string) config('events.source_timezone', 'Europe/Bratislava');
+        $year = isset($validated['year']) ? (int) $validated['year'] : null;
+        $month = isset($validated['month']) ? (int) $validated['month'] : null;
+        $week = isset($validated['week']) ? (int) $validated['week'] : null;
+
+        if ($year === null && ($month !== null || $week !== null)) {
+            $minYear = (int) config('events.astropixels.min_year', 2021);
+            $maxYear = (int) config('events.astropixels.max_year', 2030);
+            $year = max($minYear, min($maxYear, (int) now()->year));
+        }
+
+        if ($year === null) {
+            return $validated;
+        }
+
+        if ($week !== null) {
+            $maxIsoWeeks = CarbonImmutable::create($year, 12, 28, 0, 0, 0, $timezone)->isoWeek();
+            $resolvedWeek = min($week, $maxIsoWeeks);
+            $startLocal = CarbonImmutable::create($year, 1, 4, 0, 0, 0, $timezone)
+                ->setISODate($year, $resolvedWeek, 1)
+                ->startOfDay();
+            $endLocal = $startLocal->addDays(6)->endOfDay();
+        } elseif ($month !== null) {
+            $startLocal = CarbonImmutable::create($year, $month, 1, 0, 0, 0, $timezone)->startOfDay();
+            $endLocal = $startLocal->endOfMonth()->endOfDay();
+        } else {
+            $startLocal = CarbonImmutable::create($year, 1, 1, 0, 0, 0, $timezone)->startOfDay();
+            $endLocal = $startLocal->endOfYear()->endOfDay();
+        }
+
+        $validated['from'] = $startLocal->utc()->toDateTimeString();
+        $validated['to'] = $endLocal->utc()->toDateTimeString();
+
+        return $validated;
     }
 }

@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import api from '@/services/api'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 
@@ -13,11 +13,20 @@ const tabs = [
 const activeTab = ref('pending')
 const loading = ref(false)
 const actionLoading = ref(false)
+const healthLoading = ref(false)
 const error = ref('')
 const items = ref([])
 const selectedId = ref(null)
 const detail = ref(null)
 const note = ref('')
+const moderationHealth = ref({
+  status: 'checking',
+  checkedAt: null,
+  device: null,
+  error: '',
+})
+
+let healthIntervalId = null
 
 async function loadQueue() {
   loading.value = true
@@ -82,6 +91,29 @@ async function act(action) {
   }
 }
 
+async function loadModerationHealth() {
+  healthLoading.value = true
+
+  try {
+    const res = await api.get('/admin/moderation/health')
+    moderationHealth.value = {
+      status: res?.data?.status || 'running',
+      checkedAt: res?.data?.checked_at || null,
+      device: res?.data?.service?.device || null,
+      error: '',
+    }
+  } catch (e) {
+    moderationHealth.value = {
+      status: 'down',
+      checkedAt: e?.response?.data?.checked_at || null,
+      device: null,
+      error: e?.response?.data?.error?.message || 'Moderation service is unavailable.',
+    }
+  } finally {
+    healthLoading.value = false
+  }
+}
+
 function formatDate(value) {
   if (!value) return '-'
   const date = new Date(value)
@@ -106,12 +138,41 @@ watch(selectedId, (id) => {
 })
 
 onMounted(() => {
+  loadModerationHealth()
   loadQueue()
+  healthIntervalId = setInterval(() => {
+    loadModerationHealth()
+  }, 15000)
+})
+
+onUnmounted(() => {
+  if (healthIntervalId) {
+    clearInterval(healthIntervalId)
+    healthIntervalId = null
+  }
 })
 </script>
 
 <template>
   <AdminPageShell title="Moderation" subtitle="Automated queue for posts and attachments.">
+    <div class="healthBar">
+      <div class="healthState">
+        <span class="dot" :class="`is-${moderationHealth.status}`" />
+        <strong>
+          Moderation service:
+          {{ moderationHealth.status === 'running' ? 'running' : moderationHealth.status === 'checking' ? 'checking...' : 'down' }}
+        </strong>
+        <span v-if="moderationHealth.device" class="meta">({{ moderationHealth.device }})</span>
+      </div>
+      <div class="healthMeta">
+        <span class="meta" v-if="moderationHealth.checkedAt">Last check: {{ formatDate(moderationHealth.checkedAt) }}</span>
+        <button class="tab" type="button" :disabled="healthLoading" @click="loadModerationHealth">
+          {{ healthLoading ? 'Checking...' : 'Refresh status' }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="moderationHealth.error" class="warn">{{ moderationHealth.error }}</div>
     <div v-if="error" class="alert">{{ error }}</div>
 
     <div class="tabs">
@@ -197,6 +258,52 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.healthBar {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.healthState,
+.healthMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+  background: rgb(var(--color-surface-rgb) / 0.5);
+}
+
+.dot.is-running {
+  background: rgb(34 197 94);
+}
+
+.dot.is-checking {
+  background: rgb(234 179 8);
+}
+
+.dot.is-down {
+  background: rgb(var(--color-danger-rgb, 239 68 68));
+}
+
+.warn {
+  border: 1px solid rgb(234 179 8 / 0.45);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
 .alert {
   border: 1px solid rgb(var(--color-danger-rgb, 239 68 68) / 0.35);
   border-radius: 10px;

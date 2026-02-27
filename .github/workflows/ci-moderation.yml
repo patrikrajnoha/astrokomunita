@@ -11,9 +11,98 @@ on:
       - audit-fixes
 
 jobs:
+  no-doc-files:
+    name: Block markdown and txt files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Fail on mojibake patterns
+        run: |
+          set -euo pipefail
+          export MOJI_PATTERN='(\x{00C3}|\x{00C4}|\x{00C5}|\x{00C2}|\x{00E2}|\x{FFFD})'
+
+          should_skip_path() {
+            case "$1" in
+              vendor/*|node_modules/*|dist/*|.venv/*|storage/*|bootstrap/cache/*) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          collect_targets() {
+            if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+              git fetch --no-tags --depth=1 origin "${GITHUB_BASE_REF}"
+              git diff --name-only --diff-filter=ACMR "origin/${GITHUB_BASE_REF}...HEAD"
+            else
+              find backend frontend services moderation-service scripts -type f
+            fi
+          }
+
+          mapfile -t CANDIDATES < <(collect_targets)
+          TARGETS=()
+          for path in "${CANDIDATES[@]}"; do
+            [ -f "$path" ] || continue
+            should_skip_path "$path" && continue
+            case "$path" in
+              *.php|*.py|*.vue|*.ts|*.js) TARGETS+=("$path") ;;
+            esac
+          done
+
+          if [ "${#TARGETS[@]}" -eq 0 ]; then
+            echo "No candidate files for mojibake scan."
+            exit 0
+          fi
+
+          if command -v rg >/dev/null 2>&1; then
+            if rg -n --pcre2 "${MOJI_PATTERN}" -- "${TARGETS[@]}"; then
+              echo "Mojibake patterns detected. Please re-save affected files as UTF-8."
+              exit 1
+            fi
+            exit 0
+          fi
+
+          python - "${TARGETS[@]}" <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          pattern = re.compile(r"(\u00C3|\u00C4|\u00C5|\u00C2|\u00E2|\uFFFD)")
+          hits = []
+
+          for f in sys.argv[1:]:
+              p = pathlib.Path(f)
+              try:
+                  text = p.read_text(encoding="utf-8", errors="replace")
+              except Exception:
+                  continue
+              for i, line in enumerate(text.splitlines(), 1):
+                  if pattern.search(line):
+                      hits.append((f, i, line.strip()))
+
+          if hits:
+              for f, i, line in hits:
+                  print(f"{f}:{i}: {line}")
+              print("Mojibake patterns detected. Please re-save affected files as UTF-8.")
+              raise SystemExit(1)
+          PY
+
+
+      - name: Fail when markdown or txt files exist
+        run: |
+          forbidden_files="$(find . -type f \( -name '*.md' -o -name '*.MD' -o -name '*.txt' -o -name '*.TXT' \) \
+            -not -path './vendor/*' \
+            -not -path './node_modules/*' \
+            -not -path './storage/*')"
+          if [ -n "$forbidden_files" ]; then
+            echo "Found forbidden documentation files:"
+            echo "$forbidden_files"
+            exit 1
+          fi
+
   moderation:
     name: FastAPI lightweight checks
     runs-on: ubuntu-latest
+    needs: no-doc-files
     defaults:
       run:
         working-directory: moderation-service

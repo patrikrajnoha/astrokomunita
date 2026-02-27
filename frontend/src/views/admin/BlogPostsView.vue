@@ -119,6 +119,11 @@ function setPublishNow() {
   form.value.published_at = toDateTimeLocal(new Date().toISOString());
 }
 
+async function publishNow() {
+  setPublishNow();
+  await save();
+}
+
 function setStatusFilter(value) {
   status.value = value;
   page.value = 1;
@@ -581,7 +586,7 @@ onMounted(load);
             <button
               v-if="selectedStatus === 'draft'"
               class="ghost"
-              @click="setPublishNow"
+              @click="publishNow"
               :disabled="saving || deleting"
             >
               Publish now
@@ -713,7 +718,7 @@ onMounted(load);
 
                 <button
                   class="ghost"
-                  @click="setPublishNow"
+                  @click="publishNow"
                   :disabled="saving || deleting"
                 >
                   Publish now
@@ -1337,9 +1342,106 @@ summary:focus {
 }
 
 @media (max-width: 900px) {
+  .admin-blog {
+    gap: 12px;
+  }
+
+  .command-bar {
+    padding: 10px;
+    border-radius: 12px;
+    gap: 10px;
+  }
+
+  .command-left,
+  .command-right {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .search-field {
+    width: 100%;
+  }
+
+  .search-field input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .segmented {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .segmented button {
+    white-space: nowrap;
+  }
+
+  .select-field {
+    flex: 1 1 100%;
+  }
+
+  .editor-topbar {
+    position: static;
+    padding: 12px;
+  }
+
+  .editor-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .editor-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .editor-actions > * {
+    width: 100%;
+  }
+
+  .more-menu {
+    grid-column: span 2;
+  }
+
+  .title-input {
+    font-size: 1.1rem;
+  }
+
+  .tabs {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .tabs button {
+    white-space: nowrap;
+  }
+
+  .editor-body,
+  .tab-body {
+    padding: 12px;
+  }
+
+  .preview-layout {
+    grid-template-columns: 1fr;
+  }
+
+  button,
+  .more-menu summary,
+  .field-block input,
+  .field-block textarea {
+    min-height: 42px;
+  }
+
+  .field-block textarea {
+    min-height: 180px;
+  }
+
   .preview-layout {
     grid-template-columns: 1fr;
   }
 }
 </style>
-

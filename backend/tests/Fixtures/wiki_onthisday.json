@@ -1,0 +1,77 @@
+{
+  "events": [
+    {
+      "text": "The Hubble Space Telescope was launched into orbit by Space Shuttle Discovery.",
+      "year": 1990,
+      "pages": [
+        {
+          "title": "Hubble Space Telescope",
+          "content_urls": {
+            "desktop": {
+              "page": "https://en.wikipedia.org/wiki/Hubble_Space_Telescope"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "text": "Mars Reconnaissance Orbiter entered Mars orbit to begin its mission.",
+      "year": 2006,
+      "pages": [
+        {
+          "title": "Mars Reconnaissance Orbiter",
+          "content_urls": {
+            "desktop": {
+              "page": "https://en.wikipedia.org/wiki/Mars_Reconnaissance_Orbiter"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "text": "A bright supernova was observed in a nearby galaxy by astronomers.",
+      "year": 1987,
+      "pages": [
+        {
+          "title": "Supernova 1987A",
+          "content_urls": {
+            "desktop": {
+              "page": "https://en.wikipedia.org/wiki/SN_1987A"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "text": "A historical royal wedding took place in Europe.",
+      "year": 1547,
+      "pages": [
+        {
+          "title": "Royal wedding",
+          "content_urls": {
+            "desktop": {
+              "page": "https://en.wikipedia.org/wiki/Wedding"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "text": "A major city fire destroyed hundreds of houses.",
+      "year": 1701,
+      "pages": [
+        {
+          "title": "Urban fire",
+          "content_urls": {
+            "desktop": {
+              "page": "https://en.wikipedia.org/wiki/Fire"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "births": [],
+  "deaths": [],
+  "holidays": []
+}

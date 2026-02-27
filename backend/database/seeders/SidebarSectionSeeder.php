@@ -38,10 +38,16 @@ class SidebarSectionSeeder extends Seeder
                 'sort_order' => 3,
             ],
             [
+                'key' => 'upcoming_events',
+                'title' => 'Co sa deje',
+                'is_visible' => true,
+                'sort_order' => 4,
+            ],
+            [
                 'key' => 'nasa_apod',
                 'title' => 'NASA obrazok dna',
                 'is_visible' => true,
-                'sort_order' => 4,
+                'sort_order' => 5,
             ],
         ];
 

@@ -18,6 +18,11 @@
         </div>
 
         <p v-if="error" class="errorText">{{ error }}</p>
+        <div v-if="isBannedState" class="bannedNotice">
+          <p class="bannedTitle">Tento ucet je zablokovany.</p>
+          <p v-if="bannedReason" class="bannedDetail"><strong>Dovod:</strong> {{ bannedReason }}</p>
+          <p v-if="bannedAtLabel" class="bannedDetail"><strong>Zablokovane:</strong> {{ bannedAtLabel }}</p>
+        </div>
 
         <button class="actionbtn" type="submit" :disabled="auth.loading">
           {{ auth.loading ? 'Prihlasujem...' : 'Prihlasit' }}
@@ -56,15 +61,32 @@ export default {
       // nech sa aj register po registracii vrati tam, kam user chcel ist
       return { name: 'register', query: { redirect: this.redirect } }
     },
+    isBannedState() {
+      return this.auth.error?.type === 'banned'
+    },
+    bannedReason() {
+      return this.auth.error?.reason || ''
+    },
+    bannedAtLabel() {
+      const value = this.auth.error?.bannedAt
+      if (!value) return ''
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return String(value)
+      return date.toLocaleString()
+    },
   },
   methods: {
     async submit() {
       this.error = null
       try {
         await this.auth.login({ email: this.email, password: this.password })
+        if (!this.auth.isAdmin && !this.auth.user?.email_verified_at) {
+          this.$router.push({ name: 'verify-email.required', query: { redirect: this.redirect } })
+          return
+        }
         this.$router.push(this.redirect)
       } catch (e) {
-        this.error = e?.response?.data?.message || 'Prihlasenie zlyhalo.'
+        this.error = e?.response?.data?.message || e?.authError?.message || e?.message || 'Prihlasenie zlyhalo.'
       }
     },
   },
@@ -151,6 +173,28 @@ export default {
   color: var(--color-danger);
   font-size: 0.86rem;
   margin: 0.1rem 0 0;
+}
+
+.bannedNotice {
+  border: 1px solid rgb(var(--color-danger-rgb, 239 68 68) / 0.45);
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.12);
+  border-radius: 0.9rem;
+  padding: 0.65rem 0.75rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.bannedTitle {
+  margin: 0;
+  color: rgb(var(--color-danger-rgb, 239 68 68) / 1);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.bannedDetail {
+  margin: 0;
+  color: var(--color-surface);
+  font-size: 0.82rem;
 }
 
 .actionbtn {

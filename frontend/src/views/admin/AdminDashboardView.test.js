@@ -1,179 +1,188 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import AdminDashboardView from '@/views/admin/AdminDashboardView.vue'
 
-const pushMock = vi.fn()
-const apiGetMock = vi.fn()
-const apiPostMock = vi.fn()
+const getStatsMock = vi.fn()
+const downloadStatsCsvMock = vi.fn()
+const getAuthSettingsMock = vi.fn()
+const updateAuthSettingsMock = vi.fn()
+const toastSuccessMock = vi.fn()
+const toastErrorMock = vi.fn()
 
-vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: pushMock }),
+vi.mock('@/services/api/admin/stats', () => ({
+  getStats: (...args) => getStatsMock(...args),
+  downloadStatsCsv: (...args) => downloadStatsCsvMock(...args),
+}))
+
+vi.mock('@/services/api/admin/authSettings', () => ({
+  getAuthSettings: (...args) => getAuthSettingsMock(...args),
+  updateAuthSettings: (...args) => updateAuthSettingsMock(...args),
 }))
 
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
+    success: (...args) => toastSuccessMock(...args),
+    error: (...args) => toastErrorMock(...args),
   }),
 }))
 
-vi.mock('@/services/api', () => ({
-  default: {
-    get: (...args) => apiGetMock(...args),
-    post: (...args) => apiPostMock(...args),
+const statsPayload = {
+  kpi: {
+    users_total: 123,
+    users_active_30d: 45,
+    posts_total: 999,
+    events_total: 321,
+    posts_moderated_total: 77,
   },
-}))
-
-const dashboardPayload = {
-  totals: {
-    total_users: 100,
-    total_posts: 220,
-    total_events: 8,
-    total_event_candidates: 14,
-    total_reports: 17,
-    total_blog_posts: 5,
+  demographics: {
+    by_role: { user: 120, admin: 2, bot: 1 },
+    by_region: { unknown: 80, sk: 30, cz: 10, other: 3 },
   },
-  range_metrics: {
-    new_users: 6,
-    new_posts: 11,
-    new_events_published: 2,
-    new_event_candidates: 3,
-    likes_count: 10,
-    replies_count: 4,
+  trend: {
+    range_days: 30,
+    points: Array.from({ length: 30 }).map((_, idx) => ({
+      date: `2026-02-${String(idx + 1).padStart(2, '0')}`,
+      new_users: idx % 3,
+      new_posts: idx + 2,
+      new_events: idx % 2,
+    })),
   },
-  activity: {
-    latest_users: [{ id: 1, name: 'Alice', created_at: '2026-02-13T10:00:00Z' }],
-    latest_posts: [],
-    latest_event_candidates: [],
-    latest_events: [],
-  },
-  chart_series: {
-    users_series: [
-      { date: '2026-02-12', count: 2 },
-      { date: '2026-02-13', count: 6 },
-    ],
-    posts_series: [
-      { date: '2026-02-12', count: 4 },
-      { date: '2026-02-13', count: 10 },
-    ],
-    candidates_series: [
-      { date: '2026-02-12', count: 1 },
-      { date: '2026-02-13', count: 3 },
-    ],
-  },
+  generated_at: '2026-02-17T10:00:00Z',
 }
 
-const reportsPaginated = {
-  data: [
-    {
-      id: 44,
-      reason: 'spam',
-      status: 'open',
-      created_at: '2026-02-13T09:00:00Z',
-      target: { user: { name: 'Bob' }, content: 'Spam post' },
-    },
-  ],
-  current_page: 1,
-  last_page: 1,
-  total: 1,
+function flush() {
+  return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
-const flush = async () => {
-  await Promise.resolve()
-  await new Promise((resolve) => setTimeout(resolve, 0))
-  await Promise.resolve()
-}
-
-function setupApiWithData({ empty = false } = {}) {
-  apiGetMock.mockImplementation((url, config = {}) => {
-    const params = config.params || {}
-
-    if (url === '/admin/dashboard') {
-      return Promise.resolve({ data: dashboardPayload })
-    }
-
-    if (url === '/admin/astrobot/nasa/status') {
-      return Promise.resolve({
-        data: {
-          last_run: {
-            new_items: 2,
-            published_items: 1,
-            finished_at: '2026-02-13T10:20:00Z',
-            error_message: '',
-          },
-        },
-      })
-    }
-
-    if (url === '/admin/reports') {
-      if (params.per_page === 1) {
-        return Promise.resolve({ data: { total: empty ? 0 : 4, data: [] } })
-      }
-      return Promise.resolve({ data: empty ? { ...reportsPaginated, data: [] } : reportsPaginated })
-    }
-
-    if (url === '/admin/event-candidates') {
-      if (params.per_page === 1) {
-        return Promise.resolve({ data: { total: empty ? 0 : 3, data: [] } })
-      }
-
-      return Promise.resolve({
-        data: {
-          data: empty
-            ? []
-            : [{ id: 77, title: 'Meteor shower', source_name: 'crawler', created_at: '2026-02-13T08:00:00Z' }],
-        },
-      })
-    }
-
-    if (url === '/admin/moderation') {
-      const totalByStatus = {
-        pending: empty ? 0 : 2,
-        flagged: empty ? 0 : 1,
-        blocked: empty ? 0 : 1,
-      }
-
-      if (params.per_page === 1) {
-        return Promise.resolve({ data: { total: totalByStatus[params.status] || 0, data: [] } })
-      }
-
-      return Promise.resolve({
-        data: {
-          data: empty
-            ? []
-            : [{ id: 88, snippet: 'Toxic text', moderation_status: 'pending', created_at: '2026-02-13T07:00:00Z' }],
-        },
-      })
-    }
-
-    return Promise.resolve({ data: {} })
+function makeRouter() {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/admin/dashboard', component: AdminDashboardView },
+      { path: '/admin/users', component: { template: '<div>users</div>' } },
+      { path: '/admin/moderation', component: { template: '<div>moderation</div>' } },
+      { path: '/admin/events', component: { template: '<div>events</div>' } },
+      { path: '/admin/event-sources', component: { template: '<div>sources</div>' } },
+      { path: '/admin/event-candidates', component: { template: '<div>candidates</div>' } },
+    ],
   })
 }
 
 describe('AdminDashboardView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    setupApiWithData()
+    getStatsMock.mockResolvedValue(statsPayload)
+    getAuthSettingsMock.mockResolvedValue({
+      data: {
+        data: {
+          require_email_verification: true,
+        },
+      },
+    })
+    updateAuthSettingsMock.mockResolvedValue({
+      data: {
+        data: {
+          require_email_verification: false,
+        },
+      },
+    })
+    downloadStatsCsvMock.mockResolvedValue({
+      blob: new Blob(['section,metric,value']),
+      filename: 'admin_stats.csv',
+    })
   })
 
-  it('renders KPI and queue blocks with loaded data', async () => {
-    const wrapper = mount(AdminDashboardView)
+  it('renders KPI cards from mocked API', async () => {
+    const router = makeRouter()
+    await router.push('/admin/dashboard')
+    await router.isReady()
+
+    const wrapper = mount(AdminDashboardView, {
+      global: { plugins: [router] },
+    })
+
+    await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Admin Dashboard')
-    expect(wrapper.text()).toContain('New users')
-    expect(wrapper.text()).toContain('Reports open')
-    expect(wrapper.text()).toContain('#44')
+    expect(wrapper.text()).toContain('Users total')
+    expect(wrapper.text()).toContain('123')
+    expect(wrapper.text()).toContain('Active (30d)')
+    expect(wrapper.text()).toContain('45')
   })
 
-  it('shows empty states when queue endpoints return no rows', async () => {
-    setupApiWithData({ empty: true })
-    const wrapper = mount(AdminDashboardView)
+  it('export button triggers download method once', async () => {
+    if (!URL.createObjectURL) {
+      URL.createObjectURL = () => 'blob:test'
+    }
+    if (!URL.revokeObjectURL) {
+      URL.revokeObjectURL = () => {}
+    }
+
+    const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
+    const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    const router = makeRouter()
+    await router.push('/admin/dashboard')
+    await router.isReady()
+
+    const wrapper = mount(AdminDashboardView, {
+      global: { plugins: [router] },
+      attachTo: document.body,
+    })
+
+    await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('No pending reports.')
-    expect(wrapper.text()).toContain('No pending candidates.')
-    expect(wrapper.text()).toContain('No moderation items.')
+    const button = wrapper.findAll('button').find((node) => node.text().includes('Download CSV'))
+    expect(button).toBeTruthy()
+
+    await button.trigger('click')
+    await flush()
+
+    expect(downloadStatsCsvMock).toHaveBeenCalledTimes(1)
+
+    createObjectUrlSpy.mockRestore()
+    revokeObjectUrlSpy.mockRestore()
+    anchorClickSpy.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('graph renders in trend section', async () => {
+    const router = makeRouter()
+    await router.push('/admin/dashboard')
+    await router.isReady()
+
+    const wrapper = mount(AdminDashboardView, {
+      global: { plugins: [router] },
+    })
+
+    await flush()
+    await flush()
+
+    expect(wrapper.find('[aria-label="Trend chart"]').exists()).toBe(true)
+  })
+
+  it('toggles email verification setting from dashboard', async () => {
+    const router = makeRouter()
+    await router.push('/admin/dashboard')
+    await router.isReady()
+
+    const wrapper = mount(AdminDashboardView, {
+      global: { plugins: [router] },
+    })
+
+    await flush()
+    await flush()
+
+    const checkbox = wrapper.find('section[aria-label="Authentication settings"] input[type="checkbox"]')
+    expect(checkbox.exists()).toBe(true)
+    expect(checkbox.element.checked).toBe(true)
+
+    await checkbox.setValue(false)
+    await flush()
+
+    expect(updateAuthSettingsMock).toHaveBeenCalledWith({ require_email_verification: false })
   })
 })

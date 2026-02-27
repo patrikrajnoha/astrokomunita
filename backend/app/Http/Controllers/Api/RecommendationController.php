@@ -64,9 +64,9 @@ class RecommendationController extends Controller
             ->publiclyVisible()
             ->notExpired()
             ->where('created_at', '>=', now()->subHours(48))
+            ->has('likes')
             ->with(['user:id,name,username,avatar_path', 'hashtags'])
             ->withCount(['likes', 'replies'])
-            ->having('likes_count', '>', 0)
             ->orderBy('likes_count', 'desc')
             ->limit($limit)
             ->get();

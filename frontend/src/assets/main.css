@@ -2,6 +2,7 @@
 @import "./base.css";
 
 :root {
+  --guest-cta-h: 0px;
   --color-primary: #1da1f2;
   --color-bg: #14171a;
   --color-text-secondary: #657786;
@@ -16,4 +17,8 @@
   --color-danger-rgb: 239 68 68;
   --color-success: #22c55e;
   --color-success-rgb: 34 197 94;
+}
+
+.guest-cta-safe {
+  padding-bottom: var(--guest-cta-h);
 }

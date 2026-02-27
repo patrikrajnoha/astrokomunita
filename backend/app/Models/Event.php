@@ -25,6 +25,9 @@ class Event extends Model
         'source_name',
         'source_uid',
         'source_hash',
+        'confidence_score',
+        'canonical_key',
+        'matched_sources',
     ];
     /**
      * Atribúty, ktoré by mali byť pretypované.
@@ -36,6 +39,8 @@ class Event extends Model
         'end_at'     => 'datetime',
         'max_at'     => 'datetime',
         'visibility' => 'integer',
+        'confidence_score' => 'decimal:2',
+        'matched_sources' => 'array',
     ];
 
     /**
@@ -92,5 +97,15 @@ class Event extends Model
     public function favorites(): HasMany
     {
         return $this->hasMany(Favorite::class);
+    }
+
+    public function invites(): HasMany
+    {
+        return $this->hasMany(EventInvite::class);
+    }
+
+    public function reminders(): HasMany
+    {
+        return $this->hasMany(EventReminder::class);
     }
 }

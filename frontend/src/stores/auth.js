@@ -3,7 +3,7 @@ import http from '@/services/api'
 import axios from 'axios'
 
 const AUTH_TIMEOUTS_MS = [5000, 8000]
-const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 const csrfBaseUrl = rawApiBaseUrl.replace(/\/api\/?$/i, '')
 
 // Separate axios instance for CSRF (no baseURL)
@@ -32,21 +32,33 @@ function getAuthEndpointDebug() {
 function classifyFetchUserError(error) {
   const status = Number(error?.response?.status || 0)
   const code = String(error?.code || '')
-  const message = String(error?.message || 'Request failed')
+  const responseMessage = String(error?.response?.data?.message || '')
+  const message = responseMessage || String(error?.message || 'Request failed')
+  const backendCode = String(error?.response?.data?.code || '')
+  const reason = error?.response?.data?.reason ?? null
+  const bannedAt = error?.response?.data?.banned_at ?? null
 
   if (status === 401 || status === 419) {
-    return { type: 'unauthorized', status, code, message }
+    return { type: 'unauthorized', status, code, message, backendCode, reason: null, bannedAt: null }
+  }
+
+  if (status === 403 && backendCode === 'ACCOUNT_BANNED') {
+    return { type: 'banned', status, code, message, backendCode, reason, bannedAt }
+  }
+
+  if (status === 403 && backendCode === 'ACCOUNT_INACTIVE') {
+    return { type: 'inactive', status, code, message, backendCode, reason: null, bannedAt: null }
   }
 
   if (code === 'ECONNABORTED' || message.toLowerCase().includes('timeout')) {
-    return { type: 'timeout', status, code, message }
+    return { type: 'timeout', status, code, message, backendCode, reason: null, bannedAt: null }
   }
 
   if (!status && (code === 'ERR_NETWORK' || message.toLowerCase().includes('network'))) {
-    return { type: 'network', status, code, message }
+    return { type: 'network', status, code, message, backendCode, reason: null, bannedAt: null }
   }
 
-  return { type: 'server', status, code, message }
+  return { type: 'server', status, code, message, backendCode, reason: null, bannedAt: null }
 }
 
 function isCsrfMismatch(error) {
@@ -175,7 +187,13 @@ export const useAuthStore = defineStore('auth', {
 
             this.user = null
 
-            if (classified.type === 'timeout' || classified.type === 'network' || classified.type === 'unauthorized') {
+            if (
+              classified.type === 'timeout' ||
+              classified.type === 'network' ||
+              classified.type === 'unauthorized' ||
+              classified.type === 'banned' ||
+              classified.type === 'inactive'
+            ) {
               this.status = 'guest'
             } else {
               this.status = 'error'
@@ -186,6 +204,9 @@ export const useAuthStore = defineStore('auth', {
               message: classified.message,
               status: classified.status || null,
               code: classified.code || null,
+              backendCode: classified.backendCode || null,
+              reason: classified.reason || null,
+              bannedAt: classified.bannedAt || null,
             }
 
             if (markBootstrap) {
@@ -204,6 +225,9 @@ export const useAuthStore = defineStore('auth', {
           message: 'fetchUser failed',
           status: null,
           code: null,
+          backendCode: null,
+          reason: null,
+          bannedAt: null,
         }
 
         if (markBootstrap) {
@@ -232,9 +256,26 @@ export const useAuthStore = defineStore('auth', {
     async login(payload) {
       this.loading = true
       try {
-        await this.postWithCsrfRetry('/auth/login', payload)
-        const user = await this.fetchUser({ source: 'login', retry: false, markBootstrap: true })
-        if (user) this.loginSequence += 1
+        const response = await this.postWithCsrfRetry('/auth/login', payload)
+        const loginUser = response?.data || null
+
+        if (!loginUser) {
+          const fallbackMessage = this.error?.message || 'Prihlasenie zlyhalo.'
+          const loginFailure = new Error(fallbackMessage)
+          loginFailure.authError = this.error
+          throw loginFailure
+        }
+
+        this.user = loginUser
+        this.status = 'authenticated'
+        this.error = null
+        this.bootstrapDone = true
+        this.initialized = true
+        this.loginSequence += 1
+
+        // Non-blocking refresh for enriched payload (/auth/me adds activity fields).
+        this.fetchUser({ source: 'login-bg-refresh', retry: false, markBootstrap: false }).catch(() => {})
+        return loginUser
       } finally {
         this.loading = false
       }
@@ -243,9 +284,21 @@ export const useAuthStore = defineStore('auth', {
     async register(payload) {
       this.loading = true
       try {
-        await this.postWithCsrfRetry('/auth/register', payload)
-        const user = await this.fetchUser({ source: 'register', retry: false, markBootstrap: true })
-        if (user) this.loginSequence += 1
+        const response = await this.postWithCsrfRetry('/auth/register', payload)
+        const registerUser = response?.data || null
+
+        if (registerUser) {
+          this.user = registerUser
+          this.status = 'authenticated'
+          this.error = null
+          this.bootstrapDone = true
+          this.initialized = true
+          this.loginSequence += 1
+          this.fetchUser({ source: 'register-bg-refresh', retry: false, markBootstrap: false }).catch(() => {})
+          return
+        }
+
+        await this.fetchUser({ source: 'register', retry: false, markBootstrap: true })
       } finally {
         this.loading = false
       }
@@ -269,3 +322,4 @@ export const useAuthStore = defineStore('auth', {
     },
   },
 })
+

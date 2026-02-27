@@ -2,24 +2,38 @@
 
 namespace App\Models;
 
+use App\Services\UserCleanupService;
+use App\Services\Storage\MediaStorageService;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Services\Storage\MediaStorageService;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user): void {
+            try {
+                app(UserCleanupService::class)->cleanupUserMedia($user);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to clean user media during account deletion.', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
+    }
+
     /**
-     * The attributes that are mass assignable.
-     *
      * @var list<string>
      */
     protected $fillable = [
@@ -30,40 +44,47 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'avatar_path',
         'cover_path',
-        'bio',        // Twitter-like "O mne"
-        'location',   // Poloha používateľa
-        'is_admin',   // Role
-        'is_bot',     // Automated bot user (AstroBot)
+        'bio',
+        'location',
+        'latitude',
+        'longitude',
+        'timezone',
+        'location_label',
+        'location_source',
+        'is_admin',
+        'is_bot',
         'role',
         'is_banned',
+        'banned_at',
+        'ban_reason',
         'is_active',
         'warning_count',
+        'last_calendar_popup_at',
+        'calendar_popup_last_force_version',
+        'last_login_at',
+        'newsletter_subscribed',
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
      * @var list<string>
      */
     protected $hidden = [
+        'email',
         'password',
         'remember_token',
     ];
 
     /**
-     * The accessors to append to the model's array form.
-     *
      * @var list<string>
      */
     protected $appends = [
         'avatar_url',
         'cover_url',
+        'location_data',
         'location_meta',
     ];
 
     /**
-     * The attributes that should be cast.
-     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -71,12 +92,19 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'date_of_birth' => 'date',
-            'password' => 'hashed', // Laravel automaticky hashne heslo
+            'password' => 'hashed',
             'is_admin' => 'boolean',
             'is_bot' => 'boolean',
             'is_banned' => 'boolean',
+            'banned_at' => 'datetime',
             'is_active' => 'boolean',
             'warning_count' => 'integer',
+            'latitude' => 'float',
+            'longitude' => 'float',
+            'last_calendar_popup_at' => 'datetime',
+            'calendar_popup_last_force_version' => 'integer',
+            'last_login_at' => 'datetime',
+            'newsletter_subscribed' => 'boolean',
         ];
     }
 
@@ -112,44 +140,112 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function getLocationMetaAttribute(): ?array
     {
-        $rawLocation = trim((string) ($this->location ?? ''));
-        if ($rawLocation === '') {
+        $location = $this->resolveCanonicalLocation();
+        if ($location === null) {
+            return null;
+        }
+
+        return [
+            'name' => $location['label'],
+            'label' => $location['label'],
+            'lat' => $location['lat'],
+            'lon' => $location['lon'],
+            'tz' => $location['tz'],
+            'source' => $location['source'],
+        ];
+    }
+
+    public function getLocationDataAttribute(): ?array
+    {
+        $location = $this->resolveCanonicalLocation();
+        if ($location === null) {
+            return null;
+        }
+
+        return [
+            'latitude' => $location['lat'],
+            'longitude' => $location['lon'],
+            'timezone' => $location['tz'],
+            'label' => $location['label'],
+            'source' => $location['source'],
+        ];
+    }
+
+    /**
+     * @return array{lat:?float,lon:?float,tz:string,label:string,source:?string}|null
+     */
+    private function resolveCanonicalLocation(): ?array
+    {
+        $fallbackTimezone = (string) config('user_locations.fallback_timezone', 'Europe/Bratislava');
+        $explicitLat = is_numeric($this->latitude) ? (float) $this->latitude : null;
+        $explicitLon = is_numeric($this->longitude) ? (float) $this->longitude : null;
+        $explicitTz = $this->resolveValidTimezone($this->timezone) ?? $fallbackTimezone;
+        $label = $this->resolveLocationLabel();
+        $source = $this->resolveLocationSource();
+
+        if ($explicitLat !== null && $explicitLon !== null) {
+            return [
+                'lat' => $explicitLat,
+                'lon' => $explicitLon,
+                'tz' => $explicitTz,
+                'label' => $label ?? 'Custom location',
+                'source' => $source ?? 'manual',
+            ];
+        }
+
+        if ($label === null) {
             return null;
         }
 
         $known = config('user_locations.map', []);
-        $fallbackTimezone = (string) config('user_locations.fallback_timezone', 'Europe/Bratislava');
         $item = null;
 
-        if (isset($known[$rawLocation]) && is_array($known[$rawLocation])) {
-            $item = $known[$rawLocation];
+        if (isset($known[$label]) && is_array($known[$label])) {
+            $item = $known[$label];
         } else {
-            $item = $this->resolveLocationMetaFromNormalizedMap($rawLocation, $known);
+            $item = $this->resolveLocationMetaFromNormalizedMap($label, $known);
         }
 
         if (is_array($item)) {
             $lat = isset($item['lat']) && is_numeric($item['lat']) ? (float) $item['lat'] : null;
             $lon = isset($item['lon']) && is_numeric($item['lon']) ? (float) $item['lon'] : null;
-            $tz = is_string($item['tz'] ?? null) && trim($item['tz']) !== ''
-                ? trim($item['tz'])
-                : $fallbackTimezone;
+            $tz = $this->resolveValidTimezone($item['tz'] ?? null) ?? $explicitTz;
 
             if ($lat !== null && $lon !== null) {
                 return [
-                    'name' => $rawLocation,
                     'lat' => $lat,
                     'lon' => $lon,
                     'tz' => $tz,
+                    'label' => $label,
+                    'source' => $source ?? 'preset',
                 ];
             }
         }
 
         return [
-            'name' => $rawLocation,
             'lat' => null,
             'lon' => null,
-            'tz' => $fallbackTimezone,
+            'tz' => $explicitTz,
+            'label' => $label,
+            'source' => $source,
         ];
+    }
+
+    private function resolveLocationLabel(): ?string
+    {
+        $storedLabel = trim((string) ($this->location_label ?? ''));
+        if ($storedLabel !== '') {
+            return $storedLabel;
+        }
+
+        $legacyLabel = trim((string) ($this->location ?? ''));
+        return $legacyLabel !== '' ? $legacyLabel : null;
+    }
+
+    private function resolveLocationSource(): ?string
+    {
+        $raw = strtolower(trim((string) ($this->location_source ?? '')));
+        return in_array($raw, ['preset', 'gps', 'manual'], true) ? $raw : null;
     }
 
     private function resolveLocationMetaFromNormalizedMap(string $rawLocation, array $known): ?array
@@ -182,6 +278,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return null;
     }
 
+    /**
+     * @return list<string>
+     */
     private function locationLookupCandidates(string $rawLocation): array
     {
         $candidates = [];
@@ -218,9 +317,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $clean;
     }
 
-    /**
-     * Posty, ktorĂ˝ pouĹľĂ­vateÄľ lajkol.
-     */
+    private function resolveValidTimezone(mixed $value): ?string
+    {
+        $raw = is_string($value) ? trim($value) : '';
+        if ($raw === '') {
+            return null;
+        }
+
+        return in_array($raw, timezone_identifiers_list(), true) ? $raw : null;
+    }
+
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class);
@@ -231,14 +337,45 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsToMany(Post::class, 'post_likes');
     }
 
+    public function bookmarks(): BelongsToMany
+    {
+        return $this->belongsToMany(Post::class, 'post_user_bookmarks')
+            ->withPivot('created_at');
+    }
+
     public function notifications(): HasMany
     {
         return $this->hasMany(Notification::class);
     }
 
+    public function pollVotes(): HasMany
+    {
+        return $this->hasMany(PollVote::class);
+    }
+
     public function eventPreference(): HasOne
     {
         return $this->hasOne(UserPreference::class);
+    }
+
+    public function notificationPreference(): HasOne
+    {
+        return $this->hasOne(NotificationPreference::class);
+    }
+
+    public function newsletterRuns(): HasMany
+    {
+        return $this->hasMany(NewsletterRun::class, 'admin_user_id');
+    }
+
+    public function sentEventInvites(): HasMany
+    {
+        return $this->hasMany(EventInvite::class, 'inviter_user_id');
+    }
+
+    public function receivedEventInvites(): HasMany
+    {
+        return $this->hasMany(EventInvite::class, 'invitee_user_id');
     }
 
     public function isAdmin(): bool
@@ -248,13 +385,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isBanned(): bool
     {
-        return (bool) $this->is_banned;
+        return !is_null($this->banned_at) || (bool) $this->is_banned;
     }
 
-    /**
-     * Check if user is a bot (e.g., AstroBot).
-     * Bot users publish automated content and should not receive replies.
-     */
     public function isBot(): bool
     {
         return (bool) $this->is_bot;

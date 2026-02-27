@@ -6,12 +6,40 @@ use App\Models\ModerationLog;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ModerationAdminQueueTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_admin_can_check_moderation_service_health(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $baseUrl = rtrim((string) config('moderation.base_url'), '/');
+        Http::fake([
+            $baseUrl . '/health' => Http::response([
+                'status' => 'ok',
+                'device' => 'cpu',
+                'models' => ['text' => 'test-model'],
+            ], 200),
+        ]);
+
+        $response = $this->getJson('/api/admin/moderation/health');
+
+        $response->assertOk();
+        $response->assertJsonPath('ok', true);
+        $response->assertJsonPath('status', 'running');
+        $response->assertJsonPath('service.status', 'ok');
+        $response->assertJsonPath('service.device', 'cpu');
+    }
 
     public function test_admin_can_approve_and_reject_moderation_items(): void
     {

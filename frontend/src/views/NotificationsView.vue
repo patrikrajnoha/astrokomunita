@@ -6,13 +6,32 @@
           <h1 class="text-4xl font-black tracking-tight sm:text-5xl">Notifications</h1>
           <p class="mt-2 text-sm text-[#9a9a9a]">Your latest activity updates.</p>
         </div>
-        <button
-          class="rounded-full border border-[#1f1f1f] bg-[#0d0d0d] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#cfcfcf] transition hover:border-[#2a2a2a] hover:text-white"
-          type="button"
-          @click="markAll"
-        >
-          Mark all read
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#1f1f1f] bg-[#0d0d0d] text-[#cfcfcf] transition hover:border-[#2a2a2a] hover:text-white"
+            type="button"
+            aria-label="Nastavenia notifikacii"
+            @click="openSettings"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="M8.2 2h3.6l.5 2a6 6 0 0 1 1.4.8l1.9-.9 2.5 2.5-.9 1.9c.3.4.6.9.8 1.4l2 .5v3.6l-2 .5a6.4 6.4 0 0 1-.8 1.4l.9 1.9-2.5 2.5-1.9-.9a6.4 6.4 0 0 1-1.4.8l-.5 2H8.2l-.5-2a6 6 0 0 1-1.4-.8l-1.9.9-2.5-2.5.9-1.9a6.4 6.4 0 0 1-.8-1.4l-2-.5V9.8l2-.5c.2-.5.5-1 .8-1.4l-.9-1.9 2.5-2.5 1.9.9c.4-.3.9-.6 1.4-.8l.5-2Z"
+                stroke="currentColor"
+                stroke-width="1.2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.2" />
+            </svg>
+          </button>
+          <button
+            class="rounded-full border border-[#1f1f1f] bg-[#0d0d0d] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#cfcfcf] transition hover:border-[#2a2a2a] hover:text-white"
+            type="button"
+            @click="markAll"
+          >
+            Mark all read
+          </button>
+        </div>
       </header>
 
       <div class="rounded-2xl border border-[#121212] bg-[#050505]">
@@ -62,13 +81,20 @@
         Load more
       </button>
     </div>
+
+    <NotificationSettingsModal
+      :open="settingsOpen"
+      @close="settingsOpen = false"
+      @saved="onSettingsSaved"
+    />
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNotificationsStore } from '@/stores/notifications'
+import NotificationSettingsModal from '@/components/notifications/NotificationSettingsModal.vue'
 
 const store = useNotificationsStore()
 const router = useRouter()
@@ -78,6 +104,7 @@ const loading = computed(() => store.loading)
 const error = computed(() => store.error)
 const page = computed(() => store.page)
 const lastPage = computed(() => store.lastPage)
+const settingsOpen = ref(false)
 
 onMounted(() => {
   store.fetchList(1)
@@ -87,6 +114,13 @@ onMounted(() => {
 const loadMore = () => store.fetchList(store.page + 1)
 const markAll = () => store.markAllRead()
 const retry = () => store.fetchList(1)
+const openSettings = () => {
+  settingsOpen.value = true
+}
+
+const onSettingsSaved = () => {
+  store.fetchList(1)
+}
 
 const openNotification = async (item) => {
   if (!item) return
@@ -105,6 +139,15 @@ const formatTitle = (item) => {
   if (item.type === 'event_reminder') {
     return 'Upcoming event reminder'
   }
+  if (item.type === 'contest_winner') {
+    return 'You won the contest'
+  }
+  if (item.type === 'event_invite') {
+    return 'You received an event invite'
+  }
+  if (item.type === 'account_restricted') {
+    return 'Account restricted'
+  }
   return 'Notification'
 }
 
@@ -115,6 +158,19 @@ const formatSubtitle = (item) => {
   }
   if (item.type === 'event_reminder') {
     return item.data?.event_title || 'Event starts soon'
+  }
+  if (item.type === 'contest_winner') {
+    return item.data?.contest_name || 'Contest winner'
+  }
+  if (item.type === 'event_invite') {
+    const inviter = item.data?.actor_name || item.data?.actor_username
+    const title = item.data?.event_title
+    if (inviter && title) return `${inviter} invited you to ${title}`
+    if (inviter) return `${inviter} invited you to an event`
+    return title || 'You were invited to an event'
+  }
+  if (item.type === 'account_restricted') {
+    return item.data?.reason || 'Contact support for details.'
   }
   return 'New update'
 }

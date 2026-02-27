@@ -10,7 +10,7 @@
             class="text-xs text-[var(--color-primary)] transition hover:opacity-80"
             @click="clearRecent"
           >
-            Vymazat
+            Vymazať históriu
           </button>
         </div>
 
@@ -152,6 +152,8 @@ import { RouterLink } from 'vue-router'
 import api from '@/services/api'
 
 const RECENT_STORAGE_KEY = 'search_recent_queries'
+const RECENT_STORAGE_TTL_DAYS = 30
+const RECENT_STORAGE_LIMIT = 15
 
 const props = defineProps({
   mode: {
@@ -201,12 +203,36 @@ const readRecent = () => {
 
   try {
     const raw = window.localStorage.getItem(RECENT_STORAGE_KEY)
-    const parsed = JSON.parse(raw || '[]')
-    if (!Array.isArray(parsed)) return []
-    return parsed
+    if (!raw) return []
+
+    const parsed = JSON.parse(raw)
+    const normalize = (entries) => entries
       .map((entry) => String(entry || '').trim())
       .filter(Boolean)
-      .slice(0, 8)
+      .slice(0, RECENT_STORAGE_LIMIT)
+
+    if (Array.isArray(parsed)) {
+      return normalize(parsed)
+    }
+
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.items)) {
+      window.localStorage.removeItem(RECENT_STORAGE_KEY)
+      return []
+    }
+
+    const savedAt = Date.parse(String(parsed.savedAt || ''))
+    if (Number.isNaN(savedAt)) {
+      window.localStorage.removeItem(RECENT_STORAGE_KEY)
+      return []
+    }
+
+    const ttlMs = RECENT_STORAGE_TTL_DAYS * 24 * 60 * 60 * 1000
+    if (Date.now() - savedAt > ttlMs) {
+      window.localStorage.removeItem(RECENT_STORAGE_KEY)
+      return []
+    }
+
+    return normalize(parsed.items)
   } catch {
     return []
   }
@@ -214,21 +240,32 @@ const readRecent = () => {
 
 const writeRecent = (entries) => {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(entries.slice(0, 8)))
+  const items = entries
+    .map((entry) => String(entry || '').trim())
+    .filter(Boolean)
+    .slice(0, RECENT_STORAGE_LIMIT)
+
+  window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify({
+    items,
+    savedAt: new Date().toISOString(),
+  }))
 }
 
 const addRecent = (entry) => {
   const normalized = String(entry || '').trim()
   if (normalized.length < 2) return
 
-  const next = [normalized, ...recentSearches.value.filter((item) => item !== normalized)].slice(0, 8)
+  const next = [normalized, ...recentSearches.value.filter((item) => item !== normalized)]
+    .slice(0, RECENT_STORAGE_LIMIT)
   recentSearches.value = next
   writeRecent(next)
 }
 
 const clearRecent = () => {
   recentSearches.value = []
-  writeRecent([])
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(RECENT_STORAGE_KEY)
+  }
 }
 
 const applyRecent = (entry) => {

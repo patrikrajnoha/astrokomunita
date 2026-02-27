@@ -1,4 +1,4 @@
-const CACHE_NAME = 'astrokomunita-shell-v1'
+const CACHE_NAME = 'astrokomunita-shell-v3'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.ico']
 
 self.addEventListener('install', (event) => {
@@ -43,26 +43,35 @@ self.addEventListener('fetch', (event) => {
 
   if (!isStaticAsset && !isShellNavigation) return
 
+  // Navigation should be network-first so users see freshly deployed bundles.
+  if (isShellNavigation) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const cloned = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', cloned)).catch(() => {})
+          }
+          return response
+        })
+        .catch(() => caches.match('/index.html'))
+    )
+    return
+  }
+
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached
 
-      return fetch(request)
-        .then((response) => {
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response
-          }
-
-          const cloned = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned)).catch(() => {})
+      return fetch(request).then((response) => {
+        if (!response || response.status !== 200 || response.type !== 'basic') {
           return response
-        })
-        .catch(() => {
-          if (isShellNavigation) {
-            return caches.match('/index.html')
-          }
-          return undefined
-        })
+        }
+
+        const cloned = response.clone()
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned)).catch(() => {})
+        return response
+      })
     })
   )
 })

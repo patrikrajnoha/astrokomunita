@@ -3,6 +3,7 @@
     v-if="isAuthenticated"
     type="button"
     class="mobileFab"
+    data-tour="conditions"
     :style="fabStyle"
     aria-label="Widgets"
     title="Widgets"

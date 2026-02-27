@@ -11,51 +11,6 @@ const selectedTag = ref('')
 const search = ref('')
 const searchInput = ref('')
 
-const categoryCards = [
-  {
-    id: 'basics',
-    title: 'Zaklady astronomie',
-    description: 'Pojmy, orientacia na oblohe a prve kroky pre zaciatocnikov.',
-    icon: 'ZA',
-    tagHint: '',
-  },
-  {
-    id: 'observing',
-    title: 'Pozorovanie',
-    description: 'Prakticke tipy na pozorovanie v meste aj mimo svetelneho smogu.',
-    icon: 'PO',
-    tagHint: '',
-  },
-  {
-    id: 'moon-planets',
-    title: 'Mesiac a planety',
-    description: 'Kedy a ako sledovat planety, fazy mesiaca a najzaujimavejsie ukazy.',
-    icon: 'MP',
-    tagHint: '',
-  },
-  {
-    id: 'deep-sky',
-    title: 'Deep sky',
-    description: 'Galaxie, hmloviny a hviezdokopy. Ako ich najst a pozorovat.',
-    icon: 'DS',
-    tagHint: '',
-  },
-  {
-    id: 'gear',
-    title: 'Technika',
-    description: 'Vyber dalekohladu, okulare, montaz a zaklady astrofotografie.',
-    icon: 'TE',
-    tagHint: '',
-  },
-  {
-    id: 'faq',
-    title: 'FAQ',
-    description: 'Najcastejsie otazky komunity a kratke odpovede na jednom mieste.',
-    icon: 'FAQ',
-    tagHint: '',
-  },
-]
-
 const featuredPost = computed(() => {
   if (!data.value || page.value !== 1) return null
   return data.value.data?.[0] || null
@@ -101,24 +56,38 @@ function formatDate(value) {
 
 function excerpt(text, limit = 180) {
   if (!text) return ''
-  const cleaned = String(text).replace(/\s+/g, ' ').trim()
+  const cleaned = stripHtml(String(text)).replace(/\s+/g, ' ').trim()
   if (cleaned.length <= limit) return cleaned
   return `${cleaned.slice(0, limit).trim()}...`
 }
 
 function readTime(text) {
   if (!text) return '1 min citania'
-  const words = String(text).trim().split(/\s+/).filter(Boolean).length
+  const words = stripHtml(String(text)).trim().split(/\s+/).filter(Boolean).length
   const minutes = Math.max(1, Math.round(words / 220))
   return `${minutes} min citania`
 }
 
+function stripHtml(text) {
+  return String(text).replace(/<[^>]*>/g, ' ')
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function highlight(text) {
   if (!text) return ''
-  if (!search.value) return text
+  const escaped = escapeHtml(text)
+  if (!search.value) return escaped
   const safe = search.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const re = new RegExp(`(${safe})`, 'gi')
-  return text.replace(re, '<mark>$1</mark>')
+  return escaped.replace(re, '<mark>$1</mark>')
 }
 
 async function load() {
@@ -177,12 +146,6 @@ function nextPage() {
   load()
 }
 
-function openCategory(card) {
-  if (card?.tagHint) {
-    selectTag(card.tagHint)
-  }
-}
-
 watch(
   () => [selectedTag.value, search.value],
   () => {
@@ -193,7 +156,7 @@ watch(
 
     setMeta({
       title: `Vzdelavanie${tagLabel}${searchLabel} | Astrokomunita`,
-      description: 'Learning hub s clankami o astronomii, pozorovani a nocej oblohe.',
+      description: 'Miesto s clankami o astronomii, pozorovani a nocnej oblohe.',
     })
   },
   { immediate: true },
@@ -209,26 +172,13 @@ onMounted(() => {
   <section class="mx-auto max-w-7xl space-y-6">
     <header class="relative overflow-hidden rounded-3xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.18)] bg-[radial-gradient(circle_at_12%_18%,rgb(var(--color-primary-rgb)/0.3),transparent_48%),linear-gradient(120deg,rgb(var(--color-bg-rgb)/0.92),rgb(var(--color-bg-rgb)/0.72))] p-6 sm:p-8">
       <div class="max-w-3xl space-y-3">
-        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">Learning Hub</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">Vzdelavaci hub</p>
         <h1 class="text-3xl font-extrabold text-[var(--color-surface)] sm:text-4xl">Vzdelavanie</h1>
         <p class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] sm:text-base">
           Miesto, kde sa naucis zaklady astronomie, prakticke pozorovanie a objavis kvalitne clanky pre dalsi krok.
         </p>
       </div>
     </header>
-
-    <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      <article v-for="card in categoryCards" :key="card.id" class="group rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.16)] bg-[color:rgb(var(--color-bg-rgb)/0.5)] p-4 transition hover:-translate-y-0.5 hover:bg-[color:rgb(var(--color-bg-rgb)/0.72)]">
-        <div class="flex items-start justify-between gap-3">
-          <span class="grid h-10 w-10 place-items-center rounded-xl border border-[color:rgb(var(--color-primary-rgb)/0.4)] bg-[color:rgb(var(--color-primary-rgb)/0.16)] text-xs font-bold text-[var(--color-surface)]">{{ card.icon }}</span>
-          <button type="button" class="rounded-lg border border-[color:rgb(var(--color-text-secondary-rgb)/0.32)] px-2.5 py-1 text-xs font-semibold text-[var(--color-surface)]" @click="openCategory(card)">
-            Otvorit
-          </button>
-        </div>
-        <h2 class="mt-3 text-lg font-semibold text-[var(--color-surface)]">{{ card.title }}</h2>
-        <p class="mt-2 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">{{ card.description }}</p>
-      </article>
-    </section>
 
     <section class="space-y-4 rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.18)] bg-[color:rgb(var(--color-bg-rgb)/0.44)] p-4 sm:p-5">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -239,6 +189,7 @@ onMounted(() => {
             :key="tag.id"
             class="rounded-full border px-3 py-1.5 text-xs font-semibold"
             :class="selectedTag === tag.slug ? 'border-[color:rgb(var(--color-primary-rgb)/0.5)] bg-[color:rgb(var(--color-primary-rgb)/0.18)] text-[var(--color-surface)]' : 'border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] text-[var(--color-surface)]'"
+            :aria-pressed="selectedTag === tag.slug ? 'true' : 'false'"
             @click="selectTag(tag.slug)"
           >
             {{ tag.name }}
@@ -250,6 +201,7 @@ onMounted(() => {
             v-model="searchInput"
             type="text"
             placeholder="Hladat temu"
+            aria-label="Hladat v clankoch"
             class="min-w-[180px] flex-1 rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.65)] px-3 py-2 text-sm text-[var(--color-surface)] placeholder:text-[color:rgb(var(--color-text-secondary-rgb)/0.8)]"
             @keyup.enter="applySearch"
           />
@@ -268,9 +220,9 @@ onMounted(() => {
         <article v-if="featuredPost" class="overflow-hidden rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.16)] bg-[color:rgb(var(--color-bg-rgb)/0.54)] lg:grid lg:grid-cols-[1.2fr_1fr]">
           <div v-if="featuredPost.cover_image_url" class="min-h-56 bg-cover bg-center" :style="{ backgroundImage: `url(${featuredPost.cover_image_url})` }"></div>
           <div class="space-y-3 p-5">
-            <p class="text-xs uppercase tracking-[0.18em] text-[color:rgb(var(--color-text-secondary-rgb)/0.8)]">Featured</p>
+            <p class="text-xs uppercase tracking-[0.18em] text-[color:rgb(var(--color-text-secondary-rgb)/0.8)]">Odporucane</p>
             <h2 class="text-xl font-bold text-[var(--color-surface)] sm:text-2xl">
-              <router-link :to="`/learn/${featuredPost.slug || featuredPost.id}`" class="hover:text-[var(--color-primary)]">{{ featuredPost.title }}</router-link>
+              <router-link :to="`/clanky/${featuredPost.slug || featuredPost.id}`" class="hover:text-[var(--color-primary)]">{{ featuredPost.title }}</router-link>
             </h2>
             <p class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" v-html="highlight(excerpt(featuredPost.content, 260))"></p>
             <div class="flex flex-wrap gap-2 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
@@ -280,7 +232,7 @@ onMounted(() => {
               <span>•</span>
               <span>{{ readTime(featuredPost.content) }}</span>
             </div>
-            <router-link :to="`/learn/${featuredPost.slug || featuredPost.id}`" class="inline-flex rounded-xl border border-[color:rgb(var(--color-primary-rgb)/0.5)] bg-[color:rgb(var(--color-primary-rgb)/0.18)] px-3 py-1.5 text-sm font-semibold text-[var(--color-surface)]">
+            <router-link :to="`/clanky/${featuredPost.slug || featuredPost.id}`" class="inline-flex rounded-xl border border-[color:rgb(var(--color-primary-rgb)/0.5)] bg-[color:rgb(var(--color-primary-rgb)/0.18)] px-3 py-1.5 text-sm font-semibold text-[var(--color-surface)]">
               Otvorit clanok
             </router-link>
           </div>
@@ -288,9 +240,9 @@ onMounted(() => {
 
         <div v-if="listPosts.length" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <article v-for="post in listPosts" :key="post.id" class="flex h-full flex-col rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.16)] bg-[color:rgb(var(--color-bg-rgb)/0.54)] p-4">
-            <p class="text-xs uppercase tracking-[0.15em] text-[color:rgb(var(--color-text-secondary-rgb)/0.8)]">Learning</p>
+            <p class="text-xs uppercase tracking-[0.15em] text-[color:rgb(var(--color-text-secondary-rgb)/0.8)]">Clanok</p>
             <h3 class="mt-2 text-lg font-semibold text-[var(--color-surface)]">
-              <router-link :to="`/learn/${post.slug || post.id}`" class="hover:text-[var(--color-primary)]">{{ post.title }}</router-link>
+              <router-link :to="`/clanky/${post.slug || post.id}`" class="hover:text-[var(--color-primary)]">{{ post.title }}</router-link>
             </h3>
             <p class="mt-2 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" v-html="highlight(excerpt(post.content))"></p>
             <div class="mt-auto pt-3 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.85)]">
@@ -305,7 +257,7 @@ onMounted(() => {
         </div>
       </template>
 
-      <div v-if="data" class="flex flex-col gap-2 rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.18)] bg-[color:rgb(var(--color-bg-rgb)/0.38)] p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+      <div v-if="data && data.last_page > 1" class="flex flex-col gap-2 rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.18)] bg-[color:rgb(var(--color-bg-rgb)/0.38)] p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
         <p class="text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">Strana {{ data.current_page }} z {{ data.last_page }}</p>
         <div class="flex gap-2">
           <button class="rounded-lg border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] px-3 py-1.5 text-xs font-semibold text-[var(--color-surface)] disabled:opacity-50" :disabled="loading || page <= 1" @click="prevPage">Predosla</button>

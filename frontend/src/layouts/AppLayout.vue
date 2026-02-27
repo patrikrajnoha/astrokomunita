@@ -1,5 +1,8 @@
 <template>
-  <div class="min-h-screen bg-[var(--color-bg)] text-[var(--color-surface)]">
+  <div
+    class="min-h-screen overflow-x-hidden bg-[var(--color-bg)] text-[var(--color-surface)]"
+    style="--mobile-bottom-nav-offset: 74px;"
+  >
     <header
       class="sticky top-0 z-40 flex items-center justify-between border-b border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.85)] px-4 py-3 backdrop-blur md:hidden"
     >
@@ -40,51 +43,106 @@
     </header>
 
     <aside
-      class="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 md:flex"
+      class="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 md:left-3 md:inset-y-3 md:rounded-2xl md:flex xl:hidden"
     >
-      <MainNavbar />
+      <nav aria-label="Main navigation">
+        <MainNavbar />
+      </nav>
     </aside>
 
-    <div class="md:pl-64">
+    <div
+      :class="[
+        showMobileBottomNav ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-0',
+        'guest-cta-safe',
+        'md:pb-0 md:pl-64 xl:pl-0',
+      ]"
+    >
       <div
-        v-if="showAuthFallbackBanner"
+        v-if="showAuthFallbackBanner || showAuthBannedBanner"
         class="authFallbackBanner"
+        :class="{ 'is-danger': showAuthBannedBanner }"
         role="status"
         aria-live="polite"
       >
-        <span>{{ authFallbackMessage }}</span>
-        <button type="button" class="authFallbackRetry" @click="retryAuthFetch">Skusit znova</button>
+        <span>{{ authBannerMessage }}</span>
+        <button v-if="showAuthFallbackBanner" type="button" class="authFallbackRetry" @click="retryAuthFetch">Skusit znova</button>
       </div>
 
-      <div
-        :class="[
-          'mx-auto w-full',
-          isAdminRoute
-            ? 'max-w-[1560px]'
-            : 'xl:grid xl:max-w-[1160px] xl:grid-cols-[minmax(0,760px)_22rem] xl:gap-6',
-        ]"
-      >
-        <main :class="['px-4 py-6 md:px-8', isAdminRoute ? 'xl:px-6' : 'xl:px-0']">
-          <div :class="['mx-auto w-full', isAdminRoute ? 'max-w-none' : 'max-w-[760px]']">
-            <RouterView />
-          </div>
-        </main>
+      <div :class="desktopFrameClass" data-testid="desktop-frame">
+        <div :class="centerShellClass" :style="centerShellStyle" data-testid="center-shell">
+          <aside
+            v-if="showDesktopMainSidebar"
+            class="hidden h-screen overflow-y-auto border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 xl:pl-6 2xl:pl-8 xl:sticky xl:top-0 xl:block"
+            data-testid="layout-left"
+          >
+            <nav aria-label="Main navigation">
+              <MainNavbar />
+            </nav>
+          </aside>
+
+          <main
+            :class="[
+              'min-w-0',
+              isProfileRoute ? 'px-0 py-0 md:px-0 md:py-0' : 'px-4 py-6 md:px-8',
+              isAdminRoute ? 'xl:px-6' : isProfileRoute ? 'xl:px-4 2xl:px-6' : 'xl:px-2 2xl:px-4',
+              isProfileRoute ? 'lg:border-x lg:border-[color:rgb(var(--color-text-secondary-rgb)/0.5)]' : '',
+            ]"
+            data-testid="layout-center"
+          >
+            <div :class="mainContentClass">
+              <RouterView />
+            </div>
+          </main>
+        </div>
 
         <aside
           v-if="showRightSidebar"
-          class="hidden border-l border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-5 py-6 xl:block"
+          class="hidden xl:col-start-2 xl:block xl:justify-self-end xl:self-start xl:pr-3 2xl:pr-4"
+          data-testid="layout-right"
           aria-label="Right sidebar"
         >
-          <DynamicSidebar
-            :observing-lat="observingLat"
-            :observing-lon="observingLon"
-            :observing-date="observingDate"
-            :observing-tz="observingTz"
-            :observing-location-name="observingLocationName"
-          />
+          <div
+            data-testid="right-rail"
+            class="rightRail h-screen w-[22rem] overflow-y-auto border-l border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-5 py-6 xl:sticky xl:top-0"
+          >
+            <DynamicSidebar
+              :observing-lat="observingLat"
+              :observing-lon="observingLon"
+              :observing-date="observingDate"
+              :observing-tz="observingTz"
+              :observing-location-name="observingLocationName"
+            />
+          </div>
         </aside>
       </div>
     </div>
+
+    <nav
+      v-if="showMobileBottomNav"
+      class="mobileBottomNav md:hidden"
+      aria-label="Mobile bottom navigation"
+    >
+      <RouterLink
+        v-for="item in mobileBottomLinks"
+        :key="item.to"
+        :to="item.to"
+        class="mobileBottomNav__item"
+        :class="{ 'is-active': isMobileBottomActive(item) }"
+      >
+        <span class="mobileBottomNav__icon" aria-hidden="true">{{ item.icon }}</span>
+        <span class="mobileBottomNav__label">{{ item.label }}</span>
+      </RouterLink>
+
+      <button
+        type="button"
+        class="mobileBottomNav__item"
+        aria-label="Open menu"
+        @click="openDrawer"
+      >
+        <span class="mobileBottomNav__icon" aria-hidden="true">☰</span>
+        <span class="mobileBottomNav__label">Menu</span>
+      </button>
+    </nav>
 
     <MobileFab
       v-if="auth.isAuthed && !isDrawerOpen && !isComposerOpen && !isWidgetMenuOpen && !isWidgetSheetOpen"
@@ -389,6 +447,17 @@
       </section>
     </transition>
 
+    <MarkYourCalendarModal
+      v-if="isCalendarPopupVisible && !isOnboardingFlowActive"
+      :items="calendarPopupPayload?.items || []"
+      :bundle-ics-url="calendarPopupPayload?.calendar?.bundle_ics_url || ''"
+      @close="closeCalendarPopup"
+      @go-calendar="goToCalendarFromPopup"
+    />
+
+    <OnboardingTour v-if="onboardingTour.isOpen && !isCalendarPopupVisible && !isOnboardingFlowActive" />
+    <GuestBottomCTA />
+
   </div>
 </template>
 
@@ -396,14 +465,21 @@
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useEventPreferencesStore } from '@/stores/eventPreferences'
+import { useNotificationsStore } from '@/stores/notifications'
 import MainNavbar from '@/components/MainNavbar.vue'
 import DynamicSidebar from '@/components/DynamicSidebar.vue'
 import PostComposer from '@/components/PostComposer.vue'
 import MobileFab from '@/components/MobileFab.vue'
+import GuestBottomCTA from '@/components/GuestBottomCTA.vue'
 import TypingText from '@/components/TypingText.vue'
+import MarkYourCalendarModal from '@/components/MarkYourCalendarModal.vue'
+import OnboardingTour from '@/components/onboarding/OnboardingTour.vue'
 import { useToast } from '@/composables/useToast'
 import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
+import { useOnboardingTourStore } from '@/stores/onboardingTour'
+import { getMarkYourCalendarPopup, markYourCalendarPopupSeen } from '@/services/popup'
 import {
   getEnabledSidebarSections,
   normalizeSidebarSections,
@@ -414,7 +490,10 @@ import {
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const preferences = useEventPreferencesStore()
+const notifications = useNotificationsStore()
 const sidebarConfigStore = useSidebarConfigStore()
+const onboardingTour = useOnboardingTourStore()
 const { showToast } = useToast()
 const isDrawerOpen = ref(false)
 const isComposerOpen = ref(false)
@@ -427,6 +506,7 @@ const mobileSidebarSections = ref([])
 const deferredInstallPrompt = ref(null)
 const canInstall = ref(false)
 const isMobileViewport = ref(false)
+const isCoarsePointer = ref(false)
 const widgetSheetOffsetY = ref(0)
 const widgetMenuOffsetY = ref(0)
 const touchStartY = ref(0)
@@ -436,10 +516,82 @@ const brandGreetingText = ref('')
 const lastWidgetStorageKey = 'mobile_sidebar_last_widget'
 const lastWidgetKey = ref('')
 let brandGreetingHideTimer = null
+const calendarPopupSessionChecked = ref(false)
+const isCalendarPopupVisible = ref(false)
+const calendarPopupPayload = ref(null)
+const calendarPopupAckInFlight = ref(false)
 const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
+const showMobileBottomNav = computed(() => isMobileViewport.value && isCoarsePointer.value)
+const mobileBottomLinks = computed(() => {
+  const links = [
+    { to: '/', label: 'Domov', icon: 'D' },
+    { to: '/search', label: 'Hľadať', icon: 'H' },
+    { to: '/events', label: 'Udalosti', icon: 'U', matchPrefix: '/events' },
+    { to: '/clanky', label: 'Články', icon: 'Č', matchPrefix: '/clanky' },
+  ]
+  if (auth.isAuthed) {
+    links.push({ to: '/notifications', label: 'Notifikácie', icon: 'N' })
+  }
+
+  if (auth.isAdmin) {
+    const replaceIndex = links.findIndex((item) => item.to === '/notifications')
+    if (replaceIndex >= 0) {
+      links[replaceIndex] = { to: '/admin/dashboard', label: 'Admin', icon: 'A', matchPrefix: '/admin' }
+    } else {
+      links.push({ to: '/admin/dashboard', label: 'Admin', icon: 'A', matchPrefix: '/admin' })
+    }
+  }
+
+  return links
+})
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
+const isProfileRoute = computed(() => String(route.path || '') === '/profile')
+const showDesktopMainSidebar = computed(() => !isAdminRoute.value)
+const isLayoutDebugEnabled = computed(() => {
+  return import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_LAYOUT || '') === 'true'
+})
+const desktopFrameClass = computed(() => {
+  if (isAdminRoute.value) {
+    return 'mx-auto w-full'
+  }
+
+  return 'desktopFrame mx-auto w-full max-w-[1500px] xl:grid'
+})
+const centerShellClass = computed(() => {
+  if (isAdminRoute.value) {
+    return 'mx-auto w-full max-w-[1560px]'
+  }
+
+  return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:gap-1 2xl:gap-2'
+})
+const centerShellColumns = computed(() => {
+  if (isAdminRoute.value) return null
+
+  return '16rem minmax(600px, 640px)'
+})
+const centerShellStyle = computed(() => {
+  if (isAdminRoute.value) {
+    return null
+  }
+
+  return {
+    '--center-shell-cols': centerShellColumns.value,
+    outline: isLayoutDebugEnabled.value ? '1px solid rgb(var(--color-primary-rgb) / 0.4)' : undefined,
+  }
+})
+const mainContentClass = computed(() => {
+  if (isAdminRoute.value) {
+    return 'mx-auto w-full max-w-none'
+  }
+
+  if (isProfileRoute.value) {
+    return 'mx-auto w-full max-w-[620px]'
+  }
+
+  return 'mx-auto w-full max-w-[640px]'
+})
 const enabledMobileSections = computed(() => getEnabledSidebarSections(mobileSidebarSections.value))
 const activeWidgetComponent = computed(() => resolveSidebarComponent(activeWidgetKey.value))
 const lastOpenedWidget = computed(() => {
@@ -451,21 +603,41 @@ const observingLocationMeta = computed(() => {
   if (!value || typeof value !== 'object') return null
   return value
 })
-const observingLat = computed(() => parseNumericValue(observingLocationMeta.value?.lat))
-const observingLon = computed(() => parseNumericValue(observingLocationMeta.value?.lon))
+const observingLocationData = computed(() => {
+  const value = auth.user?.location_data
+  if (!value || typeof value !== 'object') return null
+  return value
+})
+const observingLat = computed(() => {
+  const fromCanonical = parseNumericValue(observingLocationData.value?.latitude)
+  if (fromCanonical !== null) return fromCanonical
+  return parseNumericValue(observingLocationMeta.value?.lat)
+})
+const observingLon = computed(() => {
+  const fromCanonical = parseNumericValue(observingLocationData.value?.longitude)
+  if (fromCanonical !== null) return fromCanonical
+  return parseNumericValue(observingLocationMeta.value?.lon)
+})
 const observingLocationName = computed(() => {
+  const fromCanonical = parseStringValue(observingLocationData.value?.label)
+  if (fromCanonical) return fromCanonical
   const fromMeta = parseStringValue(observingLocationMeta.value?.name)
   if (fromMeta) return fromMeta
   return parseStringValue(auth.user?.location)
 })
 const observingDate = computed(() => parseDateQuery(route.query.date) ?? localIsoDate(new Date()))
 const observingTz = computed(() => {
+  const canonicalTz = parseStringValue(observingLocationData.value?.timezone)
+  if (canonicalTz) return canonicalTz
   const metaTz = parseStringValue(observingLocationMeta.value?.tz)
   if (metaTz) return metaTz
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Bratislava'
 })
 const showAuthFallbackBanner = computed(() => {
   return auth.bootstrapDone && !auth.isAuthed && (auth.error?.type === 'timeout' || auth.error?.type === 'network')
+})
+const showAuthBannedBanner = computed(() => {
+  return auth.bootstrapDone && !auth.isAuthed && auth.error?.type === 'banned'
 })
 const authFallbackMessage = computed(() => {
   if (auth.error?.type === 'timeout') {
@@ -474,6 +646,48 @@ const authFallbackMessage = computed(() => {
 
   return 'Backend je nedostupny. Pokracujes ako host.'
 })
+const authBannedMessage = computed(() => {
+  const reason = parseStringValue(auth.error?.reason)
+  if (reason) {
+    return `Tento ucet je zablokovany. Dovod: ${reason}`
+  }
+
+  return 'Tento ucet je zablokovany.'
+})
+const authBannerMessage = computed(() => {
+  if (showAuthBannedBanner.value) {
+    return authBannedMessage.value
+  }
+
+  return authFallbackMessage.value
+})
+const isOnboardingRoute = computed(() => route.name === 'onboarding')
+const isOnboardingFlowActive = computed(() => {
+  if (!auth.isAuthed || auth.isAdmin) return false
+  return isOnboardingRoute.value || !preferences.loaded || preferences.loading || !preferences.isOnboardingCompleted
+})
+const canCheckCalendarPopup = computed(() => {
+  return auth.bootstrapDone &&
+    auth.isAuthed &&
+    !auth.isAdmin &&
+    Boolean(auth.user?.email_verified_at) &&
+    !isOnboardingFlowActive.value &&
+    !onboardingTour.isOpen &&
+    preferences.isOnboardingCompleted &&
+    !calendarPopupSessionChecked.value
+})
+
+const maybeAutoOpenOnboardingTour = () => {
+  if (typeof window === 'undefined') return
+  if (!auth.isAuthed || auth.isAdmin) return
+  if (isOnboardingFlowActive.value) return
+  if (isCalendarPopupVisible.value) return
+
+  onboardingTour.hydrate()
+  if (onboardingTour.shouldAutoOpen) {
+    onboardingTour.openTour()
+  }
+}
 
 const parseStringValue = (value) => {
   if (typeof value !== 'string') return null
@@ -504,6 +718,12 @@ const localIsoDate = (date) => {
 const openDrawer = () => {
   closeComposerModal()
   isDrawerOpen.value = true
+}
+
+const isMobileBottomActive = (item) => {
+  if (!item?.to) return false
+  if (item.matchPrefix) return route.path.startsWith(item.matchPrefix)
+  return route.path === item.to
 }
 
 const closeDrawer = () => {
@@ -664,6 +884,51 @@ const retryAuthFetch = async () => {
   await auth.retryFetchUser()
 }
 
+const maybeCheckCalendarPopup = async () => {
+  if (!canCheckCalendarPopup.value) return
+
+  calendarPopupSessionChecked.value = true
+  try {
+    const response = await getMarkYourCalendarPopup()
+    const payload = response?.data || null
+
+    if (payload?.should_show) {
+      if (onboardingTour.isOpen) {
+        onboardingTour.closeTour()
+      }
+      calendarPopupPayload.value = payload
+      isCalendarPopupVisible.value = true
+    }
+  } catch {
+    // Session check is best effort.
+  }
+}
+
+const closeCalendarPopup = async () => {
+  if (!isCalendarPopupVisible.value || calendarPopupAckInFlight.value) {
+    return
+  }
+
+  calendarPopupAckInFlight.value = true
+  try {
+    const payload = calendarPopupPayload.value || {}
+    await markYourCalendarPopupSeen({
+      force_version: Number(payload.force_version || 0),
+      month_key: payload.month_key || null,
+    })
+  } catch {
+    // Do not block dismissal when acknowledge fails.
+  } finally {
+    isCalendarPopupVisible.value = false
+    calendarPopupAckInFlight.value = false
+  }
+}
+
+const goToCalendarFromPopup = async () => {
+  await closeCalendarPopup()
+  await router.push('/calendar')
+}
+
 const warmSidebarConfig = async () => {
   const scope = currentSidebarScope.value
   if (!scope) {
@@ -678,10 +943,12 @@ const warmSidebarConfig = async () => {
 const updateViewportState = () => {
   if (typeof window === 'undefined') {
     isMobileViewport.value = false
+    isCoarsePointer.value = false
     return
   }
 
   isMobileViewport.value = window.matchMedia('(max-width: 767px)').matches
+  isCoarsePointer.value = window.matchMedia('(hover: none) and (pointer: coarse)').matches
 }
 
 const onSheetTouchStart = (event, mode) => {
@@ -782,8 +1049,76 @@ watch(
   (nextUser) => {
     if (!nextUser) {
       hideBrandGreetingNow()
+      onboardingTour.closeTour()
+      calendarPopupSessionChecked.value = false
+      isCalendarPopupVisible.value = false
+      calendarPopupPayload.value = null
     }
   },
+)
+
+watch(
+  () => [auth.isAuthed, auth.isAdmin],
+  ([isAuthed, isAdmin]) => {
+    if (!isAuthed || isAdmin) {
+      onboardingTour.closeTour()
+      return
+    }
+
+    maybeAutoOpenOnboardingTour()
+  },
+  { immediate: true },
+)
+
+watch(
+  () => [isOnboardingFlowActive.value, isCalendarPopupVisible.value],
+  ([onboardingFlowActive, calendarPopupVisible]) => {
+    if (onboardingFlowActive || calendarPopupVisible) {
+      onboardingTour.closeTour()
+      return
+    }
+
+    maybeAutoOpenOnboardingTour()
+  },
+)
+
+watch(
+  () => auth.user?.id,
+  async (nextUserId) => {
+    if (nextUserId) {
+      await notifications.startRealtime()
+      await notifications.fetchUnreadCount()
+      return
+    }
+
+    notifications.stopRealtime({
+      disconnect: true,
+      clearState: true,
+    })
+  },
+  { immediate: true },
+)
+
+watch(
+  () => [
+    auth.bootstrapDone,
+    auth.isAuthed,
+    auth.user?.email_verified_at,
+    preferences.loaded,
+    preferences.isOnboardingCompleted,
+  ],
+  async () => {
+    if (auth.isAuthed && !auth.isAdmin && Boolean(auth.user?.email_verified_at) && !preferences.loaded && !preferences.loading) {
+      try {
+        await preferences.fetchPreferences()
+      } catch {
+        return
+      }
+    }
+
+    await maybeCheckCalendarPopup()
+  },
+  { immediate: true },
 )
 
 watch(
@@ -826,6 +1161,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
   window.removeEventListener('appinstalled', handleInstalled)
   window.removeEventListener('resize', updateViewportState)
+  notifications.stopRealtime({ disconnect: true })
   clearBrandGreetingTimer()
 })
 </script>
@@ -845,6 +1181,56 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+.mobileBottomNav {
+  position: fixed;
+  left: 0.65rem;
+  right: 0.65rem;
+  bottom: max(0.65rem, env(safe-area-inset-bottom));
+  z-index: 65;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.35rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
+  border-radius: 1rem;
+  background: rgb(var(--color-bg-rgb) / 0.94);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 16px 38px rgb(0 0 0 / 0.4);
+  padding: 0.4rem;
+}
+
+.mobileBottomNav__item {
+  min-height: 3.1rem;
+  border-radius: 0.8rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  text-decoration: none;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.15rem;
+  padding: 0.2rem 0.15rem;
+}
+
+.mobileBottomNav__item.is-active {
+  border-color: rgb(var(--color-primary-rgb) / 0.5);
+  background: rgb(var(--color-primary-rgb) / 0.18);
+  color: var(--color-surface);
+}
+
+.mobileBottomNav__icon {
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mobileBottomNav__label {
+  font-size: 0.61rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
 .authFallbackBanner {
   display: flex;
   align-items: center;
@@ -858,6 +1244,11 @@ onBeforeUnmount(() => {
   background: rgb(var(--color-warning-rgb, 245 158 11) / 0.12);
   color: rgb(var(--color-surface-rgb) / 0.95);
   font-size: 0.82rem;
+}
+
+.authFallbackBanner.is-danger {
+  border-color: rgb(var(--color-danger-rgb, 239 68 68) / 0.5);
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.14);
 }
 
 .brandLabel {
@@ -1075,6 +1466,27 @@ onBeforeUnmount(() => {
   font-size: 0.88rem;
 }
 
+.rightRail {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+
+.rightRail::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.rightRail > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.rightRail :is(img, svg, video, canvas, iframe) {
+  max-width: 100%;
+}
+
 @media (min-width: 768px) {
   .composeOverlay,
   .composeDialog,
@@ -1083,4 +1495,28 @@ onBeforeUnmount(() => {
     display: none;
   }
 }
+
+@media (min-width: 1280px) {
+  .desktopFrame {
+    align-items: start;
+    justify-content: center;
+    column-gap: 0.75rem;
+    grid-template-columns: auto auto;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    transform: translateX(-2rem);
+  }
+
+  .centerShellGrid {
+    grid-template-columns: var(--center-shell-cols);
+  }
+}
+
+@media (min-width: 1536px) {
+  .desktopFrame {
+    transform: translateX(-1rem);
+  }
+}
+
 </style>
+

@@ -1,6 +1,6 @@
 <template>
   <div class="w-full">
-    <!-- Moderné vyhľadávacie pole -->
+    <!-- ModernĂ© vyhÄľadĂˇvacie pole -->
     <div class="relative mb-6">
       <div class="relative">
         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -11,7 +11,7 @@
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Hľadať používateľov..."
+          placeholder="HÄľadaĹĄ pouĹľĂ­vateÄľov..."
           class="w-full pl-12 pr-12 py-4 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-lg"
           @input="onSearchInput"
         />
@@ -22,13 +22,13 @@
           />
           <div v-else-if="searchQuery" class="flex items-center gap-1">
             <div class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span class="text-xs text-slate-500 dark:text-slate-400">{{ users.length }} nájdených</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400">{{ users.length }} nĂˇjdenĂ˝ch</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Výsledky vyhľadávania -->
+    <!-- VĂ˝sledky vyhÄľadĂˇvania -->
     <div
       v-if="searchQuery.length >= 2 && (isLoading || users.length > 0)"
       class="relative"
@@ -38,22 +38,22 @@
         <div v-if="isLoading" class="p-6 text-center">
           <div class="inline-flex items-center gap-3 text-slate-600 dark:text-slate-400">
             <div class="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 dark:border-slate-600 border-t-blue-500" />
-            <span class="text-sm font-medium">Vyhľadávam používateľov...</span>
+            <span class="text-sm font-medium">VyhÄľadĂˇvam pouĹľĂ­vateÄľov...</span>
           </div>
         </div>
 
-        <!-- Zoznam používateľov -->
+        <!-- Zoznam pouĹľĂ­vateÄľov -->
         <div v-else-if="users.length > 0" class="overflow-y-auto max-h-80">
           <div class="sticky top-0 bg-slate-50 dark:bg-slate-700 px-4 py-3 border-b border-slate-200 dark:border-slate-600">
             <div class="flex items-center justify-between">
               <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Nájdených {{ users.length }} používateľov
+                NĂˇjdenĂ˝ch {{ users.length }} pouĹľĂ­vateÄľov
               </span>
               <button
                 @click="clearSearch"
                 class="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
               >
-                Zrušiť
+                ZruĹˇiĹĄ
               </button>
             </div>
           </div>
@@ -84,8 +84,8 @@
                 </div>
                 <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                   <span class="font-medium">@{{ user.username }}</span>
-                  <span class="text-slate-400">•</span>
-                  <span>Člen komunity</span>
+                  <span class="text-slate-400">â€˘</span>
+                  <span>ÄŚlen komunity</span>
                 </div>
               </div>
               <div class="flex items-center">
@@ -99,7 +99,7 @@
       </div>
     </div>
 
-    <!-- Žiadne výsledky -->
+    <!-- Ĺ˝iadne vĂ˝sledky -->
     <div v-else-if="searchQuery.length >= 2 && !isLoading && users.length === 0" class="text-center py-12">
       <div class="inline-flex items-center justify-center w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl mb-4">
         <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,14 +108,14 @@
       </div>
       <div class="text-slate-600 dark:text-slate-400 mb-2">
         <div class="text-lg font-medium mb-1">
-          Neboli nájdení žiadni používatelia
+          Neboli nĂˇjdenĂ­ Ĺľiadni pouĹľĂ­vatelia
         </div>
         <div class="text-sm">
-          pre výraz <strong class="text-slate-900 dark:text-slate-100">"{{ searchQuery }}"</strong>
+          pre vĂ˝raz <strong class="text-slate-900 dark:text-slate-100">"{{ searchQuery }}"</strong>
         </div>
       </div>
       <div class="text-xs text-slate-500 dark:text-slate-500">
-        Skúste iný vyhľadávací výraz alebo skontrolujte preklepy
+        SkĂşste inĂ˝ vyhÄľadĂˇvacĂ­ vĂ˝raz alebo skontrolujte preklepy
       </div>
     </div>
   </div>
@@ -140,31 +140,31 @@ const isLoading = ref(false)
 // Watch pre zmeny v initialQuery
 watch(() => props.initialQuery, (newQuery) => {
   if (newQuery !== searchQuery.value) {
-    console.log('📥 SearchUsers received initialQuery:', newQuery)
+    console.log('đź“Ą SearchUsers received initialQuery:', newQuery)
     searchQuery.value = newQuery
   }
 }, { immediate: true })
 
-// Vlastná debounce implementácia
+// VlastnĂˇ debounce implementĂˇcia
 let timeoutId = null
 const searchUsers = (query) => {
-  console.log('🔍 SearchUsers called with query:', query)
+  console.log('đź”Ť SearchUsers called with query:', query)
   clearTimeout(timeoutId)
   timeoutId = setTimeout(async () => {
     if (query.length < 2) {
-      console.log('📝 Query too short, clearing results')
+      console.log('đź“ť Query too short, clearing results')
       users.value = []
       return
     }
 
     try {
       isLoading.value = true
-      console.log('🌐 Making request to:', `http://127.0.0.1:8000/api/search/users?q=${encodeURIComponent(query)}&limit=10`)
-      const response = await axios.get(`http://127.0.0.1:8000/api/search/users?q=${encodeURIComponent(query)}&limit=10`)
-      console.log('📥 Response received:', response.data)
+      console.log('đźŚ Making request to:', `http://localhost:8000/api/search/users?q=${encodeURIComponent(query)}&limit=10`)
+      const response = await axios.get(`http://localhost:8000/api/search/users?q=${encodeURIComponent(query)}&limit=10`)
+      console.log('đź“Ą Response received:', response.data)
       users.value = response.data || []
     } catch (error) {
-      console.error('❌ Chyba pri vyhľadávaní používateľov:', error)
+      console.error('âťŚ Chyba pri vyhÄľadĂˇvanĂ­ pouĹľĂ­vateÄľov:', error)
       users.value = []
     } finally {
       isLoading.value = false
@@ -181,7 +181,7 @@ onUnmounted(() => {
 
 // Watch pre zmeny v searchQuery
 watch(searchQuery, (newQuery) => {
-  console.log('🔄 SearchUsers searchQuery changed to:', newQuery)
+  console.log('đź”„ SearchUsers searchQuery changed to:', newQuery)
   searchUsers(newQuery)
 }, { immediate: true })
 
@@ -194,3 +194,4 @@ const clearSearch = () => {
   users.value = []
 }
 </script>
+
