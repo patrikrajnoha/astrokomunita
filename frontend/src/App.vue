@@ -41,8 +41,9 @@ const initStack = computed(() => appInitState.initError?.stack || '')
   display: grid;
   place-items: center;
   padding: 16px;
-  background: linear-gradient(160deg, rgb(7 13 24), rgb(16 22 34));
+  background: rgb(var(--color-bg-rgb));
   color: #f8fafc;
+  transition: background-color 700ms;
 }
 
 .card {

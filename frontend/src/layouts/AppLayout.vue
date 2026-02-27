@@ -1,6 +1,6 @@
 <template>
   <div
-    class="min-h-screen overflow-x-hidden bg-[var(--color-bg)] text-[var(--color-surface)]"
+    class="min-h-screen overflow-x-hidden bg-[var(--color-bg)] text-[var(--color-surface)] transition-colors duration-700"
     style="--mobile-bottom-nav-offset: 74px;"
   >
     <header
