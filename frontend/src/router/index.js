@@ -52,6 +52,12 @@ const appShellChildren = [
       },
     }),
   },
+  {
+    path: 'sky',
+    name: 'sky',
+    meta: { requiresAuth: false },
+    component: () => import('../views/SkyDashboardView.vue'),
+  },
   ...(wipEnabled
     ? [{
         path: 'observations',
