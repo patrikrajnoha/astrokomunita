@@ -71,6 +71,15 @@
               <HashtagText :content="p.content" />
             </div>
 
+            <PollCard
+              v-if="p.poll"
+              :poll="p.poll"
+              :post-id="p.id"
+              :is-authed="auth.isAuthed"
+              @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
+              @login-required="onPollLoginRequired"
+            />
+
             <!-- attachment -->
             <div v-if="p.attachment_url" class="mediaWrap">
               <img
@@ -150,6 +159,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HashtagText from '@/components/HashtagText.vue'
+import PollCard from '@/components/PollCard.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -190,6 +200,15 @@ function setLikeLoading(id, on) {
 function openReport(post) {
   // TODO: Implement report functionality
   console.log('Report post:', post)
+}
+
+function updatePostPoll(post, nextPoll) {
+  if (!post || !nextPoll) return
+  post.poll = nextPoll
+}
+
+function onPollLoginRequired() {
+  error.value = 'Prihlás sa pre hlasovanie.'
 }
 
 function bumpLike(id) {

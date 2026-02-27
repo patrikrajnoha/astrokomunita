@@ -12,7 +12,7 @@ class FeedOrderingTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_feed_places_pinned_posts_first_then_orders_by_created_at_desc(): void
+    public function test_feed_is_strictly_chronological_by_created_at_desc_even_with_pinned_posts(): void
     {
         $author = User::factory()->create();
 
@@ -38,9 +38,9 @@ class FeedOrderingTest extends TestCase
         $response = $this->getJson('/api/feed?per_page=10');
 
         $response->assertOk();
-        $response->assertJsonPath('data.0.id', $pinnedNewer->id);
-        $response->assertJsonPath('data.1.id', $pinnedOlder->id);
-        $response->assertJsonPath('data.2.id', $regularNewer->id);
+        $response->assertJsonPath('data.0.id', $regularNewer->id);
+        $response->assertJsonPath('data.1.id', $pinnedNewer->id);
+        $response->assertJsonPath('data.2.id', $pinnedOlder->id);
         $response->assertJsonPath('data.3.id', $regularOlder->id);
     }
 

@@ -12,7 +12,7 @@ import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const auth = useAuthStore()
-const { confirm } = useConfirm()
+const { confirm, prompt } = useConfirm()
 const toast = useToast()
 
 const activeTab = ref('overview')
@@ -112,17 +112,20 @@ function updateUser(updated) {
 
 async function banUser() {
   if (!user.value || isSelf(user.value)) return
-  const ok = await confirm({
+  const reason = await prompt({
     title: 'Ban user',
-    message: `Ban user ${user.value.email}?`,
-    confirmText: 'Ban',
+    message: `Provide ban reason for ${user.value.email}.`,
+    confirmText: 'Ban user',
     cancelText: 'Cancel',
+    placeholder: 'Ban reason...',
+    required: true,
+    multiline: true,
     variant: 'danger',
   })
-  if (!ok) return
+  if (!reason) return
 
   try {
-    const res = await api.post(`/admin/users/${user.value.id}/ban`)
+    const res = await api.patch(`/admin/users/${user.value.id}/ban`, { reason: String(reason).trim() })
     updateUser(res.data)
     toast.success('User banned.')
   } catch (e) {
@@ -320,6 +323,8 @@ onBeforeUnmount(() => {
       <div><strong>Email:</strong> {{ user?.email || '-' }}</div>
       <div><strong>Role:</strong> {{ user?.role || '-' }}</div>
       <div><strong>Status:</strong> {{ statusLabel(user) }}</div>
+      <div><strong>Banned at:</strong> {{ formatDate(user?.banned_at) }}</div>
+      <div><strong>Ban reason:</strong> {{ user?.ban_reason || '-' }}</div>
       <div><strong>Created:</strong> {{ formatDate(user?.created_at) }}</div>
     </section>
 

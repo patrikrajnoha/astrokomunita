@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\RssItem;
+use App\Services\AI\OllamaRefinementService;
 use App\Services\Translation\TranslationServiceException;
 use App\Services\TranslationService;
 use Illuminate\Bus\Queueable;
@@ -42,8 +43,10 @@ class TranslateRssItemJob implements ShouldQueue, ShouldBeUnique
         return 'rss-item-translation-' . $this->rssItemId . '-' . ($this->force ? 'force' : 'normal');
     }
 
-    public function handle(TranslationService $translationService): void
-    {
+    public function handle(
+        TranslationService $translationService,
+        OllamaRefinementService $ollamaRefinementService
+    ): void {
         $item = RssItem::query()->find($this->rssItemId);
         if (! $item) {
             return;
@@ -74,6 +77,33 @@ class TranslateRssItemJob implements ShouldQueue, ShouldBeUnique
                 ? $translationService->translateEnToSk((string) $originalSummary, 'astronomy')
                 : null;
 
+            if ((bool) config('ai.ollama_refinement_enabled', false)) {
+                try {
+                    $refined = $ollamaRefinementService->refine(
+                        originalEnglishTitle: $originalTitle,
+                        originalEnglishDescription: $originalSummary !== null ? (string) $originalSummary : null,
+                        translatedTitle: $translatedTitle,
+                        translatedDescription: $translatedSummary
+                    );
+
+                    $translatedTitle = (string) ($refined['refined_title'] ?? $translatedTitle);
+                    $translatedSummary = array_key_exists('refined_description', $refined)
+                        ? $refined['refined_description']
+                        : $translatedSummary;
+
+                    if ((bool) ($refined['used_fallback'] ?? false)) {
+                        Log::warning('RSS refinement fallback used; keeping base translation where needed.', [
+                            'rss_item_id' => $item->id,
+                        ]);
+                    }
+                } catch (\Throwable $exception) {
+                    Log::warning('RSS refinement failed unexpectedly; keeping translated values.', [
+                        'rss_item_id' => $item->id,
+                        'message' => $exception->getMessage(),
+                    ]);
+                }
+            }
+
             $item->update([
                 'translated_title' => $translatedTitle,
                 'translated_summary' => $translatedSummary,
@@ -88,8 +118,11 @@ class TranslateRssItemJob implements ShouldQueue, ShouldBeUnique
             ]);
         } catch (TranslationServiceException $exception) {
             $item->update([
+                'translated_title' => $originalTitle,
+                'translated_summary' => $originalSummary,
                 'translation_status' => RssItem::TRANSLATION_FAILED,
                 'translation_error' => $exception->errorCode(),
+                'translated_at' => now(),
             ]);
 
             Log::warning('RSS item translation failed', [

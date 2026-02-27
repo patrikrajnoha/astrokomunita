@@ -80,6 +80,18 @@ function formatDate(value) {
   return d.toLocaleDateString("sk-SK", { dateStyle: "long" });
 }
 
+function commentDepth(comment) {
+  const rawDepth = Number(comment?.depth ?? 0);
+  if (!Number.isFinite(rawDepth) || rawDepth <= 0) return 0;
+  return Math.min(rawDepth, 3);
+}
+
+function commentThreadStyle(comment) {
+  return {
+    marginLeft: `${commentDepth(comment) * 20}px`,
+  };
+}
+
 const readTime = computed(() => {
   const text = post.value?.content || "";
   const words = text.trim().split(/\s+/).filter(Boolean).length;
@@ -232,6 +244,7 @@ async function loadComments() {
   try {
     commentsData.value = await blogComments.list(slug, {
       page: commentPage.value,
+      withDepth: 1,
     });
   } catch (e) {
     commentsError.value =
@@ -296,7 +309,7 @@ watch(
 
 <template>
   <article class="detail">
-    <router-link class="back" to="/learn">← Späť na články</router-link>
+    <router-link class="back" to="/clanky">← Späť na články</router-link>
 
     <div v-if="error" class="error">{{ error }}</div>
     <div v-else-if="loading" class="muted">Načítavam článok…</div>
@@ -415,20 +428,31 @@ watch(
           <div v-if="(commentsData?.data || []).length === 0" class="muted">
             Zatiaľ žiadne komentáre.
           </div>
-          <article v-for="c in commentsData?.data || []" :key="c.id" class="comment">
-            <div class="comment-meta">
-              <strong>{{ c.user?.name || "Používateľ" }}</strong>
-              <span>•</span>
-              <span>{{ formatDate(c.created_at) }}</span>
+          <article
+            v-for="c in commentsData?.data || []"
+            :key="c.id"
+            class="relative"
+            :style="commentThreadStyle(c)"
+          >
+            <div
+              v-if="commentDepth(c) > 0"
+              class="absolute left-0 top-0 bottom-0 w-px bg-gray-300/80 dark:bg-gray-600/80"
+            ></div>
+            <div class="comment" :class="commentDepth(c) > 0 ? 'pl-4' : ''">
+              <div class="comment-meta">
+                <strong>{{ c.user?.name || "Používateľ" }}</strong>
+                <span>•</span>
+                <span>{{ formatDate(c.created_at) }}</span>
+              </div>
+              <p>{{ c.content }}</p>
+              <button
+                v-if="auth.user && (auth.user.id === c.user_id || auth.user.is_admin)"
+                class="ghost danger"
+                @click="removeComment(c.id)"
+              >
+                Zmazať
+              </button>
             </div>
-            <p>{{ c.content }}</p>
-            <button
-              v-if="auth.user && (auth.user.id === c.user_id || auth.user.is_admin)"
-              class="ghost danger"
-              @click="removeComment(c.id)"
-            >
-              Zmazať
-            </button>
           </article>
         </div>
 
@@ -468,7 +492,7 @@ watch(
                 </span>
               </div>
               <h3>
-                <router-link :to="`/learn/${item.slug || item.id}`">
+                <router-link :to="`/clanky/${item.slug || item.id}`">
                   {{ item.title }}
                 </router-link>
               </h3>

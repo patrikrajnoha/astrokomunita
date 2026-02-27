@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { useToast } from '@/composables/useToast'
 
-const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const normalizedApiBaseUrl = rawApiBaseUrl.replace(/\/api\/?$/i, '')
 
 const api = axios.create({
@@ -17,6 +17,23 @@ const api = axios.create({
     Accept: 'application/json',
   },
 })
+
+function isLongRunningPath(url) {
+  const normalized = String(url || '').toLowerCase()
+  if (normalized === '') {
+    return false
+  }
+
+  return (
+    normalized.includes('/admin/bots/run/') ||
+    normalized.includes('/admin/bots/quick-run') ||
+    normalized.includes('/admin/event-sources/run') ||
+    normalized.includes('/admin/event-sources/purge') ||
+    normalized.includes('/admin/event-candidates/approve-batch') ||
+    normalized.includes('/admin/manual-events/publish-batch') ||
+    normalized.includes('/admin/performance-metrics/run')
+  )
+}
 
 const toast = useToast()
 let lastErrorToastKey = ''
@@ -39,6 +56,7 @@ function isProtectedPath(pathname) {
     pathname.startsWith('/settings') ||
     pathname.startsWith('/creator-studio') ||
     pathname.startsWith('/notifications') ||
+    pathname.startsWith('/bookmarks') ||
     pathname.startsWith('/profile') ||
     pathname.startsWith('/admin')
   )
@@ -48,6 +66,21 @@ function shouldRedirectToLogin(error) {
   if (error?.config?.meta?.requiresAuth === true) return true
   if (typeof window === 'undefined') return false
   return isProtectedPath(window.location.pathname || '')
+}
+
+function isVerificationError(status, message) {
+  if (status !== 403) return false
+  const normalized = String(message || '').toLowerCase()
+  return normalized.includes('verified') || normalized.includes('verify') || normalized.includes('email address is not verified')
+}
+
+function redirectToVerifyIfNeeded() {
+  if (typeof window === 'undefined') return
+  const pathname = window.location.pathname || ''
+  if (pathname.startsWith('/verify-email')) return
+
+  const redirect = encodeURIComponent(window.location.pathname + window.location.search)
+  window.location.assign(`/verify-email?redirect=${redirect}`)
 }
 
 function redirectToLoginIfNeeded() {
@@ -80,6 +113,22 @@ function normalizeHttpErrorMessage(error) {
   return String(error?.response?.data?.message || message || 'Request failed.')
 }
 
+api.interceptors.request.use((config) => {
+  if (isLongRunningPath(config?.url)) {
+    const url = String(config?.url || '').toLowerCase()
+    const veryLongRunning =
+      url.includes('/admin/event-sources/run') ||
+      url.includes('/admin/event-sources/purge')
+
+    return {
+      ...config,
+      timeout: veryLongRunning ? 300000 : 120000,
+    }
+  }
+
+  return config
+})
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -101,6 +150,9 @@ api.interceptors.response.use(
     if (!suppressToast) {
       if (status === 422) {
         toast.warn('Skontroluj formular.')
+      } else if (isVerificationError(status, normalizedMessage)) {
+        toast.warn('Najprv over emailovu adresu.')
+        redirectToVerifyIfNeeded()
       } else if (status === 401 || status === 419) {
         if (shouldRedirectToLogin(error)) {
           toast.warn(error?.response?.data?.message || 'Relacia vyprsala. Prihlas sa znova.')
@@ -117,4 +169,10 @@ api.interceptors.response.use(
   },
 )
 
+api.vote = (pollId, optionId, config = {}) =>
+  api.post(`/polls/${pollId}/vote`, { option_id: optionId }, config)
+
+api.fetchPoll = (pollId, config = {}) => api.get(`/polls/${pollId}`, config)
+
 export default api
+

@@ -1,0 +1,53 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import UpcomingEventsWidget from './UpcomingEventsWidget.vue'
+
+const mockGetUpcomingEventsWidget = vi.hoisted(() => vi.fn())
+
+vi.mock('@/services/widgets', () => ({
+  getUpcomingEventsWidget: mockGetUpcomingEventsWidget,
+}))
+
+const flushPromises = async () => {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
+describe('UpcomingEventsWidget', () => {
+  beforeEach(() => {
+    mockGetUpcomingEventsWidget.mockReset()
+    mockGetUpcomingEventsWidget.mockResolvedValue({
+      items: [
+        { id: 11, title: 'Event A', slug: null, start_at: '2026-02-20T18:00:00Z' },
+        { id: 12, title: 'Event B', slug: null, start_at: '2026-02-21T18:00:00Z' },
+        { id: 13, title: 'Event C', slug: null, start_at: '2026-02-22T18:00:00Z' },
+        { id: 14, title: 'Event D', slug: null, start_at: '2026-02-23T18:00:00Z' },
+      ],
+      generated_at: '2026-02-16T12:00:00Z',
+    })
+  })
+
+  it('calls API once on mount and renders four items with Show more link to /events', async () => {
+    const wrapper = mount(UpcomingEventsWidget, {
+      global: {
+        stubs: {
+          RouterLink: {
+            props: ['to'],
+            template: '<a :href="String(to)"><slot /></a>',
+          },
+        },
+      },
+    })
+
+    await flushPromises()
+    await nextTick()
+
+    expect(mockGetUpcomingEventsWidget).toHaveBeenCalledTimes(1)
+    expect(wrapper.findAll('.eventItem')).toHaveLength(4)
+
+    const showMoreLink = wrapper.find('a[href="/events"]')
+    expect(showMoreLink.exists()).toBe(true)
+    expect(showMoreLink.text()).toContain('Show more')
+  })
+})

@@ -9,6 +9,8 @@ class SidebarSectionRegistry
     public const SCOPE_CALENDAR = 'calendar';
     public const SCOPE_LEARNING = 'learning';
     public const SCOPE_NOTIFICATIONS = 'notifications';
+    public const SCOPE_POST_DETAIL = 'post_detail';
+    public const SCOPE_PROFILE = 'profile';
 
     /** @return array<int, string> */
     public static function scopes(): array
@@ -19,6 +21,8 @@ class SidebarSectionRegistry
             self::SCOPE_CALENDAR,
             self::SCOPE_LEARNING,
             self::SCOPE_NOTIFICATIONS,
+            self::SCOPE_POST_DETAIL,
+            self::SCOPE_PROFILE,
         ];
     }
 
@@ -57,6 +61,12 @@ class SidebarSectionRegistry
                 'title' => 'Latest Articles',
                 'default_enabled' => true,
                 'default_order' => 4,
+            ],
+            [
+                'section_key' => 'upcoming_events',
+                'title' => 'Co sa deje',
+                'default_enabled' => true,
+                'default_order' => 5,
             ],
         ];
     }

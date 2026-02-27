@@ -1,825 +1,633 @@
-<template>
-  <div class="adminEvents">
-    <!-- Header with view toggle -->
-    <header class="adminHeader">
-      <div class="headerContent">
-        <div>
-          <h1 class="adminTitle">Events</h1>
-          <p class="adminSubtitle">Admin events management</p>
-        </div>
-        <div class="viewToggle">
-          <button
-            class="toggleBtn"
-            :class="{ active: currentView === 'list' }"
-            @click="currentView = 'list'"
-          >
-            📋 List
-          </button>
-          <button
-            class="toggleBtn"
-            :class="{ active: currentView === 'create' }"
-            @click="currentView = 'create'"
-          >
-            ➕ Create
-          </button>
-          <button
-            v-if="currentView === 'edit'"
-            class="toggleBtn"
-            :class="{ active: currentView === 'edit' }"
-            @click="currentView = 'list'"
-          >
-            ← Back
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- List View -->
-    <div v-if="currentView === 'list'" class="listView">
-      <!-- Error State -->
-      <div v-if="error" class="errorState">
-        <div class="errorTitle">Failed to load events</div>
-        <div class="errorText">{{ error }}</div>
-        <button class="retryBtn" @click="refresh">Skúsiť znova</button>
-      </div>
-
-      <!-- Loading State -->
-      <div v-else-if="loading" class="loadingState">
-        <div class="skeleton h-8 w-32 mb-4"></div>
-        <div class="skeleton h-64 w-full"></div>
-      </div>
-
-      <!-- Events Table -->
-      <div v-else-if="data" class="tableContainer">
-        <div class="tableHeader">
-          <h2>Events List</h2>
-          <div class="tableInfo">
-            Page {{ pagination?.currentPage }} / {{ pagination?.lastPage }} (total {{ pagination?.total }})
-          </div>
-        </div>
-
-        <div class="tableWrapper">
-          <table class="eventsTable">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Start</th>
-                <th>Visibility</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="event in data.data" :key="event.id">
-                <td class="titleCell">{{ event.title }}</td>
-                <td class="typeCell">{{ event.type }}</td>
-                <td class="dateCell">{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</td>
-                <td class="visibilityCell">
-                  <span class="badge" :class="event.visibility === 1 ? 'public' : 'hidden'">
-                    {{ event.visibility === 1 ? 'public' : 'hidden' }}
-                  </span>
-                </td>
-                <td class="actionsCell">
-                  <button
-                    class="actionBtn editBtn"
-                    @click="editEvent(event)"
-                  >
-                    ✏️ Edit
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="data.data.length === 0">
-                <td colspan="5" class="emptyState">No events found.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Pagination -->
-        <div v-if="pagination" class="pagination">
-          <button
-            class="paginationBtn"
-            :disabled="!hasPrevPage"
-            @click="prevPage"
-          >
-            ← Previous
-          </button>
-          <span class="paginationInfo">
-            Page {{ pagination.currentPage }} of {{ pagination.lastPage }}
-          </span>
-          <button
-            class="paginationBtn"
-            :disabled="!hasNextPage"
-            @click="nextPage"
-          >
-            Next →
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Create/Edit Form View -->
-    <div v-if="currentView === 'create' || currentView === 'edit'" class="formView">
-      <div class="formContainer">
-        <h2>{{ isEdit ? 'Edit Event' : 'Create Event' }}</h2>
-        <p class="formSubtitle">
-          {{ isEdit ? 'Update existing event data.' : 'Add a new manual event.' }}
-        </p>
-
-        <!-- Error/Success Messages -->
-        <div v-if="formError" class="formError">
-          {{ formError }}
-        </div>
-        <div v-if="formSuccess" class="formSuccess">
-          {{ formSuccess }}
-        </div>
-
-        <form @submit.prevent="submitForm" class="eventForm">
-          <div class="formGrid">
-            <!-- Title -->
-            <div class="formField">
-              <label for="title">Title</label>
-              <input
-                id="title"
-                v-model="form.title"
-                type="text"
-                required
-                :disabled="formLoading"
-                class="formInput"
-              />
-            </div>
-
-            <!-- Description -->
-            <div class="formField full">
-              <label for="description">Description</label>
-              <textarea
-                id="description"
-                v-model="form.description"
-                rows="4"
-                :disabled="formLoading"
-                class="formTextarea"
-              ></textarea>
-            </div>
-
-            <!-- Type and Visibility -->
-            <div class="formField">
-              <label for="type">Event Type</label>
-              <select
-                id="type"
-                v-model="form.type"
-                :disabled="formLoading"
-                class="formSelect"
-              >
-                <option v-for="type in eventTypes" :key="type.value" :value="type.value">
-                  {{ type.label }}
-                </option>
-              </select>
-            </div>
-
-            <div class="formField">
-              <label for="visibility">Visibility</label>
-              <select
-                id="visibility"
-                v-model.number="form.visibility"
-                :disabled="formLoading"
-                class="formSelect"
-              >
-                <option :value="1">Public</option>
-                <option :value="0">Hidden</option>
-              </select>
-            </div>
-
-            <!-- Start and End Dates -->
-            <div class="formField">
-              <label for="start_at">Starts At</label>
-              <input
-                id="start_at"
-                v-model="form.start_at"
-                type="datetime-local"
-                required
-                :disabled="formLoading"
-                class="formInput"
-              />
-            </div>
-
-            <div class="formField">
-              <label for="end_at">Ends At (optional)</label>
-              <input
-                id="end_at"
-                v-model="form.end_at"
-                type="datetime-local"
-                :disabled="formLoading"
-                class="formInput"
-              />
-            </div>
-          </div>
-
-          <!-- Form Actions -->
-          <div class="formActions">
-            <button
-              type="button"
-              @click="currentView = 'list'"
-              :disabled="formLoading"
-              class="cancelBtn"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              :disabled="formLoading"
-              class="submitBtn"
-            >
-              {{ formLoading ? 'Saving...' : (isEdit ? 'Update Event' : 'Create Event') }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script>
-import { ref, computed, watch } from 'vue'
+<script setup>
+import { computed, ref } from 'vue'
 import { useAdminTable } from '@/composables/useAdminTable'
 import http from '@/services/api'
 
-export default {
-  name: 'AdminEventsUnifiedView',
-  setup() {
-    const currentView = ref('list')
-    const editingEvent = ref(null)
+const mode = ref('list')
+const editingEvent = ref(null)
+const formLoading = ref(false)
+const formError = ref('')
+const formSuccess = ref('')
+const translationActionLoading = ref(false)
+const translationError = ref('')
+const translationSummary = ref(null)
 
-    // Form state
-    const formLoading = ref(false)
-    const formError = ref('')
-    const formSuccess = ref('')
+const eventTypes = [
+  { value: 'meteor_shower', label: 'Meteoricky roj' },
+  { value: 'eclipse_lunar', label: 'Zatmenie mesiaca' },
+  { value: 'eclipse_solar', label: 'Zatmenie slnka' },
+  { value: 'planetary_event', label: 'Planetarny ukaz' },
+  { value: 'other', label: 'Ina udalost' },
+]
 
-    const eventTypes = [
-      { value: 'meteor_shower', label: 'Meteory' },
-      { value: 'eclipse_lunar', label: 'Zatmenie (L)' },
-      { value: 'eclipse_solar', label: 'Zatmenie (S)' },
-      { value: 'planetary_event', label: 'Konjunkcia' },
-      { value: 'other', label: 'Iné' },
-    ]
+const form = ref({
+  title: '',
+  description: '',
+  type: 'meteor_shower',
+  start_at: '',
+  end_at: '',
+  visibility: 1,
+})
 
-    const form = ref({
-      title: '',
-      description: '',
-      type: 'meteor_shower',
-      start_at: '',
-      end_at: '',
-      visibility: 1,
-    })
+const {
+  loading,
+  error,
+  data,
+  pagination,
+  hasNextPage,
+  hasPrevPage,
+  nextPage,
+  prevPage,
+  perPage,
+  setPerPage,
+  refresh,
+} = useAdminTable(
+  async (params) => {
+    const response = await http.get('/admin/events', { params })
+    return response
+  },
+  { defaultPerPage: 20 }
+)
 
-    // Use useAdminTable for events list
-    const {
-      loading,
-      error,
-      data,
-      pagination,
-      hasNextPage,
-      hasPrevPage,
-      nextPage,
-      prevPage,
-      refresh
-    } = useAdminTable(
-      async (params) => {
-        const response = await http.get('/admin/events', { params })
-        return response
-      }
-    )
+const isEdit = computed(() => mode.value === 'edit' && Boolean(editingEvent.value))
 
-    const isEdit = computed(() => currentView.value === 'edit' && editingEvent.value)
+const formErrors = computed(() => {
+  const errors = []
+  if (!String(form.value.title || '').trim()) {
+    errors.push('Nazov je povinny.')
+  }
+  if (!form.value.start_at) {
+    errors.push('Cas zaciatku je povinny.')
+  }
 
-    // Methods
-    const editEvent = (event) => {
-      editingEvent.value = event
-      form.value = {
-        title: event.title || '',
-        description: event.description || '',
-        type: event.type || 'meteor_shower',
-        start_at: toLocalInput(event.start_at || event.starts_at || event.max_at),
-        end_at: toLocalInput(event.end_at || event.ends_at),
-        visibility: typeof event.visibility === 'number' ? event.visibility : 1,
-      }
-      currentView.value = 'edit'
-      formError.value = ''
-      formSuccess.value = ''
-    }
-
-    const toLocalInput = (value) => {
-      if (!value) return ''
-      const d = new Date(value)
-      if (isNaN(d.getTime())) return ''
-      const pad = (n) => String(n).padStart(2, '0')
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-    }
-
-    const submitForm = async () => {
-      formLoading.value = true
-      formError.value = ''
-      formSuccess.value = ''
-
-      const payload = {
-        title: form.value.title,
-        description: form.value.description || null,
-        type: form.value.type,
-        start_at: form.value.start_at,
-        end_at: form.value.end_at || null,
-        visibility: form.value.visibility,
-      }
-
-      try {
-        if (isEdit.value) {
-          await http.put(`/admin/events/${editingEvent.value.id}`, payload)
-          formSuccess.value = 'Event updated successfully.'
-        } else {
-          await http.post('/admin/events', payload)
-          formSuccess.value = 'Event created successfully.'
-        }
-
-        // Reset form and go back to list after a short delay
-        setTimeout(() => {
-          currentView.value = 'list'
-          resetForm()
-          refresh()
-        }, 1000)
-      } catch (err) {
-        formError.value = err.response?.data?.message || 'Save failed.'
-      } finally {
-        formLoading.value = false
-      }
-    }
-
-    const resetForm = () => {
-      form.value = {
-        title: '',
-        description: '',
-        type: 'meteor_shower',
-        start_at: '',
-        end_at: '',
-        visibility: 1,
-      }
-      editingEvent.value = null
-      formError.value = ''
-      formSuccess.value = ''
-    }
-
-    const formatDate = (value) => {
-      if (!value) return '-'
-      const d = new Date(value)
-      if (isNaN(d.getTime())) return String(value)
-      return d.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
-    }
-
-    // Reset form when switching to create view
-    watch(currentView, (newView) => {
-      if (newView === 'create') {
-        resetForm()
-      }
-    })
-
-    return {
-      currentView,
-      loading,
-      error,
-      data,
-      pagination,
-      hasNextPage,
-      hasPrevPage,
-      nextPage,
-      prevPage,
-      refresh,
-      formLoading,
-      formError,
-      formSuccess,
-      form,
-      eventTypes,
-      isEdit,
-      editEvent,
-      submitForm,
-      formatDate,
+  if (form.value.start_at && form.value.end_at) {
+    const start = new Date(form.value.start_at)
+    const end = new Date(form.value.end_at)
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end < start) {
+      errors.push('Koniec nemoze byt skor ako zaciatok.')
     }
   }
+
+  return errors
+})
+
+function openCreate() {
+  editingEvent.value = null
+  form.value = {
+    title: '',
+    description: '',
+    type: 'meteor_shower',
+    start_at: '',
+    end_at: '',
+    visibility: 1,
+  }
+  formError.value = ''
+  formSuccess.value = ''
+  mode.value = 'create'
+}
+
+function openEdit(event) {
+  editingEvent.value = event
+  form.value = {
+    title: event.title || '',
+    description: event.description || '',
+    type: event.type || 'meteor_shower',
+    start_at: toLocalInput(event.start_at || event.starts_at || event.max_at),
+    end_at: toLocalInput(event.end_at || event.ends_at),
+    visibility: typeof event.visibility === 'number' ? event.visibility : 1,
+  }
+  formError.value = ''
+  formSuccess.value = ''
+  mode.value = 'edit'
+}
+
+function closeForm() {
+  mode.value = 'list'
+  formError.value = ''
+  formSuccess.value = ''
+}
+
+function formatDate(value) {
+  if (!value) return '-'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  return d.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function toLocalInput(value) {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function setStartNow() {
+  form.value.start_at = toLocalInput(new Date().toISOString())
+}
+
+function setEndAfter(hours) {
+  const base = form.value.start_at ? new Date(form.value.start_at) : new Date()
+  if (Number.isNaN(base.getTime())) return
+  base.setHours(base.getHours() + hours)
+  form.value.end_at = toLocalInput(base.toISOString())
+}
+
+async function submitForm() {
+  if (formErrors.value.length > 0) {
+    formError.value = formErrors.value[0]
+    return
+  }
+
+  formLoading.value = true
+  formError.value = ''
+  formSuccess.value = ''
+
+  const payload = {
+    title: String(form.value.title || '').trim(),
+    description: String(form.value.description || '').trim() || null,
+    type: form.value.type,
+    start_at: form.value.start_at,
+    end_at: form.value.end_at || null,
+    visibility: form.value.visibility,
+  }
+
+  try {
+    if (isEdit.value) {
+      await http.put(`/admin/events/${editingEvent.value.id}`, payload)
+      formSuccess.value = 'Udalost bola upravena.'
+    } else {
+      await http.post('/admin/events', payload)
+      formSuccess.value = 'Udalost bola vytvorena.'
+    }
+
+    await refresh()
+    mode.value = 'list'
+  } catch (err) {
+    formError.value = err?.response?.data?.message || 'Ulozenie zlyhalo.'
+  } finally {
+    formLoading.value = false
+  }
+}
+
+async function requestTranslationBackfill(dryRun) {
+  translationActionLoading.value = true
+  translationError.value = ''
+  translationSummary.value = null
+
+  try {
+    const response = await http.post('/admin/events/retranslate', {
+      dry_run: dryRun,
+      force: false,
+      limit: 0,
+    })
+    translationSummary.value = response.data
+    if (!dryRun) {
+      await refresh()
+    }
+  } catch (err) {
+    translationError.value = err?.response?.data?.message || 'Retranslate zlyhal.'
+  } finally {
+    translationActionLoading.value = false
+  }
+}
+
+async function previewTranslationBackfill() {
+  await requestTranslationBackfill(true)
+}
+
+async function runTranslationBackfill() {
+  if (!window.confirm('Spustit retranslate schvalenych udalosti?')) return
+  await requestTranslationBackfill(false)
 }
 </script>
 
+<template>
+  <div class="eventsView">
+    <section class="panel headerPanel">
+      <div>
+        <h1>Udalosti</h1>
+        <p>Kompaktny prehlad publikovanych a manualnych udalosti.</p>
+      </div>
+      <div class="toolbar">
+        <button class="btn ghost" :disabled="translationActionLoading" @click="previewTranslationBackfill">Nahlad retranslate</button>
+        <button class="btn ghost" :disabled="translationActionLoading" @click="runTranslationBackfill">Spustit retranslate</button>
+        <button class="btn primary" @click="openCreate">Nova udalost</button>
+      </div>
+    </section>
+
+    <section v-if="translationError" class="notice noticeError">{{ translationError }}</section>
+    <section v-else-if="translationSummary" class="notice noticeOk">
+      Kandidati: {{ translationSummary.summary?.total_candidates ?? 0 }} |
+      Prelozene: {{ translationSummary.summary?.translated ?? 0 }} |
+      Zlyhalo: {{ translationSummary.summary?.failed ?? 0 }} |
+      Updated events: {{ translationSummary.summary?.events_updated ?? 0 }} |
+      Dry run: {{ translationSummary.summary?.dry_run ? 'ano' : 'nie' }}
+    </section>
+
+    <section v-if="mode !== 'list'" class="panel formPanel">
+      <div class="formHead">
+        <div>
+          <h2>{{ isEdit ? 'Upravit udalost' : 'Vytvorit udalost' }}</h2>
+          <p>{{ isEdit ? 'Upravis existujuci zaznam.' : 'Vytvoris novu manualnu udalost.' }}</p>
+        </div>
+        <div class="quickBtns">
+          <button class="btn tiny" type="button" @click="setStartNow">Zaciatok teraz</button>
+          <button class="btn tiny" type="button" @click="setEndAfter(1)">Koniec +1h</button>
+          <button class="btn tiny" type="button" @click="setEndAfter(2)">Koniec +2h</button>
+        </div>
+      </div>
+
+      <div v-if="formError" class="notice noticeError">{{ formError }}</div>
+      <div v-if="formSuccess" class="notice noticeOk">{{ formSuccess }}</div>
+
+      <form class="formGrid" @submit.prevent="submitForm">
+        <label class="field fieldWide">
+          <span>Nazov *</span>
+          <input v-model="form.title" type="text" :disabled="formLoading" />
+        </label>
+
+        <label class="field">
+          <span>Typ *</span>
+          <select v-model="form.type" :disabled="formLoading">
+            <option v-for="item in eventTypes" :key="item.value" :value="item.value">{{ item.label }}</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Viditelnost</span>
+          <select v-model.number="form.visibility" :disabled="formLoading">
+            <option :value="1">Public</option>
+            <option :value="0">Hidden</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Zaciatok *</span>
+          <input v-model="form.start_at" type="datetime-local" :disabled="formLoading" />
+        </label>
+
+        <label class="field">
+          <span>Koniec</span>
+          <input v-model="form.end_at" type="datetime-local" :disabled="formLoading" />
+        </label>
+
+        <label class="field fieldWide">
+          <span>Popis</span>
+          <textarea v-model="form.description" rows="3" :disabled="formLoading"></textarea>
+        </label>
+
+        <div v-if="formErrors.length > 0" class="fieldWide notice noticeError">{{ formErrors[0] }}</div>
+
+        <div class="formActions fieldWide">
+          <button type="button" class="btn ghost" :disabled="formLoading" @click="closeForm">Zrusit</button>
+          <button type="submit" class="btn primary" :disabled="formLoading || formErrors.length > 0">
+            {{ formLoading ? 'Uklada sa...' : (isEdit ? 'Ulozit zmeny' : 'Vytvorit') }}
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel listPanel">
+      <div class="listTop">
+        <div class="meta">
+          <strong>Prehlad</strong>
+          <span v-if="pagination">Strana {{ pagination.currentPage }} / {{ pagination.lastPage }} (spolu {{ pagination.total }})</span>
+        </div>
+        <label class="perPage">
+          <span>Na stranku</span>
+          <select :value="perPage" @change="setPerPage(Number($event.target.value))">
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+          </select>
+        </label>
+      </div>
+
+      <div v-if="error" class="notice noticeError">
+        {{ error }}
+        <button class="btn tiny" @click="refresh">Skusit znova</button>
+      </div>
+
+      <div v-else-if="loading" class="loading">Nacitavam udalosti...</div>
+
+      <div v-else-if="data" class="tableWrap">
+        <table class="compactTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nazov</th>
+              <th>Typ</th>
+              <th>Zaciatok</th>
+              <th>Stav</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="event in data.data" :key="event.id">
+              <td class="mono">{{ event.id }}</td>
+              <td>
+                <div class="title">{{ event.title }}</div>
+                <div v-if="event.description" class="sub">{{ event.description }}</div>
+              </td>
+              <td><span class="pill">{{ event.type }}</span></td>
+              <td>{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</td>
+              <td>
+                <span class="pill" :class="event.visibility === 1 ? 'ok' : 'muted'">
+                  {{ event.visibility === 1 ? 'public' : 'hidden' }}
+                </span>
+              </td>
+              <td class="right">
+                <button class="btn tiny" @click="openEdit(event)">Upravit</button>
+              </td>
+            </tr>
+            <tr v-if="data.data.length === 0">
+              <td colspan="6" class="empty">Ziadne udalosti.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="pagination" class="pager">
+        <button class="btn ghost" :disabled="!hasPrevPage" @click="prevPage">Pred</button>
+        <button class="btn ghost" :disabled="!hasNextPage" @click="nextPage">Dalsia</button>
+      </div>
+    </section>
+  </div>
+</template>
+
 <style scoped>
-.adminEvents {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.eventsView {
+  display: grid;
+  gap: 12px;
 }
 
-.adminHeader {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 1rem;
+.panel {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 12px;
+  background: rgb(var(--color-bg-rgb) / 0.84);
+  padding: 12px;
 }
 
-.headerContent {
+.headerPanel {
   display: flex;
-  justify-content: space-between;
   align-items: flex-end;
-  gap: 1rem;
-}
-
-.adminTitle {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #ffffff;
-}
-
-.adminSubtitle {
-  color: rgba(255, 255, 255, 0.7);
-  margin-top: 0.25rem;
-}
-
-.viewToggle {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.toggleBtn {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  border-radius: 0.375rem;
-  transition: all 0.2s;
-  color: rgba(255, 255, 255, 0.8);
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  cursor: pointer;
-}
-
-.toggleBtn:hover {
-  color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.toggleBtn.active {
-  background-color: #3b82f6;
-  color: #ffffff;
-  border-color: #3b82f6;
-}
-
-/* List View Styles */
-.listView {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.errorState {
-  text-align: center;
-  padding: 3rem 0;
-}
-
-.errorTitle {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #ef4444;
-}
-
-.errorText {
-  color: rgba(255, 255, 255, 0.7);
-  margin-top: 0.5rem;
-}
-
-.retryBtn {
-  margin-top: 1rem;
-  padding: 0.5rem 1rem;
-  background-color: #3b82f6;
-  color: white;
-  border-radius: 0.375rem;
-  border: none;
-  cursor: pointer;
-}
-
-.retryBtn:hover {
-  background-color: #2563eb;
-}
-
-.loadingState {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.tableContainer {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  overflow: hidden;
-}
-
-.tableHeader {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.tableHeader h2 {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #ffffff;
+.headerPanel h1 {
   margin: 0;
+  font-size: 1.2rem;
 }
 
-.tableInfo {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.7);
+.headerPanel p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  opacity: 0.82;
 }
 
-.tableWrapper {
-  overflow-x: auto;
-}
-
-.eventsTable {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.eventsTable th {
-  text-align: left;
-  padding: 1rem 1.5rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
-  background-color: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.eventsTable td {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.titleCell {
-  font-weight: 500;
-  color: #ffffff;
-}
-
-.typeCell {
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.dateCell {
-  color: rgba(255, 255, 255, 0.7);
-  white-space: nowrap;
-}
-
-.visibilityCell .badge {
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.visibilityCell .badge.public {
-  background-color: rgba(34, 197, 94, 0.2);
-  color: #22c55e;
-}
-
-.visibilityCell .badge.hidden {
-  background-color: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-}
-
-.actionsCell {
-  text-align: right;
-}
-
-.actionBtn {
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: transparent;
-  color: rgba(255, 255, 255, 0.8);
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.875rem;
-}
-
-.actionBtn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-}
-
-.editBtn:hover {
-  border-color: #3b82f6;
-  background-color: rgba(59, 130, 246, 0.1);
-}
-
-.emptyState {
-  text-align: center;
-  padding: 2rem;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.pagination {
+.toolbar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.paginationBtn {
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+.btn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
+  border-radius: 10px;
+  padding: 7px 11px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.8);
-  cursor: pointer;
-  transition: all 0.2s;
+  color: inherit;
+  font-size: 13px;
 }
 
-.paginationBtn:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+.btn:hover:not(:disabled) {
+  background: rgb(var(--color-surface-rgb) / 0.08);
 }
 
-.paginationBtn:disabled {
-  opacity: 0.5;
+.btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
-.paginationInfo {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.7);
+.btn.primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.36);
+  background: rgb(var(--color-primary-rgb) / 0.14);
 }
 
-/* Form View Styles */
-.formView {
+.btn.tiny {
+  padding: 5px 9px;
+  font-size: 12px;
+  border-radius: 999px;
+}
+
+.notice {
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.noticeOk {
+  border: 1px solid rgb(22 163 74 / 0.35);
+  background: rgb(22 163 74 / 0.1);
+}
+
+.noticeError {
+  border: 1px solid rgb(239 68 68 / 0.35);
+  background: rgb(239 68 68 / 0.1);
+}
+
+.formPanel {
+  display: grid;
+  gap: 10px;
+}
+
+.formHead {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.formContainer {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 0.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1.5rem;
+.formHead h2 {
+  margin: 0;
+  font-size: 1rem;
 }
 
-.formContainer h2 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #ffffff;
-  margin: 0 0 0.5rem 0;
+.formHead p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  opacity: 0.82;
 }
 
-.formSubtitle {
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 1.5rem;
-}
-
-.formError {
-  padding: 0.75rem;
-  background-color: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 0.375rem;
-  color: #ef4444;
-  margin-bottom: 1rem;
-}
-
-.formSuccess {
-  padding: 0.75rem;
-  background-color: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  border-radius: 0.375rem;
-  color: #22c55e;
-  margin-bottom: 1rem;
-}
-
-.eventForm {
+.quickBtns {
   display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .formGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.formField.full {
-  grid-column: 1 / -1;
+.field {
+  display: grid;
+  gap: 4px;
 }
 
-.formField label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 0.5rem;
+.field span {
+  font-size: 12px;
+  opacity: 0.82;
 }
 
-.formInput,
-.formTextarea,
-.formSelect {
+.fieldWide {
+  grid-column: span 4;
+}
+
+.field input,
+.field textarea,
+.field select {
   width: 100%;
-  padding: 0.75rem;
-  border-radius: 0.375rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background-color: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-  transition: all 0.2s;
-}
-
-.formInput:focus,
-.formTextarea:focus,
-.formSelect:focus {
-  outline: none;
-  border-color: #3b82f6;
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
-.formTextarea {
-  resize: vertical;
-  min-height: 100px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  padding: 8px 10px;
 }
 
 .formActions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 1rem;
+  gap: 8px;
 }
 
-.cancelBtn,
-.submitBtn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.375rem;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 500;
+.listTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
-.cancelBtn {
+.meta {
+  display: grid;
+  gap: 2px;
+}
+
+.meta span {
+  font-size: 12px;
+  opacity: 0.82;
+}
+
+.perPage {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.perPage select {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
+  border-radius: 8px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.8);
+  color: inherit;
+  padding: 6px 8px;
 }
 
-.cancelBtn:hover:not(:disabled) {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+.loading {
+  font-size: 13px;
+  opacity: 0.85;
 }
 
-.submitBtn {
-  background-color: #3b82f6;
-  color: #ffffff;
-  border-color: #3b82f6;
+.tableWrap {
+  overflow-x: auto;
 }
 
-.submitBtn:hover:not(:disabled) {
-  background-color: #2563eb;
+.compactTable {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.cancelBtn:disabled,
-.submitBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.compactTable th,
+.compactTable td {
+  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
 }
 
-/* Skeleton styles */
-.skeleton {
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 0.375rem;
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.compactTable th {
+  font-size: 12px;
+  opacity: 0.82;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .headerContent {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.title {
+  font-weight: 600;
+}
 
+.sub {
+  margin-top: 3px;
+  font-size: 12px;
+  opacity: 0.75;
+  max-width: 420px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
+  background: rgb(var(--color-surface-rgb) / 0.08);
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.pill.ok {
+  border-color: rgb(22 163 74 / 0.35);
+  background: rgb(22 163 74 / 0.12);
+}
+
+.pill.muted {
+  opacity: 0.75;
+}
+
+.right {
+  text-align: right;
+}
+
+.empty {
+  text-align: center;
+  opacity: 0.78;
+  padding: 16px;
+}
+
+.pager {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
   .formGrid {
     grid-template-columns: 1fr;
   }
 
-  .tableWrapper {
-    overflow-x: scroll;
-  }
-
-  .eventsTable {
-    min-width: 600px;
+  .fieldWide {
+    grid-column: span 1;
   }
 }
 </style>

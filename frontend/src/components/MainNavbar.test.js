@@ -16,6 +16,8 @@ vi.mock('@/stores/auth', () => ({
 vi.mock('@/stores/notifications', () => ({
   useNotificationsStore: () => ({
     unreadBadge: '',
+    unreadCount: 0,
+    unreadCountHydrated: true,
     fetchUnreadCount: vi.fn(async () => {}),
   }),
 }))
@@ -27,7 +29,8 @@ const makeRouter = () =>
       { path: '/', name: 'home', component: { template: '<div>home</div>' } },
       { path: '/events', name: 'events', component: { template: '<div>events</div>' } },
       { path: '/events/:id', name: 'event-detail', component: { template: '<div>event</div>' } },
-      { path: '/learn', name: 'learn', component: { template: '<div>learn</div>' } },
+      { path: '/clanky', name: 'learn', component: { template: '<div>learn</div>' } },
+      { path: '/learn', name: 'learn-legacy', component: { template: '<div>learn legacy</div>' } },
       { path: '/more', name: 'more', component: { template: '<div>more</div>' } },
       { path: '/login', name: 'login', component: { template: '<div>login</div>' } },
       { path: '/register', name: 'register', component: { template: '<div>register</div>' } },

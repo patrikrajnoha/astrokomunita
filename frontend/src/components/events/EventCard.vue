@@ -5,7 +5,7 @@
         v-if="heroImage"
         class="hero-image"
         :src="heroImage"
-        :alt="event?.title ? `Obrazok udalosti ${event.title}` : 'Obrazok udalosti'"
+        :alt="title !== '-' ? `Obrazok udalosti ${title}` : 'Obrazok udalosti'"
         loading="lazy"
         decoding="async"
       />
@@ -14,7 +14,18 @@
     </div>
 
     <div class="card-body">
-      <h2 class="title">{{ event?.title || 'Bez nazvu' }}</h2>
+      <div class="title-row">
+        <h2 class="title">{{ title !== '-' ? title : 'Bez nazvu' }}</h2>
+        <span
+          v-if="publicConfidenceBadge"
+          class="confidence-badge"
+          :class="`confidence-${publicConfidenceBadge.level}`"
+          :title="publicConfidenceTooltip"
+          :aria-label="publicConfidenceTooltip"
+        >
+          {{ publicConfidenceBadge.shortLabel }}
+        </span>
+      </div>
       <p class="meta-row">{{ formattedTime }}</p>
       <p class="visibility-row" :aria-label="`Viditelnost zo Slovenska: ${visibilityText || 'neznamy stav'}`">
         {{ `${SK_FLAG} ${visibilityIcon}` }}
@@ -48,6 +59,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { eventDisplayDescription, eventDisplayTitle } from '@/utils/translatedFields'
 
 const props = defineProps({
   event: {
@@ -77,10 +89,44 @@ defineEmits(['toggle-bio', 'open-sheet'])
 const SK_FLAG = '\ud83c\uddf8\ud83c\uddf0'
 const BIO_ID = 'event-bio'
 
-const description = computed(() => props.event?.description || props.event?.short || 'Bez popisu.')
+const title = computed(() => eventDisplayTitle(props.event))
+const description = computed(() => {
+  const value = eventDisplayDescription(props.event)
+  return value === '-' ? 'Bez popisu.' : value
+})
 const heroImage = computed(
   () => props.event?.image || props.event?.image_url || props.event?.hero_image || props.event?.cover_image_url || ''
 )
+const publicConfidenceBadge = computed(() => {
+  const confidence = props.event?.public_confidence
+  const level = confidence?.level
+  if (!level || level === 'unknown') return null
+
+  const shortLabels = {
+    verified: 'Overené',
+    partial: 'Čiastočne',
+    low: 'Nízka dôvera',
+  }
+
+  return {
+    level,
+    shortLabel: shortLabels[level] || 'Neznáme',
+    reason: confidence?.reason || '',
+    score: confidence?.score,
+    sourcesCount: confidence?.sources_count,
+  }
+})
+const publicConfidenceTooltip = computed(() => {
+  const badge = publicConfidenceBadge.value
+  if (!badge) return ''
+  if (badge.level === 'unknown') return 'Nie sú dostupné údaje o dôveryhodnosti.'
+
+  if (typeof badge.score === 'number' && typeof badge.sourcesCount === 'number') {
+    return `${badge.reason} Skóre: ${badge.score}/100 • Zdrojov: ${badge.sourcesCount}`
+  }
+
+  return badge.reason || 'Nie sú dostupné údaje o dôveryhodnosti.'
+})
 </script>
 
 <style scoped>
@@ -133,6 +179,40 @@ const heroImage = computed(
   line-height: 1.2;
   font-weight: 700;
   color: var(--color-surface);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.confidence-badge {
+  border-radius: 999px;
+  padding: 0.12rem 0.46rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.confidence-verified {
+  color: #0f5132;
+  background: #d1e7dd;
+  border-color: #badbcc;
+}
+
+.confidence-partial {
+  color: #664d03;
+  background: #fff3cd;
+  border-color: #ffecb5;
+}
+
+.confidence-low {
+  color: #842029;
+  background: #f8d7da;
+  border-color: #f5c2c7;
 }
 
 .meta-row,

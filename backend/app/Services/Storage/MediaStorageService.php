@@ -12,6 +12,16 @@ class MediaStorageService
         return (string) config('media.disk', 'public');
     }
 
+    public function publicDiskName(): string
+    {
+        return $this->diskName();
+    }
+
+    public function privateDiskName(): string
+    {
+        return (string) config('media.private_disk', 'local');
+    }
+
     public function storeAvatar(UploadedFile $file, int $userId): string
     {
         return $this->storePublicly($file, sprintf('avatars/%d', $userId));
@@ -27,35 +37,40 @@ class MediaStorageService
         return $this->storePublicly($file, sprintf('posts/%d', $postId));
     }
 
+    public function storePollOptionImage(UploadedFile $file, int $pollId, int $optionId): string
+    {
+        return $this->storePublicly($file, sprintf('polls/%d/options/%d', $pollId, $optionId));
+    }
+
     public function storeBlogCover(UploadedFile $file, int $userId): string
     {
         return $this->storePublicly($file, sprintf('blog-covers/%d', $userId));
     }
 
-    public function delete(?string $path): void
+    public function delete(?string $path, ?string $diskName = null): void
     {
         if (!$path) {
             return;
         }
 
-        $disk = Storage::disk($this->diskName());
+        $disk = Storage::disk($diskName ?: $this->diskName());
         if ($disk->exists($path)) {
             $disk->delete($path);
         }
     }
 
-    public function exists(string $path): bool
+    public function exists(string $path, ?string $diskName = null): bool
     {
-        return Storage::disk($this->diskName())->exists($path);
+        return Storage::disk($diskName ?: $this->diskName())->exists($path);
     }
 
-    public function absoluteUrl(?string $path): ?string
+    public function absoluteUrl(?string $path, ?string $diskName = null): ?string
     {
         if (!$path) {
             return null;
         }
 
-        $url = Storage::disk($this->diskName())->url($path);
+        $url = Storage::disk($diskName ?: $this->diskName())->url($path);
         if (preg_match('#^https?://#i', $url)) {
             return $url;
         }
@@ -67,6 +82,24 @@ class MediaStorageService
     private function storePublicly(UploadedFile $file, string $directory): string
     {
         return $file->storePublicly($directory, ['disk' => $this->diskName()]);
+    }
+
+    public function writePublic(string $path, string $contents): void
+    {
+        Storage::disk($this->publicDiskName())->put($path, $contents, ['visibility' => 'public']);
+    }
+
+    public function writePrivate(string $path, string $contents): void
+    {
+        Storage::disk($this->privateDiskName())->put($path, $contents);
+    }
+
+    /**
+     * @param resource $stream
+     */
+    public function writePrivateStream(string $path, $stream): void
+    {
+        Storage::disk($this->privateDiskName())->put($path, $stream);
     }
 }
 

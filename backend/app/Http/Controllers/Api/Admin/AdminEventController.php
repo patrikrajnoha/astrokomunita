@@ -7,12 +7,18 @@ use App\Enums\RegionScope;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
+use App\Services\Events\EventFeedRealtimePublisher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AdminEventController extends Controller
 {
+    public function __construct(
+        private readonly EventFeedRealtimePublisher $eventFeedRealtimePublisher,
+    ) {
+    }
+
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 20);
@@ -51,6 +57,7 @@ class AdminEventController extends Controller
         $event->source_uid = (string) Str::uuid();
         $event->max_at = $event->start_at;
         $event->save();
+        $this->eventFeedRealtimePublisher->publish($event);
 
         return new EventResource($event);
     }

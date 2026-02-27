@@ -4,6 +4,8 @@ export type BlogComment = {
   id: number;
   blog_post_id: number;
   user_id: number;
+  parent_id: number | null;
+  depth?: number;
   content: string;
   created_at: string;
   updated_at: string;
@@ -32,7 +34,7 @@ export type LaravelPaginator<T> = {
 };
 
 export const blogComments = {
-  async list(slug: string, params?: { page?: number }) {
+  async list(slug: string, params?: { page?: number; withDepth?: 0 | 1 }) {
     const res = await api.get<LaravelPaginator<BlogComment>>(
       `/blog-posts/${slug}/comments`,
       { params }
@@ -40,7 +42,7 @@ export const blogComments = {
     return res.data;
   },
 
-  async create(slug: string, payload: { content: string }) {
+  async create(slug: string, payload: { content: string; parent_id?: number | null }) {
     const res = await api.post<BlogComment>(
       `/blog-posts/${slug}/comments`,
       payload

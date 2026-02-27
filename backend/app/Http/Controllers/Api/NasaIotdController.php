@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -12,53 +13,52 @@ use SimpleXMLElement;
 class NasaIotdController extends Controller
 {
     public const FEED_URL = 'https://www.nasa.gov/feeds/iotd-feed/';
+    public const APOD_API_URL = 'https://api.nasa.gov/planetary/apod';
 
     public function show(): JsonResponse
     {
-        $payload = Cache::remember('nasa_iotd_widget_v1', now()->addHour(), function () {
-            try {
-                $xml = $this->fetchFeed();
-                $item = $this->extractLatestItem($xml);
+        $cacheKey = 'nasa_iotd_widget_v2';
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached)) {
+            return response()->json($cached);
+        }
 
-                if (!$item) {
-                    return ['available' => false];
-                }
-
-                $title = $this->normalizeText((string) ($item->title ?? ''));
-                $link = trim((string) ($item->link ?? ''));
-
-                $description = (string) ($item->description ?? '');
-                $contentEncoded = $this->extractContentEncoded($item);
-
-                $imageUrl = $this->extractImageUrl($item, $contentEncoded, $description);
-                if (!$imageUrl || !$title || !$link) {
-                    return ['available' => false];
-                }
-
-                $excerpt = $this->buildExcerpt($contentEncoded !== '' ? $contentEncoded : $description);
-
-                return [
-                    'available' => true,
-                    'title' => $title,
-                    'excerpt' => $excerpt,
-                    'image_url' => $imageUrl,
-                    'link' => $link,
-                ];
-            } catch (\Throwable) {
-                return ['available' => false];
-            }
-        });
+        $payload = $this->buildPayload();
+        $ttl = !empty($payload['available']) ? now()->addHour() : now()->addMinutes(5);
+        Cache::put($cacheKey, $payload, $ttl);
 
         return response()->json($payload);
     }
 
+    private function buildPayload(): array
+    {
+        try {
+            $xml = $this->fetchFeed();
+            $item = $this->extractLatestItem($xml);
+            if ($item) {
+                $rssPayload = $this->mapRssItem($item);
+                if (!empty($rssPayload['available'])) {
+                    return $rssPayload;
+                }
+            }
+        } catch (\Throwable) {
+            // fallback below
+        }
+
+        try {
+            return $this->fetchApodApiPayload();
+        } catch (\Throwable) {
+            return ['available' => false];
+        }
+    }
+
     private function fetchFeed(): SimpleXMLElement
     {
-        $body = Http::withoutVerifying()
-            ->accept('application/rss+xml, application/xml, text/xml')
-            ->get(self::FEED_URL)
-            ->throw()
-            ->body();
+        $body = $this->requestWithSslFallback(
+            fn (PendingRequest $request) => $request
+                ->accept('application/rss+xml, application/xml, text/xml')
+                ->get(self::FEED_URL)
+        )->throw()->body();
 
         return $this->parseXml($body);
     }
@@ -163,6 +163,84 @@ class NasaIotdController extends Controller
         }
 
         return null;
+    }
+
+    private function mapRssItem(SimpleXMLElement $item): array
+    {
+        $title = $this->normalizeText((string) ($item->title ?? ''));
+        $link = trim((string) ($item->link ?? ''));
+
+        $description = (string) ($item->description ?? '');
+        $contentEncoded = $this->extractContentEncoded($item);
+
+        $imageUrl = $this->extractImageUrl($item, $contentEncoded, $description);
+        if (!$imageUrl || !$title || !$link) {
+            return ['available' => false];
+        }
+
+        $excerpt = $this->buildExcerpt($contentEncoded !== '' ? $contentEncoded : $description);
+
+        return [
+            'available' => true,
+            'title' => $title,
+            'excerpt' => $excerpt,
+            'image_url' => $imageUrl,
+            'link' => $link,
+        ];
+    }
+
+    private function fetchApodApiPayload(): array
+    {
+        $apiKey = (string) config('services.nasa.apod_api_key', 'DEMO_KEY');
+
+        $json = $this->requestWithSslFallback(
+            fn (PendingRequest $request) => $request
+                ->acceptJson()
+                ->get(self::APOD_API_URL, [
+                    'api_key' => $apiKey,
+                ])
+        )->throw()->json();
+
+        $title = $this->normalizeText((string) ($json['title'] ?? ''));
+        $link = trim((string) ($json['hdurl'] ?? $json['url'] ?? ''));
+        $mediaType = strtolower(trim((string) ($json['media_type'] ?? '')));
+        $imageUrl = trim((string) ($json['url'] ?? $json['hdurl'] ?? ''));
+
+        if ($mediaType === 'video') {
+            $imageUrl = trim((string) ($json['thumbnail_url'] ?? ''));
+        }
+
+        if ($title === null || $link === '' || $imageUrl === '') {
+            return ['available' => false];
+        }
+
+        $excerpt = $this->buildExcerpt((string) ($json['explanation'] ?? ''));
+
+        return [
+            'available' => true,
+            'title' => $title,
+            'excerpt' => $excerpt,
+            'image_url' => $imageUrl,
+            'link' => $link,
+        ];
+    }
+
+    private function requestWithSslFallback(callable $requestBuilder)
+    {
+        try {
+            $primary = $requestBuilder(Http::secure()->timeout(15));
+            if ($primary->successful()) {
+                return $primary;
+            }
+        } catch (\Throwable) {
+            // retry below with disabled SSL verification
+        }
+
+        $secondary = $requestBuilder(
+            Http::withOptions(['verify' => false])->timeout(15)
+        );
+
+        return $secondary;
     }
 
     private function buildExcerpt(string $html): ?string

@@ -49,18 +49,18 @@ INTERNAL_TOKEN = os.getenv("INTERNAL_TOKEN", "")
 MAX_TRANSLATE_CHARS = int(os.getenv("TRANSLATION_CHUNK_MAX_CHARS", "4000"))
 
 ASTRONOMY_TERMS = {
-    "meteor shower": "meteorický roj",
+    "meteor shower": "meteorick\u00FD roj",
     "lunar eclipse": "zatmenie Mesiaca",
     "solar eclipse": "zatmenie Slnka",
-    "International Space Station": "Medzinárodná vesmírna stanica",
-    "Milky Way": "Mliečna cesta",
-    "black hole": "čierna diera",
+    "International Space Station": "Medzin\u00E1rodn\u00E1 vesm\u00EDrna stanica",
+    "Milky Way": "Mlie\u010Dna cesta",
+    "black hole": "\u010Dierna diera",
     "supernova": "supernova",
-    "exoplanet": "exoplanéta",
-    "deep space": "hlboký vesmír",
-    "space telescope": "vesmírny teleskop",
+    "exoplanet": "exoplan\u00E9ta",
+    "deep space": "hlbok\u00FD vesm\u00EDr",
+    "space telescope": "vesm\u00EDrny teleskop",
     "nebula": "hmlovina",
-    "rocket launch": "štart rakety",
+    "rocket launch": "\u0161tart rakety",
 }
 
 app = FastAPI(title="Sky Summary Service", version=SERVICE_VERSION)
@@ -328,6 +328,7 @@ def build_moon_payload(observer, location, local_date: date_cls, local_tz: ZoneI
     illumination = float(almanac.fraction_illuminated(eph, "moon", t_noon) * 100.0)
 
     rise_local, set_local = moon_rise_set_times(location=location, local_date=local_date, local_tz=local_tz)
+    altitude_hourly = moon_altitude_hourly(observer=observer, local_date=local_date, local_tz=local_tz)
 
     return {
         "phase_deg": round(phase_deg, 1),
@@ -335,6 +336,7 @@ def build_moon_payload(observer, location, local_date: date_cls, local_tz: ZoneI
         "illumination": round(illumination, 1),
         "rise_local": rise_local,
         "set_local": set_local,
+        "altitude_hourly": altitude_hourly,
     }
 
 
@@ -360,6 +362,24 @@ def moon_rise_set_times(location, local_date: date_cls, local_tz: ZoneInfo) -> t
             moonset = hhmm
 
     return moonrise, moonset
+
+
+def moon_altitude_hourly(observer, local_date: date_cls, local_tz: ZoneInfo) -> list[dict]:
+    start_local = datetime.combine(local_date, time_cls(0, 0), tzinfo=local_tz)
+    local_times = [start_local + timedelta(hours=offset) for offset in range(24)]
+    utc_times = [dt.astimezone(timezone.utc) for dt in local_times]
+    t = ts.from_datetimes(utc_times)
+
+    alt, _, _ = observer.at(t).observe(MOON).apparent().altaz()
+    alt_deg = np.asarray(alt.degrees)
+
+    return [
+        {
+            "local_time": local_times[idx].strftime("%H:%M"),
+            "altitude_deg": round(float(alt_deg[idx]), 1),
+        }
+        for idx in range(len(local_times))
+    ]
 
 
 def build_planets_payload(observer, local_date: date_cls, local_tz: ZoneInfo) -> list[dict]:

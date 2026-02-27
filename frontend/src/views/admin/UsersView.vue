@@ -13,7 +13,7 @@ import { useToast } from '@/composables/useToast'
 const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
-const { confirm } = useConfirm()
+const { confirm, prompt } = useConfirm()
 const toast = useToast()
 
 const loading = ref(false)
@@ -102,6 +102,13 @@ function statusClass(user) {
   return 'is-inactive'
 }
 
+function banReasonPreview(user) {
+  const reason = String(user?.ban_reason || '').trim()
+  if (!reason) return ''
+  if (reason.length <= 48) return reason
+  return `${reason.slice(0, 48)}...`
+}
+
 function roleClass(user) {
   const role = String(user?.role || '').toLowerCase()
   if (role === 'admin') return 'is-admin'
@@ -154,17 +161,20 @@ function updateRow(updated) {
 
 async function banUser(user) {
   if (!user || isSelf(user)) return
-  const ok = await confirm({
+  const reason = await prompt({
     title: 'Ban user',
-    message: `Ban user ${user.email}?`,
-    confirmText: 'Ban',
+    message: `Provide ban reason for ${user.email}.`,
+    confirmText: 'Ban user',
     cancelText: 'Cancel',
+    placeholder: 'Ban reason...',
+    required: true,
+    multiline: true,
     variant: 'danger',
   })
-  if (!ok) return
+  if (!reason) return
 
   try {
-    const res = await api.post(`/admin/users/${user.id}/ban`)
+    const res = await api.patch(`/admin/users/${user.id}/ban`, { reason: String(reason).trim() })
     updateRow(res.data)
     toast.success('User banned.')
   } catch (e) {
@@ -346,7 +356,16 @@ load()
       </template>
 
       <template #[`cell(status)`]="{ row }">
-        <span class="badge statusBadge" :class="statusClass(row)">{{ statusLabel(row) }}</span>
+        <div class="statusCell">
+          <span class="badge statusBadge" :class="statusClass(row)">{{ statusLabel(row) }}</span>
+          <span
+            v-if="row.is_banned && row.ban_reason"
+            class="banReasonPreview"
+            :title="row.ban_reason"
+          >
+            {{ banReasonPreview(row) }}
+          </span>
+        </div>
       </template>
 
       <template #[`cell(actions)`]="{ row }">
@@ -425,6 +444,12 @@ load()
   font-weight: 600;
 }
 
+.statusCell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .statusBadge.is-active {
   color: rgb(21 128 61);
   border-color: rgb(34 197 94 / 0.35);
@@ -435,6 +460,16 @@ load()
   color: rgb(185 28 28);
   border-color: rgb(239 68 68 / 0.35);
   background: rgb(239 68 68 / 0.12);
+}
+
+.banReasonPreview {
+  display: inline-block;
+  max-width: 220px;
+  font-size: 12px;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .statusBadge.is-inactive {

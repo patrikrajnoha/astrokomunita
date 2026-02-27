@@ -74,7 +74,7 @@ class ObservingHeuristics
         }
 
         if ($illuminationPct >= (int) config('observing.thresholds.moon.warning_min_pct', 90)) {
-            return 'Mesiac je veľmi jasný – slabšie objekty budú horšie viditeľné.';
+            return 'Mesiac je veľmi jasný, slabšie objekty budú horšie viditeľné.';
         }
 
         return null;

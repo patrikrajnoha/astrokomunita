@@ -8,6 +8,7 @@ const DEFAULT_ITEMS = [
   { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA APOD', order: 2, is_enabled: true },
   { kind: 'builtin', section_key: 'next_event', title: 'Next Event', order: 3, is_enabled: true },
   { kind: 'builtin', section_key: 'latest_articles', title: 'Latest Articles', order: 4, is_enabled: true },
+  { kind: 'builtin', section_key: 'upcoming_events', title: 'Co sa deje', order: 5, is_enabled: true },
 ]
 
 const cloneAndSort = (items) => {

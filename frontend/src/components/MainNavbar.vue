@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <nav class="flex h-full flex-col gap-3" aria-label="Primary navigation">
     <RouterLink
       to="/"
@@ -54,7 +54,7 @@
               {{ item.icon }}
             </span>
             <span class="min-w-0 flex-1 truncate">{{ item.label }}</span>
-            <span class="shrink-0 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">▾</span>
+            <span class="shrink-0 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">?</span>
           </button>
 
           <div
@@ -90,6 +90,7 @@
             </RouterLink>
 
             <RouterLink
+              v-if="isWipEnabled"
               to="/creator-studio"
               custom
               v-slot="{ href: moreHref, navigate: moreNavigate, isActive: isMoreItemActive }"
@@ -135,7 +136,7 @@
               {{ item.icon }}
             </span>
             <span class="flex-1">{{ item.label }}</span>
-            <span class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">▾</span>
+            <span class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">?</span>
           </button>
 
           <div
@@ -276,6 +277,7 @@
               </RouterLink>
 
               <RouterLink
+                v-if="isWipEnabled"
                 to="/admin/banned-words"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
@@ -382,7 +384,7 @@
               </RouterLink>
 
               <RouterLink
-                to="/admin/astrobot"
+                to="/admin/bots"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -394,17 +396,18 @@
                     ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
-                  aria-label="AstroBot"
+                  aria-label="Bot Engine"
                 >
                   <span
                     class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
                     aria-hidden="true"
                   >
-                    A
+                    B
                   </span>
-                  <span class="flex-1">AstroBot</span>
+                  <span class="flex-1">Bot Engine</span>
                 </a>
               </RouterLink>
+
             </div>
           </div>
         </div>
@@ -444,7 +447,8 @@
           <span class="flex-1">{{ item.label }}</span>
           <span
             v-if="item.badge"
-            class="rounded-full bg-[color:rgb(var(--color-bg-rgb)/0.55)] px-2 py-0.5 text-[0.65rem] font-semibold text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)]"
+            class="notificationBadge rounded-full bg-[color:rgb(var(--color-bg-rgb)/0.55)] px-2 py-0.5 text-[0.65rem] font-semibold text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)]"
+            :class="{ 'notificationBadge--ping': item.key === 'notifications' && shouldAnimateUnreadBadge }"
           >
             {{ item.badge }}
           </span>
@@ -505,61 +509,6 @@
         </button>
       </template>
 
-      <template v-else>
-        <RouterLink
-          to="/login"
-          custom
-          v-slot="{ href, navigate, isActive }"
-        >
-          <a
-            :href="href"
-            @click="navigate"
-            title="Log in"
-            aria-label="Log in"
-            :class="[
-              'group relative flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
-              isActive
-                ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
-                : 'text-[var(--color-surface)]',
-            ]"
-          >
-            <span
-              class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
-              aria-hidden="true"
-            >
-              L
-            </span>
-            <span class="flex-1">Login</span>
-          </a>
-        </RouterLink>
-
-        <RouterLink
-          to="/register"
-          custom
-          v-slot="{ href, navigate, isActive }"
-        >
-          <a
-            :href="href"
-            @click="navigate"
-            title="Register"
-            aria-label="Register"
-            :class="[
-              'group relative flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
-              isActive
-                ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
-                : 'text-[var(--color-surface)]',
-            ]"
-          >
-            <span
-              class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
-              aria-hidden="true"
-            >
-              R
-            </span>
-            <span class="flex-1">Register</span>
-          </a>
-        </RouterLink>
-      </template>
     </div>
   </nav>
 </template>
@@ -569,23 +518,30 @@ import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useBadgeAnimateOnIncrease } from '@/composables/useBadgeAnimateOnIncrease'
 import TypingText from '@/components/TypingText.vue'
 
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
 const router = useRouter()
 const route = useRoute()
+const isWipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCase() === 'true'
 const isMoreOpen = ref(false)
 const moreWrapperRef = ref(null)
 const isAdminOpen = ref(false)
 const adminWrapperRef = ref(null)
 const showGreeting = ref(false)
 const greetingText = ref('')
+const unreadCount = computed(() => Number(notifications.unreadCount || 0))
+const unreadCountHydrated = computed(() => Boolean(notifications.unreadCountHydrated))
+const { shouldAnimate: shouldAnimateUnreadBadge } = useBadgeAnimateOnIncrease(unreadCount, {
+  readyRef: unreadCountHydrated,
+})
 
 let greetingHideTimer = null
 
 const isMoreActive = computed(() => {
-  return route.path === '/settings' || route.path === '/creator-studio'
+  return route.path === '/settings' || (isWipEnabled && route.path === '/creator-studio')
 })
 
 const isAdminActive = computed(() => {
@@ -606,7 +562,7 @@ const userAvatarUrl = computed(() => {
   if (!raw) return ''
   if (/^https?:\/\//i.test(raw)) return raw
 
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
+  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
   if (raw.startsWith('/')) return `${base}${raw}`
   return `${base}/${raw}`
 })
@@ -626,15 +582,7 @@ const primaryLinks = computed(() => {
 
   const links = [
     { key: 'home', to: '/', label: 'Domov', icon: 'D', iconPaths: navIcons.home },
-    { key: 'search', to: '/search', label: 'Preskumat', icon: 'P', iconPaths: navIcons.search },
-    {
-      key: 'notifications',
-      to: '/notifications',
-      label: 'Upozornenia',
-      icon: 'U',
-      iconPaths: navIcons.notifications,
-      badge: auth.isAuthed ? notifications.unreadBadge : null,
-    },
+    { key: 'search', to: '/search', label: 'Prehľadávať', icon: 'P', iconPaths: navIcons.search },
     {
       key: 'events',
       to: '/events',
@@ -643,14 +591,27 @@ const primaryLinks = computed(() => {
       iconPaths: navIcons.events,
       matchPrefix: '/events',
     },
-    { key: 'learn', to: '/learn', label: 'Vzdelavanie', icon: 'V', iconPaths: navIcons.learn },
+    { key: 'learn', to: '/clanky', label: 'Články', icon: 'V', iconPaths: navIcons.learn },
   ]
+  if (auth.isAuthed) {
+    links.splice(2, 0, {
+      key: 'notifications',
+      to: '/notifications',
+      label: 'Notifikácie',
+      icon: 'U',
+      iconPaths: navIcons.notifications,
+      badge: notifications.unreadBadge,
+    })
+  }
 
   if (auth.isAdmin) {
     links.push({ key: 'admin', to: '/admin/dashboard', label: 'Admin Hub', icon: 'A', matchPrefix: '/admin' })
   }
 
-  links.push({ key: 'more', to: '/more', label: 'More', icon: 'M', isMore: true })
+  links.push({ key: 'settings', to: '/settings', label: 'Settings', icon: 'S' })
+  if (isWipEnabled) {
+    links.push({ key: 'creator-studio', to: '/creator-studio', label: 'Creator Studio', icon: 'C' })
+  }
 
   return links
 })
@@ -823,6 +784,74 @@ const logout = async () => {
 .brand-fade-leave-to {
   opacity: 0;
 }
+
+.notificationBadge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.notificationBadge::after {
+  content: '';
+  position: absolute;
+  inset: -0.2rem;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0.38);
+}
+
+.notificationBadge--ping {
+  animation: badge-bounce 550ms ease-out;
+}
+
+.notificationBadge--ping::after {
+  animation: badge-pulse 650ms ease-out;
+}
+
+@keyframes badge-bounce {
+  0% {
+    transform: scale(0.95);
+  }
+  40% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes badge-pulse {
+  0% {
+    opacity: 0.45;
+    transform: scale(0.85);
+    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0.38);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.35);
+    box-shadow: 0 0 0 0.45rem rgb(var(--color-primary-rgb) / 0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+    box-shadow: 0 0 0 0.45rem rgb(var(--color-primary-rgb) / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notificationBadge,
+  .notificationBadge::after,
+  .notificationBadge--ping,
+  .notificationBadge--ping::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
 </style>
+
 
 

@@ -2,12 +2,19 @@
 
 namespace App\Services;
 
+use App\Enums\PostAuthorKind;
+use App\Enums\PostFeedKey;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
 class FeedQueryBuilder
 {
+    public function __construct(
+        private readonly PollService $polls,
+    ) {
+    }
+
     public function build(array $options, ?User $viewer = null): Builder
     {
         $kind = (string) ($options['kind'] ?? 'roots');
@@ -15,18 +22,20 @@ class FeedQueryBuilder
         $includeHidden = (bool) ($options['include_hidden'] ?? false);
         $tag = isset($options['tag']) ? strtolower((string) $options['tag']) : null;
         $order = (string) ($options['order'] ?? 'created_desc');
+        $feedKey = strtolower((string) ($options['feed_key'] ?? PostFeedKey::COMMUNITY->value));
+        $authorKind = $options['author_kind'] ?? null;
         $sourcesInclude = $options['sources_include'] ?? null;
         $sourcesExclude = $options['sources_exclude'] ?? null;
         $pinned = $options['pinned'] ?? null; // only|exclude|null
         $isAdmin = $viewer?->isAdmin() ?? false;
 
-        $query = Post::query()->with([
+        $query = Post::query()->with(array_merge([
             'user:id,name,username,location,bio,is_admin,avatar_path',
             'replies.user:id,name,username,location,bio,is_admin,avatar_path',
             'parent.user:id,name,username,location,bio,is_admin,avatar_path',
             'tags:id,name',
             'hashtags:id,name',
-        ]);
+        ], $this->polls->pollRelations($viewer?->id)));
 
         if ($withCounts) {
             $query->withCount(['likes', 'replies']);
@@ -37,17 +46,48 @@ class FeedQueryBuilder
         if ($viewer) {
             $query->withExists([
                 'likes as liked_by_me' => fn ($likesQuery) => $likesQuery->where('user_id', $viewer->id),
+                'bookmarkedBy as is_bookmarked' => fn ($bookmarksQuery) => $bookmarksQuery->where('user_id', $viewer->id),
             ]);
+        }
+
+        if (!in_array($feedKey, [PostFeedKey::COMMUNITY->value, PostFeedKey::ASTRO->value], true)) {
+            $feedKey = PostFeedKey::COMMUNITY->value;
+        }
+        $query->where('feed_key', $feedKey);
+
+        if (is_string($authorKind) && in_array($authorKind, [PostAuthorKind::USER->value, PostAuthorKind::BOT->value], true)) {
+            $query->where('author_kind', $authorKind);
         }
 
         if ($kind === 'replies') {
             $query->whereNotNull('parent_id')->with([
                 'parent.user:id,name,username,location,bio,is_admin,avatar_path',
             ]);
+        } elseif ($kind === 'events') {
+            $query
+                ->whereNull('parent_id')
+                ->whereNotNull('meta->event->event_id');
+        } elseif ($kind === 'gifs') {
+            $query
+                ->whereNull('parent_id')
+                ->where(function (Builder $gifQuery): void {
+                    $gifQuery
+                        ->whereNotNull('meta->gif->id')
+                        ->orWhereNotNull('meta->gif->original_url')
+                        ->orWhereNotNull('meta->gif->preview_url');
+                });
         } elseif ($kind === 'media') {
-            $query->whereNotNull('attachment_path')->with([
-                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
-            ]);
+            $query
+                ->where(function (Builder $mediaQuery): void {
+                    $mediaQuery
+                        ->whereNotNull('attachment_path')
+                        ->orWhereNotNull('meta->gif->id')
+                        ->orWhereNotNull('meta->gif->original_url')
+                        ->orWhereNotNull('meta->gif->preview_url');
+                })
+                ->with([
+                    'parent.user:id,name,username,location,bio,is_admin,avatar_path',
+                ]);
         } else {
             $query->whereNull('parent_id');
         }
@@ -81,12 +121,7 @@ class FeedQueryBuilder
             });
         }
 
-        if ($order === 'pinned_then_created') {
-            $query
-                ->orderByRaw('CASE WHEN pinned_at IS NULL THEN 0 ELSE 1 END DESC')
-                ->orderBy('created_at', 'desc')
-                ->orderBy('id', 'desc');
-        } elseif ($order === 'pinned_desc') {
+        if ($order === 'pinned_desc') {
             $query->orderBy('pinned_at', 'desc');
         } else {
             $query

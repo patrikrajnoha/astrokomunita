@@ -3,18 +3,35 @@
 namespace App\Providers;
 
 use App\Console\Commands\ImportEventCandidates;
-use App\Console\Commands\ImportNasaNewsCommand;
+use App\Console\Commands\BotsPurgeCommand;
+use App\Console\Commands\CrawlAstropixelsEventsCommand;
+use App\Console\Commands\RunBotSourceCommand;
 use App\Console\Commands\SendEventReminders;
 use App\Console\Commands\SendEventNotificationReminders;
-use App\Console\Commands\AstroBotSyncRss;
+use App\Console\Commands\SendWeeklyNewsletterCommand;
+use App\Console\Commands\GenerateEventDescriptionsCommand;
+use App\Listeners\UpdateLastLoginListener;
+use App\Support\Http\SslVerificationPolicy;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\Client\PendingRequest;
 use App\Services\Observing\Contracts\AirQualityProvider;
 use App\Services\Observing\Contracts\SunMoonProvider;
 use App\Services\Observing\Contracts\WeatherProvider;
+use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use App\Services\Observing\Providers\OpenAqAirQualityProvider;
 use App\Services\Observing\Providers\OpenMeteoWeatherProvider;
 use App\Services\Observing\Providers\UsnoSunMoonProvider;
+use App\Services\Translation\BotTranslationService;
+use App\Services\Translation\Grammar\Contracts\GrammarCheckerInterface;
+use App\Services\Translation\Grammar\LanguageToolGrammarChecker;
+use App\Services\Translation\Grammar\OllamaGrammarChecker;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -28,13 +45,25 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SunMoonProvider::class, UsnoSunMoonProvider::class);
         $this->app->bind(WeatherProvider::class, OpenMeteoWeatherProvider::class);
         $this->app->bind(AirQualityProvider::class, OpenAqAirQualityProvider::class);
+        $this->app->bind(BotTranslationServiceInterface::class, BotTranslationService::class);
+        $this->app->bind(GrammarCheckerInterface::class, function ($app) {
+            $provider = strtolower(trim((string) config('translation.grammar.provider', 'languagetool')));
+
+            return match ($provider) {
+                'ollama' => $app->make(OllamaGrammarChecker::class),
+                default => $app->make(LanguageToolGrammarChecker::class),
+            };
+        });
 
         $this->commands([
             ImportEventCandidates::class,
-            ImportNasaNewsCommand::class,
+            BotsPurgeCommand::class,
+            CrawlAstropixelsEventsCommand::class,
+            RunBotSourceCommand::class,
             SendEventReminders::class,
             SendEventNotificationReminders::class,
-            AstroBotSyncRss::class,
+            SendWeeklyNewsletterCommand::class,
+            GenerateEventDescriptionsCommand::class,
         ]);
     }
 
@@ -43,6 +72,23 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (function_exists('mb_internal_encoding')) {
+            mb_internal_encoding('UTF-8');
+        }
+
+        $this->logTranslationEnvAliasUsage();
+
+        Event::listen(Login::class, UpdateLastLoginListener::class);
+
+        Http::macro('secure', function (): PendingRequest {
+            /** @var HttpFactory $this */
+            $verifySsl = app(SslVerificationPolicy::class)->shouldVerifySsl();
+
+            return $this->withOptions([
+                'verify' => $verifySsl,
+            ]);
+        });
+
         RateLimiter::for('auth-register', function (Request $request) {
             return Limit::perMinute(10)->by($request->ip() . '|register');
         });
@@ -55,14 +101,83 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->ip() . '|username-available');
         });
 
-        RateLimiter::for('astrobot-sync', function (Request $request) {
-            $userId = $request->user()?->id ?? $request->ip();
-            return Limit::perMinute(2)->by('astrobot-sync|' . $userId);
-        });
-
         RateLimiter::for('post-create', function (Request $request) {
             $userId = $request->user()?->id ?? 'guest';
             return Limit::perMinute(20)->by('post-create|' . $userId . '|' . $request->ip());
         });
+
+        RateLimiter::for('gif-search', function (Request $request) {
+            $userId = $request->user()?->id ?? 'guest';
+            return Limit::perMinute(5)->by('gif-search|' . $userId . '|' . $request->ip());
+        });
+
+        RateLimiter::for('newsletter-send', function (Request $request) {
+            $userId = $request->user()?->id ?? $request->ip();
+            return Limit::perMinute(2)->by('newsletter-send|' . $userId);
+        });
+
+        RateLimiter::for('newsletter-preview', function (Request $request) {
+            $userId = $request->user()?->id ?? $request->ip();
+            $perMinute = max(1, (int) config('newsletter.preview_rate_limit_per_minute', 20));
+
+            return Limit::perMinute($perMinute)->by('newsletter-preview|' . $userId);
+        });
+
+        RateLimiter::for('me-export', function (Request $request) {
+            $userId = $request->user()?->id ?? 'guest';
+
+            return Limit::perMinute(1)->by('me-export|' . $userId . '|' . $request->ip());
+        });
+    }
+
+    private function logTranslationEnvAliasUsage(): void
+    {
+        if (!config('app.debug')) {
+            return;
+        }
+
+        $aliasUsage = [];
+
+        $this->collectAliasUsage($aliasUsage, 'TRANSLATION_PROVIDER', ['BOT_TRANSLATION_PRIMARY']);
+        $this->collectAliasUsage($aliasUsage, 'TRANSLATION_FALLBACK_PROVIDER', ['BOT_TRANSLATION_FALLBACK']);
+        $this->collectAliasUsage($aliasUsage, 'TRANSLATION_TIMEOUT_SEC', ['TRANSLATION_TIMEOUT_SECONDS', 'BOT_TRANSLATION_LIBRETRANSLATE_TIMEOUT_SECONDS']);
+        $this->collectAliasUsage($aliasUsage, 'TRANSLATION_MAX_RETRIES', ['BOT_TRANSLATION_LIBRETRANSLATE_RETRY_TIMES']);
+        $this->collectAliasUsage($aliasUsage, 'LIBRETRANSLATE_BASE_URL', ['BOT_TRANSLATION_LIBRETRANSLATE_URL', 'TRANSLATION_BASE_URL']);
+        $this->collectAliasUsage($aliasUsage, 'LIBRETRANSLATE_API_KEY', ['BOT_TRANSLATION_LIBRETRANSLATE_API_KEY']);
+        $this->collectAliasUsage($aliasUsage, 'OLLAMA_MODEL', ['BOT_TRANSLATION_OLLAMA_MODEL', 'TRANSLATION_OLLAMA_MODEL']);
+        $this->collectAliasUsage($aliasUsage, 'OLLAMA_NUM_PREDICT', ['BOT_TRANSLATION_OLLAMA_NUM_PREDICT', 'TRANSLATION_OLLAMA_NUM_PREDICT']);
+
+        if ($aliasUsage === []) {
+            return;
+        }
+
+        $cacheKey = 'translation:deprecated-env-aliases:logged';
+        if (! Cache::add($cacheKey, true, now()->addMinutes(30))) {
+            return;
+        }
+
+        Log::debug('Translation config using deprecated env aliases.', [
+            'aliases_in_use' => $aliasUsage,
+        ]);
+    }
+
+    /**
+     * @param array<string,string> $aliasUsage
+     * @param array<int,string> $aliases
+     */
+    private function collectAliasUsage(array &$aliasUsage, string $canonical, array $aliases): void
+    {
+        $canonicalValue = getenv($canonical);
+        if (is_string($canonicalValue) && trim($canonicalValue) !== '') {
+            return;
+        }
+
+        foreach ($aliases as $alias) {
+            $aliasValue = getenv($alias);
+            if (is_string($aliasValue) && trim($aliasValue) !== '') {
+                $aliasUsage[$canonical] = $alias;
+                return;
+            }
+        }
     }
 }

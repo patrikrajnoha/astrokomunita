@@ -48,4 +48,47 @@ class UserLocationMetaTest extends TestCase
         $this->assertSame(17.1077, $meta['lon']);
         $this->assertSame('Europe/Bratislava', $meta['tz']);
     }
+
+    public function test_user_location_meta_prefers_precise_coordinates_when_set(): void
+    {
+        $user = User::factory()->make([
+            'location' => 'Anywhere',
+            'location_label' => 'My place',
+            'location_source' => 'manual',
+            'latitude' => 49.1234567,
+            'longitude' => 18.7654321,
+            'timezone' => 'Europe/Prague',
+        ]);
+
+        $meta = $user->location_meta;
+        $locationData = $user->location_data;
+
+        $this->assertIsArray($meta);
+        $this->assertSame(49.1234567, $meta['lat']);
+        $this->assertSame(18.7654321, $meta['lon']);
+        $this->assertSame('Europe/Prague', $meta['tz']);
+        $this->assertSame('My place', $meta['label']);
+        $this->assertSame('manual', $meta['source']);
+
+        $this->assertIsArray($locationData);
+        $this->assertSame(49.1234567, $locationData['latitude']);
+        $this->assertSame(18.7654321, $locationData['longitude']);
+        $this->assertSame('Europe/Prague', $locationData['timezone']);
+        $this->assertSame('My place', $locationData['label']);
+        $this->assertSame('manual', $locationData['source']);
+    }
+
+    public function test_user_location_meta_contains_coordinates_for_ivanka_pri_nitre(): void
+    {
+        $user = User::factory()->make([
+            'location' => 'Ivanka pri Nitre',
+        ]);
+
+        $meta = $user->location_meta;
+
+        $this->assertIsArray($meta);
+        $this->assertSame(48.293, $meta['lat']);
+        $this->assertSame(18.1889, $meta['lon']);
+        $this->assertSame('Europe/Bratislava', $meta['tz']);
+    }
 }

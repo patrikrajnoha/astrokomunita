@@ -12,8 +12,33 @@ export function getEvents(params = {}) {
   if (params.q) query.q = params.q
   if (params.from) query.from = params.from
   if (params.to) query.to = params.to
+  if (params.year) query.year = params.year
+  if (params.month) query.month = params.month
+  if (params.week) query.week = params.week
 
   return api.get('/events', { params: query })
+}
+
+export function getEventYears() {
+  return api.get('/events/years')
+}
+
+export function lookupEventsByIds(ids = []) {
+  const normalized = Array.from(
+    new Set(
+      ids
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0),
+    ),
+  )
+
+  if (normalized.length === 0) {
+    return Promise.resolve({ data: { data: [] } })
+  }
+
+  return api.get('/events/lookup', {
+    params: { ids: normalized.join(',') },
+  })
 }
 
 export function getMyPreferences() {
@@ -25,5 +50,15 @@ export function getMyPreferences() {
 export function updateMyPreferences(payload) {
   return api.put('/me/preferences', payload, {
     meta: { requiresAuth: true },
+  })
+}
+
+export function getOnboardingInterests() {
+  return api.get('/meta/interests')
+}
+
+export function searchOnboardingLocations(query, limit = 8) {
+  return api.get('/meta/locations', {
+    params: { q: query, limit },
   })
 }

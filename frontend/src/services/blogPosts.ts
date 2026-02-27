@@ -42,11 +42,31 @@ export type LaravelPaginator<T> = {
 
 export type BlogPostStatus = "published" | "draft" | "scheduled";
 
+export type BlogWidgetArticle = {
+  id: number;
+  title: string;
+  slug: string;
+  thumbnail_url: string | null;
+  views: number;
+  created_at: string;
+};
+
+export type BlogWidgetPayload = {
+  most_read: BlogWidgetArticle[];
+  latest: BlogWidgetArticle[];
+  generated_at: string;
+};
+
 export const blogPosts = {
   async listPublic(params: { page?: number; tag?: string; q?: string }) {
     const res = await api.get<LaravelPaginator<BlogPost>>("/blog-posts", {
       params,
     });
+    return res.data;
+  },
+
+  async widget() {
+    const res = await api.get<BlogWidgetPayload>("/articles/widget");
     return res.data;
   },
 

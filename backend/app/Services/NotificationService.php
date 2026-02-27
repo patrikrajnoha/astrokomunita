@@ -2,19 +2,29 @@
 
 namespace App\Services;
 
+use App\Events\NotificationCreated;
 use App\Models\Event;
 use App\Models\Notification;
 use App\Models\NotificationEvent;
+use App\Models\NotificationPreference;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
+    /** @var array<int, array<string, bool>> */
+    private array $inAppPreferenceCache = [];
+
     public function createPostLiked(int $recipientId, int $actorId, int $postId): ?Notification
     {
         if ($recipientId === $actorId) {
+            return null;
+        }
+
+        if (!$this->shouldDeliverInApp($recipientId, 'post_like')) {
             return null;
         }
 
@@ -32,12 +42,17 @@ class NotificationService
                 'updated_at' => now(),
             ])->save();
 
-            return $existing->refresh();
+            $existing = $existing->refresh();
+            $this->broadcastNotification($existing);
+
+            return $existing;
         }
 
         $actor = User::query()->select(['id', 'name', 'username'])->find($actorId);
 
-        return Notification::create([
+        // TODO(notifications-email): When social notification emails are introduced,
+        // check NotificationPreference.email_enabled here and dispatch email delivery.
+        $notification = Notification::create([
             'user_id' => $recipientId,
             'type' => 'post_liked',
             'data' => [
@@ -47,10 +62,18 @@ class NotificationService
                 'post_id' => $postId,
             ],
         ]);
+
+        $this->broadcastNotification($notification);
+
+        return $notification;
     }
 
     public function createEventReminder(int $recipientId, int $eventId, string $remindAtWindowKey): ?Notification
     {
+        if (!$this->shouldDeliverInApp($recipientId, 'event_reminder')) {
+            return null;
+        }
+
         $hash = sha1('event_reminder|' . $recipientId . '|' . $eventId . '|' . $remindAtWindowKey);
 
         if (NotificationEvent::query()->where('hash', $hash)->exists()) {
@@ -79,8 +102,121 @@ class NotificationService
                 'notification_id' => $notification->id,
             ]);
 
+            $this->broadcastNotification($notification);
+
+            // TODO(notifications-email): If event reminder emails are moved to this flow,
+            // respect NotificationPreference.email_enabled before dispatching mail jobs.
+
             return $notification;
         });
+    }
+
+    public function createContestWinner(int $recipientId, int $contestId, string $contestName, int $postId): ?Notification
+    {
+        if (!$this->shouldDeliverInApp($recipientId, 'system')) {
+            return null;
+        }
+
+        $notification = Notification::create([
+            'user_id' => $recipientId,
+            'type' => 'contest_winner',
+            'data' => [
+                'contest_id' => $contestId,
+                'contest_name' => $contestName,
+                'post_id' => $postId,
+            ],
+        ]);
+
+        $this->broadcastNotification($notification);
+
+        return $notification;
+    }
+
+    public function createEventInvite(
+        int $recipientId,
+        int $actorId,
+        ?int $eventId = null,
+        ?string $eventTitle = null,
+        array $extraData = [],
+    ): ?Notification {
+        if ($recipientId === $actorId) {
+            return null;
+        }
+
+        if (!$this->shouldDeliverInApp($recipientId, 'system')) {
+            return null;
+        }
+
+        $actor = User::query()->select(['id', 'name', 'username'])->find($actorId);
+
+        $notification = Notification::create([
+            'user_id' => $recipientId,
+            'type' => 'event_invite',
+            'data' => array_merge([
+                'actor_id' => $actorId,
+                'actor_name' => $actor?->name,
+                'actor_username' => $actor?->username,
+                'event_id' => $eventId,
+                'event_title' => $eventTitle ?: null,
+            ], $extraData),
+        ]);
+
+        $this->broadcastNotification($notification);
+
+        return $notification;
+    }
+
+    public function createEventInviteResponse(
+        int $recipientId,
+        int $actorId,
+        ?int $eventId = null,
+        ?string $eventTitle = null,
+        ?string $responseStatus = null,
+        array $extraData = [],
+    ): ?Notification {
+        if ($recipientId === $actorId) {
+            return null;
+        }
+
+        if (!$this->shouldDeliverInApp($recipientId, 'system')) {
+            return null;
+        }
+
+        $actor = User::query()->select(['id', 'name', 'username'])->find($actorId);
+
+        $notification = Notification::create([
+            'user_id' => $recipientId,
+            'type' => 'event_invite_response',
+            'data' => array_merge([
+                'actor_id' => $actorId,
+                'actor_name' => $actor?->name,
+                'actor_username' => $actor?->username,
+                'event_id' => $eventId,
+                'event_title' => $eventTitle ?: null,
+                'response_status' => $responseStatus,
+            ], $extraData),
+        ]);
+
+        $this->broadcastNotification($notification);
+
+        return $notification;
+    }
+
+    public function createAccountRestricted(int $recipientId, string $reason, ?int $actorId = null): Notification
+    {
+        $notification = Notification::create([
+            'user_id' => $recipientId,
+            'type' => 'account_restricted',
+            'data' => [
+                'reason' => trim($reason),
+                'actor_id' => $actorId,
+                'restricted_at' => now()->toIso8601String(),
+            ],
+        ]);
+
+        $this->broadcastNotification($notification);
+
+        return $notification;
     }
 
     public function markRead(int $notificationId, int $userId): Notification
@@ -125,5 +261,45 @@ class NotificationService
             ->where('user_id', $userId)
             ->orderByDesc('created_at')
             ->paginate($perPage);
+    }
+
+    private function shouldDeliverInApp(int $userId, string $preferenceKey): bool
+    {
+        if (!isset($this->inAppPreferenceCache[$userId])) {
+            $preferences = NotificationPreference::ensureForUser($userId);
+            $this->inAppPreferenceCache[$userId] = $preferences->inApp();
+        }
+
+        return (bool) ($this->inAppPreferenceCache[$userId][$preferenceKey] ?? true);
+    }
+
+    private function broadcastNotification(Notification $notification): void
+    {
+        $dispatch = function () use ($notification) {
+            try {
+                $freshNotification = $notification->fresh();
+                if (!$freshNotification) {
+                    return;
+                }
+
+                event(new NotificationCreated($freshNotification));
+            } catch (\Throwable $error) {
+                if (app()->environment('local')) {
+                    Log::warning('Notification realtime broadcast failed', [
+                        'notification_id' => $notification->id,
+                        'user_id' => $notification->user_id,
+                        'type' => $notification->type,
+                        'message' => $error->getMessage(),
+                    ]);
+                }
+            }
+        };
+
+        if (DB::transactionLevel() > 0 && !app()->runningUnitTests()) {
+            DB::afterCommit($dispatch);
+            return;
+        }
+
+        $dispatch();
     }
 }

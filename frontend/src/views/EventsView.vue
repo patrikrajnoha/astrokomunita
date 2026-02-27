@@ -45,6 +45,36 @@
             </div>
 
             <div class="advanced-filters">
+              <label class="filter-field">
+                <span>Rok</span>
+                <select v-model.number="selectedYear" @change="onPeriodSelectionChanged">
+                  <option v-for="year in yearOptions" :key="year" :value="year">{{ year }}</option>
+                </select>
+              </label>
+
+              <label class="filter-field">
+                <span>Obdobie</span>
+                <select v-model="selectedPeriod" @change="onPeriodSelectionChanged">
+                  <option value="month">Mesiac</option>
+                  <option value="week">Tyzden</option>
+                  <option value="year">Vsetko v roku</option>
+                </select>
+              </label>
+
+              <label v-if="selectedPeriod === 'month'" class="filter-field">
+                <span>Mesiac</span>
+                <select v-model.number="selectedMonth" @change="onPeriodSelectionChanged">
+                  <option v-for="month in monthOptions" :key="month.value" :value="month.value">{{ month.label }}</option>
+                </select>
+              </label>
+
+              <label v-if="selectedPeriod === 'week'" class="filter-field">
+                <span>ISO Tyzden</span>
+                <select v-model.number="selectedWeek" @change="onPeriodSelectionChanged">
+                  <option v-for="week in weekOptions" :key="week" :value="week">{{ week }}</option>
+                </select>
+              </label>
+
               <label class="filter-field search-field">
                 <span>Hladaj</span>
                 <input
@@ -67,40 +97,13 @@
 
               <button class="secondary-btn" type="button" @click="resetFilters">Reset filtrov</button>
             </div>
-
-            <div class="date-panel">
-              <div class="date-presets">
-                <button
-                  v-for="preset in datePresets"
-                  :key="preset.value"
-                  class="date-preset-btn"
-                  :class="{ active: datePreset === preset.value }"
-                  type="button"
-                  @click="setDatePreset(preset.value)"
-                >
-                  {{ preset.label }}
-                </button>
-              </div>
-
-              <div class="date-custom">
-                <label class="filter-field">
-                  <span>Od</span>
-                  <input v-model="dateFrom" type="date" @change="setDatePreset('custom')" />
-                </label>
-
-                <label class="filter-field">
-                  <span>Do</span>
-                  <input v-model="dateTo" type="date" @change="setDatePreset('custom')" />
-                </label>
-              </div>
-            </div>
           </div>
 
           <p class="filter-meta">Zobrazenych udalosti: <strong>{{ events.length }}</strong></p>
         </template>
       </section>
 
-      <section v-if="isCalendarView" class="calendar-panel">
+      <section v-if="isCalendarView" class="calendar-panel" data-tour="calendar">
         <CalendarView />
       </section>
 
@@ -114,14 +117,48 @@
         <p>{{ error }}</p>
       </div>
 
-      <section v-else class="events-grid">
-        <RouterLink v-for="e in events" :key="e.id" :to="`/events/${e.id}`" class="event-card">
+      <section v-else-if="events.length > 0">
+        <div v-if="shouldShowRealtimeBanner" class="realtime-banner" role="status" aria-live="polite">
+          <button
+            class="realtime-banner-main"
+            type="button"
+            :disabled="loadingRealtimePending"
+            @click="loadPendingRealtimeEvents"
+          >
+            {{ realtimeBannerLabel }}
+          </button>
+          <button
+            class="realtime-banner-dismiss"
+            type="button"
+            aria-label="Skryt banner novych udalosti"
+            @click="dismissRealtimeBanner"
+          >
+            x
+          </button>
+        </div>
+
+        <div class="events-grid">
+          <RouterLink
+            v-for="e in events"
+            :key="e.id"
+            :to="`/events/${e.id}`"
+            class="event-card"
+            :class="{ 'event-card-new': isEventFresh(e.id) }"
+          >
           <div class="card-content">
             <div class="card-header">
               <div>
-                <h3 class="card-title">{{ e.title }}</h3>
+                <h3 class="card-title">{{ eventDisplayTitle(e) }}</h3>
                 <div class="meta-row">
                   <span class="type-badge">{{ typeLabel(e.type) }}</span>
+                  <span
+                    v-if="publicConfidenceBadgeLabel(e)"
+                    class="confidence-badge"
+                    :class="`confidence-${e?.public_confidence?.level || 'unknown'}`"
+                    :title="publicConfidenceTooltip(e)"
+                  >
+                    {{ publicConfidenceBadgeLabel(e) }}
+                  </span>
                   <span class="card-date">{{ formatDateTime(e.max_at) }}</span>
                 </div>
               </div>
@@ -137,14 +174,15 @@
               </button>
             </div>
 
-            <p class="card-description">{{ e.short || '-' }}</p>
+            <p class="card-description">{{ eventDisplayShort(e) }}</p>
 
             <div class="card-footer">
               <span>Region: {{ regionLabel(e.region_scope) }}</span>
               <span class="open-label">Zobrazit detail</span>
             </div>
           </div>
-        </RouterLink>
+          </RouterLink>
+        </div>
       </section>
 
       <div v-if="!isCalendarView && !loading && !error && events.length === 0" class="state-card state-empty">
@@ -157,12 +195,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import CalendarView from './CalendarView.vue'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useAuthStore } from '@/stores/auth'
-import { getEvents } from '@/services/events'
+import { getEvents, getEventYears, lookupEventsByIds } from '@/services/events'
+import { buildPeriodQuery, resolveDefaultYear, resolvePeriodSelectionFromQuery } from '@/utils/eventFilters'
+import { eventDisplayShort, eventDisplayTitle } from '@/utils/translatedFields'
+import { getEcho, initEcho } from '@/realtime/echo'
 
 const route = useRoute()
 const router = useRouter()
@@ -173,16 +214,47 @@ const auth = useAuthStore()
 const selectedType = ref('all')
 const selectedRegion = ref('all')
 const searchQuery = ref('')
-const dateFrom = ref('')
-const dateTo = ref('')
-const datePreset = ref('next_30_days')
+const selectedYear = ref(new Date().getFullYear())
+const selectedPeriod = ref('month')
+const selectedMonth = ref(new Date().getMonth() + 1)
+const selectedWeek = ref(1)
+const yearOptions = ref([])
 const filtersOpen = ref(false)
+const isApplyingRoute = ref(false)
 
 const events = ref([])
 const loading = ref(false)
 const error = ref('')
+const pendingRealtimeIds = ref([])
+const loadingRealtimePending = ref(false)
+const freshEventIds = ref(new Set())
+const realtimeBannerDismissed = ref(false)
+const MAX_PENDING_REALTIME_IDS = 20
+let activeRealtimeChannel = ''
+const freshTimeouts = new Map()
 
 const isCalendarView = computed(() => route.query?.view === 'calendar')
+const shouldShowRealtimeBanner = computed(() => pendingRealtimeIds.value.length > 0 && !realtimeBannerDismissed.value)
+const realtimeBannerLabel = computed(() => {
+  const count = pendingRealtimeIds.value.length
+  const noun = count === 1 ? 'Nova udalost' : 'Nove udalosti'
+  return `${noun} (${count}) - klikni pre nacitanie`
+})
+const weekOptions = computed(() => Array.from({ length: 53 }, (_, idx) => idx + 1))
+const monthOptions = [
+  { value: 1, label: 'Januar' },
+  { value: 2, label: 'Februar' },
+  { value: 3, label: 'Marec' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'Maj' },
+  { value: 6, label: 'Jun' },
+  { value: 7, label: 'Jul' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'Oktober' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' },
+]
 
 const allFeedTypeGroups = {
   meteors: ['meteors', 'meteor_shower'],
@@ -191,80 +263,12 @@ const allFeedTypeGroups = {
   comets: ['comet', 'asteroid', 'other'],
 }
 
-const datePresets = [
-  { value: 'any', label: 'Kedykolvek' },
-  { value: 'today', label: 'Dnes' },
-  { value: 'next_7_days', label: 'Najblizsich 7 dni' },
-  { value: 'next_30_days', label: 'Najblizsich 30 dni' },
-  { value: 'this_month', label: 'Tento mesiac' },
-  { value: 'custom', label: 'Vlastny rozsah' },
-]
-
-function toIsoDate(dateLike) {
-  const date = new Date(dateLike)
-  if (Number.isNaN(date.getTime())) return ''
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function todayIso() {
-  return toIsoDate(new Date())
-}
-
-function setDatePreset(preset) {
-  datePreset.value = preset
-
-  if (preset === 'custom') {
-    return
-  }
-
-  if (preset === 'any') {
-    dateFrom.value = ''
-    dateTo.value = ''
-    return
-  }
-
-  const now = new Date()
-  const start = new Date(now)
-  const end = new Date(now)
-
-  if (preset === 'today') {
-    dateFrom.value = toIsoDate(start)
-    dateTo.value = toIsoDate(end)
-    return
-  }
-
-  if (preset === 'next_7_days') {
-    end.setDate(end.getDate() + 7)
-    dateFrom.value = toIsoDate(start)
-    dateTo.value = toIsoDate(end)
-    return
-  }
-
-  if (preset === 'next_30_days') {
-    end.setDate(end.getDate() + 30)
-    dateFrom.value = toIsoDate(start)
-    dateTo.value = toIsoDate(end)
-    return
-  }
-
-  if (preset === 'this_month') {
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-    dateFrom.value = toIsoDate(monthStart)
-    dateTo.value = toIsoDate(monthEnd)
-  }
-}
-
-function ensureDateRangeOrder() {
-  if (!dateFrom.value || !dateTo.value) return
-  if (dateFrom.value <= dateTo.value) return
-
-  const from = dateFrom.value
-  dateFrom.value = dateTo.value
-  dateTo.value = from
+function getIsoWeek(date) {
+  const dt = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = dt.getUTCDay() || 7
+  dt.setUTCDate(dt.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1))
+  return Math.ceil((((dt - yearStart) / 86400000) + 1) / 7)
 }
 
 function buildParams() {
@@ -282,11 +286,11 @@ function buildParams() {
     params.q = searchQuery.value
   }
 
-  ensureDateRangeOrder()
-
-  if (dateFrom.value && dateTo.value) {
-    params.from = dateFrom.value
-    params.to = dateTo.value
+  params.year = selectedYear.value
+  if (selectedPeriod.value === 'month') {
+    params.month = selectedMonth.value
+  } else if (selectedPeriod.value === 'week') {
+    params.week = selectedWeek.value
   }
 
   return params
@@ -308,6 +312,132 @@ async function fetchEvents() {
   }
 }
 
+function isNearTopOfPage() {
+  if (typeof window === 'undefined') return false
+  return window.scrollY <= 50
+}
+
+function isEventFresh(eventId) {
+  return freshEventIds.value.has(Number(eventId))
+}
+
+function markEventFresh(eventId) {
+  const normalized = Number(eventId)
+  if (!Number.isInteger(normalized) || normalized <= 0) return
+
+  const next = new Set(freshEventIds.value)
+  next.add(normalized)
+  freshEventIds.value = next
+
+  const existingTimeout = freshTimeouts.get(normalized)
+  if (existingTimeout) {
+    window.clearTimeout(existingTimeout)
+  }
+
+  const timeoutId = window.setTimeout(() => {
+    const snapshot = new Set(freshEventIds.value)
+    snapshot.delete(normalized)
+    freshEventIds.value = snapshot
+    freshTimeouts.delete(normalized)
+  }, 2600)
+  freshTimeouts.set(normalized, timeoutId)
+}
+
+function isEventAlreadyPresent(eventId) {
+  const normalized = Number(eventId)
+  return events.value.some((eventItem) => Number(eventItem?.id) === normalized)
+}
+
+function prependEventIfMissing(eventItem) {
+  const eventId = Number(eventItem?.id || 0)
+  if (!Number.isInteger(eventId) || eventId <= 0) return false
+  if (isEventAlreadyPresent(eventId)) return false
+
+  events.value = [eventItem, ...events.value]
+  markEventFresh(eventId)
+  return true
+}
+
+function enqueuePendingRealtimeEvent(eventId) {
+  const normalized = Number(eventId)
+  if (!Number.isInteger(normalized) || normalized <= 0) return
+  if (isEventAlreadyPresent(normalized)) return
+  if (pendingRealtimeIds.value.includes(normalized)) return
+
+  const next = [...pendingRealtimeIds.value, normalized]
+  pendingRealtimeIds.value = next.slice(-MAX_PENDING_REALTIME_IDS)
+  realtimeBannerDismissed.value = false
+}
+
+async function loadPendingRealtimeEvents(options = {}) {
+  if (loadingRealtimePending.value) return
+  if (pendingRealtimeIds.value.length === 0) return
+
+  loadingRealtimePending.value = true
+
+  try {
+    const idsToLoad = [...pendingRealtimeIds.value]
+    const response = await lookupEventsByIds(idsToLoad)
+    const fetched = Array.isArray(response?.data?.data) ? response.data.data : []
+
+    pendingRealtimeIds.value = pendingRealtimeIds.value.filter((id) => !idsToLoad.includes(id))
+
+    for (let index = fetched.length - 1; index >= 0; index -= 1) {
+      const eventItem = fetched[index]
+      prependEventIfMissing(eventItem)
+    }
+
+    if (options.refetchAfter !== false) {
+      await fetchEvents()
+    }
+  } catch (err) {
+    console.warn('Realtime event fetch failed:', err?.message || err)
+  } finally {
+    loadingRealtimePending.value = false
+  }
+}
+
+function startRealtimeFeed() {
+  if (isCalendarView.value) return
+  if (activeRealtimeChannel === 'events.feed') return
+
+  const echo = initEcho()
+  if (!echo) return
+
+  activeRealtimeChannel = 'events.feed'
+  echo.channel(activeRealtimeChannel).listen('.event.published', async (payload) => {
+    const eventId = Number(payload?.event_id || payload?.id || 0)
+    if (!Number.isInteger(eventId) || eventId <= 0) return
+    if (isEventAlreadyPresent(eventId)) return
+
+    if (isNearTopOfPage()) {
+      try {
+        const response = await lookupEventsByIds([eventId])
+        const fetched = Array.isArray(response?.data?.data) ? response.data.data : []
+        const eventItem = fetched[0]
+        prependEventIfMissing(eventItem)
+      } catch (err) {
+        console.warn('Realtime single event fetch failed:', err?.message || err)
+      }
+      return
+    }
+
+    enqueuePendingRealtimeEvent(eventId)
+  })
+}
+
+function dismissRealtimeBanner() {
+  realtimeBannerDismissed.value = true
+}
+
+function stopRealtimeFeed() {
+  const echo = getEcho()
+  if (echo && activeRealtimeChannel) {
+    echo.leaveChannel(activeRealtimeChannel)
+  }
+  activeRealtimeChannel = ''
+}
+
 function setView(view) {
   const nextQuery = { ...route.query }
 
@@ -324,7 +454,74 @@ function resetFilters() {
   selectedType.value = 'all'
   selectedRegion.value = 'all'
   searchQuery.value = ''
-  setDatePreset('next_30_days')
+  selectedPeriod.value = 'month'
+  selectedMonth.value = new Date().getMonth() + 1
+  selectedWeek.value = getIsoWeek(new Date())
+  onPeriodSelectionChanged()
+}
+
+function normalizePeriod(value) {
+  return ['month', 'week', 'year'].includes(value) ? value : 'month'
+}
+
+async function onPeriodSelectionChanged() {
+  if (isApplyingRoute.value) return
+
+  const periodQuery = buildPeriodQuery({
+    period: selectedPeriod.value,
+    year: selectedYear.value,
+    month: selectedMonth.value,
+    week: selectedWeek.value,
+  })
+
+  const current = {
+    period: String(route.query.period || ''),
+    year: String(route.query.year || ''),
+    month: String(route.query.month || ''),
+    week: String(route.query.week || ''),
+  }
+
+  const next = {
+    period: String(periodQuery.period || ''),
+    year: String(periodQuery.year || ''),
+    month: String(periodQuery.month || ''),
+    week: String(periodQuery.week || ''),
+  }
+
+  if (current.period === next.period && current.year === next.year && current.month === next.month && current.week === next.week) {
+    return
+  }
+
+  await router.replace({
+    name: 'events',
+    query: {
+      ...route.query,
+      ...periodQuery,
+    },
+  })
+}
+
+function applyPeriodFromRoute() {
+  isApplyingRoute.value = true
+  const now = new Date()
+  const fallbackYear = yearOptions.value.includes(selectedYear.value)
+    ? selectedYear.value
+    : (yearOptions.value[0] || now.getFullYear())
+
+  const state = resolvePeriodSelectionFromQuery(route.query, {
+    now,
+    year: fallbackYear,
+    month: now.getMonth() + 1,
+    week: getIsoWeek(now),
+  })
+
+  selectedYear.value = yearOptions.value.includes(state.year)
+    ? state.year
+    : fallbackYear
+  selectedPeriod.value = normalizePeriod(state.period)
+  selectedMonth.value = state.month
+  selectedWeek.value = state.week
+  isApplyingRoute.value = false
 }
 
 async function toggleFavorite(eventId) {
@@ -359,6 +556,27 @@ function typeLabel(type) {
   return map[type] || type
 }
 
+function publicConfidenceBadgeLabel(event) {
+  const level = event?.public_confidence?.level
+  if (!level || level === 'unknown') return ''
+  if (level === 'verified') return 'Overené'
+  if (level === 'partial') return 'Čiastočne'
+  if (level === 'low') return 'Nízka dôvera'
+  return ''
+}
+
+function publicConfidenceTooltip(event) {
+  const confidence = event?.public_confidence
+  if (!confidence) return ''
+  if (confidence.level === 'unknown') return 'Nie sú dostupné údaje o dôveryhodnosti.'
+
+  if (typeof confidence.score === 'number' && typeof confidence.sources_count === 'number') {
+    return `${confidence.reason} Skóre: ${confidence.score}/100 • Zdrojov: ${confidence.sources_count}`
+  }
+
+  return confidence.reason || 'Nie sú dostupné údaje o dôveryhodnosti.'
+}
+
 function formatDateTime(value) {
   if (!value) return '-'
   const date = new Date(value)
@@ -368,8 +586,11 @@ function formatDateTime(value) {
 }
 
 watch(
-  [isCalendarView, selectedType, selectedRegion, searchQuery, dateFrom, dateTo],
+  [isCalendarView, selectedType, selectedRegion, searchQuery, selectedYear, selectedPeriod, selectedMonth, selectedWeek],
   async () => {
+    if (!isApplyingRoute.value) {
+      await onPeriodSelectionChanged()
+    }
     if (!isCalendarView.value) {
       await fetchEvents()
     }
@@ -378,15 +599,58 @@ watch(
 )
 
 onMounted(async () => {
-  if (!dateFrom.value && !dateTo.value) {
-    setDatePreset('next_30_days')
-  } else if (dateFrom.value && dateTo.value && dateFrom.value === todayIso()) {
-    datePreset.value = 'today'
+  try {
+    const yearsRes = await getEventYears()
+    const meta = yearsRes?.data || {}
+    yearOptions.value = Array.isArray(meta.years) ? meta.years : []
+    const defaultYear = resolveDefaultYear(meta, new Date())
+    if (!yearOptions.value.includes(defaultYear)) {
+      yearOptions.value = [defaultYear]
+    }
+    selectedYear.value = defaultYear
+  } catch {
+    const minYear = 2021
+    const maxYear = 2030
+    const defaultYear = resolveDefaultYear({ minYear, maxYear }, new Date())
+    yearOptions.value = Array.from({ length: maxYear - minYear + 1 }, (_, idx) => minYear + idx)
+    selectedYear.value = defaultYear
   }
+
+  applyPeriodFromRoute()
+  await onPeriodSelectionChanged()
+  if (!isCalendarView.value) await fetchEvents()
 
   if (!isCalendarView.value && auth.isAuthed && favorites.ids.size === 0 && !favorites.loading) {
     await favorites.fetch()
   }
+
+  startRealtimeFeed()
+})
+
+watch(
+  () => route.query,
+  async () => {
+    applyPeriodFromRoute()
+    if (!isCalendarView.value) {
+      await fetchEvents()
+    }
+  },
+  { deep: true },
+)
+
+watch(isCalendarView, (calendarView) => {
+  if (calendarView) {
+    stopRealtimeFeed()
+    return
+  }
+
+  startRealtimeFeed()
+})
+
+onBeforeUnmount(() => {
+  stopRealtimeFeed()
+  freshTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId))
+  freshTimeouts.clear()
 })
 </script>
 
@@ -666,6 +930,10 @@ onMounted(async () => {
   text-decoration: none;
 }
 
+.event-card-new {
+  animation: realtime-pulse 2.4s ease;
+}
+
 .card-content {
   padding: 0.72rem;
 }
@@ -700,6 +968,32 @@ onMounted(async () => {
   font-size: 0.62rem;
   font-weight: 700;
   padding: 0.12rem 0.36rem;
+}
+
+.confidence-badge {
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 0.12rem 0.36rem;
+  border: 1px solid transparent;
+}
+
+.confidence-verified {
+  color: #0f5132;
+  background: #d1e7dd;
+  border-color: #badbcc;
+}
+
+.confidence-partial {
+  color: #664d03;
+  background: #fff3cd;
+  border-color: #ffecb5;
+}
+
+.confidence-low {
+  color: #842029;
+  background: #f8d7da;
+  border-color: #f5c2c7;
 }
 
 .card-date,
@@ -737,6 +1031,38 @@ onMounted(async () => {
   font-weight: 700;
 }
 
+.realtime-banner {
+  width: 100%;
+  margin-top: 0.65rem;
+  margin-bottom: 0.35rem;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.42);
+  border-radius: 0.75rem;
+  background: rgb(var(--color-primary-rgb) / 0.16);
+  display: flex;
+  align-items: center;
+}
+
+.realtime-banner-main {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--color-surface);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+}
+
+.realtime-banner-dismiss {
+  border: 0;
+  border-left: 1px solid rgb(var(--color-primary-rgb) / 0.35);
+  background: transparent;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.5rem 0.7rem;
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
@@ -756,6 +1082,23 @@ onMounted(async () => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes realtime-pulse {
+  0% {
+    transform: scale(0.985);
+    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0.3);
+  }
+
+  50% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgb(var(--color-primary-rgb) / 0);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: none;
   }
 }
 

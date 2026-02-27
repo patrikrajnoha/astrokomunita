@@ -28,6 +28,19 @@ class AdminRouteContractTest extends TestCase
             ->assertStatus(401);
     }
 
+    public function test_admin_newsletter_preview_route_exists_and_is_protected(): void
+    {
+        $this->getJson('/api/admin/newsletter/preview')
+            ->assertStatus(401);
+    }
+
+    public function test_admin_newsletter_preview_send_route_exists_and_is_protected(): void
+    {
+        $this->postJson('/api/admin/newsletter/preview', [
+            'email' => 'preview@example.com',
+        ])->assertStatus(401);
+    }
+
     public function test_non_admin_user_cannot_access_admin_dashboard(): void
     {
         $user = User::factory()->create([
