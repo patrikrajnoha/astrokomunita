@@ -3,6 +3,18 @@
 return [
     'default_timezone' => env('OBSERVING_DEFAULT_TZ', 'Europe/Bratislava'),
 
+    'sky_context' => [
+        'fallback_lat' => env('SKY_FALLBACK_LAT', 48.1486),
+        'fallback_lon' => env('SKY_FALLBACK_LON', 17.1077),
+        'fallback_tz' => env('SKY_FALLBACK_TZ', 'Europe/Bratislava'),
+    ],
+
+    'sky' => [
+        'weather_cache_ttl_minutes' => env('SKY_WEATHER_CACHE_TTL_MINUTES', 10),
+        'astronomy_cache_ttl_hours' => env('SKY_ASTRONOMY_CACHE_TTL_HOURS', 6),
+        'visible_planets_cache_ttl_minutes' => env('SKY_VISIBLE_PLANETS_CACHE_TTL_MINUTES', 10),
+    ],
+
     'cache' => [
         'ttl_minutes' => env('OBSERVING_CACHE_TTL_MINUTES', 15),
         'partial_ttl_minutes' => env('OBSERVING_CACHE_PARTIAL_TTL_MINUTES', 5),
