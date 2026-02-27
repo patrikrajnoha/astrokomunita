@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-[#050608] text-[var(--color-surface)]">
+  <div class="min-h-screen bg-[var(--color-bg)] text-[var(--color-surface)]">
     <div class="mx-auto w-full max-w-[980px] px-4 py-5 sm:px-6">
       <section class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.68)] p-4 backdrop-blur sm:p-5">
         <label for="global-search-input" class="mb-2 block text-xs font-semibold uppercase tracking-wide text-[color:rgb(var(--color-text-secondary-rgb)/0.92)]">

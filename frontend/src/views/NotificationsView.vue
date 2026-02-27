@@ -1,5 +1,5 @@
 <template>
-  <section class="min-h-screen bg-black px-4 py-10 text-white sm:px-8">
+  <section class="min-h-screen bg-[var(--color-bg)] px-4 py-10 text-white sm:px-8">
     <div class="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <header class="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -8,7 +8,7 @@
         </div>
         <div class="flex items-center gap-2">
           <button
-            class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#1f1f1f] bg-[#0d0d0d] text-[#cfcfcf] transition hover:border-[#2a2a2a] hover:text-white"
+            class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-[color:rgb(var(--color-bg-rgb)/0.88)] text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-white"
             type="button"
             aria-label="Nastavenia notifikacii"
             @click="openSettings"
@@ -25,7 +25,7 @@
             </svg>
           </button>
           <button
-            class="rounded-full border border-[#1f1f1f] bg-[#0d0d0d] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#cfcfcf] transition hover:border-[#2a2a2a] hover:text-white"
+            class="rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-[color:rgb(var(--color-bg-rgb)/0.88)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-white"
             type="button"
             @click="markAll"
           >
@@ -34,12 +34,12 @@
         </div>
       </header>
 
-      <div class="rounded-2xl border border-[#121212] bg-[#050505]">
+      <div class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.66)]">
         <div v-if="error && !loading" class="px-6 py-6 text-center">
           <p class="text-sm text-rose-300">{{ error }}</p>
           <button
             type="button"
-            class="mt-3 rounded-full border border-[#2b2b2b] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#d0d0d0] transition hover:border-[#3a3a3a] hover:text-white"
+            class="mt-3 rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-white"
             @click="retry"
           >
             Retry
@@ -54,8 +54,8 @@
           v-for="item in items"
           :key="item.id"
           type="button"
-          class="group flex w-full items-center gap-4 border-b border-[#1a1a1a] px-6 py-5 text-left transition hover:bg-[#0e0e0e] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
-          :class="item.read_at ? 'opacity-80' : 'bg-[#0a0a0a]'"
+          class="group flex w-full items-center gap-4 border-b border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] px-6 py-5 text-left transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.8)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+          :class="item.read_at ? 'opacity-80' : 'bg-[color:rgb(var(--color-bg-rgb)/0.4)]'"
           @click="openNotification(item)"
         >
           <span
@@ -74,7 +74,7 @@
 
       <button
         v-if="page < lastPage && !loading"
-        class="mx-auto rounded-full border border-[#1c1c1c] px-5 py-2 text-xs font-semibold uppercase tracking-wide text-[#d0d0d0] transition hover:border-[#2a2a2a] hover:text-white"
+        class="mx-auto rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] px-5 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-white"
         type="button"
         @click="loadMore"
       >
