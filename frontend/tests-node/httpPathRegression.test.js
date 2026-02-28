@@ -18,3 +18,10 @@ test('ProfileEdit does not prefix /api for http profile endpoint', () => {
   const content = read('src/views/ProfileEdit.vue')
   assert.equal(content.includes("http.patch('/api/profile'"), false)
 })
+
+test('AppLayout includes legal page links in shell navigation', () => {
+  const content = read('src/layouts/AppLayout.vue')
+  assert.equal(content.includes("'/privacy'"), true)
+  assert.equal(content.includes("'/terms'"), true)
+  assert.equal(content.includes("'/cookies'"), true)
+})

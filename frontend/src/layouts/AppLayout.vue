@@ -45,9 +45,22 @@
     <aside
       class="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 md:left-3 md:inset-y-3 md:rounded-2xl md:flex xl:hidden"
     >
-      <nav aria-label="Main navigation">
-        <MainNavbar />
-      </nav>
+      <div class="flex h-full flex-col">
+        <nav class="flex-1" aria-label="Main navigation">
+          <MainNavbar />
+        </nav>
+
+        <div class="legalLinks" data-testid="desktop-legal-links">
+          <RouterLink
+            v-for="item in legalLinks"
+            :key="`tablet-${item.to}`"
+            :to="item.to"
+            class="legalLinks__item"
+          >
+            {{ item.label }}
+          </RouterLink>
+        </div>
+      </div>
     </aside>
 
     <div
@@ -75,9 +88,22 @@
             class="hidden h-screen overflow-y-auto border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 xl:pl-6 2xl:pl-8 xl:sticky xl:top-0 xl:block"
             data-testid="layout-left"
           >
-            <nav aria-label="Main navigation">
-              <MainNavbar />
-            </nav>
+            <div class="flex h-full flex-col">
+              <nav class="flex-1" aria-label="Main navigation">
+                <MainNavbar />
+              </nav>
+
+              <div class="legalLinks" data-testid="desktop-legal-links">
+                <RouterLink
+                  v-for="item in legalLinks"
+                  :key="`desktop-${item.to}`"
+                  :to="item.to"
+                  class="legalLinks__item"
+                >
+                  {{ item.label }}
+                </RouterLink>
+              </div>
+            </div>
           </aside>
 
           <main
@@ -236,6 +262,18 @@
 
         <div class="mt-6">
           <MainNavbar />
+        </div>
+
+        <div class="legalLinks mt-8" data-testid="mobile-legal-links">
+          <RouterLink
+            v-for="item in legalLinks"
+            :key="`mobile-${item.to}`"
+            :to="item.to"
+            class="legalLinks__item"
+            @click="closeDrawer"
+          >
+            {{ item.label }}
+          </RouterLink>
         </div>
       </aside>
     </transition>
@@ -532,6 +570,11 @@ const calendarPopupPayload = ref(null)
 const calendarPopupAckInFlight = ref(false)
 const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const showMobileBottomNav = computed(() => isMobileViewport.value && isCoarsePointer.value)
+const legalLinks = [
+  { to: '/privacy', label: 'Privacy' },
+  { to: '/terms', label: 'Terms' },
+  { to: '/cookies', label: 'Cookies' },
+]
 const mobileBottomLinks = computed(() => {
   const links = [
     { to: '/', label: 'Domov', icon: 'D' },
@@ -1268,6 +1311,24 @@ onBeforeUnmount(() => {
   display: inline-block;
   min-height: 1.2rem;
   white-space: nowrap;
+}
+
+.legalLinks {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
+}
+
+.legalLinks__item {
+  font-size: 0.8rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  text-decoration: none;
+}
+
+.legalLinks__item:hover,
+.legalLinks__item.router-link-active {
+  color: var(--color-surface);
 }
 
 .brand-fade-enter-active,

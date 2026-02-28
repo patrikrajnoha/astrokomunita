@@ -210,6 +210,7 @@
     <section class="settings-card settings-card-danger">
       <h2 class="card-title">Deactivate account</h2>
       <p class="card-subtitle">This action permanently removes your account and signs you out.</p>
+      <p class="danger-note">Deleting your account also permanently removes your posts and related content.</p>
 
       <div v-if="deactivateState.error" class="status status-error" role="alert">
         {{ deactivateState.error }}
@@ -693,6 +694,12 @@ onMounted(async () => {
   margin: 0.35rem 0 0;
   font-size: 0.92rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.danger-note {
+  margin: 0.45rem 0 0;
+  font-size: 0.84rem;
+  color: rgb(255 228 230 / 0.92);
 }
 
 .card-head-row {

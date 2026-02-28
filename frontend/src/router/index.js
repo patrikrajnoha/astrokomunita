@@ -96,6 +96,24 @@ const appShellChildren = [
     component: () => import('../views/SearchView.vue'),
   },
   {
+    path: 'privacy',
+    name: 'privacy',
+    meta: { requiresAuth: false },
+    component: () => import('../views/PrivacyPolicyView.vue'),
+  },
+  {
+    path: 'terms',
+    name: 'terms',
+    meta: { requiresAuth: false },
+    component: () => import('../views/TermsOfServiceView.vue'),
+  },
+  {
+    path: 'cookies',
+    name: 'cookies',
+    meta: { requiresAuth: false },
+    component: () => import('../views/CookiesView.vue'),
+  },
+  {
     path: 'settings',
     name: 'settings',
     meta: { auth: true, requiresAuth: true },
