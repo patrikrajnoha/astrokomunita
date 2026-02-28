@@ -8,21 +8,11 @@
         </div>
         <div class="flex items-center gap-2">
           <button
-            class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-[color:rgb(var(--color-bg-rgb)/0.88)] text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-white"
+            class="rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-[color:rgb(var(--color-bg-rgb)/0.88)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-white"
             type="button"
-            aria-label="Nastavenia notifikacii"
-            @click="openSettings"
+            @click="scrollToSettings"
           >
-            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path
-                d="M8.2 2h3.6l.5 2a6 6 0 0 1 1.4.8l1.9-.9 2.5 2.5-.9 1.9c.3.4.6.9.8 1.4l2 .5v3.6l-2 .5a6.4 6.4 0 0 1-.8 1.4l.9 1.9-2.5 2.5-1.9-.9a6.4 6.4 0 0 1-1.4.8l-.5 2H8.2l-.5-2a6 6 0 0 1-1.4-.8l-1.9.9-2.5-2.5.9-1.9a6.4 6.4 0 0 1-.8-1.4l-2-.5V9.8l2-.5c.2-.5.5-1 .8-1.4l-.9-1.9 2.5-2.5 1.9.9c.4-.3.9-.6 1.4-.8l.5-2Z"
-                stroke="currentColor"
-                stroke-width="1.2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.2" />
-            </svg>
+            Nastavenia
           </button>
           <button
             class="rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-[color:rgb(var(--color-bg-rgb)/0.88)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-white"
@@ -33,6 +23,82 @@
           </button>
         </div>
       </header>
+
+      <section
+        id="notification-settings"
+        class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.66)] p-6"
+      >
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-xl font-black tracking-tight text-white">Nastavenia notifikácií</h2>
+            <p class="mt-2 text-sm text-[#9a9a9a]">Vyber si upozornenia pre pozorovanie oblohy.</p>
+          </div>
+          <button
+            v-if="preferencesError"
+            type="button"
+            class="rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-white"
+            @click="retryPreferences"
+          >
+            Retry
+          </button>
+        </div>
+
+        <div v-if="preferencesLoading" class="mt-5 space-y-3" aria-hidden="true">
+          <div
+            v-for="index in 2"
+            :key="`preference-skeleton-${index}`"
+            class="h-16 animate-pulse rounded-2xl bg-[color:rgb(var(--color-text-secondary-rgb)/0.15)]"
+          ></div>
+        </div>
+
+        <div v-else class="mt-5 space-y-3">
+          <p
+            v-if="preferencesError"
+            class="rounded-2xl border border-rose-500/35 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
+            role="status"
+          >
+            Nastavenia notifikácií sú dočasne nedostupné. Skús znova.
+          </p>
+
+          <label
+            class="flex items-center justify-between gap-4 rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.35)] px-4 py-4"
+          >
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-white">Upozorniť ma pri výborných podmienkach</p>
+              <p class="mt-1 text-xs text-[#9a9a9a]">Dostaneš upozornenie, keď bude obloha vhodná na pozorovanie.</p>
+            </div>
+            <button
+              type="button"
+              class="inline-flex h-7 w-12 items-center rounded-full border border-white/10 px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
+              :class="preferences.good_conditions_alerts ? 'justify-end bg-emerald-500/30' : 'justify-start bg-white/5'"
+              :disabled="isPreferenceToggleDisabled"
+              :aria-pressed="preferences.good_conditions_alerts"
+              @click="togglePreference('good_conditions_alerts')"
+            >
+              <span class="h-5 w-5 rounded-full bg-white"></span>
+            </button>
+          </label>
+
+          <label
+            class="flex items-center justify-between gap-4 rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.35)] px-4 py-4"
+          >
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-white">Upozorniť ma na ISS prelet</p>
+              <p class="mt-1 text-xs text-[#9a9a9a]">Dostaneš upozornenie pred ďalším dobre viditeľným preletom ISS.</p>
+            </div>
+            <button
+              type="button"
+              class="inline-flex h-7 w-12 items-center rounded-full border border-white/10 px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
+              :class="preferences.iss_alerts ? 'justify-end bg-emerald-500/30' : 'justify-start bg-white/5'"
+              :disabled="isPreferenceToggleDisabled"
+              :aria-pressed="preferences.iss_alerts"
+              @click="togglePreference('iss_alerts')"
+            >
+              <span class="h-5 w-5 rounded-full bg-white"></span>
+            </button>
+          </label>
+        </div>
+      </section>
 
       <div class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.66)]">
         <div v-if="error && !loading" class="px-6 py-6 text-center">
@@ -81,45 +147,72 @@
         Load more
       </button>
     </div>
-
-    <NotificationSettingsModal
-      :open="settingsOpen"
-      @close="settingsOpen = false"
-      @saved="onSettingsSaved"
-    />
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useNotificationsStore } from '@/stores/notifications'
-import NotificationSettingsModal from '@/components/notifications/NotificationSettingsModal.vue'
+import { useNotificationAlertPreferences } from '@/composables/useNotificationAlertPreferences'
+import { useAuthStore } from '@/stores/auth'
 
 const store = useNotificationsStore()
 const router = useRouter()
+const route = useRoute()
+const auth = useAuthStore()
 
 const items = computed(() => store.items)
 const loading = computed(() => store.loading)
 const error = computed(() => store.error)
 const page = computed(() => store.page)
 const lastPage = computed(() => store.lastPage)
-const settingsOpen = ref(false)
 
-onMounted(() => {
+const {
+  preferences,
+  preferencesLoading,
+  preferencesError,
+  fetchPreferences,
+  updatePreferences,
+} = useNotificationAlertPreferences({
+  isAuthenticated: computed(() => auth.isAuthed),
+})
+
+const isPreferenceToggleDisabled = computed(() => preferencesLoading.value || preferencesError.value)
+
+onMounted(async () => {
   store.fetchList(1)
   store.fetchUnreadCount()
+  fetchPreferences()
+
+  if (route.hash === '#notification-settings') {
+    await nextTick()
+    scrollToSettings(false)
+  }
 })
 
 const loadMore = () => store.fetchList(store.page + 1)
 const markAll = () => store.markAllRead()
 const retry = () => store.fetchList(1)
-const openSettings = () => {
-  settingsOpen.value = true
+const retryPreferences = () => fetchPreferences()
+
+async function togglePreference(key) {
+  if (isPreferenceToggleDisabled.value) return
+
+  await updatePreferences({
+    iss_alerts: key === 'iss_alerts' ? !preferences.value.iss_alerts : preferences.value.iss_alerts,
+    good_conditions_alerts: key === 'good_conditions_alerts'
+      ? !preferences.value.good_conditions_alerts
+      : preferences.value.good_conditions_alerts,
+  })
 }
 
-const onSettingsSaved = () => {
-  store.fetchList(1)
+function scrollToSettings(updateHash = true) {
+  const element = document.getElementById('notification-settings')
+  if (updateHash && route.hash !== '#notification-settings') {
+    router.replace({ hash: '#notification-settings' })
+  }
+  element?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 const openNotification = async (item) => {
@@ -148,6 +241,12 @@ const formatTitle = (item) => {
   if (item.type === 'account_restricted') {
     return 'Account restricted'
   }
+  if (item.type === 'iss_pass_alert') {
+    return 'ISS pass soon'
+  }
+  if (item.type === 'good_conditions_alert') {
+    return 'Great observing conditions'
+  }
   return 'Notification'
 }
 
@@ -172,6 +271,13 @@ const formatSubtitle = (item) => {
   if (item.type === 'account_restricted') {
     return item.data?.reason || 'Contact support for details.'
   }
+  if (item.type === 'iss_pass_alert') {
+    return item.data?.next_pass_at ? `Next pass: ${formatClock(item.data.next_pass_at)}` : 'A pass is coming soon.'
+  }
+  if (item.type === 'good_conditions_alert') {
+    const score = Number(item.data?.observing_score)
+    return Number.isFinite(score) ? `Observing score ${Math.round(score)}/100.` : 'Sky conditions look strong tonight.'
+  }
   return 'New update'
 }
 
@@ -184,5 +290,12 @@ const formatTime = (iso) => {
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h`
   return created.toLocaleDateString('sk-SK')
+}
+
+const formatClock = (iso) => {
+  if (!iso) return ''
+  const value = new Date(iso)
+  if (Number.isNaN(value.getTime())) return ''
+  return value.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 </script>
