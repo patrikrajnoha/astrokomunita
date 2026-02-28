@@ -10,6 +10,9 @@ export const SKY_WIDGET_SECTION_IDS = [
 
 export const VISIBLE_ALT_MIN = 10
 export const LOW_ALT_MIN = 5
+export const MIN_VISIBLE_ELONGATION = 20
+export const CLOSE_TO_SUN_ELONGATION = 15
+export const NIGHT_SUN_ALTITUDE_MAX = -12
 
 export function moveSection(sectionIds, sectionId, direction) {
   const list = Array.isArray(sectionIds) ? [...sectionIds] : [...SKY_WIDGET_SECTION_IDS]
@@ -26,22 +29,22 @@ export function moveSection(sectionIds, sectionId, direction) {
 
 export function getScorePresentation(score) {
   if (!Number.isFinite(score)) {
-    return { label: 'Nedostupné', emoji: '😐' }
+    return { label: 'Nedostupne', emoji: '😐' }
   }
 
   if (score >= 80) {
-    return { label: 'Výborné', emoji: '😄' }
+    return { label: 'Vyborne', emoji: '😄' }
   }
 
   if (score >= 60) {
-    return { label: 'Dobré', emoji: '🙂' }
+    return { label: 'Dobre', emoji: '🙂' }
   }
 
   if (score >= 40) {
-    return { label: 'Priemerné', emoji: '😐' }
+    return { label: 'Priemerne', emoji: '😐' }
   }
 
-  return { label: 'Slabé', emoji: '☹️' }
+  return { label: 'Slabe', emoji: '☁️' }
 }
 
 export function getBortlePresentation(bortle) {
@@ -51,49 +54,118 @@ export function getBortlePresentation(bortle) {
   const normalized = Math.max(1, Math.min(9, Math.round(numeric)))
 
   if (normalized <= 2) {
-    return { levelText: 'veľmi tmavé', contextText: 'divočina / vysoké hory', bortle: normalized }
+    return { levelText: 'velmi tmave', contextText: 'divocina / vysoke hory', bortle: normalized }
   }
 
   if (normalized <= 4) {
-    return { levelText: 'tmavé', contextText: 'vidiek', bortle: normalized }
+    return { levelText: 'tmave', contextText: 'vidiek', bortle: normalized }
   }
 
   if (normalized <= 6) {
-    return { levelText: 'stredné', contextText: 'predmestie', bortle: normalized }
+    return { levelText: 'stredne', contextText: 'predmestie', bortle: normalized }
   }
 
   if (normalized === 7) {
-    return { levelText: 'vysoké', contextText: 'mesto', bortle: normalized }
+    return { levelText: 'vysoke', contextText: 'mesto', bortle: normalized }
   }
 
-  return { levelText: 'veľmi vysoké', contextText: 'centrum veľkého mesta', bortle: normalized }
+  return { levelText: 'velmi vysoke', contextText: 'centrum velkeho mesta', bortle: normalized }
 }
 
-export function getVisiblePlanets(planets, options = {}) {
-  if (!Array.isArray(planets)) return []
+export function isPlanetNight(sunAltitudeDeg) {
+  const sunAltitude = toFiniteNumber(sunAltitudeDeg)
+  return sunAltitude !== null && sunAltitude < NIGHT_SUN_ALTITUDE_MAX
+}
 
-  const visibleAltMin = Number.isFinite(options.visibleAltMin) ? options.visibleAltMin : VISIBLE_ALT_MIN
-  const lowAltMin = Number.isFinite(options.lowAltMin) ? options.lowAltMin : LOW_ALT_MIN
+export function getPlanetVisibilityTag({ sunAltitudeDeg, altitudeDeg, elongationDeg }) {
+  const altitude = toFiniteNumber(altitudeDeg)
+  const elongation = toFiniteNumber(elongationDeg)
+
+  if (altitude === null || elongation === null || !isPlanetNight(sunAltitudeDeg)) {
+    return 'hidden'
+  }
+
+  if (altitude < LOW_ALT_MIN) {
+    return 'hidden'
+  }
+
+  if (elongation < CLOSE_TO_SUN_ELONGATION) {
+    return 'close_to_sun'
+  }
+
+  if (altitude < VISIBLE_ALT_MIN) {
+    return 'low'
+  }
+
+  if (elongation >= MIN_VISIBLE_ELONGATION) {
+    return 'visible'
+  }
+
+  return 'hidden'
+}
+
+export function getPlanetVisibilityPresentation(visibilityTag) {
+  switch (String(visibilityTag || '').toLowerCase()) {
+    case 'visible':
+      return { label: 'Viditeľná', toneClass: 'text-emerald-200 border-emerald-400/20 bg-emerald-400/10' }
+    case 'close_to_sun':
+      return { label: 'Blízko Slnka', toneClass: 'text-amber-200 border-amber-400/20 bg-amber-400/10' }
+    case 'low':
+      return { label: 'Nízko nad obzorom', toneClass: 'text-amber-200 border-amber-400/20 bg-amber-400/10' }
+    default:
+      return null
+  }
+}
+
+export function getVisiblePlanets(planetsPayload) {
+  const planets = Array.isArray(planetsPayload?.planets)
+    ? planetsPayload.planets
+    : Array.isArray(planetsPayload)
+      ? planetsPayload
+      : []
+  const sunAltitude = toFiniteNumber(planetsPayload?.sun_altitude_deg)
+
+  if (!isPlanetNight(sunAltitude)) {
+    return []
+  }
 
   return planets
     .map((planet) => {
       const altitude = toFiniteNumber(planet?.altitude_deg)
-      if (altitude === null || altitude < lowAltMin) return null
+      const elongation = toFiniteNumber(planet?.elongation_deg)
+      const visibilityTag = getPlanetVisibilityTag({
+        sunAltitudeDeg: sunAltitude,
+        altitudeDeg: altitude,
+        elongationDeg: elongation,
+      })
+      const presentation = getPlanetVisibilityPresentation(visibilityTag)
 
-      const isVisible = altitude >= visibleAltMin
+      if (!presentation) {
+        return null
+      }
 
       return {
-        name: sanitizeLabel(planet?.name) || 'Planéta',
-        direction: sanitizeLabel(planet?.direction) || 'neznámy smer',
+        name: sanitizeLabel(planet?.name) || 'Planeta',
+        direction: sanitizeLabel(planet?.direction) || 'neznamy smer',
         bestTimeWindow: sanitizeLabel(planet?.best_time_window) || '',
         altitude,
-        altitudeLabel: `${Math.round(altitude)}°`,
-        visibilityLabel: isVisible ? 'viditeľná' : 'nízko nad obzorom',
-        isVisible,
+        elongation,
+        altitudeLabel: altitude === null ? '-' : `${Math.round(altitude)}°`,
+        elongationLabel: elongation === null ? '-' : `${Math.round(elongation)}°`,
+        visibilityTag,
+        visibilityLabel: presentation.label,
+        visibilityToneClass: presentation.toneClass,
+        isVisible: visibilityTag === 'visible',
       }
     })
     .filter(Boolean)
-    .sort((a, b) => b.altitude - a.altitude)
+    .sort((a, b) => {
+      if (a.visibilityTag !== b.visibilityTag) {
+        return Number(b.isVisible) - Number(a.isVisible)
+      }
+
+      return (b.altitude ?? -Infinity) - (a.altitude ?? -Infinity)
+    })
 }
 
 function toFiniteNumber(value) {

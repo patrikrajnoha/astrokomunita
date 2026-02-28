@@ -19,26 +19,38 @@ describe('SkyVisiblePlanetsCard', () => {
     vi.clearAllMocks()
   })
 
-  it('renders quality badges and low-horizon warning', async () => {
+  it('renders Planety 1.5 visibility labels from the shared util rules', async () => {
     getMock.mockResolvedValue({
       data: {
+        sample_at: '2026-02-27T21:00:00+01:00',
+        sun_altitude_deg: -18.4,
         planets: [
           {
             name: 'Jupiter',
             direction: 'S',
             altitude_deg: 64.7,
             azimuth_deg: 181.3,
+            elongation_deg: 132.1,
             best_time_window: '18:10-03:00',
             quality: 'excellent',
           },
           {
             name: 'Saturn',
             direction: 'W',
-            altitude_deg: 12.3,
+            altitude_deg: 8.3,
             azimuth_deg: 253.9,
+            elongation_deg: 48.0,
             best_time_window: '18:10-18:20',
             quality: 'low',
-            magnitude: 1.1,
+          },
+          {
+            name: 'Mercury',
+            direction: 'W',
+            altitude_deg: 13.2,
+            azimuth_deg: 241.2,
+            elongation_deg: 14.9,
+            best_time_window: '18:10-18:40',
+            quality: 'good',
           },
         ],
       },
@@ -50,9 +62,9 @@ describe('SkyVisiblePlanetsCard', () => {
 
     await flush()
 
-    expect(wrapper.text()).toContain('Vyborne')
-    expect(wrapper.text()).toContain('Nizko nad horizontom')
-    expect(wrapper.text()).toContain('Planeta je nizko nad horizontom, viditelnost moze byt obmedzena.')
-    expect(wrapper.text()).toContain('Magnituda: 1.1')
+    expect(wrapper.text()).toContain('Viditeľná')
+    expect(wrapper.text()).toContain('Nízko nad obzorom')
+    expect(wrapper.text()).toContain('Blízko Slnka')
+    expect(wrapper.text()).toContain('Elong:')
   })
 })

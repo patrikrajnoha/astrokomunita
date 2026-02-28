@@ -67,11 +67,13 @@ function buildGetResponse(url) {
   if (url === '/sky/visible-planets') {
     return {
       data: {
+        sample_at: '2026-02-27T19:30:00+01:00',
+        sun_altitude_deg: -18.2,
         planets: [
-          { name: 'Jupiter', direction: 'SE', altitude_deg: 52.2, best_time_window: '20:20-23:40' },
-          { name: 'Mars', direction: 'E', altitude_deg: 12.3, best_time_window: '21:00-00:20' },
-          { name: 'Saturn', direction: 'W', altitude_deg: 7.4, best_time_window: '18:40-19:20' },
-          { name: 'Merkur', direction: 'W', altitude_deg: 2.1, best_time_window: '18:00-18:10' },
+          { name: 'Jupiter', direction: 'SE', altitude_deg: 52.2, elongation_deg: 132.1, best_time_window: '20:20-23:40' },
+          { name: 'Mars', direction: 'E', altitude_deg: 12.3, elongation_deg: 28.4, best_time_window: '21:00-00:20' },
+          { name: 'Saturn', direction: 'W', altitude_deg: 7.4, elongation_deg: 48.0, best_time_window: '18:40-19:20' },
+          { name: 'Merkur', direction: 'W', altitude_deg: 11.2, elongation_deg: 14.9, best_time_window: '18:00-18:10' },
         ],
       },
     }
@@ -131,8 +133,8 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.text()).toContain('Astronomické podmienky')
-    expect(wrapper.text()).toContain('😄 Výborné')
+    expect(wrapper.text()).toContain('Astronomicke podmienky')
+    expect(wrapper.text()).toContain('😄 Vyborne')
   })
 
   it('shows the edit pencil only for admin users', async () => {
@@ -163,7 +165,7 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    const locationButton = wrapper.find('button[title="Zmeniť lokalitu"]')
+    const locationButton = wrapper.find('button[title="Zmenit lokalitu"]')
     await locationButton.trigger('click')
 
     expect(pushMock).toHaveBeenCalledWith('/profile/edit')
@@ -176,13 +178,41 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.text()).toContain('Svetelné znečistenie: vysoké')
+    expect(wrapper.text()).toContain('Svetelné znečistenie: vysoke')
     expect(wrapper.text()).toContain('Mesto (Bortle 7)')
     expect(wrapper.text()).toContain('Odhad podľa polohy')
   })
 
-  it('shows daylight gating and does not list planets as visible during the day', async () => {
-    vi.setSystemTime(new Date('2026-02-27T11:57:00+01:00'))
+  it('shows planet visibility tags from the Planety 1.5 contract', async () => {
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Jupiter')
+    expect(wrapper.text()).toContain('Viditeľná')
+    expect(wrapper.text()).toContain('Nízko nad obzorom')
+    expect(wrapper.text()).toContain('Blízko Slnka')
+    expect(wrapper.text()).toContain('elongácia:')
+  })
+
+  it('hides the planet list until night based on sun_altitude_deg', async () => {
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/visible-planets') {
+        return {
+          data: {
+            sample_at: '2026-02-27T11:57:00+01:00',
+            sun_altitude_deg: -8.0,
+            planets: [
+              { name: 'Jupiter', direction: 'SE', altitude_deg: 52.2, elongation_deg: 132.1, best_time_window: '20:20-23:40' },
+            ],
+          },
+        }
+      }
+
+      return buildGetResponse(url)
+    })
 
     const wrapper = mount(RightObservingSidebar, {
       props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
@@ -190,12 +220,7 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.text()).toContain('Denné podmienky')
-    expect(wrapper.text()).toContain('Denné svetlo')
-    expect(wrapper.text()).toContain('Momentálne je deň. Astronomické pozorovanie nie je možné.')
-    expect(wrapper.text()).toContain('Planéty: zobrazíme po zotmení.')
+    expect(wrapper.text()).toContain('Zobrazíme po zotmení.')
     expect(wrapper.text()).not.toContain('Jupiter')
-    expect(wrapper.text()).not.toContain('Mars')
-    expect(wrapper.text()).not.toContain('Saturn')
   })
 })
