@@ -12,19 +12,25 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class SidebarConfigController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $scope = $request->query('scope', SidebarSectionRegistry::SCOPE_HOME);
-
-        if (!SidebarSectionRegistry::isValidScope($scope)) {
-            return response()->json([
-                'message' => 'Invalid sidebar scope.',
-            ], 400);
+        if (app()->environment(['local', 'staging'])) {
+            Log::debug('Sidebar config request', [
+                'scope' => $request->query('scope'),
+                'user_id' => $request->user()?->id,
+            ]);
         }
+
+        $requestedScope = $request->query('scope');
+        $scope = SidebarSectionRegistry::isValidScope($requestedScope)
+            ? $requestedScope
+            : SidebarSectionRegistry::SCOPE_HOME;
 
         try {
             return response()->json([
@@ -48,44 +54,54 @@ class SidebarConfigController extends Controller
 
     public function update(Request $request): JsonResponse
     {
-        $scope = $request->query('scope');
+        $validatedScope = validator(
+            ['scope' => $request->query('scope')],
+            ['scope' => ['required', 'string', Rule::in(SidebarSectionRegistry::scopes())]]
+        )->validate();
 
-        if (!SidebarSectionRegistry::isValidScope($scope)) {
-            return response()->json([
-                'message' => 'Invalid sidebar scope.',
-            ], 400);
-        }
+        $scope = $validatedScope['scope'];
 
         $validated = $request->validate([
             'items' => ['required', 'array', 'min:1'],
             'items.*.kind' => ['required', Rule::in(['builtin', 'custom_component'])],
             'items.*.section_key' => ['nullable', 'string'],
-            'items.*.custom_component_id' => ['nullable', 'integer', 'exists:sidebar_custom_components,id'],
+            'items.*.custom_component_id' => ['nullable', 'integer'],
             'items.*.order' => ['required', 'integer', 'min:0'],
             'items.*.is_enabled' => ['required', 'boolean'],
         ]);
 
         $rawItems = $validated['items'];
         $itemsByIdentity = [];
+        $validSectionKeys = array_map(
+            static fn (array $section) => $section['section_key'],
+            SidebarSectionRegistry::sections()
+        );
 
-        foreach ($rawItems as $item) {
+        foreach ($rawItems as $index => $item) {
             if (($item['kind'] ?? null) === 'builtin') {
-                if (!SidebarSectionRegistry::isValidSectionKey((string) ($item['section_key'] ?? ''))) {
-                    return response()->json([
-                        'message' => 'Unknown section_key provided.',
-                        'section_key' => $item['section_key'] ?? null,
-                    ], 400);
+                $sectionKey = $item['section_key'] ?? null;
+                if (!is_string($sectionKey) || !in_array($sectionKey, $validSectionKeys, true)) {
+                    throw ValidationException::withMessages([
+                        "items.$index.section_key" => ['The selected section key is invalid.'],
+                    ]);
                 }
             } elseif (($item['kind'] ?? null) === 'custom_component') {
-                if (empty($item['custom_component_id'])) {
-                    return response()->json([
-                        'message' => 'custom_component_id is required for custom_component items.',
-                    ], 400);
+                $componentId = $item['custom_component_id'] ?? null;
+                if (!is_int($componentId) && !ctype_digit((string) $componentId)) {
+                    throw ValidationException::withMessages([
+                        "items.$index.custom_component_id" => ['The custom component id field is required.'],
+                    ]);
                 }
-            } else {
-                return response()->json([
-                    'message' => 'Unsupported sidebar item kind.',
-                ], 400);
+
+                $componentExists = SidebarCustomComponent::query()
+                    ->whereKey((int) $componentId)
+                    ->exists();
+
+                if (!$componentExists) {
+                    throw ValidationException::withMessages([
+                        "items.$index.custom_component_id" => ['The selected custom component id is invalid.'],
+                    ]);
+                }
             }
 
             $identity = ($item['kind'] === 'builtin')

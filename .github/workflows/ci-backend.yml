@@ -220,6 +220,11 @@ jobs:
       - name: Run migrations
         run: php artisan migrate --force
 
+      - name: Verify generated sidebar scopes
+        run: |
+          php artisan sidebar:generate-scopes
+          git diff --exit-code -- ../frontend/src/generated/sidebarScopes.ts || (echo "Generated scopes out of date." && exit 1)
+
       - name: Run Feature suite
         run: php artisan test --testsuite=Feature
 

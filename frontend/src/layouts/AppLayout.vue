@@ -521,6 +521,7 @@ import PostComposer from '@/components/PostComposer.vue'
 import MobileFab from '@/components/MobileFab.vue'
 import GuestBottomCTA from '@/components/GuestBottomCTA.vue'
 import TypingText from '@/components/TypingText.vue'
+import { SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
 import MarkYourCalendarModal from '@/components/MarkYourCalendarModal.vue'
 import OnboardingTour from '@/components/onboarding/OnboardingTour.vue'
 import { useToast } from '@/composables/useToast'
@@ -600,7 +601,7 @@ const mobileBottomLinks = computed(() => {
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
 const showDirectObservingSidebar = computed(() => {
-  return currentSidebarScope.value === 'sky' || currentSidebarScope.value === 'observing'
+  return currentSidebarScope.value === SIDEBAR_SCOPE.SKY || currentSidebarScope.value === SIDEBAR_SCOPE.OBSERVING
 })
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
 const isProfileRoute = computed(() => String(route.path || '').startsWith('/profile'))

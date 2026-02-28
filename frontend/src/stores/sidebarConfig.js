@@ -1,6 +1,10 @@
 import { defineStore } from 'pinia'
 import api from '@/services/api'
 import { getEnabledSidebarSections } from '@/sidebar/engine'
+import {
+  hasExplicitSidebarScope,
+  normalizeSidebarScope,
+} from '@/generated/sidebarScopes'
 
 const DEFAULT_ITEMS = [
   { kind: 'builtin', section_key: 'search', title: 'Search', order: 0, is_enabled: true },
@@ -40,38 +44,39 @@ export const useSidebarConfigStore = defineStore('sidebarConfig', {
     },
 
     async fetchScope(scope, { force = false } = {}) {
-      if (!scope) {
+      if (!hasExplicitSidebarScope(scope)) {
         return this.getDefaultForScope()
       }
+      const normalizedScope = normalizeSidebarScope(scope)
 
-      if (!force && this.byScope[scope]) {
-        return cloneAndSort(this.byScope[scope])
+      if (!force && this.byScope[normalizedScope]) {
+        return cloneAndSort(this.byScope[normalizedScope])
       }
 
-      if (!force && this.pendingByScope[scope]) {
-        return this.pendingByScope[scope]
+      if (!force && this.pendingByScope[normalizedScope]) {
+        return this.pendingByScope[normalizedScope]
       }
 
       const requestPromise = api
         .get('/sidebar-config', {
-          params: { scope },
+          params: { scope: normalizedScope },
           meta: { skipErrorToast: true },
         })
         .then((response) => {
           const items = cloneAndSort(response?.data?.data)
-          this.byScope[scope] = items.length > 0 ? items : this.getDefaultForScope()
-          return cloneAndSort(this.byScope[scope])
+          this.byScope[normalizedScope] = items.length > 0 ? items : this.getDefaultForScope()
+          return cloneAndSort(this.byScope[normalizedScope])
         })
         .catch(() => {
           const fallback = this.getDefaultForScope()
-          this.byScope[scope] = fallback
+          this.byScope[normalizedScope] = fallback
           return cloneAndSort(fallback)
         })
         .finally(() => {
-          delete this.pendingByScope[scope]
+          delete this.pendingByScope[normalizedScope]
         })
 
-      this.pendingByScope[scope] = requestPromise
+      this.pendingByScope[normalizedScope] = requestPromise
       return requestPromise
     },
 

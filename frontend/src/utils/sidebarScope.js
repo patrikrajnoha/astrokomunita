@@ -1,42 +1,62 @@
-export const SIDEBAR_SCOPES = ['home', 'events', 'calendar', 'learning', 'search', 'notifications', 'post_detail', 'profile', 'observing']
+import {
+  DEFAULT_SIDEBAR_SCOPE,
+  SIDEBAR_SCOPE,
+  SIDEBAR_SCOPES,
+  hasExplicitSidebarScope,
+  isSidebarScope,
+  normalizeSidebarScope,
+} from '@/generated/sidebarScopes'
+
+export {
+  DEFAULT_SIDEBAR_SCOPE,
+  SIDEBAR_SCOPE,
+  SIDEBAR_SCOPES,
+  hasExplicitSidebarScope,
+  isSidebarScope,
+  normalizeSidebarScope,
+}
 
 export function resolveSidebarScopeFromPath(path) {
   const normalized = typeof path === 'string' ? path : ''
 
   if (normalized === '/' || normalized === '') {
-    return 'home'
+    return DEFAULT_SIDEBAR_SCOPE
   }
 
   if (normalized.startsWith('/events')) {
-    return 'events'
+    return SIDEBAR_SCOPE.EVENTS
   }
 
   if (normalized.startsWith('/observations') || normalized.startsWith('/observing')) {
-    return 'observing'
+    return SIDEBAR_SCOPE.OBSERVING
   }
 
   if (normalized.startsWith('/calendar')) {
-    return 'calendar'
+    return SIDEBAR_SCOPE.CALENDAR
   }
 
   if (normalized.startsWith('/clanky') || normalized.startsWith('/learn') || normalized.startsWith('/learning')) {
-    return 'learning'
+    return SIDEBAR_SCOPE.LEARNING
   }
 
   if (normalized.startsWith('/search')) {
-    return 'search'
+    return SIDEBAR_SCOPE.SEARCH
   }
 
   if (normalized.startsWith('/notifications')) {
-    return 'notifications'
+    return SIDEBAR_SCOPE.NOTIFICATIONS
+  }
+
+  if (normalized.startsWith('/sky')) {
+    return SIDEBAR_SCOPE.SKY
   }
 
   if (normalized.startsWith('/posts/')) {
-    return 'post_detail'
+    return SIDEBAR_SCOPE.POST_DETAIL
   }
 
   if (normalized.startsWith('/profile')) {
-    return 'profile'
+    return SIDEBAR_SCOPE.PROFILE
   }
 
   return null

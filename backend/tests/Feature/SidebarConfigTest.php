@@ -72,7 +72,7 @@ class SidebarConfigTest extends TestCase
         ]);
     }
 
-    public function test_invalid_scope_returns_400(): void
+    public function test_admin_get_invalid_scope_falls_back_to_home(): void
     {
         $admin = User::factory()->create([
             'role' => 'admin',
@@ -83,11 +83,65 @@ class SidebarConfigTest extends TestCase
         $response = $this->getJson('/api/admin/sidebar-config?scope=unknown');
 
         $response
-            ->assertStatus(400)
-            ->assertJsonPath('message', 'Invalid sidebar scope.');
+            ->assertOk()
+            ->assertJsonPath('scope', 'home')
+            ->assertJsonCount(count(SidebarSectionRegistry::sections()), 'data');
     }
 
-    public function test_unknown_section_key_returns_400_on_put(): void
+    public function test_public_search_scope_returns_200_with_valid_json_structure(): void
+    {
+        $response = $this->getJson('/api/sidebar-config?scope=search');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('scope', 'search')
+            ->assertJsonStructure([
+                'scope',
+                'data' => [
+                    '*' => [
+                        'kind',
+                        'section_key',
+                        'title',
+                        'custom_component_id',
+                        'custom_component',
+                        'order',
+                        'is_enabled',
+                    ],
+                ],
+            ])
+            ->assertJsonCount(count(SidebarSectionRegistry::sections()), 'data');
+    }
+
+    public function test_public_sidebar_config_falls_back_to_home_for_invalid_scope(): void
+    {
+        $response = $this->getJson('/api/sidebar-config?scope=unknown');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('scope', 'home')
+            ->assertJsonCount(count(SidebarSectionRegistry::sections()), 'data');
+    }
+
+    public function test_admin_invalid_scope_returns_422_on_put(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->putJson('/api/admin/sidebar-config?scope=unknown', [
+            'items' => [
+                ['kind' => 'builtin', 'section_key' => 'search', 'order' => 0, 'is_enabled' => true],
+            ],
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['scope']);
+    }
+
+    public function test_unknown_section_key_returns_422_on_put(): void
     {
         $admin = User::factory()->create([
             'role' => 'admin',
@@ -102,9 +156,8 @@ class SidebarConfigTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(400)
-            ->assertJsonPath('message', 'Unknown section_key provided.')
-            ->assertJsonPath('section_key', 'unknown_widget');
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['items.0.section_key']);
     }
 
     public function test_post_detail_scope_can_be_configured(): void
