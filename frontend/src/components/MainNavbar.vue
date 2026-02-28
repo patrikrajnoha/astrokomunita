@@ -562,7 +562,7 @@ const userAvatarUrl = computed(() => {
   if (!raw) return ''
   if (/^https?:\/\//i.test(raw)) return raw
 
-  const base = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  const base = String(import.meta.env.DEV ? '' : (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '')).replace(/\/+$/, '')
   if (raw.startsWith('/')) return `${base}${raw}`
   return `${base}/${raw}`
 })
@@ -577,7 +577,6 @@ const primaryLinks = computed(() => {
     search: ['M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z', 'm20 20-3.5-3.5'],
     notifications: ['M6 8a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6', 'M9.5 20a2.5 2.5 0 0 0 5 0'],
     events: ['M7 3v3', 'M17 3v3', 'M4 8h16', 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z'],
-    sky: ['M12 2.5 14.2 8.1 20 9l-4.4 3.9 1.3 5.8L12 15.5 7.1 18.7l1.3-5.8L4 9l5.8-.9Z', 'M17 3.5l1 2.2 2.3 1-2.3 1-1 2.2-1-2.2-2.3-1 2.3-1Z'],
     learn: ['M4 6.5A2.5 2.5 0 0 1 6.5 4H20v14H6.5A2.5 2.5 0 0 0 4 20.5z', 'M8 8h8', 'M8 11h8'],
   }
 
@@ -591,14 +590,6 @@ const primaryLinks = computed(() => {
       icon: 'U',
       iconPaths: navIcons.events,
       matchPrefix: '/events',
-    },
-    {
-      key: 'sky',
-      to: '/sky',
-      label: 'Obloha',
-      icon: 'O',
-      iconPaths: navIcons.sky,
-      matchPrefix: '/sky',
     },
     { key: 'learn', to: '/clanky', label: 'Články', icon: 'V', iconPaths: navIcons.learn },
   ]
@@ -861,5 +852,3 @@ const logout = async () => {
   }
 }
 </style>
-
-

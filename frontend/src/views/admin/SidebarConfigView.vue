@@ -286,6 +286,8 @@ const scopeTabs = [
   { value: 'notifications', label: 'Notifications' },
   { value: 'post_detail', label: 'Post detail' },
   { value: 'profile', label: 'Profile' },
+  { value: 'sky', label: 'Sky' },
+  { value: 'observing', label: 'Observing' },
 ]
 
 const activeMode = ref('layout')
