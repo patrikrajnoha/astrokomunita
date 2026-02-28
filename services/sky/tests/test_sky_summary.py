@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app import main
 
+# httpx powers FastAPI TestClient and tzdata provides IANA timezone names like Europe/Bratislava on Windows.
 
 class SkySummaryEndpointTest(unittest.TestCase):
     def setUp(self) -> None:
@@ -26,6 +27,7 @@ class SkySummaryEndpointTest(unittest.TestCase):
 
         sample_at = payload.get("sample_at")
         self.assertIsInstance(sample_at, str)
+        self.assertRegex(sample_at, r"(Z|[+-]\d{2}:\d{2})$")
         self.assertIsNotNone(datetime.fromisoformat(sample_at).tzinfo)
         self.assertIsInstance(payload.get("sun_altitude_deg"), (int, float))
 
