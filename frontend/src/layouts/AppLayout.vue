@@ -106,11 +106,20 @@
             class="rightRail h-screen w-[22rem] overflow-y-auto border-l border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-5 py-6 xl:sticky xl:top-0"
           >
             <DynamicSidebar
+              v-if="!showDirectObservingSidebar"
               :observing-lat="observingLat"
               :observing-lon="observingLon"
               :observing-date="observingDate"
               :observing-tz="observingTz"
               :observing-location-name="observingLocationName"
+            />
+            <RightObservingSidebar
+              v-else
+              :lat="observingLat"
+              :lon="observingLon"
+              :date="observingDate"
+              :tz="observingTz"
+              :location-name="observingLocationName"
             />
           </div>
         </aside>
@@ -469,6 +478,7 @@ import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { useNotificationsStore } from '@/stores/notifications'
 import MainNavbar from '@/components/MainNavbar.vue'
 import DynamicSidebar from '@/components/DynamicSidebar.vue'
+import RightObservingSidebar from '@/components/RightObservingSidebar.vue'
 import PostComposer from '@/components/PostComposer.vue'
 import MobileFab from '@/components/MobileFab.vue'
 import GuestBottomCTA from '@/components/GuestBottomCTA.vue'
@@ -546,8 +556,11 @@ const mobileBottomLinks = computed(() => {
 })
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
+const showDirectObservingSidebar = computed(() => {
+  return currentSidebarScope.value === 'sky' || currentSidebarScope.value === 'observing'
+})
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
-const isProfileRoute = computed(() => String(route.path || '') === '/profile')
+const isProfileRoute = computed(() => String(route.path || '').startsWith('/profile'))
 const showDesktopMainSidebar = computed(() => !isAdminRoute.value)
 const isLayoutDebugEnabled = computed(() => {
   return import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_LAYOUT || '') === 'true'
@@ -1519,4 +1532,3 @@ onBeforeUnmount(() => {
 }
 
 </style>
-

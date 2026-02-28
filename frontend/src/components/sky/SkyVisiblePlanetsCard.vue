@@ -14,22 +14,40 @@
 
     <div v-else class="body">
       <div v-if="sortedPlanets.length === 0" class="emptyState">
-        <p v-if="reason === 'sky_service_unavailable'">Mikroservice je docasne nedostupny.</p>
-        <p v-else>Aktualne nie su dostupne vhodne planety nad horizontom.</p>
+        <p v-if="reason === 'sky_service_unavailable'">Udaje o planetach su docasne nedostupne.</p>
+        <p v-else>Momentalne nie su nad horizontom.</p>
       </div>
 
       <ul v-else class="planetList">
         <li v-for="planet in sortedPlanets" :key="planet.name" class="planetItem">
           <div class="planetMain">
-            <strong>{{ planet.name }}</strong>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <strong>{{ planet.name }}</strong>
+                <span
+                  v-if="qualityBadge(planet.quality)"
+                  :class="qualityBadge(planet.quality).class"
+                >
+                  {{ qualityBadge(planet.quality).label }}
+                </span>
+              </div>
+              <p v-if="planet.magnitude !== undefined && planet.magnitude !== null" class="mt-1 text-xs text-slate-400">
+                Magnituda: {{ planet.magnitude }}
+              </p>
+            </div>
             <span>{{ planet.direction }}</span>
           </div>
           <div class="planetMeta">
             <span>Alt: {{ formatDeg(planet.altitude_deg) }}</span>
             <span>Az: {{ formatDeg(planet.azimuth_deg) }}</span>
             <span v-if="planet.best_time_window">Best: {{ planet.best_time_window }}</span>
-            <span v-if="planet.magnitude !== undefined && planet.magnitude !== null">Mag: {{ planet.magnitude }}</span>
           </div>
+          <p
+            v-if="planet.quality === 'low'"
+            class="rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-xs text-amber-200"
+          >
+            Planeta je nizko nad horizontom, viditelnost moze byt obmedzena.
+          </p>
         </li>
       </ul>
     </div>
@@ -103,6 +121,28 @@ const formatDeg = (value) => {
   const parsed = Number(value)
   if (!Number.isFinite(parsed)) return '-'
   return `${parsed.toFixed(1)}deg`
+}
+
+const qualityBadge = (quality) => {
+  switch (String(quality || '').toLowerCase()) {
+    case 'excellent':
+      return {
+        label: 'Vyborne',
+        class: 'inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300',
+      }
+    case 'good':
+      return {
+        label: 'Dobre',
+        class: 'inline-flex rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-medium text-sky-300',
+      }
+    case 'low':
+      return {
+        label: 'Nizko nad horizontom',
+        class: 'inline-flex rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-300',
+      }
+    default:
+      return null
+  }
 }
 
 watch(

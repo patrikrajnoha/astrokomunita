@@ -33,11 +33,13 @@ function makeRouter() {
     routes: [
       { path: '/', name: 'home', component: { template: '<div>home</div>' }, meta: { requiresAuth: false } },
       { path: '/events', name: 'events', component: { template: '<div>events</div>' }, meta: { requiresAuth: false } },
+      { path: '/sky/:pathMatch(.*)*', redirect: { name: 'home' } },
       { path: '/settings', name: 'settings', component: { template: '<div>settings</div>' }, meta: { requiresAuth: true } },
       { path: '/login', name: 'login', component: { template: '<div>login</div>' }, meta: { guest: true } },
       { path: '/verify-email', name: 'verify-email.required', component: { template: '<div>verify</div>' }, meta: { requiresAuth: true } },
       { path: '/onboarding', name: 'onboarding', component: { template: '<div>onboarding</div>' }, meta: { requiresAuth: true } },
       { path: '/admin', name: 'admin', component: { template: '<div>admin</div>' }, meta: { requiresAuth: true, admin: true } },
+      { path: '/:pathMatch(.*)*', name: 'not-found', component: { template: '<div>notfound</div>' } },
     ],
   })
 
@@ -69,6 +71,15 @@ describe('router auth guard', () => {
     expect(router.currentRoute.value.name).toBe('events')
   })
 
+  it('redirects legacy /sky URLs back home', async () => {
+    const router = makeRouter()
+    await router.push('/sky/placeholder')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('home')
+    expect(router.currentRoute.value.path).toBe('/')
+  })
+
   it('redirects guest from protected routes to login', async () => {
     const router = makeRouter()
     await router.push('/settings')
@@ -81,6 +92,7 @@ describe('router auth guard', () => {
   it('keeps authenticated non-admin users out of admin routes', async () => {
     authState.isAuthed = true
     authState.user = { email_verified_at: '2026-02-17T00:00:00Z' }
+
     const router = makeRouter()
     await router.push('/admin')
     await router.isReady()
