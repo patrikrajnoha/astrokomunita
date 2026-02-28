@@ -275,23 +275,25 @@ import {
   sidebarConfigAdminApi,
   sidebarCustomComponentsAdminApi,
 } from '@/services/api/admin/sidebarConfig'
+import { DEFAULT_SIDEBAR_SCOPE, SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 import SidebarSpecialEventCard from '@/components/widgets/SidebarSpecialEventCard.vue'
 
 const scopeTabs = [
-  { value: 'home', label: 'Home' },
-  { value: 'events', label: 'Events' },
-  { value: 'calendar', label: 'Calendar' },
-  { value: 'learning', label: 'Learning' },
-  { value: 'notifications', label: 'Notifications' },
-  { value: 'post_detail', label: 'Post detail' },
-  { value: 'profile', label: 'Profile' },
-  { value: 'sky', label: 'Sky' },
-  { value: 'observing', label: 'Observing' },
+  { value: SIDEBAR_SCOPE.HOME, label: 'Home' },
+  { value: SIDEBAR_SCOPE.EVENTS, label: 'Events' },
+  { value: SIDEBAR_SCOPE.CALENDAR, label: 'Calendar' },
+  { value: SIDEBAR_SCOPE.LEARNING, label: 'Learning' },
+  { value: SIDEBAR_SCOPE.SEARCH, label: 'Search' },
+  { value: SIDEBAR_SCOPE.NOTIFICATIONS, label: 'Notifications' },
+  { value: SIDEBAR_SCOPE.POST_DETAIL, label: 'Post detail' },
+  { value: SIDEBAR_SCOPE.PROFILE, label: 'Profile' },
+  { value: SIDEBAR_SCOPE.SKY, label: 'Sky' },
+  { value: SIDEBAR_SCOPE.OBSERVING, label: 'Observing' },
 ]
 
 const activeMode = ref('layout')
-const activeScope = ref('home')
+const activeScope = ref(DEFAULT_SIDEBAR_SCOPE)
 const sections = ref([])
 const originalSections = ref([])
 const loading = ref(false)

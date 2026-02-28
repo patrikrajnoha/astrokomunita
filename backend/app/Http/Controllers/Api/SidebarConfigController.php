@@ -8,18 +8,23 @@ use App\Models\SidebarSectionConfig;
 use App\Support\SidebarSectionRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class SidebarConfigController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $scope = $request->query('scope', SidebarSectionRegistry::SCOPE_HOME);
-
-        if (!SidebarSectionRegistry::isValidScope($scope)) {
-            return response()->json([
-                'message' => 'Invalid sidebar scope.',
-            ], 400);
+        if (app()->environment(['local', 'staging'])) {
+            Log::debug('Sidebar config request', [
+                'scope' => $request->query('scope'),
+                'user_id' => $request->user()?->id,
+            ]);
         }
+
+        $requestedScope = $request->query('scope');
+        $scope = SidebarSectionRegistry::isValidScope($requestedScope)
+            ? $requestedScope
+            : SidebarSectionRegistry::SCOPE_HOME;
 
         return response()->json([
             'scope' => $scope,

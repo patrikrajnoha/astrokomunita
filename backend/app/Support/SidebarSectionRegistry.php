@@ -8,6 +8,7 @@ class SidebarSectionRegistry
     public const SCOPE_EVENTS = 'events';
     public const SCOPE_CALENDAR = 'calendar';
     public const SCOPE_LEARNING = 'learning';
+    public const SCOPE_SEARCH = 'search';
     public const SCOPE_NOTIFICATIONS = 'notifications';
     public const SCOPE_POST_DETAIL = 'post_detail';
     public const SCOPE_PROFILE = 'profile';
@@ -15,19 +16,26 @@ class SidebarSectionRegistry
     public const SCOPE_OBSERVING = 'observing';
 
     /** @return array<int, string> */
-    public static function scopes(): array
+    public static function allScopes(): array
     {
         return [
             self::SCOPE_HOME,
             self::SCOPE_EVENTS,
             self::SCOPE_CALENDAR,
             self::SCOPE_LEARNING,
+            self::SCOPE_SEARCH,
             self::SCOPE_NOTIFICATIONS,
             self::SCOPE_POST_DETAIL,
             self::SCOPE_PROFILE,
             self::SCOPE_SKY,
             self::SCOPE_OBSERVING,
         ];
+    }
+
+    /** @return array<int, string> */
+    public static function scopes(): array
+    {
+        return self::allScopes();
     }
 
     /**
@@ -77,7 +85,7 @@ class SidebarSectionRegistry
 
     public static function isValidScope(?string $scope): bool
     {
-        return is_string($scope) && in_array($scope, self::scopes(), true);
+        return is_string($scope) && in_array($scope, self::allScopes(), true);
     }
 
     public static function isValidSectionKey(string $sectionKey): bool
