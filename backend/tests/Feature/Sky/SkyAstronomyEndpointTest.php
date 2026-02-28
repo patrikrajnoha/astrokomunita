@@ -15,13 +15,14 @@ class SkyAstronomyEndpointTest extends TestCase
     public function test_it_returns_astronomy_payload_with_iso8601_offset_times(): void
     {
         Cache::flush();
+        config()->set('observing.sky_summary.microservice_base', 'http://sky.test');
 
         Http::fake([
             'https://aa.usno.navy.mil/*' => Http::response($this->usnoPayload('Waning Crescent', '78%'), 200),
-            'http://127.0.0.1:8010/sky-summary*' => Http::response([
+            'http://sky.test/sky-summary*' => Http::response([
                 'moon' => [
-                    'rise_local' => '18:42',
-                    'set_local' => '06:11',
+                    'rise_local' => '',
+                    'set_local' => '',
                 ],
                 'planets' => [],
             ], 200),
@@ -41,14 +42,16 @@ class SkyAstronomyEndpointTest extends TestCase
             ->assertJsonPath('moon_phase', 'waning_crescent')
             ->assertJsonPath('moon_illumination_percent', 78);
 
-        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/', (string) $response->json('sunrise_at'));
-        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/', (string) $response->json('sunset_at'));
-        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/', (string) $response->json('moonrise_at'));
+        $this->assertNullableIso8601($response->json('sunrise_at'));
+        $this->assertNullableIso8601($response->json('sunset_at'));
+        $this->assertNull($response->json('moonrise_at'));
+        $this->assertNull($response->json('moonset_at'));
     }
 
     public function test_it_caches_astronomy_payload_and_falls_back_from_invalid_query_timezone_to_user_timezone(): void
     {
         Cache::flush();
+        config()->set('observing.sky_summary.microservice_base', 'http://sky.test');
 
         $user = User::factory()->create([
             'latitude' => 48.7164,
@@ -62,7 +65,7 @@ class SkyAstronomyEndpointTest extends TestCase
             'https://aa.usno.navy.mil/*' => Http::sequence()
                 ->push($this->usnoPayload('Full Moon', '99%'), 200)
                 ->push($this->usnoPayload('New Moon', '1%'), 200),
-            'http://127.0.0.1:8010/sky-summary*' => Http::sequence()
+            'http://sky.test/sky-summary*' => Http::sequence()
                 ->push(['moon' => ['rise_local' => '17:00', 'set_local' => '05:30'], 'planets' => []], 200)
                 ->push(['moon' => ['rise_local' => '22:00', 'set_local' => '10:00'], 'planets' => []], 200),
         ]);
@@ -82,6 +85,21 @@ class SkyAstronomyEndpointTest extends TestCase
             parse_str(parse_url($request->url(), PHP_URL_QUERY) ?: '', $query);
             return ($query['tz'] ?? null) === 'Europe/Prague';
         });
+    }
+
+    private function assertNullableIso8601(mixed $value): void
+    {
+        if ($value === null) {
+            $this->assertNull($value);
+
+            return;
+        }
+
+        $this->assertIsString($value);
+        $this->assertMatchesRegularExpression(
+            '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/',
+            $value
+        );
     }
 
     private function usnoPayload(string $phase, string $fracillum): array

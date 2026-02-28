@@ -179,11 +179,13 @@ Route::get('/nasa/iotd', [NasaIotdController::class, 'show']);
 Route::get('/observe/summary', ObserveSummaryController::class);
 Route::get('/observe/diagnostics', ObserveDiagnosticsController::class);
 Route::get('/observing/sky-summary', ObservingSkySummaryController::class);
-Route::get('/sky/weather', [SkyController::class, 'weather']);
-Route::get('/sky/astronomy', [SkyController::class, 'astronomy']);
-Route::get('/sky/visible-planets', [SkyController::class, 'visiblePlanets']);
-Route::get('/sky/iss-preview', [SkyController::class, 'issPreview']);
-Route::get('/sky/light-pollution', [SkyController::class, 'lightPollution']);
+Route::prefix('sky')->group(function () {
+    Route::get('/weather', [SkyController::class, 'weather'])->middleware('sky.throttle:cheap');
+    Route::get('/astronomy', [SkyController::class, 'astronomy'])->middleware('sky.throttle:cheap');
+    Route::get('/visible-planets', [SkyController::class, 'visiblePlanets'])->middleware('sky.throttle:expensive');
+    Route::get('/iss-preview', [SkyController::class, 'issPreview'])->middleware('sky.throttle:expensive');
+    Route::get('/light-pollution', [SkyController::class, 'lightPollution'])->middleware('sky.throttle:expensive');
+});
 Route::get('/meta/interests', [MetaController::class, 'interests']);
 Route::get('/meta/locations', [MetaController::class, 'locations']);
 
