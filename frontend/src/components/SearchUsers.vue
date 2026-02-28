@@ -124,7 +124,7 @@
 <script setup>
 import { ref, onUnmounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import axios from 'axios'
+import api from '@/services/api'
 
 const props = defineProps({
   initialQuery: {
@@ -160,7 +160,9 @@ const searchUsers = (query) => {
     try {
       isLoading.value = true
       console.log('đźŚ Making request to:', `http://localhost:8000/api/search/users?q=${encodeURIComponent(query)}&limit=10`)
-      const response = await axios.get(`http://localhost:8000/api/search/users?q=${encodeURIComponent(query)}&limit=10`)
+      const response = await api.get('/search/users', {
+        params: { q: query, limit: 10 },
+      })
       console.log('đź“Ą Response received:', response.data)
       users.value = response.data || []
     } catch (error) {
@@ -194,4 +196,3 @@ const clearSearch = () => {
   users.value = []
 }
 </script>
-

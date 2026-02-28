@@ -198,7 +198,7 @@
 <script setup>
 import { ref, computed, onUnmounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import axios from 'axios'
+import api from '@/services/api'
 
 const props = defineProps({
   initialQuery: {
@@ -245,7 +245,9 @@ const searchPosts = (query, page = 1) => {
 
       const url = `http://localhost:8000/api/search/posts?q=${encodeURIComponent(query)}&limit=10&page=${page}`
       console.log('đźŚ Making request to:', url)
-      const response = await axios.get(url)
+      const response = await api.get('/search/posts', {
+        params: { q: query, limit: 10, page },
+      })
       console.log('đź“Ą Response received:', response.data)
       console.log('đź“Š Posts before update:', posts.value)
       
@@ -324,4 +326,3 @@ const formatDate = (dateString) => {
 
 const hasMorePages = computed(() => currentPage.value < lastPage.value)
 </script>
-

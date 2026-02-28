@@ -1,11 +1,14 @@
 import axios from 'axios'
 import { useToast } from '@/composables/useToast'
 
-const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000'
-const normalizedApiBaseUrl = rawApiBaseUrl.replace(/\/api\/?$/i, '')
+const configuredApiBaseUrl = import.meta.env.DEV
+  ? ''
+  : (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '')
+const normalizedApiBaseUrl = String(configuredApiBaseUrl).replace(/\/api\/?$/i, '').replace(/\/+$/, '')
+const apiBaseUrl = normalizedApiBaseUrl ? `${normalizedApiBaseUrl}/api` : '/api'
 
 const api = axios.create({
-  baseURL: `${normalizedApiBaseUrl}/api`,
+  baseURL: apiBaseUrl,
   timeout: 15000,
   withCredentials: true,
 
@@ -175,4 +178,3 @@ api.vote = (pollId, optionId, config = {}) =>
 api.fetchPoll = (pollId, config = {}) => api.get(`/polls/${pollId}`, config)
 
 export default api
-
