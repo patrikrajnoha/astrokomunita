@@ -9,7 +9,7 @@ use App\Models\EventCandidate;
 use App\Models\EventSource;
 use App\Models\User;
 use App\Services\AI\OllamaRefinementService;
-use App\Services\TranslationService;
+use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -69,7 +69,7 @@ class ImoHappyPathTest extends TestCase
         ]);
 
         (new TranslateEventCandidateJob((int) $candidate->id))->handle(
-            app(TranslationService::class),
+            app(BotTranslationServiceInterface::class),
             app(OllamaRefinementService::class)
         );
 
@@ -89,4 +89,3 @@ class ImoHappyPathTest extends TestCase
         $this->assertSame(['imo'], $event->matched_sources);
     }
 }
-

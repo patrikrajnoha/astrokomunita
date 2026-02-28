@@ -456,14 +456,14 @@ class AdminBotControllerTest extends TestCase
     {
         $this->actingAsAdmin();
 
-        config()->set('astrobot.translation_provider', 'http');
-        config()->set('astrobot.translation_fallback_provider', '');
-        config()->set('astrobot.translation_base_url', 'http://translation.test');
-        config()->set('astrobot.translation_timeout_seconds', 5);
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.timeout_sec', 5);
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
         config()->set('astrobot.translation.quality.enabled', false);
 
         Http::fake([
-            'http://translation.test/translate' => Http::response([
+            'http://translation.test/*' => Http::response([
                 'translatedText' => 'SK Test translation payload.',
             ], 200),
         ]);
@@ -649,13 +649,13 @@ class AdminBotControllerTest extends TestCase
 
         $this->actingAsAdmin();
 
-        config()->set('astrobot.translation_provider', 'http');
-        config()->set('astrobot.translation_fallback_provider', '');
-        config()->set('astrobot.translation_base_url', 'http://translation.test');
-        config()->set('astrobot.translation_timeout_seconds', 5);
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.timeout_sec', 5);
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
 
         Http::fake([
-            'http://translation.test/translate' => function ($request) {
+            'http://translation.test/*' => function ($request) {
                 $sourceText = trim((string) ($request['q'] ?? ''));
 
                 return Http::response([
@@ -711,13 +711,13 @@ class AdminBotControllerTest extends TestCase
         ]);
 
         $this->actingAsAdmin();
-        config()->set('astrobot.translation_provider', 'http');
-        config()->set('astrobot.translation_fallback_provider', '');
-        config()->set('astrobot.translation_base_url', 'http://translation.test');
-        config()->set('astrobot.translation_timeout_seconds', 5);
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.timeout_sec', 5);
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
 
         Http::fake([
-            'http://translation.test/translate' => function ($request) {
+            'http://translation.test/*' => function ($request) {
                 $sourceText = trim((string) ($request['q'] ?? ''));
 
                 return Http::response([
@@ -774,13 +774,13 @@ class AdminBotControllerTest extends TestCase
         ]);
 
         $this->actingAsAdmin();
-        config()->set('astrobot.translation_provider', 'http');
-        config()->set('astrobot.translation_fallback_provider', '');
-        config()->set('astrobot.translation_base_url', 'http://translation.test');
-        config()->set('astrobot.translation_timeout_seconds', 5);
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.timeout_sec', 5);
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
 
         Http::fake([
-            'http://translation.test/translate' => function ($request) {
+            'http://translation.test/*' => function ($request) {
                 $sourceText = trim((string) ($request['q'] ?? ''));
 
                 return Http::response([

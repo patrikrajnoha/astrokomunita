@@ -16,6 +16,7 @@ class PostImageVariantsTest extends TestCase
 
     public function test_image_upload_creates_web_and_original_variants(): void
     {
+        config()->set('app.url', 'http://localhost');
         config()->set('media.disk', 'public');
         config()->set('media.private_disk', 'local');
         Storage::fake('public');
@@ -63,6 +64,7 @@ class PostImageVariantsTest extends TestCase
 
     public function test_download_endpoint_requires_access(): void
     {
+        config()->set('app.url', 'http://localhost');
         config()->set('media.disk', 'public');
         config()->set('media.private_disk', 'local');
         Storage::fake('public');
@@ -106,6 +108,7 @@ class PostImageVariantsTest extends TestCase
 
     public function test_response_payload_contains_web_url_and_download_url(): void
     {
+        config()->set('app.url', 'http://localhost');
         config()->set('media.disk', 'public');
         config()->set('media.private_disk', 'local');
         Storage::fake('public');
@@ -121,14 +124,14 @@ class PostImageVariantsTest extends TestCase
         $create->assertCreated();
 
         $postId = (int) $create->json('id');
-        $create->assertJsonPath('attachment_download_url', "/api/media/{$postId}/download");
-        $this->assertNotNull($create->json('attachment_url'));
+        $create->assertJsonPath('attachment_download_url', "http://localhost/api/media/{$postId}/download");
+        $create->assertJsonPath('attachment_url', "http://localhost/api/media/{$postId}");
 
         $feed = $this->getJson('/api/feed?with=counts');
         $feed->assertOk();
         $feed->assertJsonPath('data.0.id', $postId);
-        $this->assertNotNull($feed->json('data.0.attachment_url'));
-        $feed->assertJsonPath('data.0.attachment_download_url', "/api/media/{$postId}/download");
+        $feed->assertJsonPath('data.0.attachment_url', "http://localhost/api/media/{$postId}");
+        $feed->assertJsonPath('data.0.attachment_download_url', "http://localhost/api/media/{$postId}/download");
         $this->assertNotNull($feed->json('data.0.attachment_width'));
         $this->assertNotNull($feed->json('data.0.attachment_height'));
         $this->assertNotNull($feed->json('data.0.attachment_size_web'));

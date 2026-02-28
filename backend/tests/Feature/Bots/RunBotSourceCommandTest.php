@@ -406,9 +406,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_wikipedia_relevant_events_publish_single_kozmo_post(): void
     {
-        config()->set('astrobot.translation_provider', 'http');
-        config()->set('astrobot.translation_base_url', 'http://translation.test');
-        config()->set('astrobot.translation_timeout_seconds', 5);
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.timeout_sec', 5);
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
 
         $this->travelTo(Carbon::parse('2026-02-20 10:00:00'));
         try {
@@ -419,7 +420,7 @@ class RunBotSourceCommandTest extends TestCase
                     200,
                     ['Content-Type' => 'application/json']
                 ),
-                'http://translation.test/translate' => function ($request) {
+                'http://translation.test/*' => function ($request) {
                     $sourceText = trim((string) ($request['q'] ?? ''));
 
                     return Http::response([
@@ -457,7 +458,7 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_wikipedia_no_relevant_events_marks_item_skipped_without_post(): void
     {
-        config()->set('astrobot.translation_provider', 'dummy');
+        config()->set('astrobot.translation.primary', 'dummy');
 
         $this->travelTo(Carbon::parse('2026-02-20 12:00:00'));
         try {
@@ -493,7 +494,7 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_wikipedia_second_run_same_day_is_idempotent_without_duplicate_post(): void
     {
-        config()->set('astrobot.translation_provider', 'dummy');
+        config()->set('astrobot.translation.primary', 'dummy');
 
         $this->travelTo(Carbon::parse('2026-02-20 14:00:00'));
         try {
@@ -643,9 +644,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_translation_success_marks_item_done_and_publishes_slovak_content(): void
     {
-        config()->set('astrobot.translation_provider', 'http');
-        config()->set('astrobot.translation_base_url', 'http://translation.test');
-        config()->set('astrobot.translation_timeout_seconds', 5);
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.timeout_sec', 5);
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
 
         $source = $this->createSource();
         Http::fake([
@@ -659,7 +661,7 @@ class RunBotSourceCommandTest extends TestCase
                 200,
                 ['Content-Type' => 'application/rss+xml']
             ),
-            'http://translation.test/translate' => function ($request) {
+            'http://translation.test/*' => function ($request) {
                 $sourceText = trim((string) ($request['q'] ?? ''));
                 return Http::response([
                     'translatedText' => 'SK ' . $sourceText,
@@ -683,9 +685,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_translation_failure_sets_failed_and_publishes_with_english_fallback(): void
     {
-        config()->set('astrobot.translation_provider', 'http');
-        config()->set('astrobot.translation_base_url', 'http://translation.test');
-        config()->set('astrobot.translation_timeout_seconds', 5);
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.timeout_sec', 5);
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
 
         $source = $this->createSource();
         Http::fake([
@@ -699,7 +702,7 @@ class RunBotSourceCommandTest extends TestCase
                 200,
                 ['Content-Type' => 'application/rss+xml']
             ),
-            'http://translation.test/translate' => Http::response([
+            'http://translation.test/*' => Http::response([
                 'error' => 'translation_unavailable',
             ], 500),
         ]);
@@ -729,9 +732,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_translation_cache_key_prevents_duplicate_translation_call_on_second_run(): void
     {
-        config()->set('astrobot.translation_provider', 'http');
-        config()->set('astrobot.translation_base_url', 'http://translation.test');
-        config()->set('astrobot.translation_timeout_seconds', 5);
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.timeout_sec', 5);
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
 
         $source = $this->createSource();
         $translationCalls = 0;
@@ -747,7 +751,7 @@ class RunBotSourceCommandTest extends TestCase
                 200,
                 ['Content-Type' => 'application/rss+xml']
             ),
-            'http://translation.test/translate' => function ($request) use (&$translationCalls) {
+            'http://translation.test/*' => function ($request) use (&$translationCalls) {
                 $translationCalls++;
                 $sourceText = trim((string) ($request['q'] ?? ''));
 
@@ -778,9 +782,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_legacy_dummy_item_without_post_id_is_retranslated_before_publish(): void
     {
-        config()->set('astrobot.translation_provider', 'http');
-        config()->set('astrobot.translation_base_url', 'http://translation.test');
-        config()->set('astrobot.translation_timeout_seconds', 5);
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.timeout_sec', 5);
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
 
         $source = $this->createSource();
         Http::fake([
@@ -794,7 +799,7 @@ class RunBotSourceCommandTest extends TestCase
                 200,
                 ['Content-Type' => 'application/rss+xml']
             ),
-            'http://translation.test/translate' => function ($request) {
+            'http://translation.test/*' => function ($request) {
                 $sourceText = trim((string) ($request['q'] ?? ''));
 
                 return Http::response([
@@ -847,9 +852,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_legacy_skipped_item_without_translated_payload_is_retranslated_before_publish(): void
     {
-        config()->set('astrobot.translation_provider', 'http');
-        config()->set('astrobot.translation_base_url', 'http://translation.test');
-        config()->set('astrobot.translation_timeout_seconds', 5);
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.timeout_sec', 5);
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
 
         $source = $this->createSource();
         Http::fake([
@@ -863,7 +869,7 @@ class RunBotSourceCommandTest extends TestCase
                 200,
                 ['Content-Type' => 'application/rss+xml']
             ),
-            'http://translation.test/translate' => function ($request) {
+            'http://translation.test/*' => function ($request) {
                 $sourceText = trim((string) ($request['q'] ?? ''));
 
                 return Http::response([

@@ -16,6 +16,7 @@ class StorageUploadTest extends TestCase
 
     public function test_uploading_avatar_stores_path_and_returns_absolute_url(): void
     {
+        config()->set('app.url', 'http://localhost');
         config()->set('media.disk', 'public');
         Storage::fake('public');
 
@@ -42,6 +43,7 @@ class StorageUploadTest extends TestCase
 
     public function test_uploading_post_attachment_stores_path_and_returns_contract_fields(): void
     {
+        config()->set('app.url', 'http://localhost');
         config()->set('media.disk', 'public');
         Storage::fake('public');
 
@@ -76,6 +78,7 @@ class StorageUploadTest extends TestCase
 
     public function test_poll_option_image_is_stored_separately_from_post_attachment(): void
     {
+        config()->set('app.url', 'http://localhost');
         config()->set('media.disk', 'public');
         Storage::fake('public');
 
