@@ -15,7 +15,13 @@ class SkyMicroserviceClient
     }
 
     /**
-     * @return array{moon:mixed,planets:array<int,array<string,mixed>>,meta:array<string,mixed>}
+     * @return array{
+     *   moon:mixed,
+     *   planets:array<int,array<string,mixed>>,
+     *   sample_at?:mixed,
+     *   sun_altitude_deg?:mixed,
+     *   meta:array<string,mixed>
+     * }
      */
     public function fetch(float $lat, float $lon, string $date, string $tz): array
     {
@@ -87,6 +93,8 @@ class SkyMicroserviceClient
         return [
             'moon' => $moon,
             'planets' => $planets,
+            'sample_at' => $decoded['sample_at'] ?? null,
+            'sun_altitude_deg' => $decoded['sun_altitude_deg'] ?? null,
             'meta' => [
                 'source' => 'sky_microservice',
             ],

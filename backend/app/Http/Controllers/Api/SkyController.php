@@ -78,13 +78,13 @@ class SkyController extends Controller
         $ttlMinutes = max(1, (int) config('observing.sky.visible_planets_cache_ttl_minutes', 10));
 
         $cachedPayload = Cache::get($cacheKey);
-        if (is_array($cachedPayload) && !$this->isUnavailableSkyPayload($cachedPayload)) {
+        if ($this->isCacheableSkyPayload($cachedPayload)) {
             return response()->json($cachedPayload);
         }
 
         $payload = $this->skyVisiblePlanetsService->fetch($context['lat'], $context['lon'], $context['tz']);
 
-        if (!$this->isUnavailableSkyPayload($payload)) {
+        if ($this->isCacheableSkyPayload($payload)) {
             Cache::put($cacheKey, $payload, now()->addMinutes($ttlMinutes));
         } else {
             Cache::forget($cacheKey);
@@ -158,5 +158,19 @@ class SkyController extends Controller
         }
 
         return str_contains($reason, 'unavailable') || str_contains($reason, 'not_configured');
+    }
+
+    private function isCacheableSkyPayload(mixed $payload): bool
+    {
+        if (!is_array($payload)) {
+            return false;
+        }
+
+        $reason = strtolower(trim((string) ($payload['reason'] ?? '')));
+        if ($reason === 'degraded_contract') {
+            return false;
+        }
+
+        return !$this->isUnavailableSkyPayload($payload);
     }
 }
