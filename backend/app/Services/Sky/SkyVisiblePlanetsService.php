@@ -14,7 +14,12 @@ class SkyVisiblePlanetsService
     }
 
     /**
-     * @return array{planets:array<int,array<string,mixed>>,reason?:string}
+     * @return array{
+     *   planets:array<int,array<string,mixed>>,
+     *   sample_at?:?string,
+     *   sun_altitude_deg?:?float,
+     *   reason?:string
+     * }
      */
     public function fetch(float $lat, float $lon, string $tz): array
     {
@@ -35,11 +40,25 @@ class SkyVisiblePlanetsService
 
             return [
                 'planets' => [],
+                'sample_at' => null,
+                'sun_altitude_deg' => null,
                 'reason' => 'sky_service_unavailable',
             ];
         }
 
+        $sampleAt = $this->toIso8601($payload['sample_at'] ?? null);
+        $sunAltitude = $this->toFloat($payload['sun_altitude_deg'] ?? null);
         $planets = is_array($payload['planets'] ?? null) ? $payload['planets'] : [];
+
+        if ($sampleAt === null || $sunAltitude === null || !$this->hasRequiredPlanetContract($planets)) {
+            return [
+                'planets' => [],
+                'sample_at' => $sampleAt,
+                'sun_altitude_deg' => $sunAltitude,
+                'reason' => 'degraded_contract',
+            ];
+        }
+
         $normalized = [];
 
         foreach ($planets as $planet) {
@@ -49,18 +68,14 @@ class SkyVisiblePlanetsService
 
             $altitude = $this->toFloat($planet['alt_max_deg'] ?? null);
             $azimuth = $this->toFloat($planet['az_at_best_deg'] ?? null);
-            $sunAltitude = $this->toFloat($planet['sun_altitude_deg'] ?? null);
+            $elongation = $this->toFloat($planet['elongation_deg'] ?? null);
 
             if ($altitude === null || $azimuth === null || $altitude < 5.0) {
                 continue;
             }
 
-            if ($sunAltitude !== null && $sunAltitude >= -6.0) {
-                continue;
-            }
-
             $name = trim((string) ($planet['name'] ?? ''));
-            if ($name === '') {
+            if ($name === '' || $elongation === null) {
                 continue;
             }
 
@@ -73,6 +88,7 @@ class SkyVisiblePlanetsService
                 'name' => $name,
                 'altitude_deg' => round($altitude, 1),
                 'azimuth_deg' => round($azimuth, 1),
+                'elongation_deg' => round($elongation, 1),
                 'direction' => $direction,
                 'quality' => $this->qualityForAltitude($altitude),
             ];
@@ -94,6 +110,8 @@ class SkyVisiblePlanetsService
 
         return [
             'planets' => array_values($normalized),
+            'sample_at' => $sampleAt,
+            'sun_altitude_deg' => round($sunAltitude, 1),
         ];
     }
 
@@ -110,6 +128,42 @@ class SkyVisiblePlanetsService
 
         $trimmed = trim($value);
         return preg_match('/^\d{2}:\d{2}$/', $trimmed) ? $trimmed : null;
+    }
+
+    private function toIso8601(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        try {
+            return CarbonImmutable::parse($trimmed)->toIso8601String();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param array<int,mixed> $planets
+     */
+    private function hasRequiredPlanetContract(array $planets): bool
+    {
+        foreach ($planets as $planet) {
+            if (!is_array($planet)) {
+                continue;
+            }
+
+            if ($this->toFloat($planet['elongation_deg'] ?? null) === null) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function normalizeDirection(mixed $value, float $azimuth): string
