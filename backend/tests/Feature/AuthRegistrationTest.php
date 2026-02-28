@@ -5,15 +5,25 @@ namespace Tests\Feature;
 use App\Models\AppSetting;
 use App\Models\User;
 use App\Services\Auth\EmailVerificationSettingService;
+use App\Services\Security\TurnstileService;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class AuthRegistrationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('services.turnstile.enabled', false);
+        $this->withoutMiddleware();
+    }
 
     public function test_registration_succeeds_with_valid_username_and_date_of_birth(): void
     {
@@ -275,5 +285,101 @@ class AuthRegistrationTest extends TestCase
 
         $this->assertStringNotContainsString('validation.min.string', $firstPasswordError);
         $this->assertStringContainsString('heslo', mb_strtolower($firstPasswordError));
+    }
+
+    public function test_registration_returns_422_when_turnstile_token_is_missing_and_enabled(): void
+    {
+        config()->set('services.turnstile.enabled', true);
+        config()->set('services.turnstile.secret_key', 'test-secret');
+
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Tester',
+            'email' => 'missing-turnstile@example.com',
+            'username' => 'missing_turnstile',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['turnstile_token']);
+    }
+
+    public function test_registration_returns_503_when_turnstile_is_enabled_but_secret_is_missing(): void
+    {
+        config()->set('services.turnstile.enabled', true);
+        config()->set('services.turnstile.secret_key', '');
+
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Tester',
+            'email' => 'turnstile-secret-missing@example.com',
+            'username' => 'turnstile_secret_missing',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response
+            ->assertStatus(503)
+            ->assertJson([
+                'message' => 'Bezpečnostné overenie je dočasne nedostupné.',
+            ]);
+    }
+
+    public function test_registration_returns_422_when_turnstile_verification_fails(): void
+    {
+        config()->set('services.turnstile.enabled', true);
+
+        $this->mock(TurnstileService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('isEnabled')
+                ->atLeast()
+                ->once()
+                ->andReturn(true);
+            $mock->shouldReceive('hasSecretKey')
+                ->atLeast()
+                ->once()
+                ->andReturn(true);
+            $mock->shouldReceive('verify')
+                ->once()
+                ->with('invalid-token', '127.0.0.1')
+                ->andReturn(false);
+        });
+
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Tester',
+            'email' => 'failed-turnstile@example.com',
+            'username' => 'failed_turnstile',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'turnstile_token' => 'invalid-token',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['turnstile_token']);
+    }
+
+    public function test_registration_succeeds_when_turnstile_is_disabled(): void
+    {
+        config()->set('services.turnstile.enabled', false);
+
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Tester',
+            'email' => 'turnstile-disabled@example.com',
+            'username' => 'turnstile_disabled',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response
+            ->assertCreated();
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'turnstile-disabled@example.com',
+            'username' => 'turnstile_disabled',
+        ]);
     }
 }
