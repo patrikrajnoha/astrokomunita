@@ -17,7 +17,7 @@ class SkyMicroserviceClient
     /**
      * @return array{
      *   moon:mixed,
-     *   planets:array<int,array<string,mixed>>,
+     *   planets:mixed,
      *   sample_at?:mixed,
      *   sun_altitude_deg?:mixed,
      *   meta:array<string,mixed>
@@ -88,7 +88,8 @@ class SkyMicroserviceClient
         }
 
         $moon = is_array($decoded['moon'] ?? null) ? $decoded['moon'] : null;
-        $planets = is_array($decoded['planets'] ?? null) ? array_values($decoded['planets']) : [];
+        $rawPlanets = $decoded['planets'] ?? null;
+        $planets = is_array($rawPlanets) ? array_values($rawPlanets) : $rawPlanets;
 
         return [
             'moon' => $moon,

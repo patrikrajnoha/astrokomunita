@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Sky;
 
+use App\Services\Sky\SkyVisiblePlanetsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -200,6 +201,79 @@ class SkyVisiblePlanetsEndpointTest extends TestCase
             ->assertJsonPath('planets.0.name', 'Mars');
 
         Http::assertSentCount(2);
+    }
+
+    public function test_it_marks_payload_without_planets_array_as_degraded_contract_and_does_not_cache_it(): void
+    {
+        Cache::flush();
+
+        Http::fake([
+            '*sky-summary*' => Http::sequence()
+                ->push([
+                    'moon' => null,
+                    'sample_at' => '2026-02-27T20:40:00+01:00',
+                    'sun_altitude_deg' => -19.0,
+                ], 200)
+                ->push([
+                    'moon' => null,
+                    'sample_at' => '2026-02-27T20:45:00+01:00',
+                    'sun_altitude_deg' => -19.5,
+                    'planets' => [
+                        [
+                            'name' => 'Mars',
+                            'alt_max_deg' => 21.0,
+                            'az_at_best_deg' => 110.0,
+                            'elongation_deg' => 47.2,
+                            'direction' => 'E',
+                            'best_from' => '20:10',
+                            'best_to' => '00:40',
+                        ],
+                    ],
+                ], 200),
+        ]);
+
+        $first = $this->getJson('/api/sky/visible-planets?lat=48.1486&lon=17.1077&tz=Europe/Bratislava');
+        $second = $this->getJson('/api/sky/visible-planets?lat=48.1486&lon=17.1077&tz=Europe/Bratislava');
+
+        $first->assertOk()
+            ->assertJsonPath('reason', 'degraded_contract')
+            ->assertJsonPath('planets', []);
+
+        $second->assertOk()
+            ->assertJsonMissingPath('reason')
+            ->assertJsonPath('sample_at', '2026-02-27T20:45:00+01:00')
+            ->assertJsonPath('planets.0.name', 'Mars');
+
+        Http::assertSentCount(2);
+    }
+
+    public function test_it_does_not_cache_malformed_payload_even_without_a_degraded_reason(): void
+    {
+        Cache::flush();
+
+        $state = (object) ['calls' => 0];
+
+        $this->app->instance(SkyVisiblePlanetsService::class, new class($state) extends SkyVisiblePlanetsService {
+            public function __construct(
+                private readonly object $state
+            ) {
+            }
+
+            public function fetch(float $lat, float $lon, string $tz): array
+            {
+                $this->state->calls++;
+
+                return [
+                    'sample_at' => '2026-02-27T20:45:00+01:00',
+                    'sun_altitude_deg' => -19.5,
+                ];
+            }
+        });
+
+        $this->getJson('/api/sky/visible-planets?lat=48.1486&lon=17.1077&tz=Europe/Bratislava')->assertOk();
+        $this->getJson('/api/sky/visible-planets?lat=48.1486&lon=17.1077&tz=Europe/Bratislava')->assertOk();
+
+        $this->assertSame(2, $state->calls);
     }
 
     public function test_it_caches_visible_planets_payload(): void

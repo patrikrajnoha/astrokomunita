@@ -48,9 +48,10 @@ class SkyVisiblePlanetsService
 
         $sampleAt = $this->toIso8601($payload['sample_at'] ?? null);
         $sunAltitude = $this->toFloat($payload['sun_altitude_deg'] ?? null);
-        $planets = is_array($payload['planets'] ?? null) ? $payload['planets'] : [];
+        $hasPlanetsArray = array_key_exists('planets', $payload) && is_array($payload['planets']);
+        $planets = $hasPlanetsArray ? $payload['planets'] : [];
 
-        if ($sampleAt === null || $sunAltitude === null || !$this->hasRequiredPlanetContract($planets)) {
+        if ($sampleAt === null || $sunAltitude === null || !$hasPlanetsArray || !$this->hasRequiredPlanetContract($planets)) {
             return [
                 'planets' => [],
                 'sample_at' => $sampleAt,
@@ -155,7 +156,7 @@ class SkyVisiblePlanetsService
     {
         foreach ($planets as $planet) {
             if (!is_array($planet)) {
-                continue;
+                return false;
             }
 
             if ($this->toFloat($planet['elongation_deg'] ?? null) === null) {
