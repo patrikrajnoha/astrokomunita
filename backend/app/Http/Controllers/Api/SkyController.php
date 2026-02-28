@@ -171,6 +171,29 @@ class SkyController extends Controller
             return false;
         }
 
-        return !$this->isUnavailableSkyPayload($payload);
+        if ($this->isUnavailableSkyPayload($payload)) {
+            return false;
+        }
+
+        return $this->hasCacheableVisiblePlanetsContract($payload);
+    }
+
+    private function hasCacheableVisiblePlanetsContract(array $payload): bool
+    {
+        $sampleAt = $payload['sample_at'] ?? null;
+        $sunAltitude = $payload['sun_altitude_deg'] ?? null;
+        $planets = $payload['planets'] ?? null;
+
+        if (!is_string($sampleAt) || trim($sampleAt) === '' || !is_numeric($sunAltitude) || !is_array($planets)) {
+            return false;
+        }
+
+        foreach ($planets as $planet) {
+            if (!is_array($planet) || !is_numeric($planet['elongation_deg'] ?? null)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
