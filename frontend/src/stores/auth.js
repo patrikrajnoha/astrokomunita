@@ -3,12 +3,14 @@ import http from '@/services/api'
 import axios from 'axios'
 
 const AUTH_TIMEOUTS_MS = [5000, 8000]
-const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-const csrfBaseUrl = rawApiBaseUrl.replace(/\/api\/?$/i, '')
+const configuredApiBaseUrl = import.meta.env.DEV
+  ? ''
+  : (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '')
+const csrfBaseUrl = String(configuredApiBaseUrl).replace(/\/api\/?$/i, '').replace(/\/+$/, '')
 
 // Separate axios instance for CSRF (no baseURL)
 const csrfHttp = axios.create({
-  baseURL: csrfBaseUrl,
+  baseURL: csrfBaseUrl || '',
   withCredentials: true,
   withXSRFToken: true,
   xsrfCookieName: 'XSRF-TOKEN',
@@ -322,4 +324,3 @@ export const useAuthStore = defineStore('auth', {
     },
   },
 })
-
