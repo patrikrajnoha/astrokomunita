@@ -89,12 +89,12 @@ export function getPlanetVisibilityTag({ sunAltitudeDeg, altitudeDeg, elongation
     return 'hidden'
   }
 
-  if (elongation < CLOSE_TO_SUN_ELONGATION) {
-    return 'close_to_sun'
-  }
-
   if (altitude < VISIBLE_ALT_MIN) {
     return 'low'
+  }
+
+  if (elongation < CLOSE_TO_SUN_ELONGATION) {
+    return 'close_to_sun'
   }
 
   if (elongation >= MIN_VISIBLE_ELONGATION) {
