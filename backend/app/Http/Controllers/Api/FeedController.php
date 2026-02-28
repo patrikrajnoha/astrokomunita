@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Services\FeedQueryBuilder;
-use App\Services\PostPayloadService;
 use App\Enums\PostAuthorKind;
 use App\Enums\PostFeedKey;
+use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\FeedQueryBuilder;
+use App\Services\PostPayloadService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -17,8 +17,7 @@ class FeedController extends Controller
     public function __construct(
         private readonly FeedQueryBuilder $feedQueryBuilder,
         private readonly PostPayloadService $payloads,
-    ) {
-    }
+    ) {}
 
     /**
      * GET /api/feed
@@ -67,7 +66,7 @@ class FeedController extends Controller
         if (Cache::add($cacheKey, true, now()->addMinutes(5))) {
             Log::warning('DEPRECATED: /api/feed/astrobot used', [
                 'user_id' => $request->user()?->id,
-                'ip' => $request->ip(),
+                'ip_hash' => $this->anonymizedIp($request->ip()),
                 'user_agent' => $this->truncateText((string) $request->userAgent(), 120),
             ]);
         }
@@ -150,5 +149,14 @@ class FeedController extends Controller
         }
 
         return substr($normalized, 0, $maxLength);
+    }
+
+    private function anonymizedIp(?string $ip): ?string
+    {
+        $normalized = trim((string) $ip);
+
+        return $normalized !== ''
+            ? hash('sha256', $normalized.'|'.(string) config('app.key'))
+            : null;
     }
 }

@@ -20,14 +20,14 @@ class MeDataExportController extends Controller
         Log::info('User data export generated', [
             'user_id' => (int) $user->id,
             'export_version' => (string) ($payload['export_version'] ?? ''),
-            'ip' => $request->ip(),
+            'ip_hash' => $this->anonymizedIp($request->ip()),
             'posts_count' => (int) ($payload['data_summary']['posts_count'] ?? 0),
             'invites_count' => (int) ($payload['data_summary']['invites_count'] ?? 0),
         ]);
 
         return response()->json($payload, 200, [
             'Content-Type' => 'application/json',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'Cache-Control' => 'private, no-store',
         ]);
     }
@@ -39,6 +39,15 @@ class MeDataExportController extends Controller
             $safeUsername = 'user';
         }
 
-        return 'nebesky-sprievodca-export-' . $safeUsername . '-' . now()->utc()->format('Ymd_His') . '.json';
+        return 'nebesky-sprievodca-export-'.$safeUsername.'-'.now()->utc()->format('Ymd_His').'.json';
+    }
+
+    private function anonymizedIp(?string $ip): ?string
+    {
+        $normalized = trim((string) $ip);
+
+        return $normalized !== ''
+            ? hash('sha256', $normalized.'|'.(string) config('app.key'))
+            : null;
     }
 }
