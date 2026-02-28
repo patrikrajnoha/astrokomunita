@@ -33,6 +33,9 @@ function makeRouter() {
     routes: [
       { path: '/', name: 'home', component: { template: '<div>home</div>' }, meta: { requiresAuth: false } },
       { path: '/events', name: 'events', component: { template: '<div>events</div>' }, meta: { requiresAuth: false } },
+      { path: '/privacy', name: 'privacy', component: { template: '<div>privacy</div>' }, meta: { requiresAuth: false } },
+      { path: '/terms', name: 'terms', component: { template: '<div>terms</div>' }, meta: { requiresAuth: false } },
+      { path: '/cookies', name: 'cookies', component: { template: '<div>cookies</div>' }, meta: { requiresAuth: false } },
       { path: '/sky/:pathMatch(.*)*', redirect: { name: 'home' } },
       { path: '/settings', name: 'settings', component: { template: '<div>settings</div>' }, meta: { requiresAuth: true } },
       { path: '/login', name: 'login', component: { template: '<div>login</div>' }, meta: { guest: true } },
@@ -69,6 +72,20 @@ describe('router auth guard', () => {
     await router.isReady()
 
     expect(router.currentRoute.value.name).toBe('events')
+  })
+
+  it('keeps legal pages public', async () => {
+    const router = makeRouter()
+
+    await router.push('/privacy')
+    await router.isReady()
+    expect(router.currentRoute.value.name).toBe('privacy')
+
+    await router.push('/terms')
+    expect(router.currentRoute.value.name).toBe('terms')
+
+    await router.push('/cookies')
+    expect(router.currentRoute.value.name).toBe('cookies')
   })
 
   it('redirects legacy /sky URLs back home', async () => {

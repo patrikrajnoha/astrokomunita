@@ -92,6 +92,7 @@ function makeRouter() {
       { path: '/login', component: AppLayout },
       { path: '/profile', component: AppLayout },
       { path: '/profile/edit', component: AppLayout },
+      { path: '/privacy', component: AppLayout },
     ],
   })
 }
