@@ -4,9 +4,13 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sky\SkyAstronomyRequest;
+use App\Http\Requests\Sky\SkyIssPreviewRequest;
+use App\Http\Requests\Sky\SkyLightPollutionRequest;
 use App\Http\Requests\Sky\SkyVisiblePlanetsRequest;
 use App\Http\Requests\Sky\SkyWeatherRequest;
 use App\Services\Sky\SkyAstronomyService;
+use App\Services\Sky\SkyIssPreviewService;
+use App\Services\Sky\SkyLightPollutionService;
 use App\Services\Sky\SkyVisiblePlanetsService;
 use App\Services\Sky\SkyWeatherService;
 use App\Support\ApiResponse;
@@ -21,7 +25,9 @@ class SkyController extends Controller
         private readonly SkyContextResolver $contextResolver,
         private readonly SkyWeatherService $skyWeatherService,
         private readonly SkyAstronomyService $skyAstronomyService,
-        private readonly SkyVisiblePlanetsService $skyVisiblePlanetsService
+        private readonly SkyVisiblePlanetsService $skyVisiblePlanetsService,
+        private readonly SkyIssPreviewService $skyIssPreviewService,
+        private readonly SkyLightPollutionService $skyLightPollutionService
     ) {
     }
 
@@ -71,10 +77,54 @@ class SkyController extends Controller
         $cacheKey = $this->buildCacheKey('sky_visible_planets', $context['lat'], $context['lon'], $context['tz'], $dateKey);
         $ttlMinutes = max(1, (int) config('observing.sky.visible_planets_cache_ttl_minutes', 10));
 
+        $cachedPayload = Cache::get($cacheKey);
+        if (is_array($cachedPayload) && !$this->isUnavailableSkyPayload($cachedPayload)) {
+            return response()->json($cachedPayload);
+        }
+
+        $payload = $this->skyVisiblePlanetsService->fetch($context['lat'], $context['lon'], $context['tz']);
+
+        if (!$this->isUnavailableSkyPayload($payload)) {
+            Cache::put($cacheKey, $payload, now()->addMinutes($ttlMinutes));
+        } else {
+            Cache::forget($cacheKey);
+        }
+
+        return response()->json($payload);
+    }
+
+    public function issPreview(SkyIssPreviewRequest $request): JsonResponse
+    {
+        $context = $this->contextResolver->resolve($request, $request->validated());
+        $cacheKey = $this->buildCacheKey('sky_iss_preview', $context['lat'], $context['lon'], $context['tz']);
+        $ttlMinutes = max(1, (int) config('observing.sky.iss_preview_cache_ttl_minutes', 15));
+
+        $cachedPayload = Cache::get($cacheKey);
+        if (is_array($cachedPayload) && !$this->isUnavailableSkyPayload($cachedPayload)) {
+            return response()->json($cachedPayload);
+        }
+
+        $payload = $this->skyIssPreviewService->fetch($context['lat'], $context['lon'], $context['tz']);
+
+        if (!$this->isUnavailableSkyPayload($payload)) {
+            Cache::put($cacheKey, $payload, now()->addMinutes($ttlMinutes));
+        } else {
+            Cache::forget($cacheKey);
+        }
+
+        return response()->json($payload);
+    }
+
+    public function lightPollution(SkyLightPollutionRequest $request): JsonResponse
+    {
+        $context = $this->contextResolver->resolve($request, $request->validated());
+        $cacheKey = $this->buildCacheKey('sky_light_pollution', $context['lat'], $context['lon'], $context['tz']);
+        $ttlHours = max(1, (int) config('observing.sky.light_pollution_cache_ttl_hours', 24));
+
         $payload = Cache::remember(
             $cacheKey,
-            now()->addMinutes($ttlMinutes),
-            fn (): array => $this->skyVisiblePlanetsService->fetch($context['lat'], $context['lon'], $context['tz'])
+            now()->addHours($ttlHours),
+            fn (): array => $this->skyLightPollutionService->fetch($context['lat'], $context['lon'])
         );
 
         return response()->json($payload);
@@ -94,5 +144,19 @@ class SkyController extends Controller
         }
 
         return implode(':', $parts);
+    }
+
+    private function isUnavailableSkyPayload(mixed $payload): bool
+    {
+        if (!is_array($payload)) {
+            return false;
+        }
+
+        $reason = strtolower(trim((string) ($payload['reason'] ?? '')));
+        if ($reason === '') {
+            return false;
+        }
+
+        return str_contains($reason, 'unavailable') || str_contains($reason, 'not_configured');
     }
 }

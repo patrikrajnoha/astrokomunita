@@ -18,6 +18,10 @@ class SkyWeatherService
      *   wind_speed:float,
      *   wind_unit:string,
      *   humidity_percent:int,
+     *   temperature_c:?float,
+     *   apparent_temperature_c:?float,
+     *   weather_code:?int,
+     *   weather_label:?string,
      *   observing_score:int,
      *   as_of:string,
      *   source:string
@@ -35,6 +39,10 @@ class SkyWeatherService
         $cloud = $this->normalizePercent($payload['current_cloud_pct'] ?? $payload['evening_cloud_pct'] ?? null);
         $humidity = $this->normalizePercent($payload['current_pct'] ?? $payload['evening_pct'] ?? null);
         $wind = $this->normalizeWind($payload['current_wind_kmh'] ?? $payload['evening_wind_kmh'] ?? null);
+        $temperature = $this->normalizeTemperature($payload['current_temperature_c'] ?? null);
+        $apparentTemperature = $this->normalizeTemperature($payload['current_apparent_temperature_c'] ?? null);
+        $weatherCode = $this->normalizeWeatherCode($payload['current_weather_code'] ?? null);
+        $weatherLabel = $this->normalizeWeatherLabel($payload['current_weather_label_sk'] ?? null);
 
         if ($cloud === null && $humidity === null && $wind === null) {
             throw new \RuntimeException('Weather provider returned no usable data.');
@@ -49,6 +57,10 @@ class SkyWeatherService
             'wind_speed' => round($windSafe, 1),
             'wind_unit' => 'km/h',
             'humidity_percent' => $humiditySafe,
+            'temperature_c' => $temperature,
+            'apparent_temperature_c' => $apparentTemperature,
+            'weather_code' => $weatherCode,
+            'weather_label' => $weatherLabel,
             'observing_score' => $this->calculateObservingScore($cloudSafe, $humiditySafe, $windSafe),
             'as_of' => CarbonImmutable::now($tz)->toIso8601String(),
             'source' => 'open_meteo',
@@ -82,6 +94,34 @@ class SkyWeatherService
         }
 
         return round(max(0.0, (float) $value), 1);
+    }
+
+    private function normalizeTemperature(mixed $value): ?float
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return round((float) $value, 1);
+    }
+
+    private function normalizeWeatherCode(mixed $value): ?int
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return (int) round((float) $value);
+    }
+
+    private function normalizeWeatherLabel(mixed $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+        return $trimmed !== '' ? $trimmed : null;
     }
 
     private function clamp(int $value, int $min, int $max): int

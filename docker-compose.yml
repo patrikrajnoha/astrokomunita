@@ -1,4 +1,19 @@
 services:
+  sky:
+    build:
+      context: ./services/sky
+      dockerfile: Dockerfile
+    container_name: astrokomunita-sky
+    working_dir: /app
+    environment:
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:-change-me}
+    volumes:
+      - ./services/sky/app:/app/app
+      - ./services/sky/data:/app/data
+    ports:
+      - "8010:8010"
+    restart: unless-stopped
+
   frontend:
     image: node:20-alpine
     container_name: astrokomunita-frontend
@@ -26,10 +41,12 @@ services:
       APP_DEBUG: "true"
       CACHE_STORE: file
       APP_URL: http://127.0.0.1:8001
+      OBSERVING_SKY_MICROSERVICE_BASE: http://sky:8010
       QUEUE_CONNECTION: database
       DB_HOST: mysql
       MODERATION_BASE_URL: http://moderation:8090
       LIBRETRANSLATE_BASE_URL: http://libretranslate:5000
+      TRANSLATION_SERVICE_URL: http://sky:8010
       TRANSLATION_PROVIDER: libretranslate
       TRANSLATION_FALLBACK_PROVIDER: none
     volumes:
@@ -42,6 +59,7 @@ services:
       - mysql
       - moderation
       - libretranslate
+      - sky
     restart: unless-stopped
 
   queue-worker:
@@ -56,10 +74,12 @@ services:
       APP_ENV: local
       APP_DEBUG: "true"
       CACHE_STORE: file
+      OBSERVING_SKY_MICROSERVICE_BASE: http://sky:8010
       QUEUE_CONNECTION: database
       DB_HOST: mysql
       MODERATION_BASE_URL: http://moderation:8090
       LIBRETRANSLATE_BASE_URL: http://libretranslate:5000
+      TRANSLATION_SERVICE_URL: http://sky:8010
       TRANSLATION_PROVIDER: libretranslate
       TRANSLATION_FALLBACK_PROVIDER: none
     volumes:
@@ -70,6 +90,7 @@ services:
       - backend
       - mysql
       - libretranslate
+      - sky
     restart: unless-stopped
 
   mysql:

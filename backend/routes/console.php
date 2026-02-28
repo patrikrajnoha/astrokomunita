@@ -52,6 +52,10 @@ Schedule::command('notifications:send-event-reminders')
     ->everyFiveMinutes()
     ->withoutOverlapping();
 
+Schedule::command('notifications:send-sky-alerts')
+    ->everyTenMinutes()
+    ->withoutOverlapping();
+
 Schedule::command('newsletter:send-weekly')
     ->weeklyOn(1, '08:00')
     ->withoutOverlapping();

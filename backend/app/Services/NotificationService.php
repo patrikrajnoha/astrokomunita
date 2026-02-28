@@ -219,6 +219,94 @@ class NotificationService
         return $notification;
     }
 
+    /**
+     * @param array{
+     *   next_pass_at:string,
+     *   duration_sec?:int,
+     *   max_altitude_deg?:float,
+     *   direction_start?:string,
+     *   direction_end?:string
+     * } $issPreview
+     */
+    public function createIssPassAlert(int $recipientId, array $issPreview): ?Notification
+    {
+        if (!$this->shouldDeliverInApp($recipientId, 'system')) {
+            return null;
+        }
+
+        $nextPassAt = trim((string) ($issPreview['next_pass_at'] ?? ''));
+        if ($nextPassAt === '') {
+            return null;
+        }
+
+        $hash = sha1('iss_pass_alert|' . $recipientId . '|' . $nextPassAt);
+        if (NotificationEvent::query()->where('hash', $hash)->exists()) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($recipientId, $issPreview, $nextPassAt, $hash) {
+            $notification = Notification::create([
+                'user_id' => $recipientId,
+                'type' => 'iss_pass_alert',
+                'data' => [
+                    'next_pass_at' => $nextPassAt,
+                    'duration_sec' => max(0, (int) ($issPreview['duration_sec'] ?? 0)),
+                    'max_altitude_deg' => is_numeric($issPreview['max_altitude_deg'] ?? null)
+                        ? round((float) $issPreview['max_altitude_deg'], 1)
+                        : null,
+                    'direction_start' => $issPreview['direction_start'] ?? null,
+                    'direction_end' => $issPreview['direction_end'] ?? null,
+                ],
+            ]);
+
+            NotificationEvent::create([
+                'hash' => $hash,
+                'notification_id' => $notification->id,
+            ]);
+
+            $this->broadcastNotification($notification);
+
+            return $notification;
+        });
+    }
+
+    public function createGoodConditionsAlert(int $recipientId, int $observingScore, string $localDate): ?Notification
+    {
+        if (!$this->shouldDeliverInApp($recipientId, 'system')) {
+            return null;
+        }
+
+        $normalizedDate = trim($localDate);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $normalizedDate)) {
+            return null;
+        }
+
+        $hash = sha1('good_conditions_alert|' . $recipientId . '|' . $normalizedDate);
+        if (NotificationEvent::query()->where('hash', $hash)->exists()) {
+            return null;
+        }
+
+        return DB::transaction(function () use ($recipientId, $observingScore, $normalizedDate, $hash) {
+            $notification = Notification::create([
+                'user_id' => $recipientId,
+                'type' => 'good_conditions_alert',
+                'data' => [
+                    'observing_score' => max(0, min(100, $observingScore)),
+                    'local_date' => $normalizedDate,
+                ],
+            ]);
+
+            NotificationEvent::create([
+                'hash' => $hash,
+                'notification_id' => $notification->id,
+            ]);
+
+            $this->broadcastNotification($notification);
+
+            return $notification;
+        });
+    }
+
     public function markRead(int $notificationId, int $userId): Notification
     {
         $notification = Notification::query()

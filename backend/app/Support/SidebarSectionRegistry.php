@@ -11,6 +11,8 @@ class SidebarSectionRegistry
     public const SCOPE_NOTIFICATIONS = 'notifications';
     public const SCOPE_POST_DETAIL = 'post_detail';
     public const SCOPE_PROFILE = 'profile';
+    public const SCOPE_SKY = 'sky';
+    public const SCOPE_OBSERVING = 'observing';
 
     /** @return array<int, string> */
     public static function scopes(): array
@@ -23,6 +25,8 @@ class SidebarSectionRegistry
             self::SCOPE_NOTIFICATIONS,
             self::SCOPE_POST_DETAIL,
             self::SCOPE_PROFILE,
+            self::SCOPE_SKY,
+            self::SCOPE_OBSERVING,
         ];
     }
 

@@ -84,6 +84,14 @@ class NotificationResource extends JsonResource
             ];
         }
 
+        if ($this->type === 'iss_pass_alert' || $this->type === 'good_conditions_alert') {
+            return [
+                'kind' => 'sky',
+                'id' => null,
+                'url' => '/sky',
+            ];
+        }
+
         return [
             'kind' => Str::before($this->type, '_') ?: 'unknown',
             'id' => null,

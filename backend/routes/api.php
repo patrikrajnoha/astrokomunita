@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\EventReminderController;
 use App\Http\Controllers\Api\EventInviteController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\NotificationPreferenceController;
+use App\Http\Controllers\Api\UserNotificationPreferenceController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\BookmarkController;
 use App\Http\Controllers\Api\AuthController;
@@ -181,6 +182,8 @@ Route::get('/observing/sky-summary', ObservingSkySummaryController::class);
 Route::get('/sky/weather', [SkyController::class, 'weather']);
 Route::get('/sky/astronomy', [SkyController::class, 'astronomy']);
 Route::get('/sky/visible-planets', [SkyController::class, 'visiblePlanets']);
+Route::get('/sky/iss-preview', [SkyController::class, 'issPreview']);
+Route::get('/sky/light-pollution', [SkyController::class, 'lightPollution']);
 Route::get('/meta/interests', [MetaController::class, 'interests']);
 Route::get('/meta/locations', [MetaController::class, 'locations']);
 
@@ -529,6 +532,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);
         Route::put('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);
         Route::put('/me/location', [MeLocationController::class, 'update']);
+        Route::get('/me/location/auto', [MeLocationController::class, 'auto']);
+        Route::get('/me/notifications/preferences', [UserNotificationPreferenceController::class, 'show']);
+        Route::post('/me/notifications/preferences', [UserNotificationPreferenceController::class, 'update']);
         Route::get('/me/export', MeDataExportController::class)->middleware('throttle:me-export');
         Route::patch('/me/newsletter', [NewsletterSubscriptionController::class, 'update']);
         Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);

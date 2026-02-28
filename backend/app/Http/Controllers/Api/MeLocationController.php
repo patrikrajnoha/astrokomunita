@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Location\IpLocationService;
+use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -12,6 +14,17 @@ use Illuminate\Validation\ValidationException;
 
 class MeLocationController extends Controller
 {
+    public function auto(Request $request, IpLocationService $service): JsonResponse
+    {
+        $payload = $service->lookup($request->ip());
+
+        if ($payload === null) {
+            return ApiResponse::error('Automatic location lookup is temporarily unavailable.', null, 503);
+        }
+
+        return response()->json($payload);
+    }
+
     public function update(Request $request): JsonResponse
     {
         $validated = $request->validate([

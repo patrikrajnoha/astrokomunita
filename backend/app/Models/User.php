@@ -363,6 +363,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(NotificationPreference::class);
     }
 
+    public function skyNotificationPreference(): HasOne
+    {
+        return $this->hasOne(UserNotificationPreference::class);
+    }
+
     public function newsletterRuns(): HasMany
     {
         return $this->hasMany(NewsletterRun::class, 'admin_user_id');

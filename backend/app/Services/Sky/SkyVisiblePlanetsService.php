@@ -4,6 +4,7 @@ namespace App\Services\Sky;
 
 use App\Services\Observing\SkyMicroserviceClient;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Log;
 
 class SkyVisiblePlanetsService
 {
@@ -21,7 +22,17 @@ class SkyVisiblePlanetsService
 
         try {
             $payload = $this->skyMicroserviceClient->fetch($lat, $lon, $localDate, $tz);
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            Log::warning('Sky visible planets microservice failed.', [
+                'lat' => $lat,
+                'lon' => $lon,
+                'tz' => $tz,
+                'date' => $localDate,
+                'microservice_base' => config('observing.sky_summary.microservice_base'),
+                'exception_class' => $exception::class,
+                'exception_message' => $exception->getMessage(),
+            ]);
+
             return [
                 'planets' => [],
                 'reason' => 'sky_service_unavailable',
@@ -40,7 +51,7 @@ class SkyVisiblePlanetsService
             $azimuth = $this->toFloat($planet['az_at_best_deg'] ?? null);
             $sunAltitude = $this->toFloat($planet['sun_altitude_deg'] ?? null);
 
-            if ($altitude === null || $azimuth === null || $altitude <= 5.0) {
+            if ($altitude === null || $azimuth === null || $altitude < 5.0) {
                 continue;
             }
 
@@ -63,6 +74,7 @@ class SkyVisiblePlanetsService
                 'altitude_deg' => round($altitude, 1),
                 'azimuth_deg' => round($azimuth, 1),
                 'direction' => $direction,
+                'quality' => $this->qualityForAltitude($altitude),
             ];
 
             if ($magnitude !== null) {
@@ -111,5 +123,18 @@ class SkyVisiblePlanetsService
         $index = (int) floor(((fmod($azimuth + 360.0, 360.0) + 22.5) / 45.0)) % 8;
 
         return $directions[$index];
+    }
+
+    private function qualityForAltitude(float $altitude): string
+    {
+        if ($altitude >= 30.0) {
+            return 'excellent';
+        }
+
+        if ($altitude >= 15.0) {
+            return 'good';
+        }
+
+        return 'low';
     }
 }

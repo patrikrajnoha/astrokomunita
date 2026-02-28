@@ -20,6 +20,7 @@ class SkyAstronomyService
      *   moon_illumination_percent:?int,
      *   sunrise_at:?string,
      *   sunset_at:?string,
+     *   civil_twilight_end_at:?string,
      *   moonrise_at:?string,
      *   moonset_at:?string
      * }
@@ -43,6 +44,7 @@ class SkyAstronomyService
 
         $sunrise = $this->toIso8601($localDate, $sunMoon['sunrise'] ?? null, $tz);
         $sunset = $this->toIso8601($localDate, $sunMoon['sunset'] ?? null, $tz);
+        $civilTwilightEnd = $this->toIso8601($localDate, $sunMoon['civil_twilight_end'] ?? null, $tz);
         $moonPhase = $this->normalizeMoonPhase($sunMoon['phase_name'] ?? null);
         $illumination = $this->normalizeIllumination($sunMoon['fracillum'] ?? null);
 
@@ -55,6 +57,7 @@ class SkyAstronomyService
             'moon_illumination_percent' => $illumination,
             'sunrise_at' => $sunrise,
             'sunset_at' => $sunset,
+            'civil_twilight_end_at' => $civilTwilightEnd,
             'moonrise_at' => $moonrise,
             'moonset_at' => $moonset,
         ];

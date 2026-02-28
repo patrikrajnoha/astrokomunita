@@ -16,12 +16,12 @@ class SkyVisiblePlanetsEndpointTest extends TestCase
         Cache::flush();
 
         Http::fake([
-            'http://127.0.0.1:8010/sky-summary*' => Http::response([
+            '*sky-summary*' => Http::response([
                 'moon' => null,
                 'planets' => [
                     [
                         'name' => 'Jupiter',
-                        'alt_max_deg' => 42.4,
+                        'alt_max_deg' => 64.7,
                         'az_at_best_deg' => 152.5,
                         'direction' => 'SE',
                         'best_from' => '19:40',
@@ -34,6 +34,14 @@ class SkyVisiblePlanetsEndpointTest extends TestCase
                         'direction' => 'W',
                         'best_from' => '18:20',
                         'best_to' => '19:00',
+                    ],
+                    [
+                        'name' => 'Saturn',
+                        'alt_max_deg' => 5.0,
+                        'az_at_best_deg' => 210.1,
+                        'direction' => 'SW',
+                        'best_from' => '19:10',
+                        'best_to' => '20:00',
                     ],
                     [
                         'name' => 'Mars',
@@ -62,11 +70,51 @@ class SkyVisiblePlanetsEndpointTest extends TestCase
             ]);
 
         $planets = $response->json('planets');
-        $this->assertCount(2, $planets);
+        $this->assertCount(3, $planets);
         $this->assertSame('Jupiter', $planets[0]['name']);
         $this->assertSame('Mars', $planets[1]['name']);
+        $this->assertSame('Saturn', $planets[2]['name']);
         $this->assertArrayHasKey('best_time_window', $planets[0]);
+        $this->assertSame('excellent', $planets[0]['quality']);
+        $this->assertSame('good', $planets[1]['quality']);
+        $this->assertSame('low', $planets[2]['quality']);
         $this->assertGreaterThan($planets[1]['altitude_deg'], $planets[0]['altitude_deg']);
+    }
+
+    public function test_it_excludes_planets_below_five_degrees_and_marks_excellent_quality(): void
+    {
+        Cache::flush();
+
+        Http::fake([
+            '*sky-summary*' => Http::response([
+                'moon' => null,
+                'planets' => [
+                    [
+                        'name' => 'Jupiter',
+                        'alt_max_deg' => 64.0,
+                        'az_at_best_deg' => 181.3,
+                        'direction' => 'S',
+                        'best_from' => '18:10',
+                        'best_to' => '03:00',
+                    ],
+                    [
+                        'name' => 'Mercury',
+                        'alt_max_deg' => 4.9,
+                        'az_at_best_deg' => 92.0,
+                        'direction' => 'E',
+                        'best_from' => '18:20',
+                        'best_to' => '18:40',
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $response = $this->getJson('/api/sky/visible-planets?lat=48.1486&lon=17.1077&tz=Europe/Bratislava');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'planets')
+            ->assertJsonPath('planets.0.name', 'Jupiter')
+            ->assertJsonPath('planets.0.quality', 'excellent');
     }
 
     public function test_it_returns_fallback_payload_when_sky_service_is_unavailable(): void
@@ -74,7 +122,7 @@ class SkyVisiblePlanetsEndpointTest extends TestCase
         Cache::flush();
 
         Http::fake([
-            'http://127.0.0.1:8010/sky-summary*' => Http::response(['message' => 'Service unavailable'], 503),
+            '*sky-summary*' => Http::response(['message' => 'Service unavailable'], 503),
         ]);
 
         $response = $this->getJson('/api/sky/visible-planets?lat=48.1486&lon=17.1077&tz=Europe/Bratislava');
@@ -89,7 +137,7 @@ class SkyVisiblePlanetsEndpointTest extends TestCase
         Cache::flush();
 
         Http::fake([
-            'http://127.0.0.1:8010/sky-summary*' => Http::sequence()
+            '*sky-summary*' => Http::sequence()
                 ->push([
                     'moon' => null,
                     'planets' => [

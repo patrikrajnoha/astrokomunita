@@ -41,7 +41,7 @@ return [
     ],
 
     'translation' => [
-        'base_url' => env('TRANSLATION_SERVICE_URL', env('OBSERVING_SKY_MICROSERVICE_BASE', 'http://127.0.0.1:8010')),
+        'base_url' => env('TRANSLATION_SERVICE_URL', env('OBSERVING_SKY_MICROSERVICE_BASE', 'http://sky:8010')),
         'translate_path' => env('TRANSLATION_SERVICE_TRANSLATE_PATH', '/translate'),
         'diagnostics_path' => env('TRANSLATION_SERVICE_DIAGNOSTICS_PATH', '/diagnostics'),
         'timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SECONDS', 12),

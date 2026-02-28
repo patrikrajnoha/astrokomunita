@@ -1,18 +1,21 @@
 from __future__ import annotations
 
+import json
+import logging
 import os
 import re
 import time
 from datetime import date as date_cls
 from datetime import datetime, time as time_cls, timedelta, timezone
 from pathlib import Path
+from urllib import request as urllib_request
 from zoneinfo import ZoneInfo
 
 import numpy as np
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from skyfield import almanac
-from skyfield.api import Loader, wgs84
+from skyfield.api import EarthSatellite, Loader, wgs84
 
 try:
     from argostranslate import translate as argos_translate
@@ -25,6 +28,9 @@ else:
 APP_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = APP_ROOT / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+ISS_TLE_CACHE_PATH = DATA_DIR / "iss_tle.json"
+ISS_TLE_URL = os.getenv("ISS_TLE_URL", "https://celestrak.org/NORAD/elements/stations.txt")
+ISS_TLE_REFRESH_HOURS = max(1, int(os.getenv("ISS_TLE_REFRESH_HOURS", "12")))
 
 loader = Loader(str(DATA_DIR))
 ts = loader.timescale()
@@ -64,6 +70,7 @@ ASTRONOMY_TERMS = {
 }
 
 app = FastAPI(title="Sky Summary Service", version=SERVICE_VERSION)
+logger = logging.getLogger("uvicorn.error")
 
 translation_state: dict[str, object] = {
     "error": None,
@@ -72,6 +79,12 @@ translation_state: dict[str, object] = {
     "has_sk": False,
     "has_en_sk_pair": False,
     "translator": None,
+}
+iss_state: dict[str, object] = {
+    "satellite": None,
+    "source": None,
+    "fetched_at": None,
+    "error": None,
 }
 
 
@@ -97,6 +110,7 @@ def ensure_internal_token(x_internal_token: str | None = Header(default=None, al
 @app.on_event("startup")
 def startup_check() -> None:
     refresh_translation_state()
+    refresh_iss_tle_cache()
 
 
 def refresh_translation_state() -> None:
@@ -158,7 +172,11 @@ def refresh_translation_state() -> None:
 
 @app.get("/health")
 def health() -> dict[str, object]:
-    return {"ok": bool(translation_state.get("has_en_sk_pair")), "version": SERVICE_VERSION}
+    return {
+        "ok": bool(translation_state.get("has_en_sk_pair")),
+        "version": SERVICE_VERSION,
+        "iss_tle_ready": iss_state.get("satellite") is not None,
+    }
 
 
 @app.get("/diagnostics")
@@ -319,6 +337,66 @@ def sky_summary(
     }
 
 
+@app.get("/iss-preview")
+def iss_preview(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lon: float = Query(..., ge=-180.0, le=180.0),
+    tz: str = Query(..., min_length=1),
+) -> dict[str, object]:
+    try:
+        local_tz = ZoneInfo(tz)
+    except Exception as exc:  # pragma: no cover
+        raise HTTPException(status_code=422, detail=f"Invalid timezone: {tz}") from exc
+
+    satellite = ensure_iss_satellite()
+    if satellite is None:
+        logger.warning("ISS preview unavailable: no TLE data ready.", extra={"iss_error": iss_state.get("error")})
+        return {"available": False}
+
+    local_now = datetime.now(local_tz)
+    local_start = datetime.combine(local_now.date(), time_cls(0, 0), tzinfo=local_tz)
+    local_end = local_start + timedelta(days=1)
+
+    location = wgs84.latlon(latitude_degrees=lat, longitude_degrees=lon)
+    observer = EARTH + location
+
+    t0 = ts.from_datetime(local_start.astimezone(timezone.utc))
+    t1 = ts.from_datetime(local_end.astimezone(timezone.utc))
+
+    try:
+        events_t, events = satellite.find_events(location, t0, t1, altitude_degrees=10.0)
+    except Exception as exc:  # pragma: no cover
+        logger.exception("ISS preview event calculation failed.", extra={"lat": lat, "lon": lon, "tz": tz})
+        iss_state["error"] = f"event_calc_failed:{exc}"
+        return {"available": False}
+
+    passes = build_iss_passes(
+        satellite=satellite,
+        observer=observer,
+        location=location,
+        event_times=events_t,
+        event_codes=events,
+        local_tz=local_tz,
+    )
+
+    next_visible = next((item for item in passes if item["is_visible"] and item["set_at"] >= local_now), None)
+    if next_visible is None:
+        return {"available": False}
+
+    duration_sec = max(0, int(round((next_visible["set_at"] - next_visible["rise_at"]).total_seconds())))
+
+    return {
+        "available": True,
+        "next_pass_at": next_visible["rise_at"].isoformat(),
+        "duration_sec": duration_sec,
+        "duration": duration_sec,
+        "max_altitude_deg": round(float(next_visible["max_altitude_deg"]), 1),
+        "max_altitude": round(float(next_visible["max_altitude_deg"]), 1),
+        "direction_start": next_visible["direction_start"],
+        "direction_end": next_visible["direction_end"],
+    }
+
+
 def build_moon_payload(observer, location, local_date: date_cls, local_tz: ZoneInfo) -> dict:
     local_noon = datetime.combine(local_date, time_cls(12, 0), tzinfo=local_tz)
     noon_utc = local_noon.astimezone(timezone.utc)
@@ -437,6 +515,192 @@ def build_planets_payload(observer, local_date: date_cls, local_tz: ZoneInfo) ->
 
     visible.sort(key=lambda item: item["alt_max_deg"], reverse=True)
     return visible[:3]
+
+
+def ensure_iss_satellite() -> EarthSatellite | None:
+    satellite = iss_state.get("satellite")
+    fetched_at = iss_state.get("fetched_at")
+
+    if isinstance(satellite, EarthSatellite):
+        if isinstance(fetched_at, str):
+            try:
+                fetched_dt = datetime.fromisoformat(fetched_at)
+            except ValueError:
+                fetched_dt = None
+            if fetched_dt is not None and datetime.now(timezone.utc) - fetched_dt < timedelta(hours=ISS_TLE_REFRESH_HOURS):
+                return satellite
+        else:
+            return satellite
+
+    refresh_iss_tle_cache()
+    satellite = iss_state.get("satellite")
+    return satellite if isinstance(satellite, EarthSatellite) else None
+
+
+def refresh_iss_tle_cache() -> None:
+    cached_payload = load_cached_iss_tle()
+
+    try:
+        remote_payload = fetch_remote_iss_tle()
+    except Exception as exc:  # pragma: no cover
+        logger.warning("ISS TLE refresh failed; falling back to cache if available.", exc_info=exc)
+        if cached_payload is not None:
+            set_iss_satellite(cached_payload, source="cache", error=f"remote_fetch_failed:{exc}")
+            logger.info("ISS TLE loaded from local cache.")
+            return
+
+        iss_state.update({
+            "satellite": None,
+            "source": None,
+            "fetched_at": None,
+            "error": f"remote_fetch_failed:{exc}",
+        })
+        return
+
+    save_cached_iss_tle(remote_payload)
+    set_iss_satellite(remote_payload, source="remote", error=None)
+    logger.info("ISS TLE refreshed from remote source.")
+
+
+def fetch_remote_iss_tle() -> dict[str, str]:
+    request = urllib_request.Request(
+        ISS_TLE_URL,
+        headers={"User-Agent": "astrokomunita-sky/1.1"},
+        method="GET",
+    )
+
+    with urllib_request.urlopen(request, timeout=10) as response:
+        body = response.read().decode("utf-8", errors="replace")
+
+    payload = parse_iss_tle_payload(body)
+    if payload is None:
+        raise RuntimeError("ISS TLE entry not found in remote feed.")
+
+    payload["fetched_at"] = datetime.now(timezone.utc).isoformat()
+    return payload
+
+
+def parse_iss_tle_payload(raw_text: str) -> dict[str, str] | None:
+    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+    for index, line in enumerate(lines):
+        if "ISS" not in line.upper():
+            continue
+        if index + 2 >= len(lines):
+            continue
+
+        line1 = lines[index + 1]
+        line2 = lines[index + 2]
+        if line1.startswith("1 ") and line2.startswith("2 "):
+            return {
+                "name": line,
+                "line1": line1,
+                "line2": line2,
+            }
+
+    return None
+
+
+def save_cached_iss_tle(payload: dict[str, str]) -> None:
+    ISS_TLE_CACHE_PATH.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def load_cached_iss_tle() -> dict[str, str] | None:
+    if not ISS_TLE_CACHE_PATH.exists():
+        return None
+
+    try:
+        payload = json.loads(ISS_TLE_CACHE_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:  # pragma: no cover
+        logger.warning("Failed to read cached ISS TLE.", exc_info=exc)
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    name = str(payload.get("name") or "").strip()
+    line1 = str(payload.get("line1") or "").strip()
+    line2 = str(payload.get("line2") or "").strip()
+    fetched_at = str(payload.get("fetched_at") or "").strip()
+    if not name or not line1.startswith("1 ") or not line2.startswith("2 "):
+        return None
+
+    return {
+        "name": name,
+        "line1": line1,
+        "line2": line2,
+        "fetched_at": fetched_at or datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def set_iss_satellite(payload: dict[str, str], source: str, error: str | None) -> None:
+    satellite = EarthSatellite(payload["line1"], payload["line2"], payload["name"], ts)
+    iss_state.update({
+        "satellite": satellite,
+        "source": source,
+        "fetched_at": payload.get("fetched_at"),
+        "error": error,
+    })
+
+
+def build_iss_passes(
+    satellite: EarthSatellite,
+    observer,
+    location,
+    event_times,
+    event_codes,
+    local_tz: ZoneInfo,
+) -> list[dict[str, object]]:
+    passes: list[dict[str, object]] = []
+    current: dict[str, object] = {}
+
+    for event_time, event_code in zip(event_times, event_codes):
+        dt_utc = event_time.utc_datetime().replace(tzinfo=timezone.utc)
+        dt_local = dt_utc.astimezone(local_tz)
+
+        if int(event_code) == 0:
+            current = {"rise_at": dt_local, "rise_time": event_time}
+            continue
+
+        if int(event_code) == 1 and current:
+            current["culmination_at"] = dt_local
+            current["culmination_time"] = event_time
+            continue
+
+        if int(event_code) != 2 or not current:
+            continue
+
+        rise_at = current.get("rise_at")
+        culmination_at = current.get("culmination_at")
+        rise_time = current.get("rise_time")
+        culmination_time = current.get("culmination_time")
+        if not isinstance(rise_at, datetime) or not isinstance(culmination_at, datetime):
+            current = {}
+            continue
+        if rise_time is None or culmination_time is None:
+            current = {}
+            continue
+
+        set_at = dt_local
+        topocentric_rise = (satellite - location).at(rise_time)
+        topocentric_culm = (satellite - location).at(culmination_time)
+        topocentric_set = (satellite - location).at(event_time)
+        rise_alt, rise_az, _ = topocentric_rise.altaz()
+        culm_alt, _, _ = topocentric_culm.altaz()
+        _, set_az, _ = topocentric_set.altaz()
+        sun_alt, _, _ = observer.at(culmination_time).observe(SUN).apparent().altaz()
+        sunlit = bool(satellite.at(culmination_time).is_sunlit(eph))
+
+        passes.append({
+            "rise_at": rise_at,
+            "set_at": set_at,
+            "max_altitude_deg": float(culm_alt.degrees),
+            "direction_start": az_to_direction(float(rise_az.degrees)),
+            "direction_end": az_to_direction(float(set_az.degrees)),
+            "is_visible": sunlit and float(sun_alt.degrees) < -4.0 and float(culm_alt.degrees) >= 10.0,
+        })
+        current = {}
+
+    return passes
 
 
 def segment_containing_index(indices: np.ndarray, needle: int) -> np.ndarray:
