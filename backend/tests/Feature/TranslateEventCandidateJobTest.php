@@ -5,9 +5,8 @@ namespace Tests\Feature;
 use App\Jobs\TranslateEventCandidateJob;
 use App\Models\EventCandidate;
 use App\Services\AI\OllamaRefinementService;
-use App\Services\TranslationService;
+use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class TranslateEventCandidateJobTest extends TestCase
@@ -16,20 +15,39 @@ class TranslateEventCandidateJobTest extends TestCase
 
     private function configureTranslation(): void
     {
-        config()->set('translation.default_provider', 'argos_microservice');
-        config()->set('translation.fallback_provider', '');
-        config()->set('translation.argos_microservice.base_url', 'http://translation.test');
-        config()->set('translation.argos_microservice.internal_token', 'token');
         config()->set('events.refine_descriptions_with_ollama', false);
         config()->set('events.description_template_min_length', 40);
         config()->set('ai.ollama_retry_attempts', 1);
         config()->set('ai.ollama_refinement_enabled', false);
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('astrobot.translation.timeout_sec', 8);
+    }
+
+    private function fakeTranslationResult(?string $translatedTitle, ?string $translatedContent): void
+    {
+        $mock = $this->createMock(BotTranslationServiceInterface::class);
+        $mock->method('translate')
+            ->willReturn([
+                'translated_title' => $translatedTitle,
+                'translated_content' => $translatedContent,
+                'title_translated' => $translatedTitle,
+                'content_translated' => $translatedContent,
+                'status' => $translatedTitle !== null || $translatedContent !== null ? 'done' : 'skipped',
+                'meta' => [
+                    'provider' => 'test-double',
+                    'target_lang' => 'sk',
+                ],
+            ]);
+
+        $this->app->instance(BotTranslationServiceInterface::class, $mock);
     }
 
     private function runJob(int $candidateId): void
     {
         (new TranslateEventCandidateJob($candidateId))->handle(
-            app(TranslationService::class),
+            app(BotTranslationServiceInterface::class),
             app(OllamaRefinementService::class)
         );
     }
@@ -37,12 +55,7 @@ class TranslateEventCandidateJobTest extends TestCase
     public function test_job_marks_event_candidate_done_and_saves_translations(): void
     {
         $this->configureTranslation();
-
-        Http::fake([
-            'http://translation.test/*' => Http::response([
-                'translated' => 'Prelozene',
-            ], 200),
-        ]);
+        $this->fakeTranslationResult('Prelozene', 'Prelozene');
 
         $candidate = $this->makeCandidate([
             'title' => 'Original title',
@@ -64,10 +77,10 @@ class TranslateEventCandidateJobTest extends TestCase
     public function test_job_marks_event_candidate_failed_when_translation_errors(): void
     {
         $this->configureTranslation();
-
-        Http::fake([
-            'http://translation.test/*' => Http::response(['error' => 'boom'], 500),
-        ]);
+        $mock = $this->createMock(BotTranslationServiceInterface::class);
+        $mock->method('translate')
+            ->willThrowException(new \App\Services\Bots\Exceptions\BotTranslationException('boom'));
+        $this->app->instance(BotTranslationServiceInterface::class, $mock);
 
         $candidate = $this->makeCandidate([
             'title' => 'Original title',
@@ -80,8 +93,8 @@ class TranslateEventCandidateJobTest extends TestCase
             $this->fail('Expected translation job to throw on HTTP 500.');
         } catch (\Throwable) {
             $candidate->refresh();
-            $this->assertSame(EventCandidate::TRANSLATION_FAILED, $candidate->translation_status);
-            $this->assertSame('argos_http_500', $candidate->translation_error);
+            $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+            $this->assertNull($candidate->translation_error);
             $this->assertSame('Original title', $candidate->translated_title);
             $this->assertNotNull($candidate->translated_description);
             $this->assertStringContainsString('Astronomicka udalost', (string) $candidate->translated_description);
@@ -93,12 +106,7 @@ class TranslateEventCandidateJobTest extends TestCase
     public function test_job_generates_template_description_when_original_description_missing(): void
     {
         $this->configureTranslation();
-
-        Http::fake([
-            'http://translation.test/*' => Http::response([
-                'translated' => 'Perzeidy',
-            ], 200),
-        ]);
+        $this->fakeTranslationResult('Perzeidy', null);
 
         $candidate = $this->makeCandidate([
             'title' => 'Perseids meteor shower',
@@ -131,11 +139,7 @@ class TranslateEventCandidateJobTest extends TestCase
             ]);
         $this->app->instance(OllamaRefinementService::class, $refiner);
 
-        Http::fake([
-            'http://translation.test/*' => Http::response([
-                'translated' => 'Perzeidy',
-            ], 200),
-        ]);
+        $this->fakeTranslationResult('Perzeidy', null);
 
         $candidate = $this->makeCandidate([
             'title' => 'Perseids meteor shower',
@@ -164,11 +168,7 @@ class TranslateEventCandidateJobTest extends TestCase
             ->willThrowException(new \RuntimeException('Ollama timeout'));
         $this->app->instance(OllamaRefinementService::class, $refiner);
 
-        Http::fake([
-            'http://translation.test/*' => Http::response([
-                'translated' => 'Perzeidy',
-            ], 200),
-        ]);
+        $this->fakeTranslationResult('Perzeidy', null);
 
         $candidate = $this->makeCandidate([
             'title' => 'Perseids meteor shower',
@@ -193,11 +193,7 @@ class TranslateEventCandidateJobTest extends TestCase
         $refiner->expects($this->never())->method('refine');
         $this->app->instance(OllamaRefinementService::class, $refiner);
 
-        Http::fake([
-            'http://translation.test/*' => Http::response([
-                'translated' => 'Prelozene',
-            ], 200),
-        ]);
+        $this->fakeTranslationResult('Prelozene', 'Prelozene');
 
         $candidate = $this->makeCandidate([
             'title' => 'Original title',
