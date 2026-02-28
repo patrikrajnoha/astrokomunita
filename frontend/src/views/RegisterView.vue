@@ -65,7 +65,23 @@
           <input v-model="passwordConfirmation" type="password" class="input" autocomplete="new-password" />
         </label>
 
-        <button class="btn" type="submit" :disabled="auth.loading">
+        <div v-if="turnstileEnabled" class="field">
+          <span class="label">Overenie proti botom</span>
+          <div class="turnstileShell" :class="{ isError: turnstileState === 'error' || turnstileState === 'expired' }">
+            <div ref="turnstileContainer"></div>
+          </div>
+          <span v-if="turnstileHint" class="fieldHint isError">{{ turnstileHint }}</span>
+        </div>
+
+        <p
+          v-if="submitTurnstileMessage"
+          class="submitHint"
+          :class="{ isError: !turnstileEnabled, isMuted: turnstileEnabled }"
+        >
+          {{ submitTurnstileMessage }}
+        </p>
+
+        <button class="btn" type="submit" :disabled="isSubmitDisabled">
           {{ auth.loading ? 'Registrujem...' : 'Zaregistrovat' }}
         </button>
 
@@ -79,15 +95,20 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import http from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+
+const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script'
+const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+let turnstileScriptPromise = null
 
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
+const turnstileSiteKey = String(import.meta.env.VITE_TURNSTILE_SITE_KEY || '').trim()
 const name = ref('')
 const username = ref('')
 const dateOfBirth = ref('')
@@ -95,6 +116,10 @@ const email = ref('')
 const password = ref('')
 const passwordConfirmation = ref('')
 const formError = ref(null)
+const turnstileContainer = ref(null)
+const turnstileToken = ref('')
+const turnstileWidgetId = ref(null)
+const turnstileState = ref(turnstileSiteKey ? 'idle' : 'disabled')
 
 const usernameCheckState = ref('idle')
 const usernameReason = ref('')
@@ -113,6 +138,23 @@ const loginLink = computed(() => ({
   name: 'login',
   query: { redirect: redirect.value },
 }))
+const turnstileEnabled = computed(() => turnstileSiteKey !== '')
+const turnstileHint = computed(() => {
+  if (turnstileState.value === 'error') return 'Overenie proti botom sa nepodarilo nacitat. Obnov stranku a skus to znova.'
+  if (turnstileState.value === 'expired') return 'Overenie proti botom vyprsalo. Potvrd ho prosim znova.'
+  return ''
+})
+const submitTurnstileMessage = computed(() => {
+  if (!turnstileEnabled.value) return 'Bezpečnostné overenie nie je nastavené. Skús to prosím neskôr.'
+  if (turnstileToken.value) return ''
+  if (turnstileState.value === 'loading' || turnstileState.value === 'idle') return 'Načítavam overenie...'
+  return ''
+})
+const isSubmitDisabled = computed(() => {
+  if (auth.loading) return true
+  if (!turnstileEnabled.value) return true
+  return !turnstileToken.value
+})
 
 const maxDateOfBirth = computed(() => {
   const d = new Date()
@@ -219,6 +261,18 @@ watch(
 
 onBeforeUnmount(() => {
   if (usernameCheckTimer) clearTimeout(usernameCheckTimer)
+
+  if (turnstileWidgetId.value !== null && window.turnstile?.remove) {
+    window.turnstile.remove(turnstileWidgetId.value)
+  }
+})
+
+onMounted(() => {
+  if (!turnstileEnabled.value) {
+    return
+  }
+
+  void mountTurnstileWidget()
 })
 
 watch(
@@ -259,6 +313,16 @@ const submit = async () => {
     return
   }
 
+  if (!turnstileEnabled.value) {
+    formError.value = 'Bezpečnostné overenie nie je nastavené. Skús to prosím neskôr.'
+    return
+  }
+
+  if (turnstileEnabled.value && !turnstileToken.value) {
+    formError.value = turnstileHint.value || 'Načítavam overenie...'
+    return
+  }
+
   try {
     await auth.register({
       name: name.value,
@@ -267,6 +331,7 @@ const submit = async () => {
       date_of_birth: dateOfBirth.value,
       password: password.value,
       password_confirmation: passwordConfirmation.value,
+      turnstile_token: turnstileToken.value,
     })
     if (!auth.isAdmin && !auth.user?.email_verified_at) {
       await router.push({ name: 'verify-email.required', query: { redirect: redirect.value } })
@@ -276,13 +341,109 @@ const submit = async () => {
   } catch (e) {
     const msg = e?.response?.data?.message
     const errors = e?.response?.data?.errors
-    if (errors) {
+    if (errors?.turnstile_token?.length) {
+      formError.value = 'Bezpečnostné overenie zlyhalo. Skús to prosím znova.'
+    } else if (errors) {
       const firstKey = Object.keys(errors)[0]
       formError.value = errors[firstKey]?.[0] || msg || 'Registracia zlyhala.'
     } else {
       formError.value = msg || 'Registracia zlyhala.'
     }
+
+    if (turnstileWidgetId.value !== null && window.turnstile?.reset) {
+      turnstileToken.value = ''
+      turnstileState.value = 'idle'
+      window.turnstile.reset(turnstileWidgetId.value)
+    }
   }
+}
+
+async function mountTurnstileWidget() {
+  if (!turnstileContainer.value) {
+    return
+  }
+
+  turnstileState.value = 'loading'
+
+  try {
+    const api = await loadTurnstileApi()
+
+    if (!turnstileContainer.value) {
+      return
+    }
+
+    turnstileToken.value = ''
+
+    if (turnstileWidgetId.value !== null && api.remove) {
+      api.remove(turnstileWidgetId.value)
+      turnstileWidgetId.value = null
+    }
+
+    turnstileWidgetId.value = api.render(turnstileContainer.value, {
+      sitekey: turnstileSiteKey,
+      theme: 'auto',
+      callback: (token) => {
+        turnstileToken.value = token
+        turnstileState.value = 'ready'
+      },
+      'expired-callback': () => {
+        turnstileToken.value = ''
+        turnstileState.value = 'expired'
+      },
+      'error-callback': () => {
+        turnstileToken.value = ''
+        turnstileState.value = 'error'
+      },
+      'timeout-callback': () => {
+        turnstileToken.value = ''
+        turnstileState.value = 'expired'
+      },
+    })
+
+  } catch {
+    turnstileToken.value = ''
+    turnstileState.value = 'error'
+  }
+}
+
+function loadTurnstileApi() {
+  if (window.turnstile?.render) {
+    return Promise.resolve(window.turnstile)
+  }
+
+  if (turnstileScriptPromise) {
+    return turnstileScriptPromise
+  }
+
+  turnstileScriptPromise = new Promise((resolve, reject) => {
+    const existingScript = document.getElementById(TURNSTILE_SCRIPT_ID)
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(window.turnstile), { once: true })
+      existingScript.addEventListener('error', reject, { once: true })
+      return
+    }
+
+    const script = document.createElement('script')
+    script.id = TURNSTILE_SCRIPT_ID
+    script.src = TURNSTILE_SCRIPT_SRC
+    script.async = true
+    script.defer = true
+    script.onload = () => {
+      if (window.turnstile?.render) {
+        resolve(window.turnstile)
+        return
+      }
+
+      reject(new Error('Turnstile API unavailable'))
+    }
+    script.onerror = reject
+    document.head.appendChild(script)
+  }).catch((error) => {
+    turnstileScriptPromise = null
+    throw error
+  })
+
+  return turnstileScriptPromise
 }
 
 function normalizeUsername(value) {
@@ -452,6 +613,18 @@ function daysInMonth(year, month) {
   color: var(--color-danger);
 }
 
+.turnstileShell {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  border-radius: 0.72rem;
+  background: rgb(var(--color-bg-rgb) / 0.52);
+  padding: 0.56rem;
+  overflow-x: auto;
+}
+
+.turnstileShell.isError {
+  border-color: rgb(var(--color-danger-rgb) / 0.45);
+}
+
 .btn {
   width: 100%;
   margin-top: 0.16rem;
@@ -476,6 +649,11 @@ function daysInMonth(year, month) {
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.submitHint {
+  margin: 0;
+  font-size: 0.79rem;
 }
 
 .loginHint {

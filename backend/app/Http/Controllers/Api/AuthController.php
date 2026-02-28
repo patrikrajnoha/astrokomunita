@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
 use App\Services\Auth\EmailVerificationSettingService;
+use App\Services\Security\TurnstileService;
 use App\Services\UserActivityService;
 use App\Support\UsernameRules;
 use Illuminate\Auth\Events\Registered;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class AuthController extends Controller
@@ -23,6 +25,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly EmailVerificationSettingService $emailVerificationSettingService,
         private readonly UserActivityService $activityService,
+        private readonly TurnstileService $turnstileService,
     ) {
     }
 
@@ -39,6 +42,21 @@ class AuthController extends Controller
     public function register(RegisterRequest $request)
     {
         $validated = $request->validated();
+
+        if ($this->turnstileService->isEnabled() && ! $this->turnstileService->hasSecretKey()) {
+            $this->turnstileService->logMissingSecretWarningOnce();
+
+            return response()->json([
+                'message' => 'Bezpečnostné overenie je dočasne nedostupné.',
+            ], 503);
+        }
+
+        $turnstileToken = (string) ($validated['turnstile_token'] ?? '');
+        if (! $this->turnstileService->verify($turnstileToken, $request->ip())) {
+            throw ValidationException::withMessages([
+                'turnstile_token' => 'Overenie proti botom zlyhalo. Skus to prosim znova.',
+            ]);
+        }
 
         $user = User::create([
             'name' => $validated['name'],

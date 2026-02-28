@@ -2,9 +2,12 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Services\Security\TurnstileService;
 use App\Support\UsernameRules;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rule;
 
 class RegisterRequest extends FormRequest
 {
@@ -18,6 +21,15 @@ class RegisterRequest extends FormRequest
         $this->merge([
             'username' => UsernameRules::normalize($this->input('username')),
         ]);
+
+        $turnstile = app(TurnstileService::class);
+        if ($turnstile->isEnabled() && ! $turnstile->hasSecretKey()) {
+            $turnstile->logMissingSecretWarningOnce();
+
+            throw new HttpResponseException(response()->json([
+                'message' => 'Bezpečnostné overenie je dočasne nedostupné.',
+            ], 503));
+        }
     }
 
     public function rules(): array
@@ -30,6 +42,7 @@ class RegisterRequest extends FormRequest
             'password' => ['required', 'confirmed', Password::min(8)],
             'username' => UsernameRules::validationRules(),
             'date_of_birth' => ['required', 'date', 'before_or_equal:' . $minDate->toDateString()],
+            'turnstile_token' => [Rule::requiredIf((bool) config('services.turnstile.enabled')), 'string'],
         ];
     }
 
@@ -44,6 +57,8 @@ class RegisterRequest extends FormRequest
             'date_of_birth.required' => 'Datum narodenia je povinny.',
             'date_of_birth.date' => 'Datum narodenia musi byt platny datum.',
             'date_of_birth.before_or_equal' => 'Musis mat aspon 13 rokov.',
+            'turnstile_token.required' => 'Overenie proti botom je povinne.',
+            'turnstile_token.string' => 'Overenie proti botom je neplatne.',
         ];
     }
 }
