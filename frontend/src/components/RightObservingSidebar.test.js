@@ -1,18 +1,16 @@
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RightObservingSidebar from './RightObservingSidebar.vue'
 import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 
 const pushMock = vi.hoisted(() => vi.fn())
 const getMock = vi.hoisted(() => vi.fn())
-const putMock = vi.hoisted(() => vi.fn())
 
 const authMock = vi.hoisted(() => ({
   isAuthed: true,
   initialized: true,
   isAdmin: false,
   user: { id: 10, is_admin: false, role: 'user' },
-  fetchUser: vi.fn().mockResolvedValue(null),
 }))
 
 vi.mock('vue-router', () => ({
@@ -26,7 +24,6 @@ vi.mock('@/stores/auth', () => ({
 vi.mock('@/services/api', () => ({
   default: {
     get: getMock,
-    put: putMock,
   },
 }))
 
@@ -56,7 +53,7 @@ function buildGetResponse(url) {
         humidity_percent: 58,
         wind_speed: 6.5,
         wind_unit: 'km/h',
-        observing_score: 82,
+        observing_score: 85,
         temperature_c: 2.4,
         weather_label: 'Polojasno',
       },
@@ -73,7 +70,8 @@ function buildGetResponse(url) {
         planets: [
           { name: 'Jupiter', direction: 'SE', altitude_deg: 52.2, best_time_window: '20:20-23:40' },
           { name: 'Mars', direction: 'E', altitude_deg: 12.3, best_time_window: '21:00-00:20' },
-          { name: 'Merkúr', direction: 'W', altitude_deg: 2.1, best_time_window: '18:00-18:10' },
+          { name: 'Saturn', direction: 'W', altitude_deg: 7.4, best_time_window: '18:40-19:20' },
+          { name: 'Merkur', direction: 'W', altitude_deg: 2.1, best_time_window: '18:00-18:10' },
         ],
       },
     }
@@ -113,7 +111,6 @@ describe('RightObservingSidebar', () => {
     authMock.isAdmin = false
     authMock.user = { id: 10, is_admin: false, role: 'user' }
     getMock.mockImplementation(async (url) => buildGetResponse(url))
-    putMock.mockResolvedValue({ data: {} })
   })
 
   afterEach(() => {
@@ -127,7 +124,7 @@ describe('RightObservingSidebar', () => {
     expect(resolveSidebarScopeFromPath('/unknown-route')).toBeNull()
   })
 
-  it('renders the title and emoji score label from the mock score', async () => {
+  it('renders the title and excellent night score presentation', async () => {
     const wrapper = mount(RightObservingSidebar, {
       props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
     })
@@ -135,7 +132,7 @@ describe('RightObservingSidebar', () => {
     await wait()
 
     expect(wrapper.text()).toContain('Astronomické podmienky')
-    expect(wrapper.text()).toContain('🙂 Dobré')
+    expect(wrapper.text()).toContain('😄 Výborné')
   })
 
   it('shows the edit pencil only for admin users', async () => {
@@ -145,7 +142,7 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(nonAdminWrapper.find('button[title="Upraviť poradie sekcií"]').exists()).toBe(false)
+    expect(nonAdminWrapper.find('[data-testid="sky-widget-reorder-toggle"]').exists()).toBe(false)
 
     authMock.isAdmin = true
     authMock.user = { id: 1, is_admin: true, role: 'admin' }
@@ -156,7 +153,7 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(adminWrapper.find('button[title="Upraviť poradie sekcií"]').exists()).toBe(true)
+    expect(adminWrapper.find('[data-testid="sky-widget-reorder-toggle"]').exists()).toBe(true)
   })
 
   it('navigates to profile edit after clicking the location name', async () => {
@@ -172,7 +169,19 @@ describe('RightObservingSidebar', () => {
     expect(pushMock).toHaveBeenCalledWith('/profile/edit')
   })
 
-  it('shows daytime copy and hides planets list before dark', async () => {
+  it('shows simplified bortle copy for class 7', async () => {
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Svetelné znečistenie: vysoké')
+    expect(wrapper.text()).toContain('Mesto (Bortle 7)')
+    expect(wrapper.text()).toContain('Odhad podľa polohy')
+  })
+
+  it('shows daylight gating and does not list planets as visible during the day', async () => {
     vi.setSystemTime(new Date('2026-02-27T11:57:00+01:00'))
 
     const wrapper = mount(RightObservingSidebar, {
@@ -182,9 +191,11 @@ describe('RightObservingSidebar', () => {
     await wait()
 
     expect(wrapper.text()).toContain('Denné podmienky')
-    expect(wrapper.text()).toContain('Astronomické hodnotenie sa zobrazí po zotmení.')
-    expect(wrapper.text()).toContain('Planéty sa zobrazujú až po zotmení.')
+    expect(wrapper.text()).toContain('Denné svetlo')
+    expect(wrapper.text()).toContain('Momentálne je deň. Astronomické pozorovanie nie je možné.')
+    expect(wrapper.text()).toContain('Planéty: zobrazíme po zotmení.')
     expect(wrapper.text()).not.toContain('Jupiter')
     expect(wrapper.text()).not.toContain('Mars')
+    expect(wrapper.text()).not.toContain('Saturn')
   })
 })

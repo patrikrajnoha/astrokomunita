@@ -1,15 +1,23 @@
 <template>
-  <section class="rounded-2xl border border-white/10 bg-slate-900/60 p-4 backdrop-blur">
+  <section class="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur">
     <header class="flex items-start justify-between gap-3">
       <div class="min-w-0">
-        <h3 class="text-base font-semibold text-slate-100">Astronomické podmienky</h3>
+        <h3 class="text-sm font-semibold text-slate-100">Astronomické podmienky</h3>
         <button
           type="button"
-          class="mt-1 max-w-full cursor-pointer truncate text-left text-sm text-slate-300 transition hover:text-slate-100"
+          class="mt-1 max-w-full cursor-pointer truncate text-left text-sm text-slate-300/80 underline-offset-4 transition hover:underline hover:text-slate-100"
           title="Zmeniť lokalitu"
           @click="goToProfileLocation"
         >
-          {{ locationLabel }}
+          Poloha: {{ locationLabel }}
+        </button>
+        <button
+          v-if="!hasLocationCoords"
+          type="button"
+          class="mt-3 inline-flex rounded-xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
+          @click="goToProfileLocation"
+        >
+          Nastaviť polohu
         </button>
       </div>
 
@@ -24,6 +32,7 @@
         <button
           v-if="isAdminUser"
           type="button"
+          data-testid="sky-widget-reorder-toggle"
           class="flex h-8 w-8 items-center justify-center rounded-full text-slate-200 transition hover:bg-white/10"
           :title="editMode ? 'Ukončiť úpravu widgetu' : 'Upraviť poradie sekcií'"
           @click="toggleEditMode"
@@ -48,39 +57,17 @@
       </div>
     </header>
 
-    <section v-if="showAutoLocationCta" class="mt-4 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-sm text-slate-300">
-      <p>Pre presnejšie podmienky si nastav lokalitu.</p>
-      <div class="mt-3 flex flex-wrap gap-2">
-        <button
-          type="button"
-          class="rounded-xl bg-white/10 px-3 py-2 text-slate-100 transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="autoLocationBusy"
-          @click="useApproximateLocation"
-        >
-          {{ autoLocationBusy ? 'Zisťujem polohu...' : 'Použiť moju približnú polohu' }}
-        </button>
-        <button
-          type="button"
-          class="rounded-xl border border-white/10 px-3 py-2 text-slate-200 transition hover:bg-white/5"
-          @click="goToProfileLocation"
-        >
-          Nastaviť manuálne
-        </button>
-      </div>
-      <p v-if="autoLocationError" class="mt-2 text-xs text-rose-300">{{ autoLocationError }}</p>
-    </section>
-
-    <section v-if="showPrimaryLoading" class="mt-4 space-y-3">
+    <section v-if="showPrimaryLoading" class="mt-5 space-y-3">
       <div class="h-16 animate-pulse rounded-xl bg-white/5"></div>
       <div class="h-12 animate-pulse rounded-xl bg-white/5"></div>
       <div class="h-24 animate-pulse rounded-xl bg-white/5"></div>
     </section>
 
-    <div v-else class="mt-4 divide-y divide-white/10">
+    <div v-else class="mt-5 divide-y divide-white/10">
       <section
         v-for="sectionId in orderedSectionIds"
         :key="sectionId"
-        class="py-3 first:pt-0 last:pb-0"
+        class="py-4 first:pt-0 last:pb-0"
       >
         <div class="flex items-start gap-3">
           <div class="min-w-0 flex-1">
@@ -91,7 +78,12 @@
                 <span class="text-base text-slate-400">/100</span>
               </p>
               <p class="mt-2 text-lg text-slate-100">{{ scoreEmoji }} {{ scoreLabel }}</p>
-              <p class="mt-2 text-sm text-slate-300">{{ heroSubtitle }}</p>
+              <p
+                class="mt-2"
+                :class="isDaylight ? 'text-base font-medium text-slate-100' : 'text-sm text-slate-300'"
+              >
+                {{ heroSubtitle }}
+              </p>
               <div class="mt-3 h-1.5 rounded-full bg-white/5">
                 <div
                   class="h-1.5 rounded-full"
@@ -102,12 +94,12 @@
             </template>
 
             <template v-else-if="sectionId === 'best_time'">
-              <p class="text-sm font-medium text-slate-100">Najlepšie dnes</p>
-              <p class="mt-1 text-sm text-slate-300">{{ bestTimeLabel }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Najlepšie dnes</p>
+              <p class="mt-2 text-sm text-slate-300">{{ bestTimeLabel }}</p>
             </template>
 
             <template v-else-if="sectionId === 'weather_inline'">
-              <p class="text-sm font-medium text-slate-100">Počasie teraz</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Počasie teraz</p>
               <div class="mt-3 grid grid-cols-4 gap-2 text-center">
                 <div>
                   <p class="text-[10px] uppercase tracking-wide text-slate-500">Oblaky</p>
@@ -134,9 +126,15 @@
             </template>
 
             <template v-else-if="sectionId === 'moon'">
-              <p class="text-sm font-medium text-slate-100">Mesiac</p>
-              <p class="mt-1 text-sm text-slate-300">{{ moonLine }}</p>
-              <p class="mt-1 text-sm text-slate-400">{{ astronomyTimesLine }}</p>
+              <p class="text-sm text-slate-100">{{ moonSummaryLine }}</p>
+              <button
+                type="button"
+                class="mt-2 text-xs text-slate-400 underline underline-offset-4 transition hover:text-slate-200"
+                @click="moonDetailsOpen = !moonDetailsOpen"
+              >
+                {{ moonDetailsOpen ? 'Skryť detaily' : 'Detaily' }}
+              </button>
+              <p v-if="moonDetailsOpen" class="mt-2 text-xs text-slate-400">{{ astronomyTimesLine }}</p>
               <p v-if="astronomyError" class="mt-2 text-xs text-slate-400">
                 {{ astronomyError }}
                 <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('astronomy')">Skúsiť znova</button>
@@ -144,9 +142,9 @@
             </template>
 
             <template v-else-if="sectionId === 'bortle'">
-              <p class="text-sm font-medium text-slate-100">Obloha v okolí</p>
-              <p class="mt-1 text-sm text-slate-300">{{ lightPollutionLine || 'Nedostupné' }}</p>
-              <p v-if="lightPollutionMetaLine" class="mt-1 text-xs text-slate-400">{{ lightPollutionMetaLine }}</p>
+              <p class="text-sm text-slate-100">{{ lightPollutionLine || 'Svetelné znečistenie: nedostupné' }}</p>
+              <p v-if="lightPollutionMetaLine" class="mt-1 text-sm text-slate-300">{{ lightPollutionMetaLine }}</p>
+              <p v-if="lightPollutionEstimateLine" class="mt-1 text-xs text-slate-400">{{ lightPollutionEstimateLine }}</p>
               <p v-if="lightPollutionError" class="mt-2 text-xs text-slate-400">
                 {{ lightPollutionError }}
                 <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('lightPollution')">Skúsiť znova</button>
@@ -154,25 +152,24 @@
             </template>
 
             <template v-else-if="sectionId === 'planets'">
-              <p class="text-sm font-medium text-slate-100">Planéty</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Planéty</p>
+              <p v-if="planetsContextLine" class="mt-2 text-sm text-slate-300">{{ planetsContextLine }}</p>
+
               <div v-if="shouldShowPlanetsList" class="mt-3 space-y-2">
                 <div
                   v-for="planet in planetsDisplayList"
                   :key="planet.name"
-                  class="flex items-start justify-between gap-3"
+                  class="rounded-xl border border-white/10 bg-white/5 px-3 py-3"
                 >
-                  <div class="min-w-0">
-                    <p class="text-sm text-slate-100">{{ planet.name }}</p>
-                    <p class="text-xs text-slate-400">
-                      {{ planet.direction }}
-                      <span v-if="planet.bestTimeWindow"> · {{ planet.bestTimeWindow }}</span>
-                      <span v-if="planet.horizonNote"> · {{ planet.horizonNote }}</span>
-                    </p>
-                  </div>
-                  <span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-slate-200">{{ planet.altitudeLabel }}</span>
+                  <p class="text-sm text-slate-100">
+                    {{ planet.name }} · {{ planet.direction }} · {{ planet.altitudeLabel }}
+                  </p>
+                  <p v-if="planet.bestTimeWindow" class="mt-1 text-xs text-slate-400">najlepšie: {{ planet.bestTimeWindow }}</p>
                 </div>
               </div>
+
               <p v-else class="mt-2 text-sm text-slate-300">{{ planetsMessage }}</p>
+              <p class="mt-2 text-xs text-slate-500">{{ planetsSourceLine }}</p>
               <p v-if="planetsError" class="mt-2 text-xs text-slate-400">
                 {{ planetsError }}
                 <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('planets')">Skúsiť znova</button>
@@ -180,14 +177,13 @@
             </template>
 
             <template v-else-if="sectionId === 'iss'">
-              <p class="text-sm font-medium text-slate-100">ISS</p>
-              <p class="mt-1 text-sm text-slate-300">{{ issLine }}</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">ISS</p>
+              <p class="mt-2 text-sm text-slate-300">{{ issLine }}</p>
               <p v-if="issError" class="mt-2 text-xs text-slate-400">
                 {{ issError }}
                 <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('iss')">Skúsiť znova</button>
               </p>
             </template>
-
           </div>
 
           <div v-if="editMode" class="flex shrink-0 flex-col gap-1">
@@ -218,7 +214,6 @@
 import { computed, ref, toRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import api from '@/services/api'
 import { useSkyWidget } from '@/composables/useSkyWidget'
 import { SKY_WIDGET_SECTION_IDS, moveSection } from '@/utils/skyWidget'
 
@@ -231,13 +226,10 @@ const props = defineProps({
 
 const router = useRouter()
 const auth = useAuthStore()
-const autoLocationCandidate = ref(null)
-const autoLocationLoading = ref(false)
-const autoLocationSaving = ref(false)
-const autoLocationError = ref('')
 const editMode = ref(false)
+const moonDetailsOpen = ref(false)
 const sectionOrder = ref([...SKY_WIDGET_SECTION_IDS])
-const isAdminUser = computed(() => Boolean(auth.isAdmin || auth.user?.is_admin || auth.user?.role === 'admin'))
+const isAdminUser = computed(() => Boolean(auth.isAdmin))
 
 const {
   weather,
@@ -266,9 +258,13 @@ const {
   issLine,
   lightPollutionLine,
   lightPollutionMetaLine,
+  lightPollutionEstimateLine,
   planetsDisplayList,
   planetsMessage,
+  planetsContextLine,
+  planetsSourceLine,
   shouldShowPlanetsList,
+  isDaylight,
   refreshAll,
   refreshBlock,
 } = useSkyWidget({
@@ -277,20 +273,17 @@ const {
   tz: toRef(props, 'tz'),
 })
 
-const autoLocationBusy = computed(() => autoLocationLoading.value || autoLocationSaving.value)
 const showPrimaryLoading = computed(() => (weatherLoading.value && !weather.value) || (astronomyLoading.value && !astronomy.value))
-const showAutoLocationCta = computed(() => auth.initialized && auth.isAuthed && !hasLocationCoords.value)
-const orderedSectionIds = computed(() => sectionOrder.value.filter((sectionId) => SKY_WIDGET_SECTION_IDS.includes(sectionId)))
+const orderedSectionIds = computed(() => sectionOrder.value.filter((sectionId) => {
+  if (!SKY_WIDGET_SECTION_IDS.includes(sectionId)) return false
+  if (sectionId === 'best_time' && isDaylight.value) return false
+  return true
+}))
 
 const locationLabel = computed(() => {
   const direct = sanitizeLabel(props.locationName)
   if (direct) return direct
-
-  if (autoLocationCandidate.value) {
-    return `${autoLocationCandidate.value.city}, ${autoLocationCandidate.value.country}`
-  }
-
-  return hasLocationCoords.value ? 'Presná lokalita' : 'Lokalita nie je nastavená'
+  return hasLocationCoords.value ? 'nastavená' : 'nenastavená'
 })
 
 const observingScoreValue = computed(() => (observingScore.value === null ? '--' : observingScore.value))
@@ -300,24 +293,25 @@ const sunWindowLabel = computed(() => {
   const sunrise = formatIsoShort(astronomy.value?.sunrise_at)
   const sunset = formatIsoShort(astronomy.value?.sunset_at)
   if (sunrise === '-' && sunset === '-') return 'nedostupné'
-  return `${sunrise} / ${sunset}`
+  return `${sunrise}-${sunset}`
 })
 
 const moonWindowLabel = computed(() => {
   const moonrise = formatIsoShort(astronomy.value?.moonrise_at)
   const moonset = formatIsoShort(astronomy.value?.moonset_at)
   if (moonrise === '-' && moonset === '-') return 'nedostupné'
-  return `${moonrise} / ${moonset}`
+  return `${moonrise}-${moonset}`
 })
 
 const astronomyTimesLine = computed(() => `Slnko: ${sunWindowLabel.value} · Mesiac: ${moonWindowLabel.value}`)
 const moonPhaseLabel = computed(() => translateMoonPhase(astronomy.value?.moon_phase))
+const moonPhaseIcon = computed(() => getMoonPhaseIcon(astronomy.value?.moon_phase))
 const moonIlluminationLabel = computed(() => {
   const illumination = toFiniteNumber(astronomy.value?.moon_illumination_percent)
   if (illumination === null) return '-'
   return `${Math.round(illumination)}%`
 })
-const moonLine = computed(() => `${moonPhaseLabel.value} · ${moonIlluminationLabel.value}`)
+const moonSummaryLine = computed(() => `${moonPhaseIcon.value} Mesiac: ${moonPhaseLabel.value} · ${moonIlluminationLabel.value}`)
 
 const freshnessSources = computed(() => [
   weatherFreshness.value,
@@ -362,65 +356,6 @@ function goToProfileLocation() {
   router.push('/profile/edit')
 }
 
-async function fetchAutoLocation() {
-  if (!auth.isAuthed) return
-
-  autoLocationLoading.value = true
-  autoLocationError.value = ''
-
-  try {
-    const response = await api.get('/me/location/auto', {
-      meta: { requiresAuth: true, skipErrorToast: true },
-    })
-    autoLocationCandidate.value = response?.data || null
-  } catch {
-    autoLocationCandidate.value = null
-    autoLocationError.value = 'Približná poloha je dočasne nedostupná.'
-  } finally {
-    autoLocationLoading.value = false
-  }
-}
-
-async function useApproximateLocation() {
-  if (autoLocationBusy.value || !auth.isAuthed) return
-
-  await fetchAutoLocation()
-  if (!autoLocationCandidate.value || autoLocationError.value) return
-
-  await applyAutoLocation()
-}
-
-async function applyAutoLocation() {
-  if (!autoLocationCandidate.value || !auth.isAuthed) return
-
-  autoLocationSaving.value = true
-  autoLocationError.value = ''
-
-  try {
-    const candidate = autoLocationCandidate.value
-    await api.put('/me/location', {
-      latitude: candidate.approx_lat,
-      longitude: candidate.approx_lon,
-      timezone: candidate.timezone,
-      location_label: `${candidate.city}, ${candidate.country}`,
-      location_source: 'gps',
-    }, {
-      meta: { requiresAuth: true, skipErrorToast: true },
-    })
-
-    if (typeof auth.fetchUser === 'function') {
-      await auth.fetchUser({ source: 'sky-widget-auto-location', retry: false, markBootstrap: false })
-    }
-
-    autoLocationCandidate.value = null
-    refreshAll({ silent: false })
-  } catch {
-    autoLocationError.value = 'Nepodarilo sa uložiť približnú polohu.'
-  } finally {
-    autoLocationSaving.value = false
-  }
-}
-
 function formatIsoShort(value) {
   if (!value) return '-'
   const date = new Date(value)
@@ -454,7 +389,22 @@ function translateMoonPhase(value) {
     waning_crescent: 'Ubúdajúci kosáčik',
   }
   const key = sanitizeLabel(value).toLowerCase()
-  return map[key] || 'Neznámy stav mesiaca'
+  return map[key] || 'Neznáma fáza'
+}
+
+function getMoonPhaseIcon(value) {
+  const map = {
+    new_moon: '🌑',
+    waxing_crescent: '🌒',
+    first_quarter: '🌓',
+    waxing_gibbous: '🌔',
+    full_moon: '🌕',
+    waning_gibbous: '🌖',
+    last_quarter: '🌗',
+    waning_crescent: '🌘',
+  }
+  const key = sanitizeLabel(value).toLowerCase()
+  return map[key] || '🌙'
 }
 
 function parseFreshnessMinutes(value) {
