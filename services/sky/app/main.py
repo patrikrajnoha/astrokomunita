@@ -327,12 +327,17 @@ def sky_summary(
 
     location = wgs84.latlon(latitude_degrees=lat, longitude_degrees=lon)
     observer = EARTH + location
+    sample_local = datetime.now(local_tz)
+    sample_t = ts.from_datetime(sample_local.astimezone(timezone.utc))
+    sample_sun_alt, _, _ = observer.at(sample_t).observe(SUN).apparent().altaz()
 
     moon_payload = build_moon_payload(observer=observer, location=location, local_date=local_date, local_tz=local_tz)
     planets_payload = build_planets_payload(observer=observer, local_date=local_date, local_tz=local_tz)
 
     return {
         "moon": moon_payload,
+        "sample_at": sample_local.isoformat(),
+        "sun_altitude_deg": round(float(sample_sun_alt.degrees), 1),
         "planets": planets_payload,
     }
 
@@ -473,15 +478,18 @@ def build_planets_payload(observer, local_date: date_cls, local_tz: ZoneInfo) ->
     utc_times = [dt.astimezone(timezone.utc) for dt in local_times]
     t = ts.from_datetimes(utc_times)
 
-    sun_alt, _, _ = observer.at(t).observe(SUN).apparent().altaz()
+    sun_apparent = observer.at(t).observe(SUN).apparent()
+    sun_alt, _, _ = sun_apparent.altaz()
     sun_alt_deg = np.asarray(sun_alt.degrees)
 
     visible = []
 
     for key, name, body in PLANETS:
-        alt, az, _ = observer.at(t).observe(body).apparent().altaz()
+        planet_apparent = observer.at(t).observe(body).apparent()
+        alt, az, _ = planet_apparent.altaz()
         alt_deg = np.asarray(alt.degrees)
         az_deg = np.asarray(az.degrees)
+        elongation_deg = np.asarray(planet_apparent.separation_from(sun_apparent).degrees)
 
         dark_mask = (alt_deg >= 10.0) & (sun_alt_deg < -6.0)
         fallback_mask = alt_deg >= 10.0
@@ -499,6 +507,7 @@ def build_planets_payload(observer, local_date: date_cls, local_tz: ZoneInfo) ->
 
         alt_max = float(np.max(alt_deg[segment]))
         az_at_best = float(az_deg[max_idx] % 360.0)
+        elongation_at_best = float(elongation_deg[max_idx])
 
         visible.append(
             {
@@ -509,6 +518,7 @@ def build_planets_payload(observer, local_date: date_cls, local_tz: ZoneInfo) ->
                 "direction": az_to_direction(az_at_best),
                 "alt_max_deg": round(alt_max, 1),
                 "az_at_best_deg": round(az_at_best, 1),
+                "elongation_deg": round(elongation_at_best, 1),
                 "is_low": alt_max < 15.0,
             }
         )
