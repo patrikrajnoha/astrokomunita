@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime
 
 from fastapi.testclient import TestClient
 
@@ -23,7 +24,9 @@ class SkySummaryEndpointTest(unittest.TestCase):
         self.assertEqual(200, response.status_code)
         payload = response.json()
 
-        self.assertIsInstance(payload.get("sample_at"), str)
+        sample_at = payload.get("sample_at")
+        self.assertIsInstance(sample_at, str)
+        self.assertIsNotNone(datetime.fromisoformat(sample_at).tzinfo)
         self.assertIsInstance(payload.get("sun_altitude_deg"), (int, float))
 
         planets = payload.get("planets")
@@ -33,6 +36,8 @@ class SkySummaryEndpointTest(unittest.TestCase):
         for planet in planets:
             self.assertIn("elongation_deg", planet)
             self.assertIsInstance(planet["elongation_deg"], (int, float))
+            self.assertGreaterEqual(planet["elongation_deg"], 0.0)
+            self.assertLessEqual(planet["elongation_deg"], 180.0)
 
 
 if __name__ == "__main__":
