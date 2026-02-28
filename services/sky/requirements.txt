@@ -1,0 +1,6 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+numpy==2.3.2
+skyfield==1.53
+jplephem==2.24
+sgp4==2.25

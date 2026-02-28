@@ -13,6 +13,8 @@ return [
         'weather_cache_ttl_minutes' => env('SKY_WEATHER_CACHE_TTL_MINUTES', 10),
         'astronomy_cache_ttl_hours' => env('SKY_ASTRONOMY_CACHE_TTL_HOURS', 6),
         'visible_planets_cache_ttl_minutes' => env('SKY_VISIBLE_PLANETS_CACHE_TTL_MINUTES', 10),
+        'iss_preview_cache_ttl_minutes' => env('SKY_ISS_PREVIEW_CACHE_TTL_MINUTES', 15),
+        'light_pollution_cache_ttl_hours' => env('SKY_LIGHT_POLLUTION_CACHE_TTL_HOURS', 24),
     ],
 
     'cache' => [
@@ -39,6 +41,8 @@ return [
     'providers' => [
         'usno_url' => env('USNO_ONEDAY_URL', 'https://aa.usno.navy.mil/api/rstt/oneday'),
         'open_meteo_url' => env('OPEN_METEO_FORECAST_URL', 'https://api.open-meteo.com/v1/forecast'),
+        'iss_pass_url' => env('ISS_PASS_PROVIDER_URL', 'http://api.open-notify.org/iss-pass.json'),
+        'light_pollution_url' => env('LIGHT_POLLUTION_PROVIDER_URL', ''),
         'openaq' => [
             'key' => env('OPENAQ_API_KEY'),
             'base_url' => env('OPENAQ_BASE_URL', 'https://api.openaq.org/v3'),
@@ -70,8 +74,9 @@ return [
 
     'sky_summary' => [
         'cache_ttl_minutes' => env('OBSERVING_SKY_CACHE_TTL_MINUTES', 60),
-        'microservice_base' => env('OBSERVING_SKY_MICROSERVICE_BASE', env('OBSERVING_SKY_MICROSERVICE_URL', 'http://127.0.0.1:8010')),
+        'microservice_base' => env('OBSERVING_SKY_MICROSERVICE_BASE', env('OBSERVING_SKY_MICROSERVICE_URL', 'http://sky:8010')),
         'endpoint_path' => env('OBSERVING_SKY_ENDPOINT_PATH', '/sky-summary'),
+        'iss_preview_endpoint_path' => env('OBSERVING_SKY_ISS_PREVIEW_ENDPOINT_PATH', '/iss-preview'),
         'health_path' => env('OBSERVING_SKY_HEALTH_PATH', '/health'),
         'timeout_seconds' => env('OBSERVING_SKY_TIMEOUT_SECONDS', 12),
         'retry_times' => env('OBSERVING_SKY_RETRY_TIMES', 1),

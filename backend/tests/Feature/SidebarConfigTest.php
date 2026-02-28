@@ -166,4 +166,36 @@ class SidebarConfigTest extends TestCase
                 'is_enabled' => false,
             ]);
     }
+
+    public function test_sky_scope_is_valid_and_returns_config(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->getJson('/api/admin/sidebar-config?scope=sky');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('scope', 'sky')
+            ->assertJsonCount(count(SidebarSectionRegistry::sections()), 'data');
+    }
+
+    public function test_observing_scope_is_valid_and_returns_config(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->getJson('/api/admin/sidebar-config?scope=observing');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('scope', 'observing')
+            ->assertJsonCount(count(SidebarSectionRegistry::sections()), 'data');
+    }
 }
