@@ -336,7 +336,7 @@ def sky_summary(
 
     return {
         "moon": moon_payload,
-        "sample_at": sample_local.isoformat(),
+        "sample_at": isoformat_with_timezone(sample_local),
         "sun_altitude_deg": round(float(sample_sun_alt.degrees), 1),
         "planets": planets_payload,
     }
@@ -507,7 +507,7 @@ def build_planets_payload(observer, local_date: date_cls, local_tz: ZoneInfo) ->
 
         alt_max = float(np.max(alt_deg[segment]))
         az_at_best = float(az_deg[max_idx] % 360.0)
-        elongation_at_best = float(elongation_deg[max_idx])
+        elongation_at_best = clamp_elongation_deg(float(elongation_deg[max_idx]))
 
         visible.append(
             {
@@ -724,6 +724,16 @@ def segment_containing_index(indices: np.ndarray, needle: int) -> np.ndarray:
 def az_to_direction(azimuth_deg: float) -> str:
     idx = int(((azimuth_deg % 360.0) + 22.5) // 45.0) % 8
     return DIRECTIONS[idx]
+
+
+def clamp_elongation_deg(value: float) -> float:
+    return max(0.0, min(180.0, value))
+
+
+def isoformat_with_timezone(value: datetime) -> str:
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("sample_at must include timezone information.")
+    return value.isoformat()
 
 
 def phase_name(phase_deg: float) -> str:
