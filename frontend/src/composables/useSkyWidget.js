@@ -2,6 +2,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
 import {
   getBortlePresentation,
+  isPlanetNight,
   getScorePresentation,
   getVisiblePlanets,
 } from '@/utils/skyWidget'
@@ -17,7 +18,7 @@ export function useSkyWidget(options = {}) {
 
   const weather = ref(null)
   const astronomy = ref(null)
-  const planetsPayload = ref({ planets: [] })
+  const planetsPayload = ref({ planets: [], sample_at: null, sun_altitude_deg: null })
   const issPreview = ref({ available: false })
   const lightPollution = ref(null)
 
@@ -267,10 +268,10 @@ export function useSkyWidget(options = {}) {
   const planetCandidates = computed(() => (
     Array.isArray(planetsPayload.value?.planets) ? planetsPayload.value.planets : []
   ))
+  const planetsNight = computed(() => isPlanetNight(planetsPayload.value?.sun_altitude_deg))
 
   const planetsDisplayList = computed(() => {
-    if (isDaylight.value) return []
-    return getVisiblePlanets(planetCandidates.value)
+    return getVisiblePlanets(planetsPayload.value)
   })
 
   const shouldShowPlanetsList = computed(() => planetsDisplayList.value.length > 0)
@@ -291,6 +292,32 @@ export function useSkyWidget(options = {}) {
     }
 
     if (planetsDisplayList.value.length === 0) {
+      return 'Teraz nevidno žiadnu planétu dosť vysoko.'
+    }
+
+    return ''
+  })
+
+  const planetsNightV15 = computed(() => isPlanetNight(planetsPayload.value?.sun_altitude_deg))
+  const planetsDisplayListV15 = computed(() => getVisiblePlanets(planetsPayload.value))
+  const shouldShowPlanetsListV15 = computed(() => planetsDisplayListV15.value.length > 0)
+  const planetsContextLineV15 = computed(() => '')
+  const planetsMessageV15 = computed(() => {
+    const reason = sanitizeLabel(planetsPayload.value?.reason)
+
+    if (reason === 'sky_service_unavailable') {
+      return 'Planéty sú teraz nedostupné.'
+    }
+
+    if (reason === 'degraded_contract') {
+      return 'Planéty sú dočasne nedostupné.'
+    }
+
+    if (!planetsNightV15.value) {
+      return 'Zobrazíme po zotmení.'
+    }
+
+    if (planetsDisplayListV15.value.length === 0) {
       return 'Teraz nevidno žiadnu planétu dosť vysoko.'
     }
 
@@ -580,11 +607,11 @@ export function useSkyWidget(options = {}) {
     lightPollutionEstimateLine,
     isLightPollutionEstimate,
     planetCandidates,
-    planetsDisplayList,
-    planetsMessage,
-    planetsContextLine,
+    planetsDisplayList: planetsDisplayListV15,
+    planetsMessage: planetsMessageV15,
+    planetsContextLine: planetsContextLineV15,
     planetsSourceLine,
-    shouldShowPlanetsList,
+    shouldShowPlanetsList: shouldShowPlanetsListV15,
     isDaylight,
     isAstronomicalNight,
     isTwilightLimited,

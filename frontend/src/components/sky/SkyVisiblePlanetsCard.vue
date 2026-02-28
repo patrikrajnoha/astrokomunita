@@ -13,41 +13,37 @@
     </div>
 
     <div v-else class="body">
-      <div v-if="sortedPlanets.length === 0" class="emptyState">
+      <div v-if="!isNight" class="emptyState">
+        <p>Zobrazíme po zotmení.</p>
+      </div>
+
+      <div v-else-if="visiblePlanets.length === 0" class="emptyState">
         <p v-if="reason === 'sky_service_unavailable'">Udaje o planetach su docasne nedostupne.</p>
-        <p v-else>Momentalne nie su nad horizontom.</p>
+        <p v-else-if="reason === 'degraded_contract'">Udaje o planetach maju docasne nekompletny kontrakt.</p>
+        <p v-else>Momentalne nie su vhodne podmienky na pozorovanie planet.</p>
       </div>
 
       <ul v-else class="planetList">
-        <li v-for="planet in sortedPlanets" :key="planet.name" class="planetItem">
+        <li v-for="planet in visiblePlanets" :key="planet.name" class="planetItem">
           <div class="planetMain">
             <div class="min-w-0">
               <div class="flex items-center gap-2">
                 <strong>{{ planet.name }}</strong>
                 <span
-                  v-if="qualityBadge(planet.quality)"
-                  :class="qualityBadge(planet.quality).class"
+                  v-if="planet.visibilityLabel"
+                  :class="['inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium', planet.visibilityToneClass]"
                 >
-                  {{ qualityBadge(planet.quality).label }}
+                  {{ planet.visibilityLabel }}
                 </span>
               </div>
-              <p v-if="planet.magnitude !== undefined && planet.magnitude !== null" class="mt-1 text-xs text-slate-400">
-                Magnituda: {{ planet.magnitude }}
-              </p>
             </div>
             <span>{{ planet.direction }}</span>
           </div>
           <div class="planetMeta">
-            <span>Alt: {{ formatDeg(planet.altitude_deg) }}</span>
-            <span>Az: {{ formatDeg(planet.azimuth_deg) }}</span>
-            <span v-if="planet.best_time_window">Best: {{ planet.best_time_window }}</span>
+            <span>Alt: {{ planet.altitudeLabel }}</span>
+            <span>Elong: {{ planet.elongationLabel }}</span>
+            <span v-if="planet.bestTimeWindow">Best: {{ planet.bestTimeWindow }}</span>
           </div>
-          <p
-            v-if="planet.quality === 'low'"
-            class="rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-xs text-amber-200"
-          >
-            Planeta je nizko nad horizontom, viditelnost moze byt obmedzena.
-          </p>
         </li>
       </ul>
     </div>
@@ -57,6 +53,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import api from '@/services/api'
+import { getVisiblePlanets, isPlanetNight } from '@/utils/skyWidget'
 
 const props = defineProps({
   lat: { type: [Number, String], default: null },
@@ -66,14 +63,11 @@ const props = defineProps({
 
 const loading = ref(false)
 const error = ref('')
-const planetsPayload = ref({ planets: [] })
+const planetsPayload = ref({ planets: [], sample_at: null, sun_altitude_deg: null })
 
-const sortedPlanets = computed(() => {
-  const rows = Array.isArray(planetsPayload.value?.planets) ? planetsPayload.value.planets : []
-  return [...rows].sort((a, b) => Number(b?.altitude_deg || 0) - Number(a?.altitude_deg || 0))
-})
-
+const visiblePlanets = computed(() => getVisiblePlanets(planetsPayload.value))
 const reason = computed(() => String(planetsPayload.value?.reason || ''))
+const isNight = computed(() => isPlanetNight(planetsPayload.value?.sun_altitude_deg))
 
 const toNumber = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -108,40 +102,12 @@ const fetchPlanets = async () => {
       params: requestParams(),
       meta: { skipErrorToast: true },
     })
-    planetsPayload.value = response?.data || { planets: [] }
+    planetsPayload.value = response?.data || { planets: [], sample_at: null, sun_altitude_deg: null }
   } catch (err) {
-    planetsPayload.value = { planets: [] }
+    planetsPayload.value = { planets: [], sample_at: null, sun_altitude_deg: null }
     error.value = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa nacitat planety.'
   } finally {
     loading.value = false
-  }
-}
-
-const formatDeg = (value) => {
-  const parsed = Number(value)
-  if (!Number.isFinite(parsed)) return '-'
-  return `${parsed.toFixed(1)}deg`
-}
-
-const qualityBadge = (quality) => {
-  switch (String(quality || '').toLowerCase()) {
-    case 'excellent':
-      return {
-        label: 'Vyborne',
-        class: 'inline-flex rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300',
-      }
-    case 'good':
-      return {
-        label: 'Dobre',
-        class: 'inline-flex rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-medium text-sky-300',
-      }
-    case 'low':
-      return {
-        label: 'Nizko nad horizontom',
-        class: 'inline-flex rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-300',
-      }
-    default:
-      return null
   }
 }
 

@@ -2,11 +2,11 @@
   <section class="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur">
     <header class="flex items-start justify-between gap-3">
       <div class="min-w-0">
-        <h3 class="text-sm font-semibold text-slate-100">Astronomické podmienky</h3>
+        <h3 class="text-sm font-semibold text-slate-100">Astronomicke podmienky</h3>
         <button
           type="button"
-          class="mt-1 max-w-full cursor-pointer truncate text-left text-sm text-slate-300/80 underline-offset-4 transition hover:underline hover:text-slate-100"
-          title="Zmeniť lokalitu"
+          class="mt-1 max-w-full cursor-pointer truncate text-left text-sm text-slate-300/80 underline-offset-4 transition hover:text-slate-100 hover:underline"
+          title="Zmenit lokalitu"
           @click="goToProfileLocation"
         >
           Poloha: {{ locationLabel }}
@@ -17,7 +17,7 @@
           class="mt-3 inline-flex rounded-xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
           @click="goToProfileLocation"
         >
-          Nastaviť polohu
+          Nastavit polohu
         </button>
       </div>
 
@@ -34,7 +34,7 @@
           type="button"
           data-testid="sky-widget-reorder-toggle"
           class="flex h-8 w-8 items-center justify-center rounded-full text-slate-200 transition hover:bg-white/10"
-          :title="editMode ? 'Ukončiť úpravu widgetu' : 'Upraviť poradie sekcií'"
+          :title="editMode ? 'Ukoncit upravu widgetu' : 'Upravit poradie sekcii'"
           @click="toggleEditMode"
         >
           <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -46,7 +46,7 @@
         <button
           type="button"
           class="flex h-8 w-8 items-center justify-center rounded-full text-slate-200 transition hover:bg-white/10"
-          title="Obnoviť"
+          title="Obnovit"
           @click="refreshAll"
         >
           <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -94,19 +94,19 @@
             </template>
 
             <template v-else-if="sectionId === 'best_time'">
-              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Najlepšie dnes</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Najlepsie dnes</p>
               <p class="mt-2 text-sm text-slate-300">{{ bestTimeLabel }}</p>
             </template>
 
             <template v-else-if="sectionId === 'weather_inline'">
-              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Počasie teraz</p>
+              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Pocasie teraz</p>
               <div class="mt-3 grid grid-cols-4 gap-2 text-center">
                 <div>
                   <p class="text-[10px] uppercase tracking-wide text-slate-500">Oblaky</p>
                   <p class="mt-1 text-sm font-medium text-slate-100">{{ formattedMetrics.cloud }}</p>
                 </div>
                 <div>
-                  <p class="text-[10px] uppercase tracking-wide text-slate-500">Vlhkosť</p>
+                  <p class="text-[10px] uppercase tracking-wide text-slate-500">Vlhkost</p>
                   <p class="mt-1 text-sm font-medium text-slate-100">{{ formattedMetrics.humidity }}</p>
                 </div>
                 <div>
@@ -121,7 +121,7 @@
               <p class="mt-2 text-sm text-slate-300">{{ formattedMetrics.conditionLabel }}</p>
               <p v-if="weatherError" class="mt-2 text-xs text-slate-400">
                 {{ weatherError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('weather')">Skúsiť znova</button>
+                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('weather')">Skusit znova</button>
               </p>
             </template>
 
@@ -132,22 +132,22 @@
                 class="mt-2 text-xs text-slate-400 underline underline-offset-4 transition hover:text-slate-200"
                 @click="moonDetailsOpen = !moonDetailsOpen"
               >
-                {{ moonDetailsOpen ? 'Skryť detaily' : 'Detaily' }}
+                {{ moonDetailsOpen ? 'Skryt detaily' : 'Detaily' }}
               </button>
               <p v-if="moonDetailsOpen" class="mt-2 text-xs text-slate-400">{{ astronomyTimesLine }}</p>
               <p v-if="astronomyError" class="mt-2 text-xs text-slate-400">
                 {{ astronomyError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('astronomy')">Skúsiť znova</button>
+                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('astronomy')">Skusit znova</button>
               </p>
             </template>
 
             <template v-else-if="sectionId === 'bortle'">
-              <p class="text-sm text-slate-100">{{ lightPollutionLine || 'Svetelné znečistenie: nedostupné' }}</p>
+              <p class="text-sm text-slate-100">{{ lightPollutionLine || 'Svetelne znecistenie: nedostupne' }}</p>
               <p v-if="lightPollutionMetaLine" class="mt-1 text-sm text-slate-300">{{ lightPollutionMetaLine }}</p>
               <p v-if="lightPollutionEstimateLine" class="mt-1 text-xs text-slate-400">{{ lightPollutionEstimateLine }}</p>
               <p v-if="lightPollutionError" class="mt-2 text-xs text-slate-400">
                 {{ lightPollutionError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('lightPollution')">Skúsiť znova</button>
+                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('lightPollution')">Skusit znova</button>
               </p>
             </template>
 
@@ -161,10 +161,21 @@
                   :key="planet.name"
                   class="rounded-xl border border-white/10 bg-white/5 px-3 py-3"
                 >
-                  <p class="text-sm text-slate-100">
-                    {{ planet.name }} · {{ planet.direction }} · {{ planet.altitudeLabel }}
-                  </p>
-                  <p v-if="planet.bestTimeWindow" class="mt-1 text-xs text-slate-400">najlepšie: {{ planet.bestTimeWindow }}</p>
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-sm text-slate-100">
+                        {{ planet.name }} · {{ planet.direction }} · {{ planet.altitudeLabel }}
+                      </p>
+                      <p class="mt-1 text-xs text-slate-400">elongácia: {{ planet.elongationLabel }}</p>
+                      <p v-if="planet.bestTimeWindow" class="mt-1 text-xs text-slate-400">najlepšie: {{ planet.bestTimeWindow }}</p>
+                    </div>
+                    <span
+                      class="shrink-0 rounded-full border px-2 py-1 text-[10px] font-medium"
+                      :class="planet.visibilityToneClass"
+                    >
+                      {{ planet.visibilityLabel }}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -172,7 +183,7 @@
               <p class="mt-2 text-xs text-slate-500">{{ planetsSourceLine }}</p>
               <p v-if="planetsError" class="mt-2 text-xs text-slate-400">
                 {{ planetsError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('planets')">Skúsiť znova</button>
+                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('planets')">Skusit znova</button>
               </p>
             </template>
 
@@ -181,7 +192,7 @@
               <p class="mt-2 text-sm text-slate-300">{{ issLine }}</p>
               <p v-if="issError" class="mt-2 text-xs text-slate-400">
                 {{ issError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('iss')">Skúsiť znova</button>
+                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('iss')">Skusit znova</button>
               </p>
             </template>
           </div>
@@ -283,7 +294,7 @@ const orderedSectionIds = computed(() => sectionOrder.value.filter((sectionId) =
 const locationLabel = computed(() => {
   const direct = sanitizeLabel(props.locationName)
   if (direct) return direct
-  return hasLocationCoords.value ? 'nastavená' : 'nenastavená'
+  return hasLocationCoords.value ? 'nastavena' : 'nenastavena'
 })
 
 const observingScoreValue = computed(() => (observingScore.value === null ? '--' : observingScore.value))
@@ -292,14 +303,14 @@ const observingScoreWidth = computed(() => (observingScore.value === null ? 0 : 
 const sunWindowLabel = computed(() => {
   const sunrise = formatIsoShort(astronomy.value?.sunrise_at)
   const sunset = formatIsoShort(astronomy.value?.sunset_at)
-  if (sunrise === '-' && sunset === '-') return 'nedostupné'
+  if (sunrise === '-' && sunset === '-') return 'nedostupne'
   return `${sunrise}-${sunset}`
 })
 
 const moonWindowLabel = computed(() => {
   const moonrise = formatIsoShort(astronomy.value?.moonrise_at)
   const moonset = formatIsoShort(astronomy.value?.moonset_at)
-  if (moonrise === '-' && moonset === '-') return 'nedostupné'
+  if (moonrise === '-' && moonset === '-') return 'nedostupne'
   return `${moonrise}-${moonset}`
 })
 
@@ -328,8 +339,8 @@ const globalFreshnessLabel = computed(() => {
     .sort((a, b) => a - b)
 
   if (minutes.length === 0) return ''
-  if (minutes[0] <= 0) return 'Aktualizované práve teraz'
-  return `Aktualizované pred ${minutes[0]} min`
+  if (minutes[0] <= 0) return 'Aktualizovane prave teraz'
+  return `Aktualizovane pred ${minutes[0]} min`
 })
 
 function retryBlock(blockName) {
@@ -380,16 +391,16 @@ function sanitizeLabel(value) {
 function translateMoonPhase(value) {
   const map = {
     new_moon: 'Nov',
-    waxing_crescent: 'Dorastajúci kosáčik',
-    first_quarter: 'Prvá štvrť',
-    waxing_gibbous: 'Dorastajúci mesiac',
+    waxing_crescent: 'Dorastajuci kosacik',
+    first_quarter: 'Prva stvrt',
+    waxing_gibbous: 'Dorastajuci mesiac',
     full_moon: 'Spln',
-    waning_gibbous: 'Ubúdajúci mesiac',
-    last_quarter: 'Posledná štvrť',
-    waning_crescent: 'Ubúdajúci kosáčik',
+    waning_gibbous: 'Ubudajuci mesiac',
+    last_quarter: 'Posledna stvrt',
+    waning_crescent: 'Ubudajuci kosacik',
   }
   const key = sanitizeLabel(value).toLowerCase()
-  return map[key] || 'Neznáma fáza'
+  return map[key] || 'Neznama faza'
 }
 
 function getMoonPhaseIcon(value) {
@@ -410,7 +421,7 @@ function getMoonPhaseIcon(value) {
 function parseFreshnessMinutes(value) {
   const text = sanitizeLabel(value).toLowerCase()
   if (!text) return null
-  if (text.includes('práve teraz')) return 0
+  if (text.includes('prave teraz')) return 0
   const match = text.match(/pred\s+(\d+)\s+min/)
   if (!match) return null
   const parsed = Number(match[1])
