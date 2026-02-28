@@ -409,6 +409,7 @@ export function useSkyWidget(options = {}) {
       planetsFetchedAt.value = new Date()
     } catch (error) {
       if (token !== requestTokens.planets) return
+      planetsPayload.value = { planets: [], sample_at: null, sun_altitude_deg: null }
       planetsError.value = toFriendlyError(error, 'Nepodarilo sa načítať planéty.')
     } finally {
       if (token === requestTokens.planets && !options.silent) {
