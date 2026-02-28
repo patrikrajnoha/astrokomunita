@@ -18,7 +18,8 @@ class SkyAlertsCommandTest extends TestCase
 
     public function test_command_sends_iss_and_good_conditions_alerts_with_dedupe(): void
     {
-        CarbonImmutable::setTestNow('2026-03-01 17:05:00Z');
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-03-01 20:05:00', 'Europe/Bratislava'));
+        config()->set('observing.sky_summary.microservice_base', 'http://sky.test');
 
         $user = User::factory()->create([
             'latitude' => 48.1486,
@@ -37,14 +38,15 @@ class SkyAlertsCommandTest extends TestCase
         $issRise = CarbonImmutable::now('UTC')->addMinutes(8)->timestamp;
 
         Http::fake([
-            'http://api.open-notify.org/iss-pass.json*' => Http::response([
-                'message' => 'success',
-                'response' => [
-                    [
-                        'duration' => 420,
-                        'risetime' => $issRise,
-                    ],
-                ],
+            'http://sky.test/iss-preview*' => Http::response([
+                'available' => true,
+                'next_pass_at' => CarbonImmutable::createFromTimestampUTC($issRise)
+                    ->setTimezone('Europe/Bratislava')
+                    ->toIso8601String(),
+                'duration_sec' => 420,
+                'max_altitude_deg' => 41.3,
+                'direction_start' => 'W',
+                'direction_end' => 'E',
             ], 200),
             'https://api.open-meteo.com/*' => Http::response($this->openMeteoGoodWeatherPayload(), 200),
         ]);

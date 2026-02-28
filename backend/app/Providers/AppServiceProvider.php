@@ -128,6 +128,35 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(1)->by('me-export|' . $userId . '|' . $request->ip());
         });
+
+        RateLimiter::for('sky-cheap-auth', function (Request $request) {
+            $userId = $this->resolveSkyThrottleUserId($request);
+
+            return Limit::perMinute(60)
+                ->by('sky-cheap-auth|' . $userId);
+        });
+
+        RateLimiter::for('sky-expensive-auth', function (Request $request) {
+            $userId = $this->resolveSkyThrottleUserId($request);
+
+            return Limit::perMinute(20)
+                ->by('sky-expensive-auth|' . $userId);
+        });
+
+        RateLimiter::for('sky-cheap-guest', function (Request $request) {
+            return Limit::perMinute(30)
+                ->by('sky-cheap-guest|' . $request->ip());
+        });
+
+        RateLimiter::for('sky-expensive-guest', function (Request $request) {
+            return Limit::perMinute(10)
+                ->by('sky-expensive-guest|' . $request->ip());
+        });
+    }
+
+    private function resolveSkyThrottleUserId(Request $request): string
+    {
+        return (string) ($request->user('sanctum')?->id ?? $request->user()?->id ?? 'guest');
     }
 
     private function logTranslationEnvAliasUsage(): void

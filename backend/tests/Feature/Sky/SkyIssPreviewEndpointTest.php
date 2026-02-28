@@ -14,16 +14,16 @@ class SkyIssPreviewEndpointTest extends TestCase
     public function test_it_returns_iss_preview_payload_shape(): void
     {
         Cache::flush();
+        config()->set('observing.sky_summary.microservice_base', 'http://sky.test');
 
         Http::fake([
-            'http://api.open-notify.org/iss-pass.json*' => Http::response([
-                'message' => 'success',
-                'response' => [
-                    [
-                        'duration' => 420,
-                        'risetime' => 1772408400,
-                    ],
-                ],
+            'http://sky.test/iss-preview*' => Http::response([
+                'available' => true,
+                'next_pass_at' => '2026-02-28T19:20:00+01:00',
+                'duration_sec' => 420,
+                'max_altitude_deg' => 41.3,
+                'direction_start' => 'W',
+                'direction_end' => 'E',
             ], 200),
         ]);
 
@@ -47,20 +47,25 @@ class SkyIssPreviewEndpointTest extends TestCase
     public function test_it_caches_iss_preview_payload(): void
     {
         Cache::flush();
+        config()->set('observing.sky_summary.microservice_base', 'http://sky.test');
 
         Http::fake([
-            'http://api.open-notify.org/iss-pass.json*' => Http::sequence()
+            'http://sky.test/iss-preview*' => Http::sequence()
                 ->push([
-                    'message' => 'success',
-                    'response' => [
-                        ['duration' => 400, 'risetime' => 1772408400],
-                    ],
+                    'available' => true,
+                    'next_pass_at' => '2026-02-28T19:20:00+01:00',
+                    'duration_sec' => 400,
+                    'max_altitude_deg' => 39.5,
+                    'direction_start' => 'W',
+                    'direction_end' => 'E',
                 ], 200)
                 ->push([
-                    'message' => 'success',
-                    'response' => [
-                        ['duration' => 120, 'risetime' => 1772409000],
-                    ],
+                    'available' => true,
+                    'next_pass_at' => '2026-02-28T19:30:00+01:00',
+                    'duration_sec' => 120,
+                    'max_altitude_deg' => 20.1,
+                    'direction_start' => 'NW',
+                    'direction_end' => 'SE',
                 ], 200),
         ]);
 
@@ -74,9 +79,10 @@ class SkyIssPreviewEndpointTest extends TestCase
     public function test_it_returns_available_false_when_provider_fails(): void
     {
         Cache::flush();
+        config()->set('observing.sky_summary.microservice_base', 'http://sky.test');
 
         Http::fake([
-            'http://api.open-notify.org/iss-pass.json*' => Http::response(['message' => 'failure'], 503),
+            'http://sky.test/iss-preview*' => Http::response(['message' => 'failure'], 503),
         ]);
 
         $this->getJson('/api/sky/iss-preview?lat=48.1486&lon=17.1077&tz=Europe/Bratislava')

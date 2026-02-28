@@ -36,15 +36,21 @@ class SkyAstronomyService
         try {
             $skyPayload = $this->skyMicroserviceClient->fetch($lat, $lon, $localDate, $tz);
             $moonPayload = is_array($skyPayload['moon'] ?? null) ? $skyPayload['moon'] : null;
-            $moonrise = $this->toIso8601($localDate, $moonPayload['rise_local'] ?? null, $tz);
-            $moonset = $this->toIso8601($localDate, $moonPayload['set_local'] ?? null, $tz);
+            $moonrise = $this->normalizeOptionalIso8601(
+                $this->toIso8601($localDate, $moonPayload['rise_local'] ?? null, $tz)
+            );
+            $moonset = $this->normalizeOptionalIso8601(
+                $this->toIso8601($localDate, $moonPayload['set_local'] ?? null, $tz)
+            );
         } catch (\Throwable) {
             // Moonrise/moonset are optional; keep them null when microservice is unavailable.
         }
 
-        $sunrise = $this->toIso8601($localDate, $sunMoon['sunrise'] ?? null, $tz);
-        $sunset = $this->toIso8601($localDate, $sunMoon['sunset'] ?? null, $tz);
-        $civilTwilightEnd = $this->toIso8601($localDate, $sunMoon['civil_twilight_end'] ?? null, $tz);
+        $sunrise = $this->normalizeOptionalIso8601($this->toIso8601($localDate, $sunMoon['sunrise'] ?? null, $tz));
+        $sunset = $this->normalizeOptionalIso8601($this->toIso8601($localDate, $sunMoon['sunset'] ?? null, $tz));
+        $civilTwilightEnd = $this->normalizeOptionalIso8601(
+            $this->toIso8601($localDate, $sunMoon['civil_twilight_end'] ?? null, $tz)
+        );
         $moonPhase = $this->normalizeMoonPhase($sunMoon['phase_name'] ?? null);
         $illumination = $this->normalizeIllumination($sunMoon['fracillum'] ?? null);
 
@@ -114,5 +120,16 @@ class SkyAstronomyService
         }
 
         return $local->toIso8601String();
+    }
+
+    private function normalizeOptionalIso8601(?string $value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed !== '' ? $trimmed : null;
     }
 }

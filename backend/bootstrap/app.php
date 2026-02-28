@@ -15,6 +15,7 @@ use App\Support\ApiResponse;
 use App\Http\Middleware\IsAdmin;
 use App\Http\Middleware\EnsureUserActive;
 use App\Http\Middleware\EnsureEmailIsVerifiedOrAdmin;
+use App\Http\Middleware\SkyThrottle;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -38,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => IsAdmin::class,
             'active' => EnsureUserActive::class,
             'verified' => EnsureEmailIsVerifiedOrAdmin::class,
+            'sky.throttle' => SkyThrottle::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
