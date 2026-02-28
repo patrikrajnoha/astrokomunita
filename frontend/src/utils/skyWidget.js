@@ -8,6 +8,9 @@ export const SKY_WIDGET_SECTION_IDS = [
   'iss',
 ]
 
+export const VISIBLE_ALT_MIN = 10
+export const LOW_ALT_MIN = 5
+
 export function moveSection(sectionIds, sectionId, direction) {
   const list = Array.isArray(sectionIds) ? [...sectionIds] : [...SKY_WIDGET_SECTION_IDS]
   const index = list.indexOf(sectionId)
@@ -26,28 +29,58 @@ export function getScorePresentation(score) {
     return { label: 'Nedostupné', emoji: '😐' }
   }
 
-  if (score < 40) {
-    return { label: 'Zlé', emoji: '🙁' }
+  if (score >= 80) {
+    return { label: 'Výborné', emoji: '😄' }
   }
 
-  if (score < 65) {
-    return { label: 'Priemerné', emoji: '😐' }
-  }
-
-  if (score < 85) {
+  if (score >= 60) {
     return { label: 'Dobré', emoji: '🙂' }
   }
 
-  return { label: 'Výborné', emoji: '😄' }
+  if (score >= 40) {
+    return { label: 'Priemerné', emoji: '😐' }
+  }
+
+  return { label: 'Slabé', emoji: '☹️' }
 }
 
-export function getVisiblePlanets(planets, minimumAltitude = 5) {
+export function getBortlePresentation(bortle) {
+  const numeric = toFiniteNumber(bortle)
+  if (numeric === null) return null
+
+  const normalized = Math.max(1, Math.min(9, Math.round(numeric)))
+
+  if (normalized <= 2) {
+    return { levelText: 'veľmi tmavé', contextText: 'divočina / vysoké hory', bortle: normalized }
+  }
+
+  if (normalized <= 4) {
+    return { levelText: 'tmavé', contextText: 'vidiek', bortle: normalized }
+  }
+
+  if (normalized <= 6) {
+    return { levelText: 'stredné', contextText: 'predmestie', bortle: normalized }
+  }
+
+  if (normalized === 7) {
+    return { levelText: 'vysoké', contextText: 'mesto', bortle: normalized }
+  }
+
+  return { levelText: 'veľmi vysoké', contextText: 'centrum veľkého mesta', bortle: normalized }
+}
+
+export function getVisiblePlanets(planets, options = {}) {
   if (!Array.isArray(planets)) return []
+
+  const visibleAltMin = Number.isFinite(options.visibleAltMin) ? options.visibleAltMin : VISIBLE_ALT_MIN
+  const lowAltMin = Number.isFinite(options.lowAltMin) ? options.lowAltMin : LOW_ALT_MIN
 
   return planets
     .map((planet) => {
       const altitude = toFiniteNumber(planet?.altitude_deg)
-      if (altitude === null || altitude < minimumAltitude) return null
+      if (altitude === null || altitude < lowAltMin) return null
+
+      const isVisible = altitude >= visibleAltMin
 
       return {
         name: sanitizeLabel(planet?.name) || 'Planéta',
@@ -55,7 +88,8 @@ export function getVisiblePlanets(planets, minimumAltitude = 5) {
         bestTimeWindow: sanitizeLabel(planet?.best_time_window) || '',
         altitude,
         altitudeLabel: `${Math.round(altitude)}°`,
-        horizonNote: altitude < 15 ? 'nízko nad horizontom' : '',
+        visibilityLabel: isVisible ? 'viditeľná' : 'nízko nad obzorom',
+        isVisible,
       }
     })
     .filter(Boolean)
