@@ -287,6 +287,7 @@ const scopeTabs = [
   { value: SIDEBAR_SCOPE.NOTIFICATIONS, label: 'Notifications' },
   { value: SIDEBAR_SCOPE.POST_DETAIL, label: 'Post detail' },
   { value: SIDEBAR_SCOPE.PROFILE, label: 'Profile' },
+  { value: SIDEBAR_SCOPE.SETTINGS, label: 'Settings' },
   { value: SIDEBAR_SCOPE.SKY, label: 'Sky' },
   { value: SIDEBAR_SCOPE.OBSERVING, label: 'Observing' },
 ]

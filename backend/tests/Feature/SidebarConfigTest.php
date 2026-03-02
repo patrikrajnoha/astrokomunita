@@ -236,6 +236,22 @@ class SidebarConfigTest extends TestCase
             ->assertJsonCount(count(SidebarSectionRegistry::sections()), 'data');
     }
 
+    public function test_settings_scope_is_valid_and_returns_config(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->getJson('/api/admin/sidebar-config?scope=settings');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('scope', 'settings')
+            ->assertJsonCount(count(SidebarSectionRegistry::sections()), 'data');
+    }
+
     public function test_observing_scope_is_valid_and_returns_config(): void
     {
         $admin = User::factory()->create([

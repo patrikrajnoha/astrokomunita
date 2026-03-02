@@ -119,8 +119,9 @@ describe('RightObservingSidebar', () => {
     vi.useRealTimers()
   })
 
-  it('maps event and observing routes to the right sidebar scopes', () => {
+  it('maps event, settings and observing routes to the right sidebar scopes', () => {
     expect(resolveSidebarScopeFromPath('/events')).toBe('events')
+    expect(resolveSidebarScopeFromPath('/settings')).toBe('settings')
     expect(resolveSidebarScopeFromPath('/observations')).toBe('observing')
     expect(resolveSidebarScopeFromPath('/observing/sky-summary')).toBe('observing')
     expect(resolveSidebarScopeFromPath('/unknown-route')).toBeNull()
