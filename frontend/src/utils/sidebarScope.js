@@ -47,6 +47,10 @@ export function resolveSidebarScopeFromPath(path) {
     return SIDEBAR_SCOPE.NOTIFICATIONS
   }
 
+  if (normalized.startsWith('/settings')) {
+    return SIDEBAR_SCOPE.SETTINGS
+  }
+
   if (normalized.startsWith('/sky')) {
     return SIDEBAR_SCOPE.SKY
   }
