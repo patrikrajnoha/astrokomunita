@@ -367,10 +367,14 @@ onMounted(() => {
 :deep(.adminPageShell__title) {
   margin: 0;
   font-family:
-    'Inter',
+    'InterVariable',
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
+    Roboto,
+    'Liberation Sans',
+    Helvetica,
+    Arial,
     sans-serif;
   font-size: clamp(1.65rem, 2.4vw, 2rem);
   font-weight: 600;
@@ -399,10 +403,14 @@ onMounted(() => {
   display: grid;
   gap: var(--dashboard-gap-md);
   font-family:
-    'Inter',
+    'InterVariable',
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
+    Roboto,
+    'Liberation Sans',
+    Helvetica,
+    Arial,
     sans-serif;
 }
 
@@ -485,10 +493,14 @@ onMounted(() => {
 .settingsLabel {
   margin: 0;
   font-family:
-    'Inter',
+    'InterVariable',
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
+    Roboto,
+    'Liberation Sans',
+    Helvetica,
+    Arial,
     sans-serif;
   font-size: 14px;
   font-weight: 600;

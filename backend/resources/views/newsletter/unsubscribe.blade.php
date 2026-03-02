@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Newsletter</title>
 </head>
-<body style="margin:0;padding:0;background:#0b1220;color:#e5ecff;font-family:Arial,Helvetica,sans-serif;">
+<body style="margin:0;padding:0;background:#0b1220;color:#e5ecff;font-family:InterVariable,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Liberation Sans',Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;background:#0b1220;">
     <tr>
       <td align="center">
@@ -37,4 +37,3 @@
   </table>
 </body>
 </html>
-
