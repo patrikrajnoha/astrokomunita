@@ -174,7 +174,16 @@
           </div>
 
           <div v-else-if="!tabState[activeTab].loading && tabState[activeTab].items.length === 0" class="muted padTop">
-            Zatial ziadny obsah.
+            {{ activeTab === 'events' ? 'Zatiaľ nesleduješ žiadne udalosti.' : 'Zatial ziadny obsah.' }}
+          </div>
+
+          <div v-else-if="activeTab === 'events'" class="eventGrid">
+            <ProfileEventCard
+              v-for="eventItem in tabState.events.items"
+              :key="eventItem.id"
+              :event="eventItem"
+              @open="openFollowedEvent"
+            />
           </div>
 
           <div v-else class="postList">
@@ -260,13 +269,17 @@
 import { computed, reactive, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useEventFollowsStore } from '@/stores/eventFollows'
 import http from '@/services/api'
 import api from '@/services/api'
 import { useConfirm } from '@/composables/useConfirm'
+import ProfileEventCard from '@/components/profile/ProfileEventCard.vue'
+import { EVENT_TIMEZONE, formatEventDate, formatEventDateKey } from '@/utils/eventTime'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const eventFollows = useEventFollowsStore()
 const { confirm } = useConfirm()
 
 const tabs = [
@@ -421,23 +434,34 @@ function openAttachedEvent(post) {
   router.push(`/events/${eventId}`)
 }
 
-function parseEventDate(value) {
-  if (!value) return null
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
+function openFollowedEvent(event) {
+  const eventId = Number(event?.id || 0)
+  if (!Number.isInteger(eventId) || eventId <= 0) return
+  router.push(`/events/${eventId}`)
 }
 
 function formatEventRange(startAt, endAt) {
-  const start = parseEventDate(startAt)
-  const end = parseEventDate(endAt)
+  const startLabel = formatShortEventDate(startAt, true)
+  const endLabel = formatShortEventDate(endAt, true)
 
-  if (!start && !end) return 'Datum upresnime'
-  if (start && !end) return start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
-  if (!start && end) return end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
+  if (!startLabel && !endLabel) return 'Datum upresnime'
+  if (startLabel && !endLabel) return startLabel
+  if (!startLabel && endLabel) return endLabel
 
-  const startLabel = start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
-  const endLabel = end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
-  return startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`
+  const sameDay = formatEventDateKey(startAt, EVENT_TIMEZONE) === formatEventDateKey(endAt, EVENT_TIMEZONE)
+  return sameDay ? startLabel : `${startLabel} - ${endLabel}`
+}
+
+function formatShortEventDate(value, includeYear = false) {
+  if (!value) return ''
+
+  const label = formatEventDate(value, EVENT_TIMEZONE, {
+    day: '2-digit',
+    month: 'short',
+    ...(includeYear ? { year: 'numeric' } : {}),
+  })
+
+  return label === '-' ? '' : label
 }
 
 function parentHandle(post) {
@@ -731,7 +755,13 @@ async function loadTab(key, reset = true) {
       return
     }
 
-    const url = reset ? (tab.kind === 'bookmarks' ? '/me/bookmarks' : '/posts') : state.next
+    const url = reset
+      ? tab.kind === 'bookmarks'
+        ? '/me/bookmarks'
+        : tab.kind === 'events'
+          ? '/me/followed-events'
+          : '/posts'
+      : state.next
     if (!url) return
 
     const { data } = await http.get(url, {
@@ -739,6 +769,8 @@ async function loadTab(key, reset = true) {
         reset
           ? tab.kind === 'bookmarks'
             ? { per_page: 10 }
+            : tab.kind === 'events'
+              ? { per_page: 10 }
             : { scope: 'me', kind: tab.kind, per_page: 10 }
           : undefined,
     })
@@ -746,6 +778,10 @@ async function loadTab(key, reset = true) {
     const rows = data?.data ?? []
     if (reset) state.items = rows
     else state.items = [...state.items, ...rows]
+
+    if (tab.kind === 'events') {
+      eventFollows.hydrateFromEvents(rows)
+    }
 
     state.next = data?.next_page_url ?? null
     state.total = Number.isFinite(data?.total) ? String(data.total) : state.total
@@ -772,6 +808,15 @@ watch(
   () => route.query?.edit,
   () => {
     openEditFromRoute()
+  }
+)
+
+watch(
+  () => eventFollows.revision,
+  () => {
+    if (!auth.user || activeTab.value !== 'events' || !tabState.events.loaded) return
+    tabState.events.loaded = false
+    loadTab('events', true)
   }
 )
 
@@ -803,9 +848,9 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgb(var(--color-bg-rgb) / 0.92);
+  background: rgb(var(--bg-app-rgb) / 0.92);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
+  border-bottom: 1px solid var(--border);
   padding: 0.4rem 0.8rem;
   display: flex;
   gap: 0.65rem;
@@ -813,18 +858,29 @@ onBeforeUnmount(() => {
 }
 
 .iconBtn {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.8);
-  background: rgb(var(--color-bg-rgb) / 0.35);
-  color: var(--color-surface);
+  border: 1px solid var(--border);
+  background: var(--bg-surface-2);
+  color: var(--text-primary);
+  font-weight: 700;
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
 }
-.iconBtn:hover { border-color: rgb(var(--color-primary-rgb) / 0.85); }
+.iconBtn:hover {
+  border-color: rgb(var(--primary-rgb) / 0.35);
+  background: rgb(var(--text-primary-rgb) / 0.09);
+  transform: translateY(-1px);
+}
+.iconBtn:active { transform: translateY(1px); }
+.iconBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / 0.32);
+}
 
 .topmeta { display: grid; line-height: 1.1; }
-.topname { font-weight: 850; color: var(--color-surface); font-size: 1.05rem; }
-.topsmall { color: var(--color-text-secondary); font-size: 0.78rem; }
+.topname { font-weight: 850; color: var(--text-primary); font-size: 1.05rem; }
+.topsmall { color: var(--text-secondary); font-size: 0.78rem; }
 
 .profileShell {
   border: 0;
@@ -841,7 +897,7 @@ onBeforeUnmount(() => {
     radial-gradient(900px 220px at 20% 20%, rgb(var(--color-primary-rgb) / 0.25), transparent 60%),
     radial-gradient(700px 220px at 80% 30%, rgb(var(--color-primary-rgb) / 0.12), transparent 60%),
     linear-gradient(180deg, rgb(var(--color-bg-rgb) / 0.2), rgb(var(--color-bg-rgb) / 0.9));
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
+  border-bottom: 1px solid var(--border);
 }
 .coverImg {
   position: absolute;
@@ -855,9 +911,9 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(2px 2px at 20% 30%, rgb(var(--color-surface-rgb) / 0.35), transparent 60%),
-    radial-gradient(2px 2px at 70% 40%, rgb(var(--color-surface-rgb) / 0.25), transparent 60%),
-    radial-gradient(2px 2px at 50% 70%, rgb(var(--color-surface-rgb) / 0.2), transparent 60%);
+    radial-gradient(2px 2px at 20% 30%, rgb(var(--text-primary-rgb) / 0.35), transparent 60%),
+    radial-gradient(2px 2px at 70% 40%, rgb(var(--text-primary-rgb) / 0.25), transparent 60%),
+    radial-gradient(2px 2px at 50% 70%, rgb(var(--text-primary-rgb) / 0.2), transparent 60%);
   opacity: 0.6;
 }
 
@@ -878,7 +934,7 @@ onBeforeUnmount(() => {
   border: 2px solid rgb(var(--color-bg-rgb) / 0.95);
   outline: 1px solid rgb(var(--color-primary-rgb) / 0.55);
   background: rgb(var(--color-primary-rgb) / 0.16);
-  color: var(--color-surface);
+  color: var(--text-primary);
   font-weight: 900;
   font-size: 1.25rem;
 }
@@ -907,16 +963,22 @@ onBeforeUnmount(() => {
 .mediaBtn {
   position: absolute;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.75);
-  background: rgb(var(--color-bg-rgb) / 0.7);
-  color: var(--color-surface);
+  border: 1px solid var(--border);
+  background: var(--bg-surface-2);
+  color: var(--text-primary);
   font-weight: 700;
   padding: 0.35rem 0.6rem;
   font-size: 0.72rem;
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
   z-index: 2;
 }
+.mediaBtn:hover {
+  border-color: rgb(var(--primary-rgb) / 0.35);
+  background: rgb(var(--text-primary-rgb) / 0.09);
+  transform: translateY(-1px);
+}
+.mediaBtn:active { transform: translateY(1px); }
 .mediaBtn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
@@ -951,55 +1013,55 @@ onBeforeUnmount(() => {
 .identity {
   padding: 0 0.85rem 0.85rem;
   margin-top: -6px;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.42);
+  border-bottom: 1px solid var(--border);
 }
 .nameRow { display: flex; align-items: center; gap: 0.5rem; }
-.name { margin: 0; font-size: 1.9rem; font-weight: 900; color: var(--color-surface); line-height: 1.05; }
+.name { margin: 0; font-size: 1.9rem; font-weight: 900; color: var(--text-primary); line-height: 1.05; }
 .badge {
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-success-rgb) / 0.55);
-  background: rgb(var(--color-primary-rgb) / 0.12);
-  color: var(--color-success);
+  border: 1px solid rgb(var(--primary-rgb) / 0.45);
+  background: rgb(var(--primary-rgb) / 0.12);
+  color: var(--primary);
 }
-.handle { color: var(--color-text-secondary); margin-top: 0.15rem; }
-.bio { margin: 0.55rem 0 0; color: var(--color-surface); }
+.handle { color: var(--text-secondary); margin-top: 0.15rem; }
+.bio { margin: 0.55rem 0 0; color: var(--text-primary); }
 .meta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem 1rem;
   margin-top: 0.6rem;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 0.84rem;
 }
 .metaItem { white-space: nowrap; }
 
 .card {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.85);
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  border-radius: 1rem;
   padding: 0.72rem;
   margin-top: 0.6rem;
 }
 
-.infoTitle { font-weight: 900; color: var(--color-surface); }
-.infoSub { color: var(--color-text-secondary); margin-top: 0.35rem; }
+.infoTitle { font-weight: 900; color: var(--text-primary); }
+.infoSub { color: var(--text-secondary); margin-top: 0.35rem; }
 
 .editCard { margin-top: 0.7rem; }
 
 .pinCard { margin-top: 0.7rem; }
 .pinHeader { display: flex; justify-content: space-between; align-items: center; }
-.pinTitle { font-weight: 900; color: var(--color-surface); }
+.pinTitle { font-weight: 900; color: var(--text-primary); }
 .pinBody { margin-top: 0.5rem; }
-.pinContent { color: var(--color-surface); white-space: pre-wrap; }
+.pinContent { color: var(--text-primary); white-space: pre-wrap; }
 
 .form { margin-top: 0.75rem; display: grid; gap: 0.9rem; }
 
 .field label {
   display: block;
   font-size: 0.8rem;
-  color: var(--color-surface);
+  color: var(--text-primary);
   margin-bottom: 0.35rem;
 }
 
@@ -1007,17 +1069,20 @@ onBeforeUnmount(() => {
   width: 100%;
   padding: 0.7rem 0.85rem;
   border-radius: 1rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.9);
-  background: rgb(var(--color-bg-rgb) / 0.35);
-  color: var(--color-surface);
+  border: 1px solid var(--border);
+  background: rgb(var(--bg-app-rgb) / 0.35);
+  color: var(--text-primary);
   outline: none;
 }
-.input:focus { border-color: rgb(var(--color-primary-rgb) / 0.9); }
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / 0.2);
+}
 .textarea { resize: vertical; }
 
 .hint {
   margin-top: 0.35rem;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 0.85rem;
   text-align: right;
 }
@@ -1025,7 +1090,7 @@ onBeforeUnmount(() => {
 .fieldErr {
   margin-top: 0.35rem;
   font-size: 0.85rem;
-  color: var(--color-danger);
+  color: var(--primary-active);
 }
 
 .actions {
@@ -1036,32 +1101,43 @@ onBeforeUnmount(() => {
 }
 
 .btn {
-  padding: 0.45rem 0.75rem;
+  min-height: 44px;
+  padding: 0 1.25rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.85);
-  background: rgb(var(--color-primary-rgb) / 0.15);
-  color: var(--color-surface);
-  font-weight: 750;
-  font-size: 0.82rem;
+  border: 1px solid transparent;
+  background: var(--primary);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1;
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease, color 180ms ease;
 }
-.btn:hover { background: rgb(var(--color-primary-rgb) / 0.25); }
-.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / 0.32);
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
 .btn.outline {
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.85);
-  color: var(--color-surface);
+  background: var(--bg-surface-2);
+  border-color: var(--border);
+  color: var(--text-secondary);
 }
-.btn.outline:hover { border-color: rgb(var(--color-primary-rgb) / 0.85); }
-.btn.outline.danger { border-color: rgb(var(--color-danger-rgb) / 0.55); color: var(--color-danger); }
-.btn.outline.danger:hover { border-color: rgb(var(--color-danger-rgb) / 0.85); }
+.btn.outline:hover { border-color: rgb(var(--primary-rgb) / 0.35); color: var(--text-primary); background: rgb(var(--text-primary-rgb) / 0.09); }
+.btn.outline.danger { border-color: var(--primary-active); color: var(--primary-active); }
+.btn.outline.danger:hover { border-color: var(--primary-active); background: rgb(var(--primary-active-rgb) / 0.12); color: var(--text-primary); }
 
 .btn.ghost {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.95);
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  color: var(--color-surface);
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text-secondary);
 }
-.btn.ghost:hover { border-color: rgb(var(--color-primary-rgb) / 0.85); color: var(--color-surface); }
+.btn.ghost:hover { border-color: rgb(var(--primary-rgb) / 0.35); background: rgb(var(--text-primary-rgb) / 0.06); color: var(--text-primary); }
 
 .feedShell {
   margin-top: 0.6rem;
@@ -1077,10 +1153,10 @@ onBeforeUnmount(() => {
   position: sticky;
   top: calc(var(--app-header-h, 56px) + 4px);
   z-index: 8;
-  background: rgb(var(--color-bg-rgb) / 0.86);
+  background: rgb(var(--bg-app-rgb) / 0.86);
   backdrop-filter: blur(8px);
   padding: 0 0 0.25rem;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.42);
+  border-bottom: 1px solid var(--border);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -1091,7 +1167,7 @@ onBeforeUnmount(() => {
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: var(--color-surface);
+  color: var(--text-primary);
   font-weight: 700;
   font-size: 0.86rem;
   display: inline-flex;
@@ -1103,11 +1179,17 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 .tab.active {
-  border-bottom-color: rgb(var(--color-primary-rgb) / 0.9);
-  color: rgb(var(--color-surface-rgb) / 0.98);
+  border-bottom-color: var(--primary);
+  color: var(--text-primary);
 }
 
 .padTop { margin-top: 0.75rem; }
+
+.eventGrid {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.85rem;
+}
 
 .postList {
   margin-top: 0;
@@ -1119,7 +1201,7 @@ onBeforeUnmount(() => {
   grid-template-columns: 48px 1fr;
   gap: 0.7rem;
   padding: 0.6rem 0.1rem;
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
+  border-top: 1px solid var(--border);
 }
 .postItem:first-child { border-top: 0; }
 
@@ -1128,34 +1210,34 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
-.postName { color: var(--color-surface); font-weight: 950; }
+.postName { color: var(--text-primary); font-weight: 950; }
 .dot { opacity: 0.6; }
 
 .replyContext {
   margin-top: 0.4rem;
   padding: 0.45rem 0.6rem;
   border-radius: 0.75rem;
-  background: rgb(var(--color-bg-rgb) / 0.5);
-  color: var(--color-text-secondary);
+  background: rgb(var(--bg-app-rgb) / 0.5);
+  color: var(--text-secondary);
   font-size: 0.85rem;
 }
-.replyAuthor { color: var(--color-surface); font-weight: 700; margin: 0 0.25rem; }
-.replyText { color: var(--color-surface); margin-left: 0.25rem; }
+.replyAuthor { color: var(--text-primary); font-weight: 700; margin: 0 0.25rem; }
+.replyText { color: var(--text-primary); margin-left: 0.25rem; }
 
 .postContent {
   margin-top: 0.25rem;
-  color: var(--color-surface);
+  color: var(--text-primary);
   white-space: pre-wrap;
   line-height: 1.55;
 }
 
 .attachedEventCard {
   margin-top: 0.55rem;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.45);
-  background: rgb(var(--color-primary-rgb) / 0.08);
+  border: 1px solid rgb(var(--primary-rgb) / 0.45);
+  background: rgb(var(--primary-rgb) / 0.08);
   border-radius: 0.85rem;
   padding: 0.55rem 0.7rem;
   display: flex;
@@ -1166,13 +1248,13 @@ onBeforeUnmount(() => {
 
 .attachedEventTitle {
   margin: 0;
-  color: var(--color-surface);
+  color: var(--text-primary);
   font-weight: 800;
 }
 
 .attachedEventDate {
   margin: 0.2rem 0 0;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 0.85rem;
 }
 
@@ -1182,14 +1264,14 @@ onBeforeUnmount(() => {
   max-height: 320px;
   object-fit: cover;
   border-radius: 0.9rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
+  border: 1px solid var(--border);
 }
 .attachmentFile {
   display: inline-flex;
   padding: 0.4rem 0.6rem;
   border-radius: 0.75rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
-  color: var(--color-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
   text-decoration: none;
 }
 
@@ -1212,11 +1294,11 @@ onBeforeUnmount(() => {
   border-radius: 1rem;
   font-size: 0.95rem;
 }
-.msg.ok { border: 1px solid rgb(var(--color-success-rgb) / 0.45); background: rgb(var(--color-success-rgb) / 0.1); color: var(--color-success); }
-.msg.err { border: 1px solid rgb(var(--color-danger-rgb) / 0.45); background: rgb(var(--color-danger-rgb) / 0.1); color: var(--color-danger); }
-.msg.info { border: 1px solid rgb(var(--color-primary-rgb) / 0.45); background: rgb(var(--color-primary-rgb) / 0.12); color: var(--color-primary); }
+.msg.ok { border: 1px solid var(--primary); background: rgb(var(--primary-rgb) / 0.1); color: var(--primary); }
+.msg.err { border: 1px solid var(--primary-active); background: rgb(var(--primary-active-rgb) / 0.1); color: var(--primary-active); }
+.msg.info { border: 1px solid rgb(var(--primary-rgb) / 0.45); background: rgb(var(--primary-rgb) / 0.12); color: var(--primary); }
 
-.muted { color: var(--color-text-secondary); }
+.muted { color: var(--text-secondary); }
 
 @media (max-width: 767px) {
   .page {
@@ -1245,6 +1327,10 @@ onBeforeUnmount(() => {
   .topbar {
     padding-left: 0.65rem;
     padding-right: 0.65rem;
+  }
+
+  .eventGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .copyBtn {

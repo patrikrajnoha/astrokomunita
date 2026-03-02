@@ -8,16 +8,16 @@
             <div class="month-meta">{{ yearLabel }}</div>
           </div>
           <div class="month-actions">
-            <button type="button" class="nav-btn" @click="prevMonth">‹</button>
+            <button type="button" class="nav-btn" @click="prevMonth">&lsaquo;</button>
             <button type="button" class="nav-btn" @click="goToToday">Dnes</button>
-            <button type="button" class="nav-btn" @click="nextMonth">›</button>
-            <button type="button" class="nav-btn" @click="prevYear">«</button>
-            <button type="button" class="nav-btn" @click="nextYear">»</button>
+            <button type="button" class="nav-btn" @click="nextMonth">&rsaquo;</button>
+            <button type="button" class="nav-btn" @click="prevYear">&laquo;</button>
+            <button type="button" class="nav-btn" @click="nextYear">&raquo;</button>
           </div>
         </header>
 
         <p v-if="loading" class="month-meta">Nacitavam udalosti...</p>
-        <p v-else-if="error" class="month-meta" style="color: var(--color-danger);">{{ error }}</p>
+        <p v-else-if="error" class="month-meta" style="color: var(--color-danger)">{{ error }}</p>
 
         <div class="dow-grid">
           <span class="dow sun">S</span>
@@ -31,8 +31,8 @@
 
         <div class="days-grid">
           <button
-            v-for="(cell, i) in dayCells"
-            :key="i"
+            v-for="(cell, index) in dayCells"
+            :key="index"
             type="button"
             class="day-cell"
             :class="dayCellClass(cell)"
@@ -58,23 +58,23 @@
 
         <ul class="event-list">
           <li
-            v-for="ev in selectedEvents"
-            :key="ev.id"
+            v-for="event in selectedEvents"
+            :key="event.id"
             class="event-item"
             role="button"
             tabindex="0"
-            @click="openEventDetail(ev)"
-            @keydown.enter.prevent="openEventDetail(ev)"
-            @keydown.space.prevent="openEventDetail(ev)"
+            @click="openEventDetail(event)"
+            @keydown.enter.prevent="openEventDetail(event)"
+            @keydown.space.prevent="openEventDetail(event)"
           >
-            <span :class="['dot', typeDot(ev.type)]" aria-hidden="true"></span>
+            <span :class="['dot', typeDot(event.type)]" aria-hidden="true"></span>
             <div>
-              <div class="event-title">{{ ev.title }}</div>
-              <div class="event-time">{{ formatEventTime(ev) }}</div>
+              <div class="event-title">{{ event.title }}</div>
+              <div class="event-time">{{ formatEventTime(event) }}</div>
             </div>
           </li>
           <li v-if="selectedEvents.length === 0" class="event-empty">
-            Žiadne udalosti v tento deň.
+            Ziadne udalosti v tento den.
           </li>
         </ul>
       </aside>
@@ -83,54 +83,65 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
+import {
+  EVENT_TIMEZONE,
+  formatEventDateKey,
+  formatEventTime as formatClockTime,
+  getEventNowPeriodDefaults,
+  resolveEventTimeContext,
+} from '@/utils/eventTime'
 
 const route = useRoute()
 const router = useRouter()
-const today = new Date()
-const currentMonth = ref(new Date(today.getFullYear(), today.getMonth(), 1))
-const selectedDate = ref(new Date(today.getFullYear(), today.getMonth(), today.getDate()))
+
+const initialNow = getEventNowPeriodDefaults(EVENT_TIMEZONE)
+const today = buildUtcDate(initialNow.year, initialNow.month, initialNow.day)
+
+const currentMonth = ref(buildUtcDate(initialNow.year, initialNow.month, 1))
+const selectedDate = ref(buildUtcDate(initialNow.year, initialNow.month, initialNow.day))
 const events = ref([])
 const loading = ref(false)
 const error = ref('')
-const activeYear = ref(today.getFullYear())
-const activeMonth = ref(today.getMonth() + 1)
-const activeWeek = ref(getIsoWeek(today))
+const activeYear = ref(initialNow.year)
+const activeMonth = ref(initialNow.month)
+const activeWeek = ref(initialNow.week)
 const activePeriod = ref('month')
 
 const monthLabel = computed(() =>
-  currentMonth.value.toLocaleDateString('sk-SK', { month: 'long' })
+  currentMonth.value.toLocaleDateString('sk-SK', { month: 'long', timeZone: 'UTC' }),
 )
-const yearLabel = computed(() => currentMonth.value.getFullYear())
+const yearLabel = computed(() => currentMonth.value.getUTCFullYear())
 
 const selectedLabel = computed(() =>
   selectedDate.value.toLocaleDateString('sk-SK', {
     weekday: 'long',
     day: 'numeric',
-  })
+    timeZone: 'UTC',
+  }),
 )
 
 const dayCells = computed(() => {
-  const year = currentMonth.value.getFullYear()
-  const month = currentMonth.value.getMonth()
-  const firstDay = new Date(year, month, 1).getDay() // 0 = Sunday
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const year = currentMonth.value.getUTCFullYear()
+  const month = currentMonth.value.getUTCMonth()
+  const firstDay = new Date(Date.UTC(year, month, 1)).getUTCDay()
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
   const cells = []
 
-  for (let i = 0; i < firstDay; i += 1) {
+  for (let index = 0; index < firstDay; index += 1) {
     cells.push({ date: null, day: null, muted: true, blank: true })
   }
 
-  for (let d = 1; d <= daysInMonth; d += 1) {
-    const date = new Date(year, month, d)
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = buildUtcDate(year, month + 1, day)
     cells.push({
       date,
-      day: d,
+      day,
       muted: false,
       blank: false,
-      isSunday: date.getDay() === 0,
+      isSunday: date.getUTCDay() === 0,
     })
   }
 
@@ -147,28 +158,37 @@ const dayCells = computed(() => {
 
 const eventsByDay = computed(() => {
   const map = {}
-  events.value.forEach((ev) => {
-    const key = toYMD(ev.starts_at)
+
+  events.value.forEach((event) => {
+    const key = toYMD(event?.start_at || event?.starts_at || event?.max_at)
+    if (!key) return
     if (!map[key]) map[key] = []
-    map[key].push(ev)
+    map[key].push(event)
   })
+
   return map
 })
 
 const selectedEvents = computed(() => {
   const key = toYMD(selectedDate.value)
-  return eventsByDay.value[key] || []
+  return key ? eventsByDay.value[key] || [] : []
 })
 
 function selectDate(date) {
-  selectedDate.value = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  selectedDate.value = buildUtcDate(
+    date.getUTCFullYear(),
+    date.getUTCMonth() + 1,
+    date.getUTCDate(),
+  )
 }
 
 function dayCellClass(cell) {
   if (!cell.date) return 'day-cell--blank'
+
   const isSelected = isSameDay(cell.date, selectedDate.value)
   const isToday = isSameDay(cell.date, today)
-  const hasEvents = !!eventsByDay.value[toYMD(cell.date)]?.length
+  const hasEvents = Boolean(eventsByDay.value[toYMD(cell.date)]?.length)
+
   return {
     'day-cell--selected': isSelected,
     'day-cell--today': !isSelected && isToday,
@@ -178,17 +198,20 @@ function dayCellClass(cell) {
 }
 
 function dayEventCount(date) {
-  return eventsByDay.value[toYMD(date)]?.length || 0
+  const key = toYMD(date)
+  return key ? eventsByDay.value[key]?.length || 0 : 0
 }
 
 function cellTooltip(cell) {
   if (!cell.date) return ''
+
   const items = eventsByDay.value[toYMD(cell.date)] || []
   if (!items.length) return ''
+
   return items
     .slice(0, 2)
-    .map((e) => e.title)
-    .join(' • ')
+    .map((event) => event.title)
+    .join(' · ')
 }
 
 function typeDot(type) {
@@ -199,54 +222,65 @@ function typeDot(type) {
     planetary_event: 'dot-violet',
     other: 'dot-blue',
   }
+
   return map[type] || 'dot-blue'
 }
 
-function formatEventTime(ev) {
-  if (ev.all_day) return 'Celý deň'
-  const start = ev.starts_at ? new Date(ev.starts_at) : null
-  const end = ev.ends_at ? new Date(ev.ends_at) : null
-  if (!start) return '—'
-  const startStr = start.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })
-  if (!end) return startStr
-  const endStr = end.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit' })
-  return `${startStr} – ${endStr}`
+function formatEventTime(event) {
+  if (event.all_day) return 'Cely den'
+
+  const context = resolveEventTimeContext(event, EVENT_TIMEZONE)
+  if (!context.showTimezoneLabel) {
+    return context.message
+  }
+
+  const anchorKey = toYMD(event.start_at || event.starts_at || event.max_at)
+  const endRaw = event.end_at || event.ends_at
+  const endKey = toYMD(endRaw)
+
+  if (endRaw && anchorKey && anchorKey === endKey) {
+    const endTime = formatClockTime(endRaw, EVENT_TIMEZONE).timeString
+    if (endTime) {
+      return `${context.timeString} - ${endTime} (${context.timezoneLabelShort})`
+    }
+  }
+
+  return `${context.timeString} (${context.timezoneLabelShort})`
 }
 
-function openEventDetail(ev) {
-  const eventId = ev?.id
+function openEventDetail(event) {
+  const eventId = event?.id
   if (!eventId) return
   router.push(`/events/${eventId}`)
 }
 
-function isSameDay(a, b) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  )
+function isSameDay(left, right) {
+  return toYMD(left) === toYMD(right)
 }
 
-function toYMD(date) {
-  const d = new Date(date)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+function toYMD(value) {
+  if (!value) return ''
+  if (value instanceof Date) {
+    return formatUtcDateKey(value)
+  }
+
+  return formatEventDateKey(value, EVENT_TIMEZONE)
 }
 
 async function fetchMonthEvents() {
   loading.value = true
   error.value = ''
+
   const params = { year: activeYear.value }
   if (activePeriod.value === 'month') {
     params.month = activeMonth.value
   } else if (activePeriod.value === 'week') {
     params.week = activeWeek.value
   }
+
   try {
-    const res = await api.get('/events', { params })
-    const rows = Array.isArray(res.data?.data) ? res.data.data : res.data
+    const response = await api.get('/events', { params })
+    const rows = Array.isArray(response.data?.data) ? response.data.data : response.data
     events.value = Array.isArray(rows) ? rows : []
   } catch (err) {
     error.value = err?.response?.data?.message || 'Nepodarilo sa nacitat udalosti.'
@@ -258,15 +292,23 @@ async function fetchMonthEvents() {
 
 function prevMonth() {
   if (activePeriod.value === 'month') {
-    const next = new Date(activeYear.value, activeMonth.value - 2, 1)
-    syncQuery({ year: next.getFullYear(), month: next.getMonth() + 1, period: 'month' })
+    const previous = new Date(Date.UTC(activeYear.value, activeMonth.value - 2, 1))
+    syncQuery({
+      year: previous.getUTCFullYear(),
+      month: previous.getUTCMonth() + 1,
+      period: 'month',
+    })
     return
   }
 
   if (activePeriod.value === 'week') {
     const start = isoWeekStart(activeYear.value, activeWeek.value)
-    start.setDate(start.getDate() - 7)
-    syncQuery({ year: start.getFullYear(), week: getIsoWeek(start), period: 'week' })
+    start.setUTCDate(start.getUTCDate() - 7)
+    syncQuery({
+      year: start.getUTCFullYear(),
+      week: getIsoWeek(start),
+      period: 'week',
+    })
     return
   }
 
@@ -275,15 +317,23 @@ function prevMonth() {
 
 function nextMonth() {
   if (activePeriod.value === 'month') {
-    const next = new Date(activeYear.value, activeMonth.value, 1)
-    syncQuery({ year: next.getFullYear(), month: next.getMonth() + 1, period: 'month' })
+    const next = new Date(Date.UTC(activeYear.value, activeMonth.value, 1))
+    syncQuery({
+      year: next.getUTCFullYear(),
+      month: next.getUTCMonth() + 1,
+      period: 'month',
+    })
     return
   }
 
   if (activePeriod.value === 'week') {
     const start = isoWeekStart(activeYear.value, activeWeek.value)
-    start.setDate(start.getDate() + 7)
-    syncQuery({ year: start.getFullYear(), week: getIsoWeek(start), period: 'week' })
+    start.setUTCDate(start.getUTCDate() + 7)
+    syncQuery({
+      year: start.getUTCFullYear(),
+      week: getIsoWeek(start),
+      period: 'week',
+    })
     return
   }
 
@@ -309,13 +359,15 @@ function nextYear() {
 }
 
 function goToToday() {
+  const defaults = getEventNowPeriodDefaults(EVENT_TIMEZONE)
+
   syncQuery({
-    year: today.getFullYear(),
-    month: today.getMonth() + 1,
-    week: getIsoWeek(today),
+    year: defaults.year,
+    month: defaults.month,
+    week: defaults.week,
     period: activePeriod.value,
   })
-  selectedDate.value = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+  selectedDate.value = buildUtcDate(defaults.year, defaults.month, defaults.day)
 }
 
 onMounted(() => {
@@ -346,33 +398,32 @@ function handleKeydown(event) {
 }
 
 function applyRoutePeriod() {
+  const defaults = getEventNowPeriodDefaults(EVENT_TIMEZONE)
   const period = typeof route.query.period === 'string' ? route.query.period : 'month'
-  activePeriod.value = ['month', 'week', 'year'].includes(period) ? period : 'month'
-  activeYear.value = Number(route.query.year) || today.getFullYear()
-  activeMonth.value = Number(route.query.month) || today.getMonth() + 1
-  activeWeek.value = Number(route.query.week) || getIsoWeek(today)
 
-  const q = route.query.date
-  if (q && typeof q === 'string') {
-    const d = new Date(q)
-    if (!Number.isNaN(d.getTime())) {
-      selectedDate.value = new Date(d.getFullYear(), d.getMonth(), d.getDate())
-    }
+  activePeriod.value = ['month', 'week', 'year'].includes(period) ? period : 'month'
+  activeYear.value = Number(route.query.year) || defaults.year
+  activeMonth.value = Number(route.query.month) || defaults.month
+  activeWeek.value = Number(route.query.week) || defaults.week
+
+  const routeDate = typeof route.query.date === 'string' ? parseDateKey(route.query.date) : null
+  if (routeDate) {
+    selectedDate.value = routeDate
   }
 
   if (activePeriod.value === 'month') {
-    currentMonth.value = new Date(activeYear.value, activeMonth.value - 1, 1)
+    currentMonth.value = buildUtcDate(activeYear.value, activeMonth.value, 1)
     return
   }
 
   if (activePeriod.value === 'week') {
     const start = isoWeekStart(activeYear.value, activeWeek.value)
-    currentMonth.value = new Date(start.getFullYear(), start.getMonth(), 1)
-    selectedDate.value = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+    currentMonth.value = buildUtcDate(start.getUTCFullYear(), start.getUTCMonth() + 1, 1)
+    selectedDate.value = routeDate || start
     return
   }
 
-  currentMonth.value = new Date(activeYear.value, currentMonth.value.getMonth(), 1)
+  currentMonth.value = buildUtcDate(activeYear.value, currentMonth.value.getUTCMonth() + 1, 1)
 }
 
 function syncQuery({ year, month, week, period }) {
@@ -396,44 +447,66 @@ function syncQuery({ year, month, week, period }) {
   router.replace({ query: next })
 }
 
+function buildUtcDate(year, month, day) {
+  return new Date(Date.UTC(year, month - 1, day))
+}
+
+function formatUtcDateKey(date) {
+  return [
+    String(date.getUTCFullYear()),
+    String(date.getUTCMonth() + 1).padStart(2, '0'),
+    String(date.getUTCDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function parseDateKey(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || '').trim())
+  if (!match) return null
+
+  const [, year, month, day] = match
+  return buildUtcDate(Number(year), Number(month), Number(day))
+}
+
 function getIsoWeek(date) {
-  const dt = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dt = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
   const dayNum = dt.getUTCDay() || 7
   dt.setUTCDate(dt.getUTCDate() + 4 - dayNum)
   const yearStart = new Date(Date.UTC(dt.getUTCFullYear(), 0, 1))
-  return Math.ceil((((dt - yearStart) / 86400000) + 1) / 7)
+
+  return Math.ceil(((dt - yearStart) / 86400000 + 1) / 7)
 }
 
 function isoWeekStart(year, week) {
-  const simple = new Date(year, 0, 1 + (week - 1) * 7)
-  const dayOfWeek = simple.getDay()
+  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7))
+  const dayOfWeek = simple.getUTCDay() || 7
   const monday = new Date(simple)
+
   if (dayOfWeek <= 4) {
-    monday.setDate(simple.getDate() - simple.getDay() + 1)
+    monday.setUTCDate(simple.getUTCDate() - dayOfWeek + 1)
   } else {
-    monday.setDate(simple.getDate() + 8 - simple.getDay())
+    monday.setUTCDate(simple.getUTCDate() + 8 - dayOfWeek)
   }
-  monday.setHours(0, 0, 0, 0)
+
+  monday.setUTCHours(0, 0, 0, 0)
   return monday
 }
 </script>
 
 <style>
 .calendar-card {
-  --bg: var(--color-bg);
-  --bg-soft: var(--color-bg);
+  --bg: #151d28;
+  --bg-soft: #151d28;
   --text: var(--color-surface);
   --text-dim: var(--color-text-secondary);
   --text-muted: var(--color-text-secondary);
   --sun: var(--color-primary);
-  --divider: rgb(var(--color-surface-rgb) / 0.18);
-  --shadow: 0 20px 50px rgb(var(--color-bg-rgb) / 0.45);
-  background: linear-gradient(145deg, var(--bg), var(--bg-soft));
-  border-radius: 22px;
-  box-shadow: var(--shadow);
+  --divider: rgb(var(--color-text-secondary-rgb) / 0.16);
+  background: var(--bg);
+  border: 1px solid var(--divider);
+  border-radius: 1rem;
   color: var(--text);
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  padding: clamp(14px, 2.2vw, 24px);
+  font-family: inherit;
+  padding: clamp(14px, 2vw, 20px);
   width: 100%;
   overflow: hidden;
 }
@@ -451,7 +524,7 @@ function isoWeekStart(year, week) {
 }
 
 .left {
-  padding-right: 22px;
+  padding-right: 20px;
   min-width: 0;
 }
 
@@ -459,21 +532,21 @@ function isoWeekStart(year, week) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   gap: 12px;
   flex-wrap: wrap;
 }
 
 .month-title {
-  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
-  font-weight: 700;
+  font-size: clamp(1.2rem, 2.3vw, 1.55rem);
+  font-weight: 600;
   letter-spacing: 0.2px;
   line-height: 1.1;
   text-transform: capitalize;
 }
 
 .month-meta {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-dim);
   font-weight: 500;
 }
@@ -482,25 +555,26 @@ function isoWeekStart(year, week) {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   justify-content: flex-end;
 }
 
 .nav-btn {
   appearance: none;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  background: rgb(var(--color-surface-rgb) / 0.04);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
+  background: rgb(255 255 255 / 0.04);
   color: var(--text);
   border-radius: 999px;
-  min-height: 36px;
-  padding: 7px 13px;
+  min-height: 34px;
+  padding: 7px 12px;
   font-size: 12px;
-  letter-spacing: 0.2px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
   cursor: pointer;
 }
 
 .nav-btn:hover {
-  background: rgb(var(--color-surface-rgb) / 0.08);
+  background: rgb(255 255 255 / 0.07);
 }
 
 .dow-grid {
@@ -522,7 +596,7 @@ function isoWeekStart(year, week) {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   grid-auto-rows: minmax(36px, auto);
-  row-gap: 10px;
+  row-gap: 8px;
   column-gap: 4px;
   font-size: 16px;
   line-height: 1;
@@ -530,7 +604,7 @@ function isoWeekStart(year, week) {
 
 .day-cell {
   appearance: none;
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -545,13 +619,13 @@ function isoWeekStart(year, week) {
 }
 
 .day-cell--selected {
-  background: var(--color-surface);
-  color: var(--color-bg);
+  background: rgb(var(--color-surface-rgb) / 0.92);
+  color: var(--bg);
   font-weight: 700;
 }
 
 .day-cell--today {
-  outline: 1px solid rgb(var(--color-surface-rgb) / 0.35);
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.22);
 }
 
 .day-cell--muted {
@@ -609,14 +683,13 @@ function isoWeekStart(year, week) {
   bottom: 125%;
   left: 50%;
   transform: translateX(-50%);
-  background: rgb(var(--color-bg-rgb) / 0.95);
+  background: rgb(var(--color-bg-rgb) / 0.96);
   color: var(--color-surface);
   font-size: 11px;
   padding: 6px 8px;
   border-radius: 8px;
   white-space: nowrap;
   z-index: 10;
-  box-shadow: 0 10px 25px rgb(var(--color-bg-rgb) / 0.35);
   max-width: min(240px, 92vw);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -638,10 +711,10 @@ function isoWeekStart(year, week) {
 }
 
 .right {
-  padding-left: 22px;
+  padding-left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   min-width: 0;
 }
 
@@ -669,7 +742,7 @@ function isoWeekStart(year, week) {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   max-height: 420px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -682,12 +755,14 @@ function isoWeekStart(year, week) {
   column-gap: 10px;
   align-items: start;
   cursor: pointer;
-  border-radius: 8px;
-  padding: 2px 4px;
+  border-radius: 0.8rem;
+  border: 1px solid transparent;
+  padding: 0.55rem 0.65rem;
 }
 
 .event-item:hover {
-  background: rgb(var(--color-surface-rgb) / 0.06);
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.16);
+  background: rgb(255 255 255 / 0.03);
 }
 
 .event-item:focus-visible {
@@ -760,7 +835,7 @@ function isoWeekStart(year, week) {
 
 @media (max-width: 640px) {
   .calendar-card {
-    border-radius: 16px;
+    border-radius: 1rem;
   }
 
   .month-header {

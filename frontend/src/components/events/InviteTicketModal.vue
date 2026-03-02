@@ -3,10 +3,10 @@
     <section class="inviteModalCard" role="dialog" aria-modal="true" aria-labelledby="invite-ticket-title">
       <header class="modalHead">
         <div>
-          <h2 id="invite-ticket-title">Pozvánka / Vstupenka</h2>
-          <p>Darčeková pozvánka na astronomické podujatie</p>
+          <h2 id="invite-ticket-title">Pozvanka / Vstupenka</h2>
+          <p>Darcekova pozvanka na astronomicke podujatie</p>
         </div>
-        <button type="button" class="ghostBtn" @click="close">Zavrieť</button>
+        <button type="button" class="ghostBtn" @click="close">Zavriet</button>
       </header>
 
       <div class="modalBody">
@@ -17,20 +17,20 @@
               v-model.trim="attendeeName"
               type="text"
               maxlength="80"
-              placeholder="Napr. Ján Novák"
+              placeholder="Napr. Jan Novak"
               data-testid="attendee-name-input"
             />
           </label>
           <p v-if="attendeeNameError" class="fieldError">{{ attendeeNameError }}</p>
 
           <label class="field">
-            <span>Email pozvaného (voliteľné)</span>
+            <span>Email pozvaneho (volitelne)</span>
             <input v-model.trim="inviteeEmail" type="email" placeholder="meno@email.com" />
           </label>
 
           <label class="field">
-            <span>Správa (voliteľné)</span>
-            <textarea v-model.trim="message" rows="3" maxlength="240" placeholder="Krátky odkaz k pozvánke" />
+            <span>Sprava (volitelne)</span>
+            <textarea v-model.trim="message" rows="3" maxlength="240" placeholder="Kratky odkaz k pozvanke" />
           </label>
 
           <p v-if="submitError" class="fieldError">{{ submitError }}</p>
@@ -44,13 +44,13 @@
               data-testid="send-invite-btn"
               @click="submitInvite"
             >
-              {{ sending ? 'Odosielam...' : 'Odoslať pozvánku' }}
+              {{ sending ? 'Odosielam...' : 'Odoslat pozvanku' }}
             </button>
             <button type="button" class="secondaryBtn" data-testid="share-ticket-btn" @click="shareTicket">
-              Zdieľať
+              Zdielat
             </button>
             <button type="button" class="secondaryBtn" data-testid="print-ticket-btn" @click="printTicket">
-              Vytlačiť vstupenku
+              Vytlacit vstupenku
             </button>
           </div>
         </section>
@@ -61,19 +61,19 @@
               <span v-for="idx in 8" :key="`wm-${idx}`">Astrokomunita • Astrokomunita • Astrokomunita</span>
             </div>
 
-            <p class="ticketKicker">Vstupenka do Nebeského divadla</p>
+            <p class="ticketKicker">Vstupenka do Nebeskeho divadla</p>
             <h3>{{ eventTitle }}</h3>
-            <p class="ticketAltTitle">Vstupenka do Astronomického divadla</p>
+            <p class="ticketAltTitle">Vstupenka do Astronomickeho divadla</p>
             <p class="ticketMeta">{{ eventDateTime }}</p>
-            <p class="ticketMeta" v-if="eventPlace">{{ eventPlace }}</p>
+            <p v-if="eventPlace" class="ticketMeta">{{ eventPlace }}</p>
 
             <div class="nameRow">
-              <span>Meno návštevníka</span>
+              <span>Meno navstevnika</span>
               <strong>{{ attendeeNamePreview }}</strong>
             </div>
 
-            <p class="ticketSubtitle">Darčeková pozvánka na astronomické podujatie</p>
-            <p class="ticketCta">Darček pre fanúšika astronómie</p>
+            <p class="ticketSubtitle">Darcekova pozvanka na astronomicke podujatie</p>
+            <p class="ticketCta">Darcek pre fanusika astronomie</p>
           </article>
         </div>
       </div>
@@ -84,8 +84,9 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import api from '@/services/api'
-import { createEventInvite } from '@/services/invites'
 import { useToast } from '@/composables/useToast'
+import { EVENT_TIMEZONE, formatEventDate, resolveEventTimeContext } from '@/utils/eventTime'
+import { createEventInvite } from '@/services/invites'
 
 const props = defineProps({
   open: {
@@ -111,14 +112,14 @@ const submitSuccess = ref('')
 
 const attendeeNameError = computed(() => {
   const value = String(attendeeName.value || '').trim()
-  if (!value) return 'Meno na vstupenke je povinné.'
-  if (value.length > 80) return 'Meno na vstupenke môže mať najviac 80 znakov.'
+  if (!value) return 'Meno na vstupenke je povinne.'
+  if (value.length > 80) return 'Meno na vstupenke moze mat najviac 80 znakov.'
   return ''
 })
 
 const isSubmitDisabled = computed(() => sending.value || Boolean(attendeeNameError.value) || !props.event?.id)
 
-const eventTitle = computed(() => props.event?.title || 'Astronomické podujatie')
+const eventTitle = computed(() => props.event?.title || 'Astronomicke podujatie')
 
 const eventPlace = computed(() => {
   const maybePlace = String(props.event?.short || '').trim()
@@ -127,13 +128,20 @@ const eventPlace = computed(() => {
 
 const eventDateTime = computed(() => {
   const raw = props.event?.start_at || props.event?.max_at || props.event?.end_at
-  if (!raw) return 'Termín bude upresnený'
-  const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return 'Termín bude upresnený'
-  return parsed.toLocaleString('sk-SK', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+  if (!raw) return 'Termin bude upresneny'
+
+  const dateLabel = formatEventDate(raw, EVENT_TIMEZONE, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
   })
+  const context = resolveEventTimeContext(props.event, EVENT_TIMEZONE)
+
+  if (!context.showTimezoneLabel) {
+    return `${dateLabel} · ${context.message}`
+  }
+
+  return `${dateLabel} · ${context.timeString} (${context.timezoneLabelShort})`
 })
 
 const attendeeNamePreview = computed(() => {
@@ -164,7 +172,7 @@ async function submitInvite() {
   }
 
   if (!props.event?.id) {
-    submitError.value = 'Chýba event na vytvorenie pozvánky.'
+    submitError.value = 'Chyba event na vytvorenie pozvanky.'
     return
   }
 
@@ -181,11 +189,11 @@ async function submitInvite() {
     const data = response?.data?.data ?? response?.data ?? null
     createdInvite.value = data
 
-    submitSuccess.value = 'Pozvánka bola odoslaná.'
-    toast.success('Pozvánka bola odoslaná.')
+    submitSuccess.value = 'Pozvanka bola odoslana.'
+    toast.success('Pozvanka bola odoslana.')
     emit('created', data)
   } catch (error) {
-    submitError.value = error?.response?.data?.message || 'Nepodarilo sa odoslať pozvánku.'
+    submitError.value = error?.response?.data?.message || 'Nepodarilo sa odoslat pozvanku.'
   } finally {
     sending.value = false
   }
@@ -193,8 +201,8 @@ async function submitInvite() {
 
 async function shareTicket() {
   const url = resolveShareUrl()
-  const shareTitle = 'Vstupenka do Nebeského divadla'
-  const shareText = `Darčeková pozvánka na astronomické podujatie pre ${attendeeNamePreview.value}.`
+  const shareTitle = 'Vstupenka do Nebeskeho divadla'
+  const shareText = `Darcekova pozvanka na astronomicke podujatie pre ${attendeeNamePreview.value}.`
 
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
@@ -211,9 +219,9 @@ async function shareTicket() {
 
   try {
     await copyText(url)
-    toast.info('Link na vstupenku bol skopírovaný.')
+    toast.info('Link na vstupenku bol skopirovany.')
   } catch {
-    toast.warn('Nepodarilo sa skopírovať link.')
+    toast.warn('Nepodarilo sa skopirovat link.')
   }
 }
 

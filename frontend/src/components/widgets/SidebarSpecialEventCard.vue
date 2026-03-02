@@ -27,6 +27,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
+import { EVENT_TIMEZONE, formatEventDate, formatEventTime } from '@/utils/eventTime'
 
 const props = defineProps({
   component: {
@@ -87,16 +88,14 @@ const eventMetaText = computed(() => {
 })
 
 const formatDate = (value) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-
-  return new Intl.DateTimeFormat('sk-SK', {
+  const dateLabel = formatEventDate(value, EVENT_TIMEZONE, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
+  })
+  const { timeString, timezoneLabelShort } = formatEventTime(value, EVENT_TIMEZONE)
+
+  return timeString ? `${dateLabel} ${timeString} (${timezoneLabelShort})` : dateLabel
 }
 
 const loadEvent = async () => {
@@ -135,10 +134,10 @@ onMounted(() => {
 <style scoped>
 .card {
   position: relative;
-  border: 1px solid var(--color-text-secondary);
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  border-radius: 1.5rem;
-  padding: 1.25rem;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -157,7 +156,7 @@ onMounted(() => {
   width: 100%;
   border-radius: 0.9rem;
   overflow: hidden;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  border: 1px solid var(--divider-color);
 }
 
 .imageWrap img {
@@ -206,4 +205,3 @@ onMounted(() => {
   color: var(--color-text-secondary);
 }
 </style>
-

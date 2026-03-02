@@ -9,22 +9,22 @@
     </div>
 
     <div v-else-if="error" class="state stateError">
-      <div class="stateTitle">Nepodarilo sa načítať</div>
+      <div class="stateTitle">Nepodarilo sa nacitat</div>
       <div class="stateText">{{ error }}</div>
-      <button class="ghostbtn" @click="fetchNextEvent">Skúsiť znova</button>
+      <button class="ghostbtn" @click="fetchNextEvent">Skusit znova</button>
     </div>
 
     <div v-else-if="!nextEvent" class="state">
-      <div class="stateTitle">Zatiaľ žiadna udalosť</div>
-      <div class="stateText">Pozri kalendár alebo udalosti.</div>
+      <div class="stateTitle">Zatial ziadna udalost</div>
+      <div class="stateText">Pozri kalendar alebo udalosti.</div>
       <div class="panelActions">
-        <router-link class="ghostbtn" to="/events">Všetky udalosti</router-link>
+        <router-link class="ghostbtn" to="/events">Vsetky udalosti</router-link>
       </div>
     </div>
 
     <div v-else class="eventCard">
       <div class="eventTitle">{{ nextEvent.title }}</div>
-      <div class="eventMeta">{{ formatDateTime(nextEvent.max_at) }}</div>
+      <div class="eventMeta">{{ formatDateTime(nextEvent) }}</div>
       <router-link class="actionbtn" :to="`/events/${nextEvent.id}`">
         Detail
       </router-link>
@@ -33,16 +33,17 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import api from '@/services/api'
+import { EVENT_TIMEZONE, formatEventDate, resolveEventTimeContext } from '@/utils/eventTime'
 
 export default {
   name: 'NextEventWidget',
   props: {
     title: {
       type: String,
-      default: 'Najbližšia udalosť'
-    }
+      default: 'Najblizsia udalost',
+    },
   },
   setup() {
     const nextEvent = ref(null)
@@ -69,26 +70,37 @@ export default {
           nextEvent.value = null
         } else if (Array.isArray(ev)) {
           nextEvent.value = ev[0] ?? null
+        } else if (!ev.title || !ev.id) {
+          nextEvent.value = null
         } else {
-          if (!ev.title || !ev.id) {
-            nextEvent.value = null
-          } else {
-            nextEvent.value = ev
-          }
+          nextEvent.value = ev
         }
       } catch (err) {
         error.value =
           err?.response?.data?.message ||
           err?.message ||
-          'Nepodarilo sa načítať najbližšiu udalosť.'
+          'Nepodarilo sa nacitat najblizsiu udalost.'
       } finally {
         loading.value = false
       }
     }
 
-    const formatDateTime = (value) => {
-      if (!value) return '—'
-      return value.replace('T', ' ').slice(0, 16)
+    const formatDateTime = (event) => {
+      const raw = event?.start_at || event?.max_at || event?.end_at
+      if (!raw) return 'Termin bude upresneny'
+
+      const dateLabel = formatEventDate(raw, EVENT_TIMEZONE, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+      const context = resolveEventTimeContext(event, EVENT_TIMEZONE)
+
+      if (!context.showTimezoneLabel) {
+        return `${dateLabel} · ${context.message}`
+      }
+
+      return `${dateLabel} · ${context.timeString} (${context.timezoneLabelShort})`
     }
 
     onMounted(() => {
@@ -100,19 +112,19 @@ export default {
       loading,
       error,
       fetchNextEvent,
-      formatDateTime
+      formatDateTime,
     }
-  }
+  },
 }
 </script>
 
 <style scoped>
 .card {
   position: relative;
-  border: 1px solid var(--color-text-secondary);
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  border-radius: 1.5rem;
-  padding: 1.25rem;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -209,12 +221,27 @@ export default {
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
-.h-4 { height: 1rem; }
-.w-2\/3 { width: 66.666667%; }
-.w-1\/2 { width: 50%; }
-.w-full { width: 100%; }
+.h-4 {
+  height: 1rem;
+}
+
+.w-2\/3 {
+  width: 66.666667%;
+}
+
+.w-1\/2 {
+  width: 50%;
+}
+
+.w-full {
+  width: 100%;
+}
 </style>
