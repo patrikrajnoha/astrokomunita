@@ -44,7 +44,7 @@ class EventCalendarController extends Controller
 
         return response($ics, 200, [
             'Content-Type' => 'text/calendar; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="event-' . $event->id . '.ics"',
+            'Content-Disposition' => 'attachment; filename="astrokomunita-event-' . $event->id . '.ics"',
         ]);
     }
 }

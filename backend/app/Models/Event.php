@@ -3,8 +3,12 @@
 namespace App\Models;
 
 use App\Enums\RegionScope;
+use App\Support\EventTime;
+use App\Support\EventFollowTable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Schema;
 
@@ -19,6 +23,9 @@ class Event extends Model
         'start_at',
         'end_at',
         'max_at',
+        'time_type',
+        'time_precision',
+        'event_date',
         'short',
         'description',
         'visibility',
@@ -29,19 +36,45 @@ class Event extends Model
         'canonical_key',
         'matched_sources',
     ];
+
     /**
      * Atribúty, ktoré by mali byť pretypované.
      *
      * @var array<string, string>
      */
     protected $casts = [
-        'start_at'   => 'datetime',
-        'end_at'     => 'datetime',
-        'max_at'     => 'datetime',
+        'start_at' => 'datetime',
+        'end_at' => 'datetime',
+        'max_at' => 'datetime',
+        'event_date' => 'datetime',
         'visibility' => 'integer',
         'confidence_score' => 'decimal:2',
         'matched_sources' => 'array',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $event): void {
+            $defaultType = $event->source_name === 'manual' ? EventTime::TYPE_START : null;
+            $defaultPrecision = $event->source_name === 'manual' ? EventTime::PRECISION_EXACT : null;
+
+            $event->time_type = EventTime::normalizeType(
+                $event->time_type ?: $defaultType,
+                $event->start_at,
+                $event->max_at
+            );
+            $event->time_precision = EventTime::normalizePrecision(
+                $event->time_precision ?: $defaultPrecision,
+                $event->start_at,
+                $event->max_at,
+                $event->source_name
+            );
+
+            if (self::supportsEventDateColumn()) {
+                $event->event_date = $event->resolveEventDate();
+            }
+        });
+    }
 
     /**
      * Scope pre odfiltrovanie len publikovaných udalostí (zo zdroja).
@@ -50,12 +83,12 @@ class Event extends Model
     public function scopePublished(Builder $query): Builder
     {
         return $query->whereNotNull('source_name')
-                     ->whereNotNull('source_uid');
+            ->whereNotNull('source_uid');
     }
 
     public function scopeForUser(Builder $query, ?User $user): Builder
     {
-        if (!$user) {
+        if (! $user) {
             return $query;
         }
 
@@ -63,7 +96,7 @@ class Event extends Model
             ? $user->eventPreference
             : $user->eventPreference()->first();
 
-        if (!$preferences) {
+        if (! $preferences) {
             return $query;
         }
 
@@ -91,12 +124,24 @@ class Event extends Model
         return self::$hasRegionScopeColumn;
     }
 
+    public static function supportsEventDateColumn(): bool
+    {
+        return Schema::hasColumn('events', 'event_date');
+    }
+
     /**
      * Vzťah k obľúbeným položkám.
      */
     public function favorites(): HasMany
     {
         return $this->hasMany(Favorite::class);
+    }
+
+    public function followers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, EventFollowTable::resolve())
+            ->withPivot(['created_at', 'updated_at'])
+            ->withTimestamps();
     }
 
     public function invites(): HasMany
@@ -107,5 +152,10 @@ class Event extends Model
     public function reminders(): HasMany
     {
         return $this->hasMany(EventReminder::class);
+    }
+
+    private function resolveEventDate(): CarbonInterface|string|null
+    {
+        return $this->start_at ?? $this->max_at;
     }
 }

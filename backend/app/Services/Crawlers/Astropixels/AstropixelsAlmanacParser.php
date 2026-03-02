@@ -12,6 +12,8 @@ use Illuminate\Support\Str;
 
 class AstropixelsAlmanacParser
 {
+    private const SOURCE_TIMEZONE = '+01:00';
+
     private const MONTH_MAP = [
         'Jan' => 1,
         'Feb' => 2,
@@ -32,13 +34,13 @@ class AstropixelsAlmanacParser
     private const MAX_DIAGNOSTIC_LENGTH = 240;
 
     /**
-     * Parses Astropixels annual CET almanac into normalized candidate DTOs.
+     * Astropixels publishes separate fixed-offset almanacs (GMT/CET/EET...), so CET rows stay UTC+1 year-round.
      */
     public function parse(
         string $html,
         int $year,
         string $sourceUrl,
-        string $timezone = 'Europe/Bratislava',
+        string $timezone = self::SOURCE_TIMEZONE,
     ): AstropixelsParseResult {
         $diagnostics = [];
 
@@ -110,7 +112,7 @@ class AstropixelsAlmanacParser
                     'month' => $monthAbbrev,
                     'day' => $day,
                     'time_local' => sprintf('%02d:%02d', $hour, $minute),
-                    'timezone' => $timezone,
+                    'source_timezone' => $timezone,
                     'title' => $normalizedTitle,
                     'row_signature' => $rowSignature,
                     'source_href' => $resolvedHref,
@@ -126,6 +128,8 @@ class AstropixelsAlmanacParser
                     externalId: $externalId,
                     rawPayload: $rawPayload,
                     eventType: $this->inferEventType($normalizedTitle),
+                    timeType: 'peak',
+                    timePrecision: 'exact',
                 );
             }
         }

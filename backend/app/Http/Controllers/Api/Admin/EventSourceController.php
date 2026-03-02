@@ -85,9 +85,8 @@ class EventSourceController extends Controller
             'dry_run' => ['sometimes', 'boolean'],
         ]);
 
-        $year = (int) ($payload['year'] ?? now()->year);
+        $year = (int) ($payload['year'] ?? now((string) config('events.timezone', 'Europe/Bratislava'))->year);
         $dryRun = (bool) ($payload['dry_run'] ?? false);
-        $timezone = (string) config('events.source_timezone', 'Europe/Bratislava');
         $requestedKeys = array_values(array_unique(array_map(
             static fn (mixed $v): string => strtolower(trim((string) $v)),
             (array) $payload['source_keys']
@@ -146,6 +145,7 @@ class EventSourceController extends Controller
                 continue;
             }
 
+            $timezone = $this->resolveSourceTimezone($key);
             $run = $this->orchestrator->run($crawler, new CrawlContext(
                 year: $year,
                 timezone: $timezone,
@@ -170,6 +170,14 @@ class EventSourceController extends Controller
             'dry_run' => $dryRun,
             'results' => $results,
         ]);
+    }
+
+    private function resolveSourceTimezone(string $sourceKey): string
+    {
+        return (string) config(
+            "events.source_timezones.{$sourceKey}",
+            config('events.source_timezones.default', config('events.source_timezone', 'Europe/Bratislava'))
+        );
     }
 
     public function purge(Request $request): JsonResponse

@@ -31,7 +31,7 @@ class CrawlAstropixelsEventsCommand extends Command
         $years = $this->resolveYears();
         $fromUtc = $this->resolveBoundDate('from', true);
         $toUtc = $this->resolveBoundDate('to', false);
-        $timezone = (string) config('events.source_timezone', 'Europe/Bratislava');
+        $timezone = (string) config('events.source_timezones.astropixels', config('events.source_timezone', '+01:00'));
         $dryRun = (bool) $this->option('dry-run');
         $hasFailures = false;
         $totals = [
@@ -112,7 +112,7 @@ class CrawlAstropixelsEventsCommand extends Command
         if ($requestedYear !== null) {
             $year = (int) $requestedYear;
         } else {
-            $year = (int) now()->year;
+            $year = (int) now((string) config('events.timezone', 'Europe/Bratislava'))->year;
         }
 
         return [$this->boundYear($year, $minYear, $maxYear)];
@@ -125,7 +125,7 @@ class CrawlAstropixelsEventsCommand extends Command
             return null;
         }
 
-        $timezone = (string) config('events.source_timezone', 'Europe/Bratislava');
+        $timezone = (string) config('events.timezone', 'Europe/Bratislava');
         $dt = CarbonImmutable::parse((string) $value, $timezone);
         $dt = $startOfDay ? $dt->startOfDay() : $dt->endOfDay();
 

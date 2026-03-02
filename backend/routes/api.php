@@ -11,9 +11,11 @@ use App\Http\Controllers\Api\EventCalendarController;
 use App\Http\Controllers\Api\FeaturedEventsCalendarController;
 use App\Http\Controllers\Api\EventReminderController;
 use App\Http\Controllers\Api\EventInviteController;
+use App\Http\Controllers\Api\EventViewingForecastController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\NotificationPreferenceController;
 use App\Http\Controllers\Api\UserNotificationPreferenceController;
+use App\Http\Controllers\Api\EventFollowController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\BookmarkController;
 use App\Http\Controllers\Api\AuthController;
@@ -45,6 +47,7 @@ use App\Http\Controllers\Api\Admin\ReportQueueController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\AdminPostController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
+use App\Http\Controllers\Api\Admin\ModerationHubController;
 use App\Http\Controllers\Api\Admin\TranslationHealthController;
 use App\Http\Controllers\Api\Admin\AdminNewsletterController;
 use App\Http\Controllers\Api\Admin\AuthSettingsController;
@@ -168,12 +171,20 @@ Route::get('/events/next', [EventController::class, 'next']);
 Route::get('/events/lookup', [EventController::class, 'lookup']);
 Route::get('/events/widget/upcoming', [EventWidgetController::class, 'upcoming']);
 Route::get('/events/{id}', [EventController::class, 'show']);
+Route::get('/events/{id}/viewing-forecast', [EventViewingForecastController::class, 'show']);
 Route::get('/events/{event}/ics', [EventCalendarController::class, 'show']);
 Route::get('/events/{event}/calendar.ics', [EventCalendarController::class, 'showCalendarIcs']);
 Route::get('/featured-events/{month}/calendar.ics', [FeaturedEventsCalendarController::class, 'showBundle'])
     ->where('month', '^\\d{4}-\\d{2}$');
 Route::post('/events/{event}/notify-email', [EventEmailAlertController::class, 'store']);
 Route::get('/invites/public/{token}', [EventInviteController::class, 'publicShow']);
+
+Route::middleware(['auth:sanctum', 'active'])->group(function () {
+    Route::get('/events/{id}/follow-state', [EventFollowController::class, 'state'])->middleware('throttle:60,1');
+    Route::post('/events/{id}/follow', [EventFollowController::class, 'store'])->middleware('throttle:60,1');
+    Route::delete('/events/{id}/follow', [EventFollowController::class, 'destroy'])->middleware('throttle:60,1');
+    Route::get('/me/followed-events', [EventFollowController::class, 'index'])->middleware('throttle:60,1');
+});
 
 Route::get('/nasa/iotd', [NasaIotdController::class, 'show']);
 Route::get('/observe/summary', ObserveSummaryController::class);
@@ -431,6 +442,14 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::delete('/manual-events/{manualEvent}', [ManualEventController::class, 'destroy']);
         Route::post('/manual-events/{manualEvent}/publish', [ManualEventController::class, 'publish']);
         Route::post('/manual-events/publish-batch', [ManualEventController::class, 'publishBatch']);
+
+        /*
+        |----------------------------------------------------------------------
+        | Moderation Hub (admin)
+        |----------------------------------------------------------------------
+        */
+        Route::get('/moderation/overview', [ModerationHubController::class, 'overview']);
+        Route::get('/moderation/review-feed', [ModerationHubController::class, 'reviewFeed']);
 
         /*
         |----------------------------------------------------------------------

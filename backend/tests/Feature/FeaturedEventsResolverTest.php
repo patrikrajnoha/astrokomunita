@@ -74,6 +74,25 @@ class FeaturedEventsResolverTest extends TestCase
         $this->assertSame($laterStart->id, $resolved['events'][2]['id']);
     }
 
+    public function test_month_resolution_uses_events_display_timezone_boundaries(): void
+    {
+        config([
+            'app.timezone' => 'UTC',
+            'events.timezone' => 'Europe/Bratislava',
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-01-31 23:30:00', 'UTC'));
+
+        $localFebruary = $this->createEvent('Local February', '2026-01-31 23:30:00');
+        $utcJanuary = $this->createEvent('UTC January', '2026-01-31 21:30:00');
+
+        $resolved = app(FeaturedEventsResolver::class)->resolveForMonth('2026-02');
+
+        $ids = collect($resolved['events'])->pluck('id');
+        $this->assertTrue($ids->contains($localFebruary->id));
+        $this->assertFalse($ids->contains($utcJanuary->id));
+    }
+
     private function createEvent(string $title, string $startAt, string $type = 'other', string $sourceName = 'manual'): Event
     {
         return Event::query()->create([

@@ -37,6 +37,11 @@ class HttpClientSslEnforcementTest extends TestCase
         $batch = $service->fetchCandidates(new CrawlContext(2026));
 
         $this->assertGreaterThan(0, count($batch->items));
+        $summer = collect($batch->items)->first(
+            fn ($item) => $item->title === 'Earth at Aphelion: 1.01664 AU'
+        );
+        $this->assertNotNull($summer);
+        $this->assertSame('2026-07-06 18:00:00', $summer->startsAtUtc->format('Y-m-d H:i:s'));
         Http::assertSent(function ($request) {
             return $request->url() === 'https://example.test/almanac2026cet.html'
                 && data_get($request->attributes(), 'ssl_verify') === true;

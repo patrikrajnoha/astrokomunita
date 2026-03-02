@@ -37,6 +37,7 @@ class AstropixelsCrawlerService implements CrawlerInterface
     {
         $url = $this->buildUrlForYear($context->year);
         $verifyOption = $this->resolveSslVerifyOption();
+        $sourceTimezone = $this->resolveSourceTimezone($context);
 
         $response = Http::connectTimeout(self::REQUEST_CONNECT_TIMEOUT_SECONDS)
             ->timeout(self::REQUEST_TIMEOUT_SECONDS)
@@ -62,7 +63,7 @@ class AstropixelsCrawlerService implements CrawlerInterface
         $html = (string) $response->body();
 
         try {
-            $parseResult = $this->parser->parse($html, $context->year, $url, $context->timezone);
+            $parseResult = $this->parser->parse($html, $context->year, $url, $sourceTimezone);
         } catch (Throwable $e) {
             throw new DomainException(
                 'ASTROPIXELS_PARSE_ERROR: ' . $e->getMessage(),
@@ -100,6 +101,19 @@ class AstropixelsCrawlerService implements CrawlerInterface
     {
         $pattern = (string) config('events.astropixels.base_url_pattern', 'https://astropixels.com/almanac/almanac21/almanac%dcet.html');
         return sprintf($pattern, $year);
+    }
+
+    private function resolveSourceTimezone(CrawlContext $context): string
+    {
+        $configured = (string) config('events.source_timezones.astropixels', '+01:00');
+        $requested = trim($context->timezone);
+        $genericDefault = (string) config('events.source_timezone', 'Europe/Bratislava');
+
+        if ($requested === '' || $requested === $genericDefault) {
+            return $configured;
+        }
+
+        return $requested;
     }
 
     private function resolveSslVerifyOption(): bool|string

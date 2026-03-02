@@ -2,7 +2,12 @@
 
 return [
     'default_visibility' => 1,
-    'source_timezone' => 'Europe/Bratislava',
+    'source_timezone' => env('EVENTS_SOURCE_TIMEZONE', 'Europe/Bratislava'),
+    'source_timezones' => [
+        'default' => env('EVENTS_SOURCE_TIMEZONE', 'Europe/Bratislava'),
+        'astropixels' => env('EVENTS_ASTROPIXELS_SOURCE_TIMEZONE', '+01:00'),
+        'imo' => 'UTC',
+    ],
     'crawler_ssl_verify' => filter_var(env('EVENTS_CRAWLER_SSL_VERIFY', true), FILTER_VALIDATE_BOOLEAN),
     'crawler_ssl_ca_bundle' => env('EVENTS_CRAWLER_CA_BUNDLE'),
     'timezone' => env('EVENTS_DISPLAY_TIMEZONE', 'Europe/Bratislava'),

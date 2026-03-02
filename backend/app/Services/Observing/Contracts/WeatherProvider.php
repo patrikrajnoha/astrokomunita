@@ -21,4 +21,18 @@ interface WeatherProvider
      * }
      */
     public function get(float $lat, float $lon, string $date, string $tz, ?string $targetEveningTime = null): array;
+
+    /**
+     * @return array<int,array{
+     *   at:string,
+     *   local_date:string,
+     *   local_time:string,
+     *   humidity_pct:?int,
+     *   cloud_cover_pct:?int,
+     *   wind_speed_kmh:?float,
+     *   temperature_c:?float,
+     *   precipitation_probability_pct:?int
+     * }>
+     */
+    public function hourlyForecast(float $lat, float $lon, string $fromDate, string $toDate, string $tz): array;
 }

@@ -6,7 +6,9 @@ use App\Services\Observing\Contracts\WeatherProvider;
 use App\Services\Observing\OpenMeteoWeatherCodeMapper;
 use App\Services\Observing\Support\ObservingHttp;
 use App\Services\Observing\Support\ObservingProviderException;
+use DateTimeInterface;
 use DateTimeImmutable;
+use DateTimeZone;
 
 class OpenMeteoWeatherProvider implements WeatherProvider
 {
@@ -27,24 +29,7 @@ class OpenMeteoWeatherProvider implements WeatherProvider
             'forecast_days' => 1,
         ];
 
-        try {
-            $payload = $this->http->getJson(
-                'open_meteo',
-                (string) config('observing.providers.open_meteo_url'),
-                $query
-            );
-        } catch (ObservingProviderException $exception) {
-            if ($tz !== 'UTC') {
-                $query['timezone'] = 'UTC';
-                $payload = $this->http->getJson(
-                    'open_meteo',
-                    (string) config('observing.providers.open_meteo_url'),
-                    $query
-                );
-            } else {
-                throw $exception;
-            }
-        }
+        $payload = $this->requestForecastPayload($query, $tz);
 
         $current = data_get($payload, 'current.relative_humidity_2m');
         $currentPct = is_numeric($current) ? (int) round((float) $current) : null;
@@ -80,7 +65,7 @@ class OpenMeteoWeatherProvider implements WeatherProvider
             $eveningWindKmh = $currentWindKmh;
         }
 
-        $hourlyPoints = $this->buildHourlyPoints($date, $hourlyTimes, $hourlyHumidity, $hourlyCloud, $hourlyWind);
+        $hourlyPoints = $this->buildHourlyPoints($date, $hourlyTimes, $hourlyHumidity, $hourlyCloud, $hourlyWind, $tz);
 
         return [
             'current_pct' => $currentPct,
@@ -96,6 +81,30 @@ class OpenMeteoWeatherProvider implements WeatherProvider
             'hourly' => $hourlyPoints,
             'status' => ($currentPct === null && $eveningPct === null && $currentCloudPct === null && $eveningCloudPct === null && $hourlyPoints === []) ? 'unavailable' : 'ok',
         ];
+    }
+
+    public function hourlyForecast(float $lat, float $lon, string $fromDate, string $toDate, string $tz): array
+    {
+        $query = [
+            'latitude' => number_format($lat, 6, '.', ''),
+            'longitude' => number_format($lon, 6, '.', ''),
+            'timezone' => $tz,
+            'hourly' => 'relative_humidity_2m,cloud_cover,wind_speed_10m,temperature_2m,precipitation_probability',
+            'start_date' => $fromDate,
+            'end_date' => $toDate,
+        ];
+
+        $payload = $this->requestForecastPayload($query, $tz);
+
+        return $this->buildHourlyForecastPoints(
+            data_get($payload, 'hourly.time', []),
+            data_get($payload, 'hourly.relative_humidity_2m', []),
+            data_get($payload, 'hourly.cloud_cover', []),
+            data_get($payload, 'hourly.wind_speed_10m', data_get($payload, 'hourly.windspeed_10m', [])),
+            data_get($payload, 'hourly.temperature_2m', []),
+            data_get($payload, 'hourly.precipitation_probability', []),
+            $tz
+        );
     }
 
     private function pickClosestHumidity(string $date, mixed $times, mixed $humidities, ?string $targetEveningTime): ?int
@@ -194,47 +203,135 @@ class OpenMeteoWeatherProvider implements WeatherProvider
     /**
      * @return array<int,array<string,mixed>>
      */
-    private function buildHourlyPoints(string $date, mixed $times, mixed $humidities, mixed $cloudCover, mixed $windSpeed): array
+    private function buildHourlyPoints(string $date, mixed $times, mixed $humidities, mixed $cloudCover, mixed $windSpeed, string $tz): array
     {
+        $points = array_filter(
+            $this->buildHourlyForecastPoints($times, $humidities, $cloudCover, $windSpeed, null, null, $tz),
+            static fn (array $point): bool => ($point['local_date'] ?? null) === $date
+        );
+
+        $normalized = array_map(static function (array $point): array {
+            return [
+                'local_time' => $point['local_time'] ?? null,
+                'humidity_pct' => $point['humidity_pct'] ?? null,
+                'cloud_cover_pct' => $point['cloud_cover_pct'] ?? null,
+                'wind_speed_kmh' => $point['wind_speed_kmh'] ?? null,
+            ];
+        }, array_values($points));
+
+        return array_slice($normalized, 0, 24);
+    }
+
+    /**
+     * @return array<int,array<string,mixed>>
+     */
+    private function buildHourlyForecastPoints(
+        mixed $times,
+        mixed $humidities,
+        mixed $cloudCover,
+        mixed $windSpeed,
+        mixed $temperatures,
+        mixed $precipitationProbability,
+        string $tz
+    ): array {
         if (!is_array($times) || count($times) === 0) {
             return [];
         }
 
+        $timezone = $this->resolveTimezone($tz);
         $points = [];
 
         foreach ($times as $idx => $timeRaw) {
-            if (!is_string($timeRaw)) {
+            $pointDate = $this->parsePointDate($timeRaw, $timezone);
+            if (!$pointDate) {
                 continue;
             }
-
-            try {
-                $pointDate = new DateTimeImmutable($timeRaw);
-            } catch (\Throwable) {
-                continue;
-            }
-
-            if ($pointDate->format('Y-m-d') !== $date) {
-                continue;
-            }
-
-            $humidity = is_array($humidities) && isset($humidities[$idx]) && is_numeric($humidities[$idx])
-                ? (int) round((float) $humidities[$idx])
-                : null;
-            $cloud = is_array($cloudCover) && isset($cloudCover[$idx]) && is_numeric($cloudCover[$idx])
-                ? (int) round((float) $cloudCover[$idx])
-                : null;
-            $wind = is_array($windSpeed) && isset($windSpeed[$idx]) && is_numeric($windSpeed[$idx])
-                ? round((float) $windSpeed[$idx], 1)
-                : null;
 
             $points[] = [
+                'at' => $pointDate->format(DateTimeInterface::ATOM),
+                'local_date' => $pointDate->format('Y-m-d'),
                 'local_time' => $pointDate->format('H:i'),
-                'humidity_pct' => $humidity,
-                'cloud_cover_pct' => $cloud,
-                'wind_speed_kmh' => $wind,
+                'humidity_pct' => $this->normalizeNullableInt($humidities, $idx),
+                'cloud_cover_pct' => $this->normalizeNullableInt($cloudCover, $idx),
+                'wind_speed_kmh' => $this->normalizeNullableFloat($windSpeed, $idx),
+                'temperature_c' => $this->normalizeNullableFloat($temperatures, $idx),
+                'precipitation_probability_pct' => $this->normalizeNullableInt($precipitationProbability, $idx),
             ];
         }
 
-        return array_slice($points, 0, 24);
+        return $points;
+    }
+
+    private function requestForecastPayload(array $query, string $tz): array
+    {
+        try {
+            return $this->http->getJson(
+                'open_meteo',
+                (string) config('observing.providers.open_meteo_url'),
+                $query
+            );
+        } catch (ObservingProviderException $exception) {
+            if ($tz !== 'UTC') {
+                $query['timezone'] = 'UTC';
+
+                return $this->http->getJson(
+                    'open_meteo',
+                    (string) config('observing.providers.open_meteo_url'),
+                    $query
+                );
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function resolveTimezone(string $tz): DateTimeZone
+    {
+        try {
+            return new DateTimeZone($tz);
+        } catch (\Throwable) {
+            return new DateTimeZone('UTC');
+        }
+    }
+
+    private function parsePointDate(mixed $timeRaw, DateTimeZone $timezone): ?DateTimeImmutable
+    {
+        if (!is_string($timeRaw)) {
+            return null;
+        }
+
+        $normalized = trim($timeRaw);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $parsed = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', $normalized, $timezone);
+        if ($parsed instanceof DateTimeImmutable) {
+            return $parsed;
+        }
+
+        try {
+            return new DateTimeImmutable($normalized, $timezone);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function normalizeNullableInt(mixed $values, int|string $idx): ?int
+    {
+        if (!is_array($values) || !isset($values[$idx]) || !is_numeric($values[$idx])) {
+            return null;
+        }
+
+        return (int) round((float) $values[$idx]);
+    }
+
+    private function normalizeNullableFloat(mixed $values, int|string $idx): ?float
+    {
+        if (!is_array($values) || !isset($values[$idx]) || !is_numeric($values[$idx])) {
+            return null;
+        }
+
+        return round((float) $values[$idx], 1);
     }
 }

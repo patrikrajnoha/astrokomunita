@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
 use App\Models\ManualEvent;
+use App\Support\EventTime;
 use App\Services\Events\EventFeedRealtimePublisher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -57,6 +58,8 @@ class ManualEventController extends Controller
             'event_type' => $validated['event_type'],
             'starts_at' => $validated['starts_at'],
             'ends_at' => $validated['ends_at'] ?? null,
+            'time_type' => EventTime::TYPE_START,
+            'time_precision' => EventTime::PRECISION_EXACT,
             'visibility' => $validated['visibility'] ?? 1,
             'created_by' => $request->user()->id,
             'status' => 'draft',
@@ -75,6 +78,8 @@ class ManualEventController extends Controller
             'event_type' => $validated['event_type'],
             'starts_at' => $validated['starts_at'],
             'ends_at' => $validated['ends_at'] ?? null,
+            'time_type' => EventTime::TYPE_START,
+            'time_precision' => EventTime::PRECISION_EXACT,
             'visibility' => $validated['visibility'] ?? $manualEvent->visibility,
         ]);
         $manualEvent->save();
@@ -104,6 +109,8 @@ class ManualEventController extends Controller
         $event->start_at = $manualEvent->starts_at;
         $event->end_at = $manualEvent->ends_at;
         $event->max_at = $manualEvent->starts_at;
+        $event->time_type = $manualEvent->time_type ?: EventTime::TYPE_START;
+        $event->time_precision = $manualEvent->time_precision ?: EventTime::PRECISION_EXACT;
         $event->visibility = $manualEvent->visibility ?? 1;
         $event->source_name = 'manual';
         $event->source_uid = (string) Str::uuid();
@@ -183,6 +190,8 @@ class ManualEventController extends Controller
                 $event->start_at = $manual->starts_at;
                 $event->end_at = $manual->ends_at;
                 $event->max_at = $manual->starts_at;
+                $event->time_type = $manual->time_type ?: EventTime::TYPE_START;
+                $event->time_precision = $manual->time_precision ?: EventTime::PRECISION_EXACT;
                 $event->visibility = $manual->visibility ?? 1;
                 $event->source_name = 'manual';
                 $event->source_uid = (string) Str::uuid();

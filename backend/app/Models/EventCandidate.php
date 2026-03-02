@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\EventCandidateStatus;
+use App\Support\EventTime;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -39,6 +40,8 @@ class EventCandidate extends Model
         'max_at',
         'start_at',
         'end_at',
+        'time_type',
+        'time_precision',
 
         'short',
         'description',
@@ -67,6 +70,23 @@ class EventCandidate extends Model
         'confidence_score' => 'decimal:2',
         'matched_sources' => 'array',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $candidate): void {
+            $candidate->time_type = EventTime::normalizeType(
+                $candidate->time_type,
+                $candidate->start_at,
+                $candidate->max_at
+            );
+            $candidate->time_precision = EventTime::normalizePrecision(
+                $candidate->time_precision,
+                $candidate->start_at,
+                $candidate->max_at,
+                $candidate->source_name
+            );
+        });
+    }
 
     public function reviewer(): BelongsTo
     {

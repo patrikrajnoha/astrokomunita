@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\TranslateEventCandidateJob;
 use App\Models\EventCandidate;
+use App\Services\AI\OllamaClient;
 use App\Services\AI\OllamaRefinementService;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -27,21 +28,13 @@ class TranslateEventCandidateJobTest extends TestCase
 
     private function fakeTranslationResult(?string $translatedTitle, ?string $translatedContent): void
     {
-        $mock = $this->createMock(BotTranslationServiceInterface::class);
-        $mock->method('translate')
-            ->willReturn([
-                'translated_title' => $translatedTitle,
-                'translated_content' => $translatedContent,
-                'title_translated' => $translatedTitle,
-                'content_translated' => $translatedContent,
-                'status' => $translatedTitle !== null || $translatedContent !== null ? 'done' : 'skipped',
-                'meta' => [
-                    'provider' => 'test-double',
-                    'target_lang' => 'sk',
-                ],
-            ]);
-
-        $this->app->instance(BotTranslationServiceInterface::class, $mock);
+        $this->app->instance(
+            BotTranslationServiceInterface::class,
+            new TranslateEventCandidateJobTranslationStub(
+                translatedTitle: $translatedTitle,
+                translatedContent: $translatedContent,
+            )
+        );
     }
 
     private function runJob(int $candidateId): void
@@ -77,10 +70,12 @@ class TranslateEventCandidateJobTest extends TestCase
     public function test_job_marks_event_candidate_failed_when_translation_errors(): void
     {
         $this->configureTranslation();
-        $mock = $this->createMock(BotTranslationServiceInterface::class);
-        $mock->method('translate')
-            ->willThrowException(new \App\Services\Bots\Exceptions\BotTranslationException('boom'));
-        $this->app->instance(BotTranslationServiceInterface::class, $mock);
+        $this->app->instance(
+            BotTranslationServiceInterface::class,
+            new TranslateEventCandidateJobTranslationStub(
+                exception: new \App\Services\Bots\Exceptions\BotTranslationException('boom'),
+            )
+        );
 
         $candidate = $this->makeCandidate([
             'title' => 'Original title',
@@ -129,14 +124,11 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->configureTranslation();
         config()->set('events.refine_descriptions_with_ollama', true);
 
-        $refiner = $this->createMock(OllamaRefinementService::class);
-        $refiner->expects($this->once())
-            ->method('refine')
-            ->willReturn([
-                'refined_title' => 'Maximum roja Perzeidy',
-                'refined_description' => 'Perzeidy vrcholia priblizne 12.08.2026. Pozorovanie je najlepsie mimo mesta.',
-                'used_fallback' => false,
-            ]);
+        $refiner = new TranslateEventCandidateJobRefinementStub([
+            'refined_title' => 'Maximum roja Perzeidy',
+            'refined_description' => 'Perzeidy vrcholia priblizne 12.08.2026. Pozorovanie je najlepsie mimo mesta.',
+            'used_fallback' => false,
+        ]);
         $this->app->instance(OllamaRefinementService::class, $refiner);
 
         $this->fakeTranslationResult('Perzeidy', null);
@@ -155,6 +147,7 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertSame('Maximum roja Perzeidy', $candidate->translated_title);
         $this->assertSame('Perzeidy vrcholia priblizne 12.08.2026. Pozorovanie je najlepsie mimo mesta.', $candidate->translated_description);
+        $this->assertSame(1, $refiner->calls);
     }
 
     public function test_job_fail_open_keeps_template_when_refinement_throws_exception(): void
@@ -162,10 +155,9 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->configureTranslation();
         config()->set('events.refine_descriptions_with_ollama', true);
 
-        $refiner = $this->createMock(OllamaRefinementService::class);
-        $refiner->expects($this->once())
-            ->method('refine')
-            ->willThrowException(new \RuntimeException('Ollama timeout'));
+        $refiner = new TranslateEventCandidateJobRefinementStub(
+            exception: new \RuntimeException('Ollama timeout')
+        );
         $this->app->instance(OllamaRefinementService::class, $refiner);
 
         $this->fakeTranslationResult('Perzeidy', null);
@@ -182,6 +174,7 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertStringContainsString('Meteoricky roj', (string) $candidate->translated_description);
         $this->assertNull($candidate->translation_error);
+        $this->assertSame(1, $refiner->calls);
     }
 
     public function test_job_does_not_call_refinement_when_disabled(): void
@@ -189,8 +182,11 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->configureTranslation();
         config()->set('events.refine_descriptions_with_ollama', false);
 
-        $refiner = $this->createMock(OllamaRefinementService::class);
-        $refiner->expects($this->never())->method('refine');
+        $refiner = new TranslateEventCandidateJobRefinementStub([
+            'refined_title' => 'unused',
+            'refined_description' => 'unused',
+            'used_fallback' => false,
+        ]);
         $this->app->instance(OllamaRefinementService::class, $refiner);
 
         $this->fakeTranslationResult('Prelozene', 'Prelozene');
@@ -206,6 +202,7 @@ class TranslateEventCandidateJobTest extends TestCase
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertSame('Prelozene', $candidate->translated_title);
+        $this->assertSame(0, $refiner->calls);
     }
 
     /**
@@ -231,5 +228,70 @@ class TranslateEventCandidateJobTest extends TestCase
             'status' => EventCandidate::STATUS_PENDING,
             'translation_status' => EventCandidate::TRANSLATION_PENDING,
         ], $overrides));
+    }
+}
+
+final class TranslateEventCandidateJobTranslationStub implements BotTranslationServiceInterface
+{
+    public function __construct(
+        private readonly ?string $translatedTitle = null,
+        private readonly ?string $translatedContent = null,
+        private readonly ?\Throwable $exception = null,
+    ) {
+    }
+
+    public function translate(?string $title, ?string $content, string $to = 'sk'): array
+    {
+        if ($this->exception !== null) {
+            throw $this->exception;
+        }
+
+        return [
+            'translated_title' => $this->translatedTitle,
+            'translated_content' => $this->translatedContent,
+            'title_translated' => $this->translatedTitle,
+            'content_translated' => $this->translatedContent,
+            'status' => $this->translatedTitle !== null || $this->translatedContent !== null ? 'done' : 'skipped',
+            'meta' => [
+                'provider' => 'test-double',
+                'target_lang' => $to,
+            ],
+        ];
+    }
+}
+
+final class TranslateEventCandidateJobRefinementStub extends OllamaRefinementService
+{
+    public int $calls = 0;
+
+    /**
+     * @param array{refined_title?:string,refined_description?:?string,used_fallback?:bool} $result
+     */
+    public function __construct(
+        private readonly array $result = [],
+        private readonly ?\Throwable $exception = null,
+    ) {
+        parent::__construct(new OllamaClient());
+    }
+
+    public function refine(
+        string $originalEnglishTitle,
+        ?string $originalEnglishDescription,
+        string $translatedTitle,
+        ?string $translatedDescription
+    ): array {
+        $this->calls++;
+
+        if ($this->exception !== null) {
+            throw $this->exception;
+        }
+
+        return [
+            'refined_title' => $this->result['refined_title'] ?? $translatedTitle,
+            'refined_description' => $this->result['refined_description'] ?? $translatedDescription,
+            'used_fallback' => (bool) ($this->result['used_fallback'] ?? false),
+            'model' => 'stub-model',
+            'duration_ms' => 1,
+        ];
     }
 }

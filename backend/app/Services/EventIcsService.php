@@ -15,7 +15,7 @@ class EventIcsService
 
     public function buildSingleEventIcs(Event $event): string
     {
-        return $this->buildBundleIcs(collect([$event]), 'Event');
+        return $this->buildBundleIcs(collect([$event]), 'Astrokomunita event');
     }
 
     /**
@@ -41,12 +41,7 @@ class EventIcsService
                 continue;
             }
 
-            $uid = sprintf(
-                'event-%d-%s@%s',
-                (int) $event->id,
-                $window['start']->utc()->format('YmdHis'),
-                $uidHost
-            );
+            $uid = sprintf('event-%d@%s', (int) $event->id, $uidHost);
 
             $url = $this->calendarLinks->eventPublicUrl($event);
             $description = trim((string) ($event->description ?: $event->short ?: ''));
@@ -74,9 +69,7 @@ class EventIcsService
             $eventLines[] = 'DESCRIPTION:' . $this->escapeText($description);
 
             $location = trim((string) ($event->location ?? ''));
-            if ($location !== '') {
-                $eventLines[] = 'LOCATION:' . $this->escapeText($location);
-            }
+            $eventLines[] = 'LOCATION:' . $this->escapeText($location !== '' ? $location : 'Slovensko');
 
             $eventLines[] = 'URL:' . $url;
             $eventLines[] = 'END:VEVENT';
@@ -94,7 +87,11 @@ class EventIcsService
         $url = config('app.url') ?: 'http://localhost';
         $host = parse_url($url, PHP_URL_HOST);
 
-        return is_string($host) && $host !== '' ? $host : 'localhost';
+        if (! is_string($host) || $host === '' || $host === 'localhost') {
+            return 'astrokomunita';
+        }
+
+        return $host;
     }
 
     private function escapeText(string $value): string
