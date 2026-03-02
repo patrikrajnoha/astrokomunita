@@ -124,14 +124,14 @@ class PostImageVariantsTest extends TestCase
         $create->assertCreated();
 
         $postId = (int) $create->json('id');
-        $create->assertJsonPath('attachment_download_url', "http://localhost/api/media/{$postId}/download");
-        $create->assertJsonPath('attachment_url', "http://localhost/api/media/{$postId}");
+        $create->assertJsonPath('attachment_download_url', "/api/media/{$postId}/download");
+        $create->assertJsonPath('attachment_url', "/api/media/{$postId}");
 
         $feed = $this->getJson('/api/feed?with=counts');
         $feed->assertOk();
         $feed->assertJsonPath('data.0.id', $postId);
-        $feed->assertJsonPath('data.0.attachment_url', "http://localhost/api/media/{$postId}");
-        $feed->assertJsonPath('data.0.attachment_download_url', "http://localhost/api/media/{$postId}/download");
+        $feed->assertJsonPath('data.0.attachment_url', "/api/media/{$postId}");
+        $feed->assertJsonPath('data.0.attachment_download_url', "/api/media/{$postId}/download");
         $this->assertNotNull($feed->json('data.0.attachment_width'));
         $this->assertNotNull($feed->json('data.0.attachment_height'));
         $this->assertNotNull($feed->json('data.0.attachment_size_web'));

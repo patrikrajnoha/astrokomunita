@@ -73,7 +73,7 @@ class StorageUploadTest extends TestCase
 
         $this->assertSame($path, Post::query()->findOrFail($postId)->attachment_path);
         $attachmentUrl = (string) $response->json('attachment_url');
-        $this->assertStringStartsWith(rtrim((string) config('app.url'), '/'), $attachmentUrl);
+        $this->assertSame("/api/media/{$postId}", $attachmentUrl);
     }
 
     public function test_poll_option_image_is_stored_separately_from_post_attachment(): void
