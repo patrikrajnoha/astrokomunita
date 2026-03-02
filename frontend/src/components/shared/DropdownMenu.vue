@@ -175,18 +175,18 @@ defineExpose({ close })
   border: none;
   padding: 6px;
   border-radius: 999px;
-  color: #71767b;
+  color: var(--text-muted);
   cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease;
 }
 
 .dropdownTrigger:hover {
-  background: rgb(29 155 240 / 0.12);
-  color: #1d9bf0;
+  background: rgb(var(--primary-rgb) / 0.12);
+  color: var(--primary);
 }
 
 .dropdownTrigger:focus-visible {
-  outline: 2px solid #1d9bf0;
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
@@ -196,9 +196,9 @@ defineExpose({ close })
   right: 0;
   z-index: 80;
   min-width: 170px;
-  border: 1px solid #2f3336;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #16181c;
+  background: var(--bg-surface-2);
   padding: 4px;
   display: grid;
   gap: 2px;
@@ -209,7 +209,7 @@ defineExpose({ close })
   border: none;
   border-radius: 10px;
   background: transparent;
-  color: #e7e9ea;
+  color: var(--text-primary);
   text-align: left;
   padding: 0.45rem 0.6rem;
   cursor: pointer;
@@ -217,20 +217,20 @@ defineExpose({ close })
 }
 
 .dropdownItem:hover {
-  background: #1a1f24;
+  background: rgb(var(--text-primary-rgb) / 0.08);
 }
 
 .dropdownItem:focus-visible {
-  outline: 2px solid #1d9bf0;
+  outline: 2px solid var(--primary);
   outline-offset: 1px;
 }
 
 .dropdownItem--danger {
-  color: #f4212e;
+  color: var(--primary-active);
 }
 
 .dropdownItem--danger:hover {
-  background: rgb(244 33 46 / 0.15);
+  background: rgb(var(--primary-active-rgb) / 0.15);
 }
 
 @keyframes dropdownIn {

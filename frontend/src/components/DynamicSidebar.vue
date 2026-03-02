@@ -1,11 +1,15 @@
 <template>
   <aside v-if="isDesktop && activeScope && renderedSections.length > 0" class="rightCol">
-    <component
-      :is="resolveSidebarComponent(section)"
+    <div
       v-for="section in renderedSections"
       :key="resolveItemKey(section)"
-      v-bind="propsForSection(section)"
-    />
+      class="sidebarSection"
+    >
+      <component
+        :is="resolveSidebarComponent(section)"
+        v-bind="propsForSection(section)"
+      />
+    </div>
   </aside>
 </template>
 

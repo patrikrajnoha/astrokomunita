@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import NotificationsView from './NotificationsView.vue'
 
-const pushMock = vi.hoisted(() => vi.fn())
-const replaceMock = vi.hoisted(() => vi.fn())
 const getMock = vi.hoisted(() => vi.fn())
 const postMock = vi.hoisted(() => vi.fn())
 
@@ -23,16 +22,6 @@ const authMock = vi.hoisted(() => ({
   isAuthed: true,
 }))
 
-vi.mock('vue-router', () => ({
-  useRouter: () => ({
-    push: pushMock,
-    replace: replaceMock,
-  }),
-  useRoute: () => ({
-    hash: '',
-  }),
-}))
-
 vi.mock('@/stores/notifications', () => ({
   useNotificationsStore: () => notificationsStoreMock,
 }))
@@ -50,6 +39,35 @@ vi.mock('@/services/api', () => ({
 
 function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+async function mountView(initialPath = '/notifications') {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      {
+        path: '/notifications',
+        name: 'notifications',
+        component: NotificationsView,
+      },
+    ],
+  })
+
+  const replaceSpy = vi.spyOn(router, 'replace')
+
+  await router.push(initialPath)
+  await router.isReady()
+
+  const wrapper = mount(NotificationsView, {
+    attachTo: document.body,
+    global: {
+      plugins: [router],
+    },
+  })
+
+  await flush()
+
+  return { wrapper, router, replaceSpy }
 }
 
 describe('NotificationsView', () => {
@@ -78,28 +96,56 @@ describe('NotificationsView', () => {
     postMock.mockImplementation(async (_url, payload) => ({
       data: payload,
     }))
-
-    if (!HTMLElement.prototype.scrollIntoView) {
-      HTMLElement.prototype.scrollIntoView = () => {}
-    }
   })
 
-  it('renders notification settings section with both sky alert toggles', async () => {
-    const wrapper = mount(NotificationsView, {
-      attachTo: document.body,
-    })
+  it('click on settings button opens modal', async () => {
+    const { wrapper, replaceSpy } = await mountView()
 
+    await wrapper.get('[data-testid="open-notification-settings"]').trigger('click')
     await flush()
 
-    expect(notificationsStoreMock.fetchList).toHaveBeenCalledWith(1)
-    expect(notificationsStoreMock.fetchUnreadCount).toHaveBeenCalledTimes(1)
-    expect(getMock).toHaveBeenCalledWith('/me/notifications/preferences', {
-      meta: { requiresAuth: true, skipErrorToast: true },
+    expect(document.body.querySelector('[data-testid="notification-settings-modal"]')).not.toBeNull()
+    expect(document.body.textContent).toContain('Nastavenia notifikacii')
+    expect(replaceSpy).toHaveBeenCalledWith({
+      path: '/notifications',
+      query: {},
+      hash: '#notification-settings',
     })
 
-    expect(wrapper.text()).toContain('Nastavenia notifikácií')
-    expect(wrapper.text()).toContain('Upozorniť ma pri výborných podmienkach')
-    expect(wrapper.text()).toContain('Upozorniť ma na ISS prelet')
+    wrapper.unmount()
+  })
+
+  it('close button closes modal', async () => {
+    const { wrapper, router, replaceSpy } = await mountView()
+
+    await wrapper.get('[data-testid="open-notification-settings"]').trigger('click')
+    await flush()
+    await router.push('/notifications#notification-settings')
+    await flush()
+
+    await document.body.querySelector('[data-testid="close-notification-settings"]').click()
+    await flush()
+
+    expect(replaceSpy).toHaveBeenCalledWith({
+      path: '/notifications',
+      query: {},
+      hash: '',
+    })
+    expect(document.body.querySelector('[data-testid="notification-settings-modal"]')).toBeNull()
+
+    wrapper.unmount()
+  })
+
+  it('opens modal when route hash is present on load', async () => {
+    const { wrapper, replaceSpy } = await mountView('/notifications#notification-settings')
+
+    expect(document.body.querySelector('[data-testid="notification-settings-modal"]')).not.toBeNull()
+    expect(document.body.textContent).toContain('Nastavenia notifikacii')
+    expect(replaceSpy).not.toHaveBeenCalledWith({
+      path: '/notifications',
+      query: {},
+      hash: '#notification-settings',
+    })
 
     wrapper.unmount()
   })

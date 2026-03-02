@@ -1,5 +1,5 @@
 <template>
-  <nav class="flex h-full flex-col gap-3" aria-label="Primary navigation">
+  <nav class="flex h-full flex-col gap-3 bg-[var(--bg-app)]" aria-label="Primary navigation">
     <RouterLink
       to="/"
       class="inline-flex items-center gap-2 rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.45)] px-3 py-2 text-sm font-semibold text-[var(--color-surface)] shadow-[0_8px_20px_rgb(var(--color-bg-rgb)/0.35)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.6)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
@@ -223,31 +223,6 @@
                     C
                   </span>
                   <span class="flex-1">Candidates</span>
-                </a>
-              </RouterLink>
-
-              <RouterLink
-                to="/admin/reports"
-                custom
-                v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
-              >
-                <a
-                  :href="adminHref"
-                  @click="() => { closeAdmin(); adminNavigate(); }"
-                  class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
-                  :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
-                    : ''"
-                  role="menuitem"
-                  aria-label="Reports"
-                >
-                  <span
-                    class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
-                    aria-hidden="true"
-                  >
-                    R
-                  </span>
-                  <span class="flex-1">Reports</span>
                 </a>
               </RouterLink>
 

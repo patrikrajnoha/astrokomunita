@@ -64,23 +64,16 @@ export default {
   width: 100%;
   max-width: 680px;
   min-width: 0;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
+  border: var(--divider);
   border-radius: 16px;
   overflow: hidden;
-  background: rgb(var(--color-bg-rgb) / 0.34);
+  background: rgb(var(--color-bg-rgb) / 0.26);
 }
 
 @media (max-width: 720px) {
   .timelineColumn {
-    border-left: 0;
-    border-right: 0;
+    border: 0;
     border-radius: 0;
-  }
-}
-
-@media (max-width: 480px) {
-  .timelineColumn {
-    border-top: 0;
   }
 }
 

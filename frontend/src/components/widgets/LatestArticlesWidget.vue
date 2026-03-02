@@ -205,10 +205,10 @@ export default {
 <style scoped>
 .card {
   position: relative;
-  border: 1px solid var(--color-text-secondary);
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  border-radius: 1.5rem;
-  padding: 1.25rem;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -235,7 +235,7 @@ export default {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.65rem;
+  gap: 0;
 }
 
 .articleViewport {
@@ -244,6 +244,12 @@ export default {
 
 .articleItem {
   display: block;
+  border-bottom: 1px solid var(--divider-color);
+  padding: 0.65rem 0;
+}
+
+.articleItem:last-child {
+  border-bottom: none;
 }
 
 .articleLink {
@@ -330,13 +336,13 @@ export default {
 
 .switchProgress {
   position: absolute;
-  left: 0.9rem;
-  right: 0.9rem;
-  bottom: 0.7rem;
-  height: 2px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
   border-radius: 999px;
   overflow: hidden;
-  background: rgb(var(--color-text-secondary-rgb) / 0.22);
+  background: var(--divider-color);
 }
 
 .switchProgressBar {
@@ -344,7 +350,7 @@ export default {
   width: 100%;
   height: 100%;
   transform-origin: left center;
-  background: linear-gradient(90deg, var(--color-primary), rgb(var(--color-primary-rgb) / 0.5));
+  background: rgb(var(--color-primary-rgb) / 0.55);
   transition: transform 0.12s linear;
 }
 

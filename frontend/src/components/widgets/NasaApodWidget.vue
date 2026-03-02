@@ -114,10 +114,10 @@ export default {
 <style scoped>
 .card {
   position: relative;
-  border: 1px solid var(--color-text-secondary);
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  border-radius: 1.5rem;
-  padding: 1.25rem;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -153,7 +153,7 @@ export default {
   aspect-ratio: 16 / 9;
   border-radius: 1rem;
   overflow: hidden;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  border: 1px solid var(--divider-color);
 }
 
 .nasaImageWrap img {

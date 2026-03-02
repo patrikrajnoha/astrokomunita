@@ -91,7 +91,7 @@ describe('FeedSwitcher', () => {
     expect(movedStyle).not.toBe(initialStyle)
   })
 
-  it('adds sticky elevation when the page is scrolled', async () => {
+  it('reveals the sticky divider state when the page is scrolled', async () => {
     const wrapper = mount(FeedSwitcher, {
       props: {
         modelValue: 'for_you',
@@ -101,10 +101,8 @@ describe('FeedSwitcher', () => {
     })
 
     const sticky = wrapper.get('[data-testid="feed-tabs-sticky"]')
-    const fade = wrapper.get('[data-testid="feed-tabs-fade"]')
 
     expect(sticky.classes()).toContain('shadow-none')
-    expect(fade.classes()).toContain('opacity-0')
 
     window.scrollY = 28
     Object.defineProperty(document.documentElement, 'scrollTop', {
@@ -116,7 +114,6 @@ describe('FeedSwitcher', () => {
     await nextTick()
     await nextTick()
 
-    expect(sticky.classes()).not.toContain('shadow-none')
-    expect(fade.classes()).toContain('opacity-100')
+    expect(sticky.classes()).toContain('bg-[rgb(var(--color-bg-rgb)/0.96)]')
   })
 })
