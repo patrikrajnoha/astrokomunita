@@ -1487,7 +1487,6 @@ defineExpose({ load, prepend })
 
 .feed-actions {
   width: 100%;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
 }
 
 .feed-panel {
@@ -1499,7 +1498,6 @@ defineExpose({ load, prepend })
 }
 
 .empty-state {
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
   background: rgb(var(--color-bg-rgb) / 0.16);
   color: var(--color-text-secondary);
   padding: 0.9rem 0.85rem;
@@ -1589,7 +1587,7 @@ defineExpose({ load, prepend })
 
 .skeleton-post {
   background: transparent;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.12);
+  border-bottom: var(--divider);
   border-radius: 0;
   padding: 0.75rem 0.75rem 0.85rem;
   overflow: hidden;
@@ -1682,7 +1680,7 @@ defineExpose({ load, prepend })
 .post-card {
   background: transparent;
   border: 0;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
+  border-bottom: var(--divider);
   border-radius: 0;
   padding: 0.72rem 0.75rem;
   transition: background-color 0.16s ease;
@@ -1691,6 +1689,10 @@ defineExpose({ load, prepend })
   overflow: visible;
   width: 100%;
   min-width: 0;
+}
+
+.post-card:last-child {
+  border-bottom: none;
 }
 
 .post-card:hover {
@@ -1703,52 +1705,38 @@ defineExpose({ load, prepend })
 
 .post-card--new {
   animation: newPostReveal 760ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  border-bottom-color: rgb(var(--color-primary-rgb) / 0.4);
+  background: rgb(var(--color-primary-rgb) / 0.06);
 }
 
 @keyframes newPostReveal {
   0% {
     opacity: 0.35;
     transform: translateY(-10px) scale(0.985);
-    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0.35);
   }
   55% {
     opacity: 1;
     transform: translateY(0) scale(1);
-    box-shadow: 0 0 0 8px rgb(var(--color-primary-rgb) / 0.08);
   }
   100% {
-    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0);
+    background: transparent;
   }
 }
 
 /* Pinned posts */
 .post-card--pinned {
-  border-bottom-color: rgb(var(--color-warning-rgb) / 0.45);
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-warning-rgb) / 0.08) 0%,
-    rgb(var(--color-bg-rgb) / 0.16) 100%
-  );
+  background: rgb(var(--color-warning-rgb) / 0.05);
 }
 
 .post-card--pinned:hover {
-  border-color: rgb(var(--color-warning-rgb) / 0.6);
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-warning-rgb) / 0.12) 0%,
-    rgb(var(--color-bg-rgb) / 0.6) 100%
-  );
+  background: rgb(var(--color-warning-rgb) / 0.08);
 }
 
 /* AstroBot posts */
 .post-card--astrobot {
-  border-bottom-color: rgb(var(--color-text-secondary-rgb) / 0.14);
   background: transparent;
 }
 
 .post-card--astrobot:hover {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.14);
   background: rgb(var(--color-text-secondary-rgb) / 0.06);
 }
 
@@ -2708,5 +2696,3 @@ defineExpose({ load, prepend })
   }
 }
 </style>
-
-

@@ -1,5 +1,5 @@
 <template>
-  <div class="rounded-lg border border-[color:rgb(var(--color-text-secondary-rgb)/0.2)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] p-4">
+  <div class="rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] p-4">
     <header class="mb-4">
       <h3 class="font-semibold text-[var(--color-surface)] flex items-center gap-2">
         <svg class="h-5 w-5 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">

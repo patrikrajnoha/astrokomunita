@@ -81,7 +81,7 @@
           {{ submitTurnstileMessage }}
         </p>
 
-        <button class="btn" type="submit" :disabled="isSubmitDisabled">
+        <button class="btn ui-pill ui-pill--primary ui-pill--full" type="submit" :disabled="isSubmitDisabled">
           {{ auth.loading ? 'Registrujem...' : 'Zaregistrovat' }}
         </button>
 
@@ -494,9 +494,7 @@ function daysInMonth(year, month) {
   display: grid;
   place-items: center;
   padding: 1rem;
-  background:
-    radial-gradient(1000px 500px at 10% -10%, rgb(var(--color-primary-rgb) / 0.16), transparent 60%),
-    radial-gradient(900px 440px at 100% 120%, rgb(var(--color-success-rgb) / 0.1), transparent 65%);
+  background: transparent;
 }
 
 .registerShell {
@@ -515,21 +513,21 @@ function daysInMonth(year, month) {
   margin: 0;
   font-size: clamp(1.35rem, 2vw, 1.7rem);
   font-weight: 700;
-  color: var(--color-surface);
+  color: var(--text-primary);
 }
 
 .registerSubtitle {
   margin: 0;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 0.86rem;
 }
 
 .card {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
-  background: linear-gradient(180deg, rgb(var(--color-bg-rgb) / 0.8), rgb(var(--color-bg-rgb) / 0.64));
-  border-radius: 0.9rem;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  border-radius: 1rem;
   padding: 0.95rem;
-  box-shadow: 0 14px 28px rgb(var(--color-bg-rgb) / 0.3);
+  box-shadow: 0 14px 28px rgb(var(--bg-app-rgb) / 0.24);
   backdrop-filter: blur(6px);
   display: grid;
   gap: 0.68rem;
@@ -541,7 +539,7 @@ function daysInMonth(year, month) {
 }
 
 .label {
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -550,24 +548,24 @@ function daysInMonth(year, month) {
   width: 100%;
   padding: 0.6rem 0.75rem;
   border-radius: 0.72rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.4);
-  background: rgb(var(--color-bg-rgb) / 0.42);
-  color: var(--color-surface);
+  border: 1px solid var(--border);
+  background: rgb(var(--bg-app-rgb) / 0.42);
+  color: var(--text-primary);
   outline: none;
   font-size: 0.92rem;
   transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
 }
 
 .input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.2);
-  background: rgb(var(--color-bg-rgb) / 0.5);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / 0.2);
+  background: rgb(var(--bg-app-rgb) / 0.5);
 }
 
 .dobPicker {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  border: 1px solid var(--border);
   border-radius: 0.72rem;
-  background: rgb(var(--color-bg-rgb) / 0.52);
+  background: rgb(var(--bg-app-rgb) / 0.52);
   padding: 0.56rem;
   display: grid;
   gap: 0.4rem;
@@ -583,16 +581,16 @@ function daysInMonth(year, month) {
   display: grid;
   gap: 0.2rem;
   font-size: 0.7rem;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .dobSelect {
   width: 100%;
   padding: 0.42rem 0.4rem;
   border-radius: 0.58rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.4);
-  background: rgb(var(--color-bg-rgb) / 0.65);
-  color: var(--color-surface);
+  border: 1px solid var(--border);
+  background: rgb(var(--bg-app-rgb) / 0.65);
+  color: var(--text-primary);
   font-size: 0.88rem;
 }
 
@@ -602,53 +600,32 @@ function daysInMonth(year, month) {
 }
 
 .fieldHint.isMuted {
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
 }
 
 .fieldHint.isSuccess {
-  color: var(--color-success);
+  color: var(--primary);
 }
 
 .fieldHint.isError {
-  color: var(--color-danger);
+  color: var(--primary-active);
 }
 
 .turnstileShell {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
+  border: 1px solid var(--border);
   border-radius: 0.72rem;
-  background: rgb(var(--color-bg-rgb) / 0.52);
+  background: rgb(var(--bg-app-rgb) / 0.52);
   padding: 0.56rem;
   overflow-x: auto;
 }
 
 .turnstileShell.isError {
-  border-color: rgb(var(--color-danger-rgb) / 0.45);
+  border-color: var(--primary-active);
 }
 
 .btn {
   width: 100%;
   margin-top: 0.16rem;
-  padding: 0.64rem 0.9rem;
-  border-radius: 0.72rem;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
-  background: linear-gradient(180deg, rgb(var(--color-primary-rgb) / 0.24), rgb(var(--color-primary-rgb) / 0.15));
-  color: var(--color-surface);
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: transform 120ms ease, background-color 120ms ease;
-}
-
-.btn:hover {
-  background: linear-gradient(180deg, rgb(var(--color-primary-rgb) / 0.3), rgb(var(--color-primary-rgb) / 0.2));
-}
-
-.btn:active {
-  transform: translateY(1px);
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .submitHint {
@@ -658,26 +635,26 @@ function daysInMonth(year, month) {
 
 .loginHint {
   margin: 0.05rem 0 0;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 0.8rem;
   text-align: center;
 }
 
 .link {
-  color: var(--color-primary);
+  color: var(--primary);
   font-weight: 600;
 }
 
 .link:hover {
-  color: var(--color-surface);
+  color: var(--text-primary);
 }
 
 .alert {
   padding: 0.5rem 0.62rem;
   border-radius: 0.7rem;
-  border: 1px solid rgb(var(--color-danger-rgb) / 0.35);
-  background: rgb(var(--color-danger-rgb) / 0.12);
-  color: var(--color-danger);
+  border: 1px solid var(--primary-active);
+  background: rgb(var(--primary-active-rgb) / 0.12);
+  color: var(--primary-active);
   font-size: 0.79rem;
 }
 

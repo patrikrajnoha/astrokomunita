@@ -1,5 +1,5 @@
 <template>
-  <section class="rounded-2xl border border-white/10 bg-slate-900/60 p-5 backdrop-blur">
+  <section class="rounded-2xl bg-slate-900/35 p-5 backdrop-blur">
     <header class="flex items-start justify-between gap-3">
       <div class="min-w-0">
         <h3 class="text-sm font-semibold text-slate-100">Astronomicke podmienky</h3>
@@ -24,7 +24,7 @@
       <div class="flex items-center gap-2">
         <span
           v-if="globalFreshnessLabel"
-          class="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-slate-300"
+          class="rounded-full border border-white/5 bg-white/5 px-2 py-1 text-[10px] text-slate-300"
         >
           {{ globalFreshnessLabel }}
         </span>
@@ -63,7 +63,7 @@
       <div class="h-24 animate-pulse rounded-xl bg-white/5"></div>
     </section>
 
-    <div v-else class="mt-5 divide-y divide-white/10">
+    <div v-else class="mt-5 divide-y divide-white/5">
       <section
         v-for="sectionId in orderedSectionIds"
         :key="sectionId"
@@ -159,7 +159,7 @@
                 <div
                   v-for="planet in planetsDisplayList"
                   :key="planet.name"
-                  class="rounded-xl border border-white/10 bg-white/5 px-3 py-3"
+                  class="rounded-xl border border-white/5 bg-white/5 px-3 py-3"
                 >
                   <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
@@ -200,7 +200,7 @@
           <div v-if="editMode" class="flex shrink-0 flex-col gap-1">
             <button
               type="button"
-              class="rounded-lg border border-white/10 px-2 py-1 text-xs text-slate-200 transition hover:bg-white/10 disabled:opacity-30"
+              class="rounded-lg border border-white/5 px-2 py-1 text-xs text-slate-200 transition hover:bg-white/10 disabled:opacity-30"
               :disabled="isFirstSection(sectionId)"
               @click="moveSectionById(sectionId, 'up')"
             >
@@ -208,7 +208,7 @@
             </button>
             <button
               type="button"
-              class="rounded-lg border border-white/10 px-2 py-1 text-xs text-slate-200 transition hover:bg-white/10 disabled:opacity-30"
+              class="rounded-lg border border-white/5 px-2 py-1 text-xs text-slate-200 transition hover:bg-white/10 disabled:opacity-30"
               :disabled="isLastSection(sectionId)"
               @click="moveSectionById(sectionId, 'down')"
             >

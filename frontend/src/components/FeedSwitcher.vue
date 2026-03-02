@@ -1,8 +1,8 @@
 <template>
   <div
     ref="rootRef"
-    class="sticky top-[var(--feed-tabs-offset)] z-20 border-b border-white/10 bg-[rgb(var(--color-bg-rgb)/0.9)] backdrop-blur-sm transition-shadow duration-200 md:top-0"
-    :class="isScrolled ? 'border-white/20 shadow-[0_3px_10px_rgba(2,6,23,0.22)]' : 'shadow-none'"
+    class="sticky top-[var(--feed-tabs-offset)] z-20 bg-[rgb(var(--color-bg-rgb)/0.9)] backdrop-blur-sm transition-colors duration-200 md:top-0"
+    :class="isScrolled ? 'bg-[rgb(var(--color-bg-rgb)/0.96)]' : 'shadow-none'"
     :style="{ '--feed-tabs-offset': 'var(--app-header-h, 56px)' }"
     data-testid="feed-tabs-sticky"
   >
@@ -41,13 +41,6 @@
         aria-hidden="true"
       ></div>
     </div>
-
-    <div
-      class="pointer-events-none absolute -bottom-1 left-0 right-0 h-px bg-white/10 transition-opacity duration-200"
-      :class="isScrolled ? 'opacity-100' : 'opacity-0'"
-      data-testid="feed-tabs-fade"
-      aria-hidden="true"
-    ></div>
   </div>
 </template>
 

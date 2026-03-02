@@ -9,10 +9,10 @@
       <p v-if="statusMessage" class="status" :class="statusTone">{{ statusMessage }}</p>
 
       <div class="actions">
-        <button type="button" :disabled="loading || resendLoading || !auth.isAuthed" @click="resend">
+        <button type="button" class="ui-pill ui-pill--primary" :disabled="loading || resendLoading || !auth.isAuthed" @click="resend">
           {{ resendLoading ? 'Odosielam...' : 'Poslat overovaci email znova' }}
         </button>
-        <button type="button" :disabled="loading || auth.loading" @click="refreshUser">Obnovit stav</button>
+        <button type="button" class="ui-pill ui-pill--secondary" :disabled="loading || auth.loading" @click="refreshUser">Obnovit stav</button>
       </div>
 
       <p class="muted small">
@@ -131,10 +131,10 @@ onMounted(async () => {
 
 .verifyCard {
   width: min(100%, 560px);
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
-  border-radius: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
   padding: 18px;
-  background: rgb(var(--color-bg-rgb) / 0.7);
+  background: var(--bg-surface);
 }
 
 .verifyCard h1 {
@@ -144,7 +144,7 @@ onMounted(async () => {
 
 .muted {
   margin-top: 8px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.88);
+  color: var(--text-secondary);
 }
 
 .small {
@@ -159,20 +159,20 @@ onMounted(async () => {
 }
 
 .status.success {
-  border-color: rgb(34 197 94 / 0.35);
-  background: rgb(34 197 94 / 0.12);
-  color: rgb(21 128 61);
+  border-color: var(--primary);
+  background: rgb(var(--primary-rgb) / 0.12);
+  color: var(--primary);
 }
 
 .status.error {
-  border-color: rgb(239 68 68 / 0.35);
-  background: rgb(239 68 68 / 0.12);
-  color: rgb(185 28 28);
+  border-color: var(--primary-active);
+  background: rgb(var(--primary-active-rgb) / 0.12);
+  color: var(--primary-active);
 }
 
 .status.neutral {
-  border-color: rgb(var(--color-surface-rgb) / 0.2);
-  background: rgb(var(--color-bg-rgb) / 0.42);
+  border-color: var(--border);
+  background: rgb(var(--bg-app-rgb) / 0.42);
 }
 
 .actions {
@@ -183,16 +183,6 @@ onMounted(async () => {
 }
 
 .actions button {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.25);
-  border-radius: 10px;
-  padding: 8px 12px;
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  color: inherit;
-  cursor: pointer;
-}
-
-.actions button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  flex-shrink: 0;
 }
 </style>

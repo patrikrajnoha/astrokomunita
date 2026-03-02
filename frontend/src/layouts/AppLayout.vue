@@ -1,14 +1,14 @@
 <template>
   <div
-    class="min-h-screen overflow-x-hidden bg-[var(--color-bg)] text-[var(--color-surface)] transition-colors duration-700"
+    class="min-h-screen overflow-x-hidden bg-[var(--bg-app)] text-[var(--text-primary)] transition-colors duration-700"
     style="--mobile-bottom-nav-offset: 74px;"
   >
     <header
-      class="sticky top-0 z-40 flex items-center justify-between border-b border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.85)] px-4 py-3 backdrop-blur md:hidden"
+      class="sticky top-0 z-40 flex items-center justify-between border-b border-[var(--border)] bg-[color:rgb(var(--bg-app-rgb)/0.92)] px-4 py-3 backdrop-blur md:hidden"
     >
       <button
         type="button"
-        class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[var(--color-primary)] transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.7)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
+        class="ui-pill ui-pill--secondary ui-pill--icon"
         aria-label="Open navigation"
         @click="openDrawer"
       >
@@ -43,7 +43,10 @@
     </header>
 
     <aside
-      class="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 md:left-3 md:inset-y-3 md:rounded-2xl md:flex xl:hidden"
+      :class="[
+        'fixed inset-y-0 left-0 hidden w-64 flex-col bg-[var(--bg-app)] px-4 py-6 md:left-3 md:inset-y-3 md:rounded-2xl md:flex xl:hidden',
+        isHomeFeedRoute ? '' : 'border-r border-[var(--border)]',
+      ]"
     >
       <div class="flex h-full flex-col">
         <nav class="flex-1" aria-label="Main navigation">
@@ -78,14 +81,17 @@
         aria-live="polite"
       >
         <span>{{ authBannerMessage }}</span>
-        <button v-if="showAuthFallbackBanner" type="button" class="authFallbackRetry" @click="retryAuthFetch">Skusit znova</button>
+        <button v-if="showAuthFallbackBanner" type="button" class="authFallbackRetry ui-pill ui-pill--secondary" @click="retryAuthFetch">Skusit znova</button>
       </div>
 
       <div :class="desktopFrameClass" data-testid="desktop-frame">
         <div :class="centerShellClass" :style="centerShellStyle" data-testid="center-shell">
           <aside
             v-if="showDesktopMainSidebar"
-            class="hidden h-screen overflow-y-auto border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 xl:pl-6 2xl:pl-8 xl:sticky xl:top-0 xl:block"
+            :class="[
+              'hidden h-screen overflow-y-auto bg-[var(--bg-app)] px-4 py-6 xl:pl-6 2xl:pl-8 xl:sticky xl:top-0 xl:block',
+              isHomeFeedRoute ? '' : 'border-r border-[var(--border)]',
+            ]"
             data-testid="layout-left"
           >
             <div class="flex h-full flex-col">
@@ -111,7 +117,7 @@
               'min-w-0',
               isProfileRoute ? 'px-0 py-0 md:px-0 md:py-0' : 'px-4 py-6 md:px-8',
               isAdminRoute ? 'xl:px-6' : isProfileRoute ? 'xl:px-4 2xl:px-6' : 'xl:px-2 2xl:px-4',
-              isProfileRoute ? 'lg:border-x lg:border-[color:rgb(var(--color-text-secondary-rgb)/0.5)]' : '',
+              isProfileRoute ? 'lg:border-x lg:border-[var(--border)]' : '',
             ]"
             data-testid="layout-center"
           >
@@ -129,7 +135,10 @@
         >
           <div
             data-testid="right-rail"
-            class="rightRail h-screen w-[22rem] overflow-y-auto border-l border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-5 py-6 xl:sticky xl:top-0"
+            :class="[
+              'rightRail h-screen w-[22rem] overflow-y-auto bg-[var(--bg-app)] px-5 py-6 xl:sticky xl:top-0',
+              isHomeFeedRoute ? '' : 'border-l border-[var(--border)]',
+            ]"
           >
             <DynamicSidebar
               v-if="!showDirectObservingSidebar"
@@ -189,7 +198,7 @@
     <button
       v-if="canInstall"
       type="button"
-      class="installBtn"
+      class="installBtn ui-pill ui-pill--secondary"
       @click="installApp"
     >
       Install app
@@ -205,7 +214,7 @@
     >
       <div
         v-if="isDrawerOpen"
-        class="fixed inset-0 z-40 bg-black/60 md:hidden"
+        class="fixed inset-0 z-40 bg-[color:rgb(var(--bg-app-rgb)/0.72)] md:hidden"
         aria-hidden="true"
         @click="closeDrawer"
       ></div>
@@ -221,13 +230,16 @@
     >
       <aside
         v-if="isDrawerOpen"
-        class="fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto border-r border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.95)] px-4 py-6 md:hidden"
+        :class="[
+          'fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-[var(--bg-app)] px-4 py-6 md:hidden',
+          isHomeFeedRoute ? '' : 'border-r border-[var(--border)]',
+        ]"
         aria-label="Mobile navigation"
       >
         <div class="flex items-center justify-between">
           <RouterLink
             to="/"
-            class="inline-flex items-center gap-2 text-base font-semibold text-[var(--color-surface)]"
+            class="inline-flex items-center gap-2 text-base font-semibold text-[var(--text-primary)]"
             aria-label="Home"
             @click="closeDrawer"
           >
@@ -252,7 +264,7 @@
 
           <button
             type="button"
-            class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[var(--color-primary)] transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.7)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
+            class="ui-pill ui-pill--secondary ui-pill--icon"
             aria-label="Close navigation"
             @click="closeDrawer"
           >
@@ -314,7 +326,7 @@
           <h2 id="mobile-compose-title" class="composeTitle">Vytvorit prispevok</h2>
           <button
             type="button"
-            class="composeClose"
+            class="composeClose ui-pill ui-pill--secondary ui-pill--icon"
             aria-label="Zavriet tvorbu prispevku"
             @click="closeComposerModal"
           >
@@ -369,13 +381,13 @@
         ></button>
         <div class="sheetHead">
           <h2 id="mobile-widgets-menu-title" class="sheetTitle">Widgets</h2>
-          <button type="button" class="sheetClose" aria-label="Close widgets menu" @click="closeWidgetMenu">
+          <button type="button" class="sheetClose ui-pill ui-pill--secondary ui-pill--icon" aria-label="Close widgets menu" @click="closeWidgetMenu">
             ×
           </button>
         </div>
 
         <div class="sheetList">
-          <button type="button" class="sheetAction createAction" @click="openComposerFromWidgets">
+          <button type="button" class="sheetAction ui-pill ui-pill--primary createAction" @click="openComposerFromWidgets">
             <span class="sheetActionIconWrap">
               <svg class="sheetActionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M12 5v14" />
@@ -388,7 +400,7 @@
           <button
             v-if="enabledMobileSections.length > 1"
             type="button"
-            class="sheetAction"
+            class="sheetAction ui-pill ui-pill--secondary"
             @click="openAllWidgetsSheet"
           >
             <span class="sheetActionIconWrap">
@@ -404,7 +416,7 @@
           <button
             v-if="lastOpenedWidget"
             type="button"
-            class="sheetAction"
+            class="sheetAction ui-pill ui-pill--secondary"
             @click="openWidgetSheet(lastOpenedWidget)"
           >
             <span class="sheetActionIconWrap">
@@ -424,7 +436,7 @@
               v-for="section in enabledMobileSections"
               :key="section.section_key"
               type="button"
-              class="sheetAction"
+              class="sheetAction ui-pill ui-pill--secondary"
               @click="openWidgetSheet(section)"
             >
               <span class="sheetActionIconWrap">
@@ -472,7 +484,7 @@
         ></button>
         <div class="sheetHead">
           <h2 id="mobile-widget-title" class="sheetTitle">{{ activeWidgetTitle }}</h2>
-          <button type="button" class="sheetClose" aria-label="Close widget" @click="closeWidgetSheet">×</button>
+          <button type="button" class="sheetClose ui-pill ui-pill--secondary ui-pill--icon" aria-label="Close widget" @click="closeWidgetSheet">×</button>
         </div>
 
         <div class="sheetBody">
@@ -605,6 +617,7 @@ const showDirectObservingSidebar = computed(() => {
 })
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
 const isProfileRoute = computed(() => String(route.path || '').startsWith('/profile'))
+const isHomeFeedRoute = computed(() => route.name === 'home')
 const showDesktopMainSidebar = computed(() => !isAdminRoute.value)
 const isLayoutDebugEnabled = computed(() => {
   return import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_LAYOUT || '') === 'true'
@@ -1229,13 +1242,6 @@ onBeforeUnmount(() => {
   right: 1rem;
   bottom: 1rem;
   z-index: 60;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.6);
-  border-radius: 999px;
-  background: rgb(var(--color-bg-rgb) / 0.9);
-  color: var(--color-surface);
-  padding: 0.55rem 0.9rem;
-  font-size: 0.8rem;
-  font-weight: 600;
 }
 
 .mobileBottomNav {
@@ -1247,11 +1253,11 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.35rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
+  border: 1px solid var(--border);
   border-radius: 1rem;
-  background: rgb(var(--color-bg-rgb) / 0.94);
+  background: rgb(var(--bg-surface-2-rgb) / 0.96);
   backdrop-filter: blur(12px);
-  box-shadow: 0 16px 38px rgb(0 0 0 / 0.4);
+  box-shadow: 0 16px 38px rgb(var(--bg-app-rgb) / 0.34);
   padding: 0.4rem;
 }
 
@@ -1260,7 +1266,7 @@ onBeforeUnmount(() => {
   border-radius: 0.8rem;
   border: 1px solid transparent;
   background: transparent;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  color: var(--text-secondary);
   text-decoration: none;
   display: grid;
   place-items: center;
@@ -1270,9 +1276,9 @@ onBeforeUnmount(() => {
 }
 
 .mobileBottomNav__item.is-active {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  background: rgb(var(--color-primary-rgb) / 0.18);
-  color: var(--color-surface);
+  border-color: rgb(var(--primary-rgb) / 0.45);
+  background: rgb(var(--primary-rgb) / 0.2);
+  color: var(--text-primary);
 }
 
 .mobileBottomNav__icon {
@@ -1296,16 +1302,16 @@ onBeforeUnmount(() => {
   margin: 0.8rem auto 0;
   padding: 0.65rem 0.9rem;
   max-width: 1160px;
-  border: 1px solid rgb(var(--color-warning-rgb, 245 158 11) / 0.45);
-  border-radius: 10px;
-  background: rgb(var(--color-warning-rgb, 245 158 11) / 0.12);
-  color: rgb(var(--color-surface-rgb) / 0.95);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
   font-size: 0.82rem;
 }
 
 .authFallbackBanner.is-danger {
-  border-color: rgb(var(--color-danger-rgb, 239 68 68) / 0.5);
-  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.14);
+  border-color: var(--primary-active);
+  background: rgb(var(--primary-active-rgb) / 0.14);
 }
 
 .brandLabel {
@@ -1318,18 +1324,18 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 0.5rem;
   padding-top: 1rem;
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
+  border-top: 1px solid rgb(var(--border-rgb) / 0.8);
 }
 
 .legalLinks__item {
   font-size: 0.8rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  color: var(--text-secondary);
   text-decoration: none;
 }
 
 .legalLinks__item:hover,
 .legalLinks__item.router-link-active {
-  color: var(--color-surface);
+  color: var(--text-primary);
 }
 
 .brand-fade-enter-active,
@@ -1342,30 +1348,11 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
-.authFallbackRetry {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.28);
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  padding: 0.35rem 0.7rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.authFallbackRetry:hover {
-  background: rgb(var(--color-surface-rgb) / 0.12);
-}
-
-.installBtn:hover {
-  border-color: var(--color-primary);
-  background: rgb(var(--color-primary-rgb) / 0.16);
-}
-
 .composeOverlay {
   position: fixed;
   inset: 0;
   z-index: 70;
-  background: rgb(0 0 0 / 0.56);
+  background: rgb(var(--bg-app-rgb) / 0.66);
 }
 
 .composeDialog {
@@ -1376,11 +1363,11 @@ onBeforeUnmount(() => {
   z-index: 75;
   max-height: calc(100vh - 1.3rem - env(safe-area-inset-bottom));
   overflow-y: auto;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
+  border: 1px solid var(--border);
   border-radius: 1.1rem;
-  background: rgb(var(--color-bg-rgb) / 0.96);
+  background: var(--bg-surface-2);
   padding: 0.75rem;
-  box-shadow: 0 24px 50px rgb(0 0 0 / 0.42);
+  box-shadow: 0 24px 50px rgb(var(--bg-app-rgb) / 0.36);
 }
 
 .composeHead {
@@ -1394,30 +1381,14 @@ onBeforeUnmount(() => {
 .composeTitle {
   font-size: 0.95rem;
   font-weight: 800;
-  color: var(--color-surface);
-}
-
-.composeClose {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
-  background: rgb(var(--color-bg-rgb) / 0.72);
-  color: var(--color-surface);
-  font-size: 1.25rem;
-  line-height: 1;
-}
-
-.composeClose:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  color: var(--text-primary);
 }
 
 .sheetOverlay {
   position: fixed;
   inset: 0;
   z-index: 78;
-  background: rgb(0 0 0 / 0.62);
+  background: rgb(var(--bg-app-rgb) / 0.72);
 }
 
 .sheetDialog {
@@ -1428,10 +1399,10 @@ onBeforeUnmount(() => {
   z-index: 79;
   max-height: 85vh;
   overflow: hidden;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
+  border: 1px solid var(--border);
   border-radius: 1.15rem;
-  background: rgb(var(--color-bg-rgb) / 0.96);
-  box-shadow: 0 24px 50px rgb(0 0 0 / 0.42);
+  background: var(--bg-surface-2);
+  box-shadow: 0 24px 50px rgb(var(--bg-app-rgb) / 0.36);
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
 }
@@ -1442,7 +1413,7 @@ onBeforeUnmount(() => {
   margin: 0.55rem auto 0.25rem;
   border: 0;
   border-radius: 999px;
-  background: rgb(var(--color-text-secondary-rgb) / 0.4);
+  background: rgb(var(--text-secondary-rgb) / 0.4);
 }
 
 .sheetHead {
@@ -1456,23 +1427,7 @@ onBeforeUnmount(() => {
 .sheetTitle {
   font-size: 0.92rem;
   font-weight: 800;
-  color: var(--color-surface);
-}
-
-.sheetClose {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
-  background: rgb(var(--color-bg-rgb) / 0.72);
-  color: var(--color-surface);
-  font-size: 1.25rem;
-  line-height: 1;
-}
-
-.sheetClose:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  color: var(--text-primary);
 }
 
 .sheetList,
@@ -1491,29 +1446,26 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.65rem;
   width: 100%;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
-  border-radius: 0.85rem;
-  background: rgb(var(--color-bg-rgb) / 0.5);
-  color: var(--color-surface);
-  padding: 0.72rem 0.75rem;
+  justify-content: flex-start;
   text-align: left;
+  white-space: normal;
 }
 
 .sheetActionIconWrap {
   width: 1.9rem;
   height: 1.9rem;
   border-radius: 0.5rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.36);
+  border: 1px solid var(--border);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgb(var(--color-bg-rgb) / 0.34);
+  background: rgb(var(--bg-app-rgb) / 0.22);
 }
 
 .sheetActionIcon {
   width: 1.12rem;
   height: 1.12rem;
-  stroke: rgb(var(--color-primary-rgb) / 0.92);
+  stroke: var(--primary);
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -1525,8 +1477,7 @@ onBeforeUnmount(() => {
 }
 
 .createAction {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  background: rgb(var(--color-primary-rgb) / 0.15);
+  box-shadow: 0 12px 24px rgb(var(--primary-rgb) / 0.18);
 }
 
 .sheetWidgetList {
@@ -1536,7 +1487,7 @@ onBeforeUnmount(() => {
 
 .sheetEmpty {
   padding: 1.2rem 0.3rem;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   text-align: center;
   font-size: 0.88rem;
 }

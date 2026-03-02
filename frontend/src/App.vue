@@ -41,17 +41,17 @@ const initStack = computed(() => appInitState.initError?.stack || '')
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgb(var(--color-bg-rgb));
-  color: #f8fafc;
+  background: var(--bg-app);
+  color: var(--text-primary);
   transition: background-color 700ms;
 }
 
 .card {
   width: min(720px, 100%);
-  border: 1px solid rgb(148 163 184 / 0.3);
-  border-radius: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
   padding: 16px;
-  background: rgb(15 23 42 / 0.78);
+  background: var(--bg-surface);
 }
 
 .card h1 {
@@ -72,12 +72,12 @@ const initStack = computed(() => appInitState.initError?.stack || '')
   overflow: auto;
   padding: 10px;
   border-radius: 8px;
-  background: rgb(2 6 23 / 0.8);
+  background: var(--bg-surface-2);
   font-size: 12px;
   line-height: 1.45;
 }
 
 .appInitScreen--error .card {
-  border-color: rgb(248 113 113 / 0.55);
+  border-color: var(--primary-active);
 }
 </style>

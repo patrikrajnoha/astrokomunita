@@ -1,5 +1,5 @@
 <template>
-  <section class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.2)] bg-[color:rgb(var(--color-bg-rgb)/0.66)] p-4 shadow-[0_14px_34px_rgb(0_0_0/0.22)] backdrop-blur sm:p-5">
+  <section class="rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.66)] p-4 backdrop-blur sm:p-5">
     <div v-if="!trimmedQuery" class="space-y-6">
       <section>
         <div class="mb-2 flex items-center justify-between">
@@ -19,7 +19,7 @@
             v-for="item in recentSearches"
             :key="item"
             type="button"
-            class="rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-[color:rgb(var(--color-bg-rgb)/0.86)] px-3 py-1.5 text-xs text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+            class="rounded-full border border-white/5 bg-[color:rgb(var(--color-bg-rgb)/0.86)] px-3 py-1.5 text-xs text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
             @click="applyRecent(item)"
           >
             {{ item }}
@@ -42,12 +42,12 @@
           ></div>
         </div>
 
-        <div v-else-if="mode === 'users' && recommendedUsers.length" class="space-y-2">
+        <div v-else-if="mode === 'users' && recommendedUsers.length" class="ui-list-divider">
           <RouterLink
             v-for="user in recommendedUsers.slice(0, 5)"
             :key="`recommended-user-${user.id}`"
             :to="{ name: 'user-profile', params: { username: user.username } }"
-            class="flex items-center gap-3 rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.84)] px-3 py-2.5 transition hover:border-[color:rgb(var(--color-primary-rgb)/0.7)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.92)]"
+            class="flex items-center gap-3 px-0 py-3 transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.28)]"
           >
             <img
               :src="avatarUrl(user)"
@@ -61,12 +61,12 @@
           </RouterLink>
         </div>
 
-        <div v-else-if="mode === 'posts' && recommendedPosts.length" class="space-y-2">
+        <div v-else-if="mode === 'posts' && recommendedPosts.length" class="ui-list-divider">
           <RouterLink
             v-for="post in recommendedPosts.slice(0, 5)"
             :key="`recommended-post-${post.id}`"
             :to="{ name: 'post-detail', params: { id: post.id } }"
-            class="block rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.84)] px-3 py-3 transition hover:border-[color:rgb(var(--color-primary-rgb)/0.7)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.92)]"
+            class="block px-0 py-3 transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.28)]"
           >
             <p class="line-clamp-2 text-sm text-[var(--color-surface)]">{{ postSnippet(post.content) }}</p>
             <p class="mt-1 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
@@ -79,7 +79,7 @@
       </section>
     </div>
 
-    <div v-else class="space-y-4">
+      <div v-else class="space-y-4">
       <div v-if="isLoading" class="space-y-2">
         <div
           v-for="index in 8"
@@ -94,12 +94,12 @@
           <span class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.92)]">{{ results.length }} poloziek</span>
         </header>
 
-        <div v-if="mode === 'users'" class="space-y-2">
+        <div v-if="mode === 'users'" class="ui-list-divider">
           <RouterLink
             v-for="user in results"
             :key="`result-user-${user.id}`"
             :to="{ name: 'user-profile', params: { username: user.username } }"
-            class="flex items-center gap-3 rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.24)] bg-[color:rgb(var(--color-bg-rgb)/0.84)] px-3 py-3 transition hover:border-[color:rgb(var(--color-primary-rgb)/0.72)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.92)]"
+            class="flex items-center gap-3 px-0 py-3 transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.28)]"
           >
             <img :src="avatarUrl(user)" :alt="user.name || user.username" class="h-10 w-10 rounded-full object-cover" />
             <div class="min-w-0">
@@ -109,12 +109,12 @@
           </RouterLink>
         </div>
 
-        <div v-else class="space-y-2">
+        <div v-else class="ui-list-divider">
           <RouterLink
             v-for="post in results"
             :key="`result-post-${post.id}`"
             :to="{ name: 'post-detail', params: { id: post.id } }"
-            class="block rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.24)] bg-[color:rgb(var(--color-bg-rgb)/0.84)] px-3 py-3 transition hover:border-[color:rgb(var(--color-primary-rgb)/0.72)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.92)]"
+            class="block px-0 py-3 transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.28)]"
           >
             <div class="mb-1 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
               {{ post.user?.name || 'Neznamy autor' }} • {{ formatDate(post.created_at) }}
@@ -126,7 +126,7 @@
         <div v-if="canLoadMore" class="pt-2">
           <button
             type="button"
-            class="w-full rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-[color:rgb(var(--color-bg-rgb)/0.84)] px-3 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+            class="w-full rounded-xl border border-white/5 bg-[color:rgb(var(--color-bg-rgb)/0.84)] px-3 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
             @click="loadMore"
           >
             Nacitat viac
@@ -134,7 +134,7 @@
         </div>
       </div>
 
-      <div v-else class="rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.24)] bg-[color:rgb(var(--color-bg-rgb)/0.84)] p-5 text-center">
+      <div v-else class="rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.44)] p-5 text-center">
         <h3 class="mb-1 text-base font-semibold text-[var(--color-surface)]">Nic sme nenasli</h3>
         <p class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.88)]">
           Skus iny vyraz, pridaj viac slov alebo prehod tab medzi Pouzivatelia a Prispevky.

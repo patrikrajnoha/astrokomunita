@@ -54,8 +54,8 @@ function ensureFatalOverlay(errorLike, source = 'runtime') {
   overlay.style.inset = '0'
   overlay.style.zIndex = '2147483647'
   overlay.style.padding = '20px'
-  overlay.style.background = '#120f14'
-  overlay.style.color = '#f8f7fb'
+  overlay.style.background = 'var(--bg-app)'
+  overlay.style.color = 'var(--text-primary)'
   overlay.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
   overlay.style.overflow = 'auto'
 
