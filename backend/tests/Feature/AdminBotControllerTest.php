@@ -73,6 +73,24 @@ class AdminBotControllerTest extends TestCase
         $this->assertContains('wiki_onthisday_astronomy', $keys);
     }
 
+    public function test_admin_get_sources_auto_syncs_defaults_when_table_is_empty(): void
+    {
+        $this->assertSame(0, BotSource::query()->count());
+        $this->actingAsAdmin();
+
+        $response = $this->getJson('/api/admin/bots/sources');
+
+        $response
+            ->assertOk()
+            ->assertJsonCount(3, 'data');
+
+        $keys = collect($response->json('data'))->pluck('key')->all();
+        $this->assertContains('nasa_rss_breaking', $keys);
+        $this->assertContains('nasa_apod_daily', $keys);
+        $this->assertContains('wiki_onthisday_astronomy', $keys);
+        $this->assertSame(3, BotSource::query()->count());
+    }
+
     public function test_admin_post_run_executes_source_and_returns_run_summary_with_stats(): void
     {
         $source = $this->createRssSource('admin_rss_source');
