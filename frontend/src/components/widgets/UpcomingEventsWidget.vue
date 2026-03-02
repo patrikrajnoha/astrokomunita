@@ -32,6 +32,7 @@
 <script>
 import { onMounted, ref } from 'vue'
 import { getUpcomingEventsWidget } from '@/services/widgets'
+import { EVENT_TIMEZONE, formatEventDate } from '@/utils/eventTime'
 
 export default {
   name: 'UpcomingEventsWidget',
@@ -61,15 +62,11 @@ export default {
     }
 
     const formatDate = (value) => {
-      if (!value) return '-'
-      const date = new Date(value)
-      if (Number.isNaN(date.getTime())) return '-'
-
-      return new Intl.DateTimeFormat('sk-SK', {
+      return formatEventDate(value, EVENT_TIMEZONE, {
         day: 'numeric',
         month: 'numeric',
         year: 'numeric',
-      }).format(date)
+      })
     }
 
     onMounted(() => {
@@ -89,10 +86,10 @@ export default {
 <style scoped>
 .card {
   position: relative;
-  border: 1px solid var(--color-text-secondary);
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  border-radius: 1.5rem;
-  padding: 1.25rem;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
   overflow: hidden;
 }
 
@@ -116,12 +113,18 @@ export default {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.7rem;
+  gap: 0;
 }
 
 .eventItem {
   display: grid;
   gap: 0.2rem;
+  border-bottom: 1px solid var(--divider-color);
+  padding: 0.7rem 0;
+}
+
+.eventItem:last-child {
+  border-bottom: none;
 }
 
 .eventDate {
@@ -139,6 +142,7 @@ export default {
 
 .panelActions {
   display: flex;
+  padding-top: 0.7rem;
 }
 
 .showMoreLink {

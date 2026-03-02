@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { ref } from 'vue'
 import EventDetailView from '@/views/EventDetailView.vue'
 
 const apiGetMock = vi.hoisted(() => vi.fn())
-const favoritesStore = vi.hoisted(() => ({
-  fetch: vi.fn(async () => {}),
-  toggle: vi.fn(async () => {}),
-}))
+const followStateMock = vi.hoisted(() => vi.fn())
+const followEventMock = vi.hoisted(() => vi.fn())
+const unfollowEventMock = vi.hoisted(() => vi.fn())
 const authStore = vi.hoisted(() => ({
   isAuthed: true,
+  user: null,
+  csrf: vi.fn(async () => {}),
 }))
 
 vi.mock('@/services/api', () => ({
@@ -19,8 +20,11 @@ vi.mock('@/services/api', () => ({
   },
 }))
 
-vi.mock('@/stores/favorites', () => ({
-  useFavoritesStore: () => favoritesStore,
+vi.mock('@/services/eventFollows', () => ({
+  getEventFollowState: (...args) => followStateMock(...args),
+  followEvent: (...args) => followEventMock(...args),
+  unfollowEvent: (...args) => unfollowEventMock(...args),
+  getFollowedEvents: vi.fn(async () => ({ data: { data: [] } })),
 }))
 
 vi.mock('@/stores/auth', () => ({
@@ -36,27 +40,29 @@ vi.mock('@/composables/useToast', () => ({
   }),
 }))
 
-vi.mock('@/composables/useSwipeCard', () => ({
-  useSwipeCard: () => ({
-    badge: ref(null),
-    cardStyle: ref({}),
-    onPointerDown: vi.fn(),
-    onPointerMove: vi.fn(),
-    onPointerUp: vi.fn(),
-  }),
-}))
-
 function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
     routes: [
       {
         path: '/events/:id',
+        name: 'event-detail',
         component: EventDetailView,
       },
       {
         path: '/events',
+        name: 'events',
         component: { template: '<div>events</div>' },
+      },
+      {
+        path: '/login',
+        name: 'login',
+        component: { template: '<div>login</div>' },
+      },
+      {
+        path: '/profile/edit',
+        name: 'profile.edit',
+        component: { template: '<div>profile edit</div>' },
       },
     ],
   })
@@ -66,15 +72,62 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
-describe('EventDetailView invite button', () => {
-  beforeEach(() => {
-    apiGetMock.mockReset()
-    favoritesStore.fetch.mockClear()
-    favoritesStore.toggle.mockClear()
-    authStore.isAuthed = true
+async function mountView(path = '/events/12') {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+
+  const router = makeRouter()
+  await router.push(path)
+  await router.isReady()
+
+  const wrapper = mount(EventDetailView, {
+    global: {
+      plugins: [pinia, router],
+      stubs: {
+        DropdownMenu: {
+          props: ['items'],
+          template: `
+            <div class="dropdown-menu-stub">
+              <slot name="trigger" />
+              <button
+                v-for="item in items"
+                :key="item.key"
+                type="button"
+                class="dropdown-item-stub"
+              >
+                {{ item.label }}
+              </button>
+            </div>
+          `,
+        },
+        InviteTicketModal: {
+          props: ['open'],
+          template: '<div data-testid="invite-modal" :data-open="String(open)"></div>',
+        },
+        EventViewingWindowForecast: {
+          props: ['event', 'userLocation'],
+          template: '<div class="forecast-strip-stub"></div>',
+        },
+      },
+    },
   })
 
-  it('opens invite modal from event detail', async () => {
+  await flush()
+  await flush()
+
+  return { wrapper, router }
+}
+
+describe('EventDetailView', () => {
+  beforeEach(() => {
+    apiGetMock.mockReset()
+    followStateMock.mockReset()
+    followEventMock.mockReset()
+    unfollowEventMock.mockReset()
+    authStore.isAuthed = true
+    authStore.user = null
+    authStore.csrf.mockClear()
+
     apiGetMock.mockResolvedValue({
       data: {
         data: {
@@ -82,47 +135,50 @@ describe('EventDetailView invite button', () => {
           title: 'Ukazka eventu',
           type: 'other',
           start_at: '2026-03-14T19:30:00Z',
-          related_events: [
-            {
-              id: 14,
-              title: 'Druhy event',
-              start_at: '2026-03-15T19:30:00Z',
-            },
-          ],
+          max_at: '2026-03-14T13:00:00Z',
+          description: 'Dlhsi popis pre test detailu udalosti.',
+          visibility: 1,
         },
       },
     })
 
-    const router = makeRouter()
-    await router.push('/events/12')
-    await router.isReady()
+    followStateMock.mockResolvedValue({ data: { followed: false } })
+    followEventMock.mockResolvedValue({ data: { followed: true } })
+    unfollowEventMock.mockResolvedValue({ data: { followed: false } })
+  })
 
-    const wrapper = mount(EventDetailView, {
-      global: {
-        plugins: [router],
-        stubs: {
-          EventCard: true,
-          EventActions: true,
-          EventDetailSheet: true,
-          InviteTicketModal: {
-            name: 'InviteTicketModal',
-            props: ['open'],
-            template: '<div data-testid="invite-modal" :data-open="String(open)"></div>',
-          },
-        },
-      },
-    })
+  it('shows login CTA to guests', async () => {
+    authStore.isAuthed = false
 
+    const { wrapper } = await mountView()
+
+    expect(wrapper.text()).toContain('Prihlasit sa pre sledovanie')
+    expect(wrapper.text()).not.toContain('Diskusia')
+  })
+
+  it('shows follow CTA to authenticated users and toggles to followed state', async () => {
+    const { wrapper } = await mountView()
+
+    expect(wrapper.text()).toContain('Sledovat')
+
+    const followButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Sledovat'))
+
+    expect(followButton).toBeTruthy()
+
+    await followButton.trigger('click')
     await flush()
-    await flush()
 
-    const inviteButton = wrapper.find('button.inviteBtn-primary')
-    expect(inviteButton.exists()).toBe(true)
+    expect(authStore.csrf).toHaveBeenCalledTimes(1)
+    expect(followEventMock).toHaveBeenCalledWith(12)
+    expect(wrapper.text()).toContain('Sledujes')
+  })
 
-    await inviteButton.trigger('click')
+  it('exposes ICS and share actions in the overflow menu', async () => {
+    const { wrapper } = await mountView()
 
-    const modal = wrapper.find('[data-testid="invite-modal"]')
-    expect(modal.exists()).toBe(true)
-    expect(modal.attributes('data-open')).toBe('true')
+    expect(wrapper.text()).toContain('Pridat do kalendara')
+    expect(wrapper.text()).toContain('Zdielat odkaz')
   })
 })

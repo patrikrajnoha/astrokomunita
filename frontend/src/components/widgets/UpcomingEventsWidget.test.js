@@ -19,7 +19,7 @@ describe('UpcomingEventsWidget', () => {
     mockGetUpcomingEventsWidget.mockReset()
     mockGetUpcomingEventsWidget.mockResolvedValue({
       items: [
-        { id: 11, title: 'Event A', slug: null, start_at: '2026-02-20T18:00:00Z' },
+        { id: 11, title: 'Event A', slug: null, start_at: '2026-02-20T23:30:00Z' },
         { id: 12, title: 'Event B', slug: null, start_at: '2026-02-21T18:00:00Z' },
         { id: 13, title: 'Event C', slug: null, start_at: '2026-02-22T18:00:00Z' },
         { id: 14, title: 'Event D', slug: null, start_at: '2026-02-23T18:00:00Z' },
@@ -49,5 +49,6 @@ describe('UpcomingEventsWidget', () => {
     const showMoreLink = wrapper.find('a[href="/events"]')
     expect(showMoreLink.exists()).toBe(true)
     expect(showMoreLink.text()).toContain('Show more')
+    expect(wrapper.text()).toMatch(/21\.\s?2\.\s?2026/)
   })
 })

@@ -15,6 +15,15 @@ export function normalizePeriod(period) {
   return ['month', 'week', 'year'].includes(period) ? period : 'month'
 }
 
+export function normalizeScope(scope) {
+  return ['future', 'past', 'all'].includes(scope) ? scope : 'future'
+}
+
+export function parsePositiveInt(value, fallback = 1) {
+  const parsed = Number.parseInt(String(value ?? ''), 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
 export function buildPeriodQuery({ period, year, month, week }) {
   const normalizedPeriod = normalizePeriod(period)
   const query = {

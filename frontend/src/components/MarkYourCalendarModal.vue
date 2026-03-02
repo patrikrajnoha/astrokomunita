@@ -53,6 +53,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { EVENT_TIMEZONE, formatEventDate, formatEventDateKey } from '@/utils/eventTime'
 
 const props = defineProps({
   items: {
@@ -70,23 +71,26 @@ defineEmits(['close', 'go-calendar'])
 const limitedItems = computed(() => (Array.isArray(props.items) ? props.items.slice(0, 10) : []))
 
 function formatDate(startAt, endAt) {
-  const start = parseDate(startAt)
-  const end = parseDate(endAt)
+  const startLabel = formatShortDate(startAt)
+  const endLabel = formatShortDate(endAt)
 
-  if (!start && !end) return 'Datum upresnime'
-  if (start && !end) return start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
-  if (!start && end) return end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
+  if (!startLabel && !endLabel) return 'Datum upresnime'
+  if (startLabel && !endLabel) return startLabel
+  if (!startLabel && endLabel) return endLabel
 
-  const startLabel = start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
-  const endLabel = end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short' })
-  return startLabel === endLabel ? startLabel : `${startLabel} - ${endLabel}`
+  const sameDay = formatEventDateKey(startAt, EVENT_TIMEZONE) === formatEventDateKey(endAt, EVENT_TIMEZONE)
+  return sameDay ? startLabel : `${startLabel} - ${endLabel}`
 }
 
-function parseDate(value) {
-  if (!value) return null
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return null
-  return parsed
+function formatShortDate(value) {
+  if (!value) return ''
+
+  const label = formatEventDate(value, EVENT_TIMEZONE, {
+    day: '2-digit',
+    month: 'short',
+  })
+
+  return label === '-' ? '' : label
 }
 </script>
 

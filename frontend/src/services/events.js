@@ -4,6 +4,7 @@ export function getEvents(params = {}) {
   const query = {}
 
   if (params.feed) query.feed = params.feed
+  if (params.scope) query.scope = params.scope
   if (Array.isArray(params.types) && params.types.length > 0) {
     query.types = params.types.join(',')
   }
@@ -15,6 +16,8 @@ export function getEvents(params = {}) {
   if (params.year) query.year = params.year
   if (params.month) query.month = params.month
   if (params.week) query.week = params.week
+  if (params.page) query.page = params.page
+  if (params.per_page) query.per_page = params.per_page
 
   return api.get('/events', { params: query })
 }

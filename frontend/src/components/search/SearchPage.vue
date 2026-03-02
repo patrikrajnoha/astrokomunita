@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-[var(--color-bg)] text-[var(--color-surface)]">
     <div class="mx-auto w-full max-w-[980px] px-4 py-5 sm:px-6">
-      <section class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.68)] p-4 backdrop-blur sm:p-5">
+      <section class="rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.68)] p-4 backdrop-blur sm:p-5">
         <label for="global-search-input" class="mb-2 block text-xs font-semibold uppercase tracking-wide text-[color:rgb(var(--color-text-secondary-rgb)/0.92)]">
           Prehladavat Astrokomunitu
         </label>
@@ -30,7 +30,7 @@
       </nav>
 
       <section v-if="showSearchResults" class="mt-4 space-y-4">
-        <div v-if="isGlobalLoading" class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.66)] p-4 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
+        <div v-if="isGlobalLoading" class="rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.48)] p-4 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
           Nacitavam vysledky...
         </div>
 
@@ -109,7 +109,7 @@
                 v-for="item in globalResults.keywords"
                 :key="`k-${item.id}`"
                 type="button"
-                class="rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] px-3 py-1 text-xs transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                class="rounded-full border border-white/5 px-3 py-1 text-xs transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
                 @click="query = item.value"
               >
                 {{ item.value }}
@@ -119,7 +119,7 @@
 
           <div
             v-if="!hasAnyGlobalResults"
-            class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.66)] p-4 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]"
+            class="rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.48)] p-4 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]"
           >
             Nic sme nenasli.
           </div>
@@ -127,7 +127,7 @@
       </section>
 
       <section v-else class="mt-4 space-y-4">
-        <div v-if="isDiscoveryLoading" class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.66)] p-4 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
+        <div v-if="isDiscoveryLoading" class="rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.48)] p-4 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
           Nacitavam trendy obsah...
         </div>
 
@@ -190,7 +190,7 @@
                 v-for="item in discovery.keywords"
                 :key="`dk-${item.id}`"
                 type="button"
-                class="rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] px-3 py-1 text-xs transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+                class="rounded-full border border-white/5 px-3 py-1 text-xs transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
                 @click="query = item.value"
               >
                 {{ item.value }}
@@ -207,6 +207,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
+import { EVENT_TIMEZONE, formatEventDate as formatEventDay, resolveEventTimeContext } from '@/utils/eventTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -260,14 +261,17 @@ const postSnippet = (content) => {
 const formatEventDate = (event) => {
   const raw = event?.start_at || event?.max_at
   if (!raw) return 'Bez terminu'
-  const date = new Date(raw)
-  if (Number.isNaN(date.getTime())) return 'Bez terminu'
-  return date.toLocaleString('sk-SK', {
+  const dateLabel = formatEventDay(raw, EVENT_TIMEZONE, {
     day: '2-digit',
     month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
   })
+  const context = resolveEventTimeContext(event, EVENT_TIMEZONE)
+
+  if (!context.showTimezoneLabel) {
+    return `${dateLabel} · ${context.message}`
+  }
+
+  return `${dateLabel} · ${context.timeString} (${context.timezoneLabelShort})`
 }
 
 const syncRouteQuery = () => {
@@ -384,12 +388,15 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .resultSection {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
-  border-radius: 1rem;
-  background: rgb(var(--color-bg-rgb) / 0.66);
-  padding: 0.9rem;
+  padding: 0;
   display: grid;
-  gap: 0.55rem;
+  gap: 0;
+}
+
+.resultSection + .resultSection {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--divider-color);
 }
 
 .sectionTitle {
@@ -401,16 +408,17 @@ onBeforeUnmount(() => {
 }
 
 .listItem {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
-  border-radius: 0.8rem;
-  background: rgb(var(--color-bg-rgb) / 0.84);
-  padding: 0.72rem;
+  border-bottom: 1px solid var(--divider-color);
+  padding: 0.72rem 0;
   display: block;
-  transition: border-color 120ms ease, transform 120ms ease;
+  transition: color 120ms ease, background-color 120ms ease;
 }
 
 .listItem:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.7);
-  transform: translateY(-1px);
+  background: rgb(var(--color-text-secondary-rgb) / 0.04);
+}
+
+.resultSection > .listItem:last-child {
+  border-bottom: none;
 }
 </style>

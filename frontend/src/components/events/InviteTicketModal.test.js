@@ -33,6 +33,22 @@ function makeWrapper() {
   })
 }
 
+function makeExactMidnightWrapper() {
+  return mount(InviteTicketModal, {
+    props: {
+      open: true,
+      event: {
+        id: 99,
+        title: 'Polnocny event',
+        start_at: '2026-01-05T23:00:00Z',
+        time_type: 'start',
+        time_precision: 'exact',
+        source: { name: 'manual' },
+      },
+    },
+  })
+}
+
 describe('InviteTicketModal', () => {
   beforeEach(() => {
     createEventInviteMock.mockReset()
@@ -45,11 +61,11 @@ describe('InviteTicketModal', () => {
     const wrapper = makeWrapper()
 
     await wrapper.find('[data-testid="send-invite-btn"]').trigger('click')
-    expect(wrapper.text()).toContain('Meno na vstupenke je povinné.')
+    expect(wrapper.text()).toContain('Meno na vstupenke je povinne.')
 
     await wrapper.find('[data-testid="attendee-name-input"]').setValue('A'.repeat(81))
     await wrapper.find('[data-testid="send-invite-btn"]').trigger('click')
-    expect(wrapper.text()).toContain('Meno na vstupenke môže mať najviac 80 znakov.')
+    expect(wrapper.text()).toContain('Meno na vstupenke moze mat najviac 80 znakov.')
   })
 
   it('calls create invite endpoint with expected payload', async () => {
@@ -102,5 +118,12 @@ describe('InviteTicketModal', () => {
     await wrapper.find('[data-testid="print-ticket-btn"]').trigger('click')
 
     expect(printMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders explicit local midnight with SK label', () => {
+    const wrapper = makeExactMidnightWrapper()
+
+    expect(wrapper.text()).toContain('6. januára 2026')
+    expect(wrapper.text()).toContain('00:00 (SK)')
   })
 })
