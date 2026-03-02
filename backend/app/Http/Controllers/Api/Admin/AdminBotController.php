@@ -14,6 +14,7 @@ use App\Services\Bots\BotPostTranslationBackfillService;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use App\Services\Bots\BotPublisherService;
 use App\Services\Bots\BotRunner;
+use App\Services\Bots\BotSourceSyncService;
 use App\Services\Translation\Exceptions\TranslationProviderUnavailableException;
 use App\Services\Translation\Exceptions\TranslationTimeoutException;
 use App\Services\Translation\TranslationOutageSimulationService;
@@ -35,12 +36,15 @@ class AdminBotController extends Controller
         private readonly PostService $postService,
         private readonly BotTranslationServiceInterface $translationService,
         private readonly BotPostTranslationBackfillService $backfillService,
+        private readonly BotSourceSyncService $botSourceSyncService,
         private readonly TranslationOutageSimulationService $outageSimulationService,
     ) {
     }
 
     public function sources(): JsonResponse
     {
+        $this->botSourceSyncService->syncDefaults();
+
         $sources = BotSource::query()
             ->orderBy('key')
             ->get();
