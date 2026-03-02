@@ -127,7 +127,8 @@ function onAvatarError() {
   box-sizing: border-box;
   background: #0b0f14;
   color: #eef2ff;
-  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  font-family: InterVariable, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Liberation Sans', Helvetica, Arial, sans-serif;
 }
 
 .share-card {

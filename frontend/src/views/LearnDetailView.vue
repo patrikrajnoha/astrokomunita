@@ -514,7 +514,7 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 18px;
-  font-family: "Georgia", "Times New Roman", serif;
+  font-family: inherit;
 }
 
 .back {

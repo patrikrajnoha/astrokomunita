@@ -61,10 +61,14 @@ const emit = defineEmits(['action'])
 .sectionTitle {
   margin: 0;
   font-family:
-    'Inter',
+    'InterVariable',
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
+    Roboto,
+    'Liberation Sans',
+    Helvetica,
+    Arial,
     sans-serif;
   font-size: 15px;
   font-weight: 600;
