@@ -7,6 +7,7 @@ use App\Enums\RegionScope;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\EventResource;
 use App\Models\Event;
+use App\Support\EventTime;
 use App\Services\Events\EventFeedRealtimePublisher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -56,6 +57,8 @@ class AdminEventController extends Controller
         $event->source_name = 'manual';
         $event->source_uid = (string) Str::uuid();
         $event->max_at = $event->start_at;
+        $event->time_type = EventTime::TYPE_START;
+        $event->time_precision = EventTime::PRECISION_EXACT;
         $event->save();
         $this->eventFeedRealtimePublisher->publish($event);
 
@@ -74,6 +77,8 @@ class AdminEventController extends Controller
         $event->end_at = $validated['end_at'] ?? null;
         $event->visibility = $validated['visibility'];
         $event->max_at = $event->start_at;
+        $event->time_type = EventTime::TYPE_START;
+        $event->time_precision = EventTime::PRECISION_EXACT;
         $event->save();
 
         return new EventResource($event);

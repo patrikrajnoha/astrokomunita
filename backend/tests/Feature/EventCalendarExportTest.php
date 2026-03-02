@@ -20,11 +20,17 @@ class EventCalendarExportTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'text/calendar; charset=utf-8');
+        $response->assertHeader(
+            'Content-Disposition',
+            'attachment; filename="astrokomunita-event-' . $event->id . '.ics"'
+        );
 
         $content = (string) $response->getContent();
         $this->assertStringContainsString('BEGIN:VCALENDAR', $content);
         $this->assertStringContainsString('DTSTART:', $content);
         $this->assertStringContainsString('SUMMARY:Lunar Eclipse', $content);
+        $this->assertStringContainsString('UID:event-' . $event->id . '@astrokomunita', $content);
+        $this->assertStringContainsString('LOCATION:Slovensko', $content);
     }
 
     public function test_featured_bundle_calendar_endpoint_returns_multiple_events(): void

@@ -58,6 +58,8 @@ class EventCandidatePublisher
             $event->start_at = $candidate->start_at;
             $event->end_at = $candidate->end_at;
             $event->max_at = $candidate->max_at;
+            $event->time_type = $candidate->time_type;
+            $event->time_precision = $candidate->time_precision;
             $event->short = $candidate->short;
             $event->visibility = $candidate->visibility ?? config('events.default_visibility', 1);
             $event->source_name = $candidate->source_name;

@@ -18,6 +18,8 @@ class CandidateItem
         public ?string $canonicalKey = null,
         public ?float $confidenceScore = null,
         public ?array $matchedSources = null,
+        public ?string $timeType = null,
+        public ?string $timePrecision = null,
     ) {
     }
 }

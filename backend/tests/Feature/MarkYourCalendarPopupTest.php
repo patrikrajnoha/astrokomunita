@@ -19,7 +19,7 @@ class MarkYourCalendarPopupTest extends TestCase
     {
         Carbon::setTestNow(Carbon::parse('2026-02-17 10:00:00', 'UTC'));
         $user = User::factory()->create([
-            'last_calendar_popup_at' => Carbon::parse('2026-01-31 23:59:00', 'UTC'),
+            'last_calendar_popup_at' => Carbon::parse('2026-01-31 22:59:00', 'UTC'),
             'calendar_popup_last_force_version' => 0,
         ]);
         Sanctum::actingAs($user);
@@ -176,6 +176,26 @@ class MarkYourCalendarPopupTest extends TestCase
         $admin->refresh();
         $this->assertNull($admin->last_calendar_popup_at);
         $this->assertSame(0, (int) $admin->calendar_popup_last_force_version);
+    }
+
+    public function test_admin_payload_uses_event_timezone_for_month_key(): void
+    {
+        config([
+            'app.timezone' => 'UTC',
+            'events.timezone' => 'Europe/Bratislava',
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-01-31 23:30:00', 'UTC'));
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+        ]);
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/popup/mark-your-calendar')
+            ->assertOk()
+            ->assertJsonPath('month_key', '2026-02');
     }
 
     private function createEvent(string $title): Event

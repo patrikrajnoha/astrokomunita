@@ -11,6 +11,7 @@ return [
 
     'sky' => [
         'weather_cache_ttl_minutes' => env('SKY_WEATHER_CACHE_TTL_MINUTES', 10),
+        'viewing_forecast_cache_ttl_minutes' => env('SKY_VIEWING_FORECAST_CACHE_TTL_MINUTES', 30),
         'astronomy_cache_ttl_hours' => env('SKY_ASTRONOMY_CACHE_TTL_HOURS', 6),
         'visible_planets_cache_ttl_minutes' => env('SKY_VISIBLE_PLANETS_CACHE_TTL_MINUTES', 10),
         'iss_preview_cache_ttl_minutes' => env('SKY_ISS_PREVIEW_CACHE_TTL_MINUTES', 15),

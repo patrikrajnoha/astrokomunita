@@ -379,7 +379,7 @@ class MarkYourCalendarPopupService
         }
 
         try {
-            Carbon::createFromFormat('Y-m', $normalized, config('app.timezone', 'UTC'))->startOfMonth();
+            Carbon::createFromFormat('Y-m', $normalized, $this->timezone())->startOfMonth();
         } catch (\Throwable) {
             throw ValidationException::withMessages([
                 'month' => ['Month must be a valid calendar month.'],
@@ -493,7 +493,12 @@ class MarkYourCalendarPopupService
 
     private function monthKey(Carbon $value): string
     {
-        return $value->copy()->setTimezone(config('app.timezone'))->format('Y-m');
+        return $value->copy()->setTimezone($this->timezone())->format('Y-m');
+    }
+
+    private function timezone(): string
+    {
+        return (string) config('events.timezone', config('app.timezone', 'UTC'));
     }
 
     private function monthSelectionQuery(string $monthKey): Builder

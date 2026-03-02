@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use App\Services\UserCleanupService;
 use App\Services\Storage\MediaStorageService;
+use App\Services\UserCleanupService;
+use App\Support\EventFollowTable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -111,12 +112,12 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getAvatarUrlAttribute(): ?string
     {
         $path = $this->avatar_path;
-        if (!$path) {
+        if (! $path) {
             return null;
         }
 
         $media = app(MediaStorageService::class);
-        if (!$media->exists($path)) {
+        if (! $media->exists($path)) {
             return null;
         }
 
@@ -126,12 +127,12 @@ class User extends Authenticatable implements MustVerifyEmail
     public function getCoverUrlAttribute(): ?string
     {
         $path = $this->cover_path;
-        if (!$path) {
+        if (! $path) {
             return null;
         }
 
         $media = app(MediaStorageService::class);
-        if (!$media->exists($path)) {
+        if (! $media->exists($path)) {
             return null;
         }
 
@@ -239,12 +240,14 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         $legacyLabel = trim((string) ($this->location ?? ''));
+
         return $legacyLabel !== '' ? $legacyLabel : null;
     }
 
     private function resolveLocationSource(): ?string
     {
         $raw = strtolower(trim((string) ($this->location_source ?? '')));
+
         return in_array($raw, ['preset', 'gps', 'manual'], true) ? $raw : null;
     }
 
@@ -253,7 +256,7 @@ class User extends Authenticatable implements MustVerifyEmail
         $normalizedMap = [];
 
         foreach ($known as $name => $candidate) {
-            if (!is_array($candidate)) {
+            if (! is_array($candidate)) {
                 continue;
             }
 
@@ -269,7 +272,7 @@ class User extends Authenticatable implements MustVerifyEmail
             }
 
             foreach ($normalizedMap as $knownName => $knownMeta) {
-                if (str_starts_with($candidateLookup, $knownName . ' ')) {
+                if (str_starts_with($candidateLookup, $knownName.' ')) {
                     return $knownMeta;
                 }
             }
@@ -294,14 +297,14 @@ class User extends Authenticatable implements MustVerifyEmail
         $withoutCountrySuffix = is_string($withoutCountrySuffix) ? $withoutCountrySuffix : $rawLocation;
         $normalizedWithoutCountry = $this->normalizeLocationLookup($withoutCountrySuffix);
 
-        if ($normalizedWithoutCountry !== '' && !in_array($normalizedWithoutCountry, $candidates, true)) {
+        if ($normalizedWithoutCountry !== '' && ! in_array($normalizedWithoutCountry, $candidates, true)) {
             $candidates[] = $normalizedWithoutCountry;
         }
 
         $beforeComma = trim((string) Str::of($rawLocation)->before(','));
         $normalizedBeforeComma = $this->normalizeLocationLookup($beforeComma);
 
-        if ($normalizedBeforeComma !== '' && !in_array($normalizedBeforeComma, $candidates, true)) {
+        if ($normalizedBeforeComma !== '' && ! in_array($normalizedBeforeComma, $candidates, true)) {
             $candidates[] = $normalizedBeforeComma;
         }
 
@@ -341,6 +344,13 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->belongsToMany(Post::class, 'post_user_bookmarks')
             ->withPivot('created_at');
+    }
+
+    public function followedEvents(): BelongsToMany
+    {
+        return $this->belongsToMany(Event::class, EventFollowTable::resolve())
+            ->withPivot(['created_at', 'updated_at'])
+            ->withTimestamps();
     }
 
     public function notifications(): HasMany
@@ -390,7 +400,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isBanned(): bool
     {
-        return !is_null($this->banned_at) || (bool) $this->is_banned;
+        return ! is_null($this->banned_at) || (bool) $this->is_banned;
     }
 
     public function isBot(): bool

@@ -42,11 +42,16 @@ class AstropixelsAlmanacParserTest extends TestCase
         $this->assertGreaterThan(0, count($result->items));
     }
 
-    public function test_parser_converts_bratislava_timezone_to_utc_for_winter_and_summer_rows(): void
+    public function test_parser_converts_fixed_cet_source_timezone_to_utc_for_winter_and_summer_rows(): void
     {
         $html = File::get(base_path('tests/Fixtures/astropixels/almanac2026cet.html'));
         $parser = new AstropixelsAlmanacParser();
-        $result = $parser->parse($html, 2026, 'https://astropixels.com/almanac/almanac21/almanac2026cet.html');
+        $result = $parser->parse(
+            $html,
+            2026,
+            'https://astropixels.com/almanac/almanac21/almanac2026cet.html',
+            '+01:00'
+        );
 
         $winter = collect($result->items)->first(static fn ($item) => $item->title === 'Moon at Perigee: 360348 km');
         $summer = collect($result->items)->first(static fn ($item) => $item->title === 'Earth at Aphelion: 1.01664 AU');
@@ -55,9 +60,14 @@ class AstropixelsAlmanacParserTest extends TestCase
         $this->assertNotNull($summer);
 
         // Jan (CET, UTC+1)
+        $this->assertSame('22:43', $winter->rawPayload['time_local']);
         $this->assertSame('2026-01-01 21:43:00', $winter->startsAtUtc->format('Y-m-d H:i:s'));
-        // Jul (CEST, UTC+2)
-        $this->assertSame('2026-07-06 17:00:00', $summer->startsAtUtc->format('Y-m-d H:i:s'));
+        // Jul row still uses the source's fixed CET offset (UTC+1)
+        $this->assertSame('19:00', $summer->rawPayload['time_local']);
+        $this->assertSame('2026-07-06 18:00:00', $summer->startsAtUtc->format('Y-m-d H:i:s'));
+        $this->assertSame('peak', $winter->timeType);
+        $this->assertSame('exact', $winter->timePrecision);
+        $this->assertSame('+01:00', $winter->rawPayload['source_timezone']);
     }
 
     public function test_parser_throws_domain_exception_when_almanac_table_is_missing(): void

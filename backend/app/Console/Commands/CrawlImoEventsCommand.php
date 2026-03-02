@@ -27,10 +27,10 @@ class CrawlImoEventsCommand extends Command
 
     public function handle(): int
     {
-        $year = (int) ($this->option('year') ?: now()->year);
+        $year = (int) ($this->option('year') ?: now((string) config('events.timezone', 'Europe/Bratislava'))->year);
         $fromUtc = $this->resolveBoundDate('from', true);
         $toUtc = $this->resolveBoundDate('to', false);
-        $timezone = (string) config('events.source_timezone', 'Europe/Bratislava');
+        $timezone = (string) config('events.source_timezones.imo', 'UTC');
         $dryRun = (bool) $this->option('dry-run');
 
         $run = $this->orchestrator->run($this->crawler, new CrawlContext(
@@ -74,11 +74,10 @@ class CrawlImoEventsCommand extends Command
             return null;
         }
 
-        $timezone = (string) config('events.source_timezone', 'Europe/Bratislava');
+        $timezone = (string) config('events.timezone', 'Europe/Bratislava');
         $dt = CarbonImmutable::parse((string) $value, $timezone);
         $dt = $startOfDay ? $dt->startOfDay() : $dt->endOfDay();
 
         return $dt->utc();
     }
 }
-

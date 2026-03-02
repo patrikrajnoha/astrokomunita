@@ -28,23 +28,29 @@ class EventReminderNotification extends Notification implements ShouldQueue
         $start = $event?->start_at ?? $event?->max_at;
         $startLabel = $start
             ? CarbonImmutable::parse($start)
-                ->timezone(config('app.timezone'))
+                ->timezone($this->timezone())
                 ->format('d.m.Y H:i')
-            : '—';
+            : '-';
 
         return (new MailMessage)
-            ->subject('Upozornenie na udalosť')
-            ->line('Blíži sa udalosť, ktorú sleduješ.')
-            ->line('Udalosť: ' . ($event?->title ?? '—'))
-            ->line('Začiatok: ' . $startLabel)
-            ->action('Zobraziť detail', $this->eventUrl($event?->id));
+            ->subject('Upozornenie na udalost')
+            ->line('Blizi sa udalost, ktoru sledujes.')
+            ->line('Udalost: ' . ($event?->title ?? '-'))
+            ->line('Zaciatok: ' . $startLabel)
+            ->action('Zobrazit detail', $this->eventUrl($event?->id));
     }
 
     private function eventUrl(?int $id): string
     {
-        if (!$id) {
+        if (! $id) {
             return rtrim(config('app.url'), '/');
         }
+
         return rtrim(config('app.url'), '/') . "/events/{$id}";
+    }
+
+    private function timezone(): string
+    {
+        return (string) config('events.timezone', config('app.timezone', 'UTC'));
     }
 }

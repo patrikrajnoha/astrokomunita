@@ -23,6 +23,8 @@ class ImoParserTest extends TestCase
         $this->assertSame('meteor_shower', $lyrids->eventType);
         $this->assertSame('imo:lyrids-lyr:20260422', $lyrids->externalId);
         $this->assertSame('2026-04-22 20:00:00', $lyrids->startsAtUtc->format('Y-m-d H:i:s'));
+        $this->assertSame('peak', $lyrids->timeType);
+        $this->assertSame('exact', $lyrids->timePrecision);
         $this->assertSame(18, $lyrids->rawPayload['zhr']);
         $this->assertSame('18:04 +34', $lyrids->rawPayload['radiant']);
         $this->assertSame(49.0, $lyrids->rawPayload['velocity_km_s']);
@@ -30,6 +32,9 @@ class ImoParserTest extends TestCase
         $eta = collect($result->items)->first(fn ($item) => str_contains($item->title, 'Eta Aquariids'));
         $this->assertNotNull($eta);
         $this->assertSame('2026-05-06 00:00:00', $eta->startsAtUtc->format('Y-m-d H:i:s'));
+        $this->assertSame('peak', $eta->timeType);
+        $this->assertSame('unknown', $eta->timePrecision);
+        $this->assertFalse($eta->rawPayload['peak_time_known']);
         $this->assertSame(50, $eta->rawPayload['zhr']);
     }
 
@@ -57,4 +62,3 @@ class ImoParserTest extends TestCase
         $parser->parse('<html><body><div>No shower blocks</div></body></html>', 2026, 'https://www.imo.net/resources/calendar/');
     }
 }
-

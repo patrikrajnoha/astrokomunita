@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\RegionScope;
+use App\Services\Events\EventFilter;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,6 +20,7 @@ class EventIndexRequest extends FormRequest
             'type' => ['nullable', 'string', 'max:50'],
             'types' => ['nullable', 'string', 'max:500'],
             'region' => ['nullable', 'string', Rule::in(RegionScope::values())],
+            'scope' => ['nullable', 'string', Rule::in(EventFilter::scopes())],
             'feed' => ['nullable', 'string', Rule::in(['all', 'mine'])],
             'from' => ['nullable', 'date', 'required_with:to'],
             'to'   => ['nullable', 'date', 'required_with:from'],
@@ -26,6 +28,7 @@ class EventIndexRequest extends FormRequest
             'month' => ['nullable', 'integer', 'between:1,12', 'prohibits:week'],
             'week' => ['nullable', 'integer', 'between:1,53', 'prohibits:month'],
             'q'    => ['nullable', 'string', 'max:200'],
+            'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ];
     }

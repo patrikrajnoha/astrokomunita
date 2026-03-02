@@ -122,7 +122,7 @@ class MarkYourCalendarRepository
 
     private function timezone(): string
     {
-        return (string) config('app.timezone', 'UTC');
+        return (string) config('events.timezone', config('app.timezone', 'UTC'));
     }
 
     private function isEventEligibleForPopup(?Event $event, Carbon $now): bool

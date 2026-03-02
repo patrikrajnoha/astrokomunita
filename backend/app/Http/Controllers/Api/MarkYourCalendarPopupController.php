@@ -19,13 +19,14 @@ class MarkYourCalendarPopupController extends Controller
         $user = $request->user();
         abort_unless($user !== null, 401);
         if ($user->isAdmin()) {
+            $timezone = (string) config('events.timezone', config('app.timezone', 'UTC'));
             return response()->json([
                 'mode' => 'disabled',
                 'events' => [],
                 'should_show' => false,
                 'reason' => 'admin_disabled',
                 'force_version' => 0,
-                'month_key' => now()->format('Y-m'),
+                'month_key' => now($timezone)->format('Y-m'),
                 'selection_mode' => 'disabled',
                 'fallback_reason' => 'admin_disabled',
                 'items' => [],

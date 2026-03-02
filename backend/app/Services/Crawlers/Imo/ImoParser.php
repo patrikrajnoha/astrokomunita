@@ -168,6 +168,7 @@ class ImoParser
                 'peak_month' => $peakParts['month'],
                 'peak_day' => $peakParts['day'],
                 'peak_time_utc' => sprintf('%02d:%02d', $utTime['hour'], $utTime['minute']),
+                'peak_time_known' => $utTime['known'],
                 'zhr' => $zhr,
                 'radiant' => $radiant,
                 'velocity_km_s' => $velocityKmh,
@@ -176,6 +177,8 @@ class ImoParser
             canonicalKey: null,
             confidenceScore: null,
             matchedSources: null,
+            timeType: 'peak',
+            timePrecision: $utTime['known'] ? 'exact' : 'unknown',
         );
     }
 
@@ -217,7 +220,7 @@ class ImoParser
     }
 
     /**
-     * @return array{hour:int,minute:int}
+     * @return array{hour:int,minute:int,known:bool}
      */
     private function extractUtTime(?string $description): array
     {
@@ -228,11 +231,11 @@ class ImoParser
             $minute = isset($matches[2]) ? (int) $matches[2] : 0;
 
             if ($hour >= 0 && $hour <= 23 && $minute >= 0 && $minute <= 59) {
-                return ['hour' => $hour, 'minute' => $minute];
+                return ['hour' => $hour, 'minute' => $minute, 'known' => true];
             }
         }
 
-        return ['hour' => 0, 'minute' => 0];
+        return ['hour' => 0, 'minute' => 0, 'known' => false];
     }
 
     private function extractZhr(string $detailsText): ?int
@@ -300,4 +303,3 @@ class ImoParser
         $diagnostics[] = Str::limit($this->normalizeWhitespace($message), 240, '');
     }
 }
-

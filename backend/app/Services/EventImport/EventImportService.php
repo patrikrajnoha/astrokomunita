@@ -7,6 +7,7 @@ use App\Models\EventCandidate;
 use App\Services\Crawlers\CandidateItem;
 use App\Services\EventImport\Parsers\EventSourceParser;
 use App\Services\Events\CanonicalKeyService;
+use App\Support\EventTime;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
@@ -36,6 +37,8 @@ class EventImportService
                 externalId: $item->sourceUid,
                 rawPayload: ['source_payload_hash' => hash('sha256', $payload)],
                 eventType: $item->type,
+                timeType: null,
+                timePrecision: null,
             );
         }, $items);
 
@@ -76,6 +79,8 @@ class EventImportService
             $startAt = $item->startsAtUtc;
             $endAt = $item->endsAtUtc;
             $maxAt = $startAt;
+            $timeType = EventTime::normalizeType($item->timeType, $startAt, $maxAt);
+            $timePrecision = EventTime::normalizePrecision($item->timePrecision, $startAt, $maxAt, $sourceName);
 
             $sourceUid = $item->externalId ?: $this->buildSourceUidFromNormalized(
                 $title,
@@ -125,6 +130,8 @@ class EventImportService
                 'start_at' => $startAt,
                 'end_at' => $endAt,
                 'max_at' => $maxAt,
+                'time_type' => $timeType,
+                'time_precision' => $timePrecision,
 
                 'short' => $short,
                 'description' => $description,
