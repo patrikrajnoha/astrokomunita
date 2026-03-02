@@ -3,6 +3,7 @@
     <div class="adminHub__bg" aria-hidden="true"></div>
 
     <div class="adminHub__mainNav adminHub__mainNav--desktop">
+      <!-- Match both desktop rails so admin pages stay visually centered without the standard widget sidebar. -->
       <div class="adminHub__sticky">
         <MainNavbar />
       </div>
@@ -34,6 +35,8 @@ import MainNavbar from '@/components/MainNavbar.vue'
 
 <style scoped>
 .adminHub {
+  --admin-rail-width: clamp(15rem, 22vw, 22rem);
+  --admin-main-nav-width: 16rem;
   position: relative;
   display: grid;
   gap: 18px;
@@ -63,6 +66,10 @@ import MainNavbar from '@/components/MainNavbar.vue'
   display: none;
 }
 
+.adminHub__mainNav .adminHub__sticky {
+  width: min(100%, var(--admin-main-nav-width));
+}
+
 .adminHub__contentCard {
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -88,7 +95,10 @@ import MainNavbar from '@/components/MainNavbar.vue'
 
 @media (min-width: 901px) {
   .adminHub {
-    grid-template-columns: 250px minmax(0, 1fr) 320px;
+    grid-template-columns:
+      minmax(var(--admin-main-nav-width), var(--admin-rail-width))
+      minmax(0, 1fr)
+      minmax(var(--admin-main-nav-width), var(--admin-rail-width));
     align-items: start;
   }
 
@@ -102,6 +112,19 @@ import MainNavbar from '@/components/MainNavbar.vue'
 
   .adminHub__mainNav--desktop {
     display: block;
+  }
+
+  .adminHub__mainNav {
+    justify-self: stretch;
+  }
+
+  .adminHub__mainNav .adminHub__sticky {
+    margin-left: auto;
+  }
+
+  .adminHub__center {
+    width: 100%;
+    margin-inline: auto;
   }
 }
 
