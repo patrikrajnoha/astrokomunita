@@ -6,6 +6,12 @@ const props = defineProps({
   metricKey: { type: String, default: 'new_posts' },
 })
 
+const numberFormatter = new Intl.NumberFormat('sk-SK')
+const dateFormatter = new Intl.DateTimeFormat('sk-SK', {
+  day: '2-digit',
+  month: '2-digit',
+})
+
 const normalized = computed(() => {
   const safe = Array.isArray(props.points) ? props.points : []
   return safe.map((point) => {
@@ -39,22 +45,56 @@ const maxValue = computed(() => {
 })
 
 const yTicks = computed(() => {
-  const max = maxValue.value
-  return [max, Math.round(max / 2), 0]
+  const values = [maxValue.value, Math.round(maxValue.value / 2), 0]
+  return values.filter((tick, index) => values.indexOf(tick) === index)
 })
+
+function formatValue(value) {
+  return numberFormatter.format(Number(value || 0))
+}
+
+function formatShortDate(value) {
+  if (!value) return ''
+
+  const isoMatch = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (isoMatch) {
+    const [, , month = '', day = ''] = isoMatch
+    return day && month ? `${day}.${month}.` : String(value)
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return String(value)
+  }
+
+  return dateFormatter.format(date)
+}
+
+function formatTooltip(point) {
+  return `${formatShortDate(point.date)}: ${formatValue(point.value)}`
+}
 </script>
 
 <template>
-  <div class="chartRoot" role="img" aria-label="Trend chart">
-    <div v-if="!displayed.length" class="chartEmpty">No trend data.</div>
+  <div class="chartRoot" role="img" aria-label="Graf trendu">
+    <div v-if="!displayed.length" class="chartEmpty">Trend nie je dostupný.</div>
     <div v-else class="chartGrid">
       <div class="yAxis">
-        <span v-for="tick in yTicks" :key="`tick-${tick}`" class="yTick">{{ tick }}</span>
+        <span v-for="tick in yTicks" :key="`tick-${tick}`" class="yTick">{{
+          formatValue(tick)
+        }}</span>
       </div>
-      <div class="bars" :style="{ gridTemplateColumns: `repeat(${displayed.length}, minmax(0, 1fr))` }">
+      <div
+        class="bars"
+        :style="{ gridTemplateColumns: `repeat(${displayed.length}, minmax(0, 1fr))` }"
+      >
         <div v-for="point in displayed" :key="point.date" class="barWrap">
-          <div class="bar" :style="{ height: `${Math.max(4, (point.value / maxValue) * 100)}%` }" :title="`${point.date}: ${point.value}`"></div>
-          <div class="xLabel">{{ point.date.slice(5) }}</div>
+          <div
+            class="bar"
+            :style="{ height: `${Math.max(6, (point.value / maxValue) * 100)}%` }"
+            :title="formatTooltip(point)"
+          ></div>
+          <div class="xLabel">{{ formatShortDate(point.date) }}</div>
         </div>
       </div>
     </div>
@@ -63,26 +103,24 @@ const yTicks = computed(() => {
 
 <style scoped>
 .chartRoot {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 12px;
-  padding: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.4);
+  display: grid;
+  gap: 6px;
 }
 
 .chartEmpty {
+  color: var(--dashboard-muted, rgb(var(--color-text-secondary-rgb) / 0.88));
   font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
 }
 
 .chartGrid {
   display: grid;
-  grid-template-columns: 36px 1fr;
+  grid-template-columns: 34px minmax(0, 1fr);
   gap: 8px;
   align-items: stretch;
 }
 
 .yAxis {
-  min-height: 180px;
+  min-height: 174px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -90,15 +128,24 @@ const yTicks = computed(() => {
 }
 
 .yTick {
+  color: rgb(var(--color-text-secondary-rgb) / 0.76);
   font-size: 10px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+  font-variant-numeric: tabular-nums;
 }
 
 .bars {
-  min-height: 180px;
+  min-height: 174px;
   display: grid;
-  gap: 4px;
+  gap: 5px;
   align-items: end;
+  padding-top: 8px;
+  background-image: linear-gradient(
+    to top,
+    rgb(var(--color-surface-rgb) / 0.08) 1px,
+    transparent 1px
+  );
+  background-size: 100% 33.33%;
+  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.08);
 }
 
 .barWrap {
@@ -109,13 +156,14 @@ const yTicks = computed(() => {
 
 .bar {
   width: 100%;
-  border-radius: 6px 6px 3px 3px;
-  background: linear-gradient(180deg, rgb(var(--color-primary-rgb) / 0.85), rgb(var(--color-primary-rgb) / 0.35));
+  border-radius: 999px 999px 4px 4px;
+  background: rgb(var(--color-primary-rgb) / 0.78);
 }
 
 .xLabel {
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
   font-size: 10px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.85);
   text-align: center;
+  white-space: nowrap;
 }
 </style>

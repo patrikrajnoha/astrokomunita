@@ -22,39 +22,76 @@ const authSettingsSaving = ref(false)
 const authSettingsError = ref('')
 
 const trendMetricOptions = [
-  { key: 'new_posts', label: 'New posts' },
-  { key: 'new_users', label: 'New users' },
-  { key: 'new_events', label: 'New events' },
+  { key: 'new_posts', label: 'Príspevky' },
+  { key: 'new_users', label: 'Používatelia' },
+  { key: 'new_events', label: 'Udalosti' },
 ]
+
+const emailVerificationHint =
+  'Platí len pre nových používateľov. Pri vypnutí sa nové účty overia automaticky.'
+
+const emailVerificationEnabled = computed(() =>
+  Boolean(authSettings.value.require_email_verification),
+)
+
+const emailVerificationStateLabel = computed(() =>
+  emailVerificationEnabled.value ? 'Zapnuté' : 'Vypnuté',
+)
 
 const kpiCards = computed(() => {
   const kpi = stats.value?.kpi || {}
 
   return [
-    { key: 'users_total', label: 'Users total', value: Number(kpi.users_total || 0), viewTo: '/admin/users' },
-    { key: 'users_active_30d', label: 'Active (30d)', value: Number(kpi.users_active_30d || 0), viewTo: '/admin/users' },
-    { key: 'posts_total', label: 'Posts total', value: Number(kpi.posts_total || 0), viewTo: '/admin/moderation' },
-    { key: 'events_total', label: 'Events total', value: Number(kpi.events_total || 0), viewTo: '/admin/events' },
-    { key: 'posts_moderated_total', label: 'Moderated posts', value: Number(kpi.posts_moderated_total || 0), viewTo: '/admin/moderation' },
+    {
+      key: 'users_total',
+      label: 'Používatelia',
+      value: Number(kpi.users_total || 0),
+      viewTo: '/admin/users',
+    },
+    {
+      key: 'users_active_30d',
+      label: 'Aktívni (30 dní)',
+      value: Number(kpi.users_active_30d || 0),
+      viewTo: '/admin/users',
+    },
+    {
+      key: 'posts_total',
+      label: 'Príspevky',
+      value: Number(kpi.posts_total || 0),
+      viewTo: '/admin/moderation',
+    },
+    {
+      key: 'events_total',
+      label: 'Udalosti',
+      value: Number(kpi.events_total || 0),
+      viewTo: '/admin/events',
+    },
+    {
+      key: 'posts_moderated_total',
+      label: 'Moderované',
+      value: Number(kpi.posts_moderated_total || 0),
+      viewTo: '/admin/moderation',
+      tone: 'accent',
+    },
   ]
 })
 
 const byRoleList = computed(() => {
   const byRole = stats.value?.demographics?.by_role || {}
   return [
-    { key: 'user', label: 'Users', value: Number(byRole.user || 0) },
-    { key: 'admin', label: 'Admins', value: Number(byRole.admin || 0) },
-    { key: 'bot', label: 'Bots', value: Number(byRole.bot || 0) },
+    { key: 'user', label: 'Používatelia', value: Number(byRole.user || 0) },
+    { key: 'admin', label: 'Administrátori', value: Number(byRole.admin || 0) },
+    { key: 'bot', label: 'Boti', value: Number(byRole.bot || 0) },
   ]
 })
 
 const byRegionList = computed(() => {
   const byRegion = stats.value?.demographics?.by_region || {}
   return [
-    { key: 'unknown', label: 'Unknown', value: Number(byRegion.unknown || 0) },
-    { key: 'sk', label: 'SK', value: Number(byRegion.sk || 0) },
-    { key: 'cz', label: 'CZ', value: Number(byRegion.cz || 0) },
-    { key: 'other', label: 'Other', value: Number(byRegion.other || 0) },
+    { key: 'unknown', label: 'Nezadané', value: Number(byRegion.unknown || 0) },
+    { key: 'sk', label: 'Slovensko', value: Number(byRegion.sk || 0) },
+    { key: 'cz', label: 'Česko', value: Number(byRegion.cz || 0) },
+    { key: 'other', label: 'Ostatné', value: Number(byRegion.other || 0) },
   ]
 })
 
@@ -63,45 +100,38 @@ const trendPoints = computed(() => {
   return Array.isArray(points) ? points : []
 })
 
-const generatedAtLabel = computed(() => {
-  const value = stats.value?.generated_at
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value)
-  return date.toLocaleString()
-})
-
 const quickActions = computed(() => {
   const queues = stats.value?.queues || {}
   const kpi = stats.value?.kpi || {}
-  const moderationAttention = Number(queues.moderation_pending || 0) + Number(queues.moderation_flagged || 0)
+  const moderationAttention =
+    Number(queues.moderation_pending || 0) + Number(queues.moderation_flagged || 0)
 
   return [
     {
-      title: 'Crawling hub',
-      subtitle: 'Sources, crawl runs and candidate queue in one place',
+      title: 'Centrum zberu',
+      subtitle: 'Zdroje, behy a kandidáti na jednom mieste.',
       to: '/admin/event-sources',
       badge: Number(kpi.events_total || 0),
     },
     {
-      title: 'Candidates review',
-      subtitle: 'Open full queue for approve/reject workflow',
+      title: 'Kontrola kandidátov',
+      subtitle: 'Schválenie alebo odmietnutie čakajúcich udalostí.',
       to: '/admin/event-candidates',
       badge: Number(queues.event_candidates_pending || 0),
-      badgeTone: Number(queues.event_candidates_pending || 0) > 0 ? 'attention' : 'neutral',
+      badgeTone: Number(queues.event_candidates_pending || 0) > 0 ? 'accent' : 'neutral',
     },
     {
-      title: 'User management',
-      subtitle: 'Review profiles, roles, bans and status',
+      title: 'Správa používateľov',
+      subtitle: 'Profily, roly, blokácie a stav účtu.',
       to: '/admin/users',
       badge: Number(kpi.users_total || 0),
     },
     {
-      title: 'Moderation queue',
-      subtitle: 'Process flagged and pending content',
+      title: 'Moderácia',
+      subtitle: 'Obsah čakajúci na zásah moderátora.',
       to: '/admin/moderation',
       badge: moderationAttention,
-      badgeTone: moderationAttention > 0 ? 'danger' : 'neutral',
+      badgeTone: moderationAttention > 0 ? 'accent' : 'neutral',
     },
   ]
 })
@@ -117,7 +147,7 @@ async function loadDashboard(force = false) {
   try {
     stats.value = await getStats({ force })
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Failed to load admin stats.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať štatistiky administrácie.'
   } finally {
     loading.value = false
   }
@@ -138,9 +168,9 @@ async function exportCsv() {
     anchor.remove()
     URL.revokeObjectURL(url)
 
-    toast.success('CSV downloaded.')
+    toast.success('CSV bolo exportované.')
   } catch (e) {
-    toast.error(e?.response?.data?.message || 'CSV export failed.')
+    toast.error(e?.response?.data?.message || 'Export CSV zlyhal.')
   } finally {
     exporting.value = false
   }
@@ -157,7 +187,8 @@ async function loadAuthSettings() {
       authSettings.value = payload
     }
   } catch (e) {
-    authSettingsError.value = e?.response?.data?.message || 'Failed to load auth settings.'
+    authSettingsError.value =
+      e?.response?.data?.message || 'Nepodarilo sa načítať nastavenie overenia.'
   } finally {
     authSettingsLoading.value = false
   }
@@ -181,9 +212,14 @@ async function toggleEmailVerification(required) {
       authSettings.value = { require_email_verification: required }
     }
 
-    toast.success(required ? 'Email verification enabled.' : 'Email verification disabled for new users.')
+    toast.success(
+      required
+        ? 'Overenie e-mailu bolo zapnuté.'
+        : 'Overenie e-mailu pre nových používateľov bolo vypnuté.',
+    )
   } catch (e) {
-    authSettingsError.value = e?.response?.data?.message || 'Failed to update auth settings.'
+    authSettingsError.value =
+      e?.response?.data?.message || 'Nepodarilo sa uložiť nastavenie overenia.'
     toast.error(authSettingsError.value)
   } finally {
     authSettingsSaving.value = false
@@ -197,276 +233,511 @@ onMounted(() => {
 </script>
 
 <template>
-  <AdminPageShell title="Admin Dashboard" subtitle="Single entry point for core admin decisions within 3 clicks.">
+  <AdminPageShell title="Prehľad">
     <template #right-actions>
-      <button type="button" class="btn" :disabled="loading" @click="loadDashboard(true)">
-        {{ loading ? 'Loading...' : 'Refresh' }}
+      <button type="button" class="btn btnPrimary" :disabled="loading" @click="loadDashboard(true)">
+        {{ loading ? 'Načítavam...' : 'Obnoviť' }}
       </button>
-      <button type="button" class="btn" :disabled="exporting" @click="exportCsv">
-        {{ exporting ? 'Downloading...' : 'Download CSV' }}
+      <button type="button" class="btn btnSecondary" :disabled="exporting" @click="exportCsv">
+        {{ exporting ? 'Exportujem...' : 'Export CSV' }}
       </button>
     </template>
 
-    <div v-if="error" class="adminAlert">
-      <span>{{ error }}</span>
-      <button type="button" class="btn" @click="loadDashboard(true)">Retry</button>
-    </div>
-
-    <section class="policyCard sectionFade" aria-label="Authentication settings">
-      <div class="policyRow">
-        <div>
-          <h3>Email verification for new users</h3>
-          <p class="policyMuted">
-            If disabled, newly registered users are auto-verified and no verification email is sent.
-          </p>
-          <p class="policyMuted">Existing users are not changed.</p>
-        </div>
-        <label class="toggleLabel">
-          <input
-            :checked="Boolean(authSettings.require_email_verification)"
-            type="checkbox"
-            :disabled="authSettingsLoading || authSettingsSaving"
-            @change="toggleEmailVerification($event.target.checked)"
-          />
-          <span>{{ authSettings.require_email_verification ? 'Required' : 'Disabled' }}</span>
-        </label>
+    <div class="dashboardView">
+      <div v-if="error" class="adminAlert" role="alert">
+        <span>{{ error }}</span>
+        <button type="button" class="btn btnSecondary" @click="loadDashboard(true)">
+          Skúsiť znova
+        </button>
       </div>
 
-      <p v-if="authSettingsError" class="policyError">{{ authSettingsError }}</p>
-    </section>
-
-    <section class="kpiGrid sectionFade" aria-label="KPI overview">
-      <template v-if="loading && !stats">
-        <div v-for="idx in 5" :key="`kpi-skeleton-${idx}`" class="skeletonCard"></div>
-      </template>
-
-      <KpiCard
-        v-for="item in kpiCards"
-        v-else
-        :key="item.key"
-        :label="item.label"
-        :value="formatNumber(item.value)"
-        :hint="`Generated ${generatedAtLabel}`"
-        :view-to="item.viewTo"
-      />
-    </section>
-
-    <section class="twoCol sectionFade" aria-label="Trend and quick actions">
-      <DashboardSection title="30-day trend" subtitle="Toggle metric and inspect daily volume.">
-        <div class="metricTabs" role="group" aria-label="Trend metric selector">
-          <button
-            v-for="option in trendMetricOptions"
-            :key="option.key"
-            type="button"
-            class="metricBtn"
-            :class="{ active: trendMetric === option.key }"
-            @click="trendMetric = option.key"
-          >
-            {{ option.label }}
-          </button>
+      <section class="settingsRow sectionFade" aria-label="Overenie e-mailu">
+        <div class="settingsCopy">
+          <div class="settingsTitleRow">
+            <h2 class="settingsLabel">Overenie e-mailu pre nových používateľov</h2>
+            <span class="settingsInfo" :title="emailVerificationHint">i</span>
+          </div>
+          <p v-if="authSettingsError" class="settingsError">{{ authSettingsError }}</p>
         </div>
 
-        <StatsChart :points="trendPoints" :metric-key="trendMetric" />
-      </DashboardSection>
+        <label class="switchField">
+          <span class="switchState">{{ emailVerificationStateLabel }}</span>
+          <span class="switchControl">
+            <input
+              :checked="emailVerificationEnabled"
+              class="switchInput"
+              type="checkbox"
+              role="switch"
+              :disabled="authSettingsLoading || authSettingsSaving"
+              aria-label="Prepnúť overenie e-mailu pre nových používateľov"
+              @change="toggleEmailVerification($event.target.checked)"
+            />
+            <span class="switchTrack"></span>
+          </span>
+        </label>
+      </section>
 
-      <DashboardSection title="Quick actions" subtitle="1-click shortcuts to daily admin tasks.">
-        <div class="actionGrid">
-          <QuickActionTile
-            v-for="action in quickActions"
-            :key="action.title"
-            :title="action.title"
-            :subtitle="action.subtitle"
-            :to="action.to"
-            :badge="formatNumber(action.badge)"
-            :badge-tone="action.badgeTone || 'neutral'"
+      <section class="kpiGrid sectionFade" aria-label="Kľúčové ukazovatele">
+        <template v-if="loading && !stats">
+          <div v-for="idx in 5" :key="`kpi-skeleton-${idx}`" class="skeletonCard"></div>
+        </template>
+
+        <template v-else>
+          <KpiCard
+            v-for="item in kpiCards"
+            :key="item.key"
+            :label="item.label"
+            :value="formatNumber(item.value)"
+            :view-to="item.viewTo"
+            :tone="item.tone || 'default'"
           />
-        </div>
-      </DashboardSection>
-    </section>
+        </template>
+      </section>
 
-    <section class="twoCol sectionFade" aria-label="Demographics overview">
-      <DashboardSection title="Demographics by role" subtitle="Current account distribution.">
-        <div class="statList">
-          <article v-for="item in byRoleList" :key="item.key" class="statRow">
-            <span>{{ item.label }}</span>
-            <strong>{{ formatNumber(item.value) }}</strong>
-          </article>
-        </div>
-      </DashboardSection>
+      <section class="mainGrid sectionFade" aria-label="Trend a rýchle akcie">
+        <DashboardSection title="Trend (30 dní)">
+          <template #header-actions>
+            <div class="metricTabs" role="group" aria-label="Prepínanie trendu">
+              <button
+                v-for="option in trendMetricOptions"
+                :key="option.key"
+                type="button"
+                class="metricBtn"
+                :class="{ active: trendMetric === option.key }"
+                @click="trendMetric = option.key"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </template>
 
-      <DashboardSection title="Demographics by region" subtitle="Based on declared profile location.">
-        <div class="statList">
-          <article v-for="item in byRegionList" :key="item.key" class="statRow">
-            <span>{{ item.label }}</span>
-            <strong>{{ formatNumber(item.value) }}</strong>
-          </article>
+          <StatsChart :points="trendPoints" :metric-key="trendMetric" />
+        </DashboardSection>
+
+        <DashboardSection title="Rýchle akcie">
+          <div class="actionList">
+            <QuickActionTile
+              v-for="action in quickActions"
+              :key="action.title"
+              :title="action.title"
+              :subtitle="action.subtitle"
+              :to="action.to"
+              :badge="formatNumber(action.badge)"
+              :badge-tone="action.badgeTone || 'neutral'"
+            />
+          </div>
+        </DashboardSection>
+      </section>
+
+      <section class="summaryStrip sectionFade" aria-label="Rozloženie účtov">
+        <div class="summaryGroup">
+          <p class="summaryLabel">Podľa rolí</p>
+          <div class="summaryItems">
+            <div v-for="item in byRoleList" :key="item.key" class="summaryItem">
+              <strong>{{ formatNumber(item.value) }}</strong>
+              <span>{{ item.label }}</span>
+            </div>
+          </div>
         </div>
-      </DashboardSection>
-    </section>
+
+        <div class="summaryGroup">
+          <p class="summaryLabel">Podľa regiónu</p>
+          <div class="summaryItems">
+            <div v-for="item in byRegionList" :key="item.key" class="summaryItem">
+              <strong>{{ formatNumber(item.value) }}</strong>
+              <span>{{ item.label }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   </AdminPageShell>
 </template>
 
 <style scoped>
+:deep(.adminPageShell) {
+  padding-block: 20px 18px;
+}
+
+:deep(.adminPageShell__header) {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+:deep(.adminPageShell__title) {
+  margin: 0;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: clamp(1.65rem, 2.4vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+:deep(.adminPageShell__actions) {
+  gap: 10px;
+}
+
+:deep(.adminPageShell__content) {
+  gap: 12px;
+}
+
+.dashboardView {
+  --dashboard-gap-xs: 6px;
+  --dashboard-gap-sm: 10px;
+  --dashboard-gap-md: 14px;
+  --dashboard-gap-lg: 18px;
+  --dashboard-radius: 18px;
+  --dashboard-border: rgb(var(--color-surface-rgb) / 0.1);
+  --dashboard-border-strong: rgb(var(--color-surface-rgb) / 0.15);
+  --dashboard-panel: rgb(var(--color-bg-rgb) / 0.34);
+  --dashboard-panel-strong: rgb(var(--color-bg-rgb) / 0.48);
+  --dashboard-muted: rgb(var(--color-text-secondary-rgb) / 0.88);
+  display: grid;
+  gap: var(--dashboard-gap-md);
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+}
+
 .adminAlert {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  color: var(--color-danger);
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgb(var(--color-danger-rgb, 239 68 68) / 0.35);
+  gap: var(--dashboard-gap-sm);
+  padding: 12px 14px;
+  border-radius: var(--dashboard-radius);
+  border: 1px solid rgb(var(--color-danger-rgb, 239 68 68) / 0.28);
   background: rgb(var(--color-danger-rgb, 239 68 68) / 0.08);
+  color: rgb(var(--color-danger-rgb, 239 68 68));
 }
 
 .btn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  border-radius: 10px;
-  padding: 6px 10px;
+  height: 34px;
+  border: 1px solid var(--dashboard-border-strong);
+  border-radius: 999px;
+  padding: 0 14px;
   background: transparent;
-  color: inherit;
+  color: var(--color-surface);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: rgb(var(--color-primary-rgb) / 0.28);
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
-.policyCard {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  border-radius: 14px;
-  padding: 14px;
-  background: rgb(var(--color-bg-rgb) / 0.55);
+.btnPrimary {
+  border-color: rgb(var(--color-primary-rgb) / 0.34);
+  background: rgb(var(--color-primary-rgb) / 0.18);
 }
 
-.policyRow {
+.btnPrimary:hover:not(:disabled) {
+  background: rgb(var(--color-primary-rgb) / 0.24);
+}
+
+.btnSecondary {
+  background: rgb(var(--color-bg-rgb) / 0.52);
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background: rgb(var(--color-bg-rgb) / 0.68);
+}
+
+.settingsRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--dashboard-gap-md);
+  padding: 12px 14px;
+  border-radius: var(--dashboard-radius);
+  border: 1px solid var(--dashboard-border);
+  background: var(--dashboard-panel);
 }
 
-.policyRow h3 {
-  margin: 0;
+.settingsCopy {
+  min-width: 0;
 }
 
-.policyMuted {
-  margin: 2px 0 0;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-  font-size: 13px;
-}
-
-.policyError {
-  margin: 10px 0 0;
-  color: var(--color-danger);
-}
-
-.toggleLabel {
-  display: inline-flex;
+.settingsTitleRow {
+  display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+}
+
+.settingsLabel {
+  margin: 0;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.settingsInfo {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
   border-radius: 999px;
-  padding: 6px 10px;
+  border: 1px solid var(--dashboard-border-strong);
+  background: rgb(var(--color-bg-rgb) / 0.58);
+  color: var(--dashboard-muted);
+  font-size: 11px;
+  font-weight: 700;
+  flex: 0 0 auto;
+  cursor: help;
+}
+
+.settingsError {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: rgb(var(--color-danger-rgb, 239 68 68));
+}
+
+.switchField {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   white-space: nowrap;
+}
+
+.switchState {
+  min-width: 74px;
+  color: var(--dashboard-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.switchControl {
+  position: relative;
+  display: inline-flex;
+}
+
+.switchInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.switchTrack {
+  position: relative;
+  display: inline-flex;
+  width: 46px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--dashboard-border-strong);
+  background: rgb(var(--color-surface-rgb) / 0.14);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.switchTrack::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgb(var(--color-surface-rgb) / 0.92);
+  transition: transform 160ms ease;
+}
+
+.switchInput:checked + .switchTrack {
+  border-color: rgb(var(--color-primary-rgb) / 0.36);
+  background: rgb(var(--color-primary-rgb) / 0.32);
+}
+
+.switchInput:checked + .switchTrack::after {
+  transform: translateX(18px);
+}
+
+.switchInput:focus-visible + .switchTrack {
+  outline: 2px solid rgb(var(--color-primary-rgb) / 0.35);
+  outline-offset: 2px;
+}
+
+.switchInput:disabled {
+  cursor: not-allowed;
+}
+
+.switchInput:disabled + .switchTrack {
+  opacity: 0.6;
 }
 
 .kpiGrid {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
-@media (min-width: 760px) {
-  .kpiGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1200px) {
-  .kpiGrid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
-.twoCol {
+.mainGrid {
   display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr;
-}
-
-@media (min-width: 1100px) {
-  .twoCol {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.skeletonCard {
-  min-height: 120px;
-  border-radius: 14px;
-  background: linear-gradient(90deg, rgb(var(--color-surface-rgb) / 0.06), rgb(var(--color-surface-rgb) / 0.12), rgb(var(--color-surface-rgb) / 0.06));
-  background-size: 200% 100%;
-  animation: shimmer 1.15s infinite linear;
+  gap: var(--dashboard-gap-md);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .metricTabs {
   display: inline-flex;
-  gap: 6px;
   flex-wrap: wrap;
+  gap: 6px;
+  padding: 3px;
+  border: 1px solid var(--dashboard-border);
+  border-radius: 999px;
+  background: rgb(var(--color-bg-rgb) / 0.42);
 }
 
 .metricBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  border: none;
   border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 12px;
+  padding: 7px 11px;
   background: transparent;
-  color: inherit;
+  color: var(--dashboard-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
 }
 
 .metricBtn.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.55);
-  background: rgb(var(--color-primary-rgb) / 0.16);
+  background: rgb(var(--color-primary-rgb) / 0.18);
+  color: var(--color-surface);
 }
 
-.actionGrid {
+.actionList {
+  display: grid;
+  gap: 4px;
+}
+
+.summaryStrip {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+  padding-top: 2px;
+}
+
+.summaryGroup {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.summaryLabel {
+  color: var(--dashboard-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.summaryItems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.summaryItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--dashboard-border);
+  background: rgb(var(--color-bg-rgb) / 0.38);
+  color: var(--dashboard-muted);
+  font-size: 13px;
+}
+
+.summaryItem strong {
+  color: var(--color-surface);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.skeletonCard {
+  min-height: 98px;
+  border-radius: var(--dashboard-radius);
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-surface-rgb) / 0.04),
+    rgb(var(--color-surface-rgb) / 0.1),
+    rgb(var(--color-surface-rgb) / 0.04)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.15s infinite linear;
+}
+
+.sectionFade {
+  animation: sectionFadeIn 240ms ease both;
 }
 
 @media (min-width: 720px) {
-  .actionGrid {
+  .kpiGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 760px) {
-  .policyRow {
-    align-items: flex-start;
-    flex-direction: column;
+@media (min-width: 980px) {
+  .kpiGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
-.statList {
-  display: grid;
-  gap: 8px;
+@media (min-width: 1100px) {
+  .mainGrid {
+    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.95fr);
+  }
+
+  .summaryStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.statRow {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 10px;
-  padding: 10px;
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  background: rgb(var(--color-bg-rgb) / 0.35);
-}
+@media (max-width: 768px) {
+  .adminAlert,
+  .settingsRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 
-.sectionFade {
-  animation: sectionFadeIn 260ms ease both;
+  .switchField {
+    align-self: flex-end;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -477,12 +748,24 @@ onMounted(() => {
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 @keyframes sectionFadeIn {
-  0% { opacity: 0; transform: translateY(4px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

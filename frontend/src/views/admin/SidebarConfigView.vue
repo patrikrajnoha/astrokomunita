@@ -281,8 +281,7 @@ import SidebarSpecialEventCard from '@/components/widgets/SidebarSpecialEventCar
 
 const scopeTabs = [
   { value: SIDEBAR_SCOPE.HOME, label: 'Home' },
-  { value: SIDEBAR_SCOPE.EVENTS, label: 'Events' },
-  { value: SIDEBAR_SCOPE.CALENDAR, label: 'Calendar' },
+  { value: SIDEBAR_SCOPE.EVENTS, label: 'Events + Calendar' },
   { value: SIDEBAR_SCOPE.LEARNING, label: 'Learning' },
   { value: SIDEBAR_SCOPE.SEARCH, label: 'Search' },
   { value: SIDEBAR_SCOPE.NOTIFICATIONS, label: 'Notifications' },

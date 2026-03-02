@@ -105,9 +105,9 @@ describe('AdminDashboardView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Users total')
+    expect(wrapper.text()).toContain('Používatelia')
     expect(wrapper.text()).toContain('123')
-    expect(wrapper.text()).toContain('Active (30d)')
+    expect(wrapper.text()).toContain('Aktívni (30 dní)')
     expect(wrapper.text()).toContain('45')
   })
 
@@ -121,7 +121,9 @@ describe('AdminDashboardView', () => {
 
     const createObjectUrlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
     const revokeObjectUrlSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
-    const anchorClickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const anchorClickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {})
 
     const router = makeRouter()
     await router.push('/admin/dashboard')
@@ -135,7 +137,7 @@ describe('AdminDashboardView', () => {
     await flush()
     await flush()
 
-    const button = wrapper.findAll('button').find((node) => node.text().includes('Download CSV'))
+    const button = wrapper.findAll('button').find((node) => node.text().includes('Export CSV'))
     expect(button).toBeTruthy()
 
     await button.trigger('click')
@@ -161,7 +163,7 @@ describe('AdminDashboardView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.find('[aria-label="Trend chart"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Graf trendu"]').exists()).toBe(true)
   })
 
   it('toggles email verification setting from dashboard', async () => {
@@ -176,7 +178,7 @@ describe('AdminDashboardView', () => {
     await flush()
     await flush()
 
-    const checkbox = wrapper.find('section[aria-label="Authentication settings"] input[type="checkbox"]')
+    const checkbox = wrapper.find('section[aria-label="Overenie e-mailu"] input[type="checkbox"]')
     expect(checkbox.exists()).toBe(true)
     expect(checkbox.element.checked).toBe(true)
 

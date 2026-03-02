@@ -1,7 +1,7 @@
 <script setup>
 import LoadingIndicator from '@/components/shared/LoadingIndicator.vue'
 
-defineProps({
+const props = defineProps({
   columns: {
     type: Array,
     required: true,
@@ -30,6 +30,10 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  rowClass: {
+    type: Function,
+    default: null,
+  },
 })
 
 defineEmits(['clear-filters'])
@@ -37,6 +41,11 @@ defineEmits(['clear-filters'])
 function textValue(value) {
   if (value === null || value === undefined || value === '') return '-'
   return value
+}
+
+function resolveRowClass(row) {
+  if (typeof props.rowClass !== 'function') return ''
+  return props.rowClass(row) || ''
 }
 </script>
 
@@ -78,7 +87,14 @@ function textValue(value) {
           </td>
         </tr>
 
-        <tr v-for="row in rows" v-else :key="row[rowKey]" class="adminTable__row">
+        <tr
+          v-for="row in rows"
+          v-else
+          :key="row[rowKey]"
+          class="adminTable__row"
+          :class="resolveRowClass(row)"
+          :data-row-key="row[rowKey]"
+        >
           <td
             v-for="column in columns"
             :key="`${row[rowKey]}-${column.key}`"
@@ -102,7 +118,7 @@ function textValue(value) {
 
 <style scoped>
 .adminTableWrap {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border: 0;
   border-radius: 12px;
   overflow: auto;
 }
@@ -119,10 +135,15 @@ function textValue(value) {
   font-size: 12px;
   opacity: 0.85;
   background: rgb(var(--color-surface-rgb) / 0.05);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .adminTable__row {
-  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  border-bottom: 1px solid var(--divider-color);
+}
+
+.adminTable__row:last-child {
+  border-bottom: none;
 }
 
 .adminTable__cell {
@@ -146,7 +167,7 @@ function textValue(value) {
 
 .adminTable__clearBtn {
   margin-top: 10px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  border: 1px solid var(--divider-color);
   background: transparent;
   color: inherit;
   border-radius: 10px;
