@@ -21,10 +21,13 @@
       stroke-linejoin="round"
       aria-hidden="true"
     >
-      <rect x="3" y="3" width="7" height="7" rx="1.2" />
-      <rect x="14" y="3" width="7" height="7" rx="1.2" />
-      <rect x="3" y="14" width="7" height="7" rx="1.2" />
-      <rect x="14" y="14" width="7" height="7" rx="1.2" />
+      <path d="M9 15L5 19" />
+      <path d="M15 9L19 5" />
+      <path d="M10.5 13.5L6 18" />
+      <path d="M13.5 10.5L18 6" />
+      <path d="M14 5.5c2.8-.8 4.9-.4 5.5.2.6.6 1 2.7.2 5.5l-7.9 7.9c-1.2 1.2-3.1 1.2-4.2 0l-2.7-2.7c-1.2-1.2-1.2-3.1 0-4.2z" />
+      <path d="M9 15l-1.5 4.5L4 20l.5-3.5z" />
+      <circle cx="14.5" cy="9.5" r="1.25" fill="currentColor" stroke="none" />
     </svg>
   </button>
 </template>

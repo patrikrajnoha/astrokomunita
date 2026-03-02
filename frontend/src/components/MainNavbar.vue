@@ -393,24 +393,25 @@
           :title="item.title || item.label"
           :aria-label="item.label"
           :class="[
-            'group relative flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
+            'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.875rem] font-bold tracking-[0.01em] !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
             isPrimaryLinkActive(item, isActive, isExactActive)
               ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
               : 'text-[var(--color-surface)]',
           ]"
         >
           <span
-            class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.7rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+            class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.7rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
             aria-hidden="true"
           >
             <svg
               v-if="Array.isArray(item.iconPaths) && item.iconPaths.length > 0"
-              width="18"
-              height="18"
+              class="navIcon"
+              width="20"
+              height="20"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="1.7"
+              stroke-width="1.9"
               stroke-linecap="round"
               stroke-linejoin="round"
               aria-hidden="true"
@@ -419,7 +420,7 @@
             </svg>
             <span v-else>{{ item.icon }}</span>
           </span>
-          <span class="flex-1">{{ item.label }}</span>
+          <span class="navLabel flex-1">{{ item.label }}</span>
           <span
             v-if="item.badge"
             class="notificationBadge rounded-full bg-[color:rgb(var(--color-bg-rgb)/0.55)] px-2 py-0.5 text-[0.65rem] font-semibold text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)]"
@@ -545,14 +546,47 @@ const userAvatarUrl = computed(() => {
 const primaryLinks = computed(() => {
   const navIcons = {
     home: [
-      'M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18Z',
-      'M7.2 9.1l1.6-1.3 2.2.4 1.1 1.4-.4 1.8-1.6 1.2-1.9-.5-.5-1.6z',
-      'M12.8 13.2l1.9-1.2 2.3.7.8 1.9-1.5 1.9-2 .4-1.6-1.1.3-2.6z',
+      'M3.75 10.5 12 4l8.25 6.5',
+      'M5.75 9.75V19a1 1 0 0 0 1 1h3.75v-5.25a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1V20h3.75a1 1 0 0 0 1-1V9.75',
     ],
     search: ['M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z', 'm20 20-3.5-3.5'],
-    notifications: ['M6 8a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6', 'M9.5 20a2.5 2.5 0 0 0 5 0'],
-    events: ['M7 3v3', 'M17 3v3', 'M4 8h16', 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z'],
-    learn: ['M4 6.5A2.5 2.5 0 0 1 6.5 4H20v14H6.5A2.5 2.5 0 0 0 4 20.5z', 'M8 8h8', 'M8 11h8'],
+    notifications: [
+      'M6.5 8a5.5 5.5 0 1 1 11 0c0 2.6.7 4.4 1.8 5.8.5.6.1 1.2-.7 1.2H5.4c-.8 0-1.2-.7-.7-1.2C5.8 12.4 6.5 10.6 6.5 8Z',
+      'M9.5 18a2.5 2.5 0 0 0 5 0',
+    ],
+    events: [
+      'M7 3.75v2.5',
+      'M17 3.75v2.5',
+      'M4.75 9.25h14.5',
+      'M6 5.75h12A1.25 1.25 0 0 1 19.25 7v11A1.25 1.25 0 0 1 18 19.25H6A1.25 1.25 0 0 1 4.75 18V7A1.25 1.25 0 0 1 6 5.75Z',
+      'M8.25 13h3.5',
+      'M8.25 16h6.5',
+    ],
+    learn: [
+      'M6 5.75h12A1.25 1.25 0 0 1 19.25 7v10A1.25 1.25 0 0 1 18 18.25H6A1.25 1.25 0 0 1 4.75 17V7A1.25 1.25 0 0 1 6 5.75Z',
+      'M8 9h8',
+      'M8 12h8',
+      'M8 15h5',
+    ],
+    admin: [
+      'M12 3.5 18 6v5.1c0 4.2-2.55 7.98-6 9.4-3.45-1.42-6-5.2-6-9.4V6l6-2.5Z',
+      'M9.5 11.75l1.6 1.6 3.4-3.6',
+    ],
+    settings: [
+      'M12 8.75a3.25 3.25 0 1 1 0 6.5 3.25 3.25 0 0 1 0-6.5Z',
+      'M12 2.75v2',
+      'M18.54 5.46l-1.42 1.42',
+      'M21.25 12h-2',
+      'M18.54 18.54l-1.42-1.42',
+      'M12 21.25v-2',
+      'M5.46 18.54l1.42-1.42',
+      'M2.75 12h2',
+      'M5.46 5.46l1.42 1.42',
+    ],
+    creatorStudio: [
+      'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z',
+      'M18.5 3.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z',
+    ],
   }
 
   const links = [
@@ -580,12 +614,25 @@ const primaryLinks = computed(() => {
   }
 
   if (auth.isAdmin) {
-    links.push({ key: 'admin', to: '/admin/dashboard', label: 'Admin Hub', icon: 'A', matchPrefix: '/admin' })
+    links.push({
+      key: 'admin',
+      to: '/admin/dashboard',
+      label: 'Admin Hub',
+      icon: 'A',
+      iconPaths: navIcons.admin,
+      matchPrefix: '/admin',
+    })
   }
 
-  links.push({ key: 'settings', to: '/settings', label: 'Settings', icon: 'S' })
+  links.push({ key: 'settings', to: '/settings', label: 'Settings', icon: 'S', iconPaths: navIcons.settings })
   if (isWipEnabled) {
-    links.push({ key: 'creator-studio', to: '/creator-studio', label: 'Creator Studio', icon: 'C' })
+    links.push({
+      key: 'creator-studio',
+      to: '/creator-studio',
+      label: 'Creator Studio',
+      icon: 'C',
+      iconPaths: navIcons.creatorStudio,
+    })
   }
 
   return links
@@ -748,6 +795,14 @@ const logout = async () => {
   display: inline-block;
   min-height: 1.2rem;
   white-space: nowrap;
+}
+
+.navIcon {
+  filter: drop-shadow(0 1px 1px rgb(var(--color-bg-rgb) / 0.22));
+}
+
+.navLabel {
+  letter-spacing: 0.01em;
 }
 
 .brand-fade-enter-active,

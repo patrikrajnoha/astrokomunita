@@ -10,7 +10,7 @@ class ResizeObserverMock {
 
 const tabs = [
   { id: 'for_you', label: 'Komunita', tabId: 'tab-for-you', panelId: 'panel-for-you' },
-  { id: 'astrobot', label: 'AstroFeed', tabId: 'tab-astrobot', panelId: 'panel-astrobot' },
+  { id: 'astrobot', label: 'AstroFeed ✨', tabId: 'tab-astrobot', panelId: 'panel-astrobot' },
 ]
 
 describe('FeedSwitcher', () => {

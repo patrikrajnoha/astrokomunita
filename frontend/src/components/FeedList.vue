@@ -456,7 +456,7 @@ const HOME_TABS = [
   { id: 'for_you', label: 'Komunita', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
   {
     id: 'astrobot',
-    label: 'AstroFeed',
+    label: 'AstroFeed ✨',
     tabId: 'feed-tab-astrobot',
     panelId: 'feed-panel-astrobot',
   },
@@ -1476,7 +1476,7 @@ defineExpose({ load, prepend })
   font-weight: 700;
   color: var(--color-surface);
   margin-bottom: 4px;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: inherit;
 }
 
 .feed-subtitle {
@@ -2457,7 +2457,7 @@ defineExpose({ load, prepend })
   font-weight: 600;
   color: var(--color-surface);
   margin-bottom: 16px;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: inherit;
 }
 
 .report-form {

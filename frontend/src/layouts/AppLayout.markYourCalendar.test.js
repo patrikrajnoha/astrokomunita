@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { shallowMount } from '@vue/test-utils'
+import { mount, shallowMount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import AppLayout from '@/layouts/AppLayout.vue'
+import AdminHubLayout from '@/layouts/AdminHubLayout.vue'
 
 const popupResponse = vi.hoisted(() => ({ value: { should_show: false, items: [] } }))
 const getPopupMock = vi.hoisted(() => vi.fn())
@@ -93,6 +94,42 @@ function makeRouter() {
       { path: '/profile', component: AppLayout },
       { path: '/profile/edit', component: AppLayout },
       { path: '/privacy', component: AppLayout },
+    ],
+  })
+}
+
+function makeAdminRouter() {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      {
+        path: '/',
+        component: AppLayout,
+        children: [
+          {
+            path: 'privacy',
+            component: { template: '<div>privacy</div>' },
+          },
+          {
+            path: 'terms',
+            component: { template: '<div>terms</div>' },
+          },
+          {
+            path: 'cookies',
+            component: { template: '<div>cookies</div>' },
+          },
+          {
+            path: 'admin',
+            component: AdminHubLayout,
+            children: [
+              {
+                path: 'dashboard',
+                component: { template: '<div class="admin-dashboard-stub">admin dashboard</div>' },
+              },
+            ],
+          },
+        ],
+      },
     ],
   })
 }
@@ -196,6 +233,23 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
   })
 
+  it('renders the right rail for settings routes', async () => {
+    const router = makeRouter()
+    await router.push('/settings')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+
+    expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
+  })
+
   it('keeps profile layout landmarks for profile subroutes', async () => {
     const router = makeRouter()
     await router.push('/profile/edit')
@@ -241,6 +295,44 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     const rightRail = wrapper.find('[data-testid="right-rail"]')
     expect(rightRail.exists()).toBe(false)
+  })
+
+  it('routes /admin/dashboard through AppLayout and AdminHubLayout wrappers', async () => {
+    authStore.isAdmin = true
+
+    const router = makeAdminRouter()
+    await router.push('/admin/dashboard')
+    await router.isReady()
+
+    const wrapper = mount(AppLayout, {
+      global: {
+        plugins: [router],
+        stubs: {
+          MainNavbar: { template: '<nav class="main-nav-stub">main nav</nav>' },
+          DynamicSidebar: { template: '<aside class="dynamic-sidebar-stub">sidebar</aside>' },
+          RightObservingSidebar: {
+            template: '<aside class="observing-sidebar-stub">observing</aside>',
+          },
+          PostComposer: { template: '<div class="post-composer-stub">composer</div>' },
+          MobileFab: { template: '<button class="mobile-fab-stub">fab</button>' },
+          GuestBottomCTA: { template: '<div class="guest-cta-stub">cta</div>' },
+          TypingText: { template: '<span class="typing-text-stub">brand</span>' },
+          MarkYourCalendarModal: { template: '<div class="calendar-modal-stub">calendar</div>' },
+          OnboardingTour: { template: '<div class="onboarding-tour-stub">tour</div>' },
+          AdminSubNav: { template: '<aside class="admin-subnav-stub">admin nav</aside>' },
+        },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(wrapper.find('[data-testid="desktop-frame"]').classes()).toContain('adminDesktopFrame')
+    expect(wrapper.find('[data-testid="center-shell"]').classes()).toContain('adminCenterShell')
+    expect(wrapper.find('main > div').classes()).toContain('adminMainContent')
+    expect(wrapper.find('.adminHub').exists()).toBe(true)
+    expect(wrapper.find('.adminHub__contentCard .admin-dashboard-stub').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(false)
   })
 
   it('calls seen endpoint once when modal closes', async () => {
@@ -295,5 +387,61 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     expect(getPopupMock).not.toHaveBeenCalled()
     expect(wrapper.find('mark-your-calendar-modal-stub').exists()).toBe(false)
+  })
+
+  it('renders bottom nav on mobile non-admin routes', async () => {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === '(max-width: 767px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    const router = makeRouter()
+    await router.push('/')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+
+    expect(wrapper.find('mobile-bottom-nav-stub').exists()).toBe(true)
+  })
+
+  it('does not render bottom nav on admin routes even on mobile', async () => {
+    authStore.isAdmin = true
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === '(max-width: 767px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    const router = makeAdminRouter()
+    await router.push('/admin/dashboard')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(wrapper.find('mobile-bottom-nav-stub').exists()).toBe(false)
   })
 })

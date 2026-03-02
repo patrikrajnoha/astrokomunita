@@ -1,7 +1,7 @@
 <template>
   <div
     class="min-h-screen overflow-x-hidden bg-[var(--bg-app)] text-[var(--text-primary)] transition-colors duration-700"
-    style="--mobile-bottom-nav-offset: 74px;"
+    :style="appShellStyle"
   >
     <header
       class="sticky top-0 z-40 flex items-center justify-between border-b border-[var(--border)] bg-[color:rgb(var(--bg-app-rgb)/0.92)] px-4 py-3 backdrop-blur md:hidden"
@@ -68,7 +68,9 @@
 
     <div
       :class="[
-        showMobileBottomNav ? 'pb-[calc(5.5rem+env(safe-area-inset-bottom))]' : 'pb-0',
+        showMobileBottomNav
+          ? 'pb-[calc(var(--mobile-bottom-nav-offset)+env(safe-area-inset-bottom)+1rem)]'
+          : 'pb-0',
         'guest-cta-safe',
         'md:pb-0 md:pl-64 xl:pl-0',
       ]"
@@ -81,7 +83,14 @@
         aria-live="polite"
       >
         <span>{{ authBannerMessage }}</span>
-        <button v-if="showAuthFallbackBanner" type="button" class="authFallbackRetry ui-pill ui-pill--secondary" @click="retryAuthFetch">Skusit znova</button>
+        <button
+          v-if="showAuthFallbackBanner"
+          type="button"
+          class="authFallbackRetry ui-pill ui-pill--secondary"
+          @click="retryAuthFetch"
+        >
+          Skusit znova
+        </button>
       </div>
 
       <div :class="desktopFrameClass" data-testid="desktop-frame">
@@ -161,35 +170,12 @@
       </div>
     </div>
 
-    <nav
-      v-if="showMobileBottomNav"
-      class="mobileBottomNav md:hidden"
-      aria-label="Mobile bottom navigation"
-    >
-      <RouterLink
-        v-for="item in mobileBottomLinks"
-        :key="item.to"
-        :to="item.to"
-        class="mobileBottomNav__item"
-        :class="{ 'is-active': isMobileBottomActive(item) }"
-      >
-        <span class="mobileBottomNav__icon" aria-hidden="true">{{ item.icon }}</span>
-        <span class="mobileBottomNav__label">{{ item.label }}</span>
-      </RouterLink>
-
-      <button
-        type="button"
-        class="mobileBottomNav__item"
-        aria-label="Open menu"
-        @click="openDrawer"
-      >
-        <span class="mobileBottomNav__icon" aria-hidden="true">☰</span>
-        <span class="mobileBottomNav__label">Menu</span>
-      </button>
-    </nav>
+    <MobileBottomNav v-if="showMobileBottomNav" />
 
     <MobileFab
-      v-if="auth.isAuthed && !isDrawerOpen && !isComposerOpen && !isWidgetMenuOpen && !isWidgetSheetOpen"
+      v-if="
+        auth.isAuthed && !isDrawerOpen && !isComposerOpen && !isWidgetMenuOpen && !isWidgetSheetOpen
+      "
       :is-authenticated="auth.isAuthed"
       :bottom-offset="fabBottomOffset"
       @widgets="openWidgetsMenu"
@@ -381,13 +367,22 @@
         ></button>
         <div class="sheetHead">
           <h2 id="mobile-widgets-menu-title" class="sheetTitle">Widgets</h2>
-          <button type="button" class="sheetClose ui-pill ui-pill--secondary ui-pill--icon" aria-label="Close widgets menu" @click="closeWidgetMenu">
+          <button
+            type="button"
+            class="sheetClose ui-pill ui-pill--secondary ui-pill--icon"
+            aria-label="Close widgets menu"
+            @click="closeWidgetMenu"
+          >
             ×
           </button>
         </div>
 
         <div class="sheetList">
-          <button type="button" class="sheetAction ui-pill ui-pill--primary createAction" @click="openComposerFromWidgets">
+          <button
+            type="button"
+            class="sheetAction ui-pill ui-pill--primary createAction"
+            @click="openComposerFromWidgets"
+          >
             <span class="sheetActionIconWrap">
               <svg class="sheetActionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M12 5v14" />
@@ -420,7 +415,12 @@
             @click="openWidgetSheet(lastOpenedWidget)"
           >
             <span class="sheetActionIconWrap">
-              <svg class="sheetActionIcon" :viewBox="resolveSidebarIcon(lastOpenedWidget.section_key).viewBox" fill="none" aria-hidden="true">
+              <svg
+                class="sheetActionIcon"
+                :viewBox="resolveSidebarIcon(lastOpenedWidget.section_key).viewBox"
+                fill="none"
+                aria-hidden="true"
+              >
                 <path
                   v-for="(path, index) in resolveSidebarIcon(lastOpenedWidget.section_key).paths"
                   :key="`last-${index}`"
@@ -440,7 +440,12 @@
               @click="openWidgetSheet(section)"
             >
               <span class="sheetActionIconWrap">
-                <svg class="sheetActionIcon" :viewBox="resolveSidebarIcon(section.section_key).viewBox" fill="none" aria-hidden="true">
+                <svg
+                  class="sheetActionIcon"
+                  :viewBox="resolveSidebarIcon(section.section_key).viewBox"
+                  fill="none"
+                  aria-hidden="true"
+                >
                   <path
                     v-for="(path, index) in resolveSidebarIcon(section.section_key).paths"
                     :key="`${section.section_key}-${index}`"
@@ -484,7 +489,14 @@
         ></button>
         <div class="sheetHead">
           <h2 id="mobile-widget-title" class="sheetTitle">{{ activeWidgetTitle }}</h2>
-          <button type="button" class="sheetClose ui-pill ui-pill--secondary ui-pill--icon" aria-label="Close widget" @click="closeWidgetSheet">×</button>
+          <button
+            type="button"
+            class="sheetClose ui-pill ui-pill--secondary ui-pill--icon"
+            aria-label="Close widget"
+            @click="closeWidgetSheet"
+          >
+            ×
+          </button>
         </div>
 
         <div class="sheetBody">
@@ -499,7 +511,10 @@
             </div>
           </template>
           <template v-else-if="activeWidgetComponent">
-            <component :is="activeWidgetComponent" v-bind="propsForWidget(activeWidgetKey, activeWidgetTitle)" />
+            <component
+              :is="activeWidgetComponent"
+              v-bind="propsForWidget(activeWidgetKey, activeWidgetTitle)"
+            />
           </template>
           <div v-else class="sheetEmpty">Widget nie je dostupny.</div>
         </div>
@@ -514,9 +529,10 @@
       @go-calendar="goToCalendarFromPopup"
     />
 
-    <OnboardingTour v-if="onboardingTour.isOpen && !isCalendarPopupVisible && !isOnboardingFlowActive" />
+    <OnboardingTour
+      v-if="onboardingTour.isOpen && !isCalendarPopupVisible && !isOnboardingFlowActive"
+    />
     <GuestBottomCTA />
-
   </div>
 </template>
 
@@ -531,6 +547,7 @@ import DynamicSidebar from '@/components/DynamicSidebar.vue'
 import RightObservingSidebar from '@/components/RightObservingSidebar.vue'
 import PostComposer from '@/components/PostComposer.vue'
 import MobileFab from '@/components/MobileFab.vue'
+import MobileBottomNav from '@/components/nav/MobileBottomNav.vue'
 import GuestBottomCTA from '@/components/GuestBottomCTA.vue'
 import TypingText from '@/components/TypingText.vue'
 import { SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
@@ -567,7 +584,6 @@ const mobileSidebarSections = ref([])
 const deferredInstallPrompt = ref(null)
 const canInstall = ref(false)
 const isMobileViewport = ref(false)
-const isCoarsePointer = ref(false)
 const widgetSheetOffsetY = ref(0)
 const widgetMenuOffsetY = ref(0)
 const touchStartY = ref(0)
@@ -582,38 +598,22 @@ const isCalendarPopupVisible = ref(false)
 const calendarPopupPayload = ref(null)
 const calendarPopupAckInFlight = ref(false)
 const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
-const showMobileBottomNav = computed(() => isMobileViewport.value && isCoarsePointer.value)
+const showMobileBottomNav = computed(() => isMobileViewport.value && !isAdminRoute.value)
+const appShellStyle = computed(() => ({
+  '--mobile-bottom-nav-offset': showMobileBottomNav.value ? '88px' : '0px',
+}))
 const legalLinks = [
   { to: '/privacy', label: 'Privacy' },
   { to: '/terms', label: 'Terms' },
   { to: '/cookies', label: 'Cookies' },
 ]
-const mobileBottomLinks = computed(() => {
-  const links = [
-    { to: '/', label: 'Domov', icon: 'D' },
-    { to: '/search', label: 'Hľadať', icon: 'H' },
-    { to: '/events', label: 'Udalosti', icon: 'U', matchPrefix: '/events' },
-    { to: '/clanky', label: 'Články', icon: 'Č', matchPrefix: '/clanky' },
-  ]
-  if (auth.isAuthed) {
-    links.push({ to: '/notifications', label: 'Notifikácie', icon: 'N' })
-  }
-
-  if (auth.isAdmin) {
-    const replaceIndex = links.findIndex((item) => item.to === '/notifications')
-    if (replaceIndex >= 0) {
-      links[replaceIndex] = { to: '/admin/dashboard', label: 'Admin', icon: 'A', matchPrefix: '/admin' }
-    } else {
-      links.push({ to: '/admin/dashboard', label: 'Admin', icon: 'A', matchPrefix: '/admin' })
-    }
-  }
-
-  return links
-})
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
 const showDirectObservingSidebar = computed(() => {
-  return currentSidebarScope.value === SIDEBAR_SCOPE.SKY || currentSidebarScope.value === SIDEBAR_SCOPE.OBSERVING
+  return (
+    currentSidebarScope.value === SIDEBAR_SCOPE.SKY ||
+    currentSidebarScope.value === SIDEBAR_SCOPE.OBSERVING
+  )
 })
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
 const isProfileRoute = computed(() => String(route.path || '').startsWith('/profile'))
@@ -624,14 +624,14 @@ const isLayoutDebugEnabled = computed(() => {
 })
 const desktopFrameClass = computed(() => {
   if (isAdminRoute.value) {
-    return 'mx-auto w-full'
+    return 'adminDesktopFrame mx-auto w-full max-w-[1500px]'
   }
 
   return 'desktopFrame mx-auto w-full max-w-[1500px] xl:grid'
 })
 const centerShellClass = computed(() => {
   if (isAdminRoute.value) {
-    return 'mx-auto w-full max-w-[1560px]'
+    return 'adminCenterShell mx-auto w-full'
   }
 
   return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:gap-1 2xl:gap-2'
@@ -648,12 +648,14 @@ const centerShellStyle = computed(() => {
 
   return {
     '--center-shell-cols': centerShellColumns.value,
-    outline: isLayoutDebugEnabled.value ? '1px solid rgb(var(--color-primary-rgb) / 0.4)' : undefined,
+    outline: isLayoutDebugEnabled.value
+      ? '1px solid rgb(var(--color-primary-rgb) / 0.4)'
+      : undefined,
   }
 })
 const mainContentClass = computed(() => {
   if (isAdminRoute.value) {
-    return 'mx-auto w-full max-w-none'
+    return 'adminMainContent mx-auto w-full'
   }
 
   if (isProfileRoute.value) {
@@ -666,7 +668,10 @@ const enabledMobileSections = computed(() => getEnabledSidebarSections(mobileSid
 const activeWidgetComponent = computed(() => resolveSidebarComponent(activeWidgetKey.value))
 const lastOpenedWidget = computed(() => {
   if (!lastWidgetKey.value) return null
-  return enabledMobileSections.value.find((section) => section.section_key === lastWidgetKey.value) || null
+  return (
+    enabledMobileSections.value.find((section) => section.section_key === lastWidgetKey.value) ||
+    null
+  )
 })
 const observingLocationMeta = computed(() => {
   const value = auth.user?.location_meta
@@ -704,7 +709,11 @@ const observingTz = computed(() => {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Bratislava'
 })
 const showAuthFallbackBanner = computed(() => {
-  return auth.bootstrapDone && !auth.isAuthed && (auth.error?.type === 'timeout' || auth.error?.type === 'network')
+  return (
+    auth.bootstrapDone &&
+    !auth.isAuthed &&
+    (auth.error?.type === 'timeout' || auth.error?.type === 'network')
+  )
 })
 const showAuthBannedBanner = computed(() => {
   return auth.bootstrapDone && !auth.isAuthed && auth.error?.type === 'banned'
@@ -734,10 +743,16 @@ const authBannerMessage = computed(() => {
 const isOnboardingRoute = computed(() => route.name === 'onboarding')
 const isOnboardingFlowActive = computed(() => {
   if (!auth.isAuthed || auth.isAdmin) return false
-  return isOnboardingRoute.value || !preferences.loaded || preferences.loading || !preferences.isOnboardingCompleted
+  return (
+    isOnboardingRoute.value ||
+    !preferences.loaded ||
+    preferences.loading ||
+    !preferences.isOnboardingCompleted
+  )
 })
 const canCheckCalendarPopup = computed(() => {
-  return auth.bootstrapDone &&
+  return (
+    auth.bootstrapDone &&
     auth.isAuthed &&
     !auth.isAdmin &&
     Boolean(auth.user?.email_verified_at) &&
@@ -745,6 +760,7 @@ const canCheckCalendarPopup = computed(() => {
     !onboardingTour.isOpen &&
     preferences.isOnboardingCompleted &&
     !calendarPopupSessionChecked.value
+  )
 })
 
 const maybeAutoOpenOnboardingTour = () => {
@@ -788,12 +804,6 @@ const localIsoDate = (date) => {
 const openDrawer = () => {
   closeComposerModal()
   isDrawerOpen.value = true
-}
-
-const isMobileBottomActive = (item) => {
-  if (!item?.to) return false
-  if (item.matchPrefix) return route.path.startsWith(item.matchPrefix)
-  return route.path === item.to
 }
 
 const closeDrawer = () => {
@@ -874,7 +884,11 @@ const propsForWidget = (sectionKey, title) => {
     }
   }
 
-  if (sectionKey === 'nasa_apod' || sectionKey === 'next_event' || sectionKey === 'latest_articles') {
+  if (
+    sectionKey === 'nasa_apod' ||
+    sectionKey === 'next_event' ||
+    sectionKey === 'latest_articles'
+  ) {
     return title ? { title } : {}
   }
 
@@ -1013,12 +1027,10 @@ const warmSidebarConfig = async () => {
 const updateViewportState = () => {
   if (typeof window === 'undefined') {
     isMobileViewport.value = false
-    isCoarsePointer.value = false
     return
   }
 
   isMobileViewport.value = window.matchMedia('(max-width: 767px)').matches
-  isCoarsePointer.value = window.matchMedia('(hover: none) and (pointer: coarse)').matches
 }
 
 const onSheetTouchStart = (event, mode) => {
@@ -1178,7 +1190,13 @@ watch(
     preferences.isOnboardingCompleted,
   ],
   async () => {
-    if (auth.isAuthed && !auth.isAdmin && Boolean(auth.user?.email_verified_at) && !preferences.loaded && !preferences.loading) {
+    if (
+      auth.isAuthed &&
+      !auth.isAdmin &&
+      Boolean(auth.user?.email_verified_at) &&
+      !preferences.loaded &&
+      !preferences.loading
+    ) {
       try {
         await preferences.fetchPreferences()
       } catch {
@@ -1242,56 +1260,6 @@ onBeforeUnmount(() => {
   right: 1rem;
   bottom: 1rem;
   z-index: 60;
-}
-
-.mobileBottomNav {
-  position: fixed;
-  left: 0.65rem;
-  right: 0.65rem;
-  bottom: max(0.65rem, env(safe-area-inset-bottom));
-  z-index: 65;
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.35rem;
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  background: rgb(var(--bg-surface-2-rgb) / 0.96);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 16px 38px rgb(var(--bg-app-rgb) / 0.34);
-  padding: 0.4rem;
-}
-
-.mobileBottomNav__item {
-  min-height: 3.1rem;
-  border-radius: 0.8rem;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-secondary);
-  text-decoration: none;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 0.15rem;
-  padding: 0.2rem 0.15rem;
-}
-
-.mobileBottomNav__item.is-active {
-  border-color: rgb(var(--primary-rgb) / 0.45);
-  background: rgb(var(--primary-rgb) / 0.2);
-  color: var(--text-primary);
-}
-
-.mobileBottomNav__icon {
-  font-size: 0.8rem;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.mobileBottomNav__label {
-  font-size: 0.61rem;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.01em;
 }
 
 .authFallbackBanner {
@@ -1522,6 +1490,19 @@ onBeforeUnmount(() => {
   }
 }
 
+@media (min-width: 901px) {
+  .adminDesktopFrame {
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .adminCenterShell,
+  .adminMainContent {
+    width: 100%;
+    margin-inline: auto;
+  }
+}
+
 @media (min-width: 1280px) {
   .desktopFrame {
     align-items: start;
@@ -1543,5 +1524,4 @@ onBeforeUnmount(() => {
     transform: translateX(-1rem);
   }
 }
-
 </style>
