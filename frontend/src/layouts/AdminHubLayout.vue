@@ -46,8 +46,8 @@ import MainNavbar from '@/components/MainNavbar.vue'
   z-index: -1;
   border-radius: 18px;
   background:
-    radial-gradient(110% 80% at 0% 0%, rgb(var(--color-primary-rgb) / 0.12), transparent 58%),
-    radial-gradient(90% 70% at 100% 10%, rgb(var(--color-surface-rgb) / 0.08), transparent 64%);
+    radial-gradient(110% 80% at 0% 0%, rgb(var(--primary-rgb) / 0.12), transparent 58%),
+    radial-gradient(90% 70% at 100% 10%, rgb(var(--text-secondary-rgb) / 0.08), transparent 64%);
   pointer-events: none;
 }
 
@@ -64,10 +64,10 @@ import MainNavbar from '@/components/MainNavbar.vue'
 }
 
 .adminHub__contentCard {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 14px;
-  background: rgb(var(--color-bg-rgb) / 0.72);
-  box-shadow: 0 20px 38px rgb(0 0 0 / 0.2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-surface);
+  box-shadow: 0 20px 38px rgb(var(--bg-app-rgb) / 0.22);
   backdrop-filter: blur(6px);
   min-width: 0;
   overflow: hidden;

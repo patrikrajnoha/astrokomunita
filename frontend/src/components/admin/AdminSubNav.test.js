@@ -8,6 +8,7 @@ function makeRouter() {
     history: createMemoryHistory(),
     routes: [
       { path: '/admin/dashboard', component: { template: '<div>dashboard</div>' } },
+      { path: '/admin/moderation', component: { template: '<div>moderation</div>' } },
       { path: '/admin/banned-words', component: { template: '<div>banned</div>' } },
       { path: '/admin/event-sources', component: { template: '<div>sources</div>' } },
       { path: '/admin/event-candidates', component: { template: '<div>candidates</div>' } },
@@ -28,6 +29,7 @@ describe('AdminSubNav', () => {
       },
     })
 
+    expect(wrapper.text()).not.toContain('Reporty')
     expect(wrapper.text()).not.toContain('Zakazane slova')
     expect(wrapper.text()).toContain('Crawling')
     expect(wrapper.text()).toContain('Kandidati')
@@ -47,5 +49,20 @@ describe('AdminSubNav', () => {
     const activeItems = wrapper.findAll('.adminSubNav__item.active')
     expect(activeItems).toHaveLength(1)
     expect(activeItems[0].text()).toContain('Kandidati')
+  })
+
+  it('keeps moderation as the only moderation entry', async () => {
+    const router = makeRouter()
+    await router.push('/admin/moderation')
+    await router.isReady()
+
+    const wrapper = mount(AdminSubNav, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    const moderationLinks = wrapper.findAll('.adminSubNav__item').filter((node) => node.text().includes('Moderacia'))
+    expect(moderationLinks).toHaveLength(1)
   })
 })

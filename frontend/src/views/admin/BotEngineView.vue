@@ -57,7 +57,9 @@ const filterForm = ref({
 })
 
 function normalizeBotIdentity(value) {
-  const normalized = String(value || '').trim().toLowerCase()
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
   return VALID_BOT_IDENTITIES.includes(normalized) ? normalized : ''
 }
 
@@ -70,32 +72,14 @@ const effectiveBotIdentity = computed(() => {
   return normalizeBotIdentity(filterForm.value.bot_identity)
 })
 
-const pageTitle = computed(() => {
-  if (String(props.presetLabel || '').trim() !== '') {
-    return `${props.presetLabel} Bot Engine`
-  }
-  if (effectiveBotIdentity.value === 'kozmo') {
-    return 'KozmoBot Engine'
-  }
-  if (effectiveBotIdentity.value === 'stela') {
-    return 'StelaBot Engine'
-  }
-  return 'Bot Engine'
-})
-
-const pageSubtitle = computed(() => {
-  if (effectiveBotIdentity.value === 'kozmo') {
-    return 'Run Kozmo sources manually and inspect run history.'
-  }
-  if (effectiveBotIdentity.value === 'stela') {
-    return 'Run Stela sources manually and inspect run history.'
-  }
-  return 'Run bot sources manually and inspect run history.'
-})
+const pageTitle = computed(() => 'Boty')
+const pageSubtitle = computed(() => '')
 
 const runs = computed(() => (Array.isArray(runsPage.value?.data) ? runsPage.value.data : []))
 const runsMeta = computed(() => runsPage.value?.meta || null)
-const runItems = computed(() => (Array.isArray(runItemsPage.value?.data) ? runItemsPage.value.data : []))
+const runItems = computed(() =>
+  Array.isArray(runItemsPage.value?.data) ? runItemsPage.value.data : [],
+)
 const runItemsMeta = computed(() => runItemsPage.value?.meta || null)
 const canPrevPage = computed(() => (runsMeta.value?.current_page || 1) > 1)
 const canNextPage = computed(() => {
@@ -119,7 +103,9 @@ const filteredSources = computed(() => {
     return sources.value
   }
 
-  return sources.value.filter((source) => normalizeBotIdentity(source?.bot_identity) === effectiveBotIdentity.value)
+  return sources.value.filter(
+    (source) => normalizeBotIdentity(source?.bot_identity) === effectiveBotIdentity.value,
+  )
 })
 
 const sourceOptions = computed(() => {
@@ -150,6 +136,41 @@ const enabledSourcesByIdentity = computed(() => {
   return grouped
 })
 
+const hasEnabledSources = computed(() => {
+  return (
+    enabledSourcesByIdentity.value.kozmo.length > 0 ||
+    enabledSourcesByIdentity.value.stela.length > 0
+  )
+})
+
+const translationHealthState = computed(() => {
+  if (!translationHealth.value) {
+    return {
+      label: 'Neznámy',
+      className: 'statusBadge statusBadge--muted',
+    }
+  }
+
+  if (translationHealth.value.degraded) {
+    return {
+      label: 'Obmedzený',
+      className: 'statusBadge statusBadge--partial',
+    }
+  }
+
+  if (translationHealth.value.result?.ok) {
+    return {
+      label: 'Aktívny',
+      className: 'statusBadge statusBadge--success',
+    }
+  }
+
+  return {
+    label: 'Nedostupný',
+    className: 'statusBadge statusBadge--failed',
+  }
+})
+
 const quickRunBusyIdentity = ref('')
 const translationHealthPollTimer = ref(null)
 
@@ -170,26 +191,34 @@ const isTranslationQueueActive = computed(() => translationQueue.value.pending >
 
 function toErrorMessage(error, fallbackMessage) {
   const status = Number(error?.response?.status || 0)
-  const code = String(error?.code || '').trim().toUpperCase()
-  const messageText = String(error?.message || '').trim().toLowerCase()
+  const code = String(error?.code || '')
+    .trim()
+    .toUpperCase()
+  const messageText = String(error?.message || '')
+    .trim()
+    .toLowerCase()
   const retryAfter = Number(error?.response?.data?.retry_after || 0)
   const failureReason = String(
     error?.response?.data?.failure_reason || error?.response?.data?.meta?.failure_reason || '',
   )
     .trim()
     .toLowerCase()
-  const baseMessage = error?.response?.data?.message || error?.userMessage || error?.message || fallbackMessage
-  const isTimeoutOrNetwork = code === 'ECONNABORTED' || code === 'ERR_NETWORK' || messageText.includes('timeout')
+  const baseMessage =
+    error?.response?.data?.message || error?.userMessage || error?.message || fallbackMessage
+  const isTimeoutOrNetwork =
+    code === 'ECONNABORTED' || code === 'ERR_NETWORK' || messageText.includes('timeout')
 
   if (isTimeoutOrNetwork) {
     return 'Run trva dlhsie. Skus to o chvilu, alebo otvor detail runu.'
   }
 
-  if ([
-    BOT_FAILURE_REASONS.RATE_LIMITED,
-    BOT_FAILURE_REASONS.COOLDOWN_RATE_LIMITED,
-    BOT_FAILURE_REASONS.NEEDS_API_KEY,
-  ].includes(failureReason)) {
+  if (
+    [
+      BOT_FAILURE_REASONS.RATE_LIMITED,
+      BOT_FAILURE_REASONS.COOLDOWN_RATE_LIMITED,
+      BOT_FAILURE_REASONS.NEEDS_API_KEY,
+    ].includes(failureReason)
+  ) {
     return (
       error?.response?.data?.ui_message ||
       error?.response?.data?.meta?.ui_message ||
@@ -203,12 +232,10 @@ function toErrorMessage(error, fallbackMessage) {
   }
 
   if (status === 429 && retryAfter > 0) {
-    return `${baseMessage} Retry in ${retryAfter}s.`
+    return `${baseMessage} Skús znova o ${retryAfter} s.`
   }
 
-  return (
-    baseMessage
-  )
+  return baseMessage
 }
 
 function toStatNumber(value) {
@@ -220,12 +247,12 @@ function statsSummary(stats) {
   const source = stats && typeof stats === 'object' ? stats : {}
 
   return [
-    `fetched ${toStatNumber(source.fetched_count)}`,
-    `new ${toStatNumber(source.new_count)}`,
-    `dupes ${toStatNumber(source.dupes_count)}`,
-    `published ${toStatNumber(source.published_count)}`,
-    `skipped ${toStatNumber(source.skipped_count)}`,
-    `failed ${toStatNumber(source.failed_count)}`,
+    `načítané ${toStatNumber(source.fetched_count)}`,
+    `nové ${toStatNumber(source.new_count)}`,
+    `duplikáty ${toStatNumber(source.dupes_count)}`,
+    `publikované ${toStatNumber(source.published_count)}`,
+    `preskočené ${toStatNumber(source.skipped_count)}`,
+    `chyby ${toStatNumber(source.failed_count)}`,
   ].join(' | ')
 }
 
@@ -235,7 +262,7 @@ function formatDateTime(value) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return '-'
 
-  return parsed.toLocaleString(undefined, {
+  return parsed.toLocaleString('sk-SK', {
     dateStyle: 'medium',
     timeStyle: 'short',
   })
@@ -250,8 +277,8 @@ function formatStatsJson(stats) {
 }
 
 function formatBool(value) {
-  if (value === true) return 'yes'
-  if (value === false) return 'no'
+  if (value === true) return 'áno'
+  if (value === false) return 'nie'
   return '-'
 }
 
@@ -273,17 +300,21 @@ function itemStatusClass(status) {
 }
 
 function translationProviderLabel(provider) {
-  const normalized = String(provider || '').trim().toLowerCase()
+  const normalized = String(provider || '')
+    .trim()
+    .toLowerCase()
   if (!normalized) return '-'
-  if (normalized === 'libretranslate') return 'LT'
+  if (normalized === 'libretranslate') return 'LibreTranslate'
   if (normalized === 'ollama') return 'Ollama'
-  if (normalized === 'ollama_postedit') return 'Ollama PE'
-  if (normalized === 'mixed') return 'Mixed'
+  if (normalized === 'ollama_postedit') return 'Ollama post-edit'
+  if (normalized === 'mixed') return 'Mix'
   return normalized
 }
 
 function translationProviderClass(provider) {
-  const normalized = String(provider || '').trim().toLowerCase()
+  const normalized = String(provider || '')
+    .trim()
+    .toLowerCase()
   if (normalized === 'libretranslate') return 'providerBadge providerBadge--lt'
   if (normalized === 'ollama') return 'providerBadge providerBadge--ollama'
   if (normalized === 'ollama_postedit') return 'providerBadge providerBadge--ollama'
@@ -292,10 +323,12 @@ function translationProviderClass(provider) {
 }
 
 function translationModeLabel(mode) {
-  const normalized = String(mode || '').trim().toLowerCase()
-  if (normalized === 'lt_ollama_postedit') return 'LT+Ollama post-edit'
-  if (normalized === 'ollama_direct') return 'Ollama direct'
-  if (normalized === 'lt_only') return 'LT-only'
+  const normalized = String(mode || '')
+    .trim()
+    .toLowerCase()
+  if (normalized === 'lt_ollama_postedit') return 'LT + Ollama úprava'
+  if (normalized === 'ollama_direct') return 'Ollama priamo'
+  if (normalized === 'lt_only') return 'Len LT'
   return normalized || '-'
 }
 
@@ -309,15 +342,19 @@ function toPositiveIntOrNull(value) {
 }
 
 function normalizeRunMode(value) {
-  return String(value || '').trim().toLowerCase() === 'dry' ? 'dry' : 'auto'
+  return String(value || '')
+    .trim()
+    .toLowerCase() === 'dry'
+    ? 'dry'
+    : 'auto'
 }
 
 function runModeLabel(run) {
-  return normalizeRunMode(run?.meta?.mode) === 'dry' ? 'DRY' : 'AUTO'
+  return normalizeRunMode(run?.meta?.mode) === 'dry' ? 'TEST' : 'AUTO'
 }
 
 function runModeClass(run) {
-  return runModeLabel(run) === 'DRY' ? 'modeBadge modeBadge--dry' : 'modeBadge modeBadge--auto'
+  return runModeLabel(run) === 'TEST' ? 'modeBadge modeBadge--dry' : 'modeBadge modeBadge--auto'
 }
 
 function runPublishLimit(run) {
@@ -381,7 +418,9 @@ function resolveItemSourceKey(item) {
   ]
 
   for (const candidate of candidates) {
-    const normalized = String(candidate || '').trim().toLowerCase()
+    const normalized = String(candidate || '')
+      .trim()
+      .toLowerCase()
     if (normalized !== '') {
       return normalized
     }
@@ -431,6 +470,61 @@ function botIdentityLabel(identity) {
   return BOT_LABELS[identity] || identity
 }
 
+function sourceTypeLabel(sourceType) {
+  const normalized = String(sourceType || '')
+    .trim()
+    .toLowerCase()
+  if (!normalized) {
+    return '-'
+  }
+
+  if (normalized === 'rss') {
+    return 'RSS'
+  }
+
+  if (normalized === 'api') {
+    return 'API'
+  }
+
+  return normalized.toUpperCase()
+}
+
+function sourceStateLabel(isEnabled) {
+  return isEnabled ? 'Aktívny' : 'Vypnutý'
+}
+
+function sourceCountLabel(count) {
+  const normalized = Number(count) || 0
+
+  if (normalized === 1) {
+    return '1 zdroj'
+  }
+
+  if (normalized >= 2 && normalized <= 4) {
+    return `${normalized} zdroje`
+  }
+
+  return `${normalized} zdrojov`
+}
+
+function itemStatusLabel(status) {
+  const normalized = String(status || '')
+    .trim()
+    .toLowerCase()
+
+  if (normalized === 'published') return 'Publikované'
+  if (normalized === 'done' || normalized === 'success') return 'Hotovo'
+  if (normalized === 'pending') return 'Čaká'
+  if (normalized === 'skipped') return 'Preskočené'
+  if (normalized === 'failed') return 'Chyba'
+
+  return normalized || 'Neznáme'
+}
+
+function runStatCount(run, key) {
+  return toStatNumber(run?.stats?.[key])
+}
+
 function normalizeSourceKeyForVisibleSources() {
   const selectedSourceKey = String(filterForm.value.sourceKey || '')
   if (selectedSourceKey === '') {
@@ -456,7 +550,7 @@ async function loadSources() {
     await store.fetchSources()
     normalizeSourceKeyForVisibleSources()
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Failed to load bot sources.'))
+    toast.error(toErrorMessage(error, 'Nepodarilo sa načítať zdroje.'))
   }
 }
 
@@ -466,12 +560,14 @@ async function loadRuns(params = {}) {
     syncFilterFormFromStore()
     normalizeSourceKeyForVisibleSources()
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Failed to load bot runs.'))
+    toast.error(toErrorMessage(error, 'Nepodarilo sa načítať behy.'))
   }
 }
 
 function normalizeOutageProvider(value) {
-  const normalized = String(value || '').trim().toLowerCase()
+  const normalized = String(value || '')
+    .trim()
+    .toLowerCase()
   return ['none', 'ollama', 'libretranslate'].includes(normalized) ? normalized : 'none'
 }
 
@@ -480,7 +576,7 @@ async function loadTranslationHealth() {
     const health = await store.fetchTranslationHealth()
     translationOutageProvider.value = normalizeOutageProvider(health?.simulate_outage_provider)
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Failed to load translation health.'))
+    toast.error(toErrorMessage(error, 'Nepodarilo sa načítať stav prekladov.'))
   }
 }
 
@@ -503,10 +599,12 @@ function stopTranslationHealthPolling() {
 }
 
 async function applyRunsFilters() {
-  await loadRuns(withBotIdentityConstraint({
-    ...filterForm.value,
-    page: 1,
-  }))
+  await loadRuns(
+    withBotIdentityConstraint({
+      ...filterForm.value,
+      page: 1,
+    }),
+  )
 }
 
 async function resetRunsFilters() {
@@ -538,18 +636,20 @@ async function runNow(sourceKey, mode = 'auto') {
     }
 
     const hint = runStatusHint(result)
-    toast.success(`${runStatusLabel(result)} | ${statsSummary(result.stats)}${hint ? ` | ${hint}` : ''}`)
+    toast.success(
+      `${runStatusLabel(result)} | ${statsSummary(result.stats)}${hint ? ` | ${hint}` : ''}`,
+    )
 
     await Promise.all([loadSources(), loadRuns()])
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Bot run failed.'))
+    toast.error(toErrorMessage(error, 'Spustenie zlyhalo.'))
   }
 }
 
-async function quickRunIdentity(identity) {
+async function executeQuickRun(identity) {
   const normalizedIdentity = normalizeBotIdentity(identity)
   if (normalizedIdentity === '') {
-    return
+    return null
   }
 
   const enabledSources = Array.isArray(enabledSourcesByIdentity.value[normalizedIdentity])
@@ -557,10 +657,16 @@ async function quickRunIdentity(identity) {
     : []
 
   if (enabledSources.length === 0) {
-    return
+    return {
+      identity: normalizedIdentity,
+      processedCount: 0,
+      successCount: 0,
+      partialCount: 0,
+      failedCount: 0,
+      lastErrorMessage: '',
+      summary: `${botIdentityLabel(normalizedIdentity)}: 0 zdrojov.`,
+    }
   }
-
-  quickRunBusyIdentity.value = normalizedIdentity
 
   let successCount = 0
   let partialCount = 0
@@ -588,28 +694,95 @@ async function quickRunIdentity(identity) {
     }
   }
 
+  const processedCount = successCount + partialCount + failedCount
+  const summary = `${botIdentityLabel(normalizedIdentity)}: ${processedCount} ${processedCount === 1 ? 'zdroj' : 'zdrojov'}, OK ${successCount}, čiastočne ${partialCount}, chyby ${failedCount}.`
+
+  return {
+    identity: normalizedIdentity,
+    processedCount,
+    successCount,
+    partialCount,
+    failedCount,
+    lastErrorMessage,
+    summary,
+  }
+}
+
+async function quickRunIdentity(identity) {
+  const normalizedIdentity = normalizeBotIdentity(identity)
+  if (normalizedIdentity === '') {
+    return
+  }
+
+  quickRunBusyIdentity.value = normalizedIdentity
+  const result = await executeQuickRun(normalizedIdentity)
   quickRunBusyIdentity.value = ''
 
   await Promise.all([loadSources(), loadRuns()])
 
-  const processedCount = successCount + partialCount + failedCount
-  const summary = `${botIdentityLabel(normalizedIdentity)} run done. Sources ${processedCount}, success ${successCount}, partial ${partialCount}, failed ${failedCount}.`
-
-  if (failedCount > 0 && lastErrorMessage !== '') {
-    toast.error(`${summary} ${lastErrorMessage}`)
+  if (!result) {
     return
   }
 
-  if (failedCount > 0) {
-    toast.error(summary)
+  if (result.failedCount > 0 && result.lastErrorMessage !== '') {
+    toast.error(`${result.summary} ${result.lastErrorMessage}`)
     return
   }
 
-  toast.success(summary)
+  if (result.failedCount > 0) {
+    toast.error(result.summary)
+    return
+  }
+
+  toast.success(result.summary)
 }
 
-async function dryRun(sourceKey) {
-  await runNow(sourceKey, 'dry')
+async function quickRunAll() {
+  if (!hasEnabledSources.value || quickRunBusyIdentity.value !== '') {
+    return
+  }
+
+  quickRunBusyIdentity.value = 'all'
+
+  const results = []
+  for (const identity of VALID_BOT_IDENTITIES) {
+    const result = await executeQuickRun(identity)
+    if (result && result.processedCount > 0) {
+      results.push(result)
+    }
+  }
+
+  quickRunBusyIdentity.value = ''
+  await Promise.all([loadSources(), loadRuns()])
+
+  if (results.length === 0) {
+    return
+  }
+
+  let lastErrorMessage = ''
+  let hasFailure = false
+
+  for (const result of results) {
+    if (result.failedCount > 0) {
+      hasFailure = true
+      if (result.lastErrorMessage !== '') {
+        lastErrorMessage = result.lastErrorMessage
+      }
+    }
+  }
+
+  const summary = results.map((result) => result.summary).join(' | ')
+  if (hasFailure && lastErrorMessage !== '') {
+    toast.error(`Spustenie dokončené. ${summary} ${lastErrorMessage}`)
+    return
+  }
+
+  if (hasFailure) {
+    toast.error(`Spustenie dokončené. ${summary}`)
+    return
+  }
+
+  toast.success(`Spustenie dokončené. ${summary}`)
 }
 
 async function openRunDetail(run) {
@@ -619,7 +792,7 @@ async function openRunDetail(run) {
   try {
     await store.fetchItemsForRun(run?.id, { page: 1, per_page: 20 })
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Failed to load run items.'))
+    toast.error(toErrorMessage(error, 'Nepodarilo sa načítať položky behu.'))
   }
 }
 
@@ -652,7 +825,7 @@ function canDeleteItemPost(item) {
 
 function confirmDeletePublishedPost() {
   if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-    return window.confirm('Delete published bot post from feed?')
+    return window.confirm('Vymazať publikovaný bot príspevok z feedu?')
   }
 
   return true
@@ -660,7 +833,7 @@ function confirmDeletePublishedPost() {
 
 function confirmBackfillTranslation() {
   if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-    return window.confirm('Backfill translation for already published posts?')
+    return window.confirm('Doplniť preklad aj do už publikovaných príspevkov?')
   }
 
   return true
@@ -677,7 +850,7 @@ async function goToItemsPage(page) {
       per_page: runItemsMeta.value?.per_page || 20,
     })
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Failed to load run items.'))
+    toast.error(toErrorMessage(error, 'Nepodarilo sa načítať položky behu.'))
   }
 }
 
@@ -688,9 +861,9 @@ async function publishItem(item) {
   try {
     const response = await store.publishItem(item.id, { force: false })
     if (response?.already_published) {
-      toast.info('Item is already published.')
+      toast.info('Položka už je publikovaná.')
     } else {
-      toast.success('Item published.')
+      toast.success('Položka bola publikovaná.')
     }
 
     await store.fetchItemsForRun(selectedRun.value?.id, {
@@ -698,7 +871,7 @@ async function publishItem(item) {
       per_page: runItemsMeta.value?.per_page || 20,
     })
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Failed to publish item.'))
+    toast.error(toErrorMessage(error, 'Nepodarilo sa publikovať položku.'))
   }
 }
 
@@ -708,20 +881,22 @@ async function deleteItemPost(item) {
 
   try {
     await store.deleteItemPost(item.id)
-    toast.success('Published post deleted.')
+    toast.success('Publikovaný príspevok bol vymazaný.')
 
     await store.fetchItemsForRun(selectedRun.value?.id, {
       page: runItemsMeta.value?.current_page || 1,
       per_page: runItemsMeta.value?.per_page || 20,
     })
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Failed to delete published post.'))
+    toast.error(toErrorMessage(error, 'Nepodarilo sa vymazať publikovaný príspevok.'))
   }
 }
 
 function confirmDeleteAllBotPosts() {
   if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-    return window.confirm('Naozaj vymazat vsetky publikovane bot prispevky podla aktualneho filtra?')
+    return window.confirm(
+      'Naozaj vymazať všetky publikované bot príspevky podľa aktuálneho filtra?',
+    )
   }
 
   return true
@@ -733,12 +908,13 @@ async function deleteAllBotPostsForFilter() {
   }
 
   try {
-    const deleteAllPostsAction = typeof store.deleteAllPosts === 'function'
-      ? store.deleteAllPosts.bind(store)
-      : async (params) => {
-          const response = await deleteAllBotPosts(params)
-          return response?.data || null
-        }
+    const deleteAllPostsAction =
+      typeof store.deleteAllPosts === 'function'
+        ? store.deleteAllPosts.bind(store)
+        : async (params) => {
+            const response = await deleteAllBotPosts(params)
+            return response?.data || null
+          }
 
     const result = await deleteAllPostsAction({
       source_key: filterForm.value.sourceKey || '',
@@ -761,7 +937,7 @@ async function deleteAllBotPostsForFilter() {
       })
     }
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Bulk delete failed.'))
+    toast.error(toErrorMessage(error, 'Hromadné mazanie zlyhalo.'))
   }
 }
 
@@ -779,7 +955,7 @@ async function publishAllForRun() {
     const failedCount = Number(response?.failed_count || 0)
 
     toast.success(
-      `Published ${publishedCount} item(s). Skipped ${skippedCount}, failed ${failedCount}.`,
+      `Publikované: ${publishedCount}. Preskočené: ${skippedCount}. Chyby: ${failedCount}.`,
     )
 
     await store.fetchItemsForRun(runId, {
@@ -787,7 +963,7 @@ async function publishAllForRun() {
       per_page: runItemsMeta.value?.per_page || 20,
     })
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Failed to publish run items.'))
+    toast.error(toErrorMessage(error, 'Nepodarilo sa publikovať položky z behu.'))
   }
 }
 
@@ -803,10 +979,12 @@ async function testTranslation() {
 
     translationTestResult.value = result
     const provider = translationProviderLabel(result.provider)
-    toast.success(`Translation test OK (${provider}, ${Number(result.latency_ms || 0)} ms).`)
+    toast.success(
+      `Test prekladu je v poriadku (${provider}, ${Number(result.latency_ms || 0)} ms).`,
+    )
   } catch (error) {
     translationTestResult.value = null
-    toast.error(toErrorMessage(error, 'Translation test failed.'))
+    toast.error(toErrorMessage(error, 'Test prekladu zlyhal.'))
   }
 }
 
@@ -817,9 +995,9 @@ async function saveTranslationOutageSimulation() {
     const response = await store.setTranslationOutageProvider(provider)
     translationOutageProvider.value = normalizeOutageProvider(response?.new_value || provider)
     await loadTranslationHealth()
-    toast.success(`Outage simulation saved (${translationOutageProvider.value}).`)
+    toast.success(`Simulácia výpadku uložená (${translationOutageProvider.value}).`)
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Failed to save outage simulation setting.'))
+    toast.error(toErrorMessage(error, 'Nepodarilo sa uložiť simuláciu výpadku.'))
   }
 }
 
@@ -842,7 +1020,7 @@ async function retryTranslateForRun() {
     }
 
     toast.success(
-      `Retry done: ${Number(result.done_count || 0)} ok, ${Number(result.skipped_count || 0)} skipped, ${Number(result.failed_count || 0)} failed.`,
+      `Retry hotové: ${Number(result.done_count || 0)} OK, ${Number(result.skipped_count || 0)} preskočené, ${Number(result.failed_count || 0)} chyby.`,
     )
 
     await store.fetchItemsForRun(selectedRun.value?.id, {
@@ -850,7 +1028,7 @@ async function retryTranslateForRun() {
       per_page: runItemsMeta.value?.per_page || 20,
     })
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Retry translation failed.'))
+    toast.error(toErrorMessage(error, 'Opakovanie prekladu zlyhalo.'))
   }
 }
 
@@ -877,7 +1055,7 @@ async function backfillTranslateForRun() {
     }
 
     toast.success(
-      `Backfill done: updated ${Number(result.updated_posts || 0)}, skipped ${Number(result.skipped || 0)}, failed ${Number(result.failed || 0)}.`,
+      `Doplnené: ${Number(result.updated_posts || 0)}. Preskočené: ${Number(result.skipped || 0)}. Chyby: ${Number(result.failed || 0)}.`,
     )
 
     await store.fetchItemsForRun(selectedRun.value?.id, {
@@ -885,17 +1063,21 @@ async function backfillTranslateForRun() {
       per_page: runItemsMeta.value?.per_page || 20,
     })
   } catch (error) {
-    toast.error(toErrorMessage(error, 'Backfill translation failed.'))
+    toast.error(toErrorMessage(error, 'Doplnenie prekladu zlyhalo.'))
   }
 }
 
 function statusClass(status) {
-  const normalizedReason = String(status?.failure_reason || status?.meta?.failure_reason || '').toLowerCase()
-  if ([
-    BOT_FAILURE_REASONS.RATE_LIMITED,
-    BOT_FAILURE_REASONS.COOLDOWN_RATE_LIMITED,
-    BOT_FAILURE_REASONS.NEEDS_API_KEY,
-  ].includes(normalizedReason)) {
+  const normalizedReason = String(
+    status?.failure_reason || status?.meta?.failure_reason || '',
+  ).toLowerCase()
+  if (
+    [
+      BOT_FAILURE_REASONS.RATE_LIMITED,
+      BOT_FAILURE_REASONS.COOLDOWN_RATE_LIMITED,
+      BOT_FAILURE_REASONS.NEEDS_API_KEY,
+    ].includes(normalizedReason)
+  ) {
     return 'statusBadge statusBadge--partial'
   }
 
@@ -908,23 +1090,28 @@ function statusClass(status) {
 
 function runStatusLabel(run) {
   const reason = String(run?.failure_reason || run?.meta?.failure_reason || '').toLowerCase()
-  if (reason === BOT_FAILURE_REASONS.RATE_LIMITED || reason === BOT_FAILURE_REASONS.COOLDOWN_RATE_LIMITED) {
-    return 'Rate limited'
+  if (
+    reason === BOT_FAILURE_REASONS.RATE_LIMITED ||
+    reason === BOT_FAILURE_REASONS.COOLDOWN_RATE_LIMITED
+  ) {
+    return 'Limit'
   }
   if (reason === BOT_FAILURE_REASONS.NEEDS_API_KEY) {
-    return 'Needs API key'
+    return 'Chýba API kľúč'
   }
 
-  return String(run?.status || 'unknown')
+  const normalized = String(run?.status || '')
+    .trim()
+    .toLowerCase()
+  if (normalized === 'success') return 'Hotovo'
+  if (normalized === 'partial') return 'Čiastočne'
+  if (normalized === 'failed') return 'Chyba'
+  if (normalized === 'skipped') return 'Preskočené'
+  return 'Neznáme'
 }
 
 function runStatusHint(run) {
-  return (
-    run?.ui_message ||
-    run?.meta?.ui_message ||
-    run?.error_text ||
-    ''
-  )
+  return run?.ui_message || run?.meta?.ui_message || run?.error_text || ''
 }
 
 onMounted(async () => {
@@ -946,112 +1133,125 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AdminPageShell :title="pageTitle" :subtitle="pageSubtitle">
-    <section class="card">
-      <header class="sectionHeader">
-        <div>
-          <h2 class="sectionTitle">Quick Run</h2>
-          <p class="sectionSubtitle">One click run in AUTO mode. New items are published immediately.</p>
-        </div>
-      </header>
+  <AdminPageShell :title="pageTitle" :subtitle="pageSubtitle" class="botEngineShell">
+    <template #right-actions>
+      <button
+        type="button"
+        class="runBtn headerRunBtn"
+        data-testid="quick-run-all"
+        :disabled="quickRunBusyIdentity !== '' || !hasEnabledSources"
+        @click="quickRunAll"
+      >
+        {{ quickRunBusyIdentity === 'all' ? 'Spúšťam všetko...' : 'Spustiť všetko' }}
+      </button>
+    </template>
 
-      <div class="quickRunGrid">
-        <button
-          type="button"
-          class="runBtn quickRunBtn"
-          data-testid="quick-run-kozmo"
-          :disabled="quickRunBusyIdentity !== '' || enabledSourcesByIdentity.kozmo.length === 0"
-          @click="quickRunIdentity('kozmo')"
-        >
-          {{ quickRunBusyIdentity === 'kozmo' ? 'Running KozmoBot...' : 'Run KozmoBot' }}
-          <small class="quickRunHint">{{ enabledSourcesByIdentity.kozmo.length }} enabled source(s)</small>
-        </button>
+    <section class="quickStrip" aria-label="Rýchle spustenie">
+      <button
+        type="button"
+        class="quickPill"
+        :class="{ 'quickPill--active': effectiveBotIdentity === 'kozmo' }"
+        data-testid="quick-run-kozmo"
+        :title="sourceCountLabel(enabledSourcesByIdentity.kozmo.length)"
+        :disabled="quickRunBusyIdentity !== '' || enabledSourcesByIdentity.kozmo.length === 0"
+        @click="quickRunIdentity('kozmo')"
+      >
+        <span class="quickPill__label">{{
+          quickRunBusyIdentity === 'kozmo' ? 'Spúšťam KozmoBot' : 'KozmoBot'
+        }}</span>
+        <span class="countBadge">{{ enabledSourcesByIdentity.kozmo.length }}</span>
+      </button>
 
-        <button
-          type="button"
-          class="runBtn quickRunBtn"
-          data-testid="quick-run-stela"
-          :disabled="quickRunBusyIdentity !== '' || enabledSourcesByIdentity.stela.length === 0"
-          @click="quickRunIdentity('stela')"
-        >
-          {{ quickRunBusyIdentity === 'stela' ? 'Running StellarBot...' : 'Run StellarBot' }}
-          <small class="quickRunHint">{{ enabledSourcesByIdentity.stela.length }} enabled source(s)</small>
-        </button>
-      </div>
+      <button
+        type="button"
+        class="quickPill"
+        :class="{ 'quickPill--active': effectiveBotIdentity === 'stela' }"
+        data-testid="quick-run-stela"
+        :title="sourceCountLabel(enabledSourcesByIdentity.stela.length)"
+        :disabled="quickRunBusyIdentity !== '' || enabledSourcesByIdentity.stela.length === 0"
+        @click="quickRunIdentity('stela')"
+      >
+        <span class="quickPill__label">{{
+          quickRunBusyIdentity === 'stela' ? 'Spúšťam StellarBot' : 'StellarBot'
+        }}</span>
+        <span class="countBadge">{{ enabledSourcesByIdentity.stela.length }}</span>
+      </button>
     </section>
 
-    <section class="card">
-      <header class="sectionHeader">
-        <div>
-          <h2 class="sectionTitle">Sources</h2>
-          <p class="sectionSubtitle">Registered bot sources with manual run action.</p>
-        </div>
-        <button type="button" class="ghostBtn" :disabled="loadingSources" @click="loadSources">
-          Refresh
+    <section class="panel">
+      <header class="panelHeader">
+        <p class="sectionLabel">Zdroje</p>
+        <button
+          type="button"
+          class="ghostBtn ghostBtn--compact"
+          :disabled="loadingSources"
+          @click="loadSources"
+        >
+          Obnoviť
         </button>
       </header>
 
       <div class="tableWrap">
-        <table class="table">
+        <table class="table table--sources">
           <thead>
             <tr>
-              <th>key</th>
-              <th>bot_identity</th>
-              <th>source_type</th>
-              <th>is_enabled</th>
-              <th>last_run_at</th>
-              <th>cooldown_until</th>
-              <th class="alignRight">actions</th>
+              <th>Zdroj</th>
+              <th>Bot</th>
+              <th>Typ</th>
+              <th>Stav</th>
+              <th>Posledný beh</th>
+              <th class="alignRight">Akcia</th>
             </tr>
           </thead>
           <tbody>
             <template v-if="loadingSources">
               <tr v-for="index in 5" :key="`sources-skeleton-${index}`">
-                <td colspan="7">
+                <td colspan="6">
                   <div class="skeletonRow"></div>
                 </td>
               </tr>
             </template>
             <tr v-else-if="filteredSources.length === 0">
-              <td colspan="7" class="emptyCell">No sources available.</td>
+              <td colspan="6" class="emptyCell">Žiadne zdroje.</td>
             </tr>
             <tr v-else v-for="source in filteredSources" :key="source.id || source.key">
-              <td><code>{{ source.key }}</code></td>
-              <td>{{ source.bot_identity || '-' }}</td>
               <td>
-                <div class="sourceTypeCell">
-                  <span>{{ source.source_type || '-' }}</span>
-                  <small v-if="source.key === 'nasa_apod_daily'" class="sourceHint">
-                    Set NASA_API_KEY in .env to enable APOD.
-                  </small>
-                </div>
+                <code>{{ source.key }}</code>
               </td>
+              <td>{{ botIdentityLabel(normalizeBotIdentity(source.bot_identity)) || '-' }}</td>
+              <td>{{ sourceTypeLabel(source.source_type) }}</td>
               <td>
-                <span class="statusBadge" :class="source.is_enabled ? 'statusBadge--success' : 'statusBadge--muted'">
-                  {{ source.is_enabled ? 'enabled' : 'disabled' }}
+                <span class="stateBadge">
+                  <span
+                    :class="
+                      source.is_enabled
+                        ? 'statusDot statusDot--success'
+                        : 'statusDot statusDot--muted'
+                    "
+                  ></span>
+                  {{ sourceStateLabel(source.is_enabled) }}
                 </span>
               </td>
               <td>{{ formatDateTime(source.last_run_at) }}</td>
-              <td>{{ formatDateTime(source.cooldown_until) }}</td>
               <td class="alignRight">
-                <div class="inlineActions inlineActions--end">
-                  <button
-                    type="button"
-                    class="runBtn"
-                    :disabled="!source.is_enabled || store.isSourceRunning(source.key)"
-                    @click="runNow(source.key, 'auto')"
-                  >
-                    {{ store.isSourceRunning(source.key) ? 'Running...' : 'Run now' }}
-                  </button>
-                  <button
-                    type="button"
-                    class="ghostBtn"
-                    :disabled="!source.is_enabled || store.isSourceRunning(source.key)"
-                    @click="dryRun(source.key)"
-                  >
-                    Dry run
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  class="iconBtn"
+                  :data-testid="`source-run-${source.key}`"
+                  :disabled="!source.is_enabled || store.isSourceRunning(source.key)"
+                  :aria-label="
+                    store.isSourceRunning(source.key)
+                      ? `Spúšťa sa ${source.key}`
+                      : `Spustiť ${source.key}`
+                  "
+                  :title="store.isSourceRunning(source.key) ? 'Spúšťam' : 'Spustiť'"
+                  @click="runNow(source.key, 'auto')"
+                >
+                  <span v-if="store.isSourceRunning(source.key)" class="iconBtn__busy">...</span>
+                  <svg v-else viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor" />
+                  </svg>
+                </button>
               </td>
             </tr>
           </tbody>
@@ -1059,150 +1259,203 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <section class="card">
-      <header class="sectionHeader">
-        <div>
-          <h2 class="sectionTitle">Translation Tools</h2>
-          <p class="sectionSubtitle">1-click test for EN→SK translation via primary provider with fallback.</p>
+    <details class="panel panel--collapsible panel--translations" open>
+      <summary class="collapsibleSummary">
+        <p class="sectionLabel">Preklady</p>
+        <div class="collapsibleMeta">
+          <span class="summaryMetaValue">{{
+            translationProviderLabel(translationHealth?.provider)
+          }}</span>
+          <span :class="translationHealthState.className" data-testid="translation-health-state">
+            {{ translationHealthState.label }}
+          </span>
         </div>
-        <button
-          type="button"
-          class="dangerBtn"
-          :disabled="store.deletingAllPosts"
-          @click="deleteAllBotPostsForFilter"
-        >
-          {{ store.deletingAllPosts ? 'Mazem prispevky...' : 'Vymazat bot prispevky' }}
-        </button>
-      </header>
+      </summary>
 
       <div class="translationTools">
-        <label class="filterField">
-          <span>simulate provider outage</span>
-          <div class="inlineActions">
-            <select v-model="translationOutageProvider" data-testid="translation-outage-provider">
-              <option value="none">none</option>
-              <option value="ollama">ollama</option>
-              <option value="libretranslate">libretranslate</option>
-            </select>
-            <button
-              type="button"
-              class="ghostBtn"
-              data-testid="translation-outage-save"
-              :disabled="savingTranslationOutage"
-              @click="saveTranslationOutageSimulation"
-            >
-              {{ savingTranslationOutage ? 'Saving...' : 'Save outage toggle' }}
-            </button>
+        <div class="translationOverview">
+          <div class="miniMetric">
+            <span class="miniLabel">Poskytovateľ</span>
+            <strong>{{ translationProviderLabel(translationHealth?.provider) }}</strong>
           </div>
-        </label>
-        <p
-          v-if="translationHealth"
-          data-testid="translation-health-state"
-          class="translationSummary"
-        >
-          Health: {{ translationHealth.degraded ? 'degraded (fallback active)' : (translationHealth.result?.ok ? 'ok' : 'down') }}
-          | provider: {{ translationHealth.provider || '-' }}
-          | simulated outage: {{ translationHealth.simulate_outage_provider || 'none' }}
-        </p>
-        <div v-if="translationHealth" class="progressWrap">
-          <div class="progressHeader">
-            <span>
-              Preklad: hotovo {{ translationQueue.done + translationQueue.skipped }}, failed {{ translationQueue.failed }}, pending {{ translationQueue.pending }}
+          <div class="miniMetric">
+            <span class="miniLabel">Stav</span>
+            <span :class="translationHealthState.className">
+              {{ translationHealthState.label }}
             </span>
-            <strong>{{ translationQueue.progressPercent }}%</strong>
-          </div>
-          <div class="progressTrack" role="progressbar" :aria-valuenow="translationQueue.progressPercent" aria-valuemin="0" aria-valuemax="100">
-            <div class="progressFill" :class="{ 'progressFill--active': isTranslationQueueActive }" :style="{ width: `${translationQueue.progressPercent}%` }"></div>
           </div>
         </div>
-        <label class="filterField">
-          <span>test text</span>
-          <textarea
-            v-model="translationTestText"
-            rows="3"
-            maxlength="5000"
-            placeholder="Enter short English text for translation test."
-          />
-        </label>
-        <div class="inlineActions">
-          <button type="button" class="runBtn" :disabled="store.testingTranslation || loadingTranslationHealth" @click="testTranslation">
-            {{ store.testingTranslation ? 'Testing...' : 'Test translation' }}
-          </button>
-        </div>
-        <div v-if="translationTestResult" class="translationResult">
-          <div class="inlineActions">
-            <span :class="translationProviderClass(translationTestResult.provider)">
-              {{ translationProviderLabel(translationTestResult.provider) }}
-            </span>
-            <span class="modeHint">{{ Number(translationTestResult.latency_ms || 0) }} ms</span>
-            <span class="modeHint">mode: {{ translationModeLabel(translationTestResult.mode) }}</span>
-          </div>
-          <p class="translationSummary">
-            chain: {{ Array.isArray(translationTestResult.provider_chain) && translationTestResult.provider_chain.length > 0 ? translationTestResult.provider_chain.join(' -> ') : '-' }}
-            | quality: {{ Array.isArray(translationTestResult.quality_flags) && translationTestResult.quality_flags.length > 0 ? translationTestResult.quality_flags.join(', ') : 'ok' }}
-          </p>
-          <p>{{ translationTestResult.translated_text || '-' }}</p>
-        </div>
-      </div>
-    </section>
 
-    <section class="card">
-      <header class="sectionHeader">
-        <div>
-          <h2 class="sectionTitle">Runs</h2>
-          <p class="sectionSubtitle">Filter and inspect historical bot runs.</p>
+        <div class="progressWrap progressWrap--compact">
+          <div class="progressHeader">
+            <span>Fronta</span>
+            <strong
+              >{{ translationQueue.done + translationQueue.skipped }}/{{
+                translationQueue.total || 0
+              }}</strong
+            >
+          </div>
+          <div
+            class="progressTrack"
+            role="progressbar"
+            :aria-valuenow="translationQueue.progressPercent"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <div
+              class="progressFill"
+              :class="{ 'progressFill--active': isTranslationQueueActive }"
+              :style="{ width: `${translationQueue.progressPercent}%` }"
+            ></div>
+          </div>
         </div>
-        <button type="button" class="ghostBtn" :disabled="loadingRuns" @click="loadRuns()">
-          Refresh
+
+        <details class="advancedTools">
+          <summary>Rozšírené</summary>
+
+          <div class="advancedTools__body">
+            <div class="advancedActions">
+              <label class="filterField filterField--compact">
+                <span>Výpadok</span>
+                <select
+                  v-model="translationOutageProvider"
+                  data-testid="translation-outage-provider"
+                >
+                  <option value="none">žiadny</option>
+                  <option value="ollama">ollama</option>
+                  <option value="libretranslate">libretranslate</option>
+                </select>
+              </label>
+
+              <button
+                type="button"
+                class="ghostBtn"
+                data-testid="translation-outage-save"
+                :disabled="savingTranslationOutage"
+                @click="saveTranslationOutageSimulation"
+              >
+                {{ savingTranslationOutage ? 'Ukladám...' : 'Uložiť' }}
+              </button>
+
+              <button
+                type="button"
+                class="runBtn"
+                :disabled="store.testingTranslation || loadingTranslationHealth"
+                @click="testTranslation"
+              >
+                {{ store.testingTranslation ? 'Testujem...' : 'Otestovať' }}
+              </button>
+
+              <button
+                type="button"
+                class="dangerBtn"
+                :disabled="store.deletingAllPosts"
+                @click="deleteAllBotPostsForFilter"
+              >
+                {{ store.deletingAllPosts ? 'Mažem príspevky...' : 'Vymazať bot príspevky' }}
+              </button>
+            </div>
+
+            <label class="filterField">
+              <span>Testovací text</span>
+              <textarea
+                v-model="translationTestText"
+                rows="3"
+                maxlength="5000"
+                placeholder="Krátky anglický text na test prekladu."
+              />
+            </label>
+
+            <div v-if="translationTestResult" class="translationResult">
+              <div class="inlineActions">
+                <span :class="translationProviderClass(translationTestResult.provider)">
+                  {{ translationProviderLabel(translationTestResult.provider) }}
+                </span>
+                <span class="modeHint">{{ Number(translationTestResult.latency_ms || 0) }} ms</span>
+                <span class="modeHint">{{ translationModeLabel(translationTestResult.mode) }}</span>
+              </div>
+              <p class="translationMetaText">
+                Reťazec:
+                {{
+                  Array.isArray(translationTestResult.provider_chain) &&
+                  translationTestResult.provider_chain.length > 0
+                    ? translationTestResult.provider_chain.join(' -> ')
+                    : '-'
+                }}
+                · Kvalita:
+                {{
+                  Array.isArray(translationTestResult.quality_flags) &&
+                  translationTestResult.quality_flags.length > 0
+                    ? translationTestResult.quality_flags.join(', ')
+                    : 'OK'
+                }}
+              </p>
+              <p>{{ translationTestResult.translated_text || '-' }}</p>
+            </div>
+          </div>
+        </details>
+      </div>
+    </details>
+
+    <section class="panel panel--runs">
+      <header class="panelHeader">
+        <p class="sectionLabel">Behy</p>
+        <button
+          type="button"
+          class="ghostBtn ghostBtn--compact"
+          :disabled="loadingRuns"
+          @click="loadRuns()"
+        >
+          Obnoviť
         </button>
       </header>
 
       <form class="filters" @submit.prevent="applyRunsFilters">
-        <label v-if="!hasPresetBotIdentity" class="filterField">
-          <span>bot_identity</span>
+        <label v-if="!hasPresetBotIdentity" class="filterField filterField--compact">
+          <span>Bot</span>
           <select v-model="filterForm.bot_identity">
-            <option value="">All</option>
-            <option value="kozmo">kozmo</option>
-            <option value="stela">stela</option>
+            <option value="">Všetky</option>
+            <option value="kozmo">KozmoBot</option>
+            <option value="stela">StellarBot</option>
           </select>
         </label>
-        <label v-else class="filterField">
-          <span>bot_identity</span>
-          <input :value="filterForm.bot_identity || '-'" type="text" readonly />
+        <label v-else class="filterField filterField--compact">
+          <span>Bot</span>
+          <input :value="botIdentityLabel(filterForm.bot_identity) || '-'" type="text" readonly />
         </label>
 
-        <label class="filterField">
-          <span>sourceKey</span>
+        <label class="filterField filterField--compact">
+          <span>Zdroj</span>
           <select v-model="filterForm.sourceKey">
-            <option value="">All</option>
+            <option value="">Všetky</option>
             <option v-for="sourceKey in sourceOptions" :key="sourceKey" :value="sourceKey">
               {{ sourceKey }}
             </option>
           </select>
         </label>
 
-        <label class="filterField">
-          <span>status</span>
+        <label class="filterField filterField--compact">
+          <span>Stav</span>
           <select v-model="filterForm.status">
-            <option value="">All</option>
-            <option value="success">success</option>
-            <option value="partial">partial</option>
-            <option value="failed">failed</option>
+            <option value="">Všetky</option>
+            <option value="success">Hotovo</option>
+            <option value="partial">Čiastočne</option>
+            <option value="failed">Chyba</option>
           </select>
         </label>
 
-        <label class="filterField">
-          <span>date_from</span>
+        <label class="filterField filterField--compact">
+          <span>Od</span>
           <input v-model="filterForm.date_from" type="date" />
         </label>
 
-        <label class="filterField">
-          <span>date_to</span>
+        <label class="filterField filterField--compact">
+          <span>Do</span>
           <input v-model="filterForm.date_to" type="date" />
         </label>
 
-        <label class="filterField">
-          <span>per_page</span>
+        <label class="filterField filterField--compact">
+          <span>Na stranu</span>
           <select v-model.number="filterForm.per_page">
             <option :value="10">10</option>
             <option :value="20">20</option>
@@ -1212,8 +1465,10 @@ onBeforeUnmount(() => {
         </label>
 
         <div class="filterActions">
-          <button type="submit" class="runBtn" :disabled="loadingRuns">Apply</button>
-          <button type="button" class="ghostBtn" :disabled="loadingRuns" @click="resetRunsFilters">Reset</button>
+          <button type="submit" class="runBtn" :disabled="loadingRuns">Filtrovať</button>
+          <button type="button" class="ghostBtn" :disabled="loadingRuns" @click="resetRunsFilters">
+            Vyčistiť
+          </button>
         </div>
       </form>
 
@@ -1221,12 +1476,12 @@ onBeforeUnmount(() => {
         <table class="table">
           <thead>
             <tr>
-              <th>started_at</th>
-              <th>source_key</th>
-              <th>status</th>
-              <th>mode</th>
-              <th>stats summary</th>
-              <th class="alignRight">actions</th>
+              <th>Čas</th>
+              <th>Zdroj</th>
+              <th>Stav</th>
+              <th>Nové</th>
+              <th>Publikované</th>
+              <th>Chyby</th>
             </tr>
           </thead>
           <tbody>
@@ -1238,28 +1493,42 @@ onBeforeUnmount(() => {
               </tr>
             </template>
             <tr v-else-if="runs.length === 0">
-              <td colspan="6" class="emptyCell">No runs found for selected filters.</td>
+              <td colspan="6" class="emptyCell">Žiadne behy pre zvolený filter.</td>
             </tr>
             <tr v-else v-for="run in runs" :key="run.id">
-              <td>{{ formatDateTime(run.started_at) }}</td>
-              <td><code>{{ run.source_key || '-' }}</code></td>
               <td>
-                <span :class="statusClass(run)" :title="runStatusHint(run)" data-testid="run-status-badge">
-                  {{ runStatusLabel(run) }}
-                </span>
+                <div class="timeCell">
+                  <span>{{ formatDateTime(run.started_at) }}</span>
+                  <button type="button" class="textBtn" @click="openRunDetail(run)">Detail</button>
+                </div>
               </td>
               <td>
-                <div class="runModeCell">
-                  <span :class="runModeClass(run)" data-testid="run-mode-badge">{{ runModeLabel(run) }}</span>
-                  <span v-if="runPublishLimit(run) !== null" class="modeHint" data-testid="run-mode-limit">
-                    limit: {{ runPublishLimit(run) }}
+                <code>{{ run.source_key || '-' }}</code>
+              </td>
+              <td>
+                <div class="runStatusCell">
+                  <span
+                    :class="statusClass(run)"
+                    :title="runStatusHint(run)"
+                    data-testid="run-status-badge"
+                  >
+                    {{ runStatusLabel(run) }}
+                  </span>
+                  <span :class="runModeClass(run)" data-testid="run-mode-badge">{{
+                    runModeLabel(run)
+                  }}</span>
+                  <span
+                    v-if="runPublishLimit(run) !== null"
+                    class="modeHint"
+                    data-testid="run-mode-limit"
+                  >
+                    limit {{ runPublishLimit(run) }}
                   </span>
                 </div>
               </td>
-              <td>{{ statsSummary(run.stats) }}</td>
-              <td class="alignRight">
-                <button type="button" class="ghostBtn" @click="openRunDetail(run)">Detail</button>
-              </td>
+              <td>{{ runStatCount(run, 'new_count') }}</td>
+              <td>{{ runStatCount(run, 'published_count') }}</td>
+              <td>{{ runStatCount(run, 'failed_count') }}</td>
             </tr>
           </tbody>
         </table>
@@ -1267,14 +1536,24 @@ onBeforeUnmount(() => {
 
       <footer v-if="runsMeta" class="pagination">
         <div class="paginationInfo">
-          Page {{ runsMeta.current_page }} / {{ runsMeta.last_page }} (total {{ runsMeta.total }})
+          Strana {{ runsMeta.current_page }} z {{ runsMeta.last_page }} · {{ runsMeta.total }} spolu
         </div>
         <div class="paginationActions">
-          <button type="button" class="ghostBtn" :disabled="!canPrevPage || loadingRuns" @click="goToPage((runsMeta.current_page || 1) - 1)">
-            Prev
+          <button
+            type="button"
+            class="ghostBtn ghostBtn--compact"
+            :disabled="!canPrevPage || loadingRuns"
+            @click="goToPage((runsMeta.current_page || 1) - 1)"
+          >
+            Späť
           </button>
-          <button type="button" class="ghostBtn" :disabled="!canNextPage || loadingRuns" @click="goToPage((runsMeta.current_page || 1) + 1)">
-            Next
+          <button
+            type="button"
+            class="ghostBtn ghostBtn--compact"
+            :disabled="!canNextPage || loadingRuns"
+            @click="goToPage((runsMeta.current_page || 1) + 1)"
+          >
+            Ďalej
           </button>
         </div>
       </footer>
@@ -1282,27 +1561,31 @@ onBeforeUnmount(() => {
 
     <teleport to="body">
       <div v-if="selectedRun" class="modalBackdrop" @click.self="closeRunDetail">
-        <article class="modalCard" role="dialog" aria-modal="true" aria-label="Bot run detail">
+        <article class="modalCard" role="dialog" aria-modal="true" aria-label="Detail behu bota">
           <header class="modalHeader">
-            <h3>Run detail</h3>
-            <button type="button" class="ghostBtn" @click="closeRunDetail">Close</button>
+            <h3>Detail behu</h3>
+            <button type="button" class="ghostBtn ghostBtn--compact" @click="closeRunDetail">
+              Zavrieť
+            </button>
           </header>
 
           <dl class="detailGrid">
             <div>
-              <dt>source_key</dt>
-              <dd><code>{{ selectedRun.source_key || '-' }}</code></dd>
+              <dt>Zdroj</dt>
+              <dd>
+                <code>{{ selectedRun.source_key || '-' }}</code>
+              </dd>
             </div>
             <div>
-              <dt>started_at</dt>
+              <dt>Spustené</dt>
               <dd>{{ formatDateTime(selectedRun.started_at) }}</dd>
             </div>
             <div>
-              <dt>finished_at</dt>
+              <dt>Dokončené</dt>
               <dd>{{ formatDateTime(selectedRun.finished_at) }}</dd>
             </div>
             <div>
-              <dt>status</dt>
+              <dt>Stav</dt>
               <dd>
                 <span :class="statusClass(selectedRun)" :title="runStatusHint(selectedRun)">
                   {{ runStatusLabel(selectedRun) }}
@@ -1310,31 +1593,39 @@ onBeforeUnmount(() => {
               </dd>
             </div>
             <div>
-              <dt>cooldown_until</dt>
-              <dd>{{ formatDateTime(selectedRun.cooldown_until || selectedRun.meta?.cooldown_until) }}</dd>
+              <dt>Cooldown</dt>
+              <dd>
+                {{ formatDateTime(selectedRun.cooldown_until || selectedRun.meta?.cooldown_until) }}
+              </dd>
             </div>
           </dl>
 
           <div class="detailBlock">
-            <h4>stats</h4>
+            <h4>Štatistiky</h4>
             <pre>{{ formatStatsJson(selectedRun.stats) }}</pre>
           </div>
 
           <div class="detailBlock">
-            <h4>error_text</h4>
+            <h4>Chyba</h4>
             <p>{{ selectedRun.error_text || '-' }}</p>
           </div>
 
           <div class="detailBlock">
             <div class="detailBlockHeader">
-              <h4>items</h4>
+              <h4>Položky</h4>
               <div class="inlineActions">
                 <label class="inlineField">
                   <span>Limit</span>
-                  <input v-model.number="publishAllLimit" data-testid="publish-all-limit" type="number" min="1" max="100" />
+                  <input
+                    v-model.number="publishAllLimit"
+                    data-testid="publish-all-limit"
+                    type="number"
+                    min="1"
+                    max="100"
+                  />
                 </label>
                 <label class="inlineField">
-                  <span>Retry N</span>
+                  <span>Retry</span>
                   <input v-model.number="retryTranslationLimit" type="number" min="1" max="100" />
                 </label>
                 <button
@@ -1343,7 +1634,9 @@ onBeforeUnmount(() => {
                   :disabled="store.isRunPublishing(selectedRun?.id)"
                   @click="publishAllForRun"
                 >
-                  {{ store.isRunPublishing(selectedRun?.id) ? 'Publishing...' : 'Publish all' }}
+                  {{
+                    store.isRunPublishing(selectedRun?.id) ? 'Publikujem...' : 'Publikovať všetko'
+                  }}
                 </button>
                 <button
                   type="button"
@@ -1351,7 +1644,11 @@ onBeforeUnmount(() => {
                   :disabled="store.isTranslationRetrying(selectedRun?.source_key)"
                   @click="retryTranslateForRun"
                 >
-                  {{ store.isTranslationRetrying(selectedRun?.source_key) ? 'Retrying...' : 'Retry translate' }}
+                  {{
+                    store.isTranslationRetrying(selectedRun?.source_key)
+                      ? 'Skúšam...'
+                      : 'Skúsiť preklad'
+                  }}
                 </button>
                 <button
                   type="button"
@@ -1359,7 +1656,11 @@ onBeforeUnmount(() => {
                   :disabled="store.isTranslationBackfilling(selectedRun?.source_key)"
                   @click="backfillTranslateForRun"
                 >
-                  {{ store.isTranslationBackfilling(selectedRun?.source_key) ? 'Backfilling...' : 'Backfill translation (update posts)' }}
+                  {{
+                    store.isTranslationBackfilling(selectedRun?.source_key)
+                      ? 'Dopĺňam...'
+                      : 'Doplniť preklad'
+                  }}
                 </button>
                 <button
                   type="button"
@@ -1367,7 +1668,7 @@ onBeforeUnmount(() => {
                   :disabled="loadingRunItems"
                   @click="goToItemsPage(1)"
                 >
-                  Refresh items
+                  Obnoviť položky
                 </button>
               </div>
             </div>
@@ -1376,15 +1677,15 @@ onBeforeUnmount(() => {
               <table class="table table--compact">
                 <thead>
                   <tr>
-                    <th>stable_key</th>
-                    <th>publish_status</th>
-                    <th>translation_status</th>
-                    <th>provider</th>
-                    <th>post_id</th>
-                    <th>used_translation</th>
-                    <th>skip_reason</th>
-                    <th>fetched_at</th>
-                    <th class="alignRight">actions</th>
+                    <th>Kľúč</th>
+                    <th>Publikovanie</th>
+                    <th>Preklad</th>
+                    <th>Poskytovateľ</th>
+                    <th>Post</th>
+                    <th>Použitý</th>
+                    <th>Dôvod</th>
+                    <th>Čas</th>
+                    <th class="alignRight">Akcie</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1396,7 +1697,7 @@ onBeforeUnmount(() => {
                     </tr>
                   </template>
                   <tr v-else-if="runItems.length === 0">
-                    <td colspan="9" class="emptyCell">No items found for this run.</td>
+                    <td colspan="9" class="emptyCell">Žiadne položky v tomto behu.</td>
                   </tr>
                   <tr v-else v-for="item in runItems" :key="item.id || item.stable_key">
                     <td>
@@ -1405,18 +1706,24 @@ onBeforeUnmount(() => {
                     <td>
                       <div class="itemStatusCell">
                         <span :class="itemStatusClass(item.publish_status)">
-                          {{ item.publish_status || 'unknown' }}
+                          {{ itemStatusLabel(item.publish_status) }}
                         </span>
-                        <span v-if="isManualPublishedItem(item)" class="manualBadge">MANUAL</span>
+                        <span v-if="isManualPublishedItem(item)" class="manualBadge">MANUÁL</span>
                       </div>
                     </td>
                     <td>
-                      <span :class="itemStatusClass(item.translation_status)" :title="item.translation_error || ''">
-                        {{ item.translation_status || 'unknown' }}
+                      <span
+                        :class="itemStatusClass(item.translation_status)"
+                        :title="item.translation_error || ''"
+                      >
+                        {{ itemStatusLabel(item.translation_status) }}
                       </span>
                     </td>
                     <td>
-                      <span :class="translationProviderClass(item.translation_provider)" :title="item.translation_error || ''">
+                      <span
+                        :class="translationProviderClass(item.translation_provider)"
+                        :title="item.translation_error || ''"
+                      >
                         {{ translationProviderLabel(item.translation_provider) }}
                       </span>
                     </td>
@@ -1435,22 +1742,32 @@ onBeforeUnmount(() => {
                     <td>{{ formatDateTime(item.fetched_at) }}</td>
                     <td class="alignRight">
                       <div class="inlineActions inlineActions--end">
-                        <button type="button" class="ghostBtn" @click="openItemPreview(item)">Preview</button>
+                        <button type="button" class="ghostBtn" @click="openItemPreview(item)">
+                          Náhľad
+                        </button>
                         <button
                           type="button"
                           class="runBtn"
-                          :disabled="!canPublishItem(item) || store.isItemPublishing(item.id) || store.isItemDeleting(item.id)"
+                          :disabled="
+                            !canPublishItem(item) ||
+                            store.isItemPublishing(item.id) ||
+                            store.isItemDeleting(item.id)
+                          "
                           @click="publishItem(item)"
                         >
-                          {{ store.isItemPublishing(item.id) ? 'Publishing...' : 'Publish' }}
+                          {{ store.isItemPublishing(item.id) ? 'Publikujem...' : 'Publikovať' }}
                         </button>
                         <button
                           type="button"
                           class="dangerBtn"
-                          :disabled="!canDeleteItemPost(item) || store.isItemDeleting(item.id) || store.isItemPublishing(item.id)"
+                          :disabled="
+                            !canDeleteItemPost(item) ||
+                            store.isItemDeleting(item.id) ||
+                            store.isItemPublishing(item.id)
+                          "
                           @click="deleteItemPost(item)"
                         >
-                          {{ store.isItemDeleting(item.id) ? 'Deleting...' : 'Delete post' }}
+                          {{ store.isItemDeleting(item.id) ? 'Mažem...' : 'Vymazať príspevok' }}
                         </button>
                       </div>
                     </td>
@@ -1461,7 +1778,8 @@ onBeforeUnmount(() => {
 
             <footer v-if="runItemsMeta" class="pagination pagination--inner">
               <div class="paginationInfo">
-                Page {{ runItemsMeta.current_page }} / {{ runItemsMeta.last_page }} (total {{ runItemsMeta.total }})
+                Strana {{ runItemsMeta.current_page }} z {{ runItemsMeta.last_page }} ·
+                {{ runItemsMeta.total }} spolu
               </div>
               <div class="paginationActions">
                 <button
@@ -1470,7 +1788,7 @@ onBeforeUnmount(() => {
                   :disabled="!canPrevItemsPage || loadingRunItems"
                   @click="goToItemsPage((runItemsMeta.current_page || 1) - 1)"
                 >
-                  Prev
+                  Späť
                 </button>
                 <button
                   type="button"
@@ -1478,7 +1796,7 @@ onBeforeUnmount(() => {
                   :disabled="!canNextItemsPage || loadingRunItems"
                   @click="goToItemsPage((runItemsMeta.current_page || 1) + 1)"
                 >
-                  Next
+                  Ďalej
                 </button>
               </div>
             </footer>
@@ -1486,16 +1804,27 @@ onBeforeUnmount(() => {
         </article>
       </div>
 
-      <div v-if="selectedPreviewItem" class="modalBackdrop modalBackdrop--inner" @click.self="closeItemPreview">
-        <article class="modalCard modalCard--preview" role="dialog" aria-modal="true" aria-label="Bot item preview">
+      <div
+        v-if="selectedPreviewItem"
+        class="modalBackdrop modalBackdrop--inner"
+        @click.self="closeItemPreview"
+      >
+        <article
+          class="modalCard modalCard--preview"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Náhľad položky bota"
+        >
           <header class="modalHeader">
-            <h3>Item preview</h3>
-            <button type="button" class="ghostBtn" @click="closeItemPreview">Close</button>
+            <h3>Náhľad položky</h3>
+            <button type="button" class="ghostBtn ghostBtn--compact" @click="closeItemPreview">
+              Zavrieť
+            </button>
           </header>
 
           <dl class="detailGrid detailGrid--single">
             <div>
-              <dt>source link</dt>
+              <dt>Zdrojový odkaz</dt>
               <dd>
                 <a
                   v-if="selectedPreviewItem.url"
@@ -1512,31 +1841,31 @@ onBeforeUnmount(() => {
           </dl>
 
           <div class="detailBlock">
-            <h4>status</h4>
+            <h4>Stav</h4>
             <div class="inlineActions">
               <span :class="itemStatusClass(selectedPreviewItem.publish_status)">
-                publish: {{ selectedPreviewItem.publish_status || 'unknown' }}
+                publikovanie: {{ itemStatusLabel(selectedPreviewItem.publish_status) }}
               </span>
               <span :class="itemStatusClass(selectedPreviewItem.translation_status)">
-                translation: {{ selectedPreviewItem.translation_status || 'unknown' }}
+                preklad: {{ itemStatusLabel(selectedPreviewItem.translation_status) }}
               </span>
             </div>
           </div>
 
           <div class="detailBlock">
-            <h4>translation preview</h4>
+            <h4>Náhľad</h4>
             <p>{{ selectedPreviewItem.title || '-' }}</p>
             <p>{{ selectedPreviewItem.content || '-' }}</p>
           </div>
 
           <div class="detailBlock">
-            <h4>originál</h4>
+            <h4>Originál</h4>
             <p>{{ selectedPreviewItem.title_original || '-' }}</p>
             <p>{{ selectedPreviewItem.content_original || '-' }}</p>
           </div>
 
           <div class="detailBlock">
-            <h4>preklad</h4>
+            <h4>Preklad</h4>
             <p>{{ selectedPreviewItem.title_translated || '-' }}</p>
             <p>{{ selectedPreviewItem.content_translated || '-' }}</p>
           </div>
@@ -2162,6 +2491,527 @@ onBeforeUnmount(() => {
 
   .filterActions {
     grid-column: span 3;
+  }
+}
+
+:deep(.adminPageShell.botEngineShell) {
+  padding: 18px 16px;
+  background: #151d28;
+}
+
+:deep(.adminPageShell.botEngineShell .adminPageShell__header) {
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+:deep(.adminPageShell.botEngineShell .adminPageShell__title) {
+  margin: 0;
+  font-size: 1.9rem;
+  letter-spacing: -0.03em;
+}
+
+:deep(.adminPageShell.botEngineShell .adminPageShell__content) {
+  gap: 10px;
+}
+
+.quickStrip,
+.panel {
+  display: grid;
+  gap: 10px;
+}
+
+.quickStrip {
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  gap: 8px;
+  padding-bottom: 6px;
+}
+
+.panel {
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  padding-top: 10px;
+}
+
+.panel--runs {
+  order: 2;
+}
+
+.panel--collapsible {
+  padding-top: 0;
+}
+
+.panel--translations {
+  order: 3;
+}
+
+.panelHeader,
+.collapsibleSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.collapsibleSummary {
+  list-style: none;
+  cursor: pointer;
+  padding-top: 10px;
+}
+
+.collapsibleSummary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsibleMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.summaryMetaValue {
+  font-size: 0.82rem;
+  color: rgb(var(--color-surface-rgb) / 0.82);
+}
+
+.sectionLabel {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(var(--color-text-secondary-rgb) / 0.8);
+}
+
+.tableWrap {
+  border-color: rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 12px;
+  background: rgb(var(--color-bg-rgb) / 0.18);
+}
+
+.table {
+  min-width: 680px;
+}
+
+.table--sources {
+  min-width: 620px;
+}
+
+.table th,
+.table td {
+  padding: 9px 10px;
+  border-bottom-color: rgb(var(--color-surface-rgb) / 0.08);
+  font-size: 0.86rem;
+}
+
+.table th {
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  background: rgb(var(--color-surface-rgb) / 0.03);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.emptyCell {
+  padding: 16px 10px;
+}
+
+.runBtn,
+.ghostBtn,
+.dangerBtn,
+.quickPill,
+.iconBtn {
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 0 12px;
+  line-height: 1;
+}
+
+.runBtn {
+  border-color: rgb(var(--color-primary-rgb) / 0.4);
+  background: rgb(var(--color-primary-rgb) / 0.18);
+}
+
+.ghostBtn {
+  border-color: rgb(var(--color-surface-rgb) / 0.14);
+  background: rgb(var(--color-surface-rgb) / 0.03);
+}
+
+.dangerBtn {
+  border-color: rgb(248 113 113 / 0.28);
+  background: rgb(248 113 113 / 0.12);
+}
+
+.ghostBtn--compact {
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.headerRunBtn {
+  min-height: 36px;
+  padding-inline: 14px;
+}
+
+.quickPill {
+  justify-content: space-between;
+  min-width: 176px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  background: rgb(var(--color-surface-rgb) / 0.04);
+  color: rgb(var(--color-surface-rgb) / 0.94);
+}
+
+.quickPill--active {
+  border-color: rgb(var(--color-primary-rgb) / 0.32);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+}
+
+.quickPill__label {
+  text-align: left;
+}
+
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgb(var(--color-surface-rgb) / 0.08);
+  color: rgb(var(--color-surface-rgb) / 0.9);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.iconBtn {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  background: rgb(var(--color-surface-rgb) / 0.03);
+  color: rgb(var(--color-surface-rgb) / 0.92);
+  padding: 0;
+}
+
+.iconBtn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.iconBtn__busy {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: flex-end;
+}
+
+.filterField {
+  gap: 5px;
+  min-width: 140px;
+  font-size: 0.74rem;
+}
+
+.filterField--compact {
+  min-width: 124px;
+}
+
+.filterField span {
+  letter-spacing: 0.12em;
+}
+
+.filterField input,
+.filterField select,
+.filterField textarea {
+  border-radius: 10px;
+  border-color: rgb(var(--color-surface-rgb) / 0.14);
+  background: rgb(var(--color-bg-rgb) / 0.28);
+}
+
+.filterField input,
+.filterField select {
+  min-height: 34px;
+}
+
+.filterField textarea {
+  min-height: 86px;
+}
+
+.filterActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stateBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: rgb(var(--color-surface-rgb) / 0.92);
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgb(var(--color-surface-rgb) / 0.28);
+}
+
+.statusDot--success {
+  background: rgb(74 222 128);
+}
+
+.statusDot--muted {
+  background: rgb(148 163 184 / 0.8);
+}
+
+.statusBadge,
+.modeBadge,
+.providerBadge,
+.manualBadge {
+  border-color: rgb(var(--color-surface-rgb) / 0.14);
+  background: rgb(var(--color-surface-rgb) / 0.04);
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+}
+
+.statusBadge {
+  min-width: 64px;
+}
+
+.statusBadge--success {
+  border-color: rgb(34 197 94 / 0.28);
+}
+
+.statusBadge--partial {
+  border-color: rgb(245 158 11 / 0.3);
+}
+
+.statusBadge--failed {
+  border-color: rgb(244 63 94 / 0.3);
+}
+
+.statusBadge--muted,
+.providerBadge--muted {
+  opacity: 1;
+  color: rgb(var(--color-text-secondary-rgb) / 0.78);
+}
+
+.modeBadge--dry {
+  border-color: rgb(245 158 11 / 0.28);
+}
+
+.modeBadge--auto {
+  border-color: rgb(34 197 94 / 0.28);
+}
+
+.providerBadge--lt {
+  border-color: rgb(16 185 129 / 0.3);
+}
+
+.providerBadge--ollama {
+  border-color: rgb(14 165 233 / 0.3);
+}
+
+.providerBadge--mixed {
+  border-color: rgb(245 158 11 / 0.3);
+}
+
+.timeCell,
+.runStatusCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.timeCell {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.modeHint,
+.translationMetaText,
+.paginationInfo {
+  font-size: 0.76rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.84);
+}
+
+.textBtn {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: rgb(var(--color-primary-rgb) / 0.9);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.textBtn:hover {
+  text-decoration: underline;
+}
+
+.translationTools {
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.translationOverview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.miniMetric {
+  display: grid;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.miniLabel {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.8);
+}
+
+.progressWrap--compact {
+  max-width: 360px;
+}
+
+.progressTrack {
+  height: 8px;
+  border-color: rgb(var(--color-surface-rgb) / 0.14);
+  background: rgb(var(--color-surface-rgb) / 0.06);
+}
+
+.progressFill {
+  background: rgb(34 197 94 / 0.78);
+}
+
+.progressFill--active {
+  background: rgb(16 185 129 / 0.88);
+  box-shadow: none;
+}
+
+.advancedTools {
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  padding-top: 8px;
+}
+
+.advancedTools > summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.88);
+}
+
+.advancedTools__body {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.advancedActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.translationResult {
+  display: grid;
+  gap: 8px;
+}
+
+.translationResult p {
+  margin: 0;
+  border-color: rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.24);
+}
+
+.pagination {
+  margin-top: 10px;
+  gap: 10px;
+}
+
+.modalBackdrop {
+  background: rgb(6 11 20 / 0.72);
+}
+
+.modalCard {
+  border-radius: 16px;
+  border-color: rgb(var(--color-surface-rgb) / 0.14);
+  background: rgb(21 29 40 / 0.98);
+  box-shadow: none;
+}
+
+.detailGrid dt,
+.detailBlock h4 {
+  letter-spacing: 0.12em;
+}
+
+.detailBlock pre,
+.detailBlock p {
+  border-color: rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.24);
+}
+
+@media (max-width: 900px) {
+  .quickStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .filterField,
+  .filterField--compact {
+    min-width: min(100%, 160px);
+  }
+
+  .advancedActions,
+  .translationOverview {
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 720px) {
+  :deep(.adminPageShell.botEngineShell .adminPageShell__header) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .headerRunBtn {
+    width: 100%;
+  }
+
+  .panelHeader,
+  .collapsibleSummary {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .table {
+    min-width: 620px;
+  }
+
+  .table--sources {
+    min-width: 560px;
+  }
+
+  .inlineActions,
+  .detailBlockHeader .inlineActions {
+    display: grid;
+    width: 100%;
   }
 }
 </style>

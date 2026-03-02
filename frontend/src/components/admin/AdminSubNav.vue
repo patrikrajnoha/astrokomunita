@@ -19,7 +19,6 @@ const groups = [
     items: [
       { label: 'Dashboard', to: '/admin/dashboard', icon: 'D' },
       { label: 'Pouzivatelia', to: '/admin/users', icon: 'U' },
-      { label: 'Reporty', to: '/admin/reports', icon: 'R' },
       { label: 'Moderacia', to: '/admin/moderation', icon: 'M' },
       ...(wipEnabled ? [{ label: 'Zakazane slova', to: '/admin/banned-words', icon: 'W' }] : []),
     ],

@@ -231,12 +231,18 @@ const appShellChildren = [
       {
         path: 'reports',
         name: 'admin.reports',
-        component: () => import('@/views/admin/ReportsView.vue'),
+        redirect: (to) => ({
+          name: 'admin.moderation',
+          query: {
+            ...to.query,
+            tab: 'reports',
+          },
+        }),
       },
       {
         path: 'moderation',
         name: 'admin.moderation',
-        component: () => import('@/views/admin/ModerationView.vue'),
+        component: () => import('@/views/admin/ModerationHubView.vue'),
       },
       {
         path: 'users',

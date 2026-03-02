@@ -184,7 +184,7 @@ defineEmits([
 
 .tableContainer {
   overflow-x: auto;
-  border: 1px solid var(--color-border);
+  border: 0;
   border-radius: 0.5rem;
 }
 
@@ -200,12 +200,12 @@ defineEmits([
   text-align: left;
   font-weight: 600;
   color: var(--color-text);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--divider-color);
   white-space: nowrap;
 }
 
 .tableRow {
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--divider-color);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -269,7 +269,7 @@ defineEmits([
 
 .actionBtn {
   padding: 0.25rem 0.5rem;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--divider-color);
   border-radius: 0.25rem;
   font-size: 0.75rem;
   font-weight: 500;
@@ -291,7 +291,7 @@ defineEmits([
 .actionBtn--secondary {
   background: var(--color-background);
   color: var(--color-text);
-  border-color: var(--color-border);
+  border-color: var(--divider-color);
 }
 
 .actionBtn--secondary:hover {

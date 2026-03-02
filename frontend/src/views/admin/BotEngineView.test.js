@@ -109,7 +109,7 @@ function mountView(options = {}) {
     ...options,
     global: {
       stubs: {
-        AdminPageShell: { template: '<div><slot /></div>' },
+        AdminPageShell: { template: '<div><slot name="right-actions" /><slot /></div>' },
         routerLink: true,
         teleport: true,
       },
@@ -140,14 +140,17 @@ describe('BotEngineView', () => {
           finished_at: '2026-02-23T10:06:00Z',
           status: 'skipped',
           failure_reason: 'rate_limited',
-          ui_message: 'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
+          ui_message:
+            'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
           stats: { published_count: 0 },
           meta: {
             mode: 'auto',
             failure_reason: 'rate_limited',
-            ui_message: 'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
+            ui_message:
+              'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
           },
-          error_text: 'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
+          error_text:
+            'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
         },
       ],
       meta: { current_page: 1, last_page: 1, per_page: 20, total: 2 },
@@ -254,8 +257,14 @@ describe('BotEngineView', () => {
     await quickRunKozmoButton.trigger('click')
     await flush()
 
-    expect(store.runSource).toHaveBeenCalledWith('nasa_rss_breaking', { mode: 'auto', force_manual_override: true })
-    expect(store.runSource).not.toHaveBeenCalledWith('nasa_apod_daily', { mode: 'auto', force_manual_override: true })
+    expect(store.runSource).toHaveBeenCalledWith('nasa_rss_breaking', {
+      mode: 'auto',
+      force_manual_override: true,
+    })
+    expect(store.runSource).not.toHaveBeenCalledWith('nasa_apod_daily', {
+      mode: 'auto',
+      force_manual_override: true,
+    })
   })
 
   it('shows retry_after detail when manual run is throttled', async () => {
@@ -273,7 +282,7 @@ describe('BotEngineView', () => {
       global: {
         stubs: {
           AdminPageShell: {
-            template: '<div><slot /></div>',
+            template: '<div><slot name="right-actions" /><slot /></div>',
           },
           routerLink: true,
           teleport: true,
@@ -284,14 +293,12 @@ describe('BotEngineView', () => {
     await flush()
     await flush()
 
-    const runButton = wrapper.findAll('button').find((node) => node.text().includes('Run now'))
-    expect(runButton).toBeTruthy()
-
+    const runButton = wrapper.get('[data-testid="source-run-nasa_rss_breaking"]')
     await runButton.trigger('click')
     await flush()
 
     expect(toastErrorMock).toHaveBeenCalledTimes(1)
-    expect(String(toastErrorMock.mock.calls[0][0])).toContain('Retry in 120s')
+    expect(String(toastErrorMock.mock.calls[0][0])).toContain('Skús znova o 120 s.')
   })
 
   it('shows structured rate-limited message instead of generic timeout text', async () => {
@@ -300,7 +307,8 @@ describe('BotEngineView', () => {
         status: 429,
         data: {
           failure_reason: 'rate_limited',
-          ui_message: 'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
+          ui_message:
+            'NASA APOD API rate limit (HTTP 429). Nastav NASA_API_KEY alebo skusit neskor.',
         },
       },
     })
@@ -309,7 +317,7 @@ describe('BotEngineView', () => {
     await flush()
     await flush()
 
-    const runButton = wrapper.findAll('button').find((node) => node.text().includes('Run now'))
+    const runButton = wrapper.get('[data-testid="source-run-nasa_rss_breaking"]')
     await runButton.trigger('click')
     await flush()
 
@@ -328,7 +336,7 @@ describe('BotEngineView', () => {
     await flush()
     await flush()
 
-    const runButton = wrapper.findAll('button').find((node) => node.text().includes('Run now'))
+    const runButton = wrapper.get('[data-testid="source-run-nasa_rss_breaking"]')
     await runButton.trigger('click')
     await flush()
 
@@ -351,7 +359,7 @@ describe('BotEngineView', () => {
     await flush()
     await flush()
 
-    const runButton = wrapper.findAll('button').find((node) => node.text().includes('Run now'))
+    const runButton = wrapper.get('[data-testid="source-run-nasa_rss_breaking"]')
     await runButton.trigger('click')
     await flush()
 
@@ -374,7 +382,7 @@ describe('BotEngineView', () => {
     await flush()
     await flush()
 
-    const runButton = wrapper.findAll('button').find((node) => node.text().includes('Run now'))
+    const runButton = wrapper.get('[data-testid="source-run-nasa_rss_breaking"]')
     await runButton.trigger('click')
     await flush()
 
@@ -382,37 +390,38 @@ describe('BotEngineView', () => {
     expect(String(toastErrorMock.mock.calls[0][0])).toContain('Preklad timeoutol')
   })
 
-  it('renders DRY/AUTO badges with publish limit text from run meta', async () => {
+  it('renders TEST/AUTO badges with publish limit text from run meta', async () => {
     const wrapper = mountView()
     await flush()
     await flush()
 
     const modeBadges = wrapper.findAll('[data-testid="run-mode-badge"]')
     expect(modeBadges).toHaveLength(2)
-    expect(modeBadges[0].text()).toBe('DRY')
+    expect(modeBadges[0].text()).toBe('TEST')
     expect(modeBadges[1].text()).toBe('AUTO')
 
     const modeLimits = wrapper.findAll('[data-testid="run-mode-limit"]')
     expect(modeLimits).toHaveLength(1)
-    expect(modeLimits[0].text()).toContain('limit: 3')
+    expect(modeLimits[0].text()).toContain('limit 3')
   })
 
-  it('renders Rate limited badge for structured run reason', async () => {
+  it('renders Limit badge for structured run reason', async () => {
     const wrapper = mountView()
     await flush()
     await flush()
 
     const statusBadges = wrapper.findAll('[data-testid="run-status-badge"]')
     expect(statusBadges.length).toBeGreaterThanOrEqual(2)
-    expect(statusBadges[1].text()).toContain('Rate limited')
+    expect(statusBadges[1].text()).toContain('Limit')
   })
 
-  it('shows APOD env hint in sources table', async () => {
+  it('renders compact Slovak source table headings', async () => {
     const wrapper = mountView()
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Set NASA_API_KEY in .env to enable APOD.')
+    expect(wrapper.text()).toContain('Posledný beh')
+    expect(wrapper.text()).toContain('Aktívny')
   })
 
   it('asks for confirm before publishing wiki onthisday item', async () => {
@@ -433,10 +442,13 @@ describe('BotEngineView', () => {
     await flush()
     await flush()
 
-    await wrapper.findAll('button').find((node) => node.text().includes('Detail')).trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((node) => node.text().includes('Detail'))
+      .trigger('click')
     await flush()
 
-    const publishButton = wrapper.findAll('button').find((node) => node.text() === 'Publish')
+    const publishButton = wrapper.findAll('button').find((node) => node.text() === 'Publikovať')
     await publishButton.trigger('click')
     await flush()
 
@@ -464,13 +476,18 @@ describe('BotEngineView', () => {
     await flush()
     await flush()
 
-    await wrapper.findAll('button').find((node) => node.text().includes('Detail')).trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((node) => node.text().includes('Detail'))
+      .trigger('click')
     await flush()
 
     const limitInput = wrapper.find('[data-testid="publish-all-limit"]')
     await limitInput.setValue('3')
 
-    const publishAllButton = wrapper.findAll('button').find((node) => node.text() === 'Publish all')
+    const publishAllButton = wrapper
+      .findAll('button')
+      .find((node) => node.text() === 'Publikovať všetko')
     await publishAllButton.trigger('click')
     await flush()
 
@@ -495,14 +512,19 @@ describe('BotEngineView', () => {
     await flush()
     await flush()
 
-    await wrapper.findAll('button').find((node) => node.text().includes('Detail')).trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((node) => node.text().includes('Detail'))
+      .trigger('click')
     await flush()
 
-    const deleteButton = wrapper.findAll('button').find((node) => node.text() === 'Delete post')
+    const deleteButton = wrapper
+      .findAll('button')
+      .find((node) => node.text() === 'Vymazať príspevok')
     await deleteButton.trigger('click')
     await flush()
 
-    expect(confirmSpy).toHaveBeenCalledWith('Delete published bot post from feed?')
+    expect(confirmSpy).toHaveBeenCalledWith('Vymazať publikovaný bot príspevok z feedu?')
     expect(store.deleteItemPost).toHaveBeenCalledWith(93)
 
     confirmSpy.mockRestore()
@@ -526,10 +548,15 @@ describe('BotEngineView', () => {
     await flush()
     await flush()
 
-    await wrapper.findAll('button').find((node) => node.text().includes('Detail')).trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((node) => node.text().includes('Detail'))
+      .trigger('click')
     await flush()
 
-    const deleteButton = wrapper.findAll('button').find((node) => node.text() === 'Delete post')
+    const deleteButton = wrapper
+      .findAll('button')
+      .find((node) => node.text() === 'Vymazať príspevok')
     await deleteButton.trigger('click')
     await flush()
 
@@ -544,15 +571,23 @@ describe('BotEngineView', () => {
     await flush()
     await flush()
 
-    await wrapper.findAll('button').find((node) => node.text().includes('Detail')).trigger('click')
+    await wrapper
+      .findAll('button')
+      .find((node) => node.text().includes('Detail'))
+      .trigger('click')
     await flush()
 
-    const backfillButton = wrapper.findAll('button').find((node) => node.text() === 'Backfill translation (update posts)')
+    const backfillButton = wrapper
+      .findAll('button')
+      .find((node) => node.text() === 'Doplniť preklad')
     await backfillButton.trigger('click')
     await flush()
 
-    expect(confirmSpy).toHaveBeenCalledWith('Backfill translation for already published posts?')
-    expect(store.backfillTranslation).toHaveBeenCalledWith('nasa_rss_breaking', { limit: 10, run_id: 11 })
+    expect(confirmSpy).toHaveBeenCalledWith('Doplniť preklad aj do už publikovaných príspevkov?')
+    expect(store.backfillTranslation).toHaveBeenCalledWith('nasa_rss_breaking', {
+      limit: 10,
+      run_id: 11,
+    })
 
     confirmSpy.mockRestore()
   })
@@ -572,12 +607,12 @@ describe('BotEngineView', () => {
     await flush()
     await flush()
 
-    const button = wrapper.findAll('button').find((node) => node.text() === 'Test translation')
+    const button = wrapper.findAll('button').find((node) => node.text() === 'Otestovať')
     await button.trigger('click')
     await flush()
 
     const text = wrapper.text()
-    expect(text).toContain('LT+Ollama post-edit')
+    expect(text).toContain('LT + Ollama úprava')
     expect(text).toContain('libretranslate -> ollama_postedit')
     expect(text).toContain('too_short')
   })
@@ -610,6 +645,6 @@ describe('BotEngineView', () => {
 
     expect(store.setTranslationOutageProvider).toHaveBeenCalledWith('ollama')
     expect(store.fetchTranslationHealth).toHaveBeenCalled()
-    expect(wrapper.get('[data-testid="translation-health-state"]').text()).toContain('degraded')
+    expect(wrapper.get('[data-testid="translation-health-state"]').text()).toContain('Obmedzený')
   })
 })

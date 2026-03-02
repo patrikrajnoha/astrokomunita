@@ -1,4 +1,7 @@
 <script setup>
+import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
+
 const props = defineProps({
   label: { type: String, required: true },
   value: { type: [String, Number], default: '-' },
@@ -9,107 +12,61 @@ const props = defineProps({
   tone: { type: String, default: 'default' },
 })
 
-function deltaClass(delta) {
-  if (delta === null || Number.isNaN(delta)) return 'neutral'
-  if (delta > 0) return 'up'
-  if (delta < 0) return 'down'
-  return 'neutral'
-}
-
-function deltaText(delta) {
-  if (delta === null || Number.isNaN(delta)) return 'n/a'
-  const rounded = Math.round(delta)
-  const sign = rounded > 0 ? '+' : ''
-  return `${sign}${rounded}%`
-}
-
-const hasDelta = (delta) => delta !== null && !Number.isNaN(Number(delta))
+const rootComponent = computed(() => (props.viewTo ? RouterLink : 'article'))
+const rootProps = computed(() => (props.viewTo ? { to: props.viewTo } : {}))
 </script>
 
 <template>
-  <article class="kpiCard" :class="`tone-${props.tone}`">
-    <header class="kpiHead">
-      <h3 class="kpiLabel">{{ props.label }}</h3>
-      <RouterLink v-if="props.viewTo" class="kpiViewLink" :to="props.viewTo">{{ props.viewLabel }}</RouterLink>
-    </header>
-
-    <div class="kpiValue">{{ props.value }}</div>
-
-    <div class="kpiMeta">
-      <span v-if="hasDelta(props.delta)" class="kpiDelta" :class="deltaClass(props.delta)">{{ deltaText(props.delta) }}</span>
-      <span class="kpiHint">{{ props.hint || '-' }}</span>
-    </div>
-  </article>
+  <component
+    :is="rootComponent"
+    v-bind="rootProps"
+    class="kpiCard"
+    :class="[`tone-${props.tone}`, { linked: Boolean(props.viewTo) }]"
+  >
+    <span class="kpiLabel">{{ props.label }}</span>
+    <strong class="kpiValue">{{ props.value }}</strong>
+  </component>
 </template>
 
 <style scoped>
 .kpiCard {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  border-radius: 14px;
-  padding: 12px;
   display: grid;
-  gap: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.42);
-}
-
-.kpiHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
+  min-height: 96px;
+  padding: 13px 14px;
+  border: 1px solid var(--dashboard-border, rgb(var(--color-surface-rgb) / 0.1));
+  border-radius: var(--dashboard-radius, 18px);
+  background: var(--dashboard-panel, rgb(var(--color-bg-rgb) / 0.34));
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
 }
 
-.kpiViewLink {
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.kpiCard.linked:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.26);
+  background: var(--dashboard-panel-strong, rgb(var(--color-bg-rgb) / 0.48));
 }
 
 .kpiLabel {
-  margin: 0;
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  color: var(--dashboard-muted, rgb(var(--color-text-secondary-rgb) / 0.88));
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
 }
 
 .kpiValue {
-  font-size: clamp(1.4rem, 2.6vw, 2rem);
-  font-weight: 800;
   color: var(--color-surface);
-  line-height: 1.05;
-}
-
-.kpiMeta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.kpiDelta {
-  font-size: 12px;
+  font-size: clamp(1.55rem, 2.5vw, 2.3rem);
   font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
 }
 
-.kpiDelta.up { color: rgb(34 197 94); }
-.kpiDelta.down { color: rgb(239 68 68); }
-.kpiDelta.neutral { color: rgb(var(--color-text-secondary-rgb) / 0.92); }
-
-.kpiHint {
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.88);
-  white-space: nowrap;
-}
-
-.tone-attention {
-  border-color: rgb(251 191 36 / 0.45);
-  background: rgb(251 191 36 / 0.06);
-}
-
-.tone-danger {
-  border-color: rgb(239 68 68 / 0.4);
-  background: rgb(239 68 68 / 0.06);
+.tone-accent {
+  border-color: rgb(var(--color-primary-rgb) / 0.18);
 }
 </style>
