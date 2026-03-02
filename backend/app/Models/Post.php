@@ -180,7 +180,7 @@ class Post extends Model
             return null;
         }
 
-        return route('media.view', ['media' => $this->id], true);
+        return route('media.view', ['media' => $this->id], false);
     }
 
     public function getAttachmentDownloadUrlAttribute(): ?string
@@ -193,7 +193,7 @@ class Post extends Model
             return null;
         }
 
-        return route('media.download', ['media' => $this->id], true);
+        return route('media.download', ['media' => $this->id], false);
     }
 
     public function getAttachmentWidthAttribute(): ?int
@@ -359,5 +359,4 @@ class Post extends Model
             || str_ends_with($name, '.webp');
     }
 }
-
 
