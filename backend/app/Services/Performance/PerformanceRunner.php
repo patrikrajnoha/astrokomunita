@@ -117,7 +117,6 @@ class PerformanceRunner
                 'role' => 'admin',
                 'is_admin' => true,
                 'is_active' => true,
-                'email_verified_at' => now(),
             ]);
 
             for ($i = 0; $i < $sampleSize; $i++) {

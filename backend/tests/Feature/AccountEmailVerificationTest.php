@@ -211,7 +211,8 @@ class AccountEmailVerificationTest extends TestCase
             'content' => 'Blocked post for unverified user.',
         ])
             ->assertStatus(403)
-            ->assertJsonPath('error_code', 'EMAIL_NOT_VERIFIED');
+            ->assertJsonPath('error_code', 'EMAIL_NOT_VERIFIED')
+            ->assertJsonPath('action', 'GO_TO_SETTINGS_EMAIL');
     }
 
     public function test_user_without_requires_email_verification_flag_is_not_blocked(): void

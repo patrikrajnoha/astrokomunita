@@ -272,7 +272,6 @@ class BotPublisherService
                 'password' => Str::random(40),
                 'is_bot' => true,
                 'is_active' => true,
-                'email_verified_at' => now(),
             ]);
 
             return $user;
@@ -293,9 +292,6 @@ class BotPublisherService
         }
         if (!(bool) $user->is_active) {
             $updates['is_active'] = true;
-        }
-        if ($user->email_verified_at === null) {
-            $updates['email_verified_at'] = now();
         }
         if (trim((string) $user->bio) === '') {
             $updates['bio'] = 'Automated bot account';

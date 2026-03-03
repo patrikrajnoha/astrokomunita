@@ -6,7 +6,6 @@ use App\Models\AppSetting;
 use App\Models\User;
 use App\Services\Auth\EmailVerificationSettingService;
 use App\Services\Security\TurnstileService;
-use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
@@ -243,10 +242,10 @@ class AuthRegistrationTest extends TestCase
 
         $this->assertNull($user->email_verified_at);
         $this->assertTrue((bool) $user->requires_email_verification);
-        Notification::assertSentTo($user, VerifyEmail::class);
+        Notification::assertNothingSent();
     }
 
-    public function test_registration_auto_verifies_user_when_email_verification_is_disabled(): void
+    public function test_registration_disables_verification_requirement_when_setting_is_disabled(): void
     {
         Notification::fake();
         AppSetting::put(EmailVerificationSettingService::REQUIRE_EMAIL_VERIFICATION_FOR_NEW_USERS_KEY, '0');
@@ -262,9 +261,9 @@ class AuthRegistrationTest extends TestCase
 
         $user = User::query()->where('email', 'verify-disabled@example.com')->firstOrFail();
 
-        $this->assertNotNull($user->email_verified_at);
+        $this->assertNull($user->email_verified_at);
         $this->assertFalse((bool) $user->requires_email_verification);
-        Notification::assertNotSentTo($user, VerifyEmail::class);
+        Notification::assertNothingSent();
     }
 
     public function test_registration_returns_human_readable_min_length_error_for_password(): void

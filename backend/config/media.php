@@ -19,7 +19,7 @@ return [
     | Post Attachment Validation
     |--------------------------------------------------------------------------
     */
-    'post_attachment_max_kb' => 10240,
+    'post_attachment_max_kb' => (int) env('POST_ATTACHMENT_MAX_KB', 20480),
     'post_attachment_mimes' => [
         'jpg',
         'jpeg',

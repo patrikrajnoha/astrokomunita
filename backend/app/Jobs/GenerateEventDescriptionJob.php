@@ -5,8 +5,10 @@ namespace App\Jobs;
 use App\Models\DescriptionGenerationRun;
 use App\Models\Event;
 use App\Services\AI\OllamaClientException;
+use App\Services\Admin\AiLastRunStore;
 use App\Services\Events\DescriptionGenerationRunMetricsService;
 use App\Services\Events\EventDescriptionGeneratorService;
+use App\Services\Events\EventInsightsCacheService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -43,8 +45,12 @@ class GenerateEventDescriptionJob implements ShouldQueue
 
     public function handle(
         EventDescriptionGeneratorService $generatorService,
-        DescriptionGenerationRunMetricsService $metricsService
+        DescriptionGenerationRunMetricsService $metricsService,
+        EventInsightsCacheService $insightsCache,
+        AiLastRunStore $lastRunStore
     ): void {
+        $jobStartedAt = microtime(true);
+
         config()->set('ai.ollama_runtime_concurrency', max(1, $this->concurrency));
 
         $run = DescriptionGenerationRun::query()->find($this->runId);
@@ -66,6 +72,15 @@ class GenerateEventDescriptionJob implements ShouldQueue
                 metricsService: $metricsService
             );
 
+            $this->recordLastRunTelemetry(
+                lastRunStore: $lastRunStore,
+                eventId: $this->eventId,
+                eventStatus: 'missing_event',
+                failedDelta: 1,
+                startedAt: $jobStartedAt,
+                retryCount: 0
+            );
+
             return;
         }
 
@@ -80,6 +95,15 @@ class GenerateEventDescriptionJob implements ShouldQueue
                 errorMessage: null,
                 switchRemainingToTemplate: false,
                 metricsService: $metricsService
+            );
+
+            $this->recordLastRunTelemetry(
+                lastRunStore: $lastRunStore,
+                eventId: (int) $event->id,
+                eventStatus: 'skipped_existing',
+                failedDelta: 0,
+                startedAt: $jobStartedAt,
+                retryCount: 0
             );
 
             return;
@@ -126,10 +150,15 @@ class GenerateEventDescriptionJob implements ShouldQueue
                 }
             } else {
                 if (! $this->dryRun) {
-                    $event->update([
-                        'description' => (string) ($generationResult['description'] ?? ''),
-                        'short' => (string) ($generationResult['short'] ?? ''),
-                    ]);
+                    // TODO(newsletter/admin-preview): consume optional "insights"
+                    // from generator result once we introduce storage/rendering path
+                    // for why_interesting/how_to_observe.
+                    $this->storeInsightsForNewsletterPreview($event, $generationResult, $insightsCache);
+                    $this->persistDescription(
+                        $event,
+                        (string) ($generationResult['description'] ?? ''),
+                        (string) ($generationResult['short'] ?? '')
+                    );
                 }
 
                 $generatedDelta = 1;
@@ -155,6 +184,15 @@ class GenerateEventDescriptionJob implements ShouldQueue
             errorMessage: $errorMessage,
             switchRemainingToTemplate: $switchRemainingToTemplate,
             metricsService: $metricsService
+        );
+
+        $this->recordLastRunTelemetry(
+            lastRunStore: $lastRunStore,
+            eventId: (int) $event->id,
+            eventStatus: $eventStatus,
+            failedDelta: $failedDelta,
+            startedAt: $jobStartedAt,
+            retryCount: max(0, $attemptsUsed - 1)
         );
     }
 
@@ -378,6 +416,80 @@ class GenerateEventDescriptionJob implements ShouldQueue
     private function pruneMeta(array $meta): array
     {
         return array_filter($meta, static fn ($value): bool => $value !== null);
+    }
+
+    private function persistDescription(Event $event, string $description, string $short): void
+    {
+        $normalizedDescription = trim($description);
+        $normalizedShort = trim($short);
+
+        $currentDescription = trim((string) ($event->description ?? ''));
+        $currentShort = trim((string) ($event->short ?? ''));
+
+        if ($normalizedDescription === $currentDescription && $normalizedShort === $currentShort) {
+            return;
+        }
+
+        $event->update([
+            'description' => $normalizedDescription,
+            'short' => $normalizedShort,
+        ]);
+    }
+
+    /**
+     * @param array<string,mixed> $generationResult
+     */
+    private function storeInsightsForNewsletterPreview(
+        Event $event,
+        array $generationResult,
+        EventInsightsCacheService $insightsCache
+    ): void {
+        if (! (bool) config('events.ai.humanized_pilot_enabled', false)) {
+            return;
+        }
+
+        $insights = is_array($generationResult['insights'] ?? null)
+            ? (array) $generationResult['insights']
+            : [];
+
+        $whyInteresting = trim((string) ($insights['why_interesting'] ?? ''));
+        $howToObserve = trim((string) ($insights['how_to_observe'] ?? ''));
+        if ($whyInteresting === '' && $howToObserve === '') {
+            return;
+        }
+
+        $insightsCache->put(
+            event: $event,
+            whyInteresting: $whyInteresting,
+            howToObserve: $howToObserve
+        );
+    }
+
+    private function recordLastRunTelemetry(
+        AiLastRunStore $lastRunStore,
+        int $eventId,
+        string $eventStatus,
+        int $failedDelta,
+        float $startedAt,
+        int $retryCount
+    ): void {
+        $status = 'success';
+        if ($failedDelta > 0 || in_array($eventStatus, ['failed', 'missing_event'], true)) {
+            $status = 'error';
+        } elseif (
+            str_contains($eventStatus, 'fallback')
+            || in_array($eventStatus, ['template', 'skipped_existing', 'skipped'], true)
+        ) {
+            $status = 'fallback';
+        }
+
+        $lastRunStore->put(
+            featureName: 'event_description_generate',
+            status: $status,
+            latencyMs: (int) round((microtime(true) - $startedAt) * 1000),
+            entityId: $eventId > 0 ? $eventId : null,
+            retryCount: max(0, $retryCount)
+        );
     }
 
     private function emitMetrics(

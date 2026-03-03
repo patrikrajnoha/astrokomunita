@@ -16,6 +16,12 @@ class AdminRouteContractTest extends TestCase
             ->assertStatus(401);
     }
 
+    public function test_admin_blog_posts_ai_suggest_tags_route_exists_and_is_protected(): void
+    {
+        $this->postJson('/api/admin/blog-posts/1/ai/suggest-tags')
+            ->assertStatus(401);
+    }
+
     public function test_admin_event_candidates_route_exists_and_is_protected(): void
     {
         $this->getJson('/api/admin/event-candidates')
@@ -39,6 +45,30 @@ class AdminRouteContractTest extends TestCase
         $this->postJson('/api/admin/newsletter/preview', [
             'email' => 'preview@example.com',
         ])->assertStatus(401);
+    }
+
+    public function test_admin_newsletter_ai_draft_copy_route_exists_and_is_protected(): void
+    {
+        $this->postJson('/api/admin/newsletter/ai/draft-copy')
+            ->assertStatus(401);
+    }
+
+    public function test_admin_ai_config_route_exists_and_is_protected(): void
+    {
+        $this->getJson('/api/admin/ai/config')
+            ->assertStatus(401);
+    }
+
+    public function test_admin_event_ai_generate_route_exists_and_is_protected(): void
+    {
+        $this->postJson('/api/admin/events/1/ai/generate-description')
+            ->assertStatus(401);
+    }
+
+    public function test_admin_event_ai_postedit_title_route_exists_and_is_protected(): void
+    {
+        $this->postJson('/api/admin/events/1/ai/postedit-title')
+            ->assertStatus(401);
     }
 
     public function test_non_admin_user_cannot_access_admin_dashboard(): void

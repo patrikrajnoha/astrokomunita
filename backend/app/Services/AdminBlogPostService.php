@@ -54,7 +54,9 @@ class AdminBlogPostService
 
         $blogPost = BlogPost::create($data);
 
-        if (array_key_exists('tags', $validated)) {
+        if (array_key_exists('tag_ids', $validated)) {
+            $this->syncTagIds($blogPost, $validated['tag_ids'] ?? []);
+        } elseif (array_key_exists('tags', $validated)) {
             $this->syncTags($blogPost, $validated['tags'] ?? []);
         }
 
@@ -93,7 +95,9 @@ class AdminBlogPostService
             ]);
         }
 
-        if (array_key_exists('tags', $validated)) {
+        if (array_key_exists('tag_ids', $validated)) {
+            $this->syncTagIds($blogPost, $validated['tag_ids'] ?? []);
+        } elseif (array_key_exists('tags', $validated)) {
             $this->syncTags($blogPost, $validated['tags'] ?? []);
         }
 
@@ -142,6 +146,18 @@ class AdminBlogPostService
         }
 
         $blogPost->tags()->sync(array_values(array_unique($ids)));
+    }
+
+    private function syncTagIds(BlogPost $blogPost, array $tagIds): void
+    {
+        $ids = collect($tagIds)
+            ->map(static fn (mixed $value): int => (int) $value)
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $blogPost->tags()->sync($ids);
     }
 
     private function normalizeTagName(mixed $name): string

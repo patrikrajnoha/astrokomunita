@@ -4,6 +4,12 @@
   $events = (array) data_get($payload, 'top_events', []);
   $articles = (array) data_get($payload, 'top_articles', []);
   $tip = (string) data_get($payload, 'astronomical_tip', '');
+  $intro = trim((string) data_get($payload, 'intro_override', ''));
+  if ($intro === '') {
+    $startLabel = $weekStart ?? '-';
+    $endLabel = $weekEnd ?? '-';
+    $intro = "Prehlad na tyzden {$startLabel} az {$endLabel}.";
+  }
   $calendarUrl = (string) data_get($payload, 'cta.calendar_url', '#');
   $eventsUrl = (string) data_get($payload, 'cta.events_url', '#');
   $unsubscribeUrl = (string) ($unsubscribeUrl ?? '#');
@@ -25,7 +31,7 @@
               <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#dbeafe;">Nebesky sprievodca</p>
               <h1 style="margin:0;font-size:28px;line-height:1.2;color:#ffffff;">Top udalosti buduceho tyzdna</h1>
               <p style="margin:10px 0 0;font-size:14px;line-height:1.5;color:#e2e8f0;">
-                Prehlad na tyzden {{ $weekStart ?? '-' }} az {{ $weekEnd ?? '-' }}.
+                {{ $intro }}
               </p>
             </td>
           </tr>

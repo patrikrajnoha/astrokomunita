@@ -10,6 +10,7 @@ use App\Models\EventSource;
 use App\Models\User;
 use App\Services\AI\OllamaRefinementService;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
+use App\Services\Translation\AstronomyPhraseNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -70,7 +71,8 @@ class ImoHappyPathTest extends TestCase
 
         (new TranslateEventCandidateJob((int) $candidate->id))->handle(
             app(BotTranslationServiceInterface::class),
-            app(OllamaRefinementService::class)
+            app(OllamaRefinementService::class),
+            app(AstronomyPhraseNormalizer::class)
         );
 
         $candidate->refresh();

@@ -221,4 +221,99 @@ class TranslationServiceTest extends TestCase
         $this->assertSame('prvá štvrť Mesiaca', $result->translatedText);
     }
 
+    public function test_it_applies_hardcoded_conjunction_phrase_fixes(): void
+    {
+        config()->set('translation.default_provider', 'libretranslate');
+        config()->set('translation.fallback_provider', '');
+        config()->set('translation.cache_enabled', false);
+        config()->set('translation.libretranslate.base_url', 'http://libre.test');
+        config()->set('translation.grammar.enabled', false);
+
+        Http::fake([
+            'http://libre.test/*' => function ($request) {
+                return Http::response([
+                    'translatedText' => (string) data_get($request->data(), 'q'),
+                ], 200);
+            },
+        ]);
+
+        $result = app(TranslationService::class)->translate('Saturn in Conjunction with Sun', 'en', 'sk');
+        $this->assertSame('Saturn v konjunkcii so Slnkom', $result->translatedText);
+
+        $second = app(TranslationService::class)->translate('Venuša v Inferior Conjunction', 'en', 'sk');
+        $this->assertSame('Venuša v dolnej konjunkcii', $second->translatedText);
+    }
+
+    public function test_it_normalizes_known_bad_provider_phrase_variants(): void
+    {
+        config()->set('translation.default_provider', 'libretranslate');
+        config()->set('translation.fallback_provider', '');
+        config()->set('translation.cache_enabled', false);
+        config()->set('translation.libretranslate.base_url', 'http://libre.test');
+        config()->set('translation.grammar.enabled', false);
+
+        Http::fake([
+            'http://libre.test/*' => function ($request) {
+                $text = (string) data_get($request->data(), 'q');
+
+                return Http::response([
+                    'translatedText' => match ($text) {
+                        'Jupiter in Conjunction with Sun' => 'Jupiter v konflikte so slnkom',
+                        'Mercury at Superior Conjunction' => 'Merkur na vrchole',
+                        'Mercury at Inferior Conjunction' => 'Merkur pri odrazeferora',
+                        default => $text,
+                    },
+                ], 200);
+            },
+        ]);
+
+        $first = app(TranslationService::class)->translate('Jupiter in Conjunction with Sun', 'en', 'sk');
+        $this->assertSame('Jupiter v konjunkcii so Slnkom', $first->translatedText);
+
+        $second = app(TranslationService::class)->translate('Mercury at Superior Conjunction', 'en', 'sk');
+        $this->assertSame('Merkur v hornej konjunkcii', $second->translatedText);
+
+        $third = app(TranslationService::class)->translate('Mercury at Inferior Conjunction', 'en', 'sk');
+        $this->assertSame('Merkur v dolnej konjunkcii', $third->translatedText);
+    }
+
+    public function test_it_applies_phrase_fixes_even_when_translation_is_loaded_from_cache(): void
+    {
+        config()->set('translation.default_provider', 'libretranslate');
+        config()->set('translation.fallback_provider', '');
+        config()->set('translation.cache_enabled', true);
+        config()->set('translation.cache_key_version', 'v7');
+        config()->set('translation.grammar.enabled', false);
+        config()->set('translation.grammar.provider', 'none');
+        config()->set('translation.grammar.languagetool.language', '');
+
+        $text = 'Venus at Inferior Conjunction';
+        $from = 'en';
+        $to = 'sk';
+        $cacheKey = hash('sha256', implode('|', [
+            $text,
+            $from,
+            $to,
+            'v7',
+            'grammar-off',
+            'none',
+            '',
+        ]));
+
+        TranslationCacheEntry::query()->create([
+            'cache_key' => $cacheKey,
+            'original_text_hash' => hash('sha256', $text),
+            'language_from' => $from,
+            'language_to' => $to,
+            'provider' => 'libretranslate',
+            'translated_text' => 'Venuša v Inferior Conjunction',
+            'last_used_at' => now(),
+        ]);
+
+        $result = app(TranslationService::class)->translate($text, $from, $to);
+
+        $this->assertSame('Venuša v dolnej konjunkcii', $result->translatedText);
+        $this->assertTrue($result->fromCache);
+    }
+
 }

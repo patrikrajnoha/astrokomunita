@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\BlogPost;
 use App\Services\AdminBlogPostService;
+use App\Services\BlogTagSuggestionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -12,6 +14,7 @@ class AdminBlogPostController extends Controller
 {
     public function __construct(
         private readonly AdminBlogPostService $blogPosts,
+        private readonly BlogTagSuggestionService $blogTagSuggestionService,
     ) {
     }
 
@@ -40,6 +43,8 @@ class AdminBlogPostController extends Controller
             'cover_image' => ['nullable', 'file', 'max:5120', 'mimes:jpg,jpeg,png,webp'],
             'tags' => ['nullable', 'array', 'max:15'],
             'tags.*' => ['string', 'min:2', 'max:40'],
+            'tag_ids' => ['nullable', 'array', 'max:15'],
+            'tag_ids.*' => ['integer', 'distinct', Rule::exists('tags', 'id')],
         ]);
 
         $blogPost = $this->blogPosts->create(
@@ -60,6 +65,8 @@ class AdminBlogPostController extends Controller
             'cover_image' => ['sometimes', 'nullable', 'file', 'max:5120', 'mimes:jpg,jpeg,png,webp'],
             'tags' => ['sometimes', 'nullable', 'array', 'max:15'],
             'tags.*' => ['string', 'min:2', 'max:40'],
+            'tag_ids' => ['sometimes', 'nullable', 'array', 'max:15'],
+            'tag_ids.*' => ['integer', 'distinct', Rule::exists('tags', 'id')],
         ]);
 
         $blogPost = $this->blogPosts->update(
@@ -77,6 +84,18 @@ class AdminBlogPostController extends Controller
 
         return response()->json([
             'message' => 'Deleted',
+        ]);
+    }
+
+    public function suggestTags(BlogPost $blogPost): JsonResponse
+    {
+        $result = $this->blogTagSuggestionService->suggestForPost($blogPost);
+
+        return response()->json([
+            'status' => (string) ($result['status'] ?? 'error'),
+            'tags' => array_values((array) ($result['tags'] ?? [])),
+            'fallback_used' => (bool) ($result['fallback_used'] ?? true),
+            'last_run' => (array) ($result['last_run'] ?? []),
         ]);
     }
 }

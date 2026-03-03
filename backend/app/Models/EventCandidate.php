@@ -7,10 +7,13 @@ use App\Support\EventTime;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 class EventCandidate extends Model
 {
     use HasFactory;
+
+    private static ?bool $hasTimeColumns = null;
 
     public const STATUS_PENDING   = EventCandidateStatus::Pending->value;
     public const STATUS_APPROVED  = EventCandidateStatus::Approved->value;
@@ -74,6 +77,10 @@ class EventCandidate extends Model
     protected static function booted(): void
     {
         static::saving(function (self $candidate): void {
+            if (! self::supportsTimeColumns()) {
+                return;
+            }
+
             $candidate->time_type = EventTime::normalizeType(
                 $candidate->time_type,
                 $candidate->start_at,
@@ -86,6 +93,17 @@ class EventCandidate extends Model
                 $candidate->source_name
             );
         });
+    }
+
+    public static function supportsTimeColumns(): bool
+    {
+        if (self::$hasTimeColumns !== null) {
+            return self::$hasTimeColumns;
+        }
+
+        self::$hasTimeColumns = Schema::hasColumns('event_candidates', ['time_type', 'time_precision']);
+
+        return self::$hasTimeColumns;
     }
 
     public function reviewer(): BelongsTo

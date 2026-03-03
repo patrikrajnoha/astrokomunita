@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Event;
 use App\Models\EventCandidate;
 use App\Models\User;
+use App\Services\Events\EventTitlePostEditService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\Sanctum;
@@ -147,12 +148,53 @@ class AdminEventTranslationBackfillTest extends TestCase
         $event->refresh();
 
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
-        $this->assertSame('SK:Full Moon', $candidate->translated_title);
-        $this->assertSame('SK:Moon at apogee', $candidate->translated_description);
+        $this->assertSame('SK:Spln', $candidate->translated_title);
+        $this->assertSame('SK:Mesiac at apogee', $candidate->translated_description);
         $this->assertNotNull($candidate->translated_at);
 
-        $this->assertSame('SK:Full Moon', $event->title);
-        $this->assertSame('SK:Moon at apogee', $event->description);
+        $this->assertSame('SK:Spln', $event->title);
+        $this->assertSame('SK:Mesiac at apogee', $event->description);
         $this->assertStringContainsString('SK:', (string) $event->short);
+    }
+
+    public function test_run_retranslate_can_apply_optional_title_postedit_when_feature_enabled(): void
+    {
+        $this->configureTranslationProvider();
+        config()->set('events.ai.title_postedit_enabled', true);
+        [$event, $candidate] = $this->createApprovedCandidateWithEvent();
+
+        $this->mock(EventTitlePostEditService::class, function ($mock): void {
+            $mock->shouldReceive('postEditTitle')
+                ->once()
+                ->andReturn([
+                    'status' => 'success',
+                    'title_sk' => 'Vyladeny nazov',
+                    'fallback_used' => false,
+                    'latency_ms' => 20,
+                    'retry_count' => 0,
+                ]);
+        });
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->postJson('/api/admin/events/retranslate', [
+            'dry_run' => false,
+            'force' => false,
+            'limit' => 0,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('status', 'ok');
+
+        $candidate->refresh();
+        $event->refresh();
+
+        $this->assertSame('Vyladeny nazov', $candidate->translated_title);
+        $this->assertSame('Vyladeny nazov', $event->title);
     }
 }

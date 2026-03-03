@@ -114,6 +114,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Legacy Email Verification Links
+    |--------------------------------------------------------------------------
+    |
+    | Code-based verification in Settings is the default flow. Signed-link
+    | verification endpoints are disabled unless this flag is explicitly
+    | enabled for backward compatibility.
+    |
+    */
+    'enable_signed_link_email_verification' => filter_var(
+        env('AUTH_ENABLE_SIGNED_LINK_EMAIL_VERIFICATION', false),
+        FILTER_VALIDATE_BOOLEAN
+    ),
+
+    /*
+    |--------------------------------------------------------------------------
     | Username Rules
     |--------------------------------------------------------------------------
     */

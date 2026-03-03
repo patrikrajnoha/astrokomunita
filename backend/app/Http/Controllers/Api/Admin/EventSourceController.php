@@ -11,6 +11,8 @@ use App\Models\EventSource;
 use App\Services\Crawlers\CrawlContext;
 use App\Services\Crawlers\CrawlerOrchestrator;
 use App\Services\Crawlers\CrawlerRegistry;
+use App\Services\Translation\EventTranslationArtifactDetector;
+use App\Services\Translation\EventTranslationBackfillService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +25,8 @@ class EventSourceController extends Controller
     public function __construct(
         private readonly CrawlerRegistry $crawlerRegistry,
         private readonly CrawlerOrchestrator $orchestrator,
+        private readonly EventTranslationArtifactDetector $artifactDetector,
+        private readonly EventTranslationBackfillService $translationBackfillService,
     ) {
     }
 
@@ -252,6 +256,81 @@ class EventSourceController extends Controller
             'source_keys' => $targetKeys,
             'deleted' => $counts,
             'confirm_token' => 'delete_crawled_events',
+        ]);
+    }
+
+    public function translationArtifactsReport(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'sample' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $sampleLimit = max(1, (int) ($payload['sample'] ?? 20));
+        $suspiciousCount = $this->artifactDetector->suspiciousCount();
+        $samples = $this->artifactDetector->suspiciousSamples($sampleLimit);
+
+        return response()->json([
+            'status' => 'ok',
+            'summary' => [
+                'suspicious_candidates' => $suspiciousCount,
+                'sample_limit' => $sampleLimit,
+                'sample_count' => count($samples),
+                'checked_at' => now()->toISOString(),
+            ],
+            'samples' => $samples,
+        ]);
+    }
+
+    public function translationArtifactsRepair(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'limit' => ['nullable', 'integer', 'min:1', 'max:1000'],
+            'dry_run' => ['sometimes', 'boolean'],
+            'sample' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $limit = max(1, (int) ($payload['limit'] ?? 300));
+        $dryRun = (bool) ($payload['dry_run'] ?? false);
+        $sampleLimit = max(1, (int) ($payload['sample'] ?? 20));
+
+        $candidateIds = $this->artifactDetector->suspiciousCandidateIds($limit);
+        $detectedCount = count($candidateIds);
+
+        if ($detectedCount === 0) {
+            return response()->json([
+                'status' => 'noop',
+                'dry_run' => $dryRun,
+                'detected_count' => 0,
+                'summary' => [
+                    'processed' => 0,
+                    'translated' => 0,
+                    'failed' => 0,
+                    'events_updated' => 0,
+                ],
+                'remaining_suspicious' => $this->artifactDetector->suspiciousCount(),
+                'samples' => [],
+            ]);
+        }
+
+        $repairSummary = $this->translationBackfillService->run(
+            limit: 0,
+            dryRun: $dryRun,
+            force: true,
+            candidateIds: $candidateIds
+        );
+
+        return response()->json([
+            'status' => $dryRun ? 'dry_run' : 'ok',
+            'dry_run' => $dryRun,
+            'detected_count' => $detectedCount,
+            'summary' => [
+                'processed' => (int) $repairSummary['processed'],
+                'translated' => (int) $repairSummary['translated'],
+                'failed' => (int) $repairSummary['failed'],
+                'events_updated' => (int) $repairSummary['events_updated'],
+            ],
+            'remaining_suspicious' => $this->artifactDetector->suspiciousCount(),
+            'samples' => $this->artifactDetector->suspiciousSamples($sampleLimit),
         ]);
     }
 

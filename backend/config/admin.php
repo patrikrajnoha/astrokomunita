@@ -10,6 +10,7 @@ return [
     |
     */
     'stats_cache_ttl_seconds' => (int) env('ADMIN_STATS_CACHE_TTL_SECONDS', 60),
+    'ai_rate_limit_per_minute' => (int) env('ADMIN_AI_RATE_LIMIT_PER_MINUTE', 10),
 
     /*
     |--------------------------------------------------------------------------

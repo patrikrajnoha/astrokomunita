@@ -147,9 +147,9 @@ Route::middleware('web')->prefix('auth')->group(function () {
     Route::get('/me', [AuthController::class, 'me'])
         ->middleware(['auth:sanctum', 'active']);
     Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail'])
-        ->middleware(['auth:sanctum', 'active', 'throttle:6,1']);
+        ->middleware(['throttle:6,1']);
     Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
-        ->middleware(['signed', 'throttle:6,1'])
+        ->middleware(['throttle:6,1'])
         ->name('verification.verify');
 });
 

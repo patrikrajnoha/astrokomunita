@@ -130,8 +130,6 @@ class EventImportService
                 'start_at' => $startAt,
                 'end_at' => $endAt,
                 'max_at' => $maxAt,
-                'time_type' => $timeType,
-                'time_precision' => $timePrecision,
 
                 'short' => $short,
                 'description' => $description,
@@ -143,6 +141,11 @@ class EventImportService
                 'raw_payload' => $payloadString,
                 'status' => EventCandidate::STATUS_PENDING,
             ];
+
+            if (EventCandidate::supportsTimeColumns()) {
+                $attributes['time_type'] = $timeType;
+                $attributes['time_precision'] = $timePrecision;
+            }
 
             $existing = $this->findExistingCandidate(
                 sourceName: $sourceName,

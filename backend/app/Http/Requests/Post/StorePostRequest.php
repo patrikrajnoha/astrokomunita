@@ -9,10 +9,13 @@ use App\Models\User;
 use App\Services\PostService;
 use App\Services\PollService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
+use Throwable;
 
 class StorePostRequest extends FormRequest
 {
@@ -123,6 +126,8 @@ class StorePostRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        $this->logUploadDiagnostics();
+
         $validator->after(function (Validator $validator): void {
             $this->validateAttachmentImageConstraints($validator);
             $this->validateBotAuthoring($validator);
@@ -214,12 +219,25 @@ class StorePostRequest extends FormRequest
 
     private function validateAttachmentImageConstraints(Validator $validator): void
     {
-        $file = $this->file('attachment');
-        if (!$file) {
+        if ($validator->errors()->has('attachment')) {
             return;
         }
 
-        $mime = strtolower(trim((string) ($file->getMimeType() ?: $file->getClientMimeType())));
+        $file = $this->file('attachment');
+        if (!$file instanceof UploadedFile) {
+            return;
+        }
+
+        if (!$this->isSafeUpload($file)) {
+            $validator->errors()->add('attachment', $this->uploadErrorMessage($file));
+            return;
+        }
+
+        $mime = $this->safeUploadMime($file);
+        if ($mime === '') {
+            return;
+        }
+
         if (!str_starts_with($mime, 'image/')) {
             return;
         }
@@ -251,6 +269,55 @@ class StorePostRequest extends FormRequest
         if ($maxPixels > 0 && ($width > $maxPixels || $height > $maxPixels)) {
             $validator->errors()->add('attachment', sprintf('Image dimensions cannot exceed %d px.', $maxPixels));
         }
+    }
+
+    private function isSafeUpload(UploadedFile $file): bool
+    {
+        try {
+            return $file->isValid();
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    private function safeUploadMime(UploadedFile $file): string
+    {
+        try {
+            $mime = $file->getMimeType();
+            if (is_string($mime) && trim($mime) !== '') {
+                return strtolower(trim($mime));
+            }
+        } catch (Throwable) {
+            // Fallback to client MIME only.
+        }
+
+        try {
+            $clientMime = $file->getClientMimeType();
+            if (is_string($clientMime) && trim($clientMime) !== '') {
+                return strtolower(trim($clientMime));
+            }
+        } catch (Throwable) {
+            // Keep empty MIME if even client MIME is unavailable.
+        }
+
+        return '';
+    }
+
+    private function uploadErrorMessage(UploadedFile $file): string
+    {
+        $errorCode = null;
+        try {
+            $errorCode = $file->getError();
+        } catch (Throwable) {
+            $errorCode = null;
+        }
+
+        return match ($errorCode) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'Uploaded file is too large for server limits.',
+            UPLOAD_ERR_PARTIAL => 'Uploaded file was only partially uploaded.',
+            UPLOAD_ERR_NO_FILE => 'No file was uploaded.',
+            default => 'Uploaded file is invalid.',
+        };
     }
 
     private function validateBotAuthoring(Validator $validator): void
@@ -334,5 +401,120 @@ class StorePostRequest extends FormRequest
         }
 
         return null;
+    }
+
+    private function logUploadDiagnostics(): void
+    {
+        if (!app()->environment('local') && !config('app.debug')) {
+            return;
+        }
+
+        $field = 'attachment';
+        $contentType = (string) $this->headers->get('content-type', '');
+        $file = $this->file($field);
+
+        Log::info('post.store.upload_diagnostics', [
+            'content_type' => $contentType,
+            'has_multipart_boundary' => str_contains(strtolower($contentType), 'boundary='),
+            'request_payload' => $this->whitelistedPayloadSnapshot(),
+            'file_field' => $field,
+            'has_file' => $this->hasFile($field),
+            'file' => $this->safeFileMetadata($file),
+            'limits' => [
+                'upload_max_filesize' => (string) ini_get('upload_max_filesize'),
+                'post_max_size' => (string) ini_get('post_max_size'),
+            ],
+        ]);
+    }
+
+    private function whitelistedPayloadSnapshot(): array
+    {
+        $gif = $this->input('gif');
+        $poll = $this->input('poll');
+
+        $snapshot = [
+            'content_length' => mb_strlen((string) $this->input('content', '')),
+            'feed_key' => $this->input('feed_key'),
+            'author_kind' => $this->input('author_kind'),
+            'bot_identity' => $this->input('bot_identity'),
+            'event_id' => $this->input('event_id'),
+            'attachment_input_present' => array_key_exists('attachment', $this->all()),
+        ];
+
+        if (is_array($gif)) {
+            $snapshot['gif'] = [
+                'id' => isset($gif['id']) ? (string) $gif['id'] : null,
+                'width' => isset($gif['width']) ? (int) $gif['width'] : null,
+                'height' => isset($gif['height']) ? (int) $gif['height'] : null,
+            ];
+        }
+
+        if (is_array($poll)) {
+            $options = is_array($poll['options'] ?? null) ? $poll['options'] : [];
+            $snapshot['poll'] = [
+                'duration_preset' => $poll['duration_preset'] ?? null,
+                'duration_seconds' => isset($poll['duration_seconds']) ? (int) $poll['duration_seconds'] : null,
+                'ends_in_seconds' => isset($poll['ends_in_seconds']) ? (int) $poll['ends_in_seconds'] : null,
+                'ends_at' => $poll['ends_at'] ?? null,
+                'options_count' => count($options),
+                'options_with_image' => count(array_filter($options, fn (mixed $option): bool => is_array($option) && array_key_exists('image', $option))),
+            ];
+        }
+
+        return $snapshot;
+    }
+
+    private function safeFileMetadata(mixed $file): ?array
+    {
+        if (!$file instanceof UploadedFile) {
+            return null;
+        }
+
+        $metadata = [
+            'original_name' => '',
+            'client_mime_type' => '',
+            'size' => 0,
+            'is_valid' => false,
+            'error' => null,
+            'real_path_present' => false,
+        ];
+
+        try {
+            $metadata['original_name'] = (string) $file->getClientOriginalName();
+        } catch (Throwable) {
+            // Keep metadata safe for logging; never fail request due to diagnostics.
+        }
+
+        try {
+            $metadata['client_mime_type'] = (string) ($file->getClientMimeType() ?? '');
+        } catch (Throwable) {
+            // Keep metadata safe for logging; never fail request due to diagnostics.
+        }
+
+        try {
+            $metadata['size'] = (int) ($file->getSize() ?? 0);
+        } catch (Throwable) {
+            // Keep metadata safe for logging; never fail request due to diagnostics.
+        }
+
+        try {
+            $metadata['is_valid'] = $file->isValid();
+        } catch (Throwable) {
+            // Keep metadata safe for logging; never fail request due to diagnostics.
+        }
+
+        try {
+            $metadata['error'] = $file->getError();
+        } catch (Throwable) {
+            // Keep metadata safe for logging; never fail request due to diagnostics.
+        }
+
+        try {
+            $metadata['real_path_present'] = (bool) $file->getRealPath();
+        } catch (Throwable) {
+            // Keep metadata safe for logging; never fail request due to diagnostics.
+        }
+
+        return $metadata;
     }
 }

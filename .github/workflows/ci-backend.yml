@@ -220,6 +220,9 @@ jobs:
       - name: Run migrations
         run: php artisan migrate --force
 
+      - name: Translation quality gate (no suspicious artifacts)
+        run: php artisan events:translation-quality-report --fail-on-findings
+
       - name: Verify generated sidebar scopes
         run: |
           php artisan sidebar:generate-scopes
@@ -286,6 +289,9 @@ jobs:
 
       - name: Run migrations
         run: php artisan migrate --force
+
+      - name: Translation quality gate (no suspicious artifacts)
+        run: php artisan events:translation-quality-report --fail-on-findings
 
       - name: Run Bots/Translation sanity suite
         run: php artisan test --filter="BotRunServiceTest|BotRunnerLockTest|AdminBotControllerTest|BotTranslationServiceTest|RunBotSourceCommandTest|TranslationClientFailureMappingTest|TranslationHealthControllerTest"
