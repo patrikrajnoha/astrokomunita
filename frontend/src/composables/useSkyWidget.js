@@ -268,35 +268,7 @@ export function useSkyWidget(options = {}) {
   const planetCandidates = computed(() => (
     Array.isArray(planetsPayload.value?.planets) ? planetsPayload.value.planets : []
   ))
-  const planetsNight = computed(() => isPlanetNight(planetsPayload.value?.sun_altitude_deg))
-
-  const planetsDisplayList = computed(() => {
-    return getVisiblePlanets(planetsPayload.value)
-  })
-
-  const shouldShowPlanetsList = computed(() => planetsDisplayList.value.length > 0)
-  const planetsContextLine = computed(() => (
-    isTwilightLimited.value ? 'Súmrak: viditeľnosť môže byť slabšia.' : ''
-  ))
   const planetsSourceLine = computed(() => 'Zdroj: výpočet polohy planét')
-
-  const planetsMessage = computed(() => {
-    const reason = sanitizeLabel(planetsPayload.value?.reason)
-
-    if (reason === 'sky_service_unavailable') {
-      return 'Planéty sú teraz nedostupné.'
-    }
-
-    if (isDaylight.value) {
-      return 'Planéty: zobrazíme po zotmení.'
-    }
-
-    if (planetsDisplayList.value.length === 0) {
-      return 'Teraz nevidno žiadnu planétu dosť vysoko.'
-    }
-
-    return ''
-  })
 
   const planetsNightV15 = computed(() => isPlanetNight(planetsPayload.value?.sun_altitude_deg))
   const planetsDisplayListV15 = computed(() => getVisiblePlanets(planetsPayload.value))
@@ -431,7 +403,7 @@ export function useSkyWidget(options = {}) {
       if (token !== requestTokens.iss) return
       issPreview.value = response?.data || { available: false }
       issFetchedAt.value = new Date()
-    } catch (error) {
+    } catch {
       if (token !== requestTokens.iss) return
       issError.value = 'Údaje o ISS sú dočasne nedostupné.'
     } finally {
@@ -454,7 +426,7 @@ export function useSkyWidget(options = {}) {
       if (token !== requestTokens.light) return
       lightPollution.value = response?.data || null
       lightPollutionFetchedAt.value = new Date()
-    } catch (error) {
+    } catch {
       if (token !== requestTokens.light) return
       lightPollutionError.value = 'Svetelné znečistenie je dočasne nedostupné.'
     } finally {
@@ -764,3 +736,4 @@ function formatFreshness(value, tick) {
 function toFriendlyError(_error, fallback) {
   return fallback
 }
+

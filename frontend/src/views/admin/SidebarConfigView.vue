@@ -1,13 +1,13 @@
 <template>
   <div class="adminLayout">
     <div class="pageHeader">
-      <h1 class="pageTitle">Sidebar configuration</h1>
-      <p class="pageDescription">Builder layoutu a sprava vlastnych sidebar komponentov.</p>
+      <h1 class="pageTitle">Konfigurácia sidebaru</h1>
+      <p class="pageDescription">Builder layoutu a správa vlastných sidebar komponentov.</p>
     </div>
 
-    <div class="modeTabs" role="tablist" aria-label="Sidebar admin mode">
+    <div class="modeTabs" role="tablist" aria-label="Režim správy sidebaru">
       <button type="button" class="tabBtn" :class="{ active: activeMode === 'layout' }" @click="activeMode = 'layout'">
-        Layout Builder
+        Editor rozloženia
       </button>
       <button
         type="button"
@@ -15,19 +15,19 @@
         :class="{ active: activeMode === 'custom' }"
         @click="activeMode = 'custom'"
       >
-        Custom Components
+        Vlastné komponenty
       </button>
     </div>
 
     <div v-if="stickyErrorBanner" class="alert alertError alertSticky" role="alert">
       <div>{{ stickyErrorBanner }}</div>
       <button class="btn btnSmall" type="button" :disabled="retryLoading" @click="retrySidebarLoad">
-        {{ retryLoading ? 'Retrying...' : 'Retry' }}
+        {{ retryLoading ? 'Opakujem...' : 'Skúsiť znova' }}
       </button>
     </div>
 
     <div v-if="activeMode === 'layout'" class="card">
-      <div class="tabs" role="tablist" aria-label="Sidebar scopes">
+      <div class="tabs" role="tablist" aria-label="Kontexty sidebaru">
         <button
           v-for="tab in scopeTabs"
           :key="tab.value"
@@ -42,12 +42,12 @@
       </div>
 
       <div class="cardHeader">
-        <h2>{{ activeTabLabel }} layout</h2>
+        <h2>{{ activeTabLabel }} rozloženie</h2>
         <div class="headerActions">
-          <button class="btn" type="button" @click="openCreateCustomComponent">New custom</button>
+          <button class="btn" type="button" @click="openCreateCustomComponent">Nový komponent</button>
           <button class="btn btnPrimary" :disabled="loading || !hasBuilderChanges" @click="saveLayoutChanges">
             <span v-if="loading" class="spinner"></span>
-            {{ loading ? 'Saving...' : 'Save layout' }}
+            {{ loading ? 'Ukladám...' : 'Uložiť rozloženie' }}
           </button>
         </div>
       </div>
@@ -55,16 +55,16 @@
       <div v-if="error" class="alert alertError">{{ error }}</div>
 
       <div class="quickStats">
-        <span class="statPill">Items: {{ sections.length }}</span>
-        <span class="statPill">Custom: {{ availableCustomComponents.length }}</span>
+        <span class="statPill">Položky: {{ sections.length }}</span>
+        <span class="statPill">Vlastné: {{ availableCustomComponents.length }}</span>
         <span class="statPill" :class="{ warning: hasBuilderChanges }">
-          {{ hasBuilderChanges ? 'Unsaved changes' : 'All changes saved' }}
+          {{ hasBuilderChanges ? 'Neuložené zmeny' : 'Všetko uložené' }}
         </span>
       </div>
 
       <div class="builderGrid">
         <div>
-          <div class="sectionTitle">Sidebar items</div>
+          <div class="sectionTitle">Položky sidebaru</div>
           <draggable
             v-model="sections"
             tag="div"
@@ -76,20 +76,20 @@
             <template #item="{ element: section }">
               <div class="sectionItem" :class="{ isHidden: !section.is_enabled }">
                 <div class="sectionContent">
-                  <button type="button" class="dragHandle" aria-label="Drag section">::</button>
+                  <button type="button" class="dragHandle" aria-label="Presunúť sekciu">::</button>
 
                   <div class="sectionInfo">
                     <div class="sectionRow">
                       <div class="sectionName">{{ section.title }}</div>
-                      <span class="kindBadge">{{ section.kind === 'builtin' ? 'Built-in' : 'Custom' }}</span>
+                      <span class="kindBadge">{{ section.kind === 'builtin' ? 'Vstavané' : 'Vlastné' }}</span>
                     </div>
                     <div class="sectionKey">
                       {{ section.kind === 'builtin' ? section.section_key : `custom:${section.custom_component_id}` }}
                     </div>
                     <div v-if="section.kind === 'custom_component'" class="sectionActions">
-                      <button type="button" class="linkBtn" @click="editCustomComponentFromLayout(section)">Edit</button>
+                      <button type="button" class="linkBtn" @click="editCustomComponentFromLayout(section)">Upraviť</button>
                       <button type="button" class="linkBtn danger" @click="removeCustomComponentFromLayout(section)">
-                        Remove
+                        Odobrať
                       </button>
                     </div>
                   </div>
@@ -97,7 +97,7 @@
                   <label class="toggle">
                     <input v-model="section.is_enabled" type="checkbox" />
                     <span class="toggleSlider"></span>
-                    <span class="toggleLabel">{{ section.is_enabled ? 'Visible' : 'Hidden' }}</span>
+                    <span class="toggleLabel">{{ section.is_enabled ? 'Viditeľné' : 'Skryté' }}</span>
                   </label>
                 </div>
               </div>
@@ -107,20 +107,20 @@
 
         <div class="availableBox">
           <div class="sectionTitleRow">
-            <div class="sectionTitle">Custom Components</div>
-            <button class="linkBtn" type="button" @click="openCreateCustomComponent">Create</button>
+            <div class="sectionTitle">Vlastné komponenty</div>
+            <button class="linkBtn" type="button" @click="openCreateCustomComponent">Vytvoriť</button>
           </div>
           <input
             v-model="customSearch"
             class="compactInput"
             type="text"
-            placeholder="Find component..."
+            placeholder="Nájsť komponent..."
           />
           <div v-if="availableCustomComponents.length === 0" class="emptyText">
-            Ziadne aktivne custom komponenty.
+            Žiadne aktívne custom komponenty.
           </div>
           <div v-else-if="filteredAvailableCustomComponents.length === 0" class="emptyText">
-            Ziadny komponent nevyhovuje filtru.
+            Žiadny komponent nevyhovuje filtru.
           </div>
           <div v-else class="availableList">
             <div v-for="component in filteredAvailableCustomComponents" :key="component.id" class="availableItem">
@@ -129,9 +129,9 @@
                 <div class="availableMeta">{{ component.type }}</div>
               </div>
               <div class="availableActions">
-                <button class="btn btnSmall" type="button" @click="addCustomComponentToLayout(component)">Add</button>
-                <button class="btn btnSmall" type="button" @click="openEditCustomComponent(component)">Edit</button>
-                <button class="btn btnSmall btnDanger" type="button" @click="removeComponent(component)">Delete</button>
+                <button class="btn btnSmall" type="button" @click="addCustomComponentToLayout(component)">Pridať</button>
+                <button class="btn btnSmall" type="button" @click="openEditCustomComponent(component)">Upraviť</button>
+                <button class="btn btnSmall btnDanger" type="button" @click="removeComponent(component)">Zmazať</button>
               </div>
             </div>
           </div>
@@ -141,8 +141,8 @@
 
     <div v-else class="card customCard">
       <div class="customHeader">
-        <h2>Custom components</h2>
-        <button class="btn" type="button" @click="startCreate">New component</button>
+        <h2>Vlastné komponenty</h2>
+        <button class="btn" type="button" @click="startCreate">Nový komponent</button>
       </div>
 
       <div class="customGrid">
@@ -151,15 +151,15 @@
             v-model="customListSearch"
             class="compactInput"
             type="text"
-            placeholder="Filter by name..."
+            placeholder="Filtrovať podľa názvu..."
           />
           <table class="listTable">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Active</th>
-                <th>Updated</th>
+                <th>Názov</th>
+                <th>Typ</th>
+                <th>Aktívny</th>
+                <th>Aktualizované</th>
                 <th></th>
               </tr>
             </thead>
@@ -167,50 +167,50 @@
               <tr v-for="item in filteredCustomComponents" :key="item.id" :class="{ selected: form.id === item.id }">
                 <td>{{ item.name }}</td>
                 <td>{{ item.type }}</td>
-                <td>{{ item.is_active ? 'Yes' : 'No' }}</td>
+                <td>{{ item.is_active ? 'Áno' : 'Nie' }}</td>
                 <td>{{ formatDate(item.updated_at) }}</td>
                 <td class="actionsCol">
-                  <button class="linkBtn" @click="editComponent(item)">Edit</button>
-                  <button class="linkBtn danger" @click="removeComponent(item)">Delete</button>
+                  <button class="linkBtn" @click="editComponent(item)">Upraviť</button>
+                  <button class="linkBtn danger" @click="removeComponent(item)">Zmazať</button>
                 </td>
               </tr>
               <tr v-if="filteredCustomComponents.length === 0">
-                <td colspan="5" class="emptyCell">No components found.</td>
+                <td colspan="5" class="emptyCell">Nenašli sa žiadne komponenty.</td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <div class="formPanel">
-          <h3>{{ form.id ? 'Edit component' : 'Create component' }}</h3>
+          <h3>{{ form.id ? 'Upraviť komponent' : 'Vytvoriť komponent' }}</h3>
 
           <label class="field">
-            <span>Name</span>
+            <span>Názov</span>
             <input v-model="form.name" type="text" />
           </label>
 
           <label class="field">
-            <span>Type</span>
+            <span>Typ</span>
             <select v-model="form.type">
-              <option value="special_event">Special Event</option>
+              <option value="special_event">Špeciálna udalosť</option>
             </select>
           </label>
 
           <label class="field">
-            <span>Title</span>
+            <span>Nadpis</span>
             <input v-model="form.config_json.title" type="text" />
           </label>
 
           <label class="field">
-            <span>Short text</span>
+            <span>Krátky text</span>
             <textarea v-model="form.config_json.description" rows="3"></textarea>
           </label>
 
           <div class="field">
-            <span>Event ID</span>
+            <span>ID udalosti</span>
             <div class="row">
               <input v-model.number="form.config_json.eventId" type="number" min="1" placeholder="Napr. 42" />
-              <button class="btn btnSmall" type="button" @click="loadEventSummary">Nacitat</button>
+              <button class="btn btnSmall" type="button" @click="loadEventSummary">Načítať</button>
             </div>
             <div v-if="eventSummary" class="hint">
               {{ eventSummary.title }} | {{ formatDate(eventSummary.start_at || eventSummary.max_at) }}
@@ -219,40 +219,40 @@
           </div>
 
           <label class="field">
-            <span>Button label</span>
+            <span>Text tlačidla</span>
             <input v-model="form.config_json.buttonLabel" type="text" />
           </label>
 
           <label class="field">
-            <span>Button target</span>
+            <span>Cieľ tlačidla</span>
             <input v-model="form.config_json.buttonTarget" type="text" placeholder="/events/{id}" />
           </label>
 
           <label class="field">
-            <span>Image URL (optional)</span>
+            <span>URL obrázka (voliteľné)</span>
             <input v-model="form.config_json.imageUrl" type="text" />
           </label>
 
           <label class="field">
-            <span>Icon (optional)</span>
+            <span>Ikona (voliteľné)</span>
             <input v-model="form.config_json.icon" type="text" />
           </label>
 
           <label class="field fieldInline">
             <input v-model="form.is_active" type="checkbox" />
-            <span>Active</span>
+            <span>Aktívny</span>
           </label>
 
           <div class="formActions">
             <button class="btn btnPrimary" :disabled="customSaving" @click="saveComponent">
-              {{ customSaving ? 'Saving...' : form.id ? 'Save changes' : 'Create component' }}
+              {{ customSaving ? 'Ukladám...' : form.id ? 'Uložiť zmeny' : 'Vytvoriť komponent' }}
             </button>
-            <button v-if="form.id" class="btn" type="button" @click="startCreate">Reset</button>
+            <button v-if="form.id" class="btn" type="button" @click="startCreate">Resetovať</button>
           </div>
         </div>
 
         <div class="previewPanel">
-          <h3>Live Preview</h3>
+          <h3>Živý náhľad</h3>
           <SidebarSpecialEventCard
             preview
             :preview-config="previewConfig"
@@ -280,16 +280,16 @@ import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 import SidebarSpecialEventCard from '@/components/widgets/SidebarSpecialEventCard.vue'
 
 const scopeTabs = [
-  { value: SIDEBAR_SCOPE.HOME, label: 'Home' },
-  { value: SIDEBAR_SCOPE.EVENTS, label: 'Events + Calendar' },
-  { value: SIDEBAR_SCOPE.LEARNING, label: 'Learning' },
-  { value: SIDEBAR_SCOPE.SEARCH, label: 'Search' },
-  { value: SIDEBAR_SCOPE.NOTIFICATIONS, label: 'Notifications' },
-  { value: SIDEBAR_SCOPE.POST_DETAIL, label: 'Post detail' },
-  { value: SIDEBAR_SCOPE.PROFILE, label: 'Profile' },
-  { value: SIDEBAR_SCOPE.SETTINGS, label: 'Settings' },
-  { value: SIDEBAR_SCOPE.SKY, label: 'Sky' },
-  { value: SIDEBAR_SCOPE.OBSERVING, label: 'Observing' },
+  { value: SIDEBAR_SCOPE.HOME, label: 'Domov' },
+  { value: SIDEBAR_SCOPE.EVENTS, label: 'Udalosti + kalendár' },
+  { value: SIDEBAR_SCOPE.LEARNING, label: 'Vzdelávanie' },
+  { value: SIDEBAR_SCOPE.SEARCH, label: 'Vyhľadávanie' },
+  { value: SIDEBAR_SCOPE.NOTIFICATIONS, label: 'Notifikácie' },
+  { value: SIDEBAR_SCOPE.POST_DETAIL, label: 'Detail príspevku' },
+  { value: SIDEBAR_SCOPE.PROFILE, label: 'Profil' },
+  { value: SIDEBAR_SCOPE.SETTINGS, label: 'Nastavenia' },
+  { value: SIDEBAR_SCOPE.SKY, label: 'Obloha' },
+  { value: SIDEBAR_SCOPE.OBSERVING, label: 'Pozorovanie' },
 ]
 
 const activeMode = ref('layout')
@@ -317,7 +317,7 @@ const { showToast } = useToast()
 const { confirm } = useConfirm()
 const sidebarConfigStore = useSidebarConfigStore()
 
-const activeTabLabel = computed(() => scopeTabs.find((tab) => tab.value === activeScope.value)?.label || 'Home')
+const activeTabLabel = computed(() => scopeTabs.find((tab) => tab.value === activeScope.value)?.label || 'Domov')
 
 function defaultForm() {
   return {
@@ -437,7 +437,7 @@ const handleSidebarLoadError = (err, fallbackMessage) => {
   const message = err?.response?.data?.message || fallbackMessage
 
   if (isMissingCustomComponentsTableError(err)) {
-    stickyErrorBanner.value = 'Chyba DB tabulka sidebar_custom_components. Spusti: php artisan migrate.'
+    stickyErrorBanner.value = 'Chyba DB tabuľky sidebar_custom_components. Spusti: php artisan migrate.'
     error.value = message
     console.error('[Sidebar admin] Missing migration for custom components.', err)
     return message
@@ -459,7 +459,7 @@ const loadScope = async (scope) => {
       : []
     stickyErrorBanner.value = ''
   } catch (err) {
-    const message = handleSidebarLoadError(err, 'Failed to load sidebar configuration.')
+    const message = handleSidebarLoadError(err, 'Nepodarilo sa načítať konfiguráciu sidebaru.')
     error.value = message
     setScopeData(sidebarConfigStore.getDefaultForScope())
   } finally {
@@ -474,7 +474,7 @@ const loadCustomComponents = async () => {
     stickyErrorBanner.value = ''
   } catch (err) {
     customComponents.value = []
-    handleSidebarLoadError(err, 'Failed to load custom components.')
+    handleSidebarLoadError(err, 'Nepodarilo sa načítať vlastné komponenty.')
   }
 }
 
@@ -493,10 +493,10 @@ const onScopeClick = async (nextScope) => {
 
   if (hasBuilderChanges.value) {
     const confirmed = await confirm({
-      title: 'Unsaved changes',
-      message: 'You have unsaved layout changes. Continue and discard them?',
-      confirmText: 'Discard changes',
-      cancelText: 'Stay here',
+      title: 'Neuložené zmeny',
+      message: 'Máš neuložené zmeny rozloženia. Pokračovať a zahodiť ich?',
+      confirmText: 'Zahodiť zmeny',
+      cancelText: 'Zostať tu',
       variant: 'danger',
     })
     if (!confirmed) return
@@ -540,7 +540,7 @@ const openEditCustomComponent = async (component) => {
     activeMode.value = 'custom'
     editComponent(payload?.data || component)
   } catch (err) {
-    notifyErrorOnce(err?.response?.data?.message || 'Failed to load component.')
+    notifyErrorOnce(err?.response?.data?.message || 'Nepodarilo sa načítať komponent.')
   }
 }
 
@@ -561,10 +561,10 @@ const removeCustomComponentFromLayout = async (section) => {
   const componentId = Number(section?.custom_component_id)
   const componentName = section?.title || `Custom #${componentId}`
   const confirmed = await confirm({
-    title: 'Remove from layout',
-    message: `Remove "${componentName}" from this sidebar layout? Component will stay in Custom Components.`,
-    confirmText: 'Remove',
-    cancelText: 'Cancel',
+    title: 'Odobrať z rozloženia',
+    message: `Odobrať "${componentName}" z tohto rozloženia sidebaru? Komponent zostane vo Vlastných komponentoch.`,
+    confirmText: 'Odobrať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!confirmed) return
@@ -572,7 +572,7 @@ const removeCustomComponentFromLayout = async (section) => {
   const currentKey = String(section?.client_key || '')
   sections.value = sections.value.filter((item) => String(item?.client_key || '') !== currentKey)
   applyOrderFromPosition()
-  showToast('Component removed from layout. Save layout to apply changes.', 'success')
+  showToast('Komponent bol odobratý z rozloženia. Ulož rozloženie pre potvrdenie zmien.', 'success')
 }
 
 const saveLayoutChanges = async () => {
@@ -595,9 +595,9 @@ const saveLayoutChanges = async () => {
 
     setScopeData(savedItems)
     sidebarConfigStore.byScope[activeScope.value] = savedItems
-    showToast('Sidebar layout saved.', 'success')
+    showToast('Rozloženie sidebaru bolo uložené.', 'success')
   } catch (err) {
-    const message = err?.response?.data?.message || 'Failed to save sidebar configuration.'
+    const message = err?.response?.data?.message || 'Nepodarilo sa uložiť konfiguráciu sidebaru.'
     error.value = message
     notifyErrorOnce(message)
   } finally {
@@ -647,7 +647,7 @@ const loadEventSummary = async () => {
     const response = await api.get(`/events/${eventId}`)
     eventSummary.value = response?.data?.data || response?.data || null
   } catch {
-    eventSummaryError.value = 'Udalost nie je dostupna.'
+    eventSummaryError.value = 'Udalosť nie je dostupná.'
   }
 }
 
@@ -675,14 +675,14 @@ const saveComponent = async () => {
       : await sidebarCustomComponentsAdminApi.create(payload)
 
     const data = response?.data
-    showToast(form.value.id ? 'Component updated.' : 'Component created.', 'success')
+    showToast(form.value.id ? 'Komponent bol upravený.' : 'Komponent bol vytvorený.', 'success')
     await loadCustomComponents()
     await loadScope(activeScope.value)
     if (data) {
       editComponent(data)
     }
   } catch (err) {
-    const message = err?.response?.data?.message || 'Failed to save component.'
+    const message = err?.response?.data?.message || 'Nepodarilo sa uložiť komponent.'
     notifyErrorOnce(message)
   } finally {
     customSaving.value = false
@@ -691,24 +691,24 @@ const saveComponent = async () => {
 
 const removeComponent = async (item) => {
   const confirmed = await confirm({
-    title: 'Delete component',
-    message: `Delete "${item.name}"? This keeps layouts stable but removes future edits.`,
-    confirmText: 'Delete',
-    cancelText: 'Cancel',
+    title: 'Zmazať komponent',
+    message: `Zmazať "${item.name}"? Rozloženia ostanú stabilné, ale komponent už nebude možné upravovať.`,
+    confirmText: 'Zmazať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!confirmed) return
 
   try {
     await sidebarCustomComponentsAdminApi.remove(item.id)
-    showToast('Component deleted.', 'success')
+    showToast('Komponent bol zmazaný.', 'success')
     await loadCustomComponents()
     await loadScope(activeScope.value)
     if (form.value.id === item.id) {
       startCreate()
     }
   } catch (err) {
-    notifyErrorOnce(err?.response?.data?.message || 'Failed to delete component.')
+    notifyErrorOnce(err?.response?.data?.message || 'Nepodarilo sa zmazať komponent.')
   }
 }
 
@@ -762,10 +762,10 @@ onBeforeRouteLeave(async () => {
   if (!hasBuilderChanges.value && !hasFormChanges.value) return true
 
   return confirm({
-    title: 'Unsaved changes',
-    message: 'You have unsaved changes. Leave this page?',
-    confirmText: 'Leave page',
-    cancelText: 'Stay here',
+    title: 'Neuložené zmeny',
+    message: 'Máš neuložené zmeny. Naozaj chceš opustiť túto stránku?',
+    confirmText: 'Opustiť stránku',
+    cancelText: 'Zostať tu',
     variant: 'danger',
   })
 })

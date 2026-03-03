@@ -392,10 +392,11 @@
           @click="navigate"
           :title="item.title || item.label"
           :aria-label="item.label"
+          :data-active="isPrimaryLinkActive(item, isActive, isExactActive) ? 'true' : 'false'"
           :class="[
-            'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.875rem] font-bold tracking-[0.01em] !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
+            'navItem group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.875rem] font-bold tracking-[0.01em] !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
             isPrimaryLinkActive(item, isActive, isExactActive)
-              ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+              ? `active bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
               : 'text-[var(--color-surface)]',
           ]"
         >
@@ -403,21 +404,10 @@
             class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.7rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
             aria-hidden="true"
           >
-            <svg
-              v-if="Array.isArray(item.iconPaths) && item.iconPaths.length > 0"
-              class="navIcon"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.9"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path v-for="(path, index) in item.iconPaths" :key="`${item.to}-icon-${index}`" :d="path" />
-            </svg>
+            <component
+              v-if="item.iconOutline && item.iconFilled"
+              :is="isPrimaryLinkActive(item, isActive, isExactActive) ? item.iconFilled : item.iconOutline"
+            />
             <span v-else>{{ item.icon }}</span>
           </span>
           <span class="navLabel flex-1">{{ item.label }}</span>
@@ -431,6 +421,22 @@
         </a>
       </RouterLink>
     </div>
+
+    <button
+      v-if="auth.isAuthed"
+      type="button"
+      class="group relative flex items-center gap-3 rounded-xl border border-[color:rgb(var(--color-primary-rgb)/0.55)] bg-[color:rgb(var(--color-primary-rgb)/0.2)] px-3 py-2.5 text-[0.875rem] font-bold tracking-[0.01em] text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-primary-rgb)/0.28)] hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+      aria-label="Nový príspevok"
+      @click="openComposer"
+    >
+      <span
+        class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[color:rgb(var(--color-primary-rgb)/0.58)] bg-[color:rgb(var(--color-primary-rgb)/0.25)] text-[1rem] font-semibold text-[var(--color-surface)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+        aria-hidden="true"
+      >
+        +
+      </span>
+      <span class="navLabel flex-1 text-left">Nový príspevok</span>
+    </button>
 
     <!-- User Section -->
     <div class="border-t border-[color:rgb(var(--color-text-secondary-rgb)/0.12)] pt-4 space-y-2">
@@ -490,7 +496,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, defineComponent, h, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
@@ -543,36 +549,98 @@ const userAvatarUrl = computed(() => {
   return `${base}/${raw}`
 })
 
-const primaryLinks = computed(() => {
-  const navIcons = {
-    home: [
+const createNavIconComponent = (paths, filled = false) =>
+  defineComponent({
+    name: filled ? 'NavFilledIcon' : 'NavOutlineIcon',
+    render() {
+      return h(
+        'svg',
+        {
+          class: ['navIcon', filled ? 'navIcon--filled' : 'navIcon--outline'],
+          width: '20',
+          height: '20',
+          viewBox: '0 0 24 24',
+          fill: filled ? 'currentColor' : 'none',
+          stroke: filled ? 'none' : 'currentColor',
+          'stroke-width': filled ? undefined : '1.9',
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          'aria-hidden': 'true',
+        },
+        paths.map((path, index) => h('path', { key: `path-${index}`, d: path })),
+      )
+    },
+  })
+
+const navIcons = {
+  home: {
+    outline: createNavIconComponent([
       'M3.75 10.5 12 4l8.25 6.5',
       'M5.75 9.75V19a1 1 0 0 0 1 1h3.75v-5.25a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1V20h3.75a1 1 0 0 0 1-1V9.75',
-    ],
-    search: ['M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z', 'm20 20-3.5-3.5'],
-    notifications: [
+    ]),
+    filled: createNavIconComponent(
+      ['M12 3.6 3.75 10v10A1.25 1.25 0 0 0 5 21.25h4.75v-5.3a1 1 0 0 1 1-1h2.5a1 1 0 0 1 1 1v5.3H19A1.25 1.25 0 0 0 20.25 20V10L12 3.6Z'],
+      true,
+    ),
+  },
+  search: {
+    outline: createNavIconComponent(['M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z', 'm20 20-3.5-3.5']),
+    filled: createNavIconComponent(
+      ['M10.75 3.5a7.25 7.25 0 1 0 4.61 12.85l4.12 4.12a1 1 0 1 0 1.42-1.42l-4.12-4.12A7.25 7.25 0 0 0 10.75 3.5Z'],
+      true,
+    ),
+  },
+  notifications: {
+    outline: createNavIconComponent([
       'M6.5 8a5.5 5.5 0 1 1 11 0c0 2.6.7 4.4 1.8 5.8.5.6.1 1.2-.7 1.2H5.4c-.8 0-1.2-.7-.7-1.2C5.8 12.4 6.5 10.6 6.5 8Z',
       'M9.5 18a2.5 2.5 0 0 0 5 0',
-    ],
-    events: [
+    ]),
+    filled: createNavIconComponent(
+      [
+        'M12 3a5.75 5.75 0 0 0-5.75 5.75c0 2.42-.65 4.02-1.61 5.28-.53.69-.02 1.72.88 1.72h13c.9 0 1.4-1.03.88-1.72-.96-1.26-1.61-2.86-1.61-5.28A5.75 5.75 0 0 0 12 3Z',
+        'M9.55 17.1a2.45 2.45 0 0 0 4.9 0h-4.9Z',
+      ],
+      true,
+    ),
+  },
+  events: {
+    outline: createNavIconComponent([
       'M7 3.75v2.5',
       'M17 3.75v2.5',
       'M4.75 9.25h14.5',
       'M6 5.75h12A1.25 1.25 0 0 1 19.25 7v11A1.25 1.25 0 0 1 18 19.25H6A1.25 1.25 0 0 1 4.75 18V7A1.25 1.25 0 0 1 6 5.75Z',
       'M8.25 13h3.5',
       'M8.25 16h6.5',
-    ],
-    learn: [
+    ]),
+    filled: createNavIconComponent(
+      [
+        'M7.75 3.5a1 1 0 0 1 1 1v1.25h6.5V4.5a1 1 0 1 1 2 0v1.3A2.25 2.25 0 0 1 19.5 8v10.25A2.25 2.25 0 0 1 17.25 20.5H6.75A2.25 2.25 0 0 1 4.5 18.25V8A2.25 2.25 0 0 1 6.75 5.8V4.5a1 1 0 0 1 1-1Z',
+        'M4.5 10.25h15v-.5a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 9.75v.5Z',
+      ],
+      true,
+    ),
+  },
+  learn: {
+    outline: createNavIconComponent([
       'M6 5.75h12A1.25 1.25 0 0 1 19.25 7v10A1.25 1.25 0 0 1 18 18.25H6A1.25 1.25 0 0 1 4.75 17V7A1.25 1.25 0 0 1 6 5.75Z',
       'M8 9h8',
       'M8 12h8',
       'M8 15h5',
-    ],
-    admin: [
+    ]),
+    filled: createNavIconComponent(
+      ['M6.75 4.75A2.25 2.25 0 0 0 4.5 7v10A2.25 2.25 0 0 0 6.75 19.25h10.5A2.25 2.25 0 0 0 19.5 17V7a2.25 2.25 0 0 0-2.25-2.25H6.75Z'],
+      true,
+    ),
+  },
+  admin: {
+    outline: createNavIconComponent([
       'M12 3.5 18 6v5.1c0 4.2-2.55 7.98-6 9.4-3.45-1.42-6-5.2-6-9.4V6l6-2.5Z',
       'M9.5 11.75l1.6 1.6 3.4-3.6',
-    ],
-    settings: [
+    ]),
+    filled: createNavIconComponent(['M12 2.75 5 5.6v5.5c0 4.6 2.8 8.75 7 10.15 4.2-1.4 7-5.55 7-10.15V5.6l-7-2.85Z'], true),
+  },
+  settings: {
+    outline: createNavIconComponent([
       'M12 8.75a3.25 3.25 0 1 1 0 6.5 3.25 3.25 0 0 1 0-6.5Z',
       'M12 2.75v2',
       'M18.54 5.46l-1.42 1.42',
@@ -582,25 +650,67 @@ const primaryLinks = computed(() => {
       'M5.46 18.54l1.42-1.42',
       'M2.75 12h2',
       'M5.46 5.46l1.42 1.42',
-    ],
-    creatorStudio: [
+    ]),
+    filled: createNavIconComponent(
+      [
+        'M11.1 2.75a1 1 0 0 1 1.8 0l.52 1.24a1 1 0 0 0 .98.62l1.33-.09a1 1 0 0 1 1.27 1.27l-.09 1.33a1 1 0 0 0 .62.98l1.24.52a1 1 0 0 1 0 1.8l-1.24.52a1 1 0 0 0-.62.98l.09 1.33a1 1 0 0 1-1.27 1.27l-1.33-.09a1 1 0 0 0-.98.62l-.52 1.24a1 1 0 0 1-1.8 0l-.52-1.24a1 1 0 0 0-.98-.62l-1.33.09a1 1 0 0 1-1.27-1.27l.09-1.33a1 1 0 0 0-.62-.98l-1.24-.52a1 1 0 0 1 0-1.8l1.24-.52a1 1 0 0 0 .62-.98l-.09-1.33a1 1 0 0 1 1.27-1.27l1.33.09a1 1 0 0 0 .98-.62l.52-1.24Z',
+        'M12 8.75a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5Z',
+      ],
+      true,
+    ),
+  },
+  creatorStudio: {
+    outline: createNavIconComponent([
       'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z',
       'M18.5 3.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z',
-    ],
-  }
+    ]),
+    filled: createNavIconComponent(
+      [
+        'M12 2.75 14.1 8.3l5.55 2.1-5.55 2.1L12 18.05l-2.1-5.55-5.55-2.1 5.55-2.1L12 2.75Z',
+        'M18.5 2.9l.78 2 .02.03 2 .78-2 .78-.8 2.02-.78-2.02-2-.78 2-.78z',
+      ],
+      true,
+    ),
+  },
+}
 
+const primaryLinks = computed(() => {
   const links = [
-    { key: 'home', to: '/', label: 'Domov', icon: 'D', iconPaths: navIcons.home },
-    { key: 'search', to: '/search', label: 'Prehľadávať', icon: 'P', iconPaths: navIcons.search },
+    {
+      key: 'home',
+      to: '/',
+      label: 'Domov',
+      icon: 'D',
+      iconOutline: navIcons.home.outline,
+      iconFilled: navIcons.home.filled,
+    },
+    {
+      key: 'search',
+      to: '/search',
+      label: 'Prehľadávať',
+      icon: 'P',
+      iconOutline: navIcons.search.outline,
+      iconFilled: navIcons.search.filled,
+      matchPrefix: '/search',
+    },
     {
       key: 'events',
       to: '/events',
       label: 'Udalosti',
       icon: 'U',
-      iconPaths: navIcons.events,
+      iconOutline: navIcons.events.outline,
+      iconFilled: navIcons.events.filled,
       matchPrefix: '/events',
     },
-    { key: 'learn', to: '/clanky', label: 'Články', icon: 'V', iconPaths: navIcons.learn },
+    {
+      key: 'learn',
+      to: '/clanky',
+      label: 'Články',
+      icon: 'V',
+      iconOutline: navIcons.learn.outline,
+      iconFilled: navIcons.learn.filled,
+      matchPrefix: '/clanky',
+    },
   ]
   if (auth.isAuthed) {
     links.splice(2, 0, {
@@ -608,7 +718,9 @@ const primaryLinks = computed(() => {
       to: '/notifications',
       label: 'Notifikácie',
       icon: 'U',
-      iconPaths: navIcons.notifications,
+      iconOutline: navIcons.notifications.outline,
+      iconFilled: navIcons.notifications.filled,
+      matchPrefix: '/notifications',
       badge: notifications.unreadBadge,
     })
   }
@@ -619,19 +731,31 @@ const primaryLinks = computed(() => {
       to: '/admin/dashboard',
       label: 'Admin Hub',
       icon: 'A',
-      iconPaths: navIcons.admin,
+      iconOutline: navIcons.admin.outline,
+      iconFilled: navIcons.admin.filled,
       matchPrefix: '/admin',
     })
   }
 
-  links.push({ key: 'settings', to: '/settings', label: 'Settings', icon: 'S', iconPaths: navIcons.settings })
+  links.push({
+    key: 'settings',
+    to: '/settings',
+    label: 'Settings',
+    icon: 'S',
+    iconOutline: navIcons.settings.outline,
+    iconFilled: navIcons.settings.filled,
+    matchPrefix: '/settings',
+  })
+
   if (isWipEnabled) {
     links.push({
       key: 'creator-studio',
       to: '/creator-studio',
       label: 'Creator Studio',
       icon: 'C',
-      iconPaths: navIcons.creatorStudio,
+      iconOutline: navIcons.creatorStudio.outline,
+      iconFilled: navIcons.creatorStudio.filled,
+      matchPrefix: '/creator-studio',
     })
   }
 
@@ -713,6 +837,14 @@ const onGreetingDone = () => {
   greetingHideTimer = window.setTimeout(() => {
     showGreeting.value = false
   }, 2500)
+}
+
+const openComposer = () => {
+  closeMore()
+  closeAdmin()
+
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('post:composer:open'))
 }
 
 const userGreetingName = (user) => {
@@ -801,6 +933,18 @@ const logout = async () => {
   filter: drop-shadow(0 1px 1px rgb(var(--color-bg-rgb) / 0.22));
 }
 
+.navIcon--filled {
+  opacity: 0.98;
+}
+
+.navIcon--outline {
+  opacity: 0.92;
+}
+
+.navItem.active {
+  font-weight: 600;
+}
+
 .navLabel {
   letter-spacing: 0.01em;
 }
@@ -882,3 +1026,4 @@ const logout = async () => {
   }
 }
 </style>
+

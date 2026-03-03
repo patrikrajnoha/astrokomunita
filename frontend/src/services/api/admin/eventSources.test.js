@@ -1,6 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import api from '@/services/api'
-import { getCrawlRuns, getEventSources, purgeEventSources, runEventSourceCrawl, updateEventSource } from './eventSources'
+import {
+  getCrawlRuns,
+  getEventSources,
+  getTranslationArtifactsReport,
+  purgeEventSources,
+  repairTranslationArtifacts,
+  runEventSourceCrawl,
+  updateEventSource,
+} from './eventSources'
 
 vi.mock('@/services/api', () => ({
   default: {
@@ -57,6 +65,26 @@ describe('admin event sources api client', () => {
       source_keys: ['astropixels', 'imo'],
       dry_run: false,
       confirm: 'delete_crawled_events',
+    })
+  })
+
+  it('loads translation artifacts quality report', async () => {
+    api.get.mockResolvedValue({ data: { status: 'ok', summary: {}, samples: [] } })
+
+    await getTranslationArtifactsReport({ sample: 20 })
+
+    expect(api.get).toHaveBeenCalledWith('/admin/event-sources/translation-artifacts/report', { params: { sample: 20 } })
+  })
+
+  it('repairs translation artifacts via admin endpoint', async () => {
+    api.post.mockResolvedValue({ data: { status: 'ok' } })
+
+    await repairTranslationArtifacts({ limit: 300, dry_run: false, sample: 20 })
+
+    expect(api.post).toHaveBeenCalledWith('/admin/event-sources/translation-artifacts/repair', {
+      limit: 300,
+      dry_run: false,
+      sample: 20,
     })
   })
 })

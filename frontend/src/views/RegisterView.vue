@@ -99,6 +99,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import http from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 
 const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script'
 const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
@@ -107,6 +108,7 @@ let turnstileScriptPromise = null
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const toast = useToast()
 
 const turnstileSiteKey = String(import.meta.env.VITE_TURNSTILE_SITE_KEY || '').trim()
 const name = ref('')
@@ -334,7 +336,29 @@ const submit = async () => {
       turnstile_token: turnstileToken.value,
     })
     if (!auth.isAdmin && auth.user?.requires_email_verification && !auth.user?.email_verified_at) {
-      await router.push({ name: 'verify-email.required', query: { redirect: redirect.value } })
+      try {
+        if (typeof auth.csrf === 'function') {
+          await auth.csrf()
+        }
+
+        await http.post(
+          '/account/email/verification/send',
+          {},
+          { meta: { skipErrorToast: true } },
+        )
+        toast.success('Poslali sme ti overovaci kod.')
+      } catch (sendError) {
+        const sendStatus = Number(sendError?.response?.status || 0)
+        const sendMessage = sendError?.response?.data?.message
+
+        if (sendStatus === 429) {
+          toast.warn(sendMessage || 'Overovaci kod bol odoslany nedavno. Dokonc overenie v Settings.')
+        } else {
+          toast.warn('Nepodarilo sa poslat overovaci kod automaticky. Pokracuj v Settings -> Email.')
+        }
+      }
+
+      await router.push({ name: 'settings', query: { section: 'email', redirect: redirect.value } })
       return
     }
     await router.push(redirect.value)

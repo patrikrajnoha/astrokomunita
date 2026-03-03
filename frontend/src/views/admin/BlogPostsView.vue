@@ -27,6 +27,10 @@ const tagsInput = ref("");
 const showPreview = ref(false);
 const query = ref("");
 const activeTab = ref("content");
+const aiTagSuggestionsLoading = ref(false);
+const aiTagSuggestionsError = ref("");
+const aiTagSuggestions = ref([]);
+const aiTagFallbackUsed = ref(false);
 const { confirm } = useConfirm()
 const toast = useToast()
 
@@ -38,6 +42,9 @@ const selectedStatus = computed(() => {
   if (!isEditing.value) return "draft";
   return selectedPost.value ? computeStatus(selectedPost.value) : "draft";
 });
+const hasSelectedAiTagSuggestions = computed(() =>
+  aiTagSuggestions.value.some((item) => item.checked)
+);
 
 function formatDate(value) {
   if (!value) return "-";
@@ -85,6 +92,13 @@ function statusLabel(value) {
   }
 }
 
+function resetAiTagSuggestions() {
+  aiTagSuggestionsLoading.value = false;
+  aiTagSuggestionsError.value = "";
+  aiTagSuggestions.value = [];
+  aiTagFallbackUsed.value = false;
+}
+
 function resetForm() {
   selectedId.value = null;
   form.value = {
@@ -98,6 +112,7 @@ function resetForm() {
   formError.value = null;
   showPreview.value = false;
   activeTab.value = "content";
+  resetAiTagSuggestions();
 }
 
 function selectPost(post) {
@@ -113,6 +128,7 @@ function selectPost(post) {
   formError.value = null;
   showPreview.value = false;
   activeTab.value = "content";
+  resetAiTagSuggestions();
 }
 
 function setPublishNow() {
@@ -237,6 +253,13 @@ function readTimeFor(text) {
   return `${minutes} min read`;
 }
 
+function parseTagsInput() {
+  return tagsInput.value
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
 const previewBlocks = computed(() => parseContentBlocks(form.value.content));
 const previewToc = computed(() =>
   previewBlocks.value.filter((b) => b.type === "h2" || b.type === "h3")
@@ -292,10 +315,7 @@ async function save() {
   saving.value = true;
 
   try {
-    const tags = tagsInput.value
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
+    const tags = parseTagsInput();
 
     const payload = {
       title: form.value.title?.trim(),
@@ -331,6 +351,98 @@ async function save() {
     } else {
       formError.value = msg;
     }
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function suggestAiTags() {
+  if (!isEditing.value || !selectedId.value || aiTagSuggestionsLoading.value) return;
+
+  aiTagSuggestionsLoading.value = true;
+  aiTagSuggestionsError.value = "";
+  aiTagSuggestions.value = [];
+  aiTagFallbackUsed.value = false;
+
+  try {
+    const response = await blogPosts.adminSuggestTags(selectedId.value);
+    const items = Array.isArray(response?.tags) ? response.tags : [];
+
+    aiTagSuggestions.value = items
+      .slice(0, 5)
+      .map((item) => ({
+        id: Number(item?.id || 0),
+        name: String(item?.name || "").trim(),
+        reason: String(item?.reason || "").trim(),
+        checked: true,
+      }))
+      .filter((item) => item.id > 0 && item.name && item.reason);
+    aiTagFallbackUsed.value = Boolean(response?.fallback_used);
+  } catch (e) {
+    aiTagSuggestionsError.value =
+      e?.response?.data?.message || "Nepodarilo sa navrhnut tagy.";
+  } finally {
+    aiTagSuggestionsLoading.value = false;
+  }
+}
+
+async function applySelectedAiTags() {
+  const selected = aiTagSuggestions.value
+    .filter((item) => item.checked)
+    .map((item) => ({
+      id: Number(item?.id || 0),
+      name: String(item?.name || "").trim(),
+    }))
+    .filter((item) => item.id > 0 && item.name);
+
+  if (selected.length === 0) return;
+
+  const existingTagIds = Array.isArray(selectedPost.value?.tags)
+    ? selectedPost.value.tags
+      .map((tag) => Number(tag?.id || 0))
+      .filter((id) => id > 0)
+    : [];
+  const mergedTagIds = Array.from(
+    new Set([...existingTagIds, ...selected.map((item) => item.id)]),
+  );
+
+  const existingTags = parseTagsInput();
+  const normalizedExistingNames = new Set(
+    existingTags.map((tag) => String(tag || "").trim().toLowerCase()).filter(Boolean),
+  );
+  const mergedNames = [...existingTags];
+
+  selected.forEach((item) => {
+    const key = item.name.toLowerCase();
+    if (!key || normalizedExistingNames.has(key)) return;
+    normalizedExistingNames.add(key);
+    mergedNames.push(item.name);
+  });
+
+  tagsInput.value = mergedNames.join(", ");
+
+  if (!isEditing.value || !selectedId.value) {
+    return;
+  }
+
+  saving.value = true;
+  formError.value = null;
+
+  try {
+    const saved = await blogPosts.adminUpdate(selectedId.value, {
+      tag_ids: mergedTagIds,
+    });
+    await load();
+    if (saved?.id) {
+      const found = data.value?.data?.find((p) => p.id === saved.id);
+      if (found) {
+        selectPost(found);
+      }
+    }
+    toast.success("Tagy boli pridane.");
+  } catch (e) {
+    formError.value = e?.response?.data?.message || "Nepodarilo sa pridat tagy.";
+    toast.error(formError.value);
   } finally {
     saving.value = false;
   }
@@ -710,6 +822,50 @@ onMounted(load);
                     placeholder="e.g. planets, comets, observation"
                   />
                 </label>
+
+                <section class="ai-tags-panel">
+                  <div class="ai-tags-head">
+                    <h4>AI: Navrhnut tagy</h4>
+                    <span v-if="aiTagFallbackUsed" class="ai-tags-fallback">Fallback</span>
+                  </div>
+                  <p class="muted">Vyberieme max 5 existujucich tagov pre tento clanok.</p>
+
+                  <div class="ai-tags-actions">
+                    <button
+                      type="button"
+                      class="ghost"
+                      :disabled="!isEditing || aiTagSuggestionsLoading || saving || deleting"
+                      @click="suggestAiTags"
+                    >
+                      {{ aiTagSuggestionsLoading ? "Navrhujem..." : "Navrhnut tagy" }}
+                    </button>
+                    <button
+                      type="button"
+                      class="primary"
+                      :disabled="!isEditing || !hasSelectedAiTagSuggestions || saving || deleting"
+                      @click="applySelectedAiTags"
+                    >
+                      Pridat vybrane
+                    </button>
+                  </div>
+
+                  <p v-if="!isEditing" class="muted">Najprv uloz clanok, potom navrhni tagy.</p>
+                  <p v-if="aiTagSuggestionsError" class="ai-tags-error">{{ aiTagSuggestionsError }}</p>
+
+                  <div v-if="aiTagSuggestions.length" class="ai-tags-list">
+                    <label
+                      v-for="item in aiTagSuggestions"
+                      :key="`ai-tag-${item.id}`"
+                      class="ai-tag-option"
+                    >
+                      <input v-model="item.checked" type="checkbox" />
+                      <div class="ai-tag-copy">
+                        <strong>{{ item.name }}</strong>
+                        <p>{{ item.reason }}</p>
+                      </div>
+                    </label>
+                  </div>
+                </section>
 
                 <label class="field-block">
                   <span>Publish from</span>
@@ -1119,6 +1275,77 @@ onMounted(load);
   background: rgb(var(--color-bg-rgb) / 0.6);
   color: inherit;
   font-size: 14px;
+}
+
+.ai-tags-panel {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  border-radius: 14px;
+  background: rgb(var(--color-bg-rgb) / 0.5);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.ai-tags-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ai-tags-head h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.ai-tags-fallback {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgb(245 158 11 / 0.42);
+  background: rgb(245 158 11 / 0.12);
+  font-size: 11px;
+}
+
+.ai-tags-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-tags-list {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-tag-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.5);
+}
+
+.ai-tag-copy strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.ai-tag-copy p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ai-tags-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-danger);
 }
 
 .cover-preview {

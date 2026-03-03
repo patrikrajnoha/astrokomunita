@@ -6,7 +6,9 @@ import {
   getCrawlRuns,
   getEventTranslationHealth,
   getEventSources,
+  getTranslationArtifactsReport,
   purgeEventSources,
+  repairTranslationArtifacts,
   runEventSourceCrawl,
   updateEventSource,
 } from '@/services/api/admin/eventSources'
@@ -37,6 +39,17 @@ let progressIntervalId = null
 const translationHealth = ref(null)
 const translationHealthLoading = ref(false)
 let translationPollId = null
+const artifactsSummary = ref({
+  suspicious_candidates: 0,
+  sample_limit: 20,
+  sample_count: 0,
+  checked_at: null,
+})
+const artifactsSamples = ref([])
+const artifactsSampleLimit = ref(20)
+const artifactsRepairLimit = ref(300)
+const artifactsLoading = ref(false)
+const artifactsRepairing = ref(false)
 
 const supportedSelectedKeys = computed(() => {
   const selectedSet = new Set(selectedKeys.value.map((key) => normalizeSourceKey(key)))
@@ -54,9 +67,9 @@ const canRunSelected = computed(() => {
 const isBusy = computed(() => activeOps.value > 0)
 
 const progressLabel = computed(() => {
-  if (runningSelected.value) return 'Prebieha crawling vybranych zdrojov...'
-  if (purging.value) return 'Prebieha mazanie crawlnutych dat...'
-  if (isBusy.value) return 'Prebieha nacitavanie...'
+  if (runningSelected.value) return 'Prebieha crawling vybraných zdrojov...'
+  if (purging.value) return 'Prebieha mazanie crawlnutých dát...'
+  if (isBusy.value) return 'Prebieha načítavanie...'
   return ''
 })
 
@@ -80,9 +93,19 @@ const translationIsActive = computed(() => {
 })
 
 const translationProgressLabel = computed(() => {
-  if (!translationIsActive.value) return 'Preklad udalosti momentalne nebezi.'
-  return `Prekladaju sa udalosti... pending ${translationPendingCount.value}, vo fronte ${translationQueuedJobs.value}.`
+  if (!translationIsActive.value) return 'Preklad udalostí momentálne nebeží.'
+  return `Prekladajú sa udalosti... pending ${translationPendingCount.value}, vo fronte ${translationQueuedJobs.value}.`
 })
+
+const artifactsSuspiciousCount = computed(() => Number(artifactsSummary.value?.suspicious_candidates || 0))
+
+const artifactsCheckedAtLabel = computed(() => formatDate(artifactsSummary.value?.checked_at))
+
+const artifactsHasFindings = computed(() => artifactsSuspiciousCount.value > 0)
+
+const artifactsReportTone = computed(() => (artifactsHasFindings.value ? 'danger' : 'success'))
+
+const canRepairArtifacts = computed(() => !artifactsRepairing.value && artifactsSuspiciousCount.value > 0)
 
 const purgeTargetKeys = computed(() => {
   const selectedSet = new Set(selectedKeys.value.map((key) => normalizeSourceKey(key)))
@@ -119,8 +142,8 @@ function isSourceSupported(source) {
 }
 
 function sourceStatusLabel(source) {
-  if (!isSourceSupported(source)) return 'Nepodporovane'
-  return source?.is_enabled ? 'Zapnute' : 'Vypnute'
+  if (!isSourceSupported(source)) return 'Nepodporované'
+  return source?.is_enabled ? 'Zapnuté' : 'Vypnuté'
 }
 
 function sourceStatusTone(source) {
@@ -187,7 +210,7 @@ function runTranslationModeLabel(run) {
   const t = runTranslation(run)
 
   if (t.done <= 0) {
-    return t.pending > 0 ? 'cakajuce' : 'zatial nic'
+    return t.pending > 0 ? 'čakajúce' : 'zatiaľ nič'
   }
 
   if (t.both > 0 && t.titleOnly === 0 && t.descriptionOnly === 0 && t.withoutText === 0) {
@@ -215,15 +238,28 @@ function isRunTranslationFullyCorrect(run) {
   return true
 }
 
+function isRunTranslationInProgress(run) {
+  const t = runTranslation(run)
+  if (t.total <= 0) return false
+
+  const status = String(run?.status || '').toLowerCase()
+  if (status === 'running' || status === 'processing') return true
+  if (t.pending > 0) return true
+
+  return t.done + t.failed < t.total
+}
+
 function runTranslationQualityLabel(run) {
   const t = runTranslation(run)
-  if (t.total <= 0) return 'Nehodnotene'
-  return isRunTranslationFullyCorrect(run) ? 'Preklad OK' : 'Problem'
+  if (t.total <= 0) return 'Nehodnotené'
+  if (isRunTranslationInProgress(run)) return 'Prekladajú sa'
+  return isRunTranslationFullyCorrect(run) ? 'Preklad OK' : 'Problém'
 }
 
 function runTranslationQualityTone(run) {
   const t = runTranslation(run)
   if (t.total <= 0) return 'muted'
+  if (isRunTranslationInProgress(run)) return 'warning'
   return isRunTranslationFullyCorrect(run) ? 'success' : 'danger'
 }
 
@@ -235,7 +271,7 @@ function findLatestRunForSource(sourceKey) {
 function runStatusLabel(run) {
   if (!run) return 'Nikdy'
   const status = String(run.status || '').trim()
-  return status !== '' ? status : 'Nezname'
+  return status !== '' ? status : 'Neznáme'
 }
 
 function isSourceCheckboxDisabled(source) {
@@ -249,7 +285,7 @@ function isRowRunDisabled(source) {
 
 function rowRunDisabledReason(source) {
   if (!isSourceSupported(source)) {
-    return 'Nepodporovane v MVP'
+    return 'Nepodporované v MVP'
   }
 
   if (!source?.is_enabled) {
@@ -317,7 +353,7 @@ async function load() {
       year.value = Number.isFinite(latestYear) && latestYear >= 2000 ? latestYear : new Date().getFullYear()
     }
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa nacitat crawling data.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa načítať crawling dáta.'
   } finally {
     loading.value = false
     endOperation()
@@ -347,6 +383,84 @@ function stopTranslationPoll() {
   if (translationPollId === null) return
   window.clearInterval(translationPollId)
   translationPollId = null
+}
+
+function normalizePositiveInt(value, fallback) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return fallback
+  return Math.max(1, Math.floor(n))
+}
+
+async function loadTranslationArtifactsReport(showSuccessToast = false) {
+  artifactsLoading.value = true
+
+  try {
+    const response = await getTranslationArtifactsReport({
+      sample: normalizePositiveInt(artifactsSampleLimit.value, 20),
+    })
+
+    const summary = response?.data?.summary || {}
+    const samples = Array.isArray(response?.data?.samples) ? response.data.samples : []
+
+    artifactsSummary.value = {
+      suspicious_candidates: Number(summary.suspicious_candidates || 0),
+      sample_limit: Number(summary.sample_limit || normalizePositiveInt(artifactsSampleLimit.value, 20)),
+      sample_count: Number(summary.sample_count || samples.length),
+      checked_at: summary.checked_at || null,
+    }
+    artifactsSamples.value = samples
+
+    if (showSuccessToast) {
+      if (Number(summary.suspicious_candidates || 0) > 0) {
+        toast.warn(`Nájdené podozrivé preklady: ${Number(summary.suspicious_candidates || 0)}.`)
+      } else {
+        toast.success('Kvalita prekladov je aktuálne bez nálezov.')
+      }
+    }
+  } catch (fetchError) {
+    if (showSuccessToast) {
+      error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa načítať report kvality prekladov.'
+    }
+  } finally {
+    artifactsLoading.value = false
+  }
+}
+
+async function runTranslationArtifactsRepair() {
+  if (!canRepairArtifacts.value) {
+    return
+  }
+
+  artifactsRepairing.value = true
+  beginOperation()
+  error.value = ''
+
+  try {
+    const response = await repairTranslationArtifacts({
+      limit: normalizePositiveInt(artifactsRepairLimit.value, 300),
+      dry_run: false,
+      sample: normalizePositiveInt(artifactsSampleLimit.value, 20),
+    })
+
+    const payload = response?.data || {}
+    const summary = payload.summary || {}
+    const processed = Number(summary.processed || 0)
+    const translated = Number(summary.translated || 0)
+    const failed = Number(summary.failed || 0)
+
+    toast.success(`Repair hotový. Spracované ${processed}, preložené ${translated}, zlyhalo ${failed}.`)
+
+    await Promise.all([
+      loadTranslationArtifactsReport(false),
+      load(),
+      loadTranslationHealth(),
+    ])
+  } catch (fetchError) {
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Repair prekladov zlyhal.'
+  } finally {
+    artifactsRepairing.value = false
+    endOperation()
+  }
 }
 
 async function toggleSource(source, checked) {
@@ -380,7 +494,7 @@ async function runSelected() {
     toast.success('Crawl run bol vytvoreny pre vybrane zdroje.')
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Rucne spustenie zlyhalo.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Ručné spustenie zlyhalo.'
   } finally {
     runningSelected.value = false
     endOperation()
@@ -408,7 +522,7 @@ async function purgeCrawledData() {
     const candidates = Number(deleted.event_candidates || 0)
     const runs = Number(deleted.crawl_runs || 0)
     const mode = purgeDryRun.value ? 'Dry run:' : 'Vymazane:'
-    toast.success(`${mode} udalosti ${events}, kandidati ${candidates}, runy ${runs}.`)
+    toast.success(`${mode} udalosti ${events}, kandidáti ${candidates}, runy ${runs}.`)
 
     await load()
   } catch (fetchError) {
@@ -454,7 +568,7 @@ async function runSingleSource(source) {
     toast.success(`Crawl run bol vytvoreny pre ${sourceLabel(key)}.`)
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Rucne spustenie zlyhalo.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Ručné spustenie zlyhalo.'
   } finally {
     runningByKey.value = {
       ...runningByKey.value,
@@ -487,8 +601,18 @@ function openRunDetails(run) {
   })
 }
 
+function openCandidateDetail(candidateId) {
+  const id = Number(candidateId)
+  if (!Number.isFinite(id) || id <= 0) return
+
+  router.push({
+    name: 'admin.candidate.detail',
+    params: { id: String(id) },
+  })
+}
+
 onMounted(async () => {
-  await Promise.all([load(), loadTranslationHealth()])
+  await Promise.all([load(), loadTranslationHealth(), loadTranslationArtifactsReport(false)])
   startTranslationPoll()
 })
 
@@ -498,7 +622,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <AdminPageShell title="Crawling" subtitle="Zapni zdroj -> spusti crawling -> skontroluj kandidatov z runu.">
+  <AdminPageShell title="Crawling" subtitle="Zapni zdroj -> spusti crawling -> skontroluj kandidátov z runu.">
     <div v-if="error" class="alert">{{ error }}</div>
     <section v-if="isBusy || progressValue > 0" class="progressPanel" data-testid="crawl-progress-panel">
       <div class="progressPanel__label">{{ progressLabel }}</div>
@@ -523,10 +647,109 @@ onUnmounted(() => {
       </div>
     </section>
 
+    <section class="card qualityPanel" data-testid="translation-quality-panel">
+      <div class="cardHead">
+        <h2>Kvalita prekladov</h2>
+        <span class="muted">Kontrola artefaktov + repair bez terminalu</span>
+      </div>
+
+      <div class="qualityPanel__summary">
+        <span class="pill" :class="`pill--${artifactsReportTone}`" data-testid="translation-artifacts-count">
+          Podozrivé: {{ artifactsSuspiciousCount }}
+        </span>
+        <span class="muted">Posledna kontrola: {{ artifactsCheckedAtLabel }}</span>
+      </div>
+
+      <div class="qualityPanel__actions">
+        <label class="qualityPanel__field" for="artifacts-sample-limit">
+          <span>Vzorka</span>
+          <input
+            id="artifacts-sample-limit"
+            v-model.number="artifactsSampleLimit"
+            type="number"
+            min="1"
+            max="100"
+            :disabled="artifactsLoading || artifactsRepairing"
+          />
+        </label>
+
+        <label class="qualityPanel__field" for="artifacts-repair-limit">
+          <span>Repair limit</span>
+          <input
+            id="artifacts-repair-limit"
+            v-model.number="artifactsRepairLimit"
+            type="number"
+            min="1"
+            max="1000"
+            :disabled="artifactsLoading || artifactsRepairing"
+          />
+        </label>
+
+        <button
+          type="button"
+          class="ghostBtn"
+          data-testid="translation-artifacts-report-btn"
+          :disabled="artifactsLoading || artifactsRepairing"
+          @click="loadTranslationArtifactsReport(true)"
+        >
+          {{ artifactsLoading ? 'Kontrolujem...' : 'Skontrolovat kvalitu' }}
+        </button>
+
+        <button
+          type="button"
+          class="dangerBtn"
+          data-testid="translation-artifacts-repair-btn"
+          :disabled="!canRepairArtifacts"
+          @click="runTranslationArtifactsRepair"
+        >
+          {{ artifactsRepairing ? 'Opravujem...' : 'Spustiť repair' }}
+        </button>
+      </div>
+
+      <p class="runPanel__hint">
+        Report iba skontroluje podozrivé preklady. Repair spustí force opravu len pre nájdené kandidátne záznamy.
+      </p>
+
+      <div v-if="artifactsSamples.length > 0" class="tableWrap qualityPanel__tableWrap">
+        <table class="table compact">
+          <thead>
+            <tr>
+              <th>Candidate</th>
+              <th>Event</th>
+              <th>Source title</th>
+              <th>Translated title</th>
+              <th>Event title</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="sample in artifactsSamples" :key="sample.candidate_id">
+              <td>
+                <button
+                  type="button"
+                  class="inlineLinkBtn"
+                  :data-testid="`translation-artifacts-candidate-link-${sample.candidate_id}`"
+                  @click="openCandidateDetail(sample.candidate_id)"
+                >
+                  {{ sample.candidate_id }}
+                </button>
+              </td>
+              <td>{{ sample.event_id || '-' }}</td>
+              <td>{{ sample.source_title || '-' }}</td>
+              <td>{{ sample.translated_title || '-' }}</td>
+              <td>{{ sample.event_title || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div v-else class="muted qualityPanel__empty">
+        Zatiaľ nie sú k dispozícii žiadne podozrivé záznamy.
+      </div>
+    </section>
+
     <section class="card runPanel">
       <div class="runPanel__head">
         <h2>Panel spustenia</h2>
-        <div class="runPanel__meta">Vybranych podporovanych zdrojov: {{ supportedSelectedKeys.length }}</div>
+        <div class="runPanel__meta">Vybraných podporovaných zdrojov: {{ supportedSelectedKeys.length }}</div>
       </div>
 
       <div class="runPanel__actions">
@@ -550,7 +773,7 @@ onUnmounted(() => {
           :disabled="!canRunSelected"
           @click="runSelected"
         >
-          {{ runningSelected ? 'Spusta sa...' : 'Spustit vybrane' }}
+          {{ runningSelected ? 'Spúšťa sa...' : 'Spustiť vybrané' }}
         </button>
 
         <label class="runPanel__switch" for="purge-dry-run">
@@ -565,18 +788,18 @@ onUnmounted(() => {
           :disabled="purging"
           @click="openPurgeModal"
         >
-          {{ purging ? 'Maze sa...' : 'Vymazat crawlnute udalosti' }}
+          {{ purging ? 'Maže sa...' : 'Vymazať crawlnuté udalosti' }}
         </button>
       </div>
 
-      <p class="runPanel__hint">Vytvori crawl run a naimportuje kandidatov. Ciel mazania = vybrane podporovane zdroje (alebo vsetky, ak nic nie je vybrane).</p>
+      <p class="runPanel__hint">Vytvorí crawl run a naimportuje kandidátov. Cieľ mazania = vybrané podporované zdroje (alebo všetky, ak nič nie je vybrané).</p>
     </section>
 
     <div v-if="purgeModalOpen" class="modalBackdrop" @click.self="closePurgeModal">
       <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="purge-modal-title">
         <h3 id="purge-modal-title">Potvrdit mazanie</h3>
         <p class="modalText">
-          Toto vymaze crawlnute udalosti, kandidatov a crawl runy pre vybrane podporovane zdroje.
+          Toto vymaže crawlnuté udalosti, kandidátov a crawl runy pre vybrané podporované zdroje.
           Pre pokracovanie napis <code>delete_crawled_events</code>.
         </p>
         <input
@@ -589,7 +812,7 @@ onUnmounted(() => {
         />
         <div class="modalActions">
           <button type="button" class="ghostBtn" data-testid="purge-cancel-btn" :disabled="purging" @click="closePurgeModal">
-            Zrusit
+            Zrušiť
           </button>
           <button
             type="button"
@@ -598,7 +821,7 @@ onUnmounted(() => {
             :disabled="purging || purgeConfirmInput !== 'delete_crawled_events'"
             @click="purgeCrawledData"
           >
-            {{ purging ? 'Maze sa...' : (purgeDryRun ? 'Spustit dry run' : 'Vymazat teraz') }}
+            {{ purging ? 'Maže sa...' : (purgeDryRun ? 'Spustiť dry run' : 'Vymazať teraz') }}
           </button>
         </div>
       </div>
@@ -609,7 +832,7 @@ onUnmounted(() => {
         <h2>Zdroje</h2>
       </div>
 
-      <div v-if="loading" class="muted">Nacitavam zdroje...</div>
+      <div v-if="loading" class="muted">Načítavam zdroje...</div>
       <div v-else class="tableWrap">
         <table class="table compact">
           <thead>
@@ -618,7 +841,7 @@ onUnmounted(() => {
               <th>Zdroj</th>
               <th>Stav</th>
               <th>Posledny run</th>
-              <th>Pocitadla</th>
+              <th>Počítadlá</th>
               <th>Akcie</th>
             </tr>
           </thead>
@@ -682,7 +905,7 @@ onUnmounted(() => {
                     :title="rowRunDisabledReason(source)"
                     @click="runSingleSource(source)"
                   >
-                    {{ runningByKey[normalizeSourceKey(source.key)] ? 'Spusta sa...' : 'Spustit' }}
+                    {{ runningByKey[normalizeSourceKey(source.key)] ? 'Spúšťa sa...' : 'Spustiť' }}
                   </button>
                 </div>
               </td>
@@ -694,11 +917,11 @@ onUnmounted(() => {
 
     <section class="card">
       <div class="cardHead">
-        <h2>Posledne runy</h2>
+        <h2>Posledné runy</h2>
         <span class="muted">Poslednych 10</span>
       </div>
 
-      <div v-if="recentRuns.length === 0" class="muted">Zatial ziadne runy.</div>
+      <div v-if="recentRuns.length === 0" class="muted">Zatiaľ žiadne runy.</div>
       <div v-else class="tableWrap">
         <table class="table compact">
           <thead>
@@ -707,9 +930,9 @@ onUnmounted(() => {
               <th>Zdroj</th>
               <th>Rok</th>
               <th>Stav</th>
-              <th>Pocitadla</th>
+              <th>Počítadlá</th>
               <th>Preklad</th>
-              <th>Akcia</th>
+              <th>Akcie</th>
             </tr>
           </thead>
           <tbody>
@@ -746,7 +969,7 @@ onUnmounted(() => {
               </td>
               <td>
                 <div class="actionRow">
-                  <button type="button" class="ghostBtn" @click="viewRunCandidates(run)">Kandidati</button>
+                  <button type="button" class="ghostBtn" @click="viewRunCandidates(run)">Kandidáti</button>
                   <button type="button" class="ghostBtn" @click="openRunDetails(run)">Detail</button>
                 </div>
               </td>
@@ -783,6 +1006,62 @@ onUnmounted(() => {
 .runPanel {
   display: grid;
   gap: 8px;
+}
+
+.qualityPanel {
+  display: grid;
+  gap: 10px;
+}
+
+.qualityPanel__summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.qualityPanel__actions {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.qualityPanel__field {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.qualityPanel__field input {
+  width: 120px;
+}
+
+.qualityPanel__field input {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: transparent;
+  color: inherit;
+}
+
+.qualityPanel__tableWrap {
+  max-height: 260px;
+}
+
+.qualityPanel__empty {
+  padding: 6px 0;
+}
+
+.inlineLinkBtn {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: rgb(var(--color-primary-rgb) / 0.95);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
 
 .runPanel__head {

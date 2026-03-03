@@ -35,7 +35,7 @@ const previewOpen = ref(false)
 const activeCount = computed(() => featured.value.filter((item) => item.is_active).length)
 const canAdd = computed(() => Number(selectedEventId.value) > 0 && !saving.value)
 const modeBadgeText = computed(() => {
-  return selectionMode.value === 'admin' ? 'Pouziva sa: Admin vyber' : 'Pouziva sa: Auto fallback'
+  return selectionMode.value === 'admin' ? 'Používa sa: Admin výber' : 'Používa sa: Auto fallback'
 })
 
 const monthOptions = computed(() => {
@@ -43,8 +43,8 @@ const monthOptions = computed(() => {
   const next = addMonths(current, 1)
 
   return [
-    { value: current, label: `${formatMonthLabel(current)} (aktualny)` },
-    { value: next, label: `${formatMonthLabel(next)} (dalsi)` },
+    { value: current, label: `${formatMonthLabel(current)} (aktuálny)` },
+    { value: next, label: `${formatMonthLabel(next)} (ďalší)` },
   ]
 })
 
@@ -76,7 +76,7 @@ async function load({ refreshFallback = false } = {}) {
       ? eventsPayload.map((row) => ({ id: row.id, title: row.title }))
       : []
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa nacitat vybrane udalosti.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa načítať vybrané udalosti.'
   } finally {
     loading.value = false
   }
@@ -100,10 +100,10 @@ async function addFeaturedEvent() {
     })
 
     selectedEventId.value = ''
-    success.value = 'Event bol pridany do popup zoznamu.'
+    success.value = 'Event bol pridaný do popup zoznamu.'
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa pridat udalost do vyberu.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa pridať udalosť do výberu.'
   } finally {
     saving.value = false
   }
@@ -119,7 +119,7 @@ async function moveItem(item, direction) {
     await updateFeaturedEvent(item.id, { position: next })
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa zmenit poradie udalosti.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa zmeniť poradie udalosti.'
   } finally {
     saving.value = false
   }
@@ -133,7 +133,7 @@ async function toggleActive(item, checked) {
     item.is_active = checked
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa aktualizovat aktivny stav.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa aktualizovať aktívny stav.'
   } finally {
     saving.value = false
   }
@@ -146,7 +146,7 @@ async function removeItem(item) {
     await deleteFeaturedEvent(item.id)
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa odstranit udalost.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa odstrániť udalosť.'
   } finally {
     saving.value = false
   }
@@ -163,9 +163,9 @@ async function forceNow() {
       force_version: Number(response?.data?.force_version || settings.value.force_version),
       force_at: response?.data?.force_at || settings.value.force_at,
     }
-    success.value = 'Popup bol naplanovany pre vsetkych pouzivatelov.'
+    success.value = 'Popup bol naplánovaný pre všetkých používateľov.'
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa vynutit popup.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa vynútiť popup.'
   } finally {
     forcing.value = false
   }
@@ -188,10 +188,10 @@ async function useFallbackAsFeatured() {
 
   try {
     await applyFallbackAsFeatured({ month: selectedMonth.value })
-    success.value = 'Fallback vyber bol ulozeny ako admin vyber pre zvoleny mesiac.'
+    success.value = 'Fallback výber bol uložený ako admin výber pre zvolený mesiac.'
     await load({ refreshFallback: true })
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa pouzit fallback ako admin vyber.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa použiť fallback ako admin výber.'
   } finally {
     applyingFallback.value = false
   }
@@ -204,7 +204,7 @@ async function toggleEnabled(checked) {
     const response = await updateFeaturedPopupSettings({ enabled: checked })
     settings.value = response?.data?.data || settings.value
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa ulozit nastavenie popupu.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa uložiť nastavenie popupu.'
   } finally {
     saving.value = false
   }
@@ -245,7 +245,7 @@ onMounted(load)
 </script>
 
 <template>
-  <AdminPageShell title="Popup vyberanych udalosti" subtitle="Sprava udalosti pre mesacny popup Mark your calendar.">
+  <AdminPageShell title="Popup vyberaných udalostí" subtitle="Správa udalostí pre mesačný popup Mark your calendar.">
     <div v-if="error" class="alert alert-error">{{ error }}</div>
     <div v-if="success" class="alert alert-success">{{ success }}</div>
 
@@ -262,16 +262,16 @@ onMounted(load)
 
       <div class="ctaRow">
         <button type="button" class="forceBtn" :disabled="refreshingFallback || loading" @click="refreshFallbackPreview">
-          {{ refreshingFallback ? 'Nacitavam...' : 'Vygenerovat fallback preview' }}
+          {{ refreshingFallback ? 'Načítavam...' : 'Vygenerovať fallback preview' }}
         </button>
         <button type="button" class="forceBtn" :disabled="applyingFallback || loading" @click="useFallbackAsFeatured">
-          {{ applyingFallback ? 'Aplikujem...' : 'Pouzit fallback ako admin vyber' }}
+          {{ applyingFallback ? 'Aplikujem...' : 'Použiť fallback ako admin výber' }}
         </button>
       </div>
 
       <p v-if="calendarBundleUrl" class="muted">
-        Balik ICS:
-        <a :href="calendarBundleUrl" target="_blank" rel="noopener">Stiahnut balicek .ics</a>
+        Balík ICS:
+        <a :href="calendarBundleUrl" target="_blank" rel="noopener">Stiahnuť balíček .ics</a>
       </p>
     </section>
 
@@ -285,40 +285,40 @@ onMounted(load)
             :disabled="saving"
             @change="toggleEnabled($event.target.checked)"
           />
-          <span>{{ settings.enabled ? 'Zapnute' : 'Vypnute' }}</span>
+          <span>{{ settings.enabled ? 'Zapnuté' : 'Vypnuté' }}</span>
         </label>
       </div>
-      <p class="muted">Verzia vynutenia: {{ settings.force_version || 0 }}</p>
-      <p class="muted">Naposledy vynutene: {{ formatDateTime(settings.force_at) }}</p>
+      <p class="muted">Verzia vynútenia: {{ settings.force_version || 0 }}</p>
+      <p class="muted">Naposledy vynútené: {{ formatDateTime(settings.force_at) }}</p>
       <button type="button" class="forceBtn" :disabled="forcing || loading" @click="forceNow">
-        {{ forcing ? 'Odosielam...' : 'Zobrazit popup vsetkym teraz' }}
+        {{ forcing ? 'Odosielam...' : 'Zobraziť popup všetkým teraz' }}
       </button>
     </section>
 
     <section class="card">
       <div class="cardHead">
-        <h3>Admin vyber</h3>
+        <h3>Admin výber</h3>
         <p class="counter">{{ activeCount }}/{{ maxItems }}</p>
       </div>
 
       <div class="addRow">
         <label for="event-select" class="srOnly">ID udalosti</label>
         <select id="event-select" v-model="selectedEventId" :disabled="saving || loading">
-          <option value="">Vyber udalost...</option>
+          <option value="">Vyber udalosť...</option>
           <option v-for="event in candidateEvents" :key="event.id" :value="String(event.id)">
             {{ event.id }} - {{ event.title }}
           </option>
         </select>
-        <button type="button" :disabled="!canAdd" @click="addFeaturedEvent">Pridat</button>
+        <button type="button" :disabled="!canAdd" @click="addFeaturedEvent">Pridať</button>
       </div>
 
-      <div v-if="loading" class="muted">Nacitavam...</div>
+      <div v-if="loading" class="muted">Načítavam...</div>
       <table v-else class="table">
         <thead>
           <tr>
-            <th>Pozicia</th>
-            <th>Udalost</th>
-            <th>Aktivne</th>
+            <th>Pozícia</th>
+            <th>Udalosť</th>
+            <th>Aktívne</th>
             <th>Akcie</th>
           </tr>
         </thead>
@@ -334,17 +334,17 @@ onMounted(load)
                   :disabled="saving"
                   @change="toggleActive(item, $event.target.checked)"
                 />
-                <span>{{ item.is_active ? 'zapnute' : 'vypnute' }}</span>
+                <span>{{ item.is_active ? 'zapnuté' : 'vypnuté' }}</span>
               </label>
             </td>
             <td class="actions">
-              <button type="button" :disabled="saving || item.position <= 0" @click="moveItem(item, -1)">Vyssie</button>
-              <button type="button" :disabled="saving" @click="moveItem(item, 1)">Nizsie</button>
-              <button type="button" class="danger" :disabled="saving" @click="removeItem(item)">Odstranit</button>
+              <button type="button" :disabled="saving || item.position <= 0" @click="moveItem(item, -1)">Vyššie</button>
+              <button type="button" :disabled="saving" @click="moveItem(item, 1)">Nižšie</button>
+              <button type="button" class="danger" :disabled="saving" @click="removeItem(item)">Odstrániť</button>
             </td>
           </tr>
           <tr v-if="featured.length === 0">
-            <td colspan="4" class="muted">Zatial tu nie su ziadne vybrane udalosti.</td>
+            <td colspan="4" class="muted">Zatiaľ tu nie sú žiadne vybrané udalosti.</td>
           </tr>
         </tbody>
       </table>
@@ -352,15 +352,15 @@ onMounted(load)
 
     <section class="card">
       <div class="cardHead">
-        <h3>Fallback preview (automaticky vyber)</h3>
-        <p class="muted">Iba na citanie</p>
+        <h3>Fallback preview (automatický výber)</h3>
+        <p class="muted">Iba na čítanie</p>
       </div>
 
       <table class="table">
         <thead>
           <tr>
-            <th>Udalost</th>
-            <th>Datum</th>
+            <th>Udalosť</th>
+            <th>Dátum</th>
             <th>Score</th>
           </tr>
         </thead>
@@ -371,7 +371,7 @@ onMounted(load)
             <td>{{ item.fallback_score ?? '-' }}</td>
           </tr>
           <tr v-if="fallbackPreview.length === 0">
-            <td colspan="3" class="muted">Fallback nenasiel pre tento mesiac ziadne udalosti.</td>
+            <td colspan="3" class="muted">Fallback nenašiel pre tento mesiac žiadne udalosti.</td>
           </tr>
         </tbody>
       </table>
@@ -379,12 +379,12 @@ onMounted(load)
 
     <section class="card">
       <div class="cardHead">
-        <h3>Co sa zobrazi v popupe</h3>
-        <p class="muted">{{ selectionMode === 'admin' ? 'Admin vyber' : 'Auto fallback' }}</p>
+        <h3>Čo sa zobrazí v popupe</h3>
+        <p class="muted">{{ selectionMode === 'admin' ? 'Admin výber' : 'Auto fallback' }}</p>
       </div>
       <div class="ctaRow">
         <button type="button" class="forceBtn" :disabled="resolvedEvents.length === 0" @click="previewOpen = true">
-          Zobrazit preview popupu
+          Zobraziť preview popupu
         </button>
       </div>
 
@@ -399,7 +399,7 @@ onMounted(load)
             <a v-if="item.ics_url" :href="item.ics_url" target="_blank" rel="noopener">ICS</a>
           </span>
         </li>
-        <li v-if="resolvedEvents.length === 0" class="muted">Pre tento mesiac nie su udalosti na zobrazenie.</li>
+        <li v-if="resolvedEvents.length === 0" class="muted">Pre tento mesiac nie sú udalosti na zobrazenie.</li>
       </ul>
     </section>
     <MarkYourCalendarModal

@@ -337,13 +337,13 @@ const router = createRouter({
     },
     {
       path: '/verify-email',
-      name: 'verify-email.required',
-      meta: { requiresAuth: true },
+      name: 'verify-email.deprecated',
+      meta: { requiresAuth: false },
       component: () => import('../views/VerifyEmailView.vue'),
     },
     {
       path: '/verify-email/:id/:hash',
-      name: 'verify-email.link',
+      name: 'verify-email.link-deprecated',
       meta: { requiresAuth: false },
       component: () => import('../views/VerifyEmailView.vue'),
     },
@@ -394,7 +394,7 @@ export function applyAuthGuards(routerInstance) {
       }
     }
 
-    const isVerifyEmailRoute = to.name === 'verify-email.required' || to.name === 'verify-email.link'
+    const isVerifyEmailRoute = to.name === 'verify-email.deprecated' || to.name === 'verify-email.link-deprecated'
     const isOnboardingRoute = to.name === 'onboarding'
     const isVerifiedUser = Boolean(auth.isAuthed && auth.user?.email_verified_at)
     const isAdminUser = Boolean(auth.isAdmin)
@@ -410,8 +410,11 @@ export function applyAuthGuards(routerInstance) {
       !isSettingsRoute
     ) {
       return {
-        name: 'verify-email.required',
-        query: { redirect: redirectTarget },
+        name: 'settings',
+        query: {
+          section: 'email',
+          redirect: redirectTarget,
+        },
       }
     }
 

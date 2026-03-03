@@ -82,10 +82,19 @@ function resolveBackendErrorCode(error) {
   return ''
 }
 
+function resolveBackendAction(error) {
+  const direct = error?.response?.data?.action
+  if (typeof direct === 'string' && direct.trim()) return direct.trim()
+  return ''
+}
+
 function isVerificationError(error, status, message) {
-  if (status !== 403) return false
   const code = resolveBackendErrorCode(error)
-  if (code === 'EMAIL_NOT_VERIFIED') return true
+  const action = resolveBackendAction(error)
+
+  if (action === 'GO_TO_SETTINGS_EMAIL') return true
+  if (code === 'EMAIL_NOT_VERIFIED' || code === 'EMAIL_VERIFY_DEPRECATED') return true
+  if (status !== 403 && status !== 410) return false
 
   const normalized = String(message || '').toLowerCase()
   return normalized.includes('verified') || normalized.includes('verify') || normalized.includes('email address is not verified')
@@ -96,7 +105,7 @@ function redirectToEmailSettingsIfNeeded() {
   const pathname = window.location.pathname || ''
   if (pathname.startsWith('/settings')) return
 
-  window.location.assign('/settings')
+  window.location.assign('/settings?section=email')
 }
 
 function redirectToLoginIfNeeded() {
@@ -168,11 +177,22 @@ api.interceptors.response.use(
       if (status === 422) {
         toast.warn('Skontroluj formular.')
       } else if (isVerificationError(error, status, normalizedMessage)) {
-        toast.warn('Najprv over emailovu adresu.', {
-          action: {
-            label: 'Otvorit Settings',
-            onClick: () => redirectToEmailSettingsIfNeeded(),
-          },
+        const backendCode = resolveBackendErrorCode(error)
+        const backendAction = resolveBackendAction(error)
+        const shouldOfferSettingsLink =
+          backendAction === 'GO_TO_SETTINGS_EMAIL' || !backendAction
+        const verificationMessage =
+          backendCode === 'EMAIL_VERIFY_DEPRECATED'
+            ? 'Overenie cez odkaz uz nie je podporovane.'
+            : 'Najprv over emailovu adresu.'
+
+        toast.warn(verificationMessage, {
+          action: shouldOfferSettingsLink
+            ? {
+                label: 'Otvorit Settings',
+                onClick: () => redirectToEmailSettingsIfNeeded(),
+              }
+            : undefined,
         })
       } else if (status === 401 || status === 419) {
         if (shouldRedirectToLogin(error)) {

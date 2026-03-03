@@ -57,6 +57,19 @@ export type BlogWidgetPayload = {
   generated_at: string;
 };
 
+export type AdminBlogTagSuggestion = {
+  id: number;
+  name: string;
+  reason: string;
+};
+
+export type AdminBlogTagSuggestionResponse = {
+  status: string;
+  tags: AdminBlogTagSuggestion[];
+  fallback_used: boolean;
+  last_run?: Record<string, unknown>;
+};
+
 export const blogPosts = {
   async listPublic(params: { page?: number; tag?: string; q?: string }) {
     const res = await api.get<LaravelPaginator<BlogPost>>("/blog-posts", {
@@ -109,6 +122,7 @@ export const blogPosts = {
     published_at: string | null;
     cover_image?: File | null;
     tags?: string[];
+    tag_ids?: number[];
   }) {
     const res = await api.post<BlogPost>(
       "/admin/blog-posts",
@@ -125,6 +139,7 @@ export const blogPosts = {
       published_at?: string | null;
       cover_image?: File | null;
       tags?: string[];
+      tag_ids?: number[];
     }
   ) {
     const body = buildBlogPostPayload(payload);
@@ -142,6 +157,13 @@ export const blogPosts = {
     const res = await api.delete(`/admin/blog-posts/${id}`);
     return res.data;
   },
+
+  async adminSuggestTags(id: number) {
+    const res = await api.post<AdminBlogTagSuggestionResponse>(
+      `/admin/blog-posts/${id}/ai/suggest-tags`
+    );
+    return res.data;
+  },
 };
 
 function buildBlogPostPayload(payload: {
@@ -150,6 +172,7 @@ function buildBlogPostPayload(payload: {
   published_at?: string | null;
   cover_image?: File | null;
   tags?: string[];
+  tag_ids?: number[];
 }) {
   if (payload.cover_image instanceof File) {
     const form = new FormData();
@@ -165,16 +188,22 @@ function buildBlogPostPayload(payload: {
     if (payload.tags && payload.tags.length > 0) {
       payload.tags.forEach((tag) => form.append("tags[]", tag));
     }
+    if (payload.tag_ids && payload.tag_ids.length > 0) {
+      payload.tag_ids.forEach((tagId) => form.append("tag_ids[]", String(tagId)));
+    }
     form.append("cover_image", payload.cover_image);
     return form;
   }
 
-  const body: Record<string, string | string[] | null> = {};
+  const body: Record<string, string | string[] | number[] | null> = {};
   if (payload.title !== undefined) body.title = payload.title;
   if (payload.content !== undefined) body.content = payload.content;
   if (payload.published_at !== undefined) body.published_at = payload.published_at;
   if (payload.tags !== undefined) {
     body.tags = payload.tags;
+  }
+  if (payload.tag_ids !== undefined) {
+    body.tag_ids = payload.tag_ids;
   }
   return body;
 }

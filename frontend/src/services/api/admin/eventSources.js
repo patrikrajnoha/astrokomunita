@@ -27,3 +27,11 @@ export function getCrawlRun(id) {
 export function getEventTranslationHealth() {
   return api.get('/admin/event-translation-health')
 }
+
+export function getTranslationArtifactsReport(params = {}) {
+  return api.get('/admin/event-sources/translation-artifacts/report', { params })
+}
+
+export function repairTranslationArtifacts(payload = {}) {
+  return api.post('/admin/event-sources/translation-artifacts/repair', payload)
+}

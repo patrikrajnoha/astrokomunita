@@ -1,7 +1,13 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useAdminTable } from '@/composables/useAdminTable'
+import AdminAiActionPanel from '@/components/admin/shared/AdminAiActionPanel.vue'
 import http from '@/services/api'
+import {
+  generateAdminEventDescription,
+  getAdminAiConfig,
+  postEditAdminEventTitle,
+} from '@/services/api/admin/ai'
 
 const mode = ref('list')
 const editingEvent = ref(null)
@@ -11,13 +17,34 @@ const formSuccess = ref('')
 const translationActionLoading = ref(false)
 const translationError = ref('')
 const translationSummary = ref(null)
+const aiConfig = ref(null)
+const aiConfigLoading = ref(false)
+const aiActionLoading = ref(false)
+const aiActionError = ref('')
+const aiActionStatus = ref('idle')
+const aiActionResult = ref(null)
+const aiLastRunByEvent = ref({})
+const aiActionNotice = ref('')
+const aiActionRawStatus = ref(null)
+const aiUndoSnapshot = ref(null)
+const aiShortDraft = ref('')
+const aiTitleActionLoading = ref(false)
+const aiTitleActionError = ref('')
+const aiTitleActionStatus = ref('idle')
+const aiTitleActionRawStatus = ref(null)
+const aiTitleActionNotice = ref('')
+const aiTitleFallbackUsed = ref(false)
+const aiTitleSuggestion = ref('')
+const aiTitleSource = ref('')
+const aiTitleUndoSnapshot = ref(null)
+const aiTitleLastRunByEvent = ref({})
 
 const eventTypes = [
-  { value: 'meteor_shower', label: 'Meteoricky roj' },
-  { value: 'eclipse_lunar', label: 'Zatmenie mesiaca' },
-  { value: 'eclipse_solar', label: 'Zatmenie slnka' },
-  { value: 'planetary_event', label: 'Planetarny ukaz' },
-  { value: 'other', label: 'Ina udalost' },
+  { value: 'meteor_shower', label: 'Meteorický roj' },
+  { value: 'eclipse_lunar', label: 'Zatmenie Mesiaca' },
+  { value: 'eclipse_solar', label: 'Zatmenie Slnka' },
+  { value: 'planetary_event', label: 'Planetárny úkaz' },
+  { value: 'other', label: 'Iná udalosť' },
 ]
 
 const form = ref({
@@ -50,26 +77,101 @@ const {
 )
 
 const isEdit = computed(() => mode.value === 'edit' && Boolean(editingEvent.value))
+const editingEventId = computed(() => Number(editingEvent.value?.id || 0))
+const aiEnabled = computed(() => Boolean(aiConfig.value?.events_ai_humanized_enabled))
+const aiPanelEnabled = computed(() => aiEnabled.value && editingEventId.value > 0)
+const aiTitleEnabled = computed(
+  () => Boolean(aiConfig.value?.events_ai_title_postedit_enabled) && editingEventId.value > 0,
+)
+const aiPanelReady = computed(() => !aiConfigLoading.value && aiConfig.value !== null)
+const aiEventLastRun = computed(() => {
+  const eventId = editingEventId.value
+  if (eventId > 0 && aiLastRunByEvent.value[eventId]) {
+    return aiLastRunByEvent.value[eventId]
+  }
+
+  return aiConfig.value?.features?.event_description_generate?.last_run || null
+})
+const aiTitleEventLastRun = computed(() => {
+  const eventId = editingEventId.value
+  if (eventId > 0 && aiTitleLastRunByEvent.value[eventId]) {
+    return aiTitleLastRunByEvent.value[eventId]
+  }
+
+  return aiConfig.value?.features?.event_title_postedit?.last_run || null
+})
 
 const formErrors = computed(() => {
   const errors = []
   if (!String(form.value.title || '').trim()) {
-    errors.push('Nazov je povinny.')
+    errors.push('Názov je povinný.')
   }
   if (!form.value.start_at) {
-    errors.push('Cas zaciatku je povinny.')
+    errors.push('Čas začiatku je povinný.')
   }
 
   if (form.value.start_at && form.value.end_at) {
     const start = new Date(form.value.start_at)
     const end = new Date(form.value.end_at)
     if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end < start) {
-      errors.push('Koniec nemoze byt skor ako zaciatok.')
+      errors.push('Koniec nemôže byť skôr ako začiatok.')
     }
   }
 
   return errors
 })
+
+function normalizeAiStatus(value, fallback = 'idle') {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (['idle', 'success', 'fallback', 'error'].includes(normalized)) {
+    return normalized
+  }
+
+  const fallbackNormalized = String(fallback || '').trim().toLowerCase()
+  return ['idle', 'success', 'fallback', 'error'].includes(fallbackNormalized)
+    ? fallbackNormalized
+    : 'idle'
+}
+
+async function loadAiConfig(eventId = null) {
+  aiConfigLoading.value = true
+
+  try {
+    const params = {}
+    const normalizedEventId = Number(eventId || 0)
+    if (normalizedEventId > 0) {
+      params.event_id = normalizedEventId
+    }
+
+    const response = await getAdminAiConfig(params)
+    aiConfig.value = response?.data?.data || null
+
+    const run = aiConfig.value?.features?.event_description_generate?.last_run
+    const titleRun = aiConfig.value?.features?.event_title_postedit?.last_run
+    if (normalizedEventId > 0 && run) {
+      aiLastRunByEvent.value = {
+        ...aiLastRunByEvent.value,
+        [normalizedEventId]: run,
+      }
+    }
+    if (normalizedEventId > 0 && titleRun) {
+      aiTitleLastRunByEvent.value = {
+        ...aiTitleLastRunByEvent.value,
+        [normalizedEventId]: titleRun,
+      }
+    }
+    if (run?.status) {
+      aiActionStatus.value = normalizeAiStatus(run.status)
+    }
+    if (titleRun?.status) {
+      aiTitleActionStatus.value = normalizeAiStatus(titleRun.status)
+    }
+  } catch {
+    aiConfig.value = null
+  } finally {
+    aiConfigLoading.value = false
+  }
+}
 
 function openCreate() {
   editingEvent.value = null
@@ -83,7 +185,24 @@ function openCreate() {
   }
   formError.value = ''
   formSuccess.value = ''
+  aiActionError.value = ''
+  aiActionStatus.value = 'idle'
+  aiActionResult.value = null
+  aiActionNotice.value = ''
+  aiActionRawStatus.value = null
+  aiUndoSnapshot.value = null
+  aiShortDraft.value = ''
+  aiTitleActionLoading.value = false
+  aiTitleActionError.value = ''
+  aiTitleActionStatus.value = 'idle'
+  aiTitleActionRawStatus.value = null
+  aiTitleActionNotice.value = ''
+  aiTitleFallbackUsed.value = false
+  aiTitleSuggestion.value = ''
+  aiTitleSource.value = ''
+  aiTitleUndoSnapshot.value = null
   mode.value = 'create'
+  loadAiConfig()
 }
 
 function openEdit(event) {
@@ -98,13 +217,46 @@ function openEdit(event) {
   }
   formError.value = ''
   formSuccess.value = ''
+  aiActionError.value = ''
+  aiActionStatus.value = 'idle'
+  aiActionResult.value = null
+  aiActionNotice.value = ''
+  aiActionRawStatus.value = null
+  aiUndoSnapshot.value = null
+  aiShortDraft.value = String(event.short || '')
+  aiTitleActionLoading.value = false
+  aiTitleActionError.value = ''
+  aiTitleActionStatus.value = 'idle'
+  aiTitleActionRawStatus.value = null
+  aiTitleActionNotice.value = ''
+  aiTitleFallbackUsed.value = false
+  aiTitleSuggestion.value = ''
+  aiTitleSource.value = String(event.title || '')
+  aiTitleUndoSnapshot.value = null
   mode.value = 'edit'
+  loadAiConfig(event?.id)
 }
 
 function closeForm() {
   mode.value = 'list'
   formError.value = ''
   formSuccess.value = ''
+  aiActionError.value = ''
+  aiActionStatus.value = 'idle'
+  aiActionResult.value = null
+  aiActionNotice.value = ''
+  aiActionRawStatus.value = null
+  aiUndoSnapshot.value = null
+  aiShortDraft.value = ''
+  aiTitleActionLoading.value = false
+  aiTitleActionError.value = ''
+  aiTitleActionStatus.value = 'idle'
+  aiTitleActionRawStatus.value = null
+  aiTitleActionNotice.value = ''
+  aiTitleFallbackUsed.value = false
+  aiTitleSuggestion.value = ''
+  aiTitleSource.value = ''
+  aiTitleUndoSnapshot.value = null
 }
 
 function formatDate(value) {
@@ -155,16 +307,16 @@ async function submitForm() {
   try {
     if (isEdit.value) {
       await http.put(`/admin/events/${editingEvent.value.id}`, payload)
-      formSuccess.value = 'Udalost bola upravena.'
+      formSuccess.value = 'Udalosť bola upravená.'
     } else {
       await http.post('/admin/events', payload)
-      formSuccess.value = 'Udalost bola vytvorena.'
+      formSuccess.value = 'Udalosť bola vytvorená.'
     }
 
     await refresh()
     mode.value = 'list'
   } catch (err) {
-    formError.value = err?.response?.data?.message || 'Ulozenie zlyhalo.'
+    formError.value = err?.response?.data?.message || 'Uloženie zlyhalo.'
   } finally {
     formLoading.value = false
   }
@@ -197,9 +349,157 @@ async function previewTranslationBackfill() {
 }
 
 async function runTranslationBackfill() {
-  if (!window.confirm('Spustit retranslate schvalenych udalosti?')) return
+  if (!window.confirm('Spustiť retranslate schválených udalostí?')) return
   await requestTranslationBackfill(false)
 }
+
+async function runAiSuggestTitle() {
+  const eventId = editingEventId.value
+  if (aiTitleActionLoading.value || eventId <= 0 || !aiTitleEnabled.value) return
+
+  const sourceTitle = String(form.value.title || '').trim()
+  if (!sourceTitle) return
+
+  aiTitleActionLoading.value = true
+  aiTitleActionError.value = ''
+  aiTitleActionNotice.value = ''
+  aiTitleActionRawStatus.value = null
+  aiTitleActionStatus.value = 'idle'
+  aiTitleFallbackUsed.value = false
+
+  try {
+    const response = await postEditAdminEventTitle(eventId, { mode: 'preview' })
+    const payload = response?.data || {}
+    const status = String(payload.status || '').trim().toLowerCase()
+    const suggestion = String(payload.suggested_title_sk || '').trim()
+    const lastRun = payload.last_run || null
+
+    if (lastRun) {
+      aiTitleLastRunByEvent.value = {
+        ...aiTitleLastRunByEvent.value,
+        [eventId]: lastRun,
+      }
+    }
+
+    aiTitleSource.value = sourceTitle
+    aiTitleSuggestion.value = suggestion
+    aiTitleFallbackUsed.value = Boolean(payload.fallback_used)
+    aiTitleActionStatus.value = normalizeAiStatus(
+      status,
+      payload.fallback_used ? 'fallback' : 'success',
+    )
+  } catch (err) {
+    aiTitleActionStatus.value = 'error'
+    aiTitleActionError.value = 'Nepodarilo sa navrhnut nazov.'
+    aiTitleActionRawStatus.value = Number(err?.response?.status || 0) || null
+  } finally {
+    aiTitleActionLoading.value = false
+    await loadAiConfig(eventId)
+  }
+}
+
+function applyAiTitleSuggestion() {
+  const suggestion = String(aiTitleSuggestion.value || '').trim()
+  if (!suggestion) return
+
+  if (aiTitleUndoSnapshot.value === null) {
+    aiTitleUndoSnapshot.value = String(form.value.title || '')
+  }
+
+  form.value.title = suggestion
+  aiTitleActionNotice.value = 'Nazov aktualizovany.'
+}
+
+function undoAiTitleSuggestion() {
+  if (aiTitleUndoSnapshot.value === null) return
+
+  form.value.title = aiTitleUndoSnapshot.value
+  aiTitleUndoSnapshot.value = null
+  aiTitleActionNotice.value = ''
+}
+
+async function runAiGenerateDescription() {
+  const eventId = editingEventId.value
+  if (aiActionLoading.value || eventId <= 0) return
+
+  const previousDescription = String(form.value.description || '')
+  const previousShort = String(aiShortDraft.value || '')
+
+  aiActionLoading.value = true
+  aiActionError.value = ''
+  aiActionNotice.value = ''
+  aiActionRawStatus.value = null
+  aiActionStatus.value = 'idle'
+  aiActionResult.value = null
+
+  try {
+    const response = await generateAdminEventDescription(eventId, {
+      sync: true,
+      mode: 'ollama',
+      fallback: 'base',
+      force: true,
+    })
+
+    const data = response?.data?.data || {}
+    const lastRun = response?.data?.last_run || null
+    if (lastRun) {
+      aiLastRunByEvent.value = {
+        ...aiLastRunByEvent.value,
+        [eventId]: lastRun,
+      }
+    }
+
+    aiActionResult.value = {
+      description: String(data.description || '').trim(),
+      short: String(data.short || '').trim(),
+      fallbackUsed: Boolean(data.fallback_used),
+    }
+    aiActionStatus.value = normalizeAiStatus(
+      lastRun?.status,
+      data.fallback_used ? 'fallback' : 'success',
+    )
+
+    if (aiActionResult.value.description) {
+      form.value.description = aiActionResult.value.description
+    }
+    if (aiActionResult.value.short) {
+      aiShortDraft.value = aiActionResult.value.short
+    }
+
+    aiUndoSnapshot.value = {
+      description: previousDescription,
+      short: previousShort,
+    }
+    aiActionNotice.value = 'Opis aktualizovany.'
+
+    await refresh()
+  } catch (err) {
+    aiActionStatus.value = 'error'
+    aiActionError.value = 'Nepodarilo sa vylepsit opis.'
+    aiActionRawStatus.value = Number(err?.response?.status || 0) || null
+  } finally {
+    aiActionLoading.value = false
+    await loadAiConfig(eventId)
+  }
+}
+
+function undoAiDescription() {
+  if (!aiUndoSnapshot.value) return
+
+  form.value.description = aiUndoSnapshot.value.description
+  aiShortDraft.value = aiUndoSnapshot.value.short
+  aiActionResult.value = {
+    description: aiUndoSnapshot.value.description,
+    short: aiUndoSnapshot.value.short,
+    fallbackUsed: false,
+  }
+  aiActionNotice.value = ''
+  aiUndoSnapshot.value = null
+}
+
+onMounted(() => {
+  loadAiConfig()
+})
 </script>
 
 <template>
@@ -207,43 +507,133 @@ async function runTranslationBackfill() {
     <section class="panel headerPanel">
       <div>
         <h1>Udalosti</h1>
-        <p>Kompaktny prehlad publikovanych a manualnych udalosti.</p>
+        <p>Kompaktný prehľad publikovaných a manuálnych udalostí.</p>
       </div>
       <div class="toolbar">
-        <button class="btn ghost" :disabled="translationActionLoading" @click="previewTranslationBackfill">Nahlad retranslate</button>
-        <button class="btn ghost" :disabled="translationActionLoading" @click="runTranslationBackfill">Spustit retranslate</button>
-        <button class="btn primary" @click="openCreate">Nova udalost</button>
+        <button class="btn ghost" :disabled="translationActionLoading" @click="previewTranslationBackfill">Náhľad retranslate</button>
+        <button class="btn ghost" :disabled="translationActionLoading" @click="runTranslationBackfill">Spustiť retranslate</button>
+        <button class="btn primary" @click="openCreate">Nová udalosť</button>
       </div>
     </section>
 
     <section v-if="translationError" class="notice noticeError">{{ translationError }}</section>
     <section v-else-if="translationSummary" class="notice noticeOk">
-      Kandidati: {{ translationSummary.summary?.total_candidates ?? 0 }} |
-      Prelozene: {{ translationSummary.summary?.translated ?? 0 }} |
+      Kandidáti: {{ translationSummary.summary?.total_candidates ?? 0 }} |
+      Preložené: {{ translationSummary.summary?.translated ?? 0 }} |
       Zlyhalo: {{ translationSummary.summary?.failed ?? 0 }} |
-      Updated events: {{ translationSummary.summary?.events_updated ?? 0 }} |
-      Dry run: {{ translationSummary.summary?.dry_run ? 'ano' : 'nie' }}
+      Aktualizované eventy: {{ translationSummary.summary?.events_updated ?? 0 }} |
+      Dry run: {{ translationSummary.summary?.dry_run ? 'áno' : 'nie' }}
     </section>
 
     <section v-if="mode !== 'list'" class="panel formPanel">
       <div class="formHead">
         <div>
-          <h2>{{ isEdit ? 'Upravit udalost' : 'Vytvorit udalost' }}</h2>
-          <p>{{ isEdit ? 'Upravis existujuci zaznam.' : 'Vytvoris novu manualnu udalost.' }}</p>
+          <h2>{{ isEdit ? 'Upraviť udalosť' : 'Vytvoriť udalosť' }}</h2>
+          <p>{{ isEdit ? 'Upravíš existujúci záznam.' : 'Vytvoríš novú manuálnu udalosť.' }}</p>
         </div>
         <div class="quickBtns">
-          <button class="btn tiny" type="button" @click="setStartNow">Zaciatok teraz</button>
+          <button class="btn tiny" type="button" @click="setStartNow">Začiatok teraz</button>
           <button class="btn tiny" type="button" @click="setEndAfter(1)">Koniec +1h</button>
           <button class="btn tiny" type="button" @click="setEndAfter(2)">Koniec +2h</button>
         </div>
       </div>
+
+      <AdminAiActionPanel
+        v-if="aiPanelReady"
+        title="AI: Zlepšiť názov (SK)"
+        description="Navrhne prirodzenejsi nazov bez pridavania novych faktov."
+        action-label="Navrhnúť"
+        :enabled="aiTitleEnabled"
+        :status="aiTitleActionStatus"
+        :latency-ms="aiTitleEventLastRun?.latency_ms ?? null"
+        :last-run-at="aiTitleEventLastRun?.updated_at ?? null"
+        :retry-count="aiTitleEventLastRun?.retry_count ?? null"
+        :raw-status-code="aiTitleActionRawStatus"
+        :is-loading="aiTitleActionLoading"
+        :error-message="aiTitleActionError"
+        @run="runAiSuggestTitle"
+      >
+        <p v-if="editingEventId <= 0" class="aiHint">
+          Najprv uloz udalost, potom mozes navrhnut nazov.
+        </p>
+        <template v-else>
+          <div v-if="aiTitleActionNotice" class="aiNoticeRow">
+            <span class="aiNotice">{{ aiTitleActionNotice }}</span>
+            <button
+              v-if="aiTitleUndoSnapshot !== null"
+              type="button"
+              class="aiUndoBtn"
+              @click="undoAiTitleSuggestion"
+            >
+              Undo
+            </button>
+          </div>
+          <span
+            v-if="aiTitleActionStatus === 'fallback' || aiTitleFallbackUsed"
+            class="aiBadge aiBadge--fallback"
+          >
+            Použitý fallback
+          </span>
+          <div v-if="aiTitleSuggestion" class="aiCompareBlock">
+            <p class="aiHint"><strong>Pôvodný:</strong> {{ aiTitleSource || '-' }}</p>
+            <p class="aiHint"><strong>Návrh:</strong> {{ aiTitleSuggestion }}</p>
+            <button
+              type="button"
+              data-testid="events-unified-title-apply-btn"
+              class="btn tiny"
+              @click="applyAiTitleSuggestion"
+            >
+              Použiť
+            </button>
+          </div>
+        </template>
+      </AdminAiActionPanel>
+      <AdminAiActionPanel
+        v-if="aiPanelReady"
+        style="margin-top:10px;"
+        title="AI pomocnik"
+        description="Vylepsi opis udalosti bez zobrazenia internych detailov."
+        action-label="Vylepšiť opis"
+        :enabled="aiPanelEnabled"
+        :status="aiActionStatus"
+        :latency-ms="aiEventLastRun?.latency_ms ?? null"
+        :last-run-at="aiEventLastRun?.updated_at ?? null"
+        :retry-count="aiEventLastRun?.retry_count ?? null"
+        :raw-status-code="aiActionRawStatus"
+        :is-loading="aiActionLoading"
+        :error-message="aiActionError"
+        @run="runAiGenerateDescription"
+      >
+        <p v-if="editingEventId <= 0" class="aiHint">
+          Najprv uloz udalost, potom mozes vylepsit opis.
+        </p>
+        <template v-else>
+          <div v-if="aiActionNotice" class="aiNoticeRow">
+            <span class="aiNotice">Opis aktualizovany.</span>
+            <button
+              v-if="aiUndoSnapshot"
+              type="button"
+              class="aiUndoBtn"
+              @click="undoAiDescription"
+            >
+              Undo
+            </button>
+          </div>
+          <span v-if="aiActionStatus === 'fallback'" class="aiBadge aiBadge--fallback">Použitý fallback</span>
+          <p class="aiHint"><strong>Kratky opis:</strong> {{ aiShortDraft || '-' }}</p>
+          <p class="aiHint"><strong>Opis:</strong> {{ form.description || aiActionResult?.description || '-' }}</p>
+        </template>
+      </AdminAiActionPanel>
+      <p v-else class="aiHint">
+        Načítavam AI konfiguráciu...
+      </p>
 
       <div v-if="formError" class="notice noticeError">{{ formError }}</div>
       <div v-if="formSuccess" class="notice noticeOk">{{ formSuccess }}</div>
 
       <form class="formGrid" @submit.prevent="submitForm">
         <label class="field fieldWide">
-          <span>Nazov *</span>
+          <span>Názov *</span>
           <input v-model="form.title" type="text" :disabled="formLoading" />
         </label>
 
@@ -255,15 +645,15 @@ async function runTranslationBackfill() {
         </label>
 
         <label class="field">
-          <span>Viditelnost</span>
+          <span>Viditeľnosť</span>
           <select v-model.number="form.visibility" :disabled="formLoading">
-            <option :value="1">Public</option>
-            <option :value="0">Hidden</option>
+            <option :value="1">Verejné</option>
+            <option :value="0">Skryté</option>
           </select>
         </label>
 
         <label class="field">
-          <span>Zaciatok *</span>
+          <span>Začiatok *</span>
           <input v-model="form.start_at" type="datetime-local" :disabled="formLoading" />
         </label>
 
@@ -280,9 +670,9 @@ async function runTranslationBackfill() {
         <div v-if="formErrors.length > 0" class="fieldWide notice noticeError">{{ formErrors[0] }}</div>
 
         <div class="formActions fieldWide">
-          <button type="button" class="btn ghost" :disabled="formLoading" @click="closeForm">Zrusit</button>
+          <button type="button" class="btn ghost" :disabled="formLoading" @click="closeForm">Zrušiť</button>
           <button type="submit" class="btn primary" :disabled="formLoading || formErrors.length > 0">
-            {{ formLoading ? 'Uklada sa...' : (isEdit ? 'Ulozit zmeny' : 'Vytvorit') }}
+            {{ formLoading ? 'Ukladá sa...' : (isEdit ? 'Uložiť zmeny' : 'Vytvoriť') }}
           </button>
         </div>
       </form>
@@ -291,11 +681,11 @@ async function runTranslationBackfill() {
     <section class="panel listPanel">
       <div class="listTop">
         <div class="meta">
-          <strong>Prehlad</strong>
+          <strong>Prehľad</strong>
           <span v-if="pagination">Strana {{ pagination.currentPage }} / {{ pagination.lastPage }} (spolu {{ pagination.total }})</span>
         </div>
         <label class="perPage">
-          <span>Na stranku</span>
+          <span>Na stránku</span>
           <select :value="perPage" @change="setPerPage(Number($event.target.value))">
             <option :value="10">10</option>
             <option :value="20">20</option>
@@ -306,19 +696,19 @@ async function runTranslationBackfill() {
 
       <div v-if="error" class="notice noticeError">
         {{ error }}
-        <button class="btn tiny" @click="refresh">Skusit znova</button>
+        <button class="btn tiny" @click="refresh">Skúsiť znova</button>
       </div>
 
-      <div v-else-if="loading" class="loading">Nacitavam udalosti...</div>
+      <div v-else-if="loading" class="loading">Načítavam udalosti...</div>
 
       <div v-else-if="data" class="tableWrap">
         <table class="compactTable">
           <thead>
             <tr>
               <th>ID</th>
-              <th>Nazov</th>
+              <th>Názov</th>
               <th>Typ</th>
-              <th>Zaciatok</th>
+              <th>Začiatok</th>
               <th>Stav</th>
               <th></th>
             </tr>
@@ -334,15 +724,15 @@ async function runTranslationBackfill() {
               <td>{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</td>
               <td>
                 <span class="pill" :class="event.visibility === 1 ? 'ok' : 'muted'">
-                  {{ event.visibility === 1 ? 'public' : 'hidden' }}
+                  {{ event.visibility === 1 ? 'verejné' : 'skryté' }}
                 </span>
               </td>
               <td class="right">
-                <button class="btn tiny" @click="openEdit(event)">Upravit</button>
+                <button class="btn tiny" @click="openEdit(event)">Upraviť</button>
               </td>
             </tr>
             <tr v-if="data.data.length === 0">
-              <td colspan="6" class="empty">Ziadne udalosti.</td>
+              <td colspan="6" class="empty">Žiadne udalosti.</td>
             </tr>
           </tbody>
         </table>
@@ -350,7 +740,7 @@ async function runTranslationBackfill() {
 
       <div v-if="pagination" class="pager">
         <button class="btn ghost" :disabled="!hasPrevPage" @click="prevPage">Pred</button>
-        <button class="btn ghost" :disabled="!hasNextPage" @click="nextPage">Dalsia</button>
+        <button class="btn ghost" :disabled="!hasNextPage" @click="nextPage">Ďalšia</button>
       </div>
     </section>
   </div>
@@ -437,6 +827,56 @@ async function runTranslationBackfill() {
 .noticeError {
   border: 1px solid rgb(239 68 68 / 0.35);
   background: rgb(239 68 68 / 0.1);
+}
+
+.aiHint {
+  margin: 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.aiCompareBlock {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.aiNoticeRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.aiNotice {
+  font-size: 12px;
+  color: rgb(22 101 52);
+}
+
+.aiUndoBtn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: 3px 9px;
+  font-size: 11px;
+}
+
+.aiBadge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.25);
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.aiBadge--fallback {
+  border-color: rgb(245 158 11 / 0.42);
+  background: rgb(245 158 11 / 0.12);
 }
 
 .formPanel {
@@ -631,3 +1071,5 @@ async function runTranslationBackfill() {
   }
 }
 </style>
+
+

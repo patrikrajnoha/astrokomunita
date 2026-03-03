@@ -536,9 +536,7 @@ async function uploadMedia(type, file) {
     form.append('type', type)
     form.append('file', file)
 
-    await http.post('/profile/media', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    await http.post('/profile/media', form)
 
     if (type === 'avatar' && avatarPreview.value) {
       URL.revokeObjectURL(avatarPreview.value)

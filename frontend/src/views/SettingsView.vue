@@ -25,7 +25,7 @@
       </div>
     </section>
 
-    <section class="settings-card">
+    <section id="settings-email-section" class="settings-card">
       <h2 class="card-title">Email</h2>
       <p class="card-subtitle">Verification status, verification code, and secure email change flow.</p>
 
@@ -342,7 +342,7 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useOnboardingTourStore } from '@/stores/onboardingTour'
 import http from '@/services/api'
@@ -350,6 +350,7 @@ import UserActivityCard from '@/components/profile/UserActivityCard.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const onboardingTour = useOnboardingTourStore()
 
 const emailForm = reactive({
@@ -978,6 +979,13 @@ onMounted(async () => {
     await loadEmailStatus()
     newsletterSubscribed.value = Boolean(auth.user.newsletter_subscribed)
     activity.value = normalizeActivity(auth.user.activity)
+  }
+
+  if (String(route.query.section || '').toLowerCase() === 'email') {
+    window.setTimeout(() => {
+      const section = document.getElementById('settings-email-section')
+      section?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 0)
   }
 })
 </script>

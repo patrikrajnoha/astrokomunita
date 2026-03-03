@@ -85,7 +85,7 @@ export default {
           this.auth.user?.requires_email_verification &&
           !this.auth.user?.email_verified_at
         ) {
-          this.$router.push({ name: 'verify-email.required', query: { redirect: this.redirect } })
+          this.$router.push({ name: 'settings', query: { section: 'email', redirect: this.redirect } })
           return
         }
         this.$router.push(this.redirect)

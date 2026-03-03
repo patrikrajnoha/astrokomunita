@@ -14,6 +14,20 @@
     </div>
 
     <div class="adminHub__center">
+      <div class="adminHub__statusWrap">
+        <RouterLink
+          v-if="aiLastRunAt"
+          to="/admin/newsletter"
+          class="adminHub__aiStatus adminHub__aiStatus--link"
+        >
+          <span>AI: {{ aiStatusLabel }}</span>
+          <span class="adminHub__aiStatusTime">{{ aiRelativeTime }}</span>
+        </RouterLink>
+        <span v-else class="adminHub__aiStatus">
+          <span>AI: {{ aiStatusLabel }}</span>
+          <span class="adminHub__aiStatusTime">{{ aiRelativeTime }}</span>
+        </span>
+      </div>
       <div class="adminHub__contentCard">
         <RouterView />
       </div>
@@ -28,9 +42,104 @@
 </template>
 
 <script setup>
-import { RouterView } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { RouterLink, RouterView } from 'vue-router'
 import AdminSubNav from '@/components/admin/AdminSubNav.vue'
 import MainNavbar from '@/components/MainNavbar.vue'
+import { getAdminAiConfig } from '@/services/api/admin/ai'
+
+const aiStatus = ref('idle')
+const aiLastRunAt = ref(null)
+const aiClock = ref(Date.now())
+let aiClockTimer = null
+
+function normalizeStatus(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  return ['idle', 'success', 'fallback', 'error'].includes(normalized) ? normalized : 'idle'
+}
+
+function parseTime(value) {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function selectLatestRun(features) {
+  const candidates = [
+    features?.newsletter_prime_insights?.last_run || null,
+    features?.event_description_generate?.last_run || null,
+  ]
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => ({
+      run: item,
+      time: parseTime(item.updated_at),
+    }))
+    .filter((item) => item.time !== null)
+    .sort((a, b) => b.time.getTime() - a.time.getTime())
+
+  return candidates[0]?.run || null
+}
+
+const aiStatusLabel = computed(() => {
+  const status = normalizeStatus(aiStatus.value)
+  if (status === 'success') return 'Hotovo'
+  if (status === 'fallback') return 'Fallback'
+  if (status === 'error') return 'Chyba'
+  return 'Pripravené'
+})
+
+const aiRelativeTime = computed(() => {
+  aiClock.value
+
+  const parsed = parseTime(aiLastRunAt.value)
+  if (!parsed) return 'bez behu'
+
+  const diffMs = Math.max(0, Date.now() - parsed.getTime())
+  const diffMinutes = Math.floor(diffMs / 60000)
+
+  if (diffMinutes <= 0) return 'práve teraz'
+  if (diffMinutes < 60) return `pred ${diffMinutes} min`
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `pred ${diffHours} h`
+
+  const diffDays = Math.floor(diffHours / 24)
+  return `pred ${diffDays} d`
+})
+
+async function loadAiStatus() {
+  try {
+    const response = await getAdminAiConfig()
+    const data = response?.data?.data || {}
+    const latestRun = selectLatestRun(data.features || {})
+
+    if (latestRun) {
+      aiStatus.value = normalizeStatus(latestRun.status)
+      aiLastRunAt.value = latestRun.updated_at || null
+      return
+    }
+
+    aiStatus.value = 'idle'
+    aiLastRunAt.value = null
+  } catch {
+    aiStatus.value = 'error'
+    aiLastRunAt.value = null
+  }
+}
+
+onMounted(() => {
+  loadAiStatus()
+  aiClockTimer = window.setInterval(() => {
+    aiClock.value = Date.now()
+  }, 60_000)
+})
+
+onBeforeUnmount(() => {
+  if (aiClockTimer) {
+    clearInterval(aiClockTimer)
+    aiClockTimer = null
+  }
+})
 </script>
 
 <style scoped>
@@ -56,6 +165,32 @@ import MainNavbar from '@/components/MainNavbar.vue'
 
 .adminHub__center {
   min-width: 0;
+}
+
+.adminHub__statusWrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.adminHub__aiStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  background: rgb(var(--color-bg-rgb) / 0.45);
+}
+
+.adminHub__aiStatus--link {
+  text-decoration: none;
+}
+
+.adminHub__aiStatusTime {
+  color: rgb(var(--color-text-secondary-rgb) / 0.8);
 }
 
 .adminHub__mainNav {
@@ -152,6 +287,10 @@ import MainNavbar from '@/components/MainNavbar.vue'
     position: sticky;
     top: 58px;
     z-index: 8;
+  }
+
+  .adminHub__statusWrap {
+    justify-content: flex-start;
   }
 
   :deep(.adminPageShell) {

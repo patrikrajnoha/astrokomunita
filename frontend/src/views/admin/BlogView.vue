@@ -7,7 +7,6 @@
       </button>
     </header>
 
-    <!-- Filters -->
     <BlogFilters
       v-model:status="filters.status"
       v-model:search="filters.search"
@@ -15,7 +14,6 @@
       @clear="clearFilters"
     />
 
-    <!-- Blog posts table -->
     <BlogPostsTable
       :data="blogTable.data"
       :loading="blogTable.loading"
@@ -28,7 +26,6 @@
       @unpublish="unpublishPost"
     />
 
-    <!-- Pagination -->
     <PaginationBar
       v-if="blogTable.pagination"
       :pagination="blogTable.pagination"
@@ -39,7 +36,6 @@
       @per-page-change="blogTable.setPerPage"
     />
 
-    <!-- Blog form modal -->
     <BlogPostForm
       v-if="showBlogForm"
       :post="editingPost"
@@ -56,7 +52,6 @@ import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import { getBlogPosts, deleteBlogPost as deleteBlogPostApi, publishBlogPost, unpublishBlogPost } from '@/services/api/admin/blog.js';
 
-// Components
 import BlogFilters from '@/components/admin/filters/BlogFilters.vue';
 import BlogPostsTable from '@/components/admin/tables/BlogPostsTable.vue';
 import PaginationBar from '@/components/admin/shared/PaginationBar.vue';
@@ -65,22 +60,18 @@ import BlogPostForm from '@/components/admin/forms/BlogPostForm.vue';
 const { confirm } = useConfirm()
 const toast = useToast()
 
-// State
 const showBlogForm = ref(false);
 const editingPost = ref(null);
 
-// Table instance
 const blogTable = useAdminTable(getBlogPosts, {
   defaultFilters: { status: '' }
 });
 
-// Filters
 const filters = ref({
   status: '',
   search: ''
 });
 
-// Methods
 function editPost(post) {
   editingPost.value = post;
   showBlogForm.value = true;
@@ -88,10 +79,10 @@ function editPost(post) {
 
 async function deletePost(post) {
   const ok = await confirm({
-    title: 'Vymazat clanok',
-    message: `Naozaj chcete vymazat clanok "${post.title}"?`,
-    confirmText: 'Delete',
-    cancelText: 'Cancel',
+    title: 'Vymazať článok',
+    message: `Naozaj chcete vymazať článok "${post.title}"?`,
+    confirmText: 'Vymazať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!ok) {
@@ -100,7 +91,7 @@ async function deletePost(post) {
 
   try {
     await deleteBlogPostApi(post.id);
-    toast.success('Clanok vymazany');
+    toast.success('Článok vymazaný');
     blogTable.refresh();
   } catch (err) {
     toast.error(err?.response?.data?.message || 'Mazanie zlyhalo');
@@ -110,7 +101,7 @@ async function deletePost(post) {
 async function publishPost(post) {
   try {
     await publishBlogPost(post.id);
-    toast.success('Clanok publikovany');
+    toast.success('Článok publikovaný');
     blogTable.refresh();
   } catch (err) {
     toast.error(err?.response?.data?.message || 'Publikovanie zlyhalo');
@@ -120,7 +111,7 @@ async function publishPost(post) {
 async function unpublishPost(post) {
   try {
     await unpublishBlogPost(post.id);
-    toast.success('Clanok skryty');
+    toast.success('Článok skrytý');
     blogTable.refresh();
   } catch (err) {
     toast.error(err?.response?.data?.message || 'Skrytie zlyhalo');
@@ -129,12 +120,12 @@ async function unpublishPost(post) {
 
 async function saveBlogPost() {
   try {
-    // Tu by bola logika pre vytvorenie/aktualizáciu článku
-    toast.success('Clanok ulozeny');
+    // Tu by bola logika pre vytvorenie/aktualizáciu článku.
+    toast.success('Článok uložený');
     closeBlogForm();
     blogTable.refresh();
   } catch (err) {
-    toast.error(err?.response?.data?.message || 'Ulozenie zlyhalo');
+    toast.error(err?.response?.data?.message || 'Uloženie zlyhalo');
   }
 }
 
@@ -151,7 +142,6 @@ function clearFilters() {
   blogTable.setFilters(filters.value);
 }
 
-// Watch filters
 watch(filters, (newFilters) => {
   blogTable.setFilters(newFilters);
 }, { deep: true });

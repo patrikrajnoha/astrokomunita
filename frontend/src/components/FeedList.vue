@@ -105,16 +105,6 @@
                     <span class="bot-source-label">{{ botSourceLabel(p) }}</span>
                   </div>
                 </div>
-                <!-- Actions dropdown -->
-                <div class="post-actions-menu">
-                  <DropdownMenu
-                    v-if="menuItemsForPost(p).length"
-                    :items="menuItemsForPost(p)"
-                    label="More actions"
-                    menu-label="Post actions"
-                    @select="(item) => onMenuAction(item, p)"
-                  />
-                </div>
               </div>
               <!-- Content -->
               <div class="post-text" @click.stop>
@@ -238,121 +228,111 @@
 
               <!-- Bottom actions -->
               <div class="post-actions" @click.stop>
-                <button
-                  class="action-btn action-btn--reply"
-                  type="button"
-                  title="Reagovať"
-                  @click.stop="openPost(p)"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
+                <div class="post-actions-left">
+                  <button
+                    class="action-btn action-btn--reply"
+                    type="button"
+                    title="Reagovať"
+                    @click.stop="openPost(p)"
                   >
-                    <path
-                      d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+                      />
+                    </svg>
+                    <span class="action-count">{{ p.replies_count ?? 0 }}</span>
+                  </button>
+
+                  <button
+                    class="action-btn action-btn--like"
+                    type="button"
+                    :class="{
+                      'action-btn--liked': p.liked_by_me,
+                      'action-btn--bump': likeBumpId === p.id,
+                    }"
+                    :disabled="!auth.isAuthed || isLikeLoading(p)"
+                    :title="
+                      auth.isAuthed
+                        ? p.liked_by_me
+                          ? 'Zrušiť like'
+                          : 'Páči sa mi'
+                        : 'Prihlás sa pre lajkovanie'
+                    "
+                    @click.stop="toggleLike(p)"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <path
+                        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                      />
+                    </svg>
+                    <span class="action-count">{{ p.likes_count ?? 0 }}</span>
+                  </button>
+                </div>
+
+                <div class="post-actions-right">
+                  <button
+                    class="action-btn action-btn--bookmark"
+                    type="button"
+                    :class="{ 'action-btn--bookmarked': p.is_bookmarked }"
+                    :disabled="!auth.isAuthed || isBookmarkLoading(p)"
+                    :title="
+                      auth.isAuthed
+                        ? p.is_bookmarked
+                          ? 'Odstranit zo zaloziek'
+                          : 'Ulozit do zaloziek'
+                        : 'Prihlas sa pre zalozky'
+                    "
+                    @click.stop="toggleBookmark(p)"
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                    </svg>
+                  </button>
+
+                  <button
+                    class="action-btn action-btn--share"
+                    type="button"
+                    title="Zdieľať"
+                    aria-label="Zdieľať prispevok"
+                    @click.stop="openShareModal(p)"
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                      <polyline points="16 6 12 2 8 6" />
+                      <line x1="12" y1="2" x2="12" y2="15" />
+                    </svg>
+                  </button>
+
+                  <div v-if="menuItemsForPost(p).length" class="post-actions-more" @click.stop>
+                    <DropdownMenu
+                      :items="menuItemsForPost(p)"
+                      label="More actions"
+                      menu-label="Post actions"
+                      @select="(item) => onMenuAction(item, p)"
                     />
-                  </svg>
-                  <span class="action-count">{{ p.replies_count ?? 0 }}</span>
-                </button>
-
-                <button
-                  class="action-btn action-btn--share"
-                  type="button"
-                  title="Zdieľať"
-                  aria-label="Zdieľať prispevok"
-                  @click.stop="openShareModal(p)"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                    <polyline points="16 6 12 2 8 6" />
-                    <line x1="12" y1="2" x2="12" y2="15" />
-                  </svg>
-                </button>
-
-                <button
-                  class="action-btn action-btn--like"
-                  type="button"
-                  :class="{
-                    'action-btn--liked': p.liked_by_me,
-                    'action-btn--bump': likeBumpId === p.id,
-                  }"
-                  :disabled="!auth.isAuthed || isLikeLoading(p)"
-                  :title="
-                    auth.isAuthed
-                      ? p.liked_by_me
-                        ? 'Zrušiť like'
-                        : 'Páči sa mi'
-                      : 'Prihlás sa pre lajkovanie'
-                  "
-                  @click.stop="toggleLike(p)"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                      d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-                    />
-                  </svg>
-                  <span class="action-count">{{ p.likes_count ?? 0 }}</span>
-                </button>
-
-                <div class="action-spacer"></div>
-
-                <button
-                  class="action-btn action-btn--thread"
-                  type="button"
-                  title="Počet zobrazení"
-                  aria-label="Počet zobrazení"
-                  @click.stop="openPost(p)"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  <span v-if="Number(p.views ?? 0) > 0" class="view-count">{{ p.views }}</span>
-                </button>
-
-                <button
-                  class="action-btn action-btn--bookmark"
-                  type="button"
-                  :class="{ 'action-btn--bookmarked': p.is_bookmarked }"
-                  :disabled="!auth.isAuthed || isBookmarkLoading(p)"
-                  :title="
-                    auth.isAuthed
-                      ? p.is_bookmarked
-                        ? 'Odstranit zo zaloziek'
-                        : 'Ulozit do zaloziek'
-                      : 'Prihlas sa pre zalozky'
-                  "
-                  @click.stop="toggleBookmark(p)"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                  </svg>
-                </button>
+                  </div>
+                </div>
               </div>
             </div>
           </article>
@@ -1919,14 +1899,6 @@ defineExpose({ load, prepend })
   opacity: 0.9;
 }
 
-.post-actions-menu {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
 .action-button {
   background: none;
   border: none;
@@ -2223,11 +2195,21 @@ defineExpose({ load, prepend })
   margin-top: 0.48rem;
   display: flex;
   align-items: center;
-  gap: 0.15rem;
+  justify-content: space-between;
   padding-top: 0.35rem;
   border-top: 0;
-  flex-wrap: wrap;
   min-width: 0;
+}
+
+.post-actions-left,
+.post-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 0.82rem;
+}
+
+.post-actions-right {
+  margin-left: auto;
 }
 
 .action-btn {
@@ -2342,6 +2324,33 @@ defineExpose({ load, prepend })
   font-weight: 600;
 }
 
+.post-actions-more {
+  display: inline-flex;
+  align-items: center;
+}
+
+.post-actions-more :deep(.dropdownRoot) {
+  display: inline-flex;
+  align-items: center;
+}
+
+.post-actions-more :deep(.dropdownTrigger) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  min-width: 30px;
+  padding: 0.3rem 0.42rem;
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.post-actions-more :deep(.dropdownTrigger:hover:not(:disabled)) {
+  background: rgb(var(--color-text-secondary-rgb) / 0.08);
+  color: var(--color-surface);
+}
+
 .action-btn--delete {
   color: var(--color-danger);
 }
@@ -2367,10 +2376,6 @@ defineExpose({ load, prepend })
 .action-text {
   font-size: 12px;
   font-weight: 500;
-}
-
-.action-spacer {
-  flex: 1;
 }
 
 @keyframes likePop {
@@ -2580,11 +2585,6 @@ defineExpose({ load, prepend })
     gap: 0.4rem;
   }
 
-  .post-actions-menu {
-    width: auto;
-    justify-content: flex-start;
-  }
-
   .avatar-image,
   .avatar-fallback {
     width: 36px;
@@ -2622,10 +2622,6 @@ defineExpose({ load, prepend })
 
   .action-count {
     font-size: 0.68rem;
-  }
-
-  .action-spacer {
-    display: none;
   }
 
   .report-content {

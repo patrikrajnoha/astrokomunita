@@ -6,15 +6,20 @@ import EventSourcesView from './EventSourcesView.vue'
 const getEventSourcesMock = vi.fn()
 const getCrawlRunsMock = vi.fn()
 const getEventTranslationHealthMock = vi.fn()
+const getTranslationArtifactsReportMock = vi.fn()
+const repairTranslationArtifactsMock = vi.fn()
 const runEventSourceCrawlMock = vi.fn()
 const purgeEventSourcesMock = vi.fn()
 const updateEventSourceMock = vi.fn()
 const toastSuccessMock = vi.fn()
+const toastWarnMock = vi.fn()
 
 vi.mock('@/services/api/admin/eventSources', () => ({
   getEventSources: (...args) => getEventSourcesMock(...args),
   getCrawlRuns: (...args) => getCrawlRunsMock(...args),
   getEventTranslationHealth: (...args) => getEventTranslationHealthMock(...args),
+  getTranslationArtifactsReport: (...args) => getTranslationArtifactsReportMock(...args),
+  repairTranslationArtifacts: (...args) => repairTranslationArtifactsMock(...args),
   runEventSourceCrawl: (...args) => runEventSourceCrawlMock(...args),
   purgeEventSources: (...args) => purgeEventSourcesMock(...args),
   updateEventSource: (...args) => updateEventSourceMock(...args),
@@ -23,6 +28,7 @@ vi.mock('@/services/api/admin/eventSources', () => ({
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
     success: (...args) => toastSuccessMock(...args),
+    warn: (...args) => toastWarnMock(...args),
   }),
 }))
 
@@ -39,6 +45,11 @@ function makeRouter() {
         path: '/admin/event-candidates',
         name: 'admin.event-candidates',
         component: { template: '<div>candidates</div>' },
+      },
+      {
+        path: '/admin/candidates/:id',
+        name: 'admin.candidate.detail',
+        component: { template: '<div>candidate-detail</div>' },
       },
     ],
   })
@@ -102,6 +113,38 @@ describe('EventSourcesView', () => {
     runEventSourceCrawlMock.mockResolvedValue({
       data: { results: [] },
     })
+    getTranslationArtifactsReportMock.mockResolvedValue({
+      data: {
+        status: 'ok',
+        summary: {
+          suspicious_candidates: 1,
+          sample_limit: 20,
+          sample_count: 1,
+          checked_at: '2026-03-02T20:15:00Z',
+        },
+        samples: [
+          {
+            candidate_id: 77,
+            event_id: 88,
+            source_title: 'Jupiter in Conjunction with Sun',
+            translated_title: 'Jupiter v konflikte so slnkom',
+            event_title: 'Jupiter v konflikte so slnkom',
+          },
+        ],
+      },
+    })
+    repairTranslationArtifactsMock.mockResolvedValue({
+      data: {
+        status: 'ok',
+        detected_count: 1,
+        summary: {
+          processed: 1,
+          translated: 1,
+          failed: 0,
+          events_updated: 1,
+        },
+      },
+    })
     getEventTranslationHealthMock.mockResolvedValue({
       data: {
         counts_24h: { done: 5, failed: 1, pending: 2 },
@@ -135,10 +178,12 @@ describe('EventSourcesView', () => {
 
     expect(wrapper.text()).toContain('Panel spustenia')
     expect(wrapper.text()).toContain('Zdroje')
-    expect(wrapper.text()).toContain('Posledne runy')
+    expect(wrapper.text()).toContain('Posledné runy')
     expect(wrapper.text()).toContain('IMO')
     expect(wrapper.text()).toContain('Preklad')
-    expect(wrapper.text()).toContain('Problem')
+    expect(wrapper.text()).toContain('Kvalita prekladov')
+    expect(wrapper.text()).toContain('Podozrivé: 1')
+    expect(wrapper.text()).toContain('Problém')
     expect(wrapper.text()).toContain('D 2')
     expect(wrapper.text()).toContain('Forma: title+popis')
   })
@@ -150,7 +195,7 @@ describe('EventSourcesView', () => {
 
     expect(unsupportedRunButton.exists()).toBe(true)
     expect(unsupportedRunButton.attributes('disabled')).toBeDefined()
-    expect(unsupportedRunButton.attributes('title')).toBe('Nepodporovane v MVP')
+    expect(unsupportedRunButton.attributes('title')).toBe('Nepodporované v MVP')
   })
 
   it('enables run selected only after selecting a supported source', async () => {
@@ -199,5 +244,77 @@ describe('EventSourcesView', () => {
       dry_run: true,
       confirm: 'delete_crawled_events',
     })
+  })
+
+  it('runs translation quality report and repair actions from the panel', async () => {
+    const { wrapper } = await mountView()
+
+    const reportButton = wrapper.find('[data-testid="translation-artifacts-report-btn"]')
+    expect(reportButton.exists()).toBe(true)
+    await reportButton.trigger('click')
+    await flush()
+
+    expect(getTranslationArtifactsReportMock).toHaveBeenCalled()
+
+    const repairButton = wrapper.find('[data-testid="translation-artifacts-repair-btn"]')
+    expect(repairButton.exists()).toBe(true)
+    expect(repairButton.attributes('disabled')).toBeUndefined()
+    await repairButton.trigger('click')
+    await flush()
+
+    expect(repairTranslationArtifactsMock).toHaveBeenCalledWith({
+      limit: 300,
+      dry_run: false,
+      sample: 20,
+    })
+  })
+
+  it('opens candidate detail from translation artifacts sample row', async () => {
+    const { wrapper, router } = await mountView()
+
+    const candidateLink = wrapper.find('[data-testid="translation-artifacts-candidate-link-77"]')
+    expect(candidateLink.exists()).toBe(true)
+
+    await candidateLink.trigger('click')
+    await flush()
+
+    expect(router.currentRoute.value.name).toBe('admin.candidate.detail')
+    expect(String(router.currentRoute.value.params.id)).toBe('77')
+  })
+
+  it('shows translating status when run translation is still pending', async () => {
+    getCrawlRunsMock.mockResolvedValueOnce({
+      data: {
+        data: [
+          {
+            id: 19,
+            source_name: 'imo',
+            year: 2026,
+            status: 'success',
+            started_at: '2026-03-02T20:00:00Z',
+            fetched_count: 6,
+            created_candidates_count: 3,
+            updated_candidates_count: 0,
+            skipped_duplicates_count: 3,
+            translation: {
+              total: 6,
+              done: 4,
+              failed: 0,
+              pending: 2,
+              done_breakdown: {
+                both: 4,
+                title_only: 0,
+                description_only: 0,
+                without_text: 0,
+              },
+            },
+          },
+        ],
+      },
+    })
+
+    const { wrapper } = await mountView()
+
+    expect(wrapper.text()).toContain('Prekladajú sa')
   })
 })

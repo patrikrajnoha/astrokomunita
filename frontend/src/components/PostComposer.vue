@@ -272,6 +272,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue'
 import api from '@/services/api'
+import { createPost } from '@/services/posts'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import PollComposerPanel from '@/components/poll/PollComposerPanel.vue'
@@ -288,8 +289,8 @@ const GIF_MIN_QUERY_LENGTH = 2
 const emit = defineEmits(['created'])
 
 const props = defineProps({
-  accept: { type: String, default: 'image/*,.pdf,.txt,.doc,.docx' },
-  maxBytes: { type: Number, default: 5 * 1024 * 1024 },
+  accept: { type: String, default: 'image/*,.gif,.pdf,.txt,.doc,.docx' },
+  maxBytes: { type: Number, default: 20 * 1024 * 1024 },
 })
 
 const auth = useAuthStore()
@@ -841,9 +842,7 @@ async function submit() {
       })
     }
 
-    const res = await api.post('/posts', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const res = await createPost(fd)
 
     emit('created', res.data)
 
@@ -858,11 +857,26 @@ async function submit() {
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) err.value = 'Pre publikovanie sa prihlas.'
-    else if (status === 422) err.value = e?.response?.data?.message || 'Skontroluj text, prilohu a poll moznosti.'
+    else if (status === 422) err.value = firstValidationError(e, 'Skontroluj text, prilohu a poll moznosti.')
     else err.value = e?.response?.data?.message || 'Publikovanie zlyhalo.'
   } finally {
     posting.value = false
   }
+}
+
+function firstValidationError(error, fallbackMessage) {
+  const errors = error?.response?.data?.errors
+  if (!errors || typeof errors !== 'object') {
+    return error?.response?.data?.message || fallbackMessage
+  }
+
+  const firstKey = Object.keys(errors)[0]
+  const firstValue = firstKey ? errors[firstKey] : null
+  if (Array.isArray(firstValue) && firstValue.length > 0) {
+    return String(firstValue[0] || fallbackMessage)
+  }
+
+  return error?.response?.data?.message || fallbackMessage
 }
 
 function autoResize() {

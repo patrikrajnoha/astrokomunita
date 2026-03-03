@@ -52,17 +52,6 @@
         <nav class="flex-1" aria-label="Main navigation">
           <MainNavbar />
         </nav>
-
-        <div class="legalLinks" data-testid="desktop-legal-links">
-          <RouterLink
-            v-for="item in legalLinks"
-            :key="`tablet-${item.to}`"
-            :to="item.to"
-            class="legalLinks__item"
-          >
-            {{ item.label }}
-          </RouterLink>
-        </div>
       </div>
     </aside>
 
@@ -107,17 +96,6 @@
               <nav class="flex-1" aria-label="Main navigation">
                 <MainNavbar />
               </nav>
-
-              <div class="legalLinks" data-testid="desktop-legal-links">
-                <RouterLink
-                  v-for="item in legalLinks"
-                  :key="`desktop-${item.to}`"
-                  :to="item.to"
-                  class="legalLinks__item"
-                >
-                  {{ item.label }}
-                </RouterLink>
-              </div>
             </div>
           </aside>
 
@@ -149,22 +127,37 @@
               isHomeFeedRoute ? '' : 'border-l border-[var(--border)]',
             ]"
           >
-            <DynamicSidebar
-              v-if="!showDirectObservingSidebar"
-              :observing-lat="observingLat"
-              :observing-lon="observingLon"
-              :observing-date="observingDate"
-              :observing-tz="observingTz"
-              :observing-location-name="observingLocationName"
-            />
-            <RightObservingSidebar
-              v-else
-              :lat="observingLat"
-              :lon="observingLon"
-              :date="observingDate"
-              :tz="observingTz"
-              :location-name="observingLocationName"
-            />
+            <div class="rightRail__inner">
+              <div class="rightRail__content">
+                <DynamicSidebar
+                  v-if="!showDirectObservingSidebar"
+                  :observing-lat="observingLat"
+                  :observing-lon="observingLon"
+                  :observing-date="observingDate"
+                  :observing-tz="observingTz"
+                  :observing-location-name="observingLocationName"
+                />
+                <RightObservingSidebar
+                  v-else
+                  :lat="observingLat"
+                  :lon="observingLon"
+                  :date="observingDate"
+                  :tz="observingTz"
+                  :location-name="observingLocationName"
+                />
+              </div>
+
+              <div class="rightSidebarFooterLinks" data-testid="right-sidebar-legal-links">
+                <RouterLink
+                  v-for="item in legalLinks"
+                  :key="`right-${item.to}`"
+                  :to="item.to"
+                  class="rightSidebarFooterLinks__item"
+                >
+                  {{ item.label }}
+                </RouterLink>
+              </div>
+            </div>
           </div>
         </aside>
       </div>
@@ -261,67 +254,14 @@
         <div class="mt-6">
           <MainNavbar />
         </div>
-
-        <div class="legalLinks mt-8" data-testid="mobile-legal-links">
-          <RouterLink
-            v-for="item in legalLinks"
-            :key="`mobile-${item.to}`"
-            :to="item.to"
-            class="legalLinks__item"
-            @click="closeDrawer"
-          >
-            {{ item.label }}
-          </RouterLink>
-        </div>
       </aside>
     </transition>
 
-    <transition
-      enter-active-class="transition-opacity duration-200"
-      enter-from-class="opacity-0"
-      enter-to-class="opacity-100"
-      leave-active-class="transition-opacity duration-150"
-      leave-from-class="opacity-100"
-      leave-to-class="opacity-0"
-    >
-      <div
-        v-if="isComposerOpen"
-        class="composeOverlay"
-        aria-hidden="true"
-        @click="closeComposerModal"
-      ></div>
-    </transition>
-
-    <transition
-      enter-active-class="transition duration-200 ease-out"
-      enter-from-class="translate-y-6 opacity-0"
-      enter-to-class="translate-y-0 opacity-100"
-      leave-active-class="transition duration-150 ease-in"
-      leave-from-class="translate-y-0 opacity-100"
-      leave-to-class="translate-y-6 opacity-0"
-    >
-      <section
-        v-if="isComposerOpen"
-        class="composeDialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="mobile-compose-title"
-        @click.stop
-      >
-        <div class="composeHead">
-          <h2 id="mobile-compose-title" class="composeTitle">Vytvorit prispevok</h2>
-          <button
-            type="button"
-            class="composeClose ui-pill ui-pill--secondary ui-pill--icon"
-            aria-label="Zavriet tvorbu prispevku"
-            @click="closeComposerModal"
-          >
-            ×
-          </button>
-        </div>
-        <PostComposer @created="onPostCreated" />
-      </section>
-    </transition>
+    <CreatePostModal
+      :open="isComposerOpen"
+      @close="closeComposerModal"
+      @created="onPostCreated"
+    />
 
     <transition
       enter-active-class="transition-opacity duration-200"
@@ -545,7 +485,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import MainNavbar from '@/components/MainNavbar.vue'
 import DynamicSidebar from '@/components/DynamicSidebar.vue'
 import RightObservingSidebar from '@/components/RightObservingSidebar.vue'
-import PostComposer from '@/components/PostComposer.vue'
+import CreatePostModal from '@/components/CreatePostModal.vue'
 import MobileFab from '@/components/MobileFab.vue'
 import MobileBottomNav from '@/components/nav/MobileBottomNav.vue'
 import GuestBottomCTA from '@/components/GuestBottomCTA.vue'
@@ -573,6 +513,7 @@ const notifications = useNotificationsStore()
 const sidebarConfigStore = useSidebarConfigStore()
 const onboardingTour = useOnboardingTourStore()
 const { showToast } = useToast()
+const COMPOSER_OPEN_EVENT = 'post:composer:open'
 const isDrawerOpen = ref(false)
 const isComposerOpen = ref(false)
 const isWidgetMenuOpen = ref(false)
@@ -811,6 +752,7 @@ const closeDrawer = () => {
 }
 
 const openComposerModal = () => {
+  if (!auth.isAuthed) return
   closeWidgetLayers()
   closeDrawer()
   isComposerOpen.value = true
@@ -818,6 +760,10 @@ const openComposerModal = () => {
 
 const closeComposerModal = () => {
   isComposerOpen.value = false
+}
+
+const handleComposerOpenEvent = () => {
+  openComposerModal()
 }
 
 const closeWidgetMenu = () => {
@@ -929,7 +875,6 @@ const handleKeydown = (event) => {
   }
 
   if (isComposerOpen.value) {
-    closeComposerModal()
     return
   }
 
@@ -1239,6 +1184,7 @@ onMounted(() => {
   }
 
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener(COMPOSER_OPEN_EVENT, handleComposerOpenEvent)
   window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
   window.addEventListener('appinstalled', handleInstalled)
   window.addEventListener('resize', updateViewportState)
@@ -1246,6 +1192,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener(COMPOSER_OPEN_EVENT, handleComposerOpenEvent)
   window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
   window.removeEventListener('appinstalled', handleInstalled)
   window.removeEventListener('resize', updateViewportState)
@@ -1288,24 +1235,6 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.legalLinks {
-  display: grid;
-  gap: 0.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgb(var(--border-rgb) / 0.8);
-}
-
-.legalLinks__item {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  text-decoration: none;
-}
-
-.legalLinks__item:hover,
-.legalLinks__item.router-link-active {
-  color: var(--text-primary);
-}
-
 .brand-fade-enter-active,
 .brand-fade-leave-active {
   transition: opacity 0.18s ease;
@@ -1314,42 +1243,6 @@ onBeforeUnmount(() => {
 .brand-fade-enter-from,
 .brand-fade-leave-to {
   opacity: 0;
-}
-
-.composeOverlay {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  background: rgb(var(--bg-app-rgb) / 0.66);
-}
-
-.composeDialog {
-  position: fixed;
-  right: 0.65rem;
-  left: 0.65rem;
-  bottom: max(0.65rem, env(safe-area-inset-bottom));
-  z-index: 75;
-  max-height: calc(100vh - 1.3rem - env(safe-area-inset-bottom));
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 1.1rem;
-  background: var(--bg-surface-2);
-  padding: 0.75rem;
-  box-shadow: 0 24px 50px rgb(var(--bg-app-rgb) / 0.36);
-}
-
-.composeHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.55rem;
-}
-
-.composeTitle {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--text-primary);
 }
 
 .sheetOverlay {
@@ -1481,9 +1374,51 @@ onBeforeUnmount(() => {
   max-width: 100%;
 }
 
+.rightRail__inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.rightRail__content {
+  min-width: 0;
+}
+
+.rightSidebarFooterLinks {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(var(--border-rgb) / 0.78);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.rightSidebarFooterLinks__item {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.4rem;
+  border-radius: 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.18s ease, background-color 0.18s ease;
+}
+
+.rightSidebarFooterLinks__item + .rightSidebarFooterLinks__item::before {
+  content: '\00B7';
+  margin-right: 0.625rem;
+  color: rgb(var(--text-secondary-rgb) / 0.7);
+}
+
+.rightSidebarFooterLinks__item:hover,
+.rightSidebarFooterLinks__item.router-link-active {
+  color: var(--text-primary);
+  background: rgb(var(--bg-app-rgb) / 0.44);
+}
+
 @media (min-width: 768px) {
-  .composeOverlay,
-  .composeDialog,
   .sheetOverlay,
   .sheetDialog {
     display: none;
@@ -1525,3 +1460,4 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+

@@ -24,7 +24,7 @@ function makeRouter() {
       { path: '/login', component: LoginView, name: 'login' },
       { path: '/', component: { template: '<div>home</div>' }, name: 'home' },
       { path: '/register', component: { template: '<div>register</div>' }, name: 'register' },
-      { path: '/verify-email/required', component: { template: '<div>verify</div>' }, name: 'verify-email.required' },
+      { path: '/settings', component: { template: '<div>settings</div>' }, name: 'settings' },
     ],
   })
 }
