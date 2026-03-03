@@ -1,13 +1,12 @@
 <template>
   <div class="page">
     <header class="pageHeader">
-      <h1>Event Candidates</h1>
+      <h1>Kandidáti udalostí</h1>
       <button class="btn btn-primary" @click="showManualForm = true">
         + Pridať manuálne
       </button>
     </header>
 
-    <!-- Tab navigation -->
     <div class="tabNavigation">
       <button
         v-for="tab in tabs"
@@ -20,9 +19,7 @@
       </button>
     </div>
 
-    <!-- Tab content -->
     <div class="tabContent">
-      <!-- Crawled candidates tab -->
       <div v-show="activeTab === 'crawled'" class="tabPane">
         <CandidatesFilters
           v-model:status="crawledFilters.status"
@@ -32,7 +29,7 @@
           @filter="crawledTable.refresh"
           @clear="clearCrawledFilters"
         />
-        
+
         <CandidatesTable
           :data="crawledTable.data"
           :loading="crawledTable.loading"
@@ -43,7 +40,7 @@
           @reject="handleReject"
           @publish="handlePublish"
         />
-        
+
         <PaginationBar
           v-if="crawledTable.pagination"
           :pagination="crawledTable.pagination"
@@ -55,7 +52,6 @@
         />
       </div>
 
-      <!-- Manual candidates tab -->
       <div v-show="activeTab === 'manual'" class="tabPane">
         <CandidatesFilters
           v-model:status="manualFilters.status"
@@ -65,7 +61,7 @@
           @clear="clearManualFilters"
           :show-source="false"
         />
-        
+
         <CandidatesTable
           :data="manualTable.data"
           :loading="manualTable.loading"
@@ -77,7 +73,7 @@
           @delete="handleDelete"
           @publish="handlePublish"
         />
-        
+
         <PaginationBar
           v-if="manualTable.pagination"
           :pagination="manualTable.pagination"
@@ -89,7 +85,6 @@
         />
       </div>
 
-      <!-- Reviewed candidates tab -->
       <div v-show="activeTab === 'reviewed'" class="tabPane">
         <CandidatesFilters
           v-model:status="reviewedFilters.status"
@@ -99,7 +94,7 @@
           @clear="clearReviewedFilters"
           :show-source="false"
         />
-        
+
         <CandidatesTable
           :data="reviewedTable.data"
           :loading="reviewedTable.loading"
@@ -110,7 +105,7 @@
           @publish="handlePublish"
           @unreview="handleUnreview"
         />
-        
+
         <PaginationBar
           v-if="reviewedTable.pagination"
           :pagination="reviewedTable.pagination"
@@ -122,7 +117,6 @@
         />
       </div>
 
-      <!-- Published candidates tab -->
       <div v-show="activeTab === 'published'" class="tabPane">
         <CandidatesFilters
           v-model:type="publishedFilters.type"
@@ -132,7 +126,7 @@
           :show-status="false"
           :show-source="false"
         />
-        
+
         <CandidatesTable
           :data="publishedTable.data"
           :loading="publishedTable.loading"
@@ -143,7 +137,7 @@
           :show-actions="false"
           @row-click="openCandidate"
         />
-        
+
         <PaginationBar
           v-if="publishedTable.pagination"
           :pagination="publishedTable.pagination"
@@ -156,7 +150,6 @@
       </div>
     </div>
 
-    <!-- Manual form modal -->
     <CandidateForm
       v-if="showManualForm"
       :candidate="editingCandidate"
@@ -175,7 +168,6 @@ import { useToast } from '@/composables/useToast'
 import { CANDIDATES_TABS, CANDIDATE_STATUS } from '@/utils/constants.js';
 import { getCandidates, approveCandidate, rejectCandidate, publishCandidate, updateCandidate, createCandidate, deleteCandidate } from '@/services/api/admin/candidates.js';
 
-// Components
 import CandidatesTable from '@/components/admin/tables/CandidatesTable.vue';
 import CandidatesFilters from '@/components/admin/filters/CandidatesFilters.vue';
 import PaginationBar from '@/components/admin/shared/PaginationBar.vue';
@@ -185,12 +177,10 @@ const router = useRouter();
 const { confirm, prompt } = useConfirm()
 const toast = useToast()
 
-// State
 const activeTab = ref(CANDIDATES_TABS.CRAWLED);
 const showManualForm = ref(false);
 const editingCandidate = ref(null);
 
-// Tab definitions
 const tabs = computed(() => [
   { key: CANDIDATES_TABS.CRAWLED, label: 'Crawled', count: crawledTable.data?.total || 0 },
   { key: CANDIDATES_TABS.MANUAL, label: 'Manual', count: manualTable.data?.total || 0 },
@@ -198,7 +188,6 @@ const tabs = computed(() => [
   { key: CANDIDATES_TABS.PUBLISHED, label: 'Published', count: publishedTable.data?.total || 0 }
 ]);
 
-// Table instances pre každý tab
 const crawledTable = useAdminTable(
   (params) => getCandidates({ ...params, source: 'crawled' }),
   { defaultFilters: { status: CANDIDATE_STATUS.PENDING } }
@@ -219,7 +208,6 @@ const publishedTable = useAdminTable(
   { defaultFilters: {} }
 );
 
-// Filters pre každý tab
 const crawledFilters = ref({
   status: CANDIDATE_STATUS.PENDING,
   type: '',
@@ -244,7 +232,6 @@ const publishedFilters = ref({
   search: ''
 });
 
-// Methods
 function setActiveTab(tabKey) {
   activeTab.value = tabKey;
 }
@@ -258,7 +245,6 @@ function editManualCandidate(candidate) {
   showManualForm.value = true;
 }
 
-// Action handlers
 async function handleApprove(candidate) {
   try {
     await approveCandidate(candidate.id);
@@ -275,20 +261,20 @@ async function handleReject(candidate) {
     title: 'Zamietnuť kandidáta',
     message: 'Dôvod zamietnutia:',
     placeholder: 'Napíš dôvod',
-    confirmText: 'Reject',
-    cancelText: 'Cancel',
+    confirmText: 'Zamietnuť',
+    cancelText: 'Zrušiť',
     required: true,
     variant: 'danger',
   });
   if (!reason) return;
-  
+
   try {
     await rejectCandidate(candidate.id, { reason });
     toast.success('Kandidát zamietnutý');
     crawledTable.refresh();
     manualTable.refresh();
   } catch (err) {
-    toast.error(err?.response?.data?.message || 'Reject zlyhal');
+    toast.error(err?.response?.data?.message || 'Zamietnutie zlyhalo');
   }
 }
 
@@ -308,14 +294,14 @@ async function handleDelete(candidate) {
   const ok = await confirm({
     title: 'Vymazať kandidáta',
     message: `Naozaj chcete vymazať kandidáta "${candidate.title}"?`,
-    confirmText: 'Delete',
-    cancelText: 'Cancel',
+    confirmText: 'Vymazať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   });
   if (!ok) {
     return;
   }
-  
+
   try {
     await deleteCandidate(candidate.id);
     toast.success('Kandidát vymazaný');
@@ -326,7 +312,6 @@ async function handleDelete(candidate) {
 }
 
 async function handleUnreview() {
-  // Implement unreview logic
   toast.success('Schválenie zrušené');
   reviewedTable.refresh();
 }
@@ -340,7 +325,7 @@ async function saveManualCandidate(candidateData) {
       await createCandidate(candidateData);
       toast.success('Kandidát vytvorený');
     }
-    
+
     closeManualForm();
     manualTable.refresh();
   } catch (err) {
@@ -353,7 +338,6 @@ function closeManualForm() {
   editingCandidate.value = null;
 }
 
-// Filter methods
 function clearCrawledFilters() {
   crawledFilters.value = {
     status: CANDIDATE_STATUS.PENDING,
@@ -383,14 +367,13 @@ function clearReviewedFilters() {
 }
 
 function clearPublishedFilters() {
-  publishedFilters.value = { 
+  publishedFilters.value = {
     type: '',
     search: ''
   };
   publishedTable.setFilters(publishedFilters.value);
 }
 
-// Watch filters a aktualizuj tabuľky
 watch(crawledFilters, (newFilters) => {
   crawledTable.setFilters(newFilters);
 }, { deep: true });
@@ -485,12 +468,12 @@ watch(publishedFilters, (newFilters) => {
     align-items: stretch;
     gap: 1rem;
   }
-  
+
   .tabNavigation {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  
+
   .tabBtn {
     flex-shrink: 0;
     padding: 0.75rem 1rem;

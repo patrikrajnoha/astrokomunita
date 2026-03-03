@@ -28,9 +28,9 @@ const form = ref({
 })
 
 const statusLabel = {
-  draft: 'Draft',
-  active: 'Active',
-  finished: 'Finished',
+  draft: 'Návrh',
+  active: 'Aktívna',
+  finished: 'Ukončená',
 }
 
 const canSubmit = computed(() => {
@@ -52,7 +52,7 @@ async function loadContests() {
     const response = await listContests({ per_page: 50 })
     contests.value = Array.isArray(response.data?.data) ? response.data.data : []
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat sutaze.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať súťaže.'
   } finally {
     loading.value = false
   }
@@ -72,7 +72,7 @@ async function submitContest() {
       status: form.value.status,
     })
 
-    toast.success('Sutaz bola vytvorena.')
+    toast.success('Súťaž bola vytvorená.')
     form.value = {
       name: '',
       description: '',
@@ -83,7 +83,7 @@ async function submitContest() {
     }
     await loadContests()
   } catch (e) {
-    toast.error(e?.response?.data?.message || 'Vytvorenie sutaze zlyhalo.')
+    toast.error(e?.response?.data?.message || 'Vytvorenie súťaže zlyhalo.')
   } finally {
     saving.value = false
   }
@@ -99,7 +99,7 @@ async function openParticipants(contest) {
     const response = await getContestParticipants(contest.id, 100)
     participants.value = Array.isArray(response?.data) ? response.data : []
   } catch (e) {
-    toast.error(e?.response?.data?.message || 'Nepodarilo sa nacitat participantov.')
+    toast.error(e?.response?.data?.message || 'Nepodarilo sa načítať účastníkov.')
   } finally {
     participantsLoading.value = false
   }
@@ -117,14 +117,14 @@ async function pickWinner(postId) {
   selectingWinner.value = true
   try {
     await selectContestWinner(selectedContest.value.id, postId)
-    toast.success('Vyherca bol vybrany.')
+    toast.success('Výherca bol vybraný.')
     closeParticipantsModal()
     await loadContests()
   } catch (e) {
     const validationMessage = e?.response?.data?.errors?.post_id?.[0]
       || e?.response?.data?.errors?.contest?.[0]
       || e?.response?.data?.message
-      || 'Vyber vyhercu zlyhal.'
+      || 'Výber výhercu zlyhal.'
     toast.error(validationMessage)
   } finally {
     selectingWinner.value = false
@@ -135,41 +135,41 @@ onMounted(loadContests)
 </script>
 
 <template>
-  <AdminPageShell title="Contests" subtitle="Create a contest, inspect eligible posts and pick a winner.">
+  <AdminPageShell title="Súťaže" subtitle="Vytvor súťaž, skontroluj oprávnené príspevky a vyber výhercu.">
     <section class="panel">
-      <h2>Create contest</h2>
+      <h2>Vytvoriť súťaž</h2>
       <form class="formGrid" @submit.prevent="submitContest">
         <label>
-          <span>Name</span>
+          <span>Názov</span>
           <input v-model="form.name" type="text" required />
         </label>
         <label>
-          <span>Hashtag (without #)</span>
+          <span>Hashtag (bez #)</span>
           <input v-model="form.hashtag" type="text" required />
         </label>
         <label class="full">
-          <span>Description</span>
+          <span>Popis</span>
           <textarea v-model="form.description" rows="3" />
         </label>
         <label>
-          <span>Starts at</span>
+          <span>Začína</span>
           <input v-model="form.starts_at" type="datetime-local" required />
         </label>
         <label>
-          <span>Ends at</span>
+          <span>Končí</span>
           <input v-model="form.ends_at" type="datetime-local" required />
         </label>
         <label>
-          <span>Status</span>
+          <span>Stav</span>
           <select v-model="form.status">
-            <option value="draft">Draft</option>
-            <option value="active">Active</option>
-            <option value="finished">Finished</option>
+            <option value="draft">Návrh</option>
+            <option value="active">Aktívna</option>
+            <option value="finished">Ukončená</option>
           </select>
         </label>
         <div class="actions full">
           <button type="submit" class="btn primary" :disabled="!canSubmit">
-            {{ saving ? 'Saving...' : 'Create contest' }}
+            {{ saving ? 'Ukladám...' : 'Vytvoriť súťaž' }}
           </button>
         </div>
       </form>
@@ -177,24 +177,24 @@ onMounted(loadContests)
 
     <section class="panel">
       <header class="panelHead">
-        <h2>Contests list</h2>
+        <h2>Zoznam súťaží</h2>
         <button type="button" class="btn" :disabled="loading" @click="loadContests">
-          {{ loading ? 'Loading...' : 'Refresh' }}
+          {{ loading ? 'Načítavam...' : 'Obnoviť' }}
         </button>
       </header>
 
       <p v-if="error" class="error">{{ error }}</p>
-      <div v-else-if="loading" class="muted">Loading contests...</div>
-      <div v-else-if="contests.length === 0" class="muted">No contests yet.</div>
+      <div v-else-if="loading" class="muted">Načítavam súťaže...</div>
+      <div v-else-if="contests.length === 0" class="muted">Zatiaľ žiadne súťaže.</div>
       <div v-else class="tableWrap">
         <table>
           <thead>
             <tr>
-              <th>Name</th>
+              <th>Názov</th>
               <th>Hashtag</th>
-              <th>Window</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th>Trvanie</th>
+              <th>Stav</th>
+              <th>Akcie</th>
             </tr>
           </thead>
           <tbody>
@@ -206,14 +206,14 @@ onMounted(loadContests)
                 <span class="status" :class="contest.status">{{ statusLabel[contest.status] || contest.status }}</span>
               </td>
               <td class="rowActions">
-                <button type="button" class="btn small" @click="openParticipants(contest)">View participants</button>
+                <button type="button" class="btn small" @click="openParticipants(contest)">Zobraziť účastníkov</button>
                 <button
                   type="button"
                   class="btn small primary"
                   :disabled="contest.status === 'finished'"
                   @click="openParticipants(contest)"
                 >
-                  Select winner
+                  Vybrať výhercu
                 </button>
               </td>
             </tr>
@@ -227,13 +227,13 @@ onMounted(loadContests)
         <header class="modalHead">
           <div>
             <h3>{{ selectedContest?.name }}</h3>
-            <p class="muted">Eligible posts for #{{ selectedContest?.hashtag }}</p>
+            <p class="muted">Oprávnené príspevky pre #{{ selectedContest?.hashtag }}</p>
           </div>
-          <button class="btn small" type="button" @click="closeParticipantsModal">Close</button>
+          <button class="btn small" type="button" @click="closeParticipantsModal">Zavrieť</button>
         </header>
 
-        <div v-if="participantsLoading" class="muted">Loading participants...</div>
-        <div v-else-if="participants.length === 0" class="muted">No eligible participants found.</div>
+        <div v-if="participantsLoading" class="muted">Načítavam účastníkov...</div>
+        <div v-else-if="participants.length === 0" class="muted">Nenašli sa žiadni oprávnení účastníci.</div>
         <div v-else class="participantsList">
           <article v-for="participant in participants" :key="participant.post_id" class="participantCard">
             <div>
@@ -246,7 +246,7 @@ onMounted(loadContests)
               :disabled="selectingWinner || selectedContest?.status === 'finished'"
               @click="pickWinner(participant.post_id)"
             >
-              {{ selectingWinner ? 'Selecting...' : 'Pick winner' }}
+              {{ selectingWinner ? 'Vyberám...' : 'Vybrať výhercu' }}
             </button>
           </article>
         </div>

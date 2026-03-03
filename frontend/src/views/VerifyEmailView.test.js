@@ -1,27 +1,6 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { createRouter, createMemoryHistory } from 'vue-router'
-
-const mockAuth = vi.hoisted(() => ({
-  isAuthed: false,
-  loading: false,
-  user: null,
-  fetchUser: vi.fn(async () => null),
-}))
-
-const mockApi = vi.hoisted(() => ({
-  get: vi.fn(),
-  post: vi.fn(),
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => mockAuth,
-}))
-
-vi.mock('@/services/api', () => ({
-  default: mockApi,
-}))
-
+import { createMemoryHistory, createRouter } from 'vue-router'
 import VerifyEmailView from './VerifyEmailView.vue'
 
 function makeRouter() {
@@ -30,22 +9,13 @@ function makeRouter() {
     routes: [
       { path: '/verify-email', component: VerifyEmailView },
       { path: '/verify-email/:id/:hash', component: VerifyEmailView },
-      { path: '/', component: { template: '<div>home</div>' } },
+      { path: '/settings', name: 'settings', component: { template: '<div>settings</div>' } },
     ],
   })
 }
 
 describe('VerifyEmailView', () => {
-  beforeEach(() => {
-    mockAuth.isAuthed = false
-    mockAuth.loading = false
-    mockAuth.user = null
-    mockAuth.fetchUser.mockClear()
-    mockApi.get.mockReset()
-    mockApi.post.mockReset()
-  })
-
-  it('disables resend button when user is not authenticated', async () => {
+  it('renders deprecated message and CTA', async () => {
     const router = makeRouter()
     await router.push('/verify-email')
     await router.isReady()
@@ -56,17 +26,13 @@ describe('VerifyEmailView', () => {
       },
     })
 
-    const resendButton = wrapper.findAll('button')[0]
-    expect(resendButton.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Overenie cez odkaz uz nie je podporovane')
+    expect(wrapper.text()).toContain('Prejst na overenie e-mailu')
   })
 
-  it('resends verification email for authenticated user', async () => {
-    mockAuth.isAuthed = true
-    mockAuth.user = { email_verified_at: null }
-    mockApi.post.mockResolvedValue({ data: { message: 'Verification link sent.' } })
-
+  it('navigates to settings email section from CTA button', async () => {
     const router = makeRouter()
-    await router.push('/verify-email')
+    await router.push('/verify-email/1/hash')
     await router.isReady()
 
     const wrapper = mount(VerifyEmailView, {
@@ -75,10 +41,10 @@ describe('VerifyEmailView', () => {
       },
     })
 
-    const resendButton = wrapper.findAll('button')[0]
-    await resendButton.trigger('click')
+    await wrapper.find('button').trigger('click')
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(mockApi.post).toHaveBeenCalledWith('/auth/email/verification-notification', {}, { meta: { skipErrorToast: true } })
-    expect(wrapper.text()).toContain('Verification link sent.')
+    expect(router.currentRoute.value.name).toBe('settings')
+    expect(router.currentRoute.value.query.section).toBe('email')
   })
 })

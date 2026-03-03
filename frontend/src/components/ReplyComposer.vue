@@ -215,9 +215,7 @@ async function submit() {
     fd.append('content', content.value)
     if (file.value) fd.append('attachment', file.value)
 
-    const res = await api.post(`/posts/${props.parentId}/reply`, fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const res = await api.post(`/posts/${props.parentId}/reply`, fd)
 
     emit('created', res.data)
 

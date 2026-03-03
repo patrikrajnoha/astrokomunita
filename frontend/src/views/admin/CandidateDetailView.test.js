@@ -12,6 +12,7 @@ vi.mock('@/services/eventCandidates', () => ({
     approve: vi.fn(),
     reject: vi.fn(),
     retranslate: (...args) => retranslateMock(...args),
+    updateTranslation: vi.fn(),
   },
 }))
 
@@ -66,6 +67,9 @@ describe('CandidateDetailView', () => {
       short: 'Maximum roja',
       translated_description: 'Slovensky finalny popis',
       description: 'English description',
+      translation_status: 'pending',
+      translation_error: null,
+      translated_at: null,
       reviewed_by: null,
       reviewed_at: null,
       reject_reason: null,
@@ -77,7 +81,7 @@ describe('CandidateDetailView', () => {
     })
   })
 
-  it('renders confidence_score and matched_sources badges', async () => {
+  it('renders confidence and matched source badges', async () => {
     const router = makeRouter()
     await router.push('/admin/candidates/44')
     await router.isReady()
@@ -92,9 +96,7 @@ describe('CandidateDetailView', () => {
     await flush()
 
     const text = wrapper.text()
-    expect(text).toContain('Confidence')
     expect(text).toContain('1.00')
-    expect(text).toContain('Canonical key')
     expect(text).toContain('meteor shower|2026-04-22|lyrids lyr')
     expect(text).toContain('AstroPixels')
     expect(text).toContain('IMO')
@@ -118,7 +120,15 @@ describe('CandidateDetailView', () => {
     expect(wrapper.text()).toContain('Slovensky finalny popis')
   })
 
-  it('queues retranslate from candidate detail action', async () => {
+  it('shows loading and success state when retranslate is triggered', async () => {
+    let resolveRetranslate
+    retranslateMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRetranslate = resolve
+        }),
+    )
+
     const router = makeRouter()
     await router.push('/admin/candidates/44')
     await router.isReady()
@@ -132,12 +142,20 @@ describe('CandidateDetailView', () => {
     await flush()
     await flush()
 
-    const button = wrapper.find('[data-testid="retranslate-btn"]')
-    expect(button.exists()).toBe(true)
+    const button = wrapper
+      .findAll('button')
+      .find((node) => node.text().toLowerCase().includes('prelo'))
+    expect(button).toBeTruthy()
 
     await button.trigger('click')
     await flush()
+    expect(wrapper.text()).toContain('Pracujem na tom...')
+
+    resolveRetranslate({ ok: true, candidate: { translation_status: 'done' } })
+    await flush()
+    await flush()
 
     expect(retranslateMock).toHaveBeenCalledWith(44)
+    expect(wrapper.text()).toContain('Dokončené')
   })
 })

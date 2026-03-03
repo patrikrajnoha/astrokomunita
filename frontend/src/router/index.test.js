@@ -39,7 +39,7 @@ function makeRouter() {
       { path: '/sky/:pathMatch(.*)*', redirect: { name: 'home' } },
       { path: '/settings', name: 'settings', component: { template: '<div>settings</div>' }, meta: { requiresAuth: true } },
       { path: '/login', name: 'login', component: { template: '<div>login</div>' }, meta: { guest: true } },
-      { path: '/verify-email', name: 'verify-email.required', component: { template: '<div>verify</div>' }, meta: { requiresAuth: true } },
+      { path: '/verify-email', name: 'verify-email.deprecated', component: { template: '<div>verify</div>' }, meta: { requiresAuth: false } },
       { path: '/onboarding', name: 'onboarding', component: { template: '<div>onboarding</div>' }, meta: { requiresAuth: true } },
       { path: '/admin', name: 'admin', component: { template: '<div>admin</div>' }, meta: { requiresAuth: true, admin: true } },
       { path: '/:pathMatch(.*)*', name: 'not-found', component: { template: '<div>notfound</div>' } },
@@ -104,6 +104,22 @@ describe('router auth guard', () => {
 
     expect(router.currentRoute.value.name).toBe('login')
     expect(router.currentRoute.value.query.redirect).toBe('/settings')
+  })
+
+  it('redirects authenticated unverified users to settings email section', async () => {
+    authState.isAuthed = true
+    authState.user = {
+      email_verified_at: null,
+      requires_email_verification: true,
+    }
+
+    const router = makeRouter()
+    await router.push('/events')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('settings')
+    expect(router.currentRoute.value.query.section).toBe('email')
+    expect(router.currentRoute.value.query.redirect).toBe('/events')
   })
 
   it('keeps authenticated non-admin users out of admin routes', async () => {

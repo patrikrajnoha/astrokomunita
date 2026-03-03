@@ -55,13 +55,13 @@ const manualTypeOptions = [
   { value: "eclipse_lunar", label: "Zatmenie Mesiaca" },
   { value: "eclipse_solar", label: "Zatmenie Slnka" },
   { value: "planetary_event", label: "Planetarny ukaz" },
-  { value: "other", label: "Ina udalost" },
+  { value: "other", label: "Iná udalosť" },
 ];
 
 const manualFormErrors = computed(() => {
   const errors = [];
   if (!String(manualForm.value.title || "").trim()) {
-    errors.push("Nazov je povinny.");
+    errors.push("Názov je povinný.");
   }
   if (!manualForm.value.starts_at) {
     errors.push("Cas zaciatku je povinny.");
@@ -252,16 +252,16 @@ async function publishCandidateQuick(candidate) {
   if (!candidate?.id || String(candidate?.status || '') !== 'pending') return;
 
   const ok = await confirm({
-    title: 'Publikovat kandidata',
-    message: `Publikovat "${candidateDisplayTitle(candidate)}" do udalosti?`,
-    confirmText: 'Publikovat',
-    cancelText: 'Zrusit',
+    title: 'Publikovať kandidáta',
+    message: `Publikovať "${candidateDisplayTitle(candidate)}" do udalosti?`,
+    confirmText: 'Publikovať',
+    cancelText: 'Zrušiť',
   });
   if (!ok) return;
 
   loading.value = true;
   error.value = null;
-  startPublishProgress("Publikovanie kandidata...", 1);
+  startPublishProgress("Publikovanie kandidáta...", 1);
   try {
     await eventCandidates.approve(candidate.id);
     advancePublishProgress(1, 1);
@@ -279,15 +279,15 @@ async function publishCandidateQuick(candidate) {
 async function publishAllVisiblePending() {
   const ids = visiblePendingCandidateIds.value;
   if (ids.length === 0) {
-    toast.warn("Na tejto stranke nie su ziadni pending kandidati.");
+    toast.warn("Na tejto stránke nie sú žiadni pending kandidáti.");
     return;
   }
 
   const ok = await confirm({
-    title: "Publikovat vsetko",
-    message: `Naozaj publikovat ${ids.length} pending kandidatov na aktualnej stranke?`,
-    confirmText: "Publikovat",
-    cancelText: "Zrusit",
+    title: "Publikovať všetko",
+    message: `Naozaj publikovať ${ids.length} pending kandidátov na aktuálnej stránke?`,
+    confirmText: "Publikovať",
+    cancelText: "Zrušiť",
     variant: "danger",
   });
   if (!ok) return;
@@ -300,7 +300,7 @@ async function publishAllVisiblePending() {
   const total = ids.length;
 
   try {
-    startPublishProgress("Publikujem viditelnych kandidatov...", total);
+    startPublishProgress("Publikujem viditeľných kandidátov...", total);
     let doneCount = 0;
     for (const candidateId of ids) {
       try {
@@ -314,14 +314,14 @@ async function publishAllVisiblePending() {
     }
 
     if (failCount === 0) {
-      toast.success(`Publikovanych ${successCount} kandidatov.`);
+      toast.success(`Publikovaných ${successCount} kandidátov.`);
     } else {
-      toast.warn(`Publikovane: ${successCount}, zlyhalo: ${failCount}.`);
+      toast.warn(`Publikované: ${successCount}, zlyhalo: ${failCount}.`);
     }
 
     await load();
   } catch (e) {
-    error.value = e?.response?.data?.message || "Hromadne publikovanie zlyhalo";
+    error.value = e?.response?.data?.message || "Hromadné publikovanie zlyhalo";
     toast.error(error.value);
   } finally {
     finishPublishProgress();
@@ -331,17 +331,17 @@ async function publishAllVisiblePending() {
 
 async function publishAllByFilter() {
   const ok = await confirm({
-    title: "Publikovat vsetko podla filtra",
-    message: "Naozaj publikovat vsetky pending udalosti podla aktualneho filtra? (max 1000)",
-    confirmText: "Publikovat",
-    cancelText: "Zrusit",
+    title: "Publikovať všetko podľa filtra",
+    message: "Naozaj publikovať všetky pending udalosti podľa aktuálneho filtra? (max 1000)",
+    confirmText: "Publikovať",
+    cancelText: "Zrušiť",
     variant: "danger",
   });
   if (!ok) return;
 
   loading.value = true;
   error.value = null;
-  startPublishProgress("Publikujem podla filtra...", 1);
+  startPublishProgress("Publikujem podľa filtra...", 1);
 
   try {
     const params = buildParams();
@@ -359,13 +359,13 @@ async function publishAllByFilter() {
     const result = await eventCandidates.approveBatch(payload);
     advancePublishProgress(1, 1);
     if (result.failed > 0) {
-      toast.warn(`Publikovane: ${result.published}, zlyhalo: ${result.failed}.`);
+      toast.warn(`Publikované: ${result.published}, zlyhalo: ${result.failed}.`);
     } else {
-      toast.success(`Publikovanych ${result.published} kandidatov.`);
+      toast.success(`Publikovaných ${result.published} kandidátov.`);
     }
     await load();
   } catch (e) {
-    error.value = e?.response?.data?.message || "Hromadne publikovanie podla filtra zlyhalo";
+    error.value = e?.response?.data?.message || "Hromadné publikovanie podľa filtra zlyhalo";
     toast.error(error.value);
   } finally {
     finishPublishProgress();
@@ -385,16 +385,16 @@ function buildManualBatchPayload() {
 
 async function publishBySelectedMode() {
   const labels = {
-    crawled: "crawlovane",
-    manual: "manualne",
-    all: "crawlovane aj manualne",
+    crawled: "crawlované",
+    manual: "manuálne",
+    all: "crawlované aj manuálne",
   };
 
   const ok = await confirm({
-    title: "Publikovat podla rezimu",
-    message: `Naozaj publikovat ${labels[publishMode.value] || "vybrane"} udalosti podla filtra? (max 1000 na typ)` ,
-    confirmText: "Publikovat",
-    cancelText: "Zrusit",
+    title: "Publikovať podľa režimu",
+    message: `Naozaj publikovať ${labels[publishMode.value] || "vybrané"} udalosti podľa filtra? (max 1000 na typ)` ,
+    confirmText: "Publikovať",
+    cancelText: "Zrušiť",
     variant: "danger",
   });
   if (!ok) return;
@@ -402,7 +402,7 @@ async function publishBySelectedMode() {
   loading.value = true;
   error.value = null;
   const modeSteps = publishMode.value === "all" ? 2 : 1;
-  startPublishProgress("Publikujem podla rezimu...", modeSteps);
+  startPublishProgress("Publikujem podľa režimu...", modeSteps);
   let completedSteps = 0;
 
   try {
@@ -437,14 +437,14 @@ async function publishBySelectedMode() {
     const totalFailed = Number(crawledResult.failed || 0) + Number(manualResult.failed || 0);
 
     if (totalFailed > 0) {
-      toast.warn(`Publikovane spolu: ${totalPublished}, zlyhalo: ${totalFailed}.`);
+      toast.warn(`Publikované spolu: ${totalPublished}, zlyhalo: ${totalFailed}.`);
     } else {
-      toast.success(`Publikovanych spolu: ${totalPublished}.`);
+      toast.success(`Publikovaných spolu: ${totalPublished}.`);
     }
 
     await Promise.all([load(), loadManual()]);
   } catch (e) {
-    error.value = e?.response?.data?.message || "Hromadne publikovanie podla rezimu zlyhalo";
+    error.value = e?.response?.data?.message || "Hromadné publikovanie podľa režimu zlyhalo";
     toast.error(error.value);
   } finally {
     finishPublishProgress();
@@ -455,15 +455,15 @@ async function publishBySelectedMode() {
 async function retranslateVisiblePending() {
   const ids = visiblePendingCandidateIds.value;
   if (ids.length === 0) {
-    toast.warn("Na tejto stranke nie su ziadni pending kandidati.");
+    toast.warn("Na tejto stránke nie sú žiadni pending kandidáti.");
     return;
   }
 
   const ok = await confirm({
-    title: "Prelozit znova viditelnych",
-    message: `Spustit novy preklad pre ${ids.length} pending kandidatov na aktualnej stranke?`,
-    confirmText: "Spustit",
-    cancelText: "Zrusit",
+    title: "Preložiť znova viditeľných",
+    message: `Spustiť nový preklad pre ${ids.length} pending kandidátov na aktuálnej stránke?`,
+    confirmText: "Spustiť",
+    cancelText: "Zrušiť",
   });
   if (!ok) return;
 
@@ -484,14 +484,14 @@ async function retranslateVisiblePending() {
     }
 
     if (failCount === 0) {
-      toast.success(`Preklad bol spusteny pre ${successCount} kandidatov.`);
+      toast.success(`Preklad bol spustený pre ${successCount} kandidátov.`);
     } else {
-      toast.warn(`Preklad spusteny: ${successCount}, zlyhalo: ${failCount}.`);
+      toast.warn(`Preklad spustený: ${successCount}, zlyhalo: ${failCount}.`);
     }
 
     await load();
   } catch (e) {
-    error.value = e?.response?.data?.message || "Hromadny retranslate zlyhal";
+    error.value = e?.response?.data?.message || "Hromadný retranslate zlyhal";
     toast.error(error.value);
   } finally {
     loading.value = false;
@@ -500,10 +500,10 @@ async function retranslateVisiblePending() {
 
 async function retranslateByFilter() {
   const ok = await confirm({
-    title: "Prelozit znova podla filtra",
-    message: "Spustit novy preklad pre kandidatov podla aktualneho filtra? (max 1000)",
-    confirmText: "Spustit",
-    cancelText: "Zrusit",
+    title: "Preložiť znova podľa filtra",
+    message: "Spustiť nový preklad pre kandidátov podľa aktuálneho filtra? (max 1000)",
+    confirmText: "Spustiť",
+    cancelText: "Zrušiť",
   });
   if (!ok) return;
 
@@ -525,13 +525,13 @@ async function retranslateByFilter() {
 
     const result = await eventCandidates.retranslateBatch(payload);
     if (result.failed > 0) {
-      toast.warn(`Retranslate podla filtra: queued ${result.queued}, failed ${result.failed}.`);
+      toast.warn(`Retranslate podľa filtra: queued ${result.queued}, failed ${result.failed}.`);
     } else {
-      toast.success(`Retranslate podla filtra: queued ${result.queued}.`);
+      toast.success(`Retranslate podľa filtra: queued ${result.queued}.`);
     }
     await load();
   } catch (e) {
-    error.value = e?.response?.data?.message || "Hromadny retranslate podla filtra zlyhal";
+    error.value = e?.response?.data?.message || "Hromadný retranslate podľa filtra zlyhal";
     toast.error(error.value);
   } finally {
     loading.value = false;
@@ -568,7 +568,7 @@ async function load() {
   try {
     data.value = await eventCandidates.list(buildParams());
   } catch (e) {
-    error.value = e?.response?.data?.message || "Chyba pri nacitani kandidatov";
+    error.value = e?.response?.data?.message || "Chyba pri načítaní kandidátov";
   } finally {
     loading.value = false;
   }
@@ -596,7 +596,7 @@ async function loadManual() {
     const res = await api.get("/admin/manual-events", { params: buildManualParams() });
     manualData.value = res.data;
   } catch (e) {
-    manualError.value = e?.response?.data?.message || "Chyba pri nacitani draftov";
+    manualError.value = e?.response?.data?.message || "Chyba pri načítaní draftov";
   } finally {
     manualLoading.value = false;
   }
@@ -724,7 +724,7 @@ function updateManualRow(updated) {
 
 async function saveManual() {
   if (!manualCanSave.value) {
-    manualError.value = manualFormErrors.value[0] || "Skontroluj formular.";
+    manualError.value = manualFormErrors.value[0] || "Skontroluj formulár.";
     return;
   }
 
@@ -751,7 +751,7 @@ async function saveManual() {
     }
     showManualForm.value = false;
   } catch (e) {
-    manualError.value = e?.response?.data?.message || "Ulozenie zlyhalo";
+    manualError.value = e?.response?.data?.message || "Uloženie zlyhalo";
   } finally {
     manualLoading.value = false;
   }
@@ -763,7 +763,7 @@ async function deleteManual(row) {
     title: 'Zmazat draft',
     message: `Zmazat draft "${row.title}"?`,
     confirmText: 'Zmazat',
-    cancelText: 'Zrusit',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   });
   if (!ok) return;
@@ -788,10 +788,10 @@ async function deleteManual(row) {
 async function publishManual(row) {
   if (!row?.id) return;
   const ok = await confirm({
-    title: 'Publikovat draft',
-    message: `Publikovat "${row.title}" do events?`,
-    confirmText: 'Publikovat',
-    cancelText: 'Zrusit',
+    title: 'Publikovať draft',
+    message: `Publikovať "${row.title}" do events?`,
+    confirmText: 'Publikovať',
+    cancelText: 'Zrušiť',
   });
   if (!ok) return;
 
@@ -840,7 +840,7 @@ onMounted(() => {
   <div style="max-width: 980px; margin: 0 auto; padding: 10px 8px;">
     <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:10px;">
       <div>
-        <h1 style="margin:0 0 4px;">Kandidati udalosti</h1>
+        <h1 style="margin:0 0 4px;">Kandidáti udalostí</h1>
       </div>
 
       <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -858,7 +858,7 @@ onMounted(() => {
             ? 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .4); border-radius:8px; background:rgb(var(--color-surface-rgb) / .08); color:inherit;'
             : 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;'"
         >
-          Crawlovani kandidati
+          Crawlovaní kandidáti
         </button>
         <button
           @click="setTab('manual')"
@@ -867,7 +867,7 @@ onMounted(() => {
             ? 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .4); border-radius:8px; background:rgb(var(--color-surface-rgb) / .08); color:inherit;'
             : 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;'"
         >
-          Manualne navrhy
+          Manuálne návrhy
         </button>
       </div>
     </div>
@@ -875,7 +875,7 @@ onMounted(() => {
     <div v-if="activeTab === 'crawled'">
       <div class="uxOverview">
         <div class="uxOverview__item">
-          <span>Na stranke</span>
+          <span>Na stránke</span>
           <strong>{{ crawledStats.total }}</strong>
         </div>
         <div class="uxOverview__item">
@@ -904,7 +904,7 @@ onMounted(() => {
           @click="clearRunFilter"
           style="padding:6px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
         >
-          Zrusit filter runu
+          Zrušiť filter runu
         </button>
       </div>
 
@@ -914,37 +914,37 @@ onMounted(() => {
           :disabled="loading"
           style="padding:8px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit; margin-right:8px;"
         >
-          <option value="crawled">Publikovat: Crawlovane</option>
-          <option value="manual">Publikovat: Manualne</option>
-          <option value="all">Publikovat: Oboje</option>
+          <option value="crawled">Publikovať: Crawlované</option>
+          <option value="manual">Publikovať: Manuálne</option>
+          <option value="all">Publikovať: Oboje</option>
         </select>
         <button
           @click="publishBySelectedMode"
           :disabled="loading"
           style="padding:8px 12px; border:1px solid rgb(var(--color-success-rgb) / .35); border-radius:8px; background:rgb(var(--color-success-rgb) / .10); color:inherit; margin-right:8px;"
         >
-          Publikovat podla rezimu
+          Publikovať podľa režimu
         </button>
         <button
           @click="publishAllByFilter"
           :disabled="loading"
           style="padding:8px 12px; border:1px solid rgb(var(--color-success-rgb) / .35); border-radius:8px; background:rgb(var(--color-success-rgb) / .10); color:inherit; margin-right:8px;"
         >
-          Publikovat vsetko (podla filtra)
+          Publikovať všetko (podľa filtra)
         </button>
         <button
           @click="publishAllVisiblePending"
           :disabled="loading || visiblePendingCandidateIds.length === 0"
           style="padding:8px 12px; border:1px solid rgb(var(--color-success-rgb) / .35); border-radius:8px; background:rgb(var(--color-success-rgb) / .10); color:inherit; margin-right:8px;"
         >
-          Publikovat vsetko (viditelne)
+          Publikovať všetko (viditeľné)
         </button>
         <button
           @click="retranslateByFilter"
           :disabled="loading"
           style="padding:8px 12px; border:1px solid rgb(var(--color-primary-rgb) / .35); border-radius:8px; background:rgb(var(--color-primary-rgb) / .12); color:inherit; margin-right:8px;"
         >
-          Prelozit znova (podla filtra)
+          Preložiť znova (podľa filtra)
         </button>
         <button
           @click="retranslateVisiblePending"
@@ -996,9 +996,9 @@ onMounted(() => {
             :disabled="loading"
             style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            <option value="pending">Cakajuce</option>
+            <option value="pending">Čakajúce</option>
             <option value="approved">Schvalene</option>
-            <option value="rejected">Zamietnute</option>
+            <option value="rejected">Zamietnuté</option>
           </select>
         </div>
 
@@ -1009,7 +1009,7 @@ onMounted(() => {
             :disabled="loading"
             style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            <option value="">vsetky</option>
+            <option value="">všetky</option>
             <option value="eclipse_lunar">eclipse_lunar</option>
             <option value="eclipse_solar">eclipse_solar</option>
             <option value="meteor_shower">meteor_shower</option>
@@ -1070,7 +1070,7 @@ onMounted(() => {
       </div>
 
       <div v-if="loading" style="margin-top: 12px; opacity: .85;">
-        Nacitavam...
+        Načítavam...
       </div>
 
       <div
@@ -1087,10 +1087,10 @@ onMounted(() => {
             <tr>
               <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">ID</th>
               <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Typ</th>
-              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Nazov</th>
+              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Názov</th>
               <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Zdroj</th>
               <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Dovera</th>
-              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Sparovane zdroje</th>
+              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Spárované zdroje</th>
               <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Zaciatok</th>
               <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Stav</th>
               <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Preklad a akcie</th>
@@ -1140,7 +1140,7 @@ onMounted(() => {
                     :disabled="loading"
                     style="padding:6px 8px; border-radius:8px; border:1px solid rgb(var(--color-success-rgb) / .35); background:rgb(var(--color-success-rgb) / .10); color:inherit;"
                   >
-                    Publikovat
+                    Publikovať
                   </button>
                   <button
                     @click="openCandidate(c.id)"
@@ -1187,7 +1187,7 @@ onMounted(() => {
             :disabled="loading || (data && page >= data.last_page)"
             style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            Dalsia
+            Ďalšia
           </button>
         </div>
       </div>
@@ -1196,7 +1196,7 @@ onMounted(() => {
     <div v-else>
       <div class="uxOverview">
         <div class="uxOverview__item">
-          <span>Na stranke</span>
+          <span>Na stránke</span>
           <strong>{{ manualStats.total }}</strong>
         </div>
         <div class="uxOverview__item">
@@ -1204,7 +1204,7 @@ onMounted(() => {
           <strong>{{ manualStats.draft }}</strong>
         </div>
         <div class="uxOverview__item">
-          <span>Publikovane</span>
+          <span>Publikované</span>
           <strong>{{ manualStats.published }}</strong>
         </div>
       </div>
@@ -1215,7 +1215,7 @@ onMounted(() => {
           :disabled="manualLoading"
           style="padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
         >
-          Vytvorit manualnu udalost
+          Vytvoriť manuálnu udalosť
         </button>
         <button
           @click="clearManualFilters"
@@ -1244,8 +1244,8 @@ onMounted(() => {
             :disabled="manualLoading"
             style="width:100%; padding:8px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            <option value="draft">Navrh</option>
-            <option value="published">Publikovane</option>
+            <option value="draft">Návrh</option>
+            <option value="published">Publikované</option>
           </select>
         </div>
 
@@ -1256,7 +1256,7 @@ onMounted(() => {
             :disabled="manualLoading"
             style="width:100%; padding:8px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            <option value="">vsetky</option>
+            <option value="">všetky</option>
             <option value="eclipse_lunar">eclipse_lunar</option>
             <option value="eclipse_solar">eclipse_solar</option>
             <option value="meteor_shower">meteor_shower</option>
@@ -1304,7 +1304,7 @@ onMounted(() => {
       <div v-if="showManualForm" style="margin-top: 12px; border:1px solid rgb(var(--color-surface-rgb) / .14); border-radius:14px; background:rgb(var(--color-surface-rgb) / .03); padding:14px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
           <div>
-            <div style="font-weight:700;">{{ manualEditingId ? 'Upravit manualny navrh' : 'Novy manualny navrh' }}</div>
+            <div style="font-weight:700;">{{ manualEditingId ? 'Upraviť manuálny návrh' : 'Nový manuálny návrh' }}</div>
             <div style="font-size:12px; opacity:.78; margin-top:2px;">Vypln nazov, typ a termin. Zvysok mozes doplnit neskor.</div>
           </div>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -1334,7 +1334,7 @@ onMounted(() => {
 
         <div style="display:grid; grid-template-columns: repeat(12, 1fr); gap:10px;">
           <div style="grid-column: span 8;">
-            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Nazov udalosti *</label>
+            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Názov udalosti *</label>
             <input
               v-model="manualForm.title"
               type="text"
@@ -1403,14 +1403,14 @@ onMounted(() => {
             :disabled="manualLoading"
             style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
           >
-            Zrusit
+            Zrušiť
           </button>
           <button
             @click="saveManual"
             :disabled="manualLoading || !manualCanSave"
             style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-primary-rgb) / .32); background:rgb(var(--color-primary-rgb) / .12); color:inherit;"
           >
-            {{ manualLoading ? 'Uklada sa...' : 'Ulozit navrh' }}
+            {{ manualLoading ? 'Ukladá sa...' : 'Uložiť návrh' }}
           </button>
         </div>
       </div>
@@ -1420,7 +1420,7 @@ onMounted(() => {
       </div>
 
       <div v-if="manualLoading" style="margin-top: 12px; opacity: .85;">
-        Nacitavam...
+        Načítavam...
       </div>
 
       <div
@@ -1435,7 +1435,7 @@ onMounted(() => {
         <table style="width:100%; border-collapse:collapse;">
           <thead style="background: rgb(var(--color-surface-rgb) / .05);">
             <tr>
-              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Nazov</th>
+              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Názov</th>
               <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Typ</th>
               <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Zaciatok</th>
               <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Stav</th>
@@ -1459,7 +1459,7 @@ onMounted(() => {
                   :disabled="manualLoading"
                   style="padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
                 >
-                  Upravit
+                  Upraviť
                 </button>
                 <button
                   @click="deleteManual(row)"
@@ -1473,7 +1473,7 @@ onMounted(() => {
                   :disabled="manualLoading || row.status === 'published'"
                   style="margin-left:6px; padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
                 >
-                  Publikovat
+                  Publikovať
                 </button>
               </td>
             </tr>
@@ -1515,7 +1515,7 @@ onMounted(() => {
             :disabled="manualLoading || (manualData && manualPage >= manualData.last_page)"
             style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           >
-            Dalsia
+            Ďalšia
           </button>
         </div>
       </div>

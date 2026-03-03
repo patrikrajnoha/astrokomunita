@@ -36,9 +36,5 @@ export function unpublishBlogPost(id) {
 }
 
 export function uploadBlogCover(id, formData) {
-  return api.patch(`/admin/blog-posts/${id}`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  })
+  return api.patch(`/admin/blog-posts/${id}`, formData)
 }

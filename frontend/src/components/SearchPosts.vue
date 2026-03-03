@@ -1,6 +1,6 @@
 <template>
   <div class="w-full">
-    <!-- ModernĂ© vyhÄľadĂˇvacie pole -->
+    <!-- ModernÄ‚Â© vyhĂ„ÄľadÄ‚Ë‡vacie pole -->
     <div class="relative mb-6">
       <div class="relative">
         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -11,7 +11,7 @@
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="HÄľadaĹĄ prĂ­spevky..."
+          placeholder="HĂ„ÄľadaÄąÄ„ prÄ‚Â­spevky..."
           class="w-full pl-12 pr-12 py-4 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-lg"
           @input="onSearchInput"
         />
@@ -22,33 +22,33 @@
           />
           <div v-else-if="searchQuery" class="flex items-center gap-1">
             <div class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span class="text-xs text-slate-500 dark:text-slate-400">{{ totalPosts }} nĂˇjdenĂ˝ch</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400">{{ totalPosts }} nÄ‚Ë‡jdenÄ‚Ëťch</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- VĂ˝sledky vyhÄľadĂˇvania -->
+    <!-- VÄ‚Ëťsledky vyhĂ„ÄľadÄ‚Ë‡vania -->
     <div v-if="searchQuery.length >= 2" class="space-y-4">
       <!-- Loading state -->
       <div v-if="isLoading" class="text-center py-12">
         <div class="inline-flex items-center gap-3 text-slate-600 dark:text-slate-400">
           <div class="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 dark:border-slate-600 border-t-blue-500" />
-          <span class="text-base font-medium">VyhÄľadĂˇvam prĂ­spevky...</span>
+          <span class="text-base font-medium">VyhĂ„ÄľadÄ‚Ë‡vam prÄ‚Â­spevky...</span>
         </div>
       </div>
 
-      <!-- Zoznam prĂ­spevkov -->
+      <!-- Zoznam prÄ‚Â­spevkov -->
       <div v-else-if="posts.length > 0" class="space-y-4">
         <div class="flex items-center justify-between mb-4">
           <div class="text-sm font-semibold text-slate-700 dark:text-slate-300">
-            NĂˇjdenĂ˝ch {{ totalPosts }} prĂ­spevkov
+            NÄ‚Ë‡jdenÄ‚Ëťch {{ totalPosts }} prÄ‚Â­spevkov
           </div>
           <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>VĂ˝sledky pre "{{ searchQuery }}"</span>
+            <span>VÄ‚Ëťsledky pre "{{ searchQuery }}"</span>
           </div>
         </div>
         
@@ -58,7 +58,7 @@
             :key="post.id"
             class="group bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden"
           >
-            <!-- Header s uĹľĂ­vateÄľom -->
+            <!-- Header s uÄąÄľÄ‚Â­vateĂ„Äľom -->
             <div class="p-6">
               <div class="flex items-start gap-4 mb-4">
                 <div class="relative">
@@ -80,7 +80,7 @@
                   </div>
                   <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                     <span class="font-medium">@{{ post.user.username }}</span>
-                    <span class="text-slate-400">â€˘</span>
+                    <span class="text-slate-400">&middot;</span>
                     <span>{{ formatDate(post.created_at) }}</span>
                   </div>
                 </div>
@@ -93,7 +93,7 @@
                 </div>
               </div>
 
-              <!-- Obsah prĂ­spevku -->
+              <!-- Obsah prÄ‚Â­spevku -->
               <div class="text-slate-900 dark:text-slate-100 whitespace-pre-wrap mb-4 leading-relaxed">
                 {{ post.content }}
               </div>
@@ -132,7 +132,7 @@
                     <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
                     </svg>
-                    <span class="text-sm font-medium">ZdieÄľaĹĄ</span>
+                    <span class="text-sm font-medium">ZdieĂ„ÄľaÄąÄ„</span>
                   </button>
                 </div>
                 <button class="p-2 text-slate-400 hover:text-blue-500 transition-colors rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
@@ -153,12 +153,12 @@
             class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
             <div v-if="isLoadingMore" class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            <span v-else>NaÄŤĂ­taĹĄ viac prĂ­spevkov</span>
+            <span v-else>NaĂ„Ĺ¤Ä‚Â­taÄąÄ„ viac prÄ‚Â­spevkov</span>
           </button>
         </div>
       </div>
 
-      <!-- Ĺ˝iadne vĂ˝sledky -->
+      <!-- ÄąËťiadne vÄ‚Ëťsledky -->
       <div v-else-if="!isLoading && searchQuery.length >= 2" class="text-center py-16">
         <div class="inline-flex items-center justify-center w-20 h-20 bg-slate-100 dark:bg-slate-700 rounded-2xl mb-6">
           <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,27 +167,27 @@
         </div>
         <div class="text-slate-600 dark:text-slate-400 mb-3">
           <div class="text-xl font-semibold mb-2">
-            Neboli nĂˇjdenĂ© Ĺľiadne prĂ­spevky
+            Neboli nÄ‚Ë‡jdenÄ‚Â© ÄąÄľiadne prÄ‚Â­spevky
           </div>
           <div class="text-base">
-            pre vĂ˝raz <strong class="text-slate-900 dark:text-slate-100">"{{ searchQuery }}"</strong>
+            pre vÄ‚Ëťraz <strong class="text-slate-900 dark:text-slate-100">"{{ searchQuery }}"</strong>
           </div>
         </div>
         <div class="text-sm text-slate-500 dark:text-slate-500 mb-6">
-          SkĂşste inĂ˝ vyhÄľadĂˇvacĂ­ vĂ˝raz alebo skontrolujte preklepy
+          SkÄ‚Ĺźste inÄ‚Ëť vyhĂ„ÄľadÄ‚Ë‡vacÄ‚Â­ vÄ‚Ëťraz alebo skontrolujte preklepy
         </div>
         <div class="flex flex-col sm:flex-row gap-3 justify-center">
           <button
             @click="searchQuery = ''"
             class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
           >
-            VymazaĹĄ vyhÄľadĂˇvanie
+            VymazaÄąÄ„ vyhĂ„ÄľadÄ‚Ë‡vanie
           </button>
           <button
             @click="$router.push('/')"
             class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
-            SpĂ¤ĹĄ na domovskĂş strĂˇnku
+            SpÄ‚Â¤ÄąÄ„ na domovskÄ‚Ĺź strÄ‚Ë‡nku
           </button>
         </div>
       </div>
@@ -203,8 +203,8 @@ import api from '@/services/api'
 const props = defineProps({
   initialQuery: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 })
 
 const searchQuery = ref('')
@@ -215,66 +215,42 @@ const currentPage = ref(1)
 const lastPage = ref(1)
 const totalPosts = ref(0)
 
-// Watch pre zmeny v initialQuery
 watch(() => props.initialQuery, (newQuery) => {
   if (newQuery !== searchQuery.value) {
-    console.log('đź“Ą SearchPosts received initialQuery:', newQuery)
     searchQuery.value = newQuery
   }
 }, { immediate: true })
 
-// VlastnĂˇ debounce implementĂˇcia
 let timeoutId = null
 const searchPosts = (query, page = 1) => {
-  console.log('đź”Ť SearchPosts called with query:', query, 'page:', page)
   clearTimeout(timeoutId)
   timeoutId = setTimeout(async () => {
     if (query.length < 2) {
-      console.log('đź“ť Query too short, clearing results')
       posts.value = []
       totalPosts.value = 0
       return
     }
 
     try {
-      if (page === 1) {
-        isLoading.value = true
-      } else {
-        isLoadingMore.value = true
-      }
+      if (page === 1) isLoading.value = true
+      else isLoadingMore.value = true
 
-      const url = `http://localhost:8000/api/search/posts?q=${encodeURIComponent(query)}&limit=10&page=${page}`
-      console.log('đźŚ Making request to:', url)
       const response = await api.get('/search/posts', {
         params: { q: query, limit: 10, page },
       })
-      console.log('đź“Ą Response received:', response.data)
-      console.log('đź“Š Posts before update:', posts.value)
-      
-      // RozdelĂ­me response.data na posts a total
+
       const postsData = response.data.data || []
       const total = response.data.total || postsData.length || 0
-      
-      console.log('đź“Š Extracted postsData:', postsData)
-      console.log('đź“Š Extracted total:', total)
 
-      if (page === 1) {
-        posts.value = postsData
-        console.log('đź“Š Posts after update (page 1):', posts.value, 'length:', posts.value.length)
-      } else {
-        posts.value = [...posts.value, ...postsData]
-        console.log('đź“Š Posts after update (page', page, '):', posts.value, 'length:', posts.value.length)
-      }
-      
+      if (page === 1) posts.value = postsData
+      else posts.value = [...posts.value, ...postsData]
+
       totalPosts.value = total
       lastPage.value = response.data?.last_page || 1
       currentPage.value = response.data?.current_page || 1
-      console.log('đź“Š Final posts count:', posts.value.length, 'totalPosts:', totalPosts.value)
     } catch (error) {
-      console.error('âťŚ Chyba pri vyhÄľadĂˇvanĂ­ prĂ­spevkov:', error)
-      if (page === 1) {
-        posts.value = []
-      }
+      console.error('Search posts failed:', error)
+      if (page === 1) posts.value = []
     } finally {
       isLoading.value = false
       isLoadingMore.value = false
@@ -282,16 +258,11 @@ const searchPosts = (query, page = 1) => {
   }, 300)
 }
 
-// Cleanup
 onUnmounted(() => {
-  if (timeoutId) {
-    clearTimeout(timeoutId)
-  }
+  if (timeoutId) clearTimeout(timeoutId)
 })
 
-// Watch pre zmeny v searchQuery
 watch(searchQuery, (newQuery) => {
-  console.log('đź”„ SearchPosts searchQuery changed to:', newQuery)
   currentPage.value = 1
   searchPosts(newQuery)
 }, { immediate: true })
@@ -313,16 +284,12 @@ const formatDate = (dateString) => {
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-  if (diffHours < 1) {
-    return 'PrĂˇve teraz'
-  } else if (diffHours < 24) {
-    return `Pred ${diffHours} hod`
-  } else if (diffDays < 7) {
-    return `Pred ${diffDays} dĹami`
-  } else {
-    return date.toLocaleDateString('sk-SK')
-  }
+  if (diffHours < 1) return 'Prave teraz'
+  if (diffHours < 24) return `Pred ${diffHours} hod`
+  if (diffDays < 7) return `Pred ${diffDays} dnami`
+  return date.toLocaleDateString('sk-SK')
 }
 
 const hasMorePages = computed(() => currentPage.value < lastPage.value)
 </script>
+

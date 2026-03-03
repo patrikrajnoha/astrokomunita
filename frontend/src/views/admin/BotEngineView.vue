@@ -1,7 +1,8 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
+import AdminAiActionPanel from '@/components/admin/shared/AdminAiActionPanel.vue'
 import { useBotEngineStore } from '@/stores/botEngine'
 import { deleteAllBotPosts } from '@/services/api/admin/bots'
 import { useToast } from '@/composables/useToast'
@@ -36,7 +37,6 @@ const {
   loadingRuns,
   loadingRunItems,
   translationHealth,
-  loadingTranslationHealth,
   savingTranslationOutage,
 } = storeToRefs(store)
 const selectedRun = ref(null)
@@ -44,8 +44,14 @@ const selectedPreviewItem = ref(null)
 const publishAllLimit = ref(DEFAULT_PUBLISH_ALL_LIMIT)
 const retryTranslationLimit = ref(10)
 const translationTestText = ref('NASA studies the Sun and planets in our Solar System.')
+const translationTestProvider = ref('auto')
+const translationTestModel = ref('')
+const translationTestTemperature = ref('')
 const translationTestResult = ref(null)
 const translationOutageProvider = ref('none')
+const aiPanelError = ref('')
+const aiPanelLastRun = ref(null)
+const aiPanelNotice = ref('')
 
 const filterForm = ref({
   sourceKey: '',
@@ -188,6 +194,15 @@ const translationQueue = computed(() => {
 })
 
 const isTranslationQueueActive = computed(() => translationQueue.value.pending > 0)
+const aiPanelStatus = computed(() => {
+  if (aiPanelError.value) return 'error'
+  if (aiPanelLastRun.value?.status) return String(aiPanelLastRun.value.status)
+  if (translationHealth.value?.degraded) return 'fallback'
+  if (translationHealth.value?.result?.ok) return 'success'
+  if (translationHealth.value?.result?.ok === false) return 'error'
+  return 'idle'
+})
+const aiPanelRunHint = computed(() => (aiPanelLastRun.value?.updated_at ? 'Naposledy: tento beh' : 'Naposledy: -'))
 
 function toErrorMessage(error, fallbackMessage) {
   const status = Number(error?.response?.status || 0)
@@ -968,23 +983,59 @@ async function publishAllForRun() {
 }
 
 async function testTranslation() {
+  aiPanelError.value = ''
+  aiPanelNotice.value = ''
+
   try {
     const payload = {
       text: String(translationTestText.value || '').trim(),
     }
+    const provider = String(translationTestProvider.value || '')
+      .trim()
+      .toLowerCase()
+    if (provider !== '' && provider !== 'auto') {
+      payload.provider = provider
+    }
+
+    const model = String(translationTestModel.value || '').trim()
+    if (model !== '') {
+      payload.model = model
+    }
+
+    const temperature = Number(translationTestTemperature.value)
+    if (Number.isFinite(temperature) && temperature >= 0) {
+      payload.temperature = temperature
+    }
+
     const result = await store.testTranslation(payload)
     if (!result) {
       return
     }
 
     translationTestResult.value = result
-    const provider = translationProviderLabel(result.provider)
+    aiPanelLastRun.value = {
+      status: result?.meta?.fallback_used ? 'fallback' : 'success',
+      latency_ms: Number(result?.latency_ms || 0),
+      status_code: Number(result?.status_code || 0) || null,
+      updated_at: new Date().toISOString(),
+    }
+    aiPanelNotice.value = 'Test dokončený.'
+    const providerLabel = translationProviderLabel(result.provider)
     toast.success(
-      `Test prekladu je v poriadku (${provider}, ${Number(result.latency_ms || 0)} ms).`,
+      `Test prekladu je v poriadku (${providerLabel}, ${Number(result.latency_ms || 0)} ms).`,
     )
   } catch (error) {
+    const safeError = toErrorMessage(error, 'Test prekladu zlyhal.')
     translationTestResult.value = null
-    toast.error(toErrorMessage(error, 'Test prekladu zlyhal.'))
+    aiPanelNotice.value = ''
+    aiPanelError.value = safeError
+    aiPanelLastRun.value = {
+      status: 'error',
+      latency_ms: null,
+      status_code: Number(error?.response?.status || 0) || null,
+      updated_at: new Date().toISOString(),
+    }
+    toast.error(safeError)
   }
 }
 
@@ -1178,6 +1229,82 @@ onBeforeUnmount(() => {
       </button>
     </section>
 
+    <AdminAiActionPanel
+      title="AI pomocník"
+      description="Rýchly test prekladu bez interných detailov."
+      action-label="Otestovať preklad"
+      :enabled="true"
+      :status="aiPanelStatus"
+      :latency-ms="aiPanelLastRun?.latency_ms ?? null"
+      :last-run-at="aiPanelLastRun?.updated_at ?? null"
+      :raw-status-code="aiPanelLastRun?.status_code ?? null"
+      :is-loading="store.testingTranslation"
+      :error-message="aiPanelError"
+      @run="testTranslation"
+    >
+      <p class="translationMetaText">{{ aiPanelRunHint }}</p>
+      <p v-if="aiPanelNotice" class="translationMetaText">{{ aiPanelNotice }}</p>
+      <span v-if="aiPanelStatus === 'fallback'" class="statusBadge statusBadge--partial">Použitý fallback</span>
+      <p v-if="translationTestResult" class="translationMetaText">
+        Posledný výstup: {{ translationTestResult.translated_text || '-' }}
+      </p>
+      <template #advanced>
+        <div class="advancedActions">
+          <label class="filterField filterField--compact">
+            <span>Provider</span>
+            <select v-model="translationTestProvider">
+              <option value="auto">auto</option>
+              <option value="libretranslate">libretranslate</option>
+              <option value="ollama">ollama</option>
+            </select>
+          </label>
+          <label class="filterField filterField--compact">
+            <span>Model</span>
+            <input v-model.trim="translationTestModel" type="text" placeholder="predvoleny" />
+          </label>
+          <label class="filterField filterField--compact">
+            <span>Teplota</span>
+            <input v-model.number="translationTestTemperature" type="number" step="0.1" min="0" max="2" />
+          </label>
+        </div>
+        <label class="filterField">
+          <span>Testovací text</span>
+          <textarea
+            v-model="translationTestText"
+            rows="3"
+            maxlength="5000"
+            placeholder="Krátky anglický text na test prekladu."
+          />
+        </label>
+        <div v-if="translationTestResult" class="translationResult">
+          <div class="inlineActions">
+            <span :class="translationProviderClass(translationTestResult.provider)">
+              {{ translationProviderLabel(translationTestResult.provider) }}
+            </span>
+            <span class="modeHint">{{ Number(translationTestResult.latency_ms || 0) }} ms</span>
+            <span class="modeHint">{{ translationModeLabel(translationTestResult.mode) }}</span>
+          </div>
+          <p class="translationMetaText">
+            Reťazec:
+            {{
+              Array.isArray(translationTestResult.provider_chain) &&
+              translationTestResult.provider_chain.length > 0
+                ? translationTestResult.provider_chain.join(' -> ')
+                : '-'
+            }}
+            · Kvalita:
+            {{
+              Array.isArray(translationTestResult.quality_flags) &&
+              translationTestResult.quality_flags.length > 0
+                ? translationTestResult.quality_flags.join(', ')
+                : 'OK'
+            }}
+          </p>
+          <p>{{ translationTestResult.translated_text || '-' }}</p>
+        </div>
+      </template>
+    </AdminAiActionPanel>
+
     <section class="panel">
       <header class="panelHeader">
         <p class="sectionLabel">Zdroje</p>
@@ -1339,58 +1466,12 @@ onBeforeUnmount(() => {
 
               <button
                 type="button"
-                class="runBtn"
-                :disabled="store.testingTranslation || loadingTranslationHealth"
-                @click="testTranslation"
-              >
-                {{ store.testingTranslation ? 'Testujem...' : 'Otestovať' }}
-              </button>
-
-              <button
-                type="button"
                 class="dangerBtn"
                 :disabled="store.deletingAllPosts"
                 @click="deleteAllBotPostsForFilter"
               >
                 {{ store.deletingAllPosts ? 'Mažem príspevky...' : 'Vymazať bot príspevky' }}
               </button>
-            </div>
-
-            <label class="filterField">
-              <span>Testovací text</span>
-              <textarea
-                v-model="translationTestText"
-                rows="3"
-                maxlength="5000"
-                placeholder="Krátky anglický text na test prekladu."
-              />
-            </label>
-
-            <div v-if="translationTestResult" class="translationResult">
-              <div class="inlineActions">
-                <span :class="translationProviderClass(translationTestResult.provider)">
-                  {{ translationProviderLabel(translationTestResult.provider) }}
-                </span>
-                <span class="modeHint">{{ Number(translationTestResult.latency_ms || 0) }} ms</span>
-                <span class="modeHint">{{ translationModeLabel(translationTestResult.mode) }}</span>
-              </div>
-              <p class="translationMetaText">
-                Reťazec:
-                {{
-                  Array.isArray(translationTestResult.provider_chain) &&
-                  translationTestResult.provider_chain.length > 0
-                    ? translationTestResult.provider_chain.join(' -> ')
-                    : '-'
-                }}
-                · Kvalita:
-                {{
-                  Array.isArray(translationTestResult.quality_flags) &&
-                  translationTestResult.quality_flags.length > 0
-                    ? translationTestResult.quality_flags.join(', ')
-                    : 'OK'
-                }}
-              </p>
-              <p>{{ translationTestResult.translated_text || '-' }}</p>
             </div>
           </div>
         </details>
@@ -1624,13 +1705,10 @@ onBeforeUnmount(() => {
                     max="100"
                   />
                 </label>
-                <label class="inlineField">
-                  <span>Retry</span>
-                  <input v-model.number="retryTranslationLimit" type="number" min="1" max="100" />
-                </label>
                 <button
                   type="button"
                   class="runBtn"
+                  data-testid="publish-all-btn"
                   :disabled="store.isRunPublishing(selectedRun?.id)"
                   @click="publishAllForRun"
                 >
@@ -1641,35 +1719,53 @@ onBeforeUnmount(() => {
                 <button
                   type="button"
                   class="ghostBtn"
-                  :disabled="store.isTranslationRetrying(selectedRun?.source_key)"
-                  @click="retryTranslateForRun"
-                >
-                  {{
-                    store.isTranslationRetrying(selectedRun?.source_key)
-                      ? 'Skúšam...'
-                      : 'Skúsiť preklad'
-                  }}
-                </button>
-                <button
-                  type="button"
-                  class="ghostBtn"
-                  :disabled="store.isTranslationBackfilling(selectedRun?.source_key)"
-                  @click="backfillTranslateForRun"
-                >
-                  {{
-                    store.isTranslationBackfilling(selectedRun?.source_key)
-                      ? 'Dopĺňam...'
-                      : 'Doplniť preklad'
-                  }}
-                </button>
-                <button
-                  type="button"
-                  class="ghostBtn"
                   :disabled="loadingRunItems"
                   @click="goToItemsPage(1)"
                 >
                   Obnoviť položky
                 </button>
+                <details class="advancedTools advancedTools--inline">
+                  <summary>Rozšírené</summary>
+                  <div class="advancedTools__body">
+                    <div class="advancedActions">
+                      <label class="inlineField">
+                        <span>Retry</span>
+                        <input
+                          v-model.number="retryTranslationLimit"
+                          type="number"
+                          min="1"
+                          max="100"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        class="ghostBtn"
+                        data-testid="retry-translation-btn"
+                        :disabled="store.isTranslationRetrying(selectedRun?.source_key)"
+                        @click="retryTranslateForRun"
+                      >
+                        {{
+                          store.isTranslationRetrying(selectedRun?.source_key)
+                            ? 'Skúšam...'
+                            : 'Skúsiť preklad'
+                        }}
+                      </button>
+                      <button
+                        type="button"
+                        class="ghostBtn"
+                        data-testid="backfill-translation-btn"
+                        :disabled="store.isTranslationBackfilling(selectedRun?.source_key)"
+                        @click="backfillTranslateForRun"
+                      >
+                        {{
+                          store.isTranslationBackfilling(selectedRun?.source_key)
+                            ? 'Dopĺňam...'
+                            : 'Doplniť preklad'
+                        }}
+                      </button>
+                    </div>
+                  </div>
+                </details>
               </div>
             </div>
 
@@ -1748,6 +1844,7 @@ onBeforeUnmount(() => {
                         <button
                           type="button"
                           class="runBtn"
+                          data-testid="item-publish-btn"
                           :disabled="
                             !canPublishItem(item) ||
                             store.isItemPublishing(item.id) ||
@@ -1760,6 +1857,7 @@ onBeforeUnmount(() => {
                         <button
                           type="button"
                           class="dangerBtn"
+                          data-testid="item-delete-btn"
                           :disabled="
                             !canDeleteItemPost(item) ||
                             store.isItemDeleting(item.id) ||
@@ -2915,6 +3013,17 @@ onBeforeUnmount(() => {
   color: rgb(var(--color-text-secondary-rgb) / 0.88);
 }
 
+.advancedTools--inline {
+  border-top: none;
+  padding-top: 0;
+}
+
+.advancedTools--inline > summary {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+}
+
 .advancedTools__body {
   display: grid;
   gap: 10px;
@@ -3015,3 +3124,4 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
