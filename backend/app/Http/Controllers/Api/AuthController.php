@@ -42,6 +42,7 @@ class AuthController extends Controller
     public function register(RegisterRequest $request)
     {
         $validated = $request->validated();
+        $requiresEmailVerification = $this->emailVerificationSettingService->requiresEmailVerificationForNewUsers();
 
         if ($this->turnstileService->isEnabled() && ! $this->turnstileService->hasSecretKey()) {
             $this->turnstileService->logMissingSecretWarningOnce();
@@ -64,9 +65,10 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'date_of_birth' => $validated['date_of_birth'],
             'password' => $validated['password'],
+            'requires_email_verification' => $requiresEmailVerification,
         ]);
 
-        if ($this->emailVerificationSettingService->requiresEmailVerification()) {
+        if ($requiresEmailVerification) {
             event(new Registered($user));
         } else {
             $user->forceFill([

@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\UserNotificationPreferenceController;
 use App\Http\Controllers\Api\EventFollowController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\BookmarkController;
+use App\Http\Controllers\Api\AccountEmailController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PostController;
@@ -50,6 +51,7 @@ use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\ModerationHubController;
 use App\Http\Controllers\Api\Admin\TranslationHealthController;
 use App\Http\Controllers\Api\Admin\AdminNewsletterController;
+use App\Http\Controllers\Api\Admin\AdminAiController;
 use App\Http\Controllers\Api\Admin\AuthSettingsController;
 use App\Http\Controllers\Api\Admin\ContestController as AdminContestController;
 use App\Http\Controllers\Api\Admin\AdminStatsController;
@@ -331,6 +333,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::post('/performance-metrics/run', [PerformanceMetricsController::class, 'run']);
         Route::get('/auth-settings', [AuthSettingsController::class, 'show']);
         Route::patch('/auth-settings', [AuthSettingsController::class, 'update']);
+        Route::get('/settings/email-verification', [AuthSettingsController::class, 'show']);
+        Route::put('/settings/email-verification', [AuthSettingsController::class, 'update']);
 
         // Candidates (list + detail)
         Route::get('/event-candidates',                  [EventCandidateController::class, 'index']);
@@ -354,6 +358,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::patch('/event-sources/{eventSource}', [EventSourceController::class, 'update']);
         Route::post('/event-sources/run', [EventSourceController::class, 'run']);
         Route::post('/event-sources/purge', [EventSourceController::class, 'purge']);
+        Route::get('/event-sources/translation-artifacts/report', [EventSourceController::class, 'translationArtifactsReport']);
+        Route::post('/event-sources/translation-artifacts/repair', [EventSourceController::class, 'translationArtifactsRepair']);
         Route::get('/translation-health', TranslationHealthController::class);
         Route::get('/event-translation-health', EventTranslationHealthController::class);
         Route::get('/contests', [AdminContestController::class, 'index']);
@@ -389,9 +395,17 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         // Newsletter (admin)
         Route::get('/newsletter/preview', [AdminNewsletterController::class, 'preview']);
         Route::post('/newsletter/preview', [AdminNewsletterController::class, 'sendPreview'])->middleware('throttle:newsletter-preview');
+        Route::post('/newsletter/ai/prime-insights', [AdminAiController::class, 'primeNewsletterInsights'])
+            ->middleware('throttle:admin-ai');
+        Route::post('/newsletter/ai/draft-copy', [AdminAiController::class, 'draftNewsletterCopy'])
+            ->middleware('throttle:admin-ai');
         Route::post('/newsletter/feature-events', [AdminNewsletterController::class, 'featureEvents']);
         Route::post('/newsletter/send', [AdminNewsletterController::class, 'send'])->middleware('throttle:newsletter-send');
         Route::get('/newsletter/runs', [AdminNewsletterController::class, 'runs']);
+        Route::get('/ai/config', [AdminAiController::class, 'config'])
+            ->middleware('throttle:admin-ai');
+        Route::get('/ai/jobs/{runId}', [AdminAiController::class, 'jobStatus'])
+            ->middleware('throttle:admin-ai');
 
         /*
         |--------------------------------------------------------------------------
@@ -403,6 +417,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::post('/blog-posts', [AdminBlogPostController::class, 'store']);
         Route::put('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
         Route::patch('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
+        Route::post('/blog-posts/{blogPost}/ai/suggest-tags', [AdminBlogPostController::class, 'suggestTags'])
+            ->middleware('throttle:admin-ai');
         Route::delete('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'destroy']);
 
         /*
@@ -426,6 +442,10 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         |----------------------------------------------------------------------
         */
         Route::get('/events', [AdminEventController::class, 'index']);
+        Route::post('/events/{event}/ai/generate-description', [AdminAiController::class, 'generateEventDescription'])
+            ->middleware('throttle:admin-ai');
+        Route::post('/events/{event}/ai/postedit-title', [AdminAiController::class, 'postEditEventTitle'])
+            ->middleware('throttle:admin-ai');
         Route::get('/events/{event}', [AdminEventController::class, 'show']);
         Route::post('/events', [AdminEventController::class, 'store']);
         Route::put('/events/{event}', [AdminEventController::class, 'update']);
@@ -503,6 +523,15 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
 | AUTHENTICATED USER ROUTES
 |--------------------------------------------------------------------------
 */
+Route::middleware(['auth:sanctum', 'active'])->group(function () {
+    Route::get('/account/email', [AccountEmailController::class, 'show']);
+    Route::post('/account/email/verification/send', [AccountEmailController::class, 'sendVerificationCode']);
+    Route::post('/account/email/verification/confirm', [AccountEmailController::class, 'confirmVerificationCode']);
+    Route::post('/account/email/change/request', [AccountEmailController::class, 'requestEmailChange']);
+    Route::post('/account/email/change/confirm-current', [AccountEmailController::class, 'confirmCurrentEmailChange']);
+    Route::post('/account/email/change/confirm-new', [AccountEmailController::class, 'confirmNewEmailChange']);
+});
+
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::middleware(['active', 'verified'])->group(function () {
 
