@@ -32,6 +32,7 @@ function isLongRunningPath(url) {
     normalized.includes('/admin/bots/quick-run') ||
     normalized.includes('/admin/event-sources/run') ||
     normalized.includes('/admin/event-sources/purge') ||
+    normalized.includes('/admin/event-sources/translation-artifacts/repair') ||
     normalized.includes('/admin/event-candidates/approve-batch') ||
     normalized.includes('/admin/manual-events/publish-batch') ||
     normalized.includes('/admin/performance-metrics/run')
@@ -71,19 +72,31 @@ function shouldRedirectToLogin(error) {
   return isProtectedPath(window.location.pathname || '')
 }
 
-function isVerificationError(status, message) {
+function resolveBackendErrorCode(error) {
+  const direct = error?.response?.data?.error_code
+  if (typeof direct === 'string' && direct.trim()) return direct.trim()
+
+  const legacy = error?.response?.data?.code
+  if (typeof legacy === 'string' && legacy.trim()) return legacy.trim()
+
+  return ''
+}
+
+function isVerificationError(error, status, message) {
   if (status !== 403) return false
+  const code = resolveBackendErrorCode(error)
+  if (code === 'EMAIL_NOT_VERIFIED') return true
+
   const normalized = String(message || '').toLowerCase()
   return normalized.includes('verified') || normalized.includes('verify') || normalized.includes('email address is not verified')
 }
 
-function redirectToVerifyIfNeeded() {
+function redirectToEmailSettingsIfNeeded() {
   if (typeof window === 'undefined') return
   const pathname = window.location.pathname || ''
-  if (pathname.startsWith('/verify-email')) return
+  if (pathname.startsWith('/settings')) return
 
-  const redirect = encodeURIComponent(window.location.pathname + window.location.search)
-  window.location.assign(`/verify-email?redirect=${redirect}`)
+  window.location.assign('/settings')
 }
 
 function redirectToLoginIfNeeded() {
@@ -121,7 +134,8 @@ api.interceptors.request.use((config) => {
     const url = String(config?.url || '').toLowerCase()
     const veryLongRunning =
       url.includes('/admin/event-sources/run') ||
-      url.includes('/admin/event-sources/purge')
+      url.includes('/admin/event-sources/purge') ||
+      url.includes('/admin/event-sources/translation-artifacts/repair')
 
     return {
       ...config,
@@ -153,9 +167,13 @@ api.interceptors.response.use(
     if (!suppressToast) {
       if (status === 422) {
         toast.warn('Skontroluj formular.')
-      } else if (isVerificationError(status, normalizedMessage)) {
-        toast.warn('Najprv over emailovu adresu.')
-        redirectToVerifyIfNeeded()
+      } else if (isVerificationError(error, status, normalizedMessage)) {
+        toast.warn('Najprv over emailovu adresu.', {
+          action: {
+            label: 'Otvorit Settings',
+            onClick: () => redirectToEmailSettingsIfNeeded(),
+          },
+        })
       } else if (status === 401 || status === 419) {
         if (shouldRedirectToLogin(error)) {
           toast.warn(error?.response?.data?.message || 'Relacia vyprsala. Prihlas sa znova.')

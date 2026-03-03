@@ -398,8 +398,17 @@ export function applyAuthGuards(routerInstance) {
     const isOnboardingRoute = to.name === 'onboarding'
     const isVerifiedUser = Boolean(auth.isAuthed && auth.user?.email_verified_at)
     const isAdminUser = Boolean(auth.isAdmin)
+    const requiresEmailVerification = Boolean(auth.user?.requires_email_verification)
+    const isSettingsRoute = to.name === 'settings'
 
-    if (auth.isAuthed && !isAdminUser && !auth.user?.email_verified_at && !isVerifyEmailRoute) {
+    if (
+      auth.isAuthed &&
+      !isAdminUser &&
+      requiresEmailVerification &&
+      !auth.user?.email_verified_at &&
+      !isVerifyEmailRoute &&
+      !isSettingsRoute
+    ) {
       return {
         name: 'verify-email.required',
         query: { redirect: redirectTarget },

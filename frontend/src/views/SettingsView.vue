@@ -26,8 +26,15 @@
     </section>
 
     <section class="settings-card">
-      <h2 class="card-title">Change email</h2>
-      <p class="card-subtitle">Update the email address associated with your account.</p>
+      <h2 class="card-title">Email</h2>
+      <p class="card-subtitle">Verification status, verification code, and secure email change flow.</p>
+
+      <div class="email-status-row" data-testid="settings-email-status">
+        <p class="email-value">{{ emailAccount.email || 'No email set' }}</p>
+        <span class="email-badge" :class="emailAccount.verified ? 'is-verified' : 'is-unverified'">
+          {{ emailAccount.verified ? 'Verified' : 'Not verified' }}
+        </span>
+      </div>
 
       <div v-if="emailState.success" class="status status-success" role="status">
         {{ emailState.success }}
@@ -36,33 +43,124 @@
         {{ emailState.error }}
       </div>
 
-      <form class="settings-form" @submit.prevent="submitEmail">
-        <label class="field-label" for="settings-email">New email</label>
+      <form class="settings-form" @submit.prevent="confirmEmailCode">
+        <button
+          id="settings-email-send"
+          type="button"
+          class="btn btn-primary"
+          :disabled="emailState.sending || emailAccount.verified || emailAccount.secondsToResend > 0"
+          @click="sendEmailCode"
+        >
+          {{
+            emailState.sending
+              ? 'Sending...'
+              : emailAccount.secondsToResend > 0
+                ? `Resend in ${emailAccount.secondsToResend}s`
+                : emailAccount.verified
+                  ? 'Already verified'
+                  : 'Send verification code'
+          }}
+        </button>
+
+        <label class="field-label" for="settings-email-code">Verification code</label>
         <input
-          id="settings-email"
-          v-model.trim="emailForm.email"
+          id="settings-email-code"
+          v-model.trim="emailForm.code"
+          type="text"
+          autocomplete="one-time-code"
+          placeholder="12345-67890"
+          class="field-input"
+          :disabled="emailState.confirming || emailAccount.verified"
+        />
+        <p v-if="emailState.fieldError" class="field-error">{{ emailState.fieldError }}</p>
+
+        <button
+          id="settings-email-confirm"
+          type="submit"
+          class="btn btn-primary"
+          :disabled="emailState.confirming || emailAccount.verified || !emailForm.code"
+        >
+          {{ emailState.confirming ? 'Confirming...' : 'Confirm code' }}
+        </button>
+      </form>
+
+      <form class="settings-form" @submit.prevent="requestEmailChange">
+        <label class="field-label" for="settings-email-new">New email</label>
+        <input
+          id="settings-email-new"
+          v-model.trim="emailForm.newEmail"
           type="email"
           autocomplete="email"
           placeholder="you@example.com"
           class="field-input"
-          :aria-invalid="emailState.fieldError ? 'true' : 'false'"
-          :aria-describedby="emailState.fieldError ? 'settings-email-error' : undefined"
-          :disabled="emailState.loading"
-          required
+          :disabled="emailState.requestingChange"
         />
-        <p v-if="emailState.fieldError" id="settings-email-error" class="field-error">
-          {{ emailState.fieldError }}
+        <button
+          id="settings-email-change-request"
+          type="submit"
+          class="btn btn-primary"
+          :disabled="emailState.requestingChange || !emailForm.newEmail"
+        >
+          {{ emailState.requestingChange ? 'Requesting...' : 'Request email change' }}
+        </button>
+      </form>
+
+      <div v-if="emailAccount.pendingEmailChange" class="pending-email-box">
+        <p class="pending-email-title">
+          Pending email change:
+          <strong>{{ emailAccount.pendingEmailChange.new_email }}</strong>
+        </p>
+        <p class="pending-email-hint">
+          Current email must be confirmed before applying the new one.
         </p>
 
         <button
-          type="submit"
-          class="btn btn-primary"
-          :disabled="emailState.loading || !emailForm.email"
-          aria-label="Save new email"
+          id="settings-email-change-send-current"
+          type="button"
+          class="btn btn-secondary"
+          :disabled="emailState.confirmingCurrent || emailAccount.pendingEmailChange.seconds_to_resend_current > 0"
+          @click="sendCurrentEmailChangeCode"
         >
-          {{ emailState.loading ? 'Saving...' : 'Save email' }}
+          {{
+            emailState.confirmingCurrent
+              ? 'Sending...'
+              : emailAccount.pendingEmailChange.seconds_to_resend_current > 0
+                ? `Resend in ${emailAccount.pendingEmailChange.seconds_to_resend_current}s`
+                : 'Send code to current email'
+          }}
         </button>
-      </form>
+
+        <form class="settings-form" @submit.prevent="confirmCurrentEmailChangeCode">
+          <label class="field-label" for="settings-email-current-code">Current email confirmation code</label>
+          <input
+            id="settings-email-current-code"
+            v-model.trim="emailForm.currentCode"
+            type="text"
+            autocomplete="one-time-code"
+            placeholder="12345-67890"
+            class="field-input"
+            :disabled="emailState.confirmingCurrent"
+          />
+          <button
+            id="settings-email-change-confirm-current"
+            type="submit"
+            class="btn btn-secondary"
+            :disabled="emailState.confirmingCurrent || !emailForm.currentCode"
+          >
+            {{ emailState.confirmingCurrent ? 'Confirming...' : 'Confirm current email code' }}
+          </button>
+        </form>
+
+        <button
+          id="settings-email-change-confirm-new"
+          type="button"
+          class="btn btn-primary"
+          :disabled="emailState.applyingNew || !emailAccount.pendingEmailChange.current_email_confirmed_at"
+          @click="applyNewEmailChange"
+        >
+          {{ emailState.applyingNew ? 'Applying...' : 'Apply new email and send verification code' }}
+        </button>
+      </div>
     </section>
 
     <section class="settings-card">
@@ -243,7 +341,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useOnboardingTourStore } from '@/stores/onboardingTour'
@@ -255,16 +353,33 @@ const router = useRouter()
 const onboardingTour = useOnboardingTourStore()
 
 const emailForm = reactive({
-  email: '',
-  name: '',
+  code: '',
+  newEmail: '',
+  currentCode: '',
 })
 
 const emailState = reactive({
   loading: false,
+  sending: false,
+  confirming: false,
+  requestingChange: false,
+  confirmingCurrent: false,
+  applyingNew: false,
   success: '',
   error: '',
   fieldError: '',
 })
+
+const emailAccount = reactive({
+  email: '',
+  verified: false,
+  emailVerifiedAt: null,
+  requiresEmailVerification: false,
+  secondsToResend: 0,
+  pendingEmailChange: null,
+})
+
+let emailResendCountdownInterval = null
 
 const passwordForm = reactive({
   current: '',
@@ -315,13 +430,123 @@ const resetEmailState = () => {
   emailState.fieldError = ''
 }
 
-const resetPasswordState = () => {
-  passwordState.success = ''
-  passwordState.error = ''
-  passwordState.fieldError = ''
+const clearEmailResendCountdown = () => {
+  if (emailResendCountdownInterval !== null) {
+    clearInterval(emailResendCountdownInterval)
+    emailResendCountdownInterval = null
+  }
 }
 
-const submitEmail = async () => {
+const startEmailResendCountdown = () => {
+  clearEmailResendCountdown()
+
+  if (
+    Number(emailAccount.secondsToResend) <= 0 &&
+    Number(emailAccount.pendingEmailChange?.seconds_to_resend_current || 0) <= 0
+  ) {
+    return
+  }
+
+  emailResendCountdownInterval = setInterval(() => {
+    if (emailAccount.secondsToResend > 0) {
+      emailAccount.secondsToResend -= 1
+    }
+
+    const pending = emailAccount.pendingEmailChange
+    if (pending && pending.seconds_to_resend_current > 0) {
+      pending.seconds_to_resend_current -= 1
+    }
+
+    if (
+      Number(emailAccount.secondsToResend) <= 0 &&
+      Number(emailAccount.pendingEmailChange?.seconds_to_resend_current || 0) <= 0
+    ) {
+      clearEmailResendCountdown()
+    }
+  }, 1000)
+}
+
+const normalizePendingEmailChange = (payload) => {
+  if (!payload || typeof payload !== 'object') return null
+
+  return {
+    id: Number(payload.id || 0) || 0,
+    current_email: String(payload.current_email || ''),
+    new_email: String(payload.new_email || ''),
+    current_email_confirmed_at: payload.current_email_confirmed_at || null,
+    new_email_applied_at: payload.new_email_applied_at || null,
+    expires_at: payload.expires_at || null,
+    seconds_to_resend_current: Math.max(0, Number(payload.seconds_to_resend_current || 0)),
+  }
+}
+
+const applyEmailStatus = (payload = {}) => {
+  emailAccount.email = String(payload.email || auth.user?.email || '')
+  emailAccount.verified = Boolean(payload.verified ?? payload.email_verified_at)
+  emailAccount.emailVerifiedAt = payload.email_verified_at || null
+  emailAccount.requiresEmailVerification = Boolean(
+    payload.requires_email_verification ?? auth.user?.requires_email_verification,
+  )
+  emailAccount.secondsToResend = Math.max(0, Number(payload.seconds_to_resend || 0))
+  emailAccount.pendingEmailChange = normalizePendingEmailChange(payload.pending_email_change)
+
+  if (auth.user) {
+    auth.user = {
+      ...auth.user,
+      email: emailAccount.email || auth.user.email,
+      email_verified_at: emailAccount.emailVerifiedAt,
+      requires_email_verification: emailAccount.requiresEmailVerification,
+    }
+  }
+
+  startEmailResendCountdown()
+}
+
+const loadEmailStatus = async () => {
+  if (!auth.user) return
+
+  emailState.loading = true
+  try {
+    const response = await http.get('/account/email', {
+      meta: { skipErrorToast: true },
+    })
+    const payload = response?.data?.data
+    if (payload && typeof payload === 'object') {
+      applyEmailStatus(payload)
+    } else {
+      applyEmailStatus()
+    }
+  } catch {
+    applyEmailStatus()
+  } finally {
+    emailState.loading = false
+  }
+}
+
+const resolveEmailError = (error, fallbackMessage) => {
+  const data = error?.response?.data
+  const status = Number(error?.response?.status || 0)
+
+  if (status === 422 && data?.errors) {
+    return {
+      message:
+        extractFirstError(data.errors, 'new_email') ||
+        extractFirstError(data.errors, 'code') ||
+        'Check the highlighted field.',
+      fieldError:
+        extractFirstError(data.errors, 'new_email') ||
+        extractFirstError(data.errors, 'code') ||
+        '',
+    }
+  }
+
+  return {
+    message: data?.message || error?.userMessage || fallbackMessage,
+    fieldError: '',
+  }
+}
+
+const sendEmailCode = async () => {
   resetEmailState()
 
   if (!auth.user) {
@@ -329,45 +554,175 @@ const submitEmail = async () => {
     return
   }
 
-  if (!emailForm.email) {
-    emailState.fieldError = 'Email is required.'
-    return
-  }
-
-  if (!emailForm.name) {
-    emailForm.name = auth.user.name || ''
-  }
-
-  if (!emailForm.name) {
-    emailState.error = 'Your profile name is missing.'
-    return
-  }
-
-  emailState.loading = true
+  emailState.sending = true
 
   try {
     await auth.csrf()
+    const response = await http.post('/account/email/verification/send', {})
+    applyEmailStatus(response?.data?.data || {})
+    emailState.success = response?.data?.message || 'Verification code sent.'
+  } catch (error) {
+    const resolved = resolveEmailError(error, 'Failed to send verification code.')
+    emailState.error = resolved.message
+    emailState.fieldError = resolved.fieldError
+  } finally {
+    emailState.sending = false
+  }
+}
 
-    const { data } = await http.patch('/profile', {
-      name: emailForm.name,
-      email: emailForm.email,
+const confirmEmailCode = async () => {
+  resetEmailState()
+
+  if (!auth.user) {
+    emailState.error = 'You are not signed in.'
+    return
+  }
+
+  if (!emailForm.code) {
+    emailState.fieldError = 'Verification code is required.'
+    return
+  }
+
+  emailState.confirming = true
+
+  try {
+    await auth.csrf()
+    const response = await http.post('/account/email/verification/confirm', {
+      code: emailForm.code,
     })
 
-    auth.user = data
-    emailState.success = 'Email updated.'
-  } catch (e) {
-    const status = e?.response?.status
-    const data = e?.response?.data
-
-    if (status === 422 && data?.errors) {
-      emailState.fieldError =
-        extractFirstError(data.errors, 'email') || 'Check the highlighted field.'
-    } else {
-      emailState.error = data?.message || 'Email update failed.'
-    }
+    applyEmailStatus(response?.data?.data || {})
+    emailForm.code = ''
+    emailState.success = response?.data?.message || 'Email verified successfully.'
+  } catch (error) {
+    const resolved = resolveEmailError(error, 'Failed to verify email code.')
+    emailState.error = resolved.message
+    emailState.fieldError = resolved.fieldError
   } finally {
-    emailState.loading = false
+    emailState.confirming = false
   }
+}
+
+const requestEmailChange = async () => {
+  resetEmailState()
+
+  if (!auth.user) {
+    emailState.error = 'You are not signed in.'
+    return
+  }
+
+  if (!emailForm.newEmail) {
+    emailState.fieldError = 'New email is required.'
+    return
+  }
+
+  emailState.requestingChange = true
+
+  try {
+    await auth.csrf()
+    const response = await http.post('/account/email/change/request', {
+      new_email: emailForm.newEmail,
+    })
+
+    applyEmailStatus(response?.data?.data || {})
+    emailForm.newEmail = ''
+    emailState.success = response?.data?.message || 'Email change requested.'
+  } catch (error) {
+    const resolved = resolveEmailError(error, 'Email change request failed.')
+    emailState.error = resolved.message
+    emailState.fieldError = resolved.fieldError
+  } finally {
+    emailState.requestingChange = false
+  }
+}
+
+const sendCurrentEmailChangeCode = async () => {
+  resetEmailState()
+
+  if (!auth.user) {
+    emailState.error = 'You are not signed in.'
+    return
+  }
+
+  emailState.confirmingCurrent = true
+
+  try {
+    await auth.csrf()
+    const response = await http.post('/account/email/change/confirm-current', {})
+    applyEmailStatus(response?.data?.data || {})
+    emailState.success = response?.data?.message || 'Code sent to current email.'
+  } catch (error) {
+    const resolved = resolveEmailError(error, 'Failed to send current email confirmation code.')
+    emailState.error = resolved.message
+    emailState.fieldError = resolved.fieldError
+  } finally {
+    emailState.confirmingCurrent = false
+  }
+}
+
+const confirmCurrentEmailChangeCode = async () => {
+  resetEmailState()
+
+  if (!auth.user) {
+    emailState.error = 'You are not signed in.'
+    return
+  }
+
+  if (!emailForm.currentCode) {
+    emailState.fieldError = 'Current email confirmation code is required.'
+    return
+  }
+
+  emailState.confirmingCurrent = true
+
+  try {
+    await auth.csrf()
+    const response = await http.post('/account/email/change/confirm-current', {
+      code: emailForm.currentCode,
+    })
+
+    applyEmailStatus(response?.data?.data || {})
+    emailForm.currentCode = ''
+    emailState.success = response?.data?.message || 'Current email confirmed.'
+  } catch (error) {
+    const resolved = resolveEmailError(error, 'Failed to confirm current email code.')
+    emailState.error = resolved.message
+    emailState.fieldError = resolved.fieldError
+  } finally {
+    emailState.confirmingCurrent = false
+  }
+}
+
+const applyNewEmailChange = async () => {
+  resetEmailState()
+
+  if (!auth.user) {
+    emailState.error = 'You are not signed in.'
+    return
+  }
+
+  emailState.applyingNew = true
+
+  try {
+    await auth.csrf()
+    const response = await http.post('/account/email/change/confirm-new', {})
+    applyEmailStatus(response?.data?.data || {})
+    emailForm.code = ''
+    emailState.success =
+      response?.data?.message || 'New email applied. Verify it with the code sent to your new email.'
+  } catch (error) {
+    const resolved = resolveEmailError(error, 'Failed to apply new email change.')
+    emailState.error = resolved.message
+    emailState.fieldError = resolved.fieldError
+  } finally {
+    emailState.applyingNew = false
+  }
+}
+
+const resetPasswordState = () => {
+  passwordState.success = ''
+  passwordState.error = ''
+  passwordState.fieldError = ''
 }
 
 const submitPassword = async () => {
@@ -609,14 +964,18 @@ const toggleActivitySection = async () => {
   }
 }
 
+onBeforeUnmount(() => {
+  clearEmailResendCountdown()
+})
+
 onMounted(async () => {
   if (!auth.initialized) {
     await auth.fetchUser()
   }
 
   if (auth.user) {
-    emailForm.email = auth.user.email || ''
-    emailForm.name = auth.user.name || ''
+    applyEmailStatus()
+    await loadEmailStatus()
     newsletterSubscribed.value = Boolean(auth.user.newsletter_subscribed)
     activity.value = normalizeActivity(auth.user.activity)
   }
@@ -694,6 +1053,66 @@ onMounted(async () => {
   margin: 0.35rem 0 0;
   font-size: 0.92rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.email-status-row {
+  margin-top: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  border-radius: 0.8rem;
+  background: rgb(var(--color-bg-rgb) / 0.5);
+  padding: 0.72rem 0.8rem;
+}
+
+.email-value {
+  margin: 0;
+  color: var(--color-surface);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.email-badge {
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.email-badge.is-verified {
+  border: 1px solid rgb(16 185 129 / 0.5);
+  color: rgb(209 250 229);
+  background: rgb(5 150 105 / 0.18);
+}
+
+.email-badge.is-unverified {
+  border: 1px solid rgb(251 113 133 / 0.5);
+  color: rgb(255 228 230);
+  background: rgb(225 29 72 / 0.18);
+}
+
+.pending-email-box {
+  margin-top: 0.95rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  border-radius: 0.9rem;
+  padding: 0.9rem;
+  background: rgb(var(--color-bg-rgb) / 0.5);
+}
+
+.pending-email-title {
+  margin: 0;
+  color: var(--color-surface);
+}
+
+.pending-email-hint {
+  margin: 0.35rem 0 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  font-size: 0.86rem;
 }
 
 .danger-note {
@@ -836,6 +1255,17 @@ onMounted(async () => {
     rgb(var(--color-primary-rgb) / 0.34),
     rgb(var(--color-bg-rgb) / 0.64)
   );
+}
+
+.btn-secondary {
+  color: var(--color-surface);
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.34);
+  background: rgb(var(--color-bg-rgb) / 0.62);
+}
+
+.btn-secondary:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.58);
+  background: rgb(var(--color-bg-rgb) / 0.76);
 }
 
 .btn-danger {
