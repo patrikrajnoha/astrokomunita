@@ -242,13 +242,14 @@ class AuthRegistrationTest extends TestCase
         $user = User::query()->where('email', 'verify-default@example.com')->firstOrFail();
 
         $this->assertNull($user->email_verified_at);
+        $this->assertTrue((bool) $user->requires_email_verification);
         Notification::assertSentTo($user, VerifyEmail::class);
     }
 
     public function test_registration_auto_verifies_user_when_email_verification_is_disabled(): void
     {
         Notification::fake();
-        AppSetting::put(EmailVerificationSettingService::REQUIRE_EMAIL_VERIFICATION_KEY, '0');
+        AppSetting::put(EmailVerificationSettingService::REQUIRE_EMAIL_VERIFICATION_FOR_NEW_USERS_KEY, '0');
 
         $this->postJson('/api/auth/register', [
             'name' => 'Tester',
@@ -262,6 +263,7 @@ class AuthRegistrationTest extends TestCase
         $user = User::query()->where('email', 'verify-disabled@example.com')->firstOrFail();
 
         $this->assertNotNull($user->email_verified_at);
+        $this->assertFalse((bool) $user->requires_email_verification);
         Notification::assertNotSentTo($user, VerifyEmail::class);
     }
 

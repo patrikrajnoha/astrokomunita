@@ -21,17 +21,17 @@ class AdminAuthSettingsTest extends TestCase
         ]);
         Sanctum::actingAs($admin);
 
-        $this->getJson('/api/admin/auth-settings')
+        $this->getJson('/api/admin/settings/email-verification')
             ->assertOk()
-            ->assertJsonPath('data.require_email_verification', true);
+            ->assertJsonPath('data.require_email_verification_for_new_users', true);
 
-        $this->patchJson('/api/admin/auth-settings', [
-            'require_email_verification' => false,
+        $this->putJson('/api/admin/settings/email-verification', [
+            'require_email_verification_for_new_users' => false,
         ])
             ->assertOk()
-            ->assertJsonPath('data.require_email_verification', false);
+            ->assertJsonPath('data.require_email_verification_for_new_users', false);
 
-        $this->assertFalse(app(EmailVerificationSettingService::class)->requiresEmailVerification());
+        $this->assertFalse(app(EmailVerificationSettingService::class)->requiresEmailVerificationForNewUsers());
     }
 
     public function test_non_admin_cannot_access_auth_settings_endpoint(): void
@@ -43,8 +43,8 @@ class AdminAuthSettingsTest extends TestCase
         ]);
         Sanctum::actingAs($user);
 
-        $this->patchJson('/api/admin/auth-settings', [
-            'require_email_verification' => false,
+        $this->putJson('/api/admin/settings/email-verification', [
+            'require_email_verification_for_new_users' => false,
         ])->assertStatus(403);
     }
 }
