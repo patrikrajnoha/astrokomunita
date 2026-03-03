@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Auth\EmailVerificationSettingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class AuthSettingsController extends Controller
 {
@@ -24,13 +25,26 @@ class AuthSettingsController extends Controller
     public function update(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'require_email_verification' => ['required', 'boolean'],
+            'require_email_verification_for_new_users' => ['nullable', 'boolean'],
+            'require_email_verification' => ['nullable', 'boolean'],
         ]);
 
+        $hasNewKey = array_key_exists('require_email_verification_for_new_users', $validated);
+        $hasLegacyKey = array_key_exists('require_email_verification', $validated);
+
+        if (! $hasNewKey && ! $hasLegacyKey) {
+            throw ValidationException::withMessages([
+                'require_email_verification_for_new_users' => ['The email verification setting field is required.'],
+            ]);
+        }
+
+        $required = $hasNewKey
+            ? (bool) $validated['require_email_verification_for_new_users']
+            : (bool) $validated['require_email_verification'];
+
         return response()->json([
-            'data' => $this->emailVerificationSettingService->updateRequiresEmailVerification(
-                (bool) $validated['require_email_verification']
-            ),
+            'data' => $this->emailVerificationSettingService
+                ->updateRequiresEmailVerificationForNewUsers($required),
         ]);
     }
 }

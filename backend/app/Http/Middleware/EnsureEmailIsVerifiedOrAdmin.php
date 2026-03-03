@@ -3,24 +3,36 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class EnsureEmailIsVerifiedOrAdmin extends EnsureEmailIsVerified
+class EnsureEmailIsVerifiedOrAdmin
 {
-    /**
-     * Allow admins to pass without verified email, keep default behavior for everyone else.
-     */
-    public function handle($request, Closure $next, $redirectToRoute = null): Response
+    public function handle(Request $request, Closure $next): Response
     {
-        $user = $request instanceof Request ? $request->user() : null;
+        $user = $request->user();
 
-        if ($user && method_exists($user, 'isAdmin') && $user->isAdmin()) {
+        if (! $user) {
+            return response()->json([
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        if (method_exists($user, 'isAdmin') && $user->isAdmin()) {
             return $next($request);
         }
 
-        return parent::handle($request, $next, $redirectToRoute);
+        if (! (bool) ($user->requires_email_verification ?? false)) {
+            return $next($request);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return $next($request);
+        }
+
+        return response()->json([
+            'message' => 'Email address is not verified.',
+            'error_code' => 'EMAIL_NOT_VERIFIED',
+        ], 403);
     }
 }
-

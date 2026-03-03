@@ -51,6 +51,21 @@ class ProfileController extends Controller
 
         $supportsLocationLabel = Schema::hasColumn('users', 'location_label');
         $payload = $validated;
+
+        if (array_key_exists('email', $validated)) {
+            $requestedEmail = mb_strtolower(trim((string) $validated['email']));
+            $currentEmail = mb_strtolower(trim((string) ($user->email ?? '')));
+
+            if ($requestedEmail !== '' && $requestedEmail !== $currentEmail) {
+                return response()->json([
+                    'message' => 'Use account email verification flow to change email.',
+                    'error_code' => 'EMAIL_CHANGE_REQUIRES_VERIFICATION_FLOW',
+                ], 422);
+            }
+        }
+
+        unset($payload['email']);
+
         if (!$supportsLocationLabel) {
             unset($payload['location_label']);
         }
