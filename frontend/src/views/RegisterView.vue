@@ -333,7 +333,7 @@ const submit = async () => {
       password_confirmation: passwordConfirmation.value,
       turnstile_token: turnstileToken.value,
     })
-    if (!auth.isAdmin && !auth.user?.email_verified_at) {
+    if (!auth.isAdmin && auth.user?.requires_email_verification && !auth.user?.email_verified_at) {
       await router.push({ name: 'verify-email.required', query: { redirect: redirect.value } })
       return
     }

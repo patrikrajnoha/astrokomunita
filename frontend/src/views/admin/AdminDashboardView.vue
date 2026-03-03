@@ -16,7 +16,7 @@ const exporting = ref(false)
 const error = ref('')
 const stats = ref(null)
 const trendMetric = ref('new_posts')
-const authSettings = ref({ require_email_verification: true })
+const authSettings = ref({ require_email_verification_for_new_users: true })
 const authSettingsLoading = ref(false)
 const authSettingsSaving = ref(false)
 const authSettingsError = ref('')
@@ -31,7 +31,7 @@ const emailVerificationHint =
   'Platí len pre nových používateľov. Pri vypnutí sa nové účty overia automaticky.'
 
 const emailVerificationEnabled = computed(() =>
-  Boolean(authSettings.value.require_email_verification),
+  Boolean(authSettings.value.require_email_verification_for_new_users),
 )
 
 const emailVerificationStateLabel = computed(() =>
@@ -183,8 +183,13 @@ async function loadAuthSettings() {
   try {
     const response = await getAuthSettings()
     const payload = response?.data?.data
-    if (payload && typeof payload.require_email_verification === 'boolean') {
-      authSettings.value = payload
+    const required =
+      typeof payload?.require_email_verification_for_new_users === 'boolean'
+        ? payload.require_email_verification_for_new_users
+        : payload?.require_email_verification
+
+    if (typeof required === 'boolean') {
+      authSettings.value = { require_email_verification_for_new_users: required }
     }
   } catch (e) {
     authSettingsError.value =
@@ -202,14 +207,19 @@ async function toggleEmailVerification(required) {
 
   try {
     const response = await updateAuthSettings({
-      require_email_verification: required,
+      require_email_verification_for_new_users: required,
     })
 
     const payload = response?.data?.data
-    if (payload && typeof payload.require_email_verification === 'boolean') {
-      authSettings.value = payload
+    const resolved =
+      typeof payload?.require_email_verification_for_new_users === 'boolean'
+        ? payload.require_email_verification_for_new_users
+        : payload?.require_email_verification
+
+    if (typeof resolved === 'boolean') {
+      authSettings.value = { require_email_verification_for_new_users: resolved }
     } else {
-      authSettings.value = { require_email_verification: required }
+      authSettings.value = { require_email_verification_for_new_users: required }
     }
 
     toast.success(

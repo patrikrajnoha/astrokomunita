@@ -457,11 +457,6 @@ async function save() {
     profilePayload.bio = normalizedBio
     profilePayload.location_label = normalizedLocationLabel || null
 
-    const normalizedEmail = String(form.email || '').trim()
-    if (normalizedEmail) {
-      profilePayload.email = normalizedEmail
-    }
-
     const profileResponse = await http.patch('/profile', profilePayload)
 
     const locationResponse = await http.put('/me/location', locationPayload)
