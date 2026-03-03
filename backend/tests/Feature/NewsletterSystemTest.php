@@ -8,10 +8,12 @@ use App\Models\BlogPost;
 use App\Models\Event;
 use App\Models\NewsletterRun;
 use App\Models\User;
+use App\Services\Events\EventInsightsCacheService;
 use App\Services\Newsletter\NewsletterDispatchService;
 use App\Services\Newsletter\NewsletterSelectionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
@@ -186,7 +188,7 @@ class NewsletterSystemTest extends TestCase
 
         Mail::assertSent(WeeklyNewsletterMail::class, function (WeeklyNewsletterMail $mail) use ($target): bool {
             return $mail->hasTo($target->email)
-                && str_starts_with((string) $mail->envelope()->subject, '[PREVIEW] ');
+                && (string) $mail->envelope()->subject === '[PREVIEW] Nebesky sprievodca: Tyzdenny newsletter';
         });
 
         $this->assertTrue(
@@ -198,6 +200,226 @@ class NewsletterSystemTest extends TestCase
                 ->where('preview_count', 1)
                 ->exists()
         );
+    }
+
+    public function test_admin_preview_endpoint_applies_copy_overrides_only_for_preview_render(): void
+    {
+        Mail::fake();
+        $this->seedNewsletterContent();
+
+        $target = User::factory()->create([
+            'newsletter_subscribed' => false,
+            'is_active' => true,
+            'is_bot' => false,
+        ]);
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $subjectOverride = 'AI subject pre preview';
+        $introOverride = 'AI intro bez technickych detailov.';
+        $tipOverride = 'AI tip: vyber tmavsiu lokalitu a nechaj oci adaptovat sa na tmu.';
+
+        $this->postJson('/api/admin/newsletter/preview', [
+            'email' => $target->email,
+            'subject_override' => $subjectOverride,
+            'intro_override' => $introOverride,
+            'tip_override' => $tipOverride,
+        ])
+            ->assertStatus(202)
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('data.email', $target->email);
+
+        Mail::assertSent(WeeklyNewsletterMail::class, function (WeeklyNewsletterMail $mail) use ($target, $subjectOverride, $introOverride, $tipOverride): bool {
+            return $mail->hasTo($target->email)
+                && (string) $mail->envelope()->subject === '[PREVIEW] ' . $subjectOverride
+                && (string) data_get($mail->payload, 'intro_override') === $introOverride
+                && (string) data_get($mail->payload, 'astronomical_tip') === $tipOverride;
+        });
+    }
+
+    public function test_admin_preview_endpoint_empty_tip_override_falls_back_to_original_tip(): void
+    {
+        Mail::fake();
+        $this->seedNewsletterContent();
+
+        $target = User::factory()->create([
+            'newsletter_subscribed' => false,
+            'is_active' => true,
+            'is_bot' => false,
+        ]);
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        $expectedTip = (string) data_get(
+            app(NewsletterSelectionService::class)->buildNewsletterPayload(adminPreview: true),
+            'astronomical_tip',
+            ''
+        );
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/admin/newsletter/preview', [
+            'email' => $target->email,
+            'tip_override' => " \n\t ",
+        ])
+            ->assertStatus(202)
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('warnings.0', 'tip_override ignored: empty after sanitization, fallback applied.');
+
+        Mail::assertSent(WeeklyNewsletterMail::class, function (WeeklyNewsletterMail $mail) use ($target, $expectedTip): bool {
+            return $mail->hasTo($target->email)
+                && (string) data_get($mail->payload, 'astronomical_tip') === $expectedTip;
+        });
+    }
+
+    public function test_admin_preview_endpoint_truncates_too_long_subject_override(): void
+    {
+        Mail::fake();
+        $this->seedNewsletterContent();
+
+        $target = User::factory()->create([
+            'newsletter_subscribed' => false,
+            'is_active' => true,
+            'is_bot' => false,
+        ]);
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/admin/newsletter/preview', [
+            'email' => $target->email,
+            'subject_override' => str_repeat('A', 100),
+        ])
+            ->assertStatus(202)
+            ->assertJsonPath('ok', true);
+
+        Mail::assertSent(WeeklyNewsletterMail::class, function (WeeklyNewsletterMail $mail) use ($target): bool {
+            return $mail->hasTo($target->email)
+                && (string) $mail->envelope()->subject === '[PREVIEW] ' . str_repeat('A', 80);
+        });
+    }
+
+    public function test_admin_preview_endpoint_timestamp_only_override_returns_warning_and_fallback(): void
+    {
+        Mail::fake();
+        $this->seedNewsletterContent();
+
+        $target = User::factory()->create([
+            'newsletter_subscribed' => false,
+            'is_active' => true,
+            'is_bot' => false,
+        ]);
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+
+        $expectedTip = (string) data_get(
+            app(NewsletterSelectionService::class)->buildNewsletterPayload(adminPreview: true),
+            'astronomical_tip',
+            ''
+        );
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/admin/newsletter/preview', [
+            'email' => $target->email,
+            'tip_override' => '2026-03-10T11:32:00+00:00',
+        ])
+            ->assertStatus(202)
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('warnings.0', 'tip_override ignored: ISO timestamp-only value is not allowed, fallback applied.');
+
+        Mail::assertSent(WeeklyNewsletterMail::class, function (WeeklyNewsletterMail $mail) use ($target, $expectedTip): bool {
+            return $mail->hasTo($target->email)
+                && (string) data_get($mail->payload, 'astronomical_tip') === $expectedTip;
+        });
+    }
+
+    public function test_admin_preview_endpoint_allows_timestamp_inside_normal_sentence(): void
+    {
+        Mail::fake();
+        $this->seedNewsletterContent();
+
+        $target = User::factory()->create([
+            'newsletter_subscribed' => false,
+            'is_active' => true,
+            'is_bot' => false,
+        ]);
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $tipOverride = 'Pozoruj odhad maxima okolo 2026-03-10T11:32:00+00:00 a priprav sa skor.';
+
+        $this->postJson('/api/admin/newsletter/preview', [
+            'email' => $target->email,
+            'tip_override' => $tipOverride,
+        ])
+            ->assertStatus(202)
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('warnings', []);
+
+        Mail::assertSent(WeeklyNewsletterMail::class, function (WeeklyNewsletterMail $mail) use ($target, $tipOverride): bool {
+            return $mail->hasTo($target->email)
+                && (string) data_get($mail->payload, 'astronomical_tip') === $tipOverride;
+        });
+    }
+
+    public function test_production_newsletter_send_ignores_preview_subject_override(): void
+    {
+        Mail::fake();
+        $this->seedNewsletterContent();
+
+        $previewTarget = User::factory()->create([
+            'newsletter_subscribed' => false,
+            'is_active' => true,
+            'is_bot' => false,
+        ]);
+        $productionRecipient = User::factory()->create([
+            'newsletter_subscribed' => true,
+            'is_active' => true,
+            'is_bot' => false,
+        ]);
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $this->postJson('/api/admin/newsletter/preview', [
+            'email' => $previewTarget->email,
+            'subject_override' => 'Preview-only subject override',
+        ])
+            ->assertStatus(202)
+            ->assertJsonPath('ok', true);
+
+        app(NewsletterDispatchService::class)->dispatchWeeklyNewsletter();
+
+        Mail::assertSent(WeeklyNewsletterMail::class, function (WeeklyNewsletterMail $mail) use ($productionRecipient): bool {
+            return $mail->hasTo($productionRecipient->email)
+                && $mail->preview === false
+                && (string) $mail->envelope()->subject === 'Nebesky sprievodca: Tyzdenny newsletter';
+        });
     }
 
     public function test_admin_preview_endpoint_requires_existing_user_email(): void
@@ -217,6 +439,96 @@ class NewsletterSystemTest extends TestCase
         ])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_admin_preview_tip_uses_cached_insights_when_available(): void
+    {
+        $event = $this->createNextWeekEvent('Mesiac v perigeu');
+        $this->createArticle('insight-tip-article');
+        app(NewsletterSelectionService::class)->replaceAdminSelectedEvents([$event->id]);
+
+        config()->set('events.ai.humanized_pilot_enabled', true);
+        $insightsCache = app(EventInsightsCacheService::class);
+        Cache::put('events:description_insights:' . $event->id, [
+            'why_interesting' => 'Ukazuje zmenu zdanlivej velkosti Mesiaca pri obehu.',
+            'how_to_observe' => 'Pozorujte z tmavsieho miesta, pockajte 20 minut na adaptaciu a vyhnite sa presnemu casu 2026-03-10T11:32:00+00:00 UTC.',
+            'factual_hash' => $insightsCache->buildEventHash($event),
+        ], now()->addDay());
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->getJson('/api/admin/newsletter/preview')
+            ->assertOk();
+
+        $tip = (string) data_get($response->json(), 'data.astronomical_tip', '');
+        $this->assertStringContainsString('Pozorujte z tmavsieho miesta', $tip);
+        $this->assertStringContainsString('20 minut', $tip);
+        $this->assertStringContainsString('Preco je to zaujimave', $tip);
+        $this->assertStringNotContainsString('2026-03-10T11:32:00+00:00', $tip);
+        $this->assertStringNotContainsString('UTC', $tip);
+        $this->assertStringNotContainsString('+00:00', $tip);
+    }
+
+    public function test_admin_preview_tip_falls_back_when_insights_missing(): void
+    {
+        $event = $this->createNextWeekEvent('Meteor shower peak');
+        $this->createArticle('fallback-tip-article');
+        app(NewsletterSelectionService::class)->replaceAdminSelectedEvents([$event->id]);
+
+        config()->set('events.ai.humanized_pilot_enabled', true);
+        Cache::forget('events:description_insights:' . $event->id);
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->getJson('/api/admin/newsletter/preview')
+            ->assertOk();
+
+        $tip = (string) data_get($response->json(), 'data.astronomical_tip', '');
+        $this->assertStringContainsString('vyhladajte tmavsie miesto mimo mesta', $tip);
+    }
+
+    public function test_admin_preview_tip_ignores_stale_insights_after_event_change(): void
+    {
+        $event = $this->createNextWeekEvent('Mesiac v perigeu');
+        $this->createArticle('stale-insight-article');
+        app(NewsletterSelectionService::class)->replaceAdminSelectedEvents([$event->id]);
+
+        config()->set('events.ai.humanized_pilot_enabled', true);
+        app(EventInsightsCacheService::class)->put(
+            event: $event,
+            whyInteresting: 'Pomaha porovnat jas Mesiaca.',
+            howToObserve: 'Pozorujte z tmavej lokality.'
+        );
+
+        $event->update([
+            'title' => 'Mesiac v apogeu',
+        ]);
+
+        $this->assertNull(Cache::get('events:description_insights:' . $event->id));
+
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->getJson('/api/admin/newsletter/preview')
+            ->assertOk();
+
+        $tip = (string) data_get($response->json(), 'data.astronomical_tip', '');
+        $this->assertStringContainsString('vyhladajte tmavsie miesto mimo mesta', $tip);
+        $this->assertStringNotContainsString('Pomaha porovnat jas Mesiaca', $tip);
     }
 
     public function test_dry_run_does_not_send_mail(): void

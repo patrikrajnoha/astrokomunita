@@ -445,7 +445,8 @@ class GenerateEventDescriptionsCommand extends Command
 
     private function resolveRetryAttempts(): int
     {
-        return max(1, (int) config('ai.ollama_retry_attempts', 3));
+        // OllamaClient owns transport retries/backoff for this pipeline.
+        return 1;
     }
 
     /**
@@ -453,25 +454,7 @@ class GenerateEventDescriptionsCommand extends Command
      */
     private function resolveRetryBackoffSeconds(int $retryAttempts): array
     {
-        $configured = config('ai.ollama_retry_backoff_seconds', [1, 3, 7]);
-        if (! is_array($configured)) {
-            $configured = [1, 3, 7];
-        }
-
-        $backoff = array_values(array_map(
-            static fn ($value): int => max(0, (int) $value),
-            $configured
-        ));
-
-        if ($backoff === []) {
-            $backoff = [1, 3, 7];
-        }
-
-        while (count($backoff) < $retryAttempts) {
-            $backoff[] = (int) end($backoff);
-        }
-
-        return array_slice($backoff, 0, $retryAttempts);
+        return array_fill(0, max(1, $retryAttempts), 0);
     }
 
     /**

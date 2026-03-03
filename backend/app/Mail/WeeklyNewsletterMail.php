@@ -9,6 +9,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class WeeklyNewsletterMail extends Mailable
 {
@@ -27,13 +28,31 @@ class WeeklyNewsletterMail extends Mailable
     public function envelope(): Envelope
     {
         $subject = 'Nebesky sprievodca: Tyzdenny newsletter';
+
         if ($this->preview) {
+            $subjectOverride = $this->sanitizeSubjectOverride((string) data_get($this->payload, 'subject_override', ''));
+            if ($subjectOverride !== '') {
+                $subject = $subjectOverride;
+            }
+
             $subject = '[PREVIEW] ' . $subject;
         }
 
         return new Envelope(
             subject: $subject,
         );
+    }
+
+    private function sanitizeSubjectOverride(string $value): string
+    {
+        $plain = trim(strip_tags($value));
+        if ($plain === '') {
+            return '';
+        }
+
+        $plain = preg_replace('/\s+/u', ' ', $plain) ?? $plain;
+
+        return Str::limit(trim($plain), 80, '');
     }
 
     public function content(): Content

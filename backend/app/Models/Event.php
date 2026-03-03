@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\RegionScope;
+use App\Services\Events\EventInsightsCacheService;
 use App\Support\EventTime;
 use App\Support\EventFollowTable;
 use Carbon\CarbonInterface;
@@ -73,6 +74,17 @@ class Event extends Model
             if (self::supportsEventDateColumn()) {
                 $event->event_date = $event->resolveEventDate();
             }
+        });
+
+        static::updated(function (self $event): void {
+            $insightsCache = app(EventInsightsCacheService::class);
+            if ($insightsCache->shouldInvalidateForUpdate($event)) {
+                $insightsCache->invalidate($event);
+            }
+        });
+
+        static::deleted(function (self $event): void {
+            app(EventInsightsCacheService::class)->invalidate($event);
         });
     }
 

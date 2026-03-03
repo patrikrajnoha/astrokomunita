@@ -6,6 +6,8 @@ return [
     'ollama_timeout_seconds' => (int) env('AI_OLLAMA_TIMEOUT_SECONDS', env('OLLAMA_TIMEOUT', 60)),
     'ollama_model_name' => env('AI_OLLAMA_MODEL_NAME', env('OLLAMA_MODEL', 'mistral')),
     'ollama_retry_attempts' => (int) env('AI_OLLAMA_RETRY_ATTEMPTS', 3),
+    'ollama_max_retries' => (int) env('AI_OLLAMA_MAX_RETRIES', 2),
+    'ollama_retry_backoff_base_ms' => (int) env('AI_OLLAMA_RETRY_BACKOFF_BASE_MS', 250),
     'ollama_retry_backoff_seconds' => array_values(array_filter(array_map(
         static fn (string $value): int => (int) trim($value),
         explode(',', (string) env('AI_OLLAMA_RETRY_BACKOFF_SECONDS', '1,3,7'))
@@ -27,6 +29,8 @@ return [
         'connect_timeout' => (int) env('OLLAMA_CONNECT_TIMEOUT', 3),
         'retry' => (int) env('OLLAMA_RETRY', 1),
         'retry_sleep_ms' => (int) env('OLLAMA_RETRY_SLEEP_MS', 250),
+        'max_retries' => (int) env('OLLAMA_MAX_RETRIES', 2),
+        'retry_backoff_base_ms' => (int) env('OLLAMA_RETRY_BACKOFF_BASE_MS', env('OLLAMA_RETRY_SLEEP_MS', 250)),
         'verify_ssl' => filter_var(env('OLLAMA_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
         'internal_token' => env('OLLAMA_INTERNAL_TOKEN', env('INTERNAL_TOKEN', '')),
         'temperature' => (float) env('OLLAMA_TEMPERATURE', 0.1),

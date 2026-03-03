@@ -7,6 +7,7 @@ use App\Models\EventCandidate;
 use App\Services\AI\OllamaClient;
 use App\Services\AI\OllamaRefinementService;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
+use App\Services\Translation\AstronomyPhraseNormalizer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -41,7 +42,8 @@ class TranslateEventCandidateJobTest extends TestCase
     {
         (new TranslateEventCandidateJob($candidateId))->handle(
             app(BotTranslationServiceInterface::class),
-            app(OllamaRefinementService::class)
+            app(OllamaRefinementService::class),
+            app(AstronomyPhraseNormalizer::class),
         );
     }
 
@@ -203,6 +205,160 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertSame('Prelozene', $candidate->translated_title);
         $this->assertSame(0, $refiner->calls);
+    }
+
+    public function test_job_normalizes_conjunction_phrases_to_slovak(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            'Saturn in Conjunction with Slnko',
+            'Astronomicka udalost Saturn in Conjunction with Sun nastane 25.03.2026.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Saturn in Conjunction with Sun',
+            'description' => 'Saturn in Conjunction with Sun occurs on 25.03.2026.',
+            'type' => 'planetary_event',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame('Saturn v konjunkcii so Slnkom', $candidate->translated_title);
+        $this->assertStringContainsString('v konjunkcii so Slnkom', (string) $candidate->translated_description);
+    }
+
+    public function test_job_normalizes_inferior_conjunction_variant_to_slovak(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            'Venuša v Inferior Conjunction',
+            'Venuša v Inferior Conjunction nastane 24.10.2026.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Venus at Inferior Conjunction',
+            'description' => 'Venus at Inferior Conjunction occurs on 24.10.2026.',
+            'type' => 'planetary_event',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame('Venuša v dolnej konjunkcii', $candidate->translated_title);
+        $this->assertStringContainsString('v dolnej konjunkcii', (string) $candidate->translated_description);
+    }
+
+    public function test_job_normalizes_known_bad_provider_phrase_variants(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            'Jupiter v konflikte so slnkom',
+            'Jupiter v konflikte so slnkom nastane 29.10.2026.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Jupiter in Conjunction with Sun',
+            'description' => 'Jupiter in Conjunction with Sun occurs on 29.10.2026.',
+            'type' => 'planetary_event',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame('Jupiter v konjunkcii so Slnkom', $candidate->translated_title);
+        $this->assertStringContainsString('v konjunkcii so Slnkom', (string) $candidate->translated_description);
+    }
+
+    public function test_job_uses_quality_gate_fallback_for_mixed_language_title(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            'Saturn with Slnko',
+            'Saturn with Slnko nastane 25.03.2026.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Saturn in Conjunction with Sun',
+            'description' => 'Saturn in Conjunction with Sun occurs on 25.03.2026.',
+            'type' => 'planetary_event',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame('Saturn v konjunkcii so Slnkom', $candidate->translated_title);
+        $this->assertStringContainsString('Saturn with Slnko', (string) $candidate->translated_description);
+    }
+
+    public function test_job_normalizes_peak_and_odrazeferora_variants(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            'Merkur na vrchole',
+            'Merkur pri odrazeferora nastane 12.07.2026.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Mercury at Inferior Conjunction',
+            'description' => 'Mercury at Inferior Conjunction occurs on 12.07.2026.',
+            'type' => 'planetary_event',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame("Merk\u{00FA}r v dolnej konjunkcii", $candidate->translated_title);
+        $this->assertStringContainsString('v dolnej konjunkcii', (string) $candidate->translated_description);
+    }
+
+    public function test_job_uses_deterministic_title_when_translation_has_encoding_artifacts(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            'Ortu? pri odrazeferora',
+            'Ortu? pri odrazeferora nastane 12.07.2026.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Mercury at Inferior Conjunction',
+            'description' => 'Mercury at Inferior Conjunction occurs on 12.07.2026.',
+            'type' => 'planetary_event',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame("Merk\u{00FA}r v dolnej konjunkcii", $candidate->translated_title);
+        $this->assertStringContainsString('v dolnej konjunkcii', (string) $candidate->translated_description);
+    }
+
+    public function test_job_normalizes_mixed_quarter_moon_variants(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            "POSLEDN\u{0130} KVARTN\u{0130} MOON",
+            "11 10:39 POSLEDN\u{0130} QUARTER MOON"
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'LAST QUARTER MOON',
+            'description' => 'LAST QUARTER MOON occurs on 11.03.2026.',
+            'type' => 'moon_phase',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame("Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca", $candidate->translated_title);
+        $this->assertStringContainsString("Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca", (string) $candidate->translated_description);
     }
 
     /**

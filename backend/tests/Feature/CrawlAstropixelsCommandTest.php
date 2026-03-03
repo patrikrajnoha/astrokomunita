@@ -49,6 +49,39 @@ class CrawlAstropixelsCommandTest extends TestCase
         $this->assertGreaterThan(0, (int) $secondRun->skipped_duplicates_count);
     }
 
+    public function test_command_retries_once_with_humans_cookie_when_challenged_with_http_409(): void
+    {
+        $html = File::get(base_path('tests/Fixtures/astropixels/almanac2026cet.html'));
+        $challengeBody = '<script>document.cookie = "humans_21909=1"; document.location.reload(true)</script>';
+
+        Http::fake([
+            'https://astropixels.com/*' => Http::sequence()
+                ->push($challengeBody, 409)
+                ->push($html, 200),
+        ]);
+
+        $this->artisan('events:crawl-astropixels --year=2026')
+            ->assertSuccessful();
+
+        $this->assertGreaterThan(0, EventCandidate::query()->count());
+
+        Http::assertSentCount(2);
+        Http::assertSent(function ($request) {
+            $cookies = $request->header('Cookie');
+            if (! is_array($cookies)) {
+                return false;
+            }
+
+            foreach ($cookies as $cookie) {
+                if (str_contains((string) $cookie, 'humans_21909=1')) {
+                    return true;
+                }
+            }
+
+            return false;
+        });
+    }
+
     public function test_all_years_continues_after_per_year_failures_and_logs_them(): void
     {
         $html2026 = File::get(base_path('tests/Fixtures/astropixels/almanac2026cet.html'));

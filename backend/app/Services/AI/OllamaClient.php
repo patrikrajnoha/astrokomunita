@@ -11,7 +11,7 @@ class OllamaClient
 {
     /**
      * @param array<string,mixed> $options
-     * @return array{text:string,model:string,duration_ms:int,raw:array<string,mixed>}
+     * @return array{text:string,model:string,duration_ms:int,retry_count:int,raw:array<string,mixed>}
      *
      * @throws OllamaClientException
      */
@@ -44,61 +44,81 @@ class OllamaClient
             allowInsecure: ! (bool) ($config['verify_ssl'] ?? true)
         );
 
-        try {
-            $response = Http::baseUrl((string) ($config['base_url'] ?? 'http://127.0.0.1:11434'))
-                ->timeout((int) ($options['timeout'] ?? ($config['timeout'] ?? 60)))
-                ->connectTimeout((int) ($options['connect_timeout'] ?? ($config['connect_timeout'] ?? 5)))
-                ->retry(
-                    (int) ($options['retry'] ?? ($config['retry'] ?? 1)),
-                    (int) ($options['retry_sleep_ms'] ?? ($config['retry_sleep_ms'] ?? 250)),
-                    null,
-                    false
-                )
-                ->withOptions([
-                    'verify' => $verifyOption,
-                ])
-                ->withAttributes(['ssl_verify' => $verifyOption])
-                ->acceptJson()
-                ->withHeaders($this->resolveHeaders($config))
-                ->post((string) ($config['generate_path'] ?? '/api/generate'), $payload);
-        } catch (ConnectionException $exception) {
-            if ($this->isTimeoutException($exception)) {
-                throw new OllamaClientException('Ollama request timed out.', 'ollama_timeout_error');
+        $maxRetries = $this->resolveMaxRetries($options, $config);
+        $backoffBaseMs = $this->resolveRetryBackoffBaseMs($options, $config);
+        $retryCount = 0;
+
+        while (true) {
+            try {
+                $response = Http::baseUrl((string) ($config['base_url'] ?? 'http://127.0.0.1:11434'))
+                    ->timeout((int) ($options['timeout'] ?? ($config['timeout'] ?? 60)))
+                    ->connectTimeout((int) ($options['connect_timeout'] ?? ($config['connect_timeout'] ?? 5)))
+                    ->withOptions([
+                        'verify' => $verifyOption,
+                    ])
+                    ->withAttributes(['ssl_verify' => $verifyOption])
+                    ->acceptJson()
+                    ->withHeaders($this->resolveHeaders($config))
+                    ->post((string) ($config['generate_path'] ?? '/api/generate'), $payload);
+            } catch (ConnectionException $exception) {
+                if ($retryCount < $maxRetries) {
+                    $this->sleepForRetry($retryCount, $backoffBaseMs);
+                    $retryCount++;
+                    continue;
+                }
+
+                if ($this->isTimeoutException($exception)) {
+                    throw new OllamaClientException('Ollama request timed out.', 'ollama_timeout_error');
+                }
+
+                throw new OllamaClientException('Ollama connection failed.', 'ollama_connection_error');
+            } catch (Throwable $exception) {
+                if ($this->isRetryableException($exception) && $retryCount < $maxRetries) {
+                    $this->sleepForRetry($retryCount, $backoffBaseMs);
+                    $retryCount++;
+                    continue;
+                }
+
+                if ($this->isTimeoutException($exception)) {
+                    throw new OllamaClientException('Ollama request timed out.', 'ollama_timeout_error');
+                }
+
+                throw new OllamaClientException('Ollama request failed.', 'ollama_service_error');
             }
 
-            throw new OllamaClientException('Ollama connection failed.', 'ollama_connection_error');
-        } catch (Throwable $exception) {
-            if ($this->isTimeoutException($exception)) {
-                throw new OllamaClientException('Ollama request timed out.', 'ollama_timeout_error');
+            if (! $response->successful()) {
+                $status = $response->status();
+                if ($this->isRetryableStatus($status) && $retryCount < $maxRetries) {
+                    $this->sleepForRetry($retryCount, $backoffBaseMs);
+                    $retryCount++;
+                    continue;
+                }
+
+                throw new OllamaClientException(
+                    'Ollama failed with HTTP ' . $status . '.',
+                    'ollama_http_' . $status,
+                    $status
+                );
             }
 
-            throw new OllamaClientException('Ollama request failed.', 'ollama_service_error');
-        }
+            $data = $response->json();
+            if (! is_array($data)) {
+                throw new OllamaClientException('Ollama response is invalid.', 'ollama_invalid_response');
+            }
 
-        if (! $response->successful()) {
-            throw new OllamaClientException(
-                'Ollama failed with HTTP ' . $response->status() . '.',
-                'ollama_http_' . $response->status(),
-                $response->status()
-            );
-        }
+            $text = $data['response'] ?? null;
+            if (! is_string($text)) {
+                throw new OllamaClientException('Ollama response text is missing.', 'ollama_missing_text');
+            }
 
-        $data = $response->json();
-        if (! is_array($data)) {
-            throw new OllamaClientException('Ollama response is invalid.', 'ollama_invalid_response');
+            return [
+                'text' => trim($text),
+                'model' => (string) ($data['model'] ?? $model),
+                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                'retry_count' => $retryCount,
+                'raw' => $data,
+            ];
         }
-
-        $text = $data['response'] ?? null;
-        if (! is_string($text)) {
-            throw new OllamaClientException('Ollama response text is missing.', 'ollama_missing_text');
-        }
-
-        return [
-            'text' => trim($text),
-            'model' => (string) ($data['model'] ?? $model),
-            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
-            'raw' => $data,
-        ];
     }
 
     /**
@@ -124,5 +144,53 @@ class OllamaClient
         return str_contains($message, 'timed out')
             || str_contains($message, 'timeout')
             || str_contains($message, 'curl error 28');
+    }
+
+    private function isRetryableException(Throwable $exception): bool
+    {
+        if ($exception instanceof ConnectionException) {
+            return true;
+        }
+
+        $message = strtolower($exception->getMessage());
+        return str_contains($message, 'connection')
+            || str_contains($message, 'timed out')
+            || str_contains($message, 'timeout')
+            || str_contains($message, 'overload');
+    }
+
+    private function isRetryableStatus(int $status): bool
+    {
+        return $status === 429 || $status >= 500;
+    }
+
+    /**
+     * The policy for event generation uses up to 2 retries with exponential backoff.
+     *
+     * @param array<string,mixed> $options
+     * @param array<string,mixed> $config
+     */
+    private function resolveMaxRetries(array $options, array $config): int
+    {
+        $configured = (int) ($options['max_retries'] ?? ($config['max_retries'] ?? 2));
+        return max(0, min(2, $configured));
+    }
+
+    /**
+     * @param array<string,mixed> $options
+     * @param array<string,mixed> $config
+     */
+    private function resolveRetryBackoffBaseMs(array $options, array $config): int
+    {
+        $configured = (int) ($options['retry_backoff_base_ms'] ?? ($config['retry_backoff_base_ms'] ?? 250));
+        return max(50, $configured);
+    }
+
+    private function sleepForRetry(int $retryIndex, int $baseMs): void
+    {
+        $delayMs = $baseMs * (2 ** max(0, $retryIndex));
+        $delayMs = min(5_000, $delayMs);
+
+        usleep($delayMs * 1_000);
     }
 }

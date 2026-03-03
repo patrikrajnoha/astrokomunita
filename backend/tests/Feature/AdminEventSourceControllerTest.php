@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\EventSource as EventSourceEnum;
+use App\Models\Event;
+use App\Models\EventCandidate;
 use App\Models\EventSource;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -202,5 +204,124 @@ class AdminEventSourceControllerTest extends TestCase
         $response->assertStatus(422);
         $response->assertJsonPath('message', 'One or more sources are not available in this environment.');
         $response->assertJsonPath('errors.source_keys.0', 'Source key(s) not allowed: go_astronomy');
+    }
+
+    public function test_admin_can_fetch_translation_artifacts_report(): void
+    {
+        $event = Event::query()->create([
+            'title' => 'Jupiter v konflikte so slnkom',
+            'type' => 'planetary_event',
+            'start_at' => now(),
+            'max_at' => now(),
+            'short' => 'Jupiter v konflikte so slnkom',
+            'description' => 'Jupiter v konflikte so slnkom nastane 29.10.2026.',
+            'source_name' => 'astropixels',
+            'source_uid' => 'event-artifacts-1',
+            'source_hash' => hash('sha256', 'event-artifacts-1'),
+        ]);
+
+        $candidate = EventCandidate::query()->create([
+            'source_name' => 'astropixels',
+            'source_url' => 'https://astropixels.test/almanac2026cet.html',
+            'source_uid' => 'candidate-artifacts-1',
+            'external_id' => 'candidate-artifacts-1',
+            'stable_key' => 'candidate-artifacts-1',
+            'source_hash' => hash('sha256', 'candidate-artifacts-1'),
+            'title' => 'Jupiter in Conjunction with Sun',
+            'original_title' => 'Jupiter in Conjunction with Sun',
+            'translated_title' => 'Jupiter v konflikte so slnkom',
+            'description' => 'Jupiter in Conjunction with Sun occurs on 29.10.2026.',
+            'original_description' => 'Jupiter in Conjunction with Sun occurs on 29.10.2026.',
+            'translated_description' => 'Jupiter v konflikte so slnkom nastane 29.10.2026.',
+            'type' => 'planetary_event',
+            'max_at' => now(),
+            'start_at' => now(),
+            'short' => 'Jupiter v konflikte so slnkom',
+            'raw_payload' => '{}',
+            'status' => EventCandidate::STATUS_APPROVED,
+            'translation_status' => EventCandidate::TRANSLATION_DONE,
+            'published_event_id' => $event->id,
+        ]);
+
+        $this->actingAsAdmin();
+
+        $response = $this->getJson('/api/admin/event-sources/translation-artifacts/report?sample=5');
+
+        $response->assertOk();
+        $response->assertJsonPath('status', 'ok');
+        $response->assertJsonPath('summary.suspicious_candidates', 1);
+        $response->assertJsonPath('samples.0.candidate_id', $candidate->id);
+    }
+
+    public function test_admin_can_repair_translation_artifacts_from_endpoint(): void
+    {
+        config()->set('translation.default_provider', 'libretranslate');
+        config()->set('translation.fallback_provider', '');
+        config()->set('translation.cache_enabled', false);
+        config()->set('translation.libretranslate.base_url', 'http://libre.test');
+        config()->set('translation.grammar.enabled', false);
+
+        Http::fake([
+            'http://libre.test/*' => function ($request) {
+                return Http::response([
+                    'translatedText' => (string) data_get($request->data(), 'q'),
+                ], 200);
+            },
+        ]);
+
+        $event = Event::query()->create([
+            'title' => 'Jupiter v konflikte so slnkom',
+            'type' => 'planetary_event',
+            'start_at' => now(),
+            'max_at' => now(),
+            'short' => 'Jupiter v konflikte so slnkom',
+            'description' => 'Jupiter v konflikte so slnkom nastane 29.10.2026.',
+            'source_name' => 'astropixels',
+            'source_uid' => 'event-artifacts-repair-1',
+            'source_hash' => hash('sha256', 'event-artifacts-repair-1'),
+        ]);
+
+        $candidate = EventCandidate::query()->create([
+            'source_name' => 'astropixels',
+            'source_url' => 'https://astropixels.test/almanac2026cet.html',
+            'source_uid' => 'candidate-artifacts-repair-1',
+            'external_id' => 'candidate-artifacts-repair-1',
+            'stable_key' => 'candidate-artifacts-repair-1',
+            'source_hash' => hash('sha256', 'candidate-artifacts-repair-1'),
+            'title' => 'Jupiter in Conjunction with Sun',
+            'original_title' => 'Jupiter in Conjunction with Sun',
+            'translated_title' => 'Jupiter v konflikte so slnkom',
+            'description' => 'Jupiter in Conjunction with Sun occurs on 29.10.2026.',
+            'original_description' => 'Jupiter in Conjunction with Sun occurs on 29.10.2026.',
+            'translated_description' => 'Jupiter v konflikte so slnkom nastane 29.10.2026.',
+            'type' => 'planetary_event',
+            'max_at' => now(),
+            'start_at' => now(),
+            'short' => 'Jupiter v konflikte so slnkom',
+            'raw_payload' => '{}',
+            'status' => EventCandidate::STATUS_APPROVED,
+            'translation_status' => EventCandidate::TRANSLATION_DONE,
+            'published_event_id' => $event->id,
+        ]);
+
+        $this->actingAsAdmin();
+
+        $response = $this->postJson('/api/admin/event-sources/translation-artifacts/repair', [
+            'limit' => 10,
+            'dry_run' => false,
+            'sample' => 5,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('status', 'ok');
+        $response->assertJsonPath('detected_count', 1);
+        $response->assertJsonPath('summary.processed', 1);
+        $response->assertJsonPath('summary.failed', 0);
+
+        $candidate->refresh();
+        $event->refresh();
+
+        $this->assertSame('Jupiter v konjunkcii so Slnkom', (string) $candidate->translated_title);
+        $this->assertSame('Jupiter v konjunkcii so Slnkom', (string) $event->title);
     }
 }

@@ -123,6 +123,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute($perMinute)->by('newsletter-preview|' . $userId);
         });
 
+        RateLimiter::for('admin-ai', function (Request $request) {
+            $userId = (string) ($request->user()?->id ?? 'guest');
+            $perMinute = max(1, (int) config('admin.ai_rate_limit_per_minute', 10));
+
+            return Limit::perMinute($perMinute)->by('admin-ai|' . $userId . '|' . $request->ip());
+        });
+
         RateLimiter::for('me-export', function (Request $request) {
             $userId = $request->user()?->id ?? 'guest';
 

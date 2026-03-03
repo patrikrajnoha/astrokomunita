@@ -44,6 +44,14 @@ foreach (array_values(array_unique($weeklyYears)) as $yearToSync) {
         ->withoutOverlapping();
 }
 
+Schedule::command('events:repair-translation-artifacts --limit=300')
+    ->dailyAt('03:20')
+    ->withoutOverlapping();
+
+Schedule::command('events:translation-quality-report --sample=20')
+    ->dailyAt('03:10')
+    ->withoutOverlapping();
+
 Schedule::command('reminders:send')
     ->everyMinute()
     ->withoutOverlapping();

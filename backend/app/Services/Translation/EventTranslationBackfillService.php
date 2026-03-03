@@ -5,12 +5,16 @@ namespace App\Services\Translation;
 use App\Models\Event;
 use App\Models\EventCandidate;
 use App\Services\TranslationService;
+use App\Services\Events\EventTitlePostEditService;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class EventTranslationBackfillService
 {
     public function __construct(
         private readonly TranslationService $translationService,
+        private readonly AstronomyPhraseNormalizer $phraseNormalizer,
+        private readonly EventTitlePostEditService $titlePostEditService,
     ) {
     }
 
@@ -26,12 +30,21 @@ class EventTranslationBackfillService
      *   failures:array<int,array{candidate_id:int,error_code:string}>
      * }
      */
-    public function run(int $limit = 0, bool $dryRun = false, bool $force = false): array
+    public function run(int $limit = 0, bool $dryRun = false, bool $force = false, array $candidateIds = []): array
     {
         $query = EventCandidate::query()
             ->where('status', EventCandidate::STATUS_APPROVED)
             ->whereNotNull('published_event_id')
             ->orderBy('id');
+
+        $candidateIds = array_values(array_unique(array_map(
+            static fn ($id): int => (int) $id,
+            array_filter($candidateIds, static fn ($id): bool => (int) $id > 0)
+        )));
+
+        if ($candidateIds !== []) {
+            $query->whereIn('id', $candidateIds);
+        }
 
         if (! $force) {
             $query->where(function ($q) {
@@ -81,6 +94,31 @@ class EventTranslationBackfillService
 
                 if ($originalDescription !== null && ($force || blank($translatedDescription))) {
                     $translatedDescription = $this->translationService->translateEnToSk((string) $originalDescription, 'astronomy');
+                }
+
+                $titleResolution = $this->phraseNormalizer->normalizeTitleWithFallback($translatedTitle, $originalTitle, 'sk');
+                $translatedTitle = (string) ($titleResolution['title'] ?? $translatedTitle);
+                if ((bool) ($titleResolution['used_fallback'] ?? false)) {
+                    Log::warning('Event translation backfill title quality gate fallback used.', [
+                        'event_candidate_id' => (int) $candidate->id,
+                        'reason' => (string) ($titleResolution['reason'] ?? 'unknown'),
+                    ]);
+                }
+
+                if (! $dryRun && $this->isTitlePostEditEnabled() && $translatedTitle !== '') {
+                    $postEditResult = $this->titlePostEditService->postEditTitle(
+                        originalEn: $originalTitle,
+                        literalSk: $translatedTitle,
+                        eventId: $candidate->published_event_id ? (int) $candidate->published_event_id : null,
+                        context: [
+                            'type' => (string) ($candidate->type ?? ''),
+                        ],
+                        fallbackTitle: $translatedTitle
+                    );
+
+                    if ((string) ($postEditResult['status'] ?? '') === 'success') {
+                        $translatedTitle = trim((string) ($postEditResult['title_sk'] ?? $translatedTitle));
+                    }
                 }
             } catch (TranslationServiceException $exception) {
                 $errorCode = $exception->errorCode();
@@ -145,5 +183,9 @@ class EventTranslationBackfillService
 
         return $summary;
     }
-}
 
+    private function isTitlePostEditEnabled(): bool
+    {
+        return (bool) config('events.ai.title_postedit_enabled', false);
+    }
+}

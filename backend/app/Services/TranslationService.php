@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\TranslationCacheEntry;
 use App\Models\TranslationLog;
 use App\Models\TranslationOverride;
+use App\Services\Translation\AstronomyPhraseNormalizer;
 use App\Services\Translation\Contracts\TranslationProviderInterface;
 use App\Services\Translation\Grammar\Contracts\GrammarCheckerInterface;
 use App\Services\Translation\Grammar\GrammarCheckException;
@@ -23,6 +24,7 @@ class TranslationService
         private readonly LibreTranslateProvider $libreTranslateProvider,
         private readonly ArgosMicroserviceProvider $argosMicroserviceProvider,
         private readonly GrammarCheckerInterface $grammarChecker,
+        private readonly AstronomyPhraseNormalizer $astronomyPhraseNormalizer,
     ) {
     }
 
@@ -257,22 +259,7 @@ class TranslationService
 
     private function applyAstronomyPhraseFixes(string $text, string $language): string
     {
-        $lang = strtolower(trim($language));
-        if ($lang !== 'sk' && ! str_starts_with($lang, 'sk-')) {
-            return $text;
-        }
-
-        $patterns = [
-            '/\bprv(?:a|á)\s+tla(?:c|č)\s+mesiaca\b/iu' => 'prvá štvrť Mesiaca',
-            '/\bpolo(?:z|ž)en(?:a|á)\s+tla(?:c|č)\s+mesiaca\b/iu' => 'posledná štvrť Mesiaca',
-        ];
-
-        $value = $text;
-        foreach ($patterns as $pattern => $replacement) {
-            $value = preg_replace($pattern, $replacement, $value) ?? $value;
-        }
-
-        return $value;
+        return $this->astronomyPhraseNormalizer->normalize($text, $language);
     }
 
     private function applyOverrides(string $text, string $from, string $to): string
@@ -454,8 +441,10 @@ class TranslationService
         $cached = Cache::get($storeKey);
 
         if (is_array($cached) && isset($cached['translated_text']) && is_string($cached['translated_text'])) {
+            $translatedText = $this->applyTargetLanguageOverrides((string) $cached['translated_text'], $to);
+
             return new TranslationResult(
-                translatedText: $cached['translated_text'],
+                translatedText: $translatedText,
                 provider: (string) ($cached['provider'] ?? 'cache'),
                 meta: [
                     'from' => $from,
@@ -496,12 +485,14 @@ class TranslationService
         }
 
         Cache::put($storeKey, [
-            'translated_text' => $entry->translated_text,
+            'translated_text' => $this->applyTargetLanguageOverrides((string) $entry->translated_text, $to),
             'provider' => $entry->provider,
         ], $ttl);
 
+        $translatedText = $this->applyTargetLanguageOverrides((string) $entry->translated_text, $to);
+
         return new TranslationResult(
-            translatedText: (string) $entry->translated_text,
+            translatedText: $translatedText,
             provider: (string) ($entry->provider ?: 'cache'),
             meta: [
                 'from' => $from,

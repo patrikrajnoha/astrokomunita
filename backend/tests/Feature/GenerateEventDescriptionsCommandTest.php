@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Jobs\GenerateEventDescriptionJob;
 use App\Models\DescriptionGenerationRun;
 use App\Models\Event;
+use App\Services\Events\EventInsightsCacheService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -119,6 +121,181 @@ class GenerateEventDescriptionsCommandTest extends TestCase
         $event->refresh();
         $this->assertNull($event->description);
         $this->assertNull($event->short);
+    }
+
+    public function test_humanized_pilot_valid_strict_json_is_persisted(): void
+    {
+        config()->set('events.ai.humanized_pilot_enabled', true);
+        config()->set('ai.ollama_base_url', 'http://ollama.test');
+        config()->set('ai.ollama.base_url', 'http://ollama.test');
+        config()->set('ai.ollama.generate_path', '/api/generate');
+
+        Http::fake([
+            'http://ollama.test/api/tags' => Http::response([
+                'models' => [],
+            ], 200),
+            'http://ollama.test/*' => Http::response([
+                'model' => 'mistral',
+                'response' => json_encode([
+                    'description' => 'Ide o zaujimavy astronomicky jav viditelny v uvedenom termine.',
+                    'short' => 'Zaujimavy jav na sledovanie.',
+                    'why_interesting' => 'Pomaha lepsie pochopit dynamiku oblohy.',
+                    'how_to_observe' => 'Pozorujte z tmaveho miesta s nerusenym vyhladom.',
+                ], JSON_UNESCAPED_UNICODE),
+                'done' => true,
+            ], 200),
+        ]);
+
+        $event = $this->createEvent('evt-desc-humanized-valid', 'First Quarter Moon');
+
+        $this->artisan('events:generate-descriptions --force --limit=1 --mode=ollama')
+            ->assertExitCode(0);
+
+        $event->refresh();
+        $this->assertSame('Ide o zaujimavy astronomicky jav viditelny v uvedenom termine.', $event->description);
+        $this->assertSame('Zaujimavy jav na sledovanie.', $event->short);
+    }
+
+    public function test_humanized_insights_cache_uses_configured_ttl_setting(): void
+    {
+        config()->set('events.ai.humanized_pilot_enabled', true);
+        config()->set('events.ai.insights_cache_ttl_seconds', 123);
+        config()->set('ai.ollama_base_url', 'http://ollama.test');
+        config()->set('ai.ollama.base_url', 'http://ollama.test');
+        config()->set('ai.ollama.generate_path', '/api/generate');
+
+        Http::fake([
+            'http://ollama.test/api/tags' => Http::response([
+                'models' => [],
+            ], 200),
+            'http://ollama.test/*' => Http::response([
+                'model' => 'mistral',
+                'response' => json_encode([
+                    'description' => 'Ide o zaujimavy astronomicky jav viditelny v uvedenom termine.',
+                    'short' => 'Zaujimavy jav na sledovanie.',
+                    'why_interesting' => 'Pomaha lepsie pochopit dynamiku oblohy.',
+                    'how_to_observe' => 'Pozorujte z tmaveho miesta s nerusenym vyhladom.',
+                ], JSON_UNESCAPED_UNICODE),
+                'done' => true,
+            ], 200),
+        ]);
+
+        $event = $this->createEvent('evt-desc-insights-ttl', 'First Quarter Moon');
+
+        $this->artisan('events:generate-descriptions --force --limit=1 --mode=ollama')
+            ->assertExitCode(0);
+
+        $insightsCache = app(EventInsightsCacheService::class);
+        $cacheKey = $insightsCache->key((int) $event->id);
+        $cached = Cache::get($cacheKey);
+
+        $this->assertSame(123, $insightsCache->ttlSeconds());
+        $this->assertIsArray($cached);
+        $this->assertNotEmpty((string) ($cached['factual_hash'] ?? ''));
+    }
+
+    public function test_humanized_pilot_invalid_json_falls_back_without_job_failure(): void
+    {
+        config()->set('events.ai.humanized_pilot_enabled', true);
+        config()->set('ai.ollama_base_url', 'http://ollama.test');
+        config()->set('ai.ollama.base_url', 'http://ollama.test');
+        config()->set('ai.ollama.generate_path', '/api/generate');
+
+        Http::fake([
+            'http://ollama.test/api/tags' => Http::response([
+                'models' => [],
+            ], 200),
+            'http://ollama.test/*' => Http::response([
+                'model' => 'mistral',
+                'response' => 'Nie je to JSON.',
+                'done' => true,
+            ], 200),
+        ]);
+
+        $event = $this->createEvent('evt-desc-humanized-invalid', 'First Quarter Moon');
+
+        $this->artisan('events:generate-descriptions --force --limit=1 --mode=ollama')
+            ->assertExitCode(0);
+
+        $event->refresh();
+        $this->assertNotNull($event->description);
+        $this->assertNotNull($event->short);
+        $this->assertStringContainsString('mesiac', mb_strtolower((string) $event->description));
+
+        $run = DescriptionGenerationRun::query()->latest('id')->firstOrFail();
+        $this->assertSame('completed', $run->status);
+        $this->assertSame(1, $run->generated);
+        $this->assertSame(0, $run->failed);
+    }
+
+    public function test_humanized_pilot_accepts_json_wrapped_in_text_and_code_fence(): void
+    {
+        config()->set('events.ai.humanized_pilot_enabled', true);
+        config()->set('ai.ollama_base_url', 'http://ollama.test');
+        config()->set('ai.ollama.base_url', 'http://ollama.test');
+        config()->set('ai.ollama.generate_path', '/api/generate');
+
+        $wrappedResponse = <<<TEXT
+Tu je vysledok:
+```json
+{"description":"Ukaz je lahko pochopitelny a zaujimavy pre bezneho pozorovatela.","short":"Jednoduchy prehlad javu.","why_interesting":"Pomaha sledovat pohyb telies na oblohe.","how_to_observe":"Vyberte tmavsie miesto a doprajte ociam adaptaciu."}
+```
+Dakujem.
+TEXT;
+
+        Http::fake([
+            'http://ollama.test/api/tags' => Http::response([
+                'models' => [],
+            ], 200),
+            'http://ollama.test/*' => Http::response([
+                'model' => 'mistral',
+                'response' => $wrappedResponse,
+                'done' => true,
+            ], 200),
+        ]);
+
+        $event = $this->createEvent('evt-desc-humanized-wrapped', 'First Quarter Moon');
+
+        $this->artisan('events:generate-descriptions --force --limit=1 --mode=ollama')
+            ->assertExitCode(0);
+
+        $event->refresh();
+        $this->assertSame('Ukaz je lahko pochopitelny a zaujimavy pre bezneho pozorovatela.', $event->description);
+        $this->assertSame('Jednoduchy prehlad javu.', $event->short);
+    }
+
+    public function test_humanized_pilot_factual_drift_triggers_fallback(): void
+    {
+        config()->set('events.ai.humanized_pilot_enabled', true);
+        config()->set('ai.ollama_base_url', 'http://ollama.test');
+        config()->set('ai.ollama.base_url', 'http://ollama.test');
+        config()->set('ai.ollama.generate_path', '/api/generate');
+
+        Http::fake([
+            'http://ollama.test/api/tags' => Http::response([
+                'models' => [],
+            ], 200),
+            'http://ollama.test/*' => Http::response([
+                'model' => 'mistral',
+                'response' => json_encode([
+                    'description' => 'Mesiac je vo vzdialenosti 370000 km od Zeme.',
+                    'short' => 'Mesiac vo vzdialenosti 370000 km.',
+                    'why_interesting' => 'Rozdielna vzdialenost je pekne viditelna.',
+                    'how_to_observe' => 'Sledujte ukaz za dobreho pocasia.',
+                ], JSON_UNESCAPED_UNICODE),
+                'done' => true,
+            ], 200),
+        ]);
+
+        $event = $this->createEvent('evt-desc-humanized-drift', 'Mesiac v perigeu: 363000 km');
+
+        $this->artisan('events:generate-descriptions --force --limit=1 --mode=ollama')
+            ->assertExitCode(0);
+
+        $event->refresh();
+        $this->assertStringNotContainsString('370000 km', (string) $event->description);
+        $this->assertStringContainsString('363', (string) $event->description);
+        $this->assertStringContainsString('km', strtolower((string) $event->description));
     }
 
     public function test_ollama_down_with_fallback_base_completes_in_template_mode(): void

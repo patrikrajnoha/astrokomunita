@@ -9,10 +9,13 @@ use App\Services\Newsletter\NewsletterDispatchService;
 use App\Services\Newsletter\NewsletterSelectionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AdminNewsletterController extends Controller
 {
+    private const ISO_TIMESTAMP_PATTERN = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d{1,6})?(?:Z|[+\-]\d{2}:\d{2})?$/u';
+
     public function __construct(
         private readonly NewsletterSelectionService $selectionService,
         private readonly NewsletterDispatchService $dispatchService,
@@ -22,7 +25,7 @@ class AdminNewsletterController extends Controller
     public function preview(): JsonResponse
     {
         return response()->json([
-            'data' => $this->selectionService->buildNewsletterPayload(),
+            'data' => $this->selectionService->buildNewsletterPayload(adminPreview: true),
             'meta' => [
                 'max_featured_events' => NewsletterSelectionService::MAX_FEATURED_EVENTS,
             ],
@@ -74,6 +77,9 @@ class AdminNewsletterController extends Controller
     {
         $validated = $request->validate([
             'email' => ['required', 'email'],
+            'subject_override' => ['sometimes', 'nullable', 'string'],
+            'intro_override' => ['sometimes', 'nullable', 'string'],
+            'tip_override' => ['sometimes', 'nullable', 'string'],
         ]);
 
         $targetEmail = mb_strtolower(trim((string) $validated['email']));
@@ -87,7 +93,20 @@ class AdminNewsletterController extends Controller
             ]);
         }
 
-        $payload = $this->selectionService->buildNewsletterPayload();
+        $sanitized = $this->sanitizePreviewOverrides($validated);
+        $overrides = $sanitized['overrides'];
+        $warnings = $sanitized['warnings'];
+        $payload = $this->selectionService->buildNewsletterPayload(adminPreview: true);
+        if (isset($overrides['subject_override'])) {
+            $payload['subject_override'] = $overrides['subject_override'];
+        }
+        if (isset($overrides['intro_override'])) {
+            $payload['intro_override'] = $overrides['intro_override'];
+        }
+        if (isset($overrides['tip_override'])) {
+            $payload['astronomical_tip'] = $overrides['tip_override'];
+        }
+
         $sent = $this->dispatchService->sendPreviewToUser($targetUser, $payload);
 
         if (! $sent) {
@@ -108,6 +127,7 @@ class AdminNewsletterController extends Controller
                 'run_id' => (int) $previewRun->id,
                 'preview_count' => (int) $previewRun->preview_count,
             ],
+            'warnings' => $warnings,
         ], 202);
     }
 
@@ -161,5 +181,76 @@ class AdminNewsletterController extends Controller
             'created_at' => optional($run->created_at)->toIso8601String(),
             'updated_at' => optional($run->updated_at)->toIso8601String(),
         ];
+    }
+
+    /**
+     * @param array<string,mixed> $validated
+     * @return array{overrides:array<string,string>,warnings:array<int,string>}
+     */
+    private function sanitizePreviewOverrides(array $validated): array
+    {
+        $limits = [
+            'subject_override' => 80,
+            'intro_override' => 280,
+            'tip_override' => 320,
+        ];
+
+        $normalized = [];
+        $warnings = [];
+
+        foreach ($limits as $field => $maxLength) {
+            if (! array_key_exists($field, $validated)) {
+                continue;
+            }
+
+            if ($validated[$field] === null) {
+                $warnings[] = $this->warningMessage($field, 'ignored: empty after sanitization, fallback applied.');
+                continue;
+            }
+
+            $value = $this->sanitizePreviewText((string) $validated[$field]);
+            if ($value === '') {
+                $warnings[] = $this->warningMessage($field, 'ignored: empty after sanitization, fallback applied.');
+                continue;
+            }
+
+            if ($this->containsIsoTimestamp($value)) {
+                $warnings[] = $this->warningMessage($field, 'ignored: ISO timestamp-only value is not allowed, fallback applied.');
+                continue;
+            }
+
+            $normalized[$field] = $this->limitTextLength($value, $maxLength);
+        }
+
+        return [
+            'overrides' => $normalized,
+            'warnings' => $warnings,
+        ];
+    }
+
+    private function sanitizePreviewText(string $value): string
+    {
+        $plain = trim(strip_tags($value));
+        if ($plain === '') {
+            return '';
+        }
+
+        $plain = preg_replace('/\s+/u', ' ', $plain) ?? $plain;
+        return trim($plain);
+    }
+
+    private function containsIsoTimestamp(string $value): bool
+    {
+        return preg_match(self::ISO_TIMESTAMP_PATTERN, trim($value)) === 1;
+    }
+
+    private function limitTextLength(string $value, int $maxLength): string
+    {
+        return Str::limit(trim($value), max(1, $maxLength), '');
+    }
+
+    private function warningMessage(string $field, string $message): string
+    {
+        return $field . ' ' . $message;
     }
 }

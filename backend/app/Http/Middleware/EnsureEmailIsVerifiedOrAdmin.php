@@ -33,6 +33,7 @@ class EnsureEmailIsVerifiedOrAdmin
         return response()->json([
             'message' => 'Email address is not verified.',
             'error_code' => 'EMAIL_NOT_VERIFIED',
+            'action' => 'GO_TO_SETTINGS_EMAIL',
         ], 403);
     }
 }

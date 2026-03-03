@@ -8,6 +8,7 @@ use App\Services\Crawlers\Astropixels\AstropixelsAlmanacParser;
 use Carbon\CarbonImmutable;
 use DomainException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
@@ -15,13 +16,12 @@ class AstropixelsCrawlerService implements CrawlerInterface
 {
     private const REQUEST_TIMEOUT_SECONDS = 20;
     private const REQUEST_CONNECT_TIMEOUT_SECONDS = 10;
-    private const REQUEST_RETRY_TIMES = 2;
-    private const REQUEST_RETRY_SLEEP_MS = 500;
     private const REQUEST_HEADERS = [
         'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language' => 'sk-SK,sk;q=0.9,en;q=0.8',
         'User-Agent' => 'AstrokomunitaCrawler/1.0 (+https://astropixels.com; research-use)',
     ];
+    private const HUMANS_CHALLENGE_COOKIE_PATTERN = '/document\.cookie\s*=\s*"([A-Za-z0-9_]+=[^";]+)"/i';
 
     public function __construct(
         private readonly AstropixelsAlmanacParser $parser,
@@ -39,13 +39,7 @@ class AstropixelsCrawlerService implements CrawlerInterface
         $verifyOption = $this->resolveSslVerifyOption();
         $sourceTimezone = $this->resolveSourceTimezone($context);
 
-        $response = Http::connectTimeout(self::REQUEST_CONNECT_TIMEOUT_SECONDS)
-            ->timeout(self::REQUEST_TIMEOUT_SECONDS)
-            ->retry(self::REQUEST_RETRY_TIMES, self::REQUEST_RETRY_SLEEP_MS)
-            ->withOptions(['verify' => $verifyOption])
-            ->withAttributes(['ssl_verify' => $verifyOption])
-            ->withHeaders(self::REQUEST_HEADERS)
-            ->get($url);
+        $response = $this->fetchHtmlResponse($url, $verifyOption);
 
         try {
             $response->throw();
@@ -132,5 +126,51 @@ class AstropixelsCrawlerService implements CrawlerInterface
         return app(SslVerificationPolicy::class)->resolveVerifyOption(
             allowInsecure: ! $configuredVerify
         );
+    }
+
+    private function fetchHtmlResponse(string $url, bool|string $verifyOption): Response
+    {
+        $response = $this->requestHtml($url, $verifyOption);
+
+        if ($response->status() !== 409) {
+            return $response;
+        }
+
+        $challengeCookie = $this->extractHumansChallengeCookie((string) $response->body());
+        if ($challengeCookie === null) {
+            return $response;
+        }
+
+        return $this->requestHtml($url, $verifyOption, [
+            'Cookie' => $challengeCookie,
+        ]);
+    }
+
+    /**
+     * @param array<string,string> $extraHeaders
+     */
+    private function requestHtml(string $url, bool|string $verifyOption, array $extraHeaders = []): Response
+    {
+        return Http::connectTimeout(self::REQUEST_CONNECT_TIMEOUT_SECONDS)
+            ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+            ->withOptions(['verify' => $verifyOption])
+            ->withAttributes(['ssl_verify' => $verifyOption])
+            ->withHeaders(array_merge(self::REQUEST_HEADERS, $extraHeaders))
+            ->get($url);
+    }
+
+    private function extractHumansChallengeCookie(string $body): ?string
+    {
+        if ($body === '' || ! str_contains($body, 'document.cookie')) {
+            return null;
+        }
+
+        if (preg_match(self::HUMANS_CHALLENGE_COOKIE_PATTERN, $body, $matches) !== 1) {
+            return null;
+        }
+
+        $cookie = trim((string) ($matches[1] ?? ''));
+
+        return $cookie !== '' ? $cookie : null;
     }
 }

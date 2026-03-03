@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/99-uploads.ini
 COPY --from=vendor /app/vendor /var/www/html/vendor
 COPY . /var/www/html
 

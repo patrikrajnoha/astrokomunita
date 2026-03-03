@@ -6,6 +6,7 @@ use App\Models\BlogPost;
 use App\Models\Event;
 use App\Models\NewsletterFeaturedEvent;
 use App\Models\NewsletterRun;
+use App\Services\Events\EventInsightsCacheService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -15,12 +16,17 @@ class NewsletterSelectionService
 {
     public const MAX_FEATURED_EVENTS = 10;
 
+    public function __construct(
+        private readonly EventInsightsCacheService $insightsCache
+    ) {
+    }
+
     /**
      * @return array{start: CarbonImmutable, end: CarbonImmutable, week_start_date: string}
      */
     public function getNextWeekRange(): array
     {
-        $timezone = (string) config('events.timezone', config('app.timezone', 'UTC'));
+        $timezone = (string) config('app.timezone', 'Europe/Bratislava');
         $start = CarbonImmutable::now($timezone)
             ->startOfWeek(CarbonImmutable::MONDAY)
             ->addWeek()
@@ -172,7 +178,7 @@ class NewsletterSelectionService
     /**
      * @return array<string, mixed>
      */
-    public function buildNewsletterPayload(): array
+    public function buildNewsletterPayload(bool $adminPreview = false): array
     {
         $range = $this->getNextWeekRange();
         $events = $this->getAdminSelectedEvents();
@@ -185,7 +191,7 @@ class NewsletterSelectionService
         $articles = $this->getTopArticlesLast7Days($topArticlesLimit);
 
         try {
-            $tip = $this->buildAstronomicalTip($events);
+            $tip = $this->buildAstronomicalTip($events, $adminPreview);
         } catch (\Throwable) {
             $tip = $this->fallbackAstronomicalTip();
         }
@@ -244,7 +250,7 @@ class NewsletterSelectionService
     /**
      * @param array<int, array<string, mixed>> $events
      */
-    private function buildAstronomicalTip(array $events): string
+    private function buildAstronomicalTip(array $events, bool $adminPreview): string
     {
         if ($events === []) {
             return $this->fallbackAstronomicalTip();
@@ -259,13 +265,110 @@ class NewsletterSelectionService
         $startLabel = 'buduci tyzden';
         if ($startRaw !== '') {
             try {
-                $startLabel = CarbonImmutable::parse($startRaw)->setTimezone($timezone)->format('d.m.Y H:i');
+                $startLabel = CarbonImmutable::parse($startRaw)->setTimezone($timezone)->translatedFormat('d. m. Y H:i');
             } catch (\Throwable) {
                 $startLabel = 'buduci tyzden';
             }
         }
 
+        $insightSnippet = $this->resolveInsightSnippet($first, $adminPreview);
+        if ($insightSnippet !== null) {
+            return "Astronomicky tip tyzdna: Pri udalosti \"{$title}\" okolo {$startLabel} {$insightSnippet}";
+        }
+
         return "Astronomicky tip tyzdna: Pri udalosti \"{$title}\" okolo {$startLabel} vyhladajte tmavsie miesto mimo mesta, nechajte oci adaptovat sa aspon 20 minut a pripravte si plan B pre pripad oblakov.";
+    }
+
+    /**
+     * @param array<string,mixed> $event
+     */
+    private function resolveInsightSnippet(array $event, bool $adminPreview): ?string
+    {
+        if (! $adminPreview || ! (bool) config('events.ai.humanized_pilot_enabled', false)) {
+            return null;
+        }
+
+        $eventId = (int) ($event['id'] ?? 0);
+        if ($eventId <= 0) {
+            return null;
+        }
+
+        $cached = $this->insightsCache->get($eventId);
+        if (! $cached) {
+            return null;
+        }
+
+        $eventModel = Event::query()
+            ->whereKey($eventId)
+            ->first([
+                'id',
+                'title',
+                'type',
+                'start_at',
+                'max_at',
+                'end_at',
+                'visibility',
+                'region_scope',
+                'source_name',
+            ]);
+
+        if (! $eventModel) {
+            $this->insightsCache->invalidate($eventId);
+            return null;
+        }
+
+        if (! $this->insightsCache->isFreshForEvent($eventModel, $cached)) {
+            $this->insightsCache->invalidate($eventId);
+            return null;
+        }
+
+        $howToObserve = $this->sanitizeInsightTextForTip((string) ($cached['how_to_observe'] ?? ''));
+        $whyInteresting = $this->sanitizeInsightTextForTip((string) ($cached['why_interesting'] ?? ''));
+        if ($howToObserve === '' && $whyInteresting === '') {
+            return null;
+        }
+
+        if ($howToObserve !== '' && $whyInteresting !== '') {
+            return "{$howToObserve} Preco je to zaujimave: {$whyInteresting}";
+        }
+
+        return $howToObserve !== '' ? $howToObserve : $whyInteresting;
+    }
+
+    private function sanitizeInsightTextForTip(string $value): string
+    {
+        $text = trim(strip_tags($value));
+        if ($text === '') {
+            return '';
+        }
+
+        // Remove exact timestamps/timezones that tend to drift in stale snippets.
+        $text = preg_replace('/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+\-]\d{2}:\d{2})?\b/u', '', $text) ?? $text;
+        $text = preg_replace('/\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?\b/u', '', $text) ?? $text;
+        $text = preg_replace('/\b\d{1,2}\.\s*\d{1,2}\.\s*\d{4}(?:\s+\d{1,2}:\d{2})?\b/u', '', $text) ?? $text;
+        $text = preg_replace('/\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:UTC|CET|CEST|SEČ|SEC|SELČ)\b/iu', '', $text) ?? $text;
+        $text = preg_replace('/\bUTC\b/iu', '', $text) ?? $text;
+        $text = preg_replace('/\b[+\-]\d{2}:\d{2}\b/u', '', $text) ?? $text;
+
+        // Remove exact distance/separation values if present; keep generic counts like "20 minut".
+        $text = preg_replace('/\b\d+(?:[.,]\d+)?\s*km\b/iu', '', $text) ?? $text;
+        $text = preg_replace('/\b\d+(?:[.,]\d+)?\s*(?:°|deg|stupn(?:ov|e|i)?)\b/iu', '', $text) ?? $text;
+
+        $text = preg_replace('/\(\s*\)/u', '', $text) ?? $text;
+        $text = preg_replace('/\s+([,.;:!?])/u', '$1', $text) ?? $text;
+        $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+        $text = trim($text, " \t\n\r\0\x0B,.;:-");
+
+        if ($text === '') {
+            return '';
+        }
+
+        $text = Str::limit($text, 220, '');
+        if (! preg_match('/[.!?]$/u', $text)) {
+            $text .= '.';
+        }
+
+        return $text;
     }
 
     private function fallbackAstronomicalTip(): string

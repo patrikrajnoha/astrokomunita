@@ -6,6 +6,7 @@ use App\Models\EventCandidate;
 use App\Services\AI\OllamaRefinementService;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use App\Services\Bots\Exceptions\BotTranslationException;
+use App\Services\Translation\AstronomyPhraseNormalizer;
 use Carbon\CarbonInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -25,16 +26,6 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
 
     private const REFINED_DESCRIPTION_MAX_LENGTH = 600;
     private const SHORT_MAX_LENGTH = 180;
-    private const TERMINOLOGY_MAP = [
-        'FIRST QUARTER MOON' => 'Prva stvrt Mesiaca',
-        'LAST QUARTER MOON' => 'Posledna stvrt Mesiaca',
-        'FULL MOON' => 'Spln',
-        'NEW MOON' => 'Nov',
-        'LUNAR ECLIPSE' => 'Mesiacne zatmenie',
-        'SOLAR ECLIPSE' => 'Slnecne zatmenie',
-        'MOON' => 'Mesiac',
-        'SUN' => 'Slnko',
-    ];
 
     public int $tries = 4;
     public int $uniqueFor = 600;
@@ -60,7 +51,8 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
 
     public function handle(
         BotTranslationServiceInterface $translationService,
-        OllamaRefinementService $ollamaRefinementService
+        OllamaRefinementService $ollamaRefinementService,
+        AstronomyPhraseNormalizer $phraseNormalizer,
     ): void {
         $candidate = EventCandidate::query()->find($this->candidateId);
         if (! $candidate) {
@@ -98,14 +90,20 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
             if ($translatedTitle === '') {
                 $translatedTitle = $originalTitle;
             }
-            $translatedTitle = $this->applyTerminologyMap($translatedTitle);
+            $translatedTitle = $this->resolveTitleWithQualityGate(
+                translatedTitle: $translatedTitle,
+                originalTitle: $originalTitle,
+                phraseNormalizer: $phraseNormalizer,
+                candidateId: (int) $candidate->id,
+                stage: 'initial'
+            );
 
             $translatedDescriptionRaw = $translationResult['translated_content'] ?? null;
             $translatedDescription = is_string($translatedDescriptionRaw)
                 ? trim($translatedDescriptionRaw)
                 : null;
             if ($translatedDescription !== null) {
-                $translatedDescription = $this->applyTerminologyMap($translatedDescription);
+                $translatedDescription = $this->applyTerminologyMap($translatedDescription, $phraseNormalizer);
             }
 
             $finalDescription = $translatedDescription;
@@ -128,10 +126,16 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
                     );
 
                     $translatedTitle = (string) ($refined['refined_title'] ?? $translatedTitle);
-                    $translatedTitle = $this->applyTerminologyMap($translatedTitle);
+                    $translatedTitle = $this->resolveTitleWithQualityGate(
+                        translatedTitle: $translatedTitle,
+                        originalTitle: $originalTitle,
+                        phraseNormalizer: $phraseNormalizer,
+                        candidateId: (int) $candidate->id,
+                        stage: 'refined'
+                    );
                     $refinedDescription = $this->sanitizeRefinedDescription($refined['refined_description'] ?? null);
                     if ($refinedDescription !== null) {
-                        $finalDescription = $this->applyTerminologyMap($refinedDescription);
+                        $finalDescription = $this->applyTerminologyMap($refinedDescription, $phraseNormalizer);
 
                         if (! $usedTemplateFallback) {
                             $finalShort = $this->buildShort($finalDescription, $translatedTitle);
@@ -388,15 +392,32 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
         return 'translation_error';
     }
 
-    private function applyTerminologyMap(string $text): string
+    private function applyTerminologyMap(string $text, AstronomyPhraseNormalizer $phraseNormalizer): string
     {
-        $result = $text;
+        return $phraseNormalizer->normalize($text, 'sk');
+    }
 
-        foreach (self::TERMINOLOGY_MAP as $from => $to) {
-            $pattern = '/(?<!\pL)' . preg_quote($from, '/') . '(?!\pL)/iu';
-            $result = (string) preg_replace($pattern, $to, $result);
+    private function resolveTitleWithQualityGate(
+        string $translatedTitle,
+        string $originalTitle,
+        AstronomyPhraseNormalizer $phraseNormalizer,
+        int $candidateId,
+        string $stage
+    ): string {
+        $resolution = $phraseNormalizer->normalizeTitleWithFallback($translatedTitle, $originalTitle, 'sk');
+        $title = $this->sanitizeInline((string) ($resolution['title'] ?? ''));
+        if ($title === '') {
+            $title = 'Astronomicka udalost';
         }
 
-        return $result;
+        if ((bool) ($resolution['used_fallback'] ?? false)) {
+            Log::warning('Event candidate title quality gate fallback used.', [
+                'event_candidate_id' => $candidateId,
+                'stage' => $stage,
+                'reason' => (string) ($resolution['reason'] ?? 'unknown'),
+            ]);
+        }
+
+        return $title;
     }
 }

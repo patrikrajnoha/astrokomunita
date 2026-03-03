@@ -10,7 +10,6 @@ use App\Services\Auth\EmailVerificationSettingService;
 use App\Services\Security\TurnstileService;
 use App\Services\UserActivityService;
 use App\Support\UsernameRules;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -67,14 +66,6 @@ class AuthController extends Controller
             'password' => $validated['password'],
             'requires_email_verification' => $requiresEmailVerification,
         ]);
-
-        if ($requiresEmailVerification) {
-            event(new Registered($user));
-        } else {
-            $user->forceFill([
-                'email_verified_at' => now(),
-            ])->save();
-        }
 
         Auth::login($user);
 
@@ -202,20 +193,25 @@ class AuthController extends Controller
 
     public function verifyEmail(Request $request, int $id, string $hash)
     {
-        if (!$request->hasValidSignature()) {
+        // SECURITY: Fail-fast 410 must stay first to prevent email verification bypass.
+        if (! (bool) config('auth.enable_signed_link_email_verification', false)) {
+            return $this->deprecatedSignedLinkResponse();
+        }
+
+        if (! $request->hasValidSignature()) {
             return response()->json([
                 'message' => 'Verification link is invalid or expired.',
             ], 403);
         }
 
         $user = User::query()->find($id);
-        if (!$user) {
+        if (! $user) {
             return response()->json([
                 'message' => 'Verification link is invalid.',
             ], 404);
         }
 
-        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+        if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
             return response()->json([
                 'message' => 'Verification link is invalid.',
             ], 403);
@@ -238,6 +234,10 @@ class AuthController extends Controller
 
     public function resendVerificationEmail(Request $request)
     {
+        if (! (bool) config('auth.enable_signed_link_email_verification', false)) {
+            return $this->deprecatedSignedLinkResponse();
+        }
+
         $user = $request->user();
 
         if (!$user) {
@@ -257,5 +257,14 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Verification link sent.',
         ]);
+    }
+
+    private function deprecatedSignedLinkResponse()
+    {
+        return response()->json([
+            'error_code' => 'EMAIL_VERIFY_DEPRECATED',
+            'message' => 'Email verification link is deprecated. Use code verification in Settings.',
+            'action' => 'GO_TO_SETTINGS_EMAIL',
+        ], 410);
     }
 }
