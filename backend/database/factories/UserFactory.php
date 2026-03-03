@@ -36,6 +36,7 @@ class UserFactory extends Factory
             'is_banned' => false,
             'is_active' => true,
             'warning_count' => 0,
+            'requires_email_verification' => false,
             'newsletter_subscribed' => false,
             'remember_token' => Str::random(10),
         ];
@@ -48,6 +49,7 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+            'requires_email_verification' => true,
         ]);
     }
 }

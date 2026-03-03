@@ -115,4 +115,9 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    'verification_from' => [
+        'address' => env('MAIL_VERIFICATION_FROM_ADDRESS', 'noreply@example.com'),
+        'name' => env('MAIL_FROM_NAME', 'Astrokomunita'),
+    ],
+
 ];

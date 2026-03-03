@@ -60,6 +60,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'ban_reason',
         'is_active',
         'warning_count',
+        'requires_email_verification',
         'last_calendar_popup_at',
         'calendar_popup_last_force_version',
         'last_login_at',
@@ -100,6 +101,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'banned_at' => 'datetime',
             'is_active' => 'boolean',
             'warning_count' => 'integer',
+            'requires_email_verification' => 'boolean',
             'latitude' => 'float',
             'longitude' => 'float',
             'last_calendar_popup_at' => 'datetime',
@@ -381,6 +383,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function newsletterRuns(): HasMany
     {
         return $this->hasMany(NewsletterRun::class, 'admin_user_id');
+    }
+
+    public function emailVerifications(): HasMany
+    {
+        return $this->hasMany(EmailVerification::class);
+    }
+
+    public function emailChangeRequests(): HasMany
+    {
+        return $this->hasMany(EmailChangeRequest::class);
     }
 
     public function sentEventInvites(): HasMany
