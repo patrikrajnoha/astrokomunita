@@ -21,6 +21,7 @@ const httpMock = vi.hoisted(() => ({
   patch: vi.fn(),
   delete: vi.fn(),
   get: vi.fn(),
+  post: vi.fn(),
 }))
 
 vi.mock('vue-router', () => ({
@@ -69,13 +70,90 @@ describe('SettingsView', () => {
         },
       },
     })
-    httpMock.get.mockResolvedValue({
-      data: new Blob(['{"export_version":"1.0"}'], { type: 'application/json' }),
-      headers: {
-        'content-disposition':
-          'attachment; filename="nebesky-sprievodca-export-tester-20260221_173000.json"',
+    httpMock.get.mockImplementation((url) => {
+      if (url === '/account/email') {
+        return Promise.resolve({
+          data: {
+            data: {
+              email: 'tester@example.com',
+              verified: true,
+              email_verified_at: '2026-03-01T12:00:00Z',
+              requires_email_verification: true,
+              seconds_to_resend: 0,
+              pending_email_change: null,
+            },
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: new Blob(['{"export_version":"1.0"}'], { type: 'application/json' }),
+        headers: {
+          'content-disposition':
+            'attachment; filename="nebesky-sprievodca-export-tester-20260221_173000.json"',
+        },
+      })
+    })
+    httpMock.post.mockResolvedValue({
+      data: {
+        message: 'Verification code sent.',
+        data: {
+          email: 'tester@example.com',
+          verified: false,
+          email_verified_at: null,
+          requires_email_verification: true,
+          seconds_to_resend: 60,
+          pending_email_change: null,
+        },
       },
     })
+  })
+
+  it('renders email verification state from account email API', async () => {
+    const wrapper = mount(SettingsView)
+    await flush()
+    await flush()
+
+    expect(httpMock.get).toHaveBeenCalledWith('/account/email', {
+      meta: { skipErrorToast: true },
+    })
+    expect(wrapper.find('[data-testid="settings-email-status"]').text()).toContain('Verified')
+    expect(wrapper.find('[data-testid="settings-email-status"]').text()).toContain('tester@example.com')
+  })
+
+  it('sends verification code from settings email section', async () => {
+    httpMock.get.mockImplementation((url) => {
+      if (url === '/account/email') {
+        return Promise.resolve({
+          data: {
+            data: {
+              email: 'tester@example.com',
+              verified: false,
+              email_verified_at: null,
+              requires_email_verification: true,
+              seconds_to_resend: 0,
+              pending_email_change: null,
+            },
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: new Blob(['{}'], { type: 'application/json' }),
+        headers: {},
+      })
+    })
+
+    const wrapper = mount(SettingsView)
+    await flush()
+    await flush()
+
+    await wrapper.get('#settings-email-send').trigger('click')
+    await flush()
+
+    expect(authMock.csrf).toHaveBeenCalled()
+    expect(httpMock.post).toHaveBeenCalledWith('/account/email/verification/send', {})
+    expect(wrapper.text()).toContain('Verification code sent.')
   })
 
   it('updates newsletter toggle via API', async () => {
@@ -127,12 +205,36 @@ describe('SettingsView', () => {
   })
 
   it('keeps user activity hidden by default and loads it on demand', async () => {
-    httpMock.get.mockResolvedValueOnce({
-      data: {
-        last_login_at: '2026-02-23T10:00:00Z',
-        posts_count: 7,
-        event_participations_count: 3,
-      },
+    httpMock.get.mockImplementation((url) => {
+      if (url === '/account/email') {
+        return Promise.resolve({
+          data: {
+            data: {
+              email: 'tester@example.com',
+              verified: true,
+              email_verified_at: '2026-03-01T12:00:00Z',
+              requires_email_verification: true,
+              seconds_to_resend: 0,
+              pending_email_change: null,
+            },
+          },
+        })
+      }
+
+      if (url === '/me/activity') {
+        return Promise.resolve({
+          data: {
+            last_login_at: '2026-02-23T10:00:00Z',
+            posts_count: 7,
+            event_participations_count: 3,
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: new Blob(['{}'], { type: 'application/json' }),
+        headers: {},
+      })
     })
 
     const wrapper = mount(SettingsView)

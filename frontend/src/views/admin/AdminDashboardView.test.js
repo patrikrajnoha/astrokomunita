@@ -76,14 +76,14 @@ describe('AdminDashboardView', () => {
     getAuthSettingsMock.mockResolvedValue({
       data: {
         data: {
-          require_email_verification: true,
+          require_email_verification_for_new_users: true,
         },
       },
     })
     updateAuthSettingsMock.mockResolvedValue({
       data: {
         data: {
-          require_email_verification: false,
+          require_email_verification_for_new_users: false,
         },
       },
     })
@@ -185,6 +185,8 @@ describe('AdminDashboardView', () => {
     await checkbox.setValue(false)
     await flush()
 
-    expect(updateAuthSettingsMock).toHaveBeenCalledWith({ require_email_verification: false })
+    expect(updateAuthSettingsMock).toHaveBeenCalledWith({
+      require_email_verification_for_new_users: false,
+    })
   })
 })
