@@ -220,7 +220,7 @@ class SidebarConfigTest extends TestCase
             ]);
     }
 
-    public function test_sky_scope_is_valid_and_returns_config(): void
+    public function test_legacy_sky_scope_falls_back_to_home(): void
     {
         $admin = User::factory()->create([
             'role' => 'admin',
@@ -232,7 +232,7 @@ class SidebarConfigTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('scope', 'sky')
+            ->assertJsonPath('scope', 'home')
             ->assertJsonCount(count(SidebarSectionRegistry::sections()), 'data');
     }
 

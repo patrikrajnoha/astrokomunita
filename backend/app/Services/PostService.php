@@ -87,7 +87,7 @@ class PostService
                     ->orWhere('parent_id', $root->id);
             })
             ->with(array_merge([
-                'user:id,name,username,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
                 'tags:id,name',
                 'hashtags:id,name',
             ], $this->polls->pollRelations($viewer?->id)))
@@ -199,7 +199,7 @@ class PostService
             DB::afterCommit(fn () => $this->userActivity->forgetActivity($user));
 
             return $post->load([
-                'user:id,name,username,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
                 'tags:id,name',
                 'hashtags:id,name',
                 ...$this->polls->pollRelations($user->id),
@@ -253,6 +253,7 @@ class PostService
                 : (string) ($parent->feed_key ?: PostFeedKey::COMMUNITY->value);
             $reply->author_kind = $replyAuthorKind;
             $reply->bot_identity = $replyBotIdentity;
+            $reply->meta = is_array($options['meta'] ?? null) ? $options['meta'] : null;
             $reply->moderation_status = $shouldModerate ? 'pending' : 'ok';
             $reply->moderation_summary = null;
             $reply->hidden_reason = null;
@@ -278,7 +279,7 @@ class PostService
             DB::afterCommit(fn () => $this->userActivity->forgetActivity($user));
 
             return $reply->load([
-                'user:id,name,username,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
                 'tags:id,name',
                 'hashtags:id,name',
             ]);

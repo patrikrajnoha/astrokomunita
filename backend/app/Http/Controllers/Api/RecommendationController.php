@@ -42,7 +42,7 @@ class RecommendationController extends Controller
             }])
             ->orderBy('posts_count', 'desc')
             ->limit($limit)
-            ->get(['id', 'name', 'username', 'avatar_path', 'posts_count']);
+            ->get(['id', 'name', 'username', 'avatar_path', 'avatar_mode', 'avatar_color', 'avatar_icon', 'avatar_seed', 'posts_count']);
 
         return response()->json($users);
     }
@@ -65,7 +65,7 @@ class RecommendationController extends Controller
             ->notExpired()
             ->where('created_at', '>=', now()->subHours(48))
             ->has('likes')
-            ->with(['user:id,name,username,avatar_path', 'hashtags'])
+            ->with(['user:id,name,username,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed', 'hashtags'])
             ->withCount(['likes', 'replies'])
             ->orderBy('likes_count', 'desc')
             ->limit($limit)

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Post;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator;
 
 class ReplyPostRequest extends FormRequest
@@ -20,6 +21,13 @@ class ReplyPostRequest extends FormRequest
         return [
             'content' => ['required', 'string', 'min:1', 'max:2000'],
             'attachment' => ['nullable', 'file', 'max:' . $maxKb, 'mimes:' . $mimes],
+            'gif' => ['nullable', 'array'],
+            'gif.id' => ['required_with:gif', 'string', 'max:120'],
+            'gif.title' => ['nullable', 'string', 'max:255'],
+            'gif.preview_url' => ['required_with:gif', 'url', 'max:2000'],
+            'gif.original_url' => ['required_with:gif', 'url', 'max:2000'],
+            'gif.width' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'gif.height' => ['nullable', 'integer', 'min:1', 'max:10000'],
         ];
     }
 
@@ -73,5 +81,35 @@ class ReplyPostRequest extends FormRequest
                 $validator->errors()->add('attachment', sprintf('Image dimensions cannot exceed %d px.', $maxPixels));
             }
         });
+    }
+
+    public function replyAttributes(): array
+    {
+        $meta = [];
+
+        $gif = $this->validated('gif');
+        if (is_array($gif)) {
+            $meta['gif'] = [
+                'id' => (string) ($gif['id'] ?? ''),
+                'title' => trim((string) ($gif['title'] ?? '')),
+                'preview_url' => (string) ($gif['preview_url'] ?? ''),
+                'original_url' => (string) ($gif['original_url'] ?? ''),
+                'width' => isset($gif['width']) ? (int) $gif['width'] : null,
+                'height' => isset($gif['height']) ? (int) $gif['height'] : null,
+            ];
+        }
+
+        return [
+            'meta' => $meta !== [] ? $meta : null,
+        ];
+    }
+
+    protected function passedValidation(): void
+    {
+        if ($this->hasFile('attachment') && is_array($this->validated('gif'))) {
+            throw ValidationException::withMessages([
+                'attachment' => 'Priloha a GIF sa nedaju kombinovat.',
+            ]);
+        }
     }
 }

@@ -37,6 +37,10 @@ class AdminUserController extends Controller
                 'ban_reason',
                 'is_active',
                 'avatar_path',
+                'avatar_mode',
+                'avatar_color',
+                'avatar_icon',
+                'avatar_seed',
             ])
             ->orderByDesc('id')
             ->paginate($perPage);
@@ -59,6 +63,10 @@ class AdminUserController extends Controller
                 'ban_reason',
                 'is_active',
                 'avatar_path',
+                'avatar_mode',
+                'avatar_color',
+                'avatar_icon',
+                'avatar_seed',
                 'created_at',
             ])
             ->findOrFail($id);
@@ -162,6 +170,10 @@ class AdminUserController extends Controller
         $user->bio = null;
         $user->location = null;
         $user->avatar_path = null;
+        $user->avatar_mode = 'image';
+        $user->avatar_color = null;
+        $user->avatar_icon = null;
+        $user->avatar_seed = null;
         $user->cover_path = null;
         $user->save();
 
@@ -189,6 +201,10 @@ class AdminUserController extends Controller
             'ban_reason',
             'is_active',
             'avatar_path',
+            'avatar_mode',
+            'avatar_color',
+            'avatar_icon',
+            'avatar_seed',
         ]);
     }
 }

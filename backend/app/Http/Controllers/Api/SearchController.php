@@ -135,7 +135,7 @@ class SearchController extends Controller
                 $q->where('username', 'LIKE', $query . '%')
                     ->orWhere('name', 'LIKE', $query . '%');
             })
-            ->select(['id', 'name', 'username', 'avatar_path'])
+            ->select(['id', 'name', 'username', 'avatar_path', 'avatar_mode', 'avatar_color', 'avatar_icon', 'avatar_seed'])
             ->orderBy('username')
             ->limit($limit)
             ->get();
@@ -164,7 +164,7 @@ class SearchController extends Controller
             ->where(function ($q) use ($query) {
                 $q->where('content', 'LIKE', '%' . $query . '%');
             })
-            ->with(['user:id,name,username,avatar_path'])
+            ->with(['user:id,name,username,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed'])
             ->withCount(['likes', 'replies'])
             ->latest()
             ->limit($limit)
@@ -328,7 +328,7 @@ class SearchController extends Controller
                 $builder->where('username', 'like', $query . '%')
                     ->orWhere('name', 'like', $query . '%');
             })
-            ->select(['id', 'name', 'username', 'avatar_path'])
+            ->select(['id', 'name', 'username', 'avatar_path', 'avatar_mode', 'avatar_color', 'avatar_icon', 'avatar_seed'])
             ->orderBy('username')
             ->limit($limit)
             ->get();
@@ -340,7 +340,7 @@ class SearchController extends Controller
             ->where(function (Builder $builder) use ($query): void {
                 $builder->where('content', 'like', '%' . $query . '%');
             })
-            ->with(['user:id,name,username,avatar_path'])
+            ->with(['user:id,name,username,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed'])
             ->withCount(['likes', 'replies'])
             ->orderByRaw('(likes_count * 3 + replies_count * 2 + views * 0.2) desc')
             ->orderByDesc('created_at')
@@ -426,7 +426,7 @@ class SearchController extends Controller
             ->whereNull('parent_id')
             ->publiclyVisible()
             ->notExpired()
-            ->with(['user:id,name,username,avatar_path'])
+            ->with(['user:id,name,username,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed'])
             ->withCount(['likes', 'replies'])
             ->where('created_at', '>=', $last24h)
             ->orderByRaw('(likes_count * 3 + replies_count * 2 + views * 0.2) desc')
@@ -441,7 +441,7 @@ class SearchController extends Controller
                 ->publiclyVisible()
                 ->notExpired()
                 ->whereNotIn('id', $hotPosts->pluck('id')->all())
-                ->with(['user:id,name,username,avatar_path'])
+                ->with(['user:id,name,username,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed'])
                 ->withCount(['likes', 'replies'])
                 ->orderByRaw('(likes_count * 3 + replies_count * 2 + views * 0.2) desc')
                 ->orderByDesc('created_at')
@@ -459,7 +459,7 @@ class SearchController extends Controller
                 $builder->where('author_kind', 'bot')
                     ->orWhereNotNull('source_name');
             })
-            ->with(['user:id,name,username,avatar_path'])
+            ->with(['user:id,name,username,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed'])
             ->withCount(['likes', 'replies'])
             ->orderByDesc('created_at')
             ->limit(6)

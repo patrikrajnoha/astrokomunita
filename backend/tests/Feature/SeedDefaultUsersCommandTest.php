@@ -13,6 +13,17 @@ class SeedDefaultUsersCommandTest extends TestCase
 
     public function test_command_updates_user_when_username_exists_with_legacy_email(): void
     {
+        User::query()
+            ->whereIn('email', [
+                'admin@admin.sk',
+                'astrobot@astrobot.sk',
+                'astrobot@astrokomunita.local',
+                'kozmobot@astrokomunita.local',
+                'patrik@patrik.sk',
+            ])
+            ->orWhereIn('username', ['admin', 'astrobot', 'kozmobot', 'patrik'])
+            ->delete();
+
         User::query()->create([
             'name' => 'Legacy AstroBot',
             'username' => 'astrobot',
@@ -31,7 +42,7 @@ class SeedDefaultUsersCommandTest extends TestCase
             ->expectsOutputToContain('Updated:')
             ->assertExitCode(0);
 
-        $this->assertSame(3, User::query()->count());
+        $this->assertSame(4, User::query()->count());
 
         $astrobot = User::query()->where('username', 'astrobot')->firstOrFail();
         $this->assertSame('astrobot@astrobot.sk', $astrobot->email);
@@ -40,10 +51,29 @@ class SeedDefaultUsersCommandTest extends TestCase
         $this->assertTrue((bool) $astrobot->is_active);
         $this->assertNotNull($astrobot->email_verified_at);
         $this->assertTrue(Hash::check('astrobot', (string) $astrobot->password));
+
+        $kozmobot = User::query()->where('email', 'kozmobot@astrokomunita.local')->firstOrFail();
+        $this->assertSame('kozmobot', $kozmobot->username);
+        $this->assertTrue((bool) $kozmobot->is_bot);
+        $this->assertTrue((bool) $kozmobot->is_active);
+        $this->assertFalse((bool) $kozmobot->is_banned);
+        $this->assertNotNull($kozmobot->email_verified_at);
+        $this->assertTrue(Hash::check('kozmobot', (string) $kozmobot->password));
     }
 
     public function test_command_is_idempotent_and_corrects_existing_user_flags(): void
     {
+        User::query()
+            ->whereIn('email', [
+                'admin@admin.sk',
+                'astrobot@astrobot.sk',
+                'astrobot@astrokomunita.local',
+                'kozmobot@astrokomunita.local',
+                'patrik@patrik.sk',
+            ])
+            ->orWhereIn('username', ['admin', 'astrobot', 'kozmobot', 'patrik'])
+            ->delete();
+
         User::query()->create([
             'name' => 'Wrong Admin',
             'username' => 'wrong_admin',
@@ -62,7 +92,7 @@ class SeedDefaultUsersCommandTest extends TestCase
             ->expectsOutputToContain('Updated:')
             ->assertExitCode(0);
 
-        $this->assertSame(3, User::query()->count());
+        $this->assertSame(4, User::query()->count());
 
         $admin = User::query()->where('email', 'admin@admin.sk')->firstOrFail();
         $this->assertSame('admin', $admin->username);
@@ -83,6 +113,15 @@ class SeedDefaultUsersCommandTest extends TestCase
         $this->assertNotNull($astrobot->email_verified_at);
         $this->assertTrue(Hash::check('astrobot', (string) $astrobot->password));
 
+        $kozmobot = User::query()->where('email', 'kozmobot@astrokomunita.local')->firstOrFail();
+        $this->assertSame('kozmobot', $kozmobot->username);
+        $this->assertFalse((bool) $kozmobot->is_admin);
+        $this->assertTrue((bool) $kozmobot->is_bot);
+        $this->assertSame('user', $kozmobot->role);
+        $this->assertTrue((bool) $kozmobot->is_active);
+        $this->assertNotNull($kozmobot->email_verified_at);
+        $this->assertTrue(Hash::check('kozmobot', (string) $kozmobot->password));
+
         $patrik = User::query()->where('email', 'patrik@patrik.sk')->firstOrFail();
         $this->assertSame('patrik', $patrik->username);
         $this->assertFalse((bool) $patrik->is_admin);
@@ -97,6 +136,6 @@ class SeedDefaultUsersCommandTest extends TestCase
             ->expectsOutputToContain('Updated:')
             ->assertExitCode(0);
 
-        $this->assertSame(3, User::query()->count());
+        $this->assertSame(4, User::query()->count());
     }
 }

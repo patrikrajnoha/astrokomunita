@@ -47,7 +47,7 @@ class ModerationQueueController extends Controller
         $status = (string) $request->query('status', 'pending');
 
         $query = Post::query()
-            ->with(['user:id,name,username,avatar_path'])
+            ->with(['user:id,name,username,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed'])
             ->orderByDesc('created_at');
 
         if (in_array($status, ['pending', 'flagged', 'blocked', 'ok'], true)) {
@@ -104,7 +104,7 @@ class ModerationQueueController extends Controller
             ->get();
 
         return response()->json([
-            'post' => $post->load('user:id,name,username,avatar_path'),
+            'post' => $post->load('user:id,name,username,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed'),
             'logs' => $logs,
         ]);
     }

@@ -2,11 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Event;
 use App\Models\SidebarCustomComponent;
 use App\Models\SidebarSectionConfig;
 use App\Models\User;
-use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -29,52 +27,51 @@ class SidebarCustomComponentTest extends TestCase
     public function test_admin_can_create_update_and_delete_custom_component(): void
     {
         Sanctum::actingAs($this->createAdmin());
-        $event = $this->createEvent();
 
         $create = $this->postJson('/api/admin/sidebar/custom-components', [
-            'name' => 'Special event widget',
-            'type' => SidebarCustomComponent::TYPE_SPECIAL_EVENT,
+            'name' => 'Hero CTA',
+            'type' => SidebarCustomComponent::TYPE_CTA,
             'is_active' => true,
             'config_json' => [
-                'title' => 'Special event',
-                'description' => 'Short text',
-                'eventId' => $event->id,
-                'buttonLabel' => 'Open detail',
-                'buttonTarget' => '',
-                'imageUrl' => '',
-                'icon' => 'calendar',
+                'headline' => 'Join our astronomy meetup',
+                'body' => 'Weekly updates and practical observing tips.',
+                'buttonText' => 'Open group',
+                'buttonHref' => '/community',
+                'imageUrl' => 'https://example.com/hero.jpg',
+                'icon' => 'rocket',
             ],
         ]);
 
         $create->assertCreated()
-            ->assertJsonPath('data.type', SidebarCustomComponent::TYPE_SPECIAL_EVENT)
-            ->assertJsonPath('data.config_json.buttonTarget', '/events/'.$event->id);
+            ->assertJsonPath('data.type', SidebarCustomComponent::TYPE_CTA)
+            ->assertJsonPath('data.config_json.headline', 'Join our astronomy meetup')
+            ->assertJsonPath('data.config_json.buttonHref', '/community');
 
         $componentId = (int) $create->json('data.id');
 
         $update = $this->putJson('/api/admin/sidebar/custom-components/'.$componentId, [
-            'name' => 'Updated widget',
-            'type' => SidebarCustomComponent::TYPE_SPECIAL_EVENT,
+            'name' => 'Useful links',
+            'type' => SidebarCustomComponent::TYPE_LINK_LIST,
             'is_active' => false,
             'config_json' => [
-                'title' => '<b>Updated title</b>',
-                'description' => 'Updated text',
-                'eventId' => $event->id,
-                'buttonLabel' => 'Show',
-                'buttonTarget' => '/events/'.$event->id,
-                'imageUrl' => '',
-                'icon' => '',
+                'title' => 'Resources',
+                'links' => [
+                    ['label' => 'Calendar', 'href' => '/calendar'],
+                    ['label' => 'Events', 'href' => '/events'],
+                ],
             ],
         ]);
 
         $update->assertOk()
-            ->assertJsonPath('data.name', 'Updated widget')
+            ->assertJsonPath('data.name', 'Useful links')
+            ->assertJsonPath('data.type', SidebarCustomComponent::TYPE_LINK_LIST)
             ->assertJsonPath('data.is_active', false)
-            ->assertJsonPath('data.config_json.title', 'Updated title');
+            ->assertJsonPath('data.config_json.links.0.href', '/calendar');
 
         $this->assertDatabaseHas('sidebar_custom_components', [
             'id' => $componentId,
-            'name' => 'Updated widget',
+            'name' => 'Useful links',
+            'type' => SidebarCustomComponent::TYPE_LINK_LIST,
             'is_active' => false,
         ]);
 
@@ -86,56 +83,81 @@ class SidebarCustomComponentTest extends TestCase
         ]);
     }
 
-    public function test_custom_component_validation_for_special_event_type(): void
+    public function test_custom_component_validation_is_type_specific(): void
+    {
+        Sanctum::actingAs($this->createAdmin());
+
+        $brokenLinkList = $this->postJson('/api/admin/sidebar/custom-components', [
+            'name' => 'Broken links',
+            'type' => SidebarCustomComponent::TYPE_LINK_LIST,
+            'config_json' => [
+                'title' => 'Missing links payload',
+                'links' => [],
+            ],
+        ]);
+
+        $brokenLinkList->assertStatus(422)->assertJsonValidationErrors([
+            'config_json.links',
+        ]);
+
+        $brokenCta = $this->postJson('/api/admin/sidebar/custom-components', [
+            'name' => 'Broken CTA',
+            'type' => SidebarCustomComponent::TYPE_CTA,
+            'config_json' => [
+                'body' => 'Missing required fields',
+            ],
+        ]);
+
+        $brokenCta->assertStatus(422)->assertJsonValidationErrors([
+            'config_json.headline',
+            'config_json.buttonText',
+            'config_json.buttonHref',
+        ]);
+    }
+
+    public function test_html_widget_payload_is_sanitized_on_store(): void
     {
         Sanctum::actingAs($this->createAdmin());
 
         $response = $this->postJson('/api/admin/sidebar/custom-components', [
-            'name' => 'Broken widget',
-            'type' => SidebarCustomComponent::TYPE_SPECIAL_EVENT,
-            'config_json' => [
-                'description' => 'Missing title and button label',
-            ],
-        ]);
-
-        $response->assertStatus(422)->assertJsonValidationErrors([
-            'config_json.title',
-            'config_json.buttonLabel',
-        ]);
-    }
-
-    public function test_admin_can_list_custom_components(): void
-    {
-        Sanctum::actingAs($this->createAdmin());
-        $event = $this->createEvent();
-
-        SidebarCustomComponent::query()->create([
-            'name' => 'Active special',
-            'type' => SidebarCustomComponent::TYPE_SPECIAL_EVENT,
+            'name' => 'Custom HTML',
+            'type' => SidebarCustomComponent::TYPE_HTML,
             'is_active' => true,
             'config_json' => [
-                'title' => 'Active',
-                'description' => 'Text',
-                'eventId' => $event->id,
-                'buttonLabel' => 'Open',
-                'buttonTarget' => '/events/'.$event->id,
-                'imageUrl' => '',
-                'icon' => '',
+                'html' => '<p onclick="alert(1)">Read <a href="javascript:alert(2)">more</a></p><script>alert(3)</script>',
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.type', SidebarCustomComponent::TYPE_HTML);
+
+        $html = (string) $response->json('data.config_json.html');
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringNotContainsString('javascript:', $html);
+        $this->assertStringNotContainsString('onclick=', strtolower($html));
+    }
+
+    public function test_admin_can_list_custom_components_and_filter_active_only(): void
+    {
+        Sanctum::actingAs($this->createAdmin());
+
+        SidebarCustomComponent::query()->create([
+            'name' => 'Active info',
+            'type' => SidebarCustomComponent::TYPE_INFO_CARD,
+            'is_active' => true,
+            'config_json' => [
+                'title' => 'Tonight',
+                'content' => 'Clear sky expected.',
+                'icon' => 'moon',
             ],
         ]);
 
         SidebarCustomComponent::query()->create([
-            'name' => 'Inactive special',
-            'type' => SidebarCustomComponent::TYPE_SPECIAL_EVENT,
+            'name' => 'Inactive html',
+            'type' => SidebarCustomComponent::TYPE_HTML,
             'is_active' => false,
             'config_json' => [
-                'title' => 'Inactive',
-                'description' => 'Text',
-                'eventId' => null,
-                'buttonLabel' => 'Open',
-                'buttonTarget' => '/events',
-                'imageUrl' => '',
-                'icon' => '',
+                'html' => '<p>Preview</p>',
             ],
         ]);
 
@@ -143,52 +165,22 @@ class SidebarCustomComponentTest extends TestCase
         $all->assertOk()->assertJsonCount(2, 'data');
 
         $activeOnly = $this->getJson('/api/admin/sidebar/custom-components?active_only=1');
-        $activeOnly->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.name', 'Active special');
-    }
-
-    public function test_post_create_custom_component_is_visible_in_following_list_request(): void
-    {
-        Sanctum::actingAs($this->createAdmin());
-        $event = $this->createEvent();
-
-        $create = $this->postJson('/api/admin/sidebar/custom-components', [
-            'name' => 'Fresh special',
-            'type' => SidebarCustomComponent::TYPE_SPECIAL_EVENT,
-            'is_active' => true,
-            'config_json' => [
-                'title' => 'Fresh title',
-                'description' => 'Fresh description',
-                'eventId' => $event->id,
-                'buttonLabel' => 'Open',
-                'buttonTarget' => '/events/'.$event->id,
-                'imageUrl' => '',
-                'icon' => '',
-            ],
-        ]);
-
-        $create->assertCreated();
-
-        $list = $this->getJson('/api/admin/sidebar/custom-components');
-        $list->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.name', 'Fresh special');
+        $activeOnly->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.name', 'Active info');
     }
 
     public function test_sidebar_custom_component_endpoints_are_admin_only(): void
     {
-        $event = $this->createEvent();
         $payload = [
-            'name' => 'Forbidden special',
-            'type' => SidebarCustomComponent::TYPE_SPECIAL_EVENT,
+            'name' => 'Forbidden widget',
+            'type' => SidebarCustomComponent::TYPE_CTA,
             'is_active' => true,
             'config_json' => [
-                'title' => 'Forbidden',
-                'description' => 'No admin',
-                'eventId' => $event->id,
-                'buttonLabel' => 'Open',
-                'buttonTarget' => '/events/'.$event->id,
-                'imageUrl' => '',
-                'icon' => '',
+                'headline' => 'Forbidden',
+                'body' => 'No admin',
+                'buttonText' => 'Open',
+                'buttonHref' => '/events',
+                'imageUrl' => null,
+                'icon' => null,
             ],
         ];
 
@@ -206,19 +198,13 @@ class SidebarCustomComponentTest extends TestCase
 
     public function test_sidebar_config_resolves_custom_component_payload_for_runtime(): void
     {
-        $event = $this->createEvent();
-
         $component = SidebarCustomComponent::query()->create([
-            'name' => 'Special Event Card',
-            'type' => SidebarCustomComponent::TYPE_SPECIAL_EVENT,
+            'name' => 'Info card runtime',
+            'type' => SidebarCustomComponent::TYPE_INFO_CARD,
             'is_active' => true,
             'config_json' => [
-                'title' => 'Special Event',
-                'description' => 'Description',
-                'eventId' => $event->id,
-                'buttonLabel' => 'Show detail',
-                'buttonTarget' => '',
-                'imageUrl' => '',
+                'title' => 'Observing tip',
+                'content' => 'Take a red flashlight.',
                 'icon' => 'star',
             ],
         ]);
@@ -239,11 +225,38 @@ class SidebarCustomComponentTest extends TestCase
                 'kind' => 'custom_component',
                 'section_key' => 'custom_component',
                 'custom_component_id' => $component->id,
-                'type' => SidebarCustomComponent::TYPE_SPECIAL_EVENT,
+                'type' => SidebarCustomComponent::TYPE_INFO_CARD,
             ])
             ->assertJsonFragment([
-                'buttonTarget' => '/events/'.$event->id,
+                'title' => 'Observing tip',
+                'content' => 'Take a red flashlight.',
             ]);
+    }
+
+    public function test_legacy_special_event_type_is_mapped_to_cta_schema(): void
+    {
+        Sanctum::actingAs($this->createAdmin());
+
+        $response = $this->postJson('/api/admin/sidebar/custom-components', [
+            'name' => 'Legacy special event',
+            'type' => SidebarCustomComponent::TYPE_SPECIAL_EVENT,
+            'config_json' => [
+                'title' => 'Special Event',
+                'description' => 'Legacy payload',
+                'eventId' => 42,
+                'buttonLabel' => 'Open detail',
+                'buttonTarget' => '',
+                'imageUrl' => '',
+                'icon' => 'calendar',
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.type', SidebarCustomComponent::TYPE_CTA)
+            ->assertJsonPath('data.config_json.headline', 'Special Event')
+            ->assertJsonPath('data.config_json.body', 'Legacy payload')
+            ->assertJsonPath('data.config_json.buttonText', 'Open detail')
+            ->assertJsonPath('data.config_json.buttonHref', '/events/42');
     }
 
     private function createAdmin(): User
@@ -251,21 +264,6 @@ class SidebarCustomComponentTest extends TestCase
         return User::factory()->create([
             'role' => 'admin',
             'is_admin' => true,
-        ]);
-    }
-
-    private function createEvent(): Event
-    {
-        return Event::query()->create([
-            'title' => 'Test Event',
-            'type' => 'meteor_shower',
-            'start_at' => CarbonImmutable::now()->addDays(5),
-            'max_at' => CarbonImmutable::now()->addDays(5),
-            'short' => 'short',
-            'description' => 'description',
-            'visibility' => 1,
-            'source_name' => 'manual',
-            'source_uid' => 'evt-'.uniqid(),
         ]);
     }
 }

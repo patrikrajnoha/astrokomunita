@@ -45,6 +45,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'avatar_path',
         'cover_path',
+        'avatar_mode',
+        'avatar_color',
+        'avatar_icon',
+        'avatar_seed',
         'bio',
         'location',
         'latitude',
@@ -108,6 +112,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'calendar_popup_last_force_version' => 'integer',
             'last_login_at' => 'datetime',
             'newsletter_subscribed' => 'boolean',
+            'avatar_color' => 'integer',
+            'avatar_icon' => 'integer',
         ];
     }
 

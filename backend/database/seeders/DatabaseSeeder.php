@@ -22,6 +22,9 @@ class DatabaseSeeder extends Seeder
         $this->call(SidebarSectionSeeder::class);
         $this->call(EventSourceSeeder::class);
         $this->call(DefaultUsersSeeder::class);
+        if (app()->environment(['local', 'testing'])) {
+            $this->call(DemoFeedSeeder::class);
+        }
         $this->call(TranslationOverrideSeeder::class);
 
         User::factory()->create([

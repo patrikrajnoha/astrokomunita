@@ -30,9 +30,9 @@ class FeedQueryBuilder
         $isAdmin = $viewer?->isAdmin() ?? false;
 
         $query = Post::query()->with(array_merge([
-            'user:id,name,username,location,bio,is_admin,avatar_path',
-            'replies.user:id,name,username,location,bio,is_admin,avatar_path',
-            'parent.user:id,name,username,location,bio,is_admin,avatar_path',
+            'user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
+            'replies.user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
+            'parent.user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
             'tags:id,name',
             'hashtags:id,name',
         ], $this->polls->pollRelations($viewer?->id)));
@@ -61,7 +61,7 @@ class FeedQueryBuilder
 
         if ($kind === 'replies') {
             $query->whereNotNull('parent_id')->with([
-                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
             ]);
         } elseif ($kind === 'events') {
             $query
@@ -86,7 +86,7 @@ class FeedQueryBuilder
                         ->orWhereNotNull('meta->gif->preview_url');
                 })
                 ->with([
-                    'parent.user:id,name,username,location,bio,is_admin,avatar_path',
+                    'parent.user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
                 ]);
         } else {
             $query->whereNull('parent_id');

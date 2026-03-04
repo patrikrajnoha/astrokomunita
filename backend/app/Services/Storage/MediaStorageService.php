@@ -70,13 +70,26 @@ class MediaStorageService
             return null;
         }
 
-        $url = Storage::disk($diskName ?: $this->diskName())->url($path);
+        $resolvedDiskName = $diskName ?: $this->diskName();
+        $diskDriver = (string) config(sprintf('filesystems.disks.%s.driver', $resolvedDiskName), '');
+        if ($diskDriver === 'local') {
+            return $this->publicMediaApiUrl($path);
+        }
+
+        $url = Storage::disk($resolvedDiskName)->url($path);
         if (preg_match('#^https?://#i', $url)) {
             return $url;
         }
 
         $base = rtrim((string) config('app.url'), '/');
         return $base . '/' . ltrim($url, '/');
+    }
+
+    private function publicMediaApiUrl(string $path): string
+    {
+        $normalizedPath = trim(str_replace('\\', '/', $path), '/');
+        $encodedPath = implode('/', array_map('rawurlencode', explode('/', $normalizedPath)));
+        return '/api/media/file/' . $encodedPath;
     }
 
     private function storePublicly(UploadedFile $file, string $directory): string
@@ -102,4 +115,3 @@ class MediaStorageService
         Storage::disk($this->privateDiskName())->put($path, $stream);
     }
 }
-

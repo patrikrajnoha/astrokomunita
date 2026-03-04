@@ -61,9 +61,9 @@ class BookmarkController extends Controller
                     ->where('post_user_bookmarks.user_id', '=', $viewer->id);
             })
             ->with(array_merge([
-                'user:id,name,username,location,bio,is_admin,avatar_path',
-                'replies.user:id,name,username,location,bio,is_admin,avatar_path',
-                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
+                'replies.user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
                 'tags:id,name',
                 'hashtags:id,name',
             ], $this->polls->pollRelations($viewer->id)))

@@ -24,6 +24,8 @@ class SkyAstronomyEndpointTest extends TestCase
                     'rise_local' => '',
                     'set_local' => '',
                 ],
+                'sample_at' => '2026-02-27T00:00:00+01:00',
+                'sun_altitude_deg' => -42.4,
                 'planets' => [],
             ], 200),
         ]);
@@ -36,11 +38,15 @@ class SkyAstronomyEndpointTest extends TestCase
                 'moon_illumination_percent',
                 'sunrise_at',
                 'sunset_at',
+                'sun_altitude_deg',
+                'sample_at',
                 'moonrise_at',
                 'moonset_at',
             ])
             ->assertJsonPath('moon_phase', 'waning_crescent')
-            ->assertJsonPath('moon_illumination_percent', 78);
+            ->assertJsonPath('moon_illumination_percent', 78)
+            ->assertJsonPath('sun_altitude_deg', -42.4)
+            ->assertJsonPath('sample_at', '2026-02-27T00:00:00+01:00');
 
         $this->assertNullableIso8601($response->json('sunrise_at'));
         $this->assertNullableIso8601($response->json('sunset_at'));
@@ -66,8 +72,18 @@ class SkyAstronomyEndpointTest extends TestCase
                 ->push($this->usnoPayload('Full Moon', '99%'), 200)
                 ->push($this->usnoPayload('New Moon', '1%'), 200),
             'http://sky.test/sky-summary*' => Http::sequence()
-                ->push(['moon' => ['rise_local' => '17:00', 'set_local' => '05:30'], 'planets' => []], 200)
-                ->push(['moon' => ['rise_local' => '22:00', 'set_local' => '10:00'], 'planets' => []], 200),
+                ->push([
+                    'moon' => ['rise_local' => '17:00', 'set_local' => '05:30'],
+                    'sample_at' => '2026-02-27T00:00:00+01:00',
+                    'sun_altitude_deg' => -33.1,
+                    'planets' => [],
+                ], 200)
+                ->push([
+                    'moon' => ['rise_local' => '22:00', 'set_local' => '10:00'],
+                    'sample_at' => '2026-02-27T00:10:00+01:00',
+                    'sun_altitude_deg' => -32.9,
+                    'planets' => [],
+                ], 200),
         ]);
 
         $first = $this->actingAs($user)->getJson('/api/sky/astronomy?tz=Invalid/Timezone')->assertOk();

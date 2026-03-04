@@ -36,6 +36,15 @@ class DefaultUsersSeeder extends Seeder
                 'role' => 'user',
             ],
             [
+                'name' => 'Kozmo',
+                'username' => 'kozmobot',
+                'email' => 'kozmobot@astrokomunita.local',
+                'password' => 'kozmobot',
+                'is_admin' => false,
+                'is_bot' => true,
+                'role' => 'user',
+            ],
+            [
                 'name' => 'Patrik',
                 'username' => 'patrik',
                 'email' => 'patrik@patrik.sk',

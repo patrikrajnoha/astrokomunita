@@ -38,6 +38,10 @@ class UserFactory extends Factory
             'warning_count' => 0,
             'requires_email_verification' => false,
             'newsletter_subscribed' => false,
+            'avatar_mode' => 'image',
+            'avatar_color' => null,
+            'avatar_icon' => null,
+            'avatar_seed' => null,
             'remember_token' => Str::random(10),
         ];
     }
