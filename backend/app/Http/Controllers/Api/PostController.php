@@ -160,7 +160,8 @@ class PostController extends Controller
             $request->user(),
             $post,
             $request->validated('content'),
-            $request->file('attachment')
+            $request->file('attachment'),
+            $request->replyAttributes()
         );
 
         return response()->json($this->payloads->serializePost($reply, $request->user()), 201);

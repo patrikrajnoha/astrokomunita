@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\SidebarCustomComponent;
+use App\Support\SidebarWidgetConfigSchema;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,38 +16,33 @@ class UpdateSidebarCustomComponentRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        $normalizedType = SidebarWidgetConfigSchema::normalizeTypeOrNull($this->input('type'));
+
+        $baseRules = [
             'name' => ['required', 'string', 'max:160'],
-            'type' => ['required', Rule::in([SidebarCustomComponent::TYPE_SPECIAL_EVENT])],
+            'type' => ['required', Rule::in(SidebarCustomComponent::acceptedInputTypes())],
             'is_active' => ['sometimes', 'boolean'],
             'config_json' => ['required', 'array'],
-            'config_json.title' => ['required', 'string', 'max:120'],
-            'config_json.description' => ['required', 'string', 'max:320'],
-            'config_json.eventId' => ['nullable', 'integer', 'exists:events,id'],
-            'config_json.buttonLabel' => ['required', 'string', 'max:90'],
-            'config_json.buttonTarget' => ['nullable', 'string', 'max:255'],
-            'config_json.imageUrl' => ['nullable', 'string', 'max:2048'],
-            'config_json.icon' => ['nullable', 'string', 'max:80'],
         ];
+
+        if ($normalizedType === null) {
+            return $baseRules;
+        }
+
+        return array_merge($baseRules, SidebarWidgetConfigSchema::validationRules($normalizedType));
     }
 
     protected function prepareForValidation(): void
     {
+        $rawType = $this->sanitizeType($this->input('type'));
+        $normalizedType = SidebarWidgetConfigSchema::normalizeType($rawType);
         $config = $this->input('config_json', []);
         $allowedConfig = is_array($config) ? $config : [];
 
         $this->merge([
             'name' => $this->sanitizeString($this->input('name')),
-            'type' => $this->input('type'),
-            'config_json' => [
-                'title' => $this->sanitizeString($allowedConfig['title'] ?? null),
-                'description' => $this->sanitizeString($allowedConfig['description'] ?? null),
-                'eventId' => $this->normalizeInt($allowedConfig['eventId'] ?? null),
-                'buttonLabel' => $this->sanitizeString($allowedConfig['buttonLabel'] ?? null),
-                'buttonTarget' => $this->sanitizeString($allowedConfig['buttonTarget'] ?? null),
-                'imageUrl' => $this->sanitizeString($allowedConfig['imageUrl'] ?? null),
-                'icon' => $this->sanitizeString($allowedConfig['icon'] ?? null),
-            ],
+            'type' => $rawType,
+            'config_json' => SidebarWidgetConfigSchema::normalizeConfig($normalizedType, $allowedConfig),
         ]);
     }
 
@@ -61,21 +57,13 @@ class UpdateSidebarCustomComponentRequest extends FormRequest
         return $trimmed === '' ? null : $trimmed;
     }
 
-    private function normalizeInt(mixed $value): ?int
+    private function sanitizeType(mixed $value): ?string
     {
-        if ($value === null || $value === '') {
+        if (!is_string($value)) {
             return null;
         }
 
-        if (is_int($value)) {
-            return $value;
-        }
-
-        if (is_string($value) && ctype_digit($value)) {
-            return (int) $value;
-        }
-
-        return null;
+        $trimmed = trim(strtolower($value));
+        return $trimmed === '' ? null : $trimmed;
     }
 }
-

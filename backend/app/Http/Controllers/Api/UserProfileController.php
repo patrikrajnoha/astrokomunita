@@ -19,7 +19,20 @@ class UserProfileController extends Controller
     public function show(string $username)
     {
         $user = User::query()
-            ->select(['id', 'name', 'username', 'bio', 'location', 'is_admin', 'avatar_path', 'cover_path'])
+            ->select([
+                'id',
+                'name',
+                'username',
+                'bio',
+                'location',
+                'is_admin',
+                'avatar_path',
+                'cover_path',
+                'avatar_mode',
+                'avatar_color',
+                'avatar_icon',
+                'avatar_seed',
+            ])
             ->where('username', $username)
             ->first();
 
@@ -52,7 +65,7 @@ class UserProfileController extends Controller
 
         $query = $user->posts()
             ->with(array_merge([
-                'user:id,name,username,location,bio,is_admin,avatar_path',
+                'user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
             ], $this->polls->pollRelations($viewer?->id)))
             ->withCount(['replies', 'likes'])
             ->latest();
@@ -67,12 +80,12 @@ class UserProfileController extends Controller
         if ($kind === 'replies') {
             $query->whereNotNull('parent_id');
             $query->with([
-                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
             ]);
         } elseif ($kind === 'media') {
             $query->whereNotNull('attachment_path');
             $query->with([
-                'parent.user:id,name,username,location,bio,is_admin,avatar_path',
+                'parent.user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
             ]);
         } else {
             $query->whereNull('parent_id');

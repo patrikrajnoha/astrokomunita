@@ -130,7 +130,12 @@ class AuthController extends Controller
             return;
         }
 
-        if (User::query()->exists()) {
+        $hasLocalAdmin = User::query()
+            ->whereRaw('LOWER(email) = ?', ['admin@admin.sk'])
+            ->orWhere('username', 'admin')
+            ->exists();
+
+        if ($hasLocalAdmin) {
             return;
         }
 

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateAvatarPreferencesRequest;
+use App\Models\User;
 use App\Services\Storage\MediaStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,10 +14,13 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
 {
+    private const PROFILE_MEDIA_UPLOAD_MAX_KB = 20480;
+
     public function __construct(
         private readonly MediaStorageService $mediaStorage,
     ) {
@@ -137,28 +142,167 @@ class ProfileController extends Controller
     public function uploadMedia(Request $request)
     {
         $user = $request->user();
+        $maxKb = max((int) config('media.profile_upload_max_kb', self::PROFILE_MEDIA_UPLOAD_MAX_KB), 3072);
 
         $validated = $request->validate([
             'type' => ['required', Rule::in(['avatar', 'cover'])],
-            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.$maxKb],
         ]);
 
         $type = $validated['type'];
         $file = $request->file('file');
+        $freshUser = $this->replaceUserMedia($user, $type, $file);
+
+        return response()->json($freshUser);
+    }
+
+    public function uploadAvatarImage(Request $request)
+    {
+        $user = $request->user();
+        $maxKb = max((int) config('media.profile_upload_max_kb', self::PROFILE_MEDIA_UPLOAD_MAX_KB), 3072);
+        $validated = $request->validate([
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.$maxKb],
+        ]);
+
+        $freshUser = $this->replaceUserMedia($user, 'avatar', $request->file('file'));
+
+        return response()->json($freshUser);
+    }
+
+    public function removeAvatarImage(Request $request)
+    {
+        $user = $request->user();
+        $oldPath = $user->avatar_path;
+        $user->avatar_path = null;
+        $user->save();
+
+        if ($oldPath) {
+            $this->mediaStorage->delete($oldPath);
+        }
+
+        return response()->json($user->fresh());
+    }
+
+    public function updateAvatar(UpdateAvatarPreferencesRequest $request)
+    {
+        $user = $request->user();
+        $validated = $request->validated();
+        $oldAvatarPath = null;
+
+        $user->avatar_mode = $validated['avatar_mode'];
+        if ($user->avatar_mode === 'generated' && $user->avatar_path) {
+            $oldAvatarPath = (string) $user->avatar_path;
+            $user->avatar_path = null;
+        }
+
+        if (array_key_exists('avatar_color', $validated)) {
+            $user->avatar_color = $this->normalizeAvatarColor($validated['avatar_color']);
+        }
+
+        if (array_key_exists('avatar_icon', $validated)) {
+            $user->avatar_icon = $this->normalizeAvatarIcon($validated['avatar_icon']);
+        }
+
+        if (array_key_exists('avatar_seed', $validated)) {
+            $user->avatar_seed = $this->normalizeAvatarSeed($validated['avatar_seed']);
+        }
+
+        $user->save();
+
+        if ($oldAvatarPath !== null) {
+            $this->mediaStorage->delete($oldAvatarPath);
+        }
+
+        return response()->json($user->fresh());
+    }
+
+    private function replaceUserMedia(User $user, string $type, mixed $file): User
+    {
         $path = $type === 'avatar'
             ? $this->mediaStorage->storeAvatar($file, (int) $user->id)
             : $this->mediaStorage->storeCover($file, (int) $user->id);
 
         $column = $type === 'avatar' ? 'avatar_path' : 'cover_path';
         $oldPath = $user->{$column};
-
         $user->{$column} = $path;
+        if ($type === 'avatar') {
+            $user->avatar_mode = 'image';
+        }
         $user->save();
 
         if ($oldPath && $oldPath !== $path) {
             $this->mediaStorage->delete($oldPath);
         }
 
-        return response()->json($user->fresh());
+        return $user->fresh();
+    }
+
+    private function normalizeAvatarSeed(mixed $seed): ?string
+    {
+        $value = trim((string) ($seed ?? ''));
+
+        return $value === '' ? null : $value;
+    }
+
+    private function normalizeAvatarColor(mixed $value): ?int
+    {
+        $colors = array_values((array) config('avatar.colors', []));
+        $maxIndex = max(count($colors) - 1, -1);
+        if ($maxIndex < 0) {
+            return null;
+        }
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            $index = (int) $value;
+            if ($index >= 0 && $index <= $maxIndex) {
+                return $index;
+            }
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        foreach ($colors as $index => $hex) {
+            if (strtolower(trim((string) $hex)) === $normalized) {
+                return $index;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'avatar_color' => 'The selected avatar color is invalid.',
+        ]);
+    }
+
+    private function normalizeAvatarIcon(mixed $value): ?int
+    {
+        $icons = array_values((array) config('avatar.icons', []));
+        $maxIndex = max(count($icons) - 1, -1);
+        if ($maxIndex < 0) {
+            return null;
+        }
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            $index = (int) $value;
+            if ($index >= 0 && $index <= $maxIndex) {
+                return $index;
+            }
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        foreach ($icons as $index => $icon) {
+            if (strtolower(trim((string) $icon)) === $normalized) {
+                return $index;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'avatar_icon' => 'The selected avatar icon is invalid.',
+        ]);
     }
 }

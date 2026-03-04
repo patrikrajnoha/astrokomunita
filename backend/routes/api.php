@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\MediaDownloadController;
 use App\Http\Controllers\Api\MediaViewController;
+use App\Http\Controllers\Api\PublicMediaFileController;
 use App\Http\Controllers\Api\PollController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\GifSearchController;
@@ -182,6 +183,7 @@ Route::post('/events/{event}/notify-email', [EventEmailAlertController::class, '
 Route::get('/invites/public/{token}', [EventInviteController::class, 'publicShow']);
 
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
+    Route::get('/me', [AuthController::class, 'me']);
     Route::get('/events/{id}/follow-state', [EventFollowController::class, 'state'])->middleware('throttle:60,1');
     Route::post('/events/{id}/follow', [EventFollowController::class, 'store'])->middleware('throttle:60,1');
     Route::delete('/events/{id}/follow', [EventFollowController::class, 'destroy'])->middleware('throttle:60,1');
@@ -220,6 +222,7 @@ Route::get('/posts/{post}', [PostController::class, 'show']);
 Route::post('/posts/{post}/view', [PostController::class, 'view']);
 Route::get('/media/{media}', MediaViewController::class)->name('media.view');
 Route::get('/media/{media}/download', MediaDownloadController::class)->name('media.download');
+Route::get('/media/file/{path}', PublicMediaFileController::class)->where('path', '.*')->name('media.file');
 Route::get('/polls/{poll}', [PollController::class, 'show']);
 
 /*
@@ -538,6 +541,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         // Profile
         Route::patch('/profile',          [ProfileController::class, 'update']);
         Route::post('/profile/media',     [ProfileController::class, 'uploadMedia']);
+        Route::post('/me/avatar-image',   [ProfileController::class, 'uploadAvatarImage']);
+        Route::delete('/me/avatar-image', [ProfileController::class, 'removeAvatarImage']);
+        Route::patch('/me/avatar',        [ProfileController::class, 'updateAvatar']);
         Route::patch('/profile/password', [ProfileController::class, 'changePassword']);
         Route::delete('/profile',         [ProfileController::class, 'destroy']);
 

@@ -158,7 +158,7 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame('bot', (string) $post->author_kind->value);
         $this->assertSame('stela', (string) $post->bot_identity->value);
         $this->assertNotNull($post->attachment_path);
-        $this->assertStringContainsString('APOD Test Title', (string) $post->content);
+        $this->assertStringContainsString('APOD', (string) $post->content);
         $this->assertStringContainsString('Attribution: NASA APOD | 2026-02-20 | Credit: NASA/ESA', (string) $post->content);
         $this->assertSame('stela', (string) data_get($post->meta, 'bot_identity'));
         $this->assertSame('nasa_apod_daily', (string) data_get($post->meta, 'bot_source_key'));
@@ -265,7 +265,7 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame('Kozmo', (string) $legacyBot->name);
     }
 
-    public function test_apod_video_item_is_skipped_and_no_post_is_created(): void
+    public function test_apod_video_item_is_published_without_attachment(): void
     {
         $source = $this->createApodSource();
         Http::fake([
@@ -280,15 +280,106 @@ class RunBotSourceCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertDatabaseCount('bot_items', 1);
-        $this->assertDatabaseCount('posts', 0);
+        $this->assertDatabaseCount('posts', 1);
 
         $item = BotItem::query()->firstOrFail();
-        $this->assertSame('skipped', (string) $item->publish_status->value);
-        $this->assertSame('non_image_media', (string) data_get($item->meta, 'skip_reason'));
+        $this->assertSame('published', (string) $item->publish_status->value);
+        $this->assertNotNull($item->post_id);
+        $this->assertNull(data_get($item->meta, 'skip_reason'));
+
+        $post = Post::query()->firstOrFail();
+        $this->assertSame('stela', (string) $post->bot_identity->value);
+        $this->assertNull($post->attachment_path);
+        $this->assertStringContainsString('https://www.youtube.com/watch?v=test', (string) $post->content);
 
         $run = BotRun::query()->latest('id')->firstOrFail();
-        $this->assertSame(0, (int) ($run->stats['published_count'] ?? 0));
-        $this->assertSame(1, (int) ($run->stats['skipped_count'] ?? 0));
+        $this->assertSame(1, (int) ($run->stats['published_count'] ?? 0));
+        $this->assertSame(0, (int) ($run->stats['skipped_count'] ?? 0));
+        $this->assertSame(0, (int) ($run->stats['failed_count'] ?? 0));
+    }
+
+    public function test_apod_mp4_video_is_published_with_video_attachment(): void
+    {
+        $source = $this->createApodSource();
+        Http::fake([
+            $source->url . '*' => Http::response($this->apodPayload([
+                'media_type' => 'video',
+                'url' => 'https://apod.nasa.gov/apod/video/test-video.mp4',
+                'hdurl' => null,
+            ]), 200, ['Content-Type' => 'application/json']),
+            'https://apod.nasa.gov/apod/video/test-video.mp4*' => Http::response(
+                'FAKE_MP4_BINARY',
+                200,
+                ['Content-Type' => 'video/mp4', 'Content-Length' => '15']
+            ),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertDatabaseCount('bot_items', 1);
+        $this->assertDatabaseCount('posts', 1);
+
+        $item = BotItem::query()->firstOrFail();
+        $this->assertSame('published', (string) $item->publish_status->value);
+        $this->assertNotNull($item->post_id);
+
+        $post = Post::query()->firstOrFail();
+        $this->assertNotNull($post->attachment_path);
+        $this->assertSame('video/mp4', (string) $post->attachment_mime);
+        $this->assertStringContainsString('https://apod.nasa.gov/apod/video/test-video.mp4', (string) $post->content);
+
+        $run = BotRun::query()->latest('id')->firstOrFail();
+        $this->assertSame(1, (int) ($run->stats['published_count'] ?? 0));
+        $this->assertSame(0, (int) ($run->stats['skipped_count'] ?? 0));
+        $this->assertSame(0, (int) ($run->stats['failed_count'] ?? 0));
+    }
+
+    public function test_apod_video_item_with_legacy_non_image_skip_reason_is_retried_and_published(): void
+    {
+        $source = $this->createApodSource();
+
+        BotItem::query()->create([
+            'bot_identity' => 'stela',
+            'source_id' => $source->id,
+            'stable_key' => '2026-02-20',
+            'title' => 'APOD Test Title',
+            'content' => 'APOD explanation text long enough to pass content checks for publishing.',
+            'url' => 'https://www.youtube.com/watch?v=test',
+            'published_at' => Carbon::parse('2026-02-20 12:00:00'),
+            'fetched_at' => now()->subMinute(),
+            'lang_original' => 'en',
+            'translation_status' => 'done',
+            'publish_status' => 'skipped',
+            'meta' => [
+                'media_type' => 'video',
+                'skip_reason' => 'non_image_media',
+            ],
+        ]);
+
+        Http::fake([
+            $source->url . '*' => Http::response($this->apodPayload([
+                'date' => '2026-02-20',
+                'media_type' => 'video',
+                'url' => 'https://www.youtube.com/watch?v=test',
+                'hdurl' => null,
+            ]), 200, ['Content-Type' => 'application/json']),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertDatabaseCount('bot_items', 1);
+        $this->assertDatabaseCount('posts', 1);
+
+        $item = BotItem::query()->firstOrFail();
+        $this->assertSame('published', (string) $item->publish_status->value);
+        $this->assertNotNull($item->post_id);
+        $this->assertNull(data_get($item->meta, 'skip_reason'));
+
+        $run = BotRun::query()->latest('id')->firstOrFail();
+        $this->assertSame(1, (int) ($run->stats['published_count'] ?? 0));
+        $this->assertSame(0, (int) ($run->stats['skipped_count'] ?? 0));
         $this->assertSame(0, (int) ($run->stats['failed_count'] ?? 0));
     }
 

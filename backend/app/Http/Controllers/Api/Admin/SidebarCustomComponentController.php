@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\UpdateSidebarCustomComponentRequest;
 use App\Models\SidebarCustomComponent;
 use App\Support\SidebarCustomComponentsTableGuard;
 use App\Support\SidebarCustomComponentPayload;
+use App\Support\SidebarWidgetConfigSchema;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,11 +44,16 @@ class SidebarCustomComponentController extends Controller
     public function store(StoreSidebarCustomComponentRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $normalizedType = SidebarWidgetConfigSchema::normalizeType($validated['type'] ?? null);
+        $normalizedConfig = SidebarWidgetConfigSchema::normalizeConfig(
+            $normalizedType,
+            is_array($validated['config_json'] ?? null) ? $validated['config_json'] : []
+        );
 
         $component = SidebarCustomComponent::query()->create([
             'name' => $validated['name'],
-            'type' => $validated['type'],
-            'config_json' => $validated['config_json'],
+            'type' => $normalizedType,
+            'config_json' => $normalizedConfig,
             'is_active' => (bool) ($validated['is_active'] ?? true),
         ]);
 
@@ -67,11 +73,16 @@ class SidebarCustomComponentController extends Controller
     public function update(UpdateSidebarCustomComponentRequest $request, SidebarCustomComponent $component): JsonResponse
     {
         $validated = $request->validated();
+        $normalizedType = SidebarWidgetConfigSchema::normalizeType($validated['type'] ?? null);
+        $normalizedConfig = SidebarWidgetConfigSchema::normalizeConfig(
+            $normalizedType,
+            is_array($validated['config_json'] ?? null) ? $validated['config_json'] : []
+        );
 
         $component->fill([
             'name' => $validated['name'],
-            'type' => $validated['type'],
-            'config_json' => $validated['config_json'],
+            'type' => $normalizedType,
+            'config_json' => $normalizedConfig,
             'is_active' => (bool) ($validated['is_active'] ?? $component->is_active),
         ])->save();
 

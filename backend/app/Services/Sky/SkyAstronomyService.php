@@ -21,6 +21,8 @@ class SkyAstronomyService
      *   sunrise_at:?string,
      *   sunset_at:?string,
      *   civil_twilight_end_at:?string,
+     *   sun_altitude_deg:?float,
+     *   sample_at:?string,
      *   moonrise_at:?string,
      *   moonset_at:?string
      * }
@@ -32,6 +34,8 @@ class SkyAstronomyService
 
         $moonrise = null;
         $moonset = null;
+        $sunAltitude = null;
+        $sampleAt = null;
 
         try {
             $skyPayload = $this->skyMicroserviceClient->fetch($lat, $lon, $localDate, $tz);
@@ -42,6 +46,8 @@ class SkyAstronomyService
             $moonset = $this->normalizeOptionalIso8601(
                 $this->toIso8601($localDate, $moonPayload['set_local'] ?? null, $tz)
             );
+            $sunAltitude = $this->normalizeSunAltitude($skyPayload['sun_altitude_deg'] ?? null);
+            $sampleAt = $this->normalizeSampleAt($skyPayload['sample_at'] ?? null, $tz);
         } catch (\Throwable) {
             // Moonrise/moonset are optional; keep them null when microservice is unavailable.
         }
@@ -64,6 +70,8 @@ class SkyAstronomyService
             'sunrise_at' => $sunrise,
             'sunset_at' => $sunset,
             'civil_twilight_end_at' => $civilTwilightEnd,
+            'sun_altitude_deg' => $sunAltitude,
+            'sample_at' => $sampleAt,
             'moonrise_at' => $moonrise,
             'moonset_at' => $moonset,
         ];
@@ -131,5 +139,32 @@ class SkyAstronomyService
         $trimmed = trim($value);
 
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    private function normalizeSunAltitude(mixed $value): ?float
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return round(max(-90.0, min(90.0, (float) $value)), 1);
+    }
+
+    private function normalizeSampleAt(mixed $value, string $tz): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        try {
+            return CarbonImmutable::parse($trimmed, $tz)->toIso8601String();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

@@ -58,7 +58,7 @@ class HashtagController extends Controller
             ->publiclyVisible()
             ->notExpired()
             ->with(array_merge(
-                ['user:id,name,username,avatar_path', 'hashtags'],
+                ['user:id,name,username,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed', 'hashtags'],
                 $this->polls->pollRelations($viewer?->id)
             ))
             ->withCount(['likes', 'replies'])

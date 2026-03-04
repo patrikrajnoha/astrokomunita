@@ -37,10 +37,12 @@ class BotPublisherService
 
         if ($publishStatus === BotPublishStatus::SKIPPED->value) {
             $reason = trim((string) data_get($item->meta, 'skip_reason', ''));
-            $skipReason = $reason !== '' ? $reason : 'already_skipped';
-            $this->markSkipped($item, $skipReason, $publishPayload['used_translation'], $normalizedRunContext);
+            if (!$this->isRetryableSkippedReason($reason)) {
+                $skipReason = $reason !== '' ? $reason : 'already_skipped';
+                $this->markSkipped($item, $skipReason, $publishPayload['used_translation'], $normalizedRunContext);
 
-            return PublishResult::skipped($skipReason);
+                return PublishResult::skipped($skipReason);
+            }
         }
 
         $skipReason = $this->resolveSkipReason($item, $publishPayload);
@@ -73,8 +75,8 @@ class BotPublisherService
 
         $attachment = null;
         $temporaryAttachmentPath = null;
-        if ($this->isStelaIdentity($botIdentity)) {
-            $downloaded = $this->downloadStelaImageAttachment($item);
+        if ($this->isStelaIdentity($botIdentity) && $this->shouldDownloadStelaAttachment($item)) {
+            $downloaded = $this->downloadStelaAttachment($item);
             if (($downloaded['error'] ?? null) !== null) {
                 $reason = (string) $downloaded['error'];
                 $this->markSkipped($item, $reason, $publishPayload['used_translation'], $normalizedRunContext);
@@ -620,12 +622,7 @@ class BotPublisherService
     {
         $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
         if ($this->isStelaIdentity($botIdentity)) {
-            $mediaType = strtolower(trim((string) data_get($item->meta, 'media_type', '')));
-            if ($mediaType !== '' && $mediaType !== 'image') {
-                return 'non_image_media';
-            }
-
-            if ($this->resolveStelaImageUrl($item) === '') {
+            if ($this->resolveStelaAttachmentUrl($item) === '') {
                 return 'missing_image_url';
             }
         }
@@ -680,14 +677,14 @@ class BotPublisherService
      *   error:?string
      * }
      */
-    private function downloadStelaImageAttachment(BotItem $item): array
+    private function downloadStelaAttachment(BotItem $item): array
     {
-        $imageUrl = $this->resolveStelaImageUrl($item);
-        if ($imageUrl === '') {
+        $attachmentUrl = $this->resolveStelaAttachmentUrl($item);
+        if ($attachmentUrl === '') {
             return $this->downloadFailure('image_download_failed');
         }
 
-        if (!$this->isAllowedDownloadScheme($imageUrl)) {
+        if (!$this->isAllowedDownloadScheme($attachmentUrl)) {
             return $this->downloadFailure('image_policy_violation');
         }
 
@@ -695,11 +692,11 @@ class BotPublisherService
         $retryTimes = max(0, (int) config('astrobot.rss_retry_times', 2));
         $retrySleepMs = max(0, (int) config('astrobot.rss_retry_sleep_ms', 250));
         $attempts = $retryTimes + 1;
-        $maxBytes = max(1024, (int) config('astrobot.stela_image_max_bytes', 20 * 1024 * 1024));
+        $maxBytes = max(1024, (int) config('astrobot.stela_attachment_max_bytes', (int) config('astrobot.stela_image_max_bytes', 20 * 1024 * 1024)));
 
         try {
             $response = Http::secure()
-                ->accept('image/*,*/*;q=0.8')
+                ->accept('image/*,video/mp4,*/*;q=0.8')
                 ->timeout($timeoutSeconds)
                 ->withOptions([
                     'allow_redirects' => [
@@ -709,7 +706,7 @@ class BotPublisherService
                     ],
                 ])
                 ->retry($attempts, $retrySleepMs, null, false)
-                ->get($imageUrl);
+                ->get($attachmentUrl);
         } catch (\Throwable) {
             return $this->downloadFailure('image_download_failed');
         }
@@ -733,12 +730,12 @@ class BotPublisherService
         }
 
         $contentType = (string) ($response->header('Content-Type') ?? '');
-        $mime = $this->detectImageMime($contentType, $body);
-        if ($mime === null || !$this->isAllowedStelaImageMime($mime)) {
+        $mime = $this->detectStelaAttachmentMime($contentType, $body, $attachmentUrl);
+        if ($mime === null || !$this->isAllowedStelaAttachmentMime($mime)) {
             return $this->downloadFailure('image_policy_violation');
         }
 
-        $extension = $this->extensionForImageMime($mime);
+        $extension = $this->extensionForStelaAttachmentMime($mime);
         $tempPath = tempnam(sys_get_temp_dir(), 'apod_');
         if ($tempPath === false) {
             return $this->downloadFailure('image_download_failed');
@@ -768,7 +765,7 @@ class BotPublisherService
         ];
     }
 
-    private function resolveStelaImageUrl(BotItem $item): string
+    private function resolveStelaAttachmentUrl(BotItem $item): string
     {
         $hdurl = trim((string) data_get($item->meta, 'hdurl', ''));
         if ($hdurl !== '') {
@@ -783,25 +780,74 @@ class BotPublisherService
         return trim((string) ($item->url ?? ''));
     }
 
-    private function isAllowedStelaImageMime(string $mime): bool
+    private function shouldDownloadStelaAttachment(BotItem $item): bool
     {
-        $normalized = strtolower(trim($mime));
-        if ($normalized === '' || !str_starts_with($normalized, 'image/')) {
+        $mediaType = strtolower(trim((string) data_get($item->meta, 'media_type', '')));
+        $attachmentUrl = $this->resolveStelaAttachmentUrl($item);
+        if ($attachmentUrl === '') {
             return false;
         }
 
-        $allowed = array_values(array_filter(array_map(
+        $path = strtolower(trim((string) parse_url($attachmentUrl, PHP_URL_PATH)));
+        $extension = strtolower(trim((string) pathinfo($path, PATHINFO_EXTENSION)));
+
+        if ($mediaType === 'video') {
+            return $extension === 'mp4';
+        }
+
+        if ($mediaType !== '' && $mediaType !== 'image') {
+            return false;
+        }
+
+        if (in_array($extension, ['mov', 'webm', 'm3u8'], true)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private function isRetryableSkippedReason(string $reason): bool
+    {
+        $normalized = strtolower(trim($reason));
+
+        if ($normalized === '') {
+            return false;
+        }
+
+        return in_array($normalized, [
+            'non_image_media',
+            'image_download_failed',
+            'missing_image_url',
+        ], true);
+    }
+
+    private function isAllowedStelaAttachmentMime(string $mime): bool
+    {
+        $normalized = strtolower(trim($mime));
+        if ($normalized === '') {
+            return false;
+        }
+
+        $allowedImageMimes = array_values(array_filter(array_map(
             static fn (mixed $value): string => strtolower(trim((string) $value)),
             (array) config('astrobot.stela_image_allowed_mimes', ['image/jpeg', 'image/png', 'image/webp'])
         )));
+        if (in_array($normalized, $allowedImageMimes, true)) {
+            return true;
+        }
 
-        return in_array($normalized, $allowed, true);
+        $allowedVideoMimes = array_values(array_filter(array_map(
+            static fn (mixed $value): string => strtolower(trim((string) $value)),
+            (array) config('astrobot.stela_video_allowed_mimes', ['video/mp4'])
+        )));
+
+        return in_array($normalized, $allowedVideoMimes, true);
     }
 
-    private function detectImageMime(string $contentType, string $body): ?string
+    private function detectStelaAttachmentMime(string $contentType, string $body, string $sourceUrl): ?string
     {
         $typeHeader = strtolower(trim(explode(';', $contentType)[0] ?? ''));
-        if (str_starts_with($typeHeader, 'image/')) {
+        if (str_starts_with($typeHeader, 'image/') || $typeHeader === 'video/mp4') {
             return $typeHeader;
         }
 
@@ -813,10 +859,16 @@ class BotPublisherService
             }
         }
 
+        $path = strtolower(trim((string) parse_url($sourceUrl, PHP_URL_PATH)));
+        $extension = strtolower(trim((string) pathinfo($path, PATHINFO_EXTENSION)));
+        if ($extension === 'mp4') {
+            return 'video/mp4';
+        }
+
         return null;
     }
 
-    private function extensionForImageMime(string $mime): string
+    private function extensionForStelaAttachmentMime(string $mime): string
     {
         $normalized = strtolower(trim($mime));
 
@@ -824,6 +876,7 @@ class BotPublisherService
             'image/jpeg' => 'jpg',
             'image/png' => 'png',
             'image/webp' => 'webp',
+            'video/mp4' => 'mp4',
             default => 'tmp',
         };
     }

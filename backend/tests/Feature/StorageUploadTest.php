@@ -20,7 +20,9 @@ class StorageUploadTest extends TestCase
         config()->set('media.disk', 'public');
         Storage::fake('public');
 
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'avatar_mode' => 'generated',
+        ]);
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/profile/media', [
@@ -31,14 +33,20 @@ class StorageUploadTest extends TestCase
         ]);
 
         $response->assertOk();
+        $response->assertJsonPath('avatar_mode', 'image');
 
         $path = (string) $response->json('avatar_path');
         $this->assertNotSame('', $path);
         $this->assertStringStartsWith("avatars/{$user->id}/", $path);
         Storage::disk('public')->assertExists($path);
+        $this->assertSame('image', User::query()->findOrFail($user->id)->avatar_mode);
 
         $avatarUrl = (string) $response->json('avatar_url');
-        $this->assertStringStartsWith(rtrim((string) config('app.url'), '/'), $avatarUrl);
+        $this->assertTrue(
+            str_starts_with($avatarUrl, '/api/media/file/')
+            || str_starts_with($avatarUrl, rtrim((string) config('app.url'), '/').'/api/media/file/'),
+            'Avatar URL must point to the public media API endpoint.'
+        );
     }
 
     public function test_uploading_post_attachment_stores_path_and_returns_contract_fields(): void
@@ -111,11 +119,19 @@ class StorageUploadTest extends TestCase
         $response->assertJsonPath('poll.options.1.text', 'Option B');
 
         $imageUrl = (string) $response->json('poll.options.0.image_url');
-        $this->assertStringStartsWith(rtrim((string) config('app.url'), '/'), $imageUrl);
+        $this->assertTrue(
+            str_starts_with($imageUrl, '/api/media/file/')
+            || str_starts_with($imageUrl, rtrim((string) config('app.url'), '/').'/api/media/file/'),
+            'Poll option image URL must point to the public media API endpoint.'
+        );
         $this->assertNull($response->json('poll.options.1.image_url'));
 
-        $path = (string) parse_url($imageUrl, PHP_URL_PATH);
-        $path = ltrim(str_replace('/storage/', '', $path), '/');
+        $path = ltrim((string) parse_url($imageUrl, PHP_URL_PATH), '/');
+        if (str_starts_with($path, 'storage/')) {
+            $path = substr($path, strlen('storage/'));
+        } elseif (str_starts_with($path, 'api/media/file/')) {
+            $path = substr($path, strlen('api/media/file/'));
+        }
         Storage::disk('public')->assertExists($path);
     }
 }

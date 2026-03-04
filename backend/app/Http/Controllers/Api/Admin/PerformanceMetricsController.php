@@ -22,7 +22,7 @@ class PerformanceMetricsController extends Controller
     {
         $latest = PerformanceLog::query()
             ->latest('created_at')
-            ->limit(20)
+            ->limit(50)
             ->get();
 
         $keys = PerformanceLog::query()
@@ -122,4 +122,3 @@ class PerformanceMetricsController extends Controller
         ]);
     }
 }
-
