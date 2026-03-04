@@ -20,13 +20,7 @@
 
         <div class="profileHead">
           <div class="avatar">
-            <img
-              v-if="avatarUrl"
-              class="avatarImg"
-              :src="avatarUrl"
-              :alt="displayName"
-            />
-            <span v-else>{{ initials }}</span>
+            <UserAvatar class="avatarImg" :user="user" :alt="displayName" />
           </div>
 
           <div class="headActions">
@@ -46,22 +40,22 @@
           <p v-else class="bio muted">Zatial bez popisu.</p>
 
           <div class="meta">
-            <span v-if="user?.location" class="metaItem">Location: {{ user.location }}</span>
+            <span v-if="user?.location" class="metaItem">Lokalita: {{ user.location }}</span>
           </div>
         </div>
 
         <div class="statsRow">
           <div class="stat">
             <div class="statNum">{{ stats.posts }}</div>
-            <div class="statLabel">Posts</div>
+            <div class="statLabel">Príspevky</div>
           </div>
           <div class="stat">
             <div class="statNum">{{ stats.replies }}</div>
-            <div class="statLabel">Replies</div>
+            <div class="statLabel">Odpovede</div>
           </div>
           <div class="stat">
             <div class="statNum">{{ stats.media }}</div>
-            <div class="statLabel">Media</div>
+            <div class="statLabel">Médiá</div>
           </div>
         </div>
       </section>
@@ -93,28 +87,22 @@
         <div v-else class="postList">
           <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem">
             <div class="avatar sm">
-              <img
-                v-if="avatarUrl"
-                class="avatarImg"
-                :src="avatarUrl"
-                :alt="displayName"
-              />
-              <span v-else>{{ initials }}</span>
+              <UserAvatar class="avatarImg" :user="user" :alt="displayName" />
             </div>
 
             <div class="postBody">
               <div class="postMeta">
                 <div class="postName">{{ displayName }}</div>
-                <div class="dot">.</div>
+                <div class="dot">·</div>
                 <div class="postTime">{{ fmt(p.created_at) }}</div>
               </div>
 
               <div v-if="p.parent && activeTab === 'replies'" class="replyContext">
-                Reply to: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
+                Odpoveď na: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
                 <span class="replyText">{{ shorten(p.parent.content) }}</span>
               </div>
 
-              <div class="postContent">{{ p.content }}</div>
+              <HashtagText class="postContent" :content="p.content" />
 
               <div v-if="p.attachment_url" class="attachment">
                 <img
@@ -124,13 +112,13 @@
                   alt="attachment"
                 />
                 <a v-else class="attachmentFile" :href="p.attachment_url" target="_blank" rel="noreferrer">
-                  {{ p.attachment_original_name || 'Attachment' }}
+                  {{ p.attachment_original_name || 'Príloha' }}
                 </a>
               </div>
 
               <div class="postActions">
                 <button class="btn outline" @click="openPost(p)">
-                  View thread
+                  Zobraziť vlákno
                 </button>
               </div>
             </div>
@@ -155,7 +143,10 @@
 <script setup>
 import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import UserAvatar from '@/components/UserAvatar.vue'
+import HashtagText from '@/components/HashtagText.vue'
 import http from '@/services/api'
+import { formatDateTimeCompact } from '@/utils/dateUtils'
 
 const router = useRouter()
 const route = useRoute()
@@ -165,9 +156,9 @@ const loading = ref(true)
 const err = ref('')
 
 const tabs = [
-  { key: 'posts', label: 'Posts', kind: 'roots' },
-  { key: 'replies', label: 'Replies', kind: 'replies' },
-  { key: 'media', label: 'Media', kind: 'media' },
+  { key: 'posts', label: 'Príspevky', kind: 'roots' },
+  { key: 'replies', label: 'Odpovede', kind: 'replies' },
+  { key: 'media', label: 'Médiá', kind: 'media' },
 ]
 
 const stats = reactive({ posts: '--', replies: '--', media: '--' })
@@ -185,27 +176,50 @@ const username = computed(() => String(route.params.username || ''))
 const displayName = computed(() => user.value?.name || 'Profil')
 const handle = computed(() => user.value?.username || safeHandle(user.value?.name || 'user'))
 
-const initials = computed(() => {
-  const n = user.value?.name || ''
-  const parts = n.trim().split(/\s+/).filter(Boolean)
-  const a = parts[0]?.[0] || 'U'
-  const b = parts[1]?.[0] || ''
-  return (a + b).toUpperCase()
-})
-
-const avatarUrl = computed(() => normalizeAvatarUrl(user.value?.avatar_url || user.value?.avatarUrl))
 const coverUrl = computed(() => normalizeAvatarUrl(user.value?.cover_url || user.value?.coverUrl))
 
 function normalizeAvatarUrl(raw) {
-  const u = raw || ''
+  const u = String(raw || '').trim()
   if (!u) return ''
-  if (/^https?:\/\//i.test(u)) return u
 
   const base = http?.defaults?.baseURL || ''
   const origin = base.replace(/\/api\/?$/, '')
+  const appOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : '')
 
-  if (u.startsWith('/')) return origin + u
-  return origin + '/' + u
+  const encodeMediaPath = (inputPath) =>
+    String(inputPath || '')
+      .split('/')
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join('/')
+
+  const absoluteStorageMatch = u.match(/^https?:\/\/[^/]+\/storage\/(.+)$/i)
+  if (absoluteStorageMatch) {
+    if (!appOrigin) return u
+    return `${appOrigin}/api/media/file/${encodeMediaPath(absoluteStorageMatch[1])}`
+  }
+
+  const absoluteMediaApiMatch = u.match(/^https?:\/\/[^/]+\/api\/media\/file\/(.+)$/i)
+  if (absoluteMediaApiMatch) {
+    if (!appOrigin) return u
+    return `${appOrigin}/api/media/file/${encodeMediaPath(absoluteMediaApiMatch[1])}`
+  }
+
+  if (u.startsWith('/storage/')) {
+    if (!appOrigin) return u
+    return `${appOrigin}/api/media/file/${encodeMediaPath(u.slice('/storage/'.length))}`
+  }
+
+  if (u.startsWith('/api/media/file/')) {
+    if (!appOrigin) return u
+    return `${appOrigin}/api/media/file/${encodeMediaPath(u.slice('/api/media/file/'.length))}`
+  }
+
+  if (/^https?:\/\//i.test(u)) return u
+  if (!appOrigin) return u
+
+  if (u.startsWith('/')) return appOrigin + u
+  return appOrigin + '/' + u
 }
 
 function safeHandle(input) {
@@ -226,12 +240,7 @@ function setActiveTab(key) {
 }
 
 function fmt(iso) {
-  if (!iso) return ''
-  try {
-    return new Date(iso).toLocaleString()
-  } catch {
-    return String(iso)
-  }
+  return formatDateTimeCompact(iso)
 }
 
 function shorten(text) {

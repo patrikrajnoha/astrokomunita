@@ -1,11 +1,11 @@
 <template>
-  <section class="rounded-2xl bg-slate-900/35 p-5 backdrop-blur">
-    <header class="flex items-start justify-between gap-3">
+  <section class="sidebarDenseCard skyDense rounded-xl bg-slate-900/35 p-4 backdrop-blur">
+    <header class="flex items-start justify-between gap-2">
       <div class="min-w-0">
-        <h3 class="text-sm font-semibold text-slate-100">Astronomicke podmienky</h3>
+        <h3 class="sidebarSection__header text-[0.88rem] font-semibold leading-tight text-slate-100">Astronomicke podmienky</h3>
         <button
           type="button"
-          class="mt-1 max-w-full cursor-pointer truncate text-left text-sm text-slate-300/80 underline-offset-4 transition hover:text-slate-100 hover:underline"
+          class="mt-0.5 max-w-full cursor-pointer truncate text-left text-xs leading-tight text-slate-300/80 underline-offset-2 transition hover:text-slate-100 hover:underline"
           title="Zmenit lokalitu"
           @click="goToProfileLocation"
         >
@@ -14,17 +14,17 @@
         <button
           v-if="!hasLocationCoords"
           type="button"
-          class="mt-3 inline-flex rounded-xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
+          class="mt-2 inline-flex rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-950 transition hover:bg-white"
           @click="goToProfileLocation"
         >
           Nastavit polohu
         </button>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5">
         <span
           v-if="globalFreshnessLabel"
-          class="rounded-full border border-white/5 bg-white/5 px-2 py-1 text-[10px] text-slate-300"
+          class="rounded-full border border-white/5 bg-white/5 px-1.5 py-0.5 text-[9px] leading-tight text-slate-300"
         >
           {{ globalFreshnessLabel }}
         </span>
@@ -33,11 +33,11 @@
           v-if="isAdminUser"
           type="button"
           data-testid="sky-widget-reorder-toggle"
-          class="flex h-8 w-8 items-center justify-center rounded-full text-slate-200 transition hover:bg-white/10"
+          class="flex h-7 w-7 items-center justify-center rounded-full text-slate-200 transition hover:bg-white/10"
           :title="editMode ? 'Ukoncit upravu widgetu' : 'Upravit poradie sekcii'"
           @click="toggleEditMode"
         >
-          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path d="M4 14.5 5 11l7.7-7.7a1.8 1.8 0 0 1 2.6 0l1.4 1.4a1.8 1.8 0 0 1 0 2.6L9 15l-3.5 1Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M11.8 4.2 15.8 8.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
           </svg>
@@ -45,11 +45,11 @@
 
         <button
           type="button"
-          class="flex h-8 w-8 items-center justify-center rounded-full text-slate-200 transition hover:bg-white/10"
+          class="flex h-7 w-7 items-center justify-center rounded-full text-slate-200 transition hover:bg-white/10"
           title="Obnovit"
           @click="refreshAll"
         >
-          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path d="M3 10a7 7 0 0 1 12-4.9M17 10a7 7 0 0 1-12 4.9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
             <path d="M15 2.8v2.8h-2.8M5 17.2v-2.8h2.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
@@ -57,34 +57,34 @@
       </div>
     </header>
 
-    <section v-if="showPrimaryLoading" class="mt-5 space-y-3">
+    <section v-if="showPrimaryLoading" class="mt-1.5 space-y-1.5">
       <div class="h-16 animate-pulse rounded-xl bg-white/5"></div>
       <div class="h-12 animate-pulse rounded-xl bg-white/5"></div>
       <div class="h-24 animate-pulse rounded-xl bg-white/5"></div>
     </section>
 
-    <div v-else class="mt-5 divide-y divide-white/5">
+    <div v-else class="mt-3 divide-y divide-white/5">
       <section
         v-for="sectionId in orderedSectionIds"
         :key="sectionId"
-        class="py-4 first:pt-0 last:pb-0"
+        class="py-2.5 first:pt-0 last:pb-0"
       >
-        <div class="flex items-start gap-3">
+        <div class="flex items-start gap-2">
           <div class="min-w-0 flex-1">
             <template v-if="sectionId === 'hero_score'">
               <p class="text-[10px] uppercase tracking-wide text-slate-500">{{ heroTitle }}</p>
-              <p class="mt-2 text-4xl font-semibold tracking-tight text-slate-100">
+              <p class="mt-1.5 text-3xl font-semibold tracking-tight text-slate-100">
                 {{ observingScoreValue }}
-                <span class="text-base text-slate-400">/100</span>
+                <span class="text-sm text-slate-400">/100</span>
               </p>
-              <p class="mt-2 text-lg text-slate-100">{{ scoreEmoji }} {{ scoreLabel }}</p>
+              <p class="mt-1 text-base leading-tight text-slate-100">{{ scoreEmoji }} {{ scoreLabel }}</p>
               <p
-                class="mt-2"
-                :class="isDaylight ? 'text-base font-medium text-slate-100' : 'text-sm text-slate-300'"
+                class="mt-1"
+                :class="isDaylight ? 'text-sm font-medium leading-tight text-slate-100' : 'text-xs leading-tight text-slate-300'"
               >
                 {{ heroSubtitle }}
               </p>
-              <div class="mt-3 h-1.5 rounded-full bg-white/5">
+              <div class="mt-2 h-1.5 rounded-full bg-white/5">
                 <div
                   class="h-1.5 rounded-full"
                   :class="scoreColorClass"
@@ -94,83 +94,83 @@
             </template>
 
             <template v-else-if="sectionId === 'best_time'">
-              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Najlepsie dnes</p>
-              <p class="mt-2 text-sm text-slate-300">{{ bestTimeLabel }}</p>
+              <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Najlepsie dnes</p>
+              <p class="mt-1 text-xs leading-tight text-slate-300">{{ bestTimeLabel }}</p>
             </template>
 
             <template v-else-if="sectionId === 'weather_inline'">
-              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Pocasie teraz</p>
-              <div class="mt-3 grid grid-cols-4 gap-2 text-center">
-                <div>
+              <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Pocasie teraz</p>
+              <div class="weatherGrid mt-1.5 text-center">
+                <div class="weatherMetric">
                   <p class="text-[10px] uppercase tracking-wide text-slate-500">Oblaky</p>
-                  <p class="mt-1 text-sm font-medium text-slate-100">{{ formattedMetrics.cloud }}</p>
+                  <p class="mt-0.5 text-xs font-medium leading-tight text-slate-100">{{ formattedMetrics.cloud }}</p>
                 </div>
-                <div>
+                <div class="weatherMetric">
                   <p class="text-[10px] uppercase tracking-wide text-slate-500">Vlhkost</p>
-                  <p class="mt-1 text-sm font-medium text-slate-100">{{ formattedMetrics.humidity }}</p>
+                  <p class="mt-0.5 text-xs font-medium leading-tight text-slate-100">{{ formattedMetrics.humidity }}</p>
                 </div>
-                <div>
+                <div class="weatherMetric">
                   <p class="text-[10px] uppercase tracking-wide text-slate-500">Vietor</p>
-                  <p class="mt-1 text-sm font-medium text-slate-100">{{ formattedMetrics.wind }}</p>
+                  <p class="mt-0.5 text-xs font-medium leading-tight text-slate-100">{{ formattedMetrics.wind }}</p>
                 </div>
-                <div>
+                <div class="weatherMetric">
                   <p class="text-[10px] uppercase tracking-wide text-slate-500">Teplota</p>
-                  <p class="mt-1 text-sm font-medium text-slate-100">{{ formattedMetrics.temp }}</p>
+                  <p class="mt-0.5 text-xs font-medium leading-tight text-slate-100">{{ formattedMetrics.temp }}</p>
                 </div>
               </div>
-              <p class="mt-2 text-sm text-slate-300">{{ formattedMetrics.conditionLabel }}</p>
-              <p v-if="weatherError" class="mt-2 text-xs text-slate-400">
+              <p class="mt-1.5 text-xs leading-tight text-slate-300">{{ formattedMetrics.conditionLabel }}</p>
+              <p v-if="weatherError" class="mt-1.5 text-[11px] leading-tight text-slate-400">
                 {{ weatherError }}
                 <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('weather')">Skusit znova</button>
               </p>
             </template>
 
             <template v-else-if="sectionId === 'moon'">
-              <p class="text-sm text-slate-100">{{ moonSummaryLine }}</p>
+              <p class="text-xs leading-tight text-slate-100">{{ moonSummaryLine }}</p>
               <button
                 type="button"
-                class="mt-2 text-xs text-slate-400 underline underline-offset-4 transition hover:text-slate-200"
+                class="mt-1 text-[11px] leading-tight text-slate-400 underline underline-offset-2 transition hover:text-slate-200"
                 @click="moonDetailsOpen = !moonDetailsOpen"
               >
                 {{ moonDetailsOpen ? 'Skryt detaily' : 'Detaily' }}
               </button>
-              <p v-if="moonDetailsOpen" class="mt-2 text-xs text-slate-400">{{ astronomyTimesLine }}</p>
-              <p v-if="astronomyError" class="mt-2 text-xs text-slate-400">
+              <p v-if="moonDetailsOpen" class="mt-1 text-[11px] leading-tight text-slate-400">{{ astronomyTimesLine }}</p>
+              <p v-if="astronomyError" class="mt-1 text-[11px] leading-tight text-slate-400">
                 {{ astronomyError }}
                 <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('astronomy')">Skusit znova</button>
               </p>
             </template>
 
             <template v-else-if="sectionId === 'bortle'">
-              <p class="text-sm text-slate-100">{{ lightPollutionLine || 'Svetelne znecistenie: nedostupne' }}</p>
-              <p v-if="lightPollutionMetaLine" class="mt-1 text-sm text-slate-300">{{ lightPollutionMetaLine }}</p>
-              <p v-if="lightPollutionEstimateLine" class="mt-1 text-xs text-slate-400">{{ lightPollutionEstimateLine }}</p>
-              <p v-if="lightPollutionError" class="mt-2 text-xs text-slate-400">
+              <p class="text-xs leading-tight text-slate-100">{{ lightPollutionLine || 'Svetelne znecistenie: nedostupne' }}</p>
+              <p v-if="lightPollutionMetaLine" class="mt-0.5 text-xs leading-tight text-slate-300">{{ lightPollutionMetaLine }}</p>
+              <p v-if="lightPollutionEstimateLine" class="mt-0.5 text-[11px] leading-tight text-slate-400">{{ lightPollutionEstimateLine }}</p>
+              <p v-if="lightPollutionError" class="mt-1 text-[11px] leading-tight text-slate-400">
                 {{ lightPollutionError }}
                 <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('lightPollution')">Skusit znova</button>
               </p>
             </template>
 
             <template v-else-if="sectionId === 'planets'">
-              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Planéty</p>
-              <p v-if="planetsContextLine" class="mt-2 text-sm text-slate-300">{{ planetsContextLine }}</p>
+              <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Planéty</p>
+              <p v-if="planetsContextLine" class="mt-1 text-xs leading-tight text-slate-300">{{ planetsContextLine }}</p>
 
-              <div v-if="shouldShowPlanetsList" class="mt-3 space-y-2">
+              <div v-if="shouldShowPlanetsList" class="mt-1.5 space-y-1.5">
                 <div
                   v-for="planet in planetsDisplayList"
                   :key="planet.name"
-                  class="rounded-xl border border-white/5 bg-white/5 px-3 py-3"
+                  class="rounded-lg border border-white/5 bg-white/5 px-2.5 py-2"
                 >
-                  <div class="flex items-start justify-between gap-3">
+                  <div class="flex items-start justify-between gap-2">
                     <div class="min-w-0">
-                      <p class="text-sm text-slate-100">
+                      <p class="text-[13px] leading-tight text-slate-100">
                         {{ planet.name }} · {{ planet.direction }} · {{ planet.altitudeLabel }}
                       </p>
-                      <p class="mt-1 text-xs text-slate-400">elongácia: {{ planet.elongationLabel }}</p>
-                      <p v-if="planet.bestTimeWindow" class="mt-1 text-xs text-slate-400">najlepšie: {{ planet.bestTimeWindow }}</p>
+                      <p class="mt-0.5 text-[11px] leading-tight text-slate-400">elongácia: {{ planet.elongationLabel }}</p>
+                      <p v-if="planet.bestTimeWindow" class="mt-0.5 text-[11px] leading-tight text-slate-400">najlepšie: {{ planet.bestTimeWindow }}</p>
                     </div>
                     <span
-                      class="shrink-0 rounded-full border px-2 py-1 text-[10px] font-medium"
+                      class="shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-medium"
                       :class="planet.visibilityToneClass"
                     >
                       {{ planet.visibilityLabel }}
@@ -179,18 +179,18 @@
                 </div>
               </div>
 
-              <p v-else class="mt-2 text-sm text-slate-300">{{ planetsMessage }}</p>
-              <p class="mt-2 text-xs text-slate-500">{{ planetsSourceLine }}</p>
-              <p v-if="planetsError" class="mt-2 text-xs text-slate-400">
+              <p v-else class="mt-1 text-xs leading-tight text-slate-300">{{ planetsMessage }}</p>
+              <p class="mt-1 text-[11px] leading-tight text-slate-500">{{ planetsSourceLine }}</p>
+              <p v-if="planetsError" class="mt-1 text-[11px] leading-tight text-slate-400">
                 {{ planetsError }}
                 <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('planets')">Skusit znova</button>
               </p>
             </template>
 
             <template v-else-if="sectionId === 'iss'">
-              <p class="text-xs font-medium uppercase tracking-wide text-slate-500">ISS</p>
-              <p class="mt-2 text-sm text-slate-300">{{ issLine }}</p>
-              <p v-if="issError" class="mt-2 text-xs text-slate-400">
+              <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">ISS</p>
+              <p class="mt-1 text-xs leading-tight text-slate-300">{{ issLine }}</p>
+              <p v-if="issError" class="mt-1 text-[11px] leading-tight text-slate-400">
                 {{ issError }}
                 <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('iss')">Skusit znova</button>
               </p>
@@ -428,3 +428,27 @@ function parseFreshnessMinutes(value) {
   return Number.isFinite(parsed) ? parsed : null
 }
 </script>
+
+<style scoped>
+.skyDense {
+  --sb-gap-xs: var(--sb-gap-xs, 0.3rem);
+  --sb-gap-sm: var(--sb-gap-sm, 0.5rem);
+}
+
+.weatherGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: var(--sb-gap-xs);
+}
+
+.weatherMetric {
+  min-width: 0;
+}
+
+@media (max-width: 360px) {
+  .weatherGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+</style>
+

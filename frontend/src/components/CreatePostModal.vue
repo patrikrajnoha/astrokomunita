@@ -19,8 +19,7 @@
 
           <div class="body">
             <div class="avatar" aria-hidden="true">
-              <img v-if="avatarUrl" class="avatarImg" :src="avatarUrl" :alt="auth?.user?.name || 'avatar'" />
-              <span v-else>{{ initials }}</span>
+              <UserAvatar class="avatarImg" :user="auth?.user" :alt="auth?.user?.name || 'avatar'" />
             </div>
 
             <div class="contentCol">
@@ -30,7 +29,7 @@
                 ref="textareaRef"
                 v-model="content"
                 class="textarea"
-                placeholder="Co mas nove?"
+                placeholder="Čo je nové na oblohe?"
                 rows="5"
                 :disabled="submitting"
                 @input="onInput"
@@ -149,6 +148,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import api from '@/services/api'
 import { createPost } from '@/services/posts'
 import { useAuthStore } from '@/stores/auth'
@@ -225,21 +225,6 @@ const isSubmitDisabled = computed(() => {
 const counterRingStyle = computed(() => {
   const ratio = Math.max(0, Math.min(1, normalizedLength.value / MAX_CHARS))
   return { '--ring-fill': `${Math.round(ratio * 360)}deg` }
-})
-
-const initials = computed(() => {
-  const name = String(auth?.user?.name || '').trim()
-  if (!name) return 'U'
-  const parts = name.split(/\s+/).filter(Boolean)
-  return `${parts[0]?.[0] || 'U'}${parts[1]?.[0] || ''}`.toUpperCase()
-})
-const avatarUrl = computed(() => {
-  const raw = auth?.user?.avatar_url || auth?.user?.avatarUrl || ''
-  if (!raw) return ''
-  if (/^https?:\/\//i.test(raw)) return raw
-  const base = api?.defaults?.baseURL || ''
-  const origin = base.replace(/\/api\/?$/, '')
-  return raw.startsWith('/') ? origin + raw : origin + '/' + raw
 })
 
 watch(() => props.open, async (isOpen) => {

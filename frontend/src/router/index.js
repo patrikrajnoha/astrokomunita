@@ -3,8 +3,29 @@ import HomeView from '../views/HomeView.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
+import { legacySettingsSectionToRouteName } from '@/views/settings/settingsSections'
 
 const wipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCase() === 'true'
+
+function resolveLegacySettingsSectionRedirect(to) {
+  const sectionCandidate = Array.isArray(to.query?.section) ? to.query.section[0] : to.query?.section
+  const section = String(sectionCandidate || '').trim().toLowerCase()
+  const routeName = legacySettingsSectionToRouteName[section]
+
+  if (!routeName) {
+    return null
+  }
+
+  const query = { ...to.query }
+  delete query.section
+
+  return {
+    name: routeName,
+    query,
+    hash: to.hash,
+    replace: true,
+  }
+}
 
 const appShellChildren = [
   {
@@ -51,10 +72,6 @@ const appShellChildren = [
         view: 'calendar',
       },
     }),
-  },
-  {
-    path: 'sky/:pathMatch(.*)*',
-    redirect: { name: 'home' },
   },
   ...(wipEnabled
     ? [{
@@ -115,9 +132,51 @@ const appShellChildren = [
   },
   {
     path: 'settings',
-    name: 'settings',
     meta: { auth: true, requiresAuth: true },
     component: () => import('../views/SettingsView.vue'),
+    children: [
+      {
+        path: '',
+        name: 'settings',
+        component: () => import('../views/settings/SettingsNavigationView.vue'),
+        beforeEnter: (to) => resolveLegacySettingsSectionRedirect(to) || true,
+      },
+      {
+        path: 'onboarding',
+        name: 'settings.onboarding',
+        component: () => import('../views/settings/SettingsOnboardingView.vue'),
+      },
+      {
+        path: 'email',
+        name: 'settings.email',
+        component: () => import('../views/settings/SettingsEmailView.vue'),
+      },
+      {
+        path: 'newsletter',
+        name: 'settings.newsletter',
+        component: () => import('../views/settings/SettingsNewsletterView.vue'),
+      },
+      {
+        path: 'data-export',
+        name: 'settings.data-export',
+        component: () => import('../views/settings/SettingsDataExportView.vue'),
+      },
+      {
+        path: 'password',
+        name: 'settings.password',
+        component: () => import('../views/settings/SettingsPasswordView.vue'),
+      },
+      {
+        path: 'activity',
+        name: 'settings.activity',
+        component: () => import('../views/settings/SettingsActivityView.vue'),
+      },
+      {
+        path: 'deactivate',
+        name: 'settings.deactivate',
+        component: () => import('../views/settings/SettingsDeactivateView.vue'),
+      },
+    ],
   },
   ...(wipEnabled
     ? [{
@@ -177,138 +236,281 @@ const appShellChildren = [
   },
   {
     path: 'admin',
+    name: 'admin.root',
     component: () => import('@/layouts/AdminHubLayout.vue'),
     meta: { auth: true, requiresAuth: true, admin: true },
     children: [
       {
         path: '',
+        name: 'admin.root.default',
         redirect: { name: 'admin.dashboard' },
       },
       {
         path: 'dashboard',
         name: 'admin.dashboard',
+        meta: { adminSection: 'dashboard' },
         component: () => import('@/views/admin/AdminDashboardView.vue'),
-      },
-      {
-        path: 'event-candidates',
-        name: 'admin.event-candidates',
-        component: () => import('@/views/admin/CandidatesListView.vue'),
-      },
-      {
-        path: 'candidates',
-        redirect: { name: 'admin.event-candidates' },
-      },
-      {
-        path: 'candidates/:id',
-        name: 'admin.candidate.detail',
-        component: () => import('@/views/admin/CandidateDetailView.vue'),
-      },
-      {
-        path: 'blog',
-        name: 'admin.blog',
-        component: () => import('@/views/admin/BlogPostsView.vue'),
-      },
-      {
-        path: 'events',
-        name: 'admin.events',
-        component: () => import('@/views/admin/EventsUnifiedView.vue'),
-      },
-      {
-        path: 'contests',
-        name: 'admin.contests',
-        component: () => import('@/views/admin/ContestsView.vue'),
       },
       {
         path: 'events/create',
         name: 'admin.events.create',
+        meta: { adminSection: 'events', adminTab: 'published' },
         component: () => import('@/views/admin/EventFormView.vue'),
       },
       {
         path: 'events/:id/edit',
         name: 'admin.events.edit',
+        meta: { adminSection: 'events', adminTab: 'published' },
         component: () => import('@/views/admin/EventFormView.vue'),
-      },
-      {
-        path: 'reports',
-        name: 'admin.reports',
-        redirect: (to) => ({
-          name: 'admin.moderation',
-          query: {
-            ...to.query,
-            tab: 'reports',
-          },
-        }),
-      },
-      {
-        path: 'moderation',
-        name: 'admin.moderation',
-        component: () => import('@/views/admin/ModerationHubView.vue'),
-      },
-      {
-        path: 'users',
-        name: 'admin.users',
-        component: () => import('@/views/admin/UsersView.vue'),
       },
       {
         path: 'users/:id',
         name: 'admin.users.detail',
+        meta: { adminSection: 'community', adminTab: 'users' },
         component: () => import('@/views/admin/AdminUserDetailView.vue'),
+      },
+      {
+        path: 'crawl-runs/:id',
+        name: 'admin.crawl-run.detail',
+        meta: { adminSection: 'events', adminTab: 'crawling' },
+        component: () => import('@/views/admin/CrawlRunDetailView.vue'),
+      },
+      {
+        path: 'candidates/:id',
+        name: 'admin.candidate.detail',
+        meta: { adminSection: 'events', adminTab: 'candidates' },
+        component: () => import('@/views/admin/CandidateDetailView.vue'),
+      },
+      {
+        path: 'events',
+        name: 'admin.events.section',
+        meta: { adminSection: 'events' },
+        component: () => import('@/views/admin/AdminEventsSectionView.vue'),
+        children: [
+          {
+            path: '',
+            name: 'admin.events.default',
+            redirect: (to) => ({
+              name: 'admin.events',
+              query: to.query,
+              hash: to.hash,
+            }),
+          },
+          {
+            path: 'crawling',
+            name: 'admin.event-sources',
+            meta: { adminSection: 'events', adminTab: 'crawling' },
+            component: () => import('@/views/admin/EventSourcesView.vue'),
+          },
+          {
+            path: 'candidates',
+            name: 'admin.event-candidates',
+            meta: { adminSection: 'events', adminTab: 'candidates' },
+            component: () => import('@/views/admin/CandidatesListView.vue'),
+          },
+          {
+            path: 'published',
+            name: 'admin.events',
+            meta: { adminSection: 'events', adminTab: 'published' },
+            component: () => import('@/views/admin/EventsUnifiedView.vue'),
+          },
+        ],
+      },
+      {
+        path: 'community',
+        name: 'admin.community.section',
+        meta: { adminSection: 'community' },
+        component: () => import('@/views/admin/AdminCommunitySectionView.vue'),
+        children: [
+          {
+            path: '',
+            name: 'admin.community.default',
+            redirect: (to) => ({
+              name: 'admin.users',
+              query: to.query,
+              hash: to.hash,
+            }),
+          },
+          {
+            path: 'users',
+            name: 'admin.users',
+            meta: { adminSection: 'community', adminTab: 'users' },
+            component: () => import('@/views/admin/UsersView.vue'),
+          },
+          {
+            path: 'moderation',
+            name: 'admin.moderation',
+            meta: { adminSection: 'community', adminTab: 'moderation' },
+            component: () => import('@/views/admin/ModerationHubView.vue'),
+          },
+        ],
+      },
+      {
+        path: 'content',
+        name: 'admin.content.section',
+        meta: { adminSection: 'content' },
+        component: () => import('@/views/admin/AdminContentSectionView.vue'),
+        children: [
+          {
+            path: '',
+            name: 'admin.content.default',
+            redirect: (to) => ({
+              name: 'admin.blog',
+              query: to.query,
+              hash: to.hash,
+            }),
+          },
+          {
+            path: 'articles',
+            name: 'admin.blog',
+            meta: { adminSection: 'content', adminTab: 'articles' },
+            component: () => import('@/views/admin/BlogPostsView.vue'),
+          },
+          {
+            path: 'newsletter',
+            name: 'admin.newsletter',
+            meta: { adminSection: 'content', adminTab: 'newsletter' },
+            component: () => import('@/views/admin/AdminNewsletterView.vue'),
+          },
+        ],
+      },
+      {
+        path: 'event-sources',
+        name: 'admin.legacy.event-sources',
+        redirect: (to) => ({
+          name: 'admin.event-sources',
+          query: to.query,
+          hash: to.hash,
+        }),
+      },
+      {
+        path: 'event-candidates',
+        name: 'admin.legacy.event-candidates',
+        redirect: (to) => ({
+          name: 'admin.event-candidates',
+          query: to.query,
+          hash: to.hash,
+        }),
+      },
+      {
+        path: 'candidates',
+        name: 'admin.legacy.candidates',
+        redirect: (to) => ({
+          name: 'admin.event-candidates',
+          query: to.query,
+          hash: to.hash,
+        }),
+      },
+      {
+        path: 'users',
+        name: 'admin.legacy.users',
+        redirect: (to) => ({
+          name: 'admin.users',
+          query: to.query,
+          hash: to.hash,
+        }),
+      },
+      {
+        path: 'moderation',
+        name: 'admin.legacy.moderation',
+        redirect: (to) => ({
+          name: 'admin.moderation',
+          query: to.query,
+          hash: to.hash,
+        }),
+      },
+      {
+        path: 'reports',
+        name: 'admin.reports',
+        meta: { adminSection: 'community', adminTab: 'moderation' },
+        redirect: (to) => {
+          const tab = Array.isArray(to.query?.tab) ? to.query.tab[0] : to.query?.tab
+          const hasTab = tab != null && String(tab).trim() !== ''
+
+          return {
+            name: 'admin.moderation',
+            query: hasTab
+              ? { ...to.query }
+              : {
+                  ...to.query,
+                  tab: 'reports',
+                },
+            hash: to.hash,
+          }
+        },
+      },
+      {
+        path: 'blog',
+        name: 'admin.legacy.blog',
+        redirect: (to) => ({
+          name: 'admin.blog',
+          query: to.query,
+          hash: to.hash,
+        }),
+      },
+      {
+        path: 'newsletter',
+        name: 'admin.legacy.newsletter',
+        redirect: (to) => ({
+          name: 'admin.newsletter',
+          query: to.query,
+          hash: to.hash,
+        }),
+      },
+      {
+        path: 'contests',
+        name: 'admin.contests',
+        meta: { adminSection: 'content' },
+        component: () => import('@/views/admin/ContestsView.vue'),
       },
       ...(wipEnabled
         ? [{
             path: 'banned-words',
             name: 'admin.banned-words',
+            meta: { adminSection: 'content' },
             component: () => import('@/views/admin/BannedWordsView.vue'),
           }]
         : []),
       {
-        path: 'event-sources',
-        name: 'admin.event-sources',
-        component: () => import('@/views/admin/EventSourcesView.vue'),
-      },
-      {
-        path: 'crawl-runs/:id',
-        name: 'admin.crawl-run.detail',
-        component: () => import('@/views/admin/CrawlRunDetailView.vue'),
-      },
-      {
         path: 'featured-events',
         name: 'admin.featured-events',
+        meta: { adminSection: 'content' },
         component: () => import('@/views/admin/AdminFeaturedEventsView.vue'),
-      },
-      {
-        path: 'newsletter',
-        name: 'admin.newsletter',
-        component: () => import('@/views/admin/AdminNewsletterView.vue'),
       },
       {
         path: 'astrobot',
         name: 'admin.astrobot',
+        meta: { adminSection: 'automation' },
         redirect: { name: 'admin.bots' },
       },
       {
         path: 'bots',
         name: 'admin.bots',
+        meta: { adminSection: 'automation' },
         component: () => import('@/views/admin/BotEngineView.vue'),
       },
       {
         path: 'kozmobot',
         name: 'admin.bots.kozmo',
+        meta: { adminSection: 'automation' },
         redirect: { name: 'admin.bots' },
       },
       {
         path: 'stellarbot',
         name: 'admin.bots.stellar',
+        meta: { adminSection: 'automation' },
         redirect: { name: 'admin.bots' },
       },
       {
         path: 'sidebar',
         name: 'admin.sidebar',
+        meta: { adminSection: 'frontend' },
         component: () => import('@/views/admin/SidebarConfigView.vue'),
       },
       {
         path: 'performance-metrics',
         name: 'admin.performance-metrics',
+        meta: { adminSection: 'performance' },
         component: () => import('@/views/admin/PerformanceMetricsView.vue'),
       },
     ],
@@ -399,7 +601,8 @@ export function applyAuthGuards(routerInstance) {
     const isVerifiedUser = Boolean(auth.isAuthed && auth.user?.email_verified_at)
     const isAdminUser = Boolean(auth.isAdmin)
     const requiresEmailVerification = Boolean(auth.user?.requires_email_verification)
-    const isSettingsRoute = to.name === 'settings'
+    const routeName = typeof to.name === 'string' ? to.name : ''
+    const isSettingsRoute = routeName === 'settings' || routeName.startsWith('settings.')
 
     if (
       auth.isAuthed &&
@@ -410,9 +613,8 @@ export function applyAuthGuards(routerInstance) {
       !isSettingsRoute
     ) {
       return {
-        name: 'settings',
+        name: 'settings.email',
         query: {
-          section: 'email',
           redirect: redirectTarget,
         },
       }

@@ -78,14 +78,7 @@
           >
             <div class="post-avatar">
               <button class="avatar-button" type="button" @click.stop="openProfile(p)">
-                <img
-                  v-if="p?.user?.avatar_url"
-                  class="avatar-image"
-                  :src="avatarSrc(p?.user?.avatar_url)"
-                  :alt="p?.user?.name || 'avatar'"
-                  loading="lazy"
-                />
-                <span v-else class="avatar-fallback">{{ initials(p?.user?.name) }}</span>
+                <UserAvatar class="avatar-fallback" :user="p?.user" :alt="p?.user?.name || 'avatar'" />
               </button>
             </div>
 
@@ -188,7 +181,7 @@
                   :src="stelaPreviewImageSrc(p)"
                   alt="Stela APOD preview"
                   :blurred="isAttachmentPending(p)"
-                  pending-label="Checking..."
+                  :status="p?.status"
                 />
               </div>
 
@@ -204,7 +197,13 @@
                   :src="attachmentSrc(p)"
                   alt="Priloha prispevku"
                   :blurred="isAttachmentPending(p)"
-                  pending-label="Checking..."
+                  :status="p?.status"
+                />
+
+                <PostMediaVideo
+                  v-else-if="isVideo(p) && !isAttachmentPending(p)"
+                  :src="attachmentSrc(p)"
+                  :type="attachmentMime(p) || undefined"
                 />
 
                 <a
@@ -227,113 +226,21 @@
               </div>
 
               <!-- Bottom actions -->
-              <div class="post-actions" @click.stop>
-                <div class="post-actions-left">
-                  <button
-                    class="action-btn action-btn--reply"
-                    type="button"
-                    title="Reagovať"
-                    @click.stop="openPost(p)"
-                  >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path
-                        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
-                      />
-                    </svg>
-                    <span class="action-count">{{ p.replies_count ?? 0 }}</span>
-                  </button>
-
-                  <button
-                    class="action-btn action-btn--like"
-                    type="button"
-                    :class="{
-                      'action-btn--liked': p.liked_by_me,
-                      'action-btn--bump': likeBumpId === p.id,
-                    }"
-                    :disabled="!auth.isAuthed || isLikeLoading(p)"
-                    :title="
-                      auth.isAuthed
-                        ? p.liked_by_me
-                          ? 'Zrušiť like'
-                          : 'Páči sa mi'
-                        : 'Prihlás sa pre lajkovanie'
-                    "
-                    @click.stop="toggleLike(p)"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <path
-                        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-                      />
-                    </svg>
-                    <span class="action-count">{{ p.likes_count ?? 0 }}</span>
-                  </button>
-                </div>
-
-                <div class="post-actions-right">
-                  <button
-                    class="action-btn action-btn--bookmark"
-                    type="button"
-                    :class="{ 'action-btn--bookmarked': p.is_bookmarked }"
-                    :disabled="!auth.isAuthed || isBookmarkLoading(p)"
-                    :title="
-                      auth.isAuthed
-                        ? p.is_bookmarked
-                          ? 'Odstranit zo zaloziek'
-                          : 'Ulozit do zaloziek'
-                        : 'Prihlas sa pre zalozky'
-                    "
-                    @click.stop="toggleBookmark(p)"
-                  >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                    </svg>
-                  </button>
-
-                  <button
-                    class="action-btn action-btn--share"
-                    type="button"
-                    title="Zdieľať"
-                    aria-label="Zdieľať prispevok"
-                    @click.stop="openShareModal(p)"
-                  >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                      <polyline points="16 6 12 2 8 6" />
-                      <line x1="12" y1="2" x2="12" y2="15" />
-                    </svg>
-                  </button>
-
-                  <div v-if="menuItemsForPost(p).length" class="post-actions-more" @click.stop>
-                    <DropdownMenu
-                      :items="menuItemsForPost(p)"
-                      label="More actions"
-                      menu-label="Post actions"
-                      @select="(item) => onMenuAction(item, p)"
-                    />
-                  </div>
-                </div>
-              </div>
+              <PostActionBar
+                :item="p"
+                :reply-count="Number(p.replies_count ?? 0)"
+                :like-count="Number(p.likes_count ?? 0)"
+                :like-loading="isLikeLoading(p)"
+                :bookmark-loading="isBookmarkLoading(p)"
+                :like-bump="likeBumpId === p.id"
+                :is-authed="auth.isAuthed"
+                :menu-items="menuItemsForPost(p)"
+                @reply="openPost(p)"
+                @like="toggleLike(p)"
+                @bookmark="toggleBookmark(p)"
+                @share="openShareModal(p)"
+                @menu-select="(item) => onMenuAction(item, p)"
+              />
             </div>
           </article>
         </div>
@@ -409,10 +316,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FeedSwitcher from '@/components/FeedSwitcher.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import HashtagText from './HashtagText.vue'
 import PollCard from '@/components/PollCard.vue'
-import DropdownMenu from '@/components/shared/DropdownMenu.vue'
+import PostActionBar from '@/components/PostActionBar.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
+import PostMediaVideo from '@/components/media/PostMediaVideo.vue'
 import ShareModal from '@/components/share/ShareModal.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
@@ -420,6 +329,7 @@ import { useBookmarksStore } from '@/stores/bookmarks'
 import { useToast } from '@/composables/useToast'
 import { canDeletePost, canReportPost } from '@/utils/postPermissions'
 import { formatRelativeShort } from '@/utils/dateUtils'
+import { avatarDebug } from '@/utils/avatarDebug'
 
 const props = defineProps({
   mode: {
@@ -1120,14 +1030,6 @@ async function confirmDelete() {
   await deletePost(deleteTarget.value)
 }
 
-function initials(name) {
-  const n = name || ''
-  const parts = n.trim().split(/\s+/).filter(Boolean)
-  const a = parts[0]?.[0] || 'U'
-  const b = parts[1]?.[0] || ''
-  return (a + b).toUpperCase()
-}
-
 function fmt(iso) {
   return formatRelativeShort(iso)
 }
@@ -1156,18 +1058,6 @@ function attachmentDownloadSrc(p) {
   return origin + '/' + u
 }
 
-function avatarSrc(url) {
-  const u = url || ''
-  if (!u) return ''
-  if (/^https?:\/\//i.test(u)) return u
-
-  const base = api?.defaults?.baseURL || ''
-  const origin = base.replace(/\/api\/?$/, '')
-
-  if (u.startsWith('/')) return origin + u
-  return origin + '/' + u
-}
-
 function isImage(p) {
   const mime = p?.attachment_mime || ''
   if (typeof mime === 'string' && mime.startsWith('image/')) return true
@@ -1179,6 +1069,32 @@ function isImage(p) {
     name.endsWith('.png') ||
     name.endsWith('.gif') ||
     name.endsWith('.webp')
+  )
+}
+
+function attachmentMime(p) {
+  const mime = String(p?.attachment_mime || '')
+    .trim()
+    .toLowerCase()
+  if (mime !== '') return mime
+
+  const name = (p?.attachment_original_name || p?.attachment_url || '').toLowerCase()
+  if (name.endsWith('.mp4') || name.endsWith('.m4v')) return 'video/mp4'
+  if (name.endsWith('.webm')) return 'video/webm'
+  if (name.endsWith('.mov')) return 'video/quicktime'
+  return ''
+}
+
+function isVideo(p) {
+  const mime = attachmentMime(p)
+  if (mime.startsWith('video/')) return true
+
+  const name = (p?.attachment_original_name || p?.attachment_url || '').toLowerCase()
+  return (
+    name.endsWith('.mp4') ||
+    name.endsWith('.m4v') ||
+    name.endsWith('.webm') ||
+    name.endsWith('.mov')
   )
 }
 
@@ -1307,6 +1223,19 @@ async function load(reset = true, tab = activeTab.value) {
     })
     const payload = res.data || {}
     const rows = payload.data || []
+    avatarDebug('FeedList:load-response', {
+      tab,
+      url,
+      count: rows.length,
+      sampleUsers: rows.slice(0, 5).map((post) => ({
+        postId: post?.id ?? null,
+        userId: post?.user?.id ?? null,
+        username: post?.user?.username ?? null,
+        avatar_mode: post?.user?.avatar_mode ?? null,
+        avatar_path: post?.user?.avatar_path ?? null,
+        avatar_url: post?.user?.avatar_url ?? null,
+      })),
+    })
     bookmarks.hydrateFromPosts(rows)
 
     if (reset) state.items = rows
@@ -1765,20 +1694,8 @@ defineExpose({ load, prepend })
 }
 
 .avatar-fallback {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(
-    135deg,
-    var(--color-primary) 0%,
-    rgb(var(--color-primary-rgb) / 0.7) 100%
-  );
-  color: white;
-  font-weight: 700;
-  font-size: 14px;
+  --default-avatar-size: 40px;
+  display: block;
   border: 2px solid rgb(var(--color-text-secondary-rgb) / 0.2);
 }
 
@@ -2585,11 +2502,13 @@ defineExpose({ load, prepend })
     gap: 0.4rem;
   }
 
-  .avatar-image,
-  .avatar-fallback {
+  .avatar-image {
     width: 36px;
     height: 36px;
-    font-size: 13px;
+  }
+
+  .avatar-fallback {
+    --default-avatar-size: 36px;
   }
 
   .author-name {
@@ -2644,11 +2563,13 @@ defineExpose({ load, prepend })
     gap: 10px;
   }
 
-  .avatar-image,
-  .avatar-fallback {
+  .avatar-image {
     width: 40px;
     height: 40px;
-    font-size: 14px;
+  }
+
+  .avatar-fallback {
+    --default-avatar-size: 40px;
   }
 
   .author-name {

@@ -2,13 +2,6 @@
   <section class="adminHub">
     <div class="adminHub__bg" aria-hidden="true"></div>
 
-    <div class="adminHub__mainNav adminHub__mainNav--desktop">
-      <!-- Match both desktop rails so admin pages stay visually centered without the standard widget sidebar. -->
-      <div class="adminHub__sticky">
-        <MainNavbar />
-      </div>
-    </div>
-
     <div class="adminHub__subNav adminHub__subNav--mobile">
       <AdminSubNav />
     </div>
@@ -45,7 +38,6 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import AdminSubNav from '@/components/admin/AdminSubNav.vue'
-import MainNavbar from '@/components/MainNavbar.vue'
 import { getAdminAiConfig } from '@/services/api/admin/ai'
 
 const aiStatus = ref('idle')
@@ -144,8 +136,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .adminHub {
-  --admin-rail-width: clamp(15rem, 22vw, 22rem);
-  --admin-main-nav-width: 16rem;
+  --admin-rail-width: clamp(14rem, 19vw, 18.5rem);
+  --admin-sub-nav-width: clamp(13.5rem, 16vw, 15.5rem);
+  --admin-center-max: 1200px;
   position: relative;
   display: grid;
   gap: 18px;
@@ -165,6 +158,9 @@ onBeforeUnmount(() => {
 
 .adminHub__center {
   min-width: 0;
+  width: 100%;
+  max-width: var(--admin-center-max);
+  margin-inline: auto;
 }
 
 .adminHub__statusWrap {
@@ -193,18 +189,6 @@ onBeforeUnmount(() => {
   color: rgb(var(--color-text-secondary-rgb) / 0.8);
 }
 
-.adminHub__mainNav {
-  min-width: 0;
-}
-
-.adminHub__mainNav--desktop {
-  display: none;
-}
-
-.adminHub__mainNav .adminHub__sticky {
-  width: min(100%, var(--admin-main-nav-width));
-}
-
 .adminHub__contentCard {
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -231,9 +215,8 @@ onBeforeUnmount(() => {
 @media (min-width: 901px) {
   .adminHub {
     grid-template-columns:
-      minmax(var(--admin-main-nav-width), var(--admin-rail-width))
       minmax(0, 1fr)
-      minmax(var(--admin-main-nav-width), var(--admin-rail-width));
+      minmax(var(--admin-sub-nav-width), var(--admin-rail-width));
     align-items: start;
   }
 
@@ -245,21 +228,8 @@ onBeforeUnmount(() => {
     display: block;
   }
 
-  .adminHub__mainNav--desktop {
-    display: block;
-  }
-
-  .adminHub__mainNav {
-    justify-self: stretch;
-  }
-
-  .adminHub__mainNav .adminHub__sticky {
-    margin-left: auto;
-  }
-
   .adminHub__center {
-    width: 100%;
-    margin-inline: auto;
+    max-width: var(--admin-center-max);
   }
 }
 

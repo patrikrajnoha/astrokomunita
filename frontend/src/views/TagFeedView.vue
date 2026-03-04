@@ -36,14 +36,7 @@
         >
           <div class="postLeft">
             <button class="avatar profileLink" type="button" @click.stop="openProfile(p)">
-              <img
-                v-if="p?.user?.avatar_url"
-                class="avatarImg"
-                :src="avatarSrc(p?.user?.avatar_url)"
-                :alt="p?.user?.name || 'avatar'"
-                loading="lazy"
-              />
-              <span v-else>{{ initials(p?.user?.name) }}</span>
+              <UserAvatar class="avatarImg" :user="p?.user" :alt="p?.user?.name || 'avatar'" />
             </button>
           </div>
 
@@ -158,6 +151,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import UserAvatar from '@/components/UserAvatar.vue'
 import HashtagText from '@/components/HashtagText.vue'
 import PollCard from '@/components/PollCard.vue'
 import api from '@/services/api'
@@ -257,14 +251,6 @@ async function toggleLike(post) {
   }
 }
 
-function initials(name) {
-  const n = name || ''
-  const parts = n.trim().split(/\s+/).filter(Boolean)
-  const a = parts[0]?.[0] || 'U'
-  const b = parts[1]?.[0] || ''
-  return (a + b).toUpperCase()
-}
-
 function fmt(iso) {
   if (!iso) return ''
   try {
@@ -276,18 +262,6 @@ function fmt(iso) {
 
 function attachmentSrc(p) {
   const u = p?.attachment_url
-  if (!u) return ''
-  if (/^https?:\/\//i.test(u)) return u
-
-  const base = api?.defaults?.baseURL || ''
-  const origin = base.replace(/\/api\/?$/, '')
-
-  if (u.startsWith('/')) return origin + u
-  return origin + '/' + u
-}
-
-function avatarSrc(url) {
-  const u = url || ''
   if (!u) return ''
   if (/^https?:\/\//i.test(u)) return u
 

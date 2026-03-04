@@ -22,7 +22,7 @@
         <article class="postCard">
           <div class="postLeft">
             <button class="avatar profileLink" type="button" @click="openProfile(root?.user)">
-              <span>{{ initials(root?.user?.name) }}</span>
+              <UserAvatar class="avatarFallback" :user="root?.user" :alt="root?.user?.name || 'avatar'" />
             </button>
           </div>
 
@@ -140,46 +140,28 @@
               </a>
             </div>
 
-            <div class="postActions">
-              <button class="replyBtn" type="button" @click="focusReplyComposer">
-                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-                </svg>
-                <span>Komentare {{ Number(root?.replies_count ?? repliesCount) }}</span>
-              </button>
-              <button class="replyBtn" type="button" :disabled="isLikeLoading(root)" @click="toggleLike(root)">
-                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" :fill="root?.liked_by_me ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                </svg>
-                <span>{{ root?.liked_by_me ? 'Unlike' : 'Like' }} {{ Number(root?.likes_count ?? 0) }}</span>
-              </button>
-              <button class="replyBtn" type="button" :disabled="isBookmarkLoading(root)" @click="toggleBookmark(root)">
-                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-                </svg>
-                <span>{{ root?.is_bookmarked ? 'Unsave' : 'Save' }}</span>
-              </button>
-              <button class="replyBtn" type="button" @click="openShareModal(root)">
-                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                  <polyline points="16 6 12 2 8 6"/>
-                  <line x1="12" y1="2" x2="12" y2="15"/>
-                </svg>
-                <span>Share</span>
-              </button>
-              <button class="replyBtn" type="button" @click="openReport(root)">
-                <svg class="btnIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 4h12l-2 4 2 4H4z"/>
-                  <line x1="4" y1="4" x2="4" y2="21"/>
-                </svg>
-                <span>Report</span>
-              </button>
-            </div>
+            <PostActionBar
+              v-if="root"
+              :item="root"
+              :reply-count="Number(root?.replies_count ?? repliesCount)"
+              :like-count="Number(root?.likes_count ?? 0)"
+              :like-loading="isLikeLoading(root)"
+              :bookmark-loading="isBookmarkLoading(root)"
+              :like-bump="likeBumpId === root.id"
+              :is-authed="auth.isAuthed"
+              :menu-items="menuItemsForPost(root)"
+              @reply="focusReplyComposer"
+              @like="toggleLike(root)"
+              @bookmark="toggleBookmark(root)"
+              @share="openShareModal(root)"
+              @menu-select="(item) => onMenuAction(item, root)"
+            />
           </div>
         </article>
 
         <div class="composerWrap">
           <ReplyComposer
+            ref="rootComposerRef"
             v-if="root?.id"
             :parent-id="root.id"
             @created="onReplyCreated"
@@ -187,16 +169,25 @@
         </div>
 
         <!-- REPLIES -->
-        <div class="replies">
+        <div id="replies" class="replies">
           <div class="repliesHead">
-            <div class="repliesTitle">Replies</div>
-            <div class="repliesSub">
-              Replies: {{ repliesCount }}
+            <div class="repliesHeading">
+              <div class="repliesTitle">Replies</div>
+              <div class="repliesSub">
+                {{ repliesCountLabel }}
+              </div>
             </div>
+            <button class="replyBtn repliesCtaBtn" type="button" @click="focusReplyComposer">
+              Napis reply
+            </button>
           </div>
 
           <div v-if="replies.length === 0" class="repliesEmpty">
-            Zatial bez reply.
+            <p class="repliesEmptyTitle">Zatial bez reply.</p>
+            <p class="repliesEmptyText">Bud prvy, kto odpovie na tento post.</p>
+            <button class="replyBtn repliesEmptyBtn" type="button" @click="focusReplyComposer">
+              Pridat reply
+            </button>
           </div>
 
           <div v-else class="replyList">
@@ -204,10 +195,12 @@
               v-for="r in replies"
               :key="r.id"
               class="replyCard"
+              :class="{ replyCardNew: Number(highlightReplyId) === Number(r.id) }"
+              :data-reply-id="r.id"
             >
               <div class="replyLeft">
                 <button class="avatar avatarSm profileLink" type="button" @click="openProfile(r?.user)">
-                  <span>{{ initials(r?.user?.name) }}</span>
+                  <UserAvatar class="avatarFallback" :user="r?.user" :alt="r?.user?.name || 'avatar'" />
                 </button>
               </div>
 
@@ -301,12 +294,12 @@
                     type="button"
                     @click="toggleReplyComposer(r.id)"
                   >
-                    Reply
+                    {{ activeReplyId === r.id ? 'Zavriet' : 'Odpovedat' }}
                   </button>
                 </div>
 
                 <div v-if="activeReplyId === r.id" class="composerWrapSm">
-                  <ReplyComposer :parent-id="r.id" @created="onReplyCreated" />
+                  <ReplyComposer :parent-id="r.id" compact autofocus @created="onReplyCreated" />
                 </div>
 
                 <div v-if="r.replies && r.replies.length" class="replyChildren">
@@ -314,10 +307,12 @@
                     v-for="c in r.replies"
                     :key="c.id"
                     class="replyCard replyCardChild"
+                    :class="{ replyCardNew: Number(highlightReplyId) === Number(c.id) }"
+                    :data-reply-id="c.id"
                   >
                     <div class="replyLeft">
                       <button class="avatar avatarSm profileLink" type="button" @click="openProfile(c?.user)">
-                        <span>{{ initials(c?.user?.name) }}</span>
+                        <UserAvatar class="avatarFallback" :user="c?.user" :alt="c?.user?.name || 'avatar'" />
                       </button>
                     </div>
 
@@ -440,10 +435,12 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HashtagText from '@/components/HashtagText.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import PollCard from '@/components/PollCard.vue'
+import PostActionBar from '@/components/PostActionBar.vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
 import ShareModal from '@/components/share/ShareModal.vue'
 import api from '@/services/api'
@@ -465,6 +462,8 @@ const post = ref(null)
 const root = ref(null)
 const replies = ref([])
 const activeReplyId = ref(null)
+const rootComposerRef = ref(null)
+const highlightReplyId = ref(null)
 
 const loading = ref(true)
 const error = ref('')
@@ -476,22 +475,16 @@ const editingPostId = ref(null)
 const editContentDraft = ref('')
 const editSavingId = ref(null)
 const likeLoadingIds = ref(new Set())
+const likeBumpId = ref(null)
 const shareTarget = ref(null)
 const lastTrackedViewKey = ref('')
 let viewAnimationFrame = null
+let highlightReplyTimer = null
 
 function openProfile(user) {
   const username = user?.username
   if (!username) return
   router.push(`/u/${username}`)
-}
-
-function initials(name) {
-  const n = name || ''
-  const parts = n.trim().split(/\s+/).filter(Boolean)
-  const a = parts[0]?.[0] || 'U'
-  const b = parts[1]?.[0] || ''
-  return (a + b).toUpperCase()
 }
 
 function fmt(iso) {
@@ -616,6 +609,33 @@ function normalizeAbsoluteUrl(url) {
   return origin + '/' + value
 }
 
+function clearReplyHighlightTimer() {
+  if (highlightReplyTimer !== null) {
+    window.clearTimeout(highlightReplyTimer)
+    highlightReplyTimer = null
+  }
+}
+
+function highlightReply(replyId) {
+  highlightReplyId.value = replyId
+  clearReplyHighlightTimer()
+  highlightReplyTimer = window.setTimeout(() => {
+    if (Number(highlightReplyId.value) === Number(replyId)) {
+      highlightReplyId.value = null
+    }
+    highlightReplyTimer = null
+  }, 2400)
+}
+
+function scrollReplyIntoView(replyId) {
+  nextTick(() => {
+    const node = document.querySelector(`[data-reply-id="${replyId}"]`)
+    if (node instanceof HTMLElement) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  })
+}
+
 function onReplyCreated(newReply) {
   if (!newReply?.id) return
 
@@ -642,6 +662,8 @@ function onReplyCreated(newReply) {
     root.value.replies_count = Number.isFinite(curr) ? curr + 1 : replies.value.length
   }
 
+  highlightReply(newReply.id)
+  scrollReplyIntoView(newReply.id)
   activeReplyId.value = null
 }
 
@@ -650,8 +672,10 @@ function toggleReplyComposer(id) {
 }
 
 function focusReplyComposer() {
-  if (!root.value?.id) return
-  activeReplyId.value = root.value.id
+  activeReplyId.value = null
+  nextTick(() => {
+    rootComposerRef.value?.focusInput?.()
+  })
 }
 
 function isLikeLoading(item) {
@@ -663,6 +687,13 @@ function setLikeLoading(id, on) {
   if (on) next.add(id)
   else next.delete(id)
   likeLoadingIds.value = next
+}
+
+function bumpLike(id) {
+  likeBumpId.value = id
+  window.setTimeout(() => {
+    if (likeBumpId.value === id) likeBumpId.value = null
+  }, 220)
 }
 
 function isBookmarkLoading(item) {
@@ -682,6 +713,7 @@ async function toggleLike(item) {
 
   item.liked_by_me = !prevLiked
   item.likes_count = Math.max(0, prevCount + (prevLiked ? -1 : 1))
+  bumpLike(item.id)
   setLikeLoading(item.id, true)
 
   try {
@@ -993,6 +1025,9 @@ async function loadPost() {
   post.value = null
   root.value = null
   replies.value = []
+  activeReplyId.value = null
+  highlightReplyId.value = null
+  clearReplyHighlightTimer()
 
   try {
     const res = await api.get(`/posts/${route.params.id}`)
@@ -1041,6 +1076,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopViewAnimation()
+  clearReplyHighlightTimer()
 })
 
 watch(
@@ -1054,6 +1090,12 @@ const repliesCount = computed(() => {
     return acc + 1 + childCount
   }, 0)
 })
+
+const repliesCountLabel = computed(() => {
+  const count = Number(repliesCount.value || 0)
+  if (count === 1) return '1 reply'
+  return `${count} replies`
+})
 </script>
 
 <style scoped>
@@ -1065,7 +1107,7 @@ const repliesCount = computed(() => {
 }
 
 .card {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.75);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
   border-radius: 1.6rem;
   background: rgb(var(--color-bg-rgb) / 0.55);
   padding: clamp(0.85rem, 1.8vw, 1.15rem);
@@ -1106,9 +1148,8 @@ const repliesCount = computed(() => {
   grid-template-columns: 52px 1fr;
   gap: 0.85rem;
   padding: 0.95rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
   border-radius: 1.35rem;
-  background: rgb(var(--color-bg-rgb) / 0.25);
+  background: rgb(var(--color-bg-rgb) / 0.2);
   min-width: 0;
   align-items: start;
 }
@@ -1123,13 +1164,26 @@ const repliesCount = computed(() => {
   width: 48px;
   height: 48px;
   border-radius: 999px;
-  display: grid;
-  place-items: center;
   border: 1px solid rgb(var(--color-primary-rgb) / 0.6);
-  background: rgb(var(--color-primary-rgb) / 0.12);
-  color: var(--color-surface);
-  font-weight: 950;
-  font-size: 0.95rem;
+  background: transparent;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.avatarImg,
+.avatarFallback {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  display: block;
+}
+
+.avatarImg {
+  object-fit: cover;
+}
+
+.avatarFallback {
+  --default-avatar-size: 100%;
 }
 .profileLink {
   border: 0;
@@ -1322,21 +1376,26 @@ const repliesCount = computed(() => {
 
 /* composer wrap */
 .composerWrap {
-  margin-top: 0.9rem;
+  margin-top: 1.25rem;
 }
 
 /* Replies section */
 .replies {
-  margin-top: 1.15rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
+  margin-top: 1.55rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
 }
 .repliesHead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.2rem 0.25rem 0.75rem;
+  gap: 0.7rem;
+  padding: 0.1rem 0.25rem 0.55rem;
+}
+.repliesHeading {
+  display: grid;
+  gap: 0.26rem;
+  min-width: 0;
 }
 .repliesTitle {
   color: var(--color-surface);
@@ -1346,24 +1405,45 @@ const repliesCount = computed(() => {
 }
 .repliesSub {
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
-  font-size: 0.82rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  font-size: 0.78rem;
+  font-weight: 800;
   border-radius: 999px;
-  padding: 0.2rem 0.55rem;
-  background: rgb(var(--color-bg-rgb) / 0.3);
+  padding: 0.18rem 0.55rem;
+  background: rgb(var(--color-bg-rgb) / 0.22);
+  width: fit-content;
+}
+.repliesCtaBtn {
+  flex-shrink: 0;
 }
 
 .repliesEmpty {
-  padding: 0.85rem 0.45rem 0.35rem;
+  padding: 0.85rem;
+  border-radius: 1rem;
+  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.4);
+  background: rgb(var(--color-bg-rgb) / 0.15);
   color: var(--color-text-secondary);
-  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.3);
-  border-radius: 0.9rem;
-  background: rgb(var(--color-bg-rgb) / 0.18);
+  display: grid;
+  gap: 0.45rem;
+  justify-items: start;
+}
+.repliesEmptyTitle,
+.repliesEmptyText {
+  margin: 0;
+}
+.repliesEmptyTitle {
+  color: var(--color-surface);
+  font-weight: 800;
+}
+.repliesEmptyText {
+  font-size: 0.88rem;
+}
+.repliesEmptyBtn {
+  margin-top: 0.08rem;
 }
 
 .replyList {
   display: grid;
-  gap: 0.72rem;
+  gap: 1rem;
   padding: 0 0.15rem 0.35rem;
 }
 .replyCard {
@@ -1371,21 +1451,26 @@ const repliesCount = computed(() => {
   grid-template-columns: 44px 1fr;
   gap: 0.78rem;
   padding: 0.85rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
   border-radius: 1.15rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
   background:
-    radial-gradient(circle at 0% 0%, rgb(var(--color-primary-rgb) / 0.1), transparent 36%),
-    rgb(var(--color-bg-rgb) / 0.24);
+    radial-gradient(circle at 0% 0%, rgb(var(--color-primary-rgb) / 0.08), transparent 36%),
+    rgb(var(--color-bg-rgb) / 0.16);
   min-width: 0;
   align-items: start;
-  transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 .replyCard:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.36);
   transform: translateY(-1px);
+  border-color: rgb(var(--color-primary-rgb) / 0.35);
   background:
-    radial-gradient(circle at 0% 0%, rgb(var(--color-primary-rgb) / 0.14), transparent 40%),
-    rgb(var(--color-bg-rgb) / 0.3);
+    radial-gradient(circle at 0% 0%, rgb(var(--color-primary-rgb) / 0.12), transparent 40%),
+    rgb(var(--color-bg-rgb) / 0.22);
+}
+.replyCardNew {
+  border-color: rgb(var(--color-primary-rgb) / 0.58);
+  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.16);
+  animation: replyFlash 1.3s ease;
 }
 .replyChildren {
   position: relative;
@@ -1409,10 +1494,18 @@ const repliesCount = computed(() => {
   );
 }
 .replyCardChild {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.22);
   background:
-    linear-gradient(145deg, rgb(var(--color-bg-rgb) / 0.22), rgb(var(--color-bg-rgb) / 0.14));
+    linear-gradient(145deg, rgb(var(--color-bg-rgb) / 0.18), rgb(var(--color-bg-rgb) / 0.1));
   border-radius: 1rem;
+}
+
+@keyframes replyFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0);
+  }
 }
 
 .avatarSm {
@@ -1457,12 +1550,6 @@ const repliesCount = computed(() => {
   display: flex;
   gap: 0.45rem;
   flex-wrap: wrap;
-}
-.postActions {
-  margin-top: 0.5rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
 }
 .reportNotice {
   margin-top: 0.75rem;
@@ -1544,9 +1631,6 @@ const repliesCount = computed(() => {
   gap: 0.35rem;
   transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
 }
-.btnIcon {
-  flex: 0 0 auto;
-}
 .replyBtn:hover {
   border-color: rgb(var(--color-primary-rgb) / 0.72);
   color: var(--color-surface);
@@ -1585,6 +1669,10 @@ const repliesCount = computed(() => {
     gap: 0.35rem;
   }
 
+  .repliesHead {
+    align-items: flex-start;
+  }
+
   .reportActions {
     justify-content: flex-start;
   }
@@ -1609,6 +1697,16 @@ const repliesCount = computed(() => {
   .fileCardSm {
     padding: 0.62rem;
   }
+
+  .repliesHead {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .repliesCtaBtn,
+  .repliesEmptyBtn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 </style>
-

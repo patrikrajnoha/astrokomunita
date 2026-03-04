@@ -114,11 +114,12 @@
           @mousedown.prevent="selectSuggestion(item)"
           @mousemove="activeIndex = index"
         >
-          <img
-            v-if="item.avatarUrl"
-            :src="item.avatarUrl"
-            :alt="item.title"
+          <UserAvatar
+            v-if="item.kind === 'user'"
             class="h-8 w-8 shrink-0 rounded-full object-cover"
+            :user="item.user"
+            :size="32"
+            :alt="item.title"
           />
           <div v-else class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[color:rgb(var(--color-primary-rgb)/0.22)] text-[var(--color-primary)]">
             <svg v-if="item.kind === 'post'" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,6 +142,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import api from '@/services/api'
 
 const props = defineProps({
@@ -203,15 +205,6 @@ const cancelInFlight = () => {
   requestController = null
 }
 
-const toAvatarUrl = (candidate) => {
-  const avatarUrl = candidate?.avatar_url || ''
-  if (avatarUrl) return avatarUrl
-  if (candidate?.name) {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(candidate.name)}&background=0f172a&color=fff&size=80`
-  }
-  return ''
-}
-
 const mapUserSuggestions = (payload) => {
   const items = Array.isArray(payload?.data) ? payload.data : []
   return items.slice(0, 8).map((user) => ({
@@ -220,7 +213,7 @@ const mapUserSuggestions = (payload) => {
     title: user.name || `@${user.username || ''}`,
     subtitle: `@${user.username || ''}`,
     queryValue: user.username || '',
-    avatarUrl: toAvatarUrl(user),
+    user,
   }))
 }
 
@@ -238,7 +231,6 @@ const mapPostSuggestions = (payload) => {
       title: snippet,
       subtitle: authorHandle ? `${authorName} • ${authorHandle}` : authorName,
       queryValue: snippet,
-      avatarUrl: '',
     }
   })
 }

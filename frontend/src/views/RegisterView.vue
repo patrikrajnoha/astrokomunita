@@ -358,7 +358,7 @@ const submit = async () => {
         }
       }
 
-      await router.push({ name: 'settings', query: { section: 'email', redirect: redirect.value } })
+      await router.push({ name: 'settings.email', query: { redirect: redirect.value } })
       return
     }
     await router.push(redirect.value)

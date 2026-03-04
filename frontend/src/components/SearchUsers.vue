@@ -66,10 +66,11 @@
               @click="clearSearch"
             >
               <div class="relative">
-                <img
-                  :src="user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random&size=40`"
-                  :alt="user.name"
+                <UserAvatar
                   class="h-12 w-12 rounded-full object-cover ring-2 ring-slate-200 dark:ring-slate-600 group-hover:ring-blue-500 transition-all duration-200"
+                  :user="user"
+                  :size="48"
+                  :alt="user.name || 'avatar'"
                 />
                 <div class="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 rounded-full border-2 border-white dark:border-slate-800"></div>
               </div>
@@ -124,6 +125,7 @@
 <script setup>
 import { ref, onUnmounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import UserAvatar from '@/components/UserAvatar.vue'
 import api from '@/services/api'
 
 const props = defineProps({
@@ -185,5 +187,6 @@ const clearSearch = () => {
   searchQuery.value = ''
   users.value = []
 }
+
 </script>
 

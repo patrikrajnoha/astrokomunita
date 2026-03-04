@@ -22,8 +22,7 @@ const router = useRouter()
 
 function goToSettingsEmail() {
   router.push({
-    name: 'settings',
-    query: { section: 'email' },
+    name: 'settings.email',
   })
 }
 </script>

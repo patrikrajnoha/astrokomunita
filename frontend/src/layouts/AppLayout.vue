@@ -4,11 +4,11 @@
     :style="appShellStyle"
   >
     <header
-      class="sticky top-0 z-40 flex items-center justify-between border-b border-[var(--border)] bg-[color:rgb(var(--bg-app-rgb)/0.92)] px-4 py-3 backdrop-blur md:hidden"
+      class="appMobileHeader sticky top-0 z-40 flex items-center justify-between border-b border-[var(--border)] bg-[color:rgb(var(--bg-app-rgb)/0.92)] px-4 backdrop-blur md:hidden"
     >
       <button
         type="button"
-        class="ui-pill ui-pill--secondary ui-pill--icon"
+        class="appMobileHeader__menuBtn ui-pill ui-pill--secondary ui-pill--icon"
         aria-label="Open navigation"
         @click="openDrawer"
       >
@@ -17,26 +17,10 @@
 
       <RouterLink
         to="/"
-        class="inline-flex items-center gap-2 text-base font-semibold text-[var(--color-surface)]"
+        class="appMobileHeader__logoLink inline-flex items-center text-base font-semibold text-[var(--color-surface)]"
         aria-label="Home"
       >
-        <span
-          class="grid h-9 w-9 place-items-center rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-gradient-to-br from-[color:rgb(var(--color-primary-rgb)/0.3)] via-[color:rgb(var(--color-bg-rgb)/0.4)] to-[color:rgb(var(--color-primary-rgb)/0.2)] text-base shadow-lg"
-          aria-hidden="true"
-        >
-          🌌
-        </span>
-        <Transition name="brand-fade" mode="out-in">
-          <TypingText
-            v-if="showBrandGreeting"
-            :text="brandGreetingText"
-            :speed-ms="56"
-            :start-delay-ms="150"
-            class="brandLabel font-bold"
-            @done="onBrandGreetingDone"
-          />
-          <span v-else class="brandLabel">Astrokomunita</span>
-        </Transition>
+        <img src="/logo.png" alt="Astrokomunita" class="appMobileHeader__logo object-contain" />
       </RouterLink>
 
       <span class="h-10 w-10" aria-hidden="true"></span>
@@ -123,12 +107,12 @@
           <div
             data-testid="right-rail"
             :class="[
-              'rightRail h-screen w-[22rem] overflow-y-auto bg-[var(--bg-app)] px-5 py-6 xl:sticky xl:top-0',
+              'rightRail h-screen w-[22rem] overflow-y-auto bg-[var(--bg-app)] px-4 py-4 xl:sticky xl:top-0',
               isHomeFeedRoute ? '' : 'border-l border-[var(--border)]',
             ]"
           >
             <div class="rightRail__inner">
-              <div class="rightRail__content">
+              <div class="rightRail__content sidebar-dense">
                 <DynamicSidebar
                   v-if="!showDirectObservingSidebar"
                   :observing-lat="observingLat"
@@ -222,23 +206,7 @@
             aria-label="Home"
             @click="closeDrawer"
           >
-            <span
-              class="grid h-9 w-9 place-items-center rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-gradient-to-br from-[color:rgb(var(--color-primary-rgb)/0.3)] via-[color:rgb(var(--color-bg-rgb)/0.4)] to-[color:rgb(var(--color-primary-rgb)/0.2)] text-base shadow-lg"
-              aria-hidden="true"
-            >
-              🌌
-            </span>
-            <Transition name="brand-fade" mode="out-in">
-              <TypingText
-                v-if="showBrandGreeting"
-                :text="brandGreetingText"
-                :speed-ms="56"
-                :start-delay-ms="150"
-                class="brandLabel font-bold"
-                @done="onBrandGreetingDone"
-              />
-              <span v-else class="brandLabel">Astrokomunita</span>
-            </Transition>
+            <img src="/logo.png" alt="Astrokomunita" class="h-8 w-auto max-w-[9rem] object-contain" />
           </RouterLink>
 
           <button
@@ -252,7 +220,7 @@
         </div>
 
         <div class="mt-6">
-          <MainNavbar />
+          <MainNavbar :show-brand-logo="false" />
         </div>
       </aside>
     </transition>
@@ -489,7 +457,6 @@ import CreatePostModal from '@/components/CreatePostModal.vue'
 import MobileFab from '@/components/MobileFab.vue'
 import MobileBottomNav from '@/components/nav/MobileBottomNav.vue'
 import GuestBottomCTA from '@/components/GuestBottomCTA.vue'
-import TypingText from '@/components/TypingText.vue'
 import { SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
 import MarkYourCalendarModal from '@/components/MarkYourCalendarModal.vue'
 import OnboardingTour from '@/components/onboarding/OnboardingTour.vue'
@@ -529,11 +496,8 @@ const widgetSheetOffsetY = ref(0)
 const widgetMenuOffsetY = ref(0)
 const touchStartY = ref(0)
 const touchMode = ref('')
-const showBrandGreeting = ref(false)
-const brandGreetingText = ref('')
 const lastWidgetStorageKey = 'mobile_sidebar_last_widget'
 const lastWidgetKey = ref('')
-let brandGreetingHideTimer = null
 const calendarPopupSessionChecked = ref(false)
 const isCalendarPopupVisible = ref(false)
 const calendarPopupPayload = ref(null)
@@ -552,14 +516,14 @@ const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.pat
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
 const showDirectObservingSidebar = computed(() => {
   return (
-    currentSidebarScope.value === SIDEBAR_SCOPE.SKY ||
     currentSidebarScope.value === SIDEBAR_SCOPE.OBSERVING
   )
 })
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
 const isProfileRoute = computed(() => String(route.path || '').startsWith('/profile'))
+const isSearchRoute = computed(() => route.name === 'search')
 const isHomeFeedRoute = computed(() => route.name === 'home')
-const showDesktopMainSidebar = computed(() => !isAdminRoute.value)
+const showDesktopMainSidebar = computed(() => true)
 const isLayoutDebugEnabled = computed(() => {
   return import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_LAYOUT || '') === 'true'
 })
@@ -571,22 +535,15 @@ const desktopFrameClass = computed(() => {
   return 'desktopFrame mx-auto w-full max-w-[1500px] xl:grid'
 })
 const centerShellClass = computed(() => {
-  if (isAdminRoute.value) {
-    return 'adminCenterShell mx-auto w-full'
-  }
-
   return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:gap-1 2xl:gap-2'
 })
 const centerShellColumns = computed(() => {
-  if (isAdminRoute.value) return null
+  if (isAdminRoute.value) return '16rem minmax(0, 1fr)'
+  if (isSearchRoute.value) return '16rem minmax(600px, 920px)'
 
   return '16rem minmax(600px, 640px)'
 })
 const centerShellStyle = computed(() => {
-  if (isAdminRoute.value) {
-    return null
-  }
-
   return {
     '--center-shell-cols': centerShellColumns.value,
     outline: isLayoutDebugEnabled.value
@@ -601,6 +558,10 @@ const mainContentClass = computed(() => {
 
   if (isProfileRoute.value) {
     return 'mx-auto w-full max-w-[620px]'
+  }
+
+  if (isSearchRoute.value) {
+    return 'mx-auto w-full max-w-[920px]'
   }
 
   return 'mx-auto w-full max-w-[640px]'
@@ -1016,32 +977,6 @@ const onSheetTouchEnd = (mode) => {
   touchMode.value = ''
 }
 
-const clearBrandGreetingTimer = () => {
-  if (brandGreetingHideTimer !== null) {
-    window.clearTimeout(brandGreetingHideTimer)
-    brandGreetingHideTimer = null
-  }
-}
-
-const hideBrandGreetingNow = () => {
-  clearBrandGreetingTimer()
-  showBrandGreeting.value = false
-  brandGreetingText.value = ''
-}
-
-const onBrandGreetingDone = () => {
-  clearBrandGreetingTimer()
-  brandGreetingHideTimer = window.setTimeout(() => {
-    showBrandGreeting.value = false
-  }, 2500)
-}
-
-const userGreetingName = (user) => {
-  const fromName = parseStringValue(user?.name)
-  if (fromName) return fromName
-  return parseStringValue(user?.username) || ''
-}
-
 watch(
   () => currentSidebarScope.value,
   async () => {
@@ -1075,7 +1010,6 @@ watch(
   () => auth.user,
   (nextUser) => {
     if (!nextUser) {
-      hideBrandGreetingNow()
       onboardingTour.closeTour()
       calendarPopupSessionChecked.value = false
       isCalendarPopupVisible.value = false
@@ -1154,26 +1088,6 @@ watch(
   { immediate: true },
 )
 
-watch(
-  () => auth.loginSequence,
-  (next, prev) => {
-    if (!Number.isFinite(next) || next <= 0) return
-    if (typeof prev === 'number' && next <= prev) return
-    if (!auth.user) return
-
-    const name = userGreetingName(auth.user)
-    if (!name) {
-      hideBrandGreetingNow()
-      return
-    }
-
-    clearBrandGreetingTimer()
-    brandGreetingText.value = `Ahoj ${name}! \u{1F44B}`
-    showBrandGreeting.value = true
-  },
-  { immediate: true },
-)
-
 onMounted(() => {
   updateViewportState()
   if (typeof window !== 'undefined') {
@@ -1197,11 +1111,39 @@ onBeforeUnmount(() => {
   window.removeEventListener('appinstalled', handleInstalled)
   window.removeEventListener('resize', updateViewportState)
   notifications.stopRealtime({ disconnect: true })
-  clearBrandGreetingTimer()
 })
 </script>
 
 <style scoped>
+.appMobileHeader {
+  height: 56px;
+  position: relative;
+}
+
+.appMobileHeader__menuBtn {
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.appMobileHeader__logoLink {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: calc(100% - 120px);
+}
+
+.appMobileHeader__logo {
+  height: 32px;
+  width: auto;
+  max-width: 180px;
+}
+
 .installBtn {
   position: fixed;
   right: 1rem;
@@ -1227,22 +1169,6 @@ onBeforeUnmount(() => {
 .authFallbackBanner.is-danger {
   border-color: var(--primary-active);
   background: rgb(var(--primary-active-rgb) / 0.14);
-}
-
-.brandLabel {
-  display: inline-block;
-  min-height: 1.2rem;
-  white-space: nowrap;
-}
-
-.brand-fade-enter-active,
-.brand-fade-leave-active {
-  transition: opacity 0.18s ease;
-}
-
-.brand-fade-enter-from,
-.brand-fade-leave-to {
-  opacity: 0;
 }
 
 .sheetOverlay {
@@ -1384,6 +1310,12 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
+.sidebar-dense {
+  --sb-gap-xs: 0.3rem;
+  --sb-gap-sm: 0.5rem;
+  --sb-gap-md: 0.75rem;
+}
+
 .rightSidebarFooterLinks {
   margin-top: auto;
   padding-top: 1rem;
@@ -1416,6 +1348,19 @@ onBeforeUnmount(() => {
 .rightSidebarFooterLinks__item.router-link-active {
   color: var(--text-primary);
   background: rgb(var(--bg-app-rgb) / 0.44);
+}
+
+@media (max-width: 640px) {
+  .appMobileHeader__logo {
+    height: clamp(24px, 6vw, 30px);
+    max-width: 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .appMobileHeader__logo {
+    max-width: 160px;
+  }
 }
 
 @media (min-width: 768px) {

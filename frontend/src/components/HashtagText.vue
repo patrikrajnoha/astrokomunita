@@ -67,15 +67,15 @@ const segments = computed(() => {
 }
 
 .hashtag-link {
-  color: var(--color-primary);
+  color: var(--hashtag-color, #3b82f6);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s ease, color 0.2s ease;
 }
 
 .hashtag-link:hover {
-  border-bottom-color: var(--color-primary);
-  color: rgb(var(--color-primary-rgb) / 0.85);
+  border-bottom-color: currentColor;
+  color: var(--hashtag-hover-color, #2563eb);
 }
 </style>

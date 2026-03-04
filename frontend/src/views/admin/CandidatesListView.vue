@@ -223,7 +223,10 @@ function sourceBadgeStyle(source) {
 }
 
 function openCandidate(id) {
-  router.push(`/admin/candidates/${id}`);
+  router.push({
+    name: 'admin.candidate.detail',
+    params: { id: String(id) },
+  });
 }
 
 function startPublishProgress(label, totalSteps = 1) {
@@ -539,7 +542,7 @@ async function retranslateByFilter() {
 }
 
 function openCrawlingHub() {
-  router.push('/admin/event-sources');
+  router.push({ name: 'admin.event-sources' });
 }
 
 function resetToFirstPage() {

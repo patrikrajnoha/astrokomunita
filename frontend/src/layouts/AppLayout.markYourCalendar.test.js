@@ -328,7 +328,8 @@ describe('AppLayout mark-your-calendar popup', () => {
     await flush()
 
     expect(wrapper.find('[data-testid="desktop-frame"]').classes()).toContain('adminDesktopFrame')
-    expect(wrapper.find('[data-testid="center-shell"]').classes()).toContain('adminCenterShell')
+    expect(wrapper.find('[data-testid="center-shell"]').classes()).toContain('centerShellGrid')
+    expect(wrapper.find('[data-testid="layout-left"]').exists()).toBe(true)
     expect(wrapper.find('main > div').classes()).toContain('adminMainContent')
     expect(wrapper.find('.adminHub').exists()).toBe(true)
     expect(wrapper.find('.adminHub__contentCard .admin-dashboard-stub').exists()).toBe(true)

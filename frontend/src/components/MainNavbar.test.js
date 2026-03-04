@@ -4,13 +4,15 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import { nextTick } from 'vue'
 import MainNavbar from '@/components/MainNavbar.vue'
 
+const authStore = vi.hoisted(() => ({
+  user: null,
+  isAuthed: false,
+  isAdmin: false,
+  logout: vi.fn(async () => {}),
+}))
+
 vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({
-    user: null,
-    isAuthed: false,
-    isAdmin: false,
-    logout: vi.fn(async () => {}),
-  }),
+  useAuthStore: () => authStore,
 }))
 
 vi.mock('@/stores/notifications', () => ({
@@ -27,9 +29,13 @@ const makeRouter = () =>
     history: createMemoryHistory(),
     routes: [
       { path: '/', name: 'home', component: { template: '<div>home</div>' } },
+      { path: '/search', name: 'search', component: { template: '<div>search</div>' } },
       { path: '/events', name: 'events', component: { template: '<div>events</div>' } },
       { path: '/events/:id', name: 'event-detail', component: { template: '<div>event</div>' } },
       { path: '/clanky', name: 'learn', component: { template: '<div>learn</div>' } },
+      { path: '/notifications', name: 'notifications', component: { template: '<div>notifications</div>' } },
+      { path: '/profile', name: 'profile', component: { template: '<div>profile</div>' } },
+      { path: '/settings', name: 'settings', component: { template: '<div>settings</div>' } },
       { path: '/learn', name: 'learn-legacy', component: { template: '<div>learn legacy</div>' } },
       { path: '/more', name: 'more', component: { template: '<div>more</div>' } },
       { path: '/login', name: 'login', component: { template: '<div>login</div>' } },
@@ -58,6 +64,9 @@ const mountNavbarAt = async (path) => {
 describe('MainNavbar active route state', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authStore.user = null
+    authStore.isAuthed = false
+    authStore.isAdmin = false
   })
 
   afterEach(() => {
@@ -92,5 +101,19 @@ describe('MainNavbar active route state', () => {
 
     expect(isHighlighted(homeLink.element)).toBe(true)
     expect(isHighlighted(eventsLink.element)).toBe(false)
+  })
+
+  it('hides Settings for unauthenticated users', async () => {
+    const wrapper = await mountNavbarAt('/')
+
+    expect(wrapper.find('.navScroll a[aria-label="Settings"]').exists()).toBe(false)
+  })
+
+  it('shows Settings for authenticated users', async () => {
+    authStore.isAuthed = true
+    authStore.user = { id: 1, name: 'Test User' }
+    const wrapper = await mountNavbarAt('/')
+
+    expect(wrapper.find('.navScroll a[aria-label="Settings"]').exists()).toBe(true)
   })
 })

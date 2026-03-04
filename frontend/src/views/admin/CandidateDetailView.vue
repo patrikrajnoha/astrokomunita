@@ -1,6 +1,7 @@
 ﻿<script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AdminSectionHeader from '@/components/admin/AdminSectionHeader.vue'
 import AdminAiActionPanel from '@/components/admin/shared/AdminAiActionPanel.vue'
 import { eventCandidates } from '@/services/eventCandidates'
 import { useConfirm } from '@/composables/useConfirm'
@@ -13,6 +14,10 @@ const { confirm } = useConfirm()
 const toast = useToast()
 
 const id = computed(() => Number(route.params.id))
+const candidateListRoute = computed(() => ({
+  name: 'admin.event-candidates',
+  query: { ...route.query },
+}))
 
 const loading = ref(false)
 const error = ref(null)
@@ -142,7 +147,7 @@ async function approve() {
   try {
     await eventCandidates.approve(candidate.value.id)
     toast.success('KandidĂˇt bol schvĂˇlenĂ˝.')
-    router.push('/admin/event-candidates')
+    router.push(candidateListRoute.value)
   } catch (fetchError) {
     error.value = fetchError?.response?.data?.message || 'SchvĂˇlenie zlyhalo'
     toast.error(error.value)
@@ -168,7 +173,7 @@ async function reject() {
   try {
     await eventCandidates.reject(candidate.value.id)
     toast.success('KandidĂˇt bol zamietnutĂ˝.')
-    router.push('/admin/event-candidates')
+    router.push(candidateListRoute.value)
   } catch (fetchError) {
     error.value = fetchError?.response?.data?.message || 'Zamietnutie zlyhalo'
     toast.error(error.value)
@@ -251,16 +256,16 @@ onMounted(load)
 
 <template>
   <div style="max-width: 940px; margin: 0 auto; padding: 24px 16px;">
+    <AdminSectionHeader
+      section="events"
+      :title="`Detail kandidata #${id}`"
+      back-label="Spat na kandidatov"
+      :back-to="{ name: 'admin.event-candidates' }"
+    />
+
     <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px;">
       <div>
-        <button
-          @click="router.back()"
-          style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-        >
-          &larr; Spat
-        </button>
-
-        <h1 style="margin:12px 0 6px;">KandidĂˇt #{{ id }}</h1>
+        <h1 style="margin:0 0 6px;">KandidĂˇt #{{ id }}</h1>
         <div v-if="candidate" style="opacity:.8; font-size: 14px;">
           {{ candidateDisplayTitle(candidate) }}
         </div>

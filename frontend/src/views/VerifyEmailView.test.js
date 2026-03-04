@@ -10,6 +10,7 @@ function makeRouter() {
       { path: '/verify-email', component: VerifyEmailView },
       { path: '/verify-email/:id/:hash', component: VerifyEmailView },
       { path: '/settings', name: 'settings', component: { template: '<div>settings</div>' } },
+      { path: '/settings/email', name: 'settings.email', component: { template: '<div>settings-email</div>' } },
     ],
   })
 }
@@ -30,7 +31,7 @@ describe('VerifyEmailView', () => {
     expect(wrapper.text()).toContain('Prejst na overenie e-mailu')
   })
 
-  it('navigates to settings email section from CTA button', async () => {
+  it('navigates to settings email detail from CTA button', async () => {
     const router = makeRouter()
     await router.push('/verify-email/1/hash')
     await router.isReady()
@@ -44,7 +45,6 @@ describe('VerifyEmailView', () => {
     await wrapper.find('button').trigger('click')
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(router.currentRoute.value.name).toBe('settings')
-    expect(router.currentRoute.value.query.section).toBe('email')
+    expect(router.currentRoute.value.name).toBe('settings.email')
   })
 })

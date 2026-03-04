@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import AdminSectionHeader from '@/components/admin/AdminSectionHeader.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
@@ -33,6 +34,10 @@ const reportsPerPage = ref(20)
 let searchDebounce = null
 
 const userId = computed(() => route.params.id)
+const usersListRoute = computed(() => ({
+  name: 'admin.users',
+  query: { ...route.query },
+}))
 const reportRows = computed(() => reportsData.value?.data || [])
 
 const reportColumns = [
@@ -269,6 +274,13 @@ onBeforeUnmount(() => {
     :title="user?.name ? `User: ${user.name}` : 'User detail'"
     :subtitle="user?.email || 'Admin user detail'"
   >
+    <AdminSectionHeader
+      section="community"
+      title="Detail pouzivatela"
+      back-label="Spat na pouzivatelov"
+      :back-to="usersListRoute"
+    />
+
     <div v-if="userError" class="adminAlert">{{ userError }}</div>
     <div v-if="reportsError && activeTab === 'reports'" class="adminAlert">{{ reportsError }}</div>
 

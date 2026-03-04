@@ -13,13 +13,19 @@
     <template v-else>
       <div v-if="!auth.user" class="card info">
         <div class="infoTitle">Profil je dostupny po prihlaseni.</div>
-        <div class="infoSub">Prihlas sa a uvidis svoje posty, replies, media a zalozky.</div>
+        <div class="infoSub">Prihlas sa a uvidis svoje prispevky, odpovede, media a zalozky.</div>
         <button class="btn" @click="goLogin">Prihlasit sa</button>
       </div>
 
       <section class="profileShell">
         <div class="cover" :class="{ uploading: coverUploading }">
-          <img v-if="coverSrc" class="coverImg" :src="coverSrc" alt="cover" />
+          <img
+            v-if="coverSrc && !coverLoadFailed"
+            class="coverImg"
+            :src="coverSrc"
+            alt="cover"
+            @error="onCoverImageError"
+          />
           <div class="coverGlow"></div>
           <button
             v-if="auth.user"
@@ -28,7 +34,7 @@
             :disabled="coverUploading"
             @click="openPicker('cover')"
           >
-            {{ coverUploading ? 'Nahravam...' : 'Change cover' }}
+            {{ coverUploading ? 'Nahravam...' : 'Zmenit titulnu fotku' }}
           </button>
           <input
             ref="coverInput"
@@ -41,24 +47,27 @@
 
         <div class="profileHead">
           <div class="avatar avatarEditable" :class="{ uploading: avatarUploading }">
-            <img v-if="avatarSrc" class="avatarImg" :src="avatarSrc" alt="avatar" />
-            <span v-else>{{ initials }}</span>
+            <UserAvatar
+              class="avatarImg"
+              :user="auth.user"
+              :avatar-url="avatarSrc"
+              :alt="`${displayName} avatar`"
+            />
             <button
               v-if="auth.user"
-              class="mediaBtn avatarBtn"
               type="button"
-              :disabled="avatarUploading"
-              @click="openPicker('avatar')"
+              class="mediaBtn avatarBtn avatarEditTrigger"
+              :disabled="avatarUploading || avatarRemoving"
+              aria-label="Upravit profilovy avatar"
+              @click="openAvatarEditor"
             >
-              {{ avatarUploading ? 'Nahravam...' : 'Change' }}
+              <svg class="avatarBtnIcon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M9 4h6l1.2 1.8H19a3 3 0 0 1 3 3v7.2a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V8.8a3 3 0 0 1 3-3h2.8z"
+                />
+                <circle cx="12" cy="12.4" r="3.3" />
+              </svg>
             </button>
-            <input
-              ref="avatarInput"
-              class="fileInput"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              @change="onMediaChange('avatar', $event)"
-            />
           </div>
 
           <div class="headActions">
@@ -87,12 +96,182 @@
           <p v-else class="bio muted">Zatial bez popisu.</p>
 
           <div class="meta">
-            <span v-if="auth.user?.location" class="metaItem">Location: {{ auth.user.location }}</span>
-            <span v-if="auth.user?.email" class="metaItem">Email: {{ auth.user.email }}</span>
+            <span v-if="auth.user?.location" class="metaItem">Lokalita: {{ auth.user.location }}</span>
+            <span v-if="auth.user?.email" class="metaItem">E-mail: {{ auth.user.email }}</span>
           </div>
         </div>
 
       </section>
+
+      <section v-if="auth.user" class="card avatarCard avatarCardCompact">
+        <div class="avatarCardHead">
+          <div>
+            <h2 class="avatarCardTitle">Profilovy avatar</h2>
+            <p class="avatarCardSub">Fotka alebo generovany avatar.</p>
+          </div>
+          <button type="button" class="btn outline avatarOpenBtn" @click="openAvatarEditor">Upravit</button>
+        </div>
+
+        <div class="avatarCardMeta">
+          <div class="avatar sm avatarCardPreview">
+            <UserAvatar
+              class="avatarImg"
+              :user="auth.user"
+              :avatar-url="avatarSrc"
+              :alt="`${displayName} avatar`"
+            />
+          </div>
+
+          <div class="avatarCardInfo">
+            <div class="avatarModePill">{{ persistedAvatarMode === 'generated' ? 'Rezim Avatar' : 'Rezim Fotka' }}</div>
+            <p class="avatarHint avatarCardHint">Bez fotky sa automaticky pouzije generovany fallback.</p>
+          </div>
+        </div>
+
+        <div v-if="avatarErr" class="msg err avatarMsg">{{ avatarErr }}</div>
+      </section>
+
+      <BaseModal
+        v-if="auth.user"
+        v-model:open="avatarModalOpen"
+        title="Upravit profilovy avatar"
+        test-id="profile-avatar-modal"
+        close-test-id="close-profile-avatar-modal"
+      >
+        <template #description>
+          <p class="avatarCardSub avatarModalSub">Vyber si fotku alebo personalizovany avatar.</p>
+        </template>
+
+        <div class="avatarEditorBody">
+          <div class="avatarModeSwitch" role="tablist" aria-label="Rezim profiloveho avatara">
+            <button
+              type="button"
+              class="modeBtn"
+              :class="{ active: avatarDraft.mode === 'image' }"
+              @click="setAvatarMode('image')"
+            >
+              Fotka
+            </button>
+            <button
+              type="button"
+              class="modeBtn"
+              :class="{ active: avatarDraft.mode === 'generated' }"
+              @click="setAvatarMode('generated')"
+            >
+              Avatar
+            </button>
+          </div>
+
+          <div class="avatarPreviewWrap">
+            <div class="avatar avatarPreviewAvatar">
+              <UserAvatar
+                class="avatarImg"
+                :user="auth.user"
+                :size="112"
+                :avatar-url="avatarSrc"
+                :mode="avatarDraft.mode"
+                :prefer-image="avatarDraft.mode === 'image'"
+                :color-index="avatarDraft.color"
+                :icon-index="avatarDraft.icon"
+                :seed="avatarDraft.seed"
+                :alt="`${displayName} avatar`"
+              />
+            </div>
+            <p class="avatarHint">Pri mode Fotka bez obrazka ostava fallback avatar.</p>
+          </div>
+
+          <div v-if="avatarErr" class="msg err avatarMsg">{{ avatarErr }}</div>
+
+          <template v-if="avatarDraft.mode === 'image'">
+            <div class="avatarImageActions">
+              <button
+                type="button"
+                class="btn outline"
+                :disabled="avatarUploading || avatarRemoving"
+                @click="openPicker('avatar')"
+              >
+                {{ avatarUploading ? 'Nahravam...' : 'Nahrat fotku' }}
+              </button>
+              <button
+                type="button"
+                class="btn ghost"
+                :disabled="avatarUploading || avatarRemoving"
+                @click="removeAvatarImage"
+              >
+                {{ avatarRemoving ? 'Odstranujem...' : 'Odstranit fotku' }}
+              </button>
+              <input
+                ref="avatarInput"
+                class="fileInput"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                @change="onMediaChange('avatar', $event)"
+              />
+            </div>
+            <p class="avatarHint">Odporucana velkost: aspon 512x512 px, JPG/PNG/WebP, max 3 MB.</p>
+          </template>
+
+          <template v-else>
+            <div class="avatarPicker">
+              <div class="avatarPickerLabel">Symbol</div>
+              <div class="avatarIconGrid">
+                <button
+                  v-for="option in iconOptions"
+                  :key="option.index"
+                  type="button"
+                  class="avatarChoice iconChoice"
+                  :class="{ active: avatarResolved.iconIndex === option.index }"
+                  @click="selectAvatarIcon(option.index)"
+                >
+                  <DefaultAvatar
+                    class="choiceAvatar"
+                    :size="40"
+                    :color-index="avatarResolved.colorIndex"
+                    :icon-index="option.index"
+                  />
+                  <span class="choiceLabel">{{ option.label }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="avatarPicker">
+              <div class="avatarPickerLabel">Farba</div>
+              <div class="avatarColorGrid">
+                <button
+                  v-for="(color, index) in AVATAR_COLORS"
+                  :key="color"
+                  type="button"
+                  class="avatarChoice colorChoice"
+                  :class="{ active: avatarResolved.colorIndex === index }"
+                  :style="{ '--avatar-choice-color': color }"
+                  @click="selectAvatarColor(index)"
+                >
+                  <span class="colorSwatch" aria-hidden="true"></span>
+                  <span class="choiceLabel">Farba {{ index + 1 }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="avatarActionRow">
+              <button type="button" class="btn outline" :disabled="avatarSaving" @click="randomizeAvatar">
+                Nahodne
+              </button>
+              <button type="button" class="btn ghost" :disabled="avatarSaving" @click="resetGeneratedAvatar">
+                Reset
+              </button>
+            </div>
+          </template>
+
+          <div class="avatarActionRow avatarActionRowSave">
+            <button type="button" class="btn ghost" :disabled="avatarSaving" @click="avatarModalOpen = false">
+              Zavriet
+            </button>
+            <button type="button" class="btn" :disabled="avatarSaving" @click="saveAvatarPreferences">
+              {{ avatarSaving ? 'Ukladam...' : 'Ulozit' }}
+            </button>
+          </div>
+        </div>
+      </BaseModal>
 
       <section v-if="editOpen" class="card editCard">
         <div v-if="editMsg" class="msg ok">{{ editMsg }}</div>
@@ -128,8 +307,8 @@
 
       <section v-if="pinnedPost" class="card pinCard">
         <div class="pinHeader">
-          <div class="pinTitle">Pinned</div>
-          <button class="btn ghost" @click="clearPinned">Unpin</button>
+          <div class="pinTitle">Pripnutý príspevok</div>
+          <button class="btn ghost" @click="clearPinned">Odopnúť</button>
         </div>
         <div class="pinBody">
           <div class="pinContent">{{ pinnedPost.content }}</div>
@@ -141,7 +320,7 @@
               alt="attachment"
             />
             <a v-else class="attachmentFile" :href="pinnedPost.attachment_url" target="_blank" rel="noreferrer">
-              {{ pinnedPost.attachment_original_name || 'Attachment' }}
+              {{ pinnedPost.attachment_original_name || 'Príloha' }}
             </a>
           </div>
         </div>
@@ -187,24 +366,28 @@
           </div>
 
           <div v-else class="postList">
-            <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem">
+            <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem" :class="{ pinned: pinnedPost?.id === p.id }">
               <div class="avatar sm">
-                <span>{{ initials }}</span>
+                <UserAvatar
+                  class="avatarImg"
+                  :user="auth.user"
+                  :alt="`${displayName} avatar`"
+                />
               </div>
 
               <div class="postBody">
                 <div class="postMeta">
                   <div class="postName">{{ displayName }}</div>
-                  <div class="dot">.</div>
-                  <div class="postTime">{{ activeTab === 'bookmarks' ? fmt(p.bookmarked_at || p.created_at) : fmt(p.created_at) }}</div>
+                  <div class="dot">·</div>
+                  <div class="postTime">{{ formatPostTimestamp(p) }}</div>
                 </div>
 
                 <div v-if="p.parent && activeTab === 'replies'" class="replyContext">
-                  Reply to: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
+                  Odpoveď na: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
                   <span class="replyText">{{ shorten(p.parent.content) }}</span>
                 </div>
 
-                <div class="postContent">{{ p.content }}</div>
+                <HashtagText class="postContent" :content="p.content" />
 
                 <div v-if="attachedEventForPost(p)" class="attachedEventCard">
                   <div class="attachedEventCopy">
@@ -230,19 +413,51 @@
                     alt="attachment"
                   />
                   <a v-else class="attachmentFile" :href="p.attachment_url" target="_blank" rel="noreferrer">
-                    {{ p.attachment_original_name || 'Attachment' }}
+                    {{ p.attachment_original_name || 'Príloha' }}
                   </a>
                 </div>
 
-                <div class="postActions">
-                  <button class="btn outline" @click="openPost(p)">
-                    View thread
+                <div class="postActions" @click.stop>
+                  <button
+                    class="postActionIconBtn"
+                    type="button"
+                    title="Zobraziť vlákno"
+                    aria-label="Zobraziť vlákno"
+                    @click.stop="openPost(p)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.3 8.3 0 0 1-3.6-.8L3 21l1.8-5.8a8.3 8.3 0 0 1-.8-3.7A8.5 8.5 0 0 1 12.5 3h.5A8.5 8.5 0 0 1 21 11.5z" />
+                    </svg>
+                    <span class="postActionLabel">Zobraziť vlákno</span>
                   </button>
-                  <button class="btn ghost" @click="togglePin(p)">
-                    {{ pinnedPost?.id === p.id ? 'Unpin' : 'Pin' }}
+                  <button
+                    class="postActionIconBtn"
+                    :class="{ active: pinnedPost?.id === p.id }"
+                    type="button"
+                    :title="pinnedPost?.id === p.id ? 'Odopnúť' : 'Pripnúť'"
+                    :aria-label="pinnedPost?.id === p.id ? 'Odopnúť' : 'Pripnúť'"
+                    @click.stop="togglePin(p)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M14 3v5.2l4 3V13h-5v7l-2-1.9V13H6v-1.8l4-3V3z" />
+                    </svg>
+                    <span class="postActionLabel">{{ pinnedPost?.id === p.id ? 'Odopnúť' : 'Pripnúť' }}</span>
                   </button>
-                  <button class="btn outline danger" :disabled="deleteLoadingId === p.id" @click="deletePost(p)">
-                    {{ deleteLoadingId === p.id ? 'Mazem...' : 'Delete' }}
+                  <button
+                    class="postActionIconBtn danger"
+                    type="button"
+                    title="Vymazať"
+                    aria-label="Vymazať"
+                    :disabled="deleteLoadingId === p.id"
+                    @click.stop="deletePost(p)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 7h16" />
+                      <path d="M9 7V5h6v2" />
+                      <path d="M7 7l1 12h8l1-12" />
+                      <path d="M10 11v5M14 11v5" />
+                    </svg>
+                    <span class="postActionLabel">{{ deleteLoadingId === p.id ? 'Mažem...' : 'Vymazať' }}</span>
                   </button>
                 </div>
               </div>
@@ -273,22 +488,67 @@ import { useEventFollowsStore } from '@/stores/eventFollows'
 import http from '@/services/api'
 import api from '@/services/api'
 import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 import ProfileEventCard from '@/components/profile/ProfileEventCard.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
+import DefaultAvatar from '@/components/DefaultAvatar.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
+import HashtagText from '@/components/HashtagText.vue'
 import { EVENT_TIMEZONE, formatEventDate, formatEventDateKey } from '@/utils/eventTime'
+import { formatDateTimeCompact } from '@/utils/dateUtils'
+import { normalizeAvatarUrl, resolveAvatarState } from '@/utils/avatar'
+import { avatarDebug } from '@/utils/avatarDebug'
+import { compressImageFileToMaxBytes } from '@/utils/imageCompression'
+import {
+  AVATAR_COLORS,
+  AVATAR_ICONS,
+  coerceAvatarIndex,
+  hashAvatarString,
+  normalizeAvatarMode,
+  pickDeterministicAvatarIndex,
+} from '@/constants/avatar'
 
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 const eventFollows = useEventFollowsStore()
 const { confirm } = useConfirm()
+const toast = useToast()
+const PROFILE_MEDIA_TARGET_MAX_BYTES = 3072 * 1024
+const PROFILE_MEDIA_UPLOAD_MAX_BYTES = 20480 * 1024
+
+function logAvatarProfileState(scope, extra = {}) {
+  avatarDebug(`ProfileView:${scope}`, {
+    userId: auth.user?.id ?? null,
+    username: auth.user?.username ?? null,
+    persisted: auth.user
+      ? {
+          avatar_mode: auth.user?.avatar_mode ?? auth.user?.avatarMode ?? null,
+          avatar_path: auth.user?.avatar_path ?? null,
+          avatar_url: auth.user?.avatar_url ?? auth.user?.avatarUrl ?? null,
+          avatar_color: auth.user?.avatar_color ?? auth.user?.avatarColor ?? null,
+          avatar_icon: auth.user?.avatar_icon ?? auth.user?.avatarIcon ?? null,
+          avatar_seed: auth.user?.avatar_seed ?? auth.user?.avatarSeed ?? null,
+        }
+      : null,
+    draft: {
+      mode: avatarDraft?.mode ?? null,
+      color: avatarDraft?.color ?? null,
+      icon: avatarDraft?.icon ?? null,
+      seed: avatarDraft?.seed ?? null,
+    },
+    avatarSrc: avatarSrc?.value ?? null,
+    ...extra,
+  })
+}
 
 const tabs = [
-  { key: 'posts', label: 'Prispevky', kind: 'roots' },
+  { key: 'posts', label: 'Príspevky', kind: 'roots' },
   { key: 'replies', label: 'Odpovede', kind: 'replies' },
   { key: 'events', label: 'Udalosti', kind: 'events' },
-  { key: 'bookmarks', label: 'Zalozky', kind: 'bookmarks' },
-  { key: 'media', label: 'Media', kind: 'media' },
-  { key: 'likes', label: 'Paci sa', kind: 'likes' },
+  { key: 'bookmarks', label: 'Záložky', kind: 'bookmarks' },
+  { key: 'media', label: 'Médiá', kind: 'media' },
+  { key: 'likes', label: 'Páči sa', kind: 'likes' },
 ]
 
 const stats = reactive({ posts: '--', replies: '--', media: '--' })
@@ -316,23 +576,32 @@ const actionErr = ref('')
 const deleteLoadingId = ref(null)
 const mediaErr = ref('')
 const avatarUploading = ref(false)
+const avatarRemoving = ref(false)
+const avatarSaving = ref(false)
+const avatarErr = ref('')
+const avatarModalOpen = ref(false)
 const coverUploading = ref(false)
+const coverLoadFailed = ref(false)
 const avatarPreview = ref('')
 const coverPreview = ref('')
 const avatarInput = ref(null)
 const coverInput = ref(null)
+const avatarSnapshot = ref({
+  mode: 'image',
+  color: null,
+  icon: null,
+  seed: '',
+})
+const avatarDraft = reactive({
+  mode: 'image',
+  color: null,
+  icon: null,
+  seed: '',
+})
 
 const pinnedPost = ref(null)
 
 const displayName = computed(() => auth.user?.name || 'Profil')
-
-const initials = computed(() => {
-  const n = auth.user?.name || ''
-  const parts = n.trim().split(/\s+/).filter(Boolean)
-  const a = parts[0]?.[0] || 'U'
-  const b = parts[1]?.[0] || ''
-  return (a + b).toUpperCase()
-})
 
 const handle = computed(() => {
   const email = auth.user?.email || ''
@@ -340,13 +609,233 @@ const handle = computed(() => {
   return String(base).toLowerCase().replace(/[^a-z0-9_]+/g, '').slice(0, 20) || 'user'
 })
 
-const avatarSrc = computed(() => avatarPreview.value || auth.user?.avatar_url || '')
-const coverSrc = computed(() => coverPreview.value || auth.user?.cover_url || '')
-
+const avatarSrc = computed(() =>
+  avatarPreview.value || normalizeAvatarUrl(auth.user?.avatar_url || auth.user?.avatarUrl || '')
+)
+const coverSrc = computed(() =>
+  coverPreview.value || normalizeAvatarUrl(auth.user?.cover_url || auth.user?.coverUrl || '')
+)
+const avatarResolved = computed(() =>
+  resolveAvatarState(auth.user, {
+    avatarUrl: avatarSrc.value,
+    mode: avatarDraft.mode,
+    colorIndex: avatarDraft.color,
+    iconIndex: avatarDraft.icon,
+    seed: avatarDraft.seed,
+  }),
+)
+const persistedAvatarMode = computed(() => {
+  const hasImage = String(avatarSrc.value || '').trim() !== ''
+  if (hasImage) return 'image'
+  return normalizeAvatarMode(auth.user?.avatar_mode || auth.user?.avatarMode)
+})
+const iconOptions = computed(() =>
+  AVATAR_ICONS.map((iconKey, index) => ({
+    key: iconKey,
+    index,
+    label: formatIconLabel(iconKey),
+  })),
+)
 const pinKey = computed(() => {
   const username = auth.user?.username || 'me'
   return `pinned_post_${username}`
 })
+
+function normalizeAvatarIndex(value, max) {
+  const index = coerceAvatarIndex(value, max)
+  return index === null ? null : index
+}
+
+function buildAvatarSnapshot(user) {
+  const imageUrl = normalizeAvatarUrl(user?.avatar_url || user?.avatarUrl || '')
+
+  return {
+    mode: imageUrl ? 'image' : normalizeAvatarMode(user?.avatar_mode || user?.avatarMode),
+    color: normalizeAvatarIndex(user?.avatar_color ?? user?.avatarColor, AVATAR_COLORS.length - 1),
+    icon: normalizeAvatarIndex(user?.avatar_icon ?? user?.avatarIcon, AVATAR_ICONS.length - 1),
+    seed: String(user?.avatar_seed || user?.avatarSeed || '').trim(),
+  }
+}
+
+function applyAvatarSnapshot(snapshot) {
+  avatarDraft.mode = snapshot.mode
+  avatarDraft.color = snapshot.color
+  avatarDraft.icon = snapshot.icon
+  avatarDraft.seed = snapshot.seed
+}
+
+function syncAvatarDraftFromUser() {
+  const snapshot = buildAvatarSnapshot(auth.user)
+  avatarSnapshot.value = snapshot
+  applyAvatarSnapshot(snapshot)
+}
+
+function formatIconLabel(iconKey) {
+  const map = {
+    planet: 'Planeta',
+    star: 'Hviezda',
+    comet: 'Kometa',
+    constellation: 'Suhvezdie',
+    moon: 'Mesiac',
+  }
+  return map[iconKey] || iconKey
+}
+
+function openAvatarEditor() {
+  if (!auth.user) return
+  syncAvatarDraftFromUser()
+  avatarErr.value = ''
+  logAvatarProfileState('open-editor')
+  avatarModalOpen.value = true
+}
+
+function setAvatarMode(mode) {
+  avatarDraft.mode = mode === 'generated' ? 'generated' : 'image'
+  avatarErr.value = ''
+  logAvatarProfileState('set-mode', { nextMode: avatarDraft.mode })
+}
+
+function selectAvatarColor(index) {
+  avatarDraft.color = normalizeAvatarIndex(index, AVATAR_COLORS.length - 1)
+  avatarErr.value = ''
+}
+
+function selectAvatarIcon(index) {
+  avatarDraft.icon = normalizeAvatarIndex(index, AVATAR_ICONS.length - 1)
+  avatarErr.value = ''
+}
+
+function resetGeneratedAvatar() {
+  avatarDraft.color = null
+  avatarDraft.icon = null
+  avatarDraft.seed = ''
+  avatarErr.value = ''
+}
+
+function buildRandomAvatarSeed() {
+  const base = `${auth.user?.id || 'user'}:${Date.now()}:${Math.random()}`
+  return `rnd-${hashAvatarString(base).toString(36)}`
+}
+
+async function randomizeAvatar() {
+  if (!auth.user || avatarSaving.value) return
+
+  const seed = buildRandomAvatarSeed()
+  avatarDraft.seed = seed
+  avatarDraft.color = pickDeterministicAvatarIndex(seed, 'color', AVATAR_COLORS.length)
+  avatarDraft.icon = pickDeterministicAvatarIndex(seed, 'icon', AVATAR_ICONS.length)
+
+  await saveAvatarPreferences('Nahodny avatar ulozeny.')
+}
+
+async function saveAvatarPreferences(successMessage = 'Avatar ulozeny.') {
+  if (!auth.user || avatarSaving.value) return
+
+  avatarErr.value = ''
+  avatarSaving.value = true
+  const previousSnapshot = { ...avatarSnapshot.value }
+  logAvatarProfileState('save-preferences:start')
+
+  try {
+    await auth.csrf()
+
+    const payload = {
+      avatar_mode: avatarDraft.mode,
+      avatar_color: avatarDraft.color,
+      avatar_icon: avatarDraft.icon,
+      avatar_seed: avatarDraft.seed || null,
+    }
+
+    const { data } = await http.patch('/me/avatar', payload)
+    avatarDebug('ProfileView:save-preferences:response', {
+      payload,
+      response: data,
+    })
+
+    auth.user = {
+      ...auth.user,
+      ...data,
+      activity: auth.user?.activity || null,
+    }
+
+    syncAvatarDraftFromUser()
+    logAvatarProfileState('save-preferences:success')
+    toast.success(successMessage)
+  } catch (e) {
+    avatarDebug('ProfileView:save-preferences:error', {
+      status: e?.response?.status ?? null,
+      response: e?.response?.data ?? null,
+      message: e?.message ?? null,
+    })
+    applyAvatarSnapshot(previousSnapshot)
+    const status = e?.response?.status
+    const data = e?.response?.data
+
+    if (status === 422 && data?.errors) {
+      avatarErr.value =
+        extractFirstError(data.errors, 'avatar_mode') ||
+        extractFirstError(data.errors, 'avatar_color') ||
+        extractFirstError(data.errors, 'avatar_icon') ||
+        extractFirstError(data.errors, 'avatar_seed') ||
+        'Skontroluj nastavenia avatara.'
+    } else if (status === 401) {
+      avatarErr.value = 'Prihlas sa.'
+    } else {
+      avatarErr.value = data?.message || 'Ukladanie avatara zlyhalo.'
+    }
+
+    toast.error('Avatar sa nepodarilo ulozit.')
+  } finally {
+    avatarSaving.value = false
+  }
+}
+
+async function removeAvatarImage() {
+  if (!auth.user || avatarRemoving.value || avatarUploading.value) return
+
+  avatarErr.value = ''
+  mediaErr.value = ''
+  avatarRemoving.value = true
+  logAvatarProfileState('remove-image:start')
+
+  try {
+    await auth.csrf()
+    const { data } = await http.delete('/me/avatar-image')
+    avatarDebug('ProfileView:remove-image:response', { response: data })
+
+    if (avatarPreview.value) {
+      URL.revokeObjectURL(avatarPreview.value)
+      avatarPreview.value = ''
+    }
+
+    if (data && typeof data === 'object') {
+      auth.user = {
+        ...auth.user,
+        ...data,
+        activity: auth.user?.activity || null,
+      }
+    }
+
+    syncAvatarDraftFromUser()
+    logAvatarProfileState('remove-image:success')
+    toast.success('Profilova fotka bola odstranena.')
+  } catch (e) {
+    avatarDebug('ProfileView:remove-image:error', {
+      status: e?.response?.status ?? null,
+      response: e?.response?.data ?? null,
+      message: e?.message ?? null,
+    })
+    const status = e?.response?.status
+    const data = e?.response?.data
+    if (status === 401) {
+      avatarErr.value = 'Prihlas sa.'
+    } else {
+      avatarErr.value = data?.message || 'Odstranenie fotky zlyhalo.'
+    }
+  } finally {
+    avatarRemoving.value = false
+  }
+}
 
 function goHome() {
   router.push({ name: 'home' })
@@ -366,12 +855,14 @@ function setActiveTab(key) {
 }
 
 function fmt(iso) {
-  if (!iso) return ''
-  try {
-    return new Date(iso).toLocaleString()
-  } catch {
-    return String(iso)
+  return formatDateTimeCompact(iso)
+}
+
+function formatPostTimestamp(post) {
+  if (activeTab.value === 'bookmarks') {
+    return fmt(post?.bookmarked_at || post?.created_at)
   }
+  return fmt(post?.created_at)
 }
 
 function shorten(text) {
@@ -503,7 +994,7 @@ function extractFirstError(errorsObj, field) {
 
 function openPicker(type) {
   const input = type === 'avatar' ? avatarInput.value : coverInput.value
-  if (input && !avatarUploading.value && !coverUploading.value) {
+  if (input && !avatarUploading.value && !avatarRemoving.value && !coverUploading.value) {
     input.click()
   }
 }
@@ -519,6 +1010,17 @@ function setPreview(type, file) {
   }
 }
 
+function clearPreview(type) {
+  if (type === 'avatar') {
+    if (avatarPreview.value) URL.revokeObjectURL(avatarPreview.value)
+    avatarPreview.value = ''
+    return
+  }
+
+  if (coverPreview.value) URL.revokeObjectURL(coverPreview.value)
+  coverPreview.value = ''
+}
+
 async function uploadMedia(type, file) {
   if (!auth.user) {
     mediaErr.value = 'Prihlas sa.'
@@ -526,29 +1028,58 @@ async function uploadMedia(type, file) {
   }
 
   mediaErr.value = ''
+  avatarErr.value = ''
   if (type === 'avatar') avatarUploading.value = true
   else coverUploading.value = true
+  logAvatarProfileState('upload-media:start', {
+    type,
+    fileName: file?.name ?? null,
+    fileSize: file?.size ?? null,
+    fileType: file?.type ?? null,
+  })
 
   try {
     await auth.csrf()
 
     const form = new FormData()
-    form.append('type', type)
     form.append('file', file)
+    let response = null
 
-    await http.post('/profile/media', form)
-
-    if (type === 'avatar' && avatarPreview.value) {
-      URL.revokeObjectURL(avatarPreview.value)
-      avatarPreview.value = ''
+    if (type === 'avatar') {
+      response = await http.post('/me/avatar-image', form)
+    } else {
+      form.append('type', type)
+      response = await http.post('/profile/media', form)
     }
-    if (type === 'cover' && coverPreview.value) {
-      URL.revokeObjectURL(coverPreview.value)
-      coverPreview.value = ''
+    avatarDebug('ProfileView:upload-media:response', {
+      type,
+      response: response?.data ?? null,
+    })
+
+    clearPreview(type)
+
+    const nextUser = response?.data
+    if (nextUser && typeof nextUser === 'object') {
+      auth.user = {
+        ...auth.user,
+        ...nextUser,
+        activity: auth.user?.activity || null,
+      }
     }
 
-    await auth.fetchUser()
+    syncAvatarDraftFromUser()
+    logAvatarProfileState('upload-media:success', { type })
+
+    if (type === 'avatar') {
+      toast.success('Profilova fotka bola ulozena.')
+    }
   } catch (e) {
+    avatarDebug('ProfileView:upload-media:error', {
+      type,
+      status: e?.response?.status ?? null,
+      response: e?.response?.data ?? null,
+      message: e?.message ?? null,
+    })
     const status = e?.response?.status
     const data = e?.response?.data
 
@@ -562,18 +1093,54 @@ async function uploadMedia(type, file) {
     } else {
       mediaErr.value = data?.message || 'Upload zlyhal.'
     }
+
+    if (type === 'avatar') {
+      avatarErr.value = mediaErr.value
+    }
+
+    // Never keep local preview after failed upload; show only persisted server state.
+    clearPreview(type)
   } finally {
     if (type === 'avatar') avatarUploading.value = false
     else coverUploading.value = false
   }
 }
 
-function onMediaChange(type, event) {
-  const file = event?.target?.files?.[0]
-  if (!file) return
-  setPreview(type, file)
-  uploadMedia(type, file)
+async function onMediaChange(type, event) {
+  const selectedFile = event?.target?.files?.[0]
+  if (!selectedFile) return
   event.target.value = ''
+
+  mediaErr.value = ''
+  if (type === 'avatar') {
+    avatarErr.value = ''
+  }
+
+  let uploadFile = selectedFile
+
+  try {
+    uploadFile = await compressImageFileToMaxBytes(selectedFile, {
+      maxBytes: PROFILE_MEDIA_TARGET_MAX_BYTES,
+    })
+  } catch {
+    // Fallback to original file when browser-side compression is unavailable.
+    uploadFile = selectedFile
+  }
+
+  if ((uploadFile?.size || 0) > PROFILE_MEDIA_UPLOAD_MAX_BYTES) {
+    mediaErr.value = 'Subor je prilis velky. Maximalna velkost je 20 MB.'
+    if (type === 'avatar') {
+      avatarErr.value = mediaErr.value
+    }
+    return
+  }
+
+  setPreview(type, uploadFile)
+  uploadMedia(type, uploadFile)
+}
+
+function onCoverImageError() {
+  coverLoadFailed.value = true
 }
 
 async function saveEdit() {
@@ -660,10 +1227,10 @@ function togglePin(post) {
 async function deletePost(post) {
   if (!post?.id || deleteLoadingId.value) return
   const ok = await confirm({
-    title: 'Zmazat post',
-    message: 'Naozaj zmazat post?',
-    confirmText: 'Delete',
-    cancelText: 'Cancel',
+    title: 'Vymazať príspevok',
+    message: 'Naozaj chceš vymazať tento príspevok?',
+    confirmText: 'Vymazať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!ok) return
@@ -688,7 +1255,7 @@ async function deletePost(post) {
       clearPinned()
     }
 
-    actionMsg.value = 'Post zmazany.'
+    actionMsg.value = 'Príspevok bol vymazaný.'
     await loadCounts()
   } catch (e) {
     const status = e?.response?.status
@@ -818,10 +1385,48 @@ watch(
   }
 )
 
+watch(
+  () => [
+    auth.user?.id,
+    auth.user?.avatar_mode,
+    auth.user?.avatar_color,
+    auth.user?.avatar_icon,
+    auth.user?.avatar_seed,
+    auth.user?.avatar_url,
+    auth.user?.avatar_path,
+  ],
+  () => {
+    if (!auth.user) return
+    syncAvatarDraftFromUser()
+    logAvatarProfileState('watch:user-avatar-fields')
+  },
+  { immediate: true },
+)
+
+watch(
+  () => coverSrc.value,
+  () => {
+    coverLoadFailed.value = false
+  },
+  { immediate: true },
+)
+
+watch(
+  () => avatarModalOpen.value,
+  (isOpen, wasOpen) => {
+    if (!isOpen && wasOpen) {
+      syncAvatarDraftFromUser()
+      avatarErr.value = ''
+    }
+  },
+)
+
 onMounted(async () => {
   if (!auth.initialized) await auth.fetchUser()
 
   if (auth.user) {
+    syncAvatarDraftFromUser()
+    logAvatarProfileState('mounted-with-user')
     openEditFromRoute()
     loadPinned()
     await loadCounts()
@@ -986,10 +1591,20 @@ onBeforeUnmount(() => {
   bottom: 12px;
 }
 .avatarBtn {
-  right: 6px;
-  bottom: 6px;
-  padding: 0.25rem 0.45rem;
-  font-size: 0.65rem;
+  right: 4px;
+  bottom: 4px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.avatarBtnIcon {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
 }
 .cover:hover .mediaBtn,
 .avatarEditable:hover .mediaBtn {
@@ -1034,6 +1649,212 @@ onBeforeUnmount(() => {
   font-size: 0.84rem;
 }
 .metaItem { white-space: nowrap; }
+
+.avatarCardTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.avatarCardSub {
+  margin: 0.2rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+}
+
+.avatarCardCompact {
+  padding: 0.65rem 0.72rem;
+}
+
+.avatarCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.avatarOpenBtn {
+  min-height: 36px;
+  padding: 0 0.9rem;
+  font-size: 0.84rem;
+}
+
+.avatarCardMeta {
+  margin-top: 0.65rem;
+  padding: 0.52rem 0.62rem;
+  border-radius: 0.9rem;
+  border: 1px solid var(--border);
+  background: rgb(var(--bg-app-rgb) / 0.35);
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+}
+
+.avatarCardPreview {
+  flex: 0 0 auto;
+}
+
+.avatarCardInfo {
+  min-width: 0;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.avatarModePill {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--primary-rgb) / 0.35);
+  background: rgb(var(--primary-rgb) / 0.14);
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.avatarCardHint {
+  text-align: left;
+  font-size: 0.78rem;
+}
+
+.avatarModalSub {
+  margin: 0.15rem 0 0;
+}
+
+.avatarEditorBody {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.avatarModeSwitch {
+  margin-top: 0;
+  padding: 0.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface-2);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.modeBtn {
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.modeBtn.active {
+  background: rgb(var(--primary-rgb) / 0.18);
+  color: var(--text-primary);
+}
+
+.avatarPreviewWrap {
+  margin-top: 0;
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+}
+
+.avatarPreviewAvatar {
+  width: 112px;
+  height: 112px;
+  margin: 0;
+}
+
+.avatarImageActions {
+  margin-top: 0;
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.avatarHint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.avatarMsg {
+  margin-top: 0;
+}
+
+.avatarPicker {
+  margin-top: 0;
+}
+
+.avatarPickerLabel {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.45rem;
+}
+
+.avatarIconGrid,
+.avatarColorGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.avatarColorGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.avatarChoice {
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  padding: 0.38rem;
+  background: rgb(var(--bg-app-rgb) / 0.35);
+  display: grid;
+  justify-items: center;
+  gap: 0.28rem;
+  color: var(--text-primary);
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.avatarChoice.active {
+  border-color: rgb(var(--primary-rgb) / 0.8);
+  background: rgb(var(--primary-rgb) / 0.16);
+}
+
+.choiceAvatar {
+  width: 40px;
+  height: 40px;
+}
+
+.choiceLabel {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+.colorChoice {
+  min-height: 62px;
+}
+
+.colorSwatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 2px solid rgb(var(--color-bg-rgb) / 0.95);
+  outline: 1px solid rgb(var(--text-primary-rgb) / 0.25);
+  background: var(--avatar-choice-color);
+}
+
+.avatarActionRow {
+  margin-top: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.avatarActionRowSave {
+  justify-content: flex-end;
+}
 
 .card {
   border: 1px solid var(--border);
@@ -1197,11 +2018,26 @@ onBeforeUnmount(() => {
 .postItem {
   display: grid;
   grid-template-columns: 48px 1fr;
-  gap: 0.7rem;
-  padding: 0.6rem 0.1rem;
+  gap: 0.68rem;
+  padding: 0.55rem 0.45rem;
+  border-radius: 0.9rem;
   border-top: 1px solid var(--border);
+  transition: background-color 170ms ease, border-color 170ms ease;
 }
 .postItem:first-child { border-top: 0; }
+.postItem:hover {
+  background: rgb(var(--text-primary-rgb) / 0.04);
+}
+.postItem.pinned {
+  background: rgb(var(--primary-rgb) / 0.08);
+  border-color: rgb(var(--primary-rgb) / 0.28);
+}
+
+.postBody {
+  min-width: 0;
+  display: grid;
+  gap: 0.34rem;
+}
 
 .postMeta {
   display: flex;
@@ -1213,9 +2049,13 @@ onBeforeUnmount(() => {
 }
 .postName { color: var(--text-primary); font-weight: 950; }
 .dot { opacity: 0.6; }
+.postTime {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
 
 .replyContext {
-  margin-top: 0.4rem;
+  margin-top: 0.2rem;
   padding: 0.45rem 0.6rem;
   border-radius: 0.75rem;
   background: rgb(var(--bg-app-rgb) / 0.5);
@@ -1226,10 +2066,13 @@ onBeforeUnmount(() => {
 .replyText { color: var(--text-primary); margin-left: 0.25rem; }
 
 .postContent {
-  margin-top: 0.25rem;
+  margin-top: 0.04rem;
   color: var(--text-primary);
+  font-size: 0.95rem;
   white-space: pre-wrap;
-  line-height: 1.55;
+  line-height: 1.45;
+  --hashtag-color: #3b82f6;
+  --hashtag-hover-color: #2563eb;
 }
 
 .attachedEventCard {
@@ -1276,8 +2119,65 @@ onBeforeUnmount(() => {
 .postActions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: 0.32rem;
+  margin-top: 0.24rem;
+}
+
+.postActionIconBtn {
+  min-height: 30px;
+  padding: 0.3rem 0.56rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: rgb(var(--text-primary-rgb) / 0.04);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  transition: background-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+.postActionIconBtn svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.postActionLabel {
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.postActionIconBtn:hover:not(:disabled) {
+  background: rgb(var(--text-primary-rgb) / 0.11);
+  border-color: rgb(var(--text-primary-rgb) / 0.12);
+  color: var(--text-primary);
+}
+.postActionIconBtn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.postActionIconBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--primary-rgb) / 0.35);
+}
+.postActionIconBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.postActionIconBtn.active {
+  color: var(--primary);
+  border-color: rgb(var(--primary-rgb) / 0.34);
+  background: rgb(var(--primary-rgb) / 0.12);
+}
+.postActionIconBtn.danger {
+  color: rgb(var(--primary-active-rgb) / 0.9);
+  border-color: rgb(var(--primary-active-rgb) / 0.2);
+}
+.postActionIconBtn.danger:hover:not(:disabled) {
+  color: var(--primary-active);
+  background: rgb(var(--primary-active-rgb) / 0.14);
+  border-color: rgb(var(--primary-active-rgb) / 0.36);
 }
 
 .loadMore {
@@ -1310,6 +2210,36 @@ onBeforeUnmount(() => {
   .avatar {
     width: 78px;
     height: 78px;
+  }
+
+  .avatarBtn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .avatarCardHead {
+    align-items: center;
+  }
+
+  .avatarOpenBtn {
+    min-height: 34px;
+    padding: 0 0.82rem;
+  }
+
+  .avatarCardMeta {
+    align-items: flex-start;
+  }
+
+  .avatarIconGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .avatarColorGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .avatarActionRow .btn {
+    flex: 1 1 auto;
   }
 
   .tabs {

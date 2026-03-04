@@ -1,32 +1,17 @@
 <template>
   <nav class="flex h-full flex-col gap-3 bg-[var(--bg-app)]" aria-label="Primary navigation">
     <RouterLink
+      v-if="showBrandLogo"
       to="/"
       class="inline-flex items-center gap-2 rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.45)] px-3 py-2 text-sm font-semibold text-[var(--color-surface)] shadow-[0_8px_20px_rgb(var(--color-bg-rgb)/0.35)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.6)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
       title="Home"
       aria-label="Home"
     >
-      <span
-        class="grid h-8 w-8 place-items-center rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[var(--color-surface)] shadow-[0_6px_15px_rgb(var(--color-bg-rgb)/0.45)]"
-        aria-hidden="true"
-      >
-        AK
-      </span>
-      <Transition name="brand-fade" mode="out-in">
-        <TypingText
-          v-if="showGreeting"
-          :text="greetingText"
-          :speed-ms="56"
-          :start-delay-ms="150"
-          class="brandLabel hidden sm:inline font-bold"
-          @done="onGreetingDone"
-        />
-        <span v-else class="brandLabel hidden sm:inline">Astrokomunita</span>
-      </Transition>
+      <img src="/logo.png" alt="Astrokomunita" class="h-8 w-auto max-w-[11rem] object-contain" />
     </RouterLink>
 
     <!-- Main Navigation -->
-    <div class="navScroll flex flex-col gap-1.5 flex-1 overflow-y-auto overflow-x-hidden">
+    <div class="navScroll flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
       <RouterLink
         v-for="item in primaryLinks"
         :key="item.key || item.to"
@@ -65,6 +50,7 @@
             aria-label="More options"
           >
             <RouterLink
+              v-if="auth.isAuthed"
               to="/settings"
               custom
               v-slot="{ href: moreHref, navigate: moreNavigate, isActive: isMoreItemActive }"
@@ -152,7 +138,7 @@
                 Core Management
               </div>
               <RouterLink
-                to="/admin/dashboard"
+                :to="{ name: 'admin.dashboard' }"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -177,7 +163,7 @@
               </RouterLink>
 
               <RouterLink
-                to="/admin/users"
+                :to="{ name: 'admin.users' }"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -202,7 +188,7 @@
               </RouterLink>
 
               <RouterLink
-                to="/admin/event-candidates"
+                :to="{ name: 'admin.event-candidates' }"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -227,7 +213,7 @@
               </RouterLink>
 
               <RouterLink
-                to="/admin/moderation"
+                :to="{ name: 'admin.moderation' }"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -253,7 +239,7 @@
 
               <RouterLink
                 v-if="isWipEnabled"
-                to="/admin/banned-words"
+                :to="{ name: 'admin.banned-words' }"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -284,7 +270,7 @@
                 Content & Configuration
               </div>
               <RouterLink
-                to="/admin/events"
+                :to="{ name: 'admin.events' }"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -309,7 +295,7 @@
               </RouterLink>
 
               <RouterLink
-                to="/admin/blog"
+                :to="{ name: 'admin.blog' }"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -334,7 +320,7 @@
               </RouterLink>
 
               <RouterLink
-                to="/admin/sidebar"
+                :to="{ name: 'admin.sidebar' }"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -359,7 +345,7 @@
               </RouterLink>
 
               <RouterLink
-                to="/admin/bots"
+                :to="{ name: 'admin.bots' }"
                 custom
                 v-slot="{ href: adminHref, navigate: adminNavigate, isActive: isAdminItemActive }"
               >
@@ -401,7 +387,7 @@
           ]"
         >
           <span
-            class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.7rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+            class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.7rem] font-bold uppercase text-[var(--color-surface)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
             aria-hidden="true"
           >
             <component
@@ -410,7 +396,7 @@
             />
             <span v-else>{{ item.icon }}</span>
           </span>
-          <span class="navLabel flex-1">{{ item.label }}</span>
+          <span class="navLabel flex-1 font-bold">{{ item.label }}</span>
           <span
             v-if="item.badge"
             class="notificationBadge rounded-full bg-[color:rgb(var(--color-bg-rgb)/0.55)] px-2 py-0.5 text-[0.65rem] font-semibold text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)]"
@@ -425,128 +411,63 @@
     <button
       v-if="auth.isAuthed"
       type="button"
-      class="group relative flex items-center gap-3 rounded-xl border border-[color:rgb(var(--color-primary-rgb)/0.55)] bg-[color:rgb(var(--color-primary-rgb)/0.2)] px-3 py-2.5 text-[0.875rem] font-bold tracking-[0.01em] text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-primary-rgb)/0.28)] hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+      class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-blue-600 px-6 text-[0.875rem] font-medium text-white shadow-sm transition-all duration-200 hover:bg-blue-700 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
       aria-label="Nový príspevok"
       @click="openComposer"
     >
-      <span
-        class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[color:rgb(var(--color-primary-rgb)/0.58)] bg-[color:rgb(var(--color-primary-rgb)/0.25)] text-[1rem] font-semibold text-[var(--color-surface)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+      <svg
+        class="h-5 w-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
         aria-hidden="true"
       >
-        +
-      </span>
-      <span class="navLabel flex-1 text-left">Nový príspevok</span>
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="1.8"
+          d="M16.862 4.487a2.1 2.1 0 1 1 2.971 2.971L8.25 19.04 4 20l.959-4.25 11.903-11.263zM19.5 14.25v4.125A1.625 1.625 0 0 1 17.875 20H5.625A1.625 1.625 0 0 1 4 18.375V6.125A1.625 1.625 0 0 1 5.625 4.5H9.75"
+        />
+      </svg>
+      <span class="navLabel">Nový príspevok</span>
     </button>
 
-    <!-- User Section -->
-    <div class="border-t border-[color:rgb(var(--color-text-secondary-rgb)/0.12)] pt-4 space-y-2">
-      <template v-if="auth.user">
-        <RouterLink
-          to="/profile"
-          custom
-          v-slot="{ href, navigate, isActive }"
-        >
-          <a
-            :href="href"
-            @click="navigate"
-            title="Profile"
-            aria-label="Profile"
-            :class="[
-              'group relative flex items-center gap-2 rounded-lg px-2 py-2 text-xs font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
-              isActive
-                ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
-                : 'text-[var(--color-surface)]',
-            ]"
-          >
-            <span
-              class="grid h-8 w-8 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
-              aria-hidden="true"
-            >
-              <img
-                v-if="userAvatarUrl"
-                :src="userAvatarUrl"
-                alt=""
-                class="h-full w-full rounded-lg object-cover"
-              />
-              <span v-else>{{ userInitials }}</span>
-            </span>
-            <span class="flex-1 truncate">{{ auth.user.name }}</span>
-          </a>
-        </RouterLink>
-
-        <!-- Logout -->
-        <button
-          class="group relative flex w-full items-center gap-2 rounded-lg bg-red-500/15 px-2 py-2 text-xs font-semibold text-red-400 shadow-[0_2px_8px_rgb(var(--color-text-secondary-rgb)/0.1)] transition-all duration-200 ease-out hover:bg-red-500/25 hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400"
-          title="Log out"
-          aria-label="Log out"
-          @click="logout"
-        >
-          <span
-            class="grid h-6 w-6 place-items-center rounded-lg bg-red-500/25 text-red-400 shadow-[0_1px_3px_rgb(var(--color-text-secondary-rgb)/0.1)] transition-transform duration-200 ease-out group-hover:scale-110 group-active:scale-95"
-            aria-hidden="true"
-          >
-            L
-          </span>
-          <span class="flex-1">Logout</span>
-        </button>
-      </template>
-
-    </div>
   </nav>
 </template>
 
 <script setup>
 import { computed, defineComponent, h, ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useBadgeAnimateOnIncrease } from '@/composables/useBadgeAnimateOnIncrease'
-import TypingText from '@/components/TypingText.vue'
 
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
-const router = useRouter()
 const route = useRoute()
+const { showBrandLogo } = defineProps({
+  showBrandLogo: {
+    type: Boolean,
+    default: true,
+  },
+})
 const isWipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCase() === 'true'
 const isMoreOpen = ref(false)
 const moreWrapperRef = ref(null)
 const isAdminOpen = ref(false)
 const adminWrapperRef = ref(null)
-const showGreeting = ref(false)
-const greetingText = ref('')
 const unreadCount = computed(() => Number(notifications.unreadCount || 0))
 const unreadCountHydrated = computed(() => Boolean(notifications.unreadCountHydrated))
 const { shouldAnimate: shouldAnimateUnreadBadge } = useBadgeAnimateOnIncrease(unreadCount, {
   readyRef: unreadCountHydrated,
 })
 
-let greetingHideTimer = null
-
 const isMoreActive = computed(() => {
-  return route.path === '/settings' || (isWipEnabled && route.path === '/creator-studio')
+  return route.path.startsWith('/settings') || (isWipEnabled && route.path === '/creator-studio')
 })
 
 const isAdminActive = computed(() => {
   return route.path.startsWith('/admin/')
-})
-
-const userInitials = computed(() => {
-  const name = String(auth.user?.name || '').trim()
-  if (!name) return 'U'
-  const parts = name.split(/\s+/).filter(Boolean)
-  const first = parts[0]?.[0] || 'U'
-  const second = parts[1]?.[0] || ''
-  return (first + second).toUpperCase()
-})
-
-const userAvatarUrl = computed(() => {
-  const raw = auth.user?.avatar_url || auth.user?.avatarUrl || auth.user?.avatar_path || ''
-  if (!raw) return ''
-  if (/^https?:\/\//i.test(raw)) return raw
-
-  const base = String(import.meta.env.DEV ? '' : (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '')).replace(/\/+$/, '')
-  if (raw.startsWith('/')) return `${base}${raw}`
-  return `${base}/${raw}`
 })
 
 const createNavIconComponent = (paths, filled = false) =>
@@ -639,22 +560,28 @@ const navIcons = {
     ]),
     filled: createNavIconComponent(['M12 2.75 5 5.6v5.5c0 4.6 2.8 8.75 7 10.15 4.2-1.4 7-5.55 7-10.15V5.6l-7-2.85Z'], true),
   },
-  settings: {
+  user: {
     outline: createNavIconComponent([
-      'M12 8.75a3.25 3.25 0 1 1 0 6.5 3.25 3.25 0 0 1 0-6.5Z',
-      'M12 2.75v2',
-      'M18.54 5.46l-1.42 1.42',
-      'M21.25 12h-2',
-      'M18.54 18.54l-1.42-1.42',
-      'M12 21.25v-2',
-      'M5.46 18.54l1.42-1.42',
-      'M2.75 12h2',
-      'M5.46 5.46l1.42 1.42',
+      'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
+      'M4.75 20a7.25 7.25 0 0 1 14.5 0',
     ]),
     filled: createNavIconComponent(
       [
-        'M11.1 2.75a1 1 0 0 1 1.8 0l.52 1.24a1 1 0 0 0 .98.62l1.33-.09a1 1 0 0 1 1.27 1.27l-.09 1.33a1 1 0 0 0 .62.98l1.24.52a1 1 0 0 1 0 1.8l-1.24.52a1 1 0 0 0-.62.98l.09 1.33a1 1 0 0 1-1.27 1.27l-1.33-.09a1 1 0 0 0-.98.62l-.52 1.24a1 1 0 0 1-1.8 0l-.52-1.24a1 1 0 0 0-.98-.62l-1.33.09a1 1 0 0 1-1.27-1.27l.09-1.33a1 1 0 0 0-.62-.98l-1.24-.52a1 1 0 0 1 0-1.8l1.24-.52a1 1 0 0 0 .62-.98l-.09-1.33a1 1 0 0 1 1.27-1.27l1.33.09a1 1 0 0 0 .98-.62l.52-1.24Z',
-        'M12 8.75a3.25 3.25 0 1 0 0 6.5 3.25 3.25 0 0 0 0-6.5Z',
+        'M12 3.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z',
+        'M12 13.75c-4.2 0-7.75 2.7-8.55 6.4-.1.47.27.9.75.9h15.6c.48 0 .85-.43.75-.9-.8-3.7-4.35-6.4-8.55-6.4Z',
+      ],
+      true,
+    ),
+  },
+  settings: {
+    outline: createNavIconComponent([
+      'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.757.426 1.757 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.757-2.924 1.757-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.757-.426-1.757-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.607 2.296.07 2.572-1.065Z',
+      'M12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z',
+    ]),
+    filled: createNavIconComponent(
+      [
+        'M10.483 1.904a1.875 1.875 0 0 1 1.5 0 1.875 1.875 0 0 1 1.734 1.113l.332.744a1.875 1.875 0 0 0 2.28 1.018l.781-.23a1.875 1.875 0 0 1 2.188.918l.75 1.299a1.875 1.875 0 0 1-.454 2.358l-.578.5a1.875 1.875 0 0 0 0 2.752l.578.5a1.875 1.875 0 0 1 .454 2.358l-.75 1.3a1.875 1.875 0 0 1-2.188.917l-.78-.23a1.875 1.875 0 0 0-2.281 1.018l-.332.744a1.875 1.875 0 0 1-1.734 1.113h-1.5a1.875 1.875 0 0 1-1.734-1.113l-.332-.744a1.875 1.875 0 0 0-2.28-1.018l-.781.23a1.875 1.875 0 0 1-2.188-.918l-.75-1.299a1.875 1.875 0 0 1 .454-2.358l.578-.5a1.875 1.875 0 0 0 0-2.752l-.578-.5a1.875 1.875 0 0 1-.454-2.358l.75-1.3a1.875 1.875 0 0 1 2.188-.917l.78.23a1.875 1.875 0 0 0 2.281-1.018l.332-.744A1.875 1.875 0 0 1 10.483 1.904Z',
+        'M12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z',
       ],
       true,
     ),
@@ -728,7 +655,7 @@ const primaryLinks = computed(() => {
   if (auth.isAdmin) {
     links.push({
       key: 'admin',
-      to: '/admin/dashboard',
+      to: { name: 'admin.dashboard' },
       label: 'Admin Hub',
       icon: 'A',
       iconOutline: navIcons.admin.outline,
@@ -737,15 +664,29 @@ const primaryLinks = computed(() => {
     })
   }
 
-  links.push({
-    key: 'settings',
-    to: '/settings',
-    label: 'Settings',
-    icon: 'S',
-    iconOutline: navIcons.settings.outline,
-    iconFilled: navIcons.settings.filled,
-    matchPrefix: '/settings',
-  })
+  if (auth.user) {
+    links.push({
+      key: 'profile',
+      to: '/profile',
+      label: 'Profil',
+      icon: 'P',
+      iconOutline: navIcons.user.outline,
+      iconFilled: navIcons.user.filled,
+      matchPrefix: '/profile',
+    })
+  }
+
+  if (auth.isAuthed) {
+    links.push({
+      key: 'settings',
+      to: '/settings',
+      label: 'Settings',
+      icon: 'S',
+      iconOutline: navIcons.settings.outline,
+      iconFilled: navIcons.settings.filled,
+      matchPrefix: '/settings',
+    })
+  }
 
   if (isWipEnabled) {
     links.push({
@@ -819,40 +760,12 @@ const handleKeydown = (event) => {
   }
 }
 
-const clearGreetingTimer = () => {
-  if (greetingHideTimer !== null) {
-    window.clearTimeout(greetingHideTimer)
-    greetingHideTimer = null
-  }
-}
-
-const hideGreetingNow = () => {
-  clearGreetingTimer()
-  showGreeting.value = false
-  greetingText.value = ''
-}
-
-const onGreetingDone = () => {
-  clearGreetingTimer()
-  greetingHideTimer = window.setTimeout(() => {
-    showGreeting.value = false
-  }, 2500)
-}
-
 const openComposer = () => {
   closeMore()
   closeAdmin()
 
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent('post:composer:open'))
-}
-
-const userGreetingName = (user) => {
-  const fromName = String(user?.name || '').trim()
-  if (fromName) return fromName
-  const fromUsername = String(user?.username || '').trim()
-  if (fromUsername) return fromUsername
-  return ''
 }
 
 onMounted(() => {
@@ -864,7 +777,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleClickOutside)
   window.removeEventListener('keydown', handleKeydown)
-  clearGreetingTimer()
 })
 
 watch(
@@ -873,43 +785,6 @@ watch(
     if (isAuthed) notifications.fetchUnreadCount()
   }
 )
-
-watch(
-  () => auth.user,
-  (nextUser) => {
-    if (!nextUser) {
-      hideGreetingNow()
-    }
-  },
-)
-
-watch(
-  () => auth.loginSequence,
-  (next, prev) => {
-    if (!Number.isFinite(next) || next <= 0) return
-    if (typeof prev === 'number' && next <= prev) return
-    if (!auth.user) return
-
-    const name = userGreetingName(auth.user)
-    if (!name) {
-      hideGreetingNow()
-      return
-    }
-
-    clearGreetingTimer()
-    greetingText.value = `Ahoj ${name}! \u{1F44B}`
-    showGreeting.value = true
-  },
-  { immediate: true },
-)
-
-const logout = async () => {
-  try {
-    await auth.logout()
-  } finally {
-    router.push({ name: 'login' })
-  }
-}
 </script>
 
 <style scoped>
@@ -923,22 +798,16 @@ const logout = async () => {
   height: 0;
 }
 
-.brandLabel {
-  display: inline-block;
-  min-height: 1.2rem;
-  white-space: nowrap;
-}
-
 .navIcon {
   filter: drop-shadow(0 1px 1px rgb(var(--color-bg-rgb) / 0.22));
 }
 
 .navIcon--filled {
-  opacity: 0.98;
+  opacity: 1;
 }
 
 .navIcon--outline {
-  opacity: 0.92;
+  opacity: 1;
 }
 
 .navItem.active {
@@ -947,16 +816,6 @@ const logout = async () => {
 
 .navLabel {
   letter-spacing: 0.01em;
-}
-
-.brand-fade-enter-active,
-.brand-fade-leave-active {
-  transition: opacity 0.18s ease;
-}
-
-.brand-fade-enter-from,
-.brand-fade-leave-to {
-  opacity: 0;
 }
 
 .notificationBadge {
@@ -1026,4 +885,5 @@ const logout = async () => {
   }
 }
 </style>
+
 

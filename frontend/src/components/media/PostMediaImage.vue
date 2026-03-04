@@ -3,11 +3,14 @@
     <div
       ref="frameRef"
       class="feed-media-frame"
-      :class="{ 'feed-media-frame--blurred': blurred }"
+      :class="{
+        'feed-media-frame--blurred': blurred,
+        'feed-media-frame--pending': blurred && isPendingStatus,
+      }"
       :style="frameStyle"
       role="button"
       tabindex="0"
-      :aria-label="blurred ? 'Obrazok sa kontroluje' : 'Otvorit cely obrazok'"
+      :aria-label="blurred ? `Obrazok: ${resolvedPendingLabel}` : 'Otvorit cely obrazok'"
       @click.stop="openLightbox"
       @keydown.enter.prevent="openLightbox"
       @keydown.space.prevent="openLightbox"
@@ -30,8 +33,8 @@
           Zobrazit cele
         </button>
       </div>
-      <div v-if="blurred" class="media-state-overlay">
-        <span>{{ pendingLabel }}</span>
+      <div v-if="blurred" class="media-state-overlay" :class="{ 'media-state-overlay--animated': isPendingStatus }">
+        <span>{{ resolvedPendingLabel }}</span>
       </div>
     </div>
 
@@ -49,7 +52,8 @@ const props = defineProps({
   maxHeightDesktop: { type: Number, default: 520 },
   maxHeightMobile: { type: Number, default: 420 },
   blurred: { type: Boolean, default: false },
-  pendingLabel: { type: String, default: 'Checking...' },
+  status: { type: String, default: '' },
+  pendingLabel: { type: String, default: 'Kontroluje sa…' },
 })
 
 const frameRef = ref(null)
@@ -61,6 +65,15 @@ const isLightboxOpen = ref(false)
 let resizeRaf = null
 
 const altText = computed(() => props.alt || 'Priloha')
+const normalizedStatus = computed(() => String(props.status || '').trim().toLowerCase())
+const isPendingStatus = computed(() => {
+  return normalizedStatus.value === 'processing' || normalizedStatus.value === 'pending_moderation'
+})
+const resolvedPendingLabel = computed(() => {
+  if (normalizedStatus.value === 'processing') return 'Publikuje sa…'
+  if (normalizedStatus.value === 'pending_moderation') return 'Kontroluje sa…'
+  return props.pendingLabel || 'Kontroluje sa…'
+})
 const frameStyle = computed(() => {
   if (!frameHeight.value) return {}
   return { height: `${frameHeight.value}px` }
@@ -171,7 +184,7 @@ onBeforeUnmount(() => {
 }
 
 .feed-media-frame--blurred .feed-media-img {
-  filter: blur(28px) saturate(0.7);
+  filter: blur(8px) saturate(0.7);
   transform: scale(1.05);
 }
 
@@ -205,18 +218,68 @@ onBeforeUnmount(() => {
 
 .media-state-overlay {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   z-index: 3;
-  display: flex;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   padding: 12px;
-  background: linear-gradient(to top, rgba(2, 6, 23, 0.82), rgba(2, 6, 23, 0));
+  background: rgb(2 6 23 / 0.56);
   color: #fff;
-  font-size: 12px;
+  pointer-events: none;
+}
+
+.media-state-overlay span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 164px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  background: rgb(2 6 23 / 0.64);
+  color: #fff;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.45);
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .media-state-overlay--animated {
+    background: rgb(2 6 23 / 0.35);
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    animation: media-state-overlay-blur-pulse 1.8s ease-in-out infinite;
+  }
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .feed-media-frame--pending .feed-media-img {
+    animation: media-state-image-blur-pulse 1.8s ease-in-out infinite;
+    will-change: filter;
+  }
+}
+
+@keyframes media-state-overlay-blur-pulse {
+  0%,
+  100% {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+  50% {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+}
+
+@keyframes media-state-image-blur-pulse {
+  0%,
+  100% {
+    filter: blur(8px) saturate(0.7);
+  }
+  50% {
+    filter: blur(12px) saturate(0.7);
+  }
 }
 
 @media (max-width: 768px) {

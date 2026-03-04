@@ -20,10 +20,7 @@
           :to="`/users/${user.username}`"
           class="flex items-center gap-3 p-2 rounded-lg hover:bg-[color:rgb(var(--color-bg-rgb)/0.8)]"
         >
-          <img
-            :src="user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`"
-            class="h-10 w-10 rounded-full object-cover"
-          />
+          <UserAvatar class="h-10 w-10 rounded-full object-cover" :user="user" :size="40" :alt="user.name || 'avatar'" />
           <div class="flex-1">
             <div class="font-medium text-[var(--color-surface)]">{{ user.name }}</div>
             <div class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.8)]">@{{ user.username }}</div>
@@ -62,6 +59,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import UserAvatar from '@/components/UserAvatar.vue'
 import http from '@/services/api'
 
 const recommendedUsers = ref([])

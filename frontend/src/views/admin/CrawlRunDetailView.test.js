@@ -20,17 +20,26 @@ function makeRouter() {
       {
         path: '/admin/crawl-runs/:id',
         name: 'admin.crawl-run.detail',
+        meta: { adminSection: 'events', adminTab: 'crawling' },
         component: CrawlRunDetailView,
       },
       {
-        path: '/admin/event-candidates',
+        path: '/admin/events/candidates',
         name: 'admin.event-candidates',
+        meta: { adminSection: 'events', adminTab: 'candidates' },
         component: { template: '<div>candidates</div>' },
       },
       {
-        path: '/admin/event-sources',
+        path: '/admin/events/crawling',
         name: 'admin.event-sources',
+        meta: { adminSection: 'events', adminTab: 'crawling' },
         component: { template: '<div>sources</div>' },
+      },
+      {
+        path: '/admin/events/published',
+        name: 'admin.events',
+        meta: { adminSection: 'events', adminTab: 'published' },
+        component: { template: '<div>events</div>' },
       },
     ],
   })
@@ -69,6 +78,11 @@ describe('CrawlRunDetailView', () => {
     await flush()
 
     expect(wrapper.text()).toContain('Crawl run detail')
+    expect(wrapper.text()).toContain('Event Pipeline')
+    expect(wrapper.find('.adminSectionTabs__tab.active').text()).toContain('Crawling')
+
+    const back = wrapper.get('[data-testid="admin-section-back-link"]')
+    expect(back.attributes('href')).toContain('/admin/events/crawling')
 
     const cta = wrapper.find('[data-testid="view-candidates-btn"]')
     expect(cta.exists()).toBe(true)
