@@ -49,11 +49,7 @@
             :to="{ name: 'user-profile', params: { username: user.username } }"
             class="flex items-center gap-3 px-0 py-3 transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.28)]"
           >
-            <img
-              :src="avatarUrl(user)"
-              :alt="user.name || user.username"
-              class="h-10 w-10 rounded-full object-cover"
-            />
+            <UserAvatar class="h-10 w-10 rounded-full object-cover" :user="user" :size="40" :alt="user.name || user.username" />
             <div class="min-w-0">
               <div class="truncate text-sm font-semibold text-[var(--color-surface)]">{{ user.name || user.username }}</div>
               <div class="truncate text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">@{{ user.username }}</div>
@@ -101,7 +97,7 @@
             :to="{ name: 'user-profile', params: { username: user.username } }"
             class="flex items-center gap-3 px-0 py-3 transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.28)]"
           >
-            <img :src="avatarUrl(user)" :alt="user.name || user.username" class="h-10 w-10 rounded-full object-cover" />
+            <UserAvatar class="h-10 w-10 rounded-full object-cover" :user="user" :size="40" :alt="user.name || user.username" />
             <div class="min-w-0">
               <div class="truncate text-sm font-semibold text-[var(--color-surface)]">{{ user.name || user.username }}</div>
               <div class="truncate text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">@{{ user.username }}</div>
@@ -149,6 +145,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import UserAvatar from '@/components/UserAvatar.vue'
 import api from '@/services/api'
 
 const RECENT_STORAGE_KEY = 'search_recent_queries'
@@ -270,14 +267,6 @@ const clearRecent = () => {
 
 const applyRecent = (entry) => {
   emit('update:query', entry)
-}
-
-const avatarUrl = (user) => {
-  if (user?.avatar_url) return user.avatar_url
-  if (user?.name) {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0f172a&color=fff&size=80`
-  }
-  return ''
 }
 
 const postSnippet = (content) => {

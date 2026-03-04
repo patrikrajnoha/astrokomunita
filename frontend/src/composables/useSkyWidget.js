@@ -10,6 +10,17 @@ import {
 const CHEAP_REFRESH_MS = 10 * 60 * 1000
 const ASTRONOMY_REFRESH_MS = 60 * 60 * 1000
 const FRESHNESS_TICK_MS = 60 * 1000
+const TWILIGHT_PHASES = new Set(['civil_twilight', 'nautical_twilight', 'astronomical_twilight'])
+
+export const SKY_PHASE = Object.freeze({
+  LOCATION_REQUIRED: 'location_required',
+  UNKNOWN: 'unknown',
+  DAY: 'day',
+  CIVIL_TWILIGHT: 'civil_twilight',
+  NAUTICAL_TWILIGHT: 'nautical_twilight',
+  ASTRONOMICAL_TWILIGHT: 'astronomical_twilight',
+  ASTRONOMICAL_NIGHT: 'astronomical_night',
+})
 
 export function useSkyWidget(options = {}) {
   const lat = options.lat
@@ -70,56 +81,53 @@ export function useSkyWidget(options = {}) {
   })
 
   const hasLocationCoords = computed(() => Number.isFinite(numericLat.value) && Number.isFinite(numericLon.value))
-  const currentTime = computed(() => getZonedComparableTimestamp(nowTick.value, effectiveTz.value))
+  const sunAltitudeDeg = computed(() => {
+    const fromPlanets = toFiniteNumber(planetsPayload.value?.sun_altitude_deg)
+    if (fromPlanets !== null) return fromPlanets
+    return toFiniteNumber(astronomy.value?.sun_altitude_deg)
+  })
+  const skyPhase = computed(() => classifySkyPhase({
+    hasLocationCoords: hasLocationCoords.value,
+    sunAltitudeDeg: sunAltitudeDeg.value,
+  }))
   const rawObservingScore = computed(() => {
     const value = toFiniteNumber(weather.value?.observing_score)
     if (value === null) return null
     return Math.max(0, Math.min(100, Math.round(value)))
   })
 
-  const isDaylight = computed(() => {
-    const sunrise = getDateComparableTimestamp(astronomy.value?.sunrise_at, effectiveTz.value)
-    const sunset = getDateComparableTimestamp(astronomy.value?.sunset_at, effectiveTz.value)
-    if (sunrise === null || sunset === null || currentTime.value === null) return false
-    return currentTime.value >= sunrise && currentTime.value <= sunset
-  })
-
-  const isAstronomicalNight = computed(() => {
-    if (isDaylight.value || currentTime.value === null) return false
-
-    const civilTwilightEnd = getDateComparableTimestamp(astronomy.value?.civil_twilight_end_at, effectiveTz.value)
-    if (civilTwilightEnd !== null) {
-      return currentTime.value >= civilTwilightEnd
-    }
-
-    const sunset = parseDate(astronomy.value?.sunset_at)
-    if (!(sunset instanceof Date)) return false
-
-    const fallbackNightStart = new Date(sunset.getTime() + (90 * 60 * 1000))
-    return currentTime.value > getZonedComparableTimestamp(fallbackNightStart, effectiveTz.value)
-  })
-
-  const isTwilightLimited = computed(() => {
-    if (isDaylight.value || currentTime.value === null) return false
-
-    const civilTwilightEnd = getDateComparableTimestamp(astronomy.value?.civil_twilight_end_at, effectiveTz.value)
-    if (civilTwilightEnd === null) return false
-
-    return currentTime.value < civilTwilightEnd
-  })
+  const isDaylight = computed(() => skyPhase.value === SKY_PHASE.DAY)
+  const isAstronomicalNight = computed(() => skyPhase.value === SKY_PHASE.ASTRONOMICAL_NIGHT)
+  const isTwilightLimited = computed(() => TWILIGHT_PHASES.has(skyPhase.value))
 
   const observingScore = computed(() => {
-    if (isDaylight.value) return 0
+    if (skyPhase.value === SKY_PHASE.DAY) return 0
     return rawObservingScore.value
   })
 
   const scorePresentation = computed(() => {
-    if (isDaylight.value) {
+    if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED) {
+      return { label: 'Poloha nenastavena', emoji: '📍' }
+    }
+
+    if (skyPhase.value === SKY_PHASE.UNKNOWN) {
+      return { label: 'Nezname', emoji: '❔' }
+    }
+
+    if (skyPhase.value === SKY_PHASE.DAY) {
       return { label: 'Denné svetlo', emoji: '☀️' }
     }
 
-    if (!isAstronomicalNight.value) {
-      return { label: 'Súmrak', emoji: '🌇' }
+    if (skyPhase.value === SKY_PHASE.CIVIL_TWILIGHT) {
+      return { label: 'Obciansky sumrak', emoji: '🌇' }
+    }
+
+    if (skyPhase.value === SKY_PHASE.NAUTICAL_TWILIGHT) {
+      return { label: 'Namorny sumrak', emoji: '🌆' }
+    }
+
+    if (skyPhase.value === SKY_PHASE.ASTRONOMICAL_TWILIGHT) {
+      return { label: 'Astronomicky sumrak', emoji: '🌌' }
     }
 
     return getScorePresentation(observingScore.value)
@@ -190,6 +198,14 @@ export function useSkyWidget(options = {}) {
   })
 
   const bestTimeLabel = computed(() => {
+    if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED) {
+      return 'Nastav polohu pre vypocet.'
+    }
+
+    if (skyPhase.value === SKY_PHASE.UNKNOWN) {
+      return 'Najlepsie okno sa nepodarilo urcit.'
+    }
+
     if (isDaylight.value) {
       const nightStart = nightStartsAt.value ? formatTime(nightStartsAt.value, effectiveTz.value) : ''
       return nightStart ? `Noc začne: ${nightStart}` : 'Najlepšie dnes: po zotmení'
@@ -217,6 +233,14 @@ export function useSkyWidget(options = {}) {
 
   const heroTitle = computed(() => (isDaylight.value ? 'Denné podmienky' : 'Astronomické podmienky'))
   const heroSubtitle = computed(() => {
+    if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED) {
+      return 'Poloha nie je nastavena. Nastav ju pre presny vypocet oblohy.'
+    }
+
+    if (skyPhase.value === SKY_PHASE.UNKNOWN) {
+      return 'Stav oblohy je docasne neznamy.'
+    }
+
     if (isDaylight.value) {
       return 'Momentálne je deň. Astronomické pozorovanie nie je možné.'
     }
@@ -270,11 +294,17 @@ export function useSkyWidget(options = {}) {
   ))
   const planetsSourceLine = computed(() => 'Zdroj: výpočet polohy planét')
 
-  const planetsNightV15 = computed(() => isPlanetNight(planetsPayload.value?.sun_altitude_deg))
+  const planetsNightV15 = computed(() => (
+    hasLocationCoords.value && isPlanetNight(planetsPayload.value?.sun_altitude_deg)
+  ))
   const planetsDisplayListV15 = computed(() => getVisiblePlanets(planetsPayload.value))
   const shouldShowPlanetsListV15 = computed(() => planetsDisplayListV15.value.length > 0)
   const planetsContextLineV15 = computed(() => '')
   const planetsMessageV15 = computed(() => {
+    if (!hasLocationCoords.value) {
+      return 'Nastav polohu pre vypocet planet.'
+    }
+
     const reason = sanitizeLabel(planetsPayload.value?.reason)
 
     if (reason === 'sky_service_unavailable') {
@@ -325,6 +355,13 @@ export function useSkyWidget(options = {}) {
     if (!options.silent) weatherLoading.value = true
     weatherError.value = ''
 
+    if (!hasLocationCoords.value) {
+      weather.value = null
+      weatherFetchedAt.value = null
+      weatherLoading.value = false
+      return
+    }
+
     try {
       const response = await api.get('/sky/weather', {
         params: buildRequestParams(true),
@@ -348,6 +385,13 @@ export function useSkyWidget(options = {}) {
     if (!options.silent) astronomyLoading.value = true
     astronomyError.value = ''
 
+    if (!hasLocationCoords.value) {
+      astronomy.value = null
+      astronomyFetchedAt.value = null
+      astronomyLoading.value = false
+      return
+    }
+
     try {
       const response = await api.get('/sky/astronomy', {
         params: buildRequestParams(true),
@@ -370,6 +414,13 @@ export function useSkyWidget(options = {}) {
     const token = nextToken('planets')
     if (!options.silent) planetsLoading.value = true
     planetsError.value = ''
+
+    if (!hasLocationCoords.value) {
+      planetsPayload.value = { planets: [], sample_at: null, sun_altitude_deg: null }
+      planetsFetchedAt.value = null
+      planetsLoading.value = false
+      return
+    }
 
     try {
       const response = await api.get('/sky/visible-planets', {
@@ -395,6 +446,13 @@ export function useSkyWidget(options = {}) {
     if (!options.silent) issLoading.value = true
     issError.value = ''
 
+    if (!hasLocationCoords.value) {
+      issPreview.value = { available: false }
+      issFetchedAt.value = null
+      issLoading.value = false
+      return
+    }
+
     try {
       const response = await api.get('/sky/iss-preview', {
         params: buildRequestParams(true),
@@ -417,6 +475,13 @@ export function useSkyWidget(options = {}) {
     const token = nextToken('light')
     if (!options.silent) lightPollutionLoading.value = true
     lightPollutionError.value = ''
+
+    if (!hasLocationCoords.value) {
+      lightPollution.value = null
+      lightPollutionFetchedAt.value = null
+      lightPollutionLoading.value = false
+      return
+    }
 
     try {
       const response = await api.get('/sky/light-pollution', {
@@ -607,6 +672,35 @@ export function useSkyWidget(options = {}) {
   }
 }
 
+export function classifySkyPhase({ hasLocationCoords, sunAltitudeDeg }) {
+  if (!hasLocationCoords) {
+    return SKY_PHASE.LOCATION_REQUIRED
+  }
+
+  const altitude = toFiniteNumber(sunAltitudeDeg)
+  if (altitude === null) {
+    return SKY_PHASE.UNKNOWN
+  }
+
+  if (altitude > 0) {
+    return SKY_PHASE.DAY
+  }
+
+  if (altitude > -6) {
+    return SKY_PHASE.CIVIL_TWILIGHT
+  }
+
+  if (altitude > -12) {
+    return SKY_PHASE.NAUTICAL_TWILIGHT
+  }
+
+  if (altitude > -18) {
+    return SKY_PHASE.ASTRONOMICAL_TWILIGHT
+  }
+
+  return SKY_PHASE.ASTRONOMICAL_NIGHT
+}
+
 function toFiniteNumber(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string' && value.trim() !== '') {
@@ -620,43 +714,6 @@ function parseDate(value) {
   if (!value) return null
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
-}
-
-function getDateComparableTimestamp(value, timeZone) {
-  const date = parseDate(value)
-  if (!(date instanceof Date)) return null
-  return getZonedComparableTimestamp(date, timeZone)
-}
-
-function getZonedComparableTimestamp(value, timeZone) {
-  const date = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-
-  try {
-    const formatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hourCycle: 'h23',
-    })
-    const parts = formatter.formatToParts(date)
-    const lookup = Object.fromEntries(parts.map(({ type, value: partValue }) => [type, partValue]))
-
-    return Date.UTC(
-      Number(lookup.year),
-      Number(lookup.month) - 1,
-      Number(lookup.day),
-      Number(lookup.hour),
-      Number(lookup.minute),
-      Number(lookup.second),
-    )
-  } catch {
-    return date.getTime()
-  }
 }
 
 function formatTime(date, timeZone) {

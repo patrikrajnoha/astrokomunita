@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AdminSectionHeader from '@/components/admin/AdminSectionHeader.vue'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import { getCrawlRun } from '@/services/api/admin/eventSources'
 
@@ -12,6 +13,10 @@ const error = ref('')
 const run = ref(null)
 
 const runId = computed(() => Number(route.params.id || 0))
+const crawlSourcesRoute = computed(() => ({
+  name: 'admin.event-sources',
+  query: { ...route.query },
+}))
 
 function normalizeSourceKey(value) {
   return String(value || '').trim().toLowerCase()
@@ -78,6 +83,13 @@ onMounted(loadRun)
 
 <template>
   <AdminPageShell title="Crawl run detail" subtitle="Run metadata and direct link to candidate review.">
+    <AdminSectionHeader
+      section="events"
+      title="Detail crawl runu"
+      back-label="Spat na crawling"
+      :back-to="crawlSourcesRoute"
+    />
+
     <div v-if="error" class="alert">{{ error }}</div>
     <div v-if="loading" class="muted">Loading run...</div>
 
@@ -88,7 +100,6 @@ onMounted(loadRun)
             <h2>#{{ run.id }} - {{ sourceLabel(run.source_name) }}</h2>
             <p class="muted">Year {{ run.year || '-' }} | Status {{ run.status || '-' }}</p>
           </div>
-          <button type="button" class="ghostBtn" @click="router.push({ name: 'admin.event-sources' })">Back to sources</button>
         </div>
 
         <dl class="metaGrid">

@@ -1,6 +1,6 @@
 <template>
   <section class="card panel">
-    <div class="panelTitle">{{ title }}</div>
+    <div class="panelTitle sidebarSection__header">{{ title }}</div>
 
     <div v-if="loading" class="panelLoading">
       <div class="skeleton h-4 w-2/3"></div>
@@ -130,48 +130,59 @@ export default {
 
 .panel {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--sb-gap-sm, 0.5rem);
 }
 
 .panelTitle {
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
+  line-height: 1.22;
 }
 
 .panelLoading {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--sb-gap-xs, 0.3rem);
 }
 
 .eventCard {
   display: grid;
-  gap: 0.6rem;
+  gap: var(--sb-gap-sm, 0.5rem);
 }
 
 .eventTitle {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 800;
   color: var(--color-surface);
+  line-height: 1.24;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .eventMeta {
   color: var(--color-text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.28;
 }
 
 .panelActions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--sb-gap-xs, 0.3rem);
   flex-wrap: wrap;
 }
 
 .actionbtn {
-  padding: 0.6rem 0.9rem;
-  border-radius: 0.9rem;
+  min-height: 1.95rem;
+  padding: 0.4rem 0.68rem;
+  border-radius: 0.7rem;
   border: 1px solid var(--color-primary);
   background: rgb(var(--color-primary-rgb) / 0.16);
   color: var(--color-surface);
+  font-size: 0.78rem;
+  line-height: 1.15;
 }
 
 .actionbtn:hover {
@@ -179,11 +190,14 @@ export default {
 }
 
 .ghostbtn {
-  padding: 0.6rem 0.9rem;
-  border-radius: 0.9rem;
+  min-height: 1.95rem;
+  padding: 0.4rem 0.68rem;
+  border-radius: 0.7rem;
   border: 1px solid var(--color-text-secondary);
   color: var(--color-surface);
   background: rgb(var(--color-bg-rgb) / 0.2);
+  font-size: 0.78rem;
+  line-height: 1.15;
 }
 
 .ghostbtn:hover {
@@ -193,14 +207,17 @@ export default {
 }
 
 .stateTitle {
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   font-weight: 800;
   color: var(--color-surface);
+  line-height: 1.24;
 }
 
 .stateText {
-  margin-top: 0.35rem;
+  margin-top: 0.2rem;
   color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.32;
 }
 
 .stateError .stateTitle,

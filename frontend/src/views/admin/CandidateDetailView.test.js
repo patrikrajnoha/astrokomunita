@@ -37,8 +37,30 @@ function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/admin/candidates/:id', component: CandidateDetailView },
-      { path: '/admin/candidates', component: { template: '<div>list</div>' } },
+      {
+        path: '/admin/candidates/:id',
+        name: 'admin.candidate.detail',
+        meta: { adminSection: 'events', adminTab: 'candidates' },
+        component: CandidateDetailView,
+      },
+      {
+        path: '/admin/events/candidates',
+        name: 'admin.event-candidates',
+        meta: { adminSection: 'events', adminTab: 'candidates' },
+        component: { template: '<div>list</div>' },
+      },
+      {
+        path: '/admin/events/crawling',
+        name: 'admin.event-sources',
+        meta: { adminSection: 'events', adminTab: 'crawling' },
+        component: { template: '<div>sources</div>' },
+      },
+      {
+        path: '/admin/events/published',
+        name: 'admin.events',
+        meta: { adminSection: 'events', adminTab: 'published' },
+        component: { template: '<div>events</div>' },
+      },
     ],
   })
 }
@@ -83,7 +105,7 @@ describe('CandidateDetailView', () => {
 
   it('renders confidence and matched source badges', async () => {
     const router = makeRouter()
-    await router.push('/admin/candidates/44')
+    await router.push('/admin/candidates/44?page=2&search=lyrids')
     await router.isReady()
 
     const wrapper = mount(CandidateDetailView, {
@@ -100,6 +122,11 @@ describe('CandidateDetailView', () => {
     expect(text).toContain('meteor shower|2026-04-22|lyrids lyr')
     expect(text).toContain('AstroPixels')
     expect(text).toContain('IMO')
+    expect(text).toContain('Event Pipeline')
+    expect(wrapper.find('.adminSectionTabs__tab.active').text()).toContain('Kandidáti')
+
+    const back = wrapper.get('[data-testid="admin-section-back-link"]')
+    expect(back.attributes('href')).toContain('/admin/events/candidates?page=2&search=lyrids')
   })
 
   it('prefers translated title over original title', async () => {

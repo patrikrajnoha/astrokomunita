@@ -36,8 +36,8 @@ function makeRouter() {
       { path: '/privacy', name: 'privacy', component: { template: '<div>privacy</div>' }, meta: { requiresAuth: false } },
       { path: '/terms', name: 'terms', component: { template: '<div>terms</div>' }, meta: { requiresAuth: false } },
       { path: '/cookies', name: 'cookies', component: { template: '<div>cookies</div>' }, meta: { requiresAuth: false } },
-      { path: '/sky/:pathMatch(.*)*', redirect: { name: 'home' } },
       { path: '/settings', name: 'settings', component: { template: '<div>settings</div>' }, meta: { requiresAuth: true } },
+      { path: '/settings/email', name: 'settings.email', component: { template: '<div>settings-email</div>' }, meta: { requiresAuth: true } },
       { path: '/login', name: 'login', component: { template: '<div>login</div>' }, meta: { guest: true } },
       { path: '/verify-email', name: 'verify-email.deprecated', component: { template: '<div>verify</div>' }, meta: { requiresAuth: false } },
       { path: '/onboarding', name: 'onboarding', component: { template: '<div>onboarding</div>' }, meta: { requiresAuth: true } },
@@ -88,15 +88,6 @@ describe('router auth guard', () => {
     expect(router.currentRoute.value.name).toBe('cookies')
   })
 
-  it('redirects legacy /sky URLs back home', async () => {
-    const router = makeRouter()
-    await router.push('/sky/placeholder')
-    await router.isReady()
-
-    expect(router.currentRoute.value.name).toBe('home')
-    expect(router.currentRoute.value.path).toBe('/')
-  })
-
   it('redirects guest from protected routes to login', async () => {
     const router = makeRouter()
     await router.push('/settings')
@@ -106,7 +97,7 @@ describe('router auth guard', () => {
     expect(router.currentRoute.value.query.redirect).toBe('/settings')
   })
 
-  it('redirects authenticated unverified users to settings email section', async () => {
+  it('redirects authenticated unverified users to settings email route', async () => {
     authState.isAuthed = true
     authState.user = {
       email_verified_at: null,
@@ -117,8 +108,7 @@ describe('router auth guard', () => {
     await router.push('/events')
     await router.isReady()
 
-    expect(router.currentRoute.value.name).toBe('settings')
-    expect(router.currentRoute.value.query.section).toBe('email')
+    expect(router.currentRoute.value.name).toBe('settings.email')
     expect(router.currentRoute.value.query.redirect).toBe('/events')
   })
 

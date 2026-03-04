@@ -1,15 +1,16 @@
 <template>
-  <aside v-if="isDesktop && activeScope && renderedSections.length > 0" class="rightCol">
-    <div
+  <aside v-if="isDesktop && activeScope && renderedSections.length > 0" class="rightCol sidebar-dense">
+    <section
       v-for="section in renderedSections"
       :key="resolveItemKey(section)"
       class="sidebarSection"
     >
       <component
         :is="resolveSidebarComponent(section)"
+        class="sidebarSection__content sidebarDenseCard"
         v-bind="propsForSection(section)"
       />
-    </div>
+    </section>
   </aside>
 </template>
 
@@ -151,6 +152,64 @@ onBeforeUnmount(() => {
 <style scoped>
 .rightCol {
   display: grid;
-  gap: 1rem;
+  gap: var(--sb-gap-md, 0.75rem);
+}
+
+.sidebarSection {
+  margin: 0;
+}
+
+.sidebarSection + .sidebarSection {
+  border-top: 1px solid var(--divider-color);
+  padding-top: var(--sb-gap-md, 0.75rem);
+}
+
+.sidebarSection__content {
+  min-width: 0;
+}
+
+.sidebarDenseCard {
+  border-radius: 0.9rem;
+}
+
+.sidebar-dense :deep(.panel) {
+  gap: var(--sb-gap-sm, 0.5rem);
+}
+
+.sidebar-dense :deep(.panelTitle),
+.sidebar-dense :deep(.sidebarSection__header) {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.22;
+}
+
+.sidebar-dense :deep(.panelLoading) {
+  gap: var(--sb-gap-xs, 0.3rem);
+}
+
+.sidebar-dense :deep(.panelActions) {
+  gap: var(--sb-gap-xs, 0.3rem);
+  padding-top: var(--sb-gap-xs, 0.3rem);
+}
+
+.sidebar-dense :deep(.stateTitle) {
+  font-size: 0.86rem;
+  line-height: 1.25;
+}
+
+.sidebar-dense :deep(.stateText) {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.sidebar-dense :deep(.ghostbtn),
+.sidebar-dense :deep(.actionbtn),
+.sidebar-dense :deep(.showMoreLink) {
+  min-height: 1.9rem;
+  padding: 0.4rem 0.68rem;
+  border-radius: 0.7rem;
+  font-size: 0.78rem;
+  line-height: 1.15;
 }
 </style>

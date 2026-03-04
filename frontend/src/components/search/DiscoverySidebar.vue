@@ -43,7 +43,7 @@
           :to="{ name: 'user-profile', params: { username: user.username } }"
           class="flex items-center gap-3 px-0 py-2.5 transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.88)]"
         >
-          <img :src="avatarUrl(user)" :alt="user.name || user.username" class="h-9 w-9 rounded-full object-cover" />
+          <UserAvatar class="h-9 w-9 rounded-full object-cover" :user="user" :size="36" :alt="user.name || user.username" />
           <div class="min-w-0">
             <div class="truncate text-sm font-medium text-[var(--color-surface)]">{{ user.name || user.username }}</div>
             <div class="truncate text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">@{{ user.username }}</div>
@@ -82,6 +82,7 @@
 
 <script setup>
 import { RouterLink } from 'vue-router'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 defineProps({
   trending: {
@@ -111,14 +112,6 @@ defineProps({
 })
 
 const emit = defineEmits(['refresh'])
-
-const avatarUrl = (user) => {
-  if (user?.avatar_url) return user.avatar_url
-  if (user?.name) {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0f172a&color=fff&size=80`
-  }
-  return ''
-}
 
 const snippet = (content) => {
   const text = String(content || '').replace(/\s+/g, ' ').trim()

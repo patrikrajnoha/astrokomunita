@@ -59,12 +59,12 @@ function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
     routes: [
-      { path: '/admin/dashboard', component: AdminDashboardView },
-      { path: '/admin/users', component: { template: '<div>users</div>' } },
-      { path: '/admin/moderation', component: { template: '<div>moderation</div>' } },
-      { path: '/admin/events', component: { template: '<div>events</div>' } },
-      { path: '/admin/event-sources', component: { template: '<div>sources</div>' } },
-      { path: '/admin/event-candidates', component: { template: '<div>candidates</div>' } },
+      { path: '/admin/dashboard', name: 'admin.dashboard', component: AdminDashboardView },
+      { path: '/admin/community/users', name: 'admin.users', component: { template: '<div>users</div>' } },
+      { path: '/admin/community/moderation', name: 'admin.moderation', component: { template: '<div>moderation</div>' } },
+      { path: '/admin/events/published', name: 'admin.events', component: { template: '<div>events</div>' } },
+      { path: '/admin/events/crawling', name: 'admin.event-sources', component: { template: '<div>sources</div>' } },
+      { path: '/admin/events/candidates', name: 'admin.event-candidates', component: { template: '<div>candidates</div>' } },
     ],
   })
 }

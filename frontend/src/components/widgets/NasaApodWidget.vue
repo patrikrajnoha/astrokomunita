@@ -1,6 +1,6 @@
 <template>
   <section v-if="nasaEnabled" class="card panel">
-    <div class="panelTitle">{{ title }}</div>
+    <div class="panelTitle sidebarSection__header">{{ title }}</div>
 
     <div v-if="loading" class="panelLoading">
       <div class="skeleton nasaThumb"></div>
@@ -123,35 +123,37 @@ export default {
 
 .panel {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--sb-gap-sm, 0.5rem);
 }
 
 .panelTitle {
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
+  line-height: 1.22;
 }
 
 .panelLoading {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--sb-gap-xs, 0.3rem);
 }
 
 .nasaCard {
   display: grid;
-  gap: 0.6rem;
+  gap: var(--sb-gap-sm, 0.5rem);
 }
 
 .nasaThumb {
   width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 1rem;
+  aspect-ratio: 16 / 8.5;
+  border-radius: 0.75rem;
 }
 
 .nasaImageWrap {
   width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 1rem;
+  aspect-ratio: 16 / 8.5;
+  max-height: 172px;
+  border-radius: 0.75rem;
   overflow: hidden;
   border: 1px solid var(--divider-color);
 }
@@ -164,15 +166,16 @@ export default {
 }
 
 .nasaTitle {
-  font-size: 1.05rem;
+  font-size: 0.96rem;
   font-weight: 800;
   color: var(--color-surface);
-  line-height: 1.25;
+  line-height: 1.24;
 }
 
 .nasaExcerpt {
   color: var(--color-text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
+  line-height: 1.32;
   display: -webkit-box;
   line-clamp: 3;
   -webkit-line-clamp: 3;
@@ -182,16 +185,19 @@ export default {
 
 .panelActions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--sb-gap-xs, 0.3rem);
   flex-wrap: wrap;
 }
 
 .ghostbtn {
-  padding: 0.6rem 0.9rem;
-  border-radius: 0.9rem;
+  min-height: 1.95rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 0.7rem;
   border: 1px solid var(--color-text-secondary);
   color: var(--color-surface);
   background: rgb(var(--color-bg-rgb) / 0.2);
+  font-size: 0.78rem;
+  line-height: 1.15;
 }
 
 .ghostbtn:hover {
@@ -202,6 +208,8 @@ export default {
 
 .stateText {
   color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  line-height: 1.32;
 }
 
 .skeleton {
@@ -224,4 +232,15 @@ export default {
 .h-4 { height: 1rem; }
 .w-4\/5 { width: 80%; }
 .w-2\/3 { width: 66.666667%; }
+
+@media (max-width: 420px) {
+  .nasaImageWrap {
+    max-height: 158px;
+  }
+
+  .nasaExcerpt {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
 </style>

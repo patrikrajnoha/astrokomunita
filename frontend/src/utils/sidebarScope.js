@@ -51,10 +51,6 @@ export function resolveSidebarScopeFromPath(path) {
     return SIDEBAR_SCOPE.SETTINGS
   }
 
-  if (normalized.startsWith('/sky')) {
-    return SIDEBAR_SCOPE.SKY
-  }
-
   if (normalized.startsWith('/posts/')) {
     return SIDEBAR_SCOPE.POST_DETAIL
   }

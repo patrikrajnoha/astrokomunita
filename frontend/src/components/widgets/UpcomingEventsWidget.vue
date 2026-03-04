@@ -1,6 +1,6 @@
 <template>
   <section class="card panel">
-    <div class="panelTitle">{{ title }}</div>
+    <div class="panelTitle sidebarSection__header">{{ title }}</div>
 
     <div v-if="loading" class="panelLoading" aria-live="polite">
       <div v-for="index in 4" :key="index" class="skeletonRow">
@@ -95,17 +95,18 @@ export default {
 
 .panel {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--sb-gap-sm, 0.5rem);
 }
 
 .panelTitle {
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
+  line-height: 1.22;
 }
 
 .eventsViewport {
-  min-height: 8rem;
+  min-height: 6.25rem;
 }
 
 .eventsList {
@@ -118,9 +119,12 @@ export default {
 
 .eventItem {
   display: grid;
-  gap: 0.2rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 0.48rem;
+  row-gap: 0;
   border-bottom: 1px solid var(--divider-color);
-  padding: 0.7rem 0;
+  padding: 0.46rem 0;
 }
 
 .eventItem:last-child {
@@ -129,27 +133,34 @@ export default {
 
 .eventDate {
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
-  line-height: 1.2;
+  font-size: 0.72rem;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 
 .eventTitle {
   color: var(--color-surface);
-  font-size: 0.94rem;
+  font-size: 0.84rem;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 1.24;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .panelActions {
   display: flex;
-  padding-top: 0.7rem;
+  padding-top: 0.35rem;
 }
 
 .showMoreLink {
   color: var(--color-primary);
-  font-size: 0.86rem;
+  font-size: 0.78rem;
   font-weight: 600;
   text-decoration: none;
+  line-height: 1.2;
 }
 
 .showMoreLink:hover {
@@ -157,14 +168,14 @@ export default {
 }
 
 .panelLoading {
-  min-height: 8rem;
+  min-height: 6.25rem;
   display: grid;
-  gap: 0.7rem;
+  gap: var(--sb-gap-sm, 0.5rem);
 }
 
 .skeletonRow {
   display: grid;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
 .skeleton {
@@ -195,14 +206,17 @@ export default {
 }
 
 .stateTitle {
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   font-weight: 800;
   color: var(--color-surface);
+  line-height: 1.24;
 }
 
 .stateText {
-  margin-top: 0.35rem;
+  margin-top: 0.2rem;
   color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.32;
 }
 
 .stateError .stateTitle,

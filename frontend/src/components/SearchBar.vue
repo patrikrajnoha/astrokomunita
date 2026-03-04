@@ -1,10 +1,10 @@
 <template>
-  <form ref="rootRef" class="relative" role="search" aria-label="Vyhladavanie" @submit.prevent="handleSubmit">
+  <form ref="rootRef" class="sidebarSearch relative" role="search" aria-label="Vyhladavanie" @submit.prevent="handleSubmit">
     <label for="sidebar-search" class="sr-only">Vyhladat prispevky a pouzivatelov</label>
 
-    <div class="relative">
-      <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7b8faa]" aria-hidden="true">
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div class="sidebarSearch__field relative">
+      <span class="sidebarSearch__icon pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7b8faa]" aria-hidden="true">
+        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
       </span>
@@ -22,29 +22,29 @@
         :aria-controls="listboxId"
         aria-autocomplete="list"
         :aria-activedescendant="activeDescendantId"
-        class="w-full rounded-full border border-transparent bg-[#222e3f] py-2.5 pl-10 pr-12 text-sm text-[#7b8faa] placeholder:text-[#7b8faa] transition-[border-color,box-shadow] focus:border-[#0f73ff] focus:outline-none focus:ring-1 focus:ring-[#0f73ff]/20"
+        class="sidebarSearch__input w-full border border-transparent bg-[#222e3f] pl-9 pr-10 text-[13px] text-[#7b8faa] placeholder:text-[#7b8faa] transition-[border-color,box-shadow] focus:border-[#0f73ff] focus:outline-none focus:ring-1 focus:ring-[#0f73ff]/20"
         @focus="handleFocus"
         @blur="handleBlur"
         @keydown="handleKeydown"
       />
 
-      <div class="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
+      <div class="sidebarSearch__actions absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1">
         <button
           v-if="hasQuery"
           type="button"
-          class="rounded-md p-1 text-[color:rgb(var(--color-text-secondary-rgb)/0.8)] transition-colors hover:text-[var(--color-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
+          class="rounded-md p-0.5 text-[color:rgb(var(--color-text-secondary-rgb)/0.8)] transition-colors hover:text-[var(--color-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
           aria-label="Vymazat vyhladavanie"
           @mousedown.prevent
           @click="clearQuery"
         >
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
         <div
           v-if="isLoading"
-          class="h-4 w-4 animate-spin rounded-full border-2 border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] border-t-[var(--color-primary)]"
+          class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] border-t-[var(--color-primary)]"
           aria-hidden="true"
         ></div>
 
@@ -55,11 +55,11 @@
       v-if="isDropdownVisible"
       :id="listboxId"
       role="listbox"
-      class="absolute left-0 right-0 z-50 mt-2 max-h-72 overflow-y-auto rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.24)] bg-[color:rgb(var(--color-bg-rgb)/0.96)] p-1 shadow-[0_16px_40px_rgb(0_0_0/0.24)] backdrop-blur"
+      class="sidebarSearch__dropdown absolute left-0 right-0 z-50 mt-1.5 max-h-64 overflow-y-auto rounded-lg border border-[color:rgb(var(--color-text-secondary-rgb)/0.24)] bg-[color:rgb(var(--color-bg-rgb)/0.96)] p-1 shadow-[0_16px_40px_rgb(0_0_0/0.24)] backdrop-blur"
     >
       <div
         v-if="!hasSuggestions"
-        class="px-3 py-2.5 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]"
+        class="px-2.5 py-2 text-[13px] text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]"
       >
         {{ isLoading ? 'Nacitavam navrhy...' : 'Ziadne navrhy' }}
       </div>
@@ -71,7 +71,7 @@
         type="button"
         role="option"
         :aria-selected="activeIndex === index ? 'true' : 'false'"
-        class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm text-[var(--color-surface)] transition-colors"
+        class="flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] text-[var(--color-surface)] transition-colors"
         :class="activeIndex === index
           ? 'bg-[color:rgb(var(--color-primary-rgb)/0.2)]'
           : 'hover:bg-[color:rgb(var(--color-bg-rgb)/0.75)]'"
@@ -90,7 +90,7 @@
           </template>
         </span>
 
-        <span class="shrink-0 rounded-md bg-[color:rgb(var(--color-bg-rgb)/0.55)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:rgb(var(--color-text-secondary-rgb)/0.95)]">
+        <span class="shrink-0 rounded-md bg-[color:rgb(var(--color-bg-rgb)/0.55)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[color:rgb(var(--color-text-secondary-rgb)/0.95)]">
           {{ item.type }}
         </span>
       </button>
@@ -373,3 +373,28 @@ onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleOutsideClick)
 })
 </script>
+
+<style scoped>
+.sidebarSearch {
+  --sb-gap-xs: var(--sb-gap-xs, 0.3rem);
+}
+
+.sidebarSearch__field {
+  margin: 0;
+}
+
+.sidebarSearch__input {
+  min-height: 2.15rem;
+  border-radius: 0.75rem;
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+}
+
+.sidebarSearch__icon {
+  opacity: 0.92;
+}
+
+.sidebarSearch__dropdown {
+  border-radius: 0.75rem;
+}
+</style>

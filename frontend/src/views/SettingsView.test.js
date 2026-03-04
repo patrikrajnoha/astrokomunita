@@ -1,8 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import { mount } from '@vue/test-utils'
-import SettingsView from './SettingsView.vue'
 
-const pushMock = vi.hoisted(() => vi.fn())
+import SettingsView from './SettingsView.vue'
+import SettingsActivityView from './settings/SettingsActivityView.vue'
+import SettingsDataExportView from './settings/SettingsDataExportView.vue'
+import SettingsEmailView from './settings/SettingsEmailView.vue'
+import SettingsNavigationView from './settings/SettingsNavigationView.vue'
+import SettingsNewsletterView from './settings/SettingsNewsletterView.vue'
+import SettingsOnboardingView from './settings/SettingsOnboardingView.vue'
+import SettingsPasswordView from './settings/SettingsPasswordView.vue'
+import SettingsDeactivateView from './settings/SettingsDeactivateView.vue'
 
 const authMock = vi.hoisted(() => ({
   user: {
@@ -22,15 +30,6 @@ const httpMock = vi.hoisted(() => ({
   delete: vi.fn(),
   get: vi.fn(),
   post: vi.fn(),
-}))
-
-vi.mock('vue-router', () => ({
-  useRouter: () => ({
-    push: pushMock,
-  }),
-  useRoute: () => ({
-    query: {},
-  }),
 }))
 
 vi.mock('@/stores/auth', () => ({
@@ -56,6 +55,52 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function makeRouter() {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      {
+        path: '/settings',
+        component: SettingsView,
+        children: [
+          { path: '', name: 'settings', component: SettingsNavigationView },
+          { path: 'onboarding', name: 'settings.onboarding', component: SettingsOnboardingView },
+          { path: 'email', name: 'settings.email', component: SettingsEmailView },
+          { path: 'newsletter', name: 'settings.newsletter', component: SettingsNewsletterView },
+          { path: 'data-export', name: 'settings.data-export', component: SettingsDataExportView },
+          { path: 'password', name: 'settings.password', component: SettingsPasswordView },
+          { path: 'activity', name: 'settings.activity', component: SettingsActivityView },
+          { path: 'deactivate', name: 'settings.deactivate', component: SettingsDeactivateView },
+        ],
+      },
+      { path: '/login', name: 'login', component: { template: '<div>login</div>' } },
+    ],
+  })
+}
+
+async function mountAt(path, options = {}) {
+  const router = makeRouter()
+  await router.push(path)
+  await router.isReady()
+
+  const wrapper = mount(
+    {
+      template: '<router-view />',
+    },
+    {
+      attachTo: options.attachTo,
+      global: {
+        plugins: [router],
+      },
+    },
+  )
+
+  await flush()
+  await flush()
+
+  return { wrapper, router }
+}
+
 describe('SettingsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -66,6 +111,7 @@ describe('SettingsView', () => {
       newsletter_subscribed: false,
     }
     authMock.initialized = true
+
     httpMock.patch.mockResolvedValue({
       data: {
         data: {
@@ -73,6 +119,7 @@ describe('SettingsView', () => {
         },
       },
     })
+
     httpMock.get.mockImplementation((url) => {
       if (url === '/account/email') {
         return Promise.resolve({
@@ -97,6 +144,7 @@ describe('SettingsView', () => {
         },
       })
     })
+
     httpMock.post.mockResolvedValue({
       data: {
         message: 'Verification code sent.',
@@ -113,9 +161,7 @@ describe('SettingsView', () => {
   })
 
   it('renders email verification state from account email API', async () => {
-    const wrapper = mount(SettingsView)
-    await flush()
-    await flush()
+    const { wrapper } = await mountAt('/settings/email')
 
     expect(httpMock.get).toHaveBeenCalledWith('/account/email', {
       meta: { skipErrorToast: true },
@@ -124,7 +170,7 @@ describe('SettingsView', () => {
     expect(wrapper.find('[data-testid="settings-email-status"]').text()).toContain('tester@example.com')
   })
 
-  it('sends verification code from settings email section', async () => {
+  it('sends verification code from settings email detail', async () => {
     httpMock.get.mockImplementation((url) => {
       if (url === '/account/email') {
         return Promise.resolve({
@@ -147,9 +193,7 @@ describe('SettingsView', () => {
       })
     })
 
-    const wrapper = mount(SettingsView)
-    await flush()
-    await flush()
+    const { wrapper } = await mountAt('/settings/email')
 
     await wrapper.get('#settings-email-send').trigger('click')
     await flush()
@@ -160,8 +204,7 @@ describe('SettingsView', () => {
   })
 
   it('updates newsletter toggle via API', async () => {
-    const wrapper = mount(SettingsView)
-    await flush()
+    const { wrapper } = await mountAt('/settings/newsletter')
 
     const checkbox = wrapper.get('#settings-newsletter')
     await checkbox.setValue(true)
@@ -188,8 +231,7 @@ describe('SettingsView', () => {
       .spyOn(HTMLAnchorElement.prototype, 'click')
       .mockImplementation(() => {})
 
-    const wrapper = mount(SettingsView, { attachTo: document.body })
-    await flush()
+    const { wrapper } = await mountAt('/settings/data-export', { attachTo: document.body })
 
     await wrapper.get('#settings-export-button').trigger('click')
     await flush()
@@ -240,8 +282,7 @@ describe('SettingsView', () => {
       })
     })
 
-    const wrapper = mount(SettingsView)
-    await flush()
+    const { wrapper } = await mountAt('/settings/activity')
 
     expect(wrapper.find('[data-testid="activity-values"]').exists()).toBe(false)
 
@@ -252,5 +293,15 @@ describe('SettingsView', () => {
       meta: { skipErrorToast: true },
     })
     expect(wrapper.find('[data-testid="activity-values"]').exists()).toBe(true)
+  })
+
+  it('logs out from settings navigation session section', async () => {
+    const { wrapper, router } = await mountAt('/settings')
+
+    await wrapper.get('#settings-logout-button').trigger('click')
+    await flush()
+
+    expect(authMock.logout).toHaveBeenCalledTimes(1)
+    expect(router.currentRoute.value.name).toBe('login')
   })
 })

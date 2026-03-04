@@ -4,16 +4,13 @@
       <header class="share-head">
         <div class="author-wrap">
           <div class="avatar-wrap">
-            <img
-              v-if="avatarToUse"
-              :src="avatarToUse"
-              alt="Author avatar"
-              crossorigin="anonymous"
-              referrerpolicy="no-referrer"
-              class="avatar-image"
-              @error="onAvatarError"
+            <UserAvatar
+              class="avatar-fallback"
+              :user="resolvedAuthor"
+              :avatar-url="avatarToUse"
+              :size="72"
+              :alt="authorName"
             />
-            <div v-else class="avatar-fallback">{{ authorInitials }}</div>
           </div>
           <div class="author-name">{{ authorName }}</div>
         </div>
@@ -38,7 +35,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -47,22 +45,11 @@ const props = defineProps({
   forcePlaceholderAvatar: { type: Boolean, default: false },
 })
 
-const avatarBroken = ref(false)
-
 const resolvedAuthor = computed(() => props.author || props.post?.user || {})
 const authorName = computed(() => resolvedAuthor.value?.name || 'Astrokomunita')
-const authorInitials = computed(() => {
-  const parts = String(authorName.value || '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-  const first = parts[0]?.[0] || 'A'
-  const second = parts[1]?.[0] || ''
-  return (first + second).toUpperCase()
-})
 
 const avatarToUse = computed(() => {
-  if (props.forcePlaceholderAvatar || avatarBroken.value) return ''
+  if (props.forcePlaceholderAvatar) return ''
   return resolvedAuthor.value?.avatar_url || ''
 })
 
@@ -114,9 +101,6 @@ const visibleTags = computed(() => {
 
 const watermarkText = computed(() => `${props.brandDomain}  •  #${props.post?.id ?? 'post'}`)
 
-function onAvatarError() {
-  avatarBroken.value = true
-}
 </script>
 
 <style scoped>
@@ -168,24 +152,13 @@ function onAvatarError() {
   border: 1px solid rgba(148, 163, 184, 0.45);
 }
 
-.avatar-image,
 .avatar-fallback {
   width: 100%;
   height: 100%;
 }
 
-.avatar-image {
-  object-fit: cover;
-  display: block;
-}
-
 .avatar-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30px;
-  font-weight: 600;
-  color: #d1d5db;
+  display: block;
 }
 
 .author-name {

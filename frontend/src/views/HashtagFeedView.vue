@@ -41,11 +41,7 @@
       >
         <!-- Header s užívateľom -->
         <div class="flex items-start gap-3 mb-3">
-          <img
-            :src="post.user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.user.name)}&background=random`"
-            :alt="post.user.name"
-            class="h-10 w-10 rounded-full object-cover"
-          />
+          <UserAvatar class="h-10 w-10 rounded-full object-cover" :user="post.user" :size="40" :alt="post.user.name || 'avatar'" />
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
               <span class="font-medium text-[var(--color-surface)]">
@@ -125,6 +121,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { RouterLink } from 'vue-router'
 import axios from 'axios'
+import UserAvatar from '@/components/UserAvatar.vue'
 import HashtagText from '@/components/HashtagText.vue'
 
 const route = useRoute()

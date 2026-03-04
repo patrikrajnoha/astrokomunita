@@ -10,7 +10,6 @@ export const SIDEBAR_SCOPES = [
   'post_detail',
   'profile',
   'settings',
-  'sky',
   'observing'
 ] as const
 
@@ -26,7 +25,6 @@ export const SIDEBAR_SCOPE = {
   POST_DETAIL: 'post_detail',
   PROFILE: 'profile',
   SETTINGS: 'settings',
-  SKY: 'sky',
   OBSERVING: 'observing'
 } as const satisfies Record<string, SidebarScope>
 

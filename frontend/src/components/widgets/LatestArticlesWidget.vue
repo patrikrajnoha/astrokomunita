@@ -1,6 +1,6 @@
 <template>
   <section class="card panel">
-    <div class="panelTitle" aria-live="polite">{{ typedTitle || '\u00A0' }}</div>
+    <div class="panelTitle sidebarSection__header" aria-live="polite">{{ typedTitle || '\u00A0' }}</div>
 
     <div v-if="loading" class="panelLoading">
       <div class="skeleton h-4 w-4/5"></div>
@@ -214,20 +214,21 @@ export default {
 
 .panel {
   display: grid;
-  gap: 0.75rem;
+  gap: var(--sb-gap-sm, 0.5rem);
 }
 
 .panelTitle {
-  min-height: 1.25rem;
+  min-height: 1.12rem;
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
+  line-height: 1.22;
   letter-spacing: 0.01em;
 }
 
 .panelLoading {
   display: grid;
-  gap: 0.5rem;
+  gap: var(--sb-gap-xs, 0.3rem);
 }
 
 .articleList {
@@ -239,13 +240,13 @@ export default {
 }
 
 .articleViewport {
-  min-height: 5.75rem;
+  min-height: 4.9rem;
 }
 
 .articleItem {
   display: block;
   border-bottom: 1px solid var(--divider-color);
-  padding: 0.65rem 0;
+  padding: 0.46rem 0;
 }
 
 .articleItem:last-child {
@@ -256,7 +257,13 @@ export default {
   color: var(--color-surface);
   text-decoration: none;
   font-weight: 600;
-  line-height: 1.4;
+  font-size: 0.84rem;
+  line-height: 1.28;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .articleLink:hover {
@@ -264,14 +271,17 @@ export default {
 }
 
 .stateTitle {
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   font-weight: 800;
   color: var(--color-surface);
+  line-height: 1.24;
 }
 
 .stateText {
-  margin-top: 0.35rem;
+  margin-top: 0.2rem;
   color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.32;
 }
 
 .stateError .stateTitle,
@@ -322,9 +332,9 @@ export default {
 
 .modeIndicator {
   position: absolute;
-  top: 0.95rem;
-  right: 1rem;
-  font-size: 0.8rem;
+  top: 0.78rem;
+  right: 0.8rem;
+  font-size: 0.72rem;
   opacity: 0.35;
   color: var(--color-surface);
   transform-origin: 50% 50%;

@@ -4,7 +4,13 @@ import LatestArticlesWidget from '@/components/widgets/LatestArticlesWidget.vue'
 import NasaApodWidget from '@/components/widgets/NasaApodWidget.vue'
 import NextEventWidget from '@/components/widgets/NextEventWidget.vue'
 import UpcomingEventsWidget from '@/components/widgets/UpcomingEventsWidget.vue'
-import SidebarSpecialEventCard from '@/components/widgets/SidebarSpecialEventCard.vue'
+import SidebarWidgetRenderer from '@/components/widgets/SidebarWidgetRenderer.vue'
+import {
+  LEGACY_WIDGET_TYPE_SPECIAL_EVENT,
+  SIDEBAR_WIDGET_TYPES,
+  normalizeWidgetConfig,
+  normalizeWidgetType,
+} from '@/sidebar/customWidgets/types'
 
 export const sidebarComponentMap = {
   search: SearchBar,
@@ -16,7 +22,11 @@ export const sidebarComponentMap = {
 }
 
 export const customSidebarComponentMap = {
-  special_event: SidebarSpecialEventCard,
+  [SIDEBAR_WIDGET_TYPES.CTA]: SidebarWidgetRenderer,
+  [SIDEBAR_WIDGET_TYPES.INFO_CARD]: SidebarWidgetRenderer,
+  [SIDEBAR_WIDGET_TYPES.LINK_LIST]: SidebarWidgetRenderer,
+  [SIDEBAR_WIDGET_TYPES.HTML]: SidebarWidgetRenderer,
+  [LEGACY_WIDGET_TYPE_SPECIAL_EVENT]: SidebarWidgetRenderer,
 }
 
 const sidebarIconMap = {
@@ -82,12 +92,12 @@ export const normalizeSidebarSections = (items) => {
         ? {
             id: Number.isFinite(Number(item.custom_component.id)) ? Number(item.custom_component.id) : null,
             name: String(item.custom_component.name || ''),
-            type: String(item.custom_component.type || ''),
+            type: normalizeWidgetType(String(item.custom_component.type || '')),
             is_active: Boolean(item.custom_component.is_active),
-            config_json: item.custom_component.config_json && typeof item.custom_component.config_json === 'object'
-              ? { ...item.custom_component.config_json }
-              : {},
-            event_summary: item.custom_component.event_summary || null,
+            config_json: normalizeWidgetConfig(
+              item.custom_component.type,
+              item.custom_component.config_json || item.custom_component.config || {},
+            ),
           }
         : null,
       order: toSafeNumber(item?.order, 0),
@@ -116,7 +126,7 @@ export const resolveSidebarComponent = (section) => {
   }
 
   if (section.kind === 'custom_component') {
-    const type = String(section?.custom_component?.type || '')
+    const type = String(normalizeWidgetType(section?.custom_component?.type || ''))
     return customSidebarComponentMap[type] || null
   }
 

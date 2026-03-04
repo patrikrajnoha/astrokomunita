@@ -1,59 +1,180 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { ADMIN_SECTION_KEYS } from '@/components/admin/adminSections'
 
 const route = useRoute()
 const wipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCase() === 'true'
 
 const groups = [
   {
-    title: 'Publikovanie udalosti',
+    title: 'Hlavné sekcie',
     items: [
-      { label: 'Crawling', to: '/admin/event-sources', icon: '1' },
-      { label: 'Kandidati', to: '/admin/event-candidates', icon: '2' },
-      { label: 'Udalosti', to: '/admin/events', icon: '3' },
+      {
+        label: 'Event Pipeline',
+        to: { name: 'admin.events' },
+        icon: 'E',
+        section: ADMIN_SECTION_KEYS.EVENTS,
+      },
+      {
+        label: 'Správa komunity',
+        to: { name: 'admin.users' },
+        icon: 'K',
+        section: ADMIN_SECTION_KEYS.COMMUNITY,
+      },
+      {
+        label: 'Obsah',
+        to: { name: 'admin.blog' },
+        icon: 'O',
+        section: ADMIN_SECTION_KEYS.CONTENT,
+      },
     ],
   },
   {
-    title: 'Sprava',
+    title: 'Správa',
     items: [
-      { label: 'Dashboard', to: '/admin/dashboard', icon: 'D' },
-      { label: 'Pouzivatelia', to: '/admin/users', icon: 'U' },
-      { label: 'Moderacia', to: '/admin/moderation', icon: 'M' },
-      ...(wipEnabled ? [{ label: 'Zakazane slova', to: '/admin/banned-words', icon: 'W' }] : []),
+      { label: 'Dashboard', to: { name: 'admin.dashboard' }, icon: 'D', routeNames: ['admin.dashboard'] },
+      ...(wipEnabled
+        ? [{ label: 'Zakázané slová', to: { name: 'admin.banned-words' }, icon: 'W', routeNames: ['admin.banned-words'] }]
+        : []),
     ],
   },
   {
-    title: 'Obsah a konfiguracia',
+    title: 'Obsah a konfigurácia',
     items: [
-      { label: 'Vybrane udalosti popup', to: '/admin/featured-events', icon: 'P' },
-      { label: 'Newsletter', to: '/admin/newsletter', icon: 'N' },
-      { label: 'Sutaze', to: '/admin/contests', icon: 'C' },
-      { label: 'Clanky', to: '/admin/blog', icon: 'B' },
-      { label: 'Sidebar', to: '/admin/sidebar', icon: 'S' },
-      { label: 'Bot Engine', to: '/admin/bots', icon: 'B' },
-      { label: 'Performance', to: '/admin/performance-metrics', icon: 'P' },
+      {
+        label: 'Vybrané udalosti popup',
+        to: { name: 'admin.featured-events' },
+        icon: 'P',
+        routeNames: ['admin.featured-events'],
+      },
+      { label: 'Súťaže', to: { name: 'admin.contests' }, icon: 'C', routeNames: ['admin.contests'] },
+      { label: 'Sidebar', to: { name: 'admin.sidebar' }, icon: 'S', routeNames: ['admin.sidebar'] },
+      {
+        label: 'Bot Engine',
+        to: { name: 'admin.bots' },
+        icon: 'B',
+        routeNamePrefixes: ['admin.bots'],
+        routeNames: ['admin.astrobot'],
+      },
+      {
+        label: 'Performance',
+        to: { name: 'admin.performance-metrics' },
+        icon: 'P',
+        routeNames: ['admin.performance-metrics'],
+      },
     ],
   },
 ]
 
-function isActive(path) {
-  if (path === '/admin/users') return route.path === path || route.path.startsWith('/admin/users/')
-  if (path === '/admin/event-candidates') {
-    return route.path === path || route.path.startsWith('/admin/candidates/')
+const routeName = computed(() => String(route.name || ''))
+
+function sectionFromMeta() {
+  const section = String(route.meta?.adminSection || '')
+  if (
+    section === ADMIN_SECTION_KEYS.EVENTS
+    || section === ADMIN_SECTION_KEYS.COMMUNITY
+    || section === ADMIN_SECTION_KEYS.CONTENT
+  ) {
+    return section
   }
-  if (path === '/admin/event-sources') {
-    return route.path === path
+
+  return ''
+}
+
+function sectionFromName() {
+  const name = routeName.value
+  if (!name) return ''
+
+  if (
+    name === 'admin.events'
+    || name === 'admin.event-sources'
+    || name === 'admin.event-candidates'
+    || name === 'admin.candidate.detail'
+    || name === 'admin.crawl-run.detail'
+    || name === 'admin.events.create'
+    || name === 'admin.events.edit'
+  ) {
+    return ADMIN_SECTION_KEYS.EVENTS
   }
-  if (path === '/admin/events') {
-    return route.path === path || route.path.startsWith('/admin/events/')
+
+  if (
+    name === 'admin.users'
+    || name === 'admin.users.detail'
+    || name === 'admin.moderation'
+    || name === 'admin.reports'
+  ) {
+    return ADMIN_SECTION_KEYS.COMMUNITY
   }
-  return route.path === path
+
+  if (name === 'admin.blog' || name === 'admin.newsletter') {
+    return ADMIN_SECTION_KEYS.CONTENT
+  }
+
+  return ''
+}
+
+function sectionFromPath() {
+  const path = route.path
+
+  if (
+    path.startsWith('/admin/events')
+    || path.startsWith('/admin/event-sources')
+    || path.startsWith('/admin/event-candidates')
+    || path.startsWith('/admin/candidates/')
+    || path.startsWith('/admin/crawl-runs/')
+  ) {
+    return ADMIN_SECTION_KEYS.EVENTS
+  }
+
+  if (
+    path.startsWith('/admin/community')
+    || path.startsWith('/admin/users')
+    || path.startsWith('/admin/moderation')
+    || path.startsWith('/admin/reports')
+  ) {
+    return ADMIN_SECTION_KEYS.COMMUNITY
+  }
+
+  if (
+    path.startsWith('/admin/content')
+    || path.startsWith('/admin/blog')
+    || path.startsWith('/admin/newsletter')
+  ) {
+    return ADMIN_SECTION_KEYS.CONTENT
+  }
+
+  return ''
+}
+
+const activeSection = computed(() => sectionFromMeta() || sectionFromName() || sectionFromPath())
+
+function isActive(item) {
+  if (item.section) {
+    return activeSection.value === item.section
+  }
+
+  const name = routeName.value
+  if (name) {
+    if (Array.isArray(item.routeNames) && item.routeNames.includes(name)) return true
+    if (
+      Array.isArray(item.routeNamePrefixes)
+      && item.routeNamePrefixes.some((prefix) => name === prefix || name.startsWith(`${prefix}.`))
+    ) {
+      return true
+    }
+  }
+
+  if (typeof item.pathPrefix === 'string') {
+    return route.path === item.pathPrefix || route.path.startsWith(`${item.pathPrefix}/`)
+  }
+
+  return false
 }
 
 const activeLabel = computed(() => {
   for (const group of groups) {
-    const found = group.items.find((item) => isActive(item.to))
+    const found = group.items.find((item) => isActive(item))
     if (found) return found.label
   }
   return 'Admin'
@@ -73,10 +194,10 @@ const activeLabel = computed(() => {
         <nav class="adminSubNav__list" :aria-label="group.title">
           <RouterLink
             v-for="item in group.items"
-            :key="item.to"
+            :key="item.label"
             :to="item.to"
             class="adminSubNav__item"
-            :class="{ active: isActive(item.to) }"
+            :class="{ active: isActive(item) }"
             :title="`Open ${item.label}`"
           >
             <span class="adminSubNav__icon" aria-hidden="true">{{ item.icon }}</span>

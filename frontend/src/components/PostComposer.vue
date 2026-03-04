@@ -2,13 +2,7 @@
   <section class="composerCard">
     <div class="composerRow">
       <div class="avatar" aria-hidden="true">
-        <img
-          v-if="avatarUrl"
-          class="avatarImg"
-          :src="avatarUrl"
-          :alt="auth?.user?.name || 'avatar'"
-        />
-        <span v-else>{{ initials }}</span>
+        <UserAvatar class="avatarImg" :user="auth?.user" :alt="auth?.user?.name || 'avatar'" />
       </div>
 
       <div class="composerBody">
@@ -271,6 +265,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, nextTick, watch } from 'vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import api from '@/services/api'
 import { createPost } from '@/services/posts'
 import { useAuthStore } from '@/stores/auth'
@@ -336,26 +331,6 @@ const textareaRef = ref(null)
 
 const pollAttachmentDisabledHint = 'Pri ankete sa obrazky pridavaju iba ku konkretnym moznostiam.'
 const isAttachmentDisabled = computed(() => pollEnabled.value)
-
-const initials = computed(() => {
-  const n = auth?.user?.name || ''
-  const parts = n.trim().split(/\s+/).filter(Boolean)
-  const a = parts[0]?.[0] || 'U'
-  const b = parts[1]?.[0] || ''
-  return (a + b).toUpperCase()
-})
-
-const avatarUrl = computed(() => {
-  const raw = auth?.user?.avatar_url || auth?.user?.avatarUrl || ''
-  if (!raw) return ''
-  if (/^https?:\/\//i.test(raw)) return raw
-
-  const base = api?.defaults?.baseURL || ''
-  const origin = base.replace(/\/api\/?$/, '')
-
-  if (raw.startsWith('/')) return origin + raw
-  return origin + '/' + raw
-})
 
 const isExpanded = computed(() => isFocused.value || content.value.trim().length > 0 || !!file.value || !!selectedGif.value || !!selectedEvent.value)
 const composerPlaceholder = computed(() => (pollEnabled.value ? 'Napis otazku ankety...' : 'Co sa deje na oblohe?'))

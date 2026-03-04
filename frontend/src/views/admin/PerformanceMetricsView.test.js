@@ -22,6 +22,17 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function deferredPromise() {
+  let resolve = () => {}
+  let reject = () => {}
+  const promise = new Promise((resolveFn, rejectFn) => {
+    resolve = resolveFn
+    reject = rejectFn
+  })
+
+  return { promise, resolve, reject }
+}
+
 function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
@@ -63,7 +74,7 @@ describe('PerformanceMetricsView', () => {
     })
   })
 
-  it('renders latest results table', async () => {
+  it('renders Slovak UI labels and table data', async () => {
     const router = makeRouter()
     await router.push('/admin/performance-metrics')
     await router.isReady()
@@ -75,11 +86,16 @@ describe('PerformanceMetricsView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Latest results')
+    expect(wrapper.text()).toContain('Vykonnostne metriky')
+    expect(wrapper.text()).toContain('Spustenie benchmarku')
+    expect(wrapper.text()).toContain('Najnovsie vysledky')
     expect(wrapper.text()).toContain('events_list_200')
   })
 
-  it('run button triggers benchmark API call', async () => {
+  it('disables run button and shows loading state while benchmark is running', async () => {
+    const pendingRun = deferredPromise()
+    runMetricsMock.mockReturnValueOnce(pendingRun.promise)
+
     const router = makeRouter()
     await router.push('/admin/performance-metrics')
     await router.isReady()
@@ -92,10 +108,50 @@ describe('PerformanceMetricsView', () => {
     await flush()
 
     const button = wrapper.find('[data-testid="run-benchmark-btn"]')
+    const confirmCheckbox = wrapper.find('[data-testid="confirm-load-checkbox"]')
+
+    expect(button.attributes('disabled')).toBeDefined()
+
+    await confirmCheckbox.setValue(true)
+    expect(button.attributes('disabled')).toBeUndefined()
+
     await button.trigger('click')
     await flush()
 
     expect(runMetricsMock).toHaveBeenCalledTimes(1)
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="run-progress"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Spustam benchmark...')
+
+    pendingRun.resolve({
+      status: 'ok',
+      log_ids: [10],
+      results: { events_list: { avg_ms: 12.5 } },
+    })
+    await flush()
+    await flush()
+  })
+
+  it('renders Slovak empty state when no metrics are available', async () => {
+    getMetricsMock.mockResolvedValue({
+      logs: [],
+      trend: [],
+      last_run_per_key: [],
+    })
+
+    const router = makeRouter()
+    await router.push('/admin/performance-metrics')
+    await router.isReady()
+
+    const wrapper = mount(PerformanceMetricsView, {
+      global: { plugins: [router] },
+    })
+
+    await flush()
+    await flush()
+
+    const emptyState = wrapper.find('[data-testid="empty-state"]')
+    expect(emptyState.exists()).toBe(true)
+    expect(emptyState.text()).toContain('Zatial nie su k dispozicii ziadne vysledky benchmarku.')
   })
 })
-

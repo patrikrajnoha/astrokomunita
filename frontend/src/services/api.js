@@ -105,7 +105,7 @@ function redirectToEmailSettingsIfNeeded() {
   const pathname = window.location.pathname || ''
   if (pathname.startsWith('/settings')) return
 
-  window.location.assign('/settings?section=email')
+  window.location.assign('/settings/email')
 }
 
 function redirectToLoginIfNeeded() {

@@ -57,6 +57,11 @@ function mountFeed(stubs = {}) {
         DropdownMenu: true,
         PollCard: true,
         PostMediaImage: true,
+        PostMediaVideo: {
+          props: ['src', 'type'],
+          template:
+            '<div class="post-video-stub"><video class="post-video"><source :src="src" :type="type" /></video></div>',
+        },
         ShareModal: true,
         ...stubs,
       },
@@ -159,6 +164,37 @@ describe('FeedList tabs', () => {
     await flushPromises()
 
     expect(wrapper.find('.action-btn--bookmark').classes()).toContain('action-btn--bookmarked')
+  })
+
+  it('renders mp4 attachments as inline video players', async () => {
+    api.get.mockImplementationOnce(() =>
+      Promise.resolve({
+        data: {
+          data: [
+            {
+              id: 901,
+              content: 'Video attachment',
+              attachment_url: '/api/media/901',
+              attachment_mime: 'video/mp4',
+              attachment_original_name: 'mars-video.mp4',
+              user: { username: 'stellarbot', name: 'Stela' },
+              author_kind: 'bot',
+              bot_identity: 'stela',
+            },
+          ],
+          next_page_url: null,
+        },
+      }),
+    )
+
+    const wrapper = mountFeed()
+    await flushPromises()
+
+    const video = wrapper.find('video.post-video')
+    expect(video.exists()).toBe(true)
+    expect(video.find('source').attributes('src')).toContain('/api/media/901')
+    expect(video.find('source').attributes('type')).toBe('video/mp4')
+    expect(wrapper.find('.file-attachment').exists()).toBe(false)
   })
 
   it('renders bot source label and source link from post meta only', async () => {

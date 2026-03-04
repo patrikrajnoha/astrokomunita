@@ -100,8 +100,8 @@ describe('RegisterView', () => {
       { meta: { skipErrorToast: true } },
     )
     expect(pushMock).toHaveBeenCalledWith({
-      name: 'settings',
-      query: { section: 'email', redirect: '/' },
+      name: 'settings.email',
+      query: { redirect: '/' },
     })
     expect(toastSuccessMock).toHaveBeenCalledWith('Poslali sme ti overovaci kod.')
   })
@@ -128,8 +128,8 @@ describe('RegisterView', () => {
     await flush()
 
     expect(pushMock).toHaveBeenCalledWith({
-      name: 'settings',
-      query: { section: 'email', redirect: '/' },
+      name: 'settings.email',
+      query: { redirect: '/' },
     })
     expect(toastWarnMock).toHaveBeenCalled()
   })

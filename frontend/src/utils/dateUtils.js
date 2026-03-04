@@ -28,6 +28,34 @@ export function formatDate(value, options = {}) {
 }
 
 /**
+ * Formats date and time in compact Slovak format: "3. 3. 2026 · 22:52"
+ * @param {string|Date|null} value - Date to format
+ * @param {Object} options - Formatting options
+ * @param {string} options.locale - Locale (default: 'sk-SK')
+ * @returns {string} Formatted date/time or '-' for null
+ */
+export function formatDateTimeCompact(value, options = {}) {
+  if (!value) return '-';
+
+  const { locale = 'sk-SK' } = options;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+
+  const date = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
+  }).format(d);
+  const time = new Intl.DateTimeFormat(locale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(d);
+
+  return `${date} · ${time}`;
+}
+
+/**
  * Formátuje dátum pre datetime-local input
  * @param {string|Date|null} value - Dátum na formátovanie
  * @returns {string} Formátovaný dátum alebo prázdny string

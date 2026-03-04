@@ -7,20 +7,14 @@
             v-if="auth?.isAuthed && activeTab === 'for_you'"
             type="button"
             class="composerTrigger"
-            aria-label="Nový príspevok"
+            aria-label="Novy prispevok"
             @click="openComposer"
           >
             <span class="triggerAvatar" aria-hidden="true">
-              <img
-                v-if="avatarUrl"
-                class="triggerAvatarImg"
-                :src="avatarUrl"
-                :alt="auth?.user?.name || 'avatar'"
-              />
-              <span v-else>{{ initials }}</span>
+              <UserAvatar class="triggerAvatarImg" :user="auth?.user" :size="40" :alt="auth?.user?.name || 'avatar'" />
             </span>
-            <span class="triggerText">Čo máš nové?</span>
-            <span class="triggerCta">Pridať</span>
+            <span class="triggerText">Čo je nové na oblohe?</span>
+            <span class="triggerCta">Pridat</span>
           </button>
         </template>
       </FeedList>
@@ -29,37 +23,17 @@
 </template>
 
 <script>
-import { useAuthStore } from '@/stores/auth'
-import api from '@/services/api'
+import UserAvatar from '@/components/UserAvatar.vue'
 import FeedList from '@/components/FeedList.vue'
+import { useAuthStore } from '@/stores/auth'
 
 export default {
   name: 'HomeView',
-  components: { FeedList },
+  components: { UserAvatar, FeedList },
   data() {
     return {
       auth: useAuthStore(),
     }
-  },
-  computed: {
-    initials() {
-      const name = String(this.auth?.user?.name || '').trim()
-      if (!name) return 'U'
-      const parts = name.split(/\s+/).filter(Boolean)
-      const first = parts[0]?.[0] || 'U'
-      const second = parts[1]?.[0] || ''
-      return (first + second).toUpperCase()
-    },
-    avatarUrl() {
-      const raw = this.auth?.user?.avatar_url || this.auth?.user?.avatarUrl || ''
-      if (!raw) return ''
-      if (/^https?:\/\//i.test(raw)) return raw
-
-      const base = api?.defaults?.baseURL || ''
-      const origin = base.replace(/\/api\/?$/, '')
-      if (raw.startsWith('/')) return origin + raw
-      return origin + '/' + raw
-    },
   },
   methods: {
     onGlobalPostCreated(event) {

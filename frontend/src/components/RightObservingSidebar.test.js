@@ -31,7 +31,7 @@ async function wait(ms = 90) {
   await vi.advanceTimersByTimeAsync(ms)
 }
 
-function buildAstronomyResponse() {
+function buildAstronomyResponse(overrides = {}) {
   return {
     data: {
       moon_phase: 'waxing_crescent',
@@ -39,8 +39,11 @@ function buildAstronomyResponse() {
       sunrise_at: '2026-02-27T06:47:00+01:00',
       sunset_at: '2026-02-27T17:22:00+01:00',
       civil_twilight_end_at: '2026-02-27T18:05:00+01:00',
+      sample_at: '2026-02-27T19:30:00+01:00',
+      sun_altitude_deg: -18.2,
       moonrise_at: '2026-02-27T09:19:00+01:00',
       moonset_at: '2026-02-27T20:35:00+01:00',
+      ...overrides,
     },
   }
 }
@@ -223,5 +226,71 @@ describe('RightObservingSidebar', () => {
 
     expect(wrapper.text()).toContain('Zobrazíme po zotmení.')
     expect(wrapper.text()).not.toContain('Jupiter')
+  })
+
+  it('uses astronomical night at Bratislava winter midnight when sun altitude is <= -18', async () => {
+    vi.setSystemTime(new Date('2026-01-15T00:00:00+01:00'))
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/astronomy') {
+        return buildAstronomyResponse({
+          sample_at: '2026-01-15T00:00:00+01:00',
+          sun_altitude_deg: -32.4,
+        })
+      }
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.1486, lon: 17.1077, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Vyborne')
+    expect(wrapper.text()).not.toContain('Astronomicky sumrak')
+  })
+
+  it('uses twilight bucket at Bratislava summer midnight when sun altitude is above -18', async () => {
+    vi.setSystemTime(new Date('2026-07-01T00:00:00+02:00'))
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/astronomy') {
+        return buildAstronomyResponse({
+          sample_at: '2026-07-01T00:00:00+02:00',
+          sun_altitude_deg: -16.4,
+        })
+      }
+      if (url === '/sky/visible-planets') {
+        return {
+          data: {
+            sample_at: '2026-07-01T00:00:00+02:00',
+            sun_altitude_deg: -16.4,
+            planets: [
+              { name: 'Jupiter', direction: 'SE', altitude_deg: 52.2, elongation_deg: 132.1, best_time_window: '20:20-23:40' },
+            ],
+          },
+        }
+      }
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.1486, lon: 17.1077, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Astronomicky sumrak')
+  })
+
+  it('does not fetch sky data when location is unset and shows location-required state', async () => {
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: null, lon: null, tz: 'Europe/Bratislava', locationName: '' },
+    })
+
+    await wait()
+
+    expect(getMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Poloha: nenastavena')
+    expect(wrapper.text()).toContain('Poloha nenastavena')
   })
 })

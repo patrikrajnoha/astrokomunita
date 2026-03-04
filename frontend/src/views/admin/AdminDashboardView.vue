@@ -46,31 +46,31 @@ const kpiCards = computed(() => {
       key: 'users_total',
       label: 'Používatelia',
       value: Number(kpi.users_total || 0),
-      viewTo: '/admin/users',
+      viewTo: { name: 'admin.users' },
     },
     {
       key: 'users_active_30d',
       label: 'Aktívni (30 dní)',
       value: Number(kpi.users_active_30d || 0),
-      viewTo: '/admin/users',
+      viewTo: { name: 'admin.users' },
     },
     {
       key: 'posts_total',
       label: 'Príspevky',
       value: Number(kpi.posts_total || 0),
-      viewTo: '/admin/moderation',
+      viewTo: { name: 'admin.moderation' },
     },
     {
       key: 'events_total',
       label: 'Udalosti',
       value: Number(kpi.events_total || 0),
-      viewTo: '/admin/events',
+      viewTo: { name: 'admin.events' },
     },
     {
       key: 'posts_moderated_total',
       label: 'Moderované',
       value: Number(kpi.posts_moderated_total || 0),
-      viewTo: '/admin/moderation',
+      viewTo: { name: 'admin.moderation' },
       tone: 'accent',
     },
   ]
@@ -110,26 +110,26 @@ const quickActions = computed(() => {
     {
       title: 'Centrum zberu',
       subtitle: 'Zdroje, behy a kandidáti na jednom mieste.',
-      to: '/admin/event-sources',
+      to: { name: 'admin.event-sources' },
       badge: Number(kpi.events_total || 0),
     },
     {
       title: 'Kontrola kandidátov',
       subtitle: 'Schválenie alebo odmietnutie čakajúcich udalostí.',
-      to: '/admin/event-candidates',
+      to: { name: 'admin.event-candidates' },
       badge: Number(queues.event_candidates_pending || 0),
       badgeTone: Number(queues.event_candidates_pending || 0) > 0 ? 'accent' : 'neutral',
     },
     {
       title: 'Správa používateľov',
       subtitle: 'Profily, roly, blokácie a stav účtu.',
-      to: '/admin/users',
+      to: { name: 'admin.users' },
       badge: Number(kpi.users_total || 0),
     },
     {
       title: 'Moderácia',
       subtitle: 'Obsah čakajúci na zásah moderátora.',
-      to: '/admin/moderation',
+      to: { name: 'admin.moderation' },
       badge: moderationAttention,
       badgeTone: moderationAttention > 0 ? 'accent' : 'neutral',
     },
@@ -791,3 +791,4 @@ onMounted(() => {
   }
 }
 </style>
+
