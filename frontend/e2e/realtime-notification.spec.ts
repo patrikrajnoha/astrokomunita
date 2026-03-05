@@ -98,22 +98,39 @@ async function triggerDevNotification(page: Page, contestName: string): Promise<
 
 async function notificationBadgeCount(page: Page): Promise<number> {
   return page.evaluate(() => {
-    const badges = Array.from(document.querySelectorAll('a[href="/notifications"] .notificationBadge'))
+    const badges = Array.from(document.querySelectorAll('.notificationBadge'))
     if (!badges.length) return 0
 
-    const visibleBadge =
-      badges.find((element) => {
+    const values = badges
+      .map((element) => {
         const htmlElement = element as HTMLElement
-        return htmlElement.offsetParent !== null
-      }) || badges[0]
+        if (htmlElement.offsetParent === null) return 0
+        const text = (htmlElement.textContent || '').trim()
+        const match = text.match(/\d+/)
+        return match ? Number.parseInt(match[0], 10) : 0
+      })
+      .filter((value) => Number.isInteger(value))
 
-    const text = (visibleBadge.textContent || '').trim()
-    const match = text.match(/\d+/)
-    return match ? Number.parseInt(match[0], 10) : 0
+    if (!values.length) return 0
+    return Math.max(...values)
   })
 }
 
-test.describe.configure({ retries: 1 })
+async function unreadCountFromApi(page: Page): Promise<number> {
+  return page.evaluate(async () => {
+    const response = await fetch('/api/notifications/unread-count', {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+
+    if (!response.ok) return 0
+    const payload = await response.json()
+    return Number(payload?.count || 0)
+  })
+}
 
 test('realtime notification appears in another context without refresh', async ({ browser, page }) => {
   await loginViaUi(page, USER_EMAIL, USER_PASSWORD)
@@ -128,10 +145,12 @@ test('realtime notification appears in another context without refresh', async (
 
     const beforeUrl = secondPage.url()
     const beforeBadge = await notificationBadgeCount(secondPage)
+    const beforeUnread = await unreadCountFromApi(secondPage)
     expect(beforeBadge).toBeLessThan(99)
 
     await triggerDevNotification(page, `Playwright Smoke ${Date.now()}`)
 
+    await expect.poll(() => unreadCountFromApi(secondPage), { timeout: 30_000 }).toBeGreaterThan(beforeUnread)
     await expect.poll(() => notificationBadgeCount(secondPage), { timeout: 30_000 }).toBeGreaterThan(beforeBadge)
     await expect.poll(() => secondPage.url(), { timeout: 30_000 }).toBe(beforeUrl)
   } finally {
