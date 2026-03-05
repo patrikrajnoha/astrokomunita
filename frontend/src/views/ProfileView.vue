@@ -512,7 +512,8 @@ const eventFollows = useEventFollowsStore()
 const { confirm } = useConfirm()
 const toast = useToast()
 const PROFILE_MEDIA_TARGET_MAX_BYTES = 3072 * 1024
-const PROFILE_MEDIA_UPLOAD_MAX_BYTES = 20480 * 1024
+const PROFILE_MEDIA_UPLOAD_MAX_BYTES = 24576 * 1024
+const PROFILE_MEDIA_FALLBACK_TARGET_MAX_BYTES = Math.floor(PROFILE_MEDIA_UPLOAD_MAX_BYTES * 0.92)
 
 function logAvatarProfileState(scope, extra = {}) {
   avatarDebug(`ProfileView:${scope}`, {
@@ -1044,6 +1045,41 @@ function clearPreview(type) {
   coverPreview.value = ''
 }
 
+async function compressForProfileUpload(file) {
+  let candidate = file
+
+  const passes = [
+    {
+      maxBytes: PROFILE_MEDIA_TARGET_MAX_BYTES,
+    },
+    {
+      maxBytes: PROFILE_MEDIA_FALLBACK_TARGET_MAX_BYTES,
+      maxDimension: 2200,
+      initialQuality: 0.82,
+      minQuality: 0.28,
+      qualityStep: 0.06,
+      scaleStep: 0.82,
+      maxAttempts: 28,
+      minSide: 240,
+    },
+  ]
+
+  for (const options of passes) {
+    if ((candidate?.size || 0) <= options.maxBytes) break
+
+    try {
+      const compressed = await compressImageFileToMaxBytes(candidate, options)
+      if (compressed && (compressed?.size || 0) > 0 && (compressed.size <= (candidate?.size || Number.MAX_SAFE_INTEGER))) {
+        candidate = compressed
+      }
+    } catch {
+      // Keep the best candidate so far and continue with upload checks below.
+    }
+  }
+
+  return candidate
+}
+
 async function uploadMedia(type, file) {
   if (!auth.user) {
     mediaErr.value = 'Prihlas sa.'
@@ -1109,10 +1145,15 @@ async function uploadMedia(type, file) {
     if (status === 401) {
       mediaErr.value = 'Prihlas sa.'
     } else if (status === 422 && data?.errors) {
+      const fileError = extractFirstError(data.errors, 'file')
+      if (/failed to upload|nepodarilo sa nahrat|nepodarilo nahrat/i.test(fileError || '')) {
+        mediaErr.value = 'Subor je prilis velky pre server. Skus subor mensi ako 24 MB.'
+      } else {
       mediaErr.value =
-        extractFirstError(data.errors, 'file') ||
+        fileError ||
         extractFirstError(data.errors, 'type') ||
         'Skontroluj subor.'
+      }
     } else {
       mediaErr.value = data?.message || 'Upload zlyhal.'
     }
@@ -1141,17 +1182,10 @@ async function onMediaChange(type, event) {
 
   let uploadFile = selectedFile
 
-  try {
-    uploadFile = await compressImageFileToMaxBytes(selectedFile, {
-      maxBytes: PROFILE_MEDIA_TARGET_MAX_BYTES,
-    })
-  } catch {
-    // Fallback to original file when browser-side compression is unavailable.
-    uploadFile = selectedFile
-  }
+  uploadFile = await compressForProfileUpload(selectedFile)
 
   if ((uploadFile?.size || 0) > PROFILE_MEDIA_UPLOAD_MAX_BYTES) {
-    mediaErr.value = 'Subor je prilis velky. Maximalna velkost je 20 MB.'
+    mediaErr.value = 'Subor je prilis velky a nepodarilo sa ho skomprimovat pod 24 MB.'
     if (type === 'avatar') {
       avatarErr.value = mediaErr.value
     }
@@ -2323,4 +2357,3 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-

@@ -1,0 +1,8 @@
+fastapi==0.116.1
+httpx==0.28.1
+tzdata==2025.3
+uvicorn[standard]==0.35.0
+numpy==2.3.2
+skyfield==1.53
+jplephem==2.24
+sgp4==2.25

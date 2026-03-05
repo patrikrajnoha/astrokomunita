@@ -271,8 +271,8 @@ function resolveLocationData(user) {
   const data = user.location_data
   if (data && typeof data === 'object') {
     return {
-      latitude: Number(data.latitude),
-      longitude: Number(data.longitude),
+      latitude: parseCoordinate(data.latitude),
+      longitude: parseCoordinate(data.longitude),
       timezone: String(data.timezone || ''),
       label: String(data.label || ''),
       source: normalizeSource(data.source),
@@ -281,8 +281,8 @@ function resolveLocationData(user) {
 
   const meta = user.location_meta && typeof user.location_meta === 'object' ? user.location_meta : null
   return {
-    latitude: Number(meta?.lat ?? user.latitude),
-    longitude: Number(meta?.lon ?? user.longitude),
+    latitude: parseCoordinate(meta?.lat ?? user.latitude),
+    longitude: parseCoordinate(meta?.lon ?? user.longitude),
     timezone: String(meta?.tz || user.timezone || ''),
     label: String(meta?.label || user.location_label || user.location || ''),
     source: normalizeSource(meta?.source || user.location_source),
@@ -311,8 +311,8 @@ function findPresetByCoordinates(latitude, longitude) {
 
 function buildStateFromUser(user) {
   const location = resolveLocationData(user)
-  const latitude = Number(location?.latitude)
-  const longitude = Number(location?.longitude)
+  const latitude = parseCoordinate(location?.latitude)
+  const longitude = parseCoordinate(location?.longitude)
   const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude)
   const label = String(location?.label || user?.location_label || user?.location || '').trim()
   const timezone = String(location?.timezone || browserTimezone()).trim() || browserTimezone()

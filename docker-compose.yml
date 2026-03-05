@@ -79,7 +79,7 @@ services:
     environment:
       <<: *backend-common-env
       APP_URL: http://127.0.0.1:8001
-    command: sh -lc "if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --no-progress; fi && php artisan bots:sources:sync --quiet-summary && php artisan serve --host=0.0.0.0 --port=8001"
+    command: sh -lc "(echo upload_max_filesize=24M; echo post_max_size=26M; echo memory_limit=256M) > /usr/local/etc/php/conf.d/99-uploads-runtime.ini && if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --no-progress; fi && php artisan bots:sources:sync --quiet-summary && php artisan serve --host=0.0.0.0 --port=8001"
     ports:
       - "8001:8001"
     depends_on:

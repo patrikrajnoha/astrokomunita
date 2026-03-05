@@ -114,7 +114,7 @@ export function useSkyWidget(options = {}) {
     }
 
     if (skyPhase.value === SKY_PHASE.UNKNOWN) {
-      return { label: 'Nezname', emoji: '❔' }
+      return { label: 'Neznáme', emoji: '❔' }
     }
 
     if (isDaylight.value) {
@@ -237,7 +237,7 @@ export function useSkyWidget(options = {}) {
     }
 
     if (skyPhase.value === SKY_PHASE.UNKNOWN) {
-      return 'Stav oblohy je docasne neznamy.'
+      return 'Stav oblohy je dočasne neznámy.'
     }
 
     if (isDaylight.value) {
@@ -829,4 +829,3 @@ function formatFreshness(value, tick) {
 function toFriendlyError(_error, fallback) {
   return fallback
 }
-

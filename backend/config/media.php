@@ -13,7 +13,7 @@ return [
     */
     'disk' => env('FILES_DISK', 'public'),
     'private_disk' => env('FILES_PRIVATE_DISK', 'local'),
-    'profile_upload_max_kb' => (int) env('PROFILE_UPLOAD_MAX_KB', 20480),
+    'profile_upload_max_kb' => (int) env('PROFILE_UPLOAD_MAX_KB', 24576),
 
     /*
     |--------------------------------------------------------------------------

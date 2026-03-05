@@ -312,10 +312,14 @@ def sky_summary(
 
     moon_payload = build_moon_payload(observer=observer, location=location, local_date=local_date, local_tz=local_tz)
     planets_payload = build_planets_payload(observer=observer, local_date=local_date, local_tz=local_tz)
+    sample_at = datetime.now(timezone.utc)
+    sun_altitude_deg = sun_altitude_at(observer=observer, moment_utc=sample_at)
 
     return {
         "moon": moon_payload,
         "planets": planets_payload,
+        "sun_altitude_deg": round(sun_altitude_deg, 1),
+        "sample_at": sample_at.isoformat(),
     }
 
 
@@ -437,6 +441,12 @@ def build_planets_payload(observer, local_date: date_cls, local_tz: ZoneInfo) ->
 
     visible.sort(key=lambda item: item["alt_max_deg"], reverse=True)
     return visible[:3]
+
+
+def sun_altitude_at(observer, moment_utc: datetime) -> float:
+    t = ts.from_datetime(moment_utc.astimezone(timezone.utc))
+    altitude, _, _ = observer.at(t).observe(SUN).apparent().altaz()
+    return float(altitude.degrees)
 
 
 def segment_containing_index(indices: np.ndarray, needle: int) -> np.ndarray:
