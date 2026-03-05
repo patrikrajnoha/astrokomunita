@@ -15,21 +15,21 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
         $this->call(AstroBotSeeder::class);
         $this->call(BotSourceSeeder::class);
         $this->call(SidebarSectionSeeder::class);
         $this->call(EventSourceSeeder::class);
-        $this->call(DefaultUsersSeeder::class);
-        if (app()->environment(['local', 'testing'])) {
-            $this->call(DemoFeedSeeder::class);
-        }
-        $this->call(TranslationOverrideSeeder::class);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        if (app()->environment(['local', 'testing'])) {
+            $this->call(DefaultUsersSeeder::class);
+            $this->call(DemoFeedSeeder::class);
+
+            User::factory()->create([
+                'name' => 'Test User',
+                'email' => 'test@example.com',
+            ]);
+        }
+
+        $this->call(TranslationOverrideSeeder::class);
     }
 }

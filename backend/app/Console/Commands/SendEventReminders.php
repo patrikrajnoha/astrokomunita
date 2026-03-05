@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\EventReminder;
+use App\Models\NotificationPreference;
 use App\Notifications\EventReminderNotification;
 use App\Services\NotificationService;
 use Carbon\CarbonImmutable;
@@ -33,9 +34,15 @@ class SendEventReminders extends Command
                     continue;
                 }
 
-                // TODO(notifications-email): Respect notification_preferences.email_enabled
-                // before sending reminder emails.
-                $reminder->user->notify(new EventReminderNotification($reminder));
+                $preferences = NotificationPreference::ensureForUser((int) $reminder->user_id);
+                $emailMap = $preferences->email();
+                $allowReminderEmail = (bool) $preferences->email_enabled
+                    && (bool) ($emailMap['event_reminder'] ?? false);
+
+                if ($allowReminderEmail) {
+                    $reminder->user->notify(new EventReminderNotification($reminder));
+                }
+
                 $windowKey = 'T-' . $reminder->minutes_before;
                 $service->createEventReminder(
                     $reminder->user_id,
