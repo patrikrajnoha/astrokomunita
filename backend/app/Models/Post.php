@@ -39,7 +39,7 @@ class Post extends Model
         'source_url',
         'source_uid',
         'source_published_at',
-        'expires_at',  // When AstroBot posts should expire
+        'expires_at',  // When bot posts should expire
         'is_hidden',
         'moderation_status',
         'moderation_summary',
@@ -245,7 +245,7 @@ class Post extends Model
     }
 
     /**
-     * Check if this post has expired (for AstroBot posts).
+     * Check if this post has expired (for bot posts).
      */
     public function isExpired(): bool
     {
@@ -253,7 +253,7 @@ class Post extends Model
     }
 
     /**
-     * Scope to exclude expired AstroBot posts from queries.
+     * Scope to exclude expired bot posts from queries.
      */
     public function scopeNotExpired($query)
     {
@@ -359,4 +359,3 @@ class Post extends Model
             || str_ends_with($name, '.webp');
     }
 }
-

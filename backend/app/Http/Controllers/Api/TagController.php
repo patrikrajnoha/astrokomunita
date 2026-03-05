@@ -101,7 +101,7 @@ class TagController extends Controller
             ], $this->polls->pollRelations($viewer?->id)))
             ->withCount(['likes', 'replies'])
             ->publiclyVisible()
-            ->notExpired() // Exclude expired AstroBot posts
+            ->notExpired() // Exclude expired bot posts
             ->latest()
             ->paginate($perPage);
 

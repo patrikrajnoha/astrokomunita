@@ -603,7 +603,7 @@ class BotRunner
                     'bot_run_id' => $runId,
                     'provider' => $this->resolveConfiguredTranslationProvider(),
                     'error_type' => $errorType,
-                    'timeout_sec' => max(1, (int) config('astrobot.translation.timeout_sec', 12)),
+                    'timeout_sec' => max(1, (int) config('bots.translation.timeout_sec', 12)),
                     'error' => $errorMessage,
                     'origin_title_hash' => $this->shortHash($title),
                     'origin_body_hash' => $this->shortHash($content),
@@ -698,12 +698,12 @@ class BotRunner
 
     private function resolveConfiguredTranslationProvider(): string
     {
-        $configuredPrimary = strtolower(trim((string) config('astrobot.translation.primary', '')));
+        $configuredPrimary = strtolower(trim((string) config('bots.translation.primary', '')));
         if ($configuredPrimary !== '') {
             return $configuredPrimary;
         }
 
-        return strtolower(trim((string) config('astrobot.translation_provider', 'unknown')));
+        return strtolower(trim((string) config('bots.translation_provider', 'unknown')));
     }
 
     private function isLikelySlovakText(string $title, string $content): bool
@@ -768,7 +768,7 @@ class BotRunner
     private function acquireRunLocks(BotSource $source, string $runContext, bool $forceManualOverride): array
     {
         $sourceKey = strtolower(trim((string) $source->key));
-        $ttlSeconds = max(60, (int) config('astrobot.run_lock_ttl_seconds', 600));
+        $ttlSeconds = max(60, (int) config('bots.run_lock_ttl_seconds', 600));
         $locks = [];
 
         $contextLockKey = $this->buildContextLockKey($runContext, $sourceKey);
@@ -935,7 +935,7 @@ class BotRunner
     private function rateLimitBackoffMinutes(BotSource $source): int
     {
         $sourceKey = strtolower(trim((string) $source->key));
-        $configured = (int) config(sprintf('astrobot.sources.%s.rate_limit_backoff_minutes', $sourceKey), 360);
+        $configured = (int) config(sprintf('bots.sources.%s.rate_limit_backoff_minutes', $sourceKey), 360);
 
         return max(1, $configured);
     }
@@ -1040,7 +1040,7 @@ class BotRunner
      */
     private function recoverStaleRunsIfNeeded(BotSource $source, BotRun $run, array &$stats, array &$runMeta): void
     {
-        $staleMinutes = max(1, (int) config('astrobot.stale_run_recovery_minutes', 5));
+        $staleMinutes = max(1, (int) config('bots.stale_run_recovery_minutes', 5));
         $recoveredCount = $this->runService->recoverStaleRunsForSource($source, $run->id, $staleMinutes);
 
         if ($recoveredCount <= 0) {

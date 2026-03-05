@@ -111,7 +111,7 @@ class CrawlerOrchestrator
                 (string) config('events.astropixels.base_url_pattern', 'https://astropixels.com/almanac/almanac21/almanac%dcet.html'),
                 $year
             ),
-            EventSource::NASA => (string) config('astrobot.nasa_rss_url', 'https://www.nasa.gov/rss/dyn/breaking_news.rss'),
+            EventSource::NASA => (string) config('bots.nasa_rss_url', 'https://www.nasa.gov/rss/dyn/breaking_news.rss'),
             EventSource::NASA_WATCH_THE_SKIES => (string) config('events.nasa_watch_the_skies.url', 'https://science.nasa.gov/skywatching/'),
             EventSource::IMO => (string) config('events.imo.url', 'https://www.imo.net/resources/calendar/'),
         };

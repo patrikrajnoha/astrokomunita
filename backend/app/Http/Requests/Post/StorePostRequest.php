@@ -387,7 +387,7 @@ class StorePostRequest extends FormRequest
             return PostBotIdentity::KOZMO->value;
         }
 
-        if ($username === PostBotIdentity::STELA->value || $username === 'astrobot') {
+        if ($username === PostBotIdentity::STELA->value || $username === 'stellarbot') {
             return PostBotIdentity::STELA->value;
         }
 
@@ -396,7 +396,7 @@ class StorePostRequest extends FormRequest
             return PostBotIdentity::KOZMO->value;
         }
 
-        if (str_contains($email, PostBotIdentity::STELA->value) || str_contains($email, 'astrobot')) {
+        if (str_contains($email, PostBotIdentity::STELA->value) || str_contains($email, 'stellarbot')) {
             return PostBotIdentity::STELA->value;
         }
 

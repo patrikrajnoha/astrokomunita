@@ -21,10 +21,10 @@ class TranslateEventCandidateJobTest extends TestCase
         config()->set('events.description_template_min_length', 40);
         config()->set('ai.ollama_retry_attempts', 1);
         config()->set('ai.ollama_refinement_enabled', false);
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'none');
-        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
-        config()->set('astrobot.translation.timeout_sec', 8);
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'none');
+        config()->set('bots.translation.libretranslate.url', 'http://translation.test');
+        config()->set('bots.translation.timeout_sec', 8);
     }
 
     private function fakeTranslationResult(?string $translatedTitle, ?string $translatedContent): void
@@ -233,8 +233,8 @@ class TranslateEventCandidateJobTest extends TestCase
     {
         $this->configureTranslation();
         $this->fakeTranslationResult(
-            'Venuša v Inferior Conjunction',
-            'Venuša v Inferior Conjunction nastane 24.10.2026.'
+            'VenuĹˇa v Inferior Conjunction',
+            'VenuĹˇa v Inferior Conjunction nastane 24.10.2026.'
         );
 
         $candidate = $this->makeCandidate([
@@ -247,7 +247,7 @@ class TranslateEventCandidateJobTest extends TestCase
 
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
-        $this->assertSame('Venuša v dolnej konjunkcii', $candidate->translated_title);
+        $this->assertSame('VenuĹˇa v dolnej konjunkcii', $candidate->translated_title);
         $this->assertStringContainsString('v dolnej konjunkcii', (string) $candidate->translated_description);
     }
 

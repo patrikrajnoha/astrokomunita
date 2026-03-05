@@ -100,9 +100,9 @@ class OllamaTranslateClient implements TranslationClientInterface
                 system: $this->buildSystemPrompt($target, $sourceLang, $mode),
                 options: [
                     'model' => $this->configuredModel(),
-                    'temperature' => (float) config('astrobot.translation.ollama.temperature', config('astrobot.translation_ollama_temperature', 0.15)),
-                    'top_p' => (float) config('astrobot.translation.ollama.top_p', 0.4),
-                    'num_predict' => (int) config('astrobot.translation.ollama.num_predict', config('astrobot.translation_ollama_num_predict', 700)),
+                    'temperature' => (float) config('bots.translation.ollama.temperature', config('bots.translation_ollama_temperature', 0.15)),
+                    'top_p' => (float) config('bots.translation.ollama.top_p', 0.4),
+                    'num_predict' => (int) config('bots.translation.ollama.num_predict', config('bots.translation_ollama_num_predict', 700)),
                     'timeout' => $this->resolvedTimeoutSeconds(),
                     'connect_timeout' => $this->resolvedConnectTimeoutSeconds(),
                     'retry' => $this->resolvedRetryAttempts(),
@@ -140,25 +140,25 @@ class OllamaTranslateClient implements TranslationClientInterface
 
     private function configuredModel(): string
     {
-        return trim((string) config('astrobot.translation.ollama.model', config('astrobot.translation_ollama_model', config('ai.ollama.model', 'mistral'))));
+        return trim((string) config('bots.translation.ollama.model', config('bots.translation_ollama_model', config('ai.ollama.model', 'mistral'))));
     }
 
     private function resolvedTimeoutSeconds(): int
     {
-        $sharedTimeout = max(1, (int) config('astrobot.translation.timeout_sec', 12));
-        $configuredTimeout = max(1, (int) config('astrobot.translation.ollama.timeout_seconds', config('astrobot.translation_ollama_timeout_seconds', $sharedTimeout)));
+        $sharedTimeout = max(1, (int) config('bots.translation.timeout_sec', 12));
+        $configuredTimeout = max(1, (int) config('bots.translation.ollama.timeout_seconds', config('bots.translation_ollama_timeout_seconds', $sharedTimeout)));
 
         return min($sharedTimeout, $configuredTimeout);
     }
 
     private function resolvedConnectTimeoutSeconds(): int
     {
-        return max(1, (int) config('astrobot.translation.connect_timeout_sec', 3));
+        return max(1, (int) config('bots.translation.connect_timeout_sec', 3));
     }
 
     private function resolvedRetryAttempts(): int
     {
-        return max(0, (int) config('astrobot.translation.max_retries', 1));
+        return max(0, (int) config('bots.translation.max_retries', 1));
     }
 
     private function buildSystemPrompt(string $targetLang, string $sourceLang, string $mode): string

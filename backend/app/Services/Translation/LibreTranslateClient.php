@@ -31,18 +31,18 @@ class LibreTranslateClient implements TranslationClientInterface
         }
 
         $startedAt = microtime(true);
-        $legacyBaseUrl = trim((string) config('astrobot.translation_base_url', ''));
-        $configuredBaseUrl = trim((string) config('astrobot.translation.libretranslate.url', ''));
+        $legacyBaseUrl = trim((string) config('bots.translation_base_url', ''));
+        $configuredBaseUrl = trim((string) config('bots.translation.libretranslate.url', ''));
         // Prefer current config namespace; legacy flat key is fallback only.
         $baseUrl = $configuredBaseUrl !== '' ? $configuredBaseUrl : $legacyBaseUrl;
 
-        $sharedTimeout = (int) config('astrobot.translation.timeout_sec', 12);
-        $legacyTimeout = (int) config('astrobot.translation_timeout_seconds', 0);
-        $configuredTimeout = (int) config('astrobot.translation.libretranslate.timeout_seconds', 8);
+        $sharedTimeout = (int) config('bots.translation.timeout_sec', 12);
+        $legacyTimeout = (int) config('bots.translation_timeout_seconds', 0);
+        $configuredTimeout = (int) config('bots.translation.libretranslate.timeout_seconds', 8);
         $timeoutSeconds = max(1, $sharedTimeout > 0 ? $sharedTimeout : ($legacyTimeout > 0 ? $legacyTimeout : $configuredTimeout));
-        $retryTimes = max(0, (int) config('astrobot.translation.max_retries', config('astrobot.translation.libretranslate.retry_times', 1)));
-        $retrySleepMs = max(0, (int) config('astrobot.translation.libretranslate.retry_sleep_ms', 200));
-        $apiKey = trim((string) config('astrobot.translation.libretranslate.api_key', ''));
+        $retryTimes = max(0, (int) config('bots.translation.max_retries', config('bots.translation.libretranslate.retry_times', 1)));
+        $retrySleepMs = max(0, (int) config('bots.translation.libretranslate.retry_sleep_ms', 200));
+        $apiKey = trim((string) config('bots.translation.libretranslate.api_key', ''));
 
         if ($baseUrl === '') {
             throw new TranslationClientException($this->provider(), 'LibreTranslate URL is not configured.');

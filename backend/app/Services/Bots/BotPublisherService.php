@@ -235,24 +235,12 @@ class BotPublisherService
         $profile = $this->botIdentityProfile($identity);
         $targetUsername = $profile['username'];
         $targetName = $profile['display_name'];
-        $preferredEmail = sprintf('%s@astrokomunita.local', $targetUsername);
-        $legacyEmail = sprintf('%s@astrokomunita.local', $identity);
         $candidateUsernames = array_values(array_unique(array_filter([$targetUsername, $identity])));
-        $candidateEmails = array_values(array_unique(array_filter([$preferredEmail, $legacyEmail])));
 
         $user = User::query()
             ->where('is_bot', true)
-            ->where(function ($query) use ($candidateUsernames, $candidateEmails): void {
+            ->where(function ($query) use ($candidateUsernames): void {
                 $applied = false;
-                foreach ($candidateEmails as $email) {
-                    if (!$applied) {
-                        $query->where('email', $email);
-                        $applied = true;
-                    } else {
-                        $query->orWhere('email', $email);
-                    }
-                }
-
                 foreach ($candidateUsernames as $username) {
                     if (!$applied) {
                         $query->where('username', $username);
@@ -269,10 +257,11 @@ class BotPublisherService
             $user = User::query()->create([
                 'name' => $targetName,
                 'username' => $targetUsername,
-                'email' => $preferredEmail,
+                'email' => null,
                 'bio' => 'Automated bot account',
                 'password' => Str::random(40),
                 'is_bot' => true,
+                'role' => User::ROLE_BOT,
                 'is_active' => true,
             ]);
 
@@ -286,11 +275,14 @@ class BotPublisherService
         if ((string) $user->name !== $targetName) {
             $updates['name'] = $targetName;
         }
-        if (!in_array((string) $user->email, $candidateEmails, true) || trim((string) $user->email) === '') {
-            $updates['email'] = $preferredEmail;
+        if ((string) $user->email !== '') {
+            $updates['email'] = null;
         }
         if (!(bool) $user->is_bot) {
             $updates['is_bot'] = true;
+        }
+        if ((string) $user->role !== User::ROLE_BOT) {
+            $updates['role'] = User::ROLE_BOT;
         }
         if (!(bool) $user->is_active) {
             $updates['is_active'] = true;
@@ -484,7 +476,7 @@ class BotPublisherService
 
         $provider = $this->nullableString($item->translation_provider)
             ?? $this->nullableString(data_get($translationMeta, 'provider'))
-            ?? strtolower(trim((string) config('astrobot.translation.primary', config('astrobot.translation_provider', 'libretranslate'))));
+            ?? strtolower(trim((string) config('bots.translation.primary', config('bots.translation_provider', 'libretranslate'))));
 
         $translatedAt = $item->translated_at?->toIso8601String()
             ?? $this->nullableString(data_get($translationMeta, 'translated_at'));
@@ -539,8 +531,8 @@ class BotPublisherService
             ],
         };
 
-        $configuredUsername = strtolower(trim((string) config("astrobot.identities.{$normalizedIdentity}.username", $defaults['username'])));
-        $configuredDisplayName = trim((string) config("astrobot.identities.{$normalizedIdentity}.display_name", $defaults['display_name']));
+        $configuredUsername = strtolower(trim((string) config("bots.identities.{$normalizedIdentity}.username", $defaults['username'])));
+        $configuredDisplayName = trim((string) config("bots.identities.{$normalizedIdentity}.display_name", $defaults['display_name']));
 
         return [
             'username' => $configuredUsername !== '' ? $configuredUsername : $defaults['username'],
@@ -580,7 +572,7 @@ class BotPublisherService
 
     private function sourceConfigValue(string $sourceKey, string $field): ?string
     {
-        $value = trim((string) config(sprintf('astrobot.sources.%s.%s', $sourceKey, $field), ''));
+        $value = trim((string) config(sprintf('bots.sources.%s.%s', $sourceKey, $field), ''));
 
         return $value !== '' ? $value : null;
     }
@@ -688,11 +680,11 @@ class BotPublisherService
             return $this->downloadFailure('image_policy_violation');
         }
 
-        $timeoutSeconds = max(1, (int) config('astrobot.rss_timeout_seconds', 10));
-        $retryTimes = max(0, (int) config('astrobot.rss_retry_times', 2));
-        $retrySleepMs = max(0, (int) config('astrobot.rss_retry_sleep_ms', 250));
+        $timeoutSeconds = max(1, (int) config('bots.rss_timeout_seconds', 10));
+        $retryTimes = max(0, (int) config('bots.rss_retry_times', 2));
+        $retrySleepMs = max(0, (int) config('bots.rss_retry_sleep_ms', 250));
         $attempts = $retryTimes + 1;
-        $maxBytes = max(1024, (int) config('astrobot.stela_attachment_max_bytes', (int) config('astrobot.stela_image_max_bytes', 20 * 1024 * 1024)));
+        $maxBytes = max(1024, (int) config('bots.stela_attachment_max_bytes', (int) config('bots.stela_image_max_bytes', 20 * 1024 * 1024)));
 
         try {
             $response = Http::secure()
@@ -830,7 +822,7 @@ class BotPublisherService
 
         $allowedImageMimes = array_values(array_filter(array_map(
             static fn (mixed $value): string => strtolower(trim((string) $value)),
-            (array) config('astrobot.stela_image_allowed_mimes', ['image/jpeg', 'image/png', 'image/webp'])
+            (array) config('bots.stela_image_allowed_mimes', ['image/jpeg', 'image/png', 'image/webp'])
         )));
         if (in_array($normalized, $allowedImageMimes, true)) {
             return true;
@@ -838,7 +830,7 @@ class BotPublisherService
 
         $allowedVideoMimes = array_values(array_filter(array_map(
             static fn (mixed $value): string => strtolower(trim((string) $value)),
-            (array) config('astrobot.stela_video_allowed_mimes', ['video/mp4'])
+            (array) config('bots.stela_video_allowed_mimes', ['video/mp4'])
         )));
 
         return in_array($normalized, $allowedVideoMimes, true);

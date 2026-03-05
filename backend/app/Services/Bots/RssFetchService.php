@@ -35,9 +35,9 @@ class RssFetchService
 
     private function fetchXml(string $url): SimpleXMLElement
     {
-        $timeoutSeconds = max(1, (int) config('astrobot.rss_timeout_seconds', 10));
-        $retryTimes = max(0, (int) config('astrobot.rss_retry_times', 2));
-        $retrySleepMs = max(0, (int) config('astrobot.rss_retry_sleep_ms', 250));
+        $timeoutSeconds = max(1, (int) config('bots.rss_timeout_seconds', 10));
+        $retryTimes = max(0, (int) config('bots.rss_retry_times', 2));
+        $retrySleepMs = max(0, (int) config('bots.rss_retry_sleep_ms', 250));
         $attempts = $retryTimes + 1;
 
         try {

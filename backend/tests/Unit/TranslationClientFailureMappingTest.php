@@ -16,8 +16,8 @@ class TranslationClientFailureMappingTest extends TestCase
 {
     public function test_libretranslate_client_maps_connection_failure_to_provider_unavailable_exception(): void
     {
-        config()->set('astrobot.translation.libretranslate.url', 'http://libretranslate.test');
-        config()->set('astrobot.translation.timeout_sec', 5);
+        config()->set('bots.translation.libretranslate.url', 'http://libretranslate.test');
+        config()->set('bots.translation.timeout_sec', 5);
 
         Http::fake([
             'http://libretranslate.test/*' => static function () {
@@ -61,10 +61,10 @@ class TranslationClientFailureMappingTest extends TestCase
 
     public function test_ollama_translate_client_uses_shared_timeout_and_translation_transport_options(): void
     {
-        config()->set('astrobot.translation.timeout_sec', 8);
-        config()->set('astrobot.translation.ollama.timeout_seconds', 45);
-        config()->set('astrobot.translation.connect_timeout_sec', 2);
-        config()->set('astrobot.translation.max_retries', 0);
+        config()->set('bots.translation.timeout_sec', 8);
+        config()->set('bots.translation.ollama.timeout_seconds', 45);
+        config()->set('bots.translation.connect_timeout_sec', 2);
+        config()->set('bots.translation.max_retries', 0);
 
         $ollamaClient = $this->createMock(OllamaClient::class);
         $ollamaClient

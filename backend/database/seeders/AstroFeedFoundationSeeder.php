@@ -16,15 +16,15 @@ class AstroFeedFoundationSeeder extends Seeder
     public function run(): void
     {
         $kozmo = $this->ensureBotUser(
-            email: 'kozmo@astrokomunita.local',
-            username: 'kozmo',
+            email: null,
+            username: 'kozmobot',
             name: 'Kozmo',
             bio: 'Systemovy astro bot pre hlbsie vysvetlenia.'
         );
 
         $stela = $this->ensureBotUser(
-            email: 'stela@astrokomunita.local',
-            username: 'stela',
+            email: null,
+            username: 'stellarbot',
             name: 'Stela',
             bio: 'Systemovy astro bot pre kratke aktuality.'
         );
@@ -48,20 +48,35 @@ class AstroFeedFoundationSeeder extends Seeder
         );
     }
 
-    private function ensureBotUser(string $email, string $username, string $name, string $bio): User
+    private function ensureBotUser(?string $email, string $username, string $name, string $bio): User
     {
-        return User::query()->firstOrCreate(
-            ['email' => $email],
-            [
+        $user = User::query()->where('username', $username)->first();
+
+        if ($user) {
+            $user->forceFill([
                 'name' => $name,
-                'username' => $username,
+                'email' => $email,
                 'bio' => $bio,
-                'password' => Str::random(40),
                 'is_bot' => true,
+                'role' => User::ROLE_BOT,
                 'is_active' => true,
-                'email_verified_at' => now(),
-            ]
-        );
+                'email_verified_at' => null,
+            ])->save();
+
+            return $user->fresh() ?? $user;
+        }
+
+        return User::query()->create([
+            'name' => $name,
+            'username' => $username,
+            'email' => $email,
+            'bio' => $bio,
+            'password' => Str::random(40),
+            'is_bot' => true,
+            'role' => User::ROLE_BOT,
+            'is_active' => true,
+            'email_verified_at' => null,
+        ]);
     }
 
     private function upsertBotPost(PostService $posts, User $bot, string $sourceUid, string $content, string $botIdentity): void
@@ -108,4 +123,3 @@ class AstroFeedFoundationSeeder extends Seeder
         return implode("\n\n", array_fill(0, 220, $paragraph));
     }
 }
-

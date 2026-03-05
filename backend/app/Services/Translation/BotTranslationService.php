@@ -96,7 +96,7 @@ class BotTranslationService implements BotTranslationServiceInterface
             ];
         }
 
-        $sourceLang = $this->normalizeSourceLanguage((string) config('astrobot.translation.source_lang', 'en'));
+        $sourceLang = $this->normalizeSourceLanguage((string) config('bots.translation.source_lang', 'en'));
         $titleResult = $normalizedTitle !== ''
             ? $this->translateLongText($normalizedTitle, $targetLang, $sourceLang, $providers)
             : null;
@@ -383,7 +383,7 @@ class BotTranslationService implements BotTranslationServiceInterface
         string $sourceLang,
         array $providerOrder
     ): array {
-        $qualityEnabled = (bool) config('astrobot.translation.quality.enabled', true);
+        $qualityEnabled = (bool) config('bots.translation.quality.enabled', true);
         $flags = $qualityEnabled
             ? $this->evaluateQualityFlags($originalText, $translatedText)
             : [];
@@ -414,7 +414,7 @@ class BotTranslationService implements BotTranslationServiceInterface
             ];
         }
 
-        $maxRetries = max(0, (int) config('astrobot.translation.quality.max_retries', 1));
+        $maxRetries = max(0, (int) config('bots.translation.quality.max_retries', 1));
         if ($maxRetries === 0) {
             return [
                 'text' => $translatedText,
@@ -490,7 +490,7 @@ class BotTranslationService implements BotTranslationServiceInterface
 
         $originalLength = max(1, $this->stringLength($original));
         $translatedLength = $this->stringLength($translated);
-        $minLengthRatio = max(0.1, (float) config('astrobot.translation.quality.min_length_ratio', 0.70));
+        $minLengthRatio = max(0.1, (float) config('bots.translation.quality.min_length_ratio', 0.70));
         if (($translatedLength / $originalLength) < $minLengthRatio) {
             $flags[] = 'too_short';
         }
@@ -500,7 +500,7 @@ class BotTranslationService implements BotTranslationServiceInterface
         }
 
         $englishRatio = $this->englishTokenRatio($translated);
-        $maxEnglishRatio = max(0.0, min(1.0, (float) config('astrobot.translation.quality.max_english_ratio', 0.20)));
+        $maxEnglishRatio = max(0.0, min(1.0, (float) config('bots.translation.quality.max_english_ratio', 0.20)));
         if ($englishRatio > $maxEnglishRatio) {
             $flags[] = 'too_much_en';
         }
@@ -549,19 +549,19 @@ class BotTranslationService implements BotTranslationServiceInterface
         if (strtolower(trim($targetLang)) !== 'sk') {
             return false;
         }
-        if (!(bool) config('astrobot.translation.post_edit.enabled', true)) {
+        if (!(bool) config('bots.translation.post_edit.enabled', true)) {
             return false;
         }
         if (!in_array('ollama', $providerOrder, true)) {
             return false;
         }
 
-        $requireFallback = (bool) config('astrobot.translation.post_edit.require_ollama_fallback', true);
+        $requireFallback = (bool) config('bots.translation.post_edit.require_ollama_fallback', true);
         if (!$requireFallback) {
             return true;
         }
 
-        $configuredFallback = $this->normalizeProviderName((string) config('astrobot.translation.fallback', 'ollama'));
+        $configuredFallback = $this->normalizeProviderName((string) config('bots.translation.fallback', 'ollama'));
         return $configuredFallback === 'ollama';
     }
 
@@ -570,7 +570,7 @@ class BotTranslationService implements BotTranslationServiceInterface
      */
     private function protectTermsInText(string $text): array
     {
-        $protectedTerms = config('astrobot.translation.protected_terms', []);
+        $protectedTerms = config('bots.translation.protected_terms', []);
         if (!is_array($protectedTerms) || $protectedTerms === []) {
             return ['text' => $text, 'map' => []];
         }
@@ -641,7 +641,7 @@ class BotTranslationService implements BotTranslationServiceInterface
 
     private function applyTerminologyMap(string $text): string
     {
-        $map = config('astrobot.translation.terminology_map', []);
+        $map = config('bots.translation.terminology_map', []);
         if (!is_array($map) || $map === []) {
             return $text;
         }
@@ -666,8 +666,8 @@ class BotTranslationService implements BotTranslationServiceInterface
      */
     private function resolveProviderOrder(): array
     {
-        $configuredPrimary = $this->normalizeProviderName((string) config('astrobot.translation.primary', config('astrobot.translation_provider', 'libretranslate')));
-        $legacyProvider = $this->normalizeProviderName((string) config('astrobot.translation_provider', ''));
+        $configuredPrimary = $this->normalizeProviderName((string) config('bots.translation.primary', config('bots.translation_provider', 'libretranslate')));
+        $legacyProvider = $this->normalizeProviderName((string) config('bots.translation_provider', ''));
         $usingLegacyPrimaryOverride = false;
         $primary = $configuredPrimary;
         if ($configuredPrimary === 'dummy' && $legacyProvider !== '' && $legacyProvider !== 'dummy') {
@@ -675,8 +675,8 @@ class BotTranslationService implements BotTranslationServiceInterface
             $usingLegacyPrimaryOverride = true;
         }
         $fallbackSource = $usingLegacyPrimaryOverride
-            ? (string) config('astrobot.translation_fallback_provider', '')
-            : (string) config('astrobot.translation.fallback', 'ollama');
+            ? (string) config('bots.translation_fallback_provider', '')
+            : (string) config('bots.translation.fallback', 'ollama');
         $fallback = $this->normalizeProviderName($fallbackSource);
 
         if ($primary === 'dummy') {
@@ -714,8 +714,8 @@ class BotTranslationService implements BotTranslationServiceInterface
      */
     private function chunkText(string $text): array
     {
-        $maxChars = max(50, (int) config('astrobot.translation.chunk_max_chars', 1800));
-        $hardLimit = max($maxChars, (int) config('astrobot.translation.chunk_hard_limit_chars', 3500));
+        $maxChars = max(50, (int) config('bots.translation.chunk_max_chars', 1800));
+        $hardLimit = max($maxChars, (int) config('bots.translation.chunk_hard_limit_chars', 3500));
 
         $normalized = $this->normalizeContent($text);
         if ($normalized === '') {
@@ -1000,7 +1000,7 @@ class BotTranslationService implements BotTranslationServiceInterface
             ? mb_strtolower($combined, 'UTF-8')
             : strtolower($combined);
 
-        preg_match_all('/[áäčďéíĺľňóôŕšťúýž]/u', $normalized, $diacriticsMatches);
+        preg_match_all('/[ĂˇĂ¤ÄŤÄŹĂ©Ă­ÄşÄľĹĂłĂ´Ĺ•ĹˇĹĄĂşĂ˝Ĺľ]/u', $normalized, $diacriticsMatches);
         $diacriticsCount = count($diacriticsMatches[0] ?? []);
         if ($diacriticsCount < 3) {
             return false;
@@ -1011,13 +1011,13 @@ class BotTranslationService implements BotTranslationServiceInterface
             ' sa ',
             ' v ',
             ' na ',
-            ' že ',
+            ' Ĺľe ',
             ' pre ',
             ' ako ',
-            ' ktorý ',
-            ' ktorá ',
-            ' ktoré ',
-            ' sú ',
+            ' ktorĂ˝ ',
+            ' ktorĂˇ ',
+            ' ktorĂ© ',
+            ' sĂş ',
             ' sme ',
             ' bol ',
             ' bola ',
@@ -1103,11 +1103,11 @@ class BotTranslationService implements BotTranslationServiceInterface
 
     private function providerTimeoutSeconds(string $providerName): int
     {
-        $shared = max(1, (int) config('astrobot.translation.timeout_sec', 12));
+        $shared = max(1, (int) config('bots.translation.timeout_sec', 12));
 
         return match (strtolower(trim($providerName))) {
-            'ollama' => min($shared, max(1, (int) config('astrobot.translation.ollama.timeout_seconds', $shared))),
-            default => max(1, (int) config('astrobot.translation.libretranslate.timeout_seconds', $shared)),
+            'ollama' => min($shared, max(1, (int) config('bots.translation.ollama.timeout_seconds', $shared))),
+            default => max(1, (int) config('bots.translation.libretranslate.timeout_seconds', $shared)),
         };
     }
 }

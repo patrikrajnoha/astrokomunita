@@ -160,9 +160,9 @@ class WikipediaOnThisDayFetchService
      */
     private function fetchJson(string $url): array
     {
-        $timeout = max(1, (int) config('astrobot.rss_timeout_seconds', 10));
-        $retries = max(0, (int) config('astrobot.rss_retry_times', 2));
-        $sleep = max(0, (int) config('astrobot.rss_retry_sleep_ms', 250));
+        $timeout = max(1, (int) config('bots.rss_timeout_seconds', 10));
+        $retries = max(0, (int) config('bots.rss_retry_times', 2));
+        $sleep = max(0, (int) config('bots.rss_retry_sleep_ms', 250));
         $attempts = $retries + 1;
         $userAgent = $this->botUserAgent();
 
@@ -290,7 +290,7 @@ class WikipediaOnThisDayFetchService
         usort($typed, static fn (array $a, array $b): int => $b['typed_score'] <=> $a['typed_score'] ?: ($a['index'] <=> $b['index']));
 
         $allowed = array_values(array_filter($typed, static fn (array $event): bool => $event['wikidata_decision'] === 'allow'));
-        if ($allowed === [] && $this->wikidataFailed && (int) ($typed[0]['keyword_score'] ?? 0) >= max(1, (int) config('astrobot.wiki_high_keyword_threshold', 4))) {
+        if ($allowed === [] && $this->wikidataFailed && (int) ($typed[0]['keyword_score'] ?? 0) >= max(1, (int) config('bots.wiki_high_keyword_threshold', 4))) {
             $fallback = $typed[0];
             $fallback['wikidata_status'] = 'failed_fallback';
             $fallback['wikidata_decision'] = 'allow';
@@ -315,7 +315,7 @@ class WikipediaOnThisDayFetchService
      */
     private function applyWikidataTyping(array $events): array
     {
-        $maxCandidates = max(1, (int) config('astrobot.wiki_max_candidate_pages', 15));
+        $maxCandidates = max(1, (int) config('bots.wiki_max_candidate_pages', 15));
         $checkedPages = 0;
         $classificationMemo = [];
 
@@ -391,8 +391,8 @@ class WikipediaOnThisDayFetchService
             $response = Http::secure()
                 ->withUserAgent($this->botUserAgent())
                 ->acceptJson()
-                ->timeout(max(1, (int) config('astrobot.rss_timeout_seconds', 10)))
-                ->get((string) config('astrobot.wikipedia_mediawiki_api_url', 'https://en.wikipedia.org/w/api.php'), [
+                ->timeout(max(1, (int) config('bots.rss_timeout_seconds', 10)))
+                ->get((string) config('bots.wikipedia_mediawiki_api_url', 'https://en.wikipedia.org/w/api.php'), [
                     'action' => 'query',
                     'prop' => 'pageprops',
                     'format' => 'json',
@@ -509,7 +509,7 @@ class WikipediaOnThisDayFetchService
             return [];
         }
 
-        $maxRequests = max(1, (int) config('astrobot.wiki_max_wikidata_entity_requests', 15));
+        $maxRequests = max(1, (int) config('bots.wiki_max_wikidata_entity_requests', 15));
         if ($this->wikidataEntityRequests >= $maxRequests) {
             $this->wikidataFailed = true;
             throw new RuntimeException('wikidata_request_limit');
@@ -520,8 +520,8 @@ class WikipediaOnThisDayFetchService
             $response = Http::secure()
                 ->withUserAgent($this->botUserAgent())
                 ->acceptJson()
-                ->timeout(max(1, (int) config('astrobot.rss_timeout_seconds', 10)))
-                ->get((string) config('astrobot.wikidata_api_url', 'https://www.wikidata.org/w/api.php'), [
+                ->timeout(max(1, (int) config('bots.rss_timeout_seconds', 10)))
+                ->get((string) config('bots.wikidata_api_url', 'https://www.wikidata.org/w/api.php'), [
                     'action' => 'wbgetentities',
                     'format' => 'json',
                     'props' => 'claims',
@@ -578,7 +578,7 @@ class WikipediaOnThisDayFetchService
      */
     private function allowlistQids(): array
     {
-        $fromConfig = array_values(array_filter(array_map(static fn ($qid): string => strtoupper(trim((string) $qid)), (array) config('astrobot.wiki_allowlist_qids', []))));
+        $fromConfig = array_values(array_filter(array_map(static fn ($qid): string => strtoupper(trim((string) $qid)), (array) config('bots.wiki_allowlist_qids', []))));
         return $fromConfig !== [] ? $fromConfig : self::DEFAULT_ALLOWLIST_QIDS;
     }
 
@@ -587,7 +587,7 @@ class WikipediaOnThisDayFetchService
      */
     private function denylistQids(): array
     {
-        $fromConfig = array_values(array_filter(array_map(static fn ($qid): string => strtoupper(trim((string) $qid)), (array) config('astrobot.wiki_denylist_qids', []))));
+        $fromConfig = array_values(array_filter(array_map(static fn ($qid): string => strtoupper(trim((string) $qid)), (array) config('bots.wiki_denylist_qids', []))));
         return $fromConfig !== [] ? $fromConfig : self::DEFAULT_DENYLIST_QIDS;
     }
 
@@ -638,7 +638,7 @@ class WikipediaOnThisDayFetchService
 
     private function cacheTtlDate(): \DateTimeInterface
     {
-        return now()->addDays(max(1, (int) config('astrobot.wiki_wikidata_cache_ttl_days', 30)));
+        return now()->addDays(max(1, (int) config('bots.wiki_wikidata_cache_ttl_days', 30)));
     }
 
     private function nullableUpperQid(mixed $value): ?string
@@ -649,7 +649,7 @@ class WikipediaOnThisDayFetchService
 
     private function botUserAgent(): string
     {
-        return trim((string) config('astrobot.rss_user_agent', 'AstroKomunita/AstroBot RSS Sync'))
-            ?: 'AstroKomunita/AstroBot RSS Sync';
+        return trim((string) config('bots.rss_user_agent', 'AstroKomunita/Bot RSS Sync'))
+            ?: 'AstroKomunita/Bot RSS Sync';
     }
 }
