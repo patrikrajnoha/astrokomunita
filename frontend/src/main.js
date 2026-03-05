@@ -8,6 +8,51 @@ import router from './router'
 import { appInitState, setInitError, setInitializing, setMounted } from '@/bootstrap/appInitState'
 import { useAuthStore } from '@/stores/auth'
 
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+
+function isLocalHost() {
+  return typeof window !== 'undefined' && LOCAL_HOSTS.has(window.location.hostname)
+}
+
+function getBuildFingerprint() {
+  return {
+    commit: import.meta.env.VITE_BUILD_COMMIT || 'unknown',
+    buildTime: import.meta.env.VITE_BUILD_TIME || 'unknown',
+    mode: import.meta.env.MODE,
+  }
+}
+
+function logBuildFingerprint() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return
+
+  const fingerprint = getBuildFingerprint()
+  window.__ASTROKOMUNITA_BUILD__ = fingerprint
+  console.info('[APP FINGERPRINT]', fingerprint)
+}
+
+async function disableServiceWorkerForLocalDev() {
+  if (!('serviceWorker' in navigator)) return
+  if (!(import.meta.env.DEV || isLocalHost())) return
+
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations()
+    await Promise.all(registrations.map((registration) => registration.unregister()))
+
+    if ('caches' in window) {
+      const cacheKeys = await caches.keys()
+      await Promise.all(cacheKeys.map((key) => caches.delete(key)))
+    }
+
+    console.info('[APP SW] disabled for local/dev', {
+      registrations: registrations.length,
+      host: window.location.hostname,
+      mode: import.meta.env.MODE,
+    })
+  } catch (error) {
+    console.warn('[APP SW] local/dev disable guard failed', error)
+  }
+}
+
 function formatError(errorLike) {
   if (!errorLike) return { message: 'Unknown error', stack: '' }
 
@@ -101,6 +146,8 @@ async function bootstrap() {
   console.info('[APP INIT] mode=', import.meta.env.MODE, 'base=', import.meta.env.BASE_URL)
 
   attachGlobalDiagnostics()
+  logBuildFingerprint()
+  await disableServiceWorkerForLocalDev()
 
   const app = createApp(App)
   const pinia = createPinia()
@@ -134,23 +181,27 @@ async function bootstrap() {
   // Never block public render on auth bootstrap.
   setInitializing(false)
 
-  if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  const shouldRegisterServiceWorker =
+    import.meta.env.PROD &&
+    !isLocalHost() &&
+    import.meta.env.VITE_ENABLE_SW !== 'false' &&
+    'serviceWorker' in navigator
+
+  if (shouldRegisterServiceWorker) {
     window.addEventListener('load', async () => {
       try {
         const swUrl = `${import.meta.env.BASE_URL}sw.js`
         await navigator.serviceWorker.register(swUrl)
+        console.info('[APP SW] registered', { swUrl })
       } catch (error) {
         console.warn('[APP INIT] service worker registration failed', error)
       }
     })
-  }
-
-  if (import.meta.env.DEV && 'serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations()
-      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
-      .catch((error) => {
-        console.warn('[APP INIT] service worker cleanup failed', error)
-      })
+  } else if ('serviceWorker' in navigator) {
+    console.info('[APP SW] registration skipped', {
+      mode: import.meta.env.MODE,
+      host: window.location.hostname,
+    })
   }
 }
 

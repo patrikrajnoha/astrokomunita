@@ -1,77 +1,107 @@
-const CACHE_NAME = 'astrokomunita-shell-v3'
+const CACHE_NAME = 'astrokomunita-shell-v4'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.ico']
+const IS_LOCALHOST = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1'
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => {})
-  )
-  self.skipWaiting()
-})
+function clearAllCaches() {
+  return caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+}
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(keys.map((key) => (key === CACHE_NAME ? Promise.resolve() : caches.delete(key))))
+if (IS_LOCALHOST) {
+  // Local/dev must always bypass SW to avoid stale Vite modules.
+  self.addEventListener('install', (event) => {
+    event.waitUntil(self.skipWaiting())
+  })
+
+  self.addEventListener('activate', (event) => {
+    event.waitUntil(
+      clearAllCaches()
+        .then(() => self.registration.unregister())
+        .then(() => self.clients.claim())
+    )
+  })
+} else {
+  self.addEventListener('install', (event) => {
+    event.waitUntil(
+      caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => {})
+    )
+    self.skipWaiting()
+  })
+
+  self.addEventListener('activate', (event) => {
+    event.waitUntil(
+      caches
+        .keys()
+        .then((keys) =>
+          Promise.all(keys.map((key) => (key === CACHE_NAME ? Promise.resolve() : caches.delete(key))))
+        )
+    )
+    self.clients.claim()
+  })
+
+  self.addEventListener('fetch', (event) => {
+    const { request } = event
+
+    if (request.method !== 'GET') return
+
+    const url = new URL(request.url)
+
+    // Keep API always network-first and uncached to avoid stale data.
+    if (url.pathname.startsWith('/api/')) return
+
+    // Never cache Vite dev resources.
+    if (
+      url.pathname.startsWith('/src/') ||
+      url.pathname.startsWith('/@vite/') ||
+      url.pathname.startsWith('/node_modules/') ||
+      url.searchParams.has('t')
+    ) {
+      return
+    }
+
+    // Only handle same-origin requests and static assets.
+    if (url.origin !== self.location.origin) return
+
+    const isStaticAsset =
+      request.destination === 'script' ||
+      request.destination === 'style' ||
+      request.destination === 'image' ||
+      request.destination === 'font' ||
+      url.pathname.startsWith('/assets/')
+
+    const isShellNavigation = request.mode === 'navigate'
+
+    if (!isStaticAsset && !isShellNavigation) return
+
+    // Navigation should be network-first so users see freshly deployed bundles.
+    if (isShellNavigation) {
+      event.respondWith(
+        fetch(request)
+          .then((response) => {
+            if (response && response.status === 200 && response.type === 'basic') {
+              const cloned = response.clone()
+              caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', cloned)).catch(() => {})
+            }
+            return response
+          })
+          .catch(() => caches.match('/index.html'))
       )
-  )
-  self.clients.claim()
-})
+      return
+    }
 
-self.addEventListener('fetch', (event) => {
-  const { request } = event
-
-  if (request.method !== 'GET') return
-
-  const url = new URL(request.url)
-
-  // Keep API always network-first and uncached to avoid stale data.
-  if (url.pathname.startsWith('/api/')) return
-
-  // Only handle same-origin requests and static assets.
-  if (url.origin !== self.location.origin) return
-
-  const isStaticAsset =
-    request.destination === 'script' ||
-    request.destination === 'style' ||
-    request.destination === 'image' ||
-    request.destination === 'font' ||
-    url.pathname.startsWith('/assets/')
-
-  const isShellNavigation = request.mode === 'navigate'
-
-  if (!isStaticAsset && !isShellNavigation) return
-
-  // Navigation should be network-first so users see freshly deployed bundles.
-  if (isShellNavigation) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.status === 200 && response.type === 'basic') {
-            const cloned = response.clone()
-            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', cloned)).catch(() => {})
+      caches.match(request).then((cached) => {
+        if (cached) return cached
+
+        return fetch(request).then((response) => {
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response
           }
+
+          const cloned = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned)).catch(() => {})
           return response
         })
-        .catch(() => caches.match('/index.html'))
-    )
-    return
-  }
-
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached
-
-      return fetch(request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response
-        }
-
-        const cloned = response.clone()
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned)).catch(() => {})
-        return response
       })
-    })
-  )
-})
+    )
+  })
+}
