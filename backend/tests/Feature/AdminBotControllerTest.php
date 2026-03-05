@@ -43,9 +43,15 @@ class AdminBotControllerTest extends TestCase
         ]);
         Sanctum::actingAs($user);
 
+        $this->getJson('/api/admin/bots/overview')->assertStatus(403);
         $this->getJson('/api/admin/bots/sources')->assertStatus(403);
+        $this->patchJson('/api/admin/bots/sources/1', ['is_enabled' => true])->assertStatus(403);
         $this->getJson('/api/admin/bots/runs')->assertStatus(403);
         $this->getJson('/api/admin/bots/activity')->assertStatus(403);
+        $this->getJson('/api/admin/bots/schedules')->assertStatus(403);
+        $this->postJson('/api/admin/bots/schedules', [])->assertStatus(403);
+        $this->patchJson('/api/admin/bots/schedules/1', ['enabled' => false])->assertStatus(403);
+        $this->deleteJson('/api/admin/bots/schedules/1')->assertStatus(403);
         $this->getJson('/api/admin/bots/items?run_id=1')->assertStatus(403);
         $this->postJson('/api/admin/bots/run/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/translation/test')->assertStatus(403);
@@ -91,6 +97,190 @@ class AdminBotControllerTest extends TestCase
         $this->assertContains('nasa_apod_daily', $keys);
         $this->assertContains('wiki_onthisday_astronomy', $keys);
         $this->assertSame(3, BotSource::query()->count());
+    }
+
+    public function test_admin_get_overview_returns_bot_metrics_payload_shape(): void
+    {
+        $botUser = User::factory()->create([
+            'is_bot' => true,
+            'role' => User::ROLE_BOT,
+            'username' => 'kozmobot',
+            'email' => null,
+        ]);
+
+        $source = $this->createRssSource('overview_source');
+        Post::query()->create([
+            'user_id' => $botUser->id,
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'kozmo',
+            'content' => 'Overview bot post content.',
+            'source_name' => 'bot_' . $source->key,
+            'source_uid' => sha1('overview-source'),
+            'ingested_at' => now()->subHours(2),
+        ]);
+
+        BotActivityLog::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'action' => 'ingest',
+            'outcome' => 'skipped_duplicate',
+            'reason' => 'stable_key_exists',
+            'run_context' => 'scheduled',
+            'created_at' => now()->subHours(1),
+            'updated_at' => now()->subHours(1),
+        ]);
+        BotActivityLog::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'action' => 'publish',
+            'outcome' => 'failed',
+            'reason' => 'exception',
+            'run_context' => 'scheduled',
+            'created_at' => now()->subMinutes(20),
+            'updated_at' => now()->subMinutes(20),
+        ]);
+
+        $this->actingAsAdmin();
+
+        $response = $this->getJson('/api/admin/bots/overview');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('overall.posts_24h_total', 1)
+            ->assertJsonPath('overall.duplicates_24h', 1)
+            ->assertJsonPath('overall.failures_24h', 1)
+            ->assertJsonStructure([
+                'window_hours',
+                'generated_at',
+                'overall' => [
+                    'posts_24h_total',
+                    'duplicates_24h',
+                    'failures_24h',
+                ],
+                'bots' => [[
+                    'id',
+                    'username',
+                    'role',
+                    'last_activity_at',
+                    'posts_24h',
+                    'duplicates_24h',
+                    'errors_24h',
+                    'rate_limit_state' => [
+                        'limited',
+                        'retry_after_sec',
+                        'remaining_attempts',
+                        'max_attempts',
+                        'window_sec',
+                    ],
+                ]],
+            ]);
+
+        $this->assertSame('kozmobot', (string) data_get($response->json(), 'bots.0.username'));
+        $this->assertSame(1, (int) data_get($response->json(), 'bots.0.posts_24h'));
+        $this->assertSame(1, (int) data_get($response->json(), 'bots.0.errors_24h'));
+    }
+
+    public function test_admin_can_update_source_and_filter_sources_by_state(): void
+    {
+        $source = $this->createRssSource('source_state_filter');
+        $source->forceFill([
+            'consecutive_failures' => 2,
+            'last_error_at' => now()->subMinutes(15),
+            'last_error_message' => 'Temporary upstream failure.',
+        ])->save();
+
+        $this->actingAsAdmin();
+
+        $patch = $this->patchJson('/api/admin/bots/sources/' . $source->id, [
+            'name' => 'NASA RSS Mirror',
+            'url' => 'https://example.test/new-feed.xml',
+            'is_enabled' => false,
+        ]);
+
+        $patch
+            ->assertOk()
+            ->assertJsonPath('data.id', $source->id)
+            ->assertJsonPath('data.name', 'NASA RSS Mirror')
+            ->assertJsonPath('data.url', 'https://example.test/new-feed.xml')
+            ->assertJsonPath('data.is_enabled', false);
+
+        $this->assertDatabaseHas('bot_sources', [
+            'id' => $source->id,
+            'name' => 'NASA RSS Mirror',
+            'url' => 'https://example.test/new-feed.xml',
+            'is_enabled' => 0,
+        ]);
+
+        $this->getJson('/api/admin/bots/sources?enabled=0')
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $source->id,
+                'key' => $source->key,
+            ]);
+
+        $this->getJson('/api/admin/bots/sources?failing_only=1')
+            ->assertOk()
+            ->assertJsonFragment([
+                'id' => $source->id,
+                'consecutive_failures' => 2,
+            ]);
+    }
+
+    public function test_admin_can_crud_bot_schedules(): void
+    {
+        $source = $this->createRssSource('schedule_crud_source');
+        $botUser = User::factory()->create([
+            'is_bot' => true,
+            'role' => User::ROLE_BOT,
+            'username' => 'schedulebot',
+            'email' => null,
+        ]);
+
+        $this->actingAsAdmin();
+
+        $create = $this->postJson('/api/admin/bots/schedules', [
+            'bot_user_id' => $botUser->id,
+            'source_id' => $source->id,
+            'interval_minutes' => 15,
+            'jitter_seconds' => 30,
+            'enabled' => true,
+        ]);
+
+        $create
+            ->assertCreated()
+            ->assertJsonPath('data.bot_user_id', $botUser->id)
+            ->assertJsonPath('data.source_id', $source->id)
+            ->assertJsonPath('data.interval_minutes', 15)
+            ->assertJsonPath('data.jitter_seconds', 30)
+            ->assertJsonPath('data.enabled', true);
+
+        $scheduleId = (int) data_get($create->json(), 'data.id');
+        $this->assertGreaterThan(0, $scheduleId);
+
+        $this->getJson('/api/admin/bots/schedules?bot_user_id=' . $botUser->id)
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.id', $scheduleId);
+
+        $this->patchJson('/api/admin/bots/schedules/' . $scheduleId, [
+            'enabled' => false,
+            'interval_minutes' => 30,
+            'jitter_seconds' => 90,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.enabled', false)
+            ->assertJsonPath('data.interval_minutes', 30)
+            ->assertJsonPath('data.jitter_seconds', 90);
+
+        $this->deleteJson('/api/admin/bots/schedules/' . $scheduleId)
+            ->assertOk()
+            ->assertJsonPath('deleted', true)
+            ->assertJsonPath('id', $scheduleId);
+
+        $this->assertDatabaseMissing('bot_schedules', [
+            'id' => $scheduleId,
+        ]);
     }
 
     public function test_admin_post_run_executes_source_and_returns_run_summary_with_stats(): void

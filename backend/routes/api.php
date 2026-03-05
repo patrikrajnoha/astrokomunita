@@ -502,9 +502,15 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::patch('/posts/{post}/unpin', [AdminPostController::class, 'unpin']);
 
         Route::prefix('bots')->group(function () {
+            Route::get('/overview', [AdminBotController::class, 'overview']);
             Route::get('/sources', [AdminBotController::class, 'sources']);
+            Route::patch('/sources/{sourceId}', [AdminBotController::class, 'updateSource']);
             Route::get('/runs', [AdminBotController::class, 'runs']);
             Route::get('/activity', [AdminBotController::class, 'activity']);
+            Route::get('/schedules', [AdminBotController::class, 'schedules']);
+            Route::post('/schedules', [AdminBotController::class, 'createSchedule']);
+            Route::patch('/schedules/{scheduleId}', [AdminBotController::class, 'updateSchedule']);
+            Route::delete('/schedules/{scheduleId}', [AdminBotController::class, 'deleteSchedule']);
             Route::get('/items', [AdminBotController::class, 'items']);
             Route::post('/run/{sourceKey}', [AdminBotController::class, 'run']);
             Route::post('/translation/test', [AdminBotController::class, 'translationTest']);

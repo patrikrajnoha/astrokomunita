@@ -9,9 +9,12 @@ use App\Http\Controllers\Controller;
 use App\Models\BotActivityLog;
 use App\Models\BotItem;
 use App\Models\BotRun;
+use App\Models\BotSchedule;
 use App\Models\BotSource;
 use App\Models\Post;
+use App\Models\User;
 use App\Services\Bots\BotPostTranslationBackfillService;
+use App\Services\Bots\BotOverviewService;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use App\Services\Bots\BotPublisherService;
 use App\Services\Bots\BotRunner;
@@ -38,31 +41,88 @@ class AdminBotController extends Controller
         private readonly BotTranslationServiceInterface $translationService,
         private readonly BotPostTranslationBackfillService $backfillService,
         private readonly BotSourceSyncService $botSourceSyncService,
+        private readonly BotOverviewService $botOverviewService,
         private readonly TranslationOutageSimulationService $outageSimulationService,
     ) {
     }
 
-    public function sources(): JsonResponse
+    public function overview(): JsonResponse
+    {
+        return response()->json($this->botOverviewService->buildOverview());
+    }
+
+    public function sources(Request $request): JsonResponse
     {
         $this->botSourceSyncService->syncDefaults();
 
-        $sources = BotSource::query()
+        $validated = $request->validate([
+            'enabled' => 'nullable|boolean',
+            'failing_only' => 'nullable|boolean',
+            'q' => 'nullable|string|max:120',
+        ]);
+
+        $query = BotSource::query();
+
+        if (array_key_exists('enabled', $validated)) {
+            $query->where('is_enabled', (bool) $validated['enabled']);
+        }
+        if (($validated['failing_only'] ?? false) === true) {
+            $query->where('consecutive_failures', '>', 0);
+        }
+
+        $search = strtolower(trim((string) ($validated['q'] ?? '')));
+        if ($search !== '') {
+            $query->where(function (Builder $sourceQuery) use ($search): void {
+                $sourceQuery
+                    ->whereRaw('LOWER(COALESCE(name, "")) like ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(key) like ?', ["%{$search}%"])
+                    ->orWhereRaw('LOWER(url) like ?', ["%{$search}%"]);
+            });
+        }
+
+        $sources = $query
             ->orderBy('key')
             ->get();
 
-        $data = $sources->map(fn (BotSource $source): array => [
-            'id' => $source->id,
-            'key' => (string) $source->key,
-            'bot_identity' => $source->bot_identity?->value ?? (string) $source->bot_identity,
-            'source_type' => $source->source_type?->value ?? (string) $source->source_type,
-            'url' => (string) $source->url,
-            'is_enabled' => (bool) $source->is_enabled,
-            'last_run_at' => $source->last_run_at?->toIso8601String(),
-            'cooldown_until' => $source->cooldown_until?->toIso8601String(),
-        ])->values();
+        $data = $sources->map(fn (BotSource $source): array => $this->serializeSource($source))->values();
 
         return response()->json([
             'data' => $data,
+        ]);
+    }
+
+    public function updateSource(Request $request, int $sourceId): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'sometimes|nullable|string|max:160',
+            'url' => 'sometimes|string|max:2048|url',
+            'is_enabled' => 'sometimes|boolean',
+        ]);
+
+        $source = BotSource::query()->find($sourceId);
+        if (!$source) {
+            return response()->json([
+                'message' => 'Bot source was not found.',
+            ], 404);
+        }
+
+        $updates = [];
+        if (array_key_exists('name', $validated)) {
+            $updates['name'] = $this->nullableString($validated['name']);
+        }
+        if (array_key_exists('url', $validated)) {
+            $updates['url'] = trim((string) $validated['url']);
+        }
+        if (array_key_exists('is_enabled', $validated)) {
+            $updates['is_enabled'] = (bool) $validated['is_enabled'];
+        }
+
+        if ($updates !== []) {
+            $source->fill($updates)->save();
+        }
+
+        return response()->json([
+            'data' => $this->serializeSource($source->fresh() ?? $source),
         ]);
     }
 
@@ -184,6 +244,150 @@ class AdminBotController extends Controller
         );
 
         return response()->json($paginator);
+    }
+
+    public function schedules(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'enabled' => 'nullable|boolean',
+            'bot_user_id' => 'nullable|integer|min:1',
+            'source_id' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $query = BotSchedule::query()
+            ->with([
+                'botUser:id,username,role,is_bot',
+                'source:id,key,name,bot_identity,source_type,is_enabled',
+            ]);
+
+        if (array_key_exists('enabled', $validated)) {
+            $query->where('enabled', (bool) $validated['enabled']);
+        }
+        if (isset($validated['bot_user_id'])) {
+            $query->where('bot_user_id', (int) $validated['bot_user_id']);
+        }
+        if (isset($validated['source_id'])) {
+            $query->where('source_id', (int) $validated['source_id']);
+        }
+
+        $perPage = (int) ($validated['per_page'] ?? 30);
+        $paginator = $query
+            ->orderBy('next_run_at')
+            ->orderBy('id')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $paginator->setCollection(
+            $paginator->getCollection()->map(fn (BotSchedule $schedule): array => $this->serializeSchedule($schedule))
+        );
+
+        return response()->json($paginator);
+    }
+
+    public function createSchedule(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'bot_user_id' => 'required|integer|min:1|exists:users,id',
+            'source_id' => 'nullable|integer|min:1|exists:bot_sources,id',
+            'enabled' => 'sometimes|boolean',
+            'interval_minutes' => 'required|integer|min:1|max:10080',
+            'jitter_seconds' => 'nullable|integer|min:0|max:86400',
+            'timezone' => 'nullable|string|timezone|max:64',
+        ]);
+
+        $botUser = User::query()->findOrFail((int) $validated['bot_user_id']);
+        if (!((bool) $botUser->is_bot || strtolower(trim((string) $botUser->role)) === User::ROLE_BOT)) {
+            throw ValidationException::withMessages([
+                'bot_user_id' => 'Selected user is not a bot account.',
+            ]);
+        }
+
+        $source = null;
+        if (!empty($validated['source_id'])) {
+            $source = BotSource::query()->find((int) $validated['source_id']);
+            if (!$source) {
+                throw ValidationException::withMessages([
+                    'source_id' => 'Selected source is invalid.',
+                ]);
+            }
+        }
+
+        $schedule = BotSchedule::query()->create([
+            'bot_user_id' => $botUser->id,
+            'source_id' => $source?->id,
+            'enabled' => (bool) ($validated['enabled'] ?? true),
+            'interval_minutes' => (int) $validated['interval_minutes'],
+            'jitter_seconds' => (int) ($validated['jitter_seconds'] ?? 0),
+            'timezone' => $this->nullableString($validated['timezone'] ?? null),
+            'next_run_at' => now(),
+            'last_run_at' => null,
+            'last_result' => null,
+            'last_message' => null,
+        ]);
+
+        return response()->json([
+            'data' => $this->serializeSchedule($schedule->fresh(['botUser:id,username,role,is_bot', 'source:id,key,name,bot_identity,source_type,is_enabled']) ?? $schedule),
+        ], 201);
+    }
+
+    public function updateSchedule(Request $request, int $scheduleId): JsonResponse
+    {
+        $validated = $request->validate([
+            'enabled' => 'sometimes|boolean',
+            'interval_minutes' => 'sometimes|integer|min:1|max:10080',
+            'jitter_seconds' => 'sometimes|integer|min:0|max:86400',
+            'timezone' => 'sometimes|nullable|string|timezone|max:64',
+            'source_id' => 'sometimes|nullable|integer|min:1|exists:bot_sources,id',
+        ]);
+
+        $schedule = BotSchedule::query()->find($scheduleId);
+        if (!$schedule) {
+            return response()->json([
+                'message' => 'Bot schedule was not found.',
+            ], 404);
+        }
+
+        if (array_key_exists('source_id', $validated)) {
+            $schedule->source_id = $validated['source_id'] !== null
+                ? (int) $validated['source_id']
+                : null;
+        }
+        if (array_key_exists('enabled', $validated)) {
+            $schedule->enabled = (bool) $validated['enabled'];
+        }
+        if (array_key_exists('interval_minutes', $validated)) {
+            $schedule->interval_minutes = (int) $validated['interval_minutes'];
+        }
+        if (array_key_exists('jitter_seconds', $validated)) {
+            $schedule->jitter_seconds = (int) $validated['jitter_seconds'];
+        }
+        if (array_key_exists('timezone', $validated)) {
+            $schedule->timezone = $this->nullableString($validated['timezone']);
+        }
+
+        $schedule->save();
+
+        return response()->json([
+            'data' => $this->serializeSchedule($schedule->fresh(['botUser:id,username,role,is_bot', 'source:id,key,name,bot_identity,source_type,is_enabled']) ?? $schedule),
+        ]);
+    }
+
+    public function deleteSchedule(int $scheduleId): JsonResponse
+    {
+        $schedule = BotSchedule::query()->find($scheduleId);
+        if (!$schedule) {
+            return response()->json([
+                'message' => 'Bot schedule was not found.',
+            ], 404);
+        }
+
+        $schedule->delete();
+
+        return response()->json([
+            'deleted' => true,
+            'id' => $scheduleId,
+        ]);
     }
 
     public function run(Request $request, string $sourceKey): JsonResponse
@@ -964,6 +1168,73 @@ class AdminBotController extends Controller
             'failed_items' => $failedItems,
             'sample_deleted_post_ids' => $sampleDeletedPostIds,
         ]);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function serializeSource(BotSource $source): array
+    {
+        $consecutiveFailures = max(0, (int) ($source->consecutive_failures ?? 0));
+        $status = 'ok';
+        if ($consecutiveFailures >= 3) {
+            $status = 'fail';
+        } elseif ($consecutiveFailures > 0) {
+            $status = 'warn';
+        }
+
+        return [
+            'id' => $source->id,
+            'key' => (string) $source->key,
+            'name' => $this->nullableString($source->name) ?? (string) $source->key,
+            'bot_identity' => $source->bot_identity?->value ?? (string) $source->bot_identity,
+            'source_type' => $source->source_type?->value ?? (string) $source->source_type,
+            'url' => (string) $source->url,
+            'is_enabled' => (bool) $source->is_enabled,
+            'status' => $status,
+            'last_run_at' => $source->last_run_at?->toIso8601String(),
+            'last_success_at' => $source->last_success_at?->toIso8601String(),
+            'last_error_at' => $source->last_error_at?->toIso8601String(),
+            'last_error_message' => $this->nullableString($source->last_error_message),
+            'consecutive_failures' => $consecutiveFailures,
+            'last_status_code' => $source->last_status_code !== null ? (int) $source->last_status_code : null,
+            'avg_latency_ms' => $source->avg_latency_ms !== null ? (int) $source->avg_latency_ms : null,
+            'cooldown_until' => $source->cooldown_until?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function serializeSchedule(BotSchedule $schedule): array
+    {
+        return [
+            'id' => $schedule->id,
+            'bot_user_id' => $schedule->bot_user_id,
+            'source_id' => $schedule->source_id,
+            'enabled' => (bool) $schedule->enabled,
+            'interval_minutes' => (int) $schedule->interval_minutes,
+            'jitter_seconds' => (int) $schedule->jitter_seconds,
+            'timezone' => $this->nullableString($schedule->timezone),
+            'last_run_at' => $schedule->last_run_at?->toIso8601String(),
+            'next_run_at' => $schedule->next_run_at?->toIso8601String(),
+            'last_result' => $this->nullableString($schedule->last_result),
+            'last_message' => $this->nullableString($schedule->last_message),
+            'bot_user' => $schedule->botUser ? [
+                'id' => $schedule->botUser->id,
+                'username' => (string) $schedule->botUser->username,
+                'role' => (string) ($schedule->botUser->role ?: ''),
+                'is_bot' => (bool) $schedule->botUser->is_bot,
+            ] : null,
+            'source' => $schedule->source ? [
+                'id' => $schedule->source->id,
+                'key' => (string) $schedule->source->key,
+                'name' => $this->nullableString($schedule->source->name) ?? (string) $schedule->source->key,
+                'bot_identity' => $schedule->source->bot_identity?->value ?? (string) $schedule->source->bot_identity,
+                'source_type' => $schedule->source->source_type?->value ?? (string) $schedule->source->source_type,
+                'is_enabled' => (bool) $schedule->source->is_enabled,
+            ] : null,
+        ];
     }
 
     /**
