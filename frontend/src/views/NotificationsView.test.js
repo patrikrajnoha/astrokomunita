@@ -1,0 +1,154 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { createMemoryHistory, createRouter } from 'vue-router'
+import NotificationsView from './NotificationsView.vue'
+
+const getMock = vi.hoisted(() => vi.fn())
+const postMock = vi.hoisted(() => vi.fn())
+
+const notificationsStoreMock = vi.hoisted(() => ({
+  items: [],
+  loading: false,
+  loadingMore: false,
+  error: '',
+  page: 1,
+  lastPage: 1,
+  fetchList: vi.fn(),
+  fetchUnreadCount: vi.fn(),
+  markAllRead: vi.fn(),
+  markRead: vi.fn(),
+}))
+
+const authMock = vi.hoisted(() => ({
+  isAuthed: true,
+}))
+
+vi.mock('@/stores/notifications', () => ({
+  useNotificationsStore: () => notificationsStoreMock,
+}))
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => authMock,
+}))
+
+vi.mock('@/services/api', () => ({
+  default: {
+    get: getMock,
+    post: postMock,
+  },
+}))
+
+function flush() {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+async function mountView(initialPath = '/notifications') {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      {
+        path: '/notifications',
+        name: 'notifications',
+        component: NotificationsView,
+      },
+    ],
+  })
+
+  const replaceSpy = vi.spyOn(router, 'replace')
+
+  await router.push(initialPath)
+  await router.isReady()
+
+  const wrapper = mount(NotificationsView, {
+    attachTo: document.body,
+    global: {
+      plugins: [router],
+    },
+  })
+
+  await flush()
+
+  return { wrapper, router, replaceSpy }
+}
+
+describe('NotificationsView', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    notificationsStoreMock.items = []
+    notificationsStoreMock.loading = false
+    notificationsStoreMock.loadingMore = false
+    notificationsStoreMock.error = ''
+    notificationsStoreMock.page = 1
+    notificationsStoreMock.lastPage = 1
+    authMock.isAuthed = true
+
+    getMock.mockImplementation(async (url) => {
+      if (url === '/me/notifications/preferences') {
+        return {
+          data: {
+            good_conditions_alerts: true,
+            iss_alerts: false,
+          },
+        }
+      }
+
+      return { data: {} }
+    })
+
+    postMock.mockImplementation(async (_url, payload) => ({
+      data: payload,
+    }))
+  })
+
+  it('click on settings button opens modal', async () => {
+    const { wrapper, replaceSpy } = await mountView()
+
+    await wrapper.get('[data-testid="open-notification-settings"]').trigger('click')
+    await flush()
+
+    expect(document.body.querySelector('[data-testid="notification-settings-modal"]')).not.toBeNull()
+    expect(document.body.textContent).toContain('Nastavenia notifikacii')
+    expect(replaceSpy).toHaveBeenCalledWith({
+      path: '/notifications',
+      query: {},
+      hash: '#notification-settings',
+    })
+
+    wrapper.unmount()
+  })
+
+  it('close button closes modal', async () => {
+    const { wrapper, router, replaceSpy } = await mountView()
+
+    await wrapper.get('[data-testid="open-notification-settings"]').trigger('click')
+    await flush()
+    await router.push('/notifications#notification-settings')
+    await flush()
+
+    await document.body.querySelector('[data-testid="close-notification-settings"]').click()
+    await flush()
+
+    expect(replaceSpy).toHaveBeenCalledWith({
+      path: '/notifications',
+      query: {},
+      hash: '',
+    })
+    expect(document.body.querySelector('[data-testid="notification-settings-modal"]')).toBeNull()
+
+    wrapper.unmount()
+  })
+
+  it('opens modal when route hash is present on load', async () => {
+    const { wrapper, replaceSpy } = await mountView('/notifications#notification-settings')
+
+    expect(document.body.querySelector('[data-testid="notification-settings-modal"]')).not.toBeNull()
+    expect(document.body.textContent).toContain('Nastavenia notifikacii')
+    expect(replaceSpy).not.toHaveBeenCalledWith({
+      path: '/notifications',
+      query: {},
+      hash: '#notification-settings',
+    })
+
+    wrapper.unmount()
+  })
+})
