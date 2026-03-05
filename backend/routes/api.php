@@ -504,6 +504,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::prefix('bots')->group(function () {
             Route::get('/sources', [AdminBotController::class, 'sources']);
             Route::get('/runs', [AdminBotController::class, 'runs']);
+            Route::get('/activity', [AdminBotController::class, 'activity']);
             Route::get('/items', [AdminBotController::class, 'items']);
             Route::post('/run/{sourceKey}', [AdminBotController::class, 'run']);
             Route::post('/translation/test', [AdminBotController::class, 'translationTest']);
