@@ -78,16 +78,8 @@ Schedule::command('newsletter:send-weekly')
     ->weeklyOn(1, '08:00')
     ->withoutOverlapping();
 
-Schedule::command('bots:run nasa_rss_breaking --context=scheduled')
-    ->hourly()
-    ->withoutOverlapping();
-
-Schedule::command('bots:run wiki_onthisday_astronomy --context=scheduled')
-    ->dailyAt('08:00')
-    ->withoutOverlapping();
-
-Schedule::command('bots:run nasa_apod_daily --context=scheduled')
-    ->dailyAt('09:00')
+Schedule::command('bots:schedules:run --limit=30')
+    ->everyMinute()
     ->withoutOverlapping();
 
 Schedule::command('bots:sources:sync --quiet-summary')

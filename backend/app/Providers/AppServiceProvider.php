@@ -6,6 +6,7 @@ use App\Console\Commands\ImportEventCandidates;
 use App\Console\Commands\BotsPurgeCommand;
 use App\Console\Commands\CrawlAstropixelsEventsCommand;
 use App\Console\Commands\RunBotSourceCommand;
+use App\Console\Commands\RunBotSchedulesCommand;
 use App\Console\Commands\SendEventReminders;
 use App\Console\Commands\SendEventNotificationReminders;
 use App\Console\Commands\SendWeeklyNewsletterCommand;
@@ -60,6 +61,7 @@ class AppServiceProvider extends ServiceProvider
             BotsPurgeCommand::class,
             CrawlAstropixelsEventsCommand::class,
             RunBotSourceCommand::class,
+            RunBotSchedulesCommand::class,
             SendEventReminders::class,
             SendEventNotificationReminders::class,
             SendWeeklyNewsletterCommand::class,
