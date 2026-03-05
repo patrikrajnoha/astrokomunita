@@ -6,11 +6,11 @@ import {
   getScorePresentation,
   getVisiblePlanets,
 } from '@/utils/skyWidget'
+import { calculateAstronomyScore } from '@/utils/astronomyScore'
 
 const CHEAP_REFRESH_MS = 10 * 60 * 1000
 const ASTRONOMY_REFRESH_MS = 60 * 60 * 1000
 const FRESHNESS_TICK_MS = 60 * 1000
-const TWILIGHT_PHASES = new Set(['civil_twilight', 'nautical_twilight', 'astronomical_twilight'])
 
 export const SKY_PHASE = Object.freeze({
   LOCATION_REQUIRED: 'location_required',
@@ -90,20 +90,23 @@ export function useSkyWidget(options = {}) {
     hasLocationCoords: hasLocationCoords.value,
     sunAltitudeDeg: sunAltitudeDeg.value,
   }))
-  const rawObservingScore = computed(() => {
-    const value = toFiniteNumber(weather.value?.observing_score)
-    if (value === null) return null
-    return Math.max(0, Math.min(100, Math.round(value)))
-  })
+  const scoreModel = computed(() => calculateAstronomyScore({
+    sunAltitudeDeg: sunAltitudeDeg.value,
+    cloudPercent: weather.value?.cloud_percent,
+    humidityPercent: weather.value?.humidity_percent,
+    windKmh: weather.value?.wind_speed,
+    moonIlluminationPercent: astronomy.value?.moon_illumination_percent,
+    moonAltitudeDeg: astronomy.value?.moon_altitude_deg,
+    bortleClass: lightPollution.value?.bortle_class,
+  }))
+  const rawObservingScore = computed(() => scoreModel.value.score)
+  const scoreReasons = computed(() => (Array.isArray(scoreModel.value.reasons) ? scoreModel.value.reasons : []))
 
-  const isDaylight = computed(() => skyPhase.value === SKY_PHASE.DAY)
-  const isAstronomicalNight = computed(() => skyPhase.value === SKY_PHASE.ASTRONOMICAL_NIGHT)
-  const isTwilightLimited = computed(() => TWILIGHT_PHASES.has(skyPhase.value))
+  const isDaylight = computed(() => scoreModel.value.phase === 'daylight')
+  const isAstronomicalNight = computed(() => scoreModel.value.phase === 'astronomical_night')
+  const isTwilightLimited = computed(() => scoreModel.value.phase === 'twilight')
 
-  const observingScore = computed(() => {
-    if (skyPhase.value === SKY_PHASE.DAY) return 0
-    return rawObservingScore.value
-  })
+  const observingScore = computed(() => rawObservingScore.value)
 
   const scorePresentation = computed(() => {
     if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED) {
@@ -114,15 +117,11 @@ export function useSkyWidget(options = {}) {
       return { label: 'Nezname', emoji: '❔' }
     }
 
-    if (skyPhase.value === SKY_PHASE.DAY) {
+    if (isDaylight.value) {
       return { label: 'Denné svetlo', emoji: '☀️' }
     }
 
-    if (skyPhase.value === SKY_PHASE.CIVIL_TWILIGHT) {
-      return { label: 'Obciansky sumrak', emoji: '🌇' }
-    }
-
-    if (skyPhase.value === SKY_PHASE.NAUTICAL_TWILIGHT) {
+    if (skyPhase.value === SKY_PHASE.CIVIL_TWILIGHT || skyPhase.value === SKY_PHASE.NAUTICAL_TWILIGHT) {
       return { label: 'Namorny sumrak', emoji: '🌆' }
     }
 
@@ -326,6 +325,12 @@ export function useSkyWidget(options = {}) {
     return ''
   })
 
+  const weatherUpdatedAt = computed(() => (
+    resolvePayloadTimestamp(weather.value, ['updated_at', 'as_of']) || weatherFetchedAt.value
+  ))
+  const weatherUpdatedLabel = computed(() => formatTimeOrDash(weatherUpdatedAt.value, effectiveTz.value))
+  const weatherSourceLabel = computed(() => normalizeSourceLabel(weather.value?.source))
+
   const weatherFreshness = computed(() => formatFreshness(weatherFetchedAt.value, nowTick.value))
   const astronomyFreshness = computed(() => formatFreshness(astronomyFetchedAt.value, nowTick.value))
   const planetsFreshness = computed(() => formatFreshness(planetsFetchedAt.value, nowTick.value))
@@ -368,8 +373,9 @@ export function useSkyWidget(options = {}) {
         meta: { skipErrorToast: true },
       })
       if (token !== requestTokens.weather) return
-      weather.value = response?.data || null
-      weatherFetchedAt.value = new Date()
+      const payload = response?.data || null
+      weather.value = payload
+      weatherFetchedAt.value = resolvePayloadTimestamp(payload, ['updated_at', 'as_of']) || new Date()
     } catch (error) {
       if (token !== requestTokens.weather) return
       weatherError.value = toFriendlyError(error, 'Nepodarilo sa načítať počasie.')
@@ -398,8 +404,9 @@ export function useSkyWidget(options = {}) {
         meta: { skipErrorToast: true },
       })
       if (token !== requestTokens.astronomy) return
-      astronomy.value = response?.data || null
-      astronomyFetchedAt.value = new Date()
+      const payload = response?.data || null
+      astronomy.value = payload
+      astronomyFetchedAt.value = resolvePayloadTimestamp(payload, ['sample_at']) || new Date()
     } catch (error) {
       if (token !== requestTokens.astronomy) return
       astronomyError.value = toFriendlyError(error, 'Nepodarilo sa načítať astronómiu.')
@@ -428,8 +435,9 @@ export function useSkyWidget(options = {}) {
         meta: { skipErrorToast: true },
       })
       if (token !== requestTokens.planets) return
-      planetsPayload.value = response?.data || { planets: [] }
-      planetsFetchedAt.value = new Date()
+      const payload = response?.data || { planets: [] }
+      planetsPayload.value = payload
+      planetsFetchedAt.value = resolvePayloadTimestamp(payload, ['sample_at']) || new Date()
     } catch (error) {
       if (token !== requestTokens.planets) return
       planetsPayload.value = { planets: [], sample_at: null, sun_altitude_deg: null }
@@ -631,6 +639,7 @@ export function useSkyWidget(options = {}) {
 
     hasLocationCoords,
     observingScore,
+    scoreReasons,
     scoreLabel,
     scoreEmoji,
     scoreColorClass,
@@ -644,6 +653,8 @@ export function useSkyWidget(options = {}) {
     lightPollutionMetaLine,
     lightPollutionEstimateLine,
     isLightPollutionEstimate,
+    weatherUpdatedLabel,
+    weatherSourceLabel,
     planetCandidates,
     planetsDisplayList: planetsDisplayListV15,
     planetsMessage: planetsMessageV15,
@@ -753,6 +764,31 @@ function formatIsoShort(value, timeZone) {
       hour12: false,
     }).format(date)
   }
+}
+
+function formatTimeOrDash(value, timeZone) {
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return '-'
+  return formatTime(value, timeZone)
+}
+
+function resolvePayloadTimestamp(payload, keys) {
+  if (!payload || typeof payload !== 'object') return null
+  const fields = Array.isArray(keys) ? keys : []
+
+  for (const key of fields) {
+    const raw = typeof payload[key] === 'string' ? payload[key].trim() : ''
+    if (!raw) continue
+    const parsed = new Date(raw)
+    if (!Number.isNaN(parsed.getTime())) return parsed
+  }
+
+  return null
+}
+
+function normalizeSourceLabel(value) {
+  const normalized = sanitizeLabel(value)
+  if (!normalized) return 'neznamy'
+  return normalized.replace(/_/g, '-')
 }
 
 function formatPercent(value) {

@@ -99,8 +99,16 @@
                   </div>
                 </div>
               </div>
+              <ObservationCard
+                v-if="observationForPost(p)"
+                class="embedded-observation-card"
+                :observation="observationForPost(p)"
+                :show-author="false"
+                :show-event-link="true"
+                :compact="true"
+              />
               <!-- Content -->
-              <div class="post-text" @click.stop>
+              <div v-if="!observationForPost(p)" class="post-text" @click.stop>
                 <template v-if="isEditingPost(p)">
                   <textarea
                     v-model="editContentDraft"
@@ -141,7 +149,7 @@
               </div>
 
               <PollCard
-                v-if="p.poll"
+                v-if="!observationForPost(p) && p.poll"
                 :poll="p.poll"
                 :post-id="p.id"
                 :is-authed="auth.isAuthed"
@@ -149,7 +157,7 @@
                 @login-required="onPollLoginRequired"
               />
 
-              <div v-if="attachedEventForPost(p)" class="attached-event-card" @click.stop>
+              <div v-if="!observationForPost(p) && attachedEventForPost(p)" class="attached-event-card" @click.stop>
                 <div class="attached-event-copy">
                   <p class="attached-event-title">{{ attachedEventForPost(p).title || 'Udalost' }}</p>
                   <p class="attached-event-date">
@@ -161,7 +169,7 @@
                 </button>
               </div>
 
-              <div v-if="isBotPost(p)" class="source-url source-url--bot" @click.stop>
+              <div v-if="!observationForPost(p) && isBotPost(p)" class="source-url source-url--bot" @click.stop>
                 <span class="source-attribution">Zdroj: {{ sourceAttributionLabel(p) }}</span>
                 <a
                   v-if="sourceLink(p)"
@@ -174,7 +182,7 @@
                 </a>
               </div>
 
-              <div v-if="stelaPreviewImageSrc(p)" class="post-media post-media--stela">
+              <div v-if="!observationForPost(p) && stelaPreviewImageSrc(p)" class="post-media post-media--stela">
                 <div v-if="isAttachmentBlocked(p)" class="media-removed">Removed</div>
                 <PostMediaImage
                   v-else
@@ -185,12 +193,12 @@
                 />
               </div>
 
-              <div v-if="postGifUrl(p) && !stelaPreviewImageSrc(p)" class="post-media post-media--gif">
+              <div v-if="!observationForPost(p) && postGifUrl(p) && !stelaPreviewImageSrc(p)" class="post-media post-media--gif">
                 <img class="gifEmbed" :src="postGifUrl(p)" :alt="postGifTitle(p)" loading="lazy" />
               </div>
 
               <!-- Media attachment -->
-              <div v-if="p.attachment_url && !stelaPreviewImageSrc(p)" class="post-media">
+              <div v-if="!observationForPost(p) && p.attachment_url && !stelaPreviewImageSrc(p)" class="post-media">
                 <div v-if="isAttachmentBlocked(p)" class="media-removed">Removed</div>
                 <PostMediaImage
                   v-else-if="isImage(p)"
@@ -323,6 +331,7 @@ import PostActionBar from '@/components/PostActionBar.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import PostMediaVideo from '@/components/media/PostMediaVideo.vue'
 import ShareModal from '@/components/share/ShareModal.vue'
+import ObservationCard from '@/components/observations/ObservationCard.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useBookmarksStore } from '@/stores/bookmarks'
@@ -416,6 +425,24 @@ function resolveInitialTab() {
   return 'for_you'
 }
 
+function observationForPost(post) {
+  const embedded = post?.attached_observation
+  if (embedded && typeof embedded === 'object') {
+    return embedded
+  }
+
+  const fallbackId = Number(post?.meta?.observation?.observation_id || 0)
+  if (!Number.isInteger(fallbackId) || fallbackId <= 0) {
+    return null
+  }
+
+  return {
+    id: fallbackId,
+    title: `Pozorovanie #${fallbackId}`,
+    media: [],
+  }
+}
+
 function persistActiveTab(tab) {
   if (isBookmarksMode.value || typeof window === 'undefined') return
   if (!HOME_TABS.some((entry) => entry.id === tab)) return
@@ -424,6 +451,12 @@ function persistActiveTab(tab) {
 }
 
 function openPost(post) {
+  const observationId = Number(observationForPost(post)?.id || 0)
+  if (Number.isInteger(observationId) && observationId > 0) {
+    router.push(`/observations/${observationId}`)
+    return
+  }
+
   if (!post?.id) return
   router.push(`/posts/${post.id}`)
 }
@@ -1662,6 +1695,11 @@ defineExpose({ load, prepend })
 .post-content {
   flex: 1;
   min-width: 0;
+}
+
+.embedded-observation-card {
+  margin-top: 0.25rem;
+  margin-bottom: 0.55rem;
 }
 
 /* Modern Avatar */

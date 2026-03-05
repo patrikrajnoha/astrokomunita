@@ -22,14 +22,22 @@
       </header>
 
       <div class="rounded-2xl bg-[color:rgb(var(--bg-surface-rgb)/0.42)]">
-        <div v-if="error && !loading" class="px-6 py-6 text-center">
+        <div v-if="isInitialLoading" class="space-y-2 px-6 py-4" data-testid="notifications-page-loading">
+          <div
+            v-for="index in 4"
+            :key="`notification-list-skeleton-${index}`"
+            class="h-14 animate-pulse rounded-xl bg-[color:rgb(var(--bg-surface-2-rgb)/0.45)]"
+          ></div>
+        </div>
+
+        <div v-else-if="error" class="px-6 py-6 text-center" data-testid="notifications-page-error">
           <p class="text-sm text-[var(--primary-active)]">{{ error }}</p>
           <button type="button" class="ui-pill ui-pill--secondary mt-3 text-xs uppercase tracking-wide" @click="retry">
             Retry
           </button>
         </div>
 
-        <div v-else-if="!items.length && !loading" class="px-6 py-10 text-center text-sm text-[var(--text-muted)]">
+        <div v-else-if="!items.length" class="px-6 py-10 text-center text-sm text-[var(--text-muted)]" data-testid="notifications-page-empty">
           No notifications yet.
         </div>
 
@@ -52,16 +60,19 @@
           <span class="text-xs text-[var(--text-secondary)]">{{ formatTime(item.created_at) }}</span>
         </button>
 
-        <div v-if="loading" class="px-6 py-4 text-xs text-[var(--text-muted)]">Loading...</div>
+        <div v-if="isPaginating" class="px-6 py-4 text-xs text-[var(--text-muted)]" data-testid="notifications-page-paginating">
+          Loading more...
+        </div>
       </div>
 
       <button
-        v-if="page < lastPage && !loading"
+        v-if="page < lastPage"
         class="ui-pill ui-pill--secondary mx-auto text-xs uppercase tracking-wide"
         type="button"
+        :disabled="isPaginating"
         @click="loadMore"
       >
-        Load more
+        {{ isPaginating ? 'Loading...' : 'Load more' }}
       </button>
     </div>
   </section>
@@ -163,10 +174,13 @@ const auth = useAuthStore()
 
 const items = computed(() => store.items)
 const loading = computed(() => store.loading)
+const loadingMore = computed(() => store.loadingMore)
 const error = computed(() => store.error)
 const page = computed(() => store.page)
 const lastPage = computed(() => store.lastPage)
 const isSettingsModalOpen = ref(false)
+const isInitialLoading = computed(() => loading.value && items.value.length === 0)
+const isPaginating = computed(() => loadingMore.value || (loading.value && items.value.length > 0))
 
 const {
   preferences,

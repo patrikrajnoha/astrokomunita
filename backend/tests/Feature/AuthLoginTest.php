@@ -31,8 +31,31 @@ class AuthLoginTest extends TestCase
         $this->assertTrue($user->last_login_at->greaterThan(now()->subMinute()));
     }
 
+    public function test_login_rejects_legacy_plaintext_password_when_fallback_disabled(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'legacy-disabled@example.com',
+            'password' => 'temporary-plain-password',
+            'is_active' => true,
+        ]);
+
+        DB::table('users')
+            ->where('id', $user->id)
+            ->update(['password' => 'legacy-secret']);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'legacy-disabled@example.com',
+            'password' => 'legacy-secret',
+        ])->assertStatus(422);
+
+        $this->assertGuest();
+    }
+
     public function test_login_accepts_legacy_plaintext_password_and_rehashes(): void
     {
+        config()->set('auth.legacy_plaintext_enabled', true);
+        config()->set('auth.legacy_plaintext_allow_non_local', true);
+
         $user = User::factory()->create([
             'email' => 'legacy@example.com',
             'password' => 'temporary-plain-password',
@@ -61,6 +84,9 @@ class AuthLoginTest extends TestCase
         if (! defined('PASSWORD_ARGON2ID')) {
             $this->markTestSkipped('Argon2id is not available in this PHP build.');
         }
+
+        config()->set('auth.legacy_plaintext_enabled', true);
+        config()->set('auth.legacy_plaintext_allow_non_local', true);
 
         $user = User::factory()->create([
             'email' => 'legacy-hash@example.com',

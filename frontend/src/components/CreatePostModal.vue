@@ -91,8 +91,30 @@
                   <svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="18" cy="12" r="1.6" fill="currentColor"/></svg>
                 </button>
                 <div v-if="showMore" class="popMenu actionsMenu">
-                  <button type="button" class="menuBtn" @click="openEventModal">{{ selectedEvent ? 'Zmenit udalost' : 'Pridat udalost' }}</button>
-                  <button type="button" class="menuBtn" @click="togglePollFromMenu">{{ pollEnabled ? 'Odstranit anketu' : 'Pridat anketu' }}</button>
+                  <button type="button" class="menuBtn" :disabled="submitting" @click="openEventModal">
+                    <svg class="menuBtnIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7"/>
+                      <path d="M8 3.5v3M16 3.5v3M3.5 9.5h17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                    </svg>
+                    <span>{{ selectedEvent ? 'Zmenit udalost' : 'Pridat udalost' }}</span>
+                  </button>
+                  <button type="button" class="menuBtn" :disabled="submitting" @click="togglePollFromMenu">
+                    <svg class="menuBtnIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                      <circle cx="8" cy="7" r="1.2" fill="currentColor"/>
+                      <circle cx="16" cy="12" r="1.2" fill="currentColor"/>
+                      <circle cx="11" cy="17" r="1.2" fill="currentColor"/>
+                    </svg>
+                    <span>{{ pollEnabled ? 'Odstranit anketu' : 'Pridat anketu' }}</span>
+                  </button>
+                  <button type="button" class="menuBtn" :disabled="submitting" @click="openObservationCreate">
+                    <svg class="menuBtnIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M7.5 4.75h5l4 4v10.5a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-13.5a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                      <path d="M12.5 4.75v4h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M9.5 12h5M12 9.5v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                    </svg>
+                    <span>Pridať pozorovanie</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -148,6 +170,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import UserAvatar from '@/components/UserAvatar.vue'
 import api from '@/services/api'
 import { createPost } from '@/services/posts'
@@ -166,9 +189,13 @@ const POLL_MIN_SECONDS = 300
 const POLL_MAX_SECONDS = 604800
 const EMOJI_SET = ['😀', '😂', '😍', '🤩', '🥳', '🚀', '🌙', '✨', '🔭', '🪐', '☄️', '🌌', '👍', '❤️']
 
-const props = defineProps({ open: { type: Boolean, default: false } })
+const props = defineProps({
+  open: { type: Boolean, default: false },
+  initialAction: { type: String, default: 'post' },
+})
 const emit = defineEmits(['close', 'created'])
 
+const router = useRouter()
 const auth = useAuthStore()
 const toast = useToast()
 
@@ -236,6 +263,7 @@ watch(() => props.open, async (isOpen) => {
     await nextTick()
     focusTextarea()
     autoResize()
+    applyInitialAction()
     return
   }
   window.removeEventListener('keydown', onKeydown)
@@ -375,6 +403,30 @@ function insertEmoji(emoji) {
 function toggleMore() {
   showEmoji.value = false
   showMore.value = !showMore.value
+}
+
+function normalizeInitialAction(value) {
+  const normalized = String(value || 'post').toLowerCase()
+  if (normalized === 'poll') return 'poll'
+  if (normalized === 'event') return 'event'
+  return 'post'
+}
+
+function applyInitialAction() {
+  const action = normalizeInitialAction(props.initialAction)
+  if (action === 'poll') {
+    enablePoll()
+    return
+  }
+  if (action === 'event') {
+    openEventModal()
+  }
+}
+
+function openObservationCreate() {
+  if (submitting.value) return
+  cancelAndClose()
+  void router.push('/observations/new')
 }
 
 function openGifModal() {
@@ -988,6 +1040,20 @@ function firstValidationError(error, fallbackMessage) {
   text-align: left;
   padding: 0.45rem 0.55rem;
   font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.menuBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.menuBtnIcon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
 }
 
 .emojiBtn {

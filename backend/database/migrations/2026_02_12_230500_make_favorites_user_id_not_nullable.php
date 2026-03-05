@@ -13,6 +13,10 @@ return new class extends Migration
             return;
         }
 
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::table('favorites')->whereNull('user_id')->delete();
 
         $hasForeign = $this->hasConstraint('favorites', 'favorites_user_id_foreign');
@@ -32,6 +36,10 @@ return new class extends Migration
             return;
         }
 
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         $hasForeign = $this->hasConstraint('favorites', 'favorites_user_id_foreign');
 
         Schema::table('favorites', function (Blueprint $table) use ($hasForeign) {
@@ -45,6 +53,10 @@ return new class extends Migration
 
     private function hasConstraint(string $table, string $constraintName): bool
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return false;
+        }
+
         $databaseName = (string) DB::getDatabaseName();
         if ($databaseName === '') {
             return false;

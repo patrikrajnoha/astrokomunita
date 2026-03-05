@@ -48,6 +48,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Observation Image Validation
+    |--------------------------------------------------------------------------
+    */
+    'observation_image_max_kb' => (int) env('OBSERVATION_IMAGE_MAX_KB', 20480),
+    'observation_image_mimes' => [
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'gif',
+    ],
+    'observation_image_max_count' => (int) env('OBSERVATION_IMAGE_MAX_COUNT', 6),
+
+    /*
+    |--------------------------------------------------------------------------
     | Poll Option Image Validation
     |--------------------------------------------------------------------------
     */

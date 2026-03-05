@@ -150,6 +150,10 @@ class AuthController extends Controller
 
     private function attemptLegacyPlaintextLogin(string $email, string $password): bool
     {
+        if (! $this->legacyPlaintextFallbackAllowed()) {
+            return false;
+        }
+
         $user = User::query()
             ->whereRaw('LOWER(email) = ?', [$email])
             ->first();
@@ -177,6 +181,8 @@ class AuthController extends Controller
             return false;
         }
 
+        $this->logLegacyPlaintextFallbackUsage($user);
+
         $user->forceFill([
             'password' => Hash::make($password),
         ])->save();
@@ -184,6 +190,35 @@ class AuthController extends Controller
         Auth::login($user, true);
 
         return true;
+    }
+
+    private function legacyPlaintextFallbackAllowed(): bool
+    {
+        if (! (bool) config('auth.legacy_plaintext_enabled', false)) {
+            return false;
+        }
+
+        if (app()->environment('local')) {
+            return true;
+        }
+
+        return (bool) config('auth.legacy_plaintext_allow_non_local', false);
+    }
+
+    private function logLegacyPlaintextFallbackUsage(User $user): void
+    {
+        $cacheKey = 'auth:legacy-plaintext-fallback-warning:' . $user->id;
+        $shouldLog = Cache::add($cacheKey, true, now()->addHours(6));
+
+        if (! $shouldLog) {
+            return;
+        }
+
+        Log::warning('AUTH_LEGACY_PLAINTEXT_FALLBACK_USED', [
+            'user_id' => $user->id,
+            'environment' => app()->environment(),
+            'marker' => 'auth_legacy_plaintext_fallback_used',
+        ]);
     }
 
     public function logout(Request $request)

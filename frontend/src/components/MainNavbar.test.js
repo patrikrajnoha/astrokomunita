@@ -15,13 +15,21 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: () => authStore,
 }))
 
+const notificationsStore = vi.hoisted(() => ({
+  unreadBadge: '',
+  unreadCount: 0,
+  unreadCountHydrated: true,
+  latestItems: [],
+  latestLoading: false,
+  latestError: '',
+  fetchUnreadCount: vi.fn(async () => {}),
+  fetchLatest: vi.fn(async () => {}),
+  markAllRead: vi.fn(async () => {}),
+  markRead: vi.fn(async () => {}),
+}))
+
 vi.mock('@/stores/notifications', () => ({
-  useNotificationsStore: () => ({
-    unreadBadge: '',
-    unreadCount: 0,
-    unreadCountHydrated: true,
-    fetchUnreadCount: vi.fn(async () => {}),
-  }),
+  useNotificationsStore: () => notificationsStore,
 }))
 
 const makeRouter = () =>
@@ -36,6 +44,7 @@ const makeRouter = () =>
       { path: '/notifications', name: 'notifications', component: { template: '<div>notifications</div>' } },
       { path: '/profile', name: 'profile', component: { template: '<div>profile</div>' } },
       { path: '/settings', name: 'settings', component: { template: '<div>settings</div>' } },
+      { path: '/observations/new', name: 'observations.create', component: { template: '<div>observations create</div>' } },
       { path: '/learn', name: 'learn-legacy', component: { template: '<div>learn legacy</div>' } },
       { path: '/more', name: 'more', component: { template: '<div>more</div>' } },
       { path: '/login', name: 'login', component: { template: '<div>login</div>' } },
@@ -61,12 +70,34 @@ const mountNavbarAt = async (path) => {
   return wrapper
 }
 
+const mountNavbarAtWithRouter = async (path) => {
+  const router = makeRouter()
+  router.push(path)
+  await router.isReady()
+
+  const wrapper = mount(MainNavbar, {
+    global: {
+      plugins: [router],
+    },
+    attachTo: document.body,
+  })
+
+  await nextTick()
+  return { wrapper, router }
+}
+
 describe('MainNavbar active route state', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     authStore.user = null
     authStore.isAuthed = false
     authStore.isAdmin = false
+    notificationsStore.unreadBadge = ''
+    notificationsStore.unreadCount = 0
+    notificationsStore.unreadCountHydrated = true
+    notificationsStore.latestItems = []
+    notificationsStore.latestLoading = false
+    notificationsStore.latestError = ''
   })
 
   afterEach(() => {
@@ -115,5 +146,94 @@ describe('MainNavbar active route state', () => {
     const wrapper = await mountNavbarAt('/')
 
     expect(wrapper.find('.navScroll a[aria-label="Settings"]').exists()).toBe(true)
+  })
+
+  it('shows content picker with Pozorovanie and routes to observation create', async () => {
+    authStore.isAuthed = true
+    authStore.user = { id: 1, name: 'Test User' }
+    const { wrapper, router } = await mountNavbarAtWithRouter('/')
+    const pushSpy = vi.spyOn(router, 'push')
+
+    await wrapper.get('button[data-testid="create-content-trigger"]').trigger('click')
+    expect(wrapper.get('#create-content-menu').text()).toContain('Pozorovanie')
+
+    await wrapper.get('button[data-create-type="observation"]').trigger('click')
+    await nextTick()
+
+    expect(pushSpy).toHaveBeenCalledWith('/observations/new')
+  })
+
+  it('opens notifications dropdown and shows loading state', async () => {
+    authStore.isAuthed = true
+    authStore.user = { id: 1, name: 'Test User' }
+    notificationsStore.unreadBadge = '2'
+    notificationsStore.latestLoading = true
+
+    const wrapper = await mountNavbarAt('/')
+
+    await wrapper.get('[data-testid="notifications-trigger"]').trigger('click')
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="notifications-dropdown"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="notifications-dropdown-loading"]').exists()).toBe(true)
+    expect(notificationsStore.fetchLatest).toHaveBeenCalled()
+  })
+
+  it('retries notifications dropdown load when retry button is clicked', async () => {
+    authStore.isAuthed = true
+    authStore.user = { id: 1, name: 'Test User' }
+    notificationsStore.latestLoading = false
+    notificationsStore.latestError = 'Failed to load notifications.'
+    notificationsStore.latestItems = []
+
+    const wrapper = await mountNavbarAt('/')
+    await wrapper.get('[data-testid="notifications-trigger"]').trigger('click')
+    await nextTick()
+
+    await wrapper.get('[data-testid="notifications-dropdown-retry"]').trigger('click')
+    await nextTick()
+
+    expect(notificationsStore.fetchLatest).toHaveBeenCalledTimes(2)
+    expect(notificationsStore.fetchLatest).toHaveBeenNthCalledWith(1, 10)
+    expect(notificationsStore.fetchLatest).toHaveBeenNthCalledWith(2, 10, { force: true })
+  })
+
+  it('shows notifications empty state in dropdown', async () => {
+    authStore.isAuthed = true
+    authStore.user = { id: 1, name: 'Test User' }
+    notificationsStore.unreadBadge = '1'
+    notificationsStore.latestItems = []
+    notificationsStore.latestLoading = false
+    notificationsStore.latestError = ''
+
+    const wrapper = await mountNavbarAt('/')
+    await wrapper.get('[data-testid="notifications-trigger"]').trigger('click')
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="notifications-dropdown-empty"]').exists()).toBe(true)
+  })
+
+  it('navigates to notifications page from dropdown footer link', async () => {
+    authStore.isAuthed = true
+    authStore.user = { id: 1, name: 'Test User' }
+    notificationsStore.latestItems = [
+      {
+        id: 9001,
+        type: 'event_invite',
+        data: { event_title: 'Test event' },
+        read_at: null,
+        created_at: '2026-03-05T12:00:00Z',
+      },
+    ]
+
+    const { wrapper, router } = await mountNavbarAtWithRouter('/')
+    const pushSpy = vi.spyOn(router, 'push')
+
+    await wrapper.get('[data-testid="notifications-trigger"]').trigger('click')
+    await nextTick()
+    await wrapper.get('[data-testid="notifications-dropdown-all"]').trigger('click')
+    await nextTick()
+
+    expect(pushSpy).toHaveBeenCalledWith('/notifications')
   })
 })

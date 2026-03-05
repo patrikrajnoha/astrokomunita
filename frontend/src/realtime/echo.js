@@ -27,10 +27,13 @@ function getCsrfToken() {
 
 function resolveReverbOptions() {
   const scheme = String(import.meta.env.VITE_REVERB_SCHEME || 'http').toLowerCase()
+  const hostFromEnv = String(import.meta.env.VITE_REVERB_HOST || '').trim()
+  const hostFromWindow =
+    typeof window !== 'undefined' ? String(window.location.hostname || '').trim() : ''
 
   return {
     key: String(import.meta.env.VITE_REVERB_APP_KEY || ''),
-    host: String(import.meta.env.VITE_REVERB_HOST || window.location.hostname),
+    host: hostFromEnv || hostFromWindow || '127.0.0.1',
     port: toNumber(import.meta.env.VITE_REVERB_PORT, scheme === 'https' ? 443 : 8080),
     forceTLS: scheme === 'https',
   }

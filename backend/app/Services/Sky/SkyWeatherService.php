@@ -23,6 +23,7 @@ class SkyWeatherService
      *   weather_code:?int,
      *   weather_label:?string,
      *   observing_score:int,
+     *   updated_at:string,
      *   as_of:string,
      *   source:string
      * }
@@ -36,13 +37,14 @@ class SkyWeatherService
             throw new \RuntimeException('Weather provider is unavailable.');
         }
 
-        $cloud = $this->normalizePercent($payload['current_cloud_pct'] ?? $payload['evening_cloud_pct'] ?? null);
-        $humidity = $this->normalizePercent($payload['current_pct'] ?? $payload['evening_pct'] ?? null);
-        $wind = $this->normalizeWind($payload['current_wind_kmh'] ?? $payload['evening_wind_kmh'] ?? null);
+        $cloud = $this->normalizePercent($payload['current_cloud_pct'] ?? null);
+        $humidity = $this->normalizePercent($payload['current_pct'] ?? null);
+        $wind = $this->normalizeWind($payload['current_wind_kmh'] ?? null);
         $temperature = $this->normalizeTemperature($payload['current_temperature_c'] ?? null);
         $apparentTemperature = $this->normalizeTemperature($payload['current_apparent_temperature_c'] ?? null);
         $weatherCode = $this->normalizeWeatherCode($payload['current_weather_code'] ?? null);
         $weatherLabel = $this->normalizeWeatherLabel($payload['current_weather_label_sk'] ?? null);
+        $updatedAt = $this->normalizeObservedAt($payload['current_at'] ?? null, $tz);
 
         if ($cloud === null && $humidity === null && $wind === null) {
             throw new \RuntimeException('Weather provider returned no usable data.');
@@ -62,9 +64,15 @@ class SkyWeatherService
             'weather_code' => $weatherCode,
             'weather_label' => $weatherLabel,
             'observing_score' => $this->calculateObservingScore($cloudSafe, $humiditySafe, $windSafe),
-            'as_of' => CarbonImmutable::now($tz)->toIso8601String(),
-            'source' => 'open_meteo',
+            'updated_at' => $updatedAt,
+            'as_of' => $updatedAt,
+            'source' => $this->source(),
         ];
+    }
+
+    public function source(): string
+    {
+        return 'open_meteo';
     }
 
     private function calculateObservingScore(int $cloudPercent, int $humidityPercent, float $windSpeed): int
@@ -122,6 +130,22 @@ class SkyWeatherService
 
         $trimmed = trim($value);
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    private function normalizeObservedAt(mixed $value, string $tz): string
+    {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed !== '') {
+                try {
+                    return CarbonImmutable::parse($trimmed, $tz)->setTimezone($tz)->toIso8601String();
+                } catch (\Throwable) {
+                    // Fallback below.
+                }
+            }
+        }
+
+        return CarbonImmutable::now($tz)->toIso8601String();
     }
 
     private function clamp(int $value, int $min, int $max): int

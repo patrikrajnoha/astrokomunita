@@ -5,14 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateAvatarPreferencesRequest;
 use App\Models\User;
+use App\Services\Location\UserLocationService;
 use App\Services\Storage\MediaStorageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password;
@@ -23,6 +23,7 @@ class ProfileController extends Controller
 
     public function __construct(
         private readonly MediaStorageService $mediaStorage,
+        private readonly UserLocationService $userLocationService,
     ) {
     }
 
@@ -52,10 +53,22 @@ class ProfileController extends Controller
             'bio' => ['nullable', 'string', 'max:160'],
             'location' => ['nullable', 'string', 'max:60'],
             'location_label' => ['nullable', 'string', 'max:80'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'timezone' => ['nullable', 'string', 'max:64'],
+            'location_source' => ['nullable', 'string', Rule::in(['preset', 'gps', 'manual'])],
         ]);
 
-        $supportsLocationLabel = Schema::hasColumn('users', 'location_label');
-        $payload = $validated;
+        $locationPayload = $this->extractLocationPayload($validated);
+        $payload = Arr::except($validated, [
+            'email',
+            'location',
+            'location_label',
+            'latitude',
+            'longitude',
+            'timezone',
+            'location_source',
+        ]);
 
         if (array_key_exists('email', $validated)) {
             $requestedEmail = mb_strtolower(trim((string) $validated['email']));
@@ -69,23 +82,16 @@ class ProfileController extends Controller
             }
         }
 
-        unset($payload['email']);
+        DB::transaction(function () use ($user, $payload, $locationPayload): void {
+            $user->fill($payload);
+            $user->save();
 
-        if (!$supportsLocationLabel) {
-            unset($payload['location_label']);
-        }
+            if ($locationPayload !== []) {
+                $this->userLocationService->update($user, $locationPayload, true);
+            }
+        });
 
-        $user->fill($payload);
-        if ($supportsLocationLabel && array_key_exists('location_label', $validated)) {
-            $label = trim((string) ($validated['location_label'] ?? ''));
-            $user->location = $label !== '' ? Str::substr($label, 0, 60) : null;
-        } elseif ($supportsLocationLabel && array_key_exists('location', $validated)) {
-            $legacy = trim((string) ($validated['location'] ?? ''));
-            $user->location_label = $legacy !== '' ? Str::substr($legacy, 0, 80) : null;
-        }
-        $user->save();
-
-        return response()->json($user);
+        return response()->json($user->fresh());
     }
 
     public function changePassword(Request $request)
@@ -304,5 +310,30 @@ class ProfileController extends Controller
         throw ValidationException::withMessages([
             'avatar_icon' => 'The selected avatar icon is invalid.',
         ]);
+    }
+
+    /**
+     * @param array<string,mixed> $validated
+     * @return array<string,mixed>
+     */
+    private function extractLocationPayload(array $validated): array
+    {
+        $payload = [];
+        $keys = [
+            'location',
+            'location_label',
+            'latitude',
+            'longitude',
+            'timezone',
+            'location_source',
+        ];
+
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $validated)) {
+                $payload[$key] = $validated[$key];
+            }
+        }
+
+        return $payload;
     }
 }

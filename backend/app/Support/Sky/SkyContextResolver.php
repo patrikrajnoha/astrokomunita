@@ -75,11 +75,10 @@ class SkyContextResolver
             return ['lat' => $dataLat, 'lon' => $dataLon];
         }
 
-        $locationMeta = is_array($user->location_meta ?? null) ? $user->location_meta : [];
-        $metaLat = $this->toValidLat($locationMeta['lat'] ?? null);
-        $metaLon = $this->toValidLon($locationMeta['lon'] ?? null);
-        if ($metaLat !== null && $metaLon !== null) {
-            return ['lat' => $metaLat, 'lon' => $metaLon];
+        $storedLat = $this->toValidLat($user->latitude ?? null);
+        $storedLon = $this->toValidLon($user->longitude ?? null);
+        if ($storedLat !== null && $storedLon !== null) {
+            return ['lat' => $storedLat, 'lon' => $storedLon];
         }
 
         return null;
@@ -96,12 +95,6 @@ class SkyContextResolver
         $fromData = $this->resolveValidTimezone($locationData['timezone'] ?? null);
         if ($fromData !== null) {
             return $fromData;
-        }
-
-        $locationMeta = is_array($user->location_meta ?? null) ? $user->location_meta : [];
-        $fromMeta = $this->resolveValidTimezone($locationMeta['tz'] ?? null);
-        if ($fromMeta !== null) {
-            return $fromMeta;
         }
 
         return $this->resolveValidTimezone($user->timezone ?? null);

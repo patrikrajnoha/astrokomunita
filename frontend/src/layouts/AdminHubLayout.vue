@@ -10,7 +10,7 @@
       <div class="adminHub__statusWrap">
         <RouterLink
           v-if="aiLastRunAt"
-          to="/admin/newsletter"
+          :to="{ name: 'admin.newsletter' }"
           class="adminHub__aiStatus adminHub__aiStatus--link"
         >
           <span>AI: {{ aiStatusLabel }}</span>

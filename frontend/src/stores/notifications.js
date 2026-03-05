@@ -7,12 +7,18 @@ import { disconnectEcho, getEcho, initEcho } from '@/realtime/echo'
 let activePrivateChannel = ''
 let restrictionFlowActive = false
 
+function normalizeNotificationId(value) {
+  const id = Number(value || 0)
+  return Number.isInteger(id) && id > 0 ? id : 0
+}
+
 function normalizeNotificationPayload(payload) {
   if (!payload || typeof payload !== 'object') return null
-  if (!payload.id) return null
+  const id = normalizeNotificationId(payload.id)
+  if (!id) return null
 
   return {
-    id: payload.id,
+    id,
     type: payload.type || 'notification',
     data: payload.data && typeof payload.data === 'object' ? payload.data : {},
     read_at: payload.read_at ?? null,
@@ -47,13 +53,101 @@ function toastMessageFor(notification) {
   return 'New notification'
 }
 
+function notificationCreatedAtTimestamp(item) {
+  const ts = Date.parse(String(item?.created_at || ''))
+  return Number.isFinite(ts) ? ts : 0
+}
+
+function mergeNotificationRecords(existing, incoming) {
+  const existingTs = notificationCreatedAtTimestamp(existing)
+  const incomingTs = notificationCreatedAtTimestamp(incoming)
+  const newer = incomingTs >= existingTs ? incoming : existing
+  const older = newer === incoming ? existing : incoming
+  const olderData = older?.data && typeof older.data === 'object' ? older.data : {}
+  const newerData = newer?.data && typeof newer.data === 'object' ? newer.data : {}
+
+  return {
+    ...older,
+    ...newer,
+    data: {
+      ...olderData,
+      ...newerData,
+    },
+    read_at: newer.read_at ?? older.read_at ?? null,
+    created_at: newer.created_at ?? older.created_at ?? null,
+    created_human: newer.created_human ?? older.created_human ?? null,
+    target: newer.target ?? older.target ?? null,
+  }
+}
+
+function mergeNotificationsById(...collections) {
+  const byId = new Map()
+
+  collections.forEach((collection) => {
+    if (!Array.isArray(collection)) return
+
+    collection.forEach((rawItem) => {
+      const item = normalizeNotificationPayload(rawItem)
+      if (!item) return
+
+      const id = item.id
+      if (!byId.has(id)) {
+        byId.set(id, item)
+        return
+      }
+
+      byId.set(id, mergeNotificationRecords(byId.get(id), item))
+    })
+  })
+
+  return Array.from(byId.values())
+    .filter(Boolean)
+    .sort((left, right) => {
+      const leftTs = notificationCreatedAtTimestamp(left)
+      const rightTs = notificationCreatedAtTimestamp(right)
+      if (leftTs !== rightTs) {
+        return rightTs - leftTs
+      }
+
+      return normalizeNotificationId(right?.id) - normalizeNotificationId(left?.id)
+    })
+}
+
+function applyReadState(list, id, readAt) {
+  const normalizedId = normalizeNotificationId(id)
+  if (!normalizedId || !Array.isArray(list) || list.length === 0) return list
+
+  let changed = false
+  const next = list.map((item) => {
+    const itemId = normalizeNotificationId(item?.id)
+    if (itemId !== normalizedId) return item
+    changed = true
+    return {
+      ...item,
+      read_at: readAt,
+    }
+  })
+
+  return changed ? next : list
+}
+
 export const useNotificationsStore = defineStore('notifications', {
   state: () => ({
     items: [],
+    latestItems: [],
+    latestLimit: 10,
     unreadCount: 0,
     unreadCountHydrated: false,
     loading: false,
+    loadingMore: false,
     error: '',
+    latestLoading: false,
+    latestError: '',
+    latestLoaded: false,
+    unreadCountLoading: false,
+    unreadCountFetchSeq: 0,
+    markAllReading: false,
+    fetchingPages: [],
     page: 1,
     lastPage: 1,
     realtimeReady: false,
@@ -70,33 +164,69 @@ export const useNotificationsStore = defineStore('notifications', {
   actions: {
     resetState() {
       this.items = []
+      this.latestItems = []
       this.unreadCount = 0
       this.unreadCountHydrated = false
+      this.latestLimit = 10
       this.loading = false
+      this.loadingMore = false
       this.error = ''
+      this.latestLoading = false
+      this.latestError = ''
+      this.latestLoaded = false
+      this.unreadCountLoading = false
+      this.unreadCountFetchSeq = 0
+      this.markAllReading = false
+      this.fetchingPages = []
       this.page = 1
       this.lastPage = 1
     },
 
-    async fetchList(page = 1) {
+    isPageFetching(page) {
+      const target = Number(page || 0)
+      if (!Number.isInteger(target) || target <= 0) return false
+      return this.fetchingPages.includes(target)
+    },
+
+    async fetchList(page = 1, options = {}) {
       const auth = useAuthStore()
       if (!auth.isAuthed) {
         this.resetState()
         return
       }
 
-      if (this.loading) return
-      this.loading = true
-      this.error = ''
+      const normalizedPage = Number(page || 1)
+      if (!Number.isInteger(normalizedPage) || normalizedPage <= 0) return
+
+      const perPage = Math.max(1, Math.min(50, Number(options?.perPage || 20)))
+      if (this.isPageFetching(normalizedPage)) return
+
+      this.fetchingPages = [...this.fetchingPages, normalizedPage]
+      if (normalizedPage > 1) {
+        this.loadingMore = true
+      } else {
+        this.loading = true
+        this.error = ''
+      }
+
       try {
         const res = await http.get('/notifications', {
-          params: { page, per_page: 20 },
+          params: { page: normalizedPage, per_page: perPage },
         })
         const payload = res?.data || {}
-        const data = payload.data || []
-        this.page = payload.meta?.current_page || page
-        this.lastPage = payload.meta?.last_page || page
-        this.items = page > 1 ? [...this.items, ...data] : data
+        const rows = Array.isArray(payload.data) ? payload.data : []
+        this.page = payload.meta?.current_page || normalizedPage
+        this.lastPage = payload.meta?.last_page || normalizedPage
+
+        this.items = normalizedPage > 1
+          ? mergeNotificationsById(this.items, rows)
+          : mergeNotificationsById(rows, this.items)
+        this.latestItems = this.items.slice(0, this.latestLimit)
+        this.latestLoaded = true
+
+        if (normalizedPage === 1 && options?.refreshUnread !== false) {
+          void this.fetchUnreadCount()
+        }
       } catch (err) {
         const status = err?.response?.status
         if (status === 401) {
@@ -108,29 +238,91 @@ export const useNotificationsStore = defineStore('notifications', {
         }
         console.warn('Notifications fetch failed:', err?.message || err)
       } finally {
-        this.loading = false
+        this.fetchingPages = this.fetchingPages.filter((entry) => entry !== normalizedPage)
+        this.loading = this.fetchingPages.includes(1)
+        this.loadingMore = this.fetchingPages.some((entry) => entry > 1)
       }
     },
 
-    async fetchUnreadCount() {
+    async fetchLatest(limit = 10, options = {}) {
       const auth = useAuthStore()
       if (!auth.isAuthed) {
+        this.latestItems = []
+        this.latestError = ''
+        this.latestLoaded = true
+        return
+      }
+
+      const normalizedLimit = Math.max(1, Math.min(50, Number(limit || this.latestLimit || 10)))
+      this.latestLimit = normalizedLimit
+
+      if (this.latestLoading) return
+      if (this.latestLoaded && options?.force !== true && this.latestItems.length > 0) return
+
+      this.latestLoading = true
+      this.latestError = ''
+
+      try {
+        const res = await http.get('/notifications', {
+          params: { page: 1, per_page: normalizedLimit },
+        })
+        const payload = res?.data || {}
+        const rows = Array.isArray(payload.data) ? payload.data : []
+
+        this.latestItems = mergeNotificationsById(rows, this.latestItems).slice(0, normalizedLimit)
+        this.items = mergeNotificationsById(this.latestItems, this.items)
+        this.latestLoaded = true
+
+        if (options?.refreshUnread !== false) {
+          void this.fetchUnreadCount()
+        }
+      } catch (err) {
+        const status = err?.response?.status
+        if (status === 401) {
+          this.latestError = 'Session expired. Please sign in again.'
+        } else if (status === 403) {
+          this.latestError = 'Account does not have access to notifications.'
+        } else {
+          this.latestError = err?.response?.data?.message || 'Failed to load notifications.'
+        }
+        console.warn('Latest notifications fetch failed:', err?.message || err)
+      } finally {
+        this.latestLoading = false
+      }
+    },
+
+    async fetchUnreadCount(options = {}) {
+      const auth = useAuthStore()
+      if (!auth.isAuthed) {
+        this.unreadCountFetchSeq += 1
         this.unreadCount = 0
+        this.unreadCountLoading = false
         this.unreadCountHydrated = true
         return
       }
 
+      if (this.unreadCountLoading && options?.force !== true) return
+
+      const fetchSeq = this.unreadCountFetchSeq + 1
+      this.unreadCountFetchSeq = fetchSeq
+      this.unreadCountLoading = true
+
       try {
         const res = await http.get('/notifications/unread-count')
+        if (fetchSeq !== this.unreadCountFetchSeq) return
         this.unreadCount = res?.data?.count ?? 0
       } catch (err) {
+        if (fetchSeq !== this.unreadCountFetchSeq) return
         const status = err?.response?.status
         if (status === 403 && !this.error) {
           this.error = 'Account does not have access to notifications.'
         }
         console.warn('Unread count fetch failed:', err?.message || err)
       } finally {
-        this.unreadCountHydrated = true
+        if (fetchSeq === this.unreadCountFetchSeq) {
+          this.unreadCountLoading = false
+          this.unreadCountHydrated = true
+        }
       }
     },
 
@@ -138,27 +330,19 @@ export const useNotificationsStore = defineStore('notifications', {
       const notification = normalizeNotificationPayload(payload)
       if (!notification) return
 
-      const existingIndex = this.items.findIndex((item) => Number(item.id) === Number(notification.id))
-      if (existingIndex === -1) {
-        this.items = [notification, ...this.items]
-        if (!notification.read_at) {
-          this.unreadCount += 1
-        }
-      } else {
-        const existing = this.items[existingIndex]
-        const wasUnread = !existing.read_at
-        const isUnread = !notification.read_at
+      const existing = this.items.find((item) => normalizeNotificationId(item?.id) === notification.id)
+      const wasUnread = existing ? !existing.read_at : false
+      const isUnread = !notification.read_at
 
-        this.items.splice(existingIndex, 1, {
-          ...existing,
-          ...notification,
-        })
+      this.items = mergeNotificationsById([notification], this.items)
+      this.latestItems = mergeNotificationsById([notification], this.latestItems).slice(0, this.latestLimit)
 
-        if (!wasUnread && isUnread) {
-          this.unreadCount += 1
-        } else if (wasUnread && !isUnread) {
-          this.unreadCount = Math.max(0, this.unreadCount - 1)
-        }
+      if (!existing && isUnread) {
+        this.unreadCount += 1
+      } else if (!wasUnread && isUnread) {
+        this.unreadCount += 1
+      } else if (wasUnread && !isUnread) {
+        this.unreadCount = Math.max(0, this.unreadCount - 1)
       }
 
       if (options.toast !== false) {
@@ -225,12 +409,16 @@ export const useNotificationsStore = defineStore('notifications', {
       this.realtimeReady = true
       this.realtimeChannel = channelName
 
-      echo.private(channelName).listen('.notification.created', (eventPayload) => {
+      const onCreated = (eventPayload) => {
         const payload = eventPayload?.notification ?? eventPayload
         this.applyRealtimeNotification(payload, {
           toast: typeof window !== 'undefined' && window.location.pathname !== '/notifications',
         })
-      })
+      }
+
+      const channel = echo.private(channelName)
+      channel.listen('.notification.created', onCreated)
+      channel.listen('NotificationCreated', onCreated)
     },
 
     stopRealtime(options = {}) {
@@ -256,19 +444,29 @@ export const useNotificationsStore = defineStore('notifications', {
     async markRead(id) {
       const auth = useAuthStore()
       if (!auth.isAuthed) return
-      const target = this.items.find((item) => item.id === id)
+
+      const normalizedId = normalizeNotificationId(id)
+      if (!normalizedId) return
+
+      const target = this.items.find((item) => normalizeNotificationId(item?.id) === normalizedId)
+        || this.latestItems.find((item) => normalizeNotificationId(item?.id) === normalizedId)
+      const previousReadAt = target?.read_at ?? null
+
       if (target && !target.read_at) {
-        target.read_at = new Date().toISOString()
+        const nowIso = new Date().toISOString()
+        this.items = applyReadState(this.items, normalizedId, nowIso)
+        this.latestItems = applyReadState(this.latestItems, normalizedId, nowIso)
         this.unreadCount = Math.max(0, this.unreadCount - 1)
       }
 
       try {
         await auth.csrf()
-        await http.post(`/notifications/${id}/read`)
+        await http.post(`/notifications/${normalizedId}/read`)
       } catch (err) {
         console.warn('Mark read failed:', err?.message || err)
-        if (target && target.read_at) {
-          target.read_at = null
+        if (target && !previousReadAt) {
+          this.items = applyReadState(this.items, normalizedId, null)
+          this.latestItems = applyReadState(this.latestItems, normalizedId, null)
           this.unreadCount += 1
         }
       }
@@ -277,25 +475,29 @@ export const useNotificationsStore = defineStore('notifications', {
     async markAllRead() {
       const auth = useAuthStore()
       if (!auth.isAuthed) return
+      if (this.markAllReading) return
+      this.markAllReading = true
       const hadUnread = this.items.filter((item) => !item.read_at)
       const prevCount = this.unreadCount
       const nowIso = new Date().toISOString()
-      this.items = this.items.map((item) => ({
-        ...item,
-        read_at: item.read_at || nowIso,
-      }))
+      const unreadIds = hadUnread.map((item) => normalizeNotificationId(item?.id)).filter((id) => id > 0)
+      this.items = this.items.map((item) => (item.read_at ? item : { ...item, read_at: nowIso }))
+      this.latestItems = this.latestItems.map((item) => (item.read_at ? item : { ...item, read_at: nowIso }))
       this.unreadCount = 0
 
       try {
         await auth.csrf()
         await http.post('/notifications/read-all')
+        await this.fetchUnreadCount({ force: true })
       } catch (err) {
         console.warn('Mark all read failed:', err?.message || err)
-        hadUnread.forEach((item) => {
-          const target = this.items.find((entry) => entry.id === item.id)
-          if (target) target.read_at = null
+        unreadIds.forEach((unreadId) => {
+          this.items = applyReadState(this.items, unreadId, null)
+          this.latestItems = applyReadState(this.latestItems, unreadId, null)
         })
         this.unreadCount = prevCount
+      } finally {
+        this.markAllReading = false
       }
     },
   },

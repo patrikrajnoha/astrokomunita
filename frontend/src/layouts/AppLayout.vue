@@ -227,6 +227,7 @@
 
     <CreatePostModal
       :open="isComposerOpen"
+      :initial-action="composerInitialAction"
       @close="closeComposerModal"
       @created="onPostCreated"
     />
@@ -483,6 +484,7 @@ const { showToast } = useToast()
 const COMPOSER_OPEN_EVENT = 'post:composer:open'
 const isDrawerOpen = ref(false)
 const isComposerOpen = ref(false)
+const composerInitialAction = ref('post')
 const isWidgetMenuOpen = ref(false)
 const isWidgetSheetOpen = ref(false)
 const showAllWidgets = ref(false)
@@ -575,11 +577,6 @@ const lastOpenedWidget = computed(() => {
     null
   )
 })
-const observingLocationMeta = computed(() => {
-  const value = auth.user?.location_meta
-  if (!value || typeof value !== 'object') return null
-  return value
-})
 const observingLocationData = computed(() => {
   const value = auth.user?.location_data
   if (!value || typeof value !== 'object') return null
@@ -588,26 +585,26 @@ const observingLocationData = computed(() => {
 const observingLat = computed(() => {
   const fromCanonical = parseNumericValue(observingLocationData.value?.latitude)
   if (fromCanonical !== null) return fromCanonical
-  return parseNumericValue(observingLocationMeta.value?.lat)
+  return parseNumericValue(auth.user?.latitude)
 })
 const observingLon = computed(() => {
   const fromCanonical = parseNumericValue(observingLocationData.value?.longitude)
   if (fromCanonical !== null) return fromCanonical
-  return parseNumericValue(observingLocationMeta.value?.lon)
+  return parseNumericValue(auth.user?.longitude)
 })
 const observingLocationName = computed(() => {
   const fromCanonical = parseStringValue(observingLocationData.value?.label)
   if (fromCanonical) return fromCanonical
-  const fromMeta = parseStringValue(observingLocationMeta.value?.name)
-  if (fromMeta) return fromMeta
+  const fromStored = parseStringValue(auth.user?.location_label)
+  if (fromStored) return fromStored
   return parseStringValue(auth.user?.location)
 })
 const observingDate = computed(() => parseDateQuery(route.query.date) ?? localIsoDate(new Date()))
 const observingTz = computed(() => {
   const canonicalTz = parseStringValue(observingLocationData.value?.timezone)
   if (canonicalTz) return canonicalTz
-  const metaTz = parseStringValue(observingLocationMeta.value?.tz)
-  if (metaTz) return metaTz
+  const storedTz = parseStringValue(auth.user?.timezone)
+  if (storedTz) return storedTz
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Bratislava'
 })
 const showAuthFallbackBanner = computed(() => {
@@ -712,19 +709,27 @@ const closeDrawer = () => {
   isDrawerOpen.value = false
 }
 
-const openComposerModal = () => {
+const normalizeComposerAction = (action) => {
+  const normalized = String(action || 'post').toLowerCase()
+  return ['post', 'poll', 'event'].includes(normalized) ? normalized : 'post'
+}
+
+const openComposerModal = (action = 'post') => {
   if (!auth.isAuthed) return
   closeWidgetLayers()
   closeDrawer()
+  composerInitialAction.value = normalizeComposerAction(action)
   isComposerOpen.value = true
 }
 
 const closeComposerModal = () => {
   isComposerOpen.value = false
+  composerInitialAction.value = 'post'
 }
 
-const handleComposerOpenEvent = () => {
-  openComposerModal()
+const handleComposerOpenEvent = (event) => {
+  const action = normalizeComposerAction(event?.detail?.action)
+  openComposerModal(action)
 }
 
 const closeWidgetMenu = () => {
@@ -777,7 +782,7 @@ const openAllWidgetsSheet = () => {
 
 const openComposerFromWidgets = () => {
   closeWidgetMenu()
-  openComposerModal()
+  openComposerModal('post')
 }
 
 const propsForWidget = (sectionKey, title) => {

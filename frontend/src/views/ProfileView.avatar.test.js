@@ -75,6 +75,7 @@ function makeRouter() {
     history: createMemoryHistory(),
     routes: [
       { path: '/profile', name: 'profile', component: ProfileView },
+      { path: '/profile/edit', name: 'profile.edit', component: { template: '<div>edit-profile</div>' } },
       { path: '/', name: 'home', component: { template: '<div>home</div>' } },
       { path: '/login', name: 'login', component: { template: '<div>login</div>' } },
       { path: '/events/:id', component: { template: '<div>event</div>' } },
@@ -100,7 +101,7 @@ async function mountProfile() {
 
   await flush()
   await flush()
-  return wrapper
+  return { wrapper, router }
 }
 
 describe('ProfileView avatar panel', () => {
@@ -151,7 +152,7 @@ describe('ProfileView avatar panel', () => {
   })
 
   it('switches mode to generated and renders generated controls', async () => {
-    const wrapper = await mountProfile()
+    const { wrapper } = await mountProfile()
 
     const openButton = wrapper.find('.avatarOpenBtn')
     await openButton.trigger('click')
@@ -168,8 +169,18 @@ describe('ProfileView avatar panel', () => {
     wrapper.unmount()
   })
 
+  it('shows observations tab in profile tabs', async () => {
+    const { wrapper } = await mountProfile()
+
+    const tabLabels = wrapper.findAll('.tab').map((tab) => tab.text())
+    expect(tabLabels.some((label) => label.includes('Pozorovania'))).toBe(true)
+    expect(tabLabels.some((label) => label.includes('Odpovede'))).toBe(false)
+
+    wrapper.unmount()
+  })
+
   it('saves avatar preferences via PATCH /me/avatar', async () => {
-    const wrapper = await mountProfile()
+    const { wrapper } = await mountProfile()
 
     const openButton = wrapper.find('.avatarOpenBtn')
     await openButton.trigger('click')
@@ -197,6 +208,42 @@ describe('ProfileView avatar panel', () => {
       avatar_seed: null,
     })
     expect(toastMock.success).toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('navigates to profile edit route for profile and location edits', async () => {
+    const { wrapper, router } = await mountProfile()
+
+    expect(wrapper.find('input[maxlength=\"60\"]').exists()).toBe(false)
+
+    const editButton = wrapper.findAll('button').find((button) => button.text().trim() === 'Upraviť profil')
+    expect(editButton).toBeTruthy()
+    await editButton.trigger('click')
+    await flush()
+    expect(router.currentRoute.value.name).toBe('profile.edit')
+
+    await router.push('/profile')
+    await flush()
+
+    const locationButton = wrapper.findAll('button').find((button) => button.text().trim() === 'Nastaviť polohu')
+    expect(locationButton).toBeTruthy()
+    await locationButton.trigger('click')
+    await flush()
+    expect(router.currentRoute.value.name).toBe('profile.edit')
+    expect(router.currentRoute.value.hash).toBe('#location')
+
+    wrapper.unmount()
+  })
+
+  it('shows empty location state with primary CTA when location is missing', async () => {
+    const { wrapper } = await mountProfile()
+
+    expect(wrapper.text()).toContain('Lokalita: nenastavená')
+
+    const ctaButton = wrapper.findAll('button').find((button) => button.text().trim() === 'Nastaviť polohu')
+    expect(ctaButton).toBeTruthy()
+    expect(ctaButton.classes()).toContain('metaSetupBtn')
 
     wrapper.unmount()
   })

@@ -73,14 +73,29 @@ const appShellChildren = [
       },
     }),
   },
-  ...(wipEnabled
-    ? [{
-        path: 'observations',
+  {
+    path: 'observations',
+    children: [
+      {
+        path: '',
         name: 'observations',
-        meta: { requiresAuth: false },
+        meta: { auth: true, requiresAuth: true },
         component: () => import('../views/ObservationsView.vue'),
-      }]
-    : []),
+      },
+      {
+        path: 'new',
+        name: 'observations.create',
+        meta: { auth: true, requiresAuth: true },
+        component: () => import('../views/ObservationCreateView.vue'),
+      },
+      {
+        path: ':id',
+        name: 'observations.detail',
+        meta: { requiresAuth: false },
+        component: () => import('../views/ObservationDetailView.vue'),
+      },
+    ],
+  },
   {
     path: 'clanky',
     name: 'learn',

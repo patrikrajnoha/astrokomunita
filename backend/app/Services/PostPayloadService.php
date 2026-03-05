@@ -3,20 +3,26 @@
 namespace App\Services;
 
 use App\Models\Event;
+use App\Models\Observation;
 use App\Models\Post;
 use App\Models\User;
 use App\Services\Storage\MediaStorageService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class PostPayloadService
 {
     /** @var array<int, array<string, mixed>|null> */
     private array $attachedEventCache = [];
 
+    /** @var array<int, Observation|null> */
+    private array $attachedObservationCache = [];
+
     public function __construct(
         private readonly PollService $polls,
         private readonly MediaStorageService $mediaStorage,
+        private readonly ObservationPayloadService $observationPayloads,
     ) {
     }
 
@@ -29,17 +35,23 @@ class PostPayloadService
             $viewer?->id
         );
         $data['attached_event'] = $this->resolveAttachedEventPayload($post);
+        $data['attached_observation'] = $this->resolveAttachedObservationPayload($post, $viewer);
+        $data['feed_item_type'] = $data['attached_observation'] ? 'observation' : 'post';
 
         return $data;
     }
 
     public function serializePaginator(LengthAwarePaginator $paginator, ?User $viewer = null): LengthAwarePaginator
     {
+        $this->primeAttachedObservations($paginator->getCollection());
+
         return $paginator->through(fn (Post $post) => $this->serializePost($post, $viewer));
     }
 
     public function serializeCollection(Collection $posts, ?User $viewer = null): Collection
     {
+        $this->primeAttachedObservations($posts);
+
         return $posts->map(fn (Post $post) => $this->serializePost($post, $viewer));
     }
 
@@ -95,6 +107,90 @@ class PostPayloadService
         $this->attachedEventCache[$eventId] = $payload;
 
         return $payload;
+    }
+
+    private function resolveAttachedObservationPayload(Post $post, ?User $viewer = null): ?array
+    {
+        $observationId = (int) data_get($post->meta, 'observation.observation_id', 0);
+        if ($observationId <= 0) {
+            return null;
+        }
+
+        if (!array_key_exists($observationId, $this->attachedObservationCache)) {
+            $this->attachedObservationCache[$observationId] = Observation::query()
+                ->with([
+                    'user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
+                    'event:id,title,type,start_at,end_at,max_at,short',
+                    'media',
+                ])
+                ->find($observationId);
+        }
+
+        $observation = $this->attachedObservationCache[$observationId];
+        if (!$observation) {
+            return null;
+        }
+
+        $canView = $observation->is_public
+            || ($viewer && ((int) $observation->user_id === (int) $viewer->id || $viewer->isAdmin()));
+
+        if (!$canView) {
+            return null;
+        }
+
+        return $this->observationPayloads->serializeObservation($observation, $viewer);
+    }
+
+    public function primeAttachedObservations(Collection $posts): void
+    {
+        $observationIds = $this->extractAttachedObservationIds($posts);
+        if ($observationIds === []) {
+            return;
+        }
+
+        $idsToLoad = array_values(array_filter(
+            $observationIds,
+            fn (int $id): bool => !array_key_exists($id, $this->attachedObservationCache)
+        ));
+
+        if ($idsToLoad === []) {
+            return;
+        }
+
+        $loaded = Observation::query()
+            ->with([
+                'user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
+                'event:id,title,type,start_at,end_at,max_at,short',
+                'media',
+            ])
+            ->whereIn('id', $idsToLoad)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($idsToLoad as $id) {
+            $this->attachedObservationCache[$id] = $loaded->get($id);
+        }
+
+        if (config('app.debug')) {
+            Log::debug('Feed attached observations preloaded.', [
+                'requested_ids' => count($observationIds),
+                'loaded_ids' => $loaded->count(),
+                'cache_size' => count($this->attachedObservationCache),
+            ]);
+        }
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function extractAttachedObservationIds(Collection $posts): array
+    {
+        return $posts
+            ->map(static fn (Post $post): int => (int) data_get($post->meta, 'observation.observation_id', 0))
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
