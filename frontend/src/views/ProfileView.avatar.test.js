@@ -247,4 +247,18 @@ describe('ProfileView avatar panel', () => {
 
     wrapper.unmount()
   })
+
+  it('renders BOT badge in profile header for bot accounts', async () => {
+    authMock.user = {
+      ...authMock.user,
+      is_bot: true,
+      role: 'bot',
+    }
+
+    const { wrapper } = await mountProfile()
+
+    expect(wrapper.text()).toContain('BOT')
+
+    wrapper.unmount()
+  })
 })

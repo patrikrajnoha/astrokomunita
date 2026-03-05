@@ -43,7 +43,7 @@
                     </svg>
                     <span>{{ Number(root?.views ?? 0) }}</span>
                   </span>
-                  <span v-if="root?.source_name === 'astrobot'" class="botLabel">Automated news</span>
+                  <span v-if="isBotPost(root)" class="botVerifiedBadge">BOT</span>
                 </div>
               </div>
               <div class="postActionsMenu">
@@ -784,12 +784,25 @@ function normalizeToken(value) {
     .toLowerCase()
 }
 
+function isBotPost(post) {
+  if (!post || typeof post !== 'object') return false
+
+  const authorKind = normalizeToken(post?.author_kind)
+  if (authorKind === 'bot') return true
+
+  if (normalizeToken(post?.source_name) === 'astrobot') return true
+
+  if (post?.user?.is_bot === true) return true
+  if (normalizeToken(post?.user?.role) === 'bot') return true
+
+  return false
+}
+
 function canAdminEditBotPost(post) {
   const isAdmin = Boolean(auth.user?.is_admin || auth.user?.role === 'admin')
   if (!isAdmin) return false
 
-  const isBot = normalizeToken(post?.author_kind) === 'bot' || normalizeToken(post?.source_name) === 'astrobot'
-  if (!isBot) return false
+  if (!isBotPost(post)) return false
 
   const identity = normalizeToken(post?.bot_identity)
   return identity === 'kozmo' || identity === 'stela'
@@ -1606,6 +1619,19 @@ const repliesCountLabel = computed(() => {
   font-size: 0.8rem;
   font-style: italic;
   opacity: 0.8;
+}
+
+.botVerifiedBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.13rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.67rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.48);
+  color: var(--color-primary);
+  background: rgb(var(--color-primary-rgb) / 0.15);
 }
 .repliesDisabledNotice {
   margin: 1rem 0;

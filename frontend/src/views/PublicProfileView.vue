@@ -32,6 +32,9 @@
           <div class="nameRow">
             <h1 class="name">{{ displayName }}</h1>
             <span v-if="user?.is_admin" class="badge">Admin</span>
+            <span v-if="user?.is_bot || String(user?.role || '').toLowerCase() === 'bot'" class="badge badgeBot">
+              BOT
+            </span>
           </div>
 
           <div class="handle">@{{ handle }}</div>
@@ -593,6 +596,12 @@ onMounted(async () => {
   border: 1px solid rgb(var(--color-success-rgb) / 0.55);
   background: rgb(var(--color-primary-rgb) / 0.12);
   color: var(--color-success);
+}
+
+.badgeBot {
+  border-color: rgb(var(--color-primary-rgb) / 0.5);
+  background: rgb(var(--color-primary-rgb) / 0.16);
+  color: var(--color-primary);
 }
 .handle { color: var(--color-text-secondary); margin-top: 0.15rem; }
 .bio { margin: 0.75rem 0 0; color: var(--color-surface); }

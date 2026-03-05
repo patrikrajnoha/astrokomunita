@@ -232,6 +232,32 @@ describe('FeedList tabs', () => {
     )
   })
 
+  it('renders BOT verification badge in post header for bot posts', async () => {
+    api.get.mockImplementationOnce(() =>
+      Promise.resolve({
+        data: {
+          data: [
+            {
+              id: 305,
+              author_kind: 'bot',
+              bot_identity: 'kozmo',
+              content: 'Bot badge content',
+              user: { username: 'kozmo', name: 'Kozmo' },
+            },
+          ],
+          next_page_url: null,
+        },
+      }),
+    )
+
+    const wrapper = mountFeed()
+    await flushPromises()
+
+    const badge = wrapper.find('.author-bot-badge')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toBe('BOT')
+  })
+
   it('falls back to generic Bot label for legacy posts without meta', async () => {
     window.localStorage.setItem(STORAGE_KEY, 'astrobot')
 
