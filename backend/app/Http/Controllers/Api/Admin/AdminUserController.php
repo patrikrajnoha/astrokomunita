@@ -7,6 +7,7 @@ use App\Models\Report;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Gate;
 
 class AdminUserController extends Controller
@@ -31,17 +32,28 @@ class AdminUserController extends Controller
                 'name',
                 'username',
                 'email',
+                'bio',
                 'role',
+                'is_bot',
                 'is_banned',
                 'banned_at',
                 'ban_reason',
                 'is_active',
                 'avatar_path',
+                'cover_path',
                 'avatar_mode',
                 'avatar_color',
                 'avatar_icon',
                 'avatar_seed',
             ])
+            ->when(trim((string) $request->query('search', '')) !== '', function ($query) use ($request) {
+                $term = '%'.trim((string) $request->query('search', '')).'%';
+                $query->where(function ($nested) use ($term): void {
+                    $nested->where('name', 'like', $term)
+                        ->orWhere('username', 'like', $term)
+                        ->orWhere('email', 'like', $term);
+                });
+            })
             ->orderByDesc('id')
             ->paginate($perPage);
         $users->getCollection()->each->makeVisible('email');
@@ -57,12 +69,15 @@ class AdminUserController extends Controller
                 'name',
                 'username',
                 'email',
+                'bio',
                 'role',
+                'is_bot',
                 'is_banned',
                 'banned_at',
                 'ban_reason',
                 'is_active',
                 'avatar_path',
+                'cover_path',
                 'avatar_mode',
                 'avatar_color',
                 'avatar_icon',
@@ -180,6 +195,54 @@ class AdminUserController extends Controller
         return response()->json($this->mapUser($user));
     }
 
+    public function updateRole(Request $request, User $user)
+    {
+        $this->ensureAllowed($request, 'updateRole', $user);
+
+        if ($user->isAdmin() || $user->isBot()) {
+            return response()->json([
+                'message' => 'Role change is not allowed for this account.',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'role' => ['required', 'string', Rule::in([User::ROLE_USER, User::ROLE_EDITOR])],
+        ]);
+
+        $nextRole = (string) $validated['role'];
+        if ($nextRole === $user->role) {
+            return response()->json($this->mapUser($user));
+        }
+
+        $user->forceFill([
+            'role' => $nextRole,
+            'is_admin' => false,
+        ])->save();
+
+        return response()->json($this->mapUser($user));
+    }
+
+    public function updateProfile(Request $request, User $user)
+    {
+        $this->ensureAllowed($request, 'updateProfile', $user);
+
+        $validated = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'bio' => ['nullable', 'string', 'max:160'],
+            'avatar_path' => ['nullable', 'string', 'max:255'],
+            'cover_path' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if ($validated === []) {
+            return response()->json($this->mapUser($user));
+        }
+
+        $user->fill($validated);
+        $user->save();
+
+        return response()->json($this->mapUser($user));
+    }
+
     private function ensureAllowed(Request $request, string $ability, User $target): void
     {
         $actor = $request->user();
@@ -195,12 +258,15 @@ class AdminUserController extends Controller
             'name',
             'username',
             'email',
+            'bio',
             'role',
+            'is_bot',
             'is_banned',
             'banned_at',
             'ban_reason',
             'is_active',
             'avatar_path',
+            'cover_path',
             'avatar_mode',
             'avatar_color',
             'avatar_icon',

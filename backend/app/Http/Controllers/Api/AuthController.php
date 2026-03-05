@@ -102,6 +102,17 @@ class AuthController extends Controller
 
         $credentials['email'] = mb_strtolower(trim((string) $credentials['email']));
 
+        $isBotAccount = User::query()
+            ->whereRaw('LOWER(email) = ?', [$credentials['email']])
+            ->where('is_bot', true)
+            ->exists();
+
+        if ($isBotAccount) {
+            return response()->json([
+                'message' => 'Nespravny email alebo heslo.',
+            ], 422);
+        }
+
         try {
             $attempted = Auth::attempt($credentials, true);
         } catch (RuntimeException $exception) {
