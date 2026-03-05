@@ -123,6 +123,7 @@ import { RouterLink } from 'vue-router'
 import api from '@/services/api'
 import UserAvatar from '@/components/UserAvatar.vue'
 import HashtagText from '@/components/HashtagText.vue'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const hashtagName = computed(() => {
@@ -139,6 +140,7 @@ const currentPage = ref(1)
 const lastPage = ref(1)
 const totalPosts = ref(0)
 const requestSequence = ref(0)
+const toast = useToast()
 
 const resetFeedState = () => {
   posts.value = []
@@ -200,9 +202,11 @@ const loadPosts = async (page = 1, { force = false } = {}) => {
       return
     }
 
-    error.value = 'Nepodarilo sa nacitat prispevky'
     if (page === 1) {
+      error.value = 'Nepodarilo sa nacitat prispevky'
       posts.value = []
+    } else {
+      toast.warn('Nepodarilo sa nacitat dalsie prispevky.')
     }
   } finally {
     if (requestId === requestSequence.value) {

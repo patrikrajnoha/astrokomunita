@@ -136,6 +136,15 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(1)->by('me-export|' . $userId . '|' . $request->ip());
         });
 
+        RateLimiter::for('report-submissions', function (Request $request) {
+            $userId = $request->user('sanctum')?->id ?? $request->user()?->id;
+            if ($userId !== null) {
+                return Limit::perMinute(10)->by('report-submit:user:' . $userId);
+            }
+
+            return Limit::perMinute(10)->by('report-submit:ip:' . $request->ip());
+        });
+
         RateLimiter::for('sky-cheap-auth', function (Request $request) {
             $userId = $this->resolveSkyThrottleUserId($request);
 

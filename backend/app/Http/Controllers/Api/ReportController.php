@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Post;
 use App\Models\Report;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Gate;
@@ -16,12 +17,29 @@ class ReportController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'target_id' => ['required', 'integer', 'exists:posts,id'],
+            'post_id' => ['nullable', 'integer', 'exists:posts,id', 'required_without:target_id'],
+            'target_id' => ['nullable', 'integer', 'exists:posts,id', 'required_without:post_id'],
             'reason' => ['required', 'string', Rule::in(['spam', 'abuse', 'misinfo', 'other'])],
             'message' => ['nullable', 'string', 'max:500'],
+            '_hp' => ['nullable', 'string', 'max:255'],
+            'website' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $targetPost = Post::query()->select('id', 'user_id')->findOrFail($validated['target_id']);
+        $honeypot = trim((string) ($validated['_hp'] ?? $validated['website'] ?? ''));
+        if ($honeypot !== '') {
+            return response()->json([
+                'message' => 'Invalid report request.',
+            ], 422);
+        }
+
+        $postId = (int) ($validated['post_id'] ?? $validated['target_id']);
+
+        $targetPost = Post::query()->select('id', 'user_id')->findOrFail($postId);
+        if ((int) $targetPost->user_id === (int) $user->id) {
+            return response()->json([
+                'message' => 'You cannot report your own post.',
+            ], 403);
+        }
 
         if (Gate::forUser($user)->denies('create', [Report::class, $targetPost])) {
             return response()->json([
@@ -32,22 +50,34 @@ class ReportController extends Controller
         $exists = Report::query()
             ->where('reporter_user_id', $user->id)
             ->where('target_type', 'post')
-            ->where('target_id', $validated['target_id'])
+            ->where('target_id', $postId)
             ->exists();
 
         if ($exists) {
             return response()->json([
+                'status' => 'already_reported',
                 'message' => 'Report already submitted.',
             ], 409);
         }
 
-        $report = Report::create([
-            'reporter_user_id' => $user->id,
-            'target_id' => $validated['target_id'],
-            'reason' => $validated['reason'],
-            'message' => $validated['message'] ?? null,
-            'status' => 'open',
-        ]);
+        try {
+            $report = Report::create([
+                'reporter_user_id' => $user->id,
+                'target_id' => $postId,
+                'reason' => $validated['reason'],
+                'message' => $validated['message'] ?? null,
+                'status' => 'open',
+            ]);
+        } catch (QueryException $exception) {
+            if ((string) $exception->getCode() === '23000') {
+                return response()->json([
+                    'status' => 'already_reported',
+                    'message' => 'Report already submitted.',
+                ], 409);
+            }
+
+            throw $exception;
+        }
 
         return response()->json($report, 201);
     }

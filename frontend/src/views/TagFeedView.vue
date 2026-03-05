@@ -144,6 +144,45 @@
           {{ loading ? 'Načítavam…' : 'Načítať viac' }}
         </button>
       </div>
+      <div v-if="reportTarget" class="reportModal" @click="closeReport()">
+        <div class="reportCard" role="dialog" aria-modal="true" @click.stop>
+          <h3 class="reportTitle">Nahlasit prispevok</h3>
+          <p class="reportHint">Odosle sa moderacii na preverenie.</p>
+
+          <label class="reportLabel" for="tag-feed-report-reason">Dovod</label>
+          <select
+            id="tag-feed-report-reason"
+            v-model="reportReason"
+            class="reportSelect"
+            :disabled="reportLoading"
+          >
+            <option value="spam">Spam</option>
+            <option value="abuse">Abuse</option>
+            <option value="misinfo">Misinformation</option>
+            <option value="other">Other</option>
+          </select>
+
+          <label class="reportLabel" for="tag-feed-report-message">Poznamka (volitelne)</label>
+          <textarea
+            id="tag-feed-report-message"
+            v-model="reportMessage"
+            class="reportTextarea"
+            rows="4"
+            maxlength="500"
+            :disabled="reportLoading"
+            placeholder="Doplnujuce info pre moderatorov..."
+          />
+
+          <div class="reportActions">
+            <button class="btn btnGhost" type="button" :disabled="reportLoading" @click="closeReport()">
+              Zrusit
+            </button>
+            <button class="btn btnDanger" type="button" :disabled="reportLoading" @click="submitReport">
+              {{ reportLoading ? 'Odosielam...' : 'Odoslat report' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -156,10 +195,12 @@ import HashtagText from '@/components/HashtagText.vue'
 import PollCard from '@/components/PollCard.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToast()
 
 const tag = computed(() => {
   const raw = route.params.tag
@@ -174,6 +215,10 @@ const error = ref('')
 const likeLoadingIds = ref(new Set())
 const likeBumpId = ref(null)
 const requestSequence = ref(0)
+const reportTarget = ref(null)
+const reportReason = ref('spam')
+const reportMessage = ref('')
+const reportLoading = ref(false)
 
 function resetFeedState() {
   items.value = []
@@ -204,9 +249,61 @@ function setLikeLoading(id, on) {
   likeLoadingIds.value = next
 }
 
+function closeReport(force = false) {
+  if (reportLoading.value && !force) return
+  reportTarget.value = null
+  reportReason.value = 'spam'
+  reportMessage.value = ''
+}
+
 function openReport(post) {
   if (!post?.id) return
-  router.push(`/posts/${post.id}`)
+  if (!auth.isAuthed) {
+    const message = 'Prihlas sa pre nahlasenie prispevku.'
+    error.value = message
+    toast.warn(message)
+    return
+  }
+
+  error.value = ''
+  reportTarget.value = post
+  reportReason.value = 'spam'
+  reportMessage.value = ''
+}
+
+async function submitReport() {
+  const post = reportTarget.value
+  if (!post?.id || reportLoading.value) return
+
+  reportLoading.value = true
+  error.value = ''
+
+  try {
+    await api.post('/reports', {
+      target_id: post.id,
+      reason: reportReason.value,
+      message: reportMessage.value.trim() || null,
+      _hp: '',
+    })
+
+    toast.success('Report bol odoslany. Dakujeme.')
+    closeReport(true)
+  } catch (e) {
+    const status = e?.response?.status
+    const message =
+      status === 401
+        ? 'Prihlas sa.'
+        : status === 403
+          ? 'Svoj vlastny prispevok nemozes nahlasit.'
+          : status === 409
+            ? 'Tento prispevok si uz reportoval.'
+            : e?.response?.data?.message || 'Report sa nepodarilo odoslat.'
+
+    error.value = message
+    toast.warn(message)
+  } finally {
+    reportLoading.value = false
+  }
 }
 
 function updatePostPoll(post, nextPoll) {
@@ -299,6 +396,28 @@ function isImage(p) {
   )
 }
 
+function normalizePaginationUrl(url) {
+  const raw = String(url || '').trim()
+  if (!raw) return ''
+
+  const baseOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost'
+  const apiPrefix = String(api?.defaults?.baseURL || '/api').replace(/\/+$/, '')
+
+  try {
+    const parsed = new URL(raw, baseOrigin)
+    const pathWithQuery = `${parsed.pathname}${parsed.search || ''}`
+    if (apiPrefix && pathWithQuery.startsWith(`${apiPrefix}/`)) {
+      return pathWithQuery.slice(apiPrefix.length)
+    }
+    if (apiPrefix && pathWithQuery === apiPrefix) {
+      return '/'
+    }
+    return pathWithQuery
+  } catch {
+    return raw
+  }
+}
+
 async function load(reset = true, force = false) {
   if (loading.value && !force) return
 
@@ -326,7 +445,7 @@ async function load(reset = true, force = false) {
         },
       })
     } else {
-      const url = nextPageUrl.value
+      const url = normalizePaginationUrl(nextPageUrl.value)
       if (!url) {
         return
       }
@@ -349,7 +468,12 @@ async function load(reset = true, force = false) {
       return
     }
 
-    error.value = e?.response?.data?.message || e?.message || 'Nacitanie feedu zlyhalo.'
+    const message = e?.response?.data?.message || e?.message || 'Nacitanie feedu zlyhalo.'
+    if (reset) {
+      error.value = message
+    } else {
+      toast.warn(message)
+    }
   } finally {
     if (requestId === requestSequence.value) {
       loading.value = false
@@ -359,6 +483,7 @@ async function load(reset = true, force = false) {
 
 watch(tag, () => {
   requestSequence.value += 1
+  closeReport(true)
   resetFeedState()
   void load(true, true)
 }, { immediate: true })
@@ -686,6 +811,78 @@ watch(tag, () => {
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btnDanger {
+  border-color: rgb(var(--color-danger-rgb) / 0.65);
+  color: var(--color-danger);
+  background: rgb(var(--color-danger-rgb) / 0.14);
+}
+
+.btnDanger:hover {
+  border-color: rgb(var(--color-danger-rgb) / 0.85);
+  background: rgb(var(--color-danger-rgb) / 0.22);
+}
+
+.reportModal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.reportCard {
+  width: min(520px, 100%);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
+  border-radius: 1rem;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+  padding: 1rem;
+  color: var(--color-surface);
+}
+
+.reportTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.reportHint {
+  margin: 0.35rem 0 0.85rem;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.reportLabel {
+  display: block;
+  margin: 0.8rem 0 0.35rem;
+  color: var(--color-text-secondary);
+  font-size: 0.86rem;
+}
+
+.reportSelect,
+.reportTextarea {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
+  background: rgb(var(--color-bg-rgb) / 0.2);
+  color: var(--color-surface);
+  padding: 0.55rem 0.65rem;
+}
+
+.reportTextarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.reportActions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 @media (max-width: 480px) {
