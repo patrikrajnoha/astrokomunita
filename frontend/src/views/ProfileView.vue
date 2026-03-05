@@ -88,6 +88,12 @@
           <div class="nameRow">
             <h1 class="name">{{ displayName }}</h1>
             <span v-if="auth.user?.is_admin" class="badge">Admin</span>
+            <span
+              v-if="auth.user?.is_bot || String(auth.user?.role || '').toLowerCase() === 'bot'"
+              class="badge badgeBot"
+            >
+              BOT
+            </span>
           </div>
 
           <div class="handle">@{{ handle }}</div>
@@ -1662,6 +1668,12 @@ onBeforeUnmount(() => {
   background: rgb(var(--primary-rgb) / 0.12);
   color: var(--primary);
 }
+
+.badgeBot {
+  border-color: rgb(var(--primary-rgb) / 0.55);
+  background: rgb(var(--primary-rgb) / 0.2);
+  color: var(--text-primary);
+}
 .handle { color: var(--text-secondary); margin-top: 0.15rem; }
 .bio { margin: 0.55rem 0 0; color: var(--text-primary); }
 .meta {
@@ -2323,4 +2335,3 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-

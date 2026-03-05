@@ -90,6 +90,7 @@
                     <button class="author-name" type="button" @click.stop="openProfile(p)">
                       {{ p?.user?.name ?? 'User' }}
                     </button>
+                    <span v-if="isBotPost(p)" class="author-bot-badge" aria-label="Bot verified badge">BOT</span>
                     <span class="author-username">@{{ p?.user?.username }}</span>
                     <span class="author-time">{{ fmt(p?.created_at) }}</span>
                     <span v-if="p.pinned_at" class="pinned-badge">📌 Pripnuté</span>
@@ -1785,6 +1786,19 @@ defineExpose({ load, prepend })
   color: var(--color-text-secondary);
   font-size: 0.82rem;
   font-weight: 400;
+}
+
+.author-bot-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.46);
+  background: rgb(var(--color-primary-rgb) / 0.16);
+  color: var(--color-primary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .author-time {
