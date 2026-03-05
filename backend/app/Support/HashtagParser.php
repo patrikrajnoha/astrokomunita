@@ -4,7 +4,6 @@ namespace App\Support;
 
 use App\Models\Hashtag;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 
 class HashtagParser
 {
@@ -31,12 +30,6 @@ class HashtagParser
             return collect();
         }
 
-        Log::info('HashtagParser: Extracted hashtags', [
-            'content' => $content,
-            'hashtags' => $hashtags->toArray(),
-            'post_id' => $post->id ?? 'new',
-        ]);
-
         $hashtagModels = collect();
         foreach ($hashtags as $hashtag) {
             $hashtagName = self::normalizeHashtagName($hashtag);
@@ -46,22 +39,10 @@ class HashtagParser
             ]);
 
             $hashtagModels->put($hashtagName, $hashtagModel);
-
-            Log::info('HashtagParser: Hashtag processed', [
-                'hashtag_name' => $hashtagName,
-                'hashtag_id' => $hashtagModel->id,
-                'was_recently_created' => $hashtagModel->wasRecentlyCreated,
-            ]);
         }
 
         $hashtagIds = $hashtagModels->pluck('id');
         $post->hashtags()->sync($hashtagIds);
-
-        Log::info('HashtagParser: Hashtags synced to post', [
-            'post_id' => $post->id ?? 'new',
-            'hashtag_ids' => $hashtagIds->toArray(),
-            'final_hashtags' => $hashtagModels->toArray(),
-        ]);
 
         return $hashtagModels;
     }

@@ -79,7 +79,6 @@ use App\Http\Controllers\Api\NewsletterSubscriptionController;
 use App\Http\Controllers\Api\MeLocationController;
 use App\Http\Controllers\Api\MeDataExportController;
 use App\Http\Controllers\Api\MeActivityController;
-use App\Http\Controllers\CsrfTestController;
 use App\Http\Controllers\Api\Admin\FeaturedEventController;
 
 /*
@@ -97,7 +96,6 @@ Route::get('/health', function () {
     ]);
 });
 
-Route::get('/csrf-test', [CsrfTestController::class, 'test']);
 
 /*
 |--------------------------------------------------------------------------

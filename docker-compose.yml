@@ -1,6 +1,6 @@
 x-backend-common-env: &backend-common-env
-  APP_ENV: local
-  APP_DEBUG: "true"
+  APP_ENV: ${APP_ENV:-production}
+  APP_DEBUG: ${APP_DEBUG:-false}
   CACHE_STORE: file
   BROADCAST_CONNECTION: reverb
   REVERB_SERVER_HOST: 0.0.0.0

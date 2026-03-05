@@ -13,6 +13,10 @@ class DefaultUsersSeeder extends Seeder
      */
     public function seed(): array
     {
+        if (!app()->environment(['local', 'testing'])) {
+            throw new \RuntimeException('DefaultUsersSeeder can only run in local/testing environments.');
+        }
+
         $created = [];
         $updated = [];
 
