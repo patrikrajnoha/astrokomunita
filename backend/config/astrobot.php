@@ -50,6 +50,15 @@ return [
     'run_lock_ttl_seconds' => (int) env('ASTROBOT_RUN_LOCK_TTL_SECONDS', env('ASTROBOT_LOCK_TTL_SECONDS', 120)),
     'stale_run_recovery_minutes' => (int) env('ASTROBOT_STALE_RUN_RECOVERY_MINUTES', 5),
     'run_max_execution_seconds' => (int) env('ASTROBOT_RUN_MAX_EXECUTION_SECONDS', 120),
+    'publish_rate_limit' => [
+        'enabled' => filter_var(env('BOT_PUBLISH_RATE_LIMIT_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'window_seconds' => (int) env('BOT_PUBLISH_RATE_LIMIT_WINDOW_SECONDS', 3600),
+        'default_max_attempts' => (int) env('BOT_PUBLISH_RATE_LIMIT_DEFAULT_MAX_ATTEMPTS', 30),
+        'identities' => [
+            'kozmo' => (int) env('BOT_PUBLISH_RATE_LIMIT_KOZMO_MAX_ATTEMPTS', 30),
+            'stela' => (int) env('BOT_PUBLISH_RATE_LIMIT_STELA_MAX_ATTEMPTS', 30),
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------

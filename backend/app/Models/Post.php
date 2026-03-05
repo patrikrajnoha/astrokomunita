@@ -38,6 +38,7 @@ class Post extends Model
         'source_name',
         'source_url',
         'source_uid',
+        'bot_item_id',
         'source_published_at',
         'expires_at',  // When bot posts should expire
         'is_hidden',
@@ -89,6 +90,7 @@ class Post extends Model
         'attachment_web_height' => 'integer',
         'attachment_variants_json' => 'array',
         'source_published_at' => 'datetime',
+        'bot_item_id' => 'integer',
         'translated_at' => 'datetime',
         'meta' => 'array',
         'expires_at' => 'datetime',
@@ -169,6 +171,11 @@ class Post extends Model
     public function poll(): HasOne
     {
         return $this->hasOne(Poll::class);
+    }
+
+    public function botItem(): BelongsTo
+    {
+        return $this->belongsTo(BotItem::class, 'bot_item_id');
     }
 
     /**
@@ -305,6 +312,7 @@ class Post extends Model
         'source_name',
         'source_url',
         'source_uid',
+        'bot_item_id',
         'source_published_at',
         'is_hidden',
         'moderation_status',

@@ -34,6 +34,7 @@ class BotRunner
         private readonly WikipediaOnThisDayFetchService $wikipediaOnThisDayFetchService,
         private readonly BotItemDedupeService $dedupeService,
         private readonly BotPublisherService $publisherService,
+        private readonly BotActivityLogService $activityLogService,
         private readonly BotTranslationServiceInterface $translationService,
     ) {
     }
@@ -84,6 +85,20 @@ class BotRunner
             $stats['mode'] = $runMode;
             $stats['publish_limit'] = $normalizedPublishLimit;
 
+            $this->activityLogService->record(
+                action: 'run',
+                outcome: 'skipped',
+                source: $source,
+                run: $run,
+                reason: BotRunFailureReason::LOCK_CONFLICT->value,
+                runContext: $context,
+                message: 'Run skipped because lock is already held.',
+                meta: [
+                    'mode' => $runMode,
+                    'publish_limit' => $normalizedPublishLimit,
+                ]
+            );
+
             return $this->finalizeRunSafely(
                 $run,
                 BotRunStatus::SKIPPED,
@@ -110,6 +125,21 @@ class BotRunner
             $stats['skipped_count']++;
             $runMeta = array_replace($runMeta, $this->buildCooldownSkipMeta($source));
             $errorText = (string) ($runMeta['ui_message'] ?? 'Source is temporarily in cooldown due to prior rate limiting.');
+
+            $this->activityLogService->record(
+                action: 'run',
+                outcome: 'skipped',
+                source: $source,
+                run: $run,
+                reason: BotRunFailureReason::COOLDOWN_RATE_LIMITED->value,
+                runContext: $context,
+                message: $errorText,
+                meta: [
+                    'mode' => $runMode,
+                    'publish_limit' => $normalizedPublishLimit,
+                    'cooldown_until' => data_get($runMeta, 'cooldown_until'),
+                ]
+            );
 
             $this->releaseRunLocks($lockState);
 
@@ -168,6 +198,23 @@ class BotRunner
             }
 
             $errorText = $runMeta['ui_message'] ?? $e->getMessage();
+
+            $this->activityLogService->record(
+                action: 'run',
+                outcome: $status === BotRunStatus::SKIPPED ? 'skipped' : 'failed',
+                source: $source,
+                run: $run,
+                reason: $runMeta['failure_reason'] ?? BotRunFailureReason::UNKNOWN->value,
+                runContext: $context,
+                message: $this->limitText((string) $errorText, 300),
+                meta: [
+                    'mode' => $runMode,
+                    'publish_limit' => $normalizedPublishLimit,
+                    'retry_after_sec' => data_get($runMeta, 'retry_after_sec'),
+                    'http_status' => data_get($runMeta, 'http_status'),
+                    'provider' => data_get($runMeta, 'provider'),
+                ]
+            );
         } catch (Throwable $e) {
             $status = BotRunStatus::FAILED;
             $errorText = $e->getMessage();
@@ -175,8 +222,45 @@ class BotRunner
             $this->recordErrorFingerprint($stats, $e);
             $runMeta['failure_reason'] = BotRunFailureReason::UNHANDLED_EXCEPTION->value;
             $runMeta['exception_class'] = $e::class;
+
+            $this->activityLogService->record(
+                action: 'run',
+                outcome: 'failed',
+                source: $source,
+                run: $run,
+                reason: BotRunFailureReason::UNHANDLED_EXCEPTION->value,
+                runContext: $context,
+                message: $this->limitText($e->getMessage(), 300),
+                meta: [
+                    'mode' => $runMode,
+                    'publish_limit' => $normalizedPublishLimit,
+                    'exception_class' => $e::class,
+                ]
+            );
         } finally {
             $this->releaseRunLocks($lockState);
+        }
+
+        if ($status === BotRunStatus::SUCCESS || $status === BotRunStatus::PARTIAL) {
+            $this->activityLogService->record(
+                action: 'run',
+                outcome: $status === BotRunStatus::PARTIAL ? 'partial' : 'success',
+                source: $source,
+                run: $run,
+                reason: null,
+                runContext: $context,
+                message: null,
+                meta: [
+                    'mode' => $runMode,
+                    'publish_limit' => $normalizedPublishLimit,
+                    'stats' => [
+                        'fetched_count' => (int) ($stats['fetched_count'] ?? 0),
+                        'published_count' => (int) ($stats['published_count'] ?? 0),
+                        'skipped_count' => (int) ($stats['skipped_count'] ?? 0),
+                        'failed_count' => (int) ($stats['failed_count'] ?? 0),
+                    ],
+                ]
+            );
         }
 
         return $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
@@ -337,6 +421,9 @@ class BotRunner
                     if ((string) $publishResult->reason === 'image_policy_violation') {
                         $stats['image_skipped_policy_count'] = (int) ($stats['image_skipped_policy_count'] ?? 0) + 1;
                     }
+                    if ((string) $publishResult->reason === 'publish_rate_limited') {
+                        break;
+                    }
                 }
             } catch (Throwable $e) {
                 $stats['failed_count']++;
@@ -349,6 +436,21 @@ class BotRunner
                     'publish_status' => BotPublishStatus::FAILED->value,
                     'meta' => $meta,
                 ])->save();
+
+                $this->activityLogService->record(
+                    action: 'publish',
+                    outcome: 'failed',
+                    item: $item,
+                    source: null,
+                    run: null,
+                    postId: null,
+                    reason: 'exception',
+                    runContext: $runContext,
+                    message: $this->limitText($e->getMessage(), 300),
+                    meta: [
+                        'exception_class' => $e::class,
+                    ]
+                );
             }
         }
     }

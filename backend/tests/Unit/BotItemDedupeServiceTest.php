@@ -8,7 +8,10 @@ use App\Enums\BotTranslationStatus;
 use App\Models\BotItem;
 use App\Models\BotRun;
 use App\Models\BotSource;
+use App\Models\Post;
+use App\Models\User;
 use App\Services\Bots\BotItemDedupeService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -102,5 +105,55 @@ class BotItemDedupeServiceTest extends TestCase
         $this->assertSame($firstRun->id, $updated->run_id);
         $this->assertSame($secondRun->id, (int) data_get($updated->meta, 'last_seen_run_id'));
         $this->assertNotSame('', (string) data_get($updated->meta, 'seen_at'));
+    }
+
+    public function test_posts_have_unique_bot_item_id_for_dedupe_safety(): void
+    {
+        $source = BotSource::query()->create([
+            'key' => 'test.unique.post.link',
+            'bot_identity' => 'kozmo',
+            'source_type' => BotSourceType::RSS->value,
+            'url' => 'https://example.test/feed.xml',
+            'is_enabled' => true,
+        ]);
+        $item = BotItem::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'stable_key' => 'unique-link',
+            'title' => 'Unique item',
+            'publish_status' => BotPublishStatus::PENDING->value,
+            'translation_status' => BotTranslationStatus::PENDING->value,
+            'fetched_at' => now(),
+        ]);
+        $botUser = User::factory()->create([
+            'is_bot' => true,
+            'role' => User::ROLE_BOT,
+            'username' => 'uniquebot',
+            'email' => null,
+        ]);
+
+        Post::query()->create([
+            'user_id' => $botUser->id,
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'kozmo',
+            'content' => 'First bot post',
+            'source_name' => 'bot_test',
+            'source_uid' => sha1('first'),
+            'bot_item_id' => $item->id,
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        Post::query()->create([
+            'user_id' => $botUser->id,
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'kozmo',
+            'content' => 'Second bot post',
+            'source_name' => 'bot_test',
+            'source_uid' => sha1('second'),
+            'bot_item_id' => $item->id,
+        ]);
     }
 }

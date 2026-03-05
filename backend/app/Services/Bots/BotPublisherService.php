@@ -15,12 +15,14 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 class BotPublisherService
 {
     public function __construct(
         private readonly PostService $postService,
+        private readonly BotActivityLogService $activityLogService,
     ) {
     }
 
@@ -32,6 +34,7 @@ class BotPublisherService
 
         if ($item->post_id) {
             $this->markPublishedLinkedItem($item, 'already_linked_post', $publishPayload['used_translation'], $normalizedRunContext);
+            $this->logPublishActivity($item, 'skipped', 'already_linked_post', $normalizedRunContext);
             return PublishResult::skipped('already_linked_post');
         }
 
@@ -40,6 +43,7 @@ class BotPublisherService
             if (!$this->isRetryableSkippedReason($reason)) {
                 $skipReason = $reason !== '' ? $reason : 'already_skipped';
                 $this->markSkipped($item, $skipReason, $publishPayload['used_translation'], $normalizedRunContext);
+                $this->logPublishActivity($item, 'skipped', $skipReason, $normalizedRunContext);
 
                 return PublishResult::skipped($skipReason);
             }
@@ -48,12 +52,44 @@ class BotPublisherService
         $skipReason = $this->resolveSkipReason($item, $publishPayload);
         if ($skipReason !== null) {
             $this->markSkipped($item, $skipReason, $publishPayload['used_translation'], $normalizedRunContext);
+            $this->logPublishActivity($item, 'skipped', $skipReason, $normalizedRunContext);
 
             return PublishResult::skipped($skipReason);
         }
 
         $source = $item->source()->firstOrFail();
         $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
+        $publishRateLimit = $this->resolvePublishRateLimitDecision($botIdentity);
+        if (($publishRateLimit['limited'] ?? false) === true) {
+            $reason = 'publish_rate_limited';
+            $retryAfter = max(1, (int) ($publishRateLimit['retry_after_sec'] ?? 0));
+            $this->markSkipped(
+                $item,
+                $reason,
+                $publishPayload['used_translation'],
+                $normalizedRunContext,
+                [
+                    'retry_after_sec' => $retryAfter,
+                    'rate_limit_window_sec' => (int) ($publishRateLimit['window_sec'] ?? 0),
+                    'rate_limit_max' => (int) ($publishRateLimit['max_attempts'] ?? 0),
+                ]
+            );
+            $this->logPublishActivity(
+                $item,
+                'skipped',
+                $reason,
+                $normalizedRunContext,
+                null,
+                [
+                    'retry_after_sec' => $retryAfter,
+                    'rate_limit_window_sec' => (int) ($publishRateLimit['window_sec'] ?? 0),
+                    'rate_limit_max' => (int) ($publishRateLimit['max_attempts'] ?? 0),
+                ]
+            );
+
+            return PublishResult::skipped($reason);
+        }
+
         $sourceName = $this->sourceNameForPost($source->key);
         $sourceUid = $this->sourceUidForPost($source->key, $item->stable_key);
         $postMeta = $this->buildPostMeta($source, $item, $publishPayload, $normalizedRunContext);
@@ -64,11 +100,19 @@ class BotPublisherService
             ->first();
 
         if ($existingPost) {
+            if (!$existingPost->bot_item_id) {
+                $existingPost->forceFill([
+                    'bot_item_id' => $item->id,
+                ])->save();
+            }
+
             $item->forceFill([
                 'post_id' => $existingPost->id,
                 'publish_status' => BotPublishStatus::PUBLISHED->value,
                 'meta' => $this->withPublishAudit($item->meta, $existingPost->id, 'already_published_by_source_uid', $publishPayload['used_translation'], $normalizedRunContext),
             ])->save();
+
+            $this->logPublishActivity($item, 'skipped', 'already_published_by_source_uid', $normalizedRunContext, $existingPost->id);
 
             return PublishResult::skipped('already_published_by_source_uid');
         }
@@ -80,6 +124,7 @@ class BotPublisherService
             if (($downloaded['error'] ?? null) !== null) {
                 $reason = (string) $downloaded['error'];
                 $this->markSkipped($item, $reason, $publishPayload['used_translation'], $normalizedRunContext);
+                $this->logPublishActivity($item, 'skipped', $reason, $normalizedRunContext);
                 return PublishResult::skipped($reason);
             }
 
@@ -123,6 +168,7 @@ class BotPublisherService
                     'source_name' => $sourceName,
                     'source_url' => $postMeta['source_url'] ?? $item->url,
                     'source_uid' => $sourceUid,
+                    'bot_item_id' => $item->id,
                     'source_published_at' => $item->published_at,
                     'expires_at' => null,
                     'meta' => $postMeta,
@@ -136,6 +182,12 @@ class BotPublisherService
                 if (!$post) {
                     throw $e;
                 }
+
+                if (!$post->bot_item_id) {
+                    $post->forceFill([
+                        'bot_item_id' => $item->id,
+                    ])->save();
+                }
             }
         } finally {
             $this->cleanupTemporaryFile($temporaryAttachmentPath);
@@ -148,6 +200,12 @@ class BotPublisherService
             'publish_status' => BotPublishStatus::PUBLISHED->value,
             'meta' => $this->withPublishAudit($item->meta, $post->id, null, $publishPayload['used_translation'], $normalizedRunContext),
         ])->save();
+
+        $this->consumePublishRateLimit($publishRateLimit);
+
+        $this->logPublishActivity($item, 'published', null, $normalizedRunContext, $post->id, [
+            'source_key' => strtolower(trim((string) $source->key)),
+        ]);
 
         return PublishResult::published($post);
     }
@@ -636,12 +694,24 @@ class BotPublisherService
         return null;
     }
 
-    private function markSkipped(BotItem $item, string $reason, bool $usedTranslation, string $runContext): void
+    /**
+     * @param array<string,mixed> $extraMeta
+     */
+    private function markSkipped(
+        BotItem $item,
+        string $reason,
+        bool $usedTranslation,
+        string $runContext,
+        array $extraMeta = []
+    ): void
     {
         $meta = is_array($item->meta) ? $item->meta : [];
         $meta['skip_reason'] = $reason;
         $meta['used_translation'] = $usedTranslation;
         $meta['run_context'] = $runContext;
+        foreach ($extraMeta as $key => $value) {
+            $meta[$key] = $value;
+        }
 
         $item->forceFill([
             'publish_status' => BotPublishStatus::SKIPPED->value,
@@ -655,6 +725,16 @@ class BotPublisherService
         $meta['skip_reason'] = $reason;
         $meta['used_translation'] = $usedTranslation;
         $meta['run_context'] = $runContext;
+
+        $postId = (int) ($item->post_id ?? 0);
+        if ($postId > 0) {
+            $linkedPost = Post::query()->find($postId);
+            if ($linkedPost && !$linkedPost->bot_item_id) {
+                $linkedPost->forceFill([
+                    'bot_item_id' => $item->id,
+                ])->save();
+            }
+        }
 
         $item->forceFill([
             'publish_status' => BotPublishStatus::PUBLISHED->value,
@@ -810,6 +890,7 @@ class BotPublisherService
             'non_image_media',
             'image_download_failed',
             'missing_image_url',
+            'publish_rate_limited',
         ], true);
     }
 
@@ -905,6 +986,99 @@ class BotPublisherService
         }
 
         return 'manual';
+    }
+
+    /**
+     * @return array{limited:bool,key:?string,window_sec:int,max_attempts:int,retry_after_sec:int}
+     */
+    private function resolvePublishRateLimitDecision(string $botIdentity): array
+    {
+        $enabled = (bool) config('bots.publish_rate_limit.enabled', true);
+        if (!$enabled) {
+            return [
+                'limited' => false,
+                'key' => null,
+                'window_sec' => 0,
+                'max_attempts' => 0,
+                'retry_after_sec' => 0,
+            ];
+        }
+
+        $identity = strtolower(trim($botIdentity));
+        $windowSeconds = max(1, (int) config('bots.publish_rate_limit.window_seconds', 3600));
+        $defaultMaxAttempts = (int) config('bots.publish_rate_limit.default_max_attempts', 30);
+        $maxAttempts = (int) config(sprintf('bots.publish_rate_limit.identities.%s', $identity), $defaultMaxAttempts);
+        if ($maxAttempts <= 0) {
+            return [
+                'limited' => false,
+                'key' => null,
+                'window_sec' => $windowSeconds,
+                'max_attempts' => 0,
+                'retry_after_sec' => 0,
+            ];
+        }
+
+        $key = sprintf('bots:publish_rate:%s', $identity !== '' ? $identity : 'unknown');
+        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+            return [
+                'limited' => true,
+                'key' => $key,
+                'window_sec' => $windowSeconds,
+                'max_attempts' => $maxAttempts,
+                'retry_after_sec' => max(1, RateLimiter::availableIn($key)),
+            ];
+        }
+
+        return [
+            'limited' => false,
+            'key' => $key,
+            'window_sec' => $windowSeconds,
+            'max_attempts' => $maxAttempts,
+            'retry_after_sec' => 0,
+        ];
+    }
+
+    /**
+     * @param array{limited:bool,key:?string,window_sec:int,max_attempts:int,retry_after_sec:int} $publishRateLimit
+     */
+    private function consumePublishRateLimit(array $publishRateLimit): void
+    {
+        if (($publishRateLimit['limited'] ?? false) === true) {
+            return;
+        }
+
+        $key = trim((string) ($publishRateLimit['key'] ?? ''));
+        if ($key === '') {
+            return;
+        }
+
+        $window = max(1, (int) ($publishRateLimit['window_sec'] ?? 0));
+        RateLimiter::hit($key, $window);
+    }
+
+    /**
+     * @param array<string,mixed> $meta
+     */
+    private function logPublishActivity(
+        BotItem $item,
+        string $outcome,
+        ?string $reason,
+        string $runContext,
+        ?int $postId = null,
+        array $meta = []
+    ): void {
+        $this->activityLogService->record(
+            action: 'publish',
+            outcome: $outcome,
+            item: $item,
+            source: null,
+            run: null,
+            postId: $postId,
+            reason: $reason,
+            runContext: $runContext,
+            message: null,
+            meta: $meta
+        );
     }
 
     private function nullableString(mixed $value): ?string
