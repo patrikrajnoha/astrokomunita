@@ -50,6 +50,7 @@ class FeedController extends Controller
         ], $user);
 
         $paginator = $query->paginate($perPage)->withQueryString();
+        $this->payloads->primeAttachedObservations($paginator->getCollection());
 
         return response()->json(
             $this->payloads->serializePaginator($paginator, $user)
@@ -118,6 +119,7 @@ class FeedController extends Controller
         }
 
         $paginator = $query->paginate($perPage)->withQueryString();
+        $this->payloads->primeAttachedObservations($paginator->getCollection());
 
         return response()->json(
             $this->payloads->serializePaginator($paginator, $user)

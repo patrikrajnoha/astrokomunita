@@ -2,3 +2,4 @@
 __pycache__/
 *.pyc
 data/*.bsp
+data/iss_tle.json

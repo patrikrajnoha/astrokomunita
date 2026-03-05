@@ -13,7 +13,7 @@
     <template v-else>
       <div v-if="!auth.user" class="card info">
         <div class="infoTitle">Profil je dostupny po prihlaseni.</div>
-        <div class="infoSub">Prihlas sa a uvidis svoje prispevky, odpovede, media a zalozky.</div>
+        <div class="infoSub">Prihlas sa a uvidis svoje prispevky, pozorovania, media a zalozky.</div>
         <button class="btn" @click="goLogin">Prihlasit sa</button>
       </div>
 
@@ -74,9 +74,9 @@
             <button
               v-if="auth.user"
               class="btn outline"
-              @click="toggleEdit"
+              @click="goToProfileEdit"
             >
-              {{ editOpen ? 'Zatvorit edit' : 'Upravit profil' }}
+              Upraviť profil
             </button>
             <button class="btn ghost copyBtn" @click="copyProfileLink">{{ copyLabel }}</button>
           </div>
@@ -96,7 +96,15 @@
           <p v-else class="bio muted">Zatial bez popisu.</p>
 
           <div class="meta">
-            <span v-if="auth.user?.location" class="metaItem">Lokalita: {{ auth.user.location }}</span>
+            <span class="metaItem">Lokalita: {{ canonicalLocationLabel || 'nenastavená' }}</span>
+            <button
+              v-if="auth.user"
+              type="button"
+              :class="canonicalLocationLabel ? 'metaActionBtn' : 'btn metaSetupBtn'"
+              @click="goToLocationEditor"
+            >
+              {{ canonicalLocationLabel ? 'Upraviť polohu' : 'Nastaviť polohu' }}
+            </button>
             <span v-if="auth.user?.email" class="metaItem">E-mail: {{ auth.user.email }}</span>
           </div>
         </div>
@@ -273,38 +281,6 @@
         </div>
       </BaseModal>
 
-      <section v-if="editOpen" class="card editCard">
-        <div v-if="editMsg" class="msg ok">{{ editMsg }}</div>
-        <div v-if="editErr" class="msg err">{{ editErr }}</div>
-
-        <div class="form">
-          <div class="field">
-            <label>Bio</label>
-            <textarea
-              class="input textarea"
-              v-model="editForm.bio"
-              rows="3"
-              maxlength="160"
-            ></textarea>
-            <div class="hint">{{ (editForm.bio || '').length }}/160</div>
-            <p v-if="editFieldErr.bio" class="fieldErr">{{ editFieldErr.bio }}</p>
-          </div>
-
-          <div class="field">
-            <label>Location</label>
-            <input class="input" v-model="editForm.location" type="text" maxlength="60" />
-            <p v-if="editFieldErr.location" class="fieldErr">{{ editFieldErr.location }}</p>
-          </div>
-
-          <div class="actions">
-            <button class="btn" @click="saveEdit" :disabled="editSaving">
-              {{ editSaving ? 'Ukladam...' : 'Ulozit' }}
-            </button>
-            <button class="btn ghost" @click="toggleEdit" :disabled="editSaving">Zrusit</button>
-          </div>
-        </div>
-      </section>
-
       <section v-if="pinnedPost" class="card pinCard">
         <div class="pinHeader">
           <div class="pinTitle">Pripnutý príspevok</div>
@@ -337,6 +313,9 @@
             @click="setActiveTab(t.key)"
           >
             {{ t.label }}
+            <span v-if="t.key === 'observations' && tabState.observations.total !== null" class="tabCount">
+              {{ tabState.observations.total }}
+            </span>
           </button>
         </div>
 
@@ -353,7 +332,24 @@
           </div>
 
           <div v-else-if="!tabState[activeTab].loading && tabState[activeTab].items.length === 0" class="muted padTop">
-            {{ activeTab === 'events' ? 'Zatiaľ nesleduješ žiadne udalosti.' : 'Zatial ziadny obsah.' }}
+            {{
+              activeTab === 'events'
+                ? 'Zatial nesledujes ziadne udalosti.'
+                : activeTab === 'observations'
+                  ? 'Zatial ziadne pozorovania.'
+                  : 'Zatial ziadny obsah.'
+            }}
+          </div>
+
+          <div v-else-if="activeTab === 'observations'" class="observationsList">
+            <ObservationCard
+              v-for="item in tabState.observations.items"
+              :key="item.id"
+              :observation="item"
+              :clickable="true"
+              :show-author="false"
+              @open="openObservation"
+            />
           </div>
 
           <div v-else-if="activeTab === 'events'" class="eventGrid">
@@ -482,7 +478,7 @@
 
 <script setup>
 import { computed, reactive, ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useEventFollowsStore } from '@/stores/eventFollows'
 import http from '@/services/api'
@@ -490,10 +486,12 @@ import api from '@/services/api'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import ProfileEventCard from '@/components/profile/ProfileEventCard.vue'
+import ObservationCard from '@/components/observations/ObservationCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import DefaultAvatar from '@/components/DefaultAvatar.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import HashtagText from '@/components/HashtagText.vue'
+import { listObservations } from '@/services/observations'
 import { EVENT_TIMEZONE, formatEventDate, formatEventDateKey } from '@/utils/eventTime'
 import { formatDateTimeCompact } from '@/utils/dateUtils'
 import { normalizeAvatarUrl, resolveAvatarState } from '@/utils/avatar'
@@ -509,7 +507,6 @@ import {
 } from '@/constants/avatar'
 
 const router = useRouter()
-const route = useRoute()
 const auth = useAuthStore()
 const eventFollows = useEventFollowsStore()
 const { confirm } = useConfirm()
@@ -544,7 +541,7 @@ function logAvatarProfileState(scope, extra = {}) {
 
 const tabs = [
   { key: 'posts', label: 'Príspevky', kind: 'roots' },
-  { key: 'replies', label: 'Odpovede', kind: 'replies' },
+  { key: 'observations', label: 'Pozorovania', kind: 'observations' },
   { key: 'events', label: 'Udalosti', kind: 'events' },
   { key: 'bookmarks', label: 'Záložky', kind: 'bookmarks' },
   { key: 'media', label: 'Médiá', kind: 'media' },
@@ -556,19 +553,12 @@ const activeTab = ref('posts')
 
 const tabState = reactive({
   posts: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
-  replies: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
+  observations: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   events: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   bookmarks: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   media: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   likes: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
 })
-
-const editOpen = ref(false)
-const editSaving = ref(false)
-const editMsg = ref('')
-const editErr = ref('')
-const editForm = reactive({ bio: '', location: '' })
-const editFieldErr = reactive({ bio: '', location: '' })
 
 const copyLabel = ref('Kopirovat link')
 const actionMsg = ref('')
@@ -602,6 +592,15 @@ const avatarDraft = reactive({
 const pinnedPost = ref(null)
 
 const displayName = computed(() => auth.user?.name || 'Profil')
+const canonicalLocationLabel = computed(() => {
+  const fromCanonical = parseStringValue(auth.user?.location_data?.label)
+  if (fromCanonical) return fromCanonical
+
+  const fromStoredLabel = parseStringValue(auth.user?.location_label)
+  if (fromStoredLabel) return fromStoredLabel
+
+  return parseStringValue(auth.user?.location) || ''
+})
 
 const handle = computed(() => {
   const email = auth.user?.email || ''
@@ -845,6 +844,14 @@ function goLogin() {
   router.push({ name: 'login', query: { redirect: '/profile' } })
 }
 
+function goToProfileEdit() {
+  router.push({ name: 'profile.edit' })
+}
+
+function goToLocationEditor() {
+  router.push({ name: 'profile.edit', hash: '#location' })
+}
+
 function openPost(post) {
   if (!post?.id) return
   router.push(`/posts/${post.id}`)
@@ -931,6 +938,42 @@ function openFollowedEvent(event) {
   router.push(`/events/${eventId}`)
 }
 
+function openObservation(observation) {
+  const observationId = Number(observation?.id || 0)
+  if (!Number.isInteger(observationId) || observationId <= 0) return
+  router.push(`/observations/${observationId}`)
+}
+
+function mergeUniqueById(existingItems, incomingItems) {
+  const seen = new Set()
+  const merged = []
+
+  const append = (item) => {
+    const id = Number(item?.id || 0)
+    if (!Number.isInteger(id) || id <= 0) {
+      merged.push(item)
+      return
+    }
+    if (seen.has(id)) return
+    seen.add(id)
+    merged.push(item)
+  }
+
+  ;(Array.isArray(existingItems) ? existingItems : []).forEach(append)
+  ;(Array.isArray(incomingItems) ? incomingItems : []).forEach(append)
+
+  return merged
+}
+
+function resetObservationTabState() {
+  tabState.observations.items = []
+  tabState.observations.next = null
+  tabState.observations.err = ''
+  tabState.observations.loaded = false
+  tabState.observations.loading = false
+  tabState.observations.total = null
+}
+
 function formatEventRange(startAt, endAt) {
   const startLabel = formatShortEventDate(startAt, true)
   const endLabel = formatShortEventDate(endAt, true)
@@ -961,35 +1004,15 @@ function parentHandle(post) {
   return String(base).toLowerCase().replace(/[^a-z0-9_]+/g, '').slice(0, 20) || 'user'
 }
 
-function toggleEdit() {
-  if (!auth.user) return
-  editOpen.value = !editOpen.value
-  if (editOpen.value) {
-    editForm.bio = auth.user.bio || ''
-    editForm.location = auth.user.location || ''
-    editMsg.value = ''
-    editErr.value = ''
-    editFieldErr.bio = ''
-    editFieldErr.location = ''
-  }
-}
-
-function openEditFromRoute() {
-  if (!auth.user) return
-  if (String(route.query?.edit || '') !== '1') return
-  if (!editOpen.value) toggleEdit()
-}
-
-function clearEditErrors() {
-  editMsg.value = ''
-  editErr.value = ''
-  editFieldErr.bio = ''
-  editFieldErr.location = ''
-}
-
 function extractFirstError(errorsObj, field) {
   const v = errorsObj?.[field]
   return Array.isArray(v) && v.length ? String(v[0]) : ''
+}
+
+function parseStringValue(value) {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed !== '' ? trimmed : null
 }
 
 function openPicker(type) {
@@ -1143,46 +1166,6 @@ function onCoverImageError() {
   coverLoadFailed.value = true
 }
 
-async function saveEdit() {
-  if (!auth.user) return
-  clearEditErrors()
-  editSaving.value = true
-
-  try {
-    await auth.csrf()
-
-    const { data } = await http.patch('/profile', {
-      bio: editForm.bio,
-      location: editForm.location,
-    })
-
-    auth.user = {
-      ...data,
-      activity: auth.user?.activity || null,
-    }
-    editMsg.value = 'Profil ulozeny.'
-  } catch (e) {
-    const status = e?.response?.status
-    const data = e?.response?.data
-
-    if (status === 401) {
-      editErr.value = 'Prihlas sa.'
-    } else if (status === 422 && data?.errors) {
-      editFieldErr.bio = extractFirstError(data.errors, 'bio')
-      editFieldErr.location = extractFirstError(data.errors, 'location')
-      const fallbackFieldError = Object.values(data.errors)
-        .flat()
-        .map((value) => String(value))
-        .find(Boolean)
-      editErr.value = editFieldErr.bio || editFieldErr.location || fallbackFieldError || 'Skontroluj polia.'
-    } else {
-      editErr.value = data?.message || 'Ulozenie zlyhalo.'
-    }
-  } finally {
-    editSaving.value = false
-  }
-}
-
 async function copyProfileLink() {
   const url = `${window.location.origin}/profile`
   try {
@@ -1284,16 +1267,34 @@ async function loadCounts() {
 
       const total = Number.isFinite(data?.total) ? data.total : data?.data?.length || 0
       stats[k.key] = String(total)
-      tabState[k.key].total = String(total)
+      if (tabState[k.key]) {
+        tabState[k.key].total = String(total)
+      }
     } catch (e) {
       if (e?.response?.status === 401) {
         stats[k.key] = '--'
-        tabState[k.key].total = '--'
+        if (tabState[k.key]) {
+          tabState[k.key].total = '--'
+        }
       } else {
         stats[k.key] = '--'
-        tabState[k.key].total = '--'
+        if (tabState[k.key]) {
+          tabState[k.key].total = '--'
+        }
       }
     }
+  }
+
+  try {
+    const { data } = await listObservations({
+      mine: 1,
+      page: 1,
+      per_page: 1,
+    })
+    const total = Number.isFinite(data?.total) ? data.total : data?.data?.length || 0
+    tabState.observations.total = String(total)
+  } catch {
+    tabState.observations.total = '--'
   }
 }
 
@@ -1312,6 +1313,29 @@ async function loadTab(key, reset = true) {
   state.err = ''
 
   try {
+    if (tab.kind === 'observations') {
+      const page = reset ? 1 : Number(state.next || 0)
+      if (!page) return
+
+      const { data } = await listObservations({
+        mine: 1,
+        page,
+        per_page: 10,
+      })
+
+      const rows = Array.isArray(data?.data) ? data.data : []
+      state.items = reset
+        ? mergeUniqueById([], rows)
+        : mergeUniqueById(state.items, rows)
+
+      const currentPage = Number(data?.current_page || page)
+      const lastPage = Number(data?.last_page || currentPage)
+      state.next = currentPage < lastPage ? currentPage + 1 : null
+      state.total = Number.isFinite(data?.total) ? String(data.total) : state.total
+      state.loaded = true
+      return
+    }
+
     if (tab.kind === 'likes') {
       state.items = []
       state.next = null
@@ -1370,18 +1394,19 @@ watch(
 )
 
 watch(
-  () => route.query?.edit,
-  () => {
-    openEditFromRoute()
-  }
-)
-
-watch(
   () => eventFollows.revision,
   () => {
     if (!auth.user || activeTab.value !== 'events' || !tabState.events.loaded) return
     tabState.events.loaded = false
     loadTab('events', true)
+  }
+)
+
+watch(
+  () => auth.user?.id,
+  (nextUserId, prevUserId) => {
+    if (nextUserId === prevUserId) return
+    resetObservationTabState()
   }
 )
 
@@ -1427,7 +1452,6 @@ onMounted(async () => {
   if (auth.user) {
     syncAvatarDraftFromUser()
     logAvatarProfileState('mounted-with-user')
-    openEditFromRoute()
     loadPinned()
     await loadCounts()
     await loadTab(activeTab.value, true)
@@ -1649,6 +1673,23 @@ onBeforeUnmount(() => {
   font-size: 0.84rem;
 }
 .metaItem { white-space: nowrap; }
+.metaActionBtn {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.metaActionBtn:hover {
+  text-decoration: underline;
+}
+.btn.metaSetupBtn {
+  min-height: 30px;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.78rem;
+}
 
 .avatarCardTitle {
   margin: 0;
@@ -1997,12 +2038,28 @@ onBeforeUnmount(() => {
   flex: 1;
   min-width: 0;
 }
+
+.tabCount {
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.12rem 0.42rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--text-secondary-rgb) / 0.3);
+  color: var(--text-secondary);
+}
+
 .tab.active {
   border-bottom-color: var(--primary);
   color: var(--text-primary);
 }
 
 .padTop { margin-top: 0.75rem; }
+
+.observationsList {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.85rem;
+}
 
 .eventGrid {
   display: grid;
@@ -2266,3 +2323,4 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+

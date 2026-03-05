@@ -372,6 +372,128 @@
             </div>
           </div>
         </div>
+        <div v-else-if="item.key === 'notifications'" ref="notificationsWrapperRef" class="relative">
+          <button
+            type="button"
+            :title="item.title || item.label"
+            :aria-label="item.label"
+            :aria-expanded="isNotificationsOpen ? 'true' : 'false'"
+            aria-haspopup="menu"
+            aria-controls="notifications-menu"
+            data-testid="notifications-trigger"
+            :data-active="isPrimaryLinkActive(item, isActive, isExactActive) ? 'true' : 'false'"
+            :class="[
+              'navItem group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[0.875rem] font-bold tracking-[0.01em] !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
+              isPrimaryLinkActive(item, isActive, isExactActive) || isNotificationsOpen
+                ? `active bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_30px_rgb(var(--color-bg-rgb)/0.35)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                : 'text-[var(--color-surface)]',
+            ]"
+            @click="toggleNotificationsDropdown"
+          >
+            <span
+              class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.7rem] font-bold uppercase text-[var(--color-surface)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
+              aria-hidden="true"
+            >
+              <component
+                v-if="item.iconOutline && item.iconFilled"
+                :is="isPrimaryLinkActive(item, isActive, isExactActive) ? item.iconFilled : item.iconOutline"
+              />
+              <span v-else>{{ item.icon }}</span>
+            </span>
+            <span class="navLabel flex-1 font-bold">{{ item.label }}</span>
+            <span
+              v-if="item.badge"
+              class="notificationBadge rounded-full bg-[color:rgb(var(--color-bg-rgb)/0.55)] px-2 py-0.5 text-[0.65rem] font-semibold text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)]"
+              :class="{ 'notificationBadge--ping': shouldAnimateUnreadBadge }"
+            >
+              {{ item.badge }}
+            </span>
+          </button>
+
+          <div
+            v-if="isNotificationsOpen"
+            id="notifications-menu"
+            class="absolute left-0 top-full z-50 mt-2 w-[21rem] max-w-[calc(100vw-2rem)] rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.94)] p-2 backdrop-blur-md ring-1 ring-[color:rgb(var(--color-text-secondary-rgb)/0.18)] shadow-[0_18px_55px_rgb(0_0_0/0.55)]"
+            role="menu"
+            aria-label="Notifikacie"
+            data-testid="notifications-dropdown"
+          >
+            <div v-if="dropdownLoading" class="space-y-2 p-2" data-testid="notifications-dropdown-loading">
+              <div
+                v-for="index in 3"
+                :key="`notification-dropdown-skeleton-${index}`"
+                class="h-12 animate-pulse rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.68)]"
+              ></div>
+            </div>
+
+            <div v-else-if="dropdownError" class="rounded-xl p-3 text-center" data-testid="notifications-dropdown-error">
+              <p class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.95)]">{{ dropdownError }}</p>
+              <button
+                type="button"
+                class="mt-3 rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.24)] px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-wide text-[var(--color-surface)] transition hover:border-[color:rgb(var(--color-text-secondary-rgb)/0.4)]"
+                data-testid="notifications-dropdown-retry"
+                @click="retryNotificationsDropdown"
+              >
+                Skusit znova
+              </button>
+            </div>
+
+            <div
+              v-else-if="dropdownItems.length === 0"
+              class="rounded-xl p-4 text-center text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]"
+              data-testid="notifications-dropdown-empty"
+            >
+              Zatial ziadne notifikacie.
+            </div>
+
+            <div v-else class="max-h-80 space-y-1 overflow-y-auto pr-1">
+              <button
+                v-for="dropdownItem in dropdownItems"
+                :key="`notification-dropdown-${dropdownItem.id}`"
+                type="button"
+                class="group flex w-full items-start gap-2 rounded-xl px-2 py-2 text-left transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+                data-testid="notifications-dropdown-item"
+                @click="openNotificationFromDropdown(dropdownItem)"
+              >
+                <span
+                  class="mt-1 h-2 w-2 shrink-0 rounded-full"
+                  :class="dropdownItem.read_at ? 'bg-transparent border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)]' : 'bg-[var(--color-surface)] shadow-[0_0_6px_rgb(var(--color-surface-rgb)/0.45)]'"
+                ></span>
+                <span class="min-w-0 flex-1">
+                  <span class="dropdownNotificationTitle block text-[0.78rem] font-semibold text-[var(--color-surface)]">
+                    {{ formatNotificationTitle(dropdownItem) }}
+                  </span>
+                  <span class="dropdownNotificationSubtitle mt-0.5 block text-[0.72rem] text-[color:rgb(var(--color-text-secondary-rgb)/0.95)]">
+                    {{ formatNotificationSubtitle(dropdownItem) }}
+                  </span>
+                </span>
+                <span class="shrink-0 text-[0.66rem] text-[color:rgb(var(--color-text-secondary-rgb)/0.82)]">
+                  {{ formatNotificationTime(dropdownItem) }}
+                </span>
+              </button>
+            </div>
+
+            <div class="mt-2 border-t border-[color:rgb(var(--color-text-secondary-rgb)/0.16)] pt-2">
+              <button
+                v-if="hasUnreadInDropdown"
+                type="button"
+                class="mb-2 block w-full rounded-xl px-2 py-2 text-left text-[0.72rem] font-semibold uppercase tracking-wide text-[var(--color-surface)] transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)]"
+                data-testid="notifications-dropdown-mark-all"
+                @click="markAllNotificationsRead"
+              >
+                Oznacit vsetko ako precitane
+              </button>
+              <button
+                type="button"
+                class="block w-full rounded-xl px-2 py-2 text-left text-[0.72rem] font-semibold uppercase tracking-wide text-[var(--color-surface)] transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)]"
+                data-testid="notifications-dropdown-all"
+                @click="goToNotificationsPage"
+              >
+                Zobrazit vsetky
+              </button>
+            </div>
+          </div>
+        </div>
         <a
           v-else
           :href="href"
@@ -407,37 +529,114 @@
         </a>
       </RouterLink>
     </div>
-
-    <button
-      v-if="auth.isAuthed"
-      type="button"
-      class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-blue-600 px-6 text-[0.875rem] font-medium text-white shadow-sm transition-all duration-200 hover:bg-blue-700 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
-      aria-label="Nový príspevok"
-      @click="openComposer"
-    >
-      <svg
-        class="h-5 w-5"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
+    <div v-if="auth.isAuthed" ref="createPickerWrapperRef" class="relative">
+      <button
+        type="button"
+        class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-blue-600 px-6 text-[0.875rem] font-medium text-white shadow-sm transition-all duration-200 hover:bg-blue-700 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+        aria-label="Nový obsah"
+        aria-haspopup="menu"
+        :aria-expanded="isCreatePickerOpen ? 'true' : 'false'"
+        aria-controls="create-content-menu"
+        data-testid="create-content-trigger"
+        @click="toggleCreatePicker"
       >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="1.8"
-          d="M16.862 4.487a2.1 2.1 0 1 1 2.971 2.971L8.25 19.04 4 20l.959-4.25 11.903-11.263zM19.5 14.25v4.125A1.625 1.625 0 0 1 17.875 20H5.625A1.625 1.625 0 0 1 4 18.375V6.125A1.625 1.625 0 0 1 5.625 4.5H9.75"
-        />
-      </svg>
-      <span class="navLabel">Nový príspevok</span>
-    </button>
+        <svg
+          class="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.8"
+            d="M16.862 4.487a2.1 2.1 0 1 1 2.971 2.971L8.25 19.04 4 20l.959-4.25 11.903-11.263zM19.5 14.25v4.125A1.625 1.625 0 0 1 17.875 20H5.625A1.625 1.625 0 0 1 4 18.375V6.125A1.625 1.625 0 0 1 5.625 4.5H9.75"
+          />
+        </svg>
+        <span class="navLabel">Nový obsah</span>
+      </button>
 
+      <div
+        v-if="isCreatePickerOpen"
+        id="create-content-menu"
+        class="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.94)] p-2 backdrop-blur-md ring-1 ring-[color:rgb(var(--color-text-secondary-rgb)/0.18)] shadow-[0_18px_55px_rgb(0_0_0/0.55)]"
+        role="menu"
+        aria-label="Nový obsah"
+      >
+        <button
+          type="button"
+          class="createPickerItem"
+          role="menuitem"
+          data-create-type="post"
+          @click="selectCreateType('post')"
+        >
+          <span class="createPickerIcon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span>Príspevok</span>
+        </button>
+
+        <button
+          type="button"
+          class="createPickerItem"
+          role="menuitem"
+          data-create-type="observation"
+          @click="selectCreateType('observation')"
+        >
+          <span class="createPickerIcon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M7.5 4.75h5l4 4v10.5a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-13.5a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+              <path d="M12.5 4.75v4h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9.5 12h5M12 9.5v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span>Pozorovanie</span>
+        </button>
+
+        <button
+          type="button"
+          class="createPickerItem"
+          role="menuitem"
+          data-create-type="poll"
+          @click="selectCreateType('poll')"
+        >
+          <span class="createPickerIcon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <circle cx="8" cy="7" r="1.2" fill="currentColor"/>
+              <circle cx="16" cy="12" r="1.2" fill="currentColor"/>
+              <circle cx="11" cy="17" r="1.2" fill="currentColor"/>
+            </svg>
+          </span>
+          <span>Anketa</span>
+        </button>
+
+        <button
+          type="button"
+          class="createPickerItem"
+          role="menuitem"
+          data-create-type="event"
+          @click="selectCreateType('event')"
+        >
+          <span class="createPickerIcon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7"/>
+              <path d="M8 3.5v3M16 3.5v3M3.5 9.5h17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span>Udalosť</span>
+        </button>
+      </div>
+    </div>
   </nav>
 </template>
 
 <script setup>
 import { computed, defineComponent, h, ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useBadgeAnimateOnIncrease } from '@/composables/useBadgeAnimateOnIncrease'
@@ -445,6 +644,7 @@ import { useBadgeAnimateOnIncrease } from '@/composables/useBadgeAnimateOnIncrea
 const auth = useAuthStore()
 const notifications = useNotificationsStore()
 const route = useRoute()
+const router = useRouter()
 const { showBrandLogo } = defineProps({
   showBrandLogo: {
     type: Boolean,
@@ -456,8 +656,19 @@ const isMoreOpen = ref(false)
 const moreWrapperRef = ref(null)
 const isAdminOpen = ref(false)
 const adminWrapperRef = ref(null)
+const isNotificationsOpen = ref(false)
+const notificationsWrapperRef = ref(null)
+const isCreatePickerOpen = ref(false)
+const createPickerWrapperRef = ref(null)
 const unreadCount = computed(() => Number(notifications.unreadCount || 0))
 const unreadCountHydrated = computed(() => Boolean(notifications.unreadCountHydrated))
+const dropdownItems = computed(() => {
+  const source = Array.isArray(notifications.latestItems) ? notifications.latestItems : []
+  return source.slice(0, 10)
+})
+const dropdownLoading = computed(() => Boolean(notifications.latestLoading))
+const dropdownError = computed(() => String(notifications.latestError || ''))
+const hasUnreadInDropdown = computed(() => dropdownItems.value.some((item) => !item?.read_at))
 const { shouldAnimate: shouldAnimateUnreadBadge } = useBadgeAnimateOnIncrease(unreadCount, {
   readyRef: unreadCountHydrated,
 })
@@ -720,6 +931,8 @@ const isPrimaryLinkActive = (item, isActive, isExactActive) => {
 }
 
 const toggleMore = () => {
+  closeNotifications()
+  closeCreatePicker()
   isMoreOpen.value = !isMoreOpen.value
 }
 
@@ -728,11 +941,157 @@ const closeMore = () => {
 }
 
 const toggleAdmin = () => {
+  closeNotifications()
+  closeCreatePicker()
   isAdminOpen.value = !isAdminOpen.value
 }
 
 const closeAdmin = () => {
   isAdminOpen.value = false
+}
+
+const closeNotifications = () => {
+  isNotificationsOpen.value = false
+}
+
+const toggleNotificationsDropdown = async () => {
+  closeMore()
+  closeAdmin()
+  closeCreatePicker()
+  isNotificationsOpen.value = !isNotificationsOpen.value
+
+  if (isNotificationsOpen.value) {
+    await notifications.fetchLatest(10)
+  }
+}
+
+const retryNotificationsDropdown = async () => {
+  await notifications.fetchLatest(10, { force: true })
+}
+
+const goToNotificationsPage = async () => {
+  closeNotifications()
+  await router.push('/notifications')
+}
+
+const markAllNotificationsRead = async () => {
+  await notifications.markAllRead()
+}
+
+const openNotificationFromDropdown = async (item) => {
+  if (!item) return
+
+  if (!item.read_at) {
+    await notifications.markRead(item.id)
+  }
+
+  closeNotifications()
+  const fallback = '/notifications'
+  const targetUrl = String(item?.target?.url || '').trim()
+  const destination = targetUrl || fallback
+
+  try {
+    await router.push(destination)
+  } catch {
+    await router.push(fallback)
+  }
+}
+
+const formatNotificationTitle = (item) => {
+  if (!item) return 'Notifikacia'
+
+  if (item.type === 'post_liked') {
+    const name = item.data?.actor_name || item.data?.actor_username || 'Niekto'
+    return `${name} liked your post`
+  }
+  if (item.type === 'event_reminder') {
+    return 'Upcoming event reminder'
+  }
+  if (item.type === 'contest_winner') {
+    return 'You won the contest'
+  }
+  if (item.type === 'event_invite') {
+    return 'You received an event invite'
+  }
+  if (item.type === 'event_invite_response') {
+    return 'Invite response'
+  }
+  if (item.type === 'account_restricted') {
+    return 'Account restricted'
+  }
+  if (item.type === 'iss_pass_alert') {
+    return 'ISS pass soon'
+  }
+  if (item.type === 'good_conditions_alert') {
+    return 'Great observing conditions'
+  }
+  return 'Notification'
+}
+
+const formatNotificationSubtitle = (item) => {
+  if (!item) return 'New update'
+
+  if (item.type === 'post_liked') {
+    const username = item.data?.actor_username ? `@${item.data.actor_username}` : ''
+    return username || 'Community activity'
+  }
+  if (item.type === 'event_reminder') {
+    return item.data?.event_title || 'Event starts soon'
+  }
+  if (item.type === 'contest_winner') {
+    return item.data?.contest_name || 'Contest winner'
+  }
+  if (item.type === 'event_invite') {
+    const inviter = item.data?.actor_name || item.data?.actor_username
+    const title = item.data?.event_title
+    if (inviter && title) return `${inviter} invited you to ${title}`
+    if (inviter) return `${inviter} invited you to an event`
+    return title || 'You were invited to an event'
+  }
+  if (item.type === 'event_invite_response') {
+    const actor = item.data?.actor_name || item.data?.actor_username
+    const status = String(item.data?.response_status || '').toLowerCase()
+    if (actor && status) return `${actor}: ${status}`
+    if (actor) return `${actor} replied to your invite`
+    return 'Invite response'
+  }
+  if (item.type === 'account_restricted') {
+    return item.data?.reason || 'Contact support for details.'
+  }
+  if (item.type === 'iss_pass_alert') {
+    return item.data?.next_pass_at ? `Next pass: ${formatClock(item.data.next_pass_at)}` : 'A pass is coming soon.'
+  }
+  if (item.type === 'good_conditions_alert') {
+    const score = Number(item.data?.observing_score)
+    return Number.isFinite(score) ? `Observing score ${Math.round(score)}/100.` : 'Sky conditions look strong tonight.'
+  }
+  return 'New update'
+}
+
+const formatNotificationTime = (item) => {
+  const createdHuman = String(item?.created_human || '').trim()
+  if (createdHuman) return createdHuman
+
+  return formatRelativeTime(item?.created_at)
+}
+
+const formatRelativeTime = (iso) => {
+  if (!iso) return ''
+  const created = new Date(iso)
+  if (Number.isNaN(created.getTime())) return ''
+  const diffMs = Date.now() - created.getTime()
+  const minutes = Math.floor(diffMs / 60000)
+  if (minutes < 60) return `${Math.max(minutes, 1)}m`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h`
+  return created.toLocaleDateString('sk-SK')
+}
+
+const formatClock = (iso) => {
+  if (!iso) return ''
+  const value = new Date(iso)
+  if (Number.isNaN(value.getTime())) return ''
+  return value.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 const firstElementRef = (value) => {
@@ -744,6 +1103,8 @@ const handleClickOutside = (event) => {
   const target = event.target
   const wrapper = firstElementRef(moreWrapperRef.value)
   const adminWrapper = firstElementRef(adminWrapperRef.value)
+  const notificationsWrapper = firstElementRef(notificationsWrapperRef.value)
+  const createPickerWrapper = firstElementRef(createPickerWrapperRef.value)
 
   if (isMoreOpen.value && wrapper instanceof Element && target instanceof Node && !wrapper.contains(target)) {
     closeMore()
@@ -751,21 +1112,72 @@ const handleClickOutside = (event) => {
   if (isAdminOpen.value && adminWrapper instanceof Element && target instanceof Node && !adminWrapper.contains(target)) {
     closeAdmin()
   }
+  if (
+    isNotificationsOpen.value
+    && notificationsWrapper instanceof Element
+    && target instanceof Node
+    && !notificationsWrapper.contains(target)
+  ) {
+    closeNotifications()
+  }
+  if (isCreatePickerOpen.value && createPickerWrapper instanceof Element && target instanceof Node && !createPickerWrapper.contains(target)) {
+    closeCreatePicker()
+  }
 }
 
 const handleKeydown = (event) => {
   if (event.key === 'Escape') {
     if (isMoreOpen.value) closeMore()
     if (isAdminOpen.value) closeAdmin()
+    if (isNotificationsOpen.value) closeNotifications()
+    if (isCreatePickerOpen.value) closeCreatePicker()
   }
 }
 
-const openComposer = () => {
+const openComposer = (action = 'post') => {
   closeMore()
   closeAdmin()
+  closeNotifications()
+  closeCreatePicker()
 
   if (typeof window === 'undefined') return
-  window.dispatchEvent(new CustomEvent('post:composer:open'))
+  window.dispatchEvent(new CustomEvent('post:composer:open', {
+    detail: {
+      action,
+    },
+  }))
+}
+
+const closeCreatePicker = () => {
+  isCreatePickerOpen.value = false
+}
+
+const toggleCreatePicker = () => {
+  closeMore()
+  closeAdmin()
+  closeNotifications()
+  isCreatePickerOpen.value = !isCreatePickerOpen.value
+}
+
+const selectCreateType = async (type) => {
+  closeCreatePicker()
+
+  if (type === 'observation') {
+    await router.push('/observations/new')
+    return
+  }
+
+  if (type === 'poll') {
+    openComposer('poll')
+    return
+  }
+
+  if (type === 'event') {
+    openComposer('event')
+    return
+  }
+
+  openComposer('post')
 }
 
 onMounted(() => {
@@ -782,7 +1194,22 @@ onBeforeUnmount(() => {
 watch(
   () => auth.isAuthed,
   (isAuthed) => {
-    if (isAuthed) notifications.fetchUnreadCount()
+    if (isAuthed) {
+      notifications.fetchUnreadCount()
+      return
+    }
+
+    closeNotifications()
+  }
+)
+
+watch(
+  () => route.fullPath,
+  () => {
+    closeMore()
+    closeAdmin()
+    closeNotifications()
+    closeCreatePicker()
   }
 )
 </script>
@@ -845,6 +1272,63 @@ watch(
   animation: badge-pulse 650ms ease-out;
 }
 
+.dropdownNotificationTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdownNotificationSubtitle {
+  display: -webkit-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.createPickerItem {
+  width: 100%;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  border-radius: 0.75rem;
+  background: rgb(var(--color-bg-rgb) / 0.45);
+  color: var(--color-surface);
+  min-height: 2.25rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+}
+
+.createPickerItem + .createPickerItem {
+  margin-top: 0.3rem;
+}
+
+.createPickerItem:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.5);
+  background: rgb(var(--color-bg-rgb) / 0.62);
+}
+
+.createPickerItem:focus-visible {
+  outline: 2px solid rgb(var(--color-primary-rgb) / 0.75);
+  outline-offset: 1px;
+}
+
+.createPickerIcon {
+  width: 1rem;
+  height: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.createPickerIcon svg {
+  width: 100%;
+  height: 100%;
+}
+
 @keyframes badge-bounce {
   0% {
     transform: scale(0.95);
@@ -885,5 +1369,6 @@ watch(
   }
 }
 </style>
+
 
 

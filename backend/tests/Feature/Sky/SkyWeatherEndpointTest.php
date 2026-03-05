@@ -33,6 +33,7 @@ class SkyWeatherEndpointTest extends TestCase
                 'wind_unit',
                 'humidity_percent',
                 'observing_score',
+                'updated_at',
                 'as_of',
                 'source',
             ])
@@ -44,7 +45,9 @@ class SkyWeatherEndpointTest extends TestCase
         $this->assertIsInt($response->json('observing_score'));
         $this->assertGreaterThanOrEqual(0, $response->json('observing_score'));
         $this->assertLessThanOrEqual(100, $response->json('observing_score'));
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T.*[+-]\d{2}:\d{2}$/', (string) $response->json('updated_at'));
         $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}T.*[+-]\d{2}:\d{2}$/', (string) $response->json('as_of'));
+        $this->assertSame($response->json('updated_at'), $response->json('as_of'));
     }
 
     public function test_it_caches_weather_payload(): void
@@ -65,7 +68,79 @@ class SkyWeatherEndpointTest extends TestCase
         $this->assertSame($first->json('cloud_percent'), $second->json('cloud_percent'));
         $this->assertSame($first->json('humidity_percent'), $second->json('humidity_percent'));
         $this->assertSame($first->json('observing_score'), $second->json('observing_score'));
+        $this->assertSame($first->json('updated_at'), $second->json('updated_at'));
         Http::assertSentCount(1);
+    }
+
+    public function test_it_prefers_current_temperature_over_hourly_values_for_current_conditions(): void
+    {
+        Cache::flush();
+
+        Http::fake([
+            'https://api.open-meteo.com/*' => Http::response($this->openMeteoPayload(
+                cloud: 3,
+                humidity: 42,
+                wind: 12.4,
+                currentTemperature: 11.1,
+                hourlyTemperatures: [28.4, 27.9]
+            ), 200),
+        ]);
+
+        $response = $this->getJson('/api/sky/weather?lat=48.3064&lon=18.0764&tz=Europe/Bratislava')
+            ->assertOk();
+
+        $this->assertSame(11.1, $response->json('temperature_c'));
+    }
+
+    public function test_weather_cache_is_isolated_by_coordinates(): void
+    {
+        Cache::flush();
+
+        Http::fake([
+            'https://api.open-meteo.com/*' => Http::sequence()
+                ->push($this->openMeteoPayload(cloud: 5, humidity: 40, wind: 8.0, currentTemperature: 11.0), 200)
+                ->push($this->openMeteoPayload(cloud: 90, humidity: 90, wind: 30.0, currentTemperature: 22.0), 200),
+        ]);
+
+        $first = $this->getJson('/api/sky/weather?lat=48.3064&lon=18.0764&tz=Europe/Bratislava')->assertOk();
+        $second = $this->getJson('/api/sky/weather?lat=48.3064&lon=18.1764&tz=Europe/Bratislava')->assertOk();
+
+        $this->assertNotSame($first->json('temperature_c'), $second->json('temperature_c'));
+        Http::assertSentCount(2);
+    }
+
+    public function test_weather_cache_key_contains_coordinates_and_provider_suffix(): void
+    {
+        Cache::shouldReceive('remember')
+            ->once()
+            ->withArgs(function ($key, $ttl, $resolver): bool {
+                $this->assertStringContainsString('sky_weather', $key);
+                $this->assertStringContainsString('48.306400', $key);
+                $this->assertStringContainsString('18.076400', $key);
+                $this->assertStringContainsString('Europe/Bratislava', $key);
+                $this->assertStringEndsWith(':open_meteo', $key);
+                $this->assertIsCallable($resolver);
+
+                return true;
+            })
+            ->andReturn([
+                'cloud_percent' => 0,
+                'wind_speed' => 12.4,
+                'wind_unit' => 'km/h',
+                'humidity_percent' => 42,
+                'temperature_c' => 11.1,
+                'apparent_temperature_c' => 7.0,
+                'weather_code' => 0,
+                'weather_label' => 'Jasno',
+                'observing_score' => 82,
+                'updated_at' => '2026-03-05T10:30:00+01:00',
+                'as_of' => '2026-03-05T10:30:00+01:00',
+                'source' => 'open_meteo',
+            ]);
+
+        $this->getJson('/api/sky/weather?lat=48.3064&lon=18.0764&tz=Europe/Bratislava')
+            ->assertOk()
+            ->assertJsonPath('source', 'open_meteo');
     }
 
     public function test_it_uses_user_canonical_location_when_query_coordinates_are_missing(): void
@@ -100,14 +175,21 @@ class SkyWeatherEndpointTest extends TestCase
         });
     }
 
-    private function openMeteoPayload(int $cloud, int $humidity, float $wind): array
+    private function openMeteoPayload(
+        int $cloud,
+        int $humidity,
+        float $wind,
+        float $currentTemperature = 2.8,
+        array $hourlyTemperatures = [2.8, 2.8]
+    ): array
     {
         return [
             'current' => [
+                'time' => '2026-02-27T19:30',
                 'relative_humidity_2m' => $humidity,
                 'cloud_cover' => $cloud,
                 'wind_speed_10m' => $wind,
-                'temperature_2m' => 2.8,
+                'temperature_2m' => $currentTemperature,
                 'apparent_temperature' => 1.3,
                 'weather_code' => 2,
             ],
@@ -119,6 +201,7 @@ class SkyWeatherEndpointTest extends TestCase
                 'relative_humidity_2m' => [$humidity, $humidity],
                 'cloud_cover' => [$cloud, $cloud],
                 'wind_speed_10m' => [$wind, $wind],
+                'temperature_2m' => $hourlyTemperatures,
             ],
         ];
     }

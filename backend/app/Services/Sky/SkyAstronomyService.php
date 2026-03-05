@@ -22,6 +22,7 @@ class SkyAstronomyService
      *   sunset_at:?string,
      *   civil_twilight_end_at:?string,
      *   sun_altitude_deg:?float,
+     *   moon_altitude_deg:?float,
      *   sample_at:?string,
      *   moonrise_at:?string,
      *   moonset_at:?string
@@ -35,6 +36,7 @@ class SkyAstronomyService
         $moonrise = null;
         $moonset = null;
         $sunAltitude = null;
+        $moonAltitude = null;
         $sampleAt = null;
 
         try {
@@ -48,6 +50,7 @@ class SkyAstronomyService
             );
             $sunAltitude = $this->normalizeSunAltitude($skyPayload['sun_altitude_deg'] ?? null);
             $sampleAt = $this->normalizeSampleAt($skyPayload['sample_at'] ?? null, $tz);
+            $moonAltitude = $this->resolveMoonAltitude($moonPayload['altitude_hourly'] ?? null, $sampleAt, $tz);
         } catch (\Throwable) {
             // Moonrise/moonset are optional; keep them null when microservice is unavailable.
         }
@@ -71,6 +74,7 @@ class SkyAstronomyService
             'sunset_at' => $sunset,
             'civil_twilight_end_at' => $civilTwilightEnd,
             'sun_altitude_deg' => $sunAltitude,
+            'moon_altitude_deg' => $moonAltitude,
             'sample_at' => $sampleAt,
             'moonrise_at' => $moonrise,
             'moonset_at' => $moonset,
@@ -148,6 +152,56 @@ class SkyAstronomyService
         }
 
         return round(max(-90.0, min(90.0, (float) $value)), 1);
+    }
+
+    private function resolveMoonAltitude(mixed $hourlyPayload, ?string $sampleAt, string $tz): ?float
+    {
+        if (!is_array($hourlyPayload) || $hourlyPayload === []) {
+            return null;
+        }
+
+        $targetMinutes = $this->resolveTargetMinutes($sampleAt, $tz);
+        $bestAltitude = null;
+        $bestDelta = null;
+
+        foreach ($hourlyPayload as $point) {
+            if (!is_array($point)) {
+                continue;
+            }
+
+            $time = trim((string) ($point['local_time'] ?? ''));
+            if (!preg_match('/^\d{2}:\d{2}$/', $time)) {
+                continue;
+            }
+
+            if (!is_numeric($point['altitude_deg'] ?? null)) {
+                continue;
+            }
+
+            [$hours, $minutes] = array_map('intval', explode(':', $time, 2));
+            $pointMinutes = ($hours * 60) + $minutes;
+            $delta = abs($pointMinutes - $targetMinutes);
+
+            if ($bestDelta === null || $delta < $bestDelta) {
+                $bestDelta = $delta;
+                $bestAltitude = round(max(-90.0, min(90.0, (float) $point['altitude_deg'])), 1);
+            }
+        }
+
+        return $bestAltitude;
+    }
+
+    private function resolveTargetMinutes(?string $sampleAt, string $tz): int
+    {
+        try {
+            $target = $sampleAt
+                ? CarbonImmutable::parse($sampleAt, $tz)->setTimezone($tz)
+                : CarbonImmutable::now($tz);
+        } catch (\Throwable) {
+            $target = CarbonImmutable::now($tz);
+        }
+
+        return ($target->hour * 60) + $target->minute;
     }
 
     private function normalizeSampleAt(mixed $value, string $tz): ?string

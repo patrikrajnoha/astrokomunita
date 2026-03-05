@@ -47,6 +47,11 @@ class MediaStorageService
         return $this->storePublicly($file, sprintf('blog-covers/%d', $userId));
     }
 
+    public function storeObservationImage(UploadedFile $file, int $observationId): string
+    {
+        return $this->storePublicly($file, sprintf('observations/%d/images', $observationId));
+    }
+
     public function delete(?string $path, ?string $diskName = null): void
     {
         if (!$path) {

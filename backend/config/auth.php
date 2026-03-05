@@ -129,6 +129,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Legacy Plaintext Password Fallback
+    |--------------------------------------------------------------------------
+    |
+    | Legacy plaintext/hash fallback is disabled by default. It is intended
+    | only for controlled migrations in local/testing unless explicitly
+    | allowed for non-local environments.
+    |
+    */
+    'legacy_plaintext_enabled' => filter_var(
+        env('AUTH_LEGACY_PLAINTEXT_ENABLED', false),
+        FILTER_VALIDATE_BOOLEAN
+    ),
+    'legacy_plaintext_allow_non_local' => filter_var(
+        env('AUTH_LEGACY_PLAINTEXT_ALLOW_NON_LOCAL', false),
+        FILTER_VALIDATE_BOOLEAN
+    ),
+
+    /*
+    |--------------------------------------------------------------------------
     | Username Rules
     |--------------------------------------------------------------------------
     */

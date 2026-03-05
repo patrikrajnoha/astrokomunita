@@ -149,6 +149,11 @@ class Event extends Model
         return $this->hasMany(Favorite::class);
     }
 
+    public function observations(): HasMany
+    {
+        return $this->hasMany(Observation::class);
+    }
+
     public function followers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, EventFollowTable::resolve())

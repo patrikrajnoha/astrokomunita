@@ -39,6 +39,7 @@ class SkyAstronomyEndpointTest extends TestCase
                 'sunrise_at',
                 'sunset_at',
                 'sun_altitude_deg',
+                'moon_altitude_deg',
                 'sample_at',
                 'moonrise_at',
                 'moonset_at',
@@ -46,6 +47,7 @@ class SkyAstronomyEndpointTest extends TestCase
             ->assertJsonPath('moon_phase', 'waning_crescent')
             ->assertJsonPath('moon_illumination_percent', 78)
             ->assertJsonPath('sun_altitude_deg', -42.4)
+            ->assertJsonPath('moon_altitude_deg', null)
             ->assertJsonPath('sample_at', '2026-02-27T00:00:00+01:00');
 
         $this->assertNullableIso8601($response->json('sunrise_at'));
@@ -101,6 +103,34 @@ class SkyAstronomyEndpointTest extends TestCase
             parse_str(parse_url($request->url(), PHP_URL_QUERY) ?: '', $query);
             return ($query['tz'] ?? null) === 'Europe/Prague';
         });
+    }
+
+    public function test_it_maps_current_moon_altitude_from_sky_microservice_hourly_payload(): void
+    {
+        Cache::flush();
+        config()->set('observing.sky_summary.microservice_base', 'http://sky.test');
+
+        Http::fake([
+            'https://aa.usno.navy.mil/*' => Http::response($this->usnoPayload('Waxing Crescent', '25%'), 200),
+            'http://sky.test/sky-summary*' => Http::response([
+                'moon' => [
+                    'rise_local' => '10:10',
+                    'set_local' => '23:59',
+                    'altitude_hourly' => [
+                        ['local_time' => '19:00', 'altitude_deg' => 5.1],
+                        ['local_time' => '20:00', 'altitude_deg' => 12.4],
+                        ['local_time' => '21:00', 'altitude_deg' => 20.0],
+                    ],
+                ],
+                'sample_at' => '2026-02-27T20:05:00+01:00',
+                'sun_altitude_deg' => -20.1,
+                'planets' => [],
+            ], 200),
+        ]);
+
+        $this->getJson('/api/sky/astronomy?lat=48.1486&lon=17.1077&tz=Europe/Bratislava')
+            ->assertOk()
+            ->assertJsonPath('moon_altitude_deg', 12.4);
     }
 
     private function assertNullableIso8601(mixed $value): void

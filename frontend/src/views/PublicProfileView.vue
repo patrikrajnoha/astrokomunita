@@ -81,7 +81,18 @@
         </div>
 
         <div v-else-if="!tabState[activeTab].loading && tabState[activeTab].items.length === 0" class="muted padTop">
-          Zatial ziadny obsah.
+          {{ activeTab === 'observations' ? 'Zatial ziadne pozorovania.' : 'Zatial ziadny obsah.' }}
+        </div>
+
+        <div v-else-if="activeTab === 'observations'" class="observationsList">
+          <ObservationCard
+            v-for="item in tabState.observations.items"
+            :key="item.id"
+            :observation="item"
+            :clickable="true"
+            :show-author="false"
+            @open="openObservation"
+          />
         </div>
 
         <div v-else class="postList">
@@ -144,8 +155,10 @@
 import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UserAvatar from '@/components/UserAvatar.vue'
+import ObservationCard from '@/components/observations/ObservationCard.vue'
 import HashtagText from '@/components/HashtagText.vue'
 import http from '@/services/api'
+import { listObservations } from '@/services/observations'
 import { formatDateTimeCompact } from '@/utils/dateUtils'
 
 const router = useRouter()
@@ -157,7 +170,7 @@ const err = ref('')
 
 const tabs = [
   { key: 'posts', label: 'Príspevky', kind: 'roots' },
-  { key: 'replies', label: 'Odpovede', kind: 'replies' },
+  { key: 'observations', label: 'Pozorovania', kind: 'observations' },
   { key: 'media', label: 'Médiá', kind: 'media' },
 ]
 
@@ -166,7 +179,7 @@ const activeTab = ref('posts')
 
 const tabState = reactive({
   posts: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
-  replies: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
+  observations: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   media: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
 })
 
@@ -226,6 +239,37 @@ function safeHandle(input) {
   return String(input).toLowerCase().replace(/[^a-z0-9_]+/g, '').slice(0, 20) || 'user'
 }
 
+function mergeUniqueById(existingItems, incomingItems) {
+  const seen = new Set()
+  const merged = []
+
+  const append = (item) => {
+    const id = Number(item?.id || 0)
+    if (!Number.isInteger(id) || id <= 0) {
+      merged.push(item)
+      return
+    }
+    if (seen.has(id)) return
+    seen.add(id)
+    merged.push(item)
+  }
+
+  ;(Array.isArray(existingItems) ? existingItems : []).forEach(append)
+  ;(Array.isArray(incomingItems) ? incomingItems : []).forEach(append)
+
+  return merged
+}
+
+function resetTabState(tabKey) {
+  if (!tabState[tabKey]) return
+  tabState[tabKey].items = []
+  tabState[tabKey].next = null
+  tabState[tabKey].loading = false
+  tabState[tabKey].err = ''
+  tabState[tabKey].total = null
+  tabState[tabKey].loaded = false
+}
+
 function goHome() {
   router.push({ name: 'home' })
 }
@@ -233,6 +277,12 @@ function goHome() {
 function openPost(post) {
   if (!post?.id) return
   router.push(`/posts/${post.id}`)
+}
+
+function openObservation(observation) {
+  const observationId = Number(observation?.id || 0)
+  if (!Number.isInteger(observationId) || observationId <= 0) return
+  router.push(`/observations/${observationId}`)
 }
 
 function setActiveTab(key) {
@@ -306,11 +356,28 @@ async function loadCounts() {
 
       const total = Number.isFinite(data?.total) ? data.total : data?.data?.length || 0
       stats[k.key] = String(total)
-      tabState[k.key].total = String(total)
+      if (tabState[k.key]) {
+        tabState[k.key].total = String(total)
+      }
     } catch {
       stats[k.key] = '--'
-      tabState[k.key].total = '--'
+      if (tabState[k.key]) {
+        tabState[k.key].total = '--'
+      }
     }
+  }
+
+  try {
+    const userId = Number(user.value?.id || 0)
+    if (Number.isInteger(userId) && userId > 0) {
+      const { data } = await listObservations({ user_id: userId, page: 1, per_page: 1 })
+      const total = Number.isFinite(data?.total) ? data.total : data?.data?.length || 0
+      tabState.observations.total = String(total)
+    } else {
+      tabState.observations.total = '--'
+    }
+  } catch {
+    tabState.observations.total = '--'
   }
 }
 
@@ -324,6 +391,32 @@ async function loadTab(key, reset = true) {
   state.err = ''
 
   try {
+    if (tab.kind === 'observations') {
+      const userId = Number(user.value?.id || 0)
+      if (!Number.isInteger(userId) || userId <= 0) return
+
+      const page = reset ? 1 : Number(state.next || 0)
+      if (!page) return
+
+      const { data } = await listObservations({
+        user_id: userId,
+        page,
+        per_page: 10,
+      })
+
+      const rows = Array.isArray(data?.data) ? data.data : []
+      state.items = reset
+        ? mergeUniqueById([], rows)
+        : mergeUniqueById(state.items, rows)
+
+      const currentPage = Number(data?.current_page || page)
+      const lastPage = Number(data?.last_page || currentPage)
+      state.next = currentPage < lastPage ? currentPage + 1 : null
+      state.total = Number.isFinite(data?.total) ? String(data.total) : state.total
+      state.loaded = true
+      return
+    }
+
     const url = reset ? `/users/${username.value}/posts` : state.next
     if (!url) return
 
@@ -364,12 +457,9 @@ watch(
   () => username.value,
   async () => {
     activeTab.value = 'posts'
-    tabState.posts.loaded = false
-    tabState.replies.loaded = false
-    tabState.media.loaded = false
-    tabState.posts.items = []
-    tabState.replies.items = []
-    tabState.media.items = []
+    resetTabState('posts')
+    resetTabState('observations')
+    resetTabState('media')
     await refreshProfile()
   }
 )
@@ -574,6 +664,12 @@ onMounted(async () => {
 }
 
 .padTop { margin-top: 0.75rem; }
+
+.observationsList {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
 
 .postList {
   margin-top: 0.75rem;

@@ -59,6 +59,8 @@ function buildGetResponse(url) {
         observing_score: 85,
         temperature_c: 2.4,
         weather_label: 'Polojasno',
+        updated_at: '2026-02-27T19:25:00+01:00',
+        source: 'open_meteo',
       },
     }
   }
@@ -138,7 +140,7 @@ describe('RightObservingSidebar', () => {
     await wait()
 
     expect(wrapper.text()).toContain('Astronomicke podmienky')
-    expect(wrapper.text()).toContain('😄 Vyborne')
+    expect(wrapper.text()).toContain('Dobre')
   })
 
   it('shows the edit pencil only for admin users', async () => {
@@ -169,10 +171,10 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    const locationButton = wrapper.find('button[title="Zmenit lokalitu"]')
+    const locationButton = wrapper.find('button[title="Zmeniť lokalitu"]')
     await locationButton.trigger('click')
 
-    expect(pushMock).toHaveBeenCalledWith('/profile/edit')
+    expect(pushMock).toHaveBeenCalledWith('/profile/edit#location')
   })
 
   it('shows simplified bortle copy for class 7', async () => {
@@ -246,7 +248,7 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.text()).toContain('Vyborne')
+    expect(wrapper.text()).toContain('/100')
     expect(wrapper.text()).not.toContain('Astronomicky sumrak')
   })
 
@@ -282,6 +284,80 @@ describe('RightObservingSidebar', () => {
     expect(wrapper.text()).toContain('Astronomicky sumrak')
   })
 
+  it('shows N/A score during daylight-gated conditions', async () => {
+    vi.setSystemTime(new Date('2026-07-01T19:00:00+02:00'))
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/astronomy') {
+        return buildAstronomyResponse({
+          sample_at: '2026-07-01T19:00:00+02:00',
+          sun_altitude_deg: -2.0,
+        })
+      }
+      if (url === '/sky/visible-planets') {
+        return {
+          data: {
+            sample_at: '2026-07-01T19:00:00+02:00',
+            sun_altitude_deg: -2.0,
+            planets: [],
+          },
+        }
+      }
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.1486, lon: 17.1077, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('N/A')
+    expect(wrapper.text()).toContain('svetlo')
+  })
+
+  it('retries weather fetch after pressing retry button', async () => {
+    let weatherAttempts = 0
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/weather') {
+        weatherAttempts += 1
+        if (weatherAttempts === 1) {
+          throw new Error('weather unavailable')
+        }
+        return buildGetResponse(url)
+      }
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+    expect(wrapper.text()).toContain('Skúsiť znova')
+
+    const retryButtons = wrapper.findAll('button').filter((button) => button.text().includes('Skúsiť znova'))
+    expect(retryButtons.length).toBeGreaterThan(0)
+    await retryButtons[0].trigger('click')
+    await wait()
+
+    expect(weatherAttempts).toBeGreaterThanOrEqual(2)
+  })
+
+  it('renders score reasons in the expandable "Preco?" panel', async () => {
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+
+    const reasonsToggle = wrapper.findAll('button').find((button) => button.text().includes('Preco?'))
+    expect(reasonsToggle).toBeDefined()
+    await reasonsToggle.trigger('click')
+    await wait()
+
+    expect(wrapper.text()).toContain('Oblacnost')
+  })
+
   it('does not fetch sky data when location is unset and shows location-required state', async () => {
     const wrapper = mount(RightObservingSidebar, {
       props: { lat: null, lon: null, tz: 'Europe/Bratislava', locationName: '' },
@@ -290,7 +366,48 @@ describe('RightObservingSidebar', () => {
     await wait()
 
     expect(getMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Poloha: nenastavena')
-    expect(wrapper.text()).toContain('Poloha nenastavena')
+    expect(wrapper.text()).toContain('Poloha: nenastavená')
+    expect(wrapper.text()).toContain('Poloha nie je nastavená')
+    expect(wrapper.text()).toContain('Nastaviť polohu')
+  })
+
+  it('shows fetch-error state with retry CTA when location exists but API fails', async () => {
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/weather' || url === '/sky/astronomy' || url === '/sky/light-pollution') {
+        throw new Error('service unavailable')
+      }
+
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Nepodarilo sa načítať podmienky.')
+    expect(wrapper.text()).toContain('Skúsiť znova')
+    expect(wrapper.text()).not.toContain('Nastaviť polohu')
+  })
+
+  it('shows loading skeleton without CTA while primary data is loading', async () => {
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/weather' || url === '/sky/astronomy') {
+        return new Promise(() => {})
+      }
+
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+
+    expect(wrapper.find('.animate-pulse').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('Nastaviť polohu')
+    expect(wrapper.text()).not.toContain('Skúsiť znova')
   })
 })

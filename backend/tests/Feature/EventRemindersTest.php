@@ -59,7 +59,7 @@ class EventRemindersTest extends TestCase
         $inRangeB = $this->createPublishedEvent(CarbonImmutable::parse('2026-01-15 12:00:00'));
         $outRange = $this->createPublishedEvent(CarbonImmutable::parse('2026-02-01 10:00:00'));
 
-        $res = $this->getJson('/api/events?from=2026-01-01&to=2026-01-31');
+        $res = $this->getJson('/api/events?from=2026-01-01&to=2026-01-31&scope=all');
         $res->assertOk();
 
         $ids = collect($res->json('data'))->pluck('id')->all();

@@ -34,7 +34,13 @@ class SkyController extends Controller
     public function weather(SkyWeatherRequest $request): JsonResponse
     {
         $context = $this->contextResolver->resolve($request, $request->validated());
-        $cacheKey = $this->buildCacheKey('sky_weather', $context['lat'], $context['lon'], $context['tz']);
+        $cacheKey = $this->buildCacheKey(
+            'sky_weather',
+            $context['lat'],
+            $context['lon'],
+            $context['tz'],
+            'open_meteo'
+        );
         $ttlMinutes = max(1, (int) config('observing.sky.weather_cache_ttl_minutes', 10));
 
         try {

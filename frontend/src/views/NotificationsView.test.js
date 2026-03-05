@@ -9,6 +9,7 @@ const postMock = vi.hoisted(() => vi.fn())
 const notificationsStoreMock = vi.hoisted(() => ({
   items: [],
   loading: false,
+  loadingMore: false,
   error: '',
   page: 1,
   lastPage: 1,
@@ -75,6 +76,7 @@ describe('NotificationsView', () => {
     vi.clearAllMocks()
     notificationsStoreMock.items = []
     notificationsStoreMock.loading = false
+    notificationsStoreMock.loadingMore = false
     notificationsStoreMock.error = ''
     notificationsStoreMock.page = 1
     notificationsStoreMock.lastPage = 1

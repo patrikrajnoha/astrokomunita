@@ -6,18 +6,10 @@
         <button
           type="button"
           class="mt-0.5 max-w-full cursor-pointer truncate text-left text-xs leading-tight text-slate-300/80 underline-offset-2 transition hover:text-slate-100 hover:underline"
-          title="Zmenit lokalitu"
+          title="Zmeniť lokalitu"
           @click="goToProfileLocation"
         >
           Poloha: {{ locationLabel }}
-        </button>
-        <button
-          v-if="!hasLocationCoords"
-          type="button"
-          class="mt-2 inline-flex rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-950 transition hover:bg-white"
-          @click="goToProfileLocation"
-        >
-          Nastavit polohu
         </button>
       </div>
 
@@ -63,6 +55,49 @@
       <div class="h-24 animate-pulse rounded-xl bg-white/5"></div>
     </section>
 
+    <section
+      v-else-if="canonicalLocationMissing"
+      class="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5"
+    >
+      <p class="text-sm font-medium leading-tight text-slate-100">Poloha nie je nastavená.</p>
+      <p class="mt-1 text-xs leading-tight text-slate-300">
+        Nastav si polohu v profile, aby sme vedeli zobraziť presné podmienky pre tvoju oblohu.
+      </p>
+      <button
+        type="button"
+        class="mt-2 inline-flex rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-950 transition hover:bg-white"
+        @click="goToProfileLocation"
+      >
+        Nastaviť polohu
+      </button>
+    </section>
+
+    <section
+      v-else-if="hasPrimaryFetchError"
+      class="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5"
+    >
+      <p class="text-sm font-medium leading-tight text-slate-100">Nepodarilo sa načítať podmienky.</p>
+      <p class="mt-1 text-xs leading-tight text-slate-300">
+        Skontroluj pripojenie alebo to skús znova.
+      </p>
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          class="inline-flex rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-950 transition hover:bg-white"
+          @click="retryAllData"
+        >
+          Skúsiť znova
+        </button>
+        <button
+          type="button"
+          class="text-xs leading-tight text-slate-300 underline underline-offset-2 transition hover:text-slate-100"
+          @click="goToProfileLocation"
+        >
+          Upraviť polohu
+        </button>
+      </div>
+    </section>
+
     <div v-else class="mt-3 divide-y divide-white/5">
       <section
         v-for="sectionId in orderedSectionIds"
@@ -74,8 +109,11 @@
             <template v-if="sectionId === 'hero_score'">
               <p class="text-[10px] uppercase tracking-wide text-slate-500">{{ heroTitle }}</p>
               <p class="mt-1.5 text-3xl font-semibold tracking-tight text-slate-100">
-                {{ observingScoreValue }}
-                <span class="text-sm text-slate-400">/100</span>
+                <template v-if="observingScoreValue === null">N/A</template>
+                <template v-else>
+                  {{ observingScoreValue }}
+                  <span class="text-sm text-slate-400">/100</span>
+                </template>
               </p>
               <p class="mt-1 text-base leading-tight text-slate-100">{{ scoreEmoji }} {{ scoreLabel }}</p>
               <p
@@ -84,6 +122,17 @@
               >
                 {{ heroSubtitle }}
               </p>
+              <button
+                v-if="scoreReasons.length > 0"
+                type="button"
+                class="mt-1 text-[11px] leading-tight text-slate-400 underline underline-offset-2 transition hover:text-slate-200"
+                @click="scoreReasonsOpen = !scoreReasonsOpen"
+              >
+                {{ scoreReasonsOpen ? 'Skryt preco' : 'Preco?' }}
+              </button>
+              <ul v-if="scoreReasonsOpen && scoreReasons.length > 0" class="mt-1 space-y-0.5 text-[11px] leading-tight text-slate-300">
+                <li v-for="reason in scoreReasons" :key="reason">- {{ reason }}</li>
+              </ul>
               <div class="mt-2 h-1.5 rounded-full bg-white/5">
                 <div
                   class="h-1.5 rounded-full"
@@ -119,9 +168,12 @@
                 </div>
               </div>
               <p class="mt-1.5 text-xs leading-tight text-slate-300">{{ formattedMetrics.conditionLabel }}</p>
+              <p class="mt-1 text-[11px] leading-tight text-slate-400">
+                Aktualizovane: {{ weatherUpdatedLabel }} · Zdroj: {{ weatherSourceLabel }}
+              </p>
               <p v-if="weatherError" class="mt-1.5 text-[11px] leading-tight text-slate-400">
                 {{ weatherError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('weather')">Skusit znova</button>
+                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('weather')">Skúsiť znova</button>
               </p>
             </template>
 
@@ -137,7 +189,7 @@
               <p v-if="moonDetailsOpen" class="mt-1 text-[11px] leading-tight text-slate-400">{{ astronomyTimesLine }}</p>
               <p v-if="astronomyError" class="mt-1 text-[11px] leading-tight text-slate-400">
                 {{ astronomyError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('astronomy')">Skusit znova</button>
+                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('astronomy')">Skúsiť znova</button>
               </p>
             </template>
 
@@ -147,7 +199,7 @@
               <p v-if="lightPollutionEstimateLine" class="mt-0.5 text-[11px] leading-tight text-slate-400">{{ lightPollutionEstimateLine }}</p>
               <p v-if="lightPollutionError" class="mt-1 text-[11px] leading-tight text-slate-400">
                 {{ lightPollutionError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('lightPollution')">Skusit znova</button>
+                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('lightPollution')">Skúsiť znova</button>
               </p>
             </template>
 
@@ -183,7 +235,7 @@
               <p class="mt-1 text-[11px] leading-tight text-slate-500">{{ planetsSourceLine }}</p>
               <p v-if="planetsError" class="mt-1 text-[11px] leading-tight text-slate-400">
                 {{ planetsError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('planets')">Skusit znova</button>
+                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('planets')">Skúsiť znova</button>
               </p>
             </template>
 
@@ -192,7 +244,7 @@
               <p class="mt-1 text-xs leading-tight text-slate-300">{{ issLine }}</p>
               <p v-if="issError" class="mt-1 text-[11px] leading-tight text-slate-400">
                 {{ issError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('iss')">Skusit znova</button>
+                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('iss')">Skúsiť znova</button>
               </p>
             </template>
           </div>
@@ -239,6 +291,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const editMode = ref(false)
 const moonDetailsOpen = ref(false)
+const scoreReasonsOpen = ref(false)
 const sectionOrder = ref([...SKY_WIDGET_SECTION_IDS])
 const isAdminUser = computed(() => Boolean(auth.isAdmin))
 
@@ -259,6 +312,7 @@ const {
   lightPollutionFreshness,
   hasLocationCoords,
   observingScore,
+  scoreReasons,
   scoreLabel,
   scoreEmoji,
   scoreColorClass,
@@ -270,6 +324,8 @@ const {
   lightPollutionLine,
   lightPollutionMetaLine,
   lightPollutionEstimateLine,
+  weatherUpdatedLabel,
+  weatherSourceLabel,
   planetsDisplayList,
   planetsMessage,
   planetsContextLine,
@@ -285,6 +341,14 @@ const {
 })
 
 const showPrimaryLoading = computed(() => (weatherLoading.value && !weather.value) || (astronomyLoading.value && !astronomy.value))
+const hasCoords = computed(() => Boolean(hasLocationCoords.value))
+const hasLabel = computed(() => sanitizeLabel(props.locationName).length > 0)
+const canonicalLocationMissing = computed(() => !hasCoords.value)
+const hasPrimaryFetchError = computed(() => (
+  hasCoords.value &&
+  !showPrimaryLoading.value &&
+  Boolean(weatherError.value || astronomyError.value || lightPollutionError.value)
+))
 const orderedSectionIds = computed(() => sectionOrder.value.filter((sectionId) => {
   if (!SKY_WIDGET_SECTION_IDS.includes(sectionId)) return false
   if (sectionId === 'best_time' && isDaylight.value) return false
@@ -292,12 +356,11 @@ const orderedSectionIds = computed(() => sectionOrder.value.filter((sectionId) =
 }))
 
 const locationLabel = computed(() => {
-  const direct = sanitizeLabel(props.locationName)
-  if (direct) return direct
-  return hasLocationCoords.value ? 'nastavena' : 'nenastavena'
+  if (hasLabel.value) return sanitizeLabel(props.locationName)
+  return hasCoords.value ? 'nastavená' : 'nenastavená'
 })
 
-const observingScoreValue = computed(() => (observingScore.value === null ? '--' : observingScore.value))
+const observingScoreValue = computed(() => (observingScore.value === null ? null : observingScore.value))
 const observingScoreWidth = computed(() => (observingScore.value === null ? 0 : observingScore.value))
 
 const sunWindowLabel = computed(() => {
@@ -333,6 +396,10 @@ const freshnessSources = computed(() => [
 ])
 
 const globalFreshnessLabel = computed(() => {
+  if (weatherUpdatedLabel.value && weatherUpdatedLabel.value !== '-') {
+    return `Aktualizovane: ${weatherUpdatedLabel.value}`
+  }
+
   const minutes = freshnessSources.value
     .map(parseFreshnessMinutes)
     .filter((value) => value !== null)
@@ -345,6 +412,10 @@ const globalFreshnessLabel = computed(() => {
 
 function retryBlock(blockName) {
   refreshBlock(blockName)
+}
+
+function retryAllData() {
+  refreshAll()
 }
 
 function toggleEditMode() {
@@ -364,7 +435,7 @@ function isLastSection(sectionId) {
 }
 
 function goToProfileLocation() {
-  router.push('/profile/edit')
+  router.push('/profile/edit#location')
 }
 
 function formatIsoShort(value) {
