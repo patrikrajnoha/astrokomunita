@@ -83,6 +83,10 @@ export const useAuthStore = defineStore('auth', {
   getters: {
     isAuthed: (s) => !!s.user,
     isAdmin: (s) => s.user?.role === 'admin' || s.user?.is_admin,
+    isEditor: (s) => s.user?.role === 'editor',
+    isAdminOrEditor() {
+      return Boolean(this.isAdmin || this.isEditor)
+    },
   },
 
   actions: {

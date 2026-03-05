@@ -863,11 +863,11 @@ const primaryLinks = computed(() => {
     })
   }
 
-  if (auth.isAdmin) {
+  if (auth.isAdmin || auth.isEditor) {
     links.push({
       key: 'admin',
-      to: { name: 'admin.dashboard' },
-      label: 'Admin Hub',
+      to: auth.isAdmin ? { name: 'admin.dashboard' } : { name: 'admin.blog' },
+      label: auth.isAdmin ? 'Admin Hub' : 'Editor Hub',
       icon: 'A',
       iconOutline: navIcons.admin.outline,
       iconFilled: navIcons.admin.filled,
@@ -1369,6 +1369,5 @@ watch(
   }
 }
 </style>
-
 
 

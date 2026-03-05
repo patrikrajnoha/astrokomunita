@@ -2,8 +2,10 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ADMIN_SECTION_KEYS } from '@/components/admin/adminSections'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
+const auth = useAuthStore()
 const wipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCase() === 'true'
 
 const groups = [
@@ -68,6 +70,26 @@ const groups = [
 ]
 
 const routeName = computed(() => String(route.name || ''))
+const isEditorOnly = computed(() => Boolean(auth.isEditor && !auth.isAdmin))
+const visibleGroups = computed(() => {
+  if (!isEditorOnly.value) {
+    return groups
+  }
+
+  return [
+    {
+      title: 'Editor Hub',
+      items: [
+        {
+          label: 'Obsah',
+          to: { name: 'admin.blog' },
+          icon: 'O',
+          section: ADMIN_SECTION_KEYS.CONTENT,
+        },
+      ],
+    },
+  ]
+})
 
 function sectionFromMeta() {
   const section = String(route.meta?.adminSection || '')
@@ -173,23 +195,23 @@ function isActive(item) {
 }
 
 const activeLabel = computed(() => {
-  for (const group of groups) {
+  for (const group of visibleGroups.value) {
     const found = group.items.find((item) => isActive(item))
     if (found) return found.label
   }
-  return 'Admin'
+  return isEditorOnly.value ? 'Editor Hub' : 'Admin'
 })
 </script>
 
 <template>
   <aside class="adminSubNav" aria-label="Admin sub-navigation">
     <div class="adminSubNav__head">
-      <div class="adminSubNav__title">Admin Hub</div>
+      <div class="adminSubNav__title">{{ isEditorOnly ? 'Editor Hub' : 'Admin Hub' }}</div>
       <div class="adminSubNav__caption">Section: {{ activeLabel }}</div>
     </div>
 
     <div class="adminSubNav__groups">
-      <section v-for="group in groups" :key="group.title" class="adminSubNav__group">
+      <section v-for="group in visibleGroups" :key="group.title" class="adminSubNav__group">
         <div class="adminSubNav__groupTitle">{{ group.title }}</div>
         <nav class="adminSubNav__list" :aria-label="group.title">
           <RouterLink
