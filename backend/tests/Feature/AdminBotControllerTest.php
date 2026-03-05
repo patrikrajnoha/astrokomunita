@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\BotSourceType;
+use App\Models\BotActivityLog;
 use App\Models\BotItem;
 use App\Models\BotRun;
 use App\Models\BotSource;
@@ -44,6 +45,7 @@ class AdminBotControllerTest extends TestCase
 
         $this->getJson('/api/admin/bots/sources')->assertStatus(403);
         $this->getJson('/api/admin/bots/runs')->assertStatus(403);
+        $this->getJson('/api/admin/bots/activity')->assertStatus(403);
         $this->getJson('/api/admin/bots/items?run_id=1')->assertStatus(403);
         $this->postJson('/api/admin/bots/run/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/translation/test')->assertStatus(403);
@@ -329,6 +331,68 @@ class AdminBotControllerTest extends TestCase
         $truncatedError = (string) data_get($response->json(), 'data.1.error_text', '');
         $length = function_exists('mb_strlen') ? mb_strlen($truncatedError) : strlen($truncatedError);
         $this->assertLessThanOrEqual(1000, $length);
+    }
+
+    public function test_admin_get_activity_returns_paginated_logs_and_filters_by_source(): void
+    {
+        $source = $this->createRssSource('activity_rss_source');
+        $otherSource = $this->createRssSource('activity_other_source');
+
+        $run = BotRun::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'started_at' => now()->subMinutes(6),
+            'finished_at' => now()->subMinutes(5),
+            'status' => 'partial',
+            'stats' => ['skipped_count' => 1],
+        ]);
+        $item = $this->createBotItem($source, 'activity-stable-key', now()->subMinutes(5));
+
+        BotActivityLog::query()->create([
+            'bot_identity' => 'kozmo',
+            'source_id' => $source->id,
+            'run_id' => $run->id,
+            'bot_item_id' => $item->id,
+            'post_id' => null,
+            'action' => 'publish',
+            'outcome' => 'skipped',
+            'reason' => 'publish_rate_limited',
+            'run_context' => 'admin',
+            'message' => 'Rate limit reached.',
+            'meta' => ['retry_after_sec' => 120],
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ]);
+        BotActivityLog::query()->create([
+            'bot_identity' => 'stela',
+            'source_id' => $otherSource->id,
+            'run_id' => null,
+            'bot_item_id' => null,
+            'post_id' => null,
+            'action' => 'run',
+            'outcome' => 'success',
+            'reason' => null,
+            'run_context' => 'scheduled',
+            'message' => null,
+            'meta' => null,
+            'created_at' => now()->subMinutes(10),
+            'updated_at' => now()->subMinutes(10),
+        ]);
+
+        $this->actingAsAdmin();
+
+        $response = $this->getJson('/api/admin/bots/activity?sourceKey=' . $source->key . '&per_page=20');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('per_page', 20)
+            ->assertJsonPath('data.0.source_key', $source->key)
+            ->assertJsonPath('data.0.action', 'publish')
+            ->assertJsonPath('data.0.outcome', 'skipped')
+            ->assertJsonPath('data.0.reason', 'publish_rate_limited')
+            ->assertJsonPath('data.0.stable_key', 'activity-stable-key')
+            ->assertJsonPath('data.0.run_status', 'partial');
     }
 
     public function test_admin_get_items_by_run_id_returns_only_items_linked_to_run(): void

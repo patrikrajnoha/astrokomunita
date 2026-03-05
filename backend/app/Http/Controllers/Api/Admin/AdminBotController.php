@@ -6,6 +6,7 @@ use App\Enums\BotPublishStatus;
 use App\Enums\BotRunFailureReason;
 use App\Enums\BotTranslationStatus;
 use App\Http\Controllers\Controller;
+use App\Models\BotActivityLog;
 use App\Models\BotItem;
 use App\Models\BotRun;
 use App\Models\BotSource;
@@ -115,6 +116,71 @@ class AdminBotController extends Controller
 
         $paginator->setCollection(
             $paginator->getCollection()->map(fn (BotRun $run): array => $this->serializeRun($run))
+        );
+
+        return response()->json($paginator);
+    }
+
+    public function activity(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'sourceKey' => 'nullable|string|max:120',
+            'bot_identity' => 'nullable|string|max:20',
+            'action' => 'nullable|string|max:50',
+            'outcome' => 'nullable|string|max:20',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date|after_or_equal:date_from',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $query = BotActivityLog::query()
+            ->with([
+                'source:id,key',
+                'run:id,status,started_at,finished_at',
+                'item:id,stable_key,publish_status,translation_status',
+            ]);
+
+        $sourceKey = strtolower(trim((string) ($validated['sourceKey'] ?? '')));
+        if ($sourceKey !== '') {
+            $query->whereHas('source', function (Builder $sourceQuery) use ($sourceKey): void {
+                $sourceQuery->where('key', $sourceKey);
+            });
+        }
+
+        $botIdentity = strtolower(trim((string) ($validated['bot_identity'] ?? '')));
+        if ($botIdentity !== '') {
+            $query->where('bot_identity', $botIdentity);
+        }
+
+        $action = strtolower(trim((string) ($validated['action'] ?? '')));
+        if ($action !== '') {
+            $query->where('action', $action);
+        }
+
+        $outcome = strtolower(trim((string) ($validated['outcome'] ?? '')));
+        if ($outcome !== '') {
+            $query->where('outcome', $outcome);
+        }
+
+        $dateFrom = trim((string) ($validated['date_from'] ?? ''));
+        if ($dateFrom !== '') {
+            $query->where('created_at', '>=', Carbon::parse($dateFrom)->startOfDay());
+        }
+
+        $dateTo = trim((string) ($validated['date_to'] ?? ''));
+        if ($dateTo !== '') {
+            $query->where('created_at', '<=', Carbon::parse($dateTo)->endOfDay());
+        }
+
+        $perPage = (int) ($validated['per_page'] ?? 30);
+        $paginator = $query
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $paginator->setCollection(
+            $paginator->getCollection()->map(fn (BotActivityLog $log): array => $this->serializeActivity($log))
         );
 
         return response()->json($paginator);
@@ -975,6 +1041,32 @@ class AdminBotController extends Controller
             'last_seen_run_id' => $this->nullableInt(data_get($meta, 'last_seen_run_id')),
             'published_manually' => $this->nullableBool(data_get($meta, 'published_manually')),
             'manual_published_at' => $this->nullableString(data_get($meta, 'manual_published_at')),
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function serializeActivity(BotActivityLog $log): array
+    {
+        return [
+            'id' => $log->id,
+            'created_at' => $log->created_at?->toIso8601String(),
+            'bot_identity' => $log->bot_identity?->value ?? (string) $log->bot_identity,
+            'source_id' => $log->source_id,
+            'source_key' => $log->source?->key,
+            'run_id' => $log->run_id,
+            'run_status' => $log->run?->status?->value ?? (string) ($log->run?->status ?? ''),
+            'bot_item_id' => $log->bot_item_id,
+            'stable_key' => $log->item?->stable_key,
+            'post_id' => $log->post_id,
+            'actor_user_id' => $log->actor_user_id,
+            'action' => (string) $log->action,
+            'outcome' => (string) $log->outcome,
+            'reason' => $this->nullableString($log->reason),
+            'run_context' => $this->nullableString($log->run_context),
+            'message' => $this->nullableString($log->message),
+            'meta' => is_array($log->meta) ? $log->meta : [],
         ];
     }
 
