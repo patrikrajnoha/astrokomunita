@@ -28,6 +28,42 @@ export function formatDate(value, options = {}) {
 }
 
 /**
+ * Compact datetime formatter used by observation cards and detail views.
+ * @param {string|Date|null} value
+ * @param {Object} options
+ * @param {string} options.locale
+ * @param {string} options.timeZone
+ * @param {boolean} options.showYear
+ * @returns {string}
+ */
+export function formatDateTimeCompact(value, options = {}) {
+  if (!value) return '-';
+
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+
+  const {
+    locale = 'sk-SK',
+    timeZone,
+    showYear = true,
+  } = options;
+
+  const formatterOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    ...(showYear ? { year: 'numeric' } : {}),
+    ...(timeZone ? { timeZone } : {}),
+  };
+
+  return new Intl.DateTimeFormat(locale, formatterOptions)
+    .format(d)
+    .replace(',', '');
+}
+
+/**
  * Formátuje dátum pre datetime-local input
  * @param {string|Date|null} value - Dátum na formátovanie
  * @returns {string} Formátovaný dátum alebo prázdny string
