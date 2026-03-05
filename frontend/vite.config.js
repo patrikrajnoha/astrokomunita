@@ -9,6 +9,8 @@ const isDockerRuntime = existsSync('/.dockerenv')
 const backendProxyTarget = process.env.VITE_BACKEND_PROXY_TARGET
   || (isDockerRuntime ? 'http://backend:8001' : 'http://127.0.0.1:8001')
 
+const allowedDevOrigins = [/^http:\/\/127\.0\.0\.1(?::\d+)?$/, /^http:\/\/localhost(?::\d+)?$/]
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -20,14 +22,23 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          framework: ['vue', 'vue-router', 'pinia'],
+          network: ['axios', 'laravel-echo'],
+        },
+      },
+    },
+  },
   server: {
     host: '127.0.0.1',
     port: 5174,
     strictPort: true,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+    cors: {
+      origin: allowedDevOrigins,
+      credentials: true,
     },
     hmr: {
       overlay: false
