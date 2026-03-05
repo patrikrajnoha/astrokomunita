@@ -78,14 +78,7 @@
           >
             <div class="post-avatar">
               <button class="avatar-button" type="button" @click.stop="openProfile(p)">
-                <img
-                  v-if="p?.user?.avatar_url"
-                  class="avatar-image"
-                  :src="avatarSrc(p?.user?.avatar_url)"
-                  :alt="p?.user?.name || 'avatar'"
-                  loading="lazy"
-                />
-                <span v-else class="avatar-fallback">{{ initials(p?.user?.name) }}</span>
+                <UserAvatar class="avatar-fallback" :user="p?.user" :alt="p?.user?.name || 'avatar'" />
               </button>
             </div>
 
@@ -105,19 +98,17 @@
                     <span class="bot-source-label">{{ botSourceLabel(p) }}</span>
                   </div>
                 </div>
-                <!-- Actions dropdown -->
-                <div class="post-actions-menu">
-                  <DropdownMenu
-                    v-if="menuItemsForPost(p).length"
-                    :items="menuItemsForPost(p)"
-                    label="More actions"
-                    menu-label="Post actions"
-                    @select="(item) => onMenuAction(item, p)"
-                  />
-                </div>
               </div>
+              <ObservationCard
+                v-if="observationForPost(p)"
+                class="embedded-observation-card"
+                :observation="observationForPost(p)"
+                :show-author="false"
+                :show-event-link="true"
+                :compact="true"
+              />
               <!-- Content -->
-              <div class="post-text" @click.stop>
+              <div v-if="!observationForPost(p)" class="post-text" @click.stop>
                 <template v-if="isEditingPost(p)">
                   <textarea
                     v-model="editContentDraft"
@@ -158,7 +149,7 @@
               </div>
 
               <PollCard
-                v-if="p.poll"
+                v-if="!observationForPost(p) && p.poll"
                 :poll="p.poll"
                 :post-id="p.id"
                 :is-authed="auth.isAuthed"
@@ -166,7 +157,7 @@
                 @login-required="onPollLoginRequired"
               />
 
-              <div v-if="attachedEventForPost(p)" class="attached-event-card" @click.stop>
+              <div v-if="!observationForPost(p) && attachedEventForPost(p)" class="attached-event-card" @click.stop>
                 <div class="attached-event-copy">
                   <p class="attached-event-title">{{ attachedEventForPost(p).title || 'Udalost' }}</p>
                   <p class="attached-event-date">
@@ -178,7 +169,7 @@
                 </button>
               </div>
 
-              <div v-if="isBotPost(p)" class="source-url source-url--bot" @click.stop>
+              <div v-if="!observationForPost(p) && isBotPost(p)" class="source-url source-url--bot" @click.stop>
                 <span class="source-attribution">Zdroj: {{ sourceAttributionLabel(p) }}</span>
                 <a
                   v-if="sourceLink(p)"
@@ -191,30 +182,36 @@
                 </a>
               </div>
 
-              <div v-if="stelaPreviewImageSrc(p)" class="post-media post-media--stela">
+              <div v-if="!observationForPost(p) && stelaPreviewImageSrc(p)" class="post-media post-media--stela">
                 <div v-if="isAttachmentBlocked(p)" class="media-removed">Removed</div>
                 <PostMediaImage
                   v-else
                   :src="stelaPreviewImageSrc(p)"
                   alt="Stela APOD preview"
                   :blurred="isAttachmentPending(p)"
-                  pending-label="Checking..."
+                  :status="p?.status"
                 />
               </div>
 
-              <div v-if="postGifUrl(p) && !stelaPreviewImageSrc(p)" class="post-media post-media--gif">
+              <div v-if="!observationForPost(p) && postGifUrl(p) && !stelaPreviewImageSrc(p)" class="post-media post-media--gif">
                 <img class="gifEmbed" :src="postGifUrl(p)" :alt="postGifTitle(p)" loading="lazy" />
               </div>
 
               <!-- Media attachment -->
-              <div v-if="p.attachment_url && !stelaPreviewImageSrc(p)" class="post-media">
+              <div v-if="!observationForPost(p) && p.attachment_url && !stelaPreviewImageSrc(p)" class="post-media">
                 <div v-if="isAttachmentBlocked(p)" class="media-removed">Removed</div>
                 <PostMediaImage
                   v-else-if="isImage(p)"
                   :src="attachmentSrc(p)"
                   alt="Priloha prispevku"
                   :blurred="isAttachmentPending(p)"
-                  pending-label="Checking..."
+                  :status="p?.status"
+                />
+
+                <PostMediaVideo
+                  v-else-if="isVideo(p) && !isAttachmentPending(p)"
+                  :src="attachmentSrc(p)"
+                  :type="attachmentMime(p) || undefined"
                 />
 
                 <a
@@ -237,123 +234,21 @@
               </div>
 
               <!-- Bottom actions -->
-              <div class="post-actions" @click.stop>
-                <button
-                  class="action-btn action-btn--reply"
-                  type="button"
-                  title="Reagovať"
-                  @click.stop="openPost(p)"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
-                    />
-                  </svg>
-                  <span class="action-count">{{ p.replies_count ?? 0 }}</span>
-                </button>
-
-                <button
-                  class="action-btn action-btn--share"
-                  type="button"
-                  title="Zdieľať"
-                  aria-label="Zdieľať prispevok"
-                  @click.stop="openShareModal(p)"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                    <polyline points="16 6 12 2 8 6" />
-                    <line x1="12" y1="2" x2="12" y2="15" />
-                  </svg>
-                </button>
-
-                <button
-                  class="action-btn action-btn--like"
-                  type="button"
-                  :class="{
-                    'action-btn--liked': p.liked_by_me,
-                    'action-btn--bump': likeBumpId === p.id,
-                  }"
-                  :disabled="!auth.isAuthed || isLikeLoading(p)"
-                  :title="
-                    auth.isAuthed
-                      ? p.liked_by_me
-                        ? 'Zrušiť like'
-                        : 'Páči sa mi'
-                      : 'Prihlás sa pre lajkovanie'
-                  "
-                  @click.stop="toggleLike(p)"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                      d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-                    />
-                  </svg>
-                  <span class="action-count">{{ p.likes_count ?? 0 }}</span>
-                </button>
-
-                <div class="action-spacer"></div>
-
-                <button
-                  class="action-btn action-btn--thread"
-                  type="button"
-                  title="Počet zobrazení"
-                  aria-label="Počet zobrazení"
-                  @click.stop="openPost(p)"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  <span v-if="Number(p.views ?? 0) > 0" class="view-count">{{ p.views }}</span>
-                </button>
-
-                <button
-                  class="action-btn action-btn--bookmark"
-                  type="button"
-                  :class="{ 'action-btn--bookmarked': p.is_bookmarked }"
-                  :disabled="!auth.isAuthed || isBookmarkLoading(p)"
-                  :title="
-                    auth.isAuthed
-                      ? p.is_bookmarked
-                        ? 'Odstranit zo zaloziek'
-                        : 'Ulozit do zaloziek'
-                      : 'Prihlas sa pre zalozky'
-                  "
-                  @click.stop="toggleBookmark(p)"
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                  </svg>
-                </button>
-              </div>
+              <PostActionBar
+                :item="p"
+                :reply-count="Number(p.replies_count ?? 0)"
+                :like-count="Number(p.likes_count ?? 0)"
+                :like-loading="isLikeLoading(p)"
+                :bookmark-loading="isBookmarkLoading(p)"
+                :like-bump="likeBumpId === p.id"
+                :is-authed="auth.isAuthed"
+                :menu-items="menuItemsForPost(p)"
+                @reply="openPost(p)"
+                @like="toggleLike(p)"
+                @bookmark="toggleBookmark(p)"
+                @share="openShareModal(p)"
+                @menu-select="(item) => onMenuAction(item, p)"
+              />
             </div>
           </article>
         </div>
@@ -429,17 +324,21 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FeedSwitcher from '@/components/FeedSwitcher.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import HashtagText from './HashtagText.vue'
 import PollCard from '@/components/PollCard.vue'
-import DropdownMenu from '@/components/shared/DropdownMenu.vue'
+import PostActionBar from '@/components/PostActionBar.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
+import PostMediaVideo from '@/components/media/PostMediaVideo.vue'
 import ShareModal from '@/components/share/ShareModal.vue'
+import ObservationCard from '@/components/observations/ObservationCard.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useBookmarksStore } from '@/stores/bookmarks'
 import { useToast } from '@/composables/useToast'
 import { canDeletePost, canReportPost } from '@/utils/postPermissions'
 import { formatRelativeShort } from '@/utils/dateUtils'
+import { avatarDebug } from '@/utils/avatarDebug'
 
 const props = defineProps({
   mode: {
@@ -456,7 +355,7 @@ const HOME_TABS = [
   { id: 'for_you', label: 'Komunita', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
   {
     id: 'astrobot',
-    label: 'AstroFeed',
+    label: 'AstroFeed ✨',
     tabId: 'feed-tab-astrobot',
     panelId: 'feed-panel-astrobot',
   },
@@ -526,6 +425,24 @@ function resolveInitialTab() {
   return 'for_you'
 }
 
+function observationForPost(post) {
+  const embedded = post?.attached_observation
+  if (embedded && typeof embedded === 'object') {
+    return embedded
+  }
+
+  const fallbackId = Number(post?.meta?.observation?.observation_id || 0)
+  if (!Number.isInteger(fallbackId) || fallbackId <= 0) {
+    return null
+  }
+
+  return {
+    id: fallbackId,
+    title: `Pozorovanie #${fallbackId}`,
+    media: [],
+  }
+}
+
 function persistActiveTab(tab) {
   if (isBookmarksMode.value || typeof window === 'undefined') return
   if (!HOME_TABS.some((entry) => entry.id === tab)) return
@@ -534,6 +451,12 @@ function persistActiveTab(tab) {
 }
 
 function openPost(post) {
+  const observationId = Number(observationForPost(post)?.id || 0)
+  if (Number.isInteger(observationId) && observationId > 0) {
+    router.push(`/observations/${observationId}`)
+    return
+  }
+
   if (!post?.id) return
   router.push(`/posts/${post.id}`)
 }
@@ -1140,14 +1063,6 @@ async function confirmDelete() {
   await deletePost(deleteTarget.value)
 }
 
-function initials(name) {
-  const n = name || ''
-  const parts = n.trim().split(/\s+/).filter(Boolean)
-  const a = parts[0]?.[0] || 'U'
-  const b = parts[1]?.[0] || ''
-  return (a + b).toUpperCase()
-}
-
 function fmt(iso) {
   return formatRelativeShort(iso)
 }
@@ -1176,18 +1091,6 @@ function attachmentDownloadSrc(p) {
   return origin + '/' + u
 }
 
-function avatarSrc(url) {
-  const u = url || ''
-  if (!u) return ''
-  if (/^https?:\/\//i.test(u)) return u
-
-  const base = api?.defaults?.baseURL || ''
-  const origin = base.replace(/\/api\/?$/, '')
-
-  if (u.startsWith('/')) return origin + u
-  return origin + '/' + u
-}
-
 function isImage(p) {
   const mime = p?.attachment_mime || ''
   if (typeof mime === 'string' && mime.startsWith('image/')) return true
@@ -1199,6 +1102,32 @@ function isImage(p) {
     name.endsWith('.png') ||
     name.endsWith('.gif') ||
     name.endsWith('.webp')
+  )
+}
+
+function attachmentMime(p) {
+  const mime = String(p?.attachment_mime || '')
+    .trim()
+    .toLowerCase()
+  if (mime !== '') return mime
+
+  const name = (p?.attachment_original_name || p?.attachment_url || '').toLowerCase()
+  if (name.endsWith('.mp4') || name.endsWith('.m4v')) return 'video/mp4'
+  if (name.endsWith('.webm')) return 'video/webm'
+  if (name.endsWith('.mov')) return 'video/quicktime'
+  return ''
+}
+
+function isVideo(p) {
+  const mime = attachmentMime(p)
+  if (mime.startsWith('video/')) return true
+
+  const name = (p?.attachment_original_name || p?.attachment_url || '').toLowerCase()
+  return (
+    name.endsWith('.mp4') ||
+    name.endsWith('.m4v') ||
+    name.endsWith('.webm') ||
+    name.endsWith('.mov')
   )
 }
 
@@ -1327,6 +1256,19 @@ async function load(reset = true, tab = activeTab.value) {
     })
     const payload = res.data || {}
     const rows = payload.data || []
+    avatarDebug('FeedList:load-response', {
+      tab,
+      url,
+      count: rows.length,
+      sampleUsers: rows.slice(0, 5).map((post) => ({
+        postId: post?.id ?? null,
+        userId: post?.user?.id ?? null,
+        username: post?.user?.username ?? null,
+        avatar_mode: post?.user?.avatar_mode ?? null,
+        avatar_path: post?.user?.avatar_path ?? null,
+        avatar_url: post?.user?.avatar_url ?? null,
+      })),
+    })
     bookmarks.hydrateFromPosts(rows)
 
     if (reset) state.items = rows
@@ -1476,7 +1418,7 @@ defineExpose({ load, prepend })
   font-weight: 700;
   color: var(--color-surface);
   margin-bottom: 4px;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: inherit;
 }
 
 .feed-subtitle {
@@ -1487,7 +1429,6 @@ defineExpose({ load, prepend })
 
 .feed-actions {
   width: 100%;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
 }
 
 .feed-panel {
@@ -1499,7 +1440,6 @@ defineExpose({ load, prepend })
 }
 
 .empty-state {
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
   background: rgb(var(--color-bg-rgb) / 0.16);
   color: var(--color-text-secondary);
   padding: 0.9rem 0.85rem;
@@ -1589,7 +1529,7 @@ defineExpose({ load, prepend })
 
 .skeleton-post {
   background: transparent;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.12);
+  border-bottom: var(--divider);
   border-radius: 0;
   padding: 0.75rem 0.75rem 0.85rem;
   overflow: hidden;
@@ -1682,7 +1622,7 @@ defineExpose({ load, prepend })
 .post-card {
   background: transparent;
   border: 0;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
+  border-bottom: var(--divider);
   border-radius: 0;
   padding: 0.72rem 0.75rem;
   transition: background-color 0.16s ease;
@@ -1691,6 +1631,10 @@ defineExpose({ load, prepend })
   overflow: visible;
   width: 100%;
   min-width: 0;
+}
+
+.post-card:last-child {
+  border-bottom: none;
 }
 
 .post-card:hover {
@@ -1703,52 +1647,38 @@ defineExpose({ load, prepend })
 
 .post-card--new {
   animation: newPostReveal 760ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  border-bottom-color: rgb(var(--color-primary-rgb) / 0.4);
+  background: rgb(var(--color-primary-rgb) / 0.06);
 }
 
 @keyframes newPostReveal {
   0% {
     opacity: 0.35;
     transform: translateY(-10px) scale(0.985);
-    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0.35);
   }
   55% {
     opacity: 1;
     transform: translateY(0) scale(1);
-    box-shadow: 0 0 0 8px rgb(var(--color-primary-rgb) / 0.08);
   }
   100% {
-    box-shadow: 0 0 0 0 rgb(var(--color-primary-rgb) / 0);
+    background: transparent;
   }
 }
 
 /* Pinned posts */
 .post-card--pinned {
-  border-bottom-color: rgb(var(--color-warning-rgb) / 0.45);
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-warning-rgb) / 0.08) 0%,
-    rgb(var(--color-bg-rgb) / 0.16) 100%
-  );
+  background: rgb(var(--color-warning-rgb) / 0.05);
 }
 
 .post-card--pinned:hover {
-  border-color: rgb(var(--color-warning-rgb) / 0.6);
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-warning-rgb) / 0.12) 0%,
-    rgb(var(--color-bg-rgb) / 0.6) 100%
-  );
+  background: rgb(var(--color-warning-rgb) / 0.08);
 }
 
 /* AstroBot posts */
 .post-card--astrobot {
-  border-bottom-color: rgb(var(--color-text-secondary-rgb) / 0.14);
   background: transparent;
 }
 
 .post-card--astrobot:hover {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.14);
   background: rgb(var(--color-text-secondary-rgb) / 0.06);
 }
 
@@ -1765,6 +1695,11 @@ defineExpose({ load, prepend })
 .post-content {
   flex: 1;
   min-width: 0;
+}
+
+.embedded-observation-card {
+  margin-top: 0.25rem;
+  margin-bottom: 0.55rem;
 }
 
 /* Modern Avatar */
@@ -1797,20 +1732,8 @@ defineExpose({ load, prepend })
 }
 
 .avatar-fallback {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(
-    135deg,
-    var(--color-primary) 0%,
-    rgb(var(--color-primary-rgb) / 0.7) 100%
-  );
-  color: white;
-  font-weight: 700;
-  font-size: 14px;
+  --default-avatar-size: 40px;
+  display: block;
   border: 2px solid rgb(var(--color-text-secondary-rgb) / 0.2);
 }
 
@@ -1929,14 +1852,6 @@ defineExpose({ load, prepend })
   letter-spacing: 0.01em;
   text-transform: uppercase;
   opacity: 0.9;
-}
-
-.post-actions-menu {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  flex-shrink: 0;
-  margin-left: auto;
 }
 
 .action-button {
@@ -2235,11 +2150,21 @@ defineExpose({ load, prepend })
   margin-top: 0.48rem;
   display: flex;
   align-items: center;
-  gap: 0.15rem;
+  justify-content: space-between;
   padding-top: 0.35rem;
   border-top: 0;
-  flex-wrap: wrap;
   min-width: 0;
+}
+
+.post-actions-left,
+.post-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 0.82rem;
+}
+
+.post-actions-right {
+  margin-left: auto;
 }
 
 .action-btn {
@@ -2354,6 +2279,33 @@ defineExpose({ load, prepend })
   font-weight: 600;
 }
 
+.post-actions-more {
+  display: inline-flex;
+  align-items: center;
+}
+
+.post-actions-more :deep(.dropdownRoot) {
+  display: inline-flex;
+  align-items: center;
+}
+
+.post-actions-more :deep(.dropdownTrigger) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  min-width: 30px;
+  padding: 0.3rem 0.42rem;
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.post-actions-more :deep(.dropdownTrigger:hover:not(:disabled)) {
+  background: rgb(var(--color-text-secondary-rgb) / 0.08);
+  color: var(--color-surface);
+}
+
 .action-btn--delete {
   color: var(--color-danger);
 }
@@ -2379,10 +2331,6 @@ defineExpose({ load, prepend })
 .action-text {
   font-size: 12px;
   font-weight: 500;
-}
-
-.action-spacer {
-  flex: 1;
 }
 
 @keyframes likePop {
@@ -2469,7 +2417,7 @@ defineExpose({ load, prepend })
   font-weight: 600;
   color: var(--color-surface);
   margin-bottom: 16px;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: inherit;
 }
 
 .report-form {
@@ -2592,16 +2540,13 @@ defineExpose({ load, prepend })
     gap: 0.4rem;
   }
 
-  .post-actions-menu {
-    width: auto;
-    justify-content: flex-start;
-  }
-
-  .avatar-image,
-  .avatar-fallback {
+  .avatar-image {
     width: 36px;
     height: 36px;
-    font-size: 13px;
+  }
+
+  .avatar-fallback {
+    --default-avatar-size: 36px;
   }
 
   .author-name {
@@ -2636,10 +2581,6 @@ defineExpose({ load, prepend })
     font-size: 0.68rem;
   }
 
-  .action-spacer {
-    display: none;
-  }
-
   .report-content {
     padding: 16px;
     margin: 10px;
@@ -2660,11 +2601,13 @@ defineExpose({ load, prepend })
     gap: 10px;
   }
 
-  .avatar-image,
-  .avatar-fallback {
+  .avatar-image {
     width: 40px;
     height: 40px;
-    font-size: 14px;
+  }
+
+  .avatar-fallback {
+    --default-avatar-size: 40px;
   }
 
   .author-name {
@@ -2708,5 +2651,3 @@ defineExpose({ load, prepend })
   }
 }
 </style>
-
-

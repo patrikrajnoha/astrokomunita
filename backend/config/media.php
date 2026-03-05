@@ -13,13 +13,14 @@ return [
     */
     'disk' => env('FILES_DISK', 'public'),
     'private_disk' => env('FILES_PRIVATE_DISK', 'local'),
+    'profile_upload_max_kb' => (int) env('PROFILE_UPLOAD_MAX_KB', 20480),
 
     /*
     |--------------------------------------------------------------------------
     | Post Attachment Validation
     |--------------------------------------------------------------------------
     */
-    'post_attachment_max_kb' => 10240,
+    'post_attachment_max_kb' => (int) env('POST_ATTACHMENT_MAX_KB', 20480),
     'post_attachment_mimes' => [
         'jpg',
         'jpeg',
@@ -44,6 +45,21 @@ return [
     'post_image_web_max_width' => 1600,
     'post_image_webp_quality' => 80,
     'post_image_jpeg_quality' => 82,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Observation Image Validation
+    |--------------------------------------------------------------------------
+    */
+    'observation_image_max_kb' => (int) env('OBSERVATION_IMAGE_MAX_KB', 20480),
+    'observation_image_mimes' => [
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'gif',
+    ],
+    'observation_image_max_count' => (int) env('OBSERVATION_IMAGE_MAX_COUNT', 6),
 
     /*
     |--------------------------------------------------------------------------
