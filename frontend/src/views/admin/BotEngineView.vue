@@ -1186,6 +1186,9 @@ onBeforeUnmount(() => {
 <template>
   <AdminPageShell :title="pageTitle" :subtitle="pageSubtitle" class="botEngineShell">
     <template #right-actions>
+      <RouterLink class="runBtn headerRunBtn headerRunBtn--ghost" :to="{ name: 'admin.bots.activity' }">
+        Activity log
+      </RouterLink>
       <button
         type="button"
         class="runBtn headerRunBtn"
@@ -2749,6 +2752,11 @@ onBeforeUnmount(() => {
 .headerRunBtn {
   min-height: 36px;
   padding-inline: 14px;
+}
+
+.headerRunBtn--ghost {
+  border-color: rgb(var(--color-surface-rgb) / 0.14);
+  background: rgb(var(--color-surface-rgb) / 0.03);
 }
 
 .quickPill {

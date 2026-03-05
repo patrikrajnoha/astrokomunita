@@ -31,6 +31,7 @@ function makeRouter() {
       { path: '/admin/contests', name: 'admin.contests', component: { template: '<div>contests</div>' } },
       { path: '/admin/sidebar', name: 'admin.sidebar', component: { template: '<div>sidebar</div>' } },
       { path: '/admin/bots', name: 'admin.bots', component: { template: '<div>bots</div>' } },
+      { path: '/admin/bots/activity', name: 'admin.bots.activity', component: { template: '<div>bot-activity</div>' } },
       { path: '/admin/performance-metrics', name: 'admin.performance-metrics', component: { template: '<div>performance</div>' } },
       { path: '/admin/:pathMatch(.*)*', component: { template: '<div>admin-any</div>' } },
     ],

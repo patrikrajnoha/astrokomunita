@@ -56,8 +56,13 @@ const groups = [
         label: 'Bot Engine',
         to: { name: 'admin.bots' },
         icon: 'B',
-        routeNamePrefixes: ['admin.bots'],
-        routeNames: ['admin.astrobot'],
+        routeNames: ['admin.bots', 'admin.astrobot', 'admin.bots.kozmo', 'admin.bots.stellar'],
+      },
+      {
+        label: 'Bot Activity',
+        to: { name: 'admin.bots.activity' },
+        icon: 'A',
+        routeNames: ['admin.bots.activity'],
       },
       {
         label: 'Performance',

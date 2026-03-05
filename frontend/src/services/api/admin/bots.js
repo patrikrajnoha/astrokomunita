@@ -11,6 +11,13 @@ export function getBotRuns(params = {}) {
   })
 }
 
+export function getBotActivity(params = {}) {
+  return api.get('/admin/bots/activity', {
+    params,
+    meta: { skipErrorToast: true },
+  })
+}
+
 export function getBotItems(params = {}) {
   return api.get('/admin/bots/items', {
     params,
