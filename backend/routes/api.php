@@ -531,7 +531,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'show']);
         Route::post('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);
         Route::put('/me/preferences', [\App\Http\Controllers\Api\UserPreferenceController::class, 'update']);
+        Route::patch('/me/location', [MeLocationController::class, 'update']);
         Route::put('/me/location', [MeLocationController::class, 'update']);
+        Route::get('/me/location/auto', [MeLocationController::class, 'auto']);
         Route::get('/me/export', MeDataExportController::class)->middleware('throttle:me-export');
         Route::patch('/me/newsletter', [NewsletterSubscriptionController::class, 'update']);
         Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);

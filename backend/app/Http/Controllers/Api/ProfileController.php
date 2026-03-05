@@ -3,21 +3,27 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateAvatarPreferencesRequest;
+use App\Models\User;
+use App\Services\Location\UserLocationService;
 use App\Services\Storage\MediaStorageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
 {
+    private const PROFILE_MEDIA_UPLOAD_MAX_KB = 20480;
+
     public function __construct(
         private readonly MediaStorageService $mediaStorage,
+        private readonly UserLocationService $userLocationService,
     ) {
     }
 
@@ -47,25 +53,45 @@ class ProfileController extends Controller
             'bio' => ['nullable', 'string', 'max:160'],
             'location' => ['nullable', 'string', 'max:60'],
             'location_label' => ['nullable', 'string', 'max:80'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'timezone' => ['nullable', 'string', 'max:64'],
+            'location_source' => ['nullable', 'string', Rule::in(['preset', 'gps', 'manual'])],
         ]);
 
-        $supportsLocationLabel = Schema::hasColumn('users', 'location_label');
-        $payload = $validated;
-        if (!$supportsLocationLabel) {
-            unset($payload['location_label']);
+        $locationPayload = $this->extractLocationPayload($validated);
+        $payload = Arr::except($validated, [
+            'email',
+            'location',
+            'location_label',
+            'latitude',
+            'longitude',
+            'timezone',
+            'location_source',
+        ]);
+
+        if (array_key_exists('email', $validated)) {
+            $requestedEmail = mb_strtolower(trim((string) $validated['email']));
+            $currentEmail = mb_strtolower(trim((string) ($user->email ?? '')));
+
+            if ($requestedEmail !== '' && $requestedEmail !== $currentEmail) {
+                return response()->json([
+                    'message' => 'Use account email verification flow to change email.',
+                    'error_code' => 'EMAIL_CHANGE_REQUIRES_VERIFICATION_FLOW',
+                ], 422);
+            }
         }
 
-        $user->fill($payload);
-        if ($supportsLocationLabel && array_key_exists('location_label', $validated)) {
-            $label = trim((string) ($validated['location_label'] ?? ''));
-            $user->location = $label !== '' ? Str::substr($label, 0, 60) : null;
-        } elseif ($supportsLocationLabel && array_key_exists('location', $validated)) {
-            $legacy = trim((string) ($validated['location'] ?? ''));
-            $user->location_label = $legacy !== '' ? Str::substr($legacy, 0, 80) : null;
-        }
-        $user->save();
+        DB::transaction(function () use ($user, $payload, $locationPayload): void {
+            $user->fill($payload);
+            $user->save();
 
-        return response()->json($user);
+            if ($locationPayload !== []) {
+                $this->userLocationService->update($user, $locationPayload, true);
+            }
+        });
+
+        return response()->json($user->fresh());
     }
 
     public function changePassword(Request $request)
@@ -122,28 +148,192 @@ class ProfileController extends Controller
     public function uploadMedia(Request $request)
     {
         $user = $request->user();
+        $maxKb = max((int) config('media.profile_upload_max_kb', self::PROFILE_MEDIA_UPLOAD_MAX_KB), 3072);
 
         $validated = $request->validate([
             'type' => ['required', Rule::in(['avatar', 'cover'])],
-            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:3072'],
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.$maxKb],
         ]);
 
         $type = $validated['type'];
         $file = $request->file('file');
+        $freshUser = $this->replaceUserMedia($user, $type, $file);
+
+        return response()->json($freshUser);
+    }
+
+    public function uploadAvatarImage(Request $request)
+    {
+        $user = $request->user();
+        $maxKb = max((int) config('media.profile_upload_max_kb', self::PROFILE_MEDIA_UPLOAD_MAX_KB), 3072);
+        $validated = $request->validate([
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.$maxKb],
+        ]);
+
+        $freshUser = $this->replaceUserMedia($user, 'avatar', $request->file('file'));
+
+        return response()->json($freshUser);
+    }
+
+    public function removeAvatarImage(Request $request)
+    {
+        $user = $request->user();
+        $oldPath = $user->avatar_path;
+        $user->avatar_path = null;
+        $user->save();
+
+        if ($oldPath) {
+            $this->mediaStorage->delete($oldPath);
+        }
+
+        return response()->json($user->fresh());
+    }
+
+    public function updateAvatar(UpdateAvatarPreferencesRequest $request)
+    {
+        $user = $request->user();
+        $validated = $request->validated();
+        $oldAvatarPath = null;
+
+        $user->avatar_mode = $validated['avatar_mode'];
+        if ($user->avatar_mode === 'generated' && $user->avatar_path) {
+            $oldAvatarPath = (string) $user->avatar_path;
+            $user->avatar_path = null;
+        }
+
+        if (array_key_exists('avatar_color', $validated)) {
+            $user->avatar_color = $this->normalizeAvatarColor($validated['avatar_color']);
+        }
+
+        if (array_key_exists('avatar_icon', $validated)) {
+            $user->avatar_icon = $this->normalizeAvatarIcon($validated['avatar_icon']);
+        }
+
+        if (array_key_exists('avatar_seed', $validated)) {
+            $user->avatar_seed = $this->normalizeAvatarSeed($validated['avatar_seed']);
+        }
+
+        $user->save();
+
+        if ($oldAvatarPath !== null) {
+            $this->mediaStorage->delete($oldAvatarPath);
+        }
+
+        return response()->json($user->fresh());
+    }
+
+    private function replaceUserMedia(User $user, string $type, mixed $file): User
+    {
         $path = $type === 'avatar'
             ? $this->mediaStorage->storeAvatar($file, (int) $user->id)
             : $this->mediaStorage->storeCover($file, (int) $user->id);
 
         $column = $type === 'avatar' ? 'avatar_path' : 'cover_path';
         $oldPath = $user->{$column};
-
         $user->{$column} = $path;
+        if ($type === 'avatar') {
+            $user->avatar_mode = 'image';
+        }
         $user->save();
 
         if ($oldPath && $oldPath !== $path) {
             $this->mediaStorage->delete($oldPath);
         }
 
-        return response()->json($user->fresh());
+        return $user->fresh();
+    }
+
+    private function normalizeAvatarSeed(mixed $seed): ?string
+    {
+        $value = trim((string) ($seed ?? ''));
+
+        return $value === '' ? null : $value;
+    }
+
+    private function normalizeAvatarColor(mixed $value): ?int
+    {
+        $colors = array_values((array) config('avatar.colors', []));
+        $maxIndex = max(count($colors) - 1, -1);
+        if ($maxIndex < 0) {
+            return null;
+        }
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            $index = (int) $value;
+            if ($index >= 0 && $index <= $maxIndex) {
+                return $index;
+            }
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        foreach ($colors as $index => $hex) {
+            if (strtolower(trim((string) $hex)) === $normalized) {
+                return $index;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'avatar_color' => 'The selected avatar color is invalid.',
+        ]);
+    }
+
+    private function normalizeAvatarIcon(mixed $value): ?int
+    {
+        $icons = array_values((array) config('avatar.icons', []));
+        $maxIndex = max(count($icons) - 1, -1);
+        if ($maxIndex < 0) {
+            return null;
+        }
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            $index = (int) $value;
+            if ($index >= 0 && $index <= $maxIndex) {
+                return $index;
+            }
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        foreach ($icons as $index => $icon) {
+            if (strtolower(trim((string) $icon)) === $normalized) {
+                return $index;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'avatar_icon' => 'The selected avatar icon is invalid.',
+        ]);
+    }
+
+    /**
+     * @param array<string,mixed> $validated
+     * @return array<string,mixed>
+     */
+    private function extractLocationPayload(array $validated): array
+    {
+        $payload = [];
+        $keys = [
+            'location',
+            'location_label',
+            'latitude',
+            'longitude',
+            'timezone',
+            'location_source',
+        ];
+
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $validated)) {
+                $payload[$key] = $validated[$key];
+            }
+        }
+
+        return $payload;
     }
 }
