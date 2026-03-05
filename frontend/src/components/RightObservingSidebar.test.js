@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import RightObservingSidebar from './RightObservingSidebar.vue'
+import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 
 const pushMock = vi.hoisted(() => vi.fn())
 const getMock = vi.hoisted(() => vi.fn())
@@ -8,23 +9,16 @@ const getMock = vi.hoisted(() => vi.fn())
 const authMock = vi.hoisted(() => ({
   isAuthed: true,
   initialized: true,
-}))
-const preferencesMock = vi.hoisted(() => ({
-  bortleClass: 6,
-  savePreferences: vi.fn().mockResolvedValue({}),
+  isAdmin: false,
+  user: { id: 10, is_admin: false, role: 'user' },
 }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ fullPath: '/home' }),
   useRouter: () => ({ push: pushMock }),
 }))
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => authMock,
-}))
-
-vi.mock('@/stores/eventPreferences', () => ({
-  useEventPreferencesStore: () => preferencesMock,
 }))
 
 vi.mock('@/services/api', () => ({
@@ -33,261 +27,387 @@ vi.mock('@/services/api', () => ({
   },
 }))
 
-function wait(ms = 260) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+async function wait(ms = 90) {
+  await vi.advanceTimersByTimeAsync(ms)
 }
 
-function observePayload(overrides = {}) {
+function buildAstronomyResponse(overrides = {}) {
   return {
-    overall: {
-      label: 'Pozor',
-      reason: 'Vysoká vlhkosť môže znížiť kontrast objektov.',
-      alert_level: 'warn',
+    data: {
+      moon_phase: 'waxing_crescent',
+      moon_illumination_percent: 18,
+      sunrise_at: '2026-02-27T06:47:00+01:00',
+      sunset_at: '2026-02-27T17:22:00+01:00',
+      civil_twilight_end_at: '2026-02-27T18:05:00+01:00',
+      sample_at: '2026-02-27T19:30:00+01:00',
+      sun_altitude_deg: -18.2,
+      moonrise_at: '2026-02-27T09:19:00+01:00',
+      moonset_at: '2026-02-27T20:35:00+01:00',
+      ...overrides,
     },
-    observing_index: 58,
-    observing_mode: 'deep_sky',
-    alerts: [
-      { level: 'warn', code: 'high_humidity', message: 'Vysoká vlhkosť môže znížiť kontrast objektov.' },
-      { level: 'severe', code: 'high_cloud_cover', message: 'Vysoká oblačnosť výrazne obmedzuje pozorovanie.' },
-    ],
-    best_time_local: '23:00',
-    best_time_index: 52,
-    best_time_reason: 'Relatívne najlepšie: nižšia oblačnosť, viac tmy.',
-    sun: {
-      status: 'ok',
-      sunset: '17:10',
-      sunrise: '07:11',
-      civil_twilight_end: '17:40',
-      civil_twilight_begin: '06:40',
-    },
-    moon: {
-      phase_name: 'Waxing crescent',
-      illumination_pct: 18,
-    },
-    atmosphere: {
-      humidity: { current_pct: 85, evening_pct: 88, status: 'ok', label: 'Pozor' },
-      cloud_cover: { current_pct: 67, evening_pct: 82, status: 'ok', label: 'Zlé' },
-      seeing: { score: 44, status: 'ok' },
-      air_quality: { pm25: null, pm10: null, status: 'unavailable' },
-    },
-    weather_now: {
-      temperature_c: 2.4,
-      apparent_temperature_c: -0.5,
-      wind_speed: 12.5,
-      weather_code: 2,
-      weather_label_sk: 'Polojasno',
-    },
-    timeline: {
-      hourly: [
-        { local_time: '18:00', humidity_pct: 82, cloud_cover_pct: 68 },
-        { local_time: '19:00', humidity_pct: 84, cloud_cover_pct: 70 },
-        { local_time: '20:00', humidity_pct: 88, cloud_cover_pct: 82 },
-      ],
-      sunset: '17:10',
-      sunrise: '07:11',
-      civil_twilight_end: '17:40',
-      civil_twilight_begin: '06:40',
-    },
-    ...overrides,
   }
+}
+
+function buildGetResponse(url) {
+  if (url === '/sky/weather') {
+    return {
+      data: {
+        cloud_percent: 32,
+        humidity_percent: 58,
+        wind_speed: 6.5,
+        wind_unit: 'km/h',
+        observing_score: 85,
+        temperature_c: 2.4,
+        weather_label: 'Polojasno',
+        updated_at: '2026-02-27T19:25:00+01:00',
+        source: 'open_meteo',
+      },
+    }
+  }
+
+  if (url === '/sky/astronomy') {
+    return buildAstronomyResponse()
+  }
+
+  if (url === '/sky/visible-planets') {
+    return {
+      data: {
+        sample_at: '2026-02-27T19:30:00+01:00',
+        sun_altitude_deg: -18.2,
+        planets: [
+          { name: 'Jupiter', direction: 'SE', altitude_deg: 52.2, elongation_deg: 132.1, best_time_window: '20:20-23:40' },
+          { name: 'Mars', direction: 'E', altitude_deg: 12.3, elongation_deg: 28.4, best_time_window: '21:00-00:20' },
+          { name: 'Saturn', direction: 'W', altitude_deg: 7.4, elongation_deg: 48.0, best_time_window: '18:40-19:20' },
+          { name: 'Merkur', direction: 'W', altitude_deg: 11.2, elongation_deg: 14.9, best_time_window: '18:00-18:10' },
+        ],
+      },
+    }
+  }
+
+  if (url === '/sky/iss-preview') {
+    return {
+      data: {
+        available: true,
+        next_pass_at: '2026-02-27T21:10:00+01:00',
+        duration_sec: 420,
+        max_altitude_deg: 61.5,
+      },
+    }
+  }
+
+  if (url === '/sky/light-pollution') {
+    return {
+      data: {
+        bortle_class: 7,
+        brightness_value: 0.123,
+        confidence: 'low',
+      },
+    }
+  }
+
+  return { data: {} }
 }
 
 describe('RightObservingSidebar', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-02-27T19:30:00+01:00'))
     vi.clearAllMocks()
-    vi.useRealTimers()
     authMock.isAuthed = true
     authMock.initialized = true
-    preferencesMock.bortleClass = 6
+    authMock.isAdmin = false
+    authMock.user = { id: 10, is_admin: false, role: 'user' }
+    getMock.mockImplementation(async (url) => buildGetResponse(url))
   })
 
-  it('fetches only observe summary in deep-sky mode', async () => {
-    getMock.mockResolvedValue({ data: observePayload() })
-
-    mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
-    })
-
-    await wait()
-
-    expect(getMock).toHaveBeenCalledTimes(1)
-    expect(getMock).toHaveBeenCalledWith('/observe/summary', expect.objectContaining({
-      params: expect.objectContaining({ mode: 'deep_sky' }),
-    }))
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
-  it('renders weather now card when weather_now exists', async () => {
-    getMock.mockResolvedValue({ data: observePayload() })
+  it('maps event, settings and observing routes to the right sidebar scopes', () => {
+    expect(resolveSidebarScopeFromPath('/events')).toBe('events')
+    expect(resolveSidebarScopeFromPath('/settings')).toBe('settings')
+    expect(resolveSidebarScopeFromPath('/observations')).toBe('observing')
+    expect(resolveSidebarScopeFromPath('/observing/sky-summary')).toBe('observing')
+    expect(resolveSidebarScopeFromPath('/unknown-route')).toBeNull()
+  })
 
+  it('renders the title and excellent night score presentation', async () => {
     const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
     })
 
     await wait()
 
-    expect(wrapper.text()).toContain('Počasie teraz')
-    expect(wrapper.text()).toContain('2.4 °C')
-    expect(wrapper.text()).toContain('Polojasno')
+    expect(wrapper.text()).toContain('Astronomicke podmienky')
+    expect(wrapper.text()).toContain('Dobre')
   })
 
-  it('renders sky quality from summary payload', async () => {
-    getMock.mockResolvedValue({
-      data: observePayload({
-        sky_quality: {
-          bortle_class: 6,
-          label: 'Bortle 6/9',
-          impact_note: 'Mestská obloha - deep-sky objekty budú menej viditeľné.',
-        },
-      }),
+  it('shows the edit pencil only for admin users', async () => {
+    const nonAdminWrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
     })
 
+    await wait()
+
+    expect(nonAdminWrapper.find('[data-testid="sky-widget-reorder-toggle"]').exists()).toBe(false)
+
+    authMock.isAdmin = true
+    authMock.user = { id: 1, is_admin: true, role: 'admin' }
+
+    const adminWrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+
+    expect(adminWrapper.find('[data-testid="sky-widget-reorder-toggle"]').exists()).toBe(true)
+  })
+
+  it('navigates to profile edit after clicking the location name', async () => {
     const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
     })
 
     await wait()
 
-    expect(wrapper.text()).toContain('Bortle:')
-    expect(wrapper.text()).toContain('6/9')
+    const locationButton = wrapper.find('button[title="Zmeniť lokalitu"]')
+    await locationButton.trigger('click')
+
+    expect(pushMock).toHaveBeenCalledWith('/profile/edit#location')
   })
 
-  it('shows moon symbol for clear weather during night', async () => {
-    try {
-      vi.useFakeTimers()
-      vi.setSystemTime(new Date('2026-02-24T20:05:00Z'))
-      getMock.mockResolvedValue({
-        data: observePayload({
-          weather_now: {
-            temperature_c: 1.1,
-            apparent_temperature_c: -1.0,
-            wind_speed: 4.5,
-            weather_code: 0,
-            weather_label_sk: 'Jasno',
-          },
-          sun: {
-            status: 'ok',
-            sunset: '17:10',
-            sunrise: '07:11',
-            civil_twilight_end: '17:40',
-            civil_twilight_begin: '06:40',
-          },
-        }),
-      })
-
-      const wrapper = mount(RightObservingSidebar, {
-        props: { lat: 48.14, lon: 17.1, date: '2026-02-24', tz: 'Europe/Bratislava' },
-      })
-
-      await vi.advanceTimersByTimeAsync(300)
-
-      expect(wrapper.find('.weatherNowIcon').exists()).toBe(false)
-      expect(wrapper.find('.weatherNowEmoji').text()).toContain('🌙')
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('does not show sky microservice warning and does not use warn/severe labels', async () => {
-    getMock.mockResolvedValue({ data: observePayload() })
-
+  it('shows simplified bortle copy for class 7', async () => {
     const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
     })
 
     await wait()
 
-    expect(wrapper.text()).toContain('Pozor')
-    expect(wrapper.text()).toContain('Zlé')
-    expect(wrapper.text()).not.toContain('warn')
-    expect(wrapper.text()).not.toContain('severe')
-    expect(wrapper.text()).not.toContain('Nepodarilo sa načítať planéty/meteory')
+    expect(wrapper.text()).toContain('Svetelné znečistenie: vysoke')
+    expect(wrapper.text()).toContain('Mesto (Bortle 7)')
+    expect(wrapper.text()).toContain('Odhad podľa polohy')
   })
 
-  it('keeps best-time sentence clean without duplicated prefix', async () => {
-    getMock.mockResolvedValue({ data: observePayload() })
-
+  it('shows planet visibility tags from the Planety 1.5 contract', async () => {
     const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
     })
 
     await wait()
 
-    expect(wrapper.text()).toContain('Relatívne najlepšie: nižšia oblačnosť, viac tmy.')
-    expect(wrapper.text()).not.toContain('Relatívne najlepšie: Relatívne najlepšie:')
+    expect(wrapper.text()).toContain('Jupiter')
+    expect(wrapper.text()).toContain('Viditeľná')
+    expect(wrapper.text()).toContain('Nízko nad obzorom')
+    expect(wrapper.text()).toContain('Blízko Slnka')
+    expect(wrapper.text()).toContain('elongácia:')
   })
 
-  it('hides PM rows when PM data is unavailable', async () => {
-    getMock.mockResolvedValue({
-      data: observePayload({
-        atmosphere: {
-          humidity: { current_pct: 85, evening_pct: 88, status: 'ok', label: 'Pozor' },
-          cloud_cover: { current_pct: 67, evening_pct: 82, status: 'ok', label: 'Zlé' },
-          seeing: { score: 44, status: 'ok' },
-          air_quality: { pm25: null, pm10: null, status: 'unavailable' },
-        },
-      }),
-    })
-
-    const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
-    })
-
-    await wait()
-
-    expect(wrapper.text()).not.toContain('PM2.5 / PM10')
-  })
-
-  it('opens event detail when moon phase row is clicked', async () => {
-    getMock.mockResolvedValue({
-      data: observePayload({
-        moon: {
-          phase_name: 'Waxing crescent',
-          illumination_pct: 18,
-          phase_schedule: [
-            { event_id: 42, phase: 'full moon', at_local: '2026-02-28 20:00' },
-          ],
-        },
-      }),
-    })
-
-    const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, date: '2026-02-20', tz: 'Europe/Bratislava' },
-    })
-
-    await wait()
-
-    await wrapper.find('.phaseLink').trigger('click')
-    expect(pushMock).toHaveBeenCalledWith('/events/42')
-  })
-
-  it('does not duplicate current moon phase when single scheduled phase is merged with synthetic cards', async () => {
-    try {
-      vi.useFakeTimers()
-      vi.setSystemTime(new Date('2026-02-24T20:05:00Z'))
-
-      getMock.mockResolvedValue({
-        data: observePayload({
-          moon: {
-            phase_name: 'First quarter',
-            illumination_pct: 50,
-            phase_schedule: [
-              { event_id: 77, phase: 'first quarter', at_local: '2026-02-24 18:00' },
+  it('hides the planet list until night based on sun_altitude_deg', async () => {
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/visible-planets') {
+        return {
+          data: {
+            sample_at: '2026-02-27T11:57:00+01:00',
+            sun_altitude_deg: -8.0,
+            planets: [
+              { name: 'Jupiter', direction: 'SE', altitude_deg: 52.2, elongation_deg: 132.1, best_time_window: '20:20-23:40' },
             ],
           },
-        }),
-      })
+        }
+      }
 
-      const wrapper = mount(RightObservingSidebar, {
-        props: { lat: 48.14, lon: 17.1, date: '2026-02-24', tz: 'Europe/Bratislava' },
-      })
+      return buildGetResponse(url)
+    })
 
-      await vi.advanceTimersByTimeAsync(300)
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
 
-      const currentIlluminationLabels = wrapper.findAll('.moonPhaseIllum').map((node) => node.text().trim())
-      const fiftyPercentCount = currentIlluminationLabels.filter((text) => text === '50%').length
-      expect(fiftyPercentCount).toBe(1)
-    } finally {
-      vi.useRealTimers()
-    }
+    await wait()
+
+    expect(wrapper.text()).toContain('Zobrazíme po zotmení.')
+    expect(wrapper.text()).not.toContain('Jupiter')
+  })
+
+  it('uses astronomical night at Bratislava winter midnight when sun altitude is <= -18', async () => {
+    vi.setSystemTime(new Date('2026-01-15T00:00:00+01:00'))
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/astronomy') {
+        return buildAstronomyResponse({
+          sample_at: '2026-01-15T00:00:00+01:00',
+          sun_altitude_deg: -32.4,
+        })
+      }
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.1486, lon: 17.1077, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('/100')
+    expect(wrapper.text()).not.toContain('Astronomicky sumrak')
+  })
+
+  it('uses twilight bucket at Bratislava summer midnight when sun altitude is above -18', async () => {
+    vi.setSystemTime(new Date('2026-07-01T00:00:00+02:00'))
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/astronomy') {
+        return buildAstronomyResponse({
+          sample_at: '2026-07-01T00:00:00+02:00',
+          sun_altitude_deg: -16.4,
+        })
+      }
+      if (url === '/sky/visible-planets') {
+        return {
+          data: {
+            sample_at: '2026-07-01T00:00:00+02:00',
+            sun_altitude_deg: -16.4,
+            planets: [
+              { name: 'Jupiter', direction: 'SE', altitude_deg: 52.2, elongation_deg: 132.1, best_time_window: '20:20-23:40' },
+            ],
+          },
+        }
+      }
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.1486, lon: 17.1077, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Astronomicky sumrak')
+  })
+
+  it('shows N/A score during daylight-gated conditions', async () => {
+    vi.setSystemTime(new Date('2026-07-01T19:00:00+02:00'))
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/astronomy') {
+        return buildAstronomyResponse({
+          sample_at: '2026-07-01T19:00:00+02:00',
+          sun_altitude_deg: -2.0,
+        })
+      }
+      if (url === '/sky/visible-planets') {
+        return {
+          data: {
+            sample_at: '2026-07-01T19:00:00+02:00',
+            sun_altitude_deg: -2.0,
+            planets: [],
+          },
+        }
+      }
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.1486, lon: 17.1077, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('N/A')
+    expect(wrapper.text()).toContain('svetlo')
+  })
+
+  it('retries weather fetch after pressing retry button', async () => {
+    let weatherAttempts = 0
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/weather') {
+        weatherAttempts += 1
+        if (weatherAttempts === 1) {
+          throw new Error('weather unavailable')
+        }
+        return buildGetResponse(url)
+      }
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+    expect(wrapper.text()).toContain('Skúsiť znova')
+
+    const retryButtons = wrapper.findAll('button').filter((button) => button.text().includes('Skúsiť znova'))
+    expect(retryButtons.length).toBeGreaterThan(0)
+    await retryButtons[0].trigger('click')
+    await wait()
+
+    expect(weatherAttempts).toBeGreaterThanOrEqual(2)
+  })
+
+  it('renders score reasons in the expandable "Preco?" panel', async () => {
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+
+    const reasonsToggle = wrapper.findAll('button').find((button) => button.text().includes('Preco?'))
+    expect(reasonsToggle).toBeDefined()
+    await reasonsToggle.trigger('click')
+    await wait()
+
+    expect(wrapper.text()).toContain('Oblacnost')
+  })
+
+  it('does not fetch sky data when location is unset and shows location-required state', async () => {
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: null, lon: null, tz: 'Europe/Bratislava', locationName: '' },
+    })
+
+    await wait()
+
+    expect(getMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Poloha: nenastavená')
+    expect(wrapper.text()).toContain('Poloha nie je nastavená')
+    expect(wrapper.text()).toContain('Nastaviť polohu')
+  })
+
+  it('shows fetch-error state with retry CTA when location exists but API fails', async () => {
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/weather' || url === '/sky/astronomy' || url === '/sky/light-pollution') {
+        throw new Error('service unavailable')
+      }
+
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Nepodarilo sa načítať podmienky.')
+    expect(wrapper.text()).toContain('Skúsiť znova')
+    expect(wrapper.text()).not.toContain('Nastaviť polohu')
+  })
+
+  it('shows loading skeleton without CTA while primary data is loading', async () => {
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/weather' || url === '/sky/astronomy') {
+        return new Promise(() => {})
+      }
+
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+
+    expect(wrapper.find('.animate-pulse').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('Nastaviť polohu')
+    expect(wrapper.text()).not.toContain('Skúsiť znova')
   })
 })
