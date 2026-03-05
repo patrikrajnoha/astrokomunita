@@ -1,7 +1,20 @@
 import api from '@/services/api'
 
-export function getBotSources() {
-  return api.get('/admin/bots/sources', { meta: { skipErrorToast: true } })
+export function getBotOverview() {
+  return api.get('/admin/bots/overview', { meta: { skipErrorToast: true } })
+}
+
+export function getBotSources(params = {}) {
+  return api.get('/admin/bots/sources', {
+    params,
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function updateBotSource(sourceId, payload = {}) {
+  return api.patch(`/admin/bots/sources/${encodeURIComponent(sourceId)}`, payload, {
+    meta: { skipErrorToast: true },
+  })
 }
 
 export function getBotRuns(params = {}) {
@@ -14,6 +27,31 @@ export function getBotRuns(params = {}) {
 export function getBotActivity(params = {}) {
   return api.get('/admin/bots/activity', {
     params,
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function getBotSchedules(params = {}) {
+  return api.get('/admin/bots/schedules', {
+    params,
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function createBotSchedule(payload = {}) {
+  return api.post('/admin/bots/schedules', payload, {
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function updateBotSchedule(scheduleId, payload = {}) {
+  return api.patch(`/admin/bots/schedules/${encodeURIComponent(scheduleId)}`, payload, {
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function deleteBotSchedule(scheduleId) {
+  return api.delete(`/admin/bots/schedules/${encodeURIComponent(scheduleId)}`, {
     meta: { skipErrorToast: true },
   })
 }

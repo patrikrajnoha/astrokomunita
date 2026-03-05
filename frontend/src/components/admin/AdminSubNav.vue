@@ -59,6 +59,24 @@ const groups = [
         routeNames: ['admin.bots', 'admin.astrobot', 'admin.bots.kozmo', 'admin.bots.stellar'],
       },
       {
+        label: 'Bot Sources',
+        to: { name: 'admin.bots.sources' },
+        icon: 'S',
+        routeNames: ['admin.bots.sources'],
+      },
+      {
+        label: 'Bot Schedules',
+        to: { name: 'admin.bots.schedules' },
+        icon: 'C',
+        routeNames: ['admin.bots.schedules'],
+      },
+      {
+        label: 'Engine Controls',
+        to: { name: 'admin.bots.engine' },
+        icon: 'E',
+        routeNames: ['admin.bots.engine'],
+      },
+      {
         label: 'Bot Activity',
         to: { name: 'admin.bots.activity' },
         icon: 'A',

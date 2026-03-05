@@ -502,7 +502,25 @@ const appShellChildren = [
         path: 'bots',
         name: 'admin.bots',
         meta: { adminSection: 'automation' },
+        component: () => import('@/views/admin/BotEngineDashboardView.vue'),
+      },
+      {
+        path: 'bots/engine',
+        name: 'admin.bots.engine',
+        meta: { adminSection: 'automation' },
         component: () => import('@/views/admin/BotEngineView.vue'),
+      },
+      {
+        path: 'bots/sources',
+        name: 'admin.bots.sources',
+        meta: { adminSection: 'automation' },
+        component: () => import('@/views/admin/BotSourcesHealthView.vue'),
+      },
+      {
+        path: 'bots/schedules',
+        name: 'admin.bots.schedules',
+        meta: { adminSection: 'automation' },
+        component: () => import('@/views/admin/BotSchedulesView.vue'),
       },
       {
         path: 'bots/activity',

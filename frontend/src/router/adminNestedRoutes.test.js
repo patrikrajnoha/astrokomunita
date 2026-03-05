@@ -66,6 +66,9 @@ describe('admin nested section routes', () => {
     expect(router.resolve({ name: 'admin.moderation' }).path).toBe('/admin/community/moderation')
     expect(router.resolve({ name: 'admin.blog' }).path).toBe('/admin/content/articles')
     expect(router.resolve({ name: 'admin.newsletter' }).path).toBe('/admin/content/newsletter')
+    expect(router.resolve({ name: 'admin.bots.sources' }).path).toBe('/admin/bots/sources')
+    expect(router.resolve({ name: 'admin.bots.schedules' }).path).toBe('/admin/bots/schedules')
+    expect(router.resolve({ name: 'admin.bots.engine' }).path).toBe('/admin/bots/engine')
     expect(router.resolve({ name: 'admin.bots.activity' }).path).toBe('/admin/bots/activity')
   })
 
@@ -136,6 +139,9 @@ describe('admin nested section routes', () => {
 
     expect(router.resolve({ name: 'admin.astrobot' }).meta.adminSection).toBe('automation')
     expect(router.resolve({ name: 'admin.bots' }).meta.adminSection).toBe('automation')
+    expect(router.resolve({ name: 'admin.bots.engine' }).meta.adminSection).toBe('automation')
+    expect(router.resolve({ name: 'admin.bots.sources' }).meta.adminSection).toBe('automation')
+    expect(router.resolve({ name: 'admin.bots.schedules' }).meta.adminSection).toBe('automation')
     expect(router.resolve({ name: 'admin.bots.activity' }).meta.adminSection).toBe('automation')
     expect(router.resolve({ name: 'admin.bots.kozmo' }).meta.adminSection).toBe('automation')
     expect(router.resolve({ name: 'admin.bots.stellar' }).meta.adminSection).toBe('automation')
