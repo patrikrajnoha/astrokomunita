@@ -135,6 +135,10 @@ function roleLabel(user) {
   return 'USER'
 }
 
+function isBotRole(user) {
+  return String(user?.role || '').trim().toLowerCase() === 'bot'
+}
+
 function isSelf(user) {
   return auth.user && user && Number(auth.user.id) === Number(user.id)
 }
@@ -149,7 +153,15 @@ function userHandle(user) {
 }
 
 function userEmail(user) {
+  if (isBotRole(user)) {
+    return '—'
+  }
+
   return String(user?.email || '-')
+}
+
+function botAccountHint() {
+  return 'Automatizovaný účet — e-mail je zámerne prázdny.'
 }
 
 function formatRelative(value) {
@@ -576,7 +588,16 @@ load()
                   </td>
 
                   <td data-label="Email" class="col-email">
-                    <span class="truncateText" :title="userEmail(row)">{{ userEmail(row) }}</span>
+                    <div class="emailCell">
+                      <span class="truncateText" :title="userEmail(row)">{{ userEmail(row) }}</span>
+                      <span
+                        v-if="isBotRole(row)"
+                        class="botAccountHint"
+                        :title="botAccountHint()"
+                      >
+                        (bot účet)
+                      </span>
+                    </div>
                   </td>
 
                   <td data-label="Role" class="col-role">
@@ -1061,6 +1082,29 @@ load()
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.emailCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.botAccountHint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 999px;
+  padding: 0 7px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  background: rgb(var(--color-surface-rgb) / 0.08);
+  white-space: nowrap;
 }
 
 .badge {
