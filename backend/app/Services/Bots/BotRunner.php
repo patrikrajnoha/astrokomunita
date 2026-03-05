@@ -35,6 +35,7 @@ class BotRunner
         private readonly BotItemDedupeService $dedupeService,
         private readonly BotPublisherService $publisherService,
         private readonly BotActivityLogService $activityLogService,
+        private readonly BotSourceHealthService $sourceHealthService,
         private readonly BotTranslationServiceInterface $translationService,
     ) {
     }
@@ -60,6 +61,7 @@ class BotRunner
         ?int $publishLimit = null
     ): BotRun
     {
+        $runStartedAt = microtime(true);
         $context = $this->normalizeRunContext($runContext);
         $runMode = $this->normalizeRunMode($mode);
         $normalizedPublishLimit = $this->normalizePublishLimit($publishLimit);
@@ -99,13 +101,23 @@ class BotRunner
                 ]
             );
 
-            return $this->finalizeRunSafely(
+            $finalizedRun = $this->finalizeRunSafely(
                 $run,
                 BotRunStatus::SKIPPED,
                 $stats,
                 'Run skipped because lock is already held.',
                 $runMeta
             );
+
+            $this->sourceHealthService->recordRunOutcome(
+                $source,
+                BotRunStatus::SKIPPED,
+                $runMeta,
+                'Run skipped because lock is already held.',
+                $this->elapsedMilliseconds($runStartedAt)
+            );
+
+            return $finalizedRun;
         }
 
         $run = $this->runService->startRun($source, $runMeta);
@@ -143,7 +155,16 @@ class BotRunner
 
             $this->releaseRunLocks($lockState);
 
-            return $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
+            $finalizedRun = $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
+            $this->sourceHealthService->recordRunOutcome(
+                $source,
+                $status,
+                $runMeta,
+                $errorText,
+                $this->elapsedMilliseconds($runStartedAt)
+            );
+
+            return $finalizedRun;
         }
 
         $status = BotRunStatus::SUCCESS;
@@ -263,7 +284,16 @@ class BotRunner
             );
         }
 
-        return $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
+        $finalizedRun = $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
+        $this->sourceHealthService->recordRunOutcome(
+            $source,
+            $status,
+            $runMeta,
+            $errorText,
+            $this->elapsedMilliseconds($runStartedAt)
+        );
+
+        return $finalizedRun;
     }
 
     /**
@@ -362,11 +392,44 @@ class BotRunner
                     $row['payload'],
                     $runId
                 );
+                $ingestOutcome = 'created';
+                $ingestReason = null;
+
                 if ($item->wasRecentlyCreated) {
                     $stats['new_count']++;
                 } else {
                     $stats['dupes_count']++;
+                    $itemPayloadChanged = $item->wasChanged([
+                        'title',
+                        'summary',
+                        'content',
+                        'url',
+                        'published_at',
+                        'lang_original',
+                        'lang_detected',
+                    ]);
+                    if ($itemPayloadChanged) {
+                        $ingestOutcome = 'updated';
+                    } else {
+                        $ingestOutcome = 'skipped_duplicate';
+                        $ingestReason = 'stable_key_exists';
+                    }
                 }
+
+                $this->activityLogService->record(
+                    action: 'ingest',
+                    outcome: $ingestOutcome,
+                    item: $item,
+                    source: $source,
+                    run: null,
+                    postId: null,
+                    reason: $ingestReason,
+                    runContext: $runContext,
+                    message: null,
+                    meta: [
+                        'stable_key' => (string) ($row['stable_key'] ?? ''),
+                    ]
+                );
 
                 $this->stampItemRunContext($item, $runContext);
                 $items->push($item);
@@ -384,6 +447,22 @@ class BotRunner
                         'meta' => $meta,
                     ])->save();
                 }
+
+                $this->activityLogService->record(
+                    action: 'ingest',
+                    outcome: 'failed',
+                    item: $item,
+                    source: $source,
+                    run: null,
+                    postId: null,
+                    reason: 'exception',
+                    runContext: $runContext,
+                    message: $this->limitText($e->getMessage(), 300),
+                    meta: [
+                        'stable_key' => (string) ($row['stable_key'] ?? ''),
+                        'exception_class' => $e::class,
+                    ]
+                );
             }
         }
 
@@ -1052,6 +1131,11 @@ class BotRunner
         }
 
         return $this->rateLimitBackoffMinutes($source) * 60;
+    }
+
+    private function elapsedMilliseconds(float $startedAt): int
+    {
+        return max(0, (int) round((microtime(true) - $startedAt) * 1000));
     }
 
     private function limitText(string $value, int $maxLength): string

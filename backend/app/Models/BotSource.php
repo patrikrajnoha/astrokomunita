@@ -14,12 +14,19 @@ class BotSource extends Model
 
     protected $fillable = [
         'key',
+        'name',
         'bot_identity',
         'source_type',
         'url',
         'is_enabled',
         'schedule',
         'last_run_at',
+        'last_success_at',
+        'last_error_at',
+        'last_error_message',
+        'consecutive_failures',
+        'last_status_code',
+        'avg_latency_ms',
         'cooldown_until',
     ];
 
@@ -29,6 +36,11 @@ class BotSource extends Model
         'is_enabled' => 'boolean',
         'schedule' => 'array',
         'last_run_at' => 'datetime',
+        'last_success_at' => 'datetime',
+        'last_error_at' => 'datetime',
+        'consecutive_failures' => 'integer',
+        'last_status_code' => 'integer',
+        'avg_latency_ms' => 'integer',
         'cooldown_until' => 'datetime',
     ];
 
@@ -40,5 +52,10 @@ class BotSource extends Model
     public function items(): HasMany
     {
         return $this->hasMany(BotItem::class, 'source_id');
+    }
+
+    public function schedules(): HasMany
+    {
+        return $this->hasMany(BotSchedule::class, 'source_id');
     }
 }

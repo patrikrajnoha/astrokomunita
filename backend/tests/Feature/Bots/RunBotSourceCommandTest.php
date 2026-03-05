@@ -60,6 +60,7 @@ class RunBotSourceCommandTest extends TestCase
 
         $post = Post::query()->latest('id')->firstOrFail();
         $this->assertNotNull($post->bot_item_id);
+        $this->assertNotNull($post->ingested_at);
         $this->assertDatabaseHas('posts', [
             'id' => $post->id,
             'bot_item_id' => $post->bot_item_id,
@@ -75,6 +76,74 @@ class RunBotSourceCommandTest extends TestCase
         $kozmoBot = User::query()->where('is_bot', true)->where('username', 'kozmobot')->first();
         $this->assertNotNull($kozmoBot);
         $this->assertSame('Kozmo', (string) $kozmoBot->name);
+    }
+
+    public function test_successful_run_updates_source_health_fields(): void
+    {
+        $source = $this->createSource();
+        Http::fake([
+            $source->url => Http::response($this->fixtureRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+
+        $source->refresh();
+        $this->assertNotNull($source->last_run_at);
+        $this->assertNotNull($source->last_success_at);
+        $this->assertSame(0, (int) $source->consecutive_failures);
+        $this->assertNull($source->last_error_message);
+        $this->assertSame(200, (int) $source->last_status_code);
+        $this->assertNotNull($source->avg_latency_ms);
+    }
+
+    public function test_failed_run_updates_source_health_error_fields(): void
+    {
+        config()->set('bots.sources.nasa_apod_daily.requires_api_key', true);
+        config()->set('services.nasa.key', '');
+        config()->set('services.nasa.apod_api_key', '');
+
+        $source = $this->createApodSource();
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+        $this->assertSame(0, $exitCode);
+
+        $source->refresh();
+        $this->assertNotNull($source->last_run_at);
+        $this->assertNotNull($source->last_error_at);
+        $this->assertSame(1, (int) $source->consecutive_failures);
+        $this->assertSame(429, (int) $source->last_status_code);
+        $this->assertStringContainsString('api key', strtolower((string) $source->last_error_message));
+    }
+
+    public function test_ingest_attempts_are_logged_as_created_and_skipped_duplicate(): void
+    {
+        $source = $this->createSource();
+        Http::fake([
+            $source->url => Http::response($this->fixtureRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $firstExitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+        $secondExitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $firstExitCode);
+        $this->assertSame(0, $secondExitCode);
+
+        $this->assertSame(
+            2,
+            BotActivityLog::query()
+                ->where('action', 'ingest')
+                ->where('outcome', 'created')
+                ->count()
+        );
+        $this->assertGreaterThanOrEqual(
+            2,
+            BotActivityLog::query()
+                ->where('action', 'ingest')
+                ->where('outcome', 'skipped_duplicate')
+                ->count()
+        );
     }
 
     public function test_publish_rate_limiter_limits_per_bot_identity_and_logs_skip_reason(): void

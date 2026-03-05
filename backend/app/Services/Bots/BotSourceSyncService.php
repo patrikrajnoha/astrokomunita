@@ -16,6 +16,7 @@ class BotSourceSyncService
         $definitions = [
             [
                 'key' => 'nasa_rss_breaking',
+                'name' => (string) config('bots.sources.nasa_rss_breaking.label', 'NASA RSS'),
                 'bot_identity' => PostBotIdentity::KOZMO->value,
                 'source_type' => BotSourceType::RSS->value,
                 'url' => (string) config('bots.nasa_rss_url', 'https://www.nasa.gov/news-release/feed/'),
@@ -24,6 +25,7 @@ class BotSourceSyncService
             ],
             [
                 'key' => 'nasa_apod_daily',
+                'name' => (string) config('bots.sources.nasa_apod_daily.label', 'NASA APOD'),
                 'bot_identity' => PostBotIdentity::STELA->value,
                 'source_type' => BotSourceType::API->value,
                 'url' => (string) config('bots.nasa_apod_url', 'https://api.nasa.gov/planetary/apod'),
@@ -32,6 +34,7 @@ class BotSourceSyncService
             ],
             [
                 'key' => 'wiki_onthisday_astronomy',
+                'name' => (string) config('bots.sources.wiki_onthisday_astronomy.label', 'Wikipedia On This Day'),
                 'bot_identity' => PostBotIdentity::KOZMO->value,
                 'source_type' => BotSourceType::WIKIPEDIA->value,
                 'url' => (string) config('bots.wikipedia_onthisday_url', 'https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/all'),
@@ -52,9 +55,19 @@ class BotSourceSyncService
             }
 
             $dirty = false;
-            foreach ($definition as $field => $value) {
-                if ($source->{$field} !== $value) {
-                    $source->{$field} = $value;
+            foreach (['bot_identity', 'source_type'] as $requiredField) {
+                $value = $definition[$requiredField] ?? null;
+                if ($source->{$requiredField} !== $value) {
+                    $source->{$requiredField} = $value;
+                    $dirty = true;
+                }
+            }
+
+            foreach (['name', 'url'] as $fillOnlyIfEmpty) {
+                $value = trim((string) ($definition[$fillOnlyIfEmpty] ?? ''));
+                $current = trim((string) ($source->{$fillOnlyIfEmpty} ?? ''));
+                if ($current === '' && $value !== '') {
+                    $source->{$fillOnlyIfEmpty} = $value;
                     $dirty = true;
                 }
             }
@@ -72,4 +85,3 @@ class BotSourceSyncService
         ];
     }
 }
-

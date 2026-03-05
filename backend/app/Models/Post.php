@@ -40,6 +40,7 @@ class Post extends Model
         'source_uid',
         'bot_item_id',
         'source_published_at',
+        'ingested_at',
         'expires_at',  // When bot posts should expire
         'is_hidden',
         'moderation_status',
@@ -90,6 +91,7 @@ class Post extends Model
         'attachment_web_height' => 'integer',
         'attachment_variants_json' => 'array',
         'source_published_at' => 'datetime',
+        'ingested_at' => 'datetime',
         'bot_item_id' => 'integer',
         'translated_at' => 'datetime',
         'meta' => 'array',
@@ -314,6 +316,7 @@ class Post extends Model
         'source_uid',
         'bot_item_id',
         'source_published_at',
+        'ingested_at',
         'is_hidden',
         'moderation_status',
         'moderation_summary',
