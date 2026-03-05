@@ -20,13 +20,7 @@
 
         <div class="profileHead">
           <div class="avatar">
-            <img
-              v-if="avatarUrl"
-              class="avatarImg"
-              :src="avatarUrl"
-              :alt="displayName"
-            />
-            <span v-else>{{ initials }}</span>
+            <UserAvatar class="avatarImg" :user="user" :alt="displayName" />
           </div>
 
           <div class="headActions">
@@ -46,22 +40,22 @@
           <p v-else class="bio muted">Zatial bez popisu.</p>
 
           <div class="meta">
-            <span v-if="user?.location" class="metaItem">Location: {{ user.location }}</span>
+            <span v-if="user?.location" class="metaItem">Lokalita: {{ user.location }}</span>
           </div>
         </div>
 
         <div class="statsRow">
           <div class="stat">
             <div class="statNum">{{ stats.posts }}</div>
-            <div class="statLabel">Posts</div>
+            <div class="statLabel">Príspevky</div>
           </div>
           <div class="stat">
             <div class="statNum">{{ stats.replies }}</div>
-            <div class="statLabel">Replies</div>
+            <div class="statLabel">Odpovede</div>
           </div>
           <div class="stat">
             <div class="statNum">{{ stats.media }}</div>
-            <div class="statLabel">Media</div>
+            <div class="statLabel">Médiá</div>
           </div>
         </div>
       </section>
@@ -87,34 +81,39 @@
         </div>
 
         <div v-else-if="!tabState[activeTab].loading && tabState[activeTab].items.length === 0" class="muted padTop">
-          Zatial ziadny obsah.
+          {{ activeTab === 'observations' ? 'Zatial ziadne pozorovania.' : 'Zatial ziadny obsah.' }}
+        </div>
+
+        <div v-else-if="activeTab === 'observations'" class="observationsList">
+          <ObservationCard
+            v-for="item in tabState.observations.items"
+            :key="item.id"
+            :observation="item"
+            :clickable="true"
+            :show-author="false"
+            @open="openObservation"
+          />
         </div>
 
         <div v-else class="postList">
           <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem">
             <div class="avatar sm">
-              <img
-                v-if="avatarUrl"
-                class="avatarImg"
-                :src="avatarUrl"
-                :alt="displayName"
-              />
-              <span v-else>{{ initials }}</span>
+              <UserAvatar class="avatarImg" :user="user" :alt="displayName" />
             </div>
 
             <div class="postBody">
               <div class="postMeta">
                 <div class="postName">{{ displayName }}</div>
-                <div class="dot">.</div>
+                <div class="dot">·</div>
                 <div class="postTime">{{ fmt(p.created_at) }}</div>
               </div>
 
               <div v-if="p.parent && activeTab === 'replies'" class="replyContext">
-                Reply to: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
+                Odpoveď na: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
                 <span class="replyText">{{ shorten(p.parent.content) }}</span>
               </div>
 
-              <div class="postContent">{{ p.content }}</div>
+              <HashtagText class="postContent" :content="p.content" />
 
               <div v-if="p.attachment_url" class="attachment">
                 <img
@@ -124,13 +123,13 @@
                   alt="attachment"
                 />
                 <a v-else class="attachmentFile" :href="p.attachment_url" target="_blank" rel="noreferrer">
-                  {{ p.attachment_original_name || 'Attachment' }}
+                  {{ p.attachment_original_name || 'Príloha' }}
                 </a>
               </div>
 
               <div class="postActions">
                 <button class="btn outline" @click="openPost(p)">
-                  View thread
+                  Zobraziť vlákno
                 </button>
               </div>
             </div>
@@ -155,7 +154,12 @@
 <script setup>
 import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import UserAvatar from '@/components/UserAvatar.vue'
+import ObservationCard from '@/components/observations/ObservationCard.vue'
+import HashtagText from '@/components/HashtagText.vue'
 import http from '@/services/api'
+import { listObservations } from '@/services/observations'
+import { formatDateTimeCompact } from '@/utils/dateUtils'
 
 const router = useRouter()
 const route = useRoute()
@@ -165,9 +169,9 @@ const loading = ref(true)
 const err = ref('')
 
 const tabs = [
-  { key: 'posts', label: 'Posts', kind: 'roots' },
-  { key: 'replies', label: 'Replies', kind: 'replies' },
-  { key: 'media', label: 'Media', kind: 'media' },
+  { key: 'posts', label: 'Príspevky', kind: 'roots' },
+  { key: 'observations', label: 'Pozorovania', kind: 'observations' },
+  { key: 'media', label: 'Médiá', kind: 'media' },
 ]
 
 const stats = reactive({ posts: '--', replies: '--', media: '--' })
@@ -175,7 +179,7 @@ const activeTab = ref('posts')
 
 const tabState = reactive({
   posts: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
-  replies: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
+  observations: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   media: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
 })
 
@@ -185,31 +189,85 @@ const username = computed(() => String(route.params.username || ''))
 const displayName = computed(() => user.value?.name || 'Profil')
 const handle = computed(() => user.value?.username || safeHandle(user.value?.name || 'user'))
 
-const initials = computed(() => {
-  const n = user.value?.name || ''
-  const parts = n.trim().split(/\s+/).filter(Boolean)
-  const a = parts[0]?.[0] || 'U'
-  const b = parts[1]?.[0] || ''
-  return (a + b).toUpperCase()
-})
-
-const avatarUrl = computed(() => normalizeAvatarUrl(user.value?.avatar_url || user.value?.avatarUrl))
 const coverUrl = computed(() => normalizeAvatarUrl(user.value?.cover_url || user.value?.coverUrl))
 
 function normalizeAvatarUrl(raw) {
-  const u = raw || ''
+  const u = String(raw || '').trim()
   if (!u) return ''
-  if (/^https?:\/\//i.test(u)) return u
 
   const base = http?.defaults?.baseURL || ''
   const origin = base.replace(/\/api\/?$/, '')
+  const appOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : '')
 
-  if (u.startsWith('/')) return origin + u
-  return origin + '/' + u
+  const encodeMediaPath = (inputPath) =>
+    String(inputPath || '')
+      .split('/')
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join('/')
+
+  const absoluteStorageMatch = u.match(/^https?:\/\/[^/]+\/storage\/(.+)$/i)
+  if (absoluteStorageMatch) {
+    if (!appOrigin) return u
+    return `${appOrigin}/api/media/file/${encodeMediaPath(absoluteStorageMatch[1])}`
+  }
+
+  const absoluteMediaApiMatch = u.match(/^https?:\/\/[^/]+\/api\/media\/file\/(.+)$/i)
+  if (absoluteMediaApiMatch) {
+    if (!appOrigin) return u
+    return `${appOrigin}/api/media/file/${encodeMediaPath(absoluteMediaApiMatch[1])}`
+  }
+
+  if (u.startsWith('/storage/')) {
+    if (!appOrigin) return u
+    return `${appOrigin}/api/media/file/${encodeMediaPath(u.slice('/storage/'.length))}`
+  }
+
+  if (u.startsWith('/api/media/file/')) {
+    if (!appOrigin) return u
+    return `${appOrigin}/api/media/file/${encodeMediaPath(u.slice('/api/media/file/'.length))}`
+  }
+
+  if (/^https?:\/\//i.test(u)) return u
+  if (!appOrigin) return u
+
+  if (u.startsWith('/')) return appOrigin + u
+  return appOrigin + '/' + u
 }
 
 function safeHandle(input) {
   return String(input).toLowerCase().replace(/[^a-z0-9_]+/g, '').slice(0, 20) || 'user'
+}
+
+function mergeUniqueById(existingItems, incomingItems) {
+  const seen = new Set()
+  const merged = []
+
+  const append = (item) => {
+    const id = Number(item?.id || 0)
+    if (!Number.isInteger(id) || id <= 0) {
+      merged.push(item)
+      return
+    }
+    if (seen.has(id)) return
+    seen.add(id)
+    merged.push(item)
+  }
+
+  ;(Array.isArray(existingItems) ? existingItems : []).forEach(append)
+  ;(Array.isArray(incomingItems) ? incomingItems : []).forEach(append)
+
+  return merged
+}
+
+function resetTabState(tabKey) {
+  if (!tabState[tabKey]) return
+  tabState[tabKey].items = []
+  tabState[tabKey].next = null
+  tabState[tabKey].loading = false
+  tabState[tabKey].err = ''
+  tabState[tabKey].total = null
+  tabState[tabKey].loaded = false
 }
 
 function goHome() {
@@ -221,17 +279,18 @@ function openPost(post) {
   router.push(`/posts/${post.id}`)
 }
 
+function openObservation(observation) {
+  const observationId = Number(observation?.id || 0)
+  if (!Number.isInteger(observationId) || observationId <= 0) return
+  router.push(`/observations/${observationId}`)
+}
+
 function setActiveTab(key) {
   activeTab.value = key
 }
 
 function fmt(iso) {
-  if (!iso) return ''
-  try {
-    return new Date(iso).toLocaleString()
-  } catch {
-    return String(iso)
-  }
+  return formatDateTimeCompact(iso)
 }
 
 function shorten(text) {
@@ -297,11 +356,28 @@ async function loadCounts() {
 
       const total = Number.isFinite(data?.total) ? data.total : data?.data?.length || 0
       stats[k.key] = String(total)
-      tabState[k.key].total = String(total)
+      if (tabState[k.key]) {
+        tabState[k.key].total = String(total)
+      }
     } catch {
       stats[k.key] = '--'
-      tabState[k.key].total = '--'
+      if (tabState[k.key]) {
+        tabState[k.key].total = '--'
+      }
     }
+  }
+
+  try {
+    const userId = Number(user.value?.id || 0)
+    if (Number.isInteger(userId) && userId > 0) {
+      const { data } = await listObservations({ user_id: userId, page: 1, per_page: 1 })
+      const total = Number.isFinite(data?.total) ? data.total : data?.data?.length || 0
+      tabState.observations.total = String(total)
+    } else {
+      tabState.observations.total = '--'
+    }
+  } catch {
+    tabState.observations.total = '--'
   }
 }
 
@@ -315,6 +391,32 @@ async function loadTab(key, reset = true) {
   state.err = ''
 
   try {
+    if (tab.kind === 'observations') {
+      const userId = Number(user.value?.id || 0)
+      if (!Number.isInteger(userId) || userId <= 0) return
+
+      const page = reset ? 1 : Number(state.next || 0)
+      if (!page) return
+
+      const { data } = await listObservations({
+        user_id: userId,
+        page,
+        per_page: 10,
+      })
+
+      const rows = Array.isArray(data?.data) ? data.data : []
+      state.items = reset
+        ? mergeUniqueById([], rows)
+        : mergeUniqueById(state.items, rows)
+
+      const currentPage = Number(data?.current_page || page)
+      const lastPage = Number(data?.last_page || currentPage)
+      state.next = currentPage < lastPage ? currentPage + 1 : null
+      state.total = Number.isFinite(data?.total) ? String(data.total) : state.total
+      state.loaded = true
+      return
+    }
+
     const url = reset ? `/users/${username.value}/posts` : state.next
     if (!url) return
 
@@ -355,12 +457,9 @@ watch(
   () => username.value,
   async () => {
     activeTab.value = 'posts'
-    tabState.posts.loaded = false
-    tabState.replies.loaded = false
-    tabState.media.loaded = false
-    tabState.posts.items = []
-    tabState.replies.items = []
-    tabState.media.items = []
+    resetTabState('posts')
+    resetTabState('observations')
+    resetTabState('media')
     await refreshProfile()
   }
 )
@@ -565,6 +664,12 @@ onMounted(async () => {
 }
 
 .padTop { margin-top: 0.75rem; }
+
+.observationsList {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
 
 .postList {
   margin-top: 0.75rem;
