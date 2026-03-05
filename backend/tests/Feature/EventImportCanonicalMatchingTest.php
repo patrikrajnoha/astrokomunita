@@ -88,6 +88,7 @@ class EventImportCanonicalMatchingTest extends TestCase
     public function test_import_dispatches_translation_job_even_when_queue_driver_is_sync(): void
     {
         config()->set('translation.events.enabled', true);
+        config()->set('translation.allow_sync_queue', true);
         config()->set('queue.default', 'sync');
         Bus::fake();
 
