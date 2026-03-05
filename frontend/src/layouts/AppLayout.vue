@@ -523,7 +523,6 @@ const showDirectObservingSidebar = computed(() => {
 })
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
 const isProfileRoute = computed(() => String(route.path || '').startsWith('/profile'))
-const isSearchRoute = computed(() => route.name === 'search')
 const isHomeFeedRoute = computed(() => route.name === 'home')
 const showDesktopMainSidebar = computed(() => true)
 const isLayoutDebugEnabled = computed(() => {
@@ -541,7 +540,6 @@ const centerShellClass = computed(() => {
 })
 const centerShellColumns = computed(() => {
   if (isAdminRoute.value) return '16rem minmax(0, 1fr)'
-  if (isSearchRoute.value) return '16rem minmax(600px, 920px)'
 
   return '16rem minmax(600px, 640px)'
 })
@@ -560,10 +558,6 @@ const mainContentClass = computed(() => {
 
   if (isProfileRoute.value) {
     return 'mx-auto w-full max-w-[620px]'
-  }
-
-  if (isSearchRoute.value) {
-    return 'mx-auto w-full max-w-[920px]'
   }
 
   return 'mx-auto w-full max-w-[640px]'
@@ -1410,4 +1404,3 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-

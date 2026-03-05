@@ -300,7 +300,7 @@ Route::delete('/blog-posts/{slug}/comments/{comment}', [BlogPostCommentControlle
     ->middleware(['auth:sanctum', 'active', 'verified']);
 
 Route::post('/reports', [ReportController::class, 'store'])
-    ->middleware(['auth:sanctum', 'active', 'verified']);
+    ->middleware(['auth:sanctum', 'active', 'verified', 'throttle:report-submissions']);
 Route::get('/blog-tags', [BlogTagController::class, 'index']);
 
 /*

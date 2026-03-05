@@ -1,7 +1,10 @@
 <template>
-  <div class="min-h-screen bg-[var(--color-bg)] text-[var(--color-surface)]">
-    <div class="mx-auto w-full px-3 py-4 sm:px-4 sm:py-5 md:py-6">
-      <section class="sticky top-2 z-20 rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.2)] bg-[color:rgb(var(--color-bg-rgb)/0.78)] p-3 shadow-sm backdrop-blur sm:top-3 sm:p-4">
+  <section class="searchPage w-full min-w-0 text-[var(--color-surface)]" data-testid="search-page-root">
+    <div class="searchPage__shell w-full min-w-0 px-3 py-4 sm:px-4 sm:py-5 md:py-6" data-testid="search-page-shell">
+      <section
+        class="sticky top-2 z-20 rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.2)] bg-[color:rgb(var(--color-bg-rgb)/0.78)] p-3 shadow-sm backdrop-blur sm:top-3 sm:p-4"
+        data-testid="search-page-toolbar"
+      >
         <SearchBar
           v-model="query"
           :loading="showSearchResults && isGlobalLoading"
@@ -165,7 +168,7 @@
         </template>
       </section>
     </div>
-  </div>
+  </section>
 </template>
 
 <script setup>
