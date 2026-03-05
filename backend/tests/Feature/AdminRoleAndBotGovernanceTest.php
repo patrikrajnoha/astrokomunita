@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\User;
 use Database\Seeders\DefaultUsersSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -109,5 +111,33 @@ class AdminRoleAndBotGovernanceTest extends TestCase
 
         $this->assertSame(['kozmobot', 'stellarbot'], $botUsernames);
         $this->assertNull(User::query()->where('username', 'astrobot')->first());
+    }
+
+    public function test_bot_login_is_rejected_even_when_legacy_bot_has_email(): void
+    {
+        DB::table('users')->insert([
+            'name' => 'Legacy Bot',
+            'username' => 'legacybot',
+            'email' => 'legacybot@example.test',
+            'password' => Hash::make('secret-pass'),
+            'role' => User::ROLE_BOT,
+            'is_bot' => true,
+            'is_admin' => false,
+            'is_active' => true,
+            'is_banned' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'legacybot@example.test',
+            'password' => 'secret-pass',
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'Nespravny email alebo heslo.');
+    }
+
+    public function test_legacy_astrobot_feed_endpoint_does_not_exist(): void
+    {
+        $this->getJson('/api/feed/astrobot')->assertNotFound();
     }
 }
