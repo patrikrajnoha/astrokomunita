@@ -3,6 +3,7 @@
 namespace Tests\Feature\Bots;
 
 use App\Enums\BotSourceType;
+use App\Models\BotActivityLog;
 use App\Models\BotItem;
 use App\Models\BotRun;
 use App\Models\BotSource;
@@ -58,6 +59,11 @@ class RunBotSourceCommandTest extends TestCase
         );
 
         $post = Post::query()->latest('id')->firstOrFail();
+        $this->assertNotNull($post->bot_item_id);
+        $this->assertDatabaseHas('posts', [
+            'id' => $post->id,
+            'bot_item_id' => $post->bot_item_id,
+        ]);
         $this->assertSame('kozmo', (string) data_get($post->meta, 'bot_identity'));
         $this->assertSame('nasa_rss_breaking', (string) data_get($post->meta, 'bot_source_key'));
         $this->assertSame('NASA RSS', (string) data_get($post->meta, 'bot_source_label'));
@@ -69,6 +75,42 @@ class RunBotSourceCommandTest extends TestCase
         $kozmoBot = User::query()->where('is_bot', true)->where('username', 'kozmobot')->first();
         $this->assertNotNull($kozmoBot);
         $this->assertSame('Kozmo', (string) $kozmoBot->name);
+    }
+
+    public function test_publish_rate_limiter_limits_per_bot_identity_and_logs_skip_reason(): void
+    {
+        config()->set('bots.publish_rate_limit.enabled', true);
+        config()->set('bots.publish_rate_limit.window_seconds', 3600);
+        config()->set('bots.publish_rate_limit.default_max_attempts', 1);
+        config()->set('bots.publish_rate_limit.identities.kozmo', 1);
+
+        $source = $this->createSource();
+        Http::fake([
+            $source->url => Http::response($this->fixtureRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertDatabaseCount('bot_items', 2);
+        $this->assertDatabaseCount('posts', 1);
+
+        $this->assertSame(1, BotItem::query()->where('publish_status', 'published')->count());
+        $this->assertSame(1, BotItem::query()->where('publish_status', 'skipped')->count());
+        $this->assertSame(1, BotItem::query()->where('meta->skip_reason', 'publish_rate_limited')->count());
+
+        $rateLimitedLog = BotActivityLog::query()
+            ->where('action', 'publish')
+            ->where('outcome', 'skipped')
+            ->where('reason', 'publish_rate_limited')
+            ->first();
+
+        $this->assertNotNull($rateLimitedLog);
+        $this->assertSame(
+            'kozmo',
+            (string) ($rateLimitedLog->bot_identity?->value ?? $rateLimitedLog->bot_identity)
+        );
+        $this->assertGreaterThanOrEqual(1, (int) data_get($rateLimitedLog->meta, 'retry_after_sec', 0));
     }
 
     public function test_source_label_and_attribution_are_loaded_from_config_mapping(): void
@@ -687,6 +729,12 @@ class RunBotSourceCommandTest extends TestCase
         $item = BotItem::query()->firstOrFail();
         $this->assertSame('skipped', (string) $item->publish_status->value);
         $this->assertSame('missing_title_or_url', (string) data_get($item->meta, 'skip_reason'));
+        $this->assertDatabaseHas('bot_activity_logs', [
+            'action' => 'publish',
+            'outcome' => 'skipped',
+            'reason' => 'missing_title_or_url',
+            'bot_item_id' => $item->id,
+        ]);
 
         $run = BotRun::query()->latest('id')->firstOrFail();
         $this->assertSame(1, (int) ($run->stats['skipped_count'] ?? 0));

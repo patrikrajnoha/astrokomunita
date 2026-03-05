@@ -84,7 +84,7 @@ class PostService
                     ->orWhere('parent_id', $root->id);
             })
             ->with(array_merge([
-                'user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
+                'user:id,name,username,location,bio,is_admin,is_bot,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
                 'tags:id,name',
                 'hashtags:id,name',
             ], $this->polls->pollRelations($viewer?->id)))
@@ -163,6 +163,7 @@ class PostService
             $post->source_name = $attributes['source_name'] ?? null;
             $post->source_url = $attributes['source_url'] ?? null;
             $post->source_uid = $attributes['source_uid'] ?? null;
+            $post->bot_item_id = $attributes['bot_item_id'] ?? null;
             $post->source_published_at = $attributes['source_published_at'] ?? null;
             $post->expires_at = $attributes['expires_at'] ?? null;
             $post->meta = is_array($attributes['meta'] ?? null) ? $attributes['meta'] : null;
@@ -196,7 +197,7 @@ class PostService
             DB::afterCommit(fn () => $this->userActivity->forgetActivity($user));
 
             return $post->load([
-                'user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
+                'user:id,name,username,location,bio,is_admin,is_bot,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
                 'tags:id,name',
                 'hashtags:id,name',
                 ...$this->polls->pollRelations($user->id),
@@ -276,7 +277,7 @@ class PostService
             DB::afterCommit(fn () => $this->userActivity->forgetActivity($user));
 
             return $reply->load([
-                'user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
+                'user:id,name,username,location,bio,is_admin,is_bot,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
                 'tags:id,name',
                 'hashtags:id,name',
             ]);
