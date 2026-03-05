@@ -29,7 +29,9 @@ class StorageUploadTest extends TestCase
             )),
         ]);
 
-        $response->assertOk();
+        $response
+            ->assertOk()
+            ->assertJsonPath('avatar_mode', 'image');
 
         $path = (string) $response->json('avatar_path');
         $this->assertNotSame('', $path);
