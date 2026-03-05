@@ -13,6 +13,7 @@ use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use App\Support\ApiResponse;
 use App\Http\Middleware\IsAdmin;
+use App\Http\Middleware\IsAdminContent;
 use App\Http\Middleware\EnsureUserActive;
 use App\Http\Middleware\EnsureEmailIsVerifiedOrAdmin;
 use App\Http\Middleware\SkyThrottle;
@@ -37,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Admin route middleware aliases (Laravel 12, no Kernel.php).
         $middleware->alias([
             'admin' => IsAdmin::class,
+            'admin.content' => IsAdminContent::class,
             'active' => EnsureUserActive::class,
             'verified' => EnsureEmailIsVerifiedOrAdmin::class,
             'sky.throttle' => SkyThrottle::class,

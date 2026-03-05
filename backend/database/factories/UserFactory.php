@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -30,7 +31,7 @@ class UserFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
-            'role' => 'user',
+            'role' => User::ROLE_USER,
             'is_admin' => false,
             'is_bot' => false,
             'is_banned' => false,
@@ -54,6 +55,33 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
             'requires_email_verification' => true,
+        ]);
+    }
+
+    public function admin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_ADMIN,
+            'is_admin' => true,
+        ]);
+    }
+
+    public function editor(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_EDITOR,
+            'is_admin' => false,
+        ]);
+    }
+
+    public function bot(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_BOT,
+            'is_bot' => true,
+            'email' => null,
+            'email_verified_at' => null,
+            'requires_email_verification' => false,
         ]);
     }
 }

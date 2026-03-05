@@ -234,7 +234,6 @@ Route::get('/polls/{poll}', [PollController::class, 'show']);
 Route::get('/feed', [FeedController::class, 'index']);
 Route::get('/astro-feed', [FeedController::class, 'astro']);
 Route::get('/feed/astro', [FeedController::class, 'astro']);
-Route::get('/feed/astrobot', [FeedController::class, 'astrobot']);
 
 // Tag suggestions for autocomplete
 Route::get('/tags/suggest', [TagController::class, 'suggest']);
@@ -396,35 +395,6 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::post('/featured-events/force-popup', [FeaturedEventController::class, 'forcePopup']);
         Route::patch('/featured-events/popup-settings', [FeaturedEventController::class, 'updatePopupSettings']);
 
-        // Newsletter (admin)
-        Route::get('/newsletter/preview', [AdminNewsletterController::class, 'preview']);
-        Route::post('/newsletter/preview', [AdminNewsletterController::class, 'sendPreview'])->middleware('throttle:newsletter-preview');
-        Route::post('/newsletter/ai/prime-insights', [AdminAiController::class, 'primeNewsletterInsights'])
-            ->middleware('throttle:admin-ai');
-        Route::post('/newsletter/ai/draft-copy', [AdminAiController::class, 'draftNewsletterCopy'])
-            ->middleware('throttle:admin-ai');
-        Route::post('/newsletter/feature-events', [AdminNewsletterController::class, 'featureEvents']);
-        Route::post('/newsletter/send', [AdminNewsletterController::class, 'send'])->middleware('throttle:newsletter-send');
-        Route::get('/newsletter/runs', [AdminNewsletterController::class, 'runs']);
-        Route::get('/ai/config', [AdminAiController::class, 'config'])
-            ->middleware('throttle:admin-ai');
-        Route::get('/ai/jobs/{runId}', [AdminAiController::class, 'jobStatus'])
-            ->middleware('throttle:admin-ai');
-
-        /*
-        |--------------------------------------------------------------------------
-        | Blog posts (admin)
-        |--------------------------------------------------------------------------
-        */
-        Route::get('/blog-posts', [AdminBlogPostController::class, 'index']);
-        Route::get('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'show']);
-        Route::post('/blog-posts', [AdminBlogPostController::class, 'store']);
-        Route::put('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
-        Route::patch('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
-        Route::post('/blog-posts/{blogPost}/ai/suggest-tags', [AdminBlogPostController::class, 'suggestTags'])
-            ->middleware('throttle:admin-ai');
-        Route::delete('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'destroy']);
-
         /*
         |----------------------------------------------------------------------
         | Users (admin)
@@ -437,6 +407,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::post('/users/{user}/ban', [AdminUserController::class, 'ban']);
         Route::patch('/users/{user}/unban', [AdminUserController::class, 'unban']);
         Route::post('/users/{user}/unban', [AdminUserController::class, 'unban']);
+        Route::patch('/users/{user}/role', [AdminUserController::class, 'updateRole']);
+        Route::patch('/users/{user}/profile', [AdminUserController::class, 'updateProfile']);
         Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivate']);
         Route::post('/users/{id}/reset-profile', [AdminUserController::class, 'resetProfile']);
 
@@ -520,6 +492,39 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
             Route::delete('/posts', [AdminBotController::class, 'deleteAllPosts']);
             Route::post('/runs/{runId}/publish', [AdminBotController::class, 'publishRun']);
         });
+    });
+
+Route::middleware(['auth:sanctum', 'active', 'verified', 'admin.content'])
+    ->prefix('admin')
+    ->group(function () {
+        // Newsletter (admin + editor)
+        Route::get('/newsletter/preview', [AdminNewsletterController::class, 'preview']);
+        Route::post('/newsletter/preview', [AdminNewsletterController::class, 'sendPreview'])->middleware('throttle:newsletter-preview');
+        Route::post('/newsletter/ai/prime-insights', [AdminAiController::class, 'primeNewsletterInsights'])
+            ->middleware(['admin', 'throttle:admin-ai']);
+        Route::post('/newsletter/ai/draft-copy', [AdminAiController::class, 'draftNewsletterCopy'])
+            ->middleware(['admin', 'throttle:admin-ai']);
+        Route::post('/newsletter/feature-events', [AdminNewsletterController::class, 'featureEvents']);
+        Route::post('/newsletter/send', [AdminNewsletterController::class, 'send'])->middleware('throttle:newsletter-send');
+        Route::get('/newsletter/runs', [AdminNewsletterController::class, 'runs']);
+        Route::get('/ai/config', [AdminAiController::class, 'config'])
+            ->middleware(['admin', 'throttle:admin-ai']);
+        Route::get('/ai/jobs/{runId}', [AdminAiController::class, 'jobStatus'])
+            ->middleware(['admin', 'throttle:admin-ai']);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Blog posts (admin + editor)
+        |--------------------------------------------------------------------------
+        */
+        Route::get('/blog-posts', [AdminBlogPostController::class, 'index']);
+        Route::get('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'show']);
+        Route::post('/blog-posts', [AdminBlogPostController::class, 'store']);
+        Route::put('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
+        Route::patch('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
+        Route::post('/blog-posts/{blogPost}/ai/suggest-tags', [AdminBlogPostController::class, 'suggestTags'])
+            ->middleware(['admin', 'throttle:admin-ai']);
+        Route::delete('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'destroy']);
     });
 
 /*

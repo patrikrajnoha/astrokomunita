@@ -30,6 +30,7 @@ class ProfileController extends Controller
     public function update(Request $request)
     {
         $user = $request->user();
+        $this->ensureBotProfileEditAllowed($user);
         $rawEmail = $request->input('email');
         if (is_string($rawEmail) && trim($rawEmail) === '') {
             $request->request->remove('email');
@@ -148,6 +149,7 @@ class ProfileController extends Controller
     public function uploadMedia(Request $request)
     {
         $user = $request->user();
+        $this->ensureBotProfileEditAllowed($user);
         $maxKb = max((int) config('media.profile_upload_max_kb', self::PROFILE_MEDIA_UPLOAD_MAX_KB), 3072);
 
         $validated = $request->validate([
@@ -165,6 +167,7 @@ class ProfileController extends Controller
     public function uploadAvatarImage(Request $request)
     {
         $user = $request->user();
+        $this->ensureBotProfileEditAllowed($user);
         $maxKb = max((int) config('media.profile_upload_max_kb', self::PROFILE_MEDIA_UPLOAD_MAX_KB), 3072);
         $validated = $request->validate([
             'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.$maxKb],
@@ -178,6 +181,7 @@ class ProfileController extends Controller
     public function removeAvatarImage(Request $request)
     {
         $user = $request->user();
+        $this->ensureBotProfileEditAllowed($user);
         $oldPath = $user->avatar_path;
         $user->avatar_path = null;
         $user->save();
@@ -192,6 +196,7 @@ class ProfileController extends Controller
     public function updateAvatar(UpdateAvatarPreferencesRequest $request)
     {
         $user = $request->user();
+        $this->ensureBotProfileEditAllowed($user);
         $validated = $request->validated();
         $oldAvatarPath = null;
 
@@ -335,5 +340,12 @@ class ProfileController extends Controller
         }
 
         return $payload;
+    }
+
+    private function ensureBotProfileEditAllowed(User $user): void
+    {
+        if ($user->isBot() && ! $user->isAdmin()) {
+            abort(403, 'Bot profiles can only be edited by admin.');
+        }
     }
 }

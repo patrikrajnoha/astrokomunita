@@ -20,8 +20,23 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    public const ROLE_USER = 'user';
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_EDITOR = 'editor';
+    public const ROLE_BOT = 'bot';
+
     protected static function booted(): void
     {
+        static::saving(function (User $user): void {
+            if ($user->isBot()) {
+                $user->is_bot = true;
+                $user->role = self::ROLE_BOT;
+                $user->email = null;
+                $user->requires_email_verification = false;
+                $user->email_verified_at = null;
+            }
+        });
+
         static::deleting(function (User $user): void {
             try {
                 app(UserCleanupService::class)->cleanupUserMedia($user);
@@ -418,7 +433,12 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin' || (bool) $this->is_admin;
+        return $this->role === self::ROLE_ADMIN || (bool) $this->is_admin;
+    }
+
+    public function isEditor(): bool
+    {
+        return $this->role === self::ROLE_EDITOR;
     }
 
     public function isBanned(): bool
@@ -428,6 +448,6 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isBot(): bool
     {
-        return (bool) $this->is_bot;
+        return (bool) $this->is_bot || $this->role === self::ROLE_BOT;
     }
 }
