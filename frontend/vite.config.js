@@ -13,6 +13,9 @@ const allowedDevOrigins = [/^http:\/\/127\.0\.0\.1(?::\d+)?$/, /^http:\/\/localh
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __VITE_PROXY_TARGET__: JSON.stringify(backendProxyTarget),
+  },
   plugins: [
     vue(),
     ...(process.env.VITEST || process.env.VITE_ENABLE_DEVTOOLS !== 'true' ? [] : [vueDevTools()]),

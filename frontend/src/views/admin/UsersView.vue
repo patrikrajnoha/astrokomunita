@@ -25,6 +25,56 @@ const page = ref(1)
 const perPage = ref(20)
 const data = ref(null)
 const lastLoadedAt = ref(null)
+const isDevBuild = Boolean(import.meta.env.DEV)
+const devOrigin = typeof window === 'undefined' ? 'n/a' : window.location.origin
+const devHealth = ref(null)
+const devHealthLoading = ref(false)
+const devHealthError = ref('')
+
+const devApiBase = computed(() => {
+  const base = String(api?.defaults?.baseURL || '')
+
+  if (!base) {
+    return '(empty)'
+  }
+
+  if (typeof window !== 'undefined') {
+    try {
+      return new URL(base, window.location.origin).toString()
+    } catch {
+      return base
+    }
+  }
+
+  return base
+})
+
+const devProxyTarget = (() => {
+  if (!isDevBuild) {
+    return ''
+  }
+
+  const targetFromDefine = typeof __VITE_PROXY_TARGET__ !== 'undefined'
+    ? __VITE_PROXY_TARGET__
+    : ''
+
+  const targetFromEnv = String(import.meta.env.VITE_BACKEND_PROXY_TARGET || '')
+  return String(targetFromDefine || targetFromEnv || '(not available in client)')
+})()
+
+const devHealthSummary = computed(() => {
+  if (!isDevBuild) return ''
+  if (devHealthLoading.value) return 'loading...'
+  if (devHealthError.value) return `error: ${devHealthError.value}`
+
+  const payload = devHealth.value
+  if (!payload || typeof payload !== 'object') return 'not loaded'
+
+  const env = payload?.env || 'n/a'
+  const revision = payload?.git_sha || payload?.build_id || 'n/a'
+  const timestamp = payload?.time || 'n/a'
+  return `env=${env}; rev=${revision}; time=${timestamp}`
+})
 
 let searchDebounce = null
 
@@ -201,6 +251,27 @@ async function load() {
     error.value = e?.response?.data?.message || 'Failed to load users.'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadDevHealth() {
+  if (!isDevBuild) return
+
+  devHealthLoading.value = true
+  devHealthError.value = ''
+
+  try {
+    const res = await api.get('/_health', {
+      meta: { skipErrorToast: true },
+      skipErrorToast: true,
+    })
+
+    devHealth.value = res?.data && typeof res.data === 'object' ? res.data : null
+  } catch (e) {
+    devHealth.value = null
+    devHealthError.value = String(e?.response?.data?.message || e?.message || 'unavailable')
+  } finally {
+    devHealthLoading.value = false
   }
 }
 
@@ -408,6 +479,7 @@ function clearSearch() {
 
 function refresh() {
   load()
+  loadDevHealth()
 }
 
 watch(
@@ -439,6 +511,7 @@ onBeforeUnmount(() => {
 readQuery(route.query)
 syncQueryWithState()
 load()
+loadDevHealth()
 </script>
 
 <template>
@@ -458,6 +531,25 @@ load()
       <div v-if="error" class="usersErrorBanner" role="alert">
         <span>{{ error }}</span>
         <button type="button" class="errorRetryBtn" :disabled="loading" @click="refresh">Retry</button>
+      </div>
+
+      <div v-if="isDevBuild" class="devConnectivityBanner" role="status" aria-live="polite">
+        <div class="devConnectivityTitle">DEV API Connectivity</div>
+        <div class="devConnectivityGrid">
+          <span class="devConnectivityLabel">Frontend origin</span>
+          <code class="devConnectivityValue">{{ devOrigin }}</code>
+
+          <span class="devConnectivityLabel">api.defaults.baseURL</span>
+          <code class="devConnectivityValue">{{ devApiBase }}</code>
+
+          <span class="devConnectivityLabel">Vite proxy target</span>
+          <code class="devConnectivityValue">{{ devProxyTarget }}</code>
+
+          <span class="devConnectivityLabel">/api/_health</span>
+          <code class="devConnectivityValue" :class="{ 'is-error': devHealthError }">
+            {{ devHealthSummary }}
+          </code>
+        </div>
       </div>
 
       <div v-if="showSkeleton" class="usersSkeleton" aria-hidden="true">
@@ -688,6 +780,52 @@ load()
 .usersView {
   display: grid;
   gap: 14px;
+}
+
+.devConnectivityBanner {
+  border: 1px dashed rgb(var(--color-warning-rgb, 234 179 8) / 0.45);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgb(var(--color-warning-rgb, 234 179 8) / 0.08);
+  display: grid;
+  gap: 8px;
+}
+
+.devConnectivityTitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+}
+
+.devConnectivityGrid {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: baseline;
+}
+
+.devConnectivityLabel {
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.devConnectivityValue {
+  margin: 0;
+  border-radius: 8px;
+  padding: 3px 8px;
+  background: rgb(var(--color-bg-rgb) / 0.55);
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgb(var(--color-text-primary-rgb, var(--color-text-rgb, 255 255 255)) / 0.96);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.devConnectivityValue.is-error {
+  color: rgb(var(--color-danger-rgb, 239 68 68));
 }
 
 .usersSyncPill {
@@ -1411,6 +1549,10 @@ load()
 
   :deep(.usersPaginationFooter .adminPagination) {
     margin-left: 0;
+  }
+
+  .devConnectivityGrid {
+    grid-template-columns: 1fr;
   }
 }
 

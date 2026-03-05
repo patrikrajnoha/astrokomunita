@@ -96,6 +96,26 @@ Route::get('/health', function () {
     ]);
 });
 
+Route::get('/_health', function () {
+    $gitSha = trim((string) (env('APP_GIT_SHA') ?: env('GIT_SHA') ?: ''));
+
+    if ($gitSha === '') {
+        $gitSha = trim((string) @shell_exec('git rev-parse --short HEAD'));
+    }
+
+    $buildId = trim((string) (env('APP_BUILD_ID') ?: env('RELEASE_SHA') ?: ''));
+
+    return response()->json([
+        'ok' => true,
+        'status' => 'ok',
+        'app' => config('app.name'),
+        'env' => app()->environment(),
+        'time' => now()->toIso8601String(),
+        'git_sha' => $gitSha !== '' ? $gitSha : null,
+        'build_id' => $buildId !== '' ? $buildId : null,
+    ]);
+});
+
 
 /*
 |--------------------------------------------------------------------------
@@ -409,6 +429,10 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::post('/users/{user}/unban', [AdminUserController::class, 'unban']);
         Route::patch('/users/{user}/role', [AdminUserController::class, 'updateRole']);
         Route::patch('/users/{user}/profile', [AdminUserController::class, 'updateProfile']);
+        Route::post('/users/{user}/avatar', [AdminUserController::class, 'uploadAvatar']);
+        Route::patch('/users/{user}/avatar', [AdminUserController::class, 'uploadAvatar']);
+        Route::post('/users/{user}/cover', [AdminUserController::class, 'uploadCover']);
+        Route::patch('/users/{user}/cover', [AdminUserController::class, 'uploadCover']);
         Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivate']);
         Route::post('/users/{id}/reset-profile', [AdminUserController::class, 'resetProfile']);
 
