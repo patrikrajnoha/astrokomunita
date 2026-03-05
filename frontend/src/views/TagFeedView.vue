@@ -105,7 +105,7 @@
 
             <!-- bottom actions -->
             <div class="postActions" @click.stop>
-              <button class="actBtn" type="button" title="Nahlásiť" @click.stop="openReport(p)">
+              <button class="actBtn" type="button" title="Nahlasit vo vlakne" @click.stop="openReport(p)">
                 ⚑ Report
               </button>
               <button class="actBtn" type="button" title="Reagovať" disabled>
@@ -149,7 +149,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UserAvatar from '@/components/UserAvatar.vue'
 import HashtagText from '@/components/HashtagText.vue'
@@ -161,13 +161,26 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
-const tag = ref(route.params.tag)
+const tag = computed(() => {
+  const raw = route.params.tag
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return String(value || '').trim().toLowerCase()
+})
+
 const items = ref([])
 const nextPageUrl = ref(null)
 const loading = ref(false)
 const error = ref('')
 const likeLoadingIds = ref(new Set())
 const likeBumpId = ref(null)
+const requestSequence = ref(0)
+
+function resetFeedState() {
+  items.value = []
+  nextPageUrl.value = null
+  error.value = ''
+  loading.value = false
+}
 
 function openPost(post) {
   if (!post?.id) return
@@ -192,8 +205,8 @@ function setLikeLoading(id, on) {
 }
 
 function openReport(post) {
-  // TODO: Implement report functionality
-  console.log('Report post:', post)
+  if (!post?.id) return
+  router.push(`/posts/${post.id}`)
 }
 
 function updatePostPoll(post, nextPoll) {
@@ -202,7 +215,7 @@ function updatePostPoll(post, nextPoll) {
 }
 
 function onPollLoginRequired() {
-  error.value = 'Prihlás sa pre hlasovanie.'
+  error.value = 'Prihlas sa pre hlasovanie.'
 }
 
 function bumpLike(id) {
@@ -222,7 +235,7 @@ function applyLikeResponse(post, res) {
 async function toggleLike(post) {
   if (!post?.id || isLikeLoading(post)) return
   if (!auth.isAuthed) {
-    error.value = 'Prihlás sa pre lajkovanie.'
+    error.value = 'Prihlas sa pre lajkovanie.'
     return
   }
 
@@ -244,7 +257,7 @@ async function toggleLike(post) {
     post.liked_by_me = prevLiked
     post.likes_count = prevCount
     const status = e?.response?.status
-    if (status === 401) error.value = 'Prihlás sa.'
+    if (status === 401) error.value = 'Prihlas sa.'
     else error.value = e?.response?.data?.message || 'Lajk zlyhal.'
   } finally {
     setLikeLoading(post.id, false)
@@ -286,33 +299,69 @@ function isImage(p) {
   )
 }
 
-async function load(reset = true) {
-  if (loading.value) return
+async function load(reset = true, force = false) {
+  if (loading.value && !force) return
+
+  const activeTag = tag.value
+  if (reset && !activeTag) {
+    resetFeedState()
+    error.value = 'Tag nie je zadany.'
+    return
+  }
+
+  const requestId = ++requestSequence.value
   loading.value = true
-  error.value = ''
+  if (reset) {
+    error.value = ''
+  }
 
   try {
-    let url = reset ? `/posts?tag=${tag.value}&with=counts` : nextPageUrl.value
-    if (!url) return
+    let res = null
 
-    const res = await api.get(url)
-    const payload = res.data || {}
-    const rows = payload.data || []
+    if (reset) {
+      res = await api.get('/posts', {
+        params: {
+          tag: activeTag,
+          with: 'counts',
+        },
+      })
+    } else {
+      const url = nextPageUrl.value
+      if (!url) {
+        return
+      }
+      res = await api.get(url)
+    }
+
+    if (requestId !== requestSequence.value) {
+      return
+    }
+
+    const payload = res?.data || {}
+    const rows = Array.isArray(payload.data) ? payload.data : []
 
     if (reset) items.value = rows
     else items.value = [...items.value, ...rows]
 
     nextPageUrl.value = payload.next_page_url || null
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.message || 'Načítanie feedu zlyhalo.'
+    if (requestId !== requestSequence.value) {
+      return
+    }
+
+    error.value = e?.response?.data?.message || e?.message || 'Nacitanie feedu zlyhalo.'
   } finally {
-    loading.value = false
+    if (requestId === requestSequence.value) {
+      loading.value = false
+    }
   }
 }
 
-onMounted(() => {
-  load(true)
-})
+watch(tag, () => {
+  requestSequence.value += 1
+  resetFeedState()
+  void load(true, true)
+}, { immediate: true })
 </script>
 
 <style scoped>
