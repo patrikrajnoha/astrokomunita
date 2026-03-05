@@ -344,11 +344,13 @@ const showPrimaryLoading = computed(() => (weatherLoading.value && !weather.valu
 const hasCoords = computed(() => Boolean(hasLocationCoords.value))
 const hasLabel = computed(() => sanitizeLabel(props.locationName).length > 0)
 const canonicalLocationMissing = computed(() => !hasCoords.value)
-const hasPrimaryFetchError = computed(() => (
-  hasCoords.value &&
-  !showPrimaryLoading.value &&
-  Boolean(weatherError.value || astronomyError.value || lightPollutionError.value)
-))
+const hasPrimaryFetchError = computed(() => {
+  if (!hasCoords.value || showPrimaryLoading.value) return false
+
+  const coreError = Boolean(weatherError.value || astronomyError.value)
+  const hasCoreData = Boolean(weather.value || astronomy.value)
+  return coreError && !hasCoreData
+})
 const orderedSectionIds = computed(() => sectionOrder.value.filter((sectionId) => {
   if (!SKY_WIDGET_SECTION_IDS.includes(sectionId)) return false
   if (sectionId === 'best_time' && isDaylight.value) return false
@@ -522,4 +524,3 @@ function parseFreshnessMinutes(value) {
   }
 }
 </style>
-
