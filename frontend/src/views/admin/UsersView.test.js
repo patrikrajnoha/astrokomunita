@@ -60,35 +60,53 @@ describe('UsersView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    apiGetMock.mockResolvedValue({
-      data: {
-        current_page: 1,
-        data: [
-          {
-            id: 4,
-            name: 'Kozmo',
-            username: 'kozmobot',
-            role: 'bot',
-            email: 'legacy-bot@example.test',
-            is_bot: true,
-            is_active: true,
-            is_banned: false,
+    apiGetMock.mockImplementation(async (url) => {
+      if (url === '/admin/users') {
+        return {
+          data: {
+            current_page: 1,
+            data: [
+              {
+                id: 4,
+                name: 'Kozmo',
+                username: 'kozmobot',
+                role: 'bot',
+                email: 'legacy-bot@example.test',
+                is_bot: true,
+                is_active: true,
+                is_banned: false,
+              },
+              {
+                id: 9,
+                name: 'Regular',
+                username: 'regular',
+                role: 'user',
+                email: 'regular@example.test',
+                is_bot: false,
+                is_active: true,
+                is_banned: false,
+              },
+            ],
+            total: 2,
+            per_page: 20,
+            last_page: 1,
           },
-          {
-            id: 9,
-            name: 'Regular',
-            username: 'regular',
-            role: 'user',
-            email: 'regular@example.test',
-            is_bot: false,
-            is_active: true,
-            is_banned: false,
+        }
+      }
+
+      if (url === '/_health') {
+        return {
+          data: {
+            ok: true,
+            env: 'local',
+            git_sha: 'abc123',
+            build_id: null,
+            time: '2026-03-05T12:00:00Z',
           },
-        ],
-        total: 2,
-        per_page: 20,
-        last_page: 1,
-      },
+        }
+      }
+
+      throw new Error(`Unexpected GET ${url}`)
     })
   })
 
@@ -116,5 +134,11 @@ describe('UsersView', () => {
 
     const regularRow = wrapper.get('[data-row-id="9"]')
     expect(regularRow.find('.col-email .truncateText').text()).toBe('regular@example.test')
+
+    const debugBanner = wrapper.get('.devConnectivityBanner')
+    expect(debugBanner.text()).toContain('DEV API Connectivity')
+    expect(debugBanner.text()).toContain('api.defaults.baseURL')
+    expect(debugBanner.text()).toContain('/api/_health')
+    expect(debugBanner.text()).toContain('env=local; rev=abc123')
   })
 })
