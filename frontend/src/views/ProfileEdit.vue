@@ -3,7 +3,7 @@
     <header class="top">
       <button class="iconBtn" @click="back">&larr;</button>
       <div>
-        <div class="title">Upraviť profil</div>
+        <div class="title">Upravit profil</div>
         <div class="subtitle">Meno, bio a poloha</div>
       </div>
       <button class="btn ghost" @click="resetForm" :disabled="saving">Reset</button>
@@ -31,12 +31,7 @@
             <p v-if="fieldErr.bio" class="fieldErr">{{ fieldErr.bio }}</p>
           </div>
 
-          <section
-            id="location"
-            ref="locationSectionRef"
-            class="locationCard"
-            :class="{ locationHighlight: locationHighlightActive }"
-          >
+          <section id="location" class="locationCard">
             <div class="locationHead">
               <h3 class="sectionTitle">Poloha</h3>
               <p class="sectionHint">Jedna kanonicka poloha pre observing a widgety.</p>
@@ -151,13 +146,12 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import http from '@/services/api'
 
 const router = useRouter()
-const route = useRoute()
 const auth = useAuthStore()
 
 const modeOptions = [
@@ -198,15 +192,6 @@ const geolocating = ref(false)
 const msg = ref('')
 const err = ref('')
 const savedState = ref(null)
-const locationSectionRef = ref(null)
-const locationHighlightActive = ref(false)
-
-const LOCATION_FOCUS_MAX_ATTEMPTS = 30
-const LOCATION_FOCUS_RETRY_DELAY_MS = 80
-const LOCATION_HIGHLIGHT_DURATION_MS = 2000
-
-let locationFocusRetryTimer = null
-let locationHighlightTimer = null
 
 const fieldErr = reactive({
   name: '',
@@ -248,7 +233,6 @@ function browserTimezone() {
 }
 
 function parseCoordinate(raw) {
-  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null
   if (typeof raw !== 'string') return null
   const trimmed = raw.trim()
   if (trimmed === '') return null
@@ -399,33 +383,14 @@ function onPresetChanged() {
   applyPreset(form.presetKey)
 }
 
-function buildProfilePayload(state) {
-  const payload = {}
-  const normalizedName = String(state?.name || '').trim()
-  const normalizedBio = String(state?.bio || '')
-  if (normalizedName) {
-    payload.name = normalizedName
-  }
-  payload.bio = normalizedBio
-  return payload
-}
-
-function buildLocationPayload(state) {
-  return {
-    latitude: parseCoordinate(state?.latitude),
-    longitude: parseCoordinate(state?.longitude),
-    timezone: String(state?.timezone || '').trim(),
-    location_label: String(state?.locationLabel || '').trim() || null,
-    location_source: normalizeSource(state?.locationMode) || 'manual',
-  }
-}
-
-function isEqualPayload(left, right) {
-  return JSON.stringify(left || {}) === JSON.stringify(right || {})
-}
-
 function validateLocationPayload() {
-  const payload = buildLocationPayload(form)
+  const payload = {
+    latitude: parseCoordinate(form.latitude),
+    longitude: parseCoordinate(form.longitude),
+    timezone: String(form.timezone || '').trim(),
+    location_label: String(form.locationLabel || '').trim() || null,
+    location_source: form.locationMode,
+  }
 
   let valid = true
 
@@ -462,150 +427,45 @@ function validateLocationPayload() {
   return valid ? payload : null
 }
 
-function applyServerValidationErrors(errorsObj) {
-  fieldErr.name = extractFirstError(errorsObj, 'name')
-  fieldErr.email = extractFirstError(errorsObj, 'email')
-  fieldErr.bio = extractFirstError(errorsObj, 'bio')
-  fieldErr.locationLabel = extractFirstError(errorsObj, 'location_label')
-  fieldErr.locationSource = extractFirstError(errorsObj, 'location_source')
-  fieldErr.latitude = extractFirstError(errorsObj, 'latitude')
-  fieldErr.longitude = extractFirstError(errorsObj, 'longitude')
-  fieldErr.timezone = extractFirstError(errorsObj, 'timezone')
-}
-
-function firstFieldErrorMessage() {
-  return (
-    fieldErr.name ||
-    fieldErr.email ||
-    fieldErr.bio ||
-    fieldErr.locationLabel ||
-    fieldErr.locationSource ||
-    fieldErr.latitude ||
-    fieldErr.longitude ||
-    fieldErr.timezone ||
-    ''
-  )
-}
-
-function applySaveError(error, fallbackMessage) {
-  const status = error?.response?.status
-  const data = error?.response?.data
-
-  if (status === 422 && data?.errors) {
-    applyServerValidationErrors(data.errors)
-    const fieldMessage = firstFieldErrorMessage()
-    err.value = fieldMessage ? `${fallbackMessage} ${fieldMessage}` : fallbackMessage
-    return
-  }
-
-  err.value = data?.message || fallbackMessage
-}
-
-function clearLocationFocusRetryTimer() {
-  if (locationFocusRetryTimer) {
-    clearTimeout(locationFocusRetryTimer)
-    locationFocusRetryTimer = null
-  }
-}
-
-function clearLocationHighlightTimer() {
-  if (locationHighlightTimer) {
-    clearTimeout(locationHighlightTimer)
-    locationHighlightTimer = null
-  }
-}
-
-function triggerLocationHighlight() {
-  clearLocationHighlightTimer()
-  locationHighlightActive.value = true
-  locationHighlightTimer = setTimeout(() => {
-    locationHighlightActive.value = false
-    locationHighlightTimer = null
-  }, LOCATION_HIGHLIGHT_DURATION_MS)
-}
-
-function focusLocationSection(attempt = 0) {
-  const section = locationSectionRef.value
-  if (section) {
-    if (typeof section.scrollIntoView === 'function') {
-      section.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      })
-    }
-    triggerLocationHighlight()
-    return
-  }
-
-  if (attempt >= LOCATION_FOCUS_MAX_ATTEMPTS) return
-
-  clearLocationFocusRetryTimer()
-  locationFocusRetryTimer = setTimeout(() => {
-    focusLocationSection(attempt + 1)
-  }, LOCATION_FOCUS_RETRY_DELAY_MS)
-}
-
-async function maybeFocusLocationFromHash() {
-  if (route.hash !== '#location') return
-  await nextTick()
-  focusLocationSection()
-}
-
 async function save() {
   clearErrors()
-
-  const locationPayload = validateLocationPayload()
-  if (!locationPayload) {
-    err.value =
-      fieldErr.locationSource ||
-      fieldErr.locationLabel ||
-      fieldErr.latitude ||
-      fieldErr.longitude ||
-      fieldErr.timezone ||
-      'Skontroluj oznacene polia.'
-    return
-  }
-
-  const profilePayload = buildProfilePayload(form)
-  const savedProfilePayload = buildProfilePayload(savedState.value)
-  const savedLocationPayload = buildLocationPayload(savedState.value)
-
-  const profileDirty = !isEqualPayload(profilePayload, savedProfilePayload)
-  const locationDirty = !isEqualPayload(locationPayload, savedLocationPayload)
-
-  if (!profileDirty && !locationDirty) {
-    msg.value = 'Žiadne zmeny.'
-    return
-  }
-
   saving.value = true
 
   try {
+    const locationPayload = validateLocationPayload()
+    if (!locationPayload) {
+      err.value =
+        fieldErr.locationSource ||
+        fieldErr.locationLabel ||
+        fieldErr.latitude ||
+        fieldErr.longitude ||
+        fieldErr.timezone ||
+        'Skontroluj oznacene polia.'
+      return
+    }
+
     await auth.csrf()
 
-    let userPayload = null
+    const profilePayload = {}
+    const normalizedName = String(form.name || '').trim()
+    const normalizedBio = String(form.bio || '')
+    const normalizedLocationLabel = String(locationPayload.location_label || '').trim()
 
-    if (locationDirty) {
-      try {
-        const locationResponse = await http.patch('/me/location', locationPayload)
-        userPayload = locationResponse?.data || userPayload
-      } catch (locationError) {
-        const fallback = profileDirty ? 'Ulozenie polohy zlyhalo. Profil nebol ulozeny.' : 'Ulozenie polohy zlyhalo.'
-        applySaveError(locationError, fallback)
-        return
-      }
+    if (normalizedName) {
+      profilePayload.name = normalizedName
+    }
+    profilePayload.bio = normalizedBio
+    profilePayload.location_label = normalizedLocationLabel || null
+
+    const normalizedEmail = String(form.email || '').trim()
+    if (normalizedEmail) {
+      profilePayload.email = normalizedEmail
     }
 
-    if (profileDirty) {
-      try {
-        const profileResponse = await http.patch('/profile', profilePayload)
-        userPayload = profileResponse?.data || userPayload
-      } catch (profileError) {
-        const fallback = locationDirty ? 'Poloha bola ulozena, ale profil sa nepodarilo ulozit.' : 'Ulozenie profilu zlyhalo.'
-        applySaveError(profileError, fallback)
-        return
-      }
-    }
+    const profileResponse = await http.patch('/profile', profilePayload)
+
+    const locationResponse = await http.put('/me/location', locationPayload)
+    let userPayload = locationResponse?.data || profileResponse?.data || null
 
     try {
       const refreshed = await http.get('/auth/me', {
@@ -623,15 +483,34 @@ async function save() {
       syncFromUser(userPayload)
     }
 
-    if (profileDirty && locationDirty) {
-      msg.value = 'Profil a poloha ulozene.'
-    } else if (profileDirty) {
-      msg.value = 'Profil ulozeny.'
+    msg.value = 'Profil ulozeny.'
+  } catch (e) {
+    const status = e?.response?.status
+    const data = e?.response?.data
+
+    if (status === 422 && data?.errors) {
+      fieldErr.name = extractFirstError(data.errors, 'name')
+      fieldErr.email = extractFirstError(data.errors, 'email')
+      fieldErr.bio = extractFirstError(data.errors, 'bio')
+      fieldErr.locationLabel = extractFirstError(data.errors, 'location_label')
+      fieldErr.locationSource = extractFirstError(data.errors, 'location_source')
+      fieldErr.latitude = extractFirstError(data.errors, 'latitude')
+      fieldErr.longitude = extractFirstError(data.errors, 'longitude')
+      fieldErr.timezone = extractFirstError(data.errors, 'timezone')
+
+      err.value =
+        fieldErr.name ||
+        fieldErr.email ||
+        fieldErr.bio ||
+        fieldErr.locationLabel ||
+        fieldErr.locationSource ||
+        fieldErr.latitude ||
+        fieldErr.longitude ||
+        fieldErr.timezone ||
+        'Skontroluj oznacene polia.'
     } else {
-      msg.value = 'Poloha ulozena.'
+      err.value = data?.message || 'Ulozenie zlyhalo.'
     }
-  } catch (saveError) {
-    applySaveError(saveError, 'Ulozenie zlyhalo.')
   } finally {
     saving.value = false
   }
@@ -682,27 +561,6 @@ onMounted(async () => {
     await auth.fetchUser()
   }
   syncFromUser(auth.user)
-  maybeFocusLocationFromHash()
-})
-
-watch(
-  () => route.hash,
-  () => {
-    maybeFocusLocationFromHash()
-  },
-)
-
-watch(
-  () => auth.user,
-  (user) => {
-    if (!user) return
-    maybeFocusLocationFromHash()
-  },
-)
-
-onBeforeUnmount(() => {
-  clearLocationFocusRetryTimer()
-  clearLocationHighlightTimer()
 })
 </script>
 
@@ -808,12 +666,6 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 0.8rem;
   background: rgb(var(--color-bg-rgb) / 0.28);
-  transition: border-color 220ms ease, box-shadow 220ms ease;
-}
-
-.locationCard.locationHighlight {
-  border-color: rgb(var(--color-primary-rgb) / 0.85);
-  box-shadow: 0 0 0 2px rgb(var(--color-primary-rgb) / 0.26);
 }
 
 .sectionTitle {

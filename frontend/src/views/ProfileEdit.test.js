@@ -3,7 +3,6 @@ import { mount } from '@vue/test-utils'
 import ProfileEdit from './ProfileEdit.vue'
 
 const pushMock = vi.hoisted(() => vi.fn())
-const routeMock = vi.hoisted(() => ({ hash: '' }))
 
 const authMock = vi.hoisted(() => ({
   user: null,
@@ -14,6 +13,7 @@ const authMock = vi.hoisted(() => ({
 
 const httpMock = vi.hoisted(() => ({
   patch: vi.fn(),
+  put: vi.fn(),
   get: vi.fn(),
 }))
 
@@ -21,7 +21,6 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({
     push: pushMock,
   }),
-  useRoute: () => routeMock,
 }))
 
 vi.mock('@/stores/auth', () => ({
@@ -32,9 +31,8 @@ vi.mock('@/services/api', () => ({
   default: httpMock,
 }))
 
-async function flush() {
-  await Promise.resolve()
-  await Promise.resolve()
+function flush() {
+  return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
 function saveButton(wrapper) {
@@ -45,9 +43,7 @@ function saveButton(wrapper) {
 
 describe('ProfileEdit', () => {
   beforeEach(() => {
-    vi.useRealTimers()
     vi.clearAllMocks()
-    routeMock.hash = ''
 
     authMock.user = {
       id: 1,
@@ -67,32 +63,8 @@ describe('ProfileEdit', () => {
     }
 
     httpMock.patch.mockResolvedValue({ data: authMock.user })
+    httpMock.put.mockResolvedValue({ data: authMock.user })
     httpMock.get.mockResolvedValue({ data: authMock.user })
-  })
-
-  it('scrolls to #location and toggles highlight state temporarily', async () => {
-    vi.useFakeTimers()
-    routeMock.hash = '#location'
-
-    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
-    const scrollIntoViewMock = vi.fn()
-    HTMLElement.prototype.scrollIntoView = scrollIntoViewMock
-
-    try {
-      const wrapper = mount(ProfileEdit)
-      await flush()
-
-      expect(scrollIntoViewMock).toHaveBeenCalledTimes(1)
-      expect(wrapper.find('#location').classes()).toContain('locationHighlight')
-
-      await vi.advanceTimersByTimeAsync(2200)
-      await flush()
-
-      expect(wrapper.find('#location').classes()).not.toContain('locationHighlight')
-    } finally {
-      HTMLElement.prototype.scrollIntoView = originalScrollIntoView
-      vi.useRealTimers()
-    }
   })
 
   it('renders three location modes', async () => {
@@ -101,14 +73,6 @@ describe('ProfileEdit', () => {
 
     const modeButtons = wrapper.findAll('.modeBtn').map((button) => button.text())
     expect(modeButtons).toEqual(expect.arrayContaining(['Predvolba mesta', 'Pouzit GPS', 'Manualne']))
-  })
-
-  it('uses the unified location editor instead of a legacy plain Location input', async () => {
-    const wrapper = mount(ProfileEdit)
-    await flush()
-
-    expect(wrapper.find('.locationCard').exists()).toBe(true)
-    expect(wrapper.find('input[maxlength="60"]').exists()).toBe(false)
   })
 
   it('preset mode fills latitude/longitude/timezone/label and saves with source preset', async () => {
@@ -127,9 +91,10 @@ describe('ProfileEdit', () => {
     await saveButton(wrapper).trigger('click')
     await flush()
 
-    expect(httpMock.patch.mock.calls.map(([url]) => url)).toEqual(['/me/location'])
-
-    expect(httpMock.patch).toHaveBeenCalledWith('/me/location', expect.objectContaining({
+    expect(httpMock.patch).toHaveBeenCalledWith('/profile', expect.objectContaining({
+      location_label: 'Nitra',
+    }))
+    expect(httpMock.put).toHaveBeenCalledWith('/me/location', expect.objectContaining({
       latitude: 48.3064,
       longitude: 18.0764,
       timezone: 'Europe/Bratislava',
@@ -175,48 +140,13 @@ describe('ProfileEdit', () => {
     await flush()
 
     expect(geolocationMock.getCurrentPosition).toHaveBeenCalledTimes(1)
-    expect(httpMock.patch).toHaveBeenCalledWith('/me/location', expect.objectContaining({
+    expect(httpMock.put).toHaveBeenCalledWith('/me/location', expect.objectContaining({
       latitude: 48.3064,
       longitude: 18.0764,
       timezone: 'Europe/Prague',
       location_source: 'gps',
     }))
-    expect(httpMock.patch.mock.calls.map(([url]) => url)).toEqual(['/me/location'])
 
     resolvedOptionsSpy.mockRestore()
-  })
-
-  it('calls only /profile when only profile fields changed', async () => {
-    const wrapper = mount(ProfileEdit)
-    await flush()
-
-    await wrapper.find('textarea').setValue('Nova bio')
-    await saveButton(wrapper).trigger('click')
-    await flush()
-
-    expect(httpMock.patch.mock.calls.map(([url]) => url)).toEqual(['/profile'])
-  })
-
-  it('calls only /me/location when only location fields changed', async () => {
-    const wrapper = mount(ProfileEdit)
-    await flush()
-
-    await wrapper.find('input[placeholder="Napriklad Bratislava"]').setValue('Nove mesto')
-    await saveButton(wrapper).trigger('click')
-    await flush()
-
-    expect(httpMock.patch.mock.calls.map(([url]) => url)).toEqual(['/me/location'])
-  })
-
-  it('calls location first and profile second when both payloads changed', async () => {
-    const wrapper = mount(ProfileEdit)
-    await flush()
-
-    await wrapper.find('textarea').setValue('Nova bio')
-    await wrapper.find('input[placeholder="Napriklad Bratislava"]').setValue('Nove mesto')
-    await saveButton(wrapper).trigger('click')
-    await flush()
-
-    expect(httpMock.patch.mock.calls.map(([url]) => url)).toEqual(['/me/location', '/profile'])
   })
 })

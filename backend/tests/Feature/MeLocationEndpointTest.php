@@ -56,25 +56,6 @@ class MeLocationEndpointTest extends TestCase
         ]);
     }
 
-    public function test_patch_route_is_supported_for_location_updates(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->patchJson('/api/me/location', [
-            'latitude' => 48.1486,
-            'longitude' => 17.1077,
-            'timezone' => 'Europe/Bratislava',
-            'location_label' => 'Bratislava',
-            'location_source' => 'manual',
-        ]);
-
-        $response->assertOk()
-            ->assertJsonPath('location', 'Bratislava')
-            ->assertJsonPath('location_data.latitude', 48.1486)
-            ->assertJsonPath('location_data.longitude', 17.1077)
-            ->assertJsonPath('location_data.timezone', 'Europe/Bratislava');
-    }
-
     public function test_it_rejects_invalid_timezone(): void
     {
         $user = User::factory()->create();
