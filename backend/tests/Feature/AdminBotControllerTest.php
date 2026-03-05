@@ -456,6 +456,12 @@ class AdminBotControllerTest extends TestCase
     {
         $this->actingAsAdmin();
 
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('astrobot.translation.libretranslate.timeout_seconds', 5);
+
+        // Keep legacy keys aligned to preserve backward compatibility.
         config()->set('astrobot.translation_provider', 'http');
         config()->set('astrobot.translation_fallback_provider', '');
         config()->set('astrobot.translation_base_url', 'http://translation.test');
@@ -649,6 +655,11 @@ class AdminBotControllerTest extends TestCase
 
         $this->actingAsAdmin();
 
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('astrobot.translation.libretranslate.timeout_seconds', 5);
+
         config()->set('astrobot.translation_provider', 'http');
         config()->set('astrobot.translation_fallback_provider', '');
         config()->set('astrobot.translation_base_url', 'http://translation.test');
@@ -711,6 +722,11 @@ class AdminBotControllerTest extends TestCase
         ]);
 
         $this->actingAsAdmin();
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('astrobot.translation.libretranslate.timeout_seconds', 5);
+
         config()->set('astrobot.translation_provider', 'http');
         config()->set('astrobot.translation_fallback_provider', '');
         config()->set('astrobot.translation_base_url', 'http://translation.test');
@@ -774,6 +790,11 @@ class AdminBotControllerTest extends TestCase
         ]);
 
         $this->actingAsAdmin();
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('astrobot.translation.libretranslate.timeout_seconds', 5);
+
         config()->set('astrobot.translation_provider', 'http');
         config()->set('astrobot.translation_fallback_provider', '');
         config()->set('astrobot.translation_base_url', 'http://translation.test');

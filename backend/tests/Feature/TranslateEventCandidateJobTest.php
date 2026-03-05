@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\TranslateEventCandidateJob;
 use App\Models\EventCandidate;
 use App\Services\AI\OllamaRefinementService;
-use App\Services\TranslationService;
+use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -16,10 +16,11 @@ class TranslateEventCandidateJobTest extends TestCase
 
     private function configureTranslation(): void
     {
-        config()->set('translation.default_provider', 'argos_microservice');
-        config()->set('translation.fallback_provider', '');
-        config()->set('translation.argos_microservice.base_url', 'http://translation.test');
-        config()->set('translation.argos_microservice.internal_token', 'token');
+        config()->set('astrobot.translation.primary', 'libretranslate');
+        config()->set('astrobot.translation.fallback', 'none');
+        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('astrobot.translation.post_edit.enabled', false);
+        config()->set('astrobot.translation.quality.enabled', false);
         config()->set('events.refine_descriptions_with_ollama', false);
         config()->set('events.description_template_min_length', 40);
         config()->set('ai.ollama_retry_attempts', 1);
@@ -29,7 +30,7 @@ class TranslateEventCandidateJobTest extends TestCase
     private function runJob(int $candidateId): void
     {
         (new TranslateEventCandidateJob($candidateId))->handle(
-            app(TranslationService::class),
+            app(BotTranslationServiceInterface::class),
             app(OllamaRefinementService::class)
         );
     }
@@ -61,7 +62,7 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->assertNotNull($candidate->translated_at);
     }
 
-    public function test_job_marks_event_candidate_failed_when_translation_errors(): void
+    public function test_job_fails_open_with_template_when_translation_provider_errors(): void
     {
         $this->configureTranslation();
 
@@ -75,19 +76,16 @@ class TranslateEventCandidateJobTest extends TestCase
             'type' => 'other',
         ]);
 
-        try {
-            $this->runJob($candidate->id);
-            $this->fail('Expected translation job to throw on HTTP 500.');
-        } catch (\Throwable) {
-            $candidate->refresh();
-            $this->assertSame(EventCandidate::TRANSLATION_FAILED, $candidate->translation_status);
-            $this->assertSame('argos_http_500', $candidate->translation_error);
-            $this->assertSame('Original title', $candidate->translated_title);
-            $this->assertNotNull($candidate->translated_description);
-            $this->assertStringContainsString('Astronomicka udalost', (string) $candidate->translated_description);
-            $this->assertStringContainsString('Astronomicka udalost', (string) $candidate->description);
-            $this->assertNotNull($candidate->translated_at);
-        }
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertNull($candidate->translation_error);
+        $this->assertSame('Original title', $candidate->translated_title);
+        $this->assertNotNull($candidate->translated_description);
+        $this->assertStringContainsString('Astronomicka udalost', (string) $candidate->translated_description);
+        $this->assertStringContainsString('Astronomicka udalost', (string) $candidate->description);
+        $this->assertNotNull($candidate->translated_at);
     }
 
     public function test_job_generates_template_description_when_original_description_missing(): void
