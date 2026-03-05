@@ -15,7 +15,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 class BotPublisherService
@@ -23,6 +22,7 @@ class BotPublisherService
     public function __construct(
         private readonly PostService $postService,
         private readonly BotActivityLogService $activityLogService,
+        private readonly BotRateLimiterService $rateLimiterService,
     ) {
     }
 
@@ -59,7 +59,7 @@ class BotPublisherService
 
         $source = $item->source()->firstOrFail();
         $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
-        $publishRateLimit = $this->resolvePublishRateLimitDecision($botIdentity);
+        $publishRateLimit = $this->rateLimiterService->resolvePublishState($botIdentity);
         if (($publishRateLimit['limited'] ?? false) === true) {
             $reason = 'publish_rate_limited';
             $retryAfter = max(1, (int) ($publishRateLimit['retry_after_sec'] ?? 0));
@@ -103,6 +103,11 @@ class BotPublisherService
             if (!$existingPost->bot_item_id) {
                 $existingPost->forceFill([
                     'bot_item_id' => $item->id,
+                ])->save();
+            }
+            if (!$existingPost->ingested_at) {
+                $existingPost->forceFill([
+                    'ingested_at' => now(),
                 ])->save();
             }
 
@@ -170,6 +175,7 @@ class BotPublisherService
                     'source_uid' => $sourceUid,
                     'bot_item_id' => $item->id,
                     'source_published_at' => $item->published_at,
+                    'ingested_at' => now(),
                     'expires_at' => null,
                     'meta' => $postMeta,
                 ]);
@@ -188,6 +194,11 @@ class BotPublisherService
                         'bot_item_id' => $item->id,
                     ])->save();
                 }
+                if (!$post->ingested_at) {
+                    $post->forceFill([
+                        'ingested_at' => now(),
+                    ])->save();
+                }
             }
         } finally {
             $this->cleanupTemporaryFile($temporaryAttachmentPath);
@@ -201,7 +212,7 @@ class BotPublisherService
             'meta' => $this->withPublishAudit($item->meta, $post->id, null, $publishPayload['used_translation'], $normalizedRunContext),
         ])->save();
 
-        $this->consumePublishRateLimit($publishRateLimit);
+        $this->rateLimiterService->consume($publishRateLimit);
 
         $this->logPublishActivity($item, 'published', null, $normalizedRunContext, $post->id, [
             'source_key' => strtolower(trim((string) $source->key)),
@@ -729,9 +740,10 @@ class BotPublisherService
         $postId = (int) ($item->post_id ?? 0);
         if ($postId > 0) {
             $linkedPost = Post::query()->find($postId);
-            if ($linkedPost && !$linkedPost->bot_item_id) {
+            if ($linkedPost && (!$linkedPost->bot_item_id || !$linkedPost->ingested_at)) {
                 $linkedPost->forceFill([
                     'bot_item_id' => $item->id,
+                    'ingested_at' => $linkedPost->ingested_at ?: now(),
                 ])->save();
             }
         }
@@ -986,74 +998,6 @@ class BotPublisherService
         }
 
         return 'manual';
-    }
-
-    /**
-     * @return array{limited:bool,key:?string,window_sec:int,max_attempts:int,retry_after_sec:int}
-     */
-    private function resolvePublishRateLimitDecision(string $botIdentity): array
-    {
-        $enabled = (bool) config('bots.publish_rate_limit.enabled', true);
-        if (!$enabled) {
-            return [
-                'limited' => false,
-                'key' => null,
-                'window_sec' => 0,
-                'max_attempts' => 0,
-                'retry_after_sec' => 0,
-            ];
-        }
-
-        $identity = strtolower(trim($botIdentity));
-        $windowSeconds = max(1, (int) config('bots.publish_rate_limit.window_seconds', 3600));
-        $defaultMaxAttempts = (int) config('bots.publish_rate_limit.default_max_attempts', 30);
-        $maxAttempts = (int) config(sprintf('bots.publish_rate_limit.identities.%s', $identity), $defaultMaxAttempts);
-        if ($maxAttempts <= 0) {
-            return [
-                'limited' => false,
-                'key' => null,
-                'window_sec' => $windowSeconds,
-                'max_attempts' => 0,
-                'retry_after_sec' => 0,
-            ];
-        }
-
-        $key = sprintf('bots:publish_rate:%s', $identity !== '' ? $identity : 'unknown');
-        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
-            return [
-                'limited' => true,
-                'key' => $key,
-                'window_sec' => $windowSeconds,
-                'max_attempts' => $maxAttempts,
-                'retry_after_sec' => max(1, RateLimiter::availableIn($key)),
-            ];
-        }
-
-        return [
-            'limited' => false,
-            'key' => $key,
-            'window_sec' => $windowSeconds,
-            'max_attempts' => $maxAttempts,
-            'retry_after_sec' => 0,
-        ];
-    }
-
-    /**
-     * @param array{limited:bool,key:?string,window_sec:int,max_attempts:int,retry_after_sec:int} $publishRateLimit
-     */
-    private function consumePublishRateLimit(array $publishRateLimit): void
-    {
-        if (($publishRateLimit['limited'] ?? false) === true) {
-            return;
-        }
-
-        $key = trim((string) ($publishRateLimit['key'] ?? ''));
-        if ($key === '') {
-            return;
-        }
-
-        $window = max(1, (int) ($publishRateLimit['window_sec'] ?? 0));
-        RateLimiter::hit($key, $window);
     }
 
     /**
