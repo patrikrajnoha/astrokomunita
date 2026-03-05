@@ -122,7 +122,7 @@ class AdminBotController extends Controller
 
     public function run(Request $request, string $sourceKey): JsonResponse
     {
-        $executionBudget = max(30, (int) config('astrobot.run_max_execution_seconds', 120));
+        $executionBudget = max(30, (int) config('bots.run_max_execution_seconds', 120));
         if (function_exists('set_time_limit')) {
             @set_time_limit($executionBudget);
         }
@@ -336,15 +336,15 @@ class AdminBotController extends Controller
 
     public function translationHealth(): JsonResponse
     {
-        $provider = strtolower(trim((string) config('astrobot.translation.primary', 'libretranslate')));
-        $fallbackProvider = strtolower(trim((string) config('astrobot.translation.fallback', 'none')));
-        $timeoutSec = max(1, (int) config('astrobot.translation.timeout_sec', 12));
+        $provider = strtolower(trim((string) config('bots.translation.primary', 'libretranslate')));
+        $fallbackProvider = strtolower(trim((string) config('bots.translation.fallback', 'none')));
+        $timeoutSec = max(1, (int) config('bots.translation.timeout_sec', 12));
         $degraded = false;
         $simulateOutageProvider = $this->outageSimulationService->getProvider();
 
         $baseUrl = match ($provider) {
             'ollama' => trim((string) config('ai.ollama.base_url', config('ai.ollama_base_url', ''))),
-            default => trim((string) config('astrobot.translation.libretranslate.url', '')),
+            default => trim((string) config('bots.translation.libretranslate.url', '')),
         };
 
         try {
@@ -444,20 +444,20 @@ class AdminBotController extends Controller
      */
     private function runTranslationHealthProbe(?string $forceProvider = null): array
     {
-        $originalPrimary = (string) config('astrobot.translation.primary', 'libretranslate');
-        $originalFallback = (string) config('astrobot.translation.fallback', 'none');
+        $originalPrimary = (string) config('bots.translation.primary', 'libretranslate');
+        $originalFallback = (string) config('bots.translation.fallback', 'none');
 
         if ($forceProvider !== null) {
-            config()->set('astrobot.translation.primary', strtolower(trim($forceProvider)));
-            config()->set('astrobot.translation.fallback', 'none');
+            config()->set('bots.translation.primary', strtolower(trim($forceProvider)));
+            config()->set('bots.translation.fallback', 'none');
         }
 
         try {
             return $this->translationService->translate('health check', null, 'sk');
         } finally {
             if ($forceProvider !== null) {
-                config()->set('astrobot.translation.primary', $originalPrimary);
-                config()->set('astrobot.translation.fallback', $originalFallback);
+                config()->set('bots.translation.primary', $originalPrimary);
+                config()->set('bots.translation.fallback', $originalFallback);
             }
         }
     }
@@ -980,7 +980,7 @@ class AdminBotController extends Controller
 
     private function defaultModeForSource(string $sourceKey): string
     {
-        $configured = strtolower(trim((string) config(sprintf('astrobot.sources.%s.default_mode', $sourceKey), 'auto')));
+        $configured = strtolower(trim((string) config(sprintf('bots.sources.%s.default_mode', $sourceKey), 'auto')));
 
         return in_array($configured, ['auto', 'dry'], true) ? $configured : 'auto';
     }

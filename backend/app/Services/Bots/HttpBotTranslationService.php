@@ -49,8 +49,8 @@ class HttpBotTranslationService implements BotTranslationServiceInterface
 
     private function translateText(string $text, string $to): string
     {
-        $baseUrl = rtrim((string) config('astrobot.translation.libretranslate.url', config('astrobot.translation_base_url', 'http://127.0.0.1:5000')), '/');
-        $timeoutSeconds = max(1, (int) config('astrobot.translation.timeout_sec', config('astrobot.translation_timeout_seconds', 12)));
+        $baseUrl = rtrim((string) config('bots.translation.libretranslate.url', config('bots.translation_base_url', 'http://127.0.0.1:5000')), '/');
+        $timeoutSeconds = max(1, (int) config('bots.translation.timeout_sec', config('bots.translation_timeout_seconds', 12)));
         $translatePath = str_ends_with(strtolower($baseUrl), '/translate') ? '' : '/translate';
 
         if ($baseUrl === '') {

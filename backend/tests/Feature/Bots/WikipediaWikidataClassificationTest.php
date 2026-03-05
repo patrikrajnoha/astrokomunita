@@ -21,13 +21,13 @@ class WikipediaWikidataClassificationTest extends TestCase
 
         Cache::flush();
         config()->set('moderation.enabled', false);
-        config()->set('astrobot.translation_provider', 'dummy');
-        config()->set('astrobot.wikipedia_mediawiki_api_url', 'https://mediawiki.test/w/api.php');
-        config()->set('astrobot.wikidata_api_url', 'https://wikidata.test/w/api.php');
-        config()->set('astrobot.wiki_max_candidate_pages', 15);
-        config()->set('astrobot.wiki_max_wikidata_entity_requests', 15);
-        config()->set('astrobot.wiki_wikidata_cache_ttl_days', 30);
-        config()->set('astrobot.wiki_high_keyword_threshold', 4);
+        config()->set('bots.translation_provider', 'dummy');
+        config()->set('bots.wikipedia_mediawiki_api_url', 'https://mediawiki.test/w/api.php');
+        config()->set('bots.wikidata_api_url', 'https://wikidata.test/w/api.php');
+        config()->set('bots.wiki_max_candidate_pages', 15);
+        config()->set('bots.wiki_max_wikidata_entity_requests', 15);
+        config()->set('bots.wiki_wikidata_cache_ttl_days', 30);
+        config()->set('bots.wiki_high_keyword_threshold', 4);
     }
 
     public function test_keyword_hit_with_allowlist_type_publishes_post(): void

@@ -48,7 +48,7 @@ class OllamaBotTranslationService implements BotTranslationServiceInterface
             'meta' => [
                 'provider' => 'ollama',
                 'target_lang' => $targetLanguage,
-                'model' => trim((string) config('astrobot.translation_ollama_model', config('ai.ollama.model', 'mistral'))),
+                'model' => trim((string) config('bots.translation_ollama_model', config('ai.ollama.model', 'mistral'))),
             ],
         ];
     }
@@ -62,10 +62,10 @@ class OllamaBotTranslationService implements BotTranslationServiceInterface
                 prompt: $prompt,
                 system: $this->buildSystemPrompt($targetLanguage),
                 options: [
-                    'model' => trim((string) config('astrobot.translation_ollama_model', config('ai.ollama.model', 'mistral'))),
-                    'temperature' => (float) config('astrobot.translation_ollama_temperature', 0.0),
-                    'num_predict' => (int) config('astrobot.translation_ollama_num_predict', 700),
-                    'timeout' => max(1, (int) config('astrobot.translation_ollama_timeout_seconds', 40)),
+                    'model' => trim((string) config('bots.translation_ollama_model', config('ai.ollama.model', 'mistral'))),
+                    'temperature' => (float) config('bots.translation_ollama_temperature', 0.0),
+                    'num_predict' => (int) config('bots.translation_ollama_num_predict', 700),
+                    'timeout' => max(1, (int) config('bots.translation_ollama_timeout_seconds', 40)),
                 ]
             );
         } catch (OllamaClientException $exception) {

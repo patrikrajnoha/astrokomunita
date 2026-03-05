@@ -13,12 +13,12 @@ class BotTranslationServiceTest extends TestCase
 {
     public function test_falls_back_to_ollama_when_libretranslate_fails(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'ollama');
-        config()->set('astrobot.translation.post_edit.enabled', false);
-        config()->set('astrobot.translation.quality.enabled', false);
-        config()->set('astrobot.translation.chunk_max_chars', 1800);
-        config()->set('astrobot.translation.chunk_hard_limit_chars', 1800);
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'ollama');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', false);
+        config()->set('bots.translation.chunk_max_chars', 1800);
+        config()->set('bots.translation.chunk_hard_limit_chars', 1800);
 
         $libre = $this->createMock(LibreTranslateClient::class);
         $libre->expects($this->once())
@@ -48,12 +48,12 @@ class BotTranslationServiceTest extends TestCase
 
     public function test_splits_long_text_into_chunks_and_merges_translated_output(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'ollama');
-        config()->set('astrobot.translation.post_edit.enabled', false);
-        config()->set('astrobot.translation.quality.enabled', false);
-        config()->set('astrobot.translation.chunk_max_chars', 60);
-        config()->set('astrobot.translation.chunk_hard_limit_chars', 60);
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'ollama');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', false);
+        config()->set('bots.translation.chunk_max_chars', 60);
+        config()->set('bots.translation.chunk_hard_limit_chars', 60);
 
         $paragraphOne = 'First paragraph has enough words for chunking.';
         $paragraphTwo = 'Second paragraph also keeps the chunk flowing.';
@@ -93,13 +93,13 @@ class BotTranslationServiceTest extends TestCase
 
     public function test_quality_retry_runs_when_translation_is_too_short(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'ollama');
-        config()->set('astrobot.translation.post_edit.enabled', false);
-        config()->set('astrobot.translation.quality.enabled', true);
-        config()->set('astrobot.translation.quality.max_retries', 1);
-        config()->set('astrobot.translation.quality.min_length_ratio', 0.7);
-        config()->set('astrobot.translation.quality.max_english_ratio', 1.0);
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'ollama');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', true);
+        config()->set('bots.translation.quality.max_retries', 1);
+        config()->set('bots.translation.quality.min_length_ratio', 0.7);
+        config()->set('bots.translation.quality.max_english_ratio', 1.0);
 
         $libre = $this->createMock(LibreTranslateClient::class);
         $libre->expects($this->once())
@@ -133,13 +133,13 @@ class BotTranslationServiceTest extends TestCase
 
     public function test_quality_retry_runs_when_translation_is_identical_to_source(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'ollama');
-        config()->set('astrobot.translation.post_edit.enabled', false);
-        config()->set('astrobot.translation.quality.enabled', true);
-        config()->set('astrobot.translation.quality.max_retries', 1);
-        config()->set('astrobot.translation.quality.min_length_ratio', 0.1);
-        config()->set('astrobot.translation.quality.max_english_ratio', 1.0);
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'ollama');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', true);
+        config()->set('bots.translation.quality.max_retries', 1);
+        config()->set('bots.translation.quality.min_length_ratio', 0.1);
+        config()->set('bots.translation.quality.max_english_ratio', 1.0);
 
         $source = 'This source sentence should not be returned unchanged.';
 
@@ -175,10 +175,10 @@ class BotTranslationServiceTest extends TestCase
 
     public function test_uses_ollama_post_edit_after_libretranslate_when_enabled(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'ollama');
-        config()->set('astrobot.translation.post_edit.enabled', true);
-        config()->set('astrobot.translation.quality.enabled', false);
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'ollama');
+        config()->set('bots.translation.post_edit.enabled', true);
+        config()->set('bots.translation.quality.enabled', false);
 
         $libre = $this->createMock(LibreTranslateClient::class);
         $libre->expects($this->once())
@@ -214,11 +214,11 @@ class BotTranslationServiceTest extends TestCase
 
     public function test_protected_terms_are_restored_after_translation(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'dummy');
-        config()->set('astrobot.translation.post_edit.enabled', false);
-        config()->set('astrobot.translation.quality.enabled', false);
-        config()->set('astrobot.translation.protected_terms', ['James Webb Space Telescope']);
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'dummy');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', false);
+        config()->set('bots.translation.protected_terms', ['James Webb Space Telescope']);
 
         $libre = $this->createMock(LibreTranslateClient::class);
         $libre->expects($this->once())
@@ -245,11 +245,11 @@ class BotTranslationServiceTest extends TestCase
 
     public function test_protected_terms_restore_when_provider_normalizes_placeholder_to_term_number(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'dummy');
-        config()->set('astrobot.translation.post_edit.enabled', false);
-        config()->set('astrobot.translation.quality.enabled', false);
-        config()->set('astrobot.translation.protected_terms', ['Science Activation Programme']);
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'dummy');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', false);
+        config()->set('bots.translation.protected_terms', ['Science Activation Programme']);
 
         $libre = $this->createMock(LibreTranslateClient::class);
         $libre->expects($this->once())
@@ -275,10 +275,10 @@ class BotTranslationServiceTest extends TestCase
 
     public function test_does_not_skip_english_nasa_text_as_slovak_heuristic(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'dummy');
-        config()->set('astrobot.translation.post_edit.enabled', false);
-        config()->set('astrobot.translation.quality.enabled', false);
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'dummy');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', false);
 
         $libre = $this->createMock(LibreTranslateClient::class);
         $libre->expects($this->exactly(2))
@@ -287,7 +287,7 @@ class BotTranslationServiceTest extends TestCase
                 $isTitle = str_contains($text, 'Meet Regina Senegal');
 
                 return [
-                    'text' => $isTitle ? 'NASA skúma nové údaje.' : 'Bezpečnosť a kvalita sú kľúčové pre programy NASA.',
+                    'text' => $isTitle ? 'NASA skĂşma novĂ© Ăşdaje.' : 'BezpeÄŤnosĹĄ a kvalita sĂş kÄľĂşÄŤovĂ© pre programy NASA.',
                     'provider' => 'libretranslate',
                     'model' => null,
                     'duration_ms' => 10,
@@ -301,7 +301,7 @@ class BotTranslationServiceTest extends TestCase
 
         $service = $this->makeService($libre, $ollama);
         $result = $service->translate(
-            "Meet Regina Senegal, Acting Chief of Johnson’s Quality and Flight Equipment Division",
+            "Meet Regina Senegal, Acting Chief of Johnsonâ€™s Quality and Flight Equipment Division",
             "Safety and quality management are integral to every program at NASA's Johnson Space Center.",
             'sk'
         );
@@ -312,10 +312,10 @@ class BotTranslationServiceTest extends TestCase
 
     public function test_skips_text_that_is_likely_slovak(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'dummy');
-        config()->set('astrobot.translation.post_edit.enabled', false);
-        config()->set('astrobot.translation.quality.enabled', false);
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'dummy');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', false);
 
         $libre = $this->createMock(LibreTranslateClient::class);
         $libre->expects($this->never())->method('translate');
@@ -326,8 +326,8 @@ class BotTranslationServiceTest extends TestCase
 
         $service = $this->makeService($libre, $ollama);
         $result = $service->translate(
-            'Vesmírna agentúra dnes zverejnila nové údaje o hviezdach.',
-            'Táto správa je v slovenčine a obsahuje diakritiku pre správnu detekciu.',
+            'VesmĂ­rna agentĂşra dnes zverejnila novĂ© Ăşdaje o hviezdach.',
+            'TĂˇto sprĂˇva je v slovenÄŤine a obsahuje diakritiku pre sprĂˇvnu detekciu.',
             'sk'
         );
 

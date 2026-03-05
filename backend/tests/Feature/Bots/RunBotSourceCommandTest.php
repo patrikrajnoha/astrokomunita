@@ -24,8 +24,8 @@ class RunBotSourceCommandTest extends TestCase
 
         config()->set('moderation.enabled', false);
         config()->set('services.nasa.key', 'test-nasa-key');
-        config()->set('astrobot.sources.nasa_apod_daily.requires_api_key', true);
-        config()->set('astrobot.sources.nasa_apod_daily.rate_limit_backoff_minutes', 360);
+        config()->set('bots.sources.nasa_apod_daily.requires_api_key', true);
+        config()->set('bots.sources.nasa_apod_daily.rate_limit_backoff_minutes', 360);
     }
 
     public function test_first_run_creates_bot_items_and_publishes_posts_to_astro_feed(): void
@@ -73,8 +73,8 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_source_label_and_attribution_are_loaded_from_config_mapping(): void
     {
-        config()->set('astrobot.sources.nasa_rss_breaking.label', 'NASA News Wire');
-        config()->set('astrobot.sources.nasa_rss_breaking.attribution', 'NASA Open Data');
+        config()->set('bots.sources.nasa_rss_breaking.label', 'NASA News Wire');
+        config()->set('bots.sources.nasa_rss_breaking.attribution', 'NASA Open Data');
 
         $source = $this->createSource();
         Http::fake([
@@ -211,7 +211,7 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_apod_missing_api_key_marks_run_as_needs_api_key_and_does_not_call_http(): void
     {
-        config()->set('astrobot.sources.nasa_apod_daily.requires_api_key', true);
+        config()->set('bots.sources.nasa_apod_daily.requires_api_key', true);
         config()->set('services.nasa.key', '');
         config()->set('services.nasa.apod_api_key', '');
 
@@ -240,8 +240,8 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_publish_repairs_legacy_bot_username_and_display_name_to_configured_identity(): void
     {
-        config()->set('astrobot.identities.kozmo.username', 'kozmobot');
-        config()->set('astrobot.identities.kozmo.display_name', 'Kozmo');
+        config()->set('bots.identities.kozmo.username', 'kozmobot');
+        config()->set('bots.identities.kozmo.display_name', 'Kozmo');
 
         $legacyBot = User::factory()->create([
             'is_bot' => true,
@@ -408,7 +408,7 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_apod_image_larger_than_policy_limit_is_skipped(): void
     {
-        config()->set('astrobot.stela_image_max_bytes', 1024);
+        config()->set('bots.stela_image_max_bytes', 1024);
 
         $source = $this->createApodSource();
         Http::fake([
@@ -497,10 +497,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_wikipedia_relevant_events_publish_single_kozmo_post(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'none');
-        config()->set('astrobot.translation.timeout_sec', 5);
-        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'none');
+        config()->set('bots.translation.timeout_sec', 5);
+        config()->set('bots.translation.libretranslate.url', 'http://translation.test');
 
         $this->travelTo(Carbon::parse('2026-02-20 10:00:00'));
         try {
@@ -549,7 +549,7 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_wikipedia_no_relevant_events_marks_item_skipped_without_post(): void
     {
-        config()->set('astrobot.translation.primary', 'dummy');
+        config()->set('bots.translation.primary', 'dummy');
 
         $this->travelTo(Carbon::parse('2026-02-20 12:00:00'));
         try {
@@ -585,7 +585,7 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_wikipedia_second_run_same_day_is_idempotent_without_duplicate_post(): void
     {
-        config()->set('astrobot.translation.primary', 'dummy');
+        config()->set('bots.translation.primary', 'dummy');
 
         $this->travelTo(Carbon::parse('2026-02-20 14:00:00'));
         try {
@@ -735,10 +735,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_translation_success_marks_item_done_and_publishes_slovak_content(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'none');
-        config()->set('astrobot.translation.timeout_sec', 5);
-        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'none');
+        config()->set('bots.translation.timeout_sec', 5);
+        config()->set('bots.translation.libretranslate.url', 'http://translation.test');
 
         $source = $this->createSource();
         Http::fake([
@@ -776,10 +776,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_translation_failure_sets_failed_and_publishes_with_english_fallback(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'none');
-        config()->set('astrobot.translation.timeout_sec', 5);
-        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'none');
+        config()->set('bots.translation.timeout_sec', 5);
+        config()->set('bots.translation.libretranslate.url', 'http://translation.test');
 
         $source = $this->createSource();
         Http::fake([
@@ -823,10 +823,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_translation_cache_key_prevents_duplicate_translation_call_on_second_run(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'none');
-        config()->set('astrobot.translation.timeout_sec', 5);
-        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'none');
+        config()->set('bots.translation.timeout_sec', 5);
+        config()->set('bots.translation.libretranslate.url', 'http://translation.test');
 
         $source = $this->createSource();
         $translationCalls = 0;
@@ -873,10 +873,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_legacy_dummy_item_without_post_id_is_retranslated_before_publish(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'none');
-        config()->set('astrobot.translation.timeout_sec', 5);
-        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'none');
+        config()->set('bots.translation.timeout_sec', 5);
+        config()->set('bots.translation.libretranslate.url', 'http://translation.test');
 
         $source = $this->createSource();
         Http::fake([
@@ -943,10 +943,10 @@ class RunBotSourceCommandTest extends TestCase
 
     public function test_legacy_skipped_item_without_translated_payload_is_retranslated_before_publish(): void
     {
-        config()->set('astrobot.translation.primary', 'libretranslate');
-        config()->set('astrobot.translation.fallback', 'none');
-        config()->set('astrobot.translation.timeout_sec', 5);
-        config()->set('astrobot.translation.libretranslate.url', 'http://translation.test');
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'none');
+        config()->set('bots.translation.timeout_sec', 5);
+        config()->set('bots.translation.libretranslate.url', 'http://translation.test');
 
         $source = $this->createSource();
         Http::fake([

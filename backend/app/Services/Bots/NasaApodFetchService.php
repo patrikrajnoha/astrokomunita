@@ -32,12 +32,12 @@ class NasaApodFetchService
      */
     private function fetchJson(string $url): array
     {
-        $timeoutSeconds = max(1, (int) config('astrobot.rss_timeout_seconds', 10));
-        $retryTimes = max(0, (int) config('astrobot.rss_retry_times', 2));
-        $retrySleepMs = max(0, (int) config('astrobot.rss_retry_sleep_ms', 250));
+        $timeoutSeconds = max(1, (int) config('bots.rss_timeout_seconds', 10));
+        $retryTimes = max(0, (int) config('bots.rss_retry_times', 2));
+        $retrySleepMs = max(0, (int) config('bots.rss_retry_sleep_ms', 250));
         $attempts = $retryTimes + 1;
         $apiKey = trim((string) config('services.nasa.key', config('services.nasa.apod_api_key', '')));
-        $requiresApiKey = (bool) config('astrobot.sources.nasa_apod_daily.requires_api_key', true);
+        $requiresApiKey = (bool) config('bots.sources.nasa_apod_daily.requires_api_key', true);
 
         if ($requiresApiKey && $apiKey === '') {
             throw new BotSourceRunException(

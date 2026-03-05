@@ -58,13 +58,10 @@ class PostService
         }
 
         if ($source) {
-            if ($source === 'astrobot') {
-                $query->where('source_name', 'astrobot');
+            if ($source === 'bots') {
+                $query->where('author_kind', PostAuthorKind::BOT->value);
             } elseif ($source === 'users') {
-                $query->where(function ($usersSourceQuery) {
-                    $usersSourceQuery->whereNull('source_name')
-                        ->orWhere('source_name', '!=', 'astrobot');
-                });
+                $query->where('author_kind', PostAuthorKind::USER->value);
             }
         }
 
@@ -484,7 +481,7 @@ class PostService
             return PostBotIdentity::KOZMO->value;
         }
 
-        if ($username === PostBotIdentity::STELA->value || $username === 'astrobot') {
+        if ($username === PostBotIdentity::STELA->value || $username === 'stellarbot') {
             return PostBotIdentity::STELA->value;
         }
 
@@ -493,7 +490,7 @@ class PostService
             return PostBotIdentity::KOZMO->value;
         }
 
-        if (str_contains($email, PostBotIdentity::STELA->value) || str_contains($email, 'astrobot')) {
+        if (str_contains($email, PostBotIdentity::STELA->value) || str_contains($email, 'stellarbot')) {
             return PostBotIdentity::STELA->value;
         }
 

@@ -206,10 +206,10 @@ class PerformanceRunner
         $fetchedCounts = [];
         $errorsCount = 0;
 
-        $originalPrimary = (string) config('astrobot.translation.primary', 'dummy');
-        $originalFallback = (string) config('astrobot.translation.fallback', 'dummy');
-        config()->set('astrobot.translation.primary', 'dummy');
-        config()->set('astrobot.translation.fallback', 'dummy');
+        $originalPrimary = (string) config('bots.translation.primary', 'dummy');
+        $originalFallback = (string) config('bots.translation.fallback', 'dummy');
+        config()->set('bots.translation.primary', 'dummy');
+        config()->set('bots.translation.fallback', 'dummy');
 
         Http::fake([
             '*' => Http::response($fixtureBody, 200, ['Content-Type' => 'application/rss+xml']),
@@ -242,8 +242,8 @@ class PerformanceRunner
             DB::rollBack();
             throw $exception;
         } finally {
-            config()->set('astrobot.translation.primary', $originalPrimary);
-            config()->set('astrobot.translation.fallback', $originalFallback);
+            config()->set('bots.translation.primary', $originalPrimary);
+            config()->set('bots.translation.fallback', $originalFallback);
             Http::swap(new HttpFactory());
         }
 
