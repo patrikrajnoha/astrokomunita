@@ -16,6 +16,39 @@
   </head>
   <body>
     <div id="app"></div>
+    <script>
+      (function () {
+        var host = window.location.hostname
+        var isLocal = host === '127.0.0.1' || host === 'localhost'
+        if (!isLocal || !('serviceWorker' in navigator)) return
+
+        navigator.serviceWorker.getRegistrations()
+          .then(function (registrations) {
+            return Promise.all(registrations.map(function (registration) {
+              return registration.unregister()
+            })).then(function () {
+              return registrations.length
+            })
+          })
+          .then(function (count) {
+            if (!('caches' in window)) return count
+
+            return caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (key) {
+                return caches.delete(key)
+              })).then(function () {
+                return count
+              })
+            })
+          })
+          .then(function (count) {
+            console.info('[APP SW] local pre-bootstrap guard active. Unregistered:', count)
+          })
+          .catch(function (error) {
+            console.warn('[APP SW] local pre-bootstrap guard failed', error)
+          })
+      })()
+    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
