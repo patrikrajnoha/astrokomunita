@@ -9,6 +9,7 @@ const authState = {
   loading: false,
   isAuthed: true,
   isAdmin: true,
+  isEditor: false,
   user: {
     email_verified_at: '2026-03-01T00:00:00Z',
     requires_email_verification: false,
@@ -44,6 +45,7 @@ describe('admin nested section routes', () => {
   beforeEach(() => {
     authState.isAuthed = true
     authState.isAdmin = true
+    authState.isEditor = false
     authState.status = 'authenticated'
     authState.bootstrapDone = true
     authState.initialized = true
@@ -170,5 +172,21 @@ describe('admin nested section routes', () => {
     expect(router.currentRoute.value.path).toBe('/admin/community/moderation')
     expect(router.currentRoute.value.query.scope).toBe('open')
     expect(router.currentRoute.value.query.tab).toBe('queue')
+  })
+
+  it('redirects editor away from non-content admin routes', async () => {
+    authState.isAdmin = false
+    authState.isEditor = true
+    authState.user = {
+      email_verified_at: '2026-03-01T00:00:00Z',
+      requires_email_verification: false,
+      role: 'editor',
+    }
+
+    const router = makeRouter()
+    await router.push('/admin/community/users')
+    await router.isReady()
+
+    expect(router.currentRoute.value.path).toBe('/admin/content/articles')
   })
 })

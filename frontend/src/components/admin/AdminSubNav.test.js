@@ -1,7 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import AdminSubNav from './AdminSubNav.vue'
+
+const authState = {
+  isAdmin: true,
+  isEditor: false,
+}
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => authState,
+}))
 
 function makeRouter() {
   return createRouter({
@@ -47,6 +56,18 @@ function activeItems(wrapper) {
 }
 
 describe('AdminSubNav', () => {
+  it('shows editor-only navigation when actor is editor', async () => {
+    authState.isAdmin = false
+    authState.isEditor = true
+    const { wrapper } = await mountAt('/admin/content/articles')
+
+    expect(wrapper.text()).toContain('Editor Hub')
+    expect(wrapper.text()).not.toContain('SprĂˇva komunity')
+
+    authState.isAdmin = true
+    authState.isEditor = false
+  })
+
   it('hides banned words link when VITE_FEATURE_WIP is not enabled', async () => {
     const { wrapper } = await mountAt('/admin/dashboard')
 

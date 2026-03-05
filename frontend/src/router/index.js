@@ -253,7 +253,7 @@ const appShellChildren = [
     path: 'admin',
     name: 'admin.root',
     component: () => import('@/layouts/AdminHubLayout.vue'),
-    meta: { auth: true, requiresAuth: true, admin: true },
+    meta: { auth: true, requiresAuth: true, adminHub: true },
     children: [
       {
         path: '',
@@ -663,8 +663,16 @@ export function applyAuthGuards(routerInstance) {
       return { name: 'home' }
     }
 
-    if (to.meta?.admin && !auth.isAdmin) {
+    const isAdminHubRoute = to.path.startsWith('/admin')
+    const isEditorUser = Boolean(auth.isEditor)
+    const isAdminOrEditor = Boolean(auth.isAdmin || isEditorUser)
+
+    if (isAdminHubRoute && !isAdminOrEditor) {
       return { name: 'home' }
+    }
+
+    if (isEditorUser && isAdminHubRoute && !to.path.startsWith('/admin/content')) {
+      return { name: 'admin.blog' }
     }
 
     if (to.meta?.guest && auth.isAuthed) {

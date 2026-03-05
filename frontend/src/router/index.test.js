@@ -9,6 +9,7 @@ const authState = {
   loading: false,
   isAuthed: false,
   isAdmin: false,
+  isEditor: false,
   user: null,
   bootstrapAuth: vi.fn(async () => {}),
 }
@@ -42,6 +43,8 @@ function makeRouter() {
       { path: '/verify-email', name: 'verify-email.deprecated', component: { template: '<div>verify</div>' }, meta: { requiresAuth: false } },
       { path: '/onboarding', name: 'onboarding', component: { template: '<div>onboarding</div>' }, meta: { requiresAuth: true } },
       { path: '/admin', name: 'admin', component: { template: '<div>admin</div>' }, meta: { requiresAuth: true, admin: true } },
+      { path: '/admin/content/articles', name: 'admin.blog', component: { template: '<div>admin blog</div>' }, meta: { requiresAuth: true } },
+      { path: '/admin/community/users', name: 'admin.users', component: { template: '<div>admin users</div>' }, meta: { requiresAuth: true } },
       { path: '/:pathMatch(.*)*', name: 'not-found', component: { template: '<div>notfound</div>' } },
     ],
   })
@@ -58,6 +61,7 @@ describe('router auth guard', () => {
     authState.loading = false
     authState.isAuthed = false
     authState.isAdmin = false
+    authState.isEditor = false
     authState.user = null
     authState.bootstrapAuth.mockClear()
 
@@ -121,6 +125,20 @@ describe('router auth guard', () => {
     await router.isReady()
 
     expect(router.currentRoute.value.name).toBe('home')
+  })
+
+  it('allows editor users into content admin routes and blocks community routes', async () => {
+    authState.isAuthed = true
+    authState.isEditor = true
+    authState.user = { email_verified_at: '2026-02-17T00:00:00Z', role: 'editor' }
+
+    const router = makeRouter()
+    await router.push('/admin/content/articles')
+    await router.isReady()
+    expect(router.currentRoute.value.name).toBe('admin.blog')
+
+    await router.push('/admin/community/users')
+    expect(router.currentRoute.value.name).toBe('admin.blog')
   })
 
   it('redirects verified users with incomplete onboarding to onboarding route', async () => {

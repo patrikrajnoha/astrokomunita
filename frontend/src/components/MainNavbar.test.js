@@ -8,6 +8,7 @@ const authStore = vi.hoisted(() => ({
   user: null,
   isAuthed: false,
   isAdmin: false,
+  isEditor: false,
   logout: vi.fn(async () => {}),
 }))
 
@@ -92,6 +93,7 @@ describe('MainNavbar active route state', () => {
     authStore.user = null
     authStore.isAuthed = false
     authStore.isAdmin = false
+    authStore.isEditor = false
     notificationsStore.unreadBadge = ''
     notificationsStore.unreadCount = 0
     notificationsStore.unreadCountHydrated = true

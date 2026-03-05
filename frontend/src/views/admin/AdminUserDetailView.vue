@@ -30,6 +30,12 @@ const reportsSearch = ref('')
 const reportsStatus = ref('')
 const reportsPage = ref(1)
 const reportsPerPage = ref(20)
+const profileForm = ref({
+  name: '',
+  bio: '',
+  avatar_path: '',
+  cover_path: '',
+})
 
 let searchDebounce = null
 
@@ -39,6 +45,13 @@ const usersListRoute = computed(() => ({
   query: { ...route.query },
 }))
 const reportRows = computed(() => reportsData.value?.data || [])
+const isCurrentActorAdmin = computed(() => Boolean(auth.isAdmin))
+const isBotTarget = computed(() => String(user.value?.role || '').toLowerCase() === 'bot' || Boolean(user.value?.is_bot))
+const canEditProfile = computed(() => {
+  if (!user.value) return false
+  if (!isBotTarget.value) return true
+  return isCurrentActorAdmin.value
+})
 
 const reportColumns = [
   { key: 'type', label: 'Type' },
@@ -77,6 +90,12 @@ async function loadUser() {
   try {
     const res = await api.get(`/admin/users/${userId.value}`)
     user.value = res.data
+    profileForm.value = {
+      name: String(user.value?.name || ''),
+      bio: String(user.value?.bio || ''),
+      avatar_path: String(user.value?.avatar_path || ''),
+      cover_path: String(user.value?.cover_path || ''),
+    }
   } catch (e) {
     userError.value = e?.response?.data?.message || 'Failed to load user.'
   } finally {
@@ -113,6 +132,12 @@ async function loadReports() {
 function updateUser(updated) {
   if (!user.value || !updated) return
   user.value = { ...user.value, ...updated }
+  profileForm.value = {
+    name: String(user.value?.name || ''),
+    bio: String(user.value?.bio || ''),
+    avatar_path: String(user.value?.avatar_path || ''),
+    cover_path: String(user.value?.cover_path || ''),
+  }
 }
 
 async function banUser() {
@@ -197,6 +222,24 @@ async function resetProfile() {
     toast.success('Profile reset done.')
   } catch (e) {
     userError.value = e?.response?.data?.message || 'Reset profile failed.'
+    toast.error(userError.value)
+  }
+}
+
+async function saveProfile() {
+  if (!user.value || !canEditProfile.value) return
+
+  try {
+    const res = await api.patch(`/admin/users/${user.value.id}/profile`, {
+      name: profileForm.value.name,
+      bio: profileForm.value.bio || null,
+      avatar_path: profileForm.value.avatar_path || null,
+      cover_path: profileForm.value.cover_path || null,
+    })
+    updateUser(res.data)
+    toast.success('Profile updated.')
+  } catch (e) {
+    userError.value = e?.response?.data?.message || 'Profile update failed.'
     toast.error(userError.value)
   }
 }
@@ -307,6 +350,55 @@ onBeforeUnmount(() => {
           Deactivate
         </button>
         <button class="btn action subtle" :disabled="userLoading" @click="resetProfile">Reset profile</button>
+      </div>
+    </section>
+
+    <section class="overviewCard">
+      <h3>Profile fields</h3>
+      <div v-if="isBotTarget && !isCurrentActorAdmin" class="adminAlert">
+        Bot profiles are read-only for non-admin users.
+      </div>
+      <div class="formGrid">
+        <label class="fieldLabel" for="profile-name">Name</label>
+        <input
+          id="profile-name"
+          v-model="profileForm.name"
+          class="fieldInput"
+          :disabled="!canEditProfile || userLoading"
+          type="text"
+        />
+
+        <label class="fieldLabel" for="profile-bio">Bio</label>
+        <textarea
+          id="profile-bio"
+          v-model="profileForm.bio"
+          class="fieldInput"
+          :disabled="!canEditProfile || userLoading"
+          rows="3"
+        ></textarea>
+
+        <label class="fieldLabel" for="profile-avatar">Avatar path</label>
+        <input
+          id="profile-avatar"
+          v-model="profileForm.avatar_path"
+          class="fieldInput"
+          :disabled="!canEditProfile || userLoading"
+          type="text"
+        />
+
+        <label class="fieldLabel" for="profile-cover">Cover path</label>
+        <input
+          id="profile-cover"
+          v-model="profileForm.cover_path"
+          class="fieldInput"
+          :disabled="!canEditProfile || userLoading"
+          type="text"
+        />
+      </div>
+      <div class="headerActions">
+        <button class="btn action" :disabled="!canEditProfile || userLoading" @click="saveProfile">
+          Save profile
+        </button>
       </div>
     </section>
 
@@ -497,6 +589,11 @@ onBeforeUnmount(() => {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
   border-radius: 12px;
   padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.formGrid {
   display: grid;
   gap: 8px;
 }

@@ -32,6 +32,7 @@ const rows = computed(() => data.value?.data || [])
 const totalUsers = computed(() => Number(data.value?.total || 0))
 const hasActiveFilters = computed(() => Boolean(search.value))
 const showSkeleton = computed(() => loading.value && rows.value.length === 0)
+const isCurrentActorAdmin = computed(() => Boolean(auth.isAdmin))
 
 const syncPillLabel = computed(() => {
   if (loading.value) return 'Syncing users'
@@ -121,14 +122,16 @@ function banReasonPreview(user) {
 function roleClass(user) {
   const role = String(user?.role || '').trim().toLowerCase()
   if (role === 'admin') return 'is-admin'
-  if (role === 'moderator') return 'is-moderator'
+  if (role === 'editor') return 'is-editor'
+  if (role === 'bot') return 'is-bot'
   return 'is-user'
 }
 
 function roleLabel(user) {
   const role = String(user?.role || 'user').trim().toLowerCase()
   if (role === 'admin') return 'ADMIN'
-  if (role === 'moderator') return 'MODERATOR'
+  if (role === 'editor') return 'EDITOR'
+  if (role === 'bot') return 'BOT'
   return 'USER'
 }
 
@@ -292,10 +295,33 @@ async function resetProfile(user) {
   }
 }
 
+async function updateEditorRole(user, nextRole) {
+  if (!user || !isCurrentActorAdmin.value) return
+
+  try {
+    const res = await api.patch(`/admin/users/${user.id}/role`, { role: nextRole })
+    updateRow(res.data)
+    toast.success(nextRole === 'editor' ? 'Editor role granted.' : 'Editor role removed.')
+  } catch (e) {
+    const status = Number(e?.response?.status || 0)
+    if (status === 403) {
+      error.value = 'You are not allowed to change roles.'
+    } else if (status === 422) {
+      error.value = e?.response?.data?.message || 'Role change is invalid.'
+    } else {
+      error.value = e?.response?.data?.message || 'Role change failed.'
+    }
+    toast.error(error.value)
+  }
+}
+
 function rowActionItems(user) {
   if (!user) return []
 
   const items = []
+  const targetRole = String(user.role || '').toLowerCase()
+  const isTargetBotOrAdmin = targetRole === 'bot' || targetRole === 'admin'
+  const canToggleEditorRole = isCurrentActorAdmin.value && !isSelf(user) && !isTargetBotOrAdmin
 
   if (!isSelf(user)) {
     if (user.is_banned) {
@@ -306,6 +332,14 @@ function rowActionItems(user) {
 
     if (user.is_active) {
       items.push({ key: 'deactivate', label: 'Deactivate user', danger: true })
+    }
+  }
+
+  if (canToggleEditorRole) {
+    if (targetRole === 'user') {
+      items.push({ key: 'grant-editor', label: 'Grant Editor role' })
+    } else if (targetRole === 'editor') {
+      items.push({ key: 'remove-editor', label: 'Remove Editor role' })
     }
   }
 
@@ -334,6 +368,16 @@ async function onRowActionSelect(user, item) {
 
   if (item.key === 'reset') {
     await resetProfile(user)
+    return
+  }
+
+  if (item.key === 'grant-editor') {
+    await updateEditorRole(user, 'editor')
+    return
+  }
+
+  if (item.key === 'remove-editor') {
+    await updateEditorRole(user, 'user')
   }
 }
 
@@ -561,6 +605,7 @@ load()
                       </RouterLink>
 
                       <DropdownMenu
+                        v-if="isCurrentActorAdmin"
                         :items="rowActionItems(row)"
                         :label="`More actions for ${userName(row)}`"
                         menu-label="User actions"
@@ -1037,10 +1082,16 @@ load()
   background: rgb(59 130 246 / 0.18);
 }
 
-.roleBadge.is-moderator {
-  color: rgb(253 224 71);
-  border-color: rgb(245 158 11 / 0.42);
-  background: rgb(245 158 11 / 0.16);
+.roleBadge.is-editor {
+  color: rgb(196 181 253);
+  border-color: rgb(139 92 246 / 0.42);
+  background: rgb(139 92 246 / 0.16);
+}
+
+.roleBadge.is-bot {
+  color: rgb(134 239 172);
+  border-color: rgb(34 197 94 / 0.42);
+  background: rgb(34 197 94 / 0.16);
 }
 
 .roleBadge.is-user {

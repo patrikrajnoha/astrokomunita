@@ -18,6 +18,7 @@ vi.mock('@/services/api', () => ({
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => ({
     user: { id: 1 },
+    isAdmin: true,
   }),
 }))
 
