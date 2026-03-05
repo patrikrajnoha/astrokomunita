@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\BookmarkController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\ObservationController;
 use App\Http\Controllers\Api\MediaDownloadController;
 use App\Http\Controllers\Api\MediaViewController;
 use App\Http\Controllers\Api\PollController;
@@ -196,6 +197,8 @@ Route::get('/sidebar-config', [SidebarConfigController::class, 'index']);
 Route::get('/posts', [PostController::class, 'index']);
 Route::get('/posts/{post}', [PostController::class, 'show']);
 Route::post('/posts/{post}/view', [PostController::class, 'view']);
+Route::get('/observations', [ObservationController::class, 'index']);
+Route::get('/observations/{observation}', [ObservationController::class, 'show']);
 Route::get('/media/{media}', MediaViewController::class)->name('media.view');
 Route::get('/media/{media}/download', MediaDownloadController::class)->name('media.download');
 Route::get('/polls/{poll}', [PollController::class, 'show']);
@@ -497,6 +500,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/posts/{post}/bookmark', [BookmarkController::class, 'destroy'])->middleware('throttle:60,1');
         Route::patch('/posts/{post}', [PostController::class, 'update']);
         Route::delete('/posts/{post}', [PostController::class, 'destroy']);
+        Route::post('/observations', [ObservationController::class, 'store'])->middleware('throttle:post-create');
+        Route::patch('/observations/{observation}', [ObservationController::class, 'update']);
+        Route::put('/observations/{observation}', [ObservationController::class, 'update']);
+        Route::delete('/observations/{observation}', [ObservationController::class, 'destroy']);
         Route::post('/polls/{poll}/vote', [PollController::class, 'vote']);
 
         // Notifications
