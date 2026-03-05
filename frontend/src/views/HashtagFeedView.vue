@@ -21,7 +21,7 @@
     <div v-else-if="error" class="text-center py-8">
       <div class="text-red-500 mb-4">{{ error }}</div>
       <button 
-        @click="loadPosts"
+        @click="loadPosts(1, { force: true })"
         class="rounded-lg border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] px-4 py-2 text-[var(--color-surface)] transition-colors hover:bg-[color:rgb(var(--color-bg-rgb)/0.8)]"
       >
         Skúsiť znova
@@ -117,15 +117,19 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { RouterLink } from 'vue-router'
-import axios from 'axios'
+import api from '@/services/api'
 import UserAvatar from '@/components/UserAvatar.vue'
 import HashtagText from '@/components/HashtagText.vue'
 
 const route = useRoute()
-const hashtagName = computed(() => route.params.name)
+const hashtagName = computed(() => {
+  const raw = route.params.name
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return String(value || '').trim()
+})
 
 const posts = ref([])
 const isLoading = ref(false)
@@ -134,8 +138,32 @@ const error = ref('')
 const currentPage = ref(1)
 const lastPage = ref(1)
 const totalPosts = ref(0)
+const requestSequence = ref(0)
 
-const loadPosts = async (page = 1) => {
+const resetFeedState = () => {
+  posts.value = []
+  currentPage.value = 1
+  lastPage.value = 1
+  totalPosts.value = 0
+  error.value = ''
+  isLoading.value = false
+  isLoadingMore.value = false
+}
+
+const loadPosts = async (page = 1, { force = false } = {}) => {
+  if ((isLoading.value || isLoadingMore.value) && !force) {
+    return
+  }
+
+  const hashtag = hashtagName.value
+  if (!hashtag) {
+    resetFeedState()
+    error.value = 'Hashtag nie je zadany'
+    return
+  }
+
+  const requestId = ++requestSequence.value
+
   try {
     if (page === 1) {
       isLoading.value = true
@@ -144,32 +172,49 @@ const loadPosts = async (page = 1) => {
       isLoadingMore.value = true
     }
 
-    const response = await axios.get(`/api/hashtags/${hashtagName.value}/posts?limit=10&page=${page}`)
-    
-    if (page === 1) {
-      posts.value = response.data.data || []
-    } else {
-      posts.value = [...posts.value, ...(response.data.data || [])]
+    const response = await api.get(`/hashtags/${encodeURIComponent(hashtag)}/posts`, {
+      params: {
+        limit: 10,
+        page,
+      },
+    })
+
+    if (requestId !== requestSequence.value) {
+      return
     }
-    
-    totalPosts.value = response.data.total || 0
-    lastPage.value = response.data.last_page || 1
-    currentPage.value = response.data.current_page || 1
-  } catch (err) {
-    console.error('Chyba pri načítaní príspevkov:', err)
-    error.value = 'Nepodarilo sa načítať príspevky'
+
+    const payload = response?.data || {}
+    const rows = Array.isArray(payload.data) ? payload.data : []
+
+    if (page === 1) {
+      posts.value = rows
+    } else {
+      posts.value = [...posts.value, ...rows]
+    }
+
+    totalPosts.value = Number(payload.total || 0)
+    lastPage.value = Number(payload.last_page || 1)
+    currentPage.value = Number(payload.current_page || page)
+  } catch {
+    if (requestId !== requestSequence.value) {
+      return
+    }
+
+    error.value = 'Nepodarilo sa nacitat prispevky'
     if (page === 1) {
       posts.value = []
     }
   } finally {
-    isLoading.value = false
-    isLoadingMore.value = false
+    if (requestId === requestSequence.value) {
+      isLoading.value = false
+      isLoadingMore.value = false
+    }
   }
 }
 
 const loadMore = () => {
   if (currentPage.value < lastPage.value) {
-    loadPosts(currentPage.value + 1)
+    void loadPosts(currentPage.value + 1)
   }
 }
 
@@ -181,11 +226,11 @@ const formatDate = (dateString) => {
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
   if (diffHours < 1) {
-    return 'Práve teraz'
+    return 'Prave teraz'
   } else if (diffHours < 24) {
     return `Pred ${diffHours} hod`
   } else if (diffDays < 7) {
-    return `Pred ${diffDays} dňami`
+    return `Pred ${diffDays} dnami`
   } else {
     return date.toLocaleDateString('sk-SK')
   }
@@ -193,7 +238,9 @@ const formatDate = (dateString) => {
 
 const hasMorePages = computed(() => currentPage.value < lastPage.value)
 
-onMounted(() => {
-  loadPosts()
-})
+watch(hashtagName, () => {
+  requestSequence.value += 1
+  resetFeedState()
+  void loadPosts(1, { force: true })
+}, { immediate: true })
 </script>
