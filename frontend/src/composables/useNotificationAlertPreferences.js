@@ -19,7 +19,7 @@ export function useNotificationAlertPreferences(options = {}) {
   const preferencesError = ref(false)
 
   async function fetchPreferences() {
-    if (isAuthenticated && !Boolean(isAuthenticated.value)) {
+    if (isAuthenticated && !isAuthenticated.value) {
       preferences.value = {
         good_conditions_alerts: false,
         iss_alerts: false,

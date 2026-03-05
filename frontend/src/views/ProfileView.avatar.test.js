@@ -215,7 +215,7 @@ describe('ProfileView avatar panel', () => {
   it('navigates to profile edit route for profile and location edits', async () => {
     const { wrapper, router } = await mountProfile()
 
-    expect(wrapper.find('input[maxlength=\"60\"]').exists()).toBe(false)
+    expect(wrapper.find('input[maxlength="60"]').exists()).toBe(false)
 
     const editButton = wrapper.findAll('button').find((button) => button.text().trim() === 'Upraviť profil')
     expect(editButton).toBeTruthy()

@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
+import process from 'node:process'
 
 const endpoint = process.argv[2] || 'http://127.0.0.1:5174/__build-fingerprint'
 

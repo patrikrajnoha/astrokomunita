@@ -221,7 +221,7 @@ onMounted(load)
           @click="router.back()"
           style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
         >
-          <- Spat
+          &larr; Spat
         </button>
 
         <h1 style="margin:12px 0 6px;">Candidate #{{ id }}</h1>
