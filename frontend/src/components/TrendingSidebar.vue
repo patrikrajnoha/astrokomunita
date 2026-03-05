@@ -36,7 +36,7 @@
     <!-- Trending hashtags -->
     <div v-else-if="trending.length > 0" class="space-y-3">
       <RouterLink
-        v-for="(item, index) in trending"
+        v-for="item in trending"
         :key="item.name"
         :to="`/hashtags/${item.name}`"
         class="block group transition-colors hover:bg-[color:rgb(var(--color-bg-rgb)/0.8)] -mx-2 px-2 py-2 rounded"
@@ -45,7 +45,7 @@
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
               <span class="text-sm font-medium text-[color:rgb(var(--color-text-secondary-rgb)/0.6)]">
-                {{ index + 1 }}
+                {{ item.rank }}
               </span>
               <span class="font-medium text-[var(--color-surface)] group-hover:text-[var(--color-primary)] transition-colors">
                 #{{ item.name }}
@@ -85,16 +85,35 @@ const trending = ref([])
 const isLoading = ref(false)
 const error = ref('')
 
+const normalizeTrending = (payload) => {
+  const rows = Array.isArray(payload)
+    ? payload
+    : (Array.isArray(payload?.data) ? payload.data : [])
+
+  return rows
+    .map((row, index) => {
+      const name = String(row?.name || '').trim()
+      const postsCount = Number(row?.posts_count || 0)
+      const rank = Number(row?.rank || index + 1)
+
+      return {
+        name,
+        posts_count: Number.isFinite(postsCount) ? postsCount : 0,
+        rank: Number.isFinite(rank) ? rank : index + 1,
+      }
+    })
+    .filter((row) => row.name.length > 0)
+}
+
 const loadTrending = async () => {
   try {
     isLoading.value = true
     error.value = ''
-    
+
     const response = await http.get('/trending?limit=10')
-    trending.value = response.data || []
-  } catch (err) {
-    console.error('Chyba pri načítaní trending hashtagov:', err)
-    error.value = 'Nepodarilo sa načítať trending'
+    trending.value = normalizeTrending(response?.data)
+  } catch {
+    error.value = 'Nepodarilo sa nacitat trending'
     trending.value = []
   } finally {
     isLoading.value = false
@@ -102,6 +121,6 @@ const loadTrending = async () => {
 }
 
 onMounted(() => {
-  loadTrending()
+  void loadTrending()
 })
 </script>
