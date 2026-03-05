@@ -411,6 +411,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(NewsletterRun::class, 'admin_user_id');
     }
 
+    public function botSchedules(): HasMany
+    {
+        return $this->hasMany(BotSchedule::class, 'bot_user_id');
+    }
+
     public function emailVerifications(): HasMany
     {
         return $this->hasMany(EmailVerification::class);

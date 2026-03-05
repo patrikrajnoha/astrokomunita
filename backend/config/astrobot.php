@@ -59,6 +59,15 @@ return [
             'stela' => (int) env('BOT_PUBLISH_RATE_LIMIT_STELA_MAX_ATTEMPTS', 30),
         ],
     ],
+    'schedule_rate_limit' => [
+        'enabled' => filter_var(env('BOT_SCHEDULE_RATE_LIMIT_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'window_seconds' => (int) env('BOT_SCHEDULE_RATE_LIMIT_WINDOW_SECONDS', 3600),
+        'default_max_attempts' => (int) env('BOT_SCHEDULE_RATE_LIMIT_DEFAULT_MAX_ATTEMPTS', 60),
+        'identities' => [
+            'kozmo' => (int) env('BOT_SCHEDULE_RATE_LIMIT_KOZMO_MAX_ATTEMPTS', 60),
+            'stela' => (int) env('BOT_SCHEDULE_RATE_LIMIT_STELA_MAX_ATTEMPTS', 60),
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------
