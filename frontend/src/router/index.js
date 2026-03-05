@@ -505,6 +505,12 @@ const appShellChildren = [
         component: () => import('@/views/admin/BotEngineView.vue'),
       },
       {
+        path: 'bots/activity',
+        name: 'admin.bots.activity',
+        meta: { adminSection: 'automation' },
+        component: () => import('@/views/admin/BotActivityView.vue'),
+      },
+      {
         path: 'kozmobot',
         name: 'admin.bots.kozmo',
         meta: { adminSection: 'automation' },

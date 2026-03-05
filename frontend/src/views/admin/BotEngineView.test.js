@@ -167,6 +167,7 @@ function mountView(options = {}) {
     global: {
       stubs: {
         AdminPageShell: { template: '<div><slot name="right-actions" /><slot /></div>' },
+        RouterLink: true,
         routerLink: true,
         teleport: true,
       },
