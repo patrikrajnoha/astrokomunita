@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useNotificationsStore } from '@/stores/notifications'
+import http from '@/services/api'
 
 const authState = vi.hoisted(() => ({
   isAuthed: true,
@@ -10,6 +11,11 @@ const authState = vi.hoisted(() => ({
 }))
 
 const infoToast = vi.hoisted(() => vi.fn())
+const realtimeState = vi.hoisted(() => ({
+  initEcho: vi.fn(() => null),
+  getEcho: vi.fn(() => null),
+  disconnectEcho: vi.fn(),
+}))
 
 vi.mock('@/services/api', () => ({
   default: {
@@ -24,9 +30,9 @@ vi.mock('@/stores/auth', () => ({
 }))
 
 vi.mock('@/realtime/echo', () => ({
-  initEcho: vi.fn(() => null),
-  getEcho: vi.fn(() => null),
-  disconnectEcho: vi.fn(),
+  initEcho: realtimeState.initEcho,
+  getEcho: realtimeState.getEcho,
+  disconnectEcho: realtimeState.disconnectEcho,
 }))
 
 vi.mock('@/composables/useToast', () => ({
@@ -39,7 +45,16 @@ describe('notifications store realtime handler', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     infoToast.mockClear()
+    http.get.mockReset()
+    http.post.mockReset()
+    authState.csrf.mockClear()
     authState.logout.mockClear()
+    realtimeState.initEcho.mockReset()
+    realtimeState.getEcho.mockReset()
+    realtimeState.disconnectEcho.mockReset()
+    realtimeState.initEcho.mockReturnValue(null)
+    realtimeState.getEcho.mockReturnValue(null)
+    useNotificationsStore().stopRealtime({ disconnect: true, clearState: true })
   })
 
   it('prepends realtime notification and increments unread count', () => {
@@ -92,5 +107,205 @@ describe('notifications store realtime handler', () => {
     expect(store.items).toHaveLength(1)
     expect(store.items[0].data.event_title).toContain('updated')
     expect(store.unreadCount).toBe(1)
+  })
+
+  it('subscribes to users.{id} and handles realtime notification.created payload', async () => {
+    const handlers = {}
+    const channel = {
+      listen: vi.fn((eventName, callback) => {
+        handlers[eventName] = callback
+        return channel
+      }),
+    }
+    const echoClient = {
+      private: vi.fn(() => channel),
+      leaveChannel: vi.fn(),
+      disconnect: vi.fn(),
+    }
+
+    realtimeState.initEcho.mockReturnValue(echoClient)
+    realtimeState.getEcho.mockReturnValue(echoClient)
+
+    const store = useNotificationsStore()
+    await store.startRealtime()
+
+    expect(echoClient.private).toHaveBeenCalledWith('users.7')
+    expect(channel.listen).toHaveBeenCalledWith('.notification.created', expect.any(Function))
+    expect(channel.listen).toHaveBeenCalledWith('NotificationCreated', expect.any(Function))
+
+    handlers['.notification.created']({
+      notification: {
+        id: 203,
+        type: 'event_invite',
+        data: { event_title: 'Lunar eclipse' },
+        read_at: null,
+        created_at: '2026-03-04T20:10:00Z',
+      },
+    })
+
+    expect(store.items[0].id).toBe(203)
+    expect(store.items[0].type).toBe('event_invite')
+    expect(store.unreadCount).toBe(1)
+    store.stopRealtime({ disconnect: true })
+  })
+
+  it('does not re-subscribe when realtime channel is already active', async () => {
+    const channel = {
+      listen: vi.fn(() => channel),
+    }
+    const echoClient = {
+      private: vi.fn(() => channel),
+      leaveChannel: vi.fn(),
+      disconnect: vi.fn(),
+    }
+
+    realtimeState.initEcho.mockReturnValue(echoClient)
+    realtimeState.getEcho.mockReturnValue(echoClient)
+
+    const store = useNotificationsStore()
+
+    await store.startRealtime()
+    await store.startRealtime()
+
+    expect(echoClient.private).toHaveBeenCalledTimes(1)
+    store.stopRealtime({ disconnect: true })
+  })
+
+  it('dedupes notifications by id and keeps newest notifications first after list fetch', async () => {
+    const store = useNotificationsStore()
+
+    store.applyRealtimeNotification(
+      {
+        id: 901,
+        type: 'event_invite',
+        data: { event_title: 'Realtime invite' },
+        read_at: null,
+        created_at: '2026-03-05T10:00:00Z',
+      },
+      { toast: false },
+    )
+
+    http.get.mockImplementation(async (url) => {
+      if (url === '/notifications') {
+        return {
+          data: {
+            data: [
+              {
+                id: 901,
+                type: 'event_invite',
+                data: { event_title: 'Server invite title' },
+                read_at: null,
+                created_at: '2026-03-05T10:01:00Z',
+              },
+              {
+                id: 902,
+                type: 'contest_winner',
+                data: { contest_name: 'March contest' },
+                read_at: null,
+                created_at: '2026-03-05T10:02:00Z',
+              },
+            ],
+            meta: {
+              current_page: 1,
+              last_page: 1,
+            },
+          },
+        }
+      }
+
+      return { data: { count: 2 } }
+    })
+
+    await store.fetchList(1, { refreshUnread: false })
+
+    expect(store.items).toHaveLength(2)
+    expect(store.items.map((item) => item.id)).toEqual([902, 901])
+    expect(store.items.find((item) => item.id === 901)?.data?.event_title).toBe('Server invite title')
+  })
+
+  it('keeps realtime notification at top when fetch result does not include it yet', async () => {
+    const store = useNotificationsStore()
+
+    store.applyRealtimeNotification(
+      {
+        id: 990,
+        type: 'event_invite',
+        data: { event_title: 'Realtime first' },
+        read_at: null,
+        created_at: '2026-03-05T10:03:00Z',
+      },
+      { toast: false },
+    )
+
+    http.get.mockImplementation(async (url) => {
+      if (url === '/notifications') {
+        return {
+          data: {
+            data: [
+              {
+                id: 902,
+                type: 'contest_winner',
+                data: { contest_name: 'March contest' },
+                read_at: null,
+                created_at: '2026-03-05T10:02:00Z',
+              },
+              {
+                id: 901,
+                type: 'event_invite',
+                data: { event_title: 'Server invite title' },
+                read_at: null,
+                created_at: '2026-03-05T10:01:00Z',
+              },
+            ],
+            meta: {
+              current_page: 1,
+              last_page: 1,
+            },
+          },
+        }
+      }
+
+      return { data: { count: 3 } }
+    })
+
+    await store.fetchList(1, { refreshUnread: false })
+
+    expect(store.items.map((item) => item.id)).toEqual([990, 902, 901])
+  })
+
+  it('markAllRead keeps unread count at zero after backend sync and refetch', async () => {
+    const store = useNotificationsStore()
+    store.items = [
+      {
+        id: 1101,
+        type: 'event_invite',
+        data: { event_title: 'A' },
+        read_at: null,
+        created_at: '2026-03-05T10:00:00Z',
+      },
+      {
+        id: 1102,
+        type: 'contest_winner',
+        data: { contest_name: 'B' },
+        read_at: null,
+        created_at: '2026-03-05T09:00:00Z',
+      },
+    ]
+    store.latestItems = [...store.items]
+    store.unreadCount = 2
+
+    http.post.mockResolvedValue({ data: { updated: 2 } })
+    http.get.mockResolvedValue({ data: { count: 0 } })
+
+    await store.markAllRead()
+    await store.fetchUnreadCount()
+
+    expect(authState.csrf).toHaveBeenCalled()
+    expect(http.post).toHaveBeenCalledWith('/notifications/read-all')
+    expect(http.get).toHaveBeenCalledWith('/notifications/unread-count')
+    expect(store.unreadCount).toBe(0)
+    expect(store.unreadBadge).toBe('')
+    expect(store.items.every((item) => Boolean(item.read_at))).toBe(true)
+    expect(store.latestItems.every((item) => Boolean(item.read_at))).toBe(true)
   })
 })

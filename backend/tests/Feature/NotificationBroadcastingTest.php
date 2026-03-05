@@ -5,9 +5,9 @@ namespace Tests\Feature;
 use App\Events\NotificationCreated;
 use App\Models\User;
 use App\Services\NotificationService;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
-use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
@@ -50,7 +50,10 @@ class NotificationBroadcastingTest extends TestCase
 
             return ($channels[0]->name ?? null) === 'private-users.' . $recipient->id
                 && (int) ($payload['notification']['id'] ?? 0) > 0
-                && ($payload['notification']['type'] ?? null) === 'contest_winner';
+                && ($payload['notification']['type'] ?? null) === 'contest_winner'
+                && trim((string) ($payload['notification']['title'] ?? '')) !== ''
+                && trim((string) ($payload['notification']['text'] ?? '')) !== ''
+                && trim((string) ($payload['notification']['created_at'] ?? '')) !== '';
         });
     }
 
@@ -60,15 +63,24 @@ class NotificationBroadcastingTest extends TestCase
         $intruder = User::factory()->create();
         $kernel = $this->app->make(HttpKernel::class);
         $request = Request::create('/broadcasting/auth', 'POST', [
-                'channel_name' => 'private-users.' . $owner->id,
-                'socket_id' => '1234.5678',
-            ]);
+            'channel_name' => 'private-users.' . $owner->id,
+            'socket_id' => '1234.5678',
+        ]);
         $request->setUserResolver(static fn () => $intruder);
         $request->headers->set('Accept', 'application/json');
 
         $response = $kernel->handle($request);
 
         $this->assertSame(403, $response->getStatusCode());
+    }
+
+    public function test_users_channel_authorization_rule_compares_authenticated_user_id(): void
+    {
+        $channelsFile = file_get_contents(base_path('routes/channels.php'));
+
+        $this->assertNotFalse($channelsFile);
+        $this->assertStringContainsString("Broadcast::channel('users.{id}'", $channelsFile);
+        $this->assertStringContainsString('return (int) $user->id === (int) $id;', $channelsFile);
     }
 
 }
