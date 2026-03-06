@@ -505,6 +505,9 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
             Route::get('/overview', [AdminBotController::class, 'overview']);
             Route::get('/sources', [AdminBotController::class, 'sources']);
             Route::patch('/sources/{sourceId}', [AdminBotController::class, 'updateSource']);
+            Route::post('/sources/{sourceId}/reset-health', [AdminBotController::class, 'resetSourceHealth']);
+            Route::post('/sources/{sourceId}/clear-cooldown', [AdminBotController::class, 'clearSourceCooldown']);
+            Route::post('/sources/{sourceId}/revive', [AdminBotController::class, 'reviveSource']);
             Route::get('/runs', [AdminBotController::class, 'runs']);
             Route::get('/activity', [AdminBotController::class, 'activity']);
             Route::get('/schedules', [AdminBotController::class, 'schedules']);

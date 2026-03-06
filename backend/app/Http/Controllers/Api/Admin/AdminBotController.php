@@ -18,6 +18,8 @@ use App\Services\Bots\BotOverviewService;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use App\Services\Bots\BotPublisherService;
 use App\Services\Bots\BotRunner;
+use App\Services\Bots\BotSourceHealthPolicy;
+use App\Services\Bots\BotSourceHealthService;
 use App\Services\Bots\BotSourceSyncService;
 use App\Services\Translation\Exceptions\TranslationProviderUnavailableException;
 use App\Services\Translation\Exceptions\TranslationTimeoutException;
@@ -42,6 +44,8 @@ class AdminBotController extends Controller
         private readonly BotPostTranslationBackfillService $backfillService,
         private readonly BotSourceSyncService $botSourceSyncService,
         private readonly BotOverviewService $botOverviewService,
+        private readonly BotSourceHealthPolicy $botSourceHealthPolicy,
+        private readonly BotSourceHealthService $botSourceHealthService,
         private readonly TranslationOutageSimulationService $outageSimulationService,
     ) {
     }
@@ -84,7 +88,11 @@ class AdminBotController extends Controller
             ->orderBy('key')
             ->get();
 
-        $data = $sources->map(fn (BotSource $source): array => $this->serializeSource($source))->values();
+        $sourceMetrics = $this->sourceMetricsBySourceId($sources);
+        $data = $sources->map(fn (BotSource $source): array => $this->serializeSource(
+            $source,
+            $sourceMetrics[$source->id] ?? []
+        ))->values();
 
         return response()->json([
             'data' => $data,
@@ -121,8 +129,64 @@ class AdminBotController extends Controller
             $source->fill($updates)->save();
         }
 
+        $metrics = $this->sourceMetricsBySourceId(collect([$source->fresh() ?? $source]));
+
         return response()->json([
-            'data' => $this->serializeSource($source->fresh() ?? $source),
+            'data' => $this->serializeSource($source->fresh() ?? $source, $metrics[$source->id] ?? []),
+        ]);
+    }
+
+    public function resetSourceHealth(int $sourceId): JsonResponse
+    {
+        $source = BotSource::query()->find($sourceId);
+        if (!$source) {
+            return response()->json([
+                'message' => 'Bot source was not found.',
+            ], 404);
+        }
+
+        $this->botSourceHealthService->resetHealth($source);
+        $fresh = $source->fresh() ?? $source;
+        $metrics = $this->sourceMetricsBySourceId(collect([$fresh]));
+
+        return response()->json([
+            'data' => $this->serializeSource($fresh, $metrics[$fresh->id] ?? []),
+        ]);
+    }
+
+    public function clearSourceCooldown(int $sourceId): JsonResponse
+    {
+        $source = BotSource::query()->find($sourceId);
+        if (!$source) {
+            return response()->json([
+                'message' => 'Bot source was not found.',
+            ], 404);
+        }
+
+        $this->botSourceHealthService->clearCooldown($source);
+        $fresh = $source->fresh() ?? $source;
+        $metrics = $this->sourceMetricsBySourceId(collect([$fresh]));
+
+        return response()->json([
+            'data' => $this->serializeSource($fresh, $metrics[$fresh->id] ?? []),
+        ]);
+    }
+
+    public function reviveSource(int $sourceId): JsonResponse
+    {
+        $source = BotSource::query()->find($sourceId);
+        if (!$source) {
+            return response()->json([
+                'message' => 'Bot source was not found.',
+            ], 404);
+        }
+
+        $this->botSourceHealthService->revive($source);
+        $fresh = $source->fresh() ?? $source;
+        $metrics = $this->sourceMetricsBySourceId(collect([$fresh]));
+
+        return response()->json([
+            'data' => $this->serializeSource($fresh, $metrics[$fresh->id] ?? []),
         ]);
     }
 
@@ -1171,17 +1235,79 @@ class AdminBotController extends Controller
     }
 
     /**
+     * @param \Illuminate\Support\Collection<int,BotSource> $sources
+     * @return array<int,array<string,mixed>>
+     */
+    private function sourceMetricsBySourceId(\Illuminate\Support\Collection $sources): array
+    {
+        $sourceIds = $sources
+            ->map(static fn (BotSource $source): int => (int) $source->id)
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->values();
+
+        if ($sourceIds->isEmpty()) {
+            return [];
+        }
+
+        $windowStart = now()->subDay();
+        $rows = BotActivityLog::query()
+            ->where('created_at', '>=', $windowStart)
+            ->whereIn('source_id', $sourceIds->all())
+            ->selectRaw('
+                source_id,
+                SUM(CASE WHEN action = \'run\' THEN 1 ELSE 0 END) as runs_total,
+                SUM(CASE WHEN action = \'run\' AND outcome in (\'success\',\'partial\') THEN 1 ELSE 0 END) as success_total,
+                SUM(CASE WHEN action = \'run\' AND outcome = \'failed\' THEN 1 ELSE 0 END) as failure_total,
+                SUM(CASE WHEN action = \'ingest\' AND outcome = \'skipped_duplicate\' THEN 1 ELSE 0 END) as duplicates_total,
+                SUM(CASE WHEN action = \'ingest\' AND outcome in (\'created\',\'updated\',\'skipped_duplicate\') THEN 1 ELSE 0 END) as ingest_attempts_total,
+                SUM(CASE WHEN action = \'skipped_cooldown\' THEN 1 ELSE 0 END) as cooldown_skips_total
+            ')
+            ->groupBy('source_id')
+            ->get();
+
+        $metrics = [];
+        foreach ($rows as $row) {
+            $sourceId = (int) ($row->source_id ?? 0);
+            if ($sourceId <= 0) {
+                continue;
+            }
+
+            $successTotal = (int) ($row->success_total ?? 0);
+            $failureTotal = (int) ($row->failure_total ?? 0);
+            $resolvedRuns = $successTotal + $failureTotal;
+            $duplicatesTotal = (int) ($row->duplicates_total ?? 0);
+            $ingestAttemptsTotal = (int) ($row->ingest_attempts_total ?? 0);
+
+            $metrics[$sourceId] = [
+                'runs_total' => (int) ($row->runs_total ?? 0),
+                'success_total' => $successTotal,
+                'failure_total' => $failureTotal,
+                'duplicates_total' => $duplicatesTotal,
+                'cooldown_skips_total' => (int) ($row->cooldown_skips_total ?? 0),
+                'success_rate' => $resolvedRuns > 0
+                    ? round($successTotal / $resolvedRuns, 4)
+                    : null,
+                'failure_rate' => $resolvedRuns > 0
+                    ? round($failureTotal / $resolvedRuns, 4)
+                    : null,
+                'duplicate_rate' => $ingestAttemptsTotal > 0
+                    ? round($duplicatesTotal / $ingestAttemptsTotal, 4)
+                    : null,
+            ];
+        }
+
+        return $metrics;
+    }
+
+    /**
      * @return array<string,mixed>
      */
-    private function serializeSource(BotSource $source): array
+    private function serializeSource(BotSource $source, array $metrics = []): array
     {
-        $consecutiveFailures = max(0, (int) ($source->consecutive_failures ?? 0));
-        $status = 'ok';
-        if ($consecutiveFailures >= 3) {
-            $status = 'fail';
-        } elseif ($consecutiveFailures > 0) {
-            $status = 'warn';
-        }
+        $snapshot = $this->botSourceHealthPolicy->snapshot($source);
+        $consecutiveFailures = max(0, (int) ($snapshot['consecutive_failures'] ?? 0));
+        $status = (string) ($snapshot['status'] ?? 'ok');
+        $isDead = (bool) ($snapshot['is_dead'] ?? false);
 
         return [
             'id' => $source->id,
@@ -1192,6 +1318,7 @@ class AdminBotController extends Controller
             'url' => (string) $source->url,
             'is_enabled' => (bool) $source->is_enabled,
             'status' => $status,
+            'is_dead' => $isDead,
             'last_run_at' => $source->last_run_at?->toIso8601String(),
             'last_success_at' => $source->last_success_at?->toIso8601String(),
             'last_error_at' => $source->last_error_at?->toIso8601String(),
@@ -1200,7 +1327,31 @@ class AdminBotController extends Controller
             'last_status_code' => $source->last_status_code !== null ? (int) $source->last_status_code : null,
             'avg_latency_ms' => $source->avg_latency_ms !== null ? (int) $source->avg_latency_ms : null,
             'cooldown_until' => $source->cooldown_until?->toIso8601String(),
+            'metrics_24h' => [
+                'runs_total' => (int) ($metrics['runs_total'] ?? 0),
+                'success_total' => (int) ($metrics['success_total'] ?? 0),
+                'failure_total' => (int) ($metrics['failure_total'] ?? 0),
+                'duplicates_total' => (int) ($metrics['duplicates_total'] ?? 0),
+                'cooldown_skips_total' => (int) ($metrics['cooldown_skips_total'] ?? 0),
+                'success_rate' => $this->nullableRate($metrics['success_rate'] ?? null),
+                'failure_rate' => $this->nullableRate($metrics['failure_rate'] ?? null),
+                'duplicate_rate' => $this->nullableRate($metrics['duplicate_rate'] ?? null),
+            ],
         ];
+    }
+
+    private function nullableRate(mixed $value): ?float
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        $rate = (float) $value;
+        if ($rate < 0) {
+            return null;
+        }
+
+        return round(min(1.0, $rate), 4);
     }
 
     /**
