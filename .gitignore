@@ -9,6 +9,7 @@ Thumbs.db
 !frontend/.env.example
 
 # Node
+node_modules/
 frontend/node_modules
 frontend/dist
 
