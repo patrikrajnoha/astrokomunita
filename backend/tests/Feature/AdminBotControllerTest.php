@@ -46,6 +46,9 @@ class AdminBotControllerTest extends TestCase
         $this->getJson('/api/admin/bots/overview')->assertStatus(403);
         $this->getJson('/api/admin/bots/sources')->assertStatus(403);
         $this->patchJson('/api/admin/bots/sources/1', ['is_enabled' => true])->assertStatus(403);
+        $this->postJson('/api/admin/bots/sources/1/reset-health')->assertStatus(403);
+        $this->postJson('/api/admin/bots/sources/1/clear-cooldown')->assertStatus(403);
+        $this->postJson('/api/admin/bots/sources/1/revive')->assertStatus(403);
         $this->getJson('/api/admin/bots/runs')->assertStatus(403);
         $this->getJson('/api/admin/bots/activity')->assertStatus(403);
         $this->getJson('/api/admin/bots/schedules')->assertStatus(403);
