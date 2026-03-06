@@ -10,9 +10,10 @@ const payload = ref({
   window_hours: 24,
   generated_at: null,
   overall: {
-    posts_24h_total: 0,
-    duplicates_24h: 0,
-    failures_24h: 0,
+    active_sources: 0,
+    failing_sources: 0,
+    dead_sources: 0,
+    cooldown_skips_24h: 0,
   },
   bots: [],
 })
@@ -66,20 +67,20 @@ onMounted(() => {
 
     <section class="cards">
       <article class="card metricCard">
-        <p class="metricLabel">Posts (24h)</p>
-        <p class="metricValue">{{ Number(overall.posts_24h_total || 0) }}</p>
+        <p class="metricLabel">Active Sources</p>
+        <p class="metricValue">{{ Number(overall.active_sources || 0) }}</p>
       </article>
       <article class="card metricCard">
-        <p class="metricLabel">Duplicates (24h)</p>
-        <p class="metricValue">{{ Number(overall.duplicates_24h || 0) }}</p>
+        <p class="metricLabel">Failing Sources</p>
+        <p class="metricValue">{{ Number(overall.failing_sources || 0) }}</p>
       </article>
       <article class="card metricCard">
-        <p class="metricLabel">Failures (24h)</p>
-        <p class="metricValue">{{ Number(overall.failures_24h || 0) }}</p>
+        <p class="metricLabel">Dead Sources</p>
+        <p class="metricValue">{{ Number(overall.dead_sources || 0) }}</p>
       </article>
       <article class="card metricCard">
-        <p class="metricLabel">Bots</p>
-        <p class="metricValue">{{ bots.length }}</p>
+        <p class="metricLabel">Cooldown Skips (24h)</p>
+        <p class="metricValue">{{ Number(overall.cooldown_skips_24h || 0) }}</p>
       </article>
     </section>
 
@@ -258,4 +259,3 @@ onMounted(() => {
   cursor: pointer;
 }
 </style>
-

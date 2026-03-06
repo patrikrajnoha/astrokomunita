@@ -3,6 +3,7 @@
 namespace App\Services\Bots;
 
 use App\Models\BotActivityLog;
+use App\Models\BotSource;
 use App\Models\Post;
 use App\Models\User;
 use Carbon\Carbon;
@@ -12,6 +13,7 @@ class BotOverviewService
 {
     public function __construct(
         private readonly BotRateLimiterService $rateLimiterService,
+        private readonly BotSourceHealthPolicy $sourceHealthPolicy,
     ) {
     }
 
@@ -21,6 +23,36 @@ class BotOverviewService
     public function buildOverview(): array
     {
         $windowStart = now()->subDay();
+        $sourceRows = BotSource::query()
+            ->get([
+                'id',
+                'is_enabled',
+                'consecutive_failures',
+                'last_success_at',
+                'last_error_at',
+                'cooldown_until',
+            ]);
+
+        $sourceSnapshots = $sourceRows->map(function (BotSource $source): array {
+            $snapshot = $this->sourceHealthPolicy->snapshot($source);
+
+            return [
+                'is_enabled' => (bool) $source->is_enabled,
+                'status' => (string) ($snapshot['status'] ?? 'ok'),
+                'is_dead' => (bool) ($snapshot['is_dead'] ?? false),
+            ];
+        });
+
+        $activeSources = (int) $sourceSnapshots
+            ->filter(fn (array $row): bool => $row['is_enabled'] && !$row['is_dead'])
+            ->count();
+        $failingSources = (int) $sourceSnapshots
+            ->filter(fn (array $row): bool => $row['status'] === 'fail')
+            ->count();
+        $deadSources = (int) $sourceSnapshots
+            ->filter(fn (array $row): bool => $row['is_dead'])
+            ->count();
+
         $bots = User::query()
             ->where(function (Builder $query): void {
                 $query
@@ -73,6 +105,27 @@ class BotOverviewService
             ->groupBy('identity')
             ->pluck('total', 'identity');
 
+        $runTotals = BotActivityLog::query()
+            ->where('created_at', '>=', $windowStart)
+            ->where('action', 'run')
+            ->selectRaw('
+                COUNT(*) as run_total,
+                SUM(CASE WHEN outcome in (\'success\',\'partial\') THEN 1 ELSE 0 END) as success_total,
+                SUM(CASE WHEN outcome = \'failed\' THEN 1 ELSE 0 END) as failure_total
+            ')
+            ->first();
+
+        $ingestAttempts24h = (int) BotActivityLog::query()
+            ->where('created_at', '>=', $windowStart)
+            ->where('action', 'ingest')
+            ->whereIn('outcome', ['created', 'updated', 'skipped_duplicate'])
+            ->count();
+
+        $cooldownSkips24h = (int) BotActivityLog::query()
+            ->where('created_at', '>=', $windowStart)
+            ->where('action', 'skipped_cooldown')
+            ->count();
+
         $lastLogByIdentity = BotActivityLog::query()
             ->selectRaw('LOWER(COALESCE(bot_identity, "")) as identity, MAX(created_at) as last_seen_at')
             ->groupBy('identity')
@@ -119,17 +172,35 @@ class BotOverviewService
             ];
         })->values();
 
+        $successTotal = (int) ($runTotals?->success_total ?? 0);
+        $failureTotal = (int) ($runTotals?->failure_total ?? 0);
+        $runResolvedTotal = $successTotal + $failureTotal;
+        $duplicatesTotal = (int) (clone $duplicateLogsBase)->count();
+
         return [
             'window_hours' => 24,
             'generated_at' => now()->toIso8601String(),
             'bots' => $botRows,
             'overall' => [
                 'posts_24h_total' => (int) $botRows->sum('posts_24h'),
-                'duplicates_24h' => (int) (clone $duplicateLogsBase)->count(),
+                'duplicates_24h' => $duplicatesTotal,
                 'failures_24h' => (int) BotActivityLog::query()
                     ->where('created_at', '>=', $windowStart)
                     ->where('outcome', 'failed')
                     ->count(),
+                'success_rate_24h' => $runResolvedTotal > 0
+                    ? round($successTotal / $runResolvedTotal, 4)
+                    : null,
+                'failure_rate_24h' => $runResolvedTotal > 0
+                    ? round($failureTotal / $runResolvedTotal, 4)
+                    : null,
+                'duplicate_rate_24h' => $ingestAttempts24h > 0
+                    ? round($duplicatesTotal / $ingestAttempts24h, 4)
+                    : null,
+                'cooldown_skips_24h' => $cooldownSkips24h,
+                'active_sources' => $activeSources,
+                'failing_sources' => $failingSources,
+                'dead_sources' => $deadSources,
             ],
         ];
     }

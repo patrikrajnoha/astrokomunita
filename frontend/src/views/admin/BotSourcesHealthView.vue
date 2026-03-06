@@ -1,7 +1,13 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
-import { getBotSources, updateBotSource } from '@/services/api/admin/bots'
+import {
+  clearBotSourceCooldown,
+  getBotSources,
+  resetBotSourceHealth,
+  reviveBotSource,
+  updateBotSource,
+} from '@/services/api/admin/bots'
 
 const loading = ref(false)
 const savingId = ref(null)
@@ -25,6 +31,12 @@ function formatDateTime(value) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return '-'
   return parsed.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function formatRate(value) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric < 0) return '-'
+  return `${(numeric * 100).toFixed(1)}%`
 }
 
 function requestParams() {
@@ -84,6 +96,42 @@ async function toggleEnabled(row) {
     await load()
   } catch (e) {
     error.value = e?.response?.data?.message || 'Aktualizacia source statusu zlyhala.'
+  } finally {
+    savingId.value = null
+  }
+}
+
+async function resetHealth(row) {
+  savingId.value = row.id
+  try {
+    await resetBotSourceHealth(row.id)
+    await load()
+  } catch (e) {
+    error.value = e?.response?.data?.message || 'Reset health zlyhal.'
+  } finally {
+    savingId.value = null
+  }
+}
+
+async function clearCooldown(row) {
+  savingId.value = row.id
+  try {
+    await clearBotSourceCooldown(row.id)
+    await load()
+  } catch (e) {
+    error.value = e?.response?.data?.message || 'Clear cooldown zlyhal.'
+  } finally {
+    savingId.value = null
+  }
+}
+
+async function reviveSource(row) {
+  savingId.value = row.id
+  try {
+    await reviveBotSource(row.id)
+    await load()
+  } catch (e) {
+    error.value = e?.response?.data?.message || 'Revive source zlyhal.'
   } finally {
     savingId.value = null
   }
@@ -153,10 +201,12 @@ onMounted(() => {
               <th>Name</th>
               <th>Type</th>
               <th>Status</th>
-              <th>Health</th>
+              <th>Latency</th>
+              <th>Cooldown</th>
               <th>Last success</th>
               <th>Last error</th>
               <th>Failures</th>
+              <th>Rates (24h)</th>
               <th>Enabled</th>
               <th>Action</th>
             </tr>
@@ -174,9 +224,14 @@ onMounted(() => {
                 </span>
               </td>
               <td>{{ row.avg_latency_ms ? `${row.avg_latency_ms} ms` : '-' }}</td>
+              <td>{{ formatDateTime(row.cooldown_until) }}</td>
               <td>{{ formatDateTime(row.last_success_at) }}</td>
               <td>{{ formatDateTime(row.last_error_at) }}</td>
               <td>{{ Number(row.consecutive_failures || 0) }}</td>
+              <td>
+                <div class="muted">S {{ formatRate(row?.metrics_24h?.success_rate) }}</div>
+                <div class="muted">F {{ formatRate(row?.metrics_24h?.failure_rate) }}</div>
+              </td>
               <td>
                 <button
                   class="toggleBtn"
@@ -188,9 +243,31 @@ onMounted(() => {
                 </button>
               </td>
               <td>
-                <button class="actionBtn ghost" type="button" :disabled="savingId === row.id" @click="startEdit(row)">
-                  Edit
-                </button>
+                <div class="actions">
+                  <button class="actionBtn ghost" type="button" :disabled="savingId === row.id" @click="startEdit(row)">
+                    Edit
+                  </button>
+                  <button class="actionBtn ghost" type="button" :disabled="savingId === row.id" @click="resetHealth(row)">
+                    Reset health
+                  </button>
+                  <button
+                    class="actionBtn ghost"
+                    type="button"
+                    :disabled="savingId === row.id || !row.cooldown_until"
+                    @click="clearCooldown(row)"
+                  >
+                    Clear cooldown
+                  </button>
+                  <button
+                    class="actionBtn ghost"
+                    type="button"
+                    :disabled="savingId === row.id"
+                    @click="reviveSource(row)"
+                  >
+                    Revive
+                  </button>
+                </div>
+                <span v-if="row.is_dead" class="status status--dead">DEAD</span>
               </td>
             </tr>
           </tbody>
@@ -319,7 +396,8 @@ onMounted(() => {
   color: var(--color-warning);
 }
 
-.status--fail {
+.status--fail,
+.status--dead {
   border-color: rgb(var(--color-danger-rgb) / 0.55);
   color: var(--color-danger);
 }
@@ -340,4 +418,3 @@ onMounted(() => {
   margin: 0;
 }
 </style>
-

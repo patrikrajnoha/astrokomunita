@@ -17,6 +17,24 @@ export function updateBotSource(sourceId, payload = {}) {
   })
 }
 
+export function resetBotSourceHealth(sourceId) {
+  return api.post(`/admin/bots/sources/${encodeURIComponent(sourceId)}/reset-health`, null, {
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function clearBotSourceCooldown(sourceId) {
+  return api.post(`/admin/bots/sources/${encodeURIComponent(sourceId)}/clear-cooldown`, null, {
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function reviveBotSource(sourceId) {
+  return api.post(`/admin/bots/sources/${encodeURIComponent(sourceId)}/revive`, null, {
+    meta: { skipErrorToast: true },
+  })
+}
+
 export function getBotRuns(params = {}) {
   return api.get('/admin/bots/runs', {
     params,
