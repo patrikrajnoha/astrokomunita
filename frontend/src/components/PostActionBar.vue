@@ -21,7 +21,7 @@
         :title="
           isAuthed
             ? item?.liked_by_me
-              ? 'Zrušiť like'
+              ? 'Zrušiť páči sa mi'
               : 'Páči sa mi'
             : 'Prihlás sa pre lajkovanie'
         "
@@ -52,9 +52,9 @@
         :title="
           isAuthed
             ? item?.is_bookmarked
-              ? 'Odstranit zo zaloziek'
-              : 'Ulozit do zaloziek'
-            : 'Prihlas sa pre zalozky'
+              ? 'Odstrániť zo záložiek'
+              : 'Uložiť do záložiek'
+            : 'Prihlás sa pre záložky'
         "
         @click.stop="$emit('bookmark')"
       >
@@ -74,7 +74,7 @@
         class="action-btn action-btn--share"
         type="button"
         title="Zdieľať"
-        aria-label="Zdieľať prispevok"
+        aria-label="Zdieľať príspevok"
         @click.stop="$emit('share')"
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -87,7 +87,7 @@
       <div v-if="menuItems.length" class="post-actions-more" @click.stop>
         <DropdownMenu
           :items="menuItems"
-          label="More actions"
+          label="Ďalšie akcie"
           :menu-label="menuLabel"
           @select="(menuItem) => $emit('menu-select', menuItem)"
         />
@@ -135,7 +135,7 @@ const props = defineProps({
   },
   menuLabel: {
     type: String,
-    default: 'Post actions',
+    default: 'Akcie príspevku',
   },
   replyTitle: {
     type: String,
@@ -175,23 +175,23 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   display: inline-flex;
   align-items: center;
   gap: 0.28rem;
-  padding: 0.3rem 0.42rem;
+  padding: 0.35rem 0.5rem;
   border: none;
   background: transparent;
-  color: #5d6e87;
+  color: var(--text-secondary);
   border-radius: 999px;
   font-size: 0.77rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-height: 30px;
-  min-width: 30px;
+  min-height: 44px;
+  min-width: 44px;
   text-decoration: none;
 }
 
 .action-btn:hover:not(:disabled) {
   background: rgb(var(--color-text-secondary-rgb) / 0.08);
-  color: #5d6e87;
+  color: var(--text-primary);
 }
 
 .action-btn:active:not(:disabled) {
@@ -209,17 +209,17 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 }
 
 .action-btn--like {
-  color: #5d6e87;
+  color: var(--text-secondary);
   position: relative;
 }
 
 .action-btn--like.action-btn--liked {
-  color: #ec4899;
+  color: var(--color-danger);
   font-weight: 600;
 }
 
 .action-btn--like.action-btn--liked:hover:not(:disabled) {
-  color: #ec4899;
+  color: var(--color-danger);
 }
 
 .action-btn--like.action-btn--bump {
@@ -227,12 +227,12 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 }
 
 .action-btn--bookmark.action-btn--bookmarked {
-  color: #0f73ff;
+  color: var(--color-primary);
   font-weight: 600;
 }
 
 .action-btn--bookmark.action-btn--bookmarked:hover:not(:disabled) {
-  color: #0f73ff;
+  color: var(--color-primary);
 }
 
 .post-actions-more {
@@ -249,17 +249,17 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
-  min-width: 30px;
-  padding: 0.3rem 0.42rem;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.35rem 0.5rem;
   border-radius: 999px;
-  color: #5d6e87;
+  color: var(--text-secondary);
   transition: all 0.2s ease;
 }
 
 .post-actions-more :deep(.dropdownTrigger:hover:not(:disabled)) {
   background: rgb(var(--color-text-secondary-rgb) / 0.08);
-  color: #5d6e87;
+  color: var(--text-primary);
 }
 
 .action-count {
@@ -283,10 +283,10 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 
 @media (max-width: 480px) {
   .action-btn {
-    padding: 0.24rem 0.34rem;
+    padding: 0.3rem 0.44rem;
     font-size: 0.72rem;
-    min-height: 28px;
-    min-width: 28px;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .action-count {
@@ -296,10 +296,10 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 
 @media (min-width: 481px) and (max-width: 768px) {
   .action-btn {
-    padding: 0.28rem 0.4rem;
+    padding: 0.32rem 0.48rem;
     font-size: 0.74rem;
-    min-height: 29px;
-    min-width: 29px;
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 </style>

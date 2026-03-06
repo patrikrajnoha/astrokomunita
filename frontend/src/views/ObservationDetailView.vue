@@ -1,12 +1,18 @@
 <template>
   <section class="observation-detail-page">
-    <div v-if="loading" class="state-card">Nacitavam pozorovanie...</div>
-    <div v-else-if="error" class="state-card state-error">
-      <p>{{ error }}</p>
-      <button type="button" class="btn-secondary mt-2" @click="loadObservation">
-        Skusit znova
-      </button>
-    </div>
+    <AsyncState
+      v-if="loading"
+      mode="loading"
+      title="Nacitavam pozorovanie..."
+    />
+    <AsyncState
+      v-else-if="error"
+      mode="error"
+      title="Nastala chyba"
+      :message="error"
+      action-label="Skusit znova"
+      @action="loadObservation"
+    />
 
     <template v-else-if="observation">
       <header class="detail-header">
@@ -22,17 +28,23 @@
           </RouterLink>
         </div>
         <div class="detail-actions">
-          <button type="button" class="btn-secondary" @click="router.push('/observations')">
+          <button type="button" class="ui-pill ui-pill--secondary" @click="router.push('/observations')">
             Zoznam
           </button>
-          <button v-if="isOwner" type="button" class="btn-secondary" @click="toggleEdit">
+          <button v-if="isOwner" type="button" class="ui-pill ui-pill--secondary" @click="toggleEdit">
             {{ editing ? 'Zrusit upravu' : 'Upravit' }}
           </button>
-          <button v-if="isOwner" type="button" class="btn-danger" :disabled="deleting" @click="removeObservation">
+          <button v-if="isOwner" type="button" class="ui-pill ui-pill--danger" :disabled="deleting" @click="removeObservation">
             {{ deleting ? 'Mazem...' : 'Zmazat' }}
           </button>
         </div>
       </header>
+
+      <InlineStatus
+        v-if="saveSuccess"
+        variant="success"
+        :message="saveSuccess"
+      />
 
       <ObservationCard :observation="observation" :clickable="false" />
 
@@ -117,11 +129,11 @@
           <img v-for="preview in newImagePreviews" :key="preview" :src="preview" alt="Preview" class="preview-image">
         </div>
 
-        <p v-if="saveError" class="error-message">{{ saveError }}</p>
+        <InlineStatus v-if="saveError" variant="error" :message="saveError" />
 
         <div class="edit-actions">
-          <button type="button" class="btn-secondary" :disabled="saving" @click="toggleEdit">Zrusit</button>
-          <button type="button" class="btn-primary" :disabled="saving" @click="saveChanges">
+          <button type="button" class="ui-pill ui-pill--secondary" :disabled="saving" @click="toggleEdit">Zrusit</button>
+          <button type="button" class="ui-pill ui-pill--primary" :disabled="saving" @click="saveChanges">
             {{ saving ? 'Ukladam...' : 'Ulozit zmeny' }}
           </button>
         </div>
@@ -134,15 +146,21 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AsyncState from '@/components/ui/AsyncState.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import ObservationCard from '@/components/observations/ObservationCard.vue'
 import { deleteObservation, getObservation, updateObservation } from '@/services/observations'
 import { getEvents } from '@/services/events'
 import { fromDateTimeLocal, toDateTimeLocal } from '@/utils/dateUtils'
 import { extractObservationError } from '@/utils/observationErrors'
+import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const { success: toastSuccess } = useToast()
+const { confirm } = useConfirm()
 
 const observation = ref(null)
 const loading = ref(false)
@@ -151,6 +169,7 @@ const editing = ref(false)
 const deleting = ref(false)
 const saving = ref(false)
 const saveError = ref('')
+const saveSuccess = ref('')
 
 const events = ref([])
 const removeMediaIds = ref(new Set())
@@ -226,10 +245,12 @@ function hydrateFormFromObservation() {
   revokePreviews()
   newImagePreviews.value = []
   saveError.value = ''
+  saveSuccess.value = ''
 }
 
 function toggleEdit() {
   if (!isOwner.value) return
+  saveSuccess.value = ''
   editing.value = !editing.value
   if (editing.value) {
     hydrateFormFromObservation()
@@ -261,6 +282,7 @@ async function saveChanges() {
   if (!isOwner.value || saving.value || !observation.value) return
 
   saveError.value = ''
+  saveSuccess.value = ''
   const observedAtIso = fromDateTimeLocal(form.observedAt)
   if (!observedAtIso) {
     saveError.value = 'Zadaj platny datum a cas pozorovania.'
@@ -291,6 +313,8 @@ async function saveChanges() {
     observation.value = response?.data || observation.value
     editing.value = false
     hydrateFormFromObservation()
+    saveSuccess.value = 'Pozorovanie bolo aktualizovane.'
+    toastSuccess('Pozorovanie bolo aktualizovane.')
   } catch (requestError) {
     saveError.value = extractObservationError(requestError, 'Ulozenie zlyhalo.')
   } finally {
@@ -301,13 +325,20 @@ async function saveChanges() {
 async function removeObservation() {
   if (!isOwner.value || deleting.value || !observation.value) return
 
-  const ok = window.confirm('Naozaj chces zmazat toto pozorovanie?')
+  const ok = await confirm({
+    title: 'Zmazat pozorovanie?',
+    message: 'Tuto akciu uz nie je mozne vratit.',
+    confirmText: 'Zmazat',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
   if (!ok) return
 
   deleting.value = true
   try {
     await auth.csrf()
     await deleteObservation(observation.value.id)
+    toastSuccess('Pozorovanie bolo zmazane.')
     router.push('/observations')
   } catch (requestError) {
     error.value = extractObservationError(requestError, 'Mazanie zlyhalo.')
@@ -343,18 +374,6 @@ onBeforeUnmount(() => {
   padding: 1rem;
   display: grid;
   gap: 0.9rem;
-}
-
-.state-card {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
-  border-radius: 0.95rem;
-  padding: 0.9rem;
-  background: rgb(var(--color-bg-rgb) / 0.35);
-  color: var(--color-text-secondary);
-}
-
-.state-error {
-  color: rgb(var(--color-danger-rgb) / 0.95);
 }
 
 .detail-header {
@@ -492,30 +511,6 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-}
-
-.btn-primary,
-.btn-secondary,
-.btn-danger {
-  border-radius: 999px;
-  padding: 0.4rem 0.82rem;
-  border: 1px solid transparent;
-}
-
-.btn-primary {
-  background: rgb(var(--color-primary-rgb) / 0.95);
-  color: rgb(var(--color-bg-rgb));
-}
-
-.btn-secondary {
-  background: transparent;
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.35);
-  color: var(--color-surface);
-}
-
-.btn-danger {
-  background: rgb(var(--color-danger-rgb) / 0.85);
-  color: rgb(var(--color-bg-rgb));
 }
 
 @media (max-width: 720px) {

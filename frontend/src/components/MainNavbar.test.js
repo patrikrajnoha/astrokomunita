@@ -136,18 +136,18 @@ describe('MainNavbar active route state', () => {
     expect(isHighlighted(eventsLink.element)).toBe(false)
   })
 
-  it('hides Settings for unauthenticated users', async () => {
+  it('hides Nastavenia for unauthenticated users', async () => {
     const wrapper = await mountNavbarAt('/')
 
-    expect(wrapper.find('.navScroll a[aria-label="Settings"]').exists()).toBe(false)
+    expect(wrapper.find('.navScroll a[aria-label="Nastavenia"]').exists()).toBe(false)
   })
 
-  it('shows Settings for authenticated users', async () => {
+  it('shows Nastavenia for authenticated users', async () => {
     authStore.isAuthed = true
     authStore.user = { id: 1, name: 'Test User' }
     const wrapper = await mountNavbarAt('/')
 
-    expect(wrapper.find('.navScroll a[aria-label="Settings"]').exists()).toBe(true)
+    expect(wrapper.find('.navScroll a[aria-label="Nastavenia"]').exists()).toBe(true)
   })
 
   it('shows content picker with Pozorovanie and routes to observation create', async () => {

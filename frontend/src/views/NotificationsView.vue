@@ -2,14 +2,14 @@
   <section class="min-h-screen bg-[linear-gradient(180deg,rgb(var(--bg-app-rgb)/0.98)_0%,rgb(var(--bg-app-rgb)/0.95)_48%,rgb(var(--bg-surface-rgb)/0.94)_100%)] text-[var(--text-primary)]">
     <div class="mx-auto flex min-h-screen w-full max-w-5xl flex-col">
       <header class="flex items-center justify-between px-5 pb-5 pt-6 sm:px-8">
-        <h1 class="text-3xl font-black tracking-tight sm:text-4xl">Notifications</h1>
+        <h1 class="text-3xl font-black tracking-tight sm:text-4xl">Notifikacie</h1>
         <button
           data-testid="open-notification-settings"
-          class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:rgb(var(--text-secondary-rgb)/0.3)] text-[var(--text-secondary)] transition hover:border-[color:rgb(var(--text-secondary-rgb)/0.55)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+          class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:rgb(var(--text-secondary-rgb)/0.3)] text-[var(--text-secondary)] transition hover:border-[color:rgb(var(--text-secondary-rgb)/0.55)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
           type="button"
           @click="openSettingsModal"
         >
-          <span class="sr-only">Open notification settings</span>
+          <span class="sr-only">Otvorit nastavenia notifikacii</span>
           <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3.2"></circle>
             <path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.56V20.5a2 2 0 0 1-4 0v-.08a1.7 1.7 0 0 0-1-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1H3.5a2 2 0 0 1 0-4h.08a1.7 1.7 0 0 0 1.56-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.56V3.5a2 2 0 0 1 4 0v.08a1.7 1.7 0 0 0 1 1.56h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.56 1H20.5a2 2 0 0 1 0 4h-.08a1.7 1.7 0 0 0-1.56 1z"></path>
@@ -28,10 +28,13 @@
       </div>
 
       <div v-else-if="error" class="flex flex-1 flex-col items-center justify-center px-5 py-12 text-center" data-testid="notifications-page-error">
-        <p class="text-sm text-[var(--primary-active)]">{{ error }}</p>
-        <button type="button" class="ui-pill ui-pill--secondary mt-3 text-xs uppercase tracking-wide" @click="retry">
-          Retry
-        </button>
+        <InlineStatus
+          variant="error"
+          :message="error || 'Nastala chyba pri nacitani notifikacii.'"
+          action-label="Skusit znova"
+          class="w-full max-w-lg"
+          @action="retry"
+        />
       </div>
 
       <div v-else-if="!items.length" class="flex flex-1 flex-col items-center px-5 py-16 text-center">
@@ -40,14 +43,14 @@
             <path d="M6.5 8a5.5 5.5 0 1 1 11 0c0 2.6.7 4.4 1.8 5.8.5.6.1 1.2-.7 1.2H5.4c-.8 0-1.2-.7-.7-1.2C5.8 12.4 6.5 10.6 6.5 8Z"></path>
             <path d="M9.5 18a2.5 2.5 0 0 0 5 0"></path>
           </svg>
-          <p class="mt-4 text-2xl font-semibold tracking-tight text-[color:rgb(var(--text-secondary-rgb)/0.88)] sm:text-3xl">No notifications yet!</p>
+          <p class="mt-4 text-2xl font-semibold tracking-tight text-[color:rgb(var(--text-secondary-rgb)/0.88)] sm:text-3xl">Zatial ziadne notifikacie.</p>
         </div>
       </div>
 
       <div v-else class="mx-auto w-full max-w-3xl flex-1 px-5 py-7 sm:px-8">
         <div class="mb-4 flex justify-end">
           <button class="ui-pill ui-pill--secondary text-xs uppercase tracking-wide" type="button" @click="markAll">
-            Mark all read
+            Oznacit vsetko ako precitane
           </button>
         </div>
 
@@ -73,7 +76,7 @@
         </div>
 
         <div v-if="isPaginating" class="px-2 py-4 text-xs text-[var(--text-muted)]" data-testid="notifications-page-paginating">
-          Loading more...
+          Nacitavam dalsie...
         </div>
 
         <button
@@ -83,7 +86,7 @@
           :disabled="isPaginating"
           @click="loadMore"
         >
-          {{ isPaginating ? 'Loading...' : 'Load more' }}
+          {{ isPaginating ? 'Nacitavam...' : 'Nacitat dalsie' }}
         </button>
       </div>
     </div>
@@ -107,7 +110,7 @@
         class="ui-pill ui-pill--secondary text-xs uppercase tracking-wide"
         @click="retryPreferences"
       >
-        Retry
+        Skusit znova
       </button>
 
       <div v-if="preferencesLoading" class="space-y-3" aria-hidden="true">
@@ -136,13 +139,13 @@
           </div>
           <button
             type="button"
-            class="inline-flex h-7 w-12 items-center rounded-full border border-[var(--border)] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
+            class="inline-flex h-11 w-14 items-center rounded-full border border-[var(--border)] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
             :class="preferences.good_conditions_alerts ? 'justify-end bg-[color:rgb(var(--primary-rgb)/0.32)]' : 'justify-start bg-[color:rgb(var(--text-primary-rgb)/0.05)]'"
             :disabled="isPreferenceToggleDisabled"
             :aria-pressed="preferences.good_conditions_alerts"
             @click="togglePreference('good_conditions_alerts')"
           >
-            <span class="h-5 w-5 rounded-full bg-[var(--text-primary)]"></span>
+            <span class="h-6 w-6 rounded-full bg-[var(--text-primary)]"></span>
           </button>
         </label>
 
@@ -155,13 +158,13 @@
           </div>
           <button
             type="button"
-            class="inline-flex h-7 w-12 items-center rounded-full border border-[var(--border)] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
+            class="inline-flex h-11 w-14 items-center rounded-full border border-[var(--border)] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
             :class="preferences.iss_alerts ? 'justify-end bg-[color:rgb(var(--primary-rgb)/0.32)]' : 'justify-start bg-[color:rgb(var(--text-primary-rgb)/0.05)]'"
             :disabled="isPreferenceToggleDisabled"
             :aria-pressed="preferences.iss_alerts"
             @click="togglePreference('iss_alerts')"
           >
-            <span class="h-5 w-5 rounded-full bg-[var(--text-primary)]"></span>
+            <span class="h-6 w-6 rounded-full bg-[var(--text-primary)]"></span>
           </button>
         </label>
       </div>
@@ -173,6 +176,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useNotificationsStore } from '@/stores/notifications'
 import { useNotificationAlertPreferences } from '@/composables/useNotificationAlertPreferences'
 import { useAuthStore } from '@/stores/auth'
@@ -266,59 +270,59 @@ const openNotification = async (item) => {
 
 const formatTitle = (item) => {
   if (item.type === 'post_liked') {
-    const name = item.data?.actor_name || item.data?.actor_username || 'Someone'
-    return `${name} liked your post`
+    const name = item.data?.actor_name || item.data?.actor_username || 'Niekto'
+    return `${name} lajkol tvoj prispevok`
   }
   if (item.type === 'event_reminder') {
-    return 'Upcoming event reminder'
+    return 'Pripomienka udalosti'
   }
   if (item.type === 'contest_winner') {
-    return 'You won the contest'
+    return 'Vyhral si sutaz'
   }
   if (item.type === 'event_invite') {
-    return 'You received an event invite'
+    return 'Prisla ti pozvanka na udalost'
   }
   if (item.type === 'account_restricted') {
-    return 'Account restricted'
+    return 'Ucet bol obmedzeny'
   }
   if (item.type === 'iss_pass_alert') {
-    return 'ISS pass soon'
+    return 'ISS prelet uz coskoro'
   }
   if (item.type === 'good_conditions_alert') {
-    return 'Great observing conditions'
+    return 'Vyborne podmienky na pozorovanie'
   }
-  return 'Notification'
+  return 'Notifikacia'
 }
 
 const formatSubtitle = (item) => {
   if (item.type === 'post_liked') {
     const username = item.data?.actor_username ? `@${item.data.actor_username}` : ''
-    return username || 'Community activity'
+    return username || 'Aktivita v komunite'
   }
   if (item.type === 'event_reminder') {
-    return item.data?.event_title || 'Event starts soon'
+    return item.data?.event_title || 'Udalost sa zacina uz coskoro'
   }
   if (item.type === 'contest_winner') {
-    return item.data?.contest_name || 'Contest winner'
+    return item.data?.contest_name || 'Vitaz sutaze'
   }
   if (item.type === 'event_invite') {
     const inviter = item.data?.actor_name || item.data?.actor_username
     const title = item.data?.event_title
-    if (inviter && title) return `${inviter} invited you to ${title}`
-    if (inviter) return `${inviter} invited you to an event`
-    return title || 'You were invited to an event'
+    if (inviter && title) return `${inviter} ta pozval na ${title}`
+    if (inviter) return `${inviter} ta pozval na udalost`
+    return title || 'Bol si pozvany na udalost'
   }
   if (item.type === 'account_restricted') {
-    return item.data?.reason || 'Contact support for details.'
+    return item.data?.reason || 'Pre viac informacii kontaktuj podporu.'
   }
   if (item.type === 'iss_pass_alert') {
-    return item.data?.next_pass_at ? `Next pass: ${formatClock(item.data.next_pass_at)}` : 'A pass is coming soon.'
+    return item.data?.next_pass_at ? `Dalsi prelet: ${formatClock(item.data.next_pass_at)}` : 'Prelet pride uz coskoro.'
   }
   if (item.type === 'good_conditions_alert') {
     const score = Number(item.data?.observing_score)
-    return Number.isFinite(score) ? `Observing score ${Math.round(score)}/100.` : 'Sky conditions look strong tonight.'
+    return Number.isFinite(score) ? `Skore podmienok ${Math.round(score)}/100.` : 'Podmienky na oblohe vyzeraju dnes vyborne.'
   }
-  return 'New update'
+  return 'Nova aktivita'
 }
 
 const formatTime = (item) => {

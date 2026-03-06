@@ -1,7 +1,7 @@
 <template>
   <SettingsDetailShell
-    title="User activity"
-    subtitle="Hidden by default. Open only when you need it."
+    title="Aktivita pouzivatela"
+    subtitle="Sekcia je standardne skryta. Otvorte ju iba ked ju potrebujete."
   >
     <div class="settings-form">
       <button
@@ -16,9 +16,11 @@
     </div>
 
     <div v-if="activityExpanded" class="activity-panel">
-      <div v-if="activityError" class="status status-error" role="alert">
-        {{ activityError }}
-      </div>
+      <InlineStatus
+        v-if="activityError"
+        variant="error"
+        :message="activityError"
+      />
       <UserActivityCard :loading="activityLoading && !activity" :activity="activity" />
     </div>
   </SettingsDetailShell>
@@ -27,6 +29,7 @@
 <script setup>
 import UserActivityCard from '@/components/profile/UserActivityCard.vue'
 import SettingsDetailShell from '@/components/settings/SettingsDetailShell.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useSettingsContext } from '@/composables/settingsContext'
 
 const { activity, activityError, activityExpanded, activityLoading, toggleActivitySection } = useSettingsContext()

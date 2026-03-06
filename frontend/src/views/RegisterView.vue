@@ -147,9 +147,9 @@ const turnstileHint = computed(() => {
   return ''
 })
 const submitTurnstileMessage = computed(() => {
-  if (!turnstileEnabled.value) return 'Bezpečnostné overenie nie je nastavené. Skús to prosím neskôr.'
+  if (!turnstileEnabled.value) return 'Bezpecnostne overenie nie je nastavene. Skus to prosim neskor.'
   if (turnstileToken.value) return ''
-  if (turnstileState.value === 'loading' || turnstileState.value === 'idle') return 'Načítavam overenie...'
+  if (turnstileState.value === 'loading' || turnstileState.value === 'idle') return 'Nacitavam overenie...'
   return ''
 })
 const isSubmitDisabled = computed(() => {
@@ -316,12 +316,12 @@ const submit = async () => {
   }
 
   if (!turnstileEnabled.value) {
-    formError.value = 'Bezpečnostné overenie nie je nastavené. Skús to prosím neskôr.'
+    formError.value = 'Bezpecnostne overenie nie je nastavene. Skus to prosim neskor.'
     return
   }
 
   if (turnstileEnabled.value && !turnstileToken.value) {
-    formError.value = turnstileHint.value || 'Načítavam overenie...'
+    formError.value = turnstileHint.value || 'Nacitavam overenie...'
     return
   }
 
@@ -352,9 +352,9 @@ const submit = async () => {
         const sendMessage = sendError?.response?.data?.message
 
         if (sendStatus === 429) {
-          toast.warn(sendMessage || 'Overovaci kod bol odoslany nedavno. Dokonc overenie v Settings.')
+          toast.warn(sendMessage || 'Overovaci kod bol odoslany nedavno. Dokonc overenie v Nastaveniach.')
         } else {
-          toast.warn('Nepodarilo sa poslat overovaci kod automaticky. Pokracuj v Settings -> Email.')
+          toast.warn('Nepodarilo sa poslat overovaci kod automaticky. Pokracuj v Nastaveniach > Email.')
         }
       }
 
@@ -366,7 +366,7 @@ const submit = async () => {
     const msg = e?.response?.data?.message
     const errors = e?.response?.data?.errors
     if (errors?.turnstile_token?.length) {
-      formError.value = 'Bezpečnostné overenie zlyhalo. Skús to prosím znova.'
+      formError.value = 'Bezpecnostne overenie zlyhalo. Skus to prosim znova.'
     } else if (errors) {
       const firstKey = Object.keys(errors)[0]
       formError.value = errors[firstKey]?.[0] || msg || 'Registracia zlyhala.'

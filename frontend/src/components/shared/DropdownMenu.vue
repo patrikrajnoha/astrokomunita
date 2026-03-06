@@ -43,8 +43,8 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
-  label: { type: String, default: 'More actions' },
-  menuLabel: { type: String, default: 'Post actions' },
+  label: { type: String, default: 'Dalsie akcie' },
+  menuLabel: { type: String, default: 'Akcie prispevku' },
 })
 
 const emit = defineEmits(['select', 'open', 'close'])
@@ -173,6 +173,8 @@ defineExpose({ close })
 .dropdownTrigger {
   background: transparent;
   border: none;
+  min-width: 44px;
+  min-height: 44px;
   padding: 6px;
   border-radius: 999px;
   color: var(--text-muted);
@@ -226,11 +228,11 @@ defineExpose({ close })
 }
 
 .dropdownItem--danger {
-  color: var(--primary-active);
+  color: var(--color-danger);
 }
 
 .dropdownItem--danger:hover {
-  background: rgb(var(--primary-active-rgb) / 0.15);
+  background: rgb(var(--color-danger-rgb) / 0.15);
 }
 
 @keyframes dropdownIn {

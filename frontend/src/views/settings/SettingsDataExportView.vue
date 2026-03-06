@@ -1,14 +1,18 @@
 <template>
   <SettingsDetailShell
-    title="Data export"
-    subtitle="Download your profile data as JSON for backup or GDPR requests."
+    title="Export dat"
+    subtitle="Stiahnite profilove data vo formate JSON pre zalohu alebo GDPR poziadavky."
   >
-    <div v-if="exportState.success" class="status status-success" role="status">
-      {{ exportState.success }}
-    </div>
-    <div v-if="exportState.error" class="status status-error" role="alert">
-      {{ exportState.error }}
-    </div>
+    <InlineStatus
+      v-if="exportState.success"
+      variant="success"
+      :message="exportState.success"
+    />
+    <InlineStatus
+      v-if="exportState.error"
+      variant="error"
+      :message="exportState.error"
+    />
 
     <div class="settings-form">
       <button
@@ -16,18 +20,19 @@
         type="button"
         class="btn btn-primary"
         :disabled="exportState.loading"
-        aria-label="Export profile data"
+        aria-label="Exportovat profilove data"
         @click="downloadProfileExport"
       >
-        {{ exportState.loading ? 'Preparing export...' : 'Export my profile' }}
+        {{ exportState.loading ? 'Pripravujem export...' : 'Exportovat moj profil' }}
       </button>
-      <p class="export-note">Includes user profile, posts, invites, and newsletter status.</p>
+      <p class="export-note">Obsahuje profil, prispevky, pozvanky a stav newslettera.</p>
     </div>
   </SettingsDetailShell>
 </template>
 
 <script setup>
 import SettingsDetailShell from '@/components/settings/SettingsDetailShell.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useSettingsContext } from '@/composables/settingsContext'
 
 const { downloadProfileExport, exportState } = useSettingsContext()

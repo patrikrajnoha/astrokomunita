@@ -6,7 +6,7 @@
     </header>
 
     <div v-if="!auth.isAuthed" class="state-card">
-      Prihlas sa pre vytvorenie pozorovania.
+      <InlineStatus variant="info" message="Prihlas sa pre vytvorenie pozorovania." />
     </div>
 
     <form v-else class="form-card" @submit.prevent="submit">
@@ -75,13 +75,13 @@
         <img v-for="preview in imagePreviews" :key="preview" :src="preview" alt="Preview" class="preview-image">
       </div>
 
-      <p v-if="error" class="error-message">{{ error }}</p>
+      <InlineStatus v-if="error" variant="error" :message="error" />
 
       <div class="actions">
-        <button type="button" class="btn-secondary" :disabled="saving" @click="router.push('/observations')">
+        <button type="button" class="ui-pill ui-pill--secondary" :disabled="saving" @click="router.push('/observations')">
           Spat
         </button>
-        <button type="submit" class="btn-primary" :disabled="saving">
+        <button type="submit" class="ui-pill ui-pill--primary" :disabled="saving">
           {{ saving ? 'Ukladam...' : 'Vytvorit pozorovanie' }}
         </button>
       </div>
@@ -93,13 +93,16 @@
 import { onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { createObservation } from '@/services/observations'
 import { getEvents } from '@/services/events'
 import { fromDateTimeLocal, toDateTimeLocal } from '@/utils/dateUtils'
 import { extractObservationError } from '@/utils/observationErrors'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const auth = useAuthStore()
+const { success: toastSuccess } = useToast()
 
 const form = reactive({
   title: '',
@@ -173,6 +176,7 @@ async function submit() {
     })
 
     const observationId = Number(response?.data?.id || 0)
+    toastSuccess('Pozorovanie bolo vytvorene.')
     if (observationId > 0) {
       router.push(`/observations/${observationId}`)
       return
@@ -283,33 +287,10 @@ onBeforeUnmount(() => {
   object-fit: cover;
 }
 
-.error-message {
-  margin: 0;
-  color: rgb(var(--color-danger-rgb) / 0.98);
-}
-
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-}
-
-.btn-primary,
-.btn-secondary {
-  border-radius: 999px;
-  padding: 0.4rem 0.82rem;
-  border: 1px solid transparent;
-}
-
-.btn-primary {
-  background: rgb(var(--color-primary-rgb) / 0.95);
-  color: rgb(var(--color-bg-rgb));
-}
-
-.btn-secondary {
-  background: transparent;
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.35);
-  color: var(--color-surface);
 }
 
 @media (max-width: 720px) {

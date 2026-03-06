@@ -1,6 +1,6 @@
-<template>
+﻿<template>
   <div class="w-full">
-    <!-- ModernÄ‚Â© vyhĂ„ÄľadÄ‚Ë‡vacie pole -->
+    <!-- Moderné vyhľadávacie pole -->
     <div class="relative mb-6">
       <div class="relative">
         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -11,7 +11,7 @@
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="HĂ„ÄľadaÄąÄ„ pouÄąÄľÄ‚Â­vateĂ„Äľov..."
+          placeholder="Hľadať používateľov..."
           class="w-full pl-12 pr-12 py-4 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-lg"
           @input="onSearchInput"
         />
@@ -22,13 +22,13 @@
           />
           <div v-else-if="searchQuery" class="flex items-center gap-1">
             <div class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span class="text-xs text-slate-500 dark:text-slate-400">{{ users.length }} nÄ‚Ë‡jdenÄ‚Ëťch</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400">{{ users.length }} nájdených</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- VÄ‚Ëťsledky vyhĂ„ÄľadÄ‚Ë‡vania -->
+    <!-- Výsledky vyhľadávania -->
     <div
       v-if="searchQuery.length >= 2 && (isLoading || users.length > 0)"
       class="relative"
@@ -38,22 +38,22 @@
         <div v-if="isLoading" class="p-6 text-center">
           <div class="inline-flex items-center gap-3 text-slate-600 dark:text-slate-400">
             <div class="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 dark:border-slate-600 border-t-blue-500" />
-            <span class="text-sm font-medium">VyhĂ„ÄľadÄ‚Ë‡vam pouÄąÄľÄ‚Â­vateĂ„Äľov...</span>
+            <span class="text-sm font-medium">Vyhľadávam používateľov...</span>
           </div>
         </div>
 
-        <!-- Zoznam pouÄąÄľÄ‚Â­vateĂ„Äľov -->
+        <!-- Zoznam používateľov -->
         <div v-else-if="users.length > 0" class="overflow-y-auto max-h-80">
           <div class="sticky top-0 bg-slate-50 dark:bg-slate-700 px-4 py-3 border-b border-slate-200 dark:border-slate-600">
             <div class="flex items-center justify-between">
               <span class="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                NÄ‚Ë‡jdenÄ‚Ëťch {{ users.length }} pouÄąÄľÄ‚Â­vateĂ„Äľov
+                Nájdených {{ users.length }} používateľov
               </span>
               <button
                 @click="clearSearch"
                 class="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
               >
-                ZruÄąË‡iÄąÄ„
+                Zrušiť
               </button>
             </div>
           </div>
@@ -86,7 +86,7 @@
                 <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
                   <span class="font-medium">@{{ user.username }}</span>
                   <span class="text-slate-400">&middot;</span>
-                  <span>Ă„Ĺšlen komunity</span>
+                  <span>Člen komunity</span>
                 </div>
               </div>
               <div class="flex items-center">
@@ -100,7 +100,7 @@
       </div>
     </div>
 
-    <!-- ÄąËťiadne vÄ‚Ëťsledky -->
+    <!-- Žiadne výsledky -->
     <div v-else-if="searchQuery.length >= 2 && !isLoading && users.length === 0" class="text-center py-12">
       <div class="inline-flex items-center justify-center w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-2xl mb-4">
         <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -109,14 +109,14 @@
       </div>
       <div class="text-slate-600 dark:text-slate-400 mb-2">
         <div class="text-lg font-medium mb-1">
-          Neboli nÄ‚Ë‡jdenÄ‚Â­ ÄąÄľiadni pouÄąÄľÄ‚Â­vatelia
+          Neboli nájdení žiadni používatelia
         </div>
         <div class="text-sm">
-          pre vÄ‚Ëťraz <strong class="text-slate-900 dark:text-slate-100">"{{ searchQuery }}"</strong>
+          pre výraz <strong class="text-slate-900 dark:text-slate-100">"{{ searchQuery }}"</strong>
         </div>
       </div>
       <div class="text-xs text-slate-500 dark:text-slate-500">
-        SkÄ‚Ĺźste inÄ‚Ëť vyhĂ„ÄľadÄ‚Ë‡vacÄ‚Â­ vÄ‚Ëťraz alebo skontrolujte preklepy
+        Skúste iný vyhľadávací výraz alebo skontrolujte preklepy
       </div>
     </div>
   </div>
@@ -189,4 +189,3 @@ const clearSearch = () => {
 }
 
 </script>
-

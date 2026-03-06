@@ -298,11 +298,11 @@ function trapFocus(event) {
 }
 
 .btn {
-  min-height: 2.15rem;
+  min-height: 44px;
   border-radius: 0.68rem;
   font-size: 0.84rem;
   font-weight: 700;
-  padding: 0.46rem 0.8rem;
+  padding: 0.46rem 0.9rem;
 }
 
 .btn.cancel {
@@ -313,14 +313,14 @@ function trapFocus(event) {
 
 .btn.confirm {
   border: 1px solid rgb(var(--color-primary-rgb) / 0.6);
-  background: rgb(var(--color-primary-rgb) / 0.16);
-  color: var(--color-primary);
+  background: rgb(var(--color-primary-rgb) / 0.2);
+  color: var(--text-primary);
 }
 
 .btn.confirm.danger {
   border-color: rgb(var(--color-danger-rgb) / 0.65);
-  background: rgb(var(--color-danger-rgb) / 0.18);
-  color: var(--color-danger);
+  background: rgb(var(--color-danger-rgb) / 0.24);
+  color: var(--text-primary);
 }
 
 .btn:disabled {

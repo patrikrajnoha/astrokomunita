@@ -166,7 +166,7 @@ describe('SettingsView', () => {
     expect(httpMock.get).toHaveBeenCalledWith('/account/email', {
       meta: { skipErrorToast: true },
     })
-    expect(wrapper.find('[data-testid="settings-email-status"]').text()).toContain('Verified')
+    expect(wrapper.find('[data-testid="settings-email-status"]').text()).toContain('Overeny')
     expect(wrapper.find('[data-testid="settings-email-status"]').text()).toContain('tester@example.com')
   })
 

@@ -182,7 +182,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: rgb(252 165 165);
+  color: rgb(var(--color-danger-rgb) / 0.9);
   padding: 0.8rem 0.95rem;
   display: flex;
   align-items: center;
@@ -193,17 +193,17 @@
 }
 
 .settings-page .settings-logout-button:hover {
-  background: rgb(239 68 68 / 0.14);
+  background: rgb(var(--color-danger-rgb) / 0.14);
 }
 
 .settings-page .settings-logout-button:active {
-  background: rgb(239 68 68 / 0.2);
+  background: rgb(var(--color-danger-rgb) / 0.2);
   transform: scale(0.998);
 }
 
 .settings-page .settings-logout-button:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 2px rgb(251 113 133 / 0.72);
+  box-shadow: inset 0 0 0 2px rgb(var(--color-danger-rgb) / 0.72);
 }
 
 .settings-page .settings-logout-button:disabled {
@@ -216,9 +216,9 @@
   width: 2rem;
   height: 2rem;
   border-radius: 0.72rem;
-  border: 1px solid rgb(251 113 133 / 0.42);
-  background: rgb(225 29 72 / 0.16);
-  color: rgb(254 202 202);
+  border: 1px solid rgb(var(--color-danger-rgb) / 0.42);
+  background: rgb(var(--color-danger-rgb) / 0.16);
+  color: rgb(var(--text-primary-rgb) / 0.9);
   display: grid;
   place-items: center;
   font-size: 0.78rem;
@@ -308,15 +308,15 @@
 }
 
 .settings-page .email-badge.is-verified {
-  border: 1px solid rgb(16 185 129 / 0.5);
-  color: rgb(209 250 229);
-  background: rgb(5 150 105 / 0.18);
+  border: 1px solid rgb(var(--color-success-rgb) / 0.5);
+  color: rgb(var(--color-success-rgb) / 0.95);
+  background: rgb(var(--color-success-rgb) / 0.18);
 }
 
 .settings-page .email-badge.is-unverified {
-  border: 1px solid rgb(251 113 133 / 0.5);
-  color: rgb(255 228 230);
-  background: rgb(225 29 72 / 0.18);
+  border: 1px solid rgb(var(--color-danger-rgb) / 0.5);
+  color: rgb(var(--text-primary-rgb) / 0.95);
+  background: rgb(var(--color-danger-rgb) / 0.18);
 }
 
 .settings-page .pending-email-box {
@@ -341,7 +341,7 @@
 .settings-page .danger-note {
   margin: 0.45rem 0 0;
   font-size: 0.84rem;
-  color: rgb(255 228 230 / 0.92);
+  color: rgb(var(--color-danger-rgb) / 0.95);
 }
 
 .settings-page .btn-ghost {
@@ -397,38 +397,18 @@
 }
 
 .settings-page .field-input-danger {
-  border-color: rgb(251 113 133 / 0.5);
+  border-color: rgb(var(--color-danger-rgb) / 0.5);
 }
 
 .settings-page .field-input-danger:focus-visible {
-  border-color: rgb(251 113 133 / 0.9);
-  box-shadow: 0 0 0 3px rgb(251 113 133 / 0.2);
+  border-color: rgb(var(--color-danger-rgb) / 0.9);
+  box-shadow: 0 0 0 3px rgb(var(--color-danger-rgb) / 0.2);
 }
 
 .settings-page .field-error {
   margin: 0;
-  color: rgb(254 205 211);
+  color: rgb(var(--color-danger-rgb) / 0.95);
   font-size: 0.88rem;
-}
-
-.settings-page .status {
-  margin-top: 0.9rem;
-  border-radius: 0.75rem;
-  border: 1px solid transparent;
-  padding: 0.68rem 0.82rem;
-  font-size: 0.88rem;
-}
-
-.settings-page .status-success {
-  border-color: rgb(16 185 129 / 0.45);
-  background: rgb(5 150 105 / 0.12);
-  color: rgb(209 250 229);
-}
-
-.settings-page .status-error {
-  border-color: rgb(251 113 133 / 0.45);
-  background: rgb(225 29 72 / 0.14);
-  color: rgb(255 228 230);
 }
 
 .settings-page .btn {
@@ -477,15 +457,23 @@
 }
 
 .settings-page .btn-danger {
-  color: rgb(255 228 230);
-  border-color: rgb(251 113 133 / 0.55);
-  background: linear-gradient(145deg, rgb(190 24 93 / 0.38), rgb(127 29 29 / 0.35));
-  box-shadow: 0 10px 26px rgb(190 24 93 / 0.18);
+  color: rgb(var(--text-primary-rgb) / 0.95);
+  border-color: rgb(var(--color-danger-rgb) / 0.55);
+  background: linear-gradient(
+    145deg,
+    rgb(var(--color-danger-rgb) / 0.38),
+    rgb(var(--bg-app-rgb) / 0.75)
+  );
+  box-shadow: 0 10px 26px rgb(var(--color-danger-rgb) / 0.2);
 }
 
 .settings-page .btn-danger:hover {
-  border-color: rgb(251 113 133 / 0.8);
-  background: linear-gradient(145deg, rgb(225 29 72 / 0.45), rgb(127 29 29 / 0.4));
+  border-color: rgb(var(--color-danger-rgb) / 0.8);
+  background: linear-gradient(
+    145deg,
+    rgb(var(--color-danger-rgb) / 0.45),
+    rgb(var(--bg-app-rgb) / 0.8)
+  );
 }
 
 .settings-page .toggle-box {
