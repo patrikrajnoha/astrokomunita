@@ -236,7 +236,12 @@ class BotPublisherService
         $source = $item->source()->firstOrFail();
         $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
         $publishPayload = $this->resolvePublishPayload($item);
+        $currentMeta = is_array($post->meta) ? $post->meta : [];
         $postMeta = $this->buildPostMeta($source, $item, $publishPayload, $this->normalizeRunContext($runContext));
+        $currentPublishedAt = $this->nullableString(data_get($currentMeta, 'published_at_utc'));
+        if ($currentPublishedAt !== null) {
+            $postMeta['published_at_utc'] = $currentPublishedAt;
+        }
         $content = $this->buildPostContent(
             $publishPayload['title'],
             $publishPayload['body'],
@@ -255,7 +260,6 @@ class BotPublisherService
         $desiredTranslatedAt = $item->translated_at;
         $desiredSourceUrl = $postMeta['source_url'] ?? $item->url;
 
-        $currentMeta = is_array($post->meta) ? $post->meta : [];
         $contentChanged = trim((string) $post->content) !== trim((string) $content);
         $translationFieldsChanged = $this->nullableString($post->original_title) !== $desiredOriginalTitle
             || $this->nullableString($post->original_body) !== $desiredOriginalBody
