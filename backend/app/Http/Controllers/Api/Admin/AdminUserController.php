@@ -6,13 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Services\Storage\MediaStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Gate;
 
 class AdminUserController extends Controller
 {
-    public function __construct(private readonly NotificationService $notifications)
+    private const PROFILE_MEDIA_UPLOAD_MAX_KB = 20480;
+
+    public function __construct(
+        private readonly NotificationService $notifications,
+        private readonly MediaStorageService $mediaStorage,
+    )
     {
     }
 
@@ -226,12 +232,20 @@ class AdminUserController extends Controller
     {
         $this->ensureAllowed($request, 'updateProfile', $user);
 
-        $validated = $request->validate([
+        $rules = [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'bio' => ['nullable', 'string', 'max:160'],
-            'avatar_path' => ['nullable', 'string', 'max:255'],
-            'cover_path' => ['nullable', 'string', 'max:255'],
-        ]);
+        ];
+
+        if ($user->isBot()) {
+            $rules['avatar_path'] = ['prohibited'];
+            $rules['cover_path'] = ['prohibited'];
+        } else {
+            $rules['avatar_path'] = ['nullable', 'string', 'max:255'];
+            $rules['cover_path'] = ['nullable', 'string', 'max:255'];
+        }
+
+        $validated = $request->validate($rules);
 
         if ($validated === []) {
             return response()->json($this->mapUser($user));
@@ -241,6 +255,16 @@ class AdminUserController extends Controller
         $user->save();
 
         return response()->json($this->mapUser($user));
+    }
+
+    public function uploadAvatar(Request $request, User $user)
+    {
+        return $this->uploadBotMedia($request, $user, 'avatar');
+    }
+
+    public function uploadCover(Request $request, User $user)
+    {
+        return $this->uploadBotMedia($request, $user, 'cover');
     }
 
     private function ensureAllowed(Request $request, string $ability, User $target): void
@@ -253,7 +277,7 @@ class AdminUserController extends Controller
 
     private function mapUser(User $user): array
     {
-        return $user->only([
+        $mapped = $user->only([
             'id',
             'name',
             'username',
@@ -272,5 +296,51 @@ class AdminUserController extends Controller
             'avatar_icon',
             'avatar_seed',
         ]);
+
+        $mapped['avatar_url'] = $user->avatar_url;
+        $mapped['cover_url'] = $user->cover_url;
+
+        return $mapped;
+    }
+
+    private function uploadBotMedia(Request $request, User $user, string $type)
+    {
+        $this->ensureAllowed($request, 'updateProfile', $user);
+
+        if (! $user->isBot()) {
+            return response()->json([
+                'message' => 'Media upload endpoint is available only for bot accounts.',
+            ], 422);
+        }
+
+        $maxKb = max((int) config('media.profile_upload_max_kb', self::PROFILE_MEDIA_UPLOAD_MAX_KB), 3072);
+        $request->validate([
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.$maxKb],
+        ]);
+
+        $freshUser = $this->replaceUserMedia($user, $type, $request->file('file'));
+
+        return response()->json($this->mapUser($freshUser));
+    }
+
+    private function replaceUserMedia(User $user, string $type, mixed $file): User
+    {
+        $path = $type === 'avatar'
+            ? $this->mediaStorage->storeAvatar($file, (int) $user->id)
+            : $this->mediaStorage->storeCover($file, (int) $user->id);
+
+        $column = $type === 'avatar' ? 'avatar_path' : 'cover_path';
+        $oldPath = $user->{$column};
+        $user->{$column} = $path;
+        if ($type === 'avatar') {
+            $user->avatar_mode = 'image';
+        }
+        $user->save();
+
+        if ($oldPath && $oldPath !== $path) {
+            $this->mediaStorage->delete($oldPath);
+        }
+
+        return $user->fresh();
     }
 }
