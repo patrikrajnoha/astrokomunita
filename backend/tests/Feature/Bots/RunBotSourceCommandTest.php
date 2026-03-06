@@ -341,12 +341,11 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame('needs_api_key', (string) data_get($run->meta, 'failure_reason'));
         $this->assertSame('nasa_apod', (string) data_get($run->meta, 'provider'));
         $this->assertSame('NASA APOD API requires API key. Add NASA_API_KEY or wait.', (string) data_get($run->meta, 'message'));
-        $this->assertNotNull(data_get($run->meta, 'cooldown_until'));
-        $this->assertGreaterThan(0, (int) data_get($run->meta, 'retry_after_sec'));
+        $this->assertNull(data_get($run->meta, 'cooldown_until'));
+        $this->assertNull(data_get($run->meta, 'retry_after_sec'));
 
         $source->refresh();
-        $this->assertNotNull($source->cooldown_until);
-        $this->assertTrue($source->cooldown_until->isFuture());
+        $this->assertNull($source->cooldown_until);
     }
 
     public function test_publish_repairs_legacy_bot_username_and_display_name_to_configured_identity(): void

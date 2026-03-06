@@ -18,9 +18,10 @@ describe('BotEngineDashboardView', () => {
     getBotOverview.mockResolvedValue({
       data: {
         overall: {
-          posts_24h_total: 5,
-          duplicates_24h: 2,
-          failures_24h: 1,
+          active_sources: 7,
+          failing_sources: 2,
+          dead_sources: 1,
+          cooldown_skips_24h: 4,
         },
         bots: [
           {
@@ -58,11 +59,11 @@ describe('BotEngineDashboardView', () => {
     await flush()
 
     expect(getBotOverview).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('5')
+    expect(wrapper.text()).toContain('7')
+    expect(wrapper.text()).toContain('4')
     expect(wrapper.text()).toContain('2')
     expect(wrapper.text()).toContain('1')
     expect(wrapper.text()).toContain('kozmobot')
     expect(wrapper.text()).toContain('View activity')
   })
 })
-
