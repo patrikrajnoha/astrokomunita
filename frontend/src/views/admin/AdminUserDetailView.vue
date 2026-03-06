@@ -8,8 +8,11 @@ import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import AdminToolbar from '@/components/admin/shared/AdminToolbar.vue'
 import AdminDataTable from '@/components/admin/shared/AdminDataTable.vue'
 import AdminPagination from '@/components/admin/shared/AdminPagination.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { compressImageFileToMaxBytes } from '@/utils/imageCompression'
+import { resolveUserCoverMedia } from '@/utils/profileMedia'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -30,12 +33,18 @@ const reportsSearch = ref('')
 const reportsStatus = ref('')
 const reportsPage = ref(1)
 const reportsPerPage = ref(20)
+const PROFILE_MEDIA_TARGET_MAX_BYTES = 3072 * 1024
+const PROFILE_MEDIA_UPLOAD_MAX_BYTES = 20480 * 1024
 const profileForm = ref({
   name: '',
   bio: '',
   avatar_path: '',
   cover_path: '',
 })
+const botAvatarInput = ref(null)
+const botCoverInput = ref(null)
+const botAvatarUploading = ref(false)
+const botCoverUploading = ref(false)
 
 let searchDebounce = null
 
@@ -47,11 +56,13 @@ const usersListRoute = computed(() => ({
 const reportRows = computed(() => reportsData.value?.data || [])
 const isCurrentActorAdmin = computed(() => Boolean(auth.isAdmin))
 const isBotTarget = computed(() => String(user.value?.role || '').toLowerCase() === 'bot' || Boolean(user.value?.is_bot))
+const botCoverMedia = computed(() => resolveUserCoverMedia(user.value))
 const canEditProfile = computed(() => {
   if (!user.value) return false
   if (!isBotTarget.value) return true
   return isCurrentActorAdmin.value
 })
+const canUploadBotMedia = computed(() => isBotTarget.value && canEditProfile.value && isCurrentActorAdmin.value)
 
 const reportColumns = [
   { key: 'type', label: 'Type' },
@@ -229,19 +240,91 @@ async function resetProfile() {
 async function saveProfile() {
   if (!user.value || !canEditProfile.value) return
 
+  const payload = {
+    name: profileForm.value.name,
+    bio: profileForm.value.bio || null,
+  }
+
+  if (!isBotTarget.value) {
+    payload.avatar_path = profileForm.value.avatar_path || null
+    payload.cover_path = profileForm.value.cover_path || null
+  }
+
   try {
-    const res = await api.patch(`/admin/users/${user.value.id}/profile`, {
-      name: profileForm.value.name,
-      bio: profileForm.value.bio || null,
-      avatar_path: profileForm.value.avatar_path || null,
-      cover_path: profileForm.value.cover_path || null,
-    })
+    const res = await api.patch(`/admin/users/${user.value.id}/profile`, payload)
     updateUser(res.data)
     toast.success('Profile updated.')
   } catch (e) {
     userError.value = e?.response?.data?.message || 'Profile update failed.'
     toast.error(userError.value)
   }
+}
+
+function openBotMediaPicker(type) {
+  if (!canUploadBotMedia.value || userLoading.value || botAvatarUploading.value || botCoverUploading.value) return
+  const input = type === 'avatar' ? botAvatarInput.value : botCoverInput.value
+  if (input) {
+    input.click()
+  }
+}
+
+function clearBotMediaInput(type) {
+  const input = type === 'avatar' ? botAvatarInput.value : botCoverInput.value
+  if (input) {
+    input.value = ''
+  }
+}
+
+async function uploadBotMedia(type, file) {
+  if (!user.value || !canUploadBotMedia.value) return
+
+  userError.value = ''
+  if (type === 'avatar') {
+    botAvatarUploading.value = true
+  } else {
+    botCoverUploading.value = true
+  }
+
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await api.patch(`/admin/users/${user.value.id}/${type}`, form)
+    updateUser(res.data)
+    toast.success(type === 'avatar' ? 'Bot avatar updated.' : 'Bot cover updated.')
+  } catch (e) {
+    userError.value = e?.response?.data?.message || 'Media upload failed.'
+    toast.error(userError.value)
+  } finally {
+    if (type === 'avatar') {
+      botAvatarUploading.value = false
+    } else {
+      botCoverUploading.value = false
+    }
+    clearBotMediaInput(type)
+  }
+}
+
+async function onBotMediaChange(type, event) {
+  const selectedFile = event?.target?.files?.[0]
+  if (!selectedFile) return
+
+  let uploadFile = selectedFile
+  try {
+    uploadFile = await compressImageFileToMaxBytes(selectedFile, {
+      maxBytes: PROFILE_MEDIA_TARGET_MAX_BYTES,
+    })
+  } catch {
+    uploadFile = selectedFile
+  }
+
+  if ((uploadFile?.size || 0) > PROFILE_MEDIA_UPLOAD_MAX_BYTES) {
+    userError.value = 'Selected image is too large. Maximum size is 20 MB.'
+    toast.error(userError.value)
+    clearBotMediaInput(type)
+    return
+  }
+
+  await uploadBotMedia(type, uploadFile)
 }
 
 async function reportAction(report, action) {
@@ -377,24 +460,85 @@ onBeforeUnmount(() => {
           rows="3"
         ></textarea>
 
-        <label class="fieldLabel" for="profile-avatar">Avatar path</label>
-        <input
-          id="profile-avatar"
-          v-model="profileForm.avatar_path"
-          class="fieldInput"
-          :disabled="!canEditProfile || userLoading"
-          type="text"
-        />
+        <template v-if="!isBotTarget">
+          <label class="fieldLabel" for="profile-avatar">Avatar path</label>
+          <input
+            id="profile-avatar"
+            v-model="profileForm.avatar_path"
+            class="fieldInput"
+            :disabled="!canEditProfile || userLoading"
+            type="text"
+          />
 
-        <label class="fieldLabel" for="profile-cover">Cover path</label>
-        <input
-          id="profile-cover"
-          v-model="profileForm.cover_path"
-          class="fieldInput"
-          :disabled="!canEditProfile || userLoading"
-          type="text"
-        />
+          <label class="fieldLabel" for="profile-cover">Cover path</label>
+          <input
+            id="profile-cover"
+            v-model="profileForm.cover_path"
+            class="fieldInput"
+            :disabled="!canEditProfile || userLoading"
+            type="text"
+          />
+        </template>
       </div>
+
+      <div v-if="isBotTarget" class="botMediaGrid">
+        <div class="botMediaCard">
+          <label class="fieldLabel">Bot avatar</label>
+          <UserAvatar class="botMediaPreview avatar" :user="user" :alt="`${user?.name || 'Bot'} avatar`" :size="120" />
+          <div v-if="canUploadBotMedia" class="botMediaPath">Path: {{ user?.avatar_path || '-' }}</div>
+          <div v-else class="botMediaReadonly">Read-only preview</div>
+          <template v-if="canUploadBotMedia">
+            <input
+              ref="botAvatarInput"
+              class="botMediaInput"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              :disabled="!canUploadBotMedia || userLoading || botAvatarUploading || botCoverUploading"
+              @change="onBotMediaChange('avatar', $event)"
+            />
+            <button
+              type="button"
+              class="btn action"
+              :disabled="!canUploadBotMedia || userLoading || botAvatarUploading || botCoverUploading"
+              @click="openBotMediaPicker('avatar')"
+            >
+              {{ botAvatarUploading ? 'Uploading...' : 'Upload avatar' }}
+            </button>
+          </template>
+        </div>
+
+        <div class="botMediaCard">
+          <label class="fieldLabel">Bot cover</label>
+          <div
+            class="botMediaPreview cover"
+            :class="{ 'botMediaPreview--fallback': botCoverMedia.isBotFallback }"
+            :style="botCoverMedia.fallbackStyle"
+          >
+            <img v-if="botCoverMedia.hasImage" :src="botCoverMedia.imageUrl" alt="Bot cover" class="botCoverImage" />
+          </div>
+          <div v-if="canUploadBotMedia" class="botMediaPath">Path: {{ user?.cover_path || '-' }}</div>
+          <div v-else class="botMediaReadonly">Read-only preview</div>
+          <template v-if="canUploadBotMedia">
+            <input
+              ref="botCoverInput"
+              class="botMediaInput"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              :disabled="!canUploadBotMedia || userLoading || botAvatarUploading || botCoverUploading"
+              @change="onBotMediaChange('cover', $event)"
+            />
+            <button
+              type="button"
+              class="btn action"
+              :disabled="!canUploadBotMedia || userLoading || botAvatarUploading || botCoverUploading"
+              @click="openBotMediaPicker('cover')"
+            >
+              {{ botCoverUploading ? 'Uploading...' : 'Upload cover' }}
+            </button>
+          </template>
+        </div>
+      </div>
+
       <div class="headerActions">
         <button class="btn action" :disabled="!canEditProfile || userLoading" @click="saveProfile">
           Save profile
@@ -596,6 +740,64 @@ onBeforeUnmount(() => {
 .formGrid {
   display: grid;
   gap: 8px;
+}
+
+.botMediaGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.botMediaCard {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.botMediaPreview {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  overflow: hidden;
+}
+
+.botMediaPreview.avatar {
+  max-width: 120px;
+  aspect-ratio: 1 / 1;
+}
+
+.botMediaPreview.cover {
+  min-height: 120px;
+  max-height: 180px;
+  position: relative;
+}
+
+.botMediaPreview--fallback {
+  box-shadow: inset 0 0 0 1px rgb(var(--color-primary-rgb) / 0.24);
+}
+
+.botCoverImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.botMediaReadonly {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.botMediaPath {
+  font-size: 12px;
+  opacity: 0.75;
+  word-break: break-all;
+}
+
+.botMediaInput {
+  display: none;
 }
 
 .fieldLabel {
