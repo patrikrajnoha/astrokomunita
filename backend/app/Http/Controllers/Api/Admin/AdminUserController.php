@@ -3,13 +3,16 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateAvatarPreferencesRequest;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\NotificationService;
 use App\Services\Storage\MediaStorageService;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class AdminUserController extends Controller
 {
@@ -267,6 +270,73 @@ class AdminUserController extends Controller
         return $this->uploadBotMedia($request, $user, 'cover');
     }
 
+    public function removeAvatar(Request $request, User $user)
+    {
+        $this->ensureAllowed($request, 'updateProfile', $user);
+        $this->ensureBotTarget($user);
+
+        $oldPath = (string) ($user->avatar_path ?? '');
+        $user->avatar_path = null;
+        $user->save();
+
+        if ($oldPath !== '') {
+            $this->mediaStorage->delete($oldPath);
+        }
+
+        return response()->json($this->mapUser($user->fresh()));
+    }
+
+    public function removeCover(Request $request, User $user)
+    {
+        $this->ensureAllowed($request, 'updateProfile', $user);
+        $this->ensureBotTarget($user);
+
+        $oldPath = (string) ($user->cover_path ?? '');
+        $user->cover_path = null;
+        $user->save();
+
+        if ($oldPath !== '') {
+            $this->mediaStorage->delete($oldPath);
+        }
+
+        return response()->json($this->mapUser($user->fresh()));
+    }
+
+    public function updateAvatarPreferences(UpdateAvatarPreferencesRequest $request, User $user)
+    {
+        $this->ensureAllowed($request, 'updateProfile', $user);
+        $this->ensureBotTarget($user);
+
+        $validated = $request->validated();
+        $oldAvatarPath = null;
+
+        $user->avatar_mode = $validated['avatar_mode'];
+        if ($user->avatar_mode === 'generated' && $user->avatar_path) {
+            $oldAvatarPath = (string) $user->avatar_path;
+            $user->avatar_path = null;
+        }
+
+        if (array_key_exists('avatar_color', $validated)) {
+            $user->avatar_color = $this->normalizeAvatarColor($validated['avatar_color']);
+        }
+
+        if (array_key_exists('avatar_icon', $validated)) {
+            $user->avatar_icon = $this->normalizeAvatarIcon($validated['avatar_icon']);
+        }
+
+        if (array_key_exists('avatar_seed', $validated)) {
+            $user->avatar_seed = $this->normalizeAvatarSeed($validated['avatar_seed']);
+        }
+
+        $user->save();
+
+        if ($oldAvatarPath !== null) {
+            $this->mediaStorage->delete($oldAvatarPath);
+        }
+
+        return response()->json($this->mapUser($user->fresh()));
+    }
+
     private function ensureAllowed(Request $request, string $ability, User $target): void
     {
         $actor = $request->user();
@@ -306,12 +376,7 @@ class AdminUserController extends Controller
     private function uploadBotMedia(Request $request, User $user, string $type)
     {
         $this->ensureAllowed($request, 'updateProfile', $user);
-
-        if (! $user->isBot()) {
-            return response()->json([
-                'message' => 'Media upload endpoint is available only for bot accounts.',
-            ], 422);
-        }
+        $this->ensureBotTarget($user);
 
         $maxKb = max((int) config('media.profile_upload_max_kb', self::PROFILE_MEDIA_UPLOAD_MAX_KB), 3072);
         $request->validate([
@@ -342,5 +407,83 @@ class AdminUserController extends Controller
         }
 
         return $user->fresh();
+    }
+
+    private function ensureBotTarget(User $user): void
+    {
+        if (! $user->isBot()) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'Media upload endpoint is available only for bot accounts.',
+            ], 422));
+        }
+    }
+
+    private function normalizeAvatarSeed(mixed $seed): ?string
+    {
+        $value = trim((string) ($seed ?? ''));
+
+        return $value === '' ? null : $value;
+    }
+
+    private function normalizeAvatarColor(mixed $value): ?int
+    {
+        $colors = array_values((array) config('avatar.colors', []));
+        $maxIndex = max(count($colors) - 1, -1);
+        if ($maxIndex < 0) {
+            return null;
+        }
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            $index = (int) $value;
+            if ($index >= 0 && $index <= $maxIndex) {
+                return $index;
+            }
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        foreach ($colors as $index => $hex) {
+            if (strtolower(trim((string) $hex)) === $normalized) {
+                return $index;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'avatar_color' => 'The selected avatar color is invalid.',
+        ]);
+    }
+
+    private function normalizeAvatarIcon(mixed $value): ?int
+    {
+        $icons = array_values((array) config('avatar.icons', []));
+        $maxIndex = max(count($icons) - 1, -1);
+        if ($maxIndex < 0) {
+            return null;
+        }
+
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            $index = (int) $value;
+            if ($index >= 0 && $index <= $maxIndex) {
+                return $index;
+            }
+        }
+
+        $normalized = strtolower(trim((string) $value));
+        foreach ($icons as $index => $icon) {
+            if (strtolower(trim((string) $icon)) === $normalized) {
+                return $index;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'avatar_icon' => 'The selected avatar icon is invalid.',
+        ]);
     }
 }

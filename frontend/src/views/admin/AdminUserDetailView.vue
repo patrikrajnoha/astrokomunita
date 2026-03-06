@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AdminSectionHeader from '@/components/admin/AdminSectionHeader.vue'
 import api from '@/services/api'
@@ -8,10 +8,21 @@ import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import AdminToolbar from '@/components/admin/shared/AdminToolbar.vue'
 import AdminDataTable from '@/components/admin/shared/AdminDataTable.vue'
 import AdminPagination from '@/components/admin/shared/AdminPagination.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
+import DefaultAvatar from '@/components/DefaultAvatar.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import {
+  AVATAR_COLORS,
+  AVATAR_ICONS,
+  coerceAvatarIndex,
+  hashAvatarString,
+  normalizeAvatarMode,
+  pickDeterministicAvatarIndex,
+} from '@/constants/avatar'
 import { compressImageFileToMaxBytes } from '@/utils/imageCompression'
+import { normalizeAvatarUrl, resolveAvatarState } from '@/utils/avatar'
 import { resolveUserCoverMedia } from '@/utils/profileMedia'
 
 const route = useRoute()
@@ -35,16 +46,42 @@ const reportsPage = ref(1)
 const reportsPerPage = ref(20)
 const PROFILE_MEDIA_TARGET_MAX_BYTES = 3072 * 1024
 const PROFILE_MEDIA_UPLOAD_MAX_BYTES = 20480 * 1024
+const mediaError = ref('')
+const avatarErr = ref('')
 const profileForm = ref({
   name: '',
   bio: '',
   avatar_path: '',
   cover_path: '',
 })
-const botAvatarInput = ref(null)
-const botCoverInput = ref(null)
-const botAvatarUploading = ref(false)
-const botCoverUploading = ref(false)
+const avatarModalOpen = ref(false)
+const coverModalOpen = ref(false)
+const avatarSaving = ref(false)
+const avatarUploading = ref(false)
+const avatarRemoving = ref(false)
+const coverSaving = ref(false)
+const coverUploading = ref(false)
+const coverRemoving = ref(false)
+const avatarInput = ref(null)
+const coverInput = ref(null)
+const avatarPreview = ref('')
+const coverPreview = ref('')
+const avatarRemoveRequested = ref(false)
+const coverRemoveRequested = ref(false)
+const pendingAvatarFile = ref(null)
+const pendingCoverFile = ref(null)
+const avatarSnapshot = ref({
+  mode: 'image',
+  color: null,
+  icon: null,
+  seed: '',
+})
+const avatarDraft = reactive({
+  mode: 'image',
+  color: null,
+  icon: null,
+  seed: '',
+})
 
 let searchDebounce = null
 
@@ -56,13 +93,67 @@ const usersListRoute = computed(() => ({
 const reportRows = computed(() => reportsData.value?.data || [])
 const isCurrentActorAdmin = computed(() => Boolean(auth.isAdmin))
 const isBotTarget = computed(() => String(user.value?.role || '').toLowerCase() === 'bot' || Boolean(user.value?.is_bot))
-const botCoverMedia = computed(() => resolveUserCoverMedia(user.value))
 const canEditProfile = computed(() => {
   if (!user.value) return false
   if (!isBotTarget.value) return true
   return isCurrentActorAdmin.value
 })
 const canUploadBotMedia = computed(() => isBotTarget.value && canEditProfile.value && isCurrentActorAdmin.value)
+const avatarSrc = computed(() =>
+  avatarPreview.value || normalizeAvatarUrl(user.value?.avatar_url || user.value?.avatarUrl || ''),
+)
+const persistedAvatarMode = computed(() => {
+  const persistedImage = normalizeAvatarUrl(user.value?.avatar_url || user.value?.avatarUrl || '')
+  const hasImage = String(avatarPreview.value || persistedImage || '').trim() !== '' && !avatarRemoveRequested.value
+  if (hasImage) return 'image'
+  return normalizeAvatarMode(user.value?.avatar_mode || user.value?.avatarMode)
+})
+const avatarResolved = computed(() =>
+  resolveAvatarState(user.value, {
+    avatarUrl: avatarSrc.value,
+    mode: avatarDraft.mode,
+    colorIndex: avatarDraft.color,
+    iconIndex: avatarDraft.icon,
+    seed: avatarDraft.seed,
+  }),
+)
+const iconOptions = computed(() =>
+  AVATAR_ICONS.map((iconKey, index) => ({
+    key: iconKey,
+    index,
+    label: formatIconLabel(iconKey),
+  })),
+)
+const botCoverMedia = computed(() => resolveUserCoverMedia(user.value))
+const coverEditorMedia = computed(() => {
+  if (coverPreview.value) {
+    return {
+      ...botCoverMedia.value,
+      imageUrl: coverPreview.value,
+      hasImage: true,
+      isBotFallback: false,
+    }
+  }
+  if (coverRemoveRequested.value) {
+    return {
+      ...botCoverMedia.value,
+      imageUrl: '',
+      hasImage: false,
+      isBotFallback: true,
+    }
+  }
+
+  return botCoverMedia.value
+})
+const mediaActionBusy = computed(() =>
+  avatarSaving.value ||
+  avatarUploading.value ||
+  avatarRemoving.value ||
+  coverSaving.value ||
+  coverUploading.value ||
+  coverRemoving.value ||
+  userLoading.value,
+)
 
 const reportColumns = [
   { key: 'type', label: 'Type' },
@@ -107,6 +198,9 @@ async function loadUser() {
       avatar_path: String(user.value?.avatar_path || ''),
       cover_path: String(user.value?.cover_path || ''),
     }
+    syncAvatarDraftFromUser()
+    clearPendingMedia('avatar')
+    clearPendingMedia('cover')
   } catch (e) {
     userError.value = e?.response?.data?.message || 'Failed to load user.'
   } finally {
@@ -149,6 +243,7 @@ function updateUser(updated) {
     avatar_path: String(user.value?.avatar_path || ''),
     cover_path: String(user.value?.cover_path || ''),
   }
+  syncAvatarDraftFromUser()
 }
 
 async function banUser() {
@@ -260,71 +355,306 @@ async function saveProfile() {
   }
 }
 
+function normalizeAvatarIndex(value, max) {
+  const index = coerceAvatarIndex(value, max)
+  return index === null ? null : index
+}
+
+function buildAvatarSnapshot(sourceUser) {
+  const imageUrl = normalizeAvatarUrl(sourceUser?.avatar_url || sourceUser?.avatarUrl || '')
+
+  return {
+    mode: imageUrl ? 'image' : normalizeAvatarMode(sourceUser?.avatar_mode || sourceUser?.avatarMode),
+    color: normalizeAvatarIndex(sourceUser?.avatar_color ?? sourceUser?.avatarColor, AVATAR_COLORS.length - 1),
+    icon: normalizeAvatarIndex(sourceUser?.avatar_icon ?? sourceUser?.avatarIcon, AVATAR_ICONS.length - 1),
+    seed: String(sourceUser?.avatar_seed || sourceUser?.avatarSeed || '').trim(),
+  }
+}
+
+function applyAvatarSnapshot(snapshot) {
+  avatarDraft.mode = snapshot.mode
+  avatarDraft.color = snapshot.color
+  avatarDraft.icon = snapshot.icon
+  avatarDraft.seed = snapshot.seed
+}
+
+function syncAvatarDraftFromUser() {
+  const snapshot = buildAvatarSnapshot(user.value)
+  avatarSnapshot.value = snapshot
+  applyAvatarSnapshot(snapshot)
+}
+
+function formatIconLabel(iconKey) {
+  const map = {
+    planet: 'Planeta',
+    star: 'Hviezda',
+    comet: 'Kometa',
+    constellation: 'Suhvezdie',
+    moon: 'Mesiac',
+  }
+
+  return map[iconKey] || iconKey
+}
+
+function clearMediaPreview(type) {
+  if (type === 'avatar') {
+    if (avatarPreview.value) {
+      URL.revokeObjectURL(avatarPreview.value)
+    }
+    avatarPreview.value = ''
+    return
+  }
+
+  if (coverPreview.value) {
+    URL.revokeObjectURL(coverPreview.value)
+  }
+  coverPreview.value = ''
+}
+
+function setMediaPreview(type, file) {
+  const previewUrl = URL.createObjectURL(file)
+  if (type === 'avatar') {
+    clearMediaPreview('avatar')
+    avatarPreview.value = previewUrl
+    return
+  }
+
+  clearMediaPreview('cover')
+  coverPreview.value = previewUrl
+}
+
+function clearPendingMedia(type) {
+  if (type === 'avatar') {
+    pendingAvatarFile.value = null
+    avatarRemoveRequested.value = false
+    clearMediaPreview('avatar')
+    return
+  }
+
+  pendingCoverFile.value = null
+  coverRemoveRequested.value = false
+  clearMediaPreview('cover')
+}
+
 function openBotMediaPicker(type) {
-  if (!canUploadBotMedia.value || userLoading.value || botAvatarUploading.value || botCoverUploading.value) return
-  const input = type === 'avatar' ? botAvatarInput.value : botCoverInput.value
+  if (!canUploadBotMedia.value || mediaActionBusy.value) return
+  const input = type === 'avatar' ? avatarInput.value : coverInput.value
   if (input) {
     input.click()
   }
 }
 
-function clearBotMediaInput(type) {
-  const input = type === 'avatar' ? botAvatarInput.value : botCoverInput.value
-  if (input) {
-    input.value = ''
+function openAvatarEditor() {
+  if (!user.value || !canUploadBotMedia.value) return
+  mediaError.value = ''
+  avatarErr.value = ''
+  clearPendingMedia('avatar')
+  syncAvatarDraftFromUser()
+  avatarModalOpen.value = true
+}
+
+function closeAvatarEditor() {
+  avatarModalOpen.value = false
+}
+
+function openCoverEditor() {
+  if (!user.value || !canUploadBotMedia.value) return
+  mediaError.value = ''
+  clearPendingMedia('cover')
+  coverModalOpen.value = true
+}
+
+function closeCoverEditor() {
+  coverModalOpen.value = false
+}
+
+function setAvatarMode(mode) {
+  avatarDraft.mode = mode === 'generated' ? 'generated' : 'image'
+  avatarErr.value = ''
+  if (avatarDraft.mode === 'generated') {
+    clearPendingMedia('avatar')
   }
 }
 
-async function uploadBotMedia(type, file) {
-  if (!user.value || !canUploadBotMedia.value) return
+function selectAvatarColor(index) {
+  avatarDraft.color = normalizeAvatarIndex(index, AVATAR_COLORS.length - 1)
+  avatarErr.value = ''
+}
 
-  userError.value = ''
-  if (type === 'avatar') {
-    botAvatarUploading.value = true
-  } else {
-    botCoverUploading.value = true
+function selectAvatarIcon(index) {
+  avatarDraft.icon = normalizeAvatarIndex(index, AVATAR_ICONS.length - 1)
+  avatarErr.value = ''
+}
+
+function resetGeneratedAvatar() {
+  avatarDraft.color = null
+  avatarDraft.icon = null
+  avatarDraft.seed = ''
+  avatarErr.value = ''
+}
+
+function buildRandomAvatarSeed() {
+  const base = `${user.value?.id || 'user'}:${Date.now()}:${Math.random()}`
+  return `rnd-${hashAvatarString(base).toString(36)}`
+}
+
+function randomizeAvatar() {
+  const seed = buildRandomAvatarSeed()
+  avatarDraft.seed = seed
+  avatarDraft.color = pickDeterministicAvatarIndex(seed, 'color', AVATAR_COLORS.length)
+  avatarDraft.icon = pickDeterministicAvatarIndex(seed, 'icon', AVATAR_ICONS.length)
+}
+
+function markAvatarImageForRemoval() {
+  avatarRemoveRequested.value = true
+  pendingAvatarFile.value = null
+  clearMediaPreview('avatar')
+}
+
+function markCoverForRemoval() {
+  coverRemoveRequested.value = true
+  pendingCoverFile.value = null
+  clearMediaPreview('cover')
+}
+
+function resolveMediaErrorMessage(error, fallback = 'Media update failed.') {
+  const status = error?.response?.status ?? null
+  const data = error?.response?.data
+
+  if (status === 422 && data?.errors) {
+    const firstField = Object.keys(data.errors)[0]
+    const first = firstField && Array.isArray(data.errors[firstField]) ? data.errors[firstField][0] : ''
+    return String(first || data?.message || fallback)
   }
 
+  return String(data?.message || fallback)
+}
+
+async function compressProfileMedia(file) {
+  let uploadFile = file
   try {
-    const form = new FormData()
-    form.append('file', file)
-    const res = await api.patch(`/admin/users/${user.value.id}/${type}`, form)
-    updateUser(res.data)
-    toast.success(type === 'avatar' ? 'Bot avatar updated.' : 'Bot cover updated.')
-  } catch (e) {
-    userError.value = e?.response?.data?.message || 'Media upload failed.'
-    toast.error(userError.value)
-  } finally {
-    if (type === 'avatar') {
-      botAvatarUploading.value = false
-    } else {
-      botCoverUploading.value = false
-    }
-    clearBotMediaInput(type)
+    uploadFile = await compressImageFileToMaxBytes(file, {
+      maxBytes: PROFILE_MEDIA_TARGET_MAX_BYTES,
+    })
+  } catch {
+    uploadFile = file
   }
+
+  if ((uploadFile?.size || 0) > PROFILE_MEDIA_UPLOAD_MAX_BYTES) {
+    throw new Error('Selected image is too large. Maximum size is 20 MB.')
+  }
+
+  return uploadFile
 }
 
 async function onBotMediaChange(type, event) {
   const selectedFile = event?.target?.files?.[0]
-  if (!selectedFile) return
+  if (!selectedFile || !canUploadBotMedia.value) return
+  event.target.value = ''
 
-  let uploadFile = selectedFile
+  mediaError.value = ''
+  avatarErr.value = ''
+
   try {
-    uploadFile = await compressImageFileToMaxBytes(selectedFile, {
-      maxBytes: PROFILE_MEDIA_TARGET_MAX_BYTES,
-    })
-  } catch {
-    uploadFile = selectedFile
+    const uploadFile = await compressProfileMedia(selectedFile)
+    setMediaPreview(type, uploadFile)
+    if (type === 'avatar') {
+      pendingAvatarFile.value = uploadFile
+      avatarRemoveRequested.value = false
+      avatarDraft.mode = 'image'
+    } else {
+      pendingCoverFile.value = uploadFile
+      coverRemoveRequested.value = false
+    }
+  } catch (error) {
+    const message = String(error?.message || 'Media update failed.')
+    mediaError.value = message
+    if (type === 'avatar') {
+      avatarErr.value = message
+    }
+    toast.error(message)
   }
+}
 
-  if ((uploadFile?.size || 0) > PROFILE_MEDIA_UPLOAD_MAX_BYTES) {
-    userError.value = 'Selected image is too large. Maximum size is 20 MB.'
-    toast.error(userError.value)
-    clearBotMediaInput(type)
-    return
+async function uploadBotMedia(type, file) {
+  const form = new FormData()
+  form.append('file', file)
+  const response = await api.patch(`/admin/users/${user.value.id}/${type}`, form)
+  updateUser(response.data)
+}
+
+async function saveAvatarPreferences() {
+  if (!user.value || !canUploadBotMedia.value || avatarSaving.value) return
+
+  avatarSaving.value = true
+  mediaError.value = ''
+  avatarErr.value = ''
+
+  try {
+    if (avatarRemoveRequested.value) {
+      avatarRemoving.value = true
+      const removeResponse = await api.delete(`/admin/users/${user.value.id}/avatar`)
+      updateUser(removeResponse.data)
+    }
+
+    if (pendingAvatarFile.value) {
+      avatarUploading.value = true
+      await uploadBotMedia('avatar', pendingAvatarFile.value)
+    }
+
+    const payload = {
+      avatar_mode: avatarDraft.mode,
+      avatar_color: avatarDraft.color,
+      avatar_icon: avatarDraft.icon,
+      avatar_seed: avatarDraft.seed || null,
+    }
+    const response = await api.patch(`/admin/users/${user.value.id}/avatar/preferences`, payload)
+    updateUser(response.data)
+
+    syncAvatarDraftFromUser()
+    clearPendingMedia('avatar')
+    avatarModalOpen.value = false
+    toast.success('Bot avatar updated.')
+  } catch (error) {
+    const message = resolveMediaErrorMessage(error, 'Avatar update failed.')
+    avatarErr.value = message
+    mediaError.value = message
+    toast.error(message)
+  } finally {
+    avatarSaving.value = false
+    avatarUploading.value = false
+    avatarRemoving.value = false
   }
+}
 
-  await uploadBotMedia(type, uploadFile)
+async function saveCoverEditor() {
+  if (!user.value || !canUploadBotMedia.value || coverSaving.value) return
+
+  coverSaving.value = true
+  mediaError.value = ''
+
+  try {
+    if (coverRemoveRequested.value) {
+      coverRemoving.value = true
+      const removeResponse = await api.delete(`/admin/users/${user.value.id}/cover`)
+      updateUser(removeResponse.data)
+    } else if (pendingCoverFile.value) {
+      coverUploading.value = true
+      await uploadBotMedia('cover', pendingCoverFile.value)
+    }
+
+    clearPendingMedia('cover')
+    coverModalOpen.value = false
+    toast.success('Bot cover updated.')
+  } catch (error) {
+    const message = resolveMediaErrorMessage(error, 'Cover update failed.')
+    mediaError.value = message
+    toast.error(message)
+  } finally {
+    coverSaving.value = false
+    coverUploading.value = false
+    coverRemoving.value = false
+  }
 }
 
 async function reportAction(report, action) {
@@ -375,6 +705,12 @@ watch(
   () => route.params.id,
   () => {
     clearReportFilters()
+    mediaError.value = ''
+    avatarErr.value = ''
+    avatarModalOpen.value = false
+    coverModalOpen.value = false
+    clearPendingMedia('avatar')
+    clearPendingMedia('cover')
     loadUser()
     if (activeTab.value === 'reports') {
       loadReports()
@@ -388,10 +724,33 @@ watch(activeTab, (tab) => {
   }
 })
 
+watch(
+  () => avatarModalOpen.value,
+  (isOpen, wasOpen) => {
+    if (!isOpen && wasOpen) {
+      syncAvatarDraftFromUser()
+      clearPendingMedia('avatar')
+      avatarErr.value = ''
+    }
+  },
+)
+
+watch(
+  () => coverModalOpen.value,
+  (isOpen, wasOpen) => {
+    if (!isOpen && wasOpen) {
+      clearPendingMedia('cover')
+      mediaError.value = ''
+    }
+  },
+)
+
 loadUser()
 
 onBeforeUnmount(() => {
   if (searchDebounce) clearTimeout(searchDebounce)
+  clearMediaPreview('avatar')
+  clearMediaPreview('cover')
 })
 </script>
 
@@ -482,61 +841,72 @@ onBeforeUnmount(() => {
       </div>
 
       <div v-if="isBotTarget" class="botMediaGrid">
-        <div class="botMediaCard">
-          <label class="fieldLabel">Bot avatar</label>
-          <UserAvatar class="botMediaPreview avatar" :user="user" :alt="`${user?.name || 'Bot'} avatar`" :size="120" />
-          <div v-if="canUploadBotMedia" class="botMediaPath">Path: {{ user?.avatar_path || '-' }}</div>
-          <div v-else class="botMediaReadonly">Read-only preview</div>
-          <template v-if="canUploadBotMedia">
-            <input
-              ref="botAvatarInput"
-              class="botMediaInput"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              :disabled="!canUploadBotMedia || userLoading || botAvatarUploading || botCoverUploading"
-              @change="onBotMediaChange('avatar', $event)"
-            />
+        <section class="botMediaCard profileCardLike">
+          <div class="avatarCardHead">
+            <div>
+              <h4 class="avatarCardTitle">Profilovy avatar</h4>
+              <p class="avatarCardSub">Fotka alebo generovany avatar.</p>
+            </div>
             <button
+              v-if="canUploadBotMedia"
               type="button"
-              class="btn action"
-              :disabled="!canUploadBotMedia || userLoading || botAvatarUploading || botCoverUploading"
-              @click="openBotMediaPicker('avatar')"
+              data-testid="admin-bot-avatar-edit"
+              class="btn outline avatarOpenBtn"
+              :disabled="mediaActionBusy"
+              @click="openAvatarEditor"
             >
-              {{ botAvatarUploading ? 'Uploading...' : 'Upload avatar' }}
+              Upravit
             </button>
-          </template>
-        </div>
+          </div>
 
-        <div class="botMediaCard">
-          <label class="fieldLabel">Bot cover</label>
+          <div class="avatarCardMeta">
+            <div class="avatar sm avatarCardPreview">
+              <UserAvatar
+                class="avatarImg"
+                :user="user"
+                :avatar-url="avatarSrc"
+                :alt="`${user?.name || 'Bot'} avatar`"
+              />
+            </div>
+            <div class="avatarCardInfo">
+              <div class="avatarModePill">{{ persistedAvatarMode === 'generated' ? 'Rezim Avatar' : 'Rezim Fotka' }}</div>
+              <p class="avatarHint avatarCardHint">Bez fotky sa pouzije fallback avatar.</p>
+            </div>
+          </div>
+
+          <div v-if="!canUploadBotMedia" class="botMediaReadonly">Read-only preview</div>
+          <div v-if="mediaError" class="msg err">{{ mediaError }}</div>
+        </section>
+
+        <section class="botMediaCard profileCardLike">
+          <div class="avatarCardHead">
+            <div>
+              <h4 class="avatarCardTitle">Titulna fotka</h4>
+              <p class="avatarCardSub">Nahraj alebo odstran titulnu fotku bota.</p>
+            </div>
+            <button
+              v-if="canUploadBotMedia"
+              type="button"
+              data-testid="admin-bot-cover-edit"
+              class="btn outline avatarOpenBtn"
+              :disabled="mediaActionBusy"
+              @click="openCoverEditor"
+            >
+              Upravit
+            </button>
+          </div>
+
           <div
             class="botMediaPreview cover"
             :class="{ 'botMediaPreview--fallback': botCoverMedia.isBotFallback }"
             :style="botCoverMedia.fallbackStyle"
           >
             <img v-if="botCoverMedia.hasImage" :src="botCoverMedia.imageUrl" alt="Bot cover" class="botCoverImage" />
+            <div class="coverGlow"></div>
           </div>
-          <div v-if="canUploadBotMedia" class="botMediaPath">Path: {{ user?.cover_path || '-' }}</div>
-          <div v-else class="botMediaReadonly">Read-only preview</div>
-          <template v-if="canUploadBotMedia">
-            <input
-              ref="botCoverInput"
-              class="botMediaInput"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              :disabled="!canUploadBotMedia || userLoading || botAvatarUploading || botCoverUploading"
-              @change="onBotMediaChange('cover', $event)"
-            />
-            <button
-              type="button"
-              class="btn action"
-              :disabled="!canUploadBotMedia || userLoading || botAvatarUploading || botCoverUploading"
-              @click="openBotMediaPicker('cover')"
-            >
-              {{ botCoverUploading ? 'Uploading...' : 'Upload cover' }}
-            </button>
-          </template>
-        </div>
+
+          <div v-if="!canUploadBotMedia" class="botMediaReadonly">Read-only preview</div>
+        </section>
       </div>
 
       <div class="headerActions">
@@ -544,6 +914,232 @@ onBeforeUnmount(() => {
           Save profile
         </button>
       </div>
+
+      <BaseModal
+        v-if="isBotTarget"
+        v-model:open="avatarModalOpen"
+        title="Upravit profilovy avatar"
+        test-id="admin-bot-avatar-modal"
+        close-test-id="admin-bot-avatar-modal-close"
+      >
+        <template #description>
+          <p class="avatarCardSub avatarModalSub">Vyber si fotku alebo personalizovany avatar.</p>
+        </template>
+
+        <div class="avatarEditorBody">
+          <div class="avatarModeSwitch" role="tablist" aria-label="Rezim profiloveho avatara">
+            <button
+              type="button"
+              class="modeBtn"
+              :class="{ active: avatarDraft.mode === 'image' }"
+              :disabled="mediaActionBusy"
+              @click="setAvatarMode('image')"
+            >
+              Fotka
+            </button>
+            <button
+              type="button"
+              class="modeBtn"
+              :class="{ active: avatarDraft.mode === 'generated' }"
+              :disabled="mediaActionBusy"
+              @click="setAvatarMode('generated')"
+            >
+              Avatar
+            </button>
+          </div>
+
+          <div class="avatarPreviewWrap">
+            <div class="avatar avatarPreviewAvatar">
+              <UserAvatar
+                class="avatarImg"
+                :user="user"
+                :size="112"
+                :avatar-url="avatarSrc"
+                :mode="avatarDraft.mode"
+                :prefer-image="avatarDraft.mode === 'image'"
+                :color-index="avatarDraft.color"
+                :icon-index="avatarDraft.icon"
+                :seed="avatarDraft.seed"
+                :alt="`${user?.name || 'Bot'} avatar`"
+              />
+            </div>
+            <p class="avatarHint">Pri mode Fotka bez obrazka ostava fallback avatar.</p>
+          </div>
+
+          <div v-if="avatarErr" class="msg err avatarMsg">{{ avatarErr }}</div>
+
+          <template v-if="avatarDraft.mode === 'image'">
+            <div class="avatarImageActions">
+              <button
+                type="button"
+                class="btn outline"
+                data-testid="admin-bot-avatar-upload"
+                :disabled="mediaActionBusy"
+                @click="openBotMediaPicker('avatar')"
+              >
+                {{ avatarUploading ? 'Nahravam...' : 'Nahrat fotku' }}
+              </button>
+              <button
+                type="button"
+                class="btn ghost"
+                data-testid="admin-bot-avatar-remove"
+                :disabled="mediaActionBusy"
+                @click="markAvatarImageForRemoval"
+              >
+                {{ avatarRemoving ? 'Odstranujem...' : 'Odstranit fotku' }}
+              </button>
+              <input
+                ref="avatarInput"
+                class="fileInput"
+                data-testid="admin-bot-avatar-input"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                :disabled="mediaActionBusy"
+                @change="onBotMediaChange('avatar', $event)"
+              />
+            </div>
+            <p class="avatarHint">Odporucana velkost: aspon 512x512 px, JPG/PNG/WebP, max 3 MB.</p>
+          </template>
+
+          <template v-else>
+            <div class="avatarPicker">
+              <div class="avatarPickerLabel">Symbol</div>
+              <div class="avatarIconGrid">
+                <button
+                  v-for="option in iconOptions"
+                  :key="option.index"
+                  type="button"
+                  class="avatarChoice iconChoice"
+                  :class="{ active: avatarResolved.iconIndex === option.index }"
+                  :disabled="mediaActionBusy"
+                  @click="selectAvatarIcon(option.index)"
+                >
+                  <DefaultAvatar
+                    class="choiceAvatar"
+                    :size="40"
+                    :color-index="avatarResolved.colorIndex"
+                    :icon-index="option.index"
+                  />
+                  <span class="choiceLabel">{{ option.label }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="avatarPicker">
+              <div class="avatarPickerLabel">Farba</div>
+              <div class="avatarColorGrid">
+                <button
+                  v-for="(color, index) in AVATAR_COLORS"
+                  :key="color"
+                  type="button"
+                  class="avatarChoice colorChoice"
+                  :class="{ active: avatarResolved.colorIndex === index }"
+                  :style="{ '--avatar-choice-color': color }"
+                  :disabled="mediaActionBusy"
+                  @click="selectAvatarColor(index)"
+                >
+                  <span class="colorSwatch" aria-hidden="true"></span>
+                  <span class="choiceLabel">Farba {{ index + 1 }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="avatarActionRow">
+              <button type="button" class="btn outline" :disabled="mediaActionBusy" @click="randomizeAvatar">
+                Nahodne
+              </button>
+              <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="resetGeneratedAvatar">
+                Reset
+              </button>
+            </div>
+          </template>
+
+          <div class="avatarActionRow avatarActionRowSave">
+            <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="closeAvatarEditor">
+              Zavriet
+            </button>
+            <button
+              type="button"
+              class="btn"
+              data-testid="admin-bot-avatar-save"
+              :disabled="mediaActionBusy"
+              @click="saveAvatarPreferences"
+            >
+              {{ avatarSaving ? 'Ukladam...' : 'Ulozit' }}
+            </button>
+          </div>
+        </div>
+      </BaseModal>
+
+      <BaseModal
+        v-if="isBotTarget"
+        v-model:open="coverModalOpen"
+        title="Upravit titulnu fotku"
+        test-id="admin-bot-cover-modal"
+        close-test-id="admin-bot-cover-modal-close"
+      >
+        <template #description>
+          <p class="avatarCardSub avatarModalSub">Zmen titulnu fotku alebo pouzi fallback pozadie.</p>
+        </template>
+
+        <div class="coverEditorBody">
+          <div
+            class="botMediaPreview cover coverEditorPreview"
+            :class="{ 'botMediaPreview--fallback': coverEditorMedia.isBotFallback }"
+            :style="coverEditorMedia.fallbackStyle"
+          >
+            <img v-if="coverEditorMedia.hasImage" :src="coverEditorMedia.imageUrl" alt="Bot cover" class="botCoverImage" />
+            <div class="coverGlow"></div>
+          </div>
+
+          <div class="avatarImageActions">
+            <button
+              type="button"
+              class="btn outline"
+              data-testid="admin-bot-cover-upload"
+              :disabled="mediaActionBusy"
+              @click="openBotMediaPicker('cover')"
+            >
+              {{ coverUploading ? 'Nahravam...' : 'Nahrat fotku' }}
+            </button>
+            <button
+              type="button"
+              class="btn ghost"
+              data-testid="admin-bot-cover-remove"
+              :disabled="mediaActionBusy"
+              @click="markCoverForRemoval"
+            >
+              {{ coverRemoving ? 'Odstranujem...' : 'Odstranit fotku' }}
+            </button>
+            <input
+              ref="coverInput"
+              class="fileInput"
+              data-testid="admin-bot-cover-input"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              :disabled="mediaActionBusy"
+              @change="onBotMediaChange('cover', $event)"
+            />
+          </div>
+
+          <div v-if="mediaError" class="msg err">{{ mediaError }}</div>
+
+          <div class="avatarActionRow avatarActionRowSave">
+            <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="closeCoverEditor">
+              Zavriet
+            </button>
+            <button
+              type="button"
+              class="btn"
+              data-testid="admin-bot-cover-save"
+              :disabled="mediaActionBusy"
+              @click="saveCoverEditor"
+            >
+              {{ coverSaving ? 'Ukladam...' : 'Ulozit' }}
+            </button>
+          </div>
+        </div>
+      </BaseModal>
     </section>
 
     <div class="tabs">
@@ -750,9 +1346,95 @@ onBeforeUnmount(() => {
 .botMediaCard {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
   border-radius: 12px;
-  padding: 10px;
+  padding: 12px;
   display: grid;
   gap: 8px;
+}
+
+.profileCardLike {
+  background: rgb(var(--color-surface-rgb) / 0.02);
+}
+
+.avatarCardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.avatarCardTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.avatarCardSub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  opacity: 0.78;
+}
+
+.avatarOpenBtn {
+  min-height: 34px;
+  padding: 0 14px;
+}
+
+.avatarCardMeta {
+  margin-top: 2px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  background: rgb(var(--color-bg-rgb) / 0.22);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgb(var(--color-bg-rgb) / 0.95);
+  outline: 1px solid rgb(var(--color-primary-rgb) / 0.55);
+  background: rgb(var(--color-primary-rgb) / 0.16);
+}
+
+.avatar.sm {
+  width: 44px;
+  height: 44px;
+  border-width: 1px;
+  outline: 1px solid rgb(var(--color-primary-rgb) / 0.35);
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 999px;
+}
+
+.avatarCardInfo {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.avatarModePill {
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.14);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.avatarCardHint {
+  text-align: left;
+  font-size: 12px;
 }
 
 .botMediaPreview {
@@ -773,6 +1455,10 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
+.coverEditorPreview {
+  min-height: 150px;
+}
+
 .botMediaPreview--fallback {
   box-shadow: inset 0 0 0 1px rgb(var(--color-primary-rgb) / 0.24);
 }
@@ -785,19 +1471,165 @@ onBeforeUnmount(() => {
   object-fit: cover;
 }
 
+.coverGlow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(2px 2px at 20% 30%, rgb(var(--text-primary-rgb) / 0.35), transparent 60%),
+    radial-gradient(2px 2px at 70% 40%, rgb(var(--text-primary-rgb) / 0.25), transparent 60%),
+    radial-gradient(2px 2px at 50% 70%, rgb(var(--text-primary-rgb) / 0.2), transparent 60%);
+  opacity: 0.6;
+}
+
 .botMediaReadonly {
   font-size: 12px;
   opacity: 0.75;
 }
 
-.botMediaPath {
-  font-size: 12px;
-  opacity: 0.75;
-  word-break: break-all;
+.msg {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
 }
 
-.botMediaInput {
+.msg.err {
+  border: 1px solid rgb(var(--color-danger-rgb, 239 68 68) / 0.35);
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.08);
+  color: var(--color-danger);
+}
+
+.fileInput {
   display: none;
+}
+
+.avatarModalSub {
+  margin: 4px 0 0;
+}
+
+.avatarEditorBody,
+.coverEditorBody {
+  display: grid;
+  gap: 12px;
+}
+
+.avatarModeSwitch {
+  margin-top: 0;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: rgb(var(--color-surface-rgb) / 0.06);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.modeBtn {
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modeBtn.active {
+  background: rgb(var(--color-primary-rgb) / 0.18);
+}
+
+.avatarPreviewWrap {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.avatarPreviewAvatar {
+  width: 112px;
+  height: 112px;
+  margin: 0;
+}
+
+.avatarImageActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.avatarHint {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.8;
+  text-align: center;
+}
+
+.avatarMsg {
+  margin-top: 0;
+}
+
+.avatarPickerLabel {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-bottom: 6px;
+}
+
+.avatarIconGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.avatarColorGrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.avatarChoice {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 10px;
+  padding: 6px;
+  background: rgb(var(--color-bg-rgb) / 0.28);
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  color: inherit;
+  transition: border-color 160ms ease, background-color 160ms ease;
+  cursor: pointer;
+}
+
+.avatarChoice.active {
+  border-color: rgb(var(--color-primary-rgb) / 0.8);
+  background: rgb(var(--color-primary-rgb) / 0.16);
+}
+
+.choiceAvatar {
+  width: 40px;
+  height: 40px;
+}
+
+.choiceLabel {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.colorSwatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 2px solid rgb(var(--color-bg-rgb) / 0.95);
+  outline: 1px solid rgb(var(--text-primary-rgb) / 0.25);
+  background: var(--avatar-choice-color);
+}
+
+.avatarActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.avatarActionRowSave {
+  justify-content: flex-end;
 }
 
 .fieldLabel {
@@ -837,20 +1669,43 @@ onBeforeUnmount(() => {
 }
 
 .btn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  border-radius: 10px;
-  padding: 6px 10px;
-  background: transparent;
-  color: inherit;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 0 14px;
+  background: rgb(var(--color-primary-rgb) / 0.9);
+  color: rgb(var(--color-bg-rgb) / 1);
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: rgb(var(--color-primary-rgb) / 1);
 }
 
 .btn.subtle {
   background: rgb(var(--color-surface-rgb) / 0.08);
+  color: inherit;
+  border-color: rgb(var(--color-surface-rgb) / 0.2);
+}
+
+.btn.outline {
+  background: transparent;
+  color: inherit;
+  border-color: rgb(var(--color-surface-rgb) / 0.2);
+}
+
+.btn.ghost {
+  background: transparent;
+  color: inherit;
+  border-color: rgb(var(--color-surface-rgb) / 0.16);
 }
 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 </style>

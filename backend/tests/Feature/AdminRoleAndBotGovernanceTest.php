@@ -100,6 +100,69 @@ class AdminRoleAndBotGovernanceTest extends TestCase
             ->assertJsonValidationErrors(['avatar_path', 'cover_path']);
     }
 
+    public function test_admin_can_manage_bot_avatar_preferences_and_remove_media(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $bot = User::factory()->bot()->create([
+            'username' => 'stellarbot',
+            'avatar_path' => 'avatars/1/current.png',
+            'cover_path' => 'covers/1/current.png',
+            'avatar_mode' => 'image',
+            'avatar_color' => null,
+            'avatar_icon' => null,
+            'avatar_seed' => null,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/admin/users/{$bot->id}/avatar/preferences", [
+            'avatar_mode' => 'image',
+            'avatar_color' => 4,
+            'avatar_icon' => 2,
+            'avatar_seed' => 'bot-seed',
+        ])->assertOk()
+            ->assertJsonPath('avatar_mode', 'image')
+            ->assertJsonPath('avatar_color', 4)
+            ->assertJsonPath('avatar_icon', 2)
+            ->assertJsonPath('avatar_seed', 'bot-seed');
+
+        $this->deleteJson("/api/admin/users/{$bot->id}/avatar")
+            ->assertOk()
+            ->assertJsonPath('avatar_path', null);
+
+        $this->deleteJson("/api/admin/users/{$bot->id}/cover")
+            ->assertOk()
+            ->assertJsonPath('cover_path', null);
+
+        $this->patchJson("/api/admin/users/{$bot->id}/avatar/preferences", [
+            'avatar_mode' => 'generated',
+            'avatar_color' => 1,
+            'avatar_icon' => 3,
+            'avatar_seed' => 'bot-seed-2',
+        ])->assertOk()
+            ->assertJsonPath('avatar_mode', 'generated');
+    }
+
+    public function test_non_admin_cannot_manage_bot_media_endpoints(): void
+    {
+        $editor = User::factory()->editor()->create();
+        $bot = User::factory()->bot()->create([
+            'username' => 'kozmobot',
+        ]);
+
+        Sanctum::actingAs($editor);
+
+        $this->patchJson("/api/admin/users/{$bot->id}/avatar/preferences", [
+            'avatar_mode' => 'generated',
+            'avatar_color' => 2,
+            'avatar_icon' => 1,
+            'avatar_seed' => 'seed',
+        ])->assertForbidden();
+
+        $this->deleteJson("/api/admin/users/{$bot->id}/avatar")->assertForbidden();
+        $this->deleteJson("/api/admin/users/{$bot->id}/cover")->assertForbidden();
+    }
+
     public function test_bot_role_email_is_forced_to_null(): void
     {
         $bot = User::factory()->create([

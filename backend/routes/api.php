@@ -431,8 +431,11 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::patch('/users/{user}/profile', [AdminUserController::class, 'updateProfile']);
         Route::post('/users/{user}/avatar', [AdminUserController::class, 'uploadAvatar']);
         Route::patch('/users/{user}/avatar', [AdminUserController::class, 'uploadAvatar']);
+        Route::delete('/users/{user}/avatar', [AdminUserController::class, 'removeAvatar']);
+        Route::patch('/users/{user}/avatar/preferences', [AdminUserController::class, 'updateAvatarPreferences']);
         Route::post('/users/{user}/cover', [AdminUserController::class, 'uploadCover']);
         Route::patch('/users/{user}/cover', [AdminUserController::class, 'uploadCover']);
+        Route::delete('/users/{user}/cover', [AdminUserController::class, 'removeCover']);
         Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivate']);
         Route::post('/users/{id}/reset-profile', [AdminUserController::class, 'resetProfile']);
 
