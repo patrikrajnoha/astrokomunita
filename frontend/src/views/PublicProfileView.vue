@@ -13,14 +13,19 @@
 
     <template v-else>
       <section class="profileShell">
-        <div class="cover">
-          <img v-if="coverUrl" class="coverImg" :src="coverUrl" alt="cover" />
+        <div
+          class="cover"
+          data-testid="public-profile-cover"
+          :class="{ 'cover--bot-fallback': coverMedia.isBotFallback }"
+          :style="coverMedia.fallbackStyle"
+        >
+          <img v-if="coverMedia.hasImage" class="coverImg" :src="coverMedia.imageUrl" alt="cover" />
           <div class="coverGlow"></div>
         </div>
 
         <div class="profileHead">
           <div class="avatar">
-            <UserAvatar class="avatarImg" :user="user" :alt="displayName" />
+            <UserAvatar class="avatarImg" :user="avatarUser" :alt="displayName" />
           </div>
 
           <div class="headActions">
@@ -101,7 +106,7 @@
         <div v-else class="postList">
           <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem">
             <div class="avatar sm">
-              <UserAvatar class="avatarImg" :user="user" :alt="displayName" />
+              <UserAvatar class="avatarImg" :user="avatarUser" :alt="displayName" />
             </div>
 
             <div class="postBody">
@@ -163,6 +168,7 @@ import HashtagText from '@/components/HashtagText.vue'
 import http from '@/services/api'
 import { listObservations } from '@/services/observations'
 import { formatDateTimeCompact } from '@/utils/dateUtils'
+import { resolveUserProfileMedia } from '@/utils/profileMedia'
 
 const router = useRouter()
 const route = useRoute()
@@ -191,52 +197,9 @@ const copyLabel = ref('Kopirovat link')
 const username = computed(() => String(route.params.username || ''))
 const displayName = computed(() => user.value?.name || 'Profil')
 const handle = computed(() => user.value?.username || safeHandle(user.value?.name || 'user'))
-
-const coverUrl = computed(() => normalizeAvatarUrl(user.value?.cover_url || user.value?.coverUrl))
-
-function normalizeAvatarUrl(raw) {
-  const u = String(raw || '').trim()
-  if (!u) return ''
-
-  const base = http?.defaults?.baseURL || ''
-  const origin = base.replace(/\/api\/?$/, '')
-  const appOrigin = origin || (typeof window !== 'undefined' ? window.location.origin : '')
-
-  const encodeMediaPath = (inputPath) =>
-    String(inputPath || '')
-      .split('/')
-      .filter(Boolean)
-      .map((segment) => encodeURIComponent(segment))
-      .join('/')
-
-  const absoluteStorageMatch = u.match(/^https?:\/\/[^/]+\/storage\/(.+)$/i)
-  if (absoluteStorageMatch) {
-    if (!appOrigin) return u
-    return `${appOrigin}/api/media/file/${encodeMediaPath(absoluteStorageMatch[1])}`
-  }
-
-  const absoluteMediaApiMatch = u.match(/^https?:\/\/[^/]+\/api\/media\/file\/(.+)$/i)
-  if (absoluteMediaApiMatch) {
-    if (!appOrigin) return u
-    return `${appOrigin}/api/media/file/${encodeMediaPath(absoluteMediaApiMatch[1])}`
-  }
-
-  if (u.startsWith('/storage/')) {
-    if (!appOrigin) return u
-    return `${appOrigin}/api/media/file/${encodeMediaPath(u.slice('/storage/'.length))}`
-  }
-
-  if (u.startsWith('/api/media/file/')) {
-    if (!appOrigin) return u
-    return `${appOrigin}/api/media/file/${encodeMediaPath(u.slice('/api/media/file/'.length))}`
-  }
-
-  if (/^https?:\/\//i.test(u)) return u
-  if (!appOrigin) return u
-
-  if (u.startsWith('/')) return appOrigin + u
-  return appOrigin + '/' + u
-}
+const resolvedMedia = computed(() => resolveUserProfileMedia(user.value))
+const avatarUser = computed(() => resolvedMedia.value.avatarUser)
+const coverMedia = computed(() => resolvedMedia.value.cover)
 
 function safeHandle(input) {
   return String(input).toLowerCase().replace(/[^a-z0-9_]+/g, '').slice(0, 20) || 'user'
@@ -522,6 +485,10 @@ onMounted(async () => {
     radial-gradient(700px 220px at 80% 30%, rgb(var(--color-primary-rgb) / 0.12), transparent 60%),
     linear-gradient(180deg, rgb(var(--color-bg-rgb) / 0.2), rgb(var(--color-bg-rgb) / 0.9));
   border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
+}
+
+.cover--bot-fallback {
+  box-shadow: inset 0 0 0 1px rgb(var(--color-primary-rgb) / 0.24);
 }
 .coverImg {
   position: absolute;
