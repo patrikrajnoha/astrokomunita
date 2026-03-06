@@ -51,8 +51,6 @@ const avatarErr = ref('')
 const profileForm = ref({
   name: '',
   bio: '',
-  avatar_path: '',
-  cover_path: '',
 })
 const avatarModalOpen = ref(false)
 const coverModalOpen = ref(false)
@@ -195,8 +193,6 @@ async function loadUser() {
     profileForm.value = {
       name: String(user.value?.name || ''),
       bio: String(user.value?.bio || ''),
-      avatar_path: String(user.value?.avatar_path || ''),
-      cover_path: String(user.value?.cover_path || ''),
     }
     syncAvatarDraftFromUser()
     clearPendingMedia('avatar')
@@ -240,8 +236,6 @@ function updateUser(updated) {
   profileForm.value = {
     name: String(user.value?.name || ''),
     bio: String(user.value?.bio || ''),
-    avatar_path: String(user.value?.avatar_path || ''),
-    cover_path: String(user.value?.cover_path || ''),
   }
   syncAvatarDraftFromUser()
 }
@@ -338,11 +332,6 @@ async function saveProfile() {
   const payload = {
     name: profileForm.value.name,
     bio: profileForm.value.bio || null,
-  }
-
-  if (!isBotTarget.value) {
-    payload.avatar_path = profileForm.value.avatar_path || null
-    payload.cover_path = profileForm.value.cover_path || null
   }
 
   try {
@@ -819,25 +808,6 @@ onBeforeUnmount(() => {
           rows="3"
         ></textarea>
 
-        <template v-if="!isBotTarget">
-          <label class="fieldLabel" for="profile-avatar">Avatar path</label>
-          <input
-            id="profile-avatar"
-            v-model="profileForm.avatar_path"
-            class="fieldInput"
-            :disabled="!canEditProfile || userLoading"
-            type="text"
-          />
-
-          <label class="fieldLabel" for="profile-cover">Cover path</label>
-          <input
-            id="profile-cover"
-            v-model="profileForm.cover_path"
-            class="fieldInput"
-            :disabled="!canEditProfile || userLoading"
-            type="text"
-          />
-        </template>
       </div>
 
       <div v-if="isBotTarget" class="botMediaGrid">
