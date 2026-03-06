@@ -78,7 +78,7 @@ services:
     environment:
       <<: *backend-common-env
       APP_URL: http://127.0.0.1:8001
-    command: sh -lc "if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --no-progress; fi && php artisan bots:sources:sync --quiet-summary && php artisan serve --host=0.0.0.0 --port=8001"
+    command: sh -lc "if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --no-progress; fi && php artisan migrate --force && php artisan bots:sources:sync --quiet-summary && php artisan serve --host=0.0.0.0 --port=8001"
     ports:
       - "8001:8001"
     depends_on:
@@ -94,7 +94,7 @@ services:
   queue-worker:
     <<: *backend-service
     container_name: astrokomunita-queue-worker
-    command: sh -lc "if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --no-progress; fi && php artisan bots:sources:sync --quiet-summary && php artisan queue:work --sleep=1 --tries=5 --timeout=120"
+    command: sh -lc "if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --no-progress; fi && php artisan queue:work --sleep=1 --tries=5 --timeout=120"
     depends_on:
       backend:
         condition: service_started
