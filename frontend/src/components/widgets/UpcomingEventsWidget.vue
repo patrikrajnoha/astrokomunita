@@ -43,7 +43,7 @@ export default {
     },
     showMoreLabel: {
       type: String,
-      default: 'Show more',
+      default: 'Zobrazit viac',
     },
     showMoreTo: {
       type: String,
@@ -108,17 +108,18 @@ export default {
 .panel {
   display: grid;
   gap: var(--sb-gap-sm, 0.5rem);
+  min-width: 0;
 }
 
 .panelTitle {
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.88rem;
-  line-height: 1.22;
+  font-size: 0.84rem;
+  line-height: 1.2;
 }
 
 .eventsViewport {
-  min-height: 6.25rem;
+  min-height: 5.3rem;
 }
 
 .eventsList {
@@ -131,12 +132,12 @@ export default {
 
 .eventItem {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: 4.6rem minmax(0, 1fr);
   align-items: start;
-  column-gap: 0.48rem;
+  column-gap: 0.44rem;
   row-gap: 0;
   border-bottom: 1px solid var(--divider-color);
-  padding: 0.46rem 0;
+  padding: 0.38rem 0;
 }
 
 .eventItem:last-child {
@@ -145,16 +146,16 @@ export default {
 
 .eventDate {
   color: var(--color-text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.69rem;
   line-height: 1.15;
   white-space: nowrap;
 }
 
 .eventTitle {
   color: var(--color-surface);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 700;
-  line-height: 1.24;
+  line-height: 1.2;
   display: -webkit-box;
   line-clamp: 2;
   -webkit-line-clamp: 2;
@@ -164,12 +165,12 @@ export default {
 
 .panelActions {
   display: flex;
-  padding-top: 0.35rem;
+  padding-top: 0.18rem;
 }
 
 .showMoreLink {
   color: var(--color-primary);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
   text-decoration: none;
   line-height: 1.2;
@@ -180,7 +181,7 @@ export default {
 }
 
 .panelLoading {
-  min-height: 6.25rem;
+  min-height: 5.3rem;
   display: grid;
   gap: var(--sb-gap-sm, 0.5rem);
 }
@@ -218,7 +219,7 @@ export default {
 }
 
 .stateTitle {
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   font-weight: 800;
   color: var(--color-surface);
   line-height: 1.24;
@@ -227,7 +228,7 @@ export default {
 .stateText {
   margin-top: 0.2rem;
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   line-height: 1.32;
 }
 

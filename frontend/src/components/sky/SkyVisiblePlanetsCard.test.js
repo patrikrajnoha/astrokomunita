@@ -62,9 +62,9 @@ describe('SkyVisiblePlanetsCard', () => {
 
     await flush()
 
-    expect(wrapper.text()).toContain('Viditeľná')
-    expect(wrapper.text()).toContain('Nízko nad obzorom')
-    expect(wrapper.text()).toContain('Blízko Slnka')
+    expect(wrapper.text()).toContain('Viditelna')
+    expect(wrapper.text()).toContain('Nizko nad obzorom')
+    expect(wrapper.text()).toContain('Blizko Slnka')
     expect(wrapper.text()).toContain('Elong:')
   })
 })

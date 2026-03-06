@@ -1,35 +1,30 @@
 <template>
-  <section class="sidebarDenseCard skyDense rounded-xl bg-slate-900/35 p-4 backdrop-blur">
-    <header class="flex items-start justify-between gap-2">
-      <div class="min-w-0">
-        <h3 class="sidebarSection__header text-[0.88rem] font-semibold leading-tight text-slate-100">Astronomicke podmienky</h3>
+  <section class="skyWidget ui-surface-card">
+    <header class="skyWidget__head">
+      <div class="skyWidget__titleWrap">
+        <p class="skyWidget__eyebrow">Astronomicke podmienky</p>
         <button
           type="button"
-          class="mt-0.5 max-w-full cursor-pointer truncate text-left text-xs leading-tight text-slate-300/80 underline-offset-2 transition hover:text-slate-100 hover:underline"
-          title="Zmeniť lokalitu"
+          class="skyWidget__locationBtn"
+          title="Upravit polohu"
           @click="goToProfileLocation"
         >
           Poloha: {{ locationLabel }}
         </button>
       </div>
 
-      <div class="flex items-center gap-1.5">
-        <span
-          v-if="globalFreshnessLabel"
-          class="rounded-full border border-white/5 bg-white/5 px-1.5 py-0.5 text-[9px] leading-tight text-slate-300"
-        >
-          {{ globalFreshnessLabel }}
-        </span>
+      <div class="skyWidget__headActions">
+        <span v-if="globalFreshnessLabel" class="skyWidget__freshness">{{ globalFreshnessLabel }}</span>
 
         <button
           v-if="isAdminUser"
           type="button"
           data-testid="sky-widget-reorder-toggle"
-          class="flex h-7 w-7 items-center justify-center rounded-full text-slate-200 transition hover:bg-white/10"
-          :title="editMode ? 'Ukoncit upravu widgetu' : 'Upravit poradie sekcii'"
+          class="skyWidget__iconBtn"
+          :title="editMode ? 'Ukoncit upravu poradia' : 'Upravit poradie sekcii'"
           @click="toggleEditMode"
         >
-          <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path d="M4 14.5 5 11l7.7-7.7a1.8 1.8 0 0 1 2.6 0l1.4 1.4a1.8 1.8 0 0 1 0 2.6L9 15l-3.5 1Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
             <path d="M11.8 4.2 15.8 8.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
           </svg>
@@ -37,11 +32,11 @@
 
         <button
           type="button"
-          class="flex h-7 w-7 items-center justify-center rounded-full text-slate-200 transition hover:bg-white/10"
-          title="Obnovit"
+          class="skyWidget__iconBtn"
+          title="Obnovit data"
           @click="refreshAll"
         >
-          <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path d="M3 10a7 7 0 0 1 12-4.9M17 10a7 7 0 0 1-12 4.9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
             <path d="M15 2.8v2.8h-2.8M5 17.2v-2.8h2.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
@@ -49,234 +44,179 @@
       </div>
     </header>
 
-    <section v-if="showPrimaryLoading" class="mt-1.5 space-y-1.5">
-      <div class="h-16 animate-pulse rounded-xl bg-white/5"></div>
-      <div class="h-12 animate-pulse rounded-xl bg-white/5"></div>
-      <div class="h-24 animate-pulse rounded-xl bg-white/5"></div>
+    <section v-if="showPrimaryLoading" class="skyWidget__loading">
+      <div class="skySkeleton skySkeleton--hero"></div>
+      <div class="skySkeleton"></div>
+      <div class="skySkeleton"></div>
     </section>
 
-    <section
+    <AsyncState
       v-else-if="canonicalLocationMissing"
-      class="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5"
-    >
-      <p class="text-sm font-medium leading-tight text-slate-100">Poloha nie je nastavená.</p>
-      <p class="mt-1 text-xs leading-tight text-slate-300">
-        Nastav si polohu v profile, aby sme vedeli zobraziť presné podmienky pre tvoju oblohu.
-      </p>
-      <button
-        type="button"
-        class="mt-2 inline-flex rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-950 transition hover:bg-white"
-        @click="goToProfileLocation"
-      >
-        Nastaviť polohu
-      </button>
+      mode="empty"
+      title="Poloha nie je nastavena"
+      message="Nastav si polohu v profile, aby sme vedeli vypocitat podmienky pre tvoju oblohu."
+      action-label="Nastavit polohu"
+      @action="goToProfileLocation"
+    />
+
+    <section v-else-if="hasPrimaryFetchError" class="skyWidget__stateWrap">
+      <InlineStatus
+        variant="error"
+        message="Nepodarilo sa nacitat podmienky pre tuto lokalitu."
+        action-label="Skusit znova"
+        @action="retryAllData"
+      />
+      <button type="button" class="skyWidget__ghostAction" @click="goToProfileLocation">Upravit polohu</button>
     </section>
 
-    <section
-      v-else-if="hasPrimaryFetchError"
-      class="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2.5"
-    >
-      <p class="text-sm font-medium leading-tight text-slate-100">Nepodarilo sa načítať podmienky.</p>
-      <p class="mt-1 text-xs leading-tight text-slate-300">
-        Skontroluj pripojenie alebo to skús znova.
-      </p>
-      <div class="mt-2 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          class="inline-flex rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-950 transition hover:bg-white"
-          @click="retryAllData"
-        >
-          Skúsiť znova
-        </button>
-        <button
-          type="button"
-          class="text-xs leading-tight text-slate-300 underline underline-offset-2 transition hover:text-slate-100"
-          @click="goToProfileLocation"
-        >
-          Upraviť polohu
-        </button>
-      </div>
-    </section>
-
-    <div v-else class="mt-3 divide-y divide-white/5">
-      <section
-        v-for="sectionId in orderedSectionIds"
-        :key="sectionId"
-        class="py-2.5 first:pt-0 last:pb-0"
-      >
-        <div class="flex items-start gap-2">
-          <div class="min-w-0 flex-1">
-            <template v-if="sectionId === 'hero_score'">
-              <p class="text-[10px] uppercase tracking-wide text-slate-500">{{ heroTitle }}</p>
-              <p class="mt-1.5 text-3xl font-semibold tracking-tight text-slate-100">
-                <template v-if="observingScoreValue === null">N/A</template>
-                <template v-else>
-                  {{ observingScoreValue }}
-                  <span class="text-sm text-slate-400">/100</span>
-                </template>
-              </p>
-              <p class="mt-1 text-base leading-tight text-slate-100">{{ scoreEmoji }} {{ scoreLabel }}</p>
-              <p
-                class="mt-1"
-                :class="isDaylight ? 'text-sm font-medium leading-tight text-slate-100' : 'text-xs leading-tight text-slate-300'"
-              >
-                {{ heroSubtitle }}
-              </p>
-              <button
-                v-if="scoreReasons.length > 0"
-                type="button"
-                class="mt-1 text-[11px] leading-tight text-slate-400 underline underline-offset-2 transition hover:text-slate-200"
-                @click="scoreReasonsOpen = !scoreReasonsOpen"
-              >
-                {{ scoreReasonsOpen ? 'Skryt preco' : 'Preco?' }}
-              </button>
-              <ul v-if="scoreReasonsOpen && scoreReasons.length > 0" class="mt-1 space-y-0.5 text-[11px] leading-tight text-slate-300">
-                <li v-for="reason in scoreReasons" :key="reason">- {{ reason }}</li>
-              </ul>
-              <div class="mt-2 h-1.5 rounded-full bg-white/5">
-                <div
-                  class="h-1.5 rounded-full"
-                  :class="scoreColorClass"
-                  :style="{ width: `${observingScoreWidth}%` }"
-                ></div>
-              </div>
-            </template>
-
-            <template v-else-if="sectionId === 'best_time'">
-              <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Najlepsie dnes</p>
-              <p class="mt-1 text-xs leading-tight text-slate-300">{{ bestTimeLabel }}</p>
-            </template>
-
-            <template v-else-if="sectionId === 'weather_inline'">
-              <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Pocasie teraz</p>
-              <div class="weatherGrid mt-1.5 text-center">
-                <div class="weatherMetric">
-                  <p class="text-[10px] uppercase tracking-wide text-slate-500">Oblaky</p>
-                  <p class="mt-0.5 text-xs font-medium leading-tight text-slate-100">{{ formattedMetrics.cloud }}</p>
-                </div>
-                <div class="weatherMetric">
-                  <p class="text-[10px] uppercase tracking-wide text-slate-500">Vlhkost</p>
-                  <p class="mt-0.5 text-xs font-medium leading-tight text-slate-100">{{ formattedMetrics.humidity }}</p>
-                </div>
-                <div class="weatherMetric">
-                  <p class="text-[10px] uppercase tracking-wide text-slate-500">Vietor</p>
-                  <p class="mt-0.5 text-xs font-medium leading-tight text-slate-100">{{ formattedMetrics.wind }}</p>
-                </div>
-                <div class="weatherMetric">
-                  <p class="text-[10px] uppercase tracking-wide text-slate-500">Teplota</p>
-                  <p class="mt-0.5 text-xs font-medium leading-tight text-slate-100">{{ formattedMetrics.temp }}</p>
-                </div>
-              </div>
-              <p class="mt-1.5 text-xs leading-tight text-slate-300">{{ formattedMetrics.conditionLabel }}</p>
-              <p class="mt-1 text-[11px] leading-tight text-slate-400">
-                Aktualizovane: {{ weatherUpdatedLabel }} · Zdroj: {{ weatherSourceLabel }}
-              </p>
-              <p v-if="weatherError" class="mt-1.5 text-[11px] leading-tight text-slate-400">
-                {{ weatherError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('weather')">Skúsiť znova</button>
-              </p>
-            </template>
-
-            <template v-else-if="sectionId === 'moon'">
-              <p class="text-xs leading-tight text-slate-100">{{ moonSummaryLine }}</p>
-              <button
-                type="button"
-                class="mt-1 text-[11px] leading-tight text-slate-400 underline underline-offset-2 transition hover:text-slate-200"
-                @click="moonDetailsOpen = !moonDetailsOpen"
-              >
-                {{ moonDetailsOpen ? 'Skryt detaily' : 'Detaily' }}
-              </button>
-              <p v-if="moonDetailsOpen" class="mt-1 text-[11px] leading-tight text-slate-400">{{ astronomyTimesLine }}</p>
-              <p v-if="astronomyError" class="mt-1 text-[11px] leading-tight text-slate-400">
-                {{ astronomyError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('astronomy')">Skúsiť znova</button>
-              </p>
-            </template>
-
-            <template v-else-if="sectionId === 'bortle'">
-              <p class="text-xs leading-tight text-slate-100">{{ lightPollutionLine || 'Svetelne znecistenie: nedostupne' }}</p>
-              <p v-if="lightPollutionMetaLine" class="mt-0.5 text-xs leading-tight text-slate-300">{{ lightPollutionMetaLine }}</p>
-              <p v-if="lightPollutionEstimateLine" class="mt-0.5 text-[11px] leading-tight text-slate-400">{{ lightPollutionEstimateLine }}</p>
-              <p v-if="lightPollutionError" class="mt-1 text-[11px] leading-tight text-slate-400">
-                {{ lightPollutionError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('lightPollution')">Skúsiť znova</button>
-              </p>
-            </template>
-
-            <template v-else-if="sectionId === 'planets'">
-              <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">Planéty</p>
-              <p v-if="planetsContextLine" class="mt-1 text-xs leading-tight text-slate-300">{{ planetsContextLine }}</p>
-
-              <div v-if="shouldShowPlanetsList" class="mt-1.5 space-y-1.5">
-                <div
-                  v-for="planet in planetsDisplayList"
-                  :key="planet.name"
-                  class="rounded-lg border border-white/5 bg-white/5 px-2.5 py-2"
-                >
-                  <div class="flex items-start justify-between gap-2">
-                    <div class="min-w-0">
-                      <p class="text-[13px] leading-tight text-slate-100">
-                        {{ planet.name }} · {{ planet.direction }} · {{ planet.altitudeLabel }}
-                      </p>
-                      <p class="mt-0.5 text-[11px] leading-tight text-slate-400">elongácia: {{ planet.elongationLabel }}</p>
-                      <p v-if="planet.bestTimeWindow" class="mt-0.5 text-[11px] leading-tight text-slate-400">najlepšie: {{ planet.bestTimeWindow }}</p>
-                    </div>
-                    <span
-                      class="shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-medium"
-                      :class="planet.visibilityToneClass"
-                    >
-                      {{ planet.visibilityLabel }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <p v-else class="mt-1 text-xs leading-tight text-slate-300">{{ planetsMessage }}</p>
-              <p class="mt-1 text-[11px] leading-tight text-slate-500">{{ planetsSourceLine }}</p>
-              <p v-if="planetsError" class="mt-1 text-[11px] leading-tight text-slate-400">
-                {{ planetsError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('planets')">Skúsiť znova</button>
-              </p>
-            </template>
-
-            <template v-else-if="sectionId === 'iss'">
-              <p class="text-[11px] font-medium uppercase tracking-wide text-slate-500">ISS</p>
-              <p class="mt-1 text-xs leading-tight text-slate-300">{{ issLine }}</p>
-              <p v-if="issError" class="mt-1 text-[11px] leading-tight text-slate-400">
-                {{ issError }}
-                <button type="button" class="ml-2 text-slate-200 underline underline-offset-2" @click="retryBlock('iss')">Skúsiť znova</button>
-              </p>
-            </template>
+    <div v-else class="skyWidget__content">
+      <section class="summaryCard">
+        <div class="summaryCard__top">
+          <div>
+            <p class="summaryCard__caption">Dnes vecer</p>
+            <p class="summaryCard__score">
+              <template v-if="observingScoreValue === null">N/A</template>
+              <template v-else>
+                {{ observingScoreValue }}
+                <span>/100</span>
+              </template>
+            </p>
+            <p class="summaryCard__label">{{ scoreLabel }}</p>
           </div>
 
-          <div v-if="editMode" class="flex shrink-0 flex-col gap-1">
-            <button
-              type="button"
-              class="rounded-lg border border-white/5 px-2 py-1 text-xs text-slate-200 transition hover:bg-white/10 disabled:opacity-30"
-              :disabled="isFirstSection(sectionId)"
-              @click="moveSectionById(sectionId, 'up')"
-            >
-              ↑
-            </button>
-            <button
-              type="button"
-              class="rounded-lg border border-white/5 px-2 py-1 text-xs text-slate-200 transition hover:bg-white/10 disabled:opacity-30"
-              :disabled="isLastSection(sectionId)"
-              @click="moveSectionById(sectionId, 'down')"
-            >
-              ↓
-            </button>
+          <div class="summaryCard__meta">
+            <span class="summaryCard__phase" :class="`summaryCard__phase--${scoreToneClass}`">{{ skyPhaseLabel }}</span>
+            <p class="summaryCard__window">Najlepsie okno: {{ bestTimeLabel }}</p>
           </div>
         </div>
+
+        <p class="summaryCard__recommendation">{{ recommendationLine }}</p>
+        <p v-if="countdownToNightLabel" class="summaryCard__countdown">{{ countdownToNightLabel }}</p>
+
+        <div class="summaryCard__barTrack">
+          <div class="summaryCard__bar" :class="scoreBarClass" :style="{ width: `${observingScoreWidth}%` }"></div>
+        </div>
+
+        <button type="button" class="summaryCard__toggle" @click="scoreFactorsOpen = !scoreFactorsOpen">
+          {{ scoreFactorsOpen ? 'Skryt faktory' : 'Zobrazit faktory skore' }}
+        </button>
+
+        <ul v-if="scoreFactorsOpen" class="factorList">
+          <li v-for="factor in scoreFactors" :key="factor.key" class="factorList__item" :class="`factorList__item--${factor.tone}`">
+            <div class="factorList__body">
+              <p class="factorList__label">{{ factor.label }}</p>
+              <p class="factorList__hint">{{ factor.hint }}</p>
+            </div>
+            <span class="factorList__value">{{ factor.value }}</span>
+          </li>
+        </ul>
+      </section>
+
+      <section v-for="sectionId in orderedSectionIds" :key="sectionId" class="infoSection">
+        <header class="infoSection__head">
+          <h4>{{ sectionTitle(sectionId) }}</h4>
+          <div v-if="editMode" class="infoSection__reorder">
+            <button type="button" class="skyWidget__iconBtn" :disabled="isFirstSection(sectionId)" @click="moveSectionById(sectionId, 'up')">↑</button>
+            <button type="button" class="skyWidget__iconBtn" :disabled="isLastSection(sectionId)" @click="moveSectionById(sectionId, 'down')">↓</button>
+          </div>
+        </header>
+
+        <template v-if="sectionId === 'weather'">
+          <div class="weatherGrid">
+            <div v-for="item in weatherRows" :key="item.key" class="metricItem">
+              <p class="metricItem__label">{{ item.label }}</p>
+              <p class="metricItem__value">{{ item.value }}</p>
+            </div>
+          </div>
+          <p class="infoSection__line">{{ formattedMetrics.conditionLabel }}</p>
+          <p class="infoSection__subline">Aktualizovane: {{ weatherUpdatedLabel }} | Zdroj: {{ weatherSourceLabel }}</p>
+          <InlineStatus
+            v-if="weatherError"
+            variant="error"
+            :message="weatherError"
+            action-label="Skusit znova"
+            @action="retryBlock('weather')"
+          />
+        </template>
+
+        <template v-else-if="sectionId === 'moon'">
+          <p class="infoSection__line">{{ moonSummaryLine }}</p>
+          <p class="infoSection__subline">{{ moonInfluenceLine }}</p>
+          <button type="button" class="summaryCard__toggle summaryCard__toggle--compact" @click="moonDetailsOpen = !moonDetailsOpen">
+            {{ moonDetailsOpen ? 'Skryt detaily' : 'Zobrazit detaily' }}
+          </button>
+          <p v-if="moonDetailsOpen" class="infoSection__subline">{{ astronomyTimesLine }}</p>
+          <InlineStatus
+            v-if="astronomyError"
+            variant="error"
+            :message="astronomyError"
+            action-label="Skusit znova"
+            @action="retryBlock('astronomy')"
+          />
+        </template>
+
+        <template v-else-if="sectionId === 'light_pollution'">
+          <p class="infoSection__line">{{ lightPollutionLine || 'Svetelne znecistenie nie je dostupne.' }}</p>
+          <p v-if="lightPollutionMetaLine" class="infoSection__subline">{{ lightPollutionMetaLine }}</p>
+          <p v-if="lightPollutionImpactLine" class="infoSection__subline">{{ lightPollutionImpactLine }}</p>
+          <p v-if="lightPollutionEstimateLine" class="infoSection__subline">{{ lightPollutionEstimateLine }}</p>
+          <InlineStatus
+            v-if="lightPollutionError"
+            variant="error"
+            :message="lightPollutionError"
+            action-label="Skusit znova"
+            @action="retryBlock('lightPollution')"
+          />
+        </template>
+
+        <template v-else-if="sectionId === 'planets'">
+          <p v-if="planetsContextLine" class="infoSection__subline">{{ planetsContextLine }}</p>
+
+          <div v-if="shouldShowPlanetsList" class="planetList">
+            <article v-for="planet in planetsDisplayList" :key="planet.name" class="planetRow">
+              <div>
+                <div class="planetRow__title">
+                  <p>{{ planet.name }}</p>
+                  <span :class="planet.visibilityToneClass">{{ planet.visibilityLabel }}</span>
+                </div>
+                <p class="planetRow__meta">Smer {{ planet.direction }} | Vyska {{ planet.altitudeLabel }} | Elongacia {{ planet.elongationLabel }}</p>
+                <p v-if="planet.bestTimeWindow" class="planetRow__meta">Najlepsie: {{ planet.bestTimeWindow }}</p>
+              </div>
+            </article>
+          </div>
+
+          <p v-else class="infoSection__line">{{ planetsMessage }}</p>
+          <p class="infoSection__subline">{{ planetsSourceLine }}</p>
+          <InlineStatus
+            v-if="planetsError"
+            variant="error"
+            :message="planetsError"
+            action-label="Skusit znova"
+            @action="retryBlock('planets')"
+          />
+        </template>
+
+        <template v-else-if="sectionId === 'iss'">
+          <p class="infoSection__line">{{ issPrimaryLine }}</p>
+          <p class="infoSection__subline">{{ issSecondaryLine }}</p>
+          <InlineStatus
+            v-if="issError"
+            variant="error"
+            :message="issError"
+            action-label="Skusit znova"
+            @action="retryBlock('iss')"
+          />
+        </template>
       </section>
     </div>
   </section>
 </template>
-
 <script setup>
 import { computed, ref, toRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AsyncState from '@/components/ui/AsyncState.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useSkyWidget } from '@/composables/useSkyWidget'
 import { SKY_WIDGET_SECTION_IDS, moveSection } from '@/utils/skyWidget'
 
@@ -291,8 +231,9 @@ const router = useRouter()
 const auth = useAuthStore()
 const editMode = ref(false)
 const moonDetailsOpen = ref(false)
-const scoreReasonsOpen = ref(false)
+const scoreFactorsOpen = ref(false)
 const sectionOrder = ref([...SKY_WIDGET_SECTION_IDS])
+
 const isAdminUser = computed(() => Boolean(auth.isAdmin))
 
 const {
@@ -311,18 +252,20 @@ const {
   issFreshness,
   lightPollutionFreshness,
   hasLocationCoords,
+  skyPhaseLabel,
   observingScore,
-  scoreReasons,
   scoreLabel,
-  scoreEmoji,
-  scoreColorClass,
-  heroTitle,
-  heroSubtitle,
+  scoreTone,
+  scoreFactors,
   bestTimeLabel,
+  countdownToNightLabel,
+  recommendationLine,
   formattedMetrics,
-  issLine,
+  issPrimaryLine,
+  issSecondaryLine,
   lightPollutionLine,
   lightPollutionMetaLine,
+  lightPollutionImpactLine,
   lightPollutionEstimateLine,
   weatherUpdatedLabel,
   weatherSourceLabel,
@@ -331,7 +274,6 @@ const {
   planetsContextLine,
   planetsSourceLine,
   shouldShowPlanetsList,
-  isDaylight,
   refreshAll,
   refreshBlock,
 } = useSkyWidget({
@@ -340,52 +282,63 @@ const {
   tz: toRef(props, 'tz'),
 })
 
-const showPrimaryLoading = computed(() => (weatherLoading.value && !weather.value) || (astronomyLoading.value && !astronomy.value))
+const showPrimaryLoading = computed(() => (
+  (weatherLoading.value && !weather.value) || (astronomyLoading.value && !astronomy.value)
+))
+
 const hasCoords = computed(() => Boolean(hasLocationCoords.value))
 const hasLabel = computed(() => sanitizeLabel(props.locationName).length > 0)
 const canonicalLocationMissing = computed(() => !hasCoords.value)
+
 const hasPrimaryFetchError = computed(() => (
-  hasCoords.value &&
-  !showPrimaryLoading.value &&
-  Boolean(weatherError.value || astronomyError.value || lightPollutionError.value)
+  hasCoords.value
+  && !showPrimaryLoading.value
+  && !weather.value
+  && !astronomy.value
+  && Boolean(weatherError.value || astronomyError.value)
 ))
-const orderedSectionIds = computed(() => sectionOrder.value.filter((sectionId) => {
-  if (!SKY_WIDGET_SECTION_IDS.includes(sectionId)) return false
-  if (sectionId === 'best_time' && isDaylight.value) return false
-  return true
-}))
+
+const orderedSectionIds = computed(() => sectionOrder.value.filter((sectionId) => SKY_WIDGET_SECTION_IDS.includes(sectionId)))
 
 const locationLabel = computed(() => {
   if (hasLabel.value) return sanitizeLabel(props.locationName)
-  return hasCoords.value ? 'nastavená' : 'nenastavená'
+  return hasCoords.value ? 'nastavena' : 'nenastavena'
 })
 
 const observingScoreValue = computed(() => (observingScore.value === null ? null : observingScore.value))
-const observingScoreWidth = computed(() => (observingScore.value === null ? 0 : observingScore.value))
+const observingScoreWidth = computed(() => (observingScore.value === null ? 0 : Math.max(0, Math.min(100, observingScore.value))))
 
-const sunWindowLabel = computed(() => {
+const weatherRows = computed(() => ([
+  { key: 'cloud', label: 'Oblacnost', value: formattedMetrics.value.cloud },
+  { key: 'humidity', label: 'Vlhkost', value: formattedMetrics.value.humidity },
+  { key: 'wind', label: 'Vietor', value: formattedMetrics.value.wind },
+  { key: 'temp', label: 'Teplota', value: formattedMetrics.value.temp },
+]))
+
+const moonSummaryLine = computed(() => {
+  const phase = translateMoonPhase(astronomy.value?.moon_phase)
+  const illumination = toFiniteNumber(astronomy.value?.moon_illumination_percent)
+  return illumination === null ? `Mesiac: ${phase}` : `Mesiac: ${phase} | osvetlenie ${Math.round(illumination)}%`
+})
+
+const moonInfluenceLine = computed(() => {
+  const illumination = toFiniteNumber(astronomy.value?.moon_illumination_percent)
+  const altitude = toFiniteNumber(astronomy.value?.moon_altitude_deg)
+
+  if (illumination === null || altitude === null) return 'Vplyv Mesiaca na oblohu nevieme presne urcit.'
+  if (altitude <= 0) return 'Mesiac je pod obzorom, tmavu oblohu nerusi.'
+  if (illumination >= 80) return 'Silny mesacny jas obmedzuje deep-sky objekty.'
+  if (illumination >= 50) return 'Mesiac mierne rusi tmavu oblohu.'
+  return 'Mesiac ma iba slabsi vplyv na tmavu oblohu.'
+})
+
+const astronomyTimesLine = computed(() => {
   const sunrise = formatIsoShort(astronomy.value?.sunrise_at)
   const sunset = formatIsoShort(astronomy.value?.sunset_at)
-  if (sunrise === '-' && sunset === '-') return 'nedostupne'
-  return `${sunrise}-${sunset}`
-})
-
-const moonWindowLabel = computed(() => {
   const moonrise = formatIsoShort(astronomy.value?.moonrise_at)
   const moonset = formatIsoShort(astronomy.value?.moonset_at)
-  if (moonrise === '-' && moonset === '-') return 'nedostupne'
-  return `${moonrise}-${moonset}`
+  return `Slnko ${sunrise}-${sunset} | Mesiac ${moonrise}-${moonset}`
 })
-
-const astronomyTimesLine = computed(() => `Slnko: ${sunWindowLabel.value} · Mesiac: ${moonWindowLabel.value}`)
-const moonPhaseLabel = computed(() => translateMoonPhase(astronomy.value?.moon_phase))
-const moonPhaseIcon = computed(() => getMoonPhaseIcon(astronomy.value?.moon_phase))
-const moonIlluminationLabel = computed(() => {
-  const illumination = toFiniteNumber(astronomy.value?.moon_illumination_percent)
-  if (illumination === null) return '-'
-  return `${Math.round(illumination)}%`
-})
-const moonSummaryLine = computed(() => `${moonPhaseIcon.value} Mesiac: ${moonPhaseLabel.value} · ${moonIlluminationLabel.value}`)
 
 const freshnessSources = computed(() => [
   weatherFreshness.value,
@@ -409,6 +362,33 @@ const globalFreshnessLabel = computed(() => {
   if (minutes[0] <= 0) return 'Aktualizovane prave teraz'
   return `Aktualizovane pred ${minutes[0]} min`
 })
+
+const scoreToneClass = computed(() => {
+  if (scoreTone.value === 'excellent') return 'excellent'
+  if (scoreTone.value === 'good') return 'good'
+  if (scoreTone.value === 'fair') return 'fair'
+  if (scoreTone.value === 'poor') return 'poor'
+  if (scoreTone.value === 'day') return 'day'
+  if (scoreTone.value === 'twilight') return 'twilight'
+  return 'neutral'
+})
+
+const scoreBarClass = computed(() => {
+  if (observingScoreValue.value === null) return 'summaryCard__bar--neutral'
+  if (observingScoreValue.value < 40) return 'summaryCard__bar--poor'
+  if (observingScoreValue.value < 65) return 'summaryCard__bar--fair'
+  if (observingScoreValue.value < 85) return 'summaryCard__bar--good'
+  return 'summaryCard__bar--excellent'
+})
+
+function sectionTitle(sectionId) {
+  if (sectionId === 'weather') return 'Pocasie'
+  if (sectionId === 'moon') return 'Mesiac'
+  if (sectionId === 'light_pollution') return 'Svetelne znecistenie'
+  if (sectionId === 'planets') return 'Viditelne planety'
+  if (sectionId === 'iss') return 'ISS'
+  return sectionId
+}
 
 function retryBlock(blockName) {
   refreshBlock(blockName)
@@ -437,7 +417,6 @@ function isLastSection(sectionId) {
 function goToProfileLocation() {
   router.push('/profile/edit#location')
 }
-
 function formatIsoShort(value) {
   if (!value) return '-'
   const date = new Date(value)
@@ -470,56 +449,537 @@ function translateMoonPhase(value) {
     last_quarter: 'Posledna stvrt',
     waning_crescent: 'Ubudajuci kosacik',
   }
+
   const key = sanitizeLabel(value).toLowerCase()
   return map[key] || 'Neznama faza'
-}
-
-function getMoonPhaseIcon(value) {
-  const map = {
-    new_moon: '🌑',
-    waxing_crescent: '🌒',
-    first_quarter: '🌓',
-    waxing_gibbous: '🌔',
-    full_moon: '🌕',
-    waning_gibbous: '🌖',
-    last_quarter: '🌗',
-    waning_crescent: '🌘',
-  }
-  const key = sanitizeLabel(value).toLowerCase()
-  return map[key] || '🌙'
 }
 
 function parseFreshnessMinutes(value) {
   const text = sanitizeLabel(value).toLowerCase()
   if (!text) return null
   if (text.includes('prave teraz')) return 0
+
   const match = text.match(/pred\s+(\d+)\s+min/)
   if (!match) return null
+
   const parsed = Number(match[1])
   return Number.isFinite(parsed) ? parsed : null
 }
 </script>
-
 <style scoped>
-.skyDense {
-  --sb-gap-xs: var(--sb-gap-xs, 0.3rem);
-  --sb-gap-sm: var(--sb-gap-sm, 0.5rem);
+.skyWidget {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+  background: linear-gradient(180deg, rgb(var(--bg-surface-rgb) / 0.96) 0%, rgb(var(--bg-surface-rgb) / 0.88) 100%);
+  border-color: rgb(var(--border-rgb) / 0.88);
+  color: var(--text-primary);
+  box-shadow: 0 14px 34px rgb(var(--bg-app-rgb) / 0.24);
+}
+
+.skyWidget__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.skyWidget__titleWrap {
+  min-width: 0;
+}
+
+.skyWidget__eyebrow {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.3;
+  letter-spacing: 0.015em;
+  font-weight: 700;
+  color: rgb(var(--text-primary-rgb) / 0.95);
+}
+
+.skyWidget__locationBtn {
+  margin-top: 0.2rem;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.79rem;
+  line-height: 1.35;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+  max-width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.skyWidget__locationBtn:hover {
+  color: var(--text-primary);
+}
+
+.skyWidget__headActions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  flex-shrink: 1;
+  justify-content: flex-end;
+}
+
+.skyWidget__freshness {
+  font-size: 0.67rem;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  border: 1px solid rgb(var(--border-rgb) / 0.82);
+  border-radius: 999px;
+  padding: 0.22rem 0.46rem;
+  max-width: 6rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skyWidget__iconBtn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgb(var(--border-rgb) / 0.9);
+  border-radius: 0.8rem;
+  background: rgb(var(--bg-app-rgb) / 0.2);
+  color: rgb(var(--text-primary-rgb) / 0.92);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.skyWidget__iconBtn:hover {
+  border-color: rgb(var(--primary-rgb) / 0.42);
+  background: rgb(var(--text-primary-rgb) / 0.08);
+  transform: translateY(-1px);
+}
+
+.skyWidget__iconBtn:disabled {
+  opacity: 0.4;
+  transform: none;
+}
+
+.skyWidget__loading {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.skySkeleton {
+  height: 4.2rem;
+  border-radius: 0.95rem;
+  background: linear-gradient(90deg, rgb(var(--bg-surface-2-rgb) / 0.62), rgb(var(--text-primary-rgb) / 0.06), rgb(var(--bg-surface-2-rgb) / 0.62));
+  background-size: 200% 100%;
+  animation: sky-skeleton 1.5s linear infinite;
+}
+
+.skySkeleton--hero {
+  height: 8rem;
+}
+
+.skyWidget__stateWrap {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.skyWidget__ghostAction {
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.79rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.skyWidget__ghostAction:hover {
+  color: var(--text-primary);
+}
+
+.skyWidget__content {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.summaryCard {
+  border: 1px solid rgb(var(--border-rgb) / 0.9);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgb(var(--bg-app-rgb) / 0.28), rgb(var(--bg-app-rgb) / 0.18));
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.summaryCard__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.summaryCard__top > * {
+  min-width: 0;
+}
+
+.summaryCard__caption {
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.summaryCard__score {
+  margin: 0.1rem 0 0;
+  font-size: 2.1rem;
+  line-height: 1.05;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.summaryCard__score span {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.summaryCard__label {
+  margin: 0.15rem 0 0;
+  font-size: 0.92rem;
+  font-weight: 650;
+  color: rgb(var(--text-primary-rgb) / 0.9);
+}
+
+.summaryCard__meta {
+  display: grid;
+  gap: 0.35rem;
+  align-content: start;
+  justify-items: end;
+  min-width: 0;
+  max-width: 11.5rem;
+}
+
+.summaryCard__phase {
+  border-radius: 999px;
+  border: 1px solid rgb(var(--border-rgb) / 0.9);
+  padding: 0.24rem 0.56rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.summaryCard__phase--excellent,
+.summaryCard__bar--excellent {
+  color: rgb(var(--success-rgb) / 0.98);
+  background: rgb(var(--success-rgb) / 0.12);
+  border-color: rgb(var(--success-rgb) / 0.42);
+}
+
+.summaryCard__phase--good,
+.summaryCard__bar--good {
+  color: rgb(var(--primary-rgb) / 0.98);
+  background: rgb(var(--primary-rgb) / 0.16);
+  border-color: rgb(var(--primary-rgb) / 0.46);
+}
+
+.summaryCard__phase--fair,
+.summaryCard__bar--fair {
+  color: rgb(var(--warning-rgb) / 0.95);
+  background: rgb(var(--warning-rgb) / 0.16);
+  border-color: rgb(var(--warning-rgb) / 0.45);
+}
+
+.summaryCard__phase--poor,
+.summaryCard__bar--poor {
+  color: rgb(var(--danger-rgb) / 0.95);
+  background: rgb(var(--danger-rgb) / 0.16);
+  border-color: rgb(var(--danger-rgb) / 0.45);
+}
+
+.summaryCard__phase--day,
+.summaryCard__phase--twilight,
+.summaryCard__phase--neutral,
+.summaryCard__bar--neutral {
+  color: var(--text-secondary);
+  background: rgb(var(--bg-surface-2-rgb) / 0.62);
+  border-color: rgb(var(--border-rgb) / 0.9);
+}
+
+.summaryCard__window,
+.summaryCard__recommendation,
+.summaryCard__countdown {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  text-align: right;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.summaryCard__recommendation,
+.summaryCard__countdown {
+  text-align: left;
+}
+
+.summaryCard__barTrack {
+  height: 0.42rem;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgb(var(--bg-surface-2-rgb) / 0.74);
+}
+
+.summaryCard__bar {
+  height: 100%;
+  border-radius: inherit;
+  border: 1px solid transparent;
+  transition: width 220ms ease;
+}
+
+.summaryCard__toggle {
+  border: 0;
+  background: transparent;
+  justify-self: start;
+  padding: 0;
+  font-size: 0.76rem;
+  color: rgb(var(--primary-rgb) / 0.95);
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.summaryCard__toggle--compact {
+  margin-top: 0.1rem;
+}
+
+.factorList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.42rem;
+}
+
+.factorList__item {
+  border: 1px solid rgb(var(--border-rgb) / 0.9);
+  border-radius: 0.78rem;
+  padding: 0.48rem 0.58rem;
+  background: rgb(var(--bg-app-rgb) / 0.16);
+  display: flex;
+  gap: 0.55rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.factorList__label,
+.factorList__hint,
+.factorList__value {
+  margin: 0;
+}
+
+.factorList__label {
+  font-size: 0.76rem;
+  color: rgb(var(--text-primary-rgb) / 0.95);
+  font-weight: 650;
+}
+
+.factorList__hint {
+  margin-top: 0.1rem;
+  font-size: 0.69rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.factorList__value {
+  font-size: 0.74rem;
+  color: rgb(var(--text-primary-rgb) / 0.95);
+  white-space: nowrap;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.factorList__item--positive {
+  border-color: rgb(var(--success-rgb) / 0.36);
+}
+
+.factorList__item--negative {
+  border-color: rgb(var(--danger-rgb) / 0.38);
+}
+
+.infoSection {
+  border: 1px solid rgb(var(--border-rgb) / 0.88);
+  border-radius: 0.95rem;
+  background: rgb(var(--bg-app-rgb) / 0.18);
+  padding: 0.72rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.infoSection__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.infoSection__head h4 {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgb(var(--text-primary-rgb) / 0.95);
+}
+
+.infoSection__line,
+.infoSection__subline {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.infoSection__line {
+  font-size: 0.82rem;
+  color: rgb(var(--text-primary-rgb) / 0.95);
+}
+
+.infoSection__subline {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.infoSection__reorder {
+  display: flex;
+  gap: 0.35rem;
 }
 
 .weatherGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
-  gap: var(--sb-gap-xs);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
 }
 
-.weatherMetric {
+.metricItem {
+  border-radius: 0.72rem;
+  border: 1px solid rgb(var(--border-rgb) / 0.86);
+  background: rgb(var(--bg-surface-2-rgb) / 0.24);
+  padding: 0.45rem 0.5rem;
+}
+
+.metricItem__label,
+.metricItem__value {
+  margin: 0;
+}
+
+.metricItem__label {
+  font-size: 0.67rem;
+  color: var(--text-secondary);
+}
+
+.metricItem__value {
+  margin-top: 0.08rem;
+  font-size: 0.8rem;
+  color: rgb(var(--text-primary-rgb) / 0.96);
+  font-weight: 650;
+}
+
+.planetList {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.planetRow {
+  border: 1px solid rgb(var(--border-rgb) / 0.9);
+  border-radius: 0.78rem;
+  background: rgb(var(--bg-surface-2-rgb) / 0.18);
+  padding: 0.52rem;
+}
+
+.planetRow__title {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: flex-start;
   min-width: 0;
 }
 
-@media (max-width: 360px) {
-  .weatherGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.planetRow__title p {
+  margin: 0;
+  font-size: 0.81rem;
+  color: rgb(var(--text-primary-rgb) / 0.95);
+  font-weight: 650;
+  min-width: 0;
+}
+
+.planetRow__meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.71rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.planetBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--border-rgb) / 0.9);
+  padding: 0 0.5rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.planetBadge--visible {
+  border-color: rgb(var(--success-rgb) / 0.44);
+  background: rgb(var(--success-rgb) / 0.16);
+  color: rgb(var(--success-rgb) / 0.95);
+}
+
+.planetBadge--warning {
+  border-color: rgb(var(--warning-rgb) / 0.44);
+  background: rgb(var(--warning-rgb) / 0.16);
+  color: rgb(var(--warning-rgb) / 0.95);
+}
+
+.infoSection :deep(.inlineStatus) {
+  margin-top: 0.15rem;
+}
+
+@keyframes sky-skeleton {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (max-width: 640px) {
+  .skyWidget {
+    padding: 0.85rem;
+  }
+
+  .summaryCard__score {
+    font-size: 1.85rem;
+  }
+
+  .summaryCard__top {
+    flex-direction: column;
+  }
+
+  .summaryCard__meta {
+    justify-items: start;
+  }
+
+  .summaryCard__window {
+    text-align: left;
   }
 }
 </style>
-

@@ -172,7 +172,7 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    const locationButton = wrapper.find('button[title="Zmeniť lokalitu"]')
+    const locationButton = wrapper.find('button[title="Upravit polohu"]')
     await locationButton.trigger('click')
 
     expect(pushMock).toHaveBeenCalledWith('/profile/edit#location')
@@ -185,8 +185,8 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.text()).toContain('Svetelné znečistenie: vysoke')
-    expect(wrapper.text()).toContain('Mesto (Bortle 7)')
+    expect(wrapper.text()).toContain('Vyssie svetelne znecistenie')
+    expect(wrapper.text()).toContain('Mesto - Bortle 7')
     expect(wrapper.text()).toContain('Odhad podľa polohy')
   })
 
@@ -198,14 +198,21 @@ describe('RightObservingSidebar', () => {
     await wait()
 
     expect(wrapper.text()).toContain('Jupiter')
-    expect(wrapper.text()).toContain('Viditeľná')
-    expect(wrapper.text()).toContain('Nízko nad obzorom')
-    expect(wrapper.text()).toContain('Blízko Slnka')
-    expect(wrapper.text()).toContain('elongácia:')
+    expect(wrapper.text()).toContain('Viditelna')
+    expect(wrapper.text()).toContain('Nizko nad obzorom')
+    expect(wrapper.text()).toContain('Blizko Slnka')
+    expect(wrapper.text()).toContain('Elongacia')
   })
 
   it('hides the planet list until night based on sun_altitude_deg', async () => {
     getMock.mockImplementation(async (url) => {
+      if (url === '/sky/astronomy') {
+        return buildAstronomyResponse({
+          sample_at: '2026-02-27T11:57:00+01:00',
+          sun_altitude_deg: -8.0,
+        })
+      }
+
       if (url === '/sky/visible-planets') {
         return {
           data: {
@@ -227,7 +234,7 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.text()).toContain('Zobrazíme po zotmení.')
+    expect(wrapper.text()).toContain('Zobrazime po zotmeni.')
     expect(wrapper.text()).not.toContain('Jupiter')
   })
 
@@ -238,6 +245,9 @@ describe('RightObservingSidebar', () => {
         return buildAstronomyResponse({
           sample_at: '2026-01-15T00:00:00+01:00',
           sun_altitude_deg: -32.4,
+          sunrise_at: '2026-01-15T07:35:00+01:00',
+          sunset_at: '2026-01-15T16:20:00+01:00',
+          civil_twilight_end_at: '2026-01-15T17:05:00+01:00',
         })
       }
       return buildGetResponse(url)
@@ -250,7 +260,8 @@ describe('RightObservingSidebar', () => {
     await wait()
 
     expect(wrapper.text()).toContain('/100')
-    expect(wrapper.text()).not.toContain('Astronomicky sumrak')
+    expect(wrapper.text()).toContain('Astronomicka noc')
+    expect(wrapper.text()).toContain('Najlepsie okno: Prave prebieha')
   })
 
   it('uses twilight bucket at Bratislava summer midnight when sun altitude is above -18', async () => {
@@ -316,6 +327,33 @@ describe('RightObservingSidebar', () => {
     expect(wrapper.text()).toContain('svetlo')
   })
 
+  it('falls back to timeline phase when sun altitude sample is stale at night', async () => {
+    vi.setSystemTime(new Date('2026-02-27T21:00:00+01:00'))
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/astronomy') {
+        return buildAstronomyResponse({
+          sample_at: '2026-02-27T10:00:00+01:00',
+          sun_altitude_deg: 14.2,
+          sunset_at: '2026-02-27T17:22:00+01:00',
+          civil_twilight_end_at: '2026-02-27T18:05:00+01:00',
+          sunrise_at: '2026-02-27T06:47:00+01:00',
+        })
+      }
+      return buildGetResponse(url)
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.1486, lon: 17.1077, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('/100')
+    expect(wrapper.text()).toContain('Astronomicka noc')
+    expect(wrapper.text()).not.toContain('Denne svetlo')
+    expect(wrapper.text()).not.toContain('Tma uz nastala.')
+  })
+
   it('retries weather fetch after pressing retry button', async () => {
     let weatherAttempts = 0
     getMock.mockImplementation(async (url) => {
@@ -334,9 +372,9 @@ describe('RightObservingSidebar', () => {
     })
 
     await wait()
-    expect(wrapper.text()).toContain('Skúsiť znova')
+    expect(wrapper.text()).toContain('Skusit znova')
 
-    const retryButtons = wrapper.findAll('button').filter((button) => button.text().includes('Skúsiť znova'))
+    const retryButtons = wrapper.findAll('button').filter((button) => button.text().includes('Skusit znova'))
     expect(retryButtons.length).toBeGreaterThan(0)
     await retryButtons[0].trigger('click')
     await wait()
@@ -344,14 +382,14 @@ describe('RightObservingSidebar', () => {
     expect(weatherAttempts).toBeGreaterThanOrEqual(2)
   })
 
-  it('renders score reasons in the expandable "Preco?" panel', async () => {
+  it('renders score factors in the expandable details panel', async () => {
     const wrapper = mount(RightObservingSidebar, {
       props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
     })
 
     await wait()
 
-    const reasonsToggle = wrapper.findAll('button').find((button) => button.text().includes('Preco?'))
+    const reasonsToggle = wrapper.findAll('button').find((button) => button.text().includes('Zobrazit faktory skore'))
     expect(reasonsToggle).toBeDefined()
     await reasonsToggle.trigger('click')
     await wait()
@@ -367,9 +405,9 @@ describe('RightObservingSidebar', () => {
     await wait()
 
     expect(getMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Poloha: nenastavená')
-    expect(wrapper.text()).toContain('Poloha nie je nastavená')
-    expect(wrapper.text()).toContain('Nastaviť polohu')
+    expect(wrapper.text()).toContain('Poloha: nenastavena')
+    expect(wrapper.text()).toContain('Poloha nie je nastavena')
+    expect(wrapper.text()).toContain('Nastavit polohu')
   })
 
   it('shows fetch-error state with retry CTA when location exists but API fails', async () => {
@@ -387,9 +425,9 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.text()).toContain('Nepodarilo sa načítať podmienky.')
-    expect(wrapper.text()).toContain('Skúsiť znova')
-    expect(wrapper.text()).not.toContain('Nastaviť polohu')
+    expect(wrapper.text()).toContain('Nepodarilo sa nacitat podmienky pre tuto lokalitu.')
+    expect(wrapper.text()).toContain('Skusit znova')
+    expect(wrapper.text()).toContain('Upravit polohu')
   })
 
   it('shows loading skeleton without CTA while primary data is loading', async () => {
@@ -407,8 +445,8 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.find('.animate-pulse').exists()).toBe(true)
-    expect(wrapper.text()).not.toContain('Nastaviť polohu')
-    expect(wrapper.text()).not.toContain('Skúsiť znova')
+    expect(wrapper.find('.skySkeleton').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('Nastavit polohu')
+    expect(wrapper.text()).not.toContain('Skusit znova')
   })
 })
