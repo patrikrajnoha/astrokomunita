@@ -658,8 +658,13 @@ onMounted(async () => {
   gap: 0.85rem;
   padding: 0.9rem 0.1rem;
   border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
+  min-width: 0;
 }
 .postItem:first-child { border-top: 0; }
+
+.postBody {
+  min-width: 0;
+}
 
 .postMeta {
   display: flex;
@@ -684,10 +689,14 @@ onMounted(async () => {
 .replyText { color: var(--color-surface); margin-left: 0.25rem; }
 
 .postContent {
+  display: block;
+  max-width: 100%;
   margin-top: 0.25rem;
   color: var(--color-surface);
   white-space: pre-wrap;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .attachment { margin-top: 0.6rem; }

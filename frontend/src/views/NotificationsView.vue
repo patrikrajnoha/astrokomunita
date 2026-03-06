@@ -1,79 +1,91 @@
 <template>
-  <section class="min-h-screen bg-[var(--bg-app)] px-4 py-10 text-[var(--text-primary)] sm:px-8">
-    <div class="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <header class="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 class="text-4xl font-black tracking-tight sm:text-5xl">Notifications</h1>
-          <p class="mt-2 text-sm text-[var(--text-secondary)]">Your latest activity updates.</p>
+  <section class="min-h-screen bg-[linear-gradient(180deg,rgb(var(--bg-app-rgb)/0.98)_0%,rgb(var(--bg-app-rgb)/0.95)_48%,rgb(var(--bg-surface-rgb)/0.94)_100%)] text-[var(--text-primary)]">
+    <div class="mx-auto flex min-h-screen w-full max-w-5xl flex-col">
+      <header class="flex items-center justify-between px-5 pb-5 pt-6 sm:px-8">
+        <h1 class="text-3xl font-black tracking-tight sm:text-4xl">Notifications</h1>
+        <button
+          data-testid="open-notification-settings"
+          class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[color:rgb(var(--text-secondary-rgb)/0.3)] text-[var(--text-secondary)] transition hover:border-[color:rgb(var(--text-secondary-rgb)/0.55)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+          type="button"
+          @click="openSettingsModal"
+        >
+          <span class="sr-only">Open notification settings</span>
+          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.2"></circle>
+            <path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.56V20.5a2 2 0 0 1-4 0v-.08a1.7 1.7 0 0 0-1-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1H3.5a2 2 0 0 1 0-4h.08a1.7 1.7 0 0 0 1.56-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.56V3.5a2 2 0 0 1 4 0v.08a1.7 1.7 0 0 0 1 1.56h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.56 1H20.5a2 2 0 0 1 0 4h-.08a1.7 1.7 0 0 0-1.56 1z"></path>
+          </svg>
+        </button>
+      </header>
+
+      <div class="border-b border-[color:rgb(var(--text-secondary-rgb)/0.2)]"></div>
+
+      <div v-if="isInitialLoading" class="mx-auto w-full max-w-3xl space-y-3 px-5 py-7 sm:px-8" data-testid="notifications-page-loading">
+        <div
+          v-for="index in 5"
+          :key="`notification-list-skeleton-${index}`"
+          class="h-16 animate-pulse rounded-2xl bg-[color:rgb(var(--bg-surface-2-rgb)/0.5)]"
+        ></div>
+      </div>
+
+      <div v-else-if="error" class="flex flex-1 flex-col items-center justify-center px-5 py-12 text-center" data-testid="notifications-page-error">
+        <p class="text-sm text-[var(--primary-active)]">{{ error }}</p>
+        <button type="button" class="ui-pill ui-pill--secondary mt-3 text-xs uppercase tracking-wide" @click="retry">
+          Retry
+        </button>
+      </div>
+
+      <div v-else-if="!items.length" class="flex flex-1 flex-col items-center px-5 py-16 text-center">
+        <div class="mt-8 flex h-full min-h-[60vh] flex-col items-center pt-16" data-testid="notifications-page-empty">
+          <svg viewBox="0 0 24 24" class="h-14 w-14 text-[color:rgb(var(--text-secondary-rgb)/0.88)]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6.5 8a5.5 5.5 0 1 1 11 0c0 2.6.7 4.4 1.8 5.8.5.6.1 1.2-.7 1.2H5.4c-.8 0-1.2-.7-.7-1.2C5.8 12.4 6.5 10.6 6.5 8Z"></path>
+            <path d="M9.5 18a2.5 2.5 0 0 0 5 0"></path>
+          </svg>
+          <p class="mt-4 text-2xl font-semibold tracking-tight text-[color:rgb(var(--text-secondary-rgb)/0.88)] sm:text-3xl">No notifications yet!</p>
         </div>
-        <div class="flex items-center gap-2">
-          <button
-            data-testid="open-notification-settings"
-            class="ui-pill ui-pill--secondary text-xs uppercase tracking-wide"
-            type="button"
-            @click="openSettingsModal"
-          >
-            Nastavenia
-          </button>
+      </div>
+
+      <div v-else class="mx-auto w-full max-w-3xl flex-1 px-5 py-7 sm:px-8">
+        <div class="mb-4 flex justify-end">
           <button class="ui-pill ui-pill--secondary text-xs uppercase tracking-wide" type="button" @click="markAll">
             Mark all read
           </button>
         </div>
-      </header>
 
-      <div class="rounded-2xl bg-[color:rgb(var(--bg-surface-rgb)/0.42)]">
-        <div v-if="isInitialLoading" class="space-y-2 px-6 py-4" data-testid="notifications-page-loading">
-          <div
-            v-for="index in 4"
-            :key="`notification-list-skeleton-${index}`"
-            class="h-14 animate-pulse rounded-xl bg-[color:rgb(var(--bg-surface-2-rgb)/0.45)]"
-          ></div>
-        </div>
-
-        <div v-else-if="error" class="px-6 py-6 text-center" data-testid="notifications-page-error">
-          <p class="text-sm text-[var(--primary-active)]">{{ error }}</p>
-          <button type="button" class="ui-pill ui-pill--secondary mt-3 text-xs uppercase tracking-wide" @click="retry">
-            Retry
+        <div class="overflow-hidden rounded-2xl border border-[color:rgb(var(--text-secondary-rgb)/0.15)] bg-[color:rgb(var(--bg-surface-rgb)/0.4)]">
+          <button
+            v-for="item in items"
+            :key="item.id"
+            type="button"
+            class="group flex w-full items-center gap-4 border-b border-[color:rgb(var(--text-secondary-rgb)/0.15)] px-5 py-4 text-left transition hover:bg-[color:rgb(var(--bg-surface-2-rgb)/0.58)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] last:border-b-0"
+            :class="item.read_at ? 'opacity-80' : 'bg-[color:rgb(var(--bg-surface-2-rgb)/0.42)]'"
+            @click="openNotification(item)"
+          >
+            <span
+              class="h-2 w-2 flex-none rounded-full"
+              :class="item.read_at ? 'bg-transparent border border-[color:rgb(var(--text-secondary-rgb)/0.45)]' : 'bg-[var(--text-primary)] shadow-[0_0_8px_rgb(var(--text-primary-rgb)/0.55)]'"
+            ></span>
+            <span class="min-w-0 flex-1">
+              <span class="block text-sm font-semibold text-[var(--text-primary)]">{{ formatTitle(item) }}</span>
+              <span class="mt-1 block text-xs text-[var(--text-secondary)]">{{ formatSubtitle(item) }}</span>
+            </span>
+            <span class="shrink-0 text-xs text-[var(--text-secondary)]">{{ formatTime(item) }}</span>
           </button>
         </div>
 
-        <div v-else-if="!items.length" class="px-6 py-10 text-center text-sm text-[var(--text-muted)]" data-testid="notifications-page-empty">
-          No notifications yet.
+        <div v-if="isPaginating" class="px-2 py-4 text-xs text-[var(--text-muted)]" data-testid="notifications-page-paginating">
+          Loading more...
         </div>
 
         <button
-          v-for="item in items"
-          :key="item.id"
+          v-if="page < lastPage"
+          class="ui-pill ui-pill--secondary mt-5 w-full text-xs uppercase tracking-wide sm:mx-auto sm:block sm:w-auto"
           type="button"
-          class="group flex w-full items-center gap-4 border-b border-[var(--divider-color)] px-6 py-5 text-left transition hover:bg-[color:rgb(var(--bg-surface-2-rgb)/0.52)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] last:border-b-0"
-          :class="item.read_at ? 'opacity-80' : 'bg-[color:rgb(var(--bg-surface-2-rgb)/0.42)]'"
-          @click="openNotification(item)"
+          :disabled="isPaginating"
+          @click="loadMore"
         >
-          <span
-            class="h-2 w-2 flex-none rounded-full"
-            :class="item.read_at ? 'bg-transparent' : 'bg-[var(--text-primary)] shadow-[0_0_8px_rgb(var(--text-primary-rgb)/0.55)]'"
-          ></span>
-          <div class="flex-1">
-            <p class="text-sm font-semibold text-[var(--text-primary)]">{{ formatTitle(item) }}</p>
-            <p class="mt-1 text-xs text-[var(--text-secondary)]">{{ formatSubtitle(item) }}</p>
-          </div>
-          <span class="text-xs text-[var(--text-secondary)]">{{ formatTime(item.created_at) }}</span>
+          {{ isPaginating ? 'Loading...' : 'Load more' }}
         </button>
-
-        <div v-if="isPaginating" class="px-6 py-4 text-xs text-[var(--text-muted)]" data-testid="notifications-page-paginating">
-          Loading more...
-        </div>
       </div>
-
-      <button
-        v-if="page < lastPage"
-        class="ui-pill ui-pill--secondary mx-auto text-xs uppercase tracking-wide"
-        type="button"
-        :disabled="isPaginating"
-        @click="loadMore"
-      >
-        {{ isPaginating ? 'Loading...' : 'Load more' }}
-      </button>
     </div>
   </section>
 
@@ -309,7 +321,11 @@ const formatSubtitle = (item) => {
   return 'New update'
 }
 
-const formatTime = (iso) => {
+const formatTime = (item) => {
+  const createdHuman = String(item?.created_human || '').trim()
+  if (createdHuman) return createdHuman
+
+  const iso = item?.created_at
   if (!iso) return ''
   const created = new Date(iso)
   const diffMs = Date.now() - created.getTime()

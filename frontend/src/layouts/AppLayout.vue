@@ -71,7 +71,7 @@
           <aside
             v-if="showDesktopMainSidebar"
             :class="[
-              'hidden h-screen overflow-y-auto bg-[var(--bg-app)] px-4 py-6 xl:pl-6 2xl:pl-8 xl:sticky xl:top-0 xl:block',
+              'hidden h-screen overflow-hidden bg-[var(--bg-app)] px-4 py-6 xl:pl-6 2xl:pl-8 xl:sticky xl:top-0 xl:block',
               isHomeFeedRoute ? '' : 'border-r border-[var(--border)]',
             ]"
             data-testid="layout-left"
