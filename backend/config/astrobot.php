@@ -68,6 +68,14 @@ return [
             'stela' => (int) env('BOT_SCHEDULE_RATE_LIMIT_STELA_MAX_ATTEMPTS', 60),
         ],
     ],
+    'health' => [
+        'fail_threshold' => (int) env('BOT_SOURCE_FAIL_THRESHOLD', 5),
+        'dead_failure_threshold' => (int) env('BOT_SOURCE_DEAD_FAILURE_THRESHOLD', 20),
+        'dead_no_success_days' => (int) env('BOT_SOURCE_DEAD_NO_SUCCESS_DAYS', 7),
+        'cooldown_short_seconds' => (int) env('BOT_SOURCE_COOLDOWN_SHORT_SECONDS', 5 * 60),
+        'cooldown_medium_seconds' => (int) env('BOT_SOURCE_COOLDOWN_MEDIUM_SECONDS', 30 * 60),
+        'cooldown_long_seconds' => (int) env('BOT_SOURCE_COOLDOWN_LONG_SECONDS', 2 * 60 * 60),
+    ],
 
     /*
     |--------------------------------------------------------------------------
