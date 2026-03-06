@@ -73,7 +73,7 @@ describe('PublicProfileView media fallback', () => {
     })
   })
 
-  it('renders bot preset avatar and default bot cover when media is missing', async () => {
+  it('renders default avatar fallback and bot cover fallback when bot media is missing', async () => {
     apiGetMock.mockImplementation((url, config = {}) => {
       if (url === '/users/kozmobot') {
         return Promise.resolve({

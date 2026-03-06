@@ -8,10 +8,8 @@ import {
 } from '@/constants/avatar'
 import { avatarDebug } from '@/utils/avatarDebug'
 import {
-  isBotAccount,
   normalizeMediaPath,
   normalizeMediaUrl,
-  resolveBotMediaPreset,
 } from '@/utils/profileMedia'
 
 export function normalizeAvatarUrl(url) {
@@ -66,27 +64,19 @@ export function resolveAvatarState(user, overrides = {}) {
   const imageUrlFromPath = normalizeAvatarPath(overrides.avatarPath ?? user?.avatar_path ?? user?.avatarPath ?? '')
   const imageUrl = imageUrlFromUrl || imageUrlFromPath
   const hasImage = imageUrl !== ''
-  const botFallback = isBotAccount(user) && !hasImage
-  const botPreset = botFallback ? resolveBotMediaPreset(user) : null
-
-  const mode = botFallback
-    ? 'generated'
-    : normalizeAvatarMode(overrides.mode ?? user?.avatar_mode ?? user?.avatarMode)
-
-  const seed = botPreset
-    ? (String(overrides.seed ?? '').trim() || botPreset.seed)
-    : resolveAvatarSeed(user, overrides.seed ?? '')
+  const mode = normalizeAvatarMode(overrides.mode ?? user?.avatar_mode ?? user?.avatarMode)
+  const seed = resolveAvatarSeed(user, overrides.seed ?? '')
 
   const colorIndex =
     normalizeAvatarListIndex(
-      overrides.colorIndex ?? (botPreset?.colorIndex ?? null) ?? user?.avatar_color ?? user?.avatarColor,
+      overrides.colorIndex ?? user?.avatar_color ?? user?.avatarColor,
       AVATAR_COLORS,
     ) ??
     pickDeterministicAvatarIndex(seed, 'color', AVATAR_COLORS.length)
 
   const iconIndex =
     normalizeAvatarListIndex(
-      overrides.iconIndex ?? (botPreset?.iconIndex ?? null) ?? user?.avatar_icon ?? user?.avatarIcon,
+      overrides.iconIndex ?? user?.avatar_icon ?? user?.avatarIcon,
       AVATAR_ICONS,
     ) ??
     pickDeterministicAvatarIndex(seed, 'icon', AVATAR_ICONS.length)
@@ -116,8 +106,6 @@ export function resolveAvatarState(user, overrides = {}) {
     },
     overrides,
     output: state,
-    botFallback,
-    botPreset: botPreset ? { key: botPreset.key, colorIndex: botPreset.colorIndex, iconIndex: botPreset.iconIndex } : null,
   })
 
   return state

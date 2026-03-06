@@ -1,13 +1,8 @@
 import api from '@/services/api'
-import { AVATAR_COLORS, AVATAR_ICONS } from '@/constants/avatar'
 
 const BOT_MEDIA_PRESET_TABLE = {
   stellarbot: {
     key: 'stellarbot',
-    avatar: {
-      icon: 'comet',
-      color: '#ef75ea',
-    },
     cover: {
       primary: '192 132 252',
       secondary: '168 85 247',
@@ -16,10 +11,6 @@ const BOT_MEDIA_PRESET_TABLE = {
   },
   kozmobot: {
     key: 'kozmobot',
-    avatar: {
-      icon: 'planet',
-      color: '#1185fe',
-    },
     cover: {
       primary: '59 130 246',
       secondary: '14 165 233',
@@ -30,10 +21,6 @@ const BOT_MEDIA_PRESET_TABLE = {
 
 const GENERIC_BOT_MEDIA_PRESET = {
   key: 'bot-generic',
-  avatar: {
-    icon: 'star',
-    color: '#73df84',
-  },
   cover: {
     primary: '56 189 248',
     secondary: '15 23 42',
@@ -69,27 +56,6 @@ function encodeMediaPath(inputPath) {
     .filter(Boolean)
     .map((segment) => encodeURIComponent(segment))
     .join('/')
-}
-
-function toNormalizedIndex(value, allowlist, fallbackIndex = 0) {
-  const list = Array.isArray(allowlist) ? allowlist : []
-  if (list.length === 0) {
-    return 0
-  }
-
-  if (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < list.length) {
-    return value
-  }
-
-  const normalized = String(value || '').trim().toLowerCase()
-  if (normalized !== '') {
-    const foundIndex = list.findIndex((item) => String(item).trim().toLowerCase() === normalized)
-    if (foundIndex >= 0) {
-      return foundIndex
-    }
-  }
-
-  return Math.min(Math.max(0, fallbackIndex), list.length - 1)
 }
 
 function botPresetKey(username) {
@@ -177,49 +143,17 @@ export function normalizeMediaPath(path) {
 export function resolveBotMediaPreset(user) {
   const username = botUsername(user)
   const preset = BOT_MEDIA_PRESET_TABLE[username] || GENERIC_BOT_MEDIA_PRESET
-  const fallbackColorIndex = AVATAR_COLORS.findIndex((value) => value === '#73df84')
-  const colorIndex = toNormalizedIndex(
-    preset.avatar?.color,
-    AVATAR_COLORS,
-    fallbackColorIndex >= 0 ? fallbackColorIndex : 0,
-  )
-  const iconIndex = toNormalizedIndex(preset.avatar?.icon, AVATAR_ICONS, 1)
   const key = preset.key || botPresetKey(username)
-  const seedUsername = username !== '' ? username : 'bot'
 
   return {
     key,
     username,
-    colorIndex,
-    iconIndex,
-    seed: `bot:${seedUsername}:${key}`,
     coverFallbackStyle: botCoverFallbackStyle(preset.cover),
   }
 }
 
 export function resolveAvatarDisplayUser(user) {
-  if (!user || typeof user !== 'object') {
-    return user
-  }
-
-  const avatarUrl =
-    normalizeMediaUrl(user.avatar_url ?? user.avatarUrl ?? '') ||
-    normalizeMediaPath(user.avatar_path ?? user.avatarPath ?? '')
-
-  if (!isBotAccount(user) || avatarUrl !== '') {
-    return user
-  }
-
-  const preset = resolveBotMediaPreset(user)
-  return {
-    ...user,
-    avatar_mode: 'generated',
-    avatar_color: preset.colorIndex,
-    avatar_icon: preset.iconIndex,
-    avatar_seed: preset.seed,
-    avatar_url: '',
-    avatar_path: '',
-  }
+  return user
 }
 
 export function resolveUserCoverMedia(user) {

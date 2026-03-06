@@ -54,38 +54,30 @@ describe('resolveAvatarState', () => {
     expect(state.usesImage).toBe(true)
   })
 
-  it('applies deterministic kozmobot preset when bot has no uploaded avatar', () => {
-    const state = resolveAvatarState({
+  it('uses the same default avatar resolver for bot and regular user when no avatar is uploaded', () => {
+    const baseUser = {
       id: 42,
       username: 'kozmobot',
-      role: 'bot',
-      is_bot: true,
       avatar_mode: 'image',
       avatar_url: null,
       avatar_path: null,
-    })
-
-    expect(state.usesImage).toBe(false)
-    expect(state.mode).toBe('generated')
-    expect(state.colorIndex).toBe(3)
-    expect(state.iconIndex).toBe(0)
-  })
-
-  it('applies deterministic stellarbot preset when bot has no uploaded avatar', () => {
-    const state = resolveAvatarState({
-      id: 43,
-      username: 'stellarbot',
+    }
+    const botState = resolveAvatarState({
+      ...baseUser,
       role: 'bot',
       is_bot: true,
-      avatar_mode: 'image',
-      avatar_url: null,
-      avatar_path: null,
+    })
+    const regularState = resolveAvatarState({
+      ...baseUser,
+      role: 'user',
+      is_bot: false,
     })
 
-    expect(state.usesImage).toBe(false)
-    expect(state.mode).toBe('generated')
-    expect(state.colorIndex).toBe(4)
-    expect(state.iconIndex).toBe(2)
+    expect(botState.usesImage).toBe(false)
+    expect(botState.mode).toBe('image')
+    expect(botState.seed).toBe(regularState.seed)
+    expect(botState.colorIndex).toBe(regularState.colorIndex)
+    expect(botState.iconIndex).toBe(regularState.iconIndex)
   })
 
   it('uses uploaded avatar for bot when image exists', () => {
