@@ -9,12 +9,12 @@
     </div>
 
     <div v-else-if="error" class="state stateError">
-      <div class="stateTitle">Nepodarilo sa načítať</div>
+      <div class="stateTitle">{{ loadErrorTitle }}</div>
       <div class="stateText">{{ error }}</div>
     </div>
 
     <div v-else-if="activeArticles.length === 0" class="state">
-      <div class="stateTitle">Zatiaľ žiadne články</div>
+      <div class="stateTitle">{{ emptyStateTitle }}</div>
     </div>
 
     <transition-group v-else tag="ul" name="articleSwap" class="articleList articleViewport">
@@ -54,6 +54,14 @@ export default {
     refetchIntervalMs: {
       type: Number,
       default: 180000,
+    },
+    emptyStateTitle: {
+      type: String,
+      default: 'Zatial ziadne clanky',
+    },
+    loadErrorTitle: {
+      type: String,
+      default: 'Nepodarilo sa nacitat',
     },
   },
   setup(props) {

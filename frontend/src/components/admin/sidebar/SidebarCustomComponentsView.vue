@@ -3,12 +3,20 @@
     <header class="customHeader">
       <div>
         <h2>Vlastne komponenty</h2>
-        <p>Vytvor si vlastne widgety do sidebaru.</p>
+        <p>Vytvor si vlastne widgety do sidebaru a hned ich over v produkcnom rendereri.</p>
       </div>
       <button type="button" class="primaryBtn" :disabled="saving" @click="startCreate">
         Novy komponent
       </button>
     </header>
+
+    <div class="quickStats">
+      <span class="statPill">Komponenty: {{ components.length }}</span>
+      <span class="statPill">Zobrazenych: {{ filteredComponents.length }}</span>
+      <span class="statPill" :class="{ warning: hasUnsavedChanges }">
+        {{ hasUnsavedChanges ? 'Formular ma neulozene zmeny' : 'Formular synchronizovany' }}
+      </span>
+    </div>
 
     <div class="customGrid">
       <SidebarComponentList
@@ -391,6 +399,26 @@ onMounted(async () => {
   gap: 0.9rem;
 }
 
+.quickStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.statPill {
+  font-size: 0.72rem;
+  padding: 0.18rem 0.52rem;
+  border-radius: 999px;
+  background: rgb(var(--color-bg-rgb) / 0.3);
+  color: var(--color-text-secondary);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
+}
+
+.statPill.warning {
+  border-color: rgb(var(--color-warning-rgb, 255 178 64) / 0.42);
+  color: rgb(var(--color-warning-rgb, 255 178 64));
+}
+
 .customHeader {
   display: flex;
   align-items: flex-start;
@@ -433,7 +461,7 @@ onMounted(async () => {
 .customGrid > * {
   min-width: 0;
   border-radius: 0.95rem;
-  background: rgb(var(--color-bg-rgb) / 0.24);
+  background: rgb(var(--color-bg-rgb) / 0.22);
   box-shadow: inset 0 0 0 1px rgb(var(--color-text-secondary-rgb) / 0.14);
   padding: 0.72rem;
 }
