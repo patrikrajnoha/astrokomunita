@@ -9,6 +9,10 @@ import { useToast } from '@/composables/useToast'
 import { BOT_FAILURE_REASONS, BOT_FAILURE_REASON_MESSAGES } from '@/constants/botFailureReasons'
 
 const props = defineProps({
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
   presetBotIdentity: {
     type: String,
     default: '',
@@ -1184,8 +1188,33 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AdminPageShell :title="pageTitle" :subtitle="pageSubtitle" class="botEngineShell">
-    <template #right-actions>
+  <component
+    :is="props.embedded ? 'section' : AdminPageShell"
+    v-bind="props.embedded ? {} : { title: pageTitle, subtitle: pageSubtitle }"
+    class="botEngineShell"
+  >
+    <div v-if="props.embedded" class="embeddedHeader">
+      <div>
+        <h2 class="embeddedTitle">{{ pageTitle }}</h2>
+        <p v-if="pageSubtitle" class="embeddedSubtitle">{{ pageSubtitle }}</p>
+      </div>
+      <div class="embeddedHeaderActions">
+        <RouterLink class="runBtn headerRunBtn headerRunBtn--ghost" :to="{ name: 'admin.bots.activity' }">
+          Activity log
+        </RouterLink>
+        <button
+          type="button"
+          class="runBtn headerRunBtn"
+          data-testid="quick-run-all"
+          :disabled="quickRunBusyIdentity !== '' || !hasEnabledSources"
+          @click="quickRunAll"
+        >
+          {{ quickRunBusyIdentity === 'all' ? 'Spúšťam všetko...' : 'Spustiť všetko' }}
+        </button>
+      </div>
+    </div>
+
+    <template v-if="!props.embedded" #right-actions>
       <RouterLink class="runBtn headerRunBtn headerRunBtn--ghost" :to="{ name: 'admin.bots.activity' }">
         Activity log
       </RouterLink>
@@ -1973,10 +2002,42 @@ onBeforeUnmount(() => {
         </article>
       </div>
     </teleport>
-  </AdminPageShell>
+  </component>
 </template>
 
 <style scoped>
+.botEngineShell {
+  display: grid;
+  gap: 14px;
+}
+
+.embeddedHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.embeddedTitle {
+  margin: 0 0 6px;
+  font-size: 1.06rem;
+  font-weight: 800;
+}
+
+.embeddedSubtitle {
+  margin: 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  font-size: 0.85rem;
+}
+
+.embeddedHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .card {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
   border-radius: 12px;
