@@ -28,7 +28,7 @@ const props = defineProps({
   },
   backLabel: {
     type: String,
-    default: 'Spat na zoznam',
+    default: 'Späť na zoznam',
   },
   backTo: {
     type: [String, Object],

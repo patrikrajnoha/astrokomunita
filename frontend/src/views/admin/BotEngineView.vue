@@ -6,6 +6,7 @@ import AdminAiActionPanel from '@/components/admin/shared/AdminAiActionPanel.vue
 import { useBotEngineStore } from '@/stores/botEngine'
 import { deleteAllBotPosts } from '@/services/api/admin/bots'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import { BOT_FAILURE_REASONS, BOT_FAILURE_REASON_MESSAGES } from '@/constants/botFailureReasons'
 
 const props = defineProps({
@@ -25,6 +26,7 @@ const props = defineProps({
 
 const store = useBotEngineStore()
 const toast = useToast()
+const { confirm } = useConfirm()
 const DEFAULT_PUBLISH_ALL_LIMIT = 3
 const VALID_BOT_IDENTITIES = ['kozmo', 'stela']
 const BOT_LABELS = Object.freeze({
@@ -452,12 +454,15 @@ function requiresPublishConfirm(item) {
   return resolveItemSourceKey(item) === 'wiki_onthisday_astronomy'
 }
 
-function confirmPublishToAstroFeed() {
-  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-    return window.confirm('Publikovať do AstroFeed?')
-  }
-
-  return true
+async function confirmPublishToAstroFeed() {
+  return Boolean(
+    await confirm({
+      title: 'Publikovat do AstroFeedu',
+      message: 'Naozaj publikovat tuto polozku do AstroFeedu?',
+      confirmText: 'Publikovat',
+      cancelText: 'Zrusit',
+    }),
+  )
 }
 
 function syncFilterFormFromStore() {
@@ -842,20 +847,27 @@ function canDeleteItemPost(item) {
   return Number.isInteger(postId) && postId > 0
 }
 
-function confirmDeletePublishedPost() {
-  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-    return window.confirm('Vymazať publikovaný bot príspevok z feedu?')
-  }
-
-  return true
+async function confirmDeletePublishedPost() {
+  return Boolean(
+    await confirm({
+      title: 'Vymazat publikovany prispevok',
+      message: 'Naozaj vymazat publikovany bot prispevok z feedu?',
+      confirmText: 'Vymazat',
+      cancelText: 'Zrusit',
+      variant: 'danger',
+    }),
+  )
 }
 
-function confirmBackfillTranslation() {
-  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-    return window.confirm('Doplniť preklad aj do už publikovaných príspevkov?')
-  }
-
-  return true
+async function confirmBackfillTranslation() {
+  return Boolean(
+    await confirm({
+      title: 'Doplnit preklad',
+      message: 'Doplnit preklad aj do uz publikovanych prispevkov?',
+      confirmText: 'Doplnit',
+      cancelText: 'Zrusit',
+    }),
+  )
 }
 
 async function goToItemsPage(page) {
@@ -875,7 +887,7 @@ async function goToItemsPage(page) {
 
 async function publishItem(item) {
   if (!item?.id || !canPublishItem(item)) return
-  if (requiresPublishConfirm(item) && !confirmPublishToAstroFeed()) return
+  if (requiresPublishConfirm(item) && !(await confirmPublishToAstroFeed())) return
 
   try {
     const response = await store.publishItem(item.id, { force: false })
@@ -896,7 +908,7 @@ async function publishItem(item) {
 
 async function deleteItemPost(item) {
   if (!item?.id || !canDeleteItemPost(item)) return
-  if (!confirmDeletePublishedPost()) return
+  if (!(await confirmDeletePublishedPost())) return
 
   try {
     await store.deleteItemPost(item.id)
@@ -911,18 +923,20 @@ async function deleteItemPost(item) {
   }
 }
 
-function confirmDeleteAllBotPosts() {
-  if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-    return window.confirm(
-      'Naozaj vymazať všetky publikované bot príspevky podľa aktuálneho filtra?',
-    )
-  }
-
-  return true
+async function confirmDeleteAllBotPosts() {
+  return Boolean(
+    await confirm({
+      title: 'Hromadne mazanie',
+      message: 'Naozaj vymazat vsetky publikovane bot prispevky podla aktualneho filtra?',
+      confirmText: 'Vymazat',
+      cancelText: 'Zrusit',
+      variant: 'danger',
+    }),
+  )
 }
 
 async function deleteAllBotPostsForFilter() {
-  if (!confirmDeleteAllBotPosts()) {
+  if (!(await confirmDeleteAllBotPosts())) {
     return
   }
 
@@ -1093,7 +1107,7 @@ async function backfillTranslateForRun() {
     return
   }
 
-  if (!confirmBackfillTranslation()) {
+  if (!(await confirmBackfillTranslation())) {
     return
   }
 

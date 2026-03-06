@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { ADMIN_SECTION_KEYS } from '@/components/admin/adminSections'
+import { ADMIN_SECTION_KEYS, getAdminSectionLabel } from '@/components/admin/adminSections'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -13,19 +13,19 @@ const groups = [
     title: 'Hlavné sekcie',
     items: [
       {
-        label: 'Event Pipeline',
+        label: getAdminSectionLabel(ADMIN_SECTION_KEYS.EVENTS),
         to: { name: 'admin.events' },
         icon: 'E',
         section: ADMIN_SECTION_KEYS.EVENTS,
       },
       {
-        label: 'Správa komunity',
+        label: getAdminSectionLabel(ADMIN_SECTION_KEYS.COMMUNITY),
         to: { name: 'admin.users' },
         icon: 'K',
         section: ADMIN_SECTION_KEYS.COMMUNITY,
       },
       {
-        label: 'Obsah',
+        label: getAdminSectionLabel(ADMIN_SECTION_KEYS.CONTENT),
         to: { name: 'admin.blog' },
         icon: 'O',
         section: ADMIN_SECTION_KEYS.CONTENT,
@@ -35,7 +35,7 @@ const groups = [
   {
     title: 'Správa',
     items: [
-      { label: 'Dashboard', to: { name: 'admin.dashboard' }, icon: 'D', routeNames: ['admin.dashboard'] },
+      { label: 'Prehľad', to: { name: 'admin.dashboard' }, icon: 'D', routeNames: ['admin.dashboard'] },
       ...(wipEnabled
         ? [{ label: 'Zakázané slová', to: { name: 'admin.banned-words' }, icon: 'W', routeNames: ['admin.banned-words'] }]
         : []),
@@ -45,15 +45,15 @@ const groups = [
     title: 'Obsah a konfigurácia',
     items: [
       {
-        label: 'Vybrané udalosti popup',
+        label: 'Vybrané udalosti',
         to: { name: 'admin.featured-events' },
-        icon: 'P',
+        icon: 'V',
         routeNames: ['admin.featured-events'],
       },
-      { label: 'Súťaže', to: { name: 'admin.contests' }, icon: 'C', routeNames: ['admin.contests'] },
-      { label: 'Sidebar', to: { name: 'admin.sidebar' }, icon: 'S', routeNames: ['admin.sidebar'] },
+      { label: 'Súťaže', to: { name: 'admin.contests' }, icon: 'S', routeNames: ['admin.contests'] },
+      { label: 'Bočný panel', to: { name: 'admin.sidebar' }, icon: 'P', routeNames: ['admin.sidebar'] },
       {
-        label: 'Bot Manager',
+        label: 'Správa botov',
         to: { name: 'admin.bots' },
         icon: 'B',
         routeNames: [
@@ -68,9 +68,9 @@ const groups = [
         ],
       },
       {
-        label: 'Performance',
+        label: 'Výkonnosť',
         to: { name: 'admin.performance-metrics' },
-        icon: 'P',
+        icon: 'M',
         routeNames: ['admin.performance-metrics'],
       },
     ],
@@ -86,10 +86,10 @@ const visibleGroups = computed(() => {
 
   return [
     {
-      title: 'Editor Hub',
+      title: 'Editor',
       items: [
         {
-          label: 'Obsah',
+          label: getAdminSectionLabel(ADMIN_SECTION_KEYS.CONTENT),
           to: { name: 'admin.blog' },
           icon: 'O',
           section: ADMIN_SECTION_KEYS.CONTENT,
@@ -207,15 +207,15 @@ const activeLabel = computed(() => {
     const found = group.items.find((item) => isActive(item))
     if (found) return found.label
   }
-  return isEditorOnly.value ? 'Editor Hub' : 'Admin'
+  return isEditorOnly.value ? 'Editor' : 'Administrácia'
 })
 </script>
 
 <template>
-  <aside class="adminSubNav" aria-label="Admin sub-navigation">
+  <aside class="adminSubNav" aria-label="Podnavigácia administrácie">
     <div class="adminSubNav__head">
-      <div class="adminSubNav__title">{{ isEditorOnly ? 'Editor Hub' : 'Admin Hub' }}</div>
-      <div class="adminSubNav__caption">Section: {{ activeLabel }}</div>
+      <div class="adminSubNav__title">{{ isEditorOnly ? 'Editor' : 'Administrácia' }}</div>
+      <div class="adminSubNav__caption">Sekcia: {{ activeLabel }}</div>
     </div>
 
     <div class="adminSubNav__groups">
@@ -228,7 +228,7 @@ const activeLabel = computed(() => {
             :to="item.to"
             class="adminSubNav__item"
             :class="{ active: isActive(item) }"
-            :title="`Open ${item.label}`"
+            :title="`Otvoriť ${item.label}`"
           >
             <span class="adminSubNav__icon" aria-hidden="true">{{ item.icon }}</span>
             <span>{{ item.label }}</span>

@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminSectionHeader from '@/components/admin/AdminSectionHeader.vue'
@@ -94,14 +94,14 @@ function sourceBadgeStyle(source) {
 
 function translationStatusLabel(value) {
   const normalized = String(value || '').trim().toLowerCase()
-  if (normalized === 'done' || normalized === 'translated') return 'PreloĹľenĂ©'
+  if (normalized === 'done' || normalized === 'translated') return 'Preložené'
   if (normalized === 'failed' || normalized === 'error') return 'Zlyhalo'
-  return 'ÄŚakĂˇ'
+  return 'Čaká'
 }
 
 function translationStatusStyle(value) {
   const label = translationStatusLabel(value)
-  if (label === 'PreloĹľenĂ©') {
+  if (label === 'Preložené') {
     return 'display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(22,163,74,.35); background:rgba(22,163,74,.12); font-size:12px;'
   }
   if (label === 'Zlyhalo') {
@@ -125,7 +125,7 @@ async function load() {
       translated_description: candidateDisplayDescription(candidate.value) || '',
     }
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || 'Chyba pri naÄŤĂ­tanĂ­ detailu'
+    error.value = fetchError?.response?.data?.message || 'Chyba pri načítaní detailu'
   } finally {
     loading.value = false
   }
@@ -135,10 +135,10 @@ async function approve() {
   if (!candidate.value) return
 
   const ok = await confirm({
-    title: 'SchvĂˇliĹĄ kandidĂˇta',
-    message: 'Naozaj chceĹˇ schvĂˇliĹĄ tohto kandidĂˇta?',
-    confirmText: 'SchvĂˇliĹĄ',
-    cancelText: 'ZruĹˇiĹĄ',
+    title: 'Schváliť kandidáta',
+    message: 'Naozaj chceš schváliť tohto kandidáta?',
+    confirmText: 'Schváliť',
+    cancelText: 'Zrušiť',
   })
   if (!ok) return
 
@@ -146,10 +146,10 @@ async function approve() {
   error.value = null
   try {
     await eventCandidates.approve(candidate.value.id)
-    toast.success('KandidĂˇt bol schvĂˇlenĂ˝.')
+    toast.success('Kandidát bol schválený.')
     router.push(candidateListRoute.value)
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || 'SchvĂˇlenie zlyhalo'
+    error.value = fetchError?.response?.data?.message || 'Schválenie zlyhalo'
     toast.error(error.value)
   } finally {
     loading.value = false
@@ -160,10 +160,10 @@ async function reject() {
   if (!candidate.value) return
 
   const ok = await confirm({
-    title: 'ZamietnuĹĄ kandidĂˇta',
-    message: 'Naozaj chceĹˇ zamietnuĹĄ tohto kandidĂˇta?',
-    confirmText: 'ZamietnuĹĄ',
-    cancelText: 'ZruĹˇiĹĄ',
+    title: 'Zamietnuť kandidáta',
+    message: 'Naozaj chceš zamietnuť tohto kandidáta?',
+    confirmText: 'Zamietnuť',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!ok) return
@@ -172,7 +172,7 @@ async function reject() {
   error.value = null
   try {
     await eventCandidates.reject(candidate.value.id)
-    toast.success('KandidĂˇt bol zamietnutĂ˝.')
+    toast.success('Kandidát bol zamietnutý.')
     router.push(candidateListRoute.value)
   } catch (fetchError) {
     error.value = fetchError?.response?.data?.message || 'Zamietnutie zlyhalo'
@@ -229,7 +229,7 @@ async function saveTranslationEdit() {
 
   const title = String(translationForm.value.translated_title || '').trim()
   if (!title) {
-    toast.error('PreloĹľenĂ˝ nĂˇzov je povinnĂ˝.')
+    toast.error('Preložený názov je povinný.')
     return
   }
 
@@ -240,11 +240,11 @@ async function saveTranslationEdit() {
       translated_title: title,
       translated_description: String(translationForm.value.translated_description || '').trim() || null,
     })
-    toast.success('Preklad bol uloĹľenĂ˝.')
+    toast.success('Preklad bol uložený.')
     showTranslationEditor.value = false
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || 'UloĹľenie prekladu zlyhalo'
+    error.value = fetchError?.response?.data?.message || 'Uloženie prekladu zlyhalo'
     toast.error(error.value)
   } finally {
     loading.value = false
@@ -258,14 +258,14 @@ onMounted(load)
   <div style="max-width: 940px; margin: 0 auto; padding: 24px 16px;">
     <AdminSectionHeader
       section="events"
-      :title="`Detail kandidata #${id}`"
-      back-label="Spat na kandidatov"
+      :title="`Detail kandidáta #${id}`"
+      back-label="Späť na kandidátov"
       :back-to="{ name: 'admin.event-candidates' }"
     />
 
     <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px;">
       <div>
-        <h1 style="margin:0 0 6px;">KandidĂˇt #{{ id }}</h1>
+        <h1 style="margin:0 0 6px;">Kandidát #{{ id }}</h1>
         <div v-if="candidate" style="opacity:.8; font-size: 14px;">
           {{ candidateDisplayTitle(candidate) }}
         </div>
@@ -281,7 +281,7 @@ onMounted(load)
       {{ error }}
     </div>
     <div v-if="loading" style="margin-top: 12px; opacity: .85;">
-      NaÄŤĂ­tavam...
+      Načítavam...
     </div>
 
     <div v-if="candidate && !loading" style="margin-top: 16px; display:grid; gap: 12px;">
@@ -294,15 +294,15 @@ onMounted(load)
           <div style="opacity:.75;">Typ</div>
           <div>{{ candidate.type }} <span style="opacity:.7;">(raw: {{ candidate.raw_type || '-' }})</span></div>
 
-          <div style="opacity:.75;">SkrĂˇtenĂ˝ popis</div><div>{{ candidateDisplayShort(candidate) }}</div>
+          <div style="opacity:.75;">Skrátený popis</div><div>{{ candidateDisplayShort(candidate) }}</div>
 
-          <div style="opacity:.75;">KanonickĂ˝ kÄľĂşÄŤ</div>
+          <div style="opacity:.75;">Kanonický kľúč</div>
           <div style="word-break:break-all;">{{ candidate.canonical_key || '-' }}</div>
 
-          <div style="opacity:.75;">DĂ´veryhodnosĹĄ</div>
+          <div style="opacity:.75;">Dôveryhodnosť</div>
           <div>{{ formatConfidence(candidate.confidence_score) }}</div>
 
-          <div style="opacity:.75;">SpĂˇrovanĂ© zdroje</div>
+          <div style="opacity:.75;">Spárované zdroje</div>
           <div style="display:flex; flex-wrap:wrap; gap:6px;">
             <span
               v-for="src in normalizeSources(candidate.matched_sources)"
@@ -314,8 +314,8 @@ onMounted(load)
             <span v-if="normalizeSources(candidate.matched_sources).length === 0">-</span>
           </div>
 
-          <div style="opacity:.75;">VytvorenĂ©</div><div>{{ formatDate(candidate.created_at) }}</div>
-          <div style="opacity:.75;">AktualizovanĂ©</div><div>{{ formatDate(candidate.updated_at) }}</div>
+          <div style="opacity:.75;">Vytvorené</div><div>{{ formatDate(candidate.created_at) }}</div>
+          <div style="opacity:.75;">Aktualizované</div><div>{{ formatDate(candidate.updated_at) }}</div>
         </div>
       </section>
 
@@ -323,8 +323,8 @@ onMounted(load)
         <h3 style="margin:0 0 10px;">Preklad</h3>
 
         <AdminAiActionPanel
-          title="AI pomocnik"
-          description="Spusti preklad znova pre tohto kandidata."
+          title="AI pomocník"
+          description="Spusti preklad znova pre tohto kandidáta."
           action-label="Preložiť znova"
           :enabled="Boolean(candidate)"
           :status="aiPanelStatus"
@@ -344,7 +344,7 @@ onMounted(load)
           </span>
           <template #advanced>
             <p style="margin:0; font-size:12px; opacity:.85;">
-              Posledna chyba: {{ candidate.translation_error || '-' }}
+              Posledná chyba: {{ candidate.translation_error || '-' }}
             </p>
           </template>
         </AdminAiActionPanel>
@@ -357,16 +357,16 @@ onMounted(load)
             </span>
           </div>
 
-          <div style="opacity:.75;">PoslednĂˇ chyba</div>
+          <div style="opacity:.75;">Posledná chyba</div>
           <div>{{ candidate.translation_error || '-' }}</div>
 
-          <div style="opacity:.75;">PreloĹľenĂ© o</div>
+          <div style="opacity:.75;">Preložené o</div>
           <div>{{ formatDate(candidate.translated_at) }}</div>
 
-          <div style="opacity:.75;">FinĂˇlny nĂˇzov (SK)</div>
+          <div style="opacity:.75;">Finálny názov (SK)</div>
           <div>{{ candidateDisplayTitle(candidate) }}</div>
 
-          <div style="opacity:.75;">FinĂˇlny popis (SK)</div>
+          <div style="opacity:.75;">Finálny popis (SK)</div>
           <div>{{ candidateDisplayDescription(candidate) }}</div>
         </div>
 
@@ -377,7 +377,7 @@ onMounted(load)
             @click="openTranslationEditor"
             style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit; margin-right:8px;"
           >
-            UpraviĹĄ preklad
+            Upraviť preklad
           </button>
         </div>
 
@@ -385,19 +385,19 @@ onMounted(load)
           v-if="showTranslationEditor"
           style="margin-top:12px; padding:12px; border:1px solid rgb(var(--color-surface-rgb) / .12); border-radius:12px; display:grid; gap:8px;"
         >
-          <div style="font-weight:600;">RuÄŤnĂˇ Ăşprava prekladu</div>
+          <div style="font-weight:600;">Ručná úprava prekladu</div>
           <input
             v-model="translationForm.translated_title"
             type="text"
             :disabled="loading"
-            placeholder="PreloĹľenĂ˝ nĂˇzov"
+            placeholder="Preložený názov"
             style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           />
           <textarea
             v-model="translationForm.translated_description"
             rows="5"
             :disabled="loading"
-            placeholder="PreloĹľenĂ˝ popis"
+            placeholder="Preložený popis"
             style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
           ></textarea>
           <div style="display:flex; justify-content:flex-end; gap:8px;">
@@ -407,7 +407,7 @@ onMounted(load)
               @click="showTranslationEditor = false"
               style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
             >
-              ZruĹˇiĹĄ
+              Zrušiť
             </button>
             <button
               type="button"
@@ -415,14 +415,14 @@ onMounted(load)
               @click="saveTranslationEdit"
               style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-primary-rgb) / .35); background:rgb(var(--color-primary-rgb) / .12); color:inherit;"
             >
-              UloĹľiĹĄ preklad
+              Uložiť preklad
             </button>
           </div>
         </div>
       </section>
 
       <section style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;">
-        <h3 style="margin:0 0 10px;">ÄŚas</h3>
+        <h3 style="margin:0 0 10px;">Čas</h3>
 
         <div style="display:grid; grid-template-columns: 180px 1fr; gap:8px 12px; font-size: 14px;">
           <div style="opacity:.75;">Start</div><div>{{ formatDate(candidate.start_at) }}</div>
@@ -435,14 +435,14 @@ onMounted(load)
         <h3 style="margin:0 0 10px;">Zdroj</h3>
 
         <div style="display:grid; grid-template-columns: 180px 1fr; gap:8px 12px; font-size: 14px;">
-          <div style="opacity:.75;">NĂˇzov zdroja</div>
+          <div style="opacity:.75;">Názov zdroja</div>
           <div>
             <span :style="sourceBadgeStyle(candidate.source_name)">{{ sourceLabel(candidate.source_name) }}</span>
           </div>
 
           <div style="opacity:.75;">URL zdroja</div>
           <div>
-            <a :href="candidate.source_url" target="_blank" rel="noreferrer">otvoriĹĄ zdroj</a>
+            <a :href="candidate.source_url" target="_blank" rel="noreferrer">otvoriť zdroj</a>
           </div>
 
           <div style="opacity:.75;">UID zdroja</div><div style="word-break:break-all;">{{ candidate.source_uid }}</div>
@@ -450,7 +450,7 @@ onMounted(load)
       </section>
 
       <section style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;">
-        <h3 style="margin:0 0 10px;">ModerĂˇcia</h3>
+        <h3 style="margin:0 0 10px;">Moderácia</h3>
 
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <button
@@ -458,7 +458,7 @@ onMounted(load)
             :disabled="!canReview()"
             style="padding:10px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-success-rgb) / .10); color:inherit;"
           >
-            PublikovaĹĄ
+            Publikovať
           </button>
 
           <button
@@ -466,7 +466,7 @@ onMounted(load)
             :disabled="!canReview()"
             style="padding:10px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-danger-rgb) / .10); color:inherit;"
           >
-            ZamietnuĹĄ
+            Zamietnuť
           </button>
         </div>
       </section>
@@ -479,7 +479,7 @@ onMounted(load)
             @click="showRaw = !showRaw"
             style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
           >
-            {{ showRaw ? 'SkryĹĄ' : 'ZobraziĹĄ' }}
+            {{ showRaw ? 'Skryť' : 'Zobraziť' }}
           </button>
         </div>
 
@@ -491,4 +491,3 @@ onMounted(load)
     </div>
   </div>
 </template>
-

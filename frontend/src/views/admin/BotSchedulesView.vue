@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
+import { useConfirm } from '@/composables/useConfirm'
 import {
   createBotSchedule,
   deleteBotSchedule,
@@ -24,6 +25,7 @@ const error = ref('')
 const rows = ref([])
 const botOptions = ref([])
 const sourceOptions = ref([])
+const { confirm } = useConfirm()
 
 const pagination = reactive({
   current_page: 1,
@@ -124,7 +126,14 @@ async function saveRow(row) {
 }
 
 async function removeRow(row) {
-  if (!window.confirm(`Delete schedule #${row.id}?`)) return
+  const approved = await confirm({
+    title: 'Vymazat schedule',
+    message: `Naozaj vymazat schedule #${row.id}?`,
+    confirmText: 'Vymazat',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
+  if (!approved) return
 
   savingId.value = row.id
   try {
