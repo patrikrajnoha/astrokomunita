@@ -35,6 +35,7 @@ class BotRunner
         private readonly BotItemDedupeService $dedupeService,
         private readonly BotPublisherService $publisherService,
         private readonly BotActivityLogService $activityLogService,
+        private readonly BotSourceHealthPolicy $sourceHealthPolicy,
         private readonly BotSourceHealthService $sourceHealthService,
         private readonly BotTranslationServiceInterface $translationService,
     ) {
@@ -101,20 +102,23 @@ class BotRunner
                 ]
             );
 
+            $runMeta = array_replace(
+                $runMeta,
+                $this->sourceHealthService->recordRunOutcome(
+                    $source,
+                    BotRunStatus::SKIPPED,
+                    $runMeta,
+                    'Run skipped because lock is already held.',
+                    $this->elapsedMilliseconds($runStartedAt)
+                )
+            );
+
             $finalizedRun = $this->finalizeRunSafely(
                 $run,
                 BotRunStatus::SKIPPED,
                 $stats,
                 'Run skipped because lock is already held.',
                 $runMeta
-            );
-
-            $this->sourceHealthService->recordRunOutcome(
-                $source,
-                BotRunStatus::SKIPPED,
-                $runMeta,
-                'Run skipped because lock is already held.',
-                $this->elapsedMilliseconds($runStartedAt)
             );
 
             return $finalizedRun;
@@ -132,11 +136,11 @@ class BotRunner
 
         $this->recoverStaleRunsIfNeeded($source, $run, $stats, $runMeta);
 
-        if ($this->isSourceInRateLimitCooldown($source)) {
+        if ($this->isSourceInCooldown($source)) {
             $status = BotRunStatus::SKIPPED;
             $stats['skipped_count']++;
             $runMeta = array_replace($runMeta, $this->buildCooldownSkipMeta($source));
-            $errorText = (string) ($runMeta['ui_message'] ?? 'Source is temporarily in cooldown due to prior rate limiting.');
+            $errorText = (string) ($runMeta['ui_message'] ?? 'Source is temporarily in cooldown due to repeated failures.');
 
             $this->activityLogService->record(
                 action: 'run',
@@ -152,17 +156,36 @@ class BotRunner
                     'cooldown_until' => data_get($runMeta, 'cooldown_until'),
                 ]
             );
+            $this->activityLogService->record(
+                action: 'skipped_cooldown',
+                outcome: 'skipped',
+                source: $source,
+                run: $run,
+                reason: 'source_cooldown_active',
+                runContext: $context,
+                message: $errorText,
+                meta: [
+                    'mode' => $runMode,
+                    'publish_limit' => $normalizedPublishLimit,
+                    'cooldown_until' => data_get($runMeta, 'cooldown_until'),
+                    'retry_after_sec' => data_get($runMeta, 'retry_after_sec'),
+                ]
+            );
 
             $this->releaseRunLocks($lockState);
 
-            $finalizedRun = $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
-            $this->sourceHealthService->recordRunOutcome(
-                $source,
-                $status,
+            $runMeta = array_replace(
                 $runMeta,
-                $errorText,
-                $this->elapsedMilliseconds($runStartedAt)
+                $this->sourceHealthService->recordRunOutcome(
+                    $source,
+                    $status,
+                    $runMeta,
+                    $errorText,
+                    $this->elapsedMilliseconds($runStartedAt)
+                )
             );
+
+            $finalizedRun = $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
 
             return $finalizedRun;
         }
@@ -195,19 +218,6 @@ class BotRunner
             $retryAfter = $this->resolveRetryAfterSeconds($source, $exceptionMeta['retry_after_sec'] ?? null);
             if ($retryAfter !== null) {
                 $runMeta['retry_after_sec'] = $retryAfter;
-            }
-
-            if (in_array($runMeta['failure_reason'], [
-                BotRunFailureReason::RATE_LIMITED->value,
-                BotRunFailureReason::NEEDS_API_KEY->value,
-            ], true)) {
-                $cooldownUntil = now()->addSeconds($retryAfter ?? 0);
-                if ($cooldownUntil->lte(now())) {
-                    $cooldownUntil = now()->addMinutes($this->rateLimitBackoffMinutes($source));
-                }
-
-                $source->forceFill(['cooldown_until' => $cooldownUntil])->save();
-                $runMeta['cooldown_until'] = $cooldownUntil->toIso8601String();
             }
 
             if ($e->shouldMarkAsSkipped()) {
@@ -284,14 +294,18 @@ class BotRunner
             );
         }
 
-        $finalizedRun = $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
-        $this->sourceHealthService->recordRunOutcome(
-            $source,
-            $status,
+        $runMeta = array_replace(
             $runMeta,
-            $errorText,
-            $this->elapsedMilliseconds($runStartedAt)
+            $this->sourceHealthService->recordRunOutcome(
+                $source,
+                $status,
+                $runMeta,
+                $errorText,
+                $this->elapsedMilliseconds($runStartedAt)
+            )
         );
+
+        $finalizedRun = $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
 
         return $finalizedRun;
     }
@@ -1083,14 +1097,9 @@ class BotRunner
         return strlen($value);
     }
 
-    private function isSourceInRateLimitCooldown(BotSource $source): bool
+    private function isSourceInCooldown(BotSource $source): bool
     {
-        $cooldownUntil = $source->cooldown_until;
-        if (!$cooldownUntil instanceof Carbon) {
-            return false;
-        }
-
-        return $cooldownUntil->isFuture();
+        return $this->sourceHealthPolicy->isInCooldown($source);
     }
 
     /**
@@ -1102,23 +1111,25 @@ class BotRunner
             ? $source->cooldown_until->copy()
             : now();
         $retryAfter = max(0, now()->diffInSeconds($cooldownUntil, false));
+        $sourceLabel = trim((string) ($source->name ?? '')) !== ''
+            ? trim((string) $source->name)
+            : (string) $source->key;
 
         return [
             'failure_reason' => BotRunFailureReason::COOLDOWN_RATE_LIMITED->value,
-            'provider' => 'nasa_apod',
             'cooldown_until' => $cooldownUntil->toIso8601String(),
             'retry_after_sec' => $retryAfter,
-            'message' => 'Source is in cooldown after rate limiting. NASA API call was skipped.',
-            'ui_message' => 'NASA APOD API rate limit cooldown is active. Add NASA_API_KEY or wait.',
+            'message' => sprintf(
+                'Source "%s" is in cooldown until %s.',
+                $sourceLabel,
+                $cooldownUntil->toIso8601String()
+            ),
+            'ui_message' => sprintf(
+                'Source "%s" je v cooldowne do %s.',
+                $sourceLabel,
+                $cooldownUntil->toIso8601String()
+            ),
         ];
-    }
-
-    private function rateLimitBackoffMinutes(BotSource $source): int
-    {
-        $sourceKey = strtolower(trim((string) $source->key));
-        $configured = (int) config(sprintf('bots.sources.%s.rate_limit_backoff_minutes', $sourceKey), 360);
-
-        return max(1, $configured);
     }
 
     private function resolveRetryAfterSeconds(BotSource $source, mixed $value): ?int
@@ -1130,7 +1141,10 @@ class BotRunner
             }
         }
 
-        return $this->rateLimitBackoffMinutes($source) * 60;
+        $nextFailures = max(1, (int) ($source->consecutive_failures ?? 0) + 1);
+        $policySeconds = $this->sourceHealthPolicy->cooldownSecondsForFailures($nextFailures);
+
+        return $policySeconds > 0 ? $policySeconds : null;
     }
 
     private function elapsedMilliseconds(float $startedAt): int

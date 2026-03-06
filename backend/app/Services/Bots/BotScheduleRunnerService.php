@@ -17,6 +17,7 @@ class BotScheduleRunnerService
         private readonly BotRunner $runner,
         private readonly BotRateLimiterService $rateLimiterService,
         private readonly BotActivityLogService $activityLogService,
+        private readonly BotSourceHealthPolicy $sourceHealthPolicy,
     ) {
     }
 
@@ -30,7 +31,7 @@ class BotScheduleRunnerService
         return BotSchedule::query()
             ->with([
                 'botUser:id,username,role,is_bot',
-                'source:id,key,name,bot_identity,source_type,url,is_enabled',
+                'source:id,key,name,bot_identity,source_type,url,is_enabled,last_success_at,last_error_at,consecutive_failures,cooldown_until',
             ])
             ->where('enabled', true)
             ->where(function (Builder $query): void {
@@ -146,20 +147,28 @@ class BotScheduleRunnerService
 
         try {
             $this->rateLimiterService->consume($rateState);
-            $runs = $this->executeScheduleRuns($schedule, $identity);
+            $execution = $this->executeScheduleRuns($schedule, $identity);
+            $runs = $execution['runs'];
             if ($runs === []) {
-                $message = sprintf('No enabled sources found for bot identity "%s".', $identity);
+                $message = $this->buildNoRunnableSourcesMessage($identity, $execution);
+                $reason = $execution['skipped_cooldown_count'] > 0
+                    ? 'source_cooldown_active'
+                    : ($execution['skipped_dead_count'] > 0 ? 'source_dead' : 'no_enabled_sources');
+
                 $this->markSchedule($schedule, 'skipped', $message);
                 $this->activityLogService->record(
                     action: 'schedule',
                     outcome: 'skipped',
                     source: $schedule->source,
-                    reason: 'no_enabled_sources',
+                    reason: $reason,
                     runContext: 'scheduled',
                     message: $message,
                     meta: [
                         'schedule_id' => $schedule->id,
                         'bot_identity' => $identity,
+                        'candidate_sources_count' => (int) $execution['candidate_sources_count'],
+                        'skipped_cooldown_count' => (int) $execution['skipped_cooldown_count'],
+                        'skipped_dead_count' => (int) $execution['skipped_dead_count'],
                     ]
                 );
 
@@ -181,6 +190,9 @@ class BotScheduleRunnerService
                 meta: [
                     'schedule_id' => $schedule->id,
                     'bot_identity' => $identity,
+                    'candidate_sources_count' => (int) $execution['candidate_sources_count'],
+                    'skipped_cooldown_count' => (int) $execution['skipped_cooldown_count'],
+                    'skipped_dead_count' => (int) $execution['skipped_dead_count'],
                     'run_ids' => array_values(array_filter(
                         array_map(static fn ($run): ?int => $run?->id ? (int) $run->id : null, $runs)
                     )),
@@ -215,28 +227,87 @@ class BotScheduleRunnerService
     }
 
     /**
-     * @return array<int,\App\Models\BotRun>
+     * @return array{
+     *   runs:array<int,\App\Models\BotRun>,
+     *   candidate_sources_count:int,
+     *   skipped_cooldown_count:int,
+     *   skipped_dead_count:int
+     * }
      */
     private function executeScheduleRuns(BotSchedule $schedule, string $identity): array
     {
         if ($schedule->source && $schedule->source->is_enabled) {
-            return [
-                $this->runner->run($schedule->source, 'scheduled', false, 'auto'),
-            ];
+            $sources = collect([$schedule->source]);
+        } else {
+            $sources = BotSource::query()
+                ->where('is_enabled', true)
+                ->where('bot_identity', $identity)
+                ->orderBy('key')
+                ->get();
         }
 
-        $sources = BotSource::query()
-            ->where('is_enabled', true)
-            ->where('bot_identity', $identity)
-            ->orderBy('key')
-            ->get();
-
         $runs = [];
+        $skippedCooldownCount = 0;
+        $skippedDeadCount = 0;
+
         foreach ($sources as $source) {
+            $snapshot = $this->sourceHealthPolicy->snapshot($source);
+            if (($snapshot['is_dead'] ?? false) === true) {
+                $skippedDeadCount++;
+                if ((bool) $source->is_enabled) {
+                    $source->forceFill(['is_enabled' => false])->save();
+                }
+
+                $this->activityLogService->record(
+                    action: 'schedule',
+                    outcome: 'skipped',
+                    source: $source,
+                    reason: 'source_dead',
+                    runContext: 'scheduled',
+                    message: sprintf('Source "%s" is marked dead and was skipped.', (string) $source->key),
+                    meta: [
+                        'schedule_id' => $schedule->id,
+                        'bot_identity' => $identity,
+                        'consecutive_failures' => (int) ($snapshot['consecutive_failures'] ?? 0),
+                    ]
+                );
+                continue;
+            }
+
+            if (($snapshot['in_cooldown'] ?? false) === true) {
+                $skippedCooldownCount++;
+                $cooldownUntil = $snapshot['cooldown_until'] ?? null;
+                $retryAfter = $this->retryAfterSeconds($source->cooldown_until);
+                $message = $cooldownUntil
+                    ? sprintf('Source "%s" is in cooldown until %s.', (string) $source->key, (string) $cooldownUntil)
+                    : sprintf('Source "%s" is in cooldown and was skipped.', (string) $source->key);
+
+                $this->activityLogService->record(
+                    action: 'skipped_cooldown',
+                    outcome: 'skipped',
+                    source: $source,
+                    reason: 'source_cooldown_active',
+                    runContext: 'scheduled',
+                    message: $message,
+                    meta: [
+                        'schedule_id' => $schedule->id,
+                        'bot_identity' => $identity,
+                        'cooldown_until' => $cooldownUntil,
+                        'retry_after_sec' => $retryAfter,
+                    ]
+                );
+                continue;
+            }
+
             $runs[] = $this->runner->run($source, 'scheduled', false, 'auto');
         }
 
-        return $runs;
+        return [
+            'runs' => $runs,
+            'candidate_sources_count' => $sources->count(),
+            'skipped_cooldown_count' => $skippedCooldownCount,
+            'skipped_dead_count' => $skippedDeadCount,
+        ];
     }
 
     /**
@@ -344,5 +415,40 @@ class BotScheduleRunnerService
         }
 
         return substr($normalized, 0, $maxLength);
+    }
+
+    /**
+     * @param array{
+     *   candidate_sources_count:int,
+     *   skipped_cooldown_count:int,
+     *   skipped_dead_count:int
+     * } $execution
+     */
+    private function buildNoRunnableSourcesMessage(string $identity, array $execution): string
+    {
+        $candidateCount = max(0, (int) ($execution['candidate_sources_count'] ?? 0));
+        $cooldownSkips = max(0, (int) ($execution['skipped_cooldown_count'] ?? 0));
+        $deadSkips = max(0, (int) ($execution['skipped_dead_count'] ?? 0));
+
+        if ($candidateCount <= 0) {
+            return sprintf('No enabled sources found for bot identity "%s".', $identity);
+        }
+
+        return sprintf(
+            'No runnable sources for "%s" (cooldown_skips=%d, dead_skips=%d, candidates=%d).',
+            $identity,
+            $cooldownSkips,
+            $deadSkips,
+            $candidateCount
+        );
+    }
+
+    private function retryAfterSeconds(mixed $cooldownUntil): int
+    {
+        if (!$cooldownUntil instanceof \Carbon\CarbonInterface) {
+            return 0;
+        }
+
+        return max(0, now()->diffInSeconds($cooldownUntil, false));
     }
 }
