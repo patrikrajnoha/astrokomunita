@@ -46,7 +46,11 @@
         </div>
 
         <div class="profileHead">
-          <div class="avatar avatarEditable" :class="{ uploading: avatarUploading }">
+          <div
+            class="avatar avatarEditable"
+            :class="{ uploading: avatarUploading, canEdit: !!auth.user }"
+            @click="openAvatarEditor"
+          >
             <UserAvatar
               class="avatarImg"
               :user="auth.user"
@@ -59,7 +63,7 @@
               class="mediaBtn avatarBtn avatarEditTrigger"
               :disabled="avatarUploading || avatarRemoving"
               aria-label="Upravit profilovy avatar"
-              @click="openAvatarEditor"
+              @click.stop="openAvatarEditor"
             >
               <svg class="avatarBtnIcon" viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -101,48 +105,11 @@
           <p v-if="auth.user?.bio" class="bio">{{ auth.user.bio }}</p>
           <p v-else class="bio muted">Zatial bez popisu.</p>
 
-          <div class="meta">
-            <span class="metaItem">Lokalita: {{ canonicalLocationLabel || 'nenastavená' }}</span>
-            <button
-              v-if="auth.user"
-              type="button"
-              :class="canonicalLocationLabel ? 'metaActionBtn' : 'btn metaSetupBtn'"
-              @click="goToLocationEditor"
-            >
-              {{ canonicalLocationLabel ? 'Upraviť polohu' : 'Nastaviť polohu' }}
-            </button>
-            <span v-if="auth.user?.email" class="metaItem">E-mail: {{ auth.user.email }}</span>
+          <div v-if="auth.user?.email" class="meta">
+            <span class="metaItem">E-mail: {{ auth.user.email }}</span>
           </div>
         </div>
 
-      </section>
-
-      <section v-if="auth.user" class="card avatarCard avatarCardCompact">
-        <div class="avatarCardHead">
-          <div>
-            <h2 class="avatarCardTitle">Profilovy avatar</h2>
-            <p class="avatarCardSub">Fotka alebo generovany avatar.</p>
-          </div>
-          <button type="button" class="btn outline avatarOpenBtn" @click="openAvatarEditor">Upravit</button>
-        </div>
-
-        <div class="avatarCardMeta">
-          <div class="avatar sm avatarCardPreview">
-            <UserAvatar
-              class="avatarImg"
-              :user="auth.user"
-              :avatar-url="avatarSrc"
-              :alt="`${displayName} avatar`"
-            />
-          </div>
-
-          <div class="avatarCardInfo">
-            <div class="avatarModePill">{{ persistedAvatarMode === 'generated' ? 'Rezim Avatar' : 'Rezim Fotka' }}</div>
-            <p class="avatarHint avatarCardHint">Bez fotky sa automaticky pouzije generovany fallback.</p>
-          </div>
-        </div>
-
-        <div v-if="avatarErr" class="msg err avatarMsg">{{ avatarErr }}</div>
       </section>
 
       <BaseModal
@@ -598,16 +565,6 @@ const avatarDraft = reactive({
 const pinnedPost = ref(null)
 
 const displayName = computed(() => auth.user?.name || 'Profil')
-const canonicalLocationLabel = computed(() => {
-  const fromCanonical = parseStringValue(auth.user?.location_data?.label)
-  if (fromCanonical) return fromCanonical
-
-  const fromStoredLabel = parseStringValue(auth.user?.location_label)
-  if (fromStoredLabel) return fromStoredLabel
-
-  return parseStringValue(auth.user?.location) || ''
-})
-
 const handle = computed(() => {
   const email = auth.user?.email || ''
   const base = email.split('@')[0] || auth.user?.name || 'user'
@@ -629,11 +586,6 @@ const avatarResolved = computed(() =>
     seed: avatarDraft.seed,
   }),
 )
-const persistedAvatarMode = computed(() => {
-  const hasImage = String(avatarSrc.value || '').trim() !== ''
-  if (hasImage) return 'image'
-  return normalizeAvatarMode(auth.user?.avatar_mode || auth.user?.avatarMode)
-})
 const iconOptions = computed(() =>
   AVATAR_ICONS.map((iconKey, index) => ({
     key: iconKey,
@@ -854,10 +806,6 @@ function goToProfileEdit() {
   router.push({ name: 'profile.edit' })
 }
 
-function goToLocationEditor() {
-  router.push({ name: 'profile.edit', hash: '#location' })
-}
-
 function openPost(post) {
   if (!post?.id) return
   router.push(`/posts/${post.id}`)
@@ -1013,12 +961,6 @@ function parentHandle(post) {
 function extractFirstError(errorsObj, field) {
   const v = errorsObj?.[field]
   return Array.isArray(v) && v.length ? String(v[0]) : ''
-}
-
-function parseStringValue(value) {
-  if (typeof value !== 'string') return null
-  const trimmed = value.trim()
-  return trimmed !== '' ? trimmed : null
 }
 
 function openPicker(type) {
@@ -1575,6 +1517,9 @@ onBeforeUnmount(() => {
   position: relative;
   overflow: hidden;
 }
+.avatarEditable.canEdit {
+  cursor: pointer;
+}
 .avatarImg {
   width: 100%;
   height: 100%;
@@ -1685,23 +1630,6 @@ onBeforeUnmount(() => {
   font-size: 0.84rem;
 }
 .metaItem { white-space: nowrap; }
-.metaActionBtn {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--primary);
-  font-size: 0.84rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-.metaActionBtn:hover {
-  text-decoration: underline;
-}
-.btn.metaSetupBtn {
-  min-height: 30px;
-  padding: 0.2rem 0.75rem;
-  font-size: 0.78rem;
-}
 
 .avatarCardTitle {
   margin: 0;

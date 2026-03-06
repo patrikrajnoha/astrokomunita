@@ -93,6 +93,7 @@ function makeRouter() {
       { path: '/login', component: AppLayout },
       { path: '/profile', component: AppLayout },
       { path: '/profile/edit', component: AppLayout },
+      { path: '/u/:username', component: AppLayout },
       { path: '/privacy', component: AppLayout },
     ],
   })
@@ -265,6 +266,23 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     expect(wrapper.find('[data-testid="layout-left"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="layout-center"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
+  })
+
+  it('renders the right rail for public profile routes (/u/:username)', async () => {
+    const router = makeRouter()
+    await router.push('/u/stellarbot')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+
     expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
   })

@@ -59,5 +59,9 @@ export function resolveSidebarScopeFromPath(path) {
     return SIDEBAR_SCOPE.PROFILE
   }
 
+  if (normalized.startsWith('/u/')) {
+    return SIDEBAR_SCOPE.PROFILE
+  }
+
   return null
 }

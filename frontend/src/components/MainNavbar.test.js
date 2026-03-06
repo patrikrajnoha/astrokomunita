@@ -165,77 +165,18 @@ describe('MainNavbar active route state', () => {
     expect(pushSpy).toHaveBeenCalledWith('/observations/new')
   })
 
-  it('opens notifications dropdown and shows loading state', async () => {
+  it('navigates to notifications page when notifications trigger is clicked', async () => {
     authStore.isAuthed = true
     authStore.user = { id: 1, name: 'Test User' }
     notificationsStore.unreadBadge = '2'
-    notificationsStore.latestLoading = true
-
-    const wrapper = await mountNavbarAt('/')
-
-    await wrapper.get('[data-testid="notifications-trigger"]').trigger('click')
-    await nextTick()
-
-    expect(wrapper.find('[data-testid="notifications-dropdown"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="notifications-dropdown-loading"]').exists()).toBe(true)
-    expect(notificationsStore.fetchLatest).toHaveBeenCalled()
-  })
-
-  it('retries notifications dropdown load when retry button is clicked', async () => {
-    authStore.isAuthed = true
-    authStore.user = { id: 1, name: 'Test User' }
-    notificationsStore.latestLoading = false
-    notificationsStore.latestError = 'Failed to load notifications.'
-    notificationsStore.latestItems = []
-
-    const wrapper = await mountNavbarAt('/')
-    await wrapper.get('[data-testid="notifications-trigger"]').trigger('click')
-    await nextTick()
-
-    await wrapper.get('[data-testid="notifications-dropdown-retry"]').trigger('click')
-    await nextTick()
-
-    expect(notificationsStore.fetchLatest).toHaveBeenCalledTimes(2)
-    expect(notificationsStore.fetchLatest).toHaveBeenNthCalledWith(1, 10)
-    expect(notificationsStore.fetchLatest).toHaveBeenNthCalledWith(2, 10, { force: true })
-  })
-
-  it('shows notifications empty state in dropdown', async () => {
-    authStore.isAuthed = true
-    authStore.user = { id: 1, name: 'Test User' }
-    notificationsStore.unreadBadge = '1'
-    notificationsStore.latestItems = []
-    notificationsStore.latestLoading = false
-    notificationsStore.latestError = ''
-
-    const wrapper = await mountNavbarAt('/')
-    await wrapper.get('[data-testid="notifications-trigger"]').trigger('click')
-    await nextTick()
-
-    expect(wrapper.find('[data-testid="notifications-dropdown-empty"]').exists()).toBe(true)
-  })
-
-  it('navigates to notifications page from dropdown footer link', async () => {
-    authStore.isAuthed = true
-    authStore.user = { id: 1, name: 'Test User' }
-    notificationsStore.latestItems = [
-      {
-        id: 9001,
-        type: 'event_invite',
-        data: { event_title: 'Test event' },
-        read_at: null,
-        created_at: '2026-03-05T12:00:00Z',
-      },
-    ]
 
     const { wrapper, router } = await mountNavbarAtWithRouter('/')
     const pushSpy = vi.spyOn(router, 'push')
 
     await wrapper.get('[data-testid="notifications-trigger"]').trigger('click')
     await nextTick()
-    await wrapper.get('[data-testid="notifications-dropdown-all"]').trigger('click')
-    await nextTick()
 
     expect(pushSpy).toHaveBeenCalledWith('/notifications')
+    expect(notificationsStore.fetchLatest).not.toHaveBeenCalled()
   })
 })

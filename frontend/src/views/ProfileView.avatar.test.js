@@ -154,7 +154,7 @@ describe('ProfileView avatar panel', () => {
   it('switches mode to generated and renders generated controls', async () => {
     const { wrapper } = await mountProfile()
 
-    const openButton = wrapper.find('.avatarOpenBtn')
+    const openButton = wrapper.find('.avatarEditTrigger')
     await openButton.trigger('click')
     await flush()
 
@@ -182,7 +182,7 @@ describe('ProfileView avatar panel', () => {
   it('saves avatar preferences via PATCH /me/avatar', async () => {
     const { wrapper } = await mountProfile()
 
-    const openButton = wrapper.find('.avatarOpenBtn')
+    const openButton = wrapper.find('.avatarEditTrigger')
     await openButton.trigger('click')
     await flush()
 
@@ -212,38 +212,29 @@ describe('ProfileView avatar panel', () => {
     wrapper.unmount()
   })
 
-  it('navigates to profile edit route for profile and location edits', async () => {
+  it('navigates to profile edit route for profile edit CTA', async () => {
     const { wrapper, router } = await mountProfile()
 
-    expect(wrapper.find('input[maxlength=\"60\"]').exists()).toBe(false)
+    expect(wrapper.find('input[maxlength="60"]').exists()).toBe(false)
 
-    const editButton = wrapper.findAll('button').find((button) => button.text().trim() === 'Upraviť profil')
-    expect(editButton).toBeTruthy()
+    const editButton = wrapper.find('.headActions .btn.outline')
+    expect(editButton.exists()).toBe(true)
     await editButton.trigger('click')
     await flush()
-    expect(router.currentRoute.value.name).toBe('profile.edit')
 
-    await router.push('/profile')
-    await flush()
-
-    const locationButton = wrapper.findAll('button').find((button) => button.text().trim() === 'Nastaviť polohu')
-    expect(locationButton).toBeTruthy()
-    await locationButton.trigger('click')
-    await flush()
     expect(router.currentRoute.value.name).toBe('profile.edit')
-    expect(router.currentRoute.value.hash).toBe('#location')
 
     wrapper.unmount()
   })
 
-  it('shows empty location state with primary CTA when location is missing', async () => {
+  it('hides location UI and separate avatar panel in profile header area', async () => {
     const { wrapper } = await mountProfile()
 
-    expect(wrapper.text()).toContain('Lokalita: nenastavená')
-
-    const ctaButton = wrapper.findAll('button').find((button) => button.text().trim() === 'Nastaviť polohu')
-    expect(ctaButton).toBeTruthy()
-    expect(ctaButton.classes()).toContain('metaSetupBtn')
+    expect(wrapper.text()).not.toMatch(/lokalita/i)
+    expect(wrapper.text()).not.toMatch(/upraviť polohu/i)
+    expect(wrapper.text()).not.toMatch(/nastaviť polohu/i)
+    expect(wrapper.find('.avatarCard').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Profilovy avatar')
 
     wrapper.unmount()
   })

@@ -129,6 +129,7 @@ describe('RightObservingSidebar', () => {
     expect(resolveSidebarScopeFromPath('/settings')).toBe('settings')
     expect(resolveSidebarScopeFromPath('/observations')).toBe('observing')
     expect(resolveSidebarScopeFromPath('/observing/sky-summary')).toBe('observing')
+    expect(resolveSidebarScopeFromPath('/u/stellarbot')).toBe('profile')
     expect(resolveSidebarScopeFromPath('/unknown-route')).toBeNull()
   })
 

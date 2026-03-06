@@ -64,6 +64,8 @@ const segments = computed(() => {
   line-height: inherit;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .hashtag-link {
