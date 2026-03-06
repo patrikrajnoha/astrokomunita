@@ -6,6 +6,7 @@ import AdminUserDetailView from './AdminUserDetailView.vue'
 const apiGetMock = vi.fn()
 const apiPostMock = vi.fn()
 const apiPatchMock = vi.fn()
+const apiDeleteMock = vi.fn()
 const authState = {
   user: { id: 1 },
   isAdmin: true,
@@ -16,6 +17,7 @@ vi.mock('@/services/api', () => ({
     get: (...args) => apiGetMock(...args),
     post: (...args) => apiPostMock(...args),
     patch: (...args) => apiPatchMock(...args),
+    delete: (...args) => apiDeleteMock(...args),
   },
 }))
 
@@ -67,6 +69,27 @@ function makeRouter() {
   })
 }
 
+function makeBotUser(overrides = {}) {
+  return {
+    id: 42,
+    name: 'Kozmo',
+    email: null,
+    role: 'bot',
+    is_bot: true,
+    is_active: true,
+    is_banned: false,
+    avatar_mode: 'image',
+    avatar_color: null,
+    avatar_icon: null,
+    avatar_seed: null,
+    avatar_path: null,
+    cover_path: null,
+    avatar_url: null,
+    cover_url: null,
+    ...overrides,
+  }
+}
+
 function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
@@ -76,6 +99,9 @@ describe('AdminUserDetailView', () => {
     vi.clearAllMocks()
     authState.user = { id: 1 }
     authState.isAdmin = true
+    URL.createObjectURL = vi.fn(() => 'blob:preview')
+    URL.revokeObjectURL = vi.fn()
+
     apiGetMock.mockImplementation((url) => {
       if (url === '/admin/users/42') {
         return Promise.resolve({
@@ -97,8 +123,10 @@ describe('AdminUserDetailView', () => {
         data: { data: [] },
       })
     })
+
     apiPatchMock.mockResolvedValue({ data: {} })
     apiPostMock.mockResolvedValue({ data: {} })
+    apiDeleteMock.mockResolvedValue({ data: {} })
   })
 
   it('shows community section context and back link to users tab', async () => {
@@ -109,54 +137,35 @@ describe('AdminUserDetailView', () => {
     const wrapper = mount(AdminUserDetailView, {
       global: {
         plugins: [router],
+        stubs: { teleport: true },
       },
     })
 
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Správa komunity')
-    expect(wrapper.find('.adminSectionTabs__tab.active').text()).toContain('Používatelia')
+    expect(wrapper.text().toLowerCase()).toContain('komunity')
+    expect(wrapper.find('.adminSectionTabs__tab.active').text().toLowerCase()).toContain('pou')
 
     const back = wrapper.get('[data-testid="admin-section-back-link"]')
     expect(back.attributes('href')).toContain('/admin/community/users?page=5&search=raj')
-
     expect(apiGetMock).toHaveBeenCalledWith('/admin/users/42')
   })
 
-  it('uploads bot avatar through admin upload endpoint', async () => {
+  it('uses profile-style bot media cards and hides raw storage paths', async () => {
     apiGetMock.mockImplementation((url) => {
       if (url === '/admin/users/42') {
         return Promise.resolve({
-          data: {
-            id: 42,
-            name: 'Kozmo',
-            email: null,
-            role: 'bot',
-            is_bot: true,
-            is_active: true,
-            is_banned: false,
-            avatar_path: null,
-            cover_path: null,
-            avatar_url: null,
-            cover_url: null,
-          },
+          data: makeBotUser({
+            avatar_path: 'avatars/42/current.png',
+            cover_path: 'covers/42/current.png',
+            avatar_url: '/api/media/file/avatars/42/current.png',
+            cover_url: '/api/media/file/covers/42/current.png',
+          }),
         })
       }
 
-      return Promise.resolve({
-        data: { data: [] },
-      })
-    })
-
-    apiPatchMock.mockResolvedValue({
-      data: {
-        id: 42,
-        role: 'bot',
-        is_bot: true,
-        avatar_path: 'avatars/42/new-avatar.png',
-        avatar_url: '/api/media/file/avatars/42/new-avatar.png',
-      },
+      return Promise.resolve({ data: { data: [] } })
     })
 
     const router = makeRouter()
@@ -166,58 +175,87 @@ describe('AdminUserDetailView', () => {
     const wrapper = mount(AdminUserDetailView, {
       global: {
         plugins: [router],
+        stubs: { teleport: true },
       },
     })
 
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Upload avatar')
-    expect(wrapper.text()).toContain('Upload cover')
-
-    const avatarInput = wrapper.findAll('.botMediaInput')[0]
-    const file = new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' })
-    Object.defineProperty(avatarInput.element, 'files', {
-      value: [file],
-      writable: false,
-      configurable: true,
-    })
-    await avatarInput.trigger('change')
-
-    await flush()
-    await flush()
-
-    expect(apiPatchMock).toHaveBeenCalled()
-    const [url, payload] = apiPatchMock.mock.calls.find((call) => call[0] === '/admin/users/42/avatar') || []
-    expect(url).toBe('/admin/users/42/avatar')
-    expect(payload).toBeInstanceOf(FormData)
+    expect(wrapper.text()).toContain('Profilovy avatar')
+    expect(wrapper.text()).toContain('Titulna fotka')
+    expect(wrapper.find('[data-testid="admin-bot-avatar-edit"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="admin-bot-cover-edit"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('Path:')
+    expect(wrapper.text()).not.toContain('avatars/42/current.png')
+    expect(wrapper.text()).not.toContain('covers/42/current.png')
   })
 
-  it('hides bot upload controls for non-admin and keeps read-only preview', async () => {
-    authState.isAdmin = false
+  it('allows admin to upload/remove/save bot avatar and cover via editor modals', async () => {
+    let botState = makeBotUser({
+      avatar_path: 'avatars/42/current.png',
+      cover_path: 'covers/42/current.png',
+      avatar_url: '/api/media/file/avatars/42/current.png',
+      cover_url: '/api/media/file/covers/42/current.png',
+    })
 
     apiGetMock.mockImplementation((url) => {
       if (url === '/admin/users/42') {
-        return Promise.resolve({
-          data: {
-            id: 42,
-            name: 'Kozmo',
-            email: null,
-            role: 'bot',
-            is_bot: true,
-            is_active: true,
-            is_banned: false,
-            avatar_path: null,
-            cover_path: null,
-            avatar_url: null,
-            cover_url: null,
-          },
-        })
+        return Promise.resolve({ data: { ...botState } })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+
+    apiPatchMock.mockImplementation(async (url, payload) => {
+      if (url === '/admin/users/42/avatar') {
+        botState = {
+          ...botState,
+          avatar_mode: 'image',
+          avatar_path: 'avatars/42/new-avatar.png',
+          avatar_url: '/api/media/file/avatars/42/new-avatar.png',
+        }
+        return { data: { ...botState } }
       }
 
-      return Promise.resolve({
-        data: { data: [] },
-      })
+      if (url === '/admin/users/42/avatar/preferences') {
+        botState = {
+          ...botState,
+          avatar_mode: payload.avatar_mode,
+          avatar_color: payload.avatar_color,
+          avatar_icon: payload.avatar_icon,
+          avatar_seed: payload.avatar_seed,
+        }
+        return { data: { ...botState } }
+      }
+
+      if (url === '/admin/users/42/cover') {
+        botState = {
+          ...botState,
+          cover_path: 'covers/42/new-cover.png',
+          cover_url: '/api/media/file/covers/42/new-cover.png',
+        }
+        return { data: { ...botState } }
+      }
+
+      return { data: { ...botState } }
+    })
+
+    apiDeleteMock.mockImplementation(async (url) => {
+      if (url === '/admin/users/42/avatar') {
+        botState = {
+          ...botState,
+          avatar_path: null,
+          avatar_url: null,
+        }
+      }
+      if (url === '/admin/users/42/cover') {
+        botState = {
+          ...botState,
+          cover_path: null,
+          cover_url: null,
+        }
+      }
+      return { data: { ...botState } }
     })
 
     const router = makeRouter()
@@ -227,17 +265,106 @@ describe('AdminUserDetailView', () => {
     const wrapper = mount(AdminUserDetailView, {
       global: {
         plugins: [router],
+        stubs: { teleport: true },
       },
     })
 
     await flush()
     await flush()
 
-    expect(wrapper.findAll('.botMediaInput').length).toBe(0)
-    expect(wrapper.text()).not.toContain('Upload avatar')
-    expect(wrapper.text()).not.toContain('Upload cover')
+    await wrapper.get('[data-testid="admin-bot-avatar-edit"]').trigger('click')
+    await flush()
+
+    const avatarFile = new File([new Uint8Array([1, 2, 3])], 'avatar.png', { type: 'image/png' })
+    await wrapper.vm.onBotMediaChange('avatar', {
+      target: {
+        files: [avatarFile],
+        value: '',
+      },
+    })
+    await flush()
+
+    await wrapper.get('[data-testid="admin-bot-avatar-save"]').trigger('click')
+    await flush()
+    await flush()
+
+    expect(apiPatchMock).toHaveBeenCalledWith('/admin/users/42/avatar', expect.any(FormData))
+    expect(apiPatchMock).toHaveBeenCalledWith(
+      '/admin/users/42/avatar/preferences',
+      expect.objectContaining({ avatar_mode: 'image' }),
+    )
+
+    await wrapper.get('[data-testid="admin-bot-avatar-edit"]').trigger('click')
+    await flush()
+    await wrapper.get('[data-testid="admin-bot-avatar-remove"]').trigger('click')
+    await wrapper.get('[data-testid="admin-bot-avatar-save"]').trigger('click')
+    await flush()
+    await flush()
+
+    expect(apiDeleteMock).toHaveBeenCalledWith('/admin/users/42/avatar')
+    expect(apiPatchMock).toHaveBeenCalledWith(
+      '/admin/users/42/avatar/preferences',
+      expect.objectContaining({ avatar_mode: 'image' }),
+    )
+
+    await wrapper.get('[data-testid="admin-bot-cover-edit"]').trigger('click')
+    await flush()
+
+    const coverFile = new File([new Uint8Array([4, 5, 6])], 'cover.png', { type: 'image/png' })
+    await wrapper.vm.onBotMediaChange('cover', {
+      target: {
+        files: [coverFile],
+        value: '',
+      },
+    })
+    await flush()
+
+    await wrapper.get('[data-testid="admin-bot-cover-save"]').trigger('click')
+    await flush()
+    await flush()
+
+    expect(apiPatchMock).toHaveBeenCalledWith('/admin/users/42/cover', expect.any(FormData))
+
+    await wrapper.get('[data-testid="admin-bot-cover-edit"]').trigger('click')
+    await flush()
+    await wrapper.get('[data-testid="admin-bot-cover-remove"]').trigger('click')
+    await wrapper.get('[data-testid="admin-bot-cover-save"]').trigger('click')
+    await flush()
+    await flush()
+
+    expect(apiDeleteMock).toHaveBeenCalledWith('/admin/users/42/cover')
+  })
+
+  it('hides bot media edit controls for non-admin and keeps read-only preview', async () => {
+    authState.isAdmin = false
+    apiGetMock.mockImplementation((url) => {
+      if (url === '/admin/users/42') {
+        return Promise.resolve({
+          data: makeBotUser(),
+        })
+      }
+
+      return Promise.resolve({ data: { data: [] } })
+    })
+
+    const router = makeRouter()
+    await router.push('/admin/users/42')
+    await router.isReady()
+
+    const wrapper = mount(AdminUserDetailView, {
+      global: {
+        plugins: [router],
+        stubs: { teleport: true },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(wrapper.find('[data-testid="admin-bot-avatar-edit"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="admin-bot-cover-edit"]').exists()).toBe(false)
     expect(wrapper.text().toLowerCase()).toContain('read-only preview')
-    expect(wrapper.find('.botMediaPreview.avatar').exists()).toBe(true)
+    expect(wrapper.find('.avatarCardMeta').exists()).toBe(true)
     expect(wrapper.find('.botMediaPreview.cover').exists()).toBe(true)
   })
 })
