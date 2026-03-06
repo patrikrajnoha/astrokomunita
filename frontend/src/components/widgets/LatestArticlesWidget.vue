@@ -25,8 +25,8 @@
       </li>
     </transition-group>
 
-    <div class="modeIndicator" :class="{ spin: modeChangeTick > 0 }" aria-hidden="true">o</div>
-    <div class="switchProgress" aria-hidden="true">
+    <div v-if="hasLoadedAnyData" class="modeIndicator" :class="{ spin: modeChangeTick > 0 }" aria-hidden="true">o</div>
+    <div v-if="hasLoadedAnyData" class="switchProgress" aria-hidden="true">
       <span class="switchProgressBar" :style="{ transform: `scaleX(${switchProgress})` }"></span>
     </div>
   </section>
@@ -202,6 +202,7 @@ export default {
       mode,
       loading,
       error,
+      hasLoadedAnyData,
       typedTitle,
       switchProgress,
       modeChangeTick,
@@ -223,14 +224,15 @@ export default {
 .panel {
   display: grid;
   gap: var(--sb-gap-sm, 0.5rem);
+  min-width: 0;
 }
 
 .panelTitle {
-  min-height: 1.12rem;
+  min-height: 1.05rem;
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.88rem;
-  line-height: 1.22;
+  font-size: 0.84rem;
+  line-height: 1.2;
   letter-spacing: 0.01em;
 }
 
@@ -248,13 +250,13 @@ export default {
 }
 
 .articleViewport {
-  min-height: 4.9rem;
+  min-height: 4.2rem;
 }
 
 .articleItem {
   display: block;
   border-bottom: 1px solid var(--divider-color);
-  padding: 0.46rem 0;
+  padding: 0.38rem 0;
 }
 
 .articleItem:last-child {
@@ -265,8 +267,8 @@ export default {
   color: var(--color-surface);
   text-decoration: none;
   font-weight: 600;
-  font-size: 0.84rem;
-  line-height: 1.28;
+  font-size: 0.8rem;
+  line-height: 1.24;
   display: -webkit-box;
   line-clamp: 2;
   -webkit-line-clamp: 2;
@@ -279,7 +281,7 @@ export default {
 }
 
 .stateTitle {
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   font-weight: 800;
   color: var(--color-surface);
   line-height: 1.24;
@@ -288,7 +290,7 @@ export default {
 .stateText {
   margin-top: 0.2rem;
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   line-height: 1.32;
 }
 
@@ -340,10 +342,10 @@ export default {
 
 .modeIndicator {
   position: absolute;
-  top: 0.78rem;
-  right: 0.8rem;
-  font-size: 0.72rem;
-  opacity: 0.35;
+  top: 0.62rem;
+  right: 0.62rem;
+  font-size: 0.64rem;
+  opacity: 0.26;
   color: var(--color-surface);
   transform-origin: 50% 50%;
 }

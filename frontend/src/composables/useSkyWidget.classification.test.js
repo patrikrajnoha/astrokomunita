@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifySkyPhase, SKY_PHASE } from './useSkyWidget'
+import { classifySkyPhase, classifySkyPhaseFromTimeline, SKY_PHASE } from './useSkyWidget'
 
 describe('useSkyWidget sky phase classification', () => {
   it('follows the requested solar altitude boundaries', () => {
@@ -40,5 +40,17 @@ describe('useSkyWidget sky phase classification', () => {
 
   it('returns location_required when coordinates are missing', () => {
     expect(classifySkyPhase({ hasLocationCoords: false, sunAltitudeDeg: -32.4 })).toBe(SKY_PHASE.LOCATION_REQUIRED)
+  })
+
+  it('uses timeline as night after midnight for the previous evening window', () => {
+    const phase = classifySkyPhaseFromTimeline({
+      hasLocationCoords: true,
+      nowTs: new Date('2026-01-15T00:30:00+01:00').getTime(),
+      sunriseAt: '2026-01-15T07:35:00+01:00',
+      sunsetAt: '2026-01-15T16:20:00+01:00',
+      civilTwilightEndAt: '2026-01-15T17:05:00+01:00',
+    })
+
+    expect(phase).toBe(SKY_PHASE.ASTRONOMICAL_NIGHT)
   })
 })

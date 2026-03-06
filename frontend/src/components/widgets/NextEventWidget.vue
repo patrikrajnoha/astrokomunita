@@ -131,6 +131,7 @@ export default {
 .panel {
   display: grid;
   gap: var(--sb-gap-sm, 0.5rem);
+  min-width: 0;
 }
 
 .panelTitle {
@@ -147,14 +148,15 @@ export default {
 
 .eventCard {
   display: grid;
-  gap: var(--sb-gap-sm, 0.5rem);
+  gap: 0.38rem;
+  min-width: 0;
 }
 
 .eventTitle {
-  font-size: 0.95rem;
+  font-size: 0.89rem;
   font-weight: 800;
   color: var(--color-surface);
-  line-height: 1.24;
+  line-height: 1.2;
   display: -webkit-box;
   line-clamp: 2;
   -webkit-line-clamp: 2;
@@ -164,8 +166,8 @@ export default {
 
 .eventMeta {
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
-  line-height: 1.28;
+  font-size: 0.76rem;
+  line-height: 1.26;
 }
 
 .panelActions {
@@ -175,13 +177,18 @@ export default {
 }
 
 .actionbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  width: auto;
   min-height: 1.95rem;
-  padding: 0.4rem 0.68rem;
-  border-radius: 0.7rem;
+  padding: 0.34rem 0.64rem;
+  border-radius: 0.64rem;
   border: 1px solid var(--color-primary);
   background: rgb(var(--color-primary-rgb) / 0.16);
   color: var(--color-surface);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   line-height: 1.15;
 }
 
@@ -190,13 +197,18 @@ export default {
 }
 
 .ghostbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  width: auto;
   min-height: 1.95rem;
-  padding: 0.4rem 0.68rem;
-  border-radius: 0.7rem;
+  padding: 0.34rem 0.64rem;
+  border-radius: 0.64rem;
   border: 1px solid var(--color-text-secondary);
   color: var(--color-surface);
   background: rgb(var(--color-bg-rgb) / 0.2);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   line-height: 1.15;
 }
 
@@ -207,7 +219,7 @@ export default {
 }
 
 .stateTitle {
-  font-size: 0.86rem;
+  font-size: 0.82rem;
   font-weight: 800;
   color: var(--color-surface);
   line-height: 1.24;
@@ -216,7 +228,7 @@ export default {
 .stateText {
   margin-top: 0.2rem;
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   line-height: 1.32;
 }
 

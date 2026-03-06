@@ -1,9 +1,7 @@
 export const SKY_WIDGET_SECTION_IDS = [
-  'hero_score',
-  'best_time',
-  'weather_inline',
+  'weather',
   'moon',
-  'bortle',
+  'light_pollution',
   'planets',
   'iss',
 ]
@@ -29,22 +27,22 @@ export function moveSection(sectionIds, sectionId, direction) {
 
 export function getScorePresentation(score) {
   if (!Number.isFinite(score)) {
-    return { label: 'Nedostupne', emoji: '😐' }
+    return { label: 'Nedostupne', tone: 'neutral' }
   }
 
   if (score >= 80) {
-    return { label: 'Vyborne', emoji: '😄' }
+    return { label: 'Vyborne', tone: 'excellent' }
   }
 
   if (score >= 60) {
-    return { label: 'Dobre', emoji: '🙂' }
+    return { label: 'Dobre', tone: 'good' }
   }
 
   if (score >= 40) {
-    return { label: 'Priemerne', emoji: '😐' }
+    return { label: 'Priemerne', tone: 'fair' }
   }
 
-  return { label: 'Slabe', emoji: '☁️' }
+  return { label: 'Slabe', tone: 'poor' }
 }
 
 export function getBortlePresentation(bortle) {
@@ -54,22 +52,52 @@ export function getBortlePresentation(bortle) {
   const normalized = Math.max(1, Math.min(9, Math.round(numeric)))
 
   if (normalized <= 2) {
-    return { levelText: 'velmi tmave', contextText: 'divocina / vysoke hory', bortle: normalized }
+    return {
+      levelText: 'Velmi tmava obloha',
+      contextText: 'divocina a vysoke hory',
+      impactText: 'Vhodne aj pre slabe deep-sky objekty.',
+      bortle: normalized,
+      tone: 'excellent',
+    }
   }
 
   if (normalized <= 4) {
-    return { levelText: 'tmave', contextText: 'vidiek', bortle: normalized }
+    return {
+      levelText: 'Tmava obloha',
+      contextText: 'vidiek',
+      impactText: 'Dobre podmienky pre vacsinu deep-sky objektov.',
+      bortle: normalized,
+      tone: 'good',
+    }
   }
 
   if (normalized <= 6) {
-    return { levelText: 'stredne', contextText: 'predmestie', bortle: normalized }
+    return {
+      levelText: 'Stredne svetelne znecistenie',
+      contextText: 'predmestie',
+      impactText: 'Lepsie pre jasne objekty a planety.',
+      bortle: normalized,
+      tone: 'fair',
+    }
   }
 
   if (normalized === 7) {
-    return { levelText: 'vysoke', contextText: 'mesto', bortle: normalized }
+    return {
+      levelText: 'Vyssie svetelne znecistenie',
+      contextText: 'mesto',
+      impactText: 'Deep-sky je limitovane, vhodne skor na planety.',
+      bortle: normalized,
+      tone: 'poor',
+    }
   }
 
-  return { levelText: 'velmi vysoke', contextText: 'centrum velkeho mesta', bortle: normalized }
+  return {
+    levelText: 'Velmi vysoke svetelne znecistenie',
+    contextText: 'centrum velkeho mesta',
+    impactText: 'Vhodne hlavne na Mesiac a najjasnejsie objekty.',
+    bortle: normalized,
+    tone: 'poor',
+  }
 }
 
 export function isPlanetNight(sunAltitudeDeg) {
@@ -107,11 +135,20 @@ export function getPlanetVisibilityTag({ sunAltitudeDeg, altitudeDeg, elongation
 export function getPlanetVisibilityPresentation(visibilityTag) {
   switch (String(visibilityTag || '').toLowerCase()) {
     case 'visible':
-      return { label: 'Viditeľná', toneClass: 'text-emerald-200 border-emerald-400/20 bg-emerald-400/10' }
+      return {
+        label: 'Viditelna',
+        toneClass: 'planetBadge planetBadge--visible',
+      }
     case 'close_to_sun':
-      return { label: 'Blízko Slnka', toneClass: 'text-amber-200 border-amber-400/20 bg-amber-400/10' }
+      return {
+        label: 'Blizko Slnka',
+        toneClass: 'planetBadge planetBadge--warning',
+      }
     case 'low':
-      return { label: 'Nízko nad obzorom', toneClass: 'text-amber-200 border-amber-400/20 bg-amber-400/10' }
+      return {
+        label: 'Nizko nad obzorom',
+        toneClass: 'planetBadge planetBadge--warning',
+      }
     default:
       return null
   }
@@ -133,6 +170,7 @@ export function getVisiblePlanets(planetsPayload) {
     .map((planet) => {
       const altitude = toFiniteNumber(planet?.altitude_deg)
       const elongation = toFiniteNumber(planet?.elongation_deg)
+      const magnitude = toFiniteNumber(planet?.magnitude)
       const visibilityTag = getPlanetVisibilityTag({
         sunAltitudeDeg: sunAltitude,
         altitudeDeg: altitude,
@@ -146,12 +184,14 @@ export function getVisiblePlanets(planetsPayload) {
 
       return {
         name: sanitizeLabel(planet?.name) || 'Planeta',
-        direction: sanitizeLabel(planet?.direction) || 'neznamy smer',
+        direction: sanitizeLabel(planet?.direction) || '-',
         bestTimeWindow: sanitizeLabel(planet?.best_time_window) || '',
         altitude,
         elongation,
-        altitudeLabel: altitude === null ? '-' : `${Math.round(altitude)}°`,
-        elongationLabel: elongation === null ? '-' : `${Math.round(elongation)}°`,
+        magnitude,
+        altitudeLabel: altitude === null ? '-' : `${Math.round(altitude)} deg`,
+        elongationLabel: elongation === null ? '-' : `${Math.round(elongation)} deg`,
+        magnitudeLabel: magnitude === null ? '' : `mag ${magnitude.toFixed(1)}`,
         visibilityTag,
         visibilityLabel: presentation.label,
         visibilityToneClass: presentation.toneClass,

@@ -124,6 +124,7 @@ export default {
 .panel {
   display: grid;
   gap: var(--sb-gap-sm, 0.5rem);
+  min-width: 0;
 }
 
 .panelTitle {
@@ -141,19 +142,20 @@ export default {
 .nasaCard {
   display: grid;
   gap: var(--sb-gap-sm, 0.5rem);
+  min-width: 0;
 }
 
 .nasaThumb {
   width: 100%;
-  aspect-ratio: 16 / 8.5;
-  border-radius: 0.75rem;
+  aspect-ratio: 16 / 7.8;
+  border-radius: 0.68rem;
 }
 
 .nasaImageWrap {
   width: 100%;
-  aspect-ratio: 16 / 8.5;
-  max-height: 172px;
-  border-radius: 0.75rem;
+  aspect-ratio: 16 / 7.8;
+  max-height: 142px;
+  border-radius: 0.68rem;
   overflow: hidden;
   border: 1px solid var(--divider-color);
 }
@@ -166,19 +168,24 @@ export default {
 }
 
 .nasaTitle {
-  font-size: 0.96rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: var(--color-surface);
-  line-height: 1.24;
+  line-height: 1.2;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .nasaExcerpt {
   color: var(--color-text-secondary);
-  font-size: 0.82rem;
-  line-height: 1.32;
+  font-size: 0.78rem;
+  line-height: 1.3;
   display: -webkit-box;
-  line-clamp: 3;
-  -webkit-line-clamp: 3;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -187,16 +194,21 @@ export default {
   display: flex;
   gap: var(--sb-gap-xs, 0.3rem);
   flex-wrap: wrap;
+  padding-top: 0.08rem;
 }
 
 .ghostbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
   min-height: 1.95rem;
-  padding: 0.4rem 0.7rem;
-  border-radius: 0.7rem;
+  padding: 0.36rem 0.64rem;
+  border-radius: 0.66rem;
   border: 1px solid var(--color-text-secondary);
   color: var(--color-surface);
   background: rgb(var(--color-bg-rgb) / 0.2);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   line-height: 1.15;
 }
 
@@ -235,7 +247,7 @@ export default {
 
 @media (max-width: 420px) {
   .nasaImageWrap {
-    max-height: 158px;
+    max-height: 136px;
   }
 
   .nasaExcerpt {
