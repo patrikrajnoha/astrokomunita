@@ -9,6 +9,13 @@ import {
   updateBotSource,
 } from '@/services/api/admin/bots'
 
+const props = defineProps({
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+})
+
 const loading = ref(false)
 const savingId = ref(null)
 const error = ref('')
@@ -143,8 +150,22 @@ onMounted(() => {
 </script>
 
 <template>
-  <AdminPageShell title="Bot Sources" subtitle="Health monitoring a konfiguracia zdrojov.">
-    <template #right-actions>
+  <component
+    :is="props.embedded ? 'section' : AdminPageShell"
+    v-bind="props.embedded ? {} : { title: 'Bot Sources', subtitle: 'Health monitoring a konfiguracia zdrojov.' }"
+    class="botSection"
+  >
+    <div v-if="props.embedded" class="embeddedHeader">
+      <div>
+        <h2 class="embeddedTitle">Sources</h2>
+        <p class="embeddedSubtitle">Health monitoring a konfiguracia zdrojov.</p>
+      </div>
+      <button class="actionBtn" type="button" :disabled="loading" @click="load">
+        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+      </button>
+    </div>
+
+    <template v-if="!props.embedded" #right-actions>
       <button class="actionBtn" type="button" :disabled="loading" @click="load">
         {{ loading ? 'Nacitavam...' : 'Obnovit' }}
       </button>
@@ -274,10 +295,35 @@ onMounted(() => {
         </table>
       </div>
     </section>
-  </AdminPageShell>
+  </component>
 </template>
 
 <style scoped>
+.botSection {
+  display: grid;
+  gap: 14px;
+}
+
+.embeddedHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.embeddedTitle {
+  margin: 0 0 6px;
+  font-size: 1.06rem;
+  font-weight: 800;
+}
+
+.embeddedSubtitle {
+  margin: 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  font-size: 0.85rem;
+}
+
 .card {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
   border-radius: 12px;

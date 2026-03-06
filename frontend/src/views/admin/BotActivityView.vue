@@ -1,7 +1,18 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import { getBotActivity } from '@/services/api/admin/bots'
+
+const props = defineProps({
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+})
+
+const route = useRoute()
+const routeQuery = computed(() => route?.query || {})
 
 const loading = ref(false)
 const error = ref('')
@@ -24,6 +35,24 @@ const filters = reactive({
 
 const canPrev = computed(() => Number(pagination.current_page || 1) > 1)
 const canNext = computed(() => Number(pagination.current_page || 1) < Number(pagination.last_page || 1))
+
+function readQueryValue(value) {
+  if (Array.isArray(value)) {
+    return String(value[0] || '').trim()
+  }
+
+  return String(value || '').trim()
+}
+
+function syncFiltersFromRoute() {
+  const query = routeQuery.value
+  filters.sourceKey = readQueryValue(query.sourceKey)
+  filters.bot_identity = readQueryValue(query.bot_identity)
+  filters.action = readQueryValue(query.action)
+  filters.outcome = readQueryValue(query.outcome)
+  filters.date_from = readQueryValue(query.date_from)
+  filters.date_to = readQueryValue(query.date_to)
+}
 
 function formatDateTime(value) {
   if (!value) return '-'
@@ -108,13 +137,36 @@ function nextPage() {
 }
 
 onMounted(() => {
+  syncFiltersFromRoute()
   void load(1)
 })
+
+watch(
+  routeQuery,
+  () => {
+    syncFiltersFromRoute()
+    void load(1)
+  },
+)
 </script>
 
 <template>
-  <AdminPageShell title="Bot aktivita" subtitle="Publish/run logy s dovodmi skip/fail.">
-    <template #right-actions>
+  <component
+    :is="props.embedded ? 'section' : AdminPageShell"
+    v-bind="props.embedded ? {} : { title: 'Bot aktivita', subtitle: 'Publish/run logy s dovodmi skip/fail.' }"
+    class="botSection"
+  >
+    <div v-if="props.embedded" class="embeddedHeader">
+      <div>
+        <h2 class="embeddedTitle">Activity</h2>
+        <p class="embeddedSubtitle">Publish/run logy s dovodmi skip/fail.</p>
+      </div>
+      <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
+        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+      </button>
+    </div>
+
+    <template v-if="!props.embedded" #right-actions>
       <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
         {{ loading ? 'Nacitavam...' : 'Obnovit' }}
       </button>
@@ -220,10 +272,35 @@ onMounted(() => {
         </button>
       </div>
     </section>
-  </AdminPageShell>
+  </component>
 </template>
 
 <style scoped>
+.botSection {
+  display: grid;
+  gap: 14px;
+}
+
+.embeddedHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.embeddedTitle {
+  margin: 0 0 6px;
+  font-size: 1.06rem;
+  font-weight: 800;
+}
+
+.embeddedSubtitle {
+  margin: 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  font-size: 0.85rem;
+}
+
 .card {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
   border-radius: 12px;

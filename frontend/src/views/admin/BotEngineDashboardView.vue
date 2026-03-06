@@ -4,6 +4,13 @@ import { RouterLink } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import { getBotOverview } from '@/services/api/admin/bots'
 
+const props = defineProps({
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+})
+
 const loading = ref(false)
 const error = ref('')
 const payload = ref({
@@ -58,8 +65,22 @@ onMounted(() => {
 </script>
 
 <template>
-  <AdminPageShell title="Bot Engine" subtitle="Pipeline dashboard za poslednych 24 hodin.">
-    <template #right-actions>
+  <component
+    :is="props.embedded ? 'section' : AdminPageShell"
+    v-bind="props.embedded ? {} : { title: 'Bot Engine', subtitle: 'Pipeline dashboard za poslednych 24 hodin.' }"
+    class="botSection"
+  >
+    <div v-if="props.embedded" class="embeddedHeader">
+      <div>
+        <h2 class="embeddedTitle">Overview</h2>
+        <p class="embeddedSubtitle">Pipeline dashboard za poslednych 24 hodin.</p>
+      </div>
+      <button type="button" class="actionBtn" :disabled="loading" @click="load">
+        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+      </button>
+    </div>
+
+    <template v-if="!props.embedded" #right-actions>
       <button type="button" class="actionBtn" :disabled="loading" @click="load">
         {{ loading ? 'Nacitavam...' : 'Obnovit' }}
       </button>
@@ -84,7 +105,7 @@ onMounted(() => {
       </article>
     </section>
 
-    <section class="card quickLinks">
+    <section v-if="!props.embedded" class="card quickLinks">
       <RouterLink :to="{ name: 'admin.bots.sources' }" class="quickLink">Source Health</RouterLink>
       <RouterLink :to="{ name: 'admin.bots.schedules' }" class="quickLink">Schedules</RouterLink>
       <RouterLink :to="{ name: 'admin.bots.engine' }" class="quickLink">Engine Controls</RouterLink>
@@ -135,10 +156,35 @@ onMounted(() => {
         </table>
       </div>
     </section>
-  </AdminPageShell>
+  </component>
 </template>
 
 <style scoped>
+.botSection {
+  display: grid;
+  gap: 14px;
+}
+
+.embeddedHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.embeddedTitle {
+  margin: 0 0 6px;
+  font-size: 1.06rem;
+  font-weight: 800;
+}
+
+.embeddedSubtitle {
+  margin: 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  font-size: 0.85rem;
+}
+
 .cards {
   display: grid;
   gap: 10px;
