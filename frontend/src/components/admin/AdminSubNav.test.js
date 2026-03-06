@@ -65,8 +65,8 @@ describe('AdminSubNav', () => {
     authState.isEditor = true
     const { wrapper } = await mountAt('/admin/content/articles')
 
-    expect(wrapper.text()).toContain('Editor Hub')
-    expect(wrapper.text()).not.toContain('SprĂˇva komunity')
+    expect(wrapper.text()).toContain('Editor')
+    expect(wrapper.text()).not.toContain('Správa komunity')
 
     authState.isAdmin = true
     authState.isEditor = false
@@ -77,15 +77,15 @@ describe('AdminSubNav', () => {
 
     expect(wrapper.text()).not.toContain('Reporty')
     expect(wrapper.text()).not.toContain('Zakázané slová')
-    expect(wrapper.text()).toContain('Event Pipeline')
+    expect(wrapper.text()).toContain('Udalosti')
     expect(wrapper.text()).toContain('Správa komunity')
   })
 
   it.each([
-    ['/admin/candidates/12', 'Event Pipeline'],
-    ['/admin/crawl-runs/22', 'Event Pipeline'],
+    ['/admin/candidates/12', 'Udalosti'],
+    ['/admin/crawl-runs/22', 'Udalosti'],
     ['/admin/users/15', 'Správa komunity'],
-    ['/admin/events/candidates', 'Event Pipeline'],
+    ['/admin/events/candidates', 'Udalosti'],
     ['/admin/community/moderation', 'Správa komunity'],
   ])('marks correct section active for %s', async (path, expectedLabel) => {
     const { wrapper } = await mountAt(path)

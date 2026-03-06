@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useAdminTable } from '@/composables/useAdminTable'
+import { useConfirm } from '@/composables/useConfirm'
 import AdminAiActionPanel from '@/components/admin/shared/AdminAiActionPanel.vue'
 import http from '@/services/api'
 import {
@@ -38,6 +39,7 @@ const aiTitleSuggestion = ref('')
 const aiTitleSource = ref('')
 const aiTitleUndoSnapshot = ref(null)
 const aiTitleLastRunByEvent = ref({})
+const { confirm } = useConfirm()
 
 const eventTypes = [
   { value: 'meteor_shower', label: 'Meteorický roj' },
@@ -349,7 +351,13 @@ async function previewTranslationBackfill() {
 }
 
 async function runTranslationBackfill() {
-  if (!window.confirm('Spustiť retranslate schválených udalostí?')) return
+  const approved = await confirm({
+    title: 'Spustit retranslate',
+    message: 'Naozaj spustit retranslate schvalenych udalosti?',
+    confirmText: 'Spustit',
+    cancelText: 'Zrusit',
+  })
+  if (!approved) return
   await requestTranslationBackfill(false)
 }
 

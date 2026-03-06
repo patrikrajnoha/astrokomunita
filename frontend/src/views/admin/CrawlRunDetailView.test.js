@@ -78,8 +78,8 @@ describe('CrawlRunDetailView', () => {
     await flush()
 
     expect(wrapper.text()).toContain('Crawl run detail')
-    expect(wrapper.text()).toContain('Event Pipeline')
-    expect(wrapper.find('.adminSectionTabs__tab.active').text()).toContain('Crawling')
+    expect(wrapper.text()).toContain('Udalosti')
+    expect(wrapper.find('.adminSectionTabs__tab.active').text()).toContain('Zber')
 
     const back = wrapper.get('[data-testid="admin-section-back-link"]')
     expect(back.attributes('href')).toContain('/admin/events/crawling')

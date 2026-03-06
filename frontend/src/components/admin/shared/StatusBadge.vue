@@ -57,12 +57,13 @@ const badgeType = computed(() => {
 .statusBadge {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.75rem;
+  min-height: 1.75rem;
+  padding: 0.2rem 0.7rem;
   border-radius: 9999px;
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 700;
   line-height: 1;
-  text-transform: capitalize;
+  text-transform: none;
   white-space: nowrap;
   border: 1px solid var(--border);
   background: rgb(var(--bg-surface-2-rgb) / 0.74);
@@ -70,24 +71,35 @@ const badgeType = computed(() => {
 }
 
 .statusBadge--small {
+  min-height: 1.4rem;
   padding: 0.125rem 0.5rem;
   font-size: 0.75rem;
 }
 
-.statusBadge--green,
-.statusBadge--blue,
+.statusBadge--green {
+  border-color: rgb(var(--color-success-rgb) / 0.4);
+  background: rgb(var(--color-success-rgb) / 0.14);
+  color: var(--color-success);
+}
+
+.statusBadge--blue {
+  border-color: rgb(var(--color-primary-rgb) / 0.4);
+  background: rgb(var(--color-primary-rgb) / 0.14);
+  color: var(--color-primary);
+}
+
 .statusBadge--orange,
 .statusBadge--yellow {
-  border-color: rgb(var(--primary-rgb) / 0.28);
-  background: rgb(var(--primary-rgb) / 0.12);
-  color: var(--primary);
+  border-color: rgb(var(--color-warning-rgb) / 0.45);
+  background: rgb(var(--color-warning-rgb) / 0.14);
+  color: var(--color-warning);
 }
 
 .statusBadge--red,
 .statusBadge--purple {
-  border-color: rgb(var(--primary-active-rgb) / 0.28);
-  background: rgb(var(--primary-active-rgb) / 0.12);
-  color: var(--primary-active);
+  border-color: rgb(var(--color-danger-rgb) / 0.45);
+  background: rgb(var(--color-danger-rgb) / 0.14);
+  color: var(--color-danger);
 }
 
 .statusBadge--gray {

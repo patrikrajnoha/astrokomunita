@@ -51,7 +51,7 @@ const types = [
   { value: 'eclipse_lunar', label: 'Zatmenie (L)' },
   { value: 'eclipse_solar', label: 'Zatmenie (S)' },
   { value: 'planetary_event', label: 'Konjunkcia' },
-  { value: 'other', label: 'InĂ©' },
+  { value: 'other', label: 'Iné' },
 ]
 
 const form = reactive({
@@ -138,7 +138,7 @@ async function loadEvent() {
     aiTitleFallbackUsed.value = false
     aiTitleUndoSnapshot.value = null
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa naÄŤĂ­taĹĄ udalosĹĄ.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať udalosť.'
   } finally {
     loading.value = false
   }
@@ -161,17 +161,17 @@ async function submit() {
   try {
     if (isEdit.value) {
       await api.put(`/admin/events/${eventId.value}`, payload)
-      success.value = 'UdalosĹĄ bola upravenĂˇ.'
+      success.value = 'Udalosť bola upravená.'
     } else {
       await api.post('/admin/events', payload)
-      success.value = 'UdalosĹĄ bola vytvorenĂˇ.'
+      success.value = 'Udalosť bola vytvorená.'
     }
 
     window.setTimeout(() => {
       router.push('/admin/events')
     }, 600)
   } catch (e) {
-    error.value = e?.response?.data?.message || 'UloĹľenie zlyhalo.'
+    error.value = e?.response?.data?.message || 'Uloženie zlyhalo.'
   } finally {
     loading.value = false
   }
@@ -203,7 +203,7 @@ async function runAiSuggestTitle() {
     aiTitleFallbackUsed.value = Boolean(payload.fallback_used)
   } catch (e) {
     aiTitleStatus.value = 'error'
-    aiTitleError.value = 'Nepodarilo sa navrhnut nazov.'
+    aiTitleError.value = 'Nepodarilo sa navrhnúť názov.'
     aiTitleRawStatusCode.value = Number(e?.response?.status || 0) || null
   } finally {
     aiTitleLoading.value = false
@@ -220,7 +220,7 @@ function applyAiTitleSuggestion() {
   }
 
   form.title = suggestion
-  aiTitleNotice.value = 'Nazov aktualizovany.'
+  aiTitleNotice.value = 'Názov aktualizovaný.'
 }
 
 function undoAiTitleSuggestion() {
@@ -275,12 +275,12 @@ async function runAiGenerateDescription() {
       description: previousDescription,
       short: previousShort,
     }
-    aiNotice.value = 'Opis aktualizovany.'
+    aiNotice.value = 'Opis aktualizovaný.'
 
     await focusDescriptionPreview()
   } catch (e) {
     aiStatus.value = 'error'
-    aiError.value = 'Nepodarilo sa vylepsit opis.'
+    aiError.value = 'Nepodarilo sa vylepšiť opis.'
     aiRawStatusCode.value = Number(e?.response?.status || 0) || null
   } finally {
     aiLoading.value = false
@@ -311,9 +311,9 @@ onMounted(async () => {
   <div style="max-width: 880px; margin: 0 auto; padding: 24px 16px;">
     <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px;">
       <div>
-        <h1 style="margin:0 0 6px;">{{ isEdit ? 'UpraviĹĄ udalosĹĄ' : 'VytvoriĹĄ udalosĹĄ' }}</h1>
+        <h1 style="margin:0 0 6px;">{{ isEdit ? 'Upraviť udalosť' : 'Vytvoriť udalosť' }}</h1>
         <div style="opacity:.8; font-size: 14px;">
-          {{ isEdit ? 'Uprav existujĂşce Ăşdaje udalosti.' : 'Pridaj manuĂˇlnu udalosĹĄ.' }}
+          {{ isEdit ? 'Uprav existujúce údaje udalosti.' : 'Pridaj manuálnu udalosť.' }}
         </div>
       </div>
     </div>
@@ -329,7 +329,7 @@ onMounted(async () => {
       <template v-if="aiPanelReady">
         <AdminAiActionPanel
           title="AI: Zlepšiť názov (SK)"
-          description="Navrhne prirodzenejsi slovensky nazov bez pridavania novych faktov."
+          description="Navrhne prirodzenejší slovenský názov bez pridávania nových faktov."
           action-label="Navrhnúť"
           :enabled="aiTitleEnabled"
           :status="aiTitleStatus"
@@ -342,7 +342,7 @@ onMounted(async () => {
           @run="runAiSuggestTitle"
         >
           <p v-if="!isEdit" style="margin:0; font-size:12px; opacity:.85;">
-            Panel sa aktivuje po ulozeni eventu.
+            Panel sa aktivuje po uložení eventu.
           </p>
           <template v-else>
             <div
@@ -387,8 +387,8 @@ onMounted(async () => {
 
         <AdminAiActionPanel
           style="margin-top:12px;"
-          title="AI pomocnik"
-          description="Vylepsi opis aktualnej udalosti."
+          title="AI pomocník"
+          description="Vylepší opis aktuálnej udalosti."
           action-label="Vylepšiť opis"
           :enabled="aiEnabled"
           :status="aiStatus"
@@ -401,14 +401,14 @@ onMounted(async () => {
           @run="runAiGenerateDescription"
         >
           <p v-if="!isEdit" style="margin:0; font-size:12px; opacity:.85;">
-            Panel sa aktivuje po ulozeni eventu.
+            Panel sa aktivuje po uložení eventu.
           </p>
           <template v-else>
             <div
               v-if="aiNotice"
               style="display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;"
             >
-              <span style="font-size:12px; color:rgb(22 101 52);">Opis aktualizovany.</span>
+              <span style="font-size:12px; color:rgb(22 101 52);">Opis aktualizovaný.</span>
               <button
                 v-if="aiUndoSnapshot"
                 type="button"
@@ -424,17 +424,17 @@ onMounted(async () => {
             >
               Použitý fallback
             </span>
-            <p style="margin:0; font-size:12px; opacity:.9;"><strong>Kratky opis:</strong> {{ aiShortDraft || '-' }}</p>
+            <p style="margin:0; font-size:12px; opacity:.9;"><strong>Krátky opis:</strong> {{ aiShortDraft || '-' }}</p>
           </template>
         </AdminAiActionPanel>
       </template>
       <p v-else style="margin:0; font-size:12px; opacity:.8;">
-        NaÄŤĂ­tavam AI konfigurĂˇciu...
+        Načítavam AI konfiguráciu...
       </p>
 
       <div style="display:grid; gap:12px;">
         <label style="display:block;">
-          <div style="font-size:12px; opacity:.8; margin-bottom:6px;">NĂˇzov</div>
+          <div style="font-size:12px; opacity:.8; margin-bottom:6px;">Názov</div>
           <input v-model="form.title" type="text" :disabled="loading" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;" />
         </label>
 
@@ -452,21 +452,21 @@ onMounted(async () => {
           </label>
 
           <label style="grid-column: span 6;">
-            <div style="font-size:12px; opacity:.8; margin-bottom:6px;">ViditeÄľnosĹĄ</div>
+            <div style="font-size:12px; opacity:.8; margin-bottom:6px;">Viditeľnosť</div>
             <select v-model.number="form.visibility" :disabled="loading" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;">
-              <option :value="1">VerejnĂ©</option>
-              <option :value="0">SkrytĂ©</option>
+              <option :value="1">Verejné</option>
+              <option :value="0">Skryté</option>
             </select>
           </label>
         </div>
 
         <div style="display:grid; grid-template-columns: repeat(12, 1fr); gap:12px;">
           <label style="grid-column: span 6;">
-            <div style="font-size:12px; opacity:.8; margin-bottom:6px;">ZaÄŤĂ­na o</div>
+            <div style="font-size:12px; opacity:.8; margin-bottom:6px;">Začína o</div>
             <input v-model="form.start_at" type="datetime-local" :disabled="loading" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;" />
           </label>
           <label style="grid-column: span 6;">
-            <div style="font-size:12px; opacity:.8; margin-bottom:6px;">KonÄŤĂ­ o (voliteÄľnĂ©)</div>
+            <div style="font-size:12px; opacity:.8; margin-bottom:6px;">Končí o (voliteľné)</div>
             <input v-model="form.end_at" type="datetime-local" :disabled="loading" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;" />
           </label>
         </div>
@@ -477,12 +477,10 @@ onMounted(async () => {
             :disabled="loading"
             style="padding:10px 14px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
           >
-            {{ loading ? 'UkladĂˇm...' : 'UloĹľiĹĄ' }}
+            {{ loading ? 'Ukladám...' : 'Uložiť' }}
           </button>
         </div>
       </div>
     </div>
   </div>
 </template>
-
-

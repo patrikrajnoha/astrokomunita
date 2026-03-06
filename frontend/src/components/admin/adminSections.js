@@ -7,9 +7,9 @@ export const ADMIN_SECTION_KEYS = {
 export const ADMIN_SECTION_CONFIG = {
   [ADMIN_SECTION_KEYS.EVENTS]: {
     key: ADMIN_SECTION_KEYS.EVENTS,
-    label: 'Event Pipeline',
+    label: 'Udalosti',
     tabs: [
-      { key: 'crawling', label: 'Crawling', to: { name: 'admin.event-sources' } },
+      { key: 'crawling', label: 'Zber', to: { name: 'admin.event-sources' } },
       { key: 'candidates', label: 'Kandidáti', to: { name: 'admin.event-candidates' } },
       { key: 'published', label: 'Publikované', to: { name: 'admin.events' } },
     ],
@@ -42,7 +42,7 @@ export function getAdminSectionConfig(sectionKey) {
 }
 
 export function getAdminSectionLabel(sectionKey) {
-  return getAdminSectionConfig(sectionKey)?.label || 'Admin'
+  return getAdminSectionConfig(sectionKey)?.label || 'Administrácia'
 }
 
 export function getAdminSectionTabs(sectionKey) {

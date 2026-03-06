@@ -52,7 +52,7 @@ describe('AdminSectionHeader', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Event Pipeline')
+    expect(wrapper.text()).toContain('Udalosti')
     expect(wrapper.text()).toContain('Detail kandidata')
     expect(wrapper.find('.adminSectionTabs__tab.active').text()).toContain('Kandidáti')
 

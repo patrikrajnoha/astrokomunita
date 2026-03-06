@@ -20,11 +20,11 @@ const props = defineProps({
   },
   emptyTitle: {
     type: String,
-    default: 'No results',
+    default: 'Ziadne vysledky',
   },
   emptyDescription: {
     type: String,
-    default: 'There are no rows to display.',
+    default: 'V tabulke nie su ziadne riadky.',
   },
   canClearFilters: {
     type: Boolean,
@@ -68,7 +68,7 @@ function resolveRowClass(row) {
       <tbody>
         <tr v-if="loading">
           <td :colspan="columns.length" class="adminTable__state">
-            <LoadingIndicator :loading="true" text="Loading..." align="center" />
+            <LoadingIndicator :loading="true" text="Nacitavam..." align="center" />
           </td>
         </tr>
 
@@ -82,7 +82,7 @@ function resolveRowClass(row) {
               class="adminTable__clearBtn"
               @click="$emit('clear-filters')"
             >
-              Clear filters
+              Vymazat filtre
             </button>
           </td>
         </tr>
@@ -171,7 +171,8 @@ function resolveRowClass(row) {
   background: transparent;
   color: inherit;
   border-radius: 10px;
-  padding: 6px 10px;
+  min-height: 44px;
+  padding: 8px 14px;
   cursor: pointer;
 }
 

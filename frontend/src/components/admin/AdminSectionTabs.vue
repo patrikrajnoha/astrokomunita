@@ -40,7 +40,7 @@ const resolvedActiveKey = computed(() => {
 </script>
 
 <template>
-  <nav class="adminSectionTabs" role="tablist" aria-label="Admin section tabs">
+  <nav class="adminSectionTabs" role="tablist" aria-label="Karty sekcie administrácie">
     <RouterLink
       v-for="tab in resolvedTabs"
       :key="tab.key"

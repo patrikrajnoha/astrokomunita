@@ -122,7 +122,7 @@ describe('CandidateDetailView', () => {
     expect(text).toContain('meteor shower|2026-04-22|lyrids lyr')
     expect(text).toContain('AstroPixels')
     expect(text).toContain('IMO')
-    expect(text).toContain('Event Pipeline')
+    expect(text).toContain('Udalosti')
     expect(wrapper.find('.adminSectionTabs__tab.active').text()).toContain('Kandidáti')
 
     const back = wrapper.get('[data-testid="admin-section-back-link"]')

@@ -5,6 +5,7 @@ import BotEngineView from '@/views/admin/BotEngineView.vue'
 
 const toastErrorMock = vi.fn()
 const toastSuccessMock = vi.fn()
+const confirmMock = vi.fn(async () => true)
 
 const store = {
   sources: ref([
@@ -157,6 +158,12 @@ vi.mock('@/composables/useToast', () => ({
   }),
 }))
 
+vi.mock('@/composables/useConfirm', () => ({
+  useConfirm: () => ({
+    confirm: (...args) => confirmMock(...args),
+  }),
+}))
+
 function flush() {
   return Promise.resolve().then(() => nextTick())
 }
@@ -179,6 +186,7 @@ function mountView(options = {}) {
 describe('BotEngineView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    confirmMock.mockResolvedValue(true)
   })
 
   it('applies preset bot identity filter for dedicated bot routes', async () => {
@@ -228,7 +236,6 @@ describe('BotEngineView', () => {
   })
 
   it('runs translation backfill from run detail advanced actions', async () => {
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     const wrapper = mountView()
     await flush()
     await flush()
@@ -246,7 +253,6 @@ describe('BotEngineView', () => {
       limit: 10,
       run_id: 11,
     })
-
-    confirmSpy.mockRestore()
+    expect(confirmMock).toHaveBeenCalled()
   })
 })
