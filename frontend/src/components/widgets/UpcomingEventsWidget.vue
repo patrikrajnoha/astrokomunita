@@ -10,7 +10,7 @@
     </div>
 
     <div v-else-if="error" class="state stateError">
-      <div class="stateTitle">Nepodarilo sa nacitat</div>
+      <div class="stateTitle">{{ loadErrorTitle }}</div>
       <div class="stateText">{{ error }}</div>
     </div>
 
@@ -24,7 +24,7 @@
     </div>
 
     <div class="panelActions">
-      <router-link class="showMoreLink" to="/events">Show more</router-link>
+      <router-link class="showMoreLink" :to="showMoreTo">{{ showMoreLabel }}</router-link>
     </div>
   </section>
 </template>
@@ -40,6 +40,18 @@ export default {
     title: {
       type: String,
       default: 'Co sa deje',
+    },
+    showMoreLabel: {
+      type: String,
+      default: 'Show more',
+    },
+    showMoreTo: {
+      type: String,
+      default: '/events',
+    },
+    loadErrorTitle: {
+      type: String,
+      default: 'Nepodarilo sa nacitat',
     },
   },
   setup() {

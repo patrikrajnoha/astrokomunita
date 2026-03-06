@@ -1,33 +1,69 @@
 ﻿<template>
-  <div class="adminLayout">
-    <div class="pageHeader">
-      <h1 class="pageTitle">Konfiguracia sidebaru</h1>
-      <p class="pageDescription">Builder layoutu a sprava vlastnych widget komponentov.</p>
-    </div>
+  <div class="sidebarAdmin">
+    <header class="heroHeader">
+      <div>
+        <h1>Konfiguracia sidebaru</h1>
+        <p>
+          Zachovava existujuci builder rozlozenia, custom widget workflow a doplna
+          compact gallery pre sidebar widgety.
+        </p>
+      </div>
+
+      <div class="heroStats">
+        <span class="heroPill">Scope: {{ activeTabLabel }}</span>
+        <span class="heroPill" :class="{ warning: hasBuilderChanges }">
+          {{ hasBuilderChanges ? 'Neulozene zmeny' : 'Rozlozenie synchronizovane' }}
+        </span>
+        <span class="heroPill">{{ saveStatusLabel }}</span>
+      </div>
+    </header>
 
     <div class="modeTabs" role="tablist" aria-label="Rezim spravy sidebaru">
-      <button type="button" class="tabBtn" :class="{ active: activeMode === 'layout' }" @click="activeMode = 'layout'">
-        Editor rozlozenia
+      <button
+        type="button"
+        class="modeBtn"
+        :class="{ active: activeMode === 'layout' }"
+        @click="onModeClick('layout')"
+      >
+        <strong>Editor rozlozenia</strong>
+        <small>Polozky, poradie, viditelnost, scope tabs</small>
       </button>
-      <button type="button" class="tabBtn" :class="{ active: activeMode === 'custom' }" @click="activeMode = 'custom'">
-        Vlastne komponenty
+
+      <button
+        type="button"
+        class="modeBtn"
+        :class="{ active: activeMode === 'custom' }"
+        @click="onModeClick('custom')"
+      >
+        <strong>Vlastne komponenty</strong>
+        <small>Tvorba a editacia custom widgetov</small>
+      </button>
+
+      <button
+        type="button"
+        class="modeBtn"
+        :class="{ active: activeMode === 'registry' }"
+        @click="onModeClick('registry')"
+      >
+        <strong>Sidebar widgety</strong>
+        <small>Preview + editable props iba pre sidebar komponenty</small>
       </button>
     </div>
 
     <div v-if="stickyErrorBanner" class="alert alertError alertSticky" role="alert">
       <div>{{ stickyErrorBanner }}</div>
-      <button class="btn" type="button" :disabled="retryLoading" @click="retrySidebarLoad">
+      <button class="uiBtn uiBtnGhost" type="button" :disabled="retryLoading" @click="retrySidebarLoad">
         {{ retryLoading ? 'Opakujem...' : 'Skusit znova' }}
       </button>
     </div>
 
-    <div v-if="activeMode === 'layout'" class="card">
-      <div class="tabs" role="tablist" aria-label="Kontexty sidebaru">
+    <section v-if="activeMode === 'layout'" class="workspaceCard">
+      <div class="scopeTabs" role="tablist" aria-label="Kontexty sidebaru">
         <button
           v-for="tab in scopeTabs"
           :key="tab.value"
           type="button"
-          class="tabBtn"
+          class="scopeBtn"
           :class="{ active: activeScope === tab.value }"
           :disabled="loading"
           @click="onScopeClick(tab.value)"
@@ -36,11 +72,18 @@
         </button>
       </div>
 
-      <div class="cardHeader">
-        <h2>{{ activeTabLabel }} rozlozenie</h2>
-        <div class="headerActions">
-          <button class="btn" type="button" @click="openCreateCustomComponent">Novy komponent</button>
-          <button class="btn btnPrimary" :disabled="loading || !hasBuilderChanges" @click="saveLayoutChanges">
+      <div class="workspaceHeader">
+        <div>
+          <h2>{{ activeTabLabel }} rozlozenie</h2>
+          <p>Drag and drop, keyboard-friendly reorder a prehladne stavy pre kazdu polozku.</p>
+        </div>
+
+        <div class="workspaceActions">
+          <button class="uiBtn" type="button" @click="openCreateCustomComponent">Novy komponent</button>
+          <button class="uiBtn uiBtnGhost" type="button" :disabled="!hasBuilderChanges || loading" @click="resetLayoutChanges">
+            Reset zmen
+          </button>
+          <button class="uiBtn uiBtnPrimary" :disabled="loading || !hasBuilderChanges" @click="saveLayoutChanges">
             <span v-if="loading" class="spinner"></span>
             {{ loading ? 'Ukladam...' : 'Ulozit rozlozenie' }}
           </button>
@@ -51,96 +94,180 @@
 
       <div class="quickStats">
         <span class="statPill">Polozky: {{ sections.length }}</span>
-        <span class="statPill">Vlastne: {{ availableCustomComponents.length }}</span>
-        <span class="statPill" :class="{ warning: hasBuilderChanges }">
-          {{ hasBuilderChanges ? 'Neulozene zmeny' : 'Vsetko ulozene' }}
-        </span>
+        <span class="statPill">Custom komponenty: {{ availableCustomComponents.length }}</span>
+        <span class="statPill">Match: {{ matchingSectionsCount }} / {{ sections.length }}</span>
       </div>
 
       <div class="builderGrid">
-        <div>
-          <div class="sectionTitle">Polozky sidebaru</div>
+        <section class="builderPanel">
+          <header class="panelHeader">
+            <div>
+              <h3>Polozky sidebaru</h3>
+              <p>Vstavane aj custom polozky v jednom zozname.</p>
+            </div>
+
+            <label class="searchField">
+              <span>Filter</span>
+              <input
+                v-model="layoutSearch"
+                type="text"
+                placeholder="Nazov, slug, custom..."
+              />
+            </label>
+          </header>
+
           <draggable
             v-model="sections"
-            tag="div"
-            :component-data="{ class: 'sectionsList' }"
-            handle=".dragHandle"
             item-key="client_key"
+            handle=".dragHandle"
+            class="sectionsList"
             @end="dragEnd"
           >
             <template #item="{ element: section }">
-              <div class="sectionItem" :class="{ isHidden: !section.is_enabled }">
-                <div class="sectionContent">
+              <article
+                class="sectionItem"
+                :class="{
+                  isHidden: !section.is_enabled,
+                  isMuted: hasLayoutSearch && !sectionMatchesLayoutSearch(section),
+                }"
+              >
+                <div class="sectionTop">
                   <button type="button" class="dragHandle" aria-label="Presunut sekciu">::</button>
 
-                  <div class="sectionInfo">
-                    <div class="sectionRow">
-                      <div class="sectionName">{{ section.title }}</div>
-                      <span class="kindBadge">{{ section.kind === 'builtin' ? 'Vstavane' : 'Vlastne' }}</span>
+                  <div class="sectionCopy">
+                    <div class="sectionTitleRow">
+                      <h4>{{ section.title || 'Bez nazvu' }}</h4>
+                      <div class="sectionBadges">
+                        <span class="kindBadge">{{ section.kind === 'builtin' ? 'Vstavane' : 'Vlastne' }}</span>
+                        <span class="visibilityBadge" :class="{ on: section.is_enabled }">
+                          {{ section.is_enabled ? 'Viditelne' : 'Skryte' }}
+                        </span>
+                      </div>
                     </div>
-                    <div class="sectionKey">
-                      {{ section.kind === 'builtin' ? section.section_key : `custom:${section.custom_component_id}` }}
+
+                    <div class="sectionMeta">
+                      <code>{{ section.kind === 'builtin' ? section.section_key : `custom:${section.custom_component_id}` }}</code>
+                      <span>Poradie: {{ section.order + 1 }}</span>
                     </div>
-                    <div v-if="section.kind === 'custom_component'" class="sectionActions">
-                      <button type="button" class="linkBtn" @click="editCustomComponentFromLayout(section)">Upravit</button>
-                      <button type="button" class="linkBtn danger" @click="removeCustomComponentFromLayout(section)">
-                        Odobrat
-                      </button>
-                    </div>
+                  </div>
+                </div>
+
+                <div class="sectionBottom">
+                  <div class="moveControls">
+                    <button
+                      type="button"
+                      class="iconBtn"
+                      :disabled="!canMoveUp(section)"
+                      @click="moveSection(section.client_key, -1)"
+                    >
+                      &uarr;
+                    </button>
+                    <button
+                      type="button"
+                      class="iconBtn"
+                      :disabled="!canMoveDown(section)"
+                      @click="moveSection(section.client_key, 1)"
+                    >
+                      &darr;
+                    </button>
+                  </div>
+
+                  <div v-if="section.kind === 'custom_component'" class="inlineActions">
+                    <button type="button" class="textBtn" @click="editCustomComponentFromLayout(section)">Upravit</button>
+                    <button type="button" class="textBtn danger" @click="removeCustomComponentFromLayout(section)">Odobrat</button>
                   </div>
 
                   <label class="toggle">
                     <input v-model="section.is_enabled" type="checkbox" />
                     <span class="toggleSlider"></span>
-                    <span class="toggleLabel">{{ section.is_enabled ? 'Viditelne' : 'Skryte' }}</span>
+                    <span class="toggleLabel">{{ section.is_enabled ? 'On' : 'Off' }}</span>
                   </label>
                 </div>
-              </div>
+              </article>
             </template>
           </draggable>
-        </div>
+        </section>
 
-        <div class="availableBox">
-          <div class="sectionTitleRow">
-            <div class="sectionTitle">Aktivne vlastne komponenty</div>
-            <button class="linkBtn" type="button" @click="openCreateCustomComponent">Vytvorit</button>
-          </div>
-
-          <input
-            v-model="customSearch"
-            class="compactInput"
-            type="text"
-            placeholder="Najst komponent..."
-          />
-
-          <div v-if="availableCustomComponents.length === 0" class="emptyText">
-            Zatial nemas aktivne custom komponenty.
-          </div>
-          <div v-else-if="filteredAvailableCustomComponents.length === 0" class="emptyText">
-            Ziadny komponent nevyhovuje filtru.
-          </div>
-          <div v-else class="availableList">
-            <div v-for="component in filteredAvailableCustomComponents" :key="component.id" class="availableItem">
-              <div>
-                <div class="availableName">{{ component.name }}</div>
-                <div class="availableMeta">{{ component.type }}</div>
-              </div>
-              <div class="availableActions">
-                <button class="btn btnSmall" type="button" @click="addCustomComponentToLayout(component)">Pridat</button>
-                <button class="btn btnSmall" type="button" @click="openEditCustomComponent(component)">Upravit</button>
-              </div>
+        <aside class="catalogPanel">
+          <header class="panelHeader">
+            <div>
+              <h3>Aktivne vlastne komponenty</h3>
+              <p>Pridavaj a upravuj custom widgety bez opustenia builderu.</p>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
+            <button class="textBtn" type="button" @click="openCreateCustomComponent">Vytvorit</button>
+          </header>
 
-    <SidebarCustomComponentsView
-      v-else
-      ref="customViewRef"
-      @components-changed="onCustomComponentsChanged"
-      @dirty-change="onCustomDirtyChange"
-    />
+          <label class="searchField">
+            <span>Filter</span>
+            <input
+              v-model="customSearch"
+              type="text"
+              placeholder="Najst komponent..."
+            />
+          </label>
+
+          <div v-if="availableCustomComponents.length === 0" class="emptyBox">
+            <p>Zatial nemas aktivne custom komponenty.</p>
+            <button class="uiBtn uiBtnGhost" type="button" @click="openCreateCustomComponent">Vytvorit prvy komponent</button>
+          </div>
+
+          <div v-else-if="filteredAvailableCustomComponents.length === 0" class="emptyBox">
+            <p>Ziadny komponent nevyhovuje filtru.</p>
+          </div>
+
+          <div v-else class="availableList">
+            <article v-for="component in filteredAvailableCustomComponents" :key="component.id" class="availableItem">
+              <div class="availableCopy">
+                <div class="availableNameRow">
+                  <strong>{{ component.name }}</strong>
+                  <span class="typeBadge">{{ component.type }}</span>
+                </div>
+                <div class="availableMeta">
+                  <span>ID: {{ component.id }}</span>
+                  <span>V rozlozeni: {{ getCustomComponentUsage(component.id) }}x</span>
+                </div>
+              </div>
+
+              <div class="availableActions">
+                <button class="uiBtn uiBtnSmall" type="button" @click="addCustomComponentToLayout(component)">
+                  {{ getCustomComponentUsage(component.id) > 0 ? 'Pridat dalsiu' : 'Pridat' }}
+                </button>
+                <button class="uiBtn uiBtnSmall uiBtnGhost" type="button" @click="openEditCustomComponent(component)">
+                  Upravit
+                </button>
+              </div>
+            </article>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section v-else-if="activeMode === 'custom'" class="workspaceCard workspaceCard--flat">
+      <div class="workspaceHeader workspaceHeaderCompact">
+        <div>
+          <h2>Vlastne komponenty</h2>
+          <p>Povodny workflow ostava zachovany, vratane list + formular + live preview.</p>
+        </div>
+        <button class="uiBtn uiBtnGhost" type="button" @click="onModeClick('layout')">Spat na rozlozenie</button>
+      </div>
+
+      <SidebarCustomComponentsView
+        ref="customViewRef"
+        @components-changed="onCustomComponentsChanged"
+        @dirty-change="onCustomDirtyChange"
+      />
+    </section>
+
+    <section v-else class="workspaceCard workspaceCard--flat">
+      <div class="workspaceHeader workspaceHeaderCompact">
+      <div>
+        <h2>Sidebar widgety gallery</h2>
+        <p>Kompaktny playground iba pre widgety, ktore su realne v sidebare.</p>
+      </div>
+      </div>
+
+      <SidebarComponentRegistryView />
+    </section>
   </div>
 </template>
 
@@ -150,12 +277,11 @@ import { onBeforeRouteLeave } from 'vue-router'
 import draggable from 'vuedraggable'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
-import {
-  sidebarConfigAdminApi,
-} from '@/services/api/admin/sidebarConfig'
+import { sidebarConfigAdminApi, sidebarCustomComponentsAdminApi } from '@/services/api/admin/sidebarConfig'
 import { DEFAULT_SIDEBAR_SCOPE, SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 import SidebarCustomComponentsView from '@/components/admin/sidebar/SidebarCustomComponentsView.vue'
+import SidebarComponentRegistryView from '@/components/admin/sidebar/SidebarComponentRegistryView.vue'
 
 const scopeTabs = [
   { value: SIDEBAR_SCOPE.HOME, label: 'Domov' },
@@ -164,7 +290,7 @@ const scopeTabs = [
   { value: SIDEBAR_SCOPE.SEARCH, label: 'Vyhladavanie' },
   { value: SIDEBAR_SCOPE.NOTIFICATIONS, label: 'Notifikacie' },
   { value: SIDEBAR_SCOPE.POST_DETAIL, label: 'Detail prispevku' },
-  { value: SIDEBAR_SCOPE.PROFILE, label: 'Profil' },
+  { value: SIDEBAR_SCOPE.PROFILE, label: 'Profil + verejny profil (/u/:username)' },
   { value: SIDEBAR_SCOPE.SETTINGS, label: 'Nastavenia' },
   { value: SIDEBAR_SCOPE.OBSERVING, label: 'Pozorovanie' },
 ]
@@ -177,17 +303,74 @@ const loading = ref(false)
 const error = ref('')
 const retryLoading = ref(false)
 const customSearch = ref('')
+const layoutSearch = ref('')
 const availableCustomComponents = ref([])
 const stickyErrorBanner = ref('')
 const shownErrorMessages = ref(new Set())
 const customFormDirty = ref(false)
 const customViewRef = ref(null)
+const lastSavedAt = ref(null)
 
 const { showToast } = useToast()
 const { confirm } = useConfirm()
 const sidebarConfigStore = useSidebarConfigStore()
 
 const activeTabLabel = computed(() => scopeTabs.find((tab) => tab.value === activeScope.value)?.label || 'Domov')
+
+const hasLayoutSearch = computed(() => String(layoutSearch.value || '').trim().length > 0)
+
+const activeCustomUsageMap = computed(() => {
+  return sections.value.reduce((acc, item) => {
+    if (item.kind !== 'custom_component') return acc
+
+    const id = Number(item.custom_component_id)
+    if (!Number.isFinite(id) || id < 1) return acc
+
+    acc[id] = (acc[id] || 0) + 1
+    return acc
+  }, {})
+})
+
+const sectionMatchesLayoutSearch = (section) => {
+  const query = String(layoutSearch.value || '').trim().toLowerCase()
+  if (!query) return true
+
+  const haystack = [
+    section?.title,
+    section?.section_key,
+    section?.kind,
+    section?.custom_component_id,
+  ]
+    .map((value) => String(value || '').toLowerCase())
+    .join(' ')
+
+  return haystack.includes(query)
+}
+
+const matchingSectionsCount = computed(() => {
+  if (!hasLayoutSearch.value) return sections.value.length
+  return sections.value.filter((section) => sectionMatchesLayoutSearch(section)).length
+})
+
+const formatSavedAt = (value) => {
+  if (!value) return 'Caka na ulozenie'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Caka na ulozenie'
+
+  return new Intl.DateTimeFormat('sk-SK', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(parsed)
+}
+
+const saveStatusLabel = computed(() => {
+  if (loading.value) return 'Prave ukladam...'
+  if (hasBuilderChanges.value) return 'Neulozene lokalne zmeny'
+  return `Naposledy: ${formatSavedAt(lastSavedAt.value)}`
+})
 
 const normalizeLayoutItems = (items) => {
   return [...(Array.isArray(items) ? items : [])]
@@ -236,9 +419,12 @@ const hasBuilderChanges = computed(() => {
 
 const filteredAvailableCustomComponents = computed(() => {
   const query = customSearch.value.trim().toLowerCase()
-  if (!query) return availableCustomComponents.value
+  const rows = [...availableCustomComponents.value]
+    .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''), 'sk'))
 
-  return availableCustomComponents.value.filter((component) =>
+  if (!query) return rows
+
+  return rows.filter((component) =>
     String(component?.name || '').toLowerCase().includes(query)
       || String(component?.type || '').toLowerCase().includes(query),
   )
@@ -296,6 +482,7 @@ const loadScope = async (scope) => {
       ? payload.available_custom_components
       : []
     stickyErrorBanner.value = ''
+    lastSavedAt.value = new Date().toISOString()
   } catch (err) {
     const message = handleSidebarLoadError(err, 'Nepodarilo sa nacitat konfiguraciu sidebaru.')
     error.value = message
@@ -333,8 +520,53 @@ const onScopeClick = async (nextScope) => {
   await loadScope(nextScope)
 }
 
+const onModeClick = async (nextMode) => {
+  if (nextMode === activeMode.value) return
+
+  if (activeMode.value === 'custom' && customFormDirty.value) {
+    const approved = await confirm({
+      title: 'Neulozene zmeny vo formulari',
+      message: 'Opustenim karty Vlastne komponenty stratis neulozene zmeny formulara.',
+      confirmText: 'Opustit kartu',
+      cancelText: 'Zostat',
+      variant: 'danger',
+    })
+    if (!approved) return
+  }
+
+  activeMode.value = nextMode
+}
+
 const dragEnd = () => {
   applyOrderFromPosition()
+}
+
+const findSectionIndex = (clientKey) => {
+  return sections.value.findIndex((item) => String(item?.client_key || '') === String(clientKey || ''))
+}
+
+const canMoveUp = (section) => findSectionIndex(section?.client_key) > 0
+const canMoveDown = (section) => {
+  const index = findSectionIndex(section?.client_key)
+  return index >= 0 && index < sections.value.length - 1
+}
+
+const moveSection = (clientKey, direction) => {
+  const index = findSectionIndex(clientKey)
+  const nextIndex = index + Number(direction)
+  if (index < 0 || nextIndex < 0 || nextIndex >= sections.value.length) return
+
+  const nextSections = [...sections.value]
+  const [moved] = nextSections.splice(index, 1)
+  nextSections.splice(nextIndex, 0, moved)
+  sections.value = nextSections
+  applyOrderFromPosition()
+}
+
+const getCustomComponentUsage = (componentId) => {
+  const id = Number(componentId)
+  if (!Number.isFinite(id) || id < 1) return 0
+  return activeCustomUsageMap.value[id] || 0
 }
 
 const addCustomComponentToLayout = (component) => {
@@ -351,6 +583,7 @@ const addCustomComponentToLayout = (component) => {
     is_enabled: true,
   })
   applyOrderFromPosition()
+  showToast('Komponent bol pridany do rozlozenia. Nezabudni ulozit.', 'success')
 }
 
 const openCreateCustomComponent = async () => {
@@ -392,6 +625,22 @@ const removeCustomComponentFromLayout = async (section) => {
   showToast('Komponent bol odobrany z rozlozenia. Uloz rozlozenie pre potvrdenie zmien.', 'success')
 }
 
+const resetLayoutChanges = async () => {
+  if (!hasBuilderChanges.value) return
+
+  const confirmed = await confirm({
+    title: 'Reset neulozenych zmien',
+    message: 'Naozaj chces vratit rozlozenie do posledneho ulozeneho stavu?',
+    confirmText: 'Resetovat',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
+  if (!confirmed) return
+
+  setScopeData(originalSections.value)
+  showToast('Neulozene zmeny boli zahodene.', 'success')
+}
+
 const saveLayoutChanges = async () => {
   if (!hasBuilderChanges.value) return
 
@@ -412,6 +661,7 @@ const saveLayoutChanges = async () => {
 
     setScopeData(savedItems)
     sidebarConfigStore.byScope[activeScope.value] = savedItems
+    lastSavedAt.value = new Date().toISOString()
     showToast('Rozlozenie sidebaru bolo ulozene.', 'success')
   } catch (err) {
     const message = err?.response?.data?.message || 'Nepodarilo sa ulozit konfiguraciu sidebaru.'
@@ -422,7 +672,48 @@ const saveLayoutChanges = async () => {
   }
 }
 
+const refreshAvailableCustomComponents = async () => {
+  try {
+    const payload = await sidebarCustomComponentsAdminApi.list({ activeOnly: true })
+    const rows = Array.isArray(payload?.data) ? payload.data : []
+    availableCustomComponents.value = rows
+
+    const mapById = rows.reduce((acc, item) => {
+      const id = Number(item?.id)
+      if (Number.isFinite(id) && id > 0) {
+        acc[id] = item
+      }
+      return acc
+    }, {})
+
+    sections.value = sections.value.map((item) => {
+      if (item.kind !== 'custom_component') return item
+
+      const id = Number(item.custom_component_id)
+      if (!Number.isFinite(id) || id < 1) return item
+
+      const linkedComponent = mapById[id]
+      if (!linkedComponent) return item
+
+      return {
+        ...item,
+        title: String(linkedComponent.name || item.title || ''),
+        custom_component: linkedComponent,
+      }
+    })
+  } catch (err) {
+    const message = err?.response?.data?.message || 'Nepodarilo sa obnovit zoznam custom komponentov.'
+    notifyErrorOnce(message)
+  }
+}
+
 const onCustomComponentsChanged = async () => {
+  if (hasBuilderChanges.value) {
+    await refreshAvailableCustomComponents()
+    showToast('Custom komponenty sa obnovili, neulozene zmeny rozlozenia ostali zachovane.', 'success')
+    return
+  }
+
   await loadScope(activeScope.value)
 }
 
@@ -459,108 +750,544 @@ onBeforeRouteLeave(async () => {
 </script>
 
 <style scoped>
-.adminLayout {
-  max-width: 1380px;
+.sidebarAdmin {
+  max-width: 1420px;
   margin: 0 auto;
-  padding: 1.25rem 0.9rem;
+  padding: 1rem;
   display: grid;
+  gap: 0.85rem;
+}
+
+.heroHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 0.8rem;
 }
 
-.pageHeader {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.pageTitle {
+.heroHeader h1 {
   margin: 0;
-  font-size: 1.58rem;
+  font-size: 1.52rem;
   font-weight: 800;
   color: var(--color-surface);
 }
 
-.pageDescription {
-  margin: 0;
+.heroHeader p {
+  margin: 0.28rem 0 0;
   color: var(--color-text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.87rem;
+  max-width: 52rem;
 }
 
-.modeTabs,
-.tabs {
+.heroStats {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.34rem;
+}
+
+.heroPill {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.56rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.26);
+  background: rgb(var(--color-bg-rgb) / 0.3);
+  color: var(--color-text-secondary);
+}
+
+.heroPill.warning {
+  border-color: rgb(var(--color-warning-rgb, 255 178 64) / 0.42);
+  color: rgb(var(--color-warning-rgb, 255 178 64));
+}
+
+.modeTabs {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.modeBtn {
+  display: grid;
+  gap: 0.16rem;
+  text-align: left;
+  border-radius: 0.9rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  background: rgb(var(--color-bg-rgb) / 0.24);
+  padding: 0.66rem 0.76rem;
+  color: var(--color-text-secondary);
+}
+
+.modeBtn strong {
+  font-size: 0.84rem;
+}
+
+.modeBtn small {
+  font-size: 0.72rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+}
+
+.modeBtn.active {
+  border-color: rgb(var(--color-primary-rgb) / 0.55);
+  background: rgb(var(--color-primary-rgb) / 0.18);
+  color: var(--color-surface);
+}
+
+.workspaceCard {
+  border-radius: 1rem;
+  background: linear-gradient(160deg, rgb(var(--color-bg-rgb) / 0.45), rgb(var(--color-bg-rgb) / 0.28));
+  box-shadow: inset 0 0 0 1px rgb(var(--color-text-secondary-rgb) / 0.14);
+  padding: 0.88rem;
+  display: grid;
+  gap: 0.72rem;
+}
+
+.workspaceCard--flat {
+  background: rgb(var(--color-bg-rgb) / 0.24);
+}
+
+.scopeTabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.42rem;
+  gap: 0.4rem;
 }
 
-.tabBtn {
+.scopeBtn {
+  border-radius: 999px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
-  border-radius: 0.72rem;
   background: rgb(var(--color-bg-rgb) / 0.26);
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  padding: 0.44rem 0.66rem;
+  padding: 0.35rem 0.62rem;
 }
 
-.tabBtn.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
+.scopeBtn.active {
+  border-color: rgb(var(--color-primary-rgb) / 0.52);
+  background: rgb(var(--color-primary-rgb) / 0.2);
   color: var(--color-surface);
-  background: rgb(var(--color-primary-rgb) / 0.16);
 }
 
-.card {
-  background: linear-gradient(160deg, rgb(var(--color-bg-rgb) / 0.46), rgb(var(--color-bg-rgb) / 0.3));
-  border-radius: 1rem;
-  box-shadow: inset 0 0 0 1px rgb(var(--color-text-secondary-rgb) / 0.14);
-  padding: 0.92rem;
-  display: grid;
-  gap: 0.68rem;
-}
-
-.cardHeader {
+.workspaceHeader {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 0.65rem;
+  align-items: flex-start;
+  gap: 0.7rem;
 }
 
-.cardHeader h2 {
+.workspaceHeader h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.02rem;
 }
 
-.headerActions {
+.workspaceHeader p {
+  margin: 0.24rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.workspaceHeaderCompact {
+  align-items: center;
+}
+
+.workspaceActions {
   display: inline-flex;
-  gap: 0.42rem;
+  align-items: center;
+  gap: 0.34rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.btn {
+.uiBtn {
+  min-height: 2.05rem;
+  border-radius: 0.72rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: rgb(var(--color-bg-rgb) / 0.3);
+  color: var(--color-surface);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.44rem 0.72rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  padding: 0.48rem 0.76rem;
-  border-radius: 0.7rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+}
+
+.uiBtn:disabled {
+  opacity: 0.56;
+}
+
+.uiBtnPrimary {
+  border-color: rgb(var(--color-primary-rgb) / 0.6);
+  background: rgb(var(--color-primary-rgb) / 0.25);
+}
+
+.uiBtnGhost {
+  background: transparent;
+}
+
+.uiBtnSmall {
+  min-height: 1.84rem;
+  padding: 0.3rem 0.56rem;
+  font-size: 0.72rem;
+}
+
+.quickStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.statPill {
+  font-size: 0.71rem;
+  padding: 0.18rem 0.52rem;
+  border-radius: 999px;
+  background: rgb(var(--color-bg-rgb) / 0.28);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  color: var(--color-text-secondary);
+}
+
+.builderGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 0.72rem;
+}
+
+.builderPanel,
+.catalogPanel {
+  border-radius: 0.9rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
+  background: rgb(var(--color-bg-rgb) / 0.2);
+  padding: 0.72rem;
+  display: grid;
+  gap: 0.56rem;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.54rem;
+}
+
+.panelHeader h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.panelHeader p {
+  margin: 0.2rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+}
+
+.searchField {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 12rem;
+}
+
+.searchField span {
+  font-size: 0.69rem;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.searchField input {
+  min-height: 2rem;
+  border-radius: 0.66rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: rgb(var(--color-bg-rgb) / 0.35);
   color: var(--color-surface);
+  font-size: 0.77rem;
+  padding: 0.36rem 0.52rem;
+}
+
+.sectionsList {
+  display: grid;
+  gap: 0.46rem;
+}
+
+.sectionItem {
+  border-radius: 0.84rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.17);
+  background: rgb(var(--color-bg-rgb) / 0.25);
+  padding: 0.55rem;
+  display: grid;
+  gap: 0.48rem;
+}
+
+.sectionItem.isHidden {
+  opacity: 0.66;
+}
+
+.sectionItem.isMuted {
+  opacity: 0.38;
+}
+
+.sectionTop {
+  display: flex;
+  gap: 0.46rem;
+  align-items: flex-start;
+}
+
+.dragHandle {
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: grab;
+  font-weight: 700;
+  font-size: 0.92rem;
+  line-height: 1;
+  padding: 0.2rem;
+}
+
+.sectionCopy {
+  min-width: 0;
+  flex: 1;
+}
+
+.sectionTitleRow {
+  display: flex;
+  gap: 0.48rem;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.sectionTitleRow h4 {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--color-surface);
+}
+
+.sectionBadges {
+  display: inline-flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.kindBadge,
+.visibilityBadge {
+  border-radius: 999px;
+  padding: 0.11rem 0.42rem;
+  font-size: 0.63rem;
+  font-weight: 700;
+}
+
+.kindBadge {
+  background: rgb(var(--color-primary-rgb) / 0.15);
+  color: var(--color-surface);
+}
+
+.visibilityBadge {
+  background: rgb(var(--color-text-secondary-rgb) / 0.18);
+  color: var(--color-text-secondary);
+}
+
+.visibilityBadge.on {
+  background: rgb(var(--color-success-rgb) / 0.2);
+  color: var(--color-success);
+}
+
+.sectionMeta {
+  margin-top: 0.14rem;
+  display: flex;
+  gap: 0.42rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.sectionMeta code {
+  font-size: 0.7rem;
+  color: var(--color-surface);
+}
+
+.sectionMeta span {
+  font-size: 0.68rem;
+  color: var(--color-text-secondary);
+}
+
+.sectionBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.moveControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.iconBtn {
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 0.54rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
   background: rgb(var(--color-bg-rgb) / 0.3);
+  color: var(--color-surface);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.inlineActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+}
+
+.textBtn {
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 0.73rem;
+  font-weight: 600;
+  padding: 0.1rem 0.18rem;
+}
+
+.textBtn.danger {
+  color: var(--color-danger);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.44rem;
+}
+
+.toggle input[type='checkbox'] {
+  display: none;
+}
+
+.toggleSlider {
+  width: 39px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgb(var(--color-text-secondary-rgb) / 0.35);
+  position: relative;
+}
+
+.toggleSlider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  background: white;
+  transition: transform 0.2s ease;
+}
+
+.toggle input[type='checkbox']:checked + .toggleSlider {
+  background: rgb(var(--color-primary-rgb) / 0.68);
+}
+
+.toggle input[type='checkbox']:checked + .toggleSlider::before {
+  transform: translateX(19px);
+}
+
+.toggleLabel {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+}
+
+.availableList {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.availableItem {
+  border-radius: 0.72rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  background: rgb(var(--color-bg-rgb) / 0.22);
+  padding: 0.45rem;
+  display: flex;
+  gap: 0.52rem;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.availableCopy {
+  min-width: 0;
+}
+
+.availableNameRow {
+  display: flex;
+  gap: 0.34rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.availableNameRow strong {
+  font-size: 0.81rem;
+}
+
+.typeBadge {
+  border-radius: 999px;
+  background: rgb(var(--color-text-secondary-rgb) / 0.18);
+  color: var(--color-text-secondary);
+  padding: 0.09rem 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.availableMeta {
+  margin-top: 0.16rem;
+  display: inline-flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.67rem;
+  color: var(--color-text-secondary);
+}
+
+.availableActions {
+  display: inline-flex;
+  gap: 0.22rem;
+}
+
+.emptyBox {
+  border-radius: 0.72rem;
+  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: rgb(var(--color-bg-rgb) / 0.2);
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.42rem;
+  justify-items: start;
+}
+
+.emptyBox p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.alert {
+  border-radius: 0.72rem;
+  padding: 0.56rem;
   font-size: 0.8rem;
 }
 
-.btnPrimary {
-  background: rgb(var(--color-primary-rgb) / 0.22);
-  border-color: rgb(var(--color-primary-rgb) / 0.54);
+.alertError {
+  background: rgb(var(--color-danger-rgb) / 0.1);
+  color: var(--color-danger);
 }
 
-.btnSmall {
-  padding: 0.34rem 0.58rem;
-  font-size: 0.73rem;
+.alertSticky {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
 }
 
 .spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgb(255 255 255 / 0.3);
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgb(255 255 255 / 0.35);
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -572,251 +1299,44 @@ onBeforeRouteLeave(async () => {
   }
 }
 
-.quickStats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.statPill {
-  font-size: 0.72rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
-  background: rgb(var(--color-bg-rgb) / 0.3);
-  color: var(--color-text-secondary);
-}
-
-.statPill.warning {
-  color: rgb(var(--color-warning-rgb, 255 178 64));
-}
-
-.builderGrid {
-  display: grid;
-  gap: 0.76rem;
-  grid-template-columns: 1.6fr 1fr;
-}
-
-.sectionTitle {
-  margin-bottom: 0.45rem;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--color-text-secondary);
-}
-
-.sectionsList {
-  display: grid;
-  gap: 0.48rem;
-}
-
-.sectionItem {
-  border-radius: 0.8rem;
-  background: rgb(var(--color-bg-rgb) / 0.22);
-  box-shadow: inset 0 0 0 1px rgb(var(--color-text-secondary-rgb) / 0.16);
-}
-
-.sectionItem.isHidden {
-  opacity: 0.6;
-}
-
-.sectionContent {
-  display: flex;
-  align-items: center;
-  gap: 0.62rem;
-  padding: 0.62rem;
-}
-
-.dragHandle {
-  border: 0;
-  background: transparent;
-  color: var(--color-text-secondary);
-  cursor: grab;
-  font-weight: 700;
-}
-
-.sectionInfo {
-  flex: 1;
-}
-
-.sectionRow {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.35rem;
-  align-items: center;
-}
-
-.sectionName {
-  font-weight: 600;
-  color: var(--color-surface);
-  font-size: 0.86rem;
-}
-
-.sectionKey {
-  font-size: 0.73rem;
-  color: var(--color-text-secondary);
-  font-family: monospace;
-}
-
-.sectionActions {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-top: 0.22rem;
-}
-
-.kindBadge {
-  font-size: 0.66rem;
-  padding: 0.14rem 0.42rem;
-  border-radius: 999px;
-  color: var(--color-surface);
-  background: rgb(var(--color-primary-rgb) / 0.16);
-}
-
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.toggle input[type='checkbox'] {
-  display: none;
-}
-
-.toggleSlider {
-  width: 42px;
-  height: 21px;
-  border-radius: 999px;
-  background: rgb(var(--color-text-secondary-rgb) / 0.33);
-  position: relative;
-}
-
-.toggleSlider::before {
-  content: '';
-  position: absolute;
-  width: 17px;
-  height: 17px;
-  border-radius: 50%;
-  top: 2px;
-  left: 2px;
-  background: white;
-  transition: transform 0.2s ease;
-}
-
-.toggle input[type='checkbox']:checked + .toggleSlider {
-  background: rgb(var(--color-primary-rgb) / 0.66);
-}
-
-.toggle input[type='checkbox']:checked + .toggleSlider::before {
-  transform: translateX(21px);
-}
-
-.toggleLabel {
-  font-size: 0.74rem;
-  color: var(--color-text-secondary);
-}
-
-.availableBox {
-  border-radius: 0.86rem;
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  box-shadow: inset 0 0 0 1px rgb(var(--color-text-secondary-rgb) / 0.14);
-  padding: 0.66rem;
-}
-
-.sectionTitleRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.44rem;
-}
-
-.availableList {
-  display: grid;
-  gap: 0.44rem;
-  margin-top: 0.46rem;
-}
-
-.availableItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.42rem;
-  padding: 0.44rem;
-  border-radius: 0.68rem;
-  background: rgb(var(--color-bg-rgb) / 0.26);
-}
-
-.availableName {
-  font-weight: 600;
-  font-size: 0.82rem;
-}
-
-.availableMeta {
-  font-size: 0.72rem;
-  color: var(--color-text-secondary);
-}
-
-.availableActions {
-  display: inline-flex;
-  gap: 0.22rem;
-}
-
-.compactInput {
-  width: 100%;
-  border-radius: 0.64rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.26);
-  background: rgb(var(--color-bg-rgb) / 0.34);
-  color: var(--color-surface);
-  padding: 0.44rem 0.56rem;
-  font-size: 0.8rem;
-}
-
-.linkBtn {
-  border: 0;
-  background: transparent;
-  color: var(--color-primary);
-  font-size: 0.76rem;
-  padding: 0.1rem 0.2rem;
-}
-
-.linkBtn.danger {
-  color: var(--color-danger);
-}
-
-.alert {
-  border-radius: 0.7rem;
-  padding: 0.56rem;
-  font-size: 0.82rem;
-}
-
-.alertError {
-  background: rgb(var(--color-danger-rgb) / 0.1);
-  color: var(--color-danger);
-}
-
-.alertSticky {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
-}
-
-.emptyText {
-  color: var(--color-text-secondary);
-  font-size: 0.78rem;
-}
-
-@media (max-width: 1080px) {
+@media (max-width: 1220px) {
   .builderGrid {
     grid-template-columns: 1fr;
   }
+}
 
-  .cardHeader {
+@media (max-width: 980px) {
+  .heroHeader,
+  .workspaceHeader {
     flex-direction: column;
-    align-items: flex-start;
   }
 
-  .headerActions {
-    width: 100%;
-    justify-content: flex-end;
+  .heroStats {
+    justify-content: flex-start;
+  }
+
+  .workspaceActions {
+    justify-content: flex-start;
+  }
+
+  .modeTabs {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .sidebarAdmin {
+    padding: 0.75rem;
+  }
+
+  .panelHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchField {
+    min-width: 0;
   }
 }
 </style>
+
