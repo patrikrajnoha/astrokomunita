@@ -1,17 +1,21 @@
 <template>
   <SettingsDetailShell
-    title="Change password"
-    subtitle="Set a new password for your account."
+    title="Zmena hesla"
+    subtitle="Nastavte nove heslo pre svoj ucet."
   >
-    <div v-if="passwordState.success" class="status status-success" role="status">
-      {{ passwordState.success }}
-    </div>
-    <div v-if="passwordState.error" class="status status-error" role="alert">
-      {{ passwordState.error }}
-    </div>
+    <InlineStatus
+      v-if="passwordState.success"
+      variant="success"
+      :message="passwordState.success"
+    />
+    <InlineStatus
+      v-if="passwordState.error"
+      variant="error"
+      :message="passwordState.error"
+    />
 
     <form class="settings-form" @submit.prevent="submitPassword">
-      <label class="field-label" for="current-password">Current password</label>
+      <label class="field-label" for="current-password">Aktualne heslo</label>
       <input
         id="current-password"
         v-model="passwordForm.current"
@@ -23,26 +27,26 @@
         required
       />
 
-      <label class="field-label" for="new-password">New password</label>
+      <label class="field-label" for="new-password">Nove heslo</label>
       <input
         id="new-password"
         v-model="passwordForm.password"
         type="password"
         autocomplete="new-password"
-        placeholder="New password"
+        placeholder="Nove heslo"
         class="field-input"
         :disabled="passwordState.loading"
         required
         minlength="8"
       />
 
-      <label class="field-label" for="confirm-password">Confirm new password</label>
+      <label class="field-label" for="confirm-password">Potvrdte nove heslo</label>
       <input
         id="confirm-password"
         v-model="passwordForm.confirm"
         type="password"
         autocomplete="new-password"
-        placeholder="Confirm new password"
+        placeholder="Potvrdte nove heslo"
         class="field-input"
         :disabled="passwordState.loading"
         required
@@ -57,9 +61,9 @@
         type="submit"
         class="btn btn-primary"
         :disabled="passwordState.loading"
-        aria-label="Update password"
+        aria-label="Aktualizovat heslo"
       >
-        {{ passwordState.loading ? 'Updating...' : 'Update password' }}
+        {{ passwordState.loading ? 'Aktualizujem...' : 'Aktualizovat heslo' }}
       </button>
     </form>
   </SettingsDetailShell>
@@ -67,6 +71,7 @@
 
 <script setup>
 import SettingsDetailShell from '@/components/settings/SettingsDetailShell.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useSettingsContext } from '@/composables/settingsContext'
 
 const { passwordForm, passwordState, submitPassword } = useSettingsContext()

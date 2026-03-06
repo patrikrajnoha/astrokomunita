@@ -43,14 +43,14 @@ function toastMessageFor(notification) {
   }
 
   if (notification.type === 'contest_winner') {
-    return 'You won a contest.'
+    return 'Vyhral si sutaz.'
   }
 
   if (notification.type === 'account_restricted') {
-    return 'Your account has been restricted.'
+    return 'Tvoj ucet bol obmedzeny.'
   }
 
-  return 'New notification'
+  return 'Nova notifikacia'
 }
 
 function notificationCreatedAtTimestamp(item) {
@@ -230,11 +230,11 @@ export const useNotificationsStore = defineStore('notifications', {
       } catch (err) {
         const status = err?.response?.status
         if (status === 401) {
-          this.error = 'Session expired. Please sign in again.'
+          this.error = 'Relacia vyprsala. Prihlas sa znova.'
         } else if (status === 403) {
-          this.error = 'Account does not have access to notifications.'
+          this.error = 'Tento ucet nema pristup k notifikaciam.'
         } else {
-          this.error = err?.response?.data?.message || 'Failed to load notifications.'
+          this.error = err?.response?.data?.message || 'Nepodarilo sa nacitat notifikacie.'
         }
         console.warn('Notifications fetch failed:', err?.message || err)
       } finally {
@@ -279,11 +279,11 @@ export const useNotificationsStore = defineStore('notifications', {
       } catch (err) {
         const status = err?.response?.status
         if (status === 401) {
-          this.latestError = 'Session expired. Please sign in again.'
+          this.latestError = 'Relacia vyprsala. Prihlas sa znova.'
         } else if (status === 403) {
-          this.latestError = 'Account does not have access to notifications.'
+          this.latestError = 'Tento ucet nema pristup k notifikaciam.'
         } else {
-          this.latestError = err?.response?.data?.message || 'Failed to load notifications.'
+          this.latestError = err?.response?.data?.message || 'Nepodarilo sa nacitat notifikacie.'
         }
         console.warn('Latest notifications fetch failed:', err?.message || err)
       } finally {
@@ -315,7 +315,7 @@ export const useNotificationsStore = defineStore('notifications', {
         if (fetchSeq !== this.unreadCountFetchSeq) return
         const status = err?.response?.status
         if (status === 403 && !this.error) {
-          this.error = 'Account does not have access to notifications.'
+          this.error = 'Tento ucet nema pristup k notifikaciam.'
         }
         console.warn('Unread count fetch failed:', err?.message || err)
       } finally {

@@ -9,16 +9,16 @@
       <button
         type="button"
         class="appMobileHeader__menuBtn ui-pill ui-pill--secondary ui-pill--icon"
-        aria-label="Open navigation"
+        aria-label="Otvoriť navigáciu"
         @click="openDrawer"
       >
-        ☰
+        &#9776;
       </button>
 
       <RouterLink
         to="/"
         class="appMobileHeader__logoLink inline-flex items-center text-base font-semibold text-[var(--color-surface)]"
-        aria-label="Home"
+        aria-label="Domov"
       >
         <img src="/logo.png" alt="Astrokomunita" class="appMobileHeader__logo object-contain" />
       </RouterLink>
@@ -28,12 +28,12 @@
 
     <aside
       :class="[
-        'fixed inset-y-0 left-0 hidden w-64 flex-col bg-[var(--bg-app)] px-4 py-6 md:left-3 md:inset-y-3 md:rounded-2xl md:flex xl:hidden',
+        'fixed inset-y-0 left-0 hidden w-60 flex-col bg-[var(--bg-app)] px-3 py-5 md:left-3 md:inset-y-3 md:rounded-2xl md:flex xl:hidden',
         isHomeFeedRoute ? '' : 'border-r border-[var(--border)]',
       ]"
     >
       <div class="flex h-full flex-col">
-        <nav class="flex-1" aria-label="Main navigation">
+        <nav class="flex-1" aria-label="Hlavna navigacia">
           <MainNavbar />
         </nav>
       </div>
@@ -71,13 +71,13 @@
           <aside
             v-if="showDesktopMainSidebar"
             :class="[
-              'hidden h-screen overflow-hidden bg-[var(--bg-app)] px-4 py-6 xl:pl-6 2xl:pl-8 xl:sticky xl:top-0 xl:block',
+              'hidden h-screen overflow-hidden bg-[var(--bg-app)] px-3 py-5 xl:pl-5 2xl:pl-6 xl:sticky xl:top-0 xl:block',
               isHomeFeedRoute ? '' : 'border-r border-[var(--border)]',
             ]"
             data-testid="layout-left"
           >
             <div class="flex h-full flex-col">
-              <nav class="flex-1" aria-label="Main navigation">
+              <nav class="flex-1" aria-label="Hlavna navigacia">
                 <MainNavbar />
               </nav>
             </div>
@@ -102,17 +102,17 @@
           v-if="showRightSidebar"
           class="hidden xl:col-start-2 xl:block xl:justify-self-end xl:self-start xl:pr-3 2xl:pr-4"
           data-testid="layout-right"
-          aria-label="Right sidebar"
+          aria-label="Pravy panel"
         >
           <div
             data-testid="right-rail"
             :class="[
-              'rightRail h-screen w-[22rem] overflow-y-auto bg-[var(--bg-app)] px-4 py-4 xl:sticky xl:top-0',
+              'rightRail h-screen w-[20.5rem] overflow-y-auto overflow-x-hidden bg-[var(--bg-app)] px-3.5 py-3.5 xl:sticky xl:top-0',
               isHomeFeedRoute ? '' : 'border-l border-[var(--border)]',
             ]"
           >
             <div class="rightRail__inner">
-              <div class="rightRail__content sidebar-dense">
+              <div class="rightRail__content sidebar-dense sidebar-ultra">
                 <DynamicSidebar
                   v-if="!showDirectObservingSidebar"
                   :observing-lat="observingLat"
@@ -163,9 +163,7 @@
       type="button"
       class="installBtn ui-pill ui-pill--secondary"
       @click="installApp"
-    >
-      Install app
-    </button>
+    >Nainštalovať aplikáciu</button>
 
     <transition
       enter-active-class="transition-opacity duration-200"
@@ -197,13 +195,13 @@
           'fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-[var(--bg-app)] px-4 py-6 md:hidden',
           isHomeFeedRoute ? '' : 'border-r border-[var(--border)]',
         ]"
-        aria-label="Mobile navigation"
+        aria-label="Mobilna navigacia"
       >
         <div class="flex items-center justify-between">
           <RouterLink
             to="/"
             class="inline-flex items-center gap-2 text-base font-semibold text-[var(--text-primary)]"
-            aria-label="Home"
+            aria-label="Domov"
             @click="closeDrawer"
           >
             <img src="/logo.png" alt="Astrokomunita" class="h-8 w-auto max-w-[9rem] object-contain" />
@@ -212,10 +210,10 @@
           <button
             type="button"
             class="ui-pill ui-pill--secondary ui-pill--icon"
-            aria-label="Close navigation"
+            aria-label="Zavrieť navigáciu"
             @click="closeDrawer"
           >
-            ✖
+            &#10005;
           </button>
         </div>
 
@@ -268,21 +266,21 @@
         <button
           type="button"
           class="sheetHandle"
-          aria-label="Close widgets menu"
+          aria-label="Zavrieť menu widgetov"
           @touchstart="onSheetTouchStart($event, 'menu')"
           @touchmove="onSheetTouchMove($event, 'menu')"
           @touchend="onSheetTouchEnd('menu')"
           @click="closeWidgetMenu"
         ></button>
         <div class="sheetHead">
-          <h2 id="mobile-widgets-menu-title" class="sheetTitle">Widgets</h2>
+          <h2 id="mobile-widgets-menu-title" class="sheetTitle">Widgety</h2>
           <button
             type="button"
             class="sheetClose ui-pill ui-pill--secondary ui-pill--icon"
-            aria-label="Close widgets menu"
+            aria-label="Zavrieť menu widgetov"
             @click="closeWidgetMenu"
           >
-            ×
+            &#10005;
           </button>
         </div>
 
@@ -390,7 +388,7 @@
         <button
           type="button"
           class="sheetHandle"
-          aria-label="Close widget"
+          aria-label="Zavrieť widget"
           @touchstart="onSheetTouchStart($event, 'content')"
           @touchmove="onSheetTouchMove($event, 'content')"
           @touchend="onSheetTouchEnd('content')"
@@ -401,10 +399,10 @@
           <button
             type="button"
             class="sheetClose ui-pill ui-pill--secondary ui-pill--icon"
-            aria-label="Close widget"
+            aria-label="Zavrieť widget"
             @click="closeWidgetSheet"
           >
-            ×
+            &#10005;
           </button>
         </div>
 
@@ -508,10 +506,11 @@ const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const showMobileBottomNav = computed(() => isMobileViewport.value && !isAdminRoute.value)
 const appShellStyle = computed(() => ({
   '--mobile-bottom-nav-offset': showMobileBottomNav.value ? '88px' : '0px',
+  '--guest-cta-bottom-offset': showMobileBottomNav.value && !auth.isAuthed ? '88px' : '0px',
 }))
 const legalLinks = [
-  { to: '/privacy', label: 'Privacy' },
-  { to: '/terms', label: 'Terms' },
+  { to: '/privacy', label: 'Ochrana súkromia' },
+  { to: '/terms', label: 'Podmienky' },
   { to: '/cookies', label: 'Cookies' },
 ]
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
@@ -539,9 +538,9 @@ const centerShellClass = computed(() => {
   return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:gap-1 2xl:gap-2'
 })
 const centerShellColumns = computed(() => {
-  if (isAdminRoute.value) return '16rem minmax(0, 1fr)'
+  if (isAdminRoute.value) return '15rem minmax(0, 1fr)'
 
-  return '16rem minmax(600px, 640px)'
+  return '15rem minmax(600px, 640px)'
 })
 const centerShellStyle = computed(() => {
   return {
@@ -1166,8 +1165,8 @@ onBeforeUnmount(() => {
 }
 
 .authFallbackBanner.is-danger {
-  border-color: var(--primary-active);
-  background: rgb(var(--primary-active-rgb) / 0.14);
+  border-color: rgb(var(--color-danger-rgb) / 0.56);
+  background: rgb(var(--color-danger-rgb) / 0.16);
 }
 
 .sheetOverlay {
@@ -1310,9 +1309,67 @@ onBeforeUnmount(() => {
 }
 
 .sidebar-dense {
-  --sb-gap-xs: 0.3rem;
-  --sb-gap-sm: 0.5rem;
-  --sb-gap-md: 0.75rem;
+  --sb-gap-xs: 0.25rem;
+  --sb-gap-sm: 0.45rem;
+  --sb-gap-md: 0.65rem;
+}
+
+.sidebar-ultra {
+  --sb-gap-xs: 0.2rem;
+  --sb-gap-sm: 0.38rem;
+  --sb-gap-md: 0.56rem;
+}
+
+.sidebar-ultra :deep(.panelTitle),
+.sidebar-ultra :deep(.sidebarSection__header) {
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.sidebar-ultra :deep(.stateTitle) {
+  font-size: 0.8rem;
+}
+
+.sidebar-ultra :deep(.stateText) {
+  font-size: 0.74rem;
+  line-height: 1.28;
+}
+
+.sidebar-ultra :deep(.ghostbtn),
+.sidebar-ultra :deep(.actionbtn),
+.sidebar-ultra :deep(.showMoreLink) {
+  min-height: 1.82rem;
+  font-size: 0.73rem;
+  line-height: 1.12;
+  padding: 0.28rem 0.56rem;
+  border-radius: 0.6rem;
+}
+
+.sidebar-ultra :deep(.nasaImageWrap) {
+  max-height: 126px;
+}
+
+.sidebar-ultra :deep(.nasaTitle),
+.sidebar-ultra :deep(.eventTitle) {
+  font-size: 0.84rem;
+  line-height: 1.18;
+}
+
+.sidebar-ultra :deep(.nasaExcerpt),
+.sidebar-ultra :deep(.eventMeta),
+.sidebar-ultra :deep(.eventDate),
+.sidebar-ultra :deep(.articleLink) {
+  font-size: 0.74rem;
+}
+
+.sidebar-ultra :deep(.articleItem),
+.sidebar-ultra :deep(.eventItem) {
+  padding-top: 0.32rem;
+  padding-bottom: 0.32rem;
+}
+
+.sidebar-ultra :deep(.eventItem) {
+  grid-template-columns: 4.1rem minmax(0, 1fr);
 }
 
 .rightSidebarFooterLinks {

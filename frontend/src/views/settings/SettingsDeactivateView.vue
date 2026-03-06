@@ -1,17 +1,19 @@
 <template>
   <SettingsDetailShell
-    title="Deactivate account"
-    subtitle="This action permanently removes your account and signs you out."
+    title="Deaktivacia uctu"
+    subtitle="Tato akcia natrvalo odstrani ucet a odhlasi vas."
     :danger="true"
   >
-    <p class="danger-note">Deleting your account also permanently removes your posts and related content.</p>
+    <p class="danger-note">Zmazanie uctu natrvalo odstrani aj vase prispevky a suvisiaci obsah.</p>
 
-    <div v-if="deactivateState.error" class="status status-error" role="alert">
-      {{ deactivateState.error }}
-    </div>
+    <InlineStatus
+      v-if="deactivateState.error"
+      variant="error"
+      :message="deactivateState.error"
+    />
 
     <div class="settings-form">
-      <label class="field-label" for="deactivate-confirm">Type DEACTIVATE to confirm</label>
+      <label class="field-label" for="deactivate-confirm">Napiste DEACTIVATE pre potvrdenie</label>
       <input
         id="deactivate-confirm"
         v-model.trim="deactivateForm.confirm"
@@ -19,17 +21,17 @@
         placeholder="DEACTIVATE"
         class="field-input field-input-danger"
         :disabled="deactivateState.loading"
-        aria-label="Confirm deactivation"
+        aria-label="Potvrdenie deaktivacie"
       />
 
       <button
         type="button"
         class="btn btn-danger"
         :disabled="deactivateState.loading || deactivateForm.confirm !== 'DEACTIVATE'"
-        aria-label="Deactivate account"
+        aria-label="Deaktivovat ucet"
         @click="submitDeactivate"
       >
-        {{ deactivateState.loading ? 'Deactivating...' : 'Deactivate account' }}
+        {{ deactivateState.loading ? 'Deaktivujem...' : 'Deaktivovat ucet' }}
       </button>
     </div>
   </SettingsDetailShell>
@@ -37,6 +39,7 @@
 
 <script setup>
 import SettingsDetailShell from '@/components/settings/SettingsDetailShell.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useSettingsContext } from '@/composables/settingsContext'
 
 const { deactivateForm, deactivateState, submitDeactivate } = useSettingsContext()

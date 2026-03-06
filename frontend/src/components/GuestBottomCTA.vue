@@ -97,6 +97,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .guestCta {
   background: transparent;
+  bottom: calc(var(--guest-cta-bottom-offset) + env(safe-area-inset-bottom));
   padding: 0 0 0.65rem;
 }
 

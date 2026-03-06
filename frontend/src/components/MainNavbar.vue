@@ -1,20 +1,20 @@
 <template>
   <nav
-    class="mainNavbar flex h-full min-h-0 flex-col bg-[linear-gradient(180deg,rgb(var(--color-bg-rgb)/0.96)_0%,rgb(var(--color-bg-rgb)/0.92)_100%)] px-4 py-4"
-    aria-label="Primary navigation"
+    class="mainNavbar flex h-full min-h-0 flex-col bg-[linear-gradient(180deg,rgb(var(--color-bg-rgb)/0.96)_0%,rgb(var(--color-bg-rgb)/0.92)_100%)] px-3 py-3.5"
+    aria-label="Hlavná navigácia"
   >
     <RouterLink
       v-if="showBrandLogo"
       to="/"
-      class="inline-flex items-center rounded-xl px-2 py-2 text-sm font-semibold text-[var(--color-surface)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
-      title="Home"
-      aria-label="Home"
+      class="inline-flex items-center rounded-xl px-1.5 py-1.5 text-sm font-semibold text-[var(--color-surface)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
+      title="Domov"
+      aria-label="Domov"
     >
       <img src="/logo.png" alt="Astrokomunita" class="h-9 w-auto max-w-[12.5rem] object-contain" />
     </RouterLink>
 
     <!-- Main Navigation -->
-    <div class="navScroll mt-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden">
+    <div class="navScroll mt-3 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
       <RouterLink
         v-for="item in primaryLinks"
         :key="item.key || item.to"
@@ -31,8 +31,8 @@
               : ''"
             :aria-expanded="isMoreOpen ? 'true' : 'false'"
             aria-controls="more-menu"
-            aria-label="More"
-            title="More"
+            aria-label="Ďalšie"
+            title="Ďalšie"
             @click="toggleMore"
           >
             <span
@@ -50,7 +50,7 @@
             id="more-menu"
             class="absolute left-0 top-full z-50 mt-2 w-60 max-h-[60vh] overflow-x-hidden overflow-y-auto rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.92)] p-2 backdrop-blur-md ring-1 ring-[color:rgb(var(--color-text-secondary-rgb)/0.18)] shadow-[0_18px_55px_rgb(0_0_0/0.55)]"
             role="menu"
-            aria-label="More options"
+            aria-label="Ďalšie možnosti"
           >
             <RouterLink
               v-if="auth.isAuthed"
@@ -66,7 +66,7 @@
                   ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                   : ''"
                 role="menuitem"
-                aria-label="Settings"
+                aria-label="Nastavenia"
               >
                 <span
                   class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
@@ -74,7 +74,7 @@
                 >
                   S
                 </span>
-                <span class="min-w-0 flex-1 truncate">Settings</span>
+                <span class="min-w-0 flex-1 truncate">Nastavenia</span>
               </a>
             </RouterLink>
 
@@ -92,7 +92,7 @@
                   ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                   : ''"
                 role="menuitem"
-                aria-label="Creator Studio"
+                aria-label="Štúdio tvorcu"
               >
                 <span
                   class="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
@@ -100,7 +100,7 @@
                 >
                   C
                 </span>
-                <span class="min-w-0 flex-1 truncate">Creator Studio</span>
+                <span class="min-w-0 flex-1 truncate">Štúdio tvorcu</span>
               </a>
             </RouterLink>
           </div>
@@ -133,12 +133,12 @@
             id="admin-menu"
             class="absolute left-0 top-full z-50 mt-2 w-60 rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.92)] p-2 backdrop-blur-md ring-1 ring-[color:rgb(var(--color-text-secondary-rgb)/0.18)] shadow-[0_18px_55px_rgb(0_0_0/0.55)]"
             role="menu"
-            aria-label="Admin options"
+            aria-label="Možnosti administrácie"
           >
-            <!-- Admin Group 1: Core Management -->
+            <!-- Admin Group 1: Správa -->
             <div class="mb-2 border-b border-[color:rgb(var(--color-text-secondary-rgb)/0.12)] pb-2">
               <div class="px-3 py-1 text-xs font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.7)]">
-                Core Management
+                Správa
               </div>
               <RouterLink
                 :to="{ name: 'admin.dashboard' }"
@@ -153,7 +153,7 @@
                     ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
-                  aria-label="Dashboard"
+                  aria-label="Prehľad"
                 >
                   <span
                     class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
@@ -161,7 +161,7 @@
                   >
                     D
                   </span>
-                  <span class="flex-1">Dashboard</span>
+                  <span class="flex-1">Prehľad</span>
                 </a>
               </RouterLink>
 
@@ -178,7 +178,7 @@
                     ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
-                  aria-label="Users"
+                  aria-label="Používatelia"
                 >
                   <span
                     class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
@@ -186,7 +186,7 @@
                   >
                     U
                   </span>
-                  <span class="flex-1">Users</span>
+                  <span class="flex-1">Používatelia</span>
                 </a>
               </RouterLink>
 
@@ -203,7 +203,7 @@
                     ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
-                  aria-label="Candidates"
+                  aria-label="Kandidáti"
                 >
                   <span
                     class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
@@ -211,7 +211,7 @@
                   >
                     C
                   </span>
-                  <span class="flex-1">Candidates</span>
+                  <span class="flex-1">Kandidáti</span>
                 </a>
               </RouterLink>
 
@@ -228,7 +228,7 @@
                     ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
-                  aria-label="Moderation"
+                  aria-label="Moderácia"
                 >
                   <span
                     class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
@@ -236,7 +236,7 @@
                   >
                     M
                   </span>
-                  <span class="flex-1">Moderation</span>
+                  <span class="flex-1">Moderácia</span>
                 </a>
               </RouterLink>
 
@@ -254,7 +254,7 @@
                     ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
-                  aria-label="Banned words"
+                  aria-label="Zakázané slová"
                 >
                   <span
                     class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
@@ -262,15 +262,15 @@
                   >
                     W
                   </span>
-                  <span class="flex-1">Banned words</span>
+                  <span class="flex-1">Zakázané slová</span>
                 </a>
               </RouterLink>
             </div>
 
-            <!-- Admin Group 2: Content & Configuration -->
+            <!-- Admin Group 2: Obsah a konfigurácia -->
             <div>
               <div class="px-3 py-1 text-xs font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.7)]">
-                Content & Configuration
+                Obsah a konfigurácia
               </div>
               <RouterLink
                 :to="{ name: 'admin.events' }"
@@ -285,7 +285,7 @@
                     ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
-                  aria-label="Events"
+                  aria-label="Udalosti"
                 >
                   <span
                     class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
@@ -293,7 +293,7 @@
                   >
                     E
                   </span>
-                  <span class="flex-1">Events</span>
+                  <span class="flex-1">Udalosti</span>
                 </a>
               </RouterLink>
 
@@ -310,7 +310,7 @@
                     ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
-                  aria-label="Articles"
+                  aria-label="Články"
                 >
                   <span
                     class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
@@ -318,7 +318,7 @@
                   >
                     B
                   </span>
-                  <span class="flex-1">Articles</span>
+                  <span class="flex-1">Články</span>
                 </a>
               </RouterLink>
 
@@ -335,7 +335,7 @@
                     ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
-                  aria-label="Sidebar"
+                  aria-label="Bočný panel"
                 >
                   <span
                     class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
@@ -343,7 +343,7 @@
                   >
                     S
                   </span>
-                  <span class="flex-1">Sidebar</span>
+                  <span class="flex-1">Bočný panel</span>
                 </a>
               </RouterLink>
 
@@ -360,7 +360,7 @@
                     ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
                     : ''"
                   role="menuitem"
-                  aria-label="Bot Manager"
+                  aria-label="Správa botov"
                 >
                   <span
                     class="grid h-7 w-7 place-items-center rounded-lg bg-[color:rgb(var(--color-bg-rgb)/0.6)] text-[0.65rem] font-semibold uppercase text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] shadow-[0_1px_0_rgb(var(--color-text-secondary-rgb)/0.12)] transition-transform duration-200 ease-out group-hover:scale-105 group-active:scale-95"
@@ -368,7 +368,7 @@
                   >
                     B
                   </span>
-                  <span class="flex-1">Bot Manager</span>
+                  <span class="flex-1">Správa botov</span>
                 </a>
               </RouterLink>
 
@@ -696,7 +696,7 @@ const primaryLinks = computed(() => {
     {
       key: 'search',
       to: '/search',
-      label: 'Prehľadávať',
+      label: 'Preskúmať',
       icon: 'P',
       iconOutline: navIcons.search.outline,
       iconFilled: navIcons.search.filled,
@@ -738,7 +738,7 @@ const primaryLinks = computed(() => {
     links.push({
       key: 'admin',
       to: auth.isAdmin ? { name: 'admin.dashboard' } : { name: 'admin.blog' },
-      label: auth.isAdmin ? 'Admin Hub' : 'Editor Hub',
+      label: auth.isAdmin ? 'Admin' : 'Editor',
       icon: 'A',
       iconOutline: navIcons.admin.outline,
       iconFilled: navIcons.admin.filled,
@@ -762,7 +762,7 @@ const primaryLinks = computed(() => {
     links.push({
       key: 'settings',
       to: '/settings',
-      label: 'Settings',
+      label: 'Nastavenia',
       icon: 'S',
       iconOutline: navIcons.settings.outline,
       iconFilled: navIcons.settings.filled,
@@ -774,7 +774,7 @@ const primaryLinks = computed(() => {
     links.push({
       key: 'creator-studio',
       to: '/creator-studio',
-      label: 'Creator Studio',
+      label: 'Štúdio tvorcu',
       icon: 'C',
       iconOutline: navIcons.creatorStudio.outline,
       iconFilled: navIcons.creatorStudio.filled,
@@ -789,7 +789,7 @@ const isPrimaryLinkActive = (item, isActive, isExactActive) => {
   if (!item) return false
   const targetPath = typeof item.to === 'string' ? item.to : item.to?.path
 
-  // Home should be active only on exact root route.
+  // Domov je aktívny iba na koreňovej route.
   if (targetPath === '/') {
     return Boolean(isExactActive)
   }
@@ -967,9 +967,10 @@ watch(
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 0.58rem;
-  border-radius: 0.95rem;
-  padding: 0.45rem 0.45rem 0.45rem 0.4rem;
+  min-height: 2.75rem;
+  gap: 0.5rem;
+  border-radius: 0.85rem;
+  padding: 0.32rem 0.38rem 0.32rem 0.34rem;
   color: rgb(var(--color-surface-rgb) / 0.96);
   text-decoration: none;
   transition:
@@ -987,13 +988,13 @@ watch(
 
 .navIconChip {
   display: inline-flex;
-  height: 2.5rem;
-  width: 2.5rem;
+  height: 2.2rem;
+  width: 2.2rem;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  border-radius: 0.9rem;
+  border-radius: 0.75rem;
   background: rgb(var(--color-bg-rgb) / 0.34);
   color: rgb(var(--color-surface-rgb) / 0.95);
 }
@@ -1004,9 +1005,9 @@ watch(
 }
 
 .navLabel {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
-  line-height: 1.15;
+  line-height: 1.2;
   letter-spacing: 0;
 }
 

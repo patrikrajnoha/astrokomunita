@@ -25,7 +25,7 @@
     </section>
 
     <section class="settings-group" aria-labelledby="settings-group-session">
-      <h2 id="settings-group-session" class="settings-group-label">SESSION</h2>
+      <h2 id="settings-group-session" class="settings-group-label">SESIA</h2>
 
       <div class="settings-nav-block">
         <button
@@ -36,7 +36,7 @@
           @click="submitLogout"
         >
           <span class="settings-logout-icon" aria-hidden="true">L</span>
-          <span class="settings-logout-label">{{ logoutState.loading ? 'Logging out...' : 'Logout' }}</span>
+          <span class="settings-logout-label">{{ logoutState.loading ? 'Odhlasujem...' : 'Odhlasit sa' }}</span>
         </button>
       </div>
       <p v-if="logoutState.error" class="field-error">{{ logoutState.error }}</p>

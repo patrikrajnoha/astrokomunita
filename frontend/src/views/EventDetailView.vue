@@ -18,8 +18,12 @@
     </section>
 
     <section v-else-if="error" class="errorState">
-      <p>{{ error }}</p>
-      <button type="button" class="errorButton" @click="loadEvent">Skusit znova</button>
+      <InlineStatus
+        variant="error"
+        :message="error"
+        action-label="Skusit znova"
+        @action="loadEvent"
+      />
     </section>
 
     <section v-else-if="event" class="eventDetailShell">
@@ -139,6 +143,7 @@ import { useRoute, useRouter } from 'vue-router'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
 import InviteTicketModal from '@/components/events/InviteTicketModal.vue'
 import EventViewingWindowForecast from '@/components/events/EventViewingWindowForecast.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useToast } from '@/composables/useToast'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
@@ -592,7 +597,6 @@ watch(
 }
 
 .backButton,
-.errorButton,
 .locationButton {
   min-height: 2.5rem;
   border-radius: 999px;
@@ -866,6 +870,10 @@ watch(
   justify-items: start;
   color: rgb(255 255 255 / 0.72);
   padding: 1rem 0;
+}
+
+.errorState :deep(.inlineStatus) {
+  max-width: 34rem;
 }
 
 .loadingLine,

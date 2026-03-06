@@ -1,7 +1,7 @@
 <template>
   <nav
     class="mobileBottomNav md:hidden"
-    aria-label="Mobile bottom navigation"
+    aria-label="Spodna mobilna navigacia"
     data-testid="mobile-bottom-nav"
   >
     <RouterLink

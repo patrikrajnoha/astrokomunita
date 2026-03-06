@@ -27,8 +27,12 @@
       <template v-if="activeTab === tab.id">
         <!-- Error -->
         <div v-if="err" class="error-message">
-          <span>{{ err }}</span>
-          <button type="button" class="retry-btn" @click="retryCurrentTab">Skusit znova</button>
+          <InlineStatus
+            variant="error"
+            :message="err"
+            action-label="Skusit znova"
+            @action="retryCurrentTab"
+          />
         </div>
 
         <!-- Loading skeleton -->
@@ -88,9 +92,9 @@
                 <div class="post-meta">
                   <div class="post-author">
                     <button class="author-name" type="button" @click.stop="openProfile(p)">
-                      {{ p?.user?.name ?? 'User' }}
+                      {{ p?.user?.name ?? 'Pouzivatel' }}
                     </button>
-                    <span v-if="isBotPost(p)" class="author-bot-badge" aria-label="Bot verified badge">BOT</span>
+                    <span v-if="isBotPost(p)" class="author-bot-badge" aria-label="Overeny bot">BOT</span>
                     <span class="author-username">@{{ p?.user?.username }}</span>
                     <span class="author-time">{{ fmt(p?.created_at) }}</span>
                     <span v-if="p.pinned_at" class="pinned-badge">📌 Pripnuté</span>
@@ -184,11 +188,11 @@
               </div>
 
               <div v-if="!observationForPost(p) && stelaPreviewImageSrc(p)" class="post-media post-media--stela">
-                <div v-if="isAttachmentBlocked(p)" class="media-removed">Removed</div>
+                <div v-if="isAttachmentBlocked(p)" class="media-removed">Odstranene</div>
                 <PostMediaImage
                   v-else
                   :src="stelaPreviewImageSrc(p)"
-                  alt="Stela APOD preview"
+                  alt="Stela APOD nahlad"
                   :blurred="isAttachmentPending(p)"
                   :status="p?.status"
                 />
@@ -200,7 +204,7 @@
 
               <!-- Media attachment -->
               <div v-if="!observationForPost(p) && p.attachment_url && !stelaPreviewImageSrc(p)" class="post-media">
-                <div v-if="isAttachmentBlocked(p)" class="media-removed">Removed</div>
+                <div v-if="isAttachmentBlocked(p)" class="media-removed">Odstranene</div>
                 <PostMediaImage
                   v-else-if="isImage(p)"
                   :src="attachmentSrc(p)"
@@ -257,7 +261,7 @@
         <!-- Load more -->
         <div class="load-more">
           <button v-if="nextPageUrl" class="load-more-btn" :disabled="loading" @click="load(false)">
-            {{ loading ? 'Loading...' : 'Load more' }}
+            {{ loading ? 'Nacitavam...' : 'Nacitat dalsie' }}
           </button>
         </div>
       </template>
@@ -268,16 +272,16 @@
         <h3 class="report-title">Nahlasit prispevok</h3>
         <div class="report-form">
           <div class="form-group">
-            <label class="form-label">Reason</label>
+            <label class="form-label">Dovod</label>
             <select v-model="reportReason" class="form-select">
-              <option value="spam">spam</option>
-              <option value="abuse">abuse</option>
-              <option value="misinfo">misinfo</option>
-              <option value="other">other</option>
+              <option value="spam">Spam</option>
+              <option value="abuse">Nevhodny obsah</option>
+              <option value="misinfo">Dezinformacie</option>
+              <option value="other">Ine</option>
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Message (optional)</label>
+            <label class="form-label">Sprava (volitelne)</label>
             <textarea
               v-model="reportMessage"
               class="form-textarea"
@@ -286,34 +290,9 @@
             ></textarea>
           </div>
           <div class="report-actions">
-            <button class="btn btn-secondary" type="button" @click="closeReport">Cancel</button>
-            <button class="btn btn-primary" type="button" @click="submitReport">Submit</button>
+            <button class="btn btn-secondary" type="button" @click="closeReport">Zrusit</button>
+            <button class="btn btn-primary" type="button" @click="submitReport">Odoslat</button>
           </div>
-        </div>
-      </div>
-    </div>
-    <div v-if="deleteTarget" class="report-modal" @click="closeDeleteConfirm">
-      <div
-        class="report-content"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-title"
-        @click.stop
-      >
-        <h3 id="delete-title" class="report-title">Delete post</h3>
-        <p class="delete-copy">This action cannot be undone.</p>
-        <div class="report-actions">
-          <button class="btn btn-secondary" type="button" @click="closeDeleteConfirm">
-            Cancel
-          </button>
-          <button
-            class="btn btn-danger"
-            type="button"
-            :disabled="deleteLoadingId === deleteTarget.id"
-            @click="confirmDelete"
-          >
-            {{ deleteLoadingId === deleteTarget.id ? 'Deleting...' : 'Delete' }}
-          </button>
         </div>
       </div>
     </div>
@@ -333,10 +312,12 @@ import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import PostMediaVideo from '@/components/media/PostMediaVideo.vue'
 import ShareModal from '@/components/share/ShareModal.vue'
 import ObservationCard from '@/components/observations/ObservationCard.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useBookmarksStore } from '@/stores/bookmarks'
 import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import { canDeletePost, canReportPost } from '@/utils/postPermissions'
 import { formatRelativeShort } from '@/utils/dateUtils'
 import { avatarDebug } from '@/utils/avatarDebug'
@@ -351,7 +332,8 @@ const props = defineProps({
 const router = useRouter()
 const auth = useAuthStore()
 const bookmarks = useBookmarksStore()
-const { error: toastError, info: toastInfo } = useToast()
+const { error: toastError, info: toastInfo, success: toastSuccess } = useToast()
+const { confirm } = useConfirm()
 const HOME_TABS = [
   { id: 'for_you', label: 'Komunita', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
   {
@@ -390,7 +372,6 @@ const likeLoadingIds = ref(new Set())
 const likeBumpId = ref(null)
 const pinLoadingId = ref(null)
 const reportTarget = ref(null)
-const deleteTarget = ref(null)
 const reportReason = ref('spam')
 const reportMessage = ref('')
 const highlightedPostId = ref(null)
@@ -752,21 +733,21 @@ function menuItemsForPost(post) {
   }
 
   if (canReport(post)) {
-    items.push({ key: 'report', label: 'Report', danger: false })
+    items.push({ key: 'report', label: 'Nahlasit', danger: false })
   }
 
   if (canDelete(post)) {
-    items.push({ key: 'delete', label: 'Delete', danger: true })
+    items.push({ key: 'delete', label: 'Zmazat', danger: true })
   }
 
   if (canEditTranslatedVariant(post)) {
-    items.push({ key: 'edit', label: 'Edit', danger: false })
+    items.push({ key: 'edit', label: 'Upravit', danger: false })
   }
 
   if (auth.user?.is_admin && !isBotPost(post)) {
     items.push({
       key: 'pin',
-      label: post?.pinned_at ? 'Unpin' : 'Pin',
+      label: post?.pinned_at ? 'Odopnut' : 'Pripnut',
       danger: false,
     })
   }
@@ -798,7 +779,7 @@ function onMenuAction(item, post) {
   }
 
   if (item.key === 'delete') {
-    openDeleteConfirm(post)
+    void confirmDelete(post)
     return
   }
 
@@ -919,12 +900,13 @@ async function submitReport() {
       reason: reportReason.value,
       message: reportMessage.value || null,
     })
-    currentFeed.value.err = 'Thanks, we will review it.'
+    currentFeed.value.err = ''
+    toastSuccess('Dakujeme, nahlasenie sme prijali.')
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) currentFeed.value.err = 'Prihlas sa.'
     else if (status === 409) currentFeed.value.err = 'Už si reportoval tento post.'
-    else currentFeed.value.err = e?.response?.data?.message || 'Report zlyhal.'
+    else currentFeed.value.err = e?.response?.data?.message || 'Nahlasenie zlyhalo.'
   } finally {
     closeReport()
   }
@@ -1021,6 +1003,7 @@ async function deletePost(post) {
     await auth.csrf()
     await api.delete(`/posts/${post.id}`)
     currentFeed.value.items = currentFeed.value.items.filter((x) => x.id !== post.id)
+    toastSuccess('Prispevok bol zmazany.')
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) currentFeed.value.err = 'Prihlas sa.'
@@ -1028,13 +1011,7 @@ async function deletePost(post) {
     else currentFeed.value.err = e?.response?.data?.message || 'Mazanie zlyhalo.'
   } finally {
     deleteLoadingId.value = null
-    closeDeleteConfirm()
   }
-}
-
-function openDeleteConfirm(post) {
-  if (!post?.id || !canDelete(post)) return
-  deleteTarget.value = post
 }
 
 function openShareModal(post) {
@@ -1046,9 +1023,6 @@ function closeShareModal() {
   shareTarget.value = null
 }
 
-function closeDeleteConfirm() {
-  deleteTarget.value = null
-}
 
 function updatePostPoll(post, nextPoll) {
   if (!post || !nextPoll) return
@@ -1059,9 +1033,19 @@ function onPollLoginRequired() {
   currentFeed.value.err = 'Prihlas sa pre hlasovanie.'
 }
 
-async function confirmDelete() {
-  if (!deleteTarget.value?.id) return
-  await deletePost(deleteTarget.value)
+async function confirmDelete(post) {
+  if (!post?.id || !canDelete(post) || deleteLoadingId.value) return
+
+  const approved = await confirm({
+    title: 'Zmazat prispevok?',
+    message: 'Tuto akciu uz nie je mozne vratit.',
+    confirmText: 'Zmazat',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
+
+  if (!approved) return
+  await deletePost(post)
 }
 
 function fmt(iso) {
@@ -1293,7 +1277,7 @@ async function retryCurrentTab() {
 async function togglePin(post) {
   if (!post?.id || pinLoadingId.value) return
   if (!auth.user?.is_admin) {
-    currentFeed.value.err = 'Admin access required.'
+    currentFeed.value.err = 'Akcia je dostupna len pre admina.'
     return
   }
 
@@ -1316,15 +1300,15 @@ async function togglePin(post) {
       post.pinned_at = new Date().toISOString()
     }
 
-    // Refresh feed to re-order
+    // Refresh feed to re-order.
     load(true)
-
-    currentFeed.value.err = wasPinned ? 'Post unpinned successfully' : 'Post pinned successfully'
+    currentFeed.value.err = ''
+    toastSuccess(wasPinned ? 'Prispevok bol odopnuty.' : 'Prispevok bol pripnuty.')
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) currentFeed.value.err = 'Prihlas sa.'
     else if (status === 403) currentFeed.value.err = 'Nemáš oprávnenie.'
-    else currentFeed.value.err = e?.response?.data?.message || 'Pin action failed.'
+    else currentFeed.value.err = e?.response?.data?.message || 'Zmena pripnutia zlyhala.'
   } finally {
     pinLoadingId.value = null
   }
@@ -1350,7 +1334,6 @@ function handleGlobalKeydown(event) {
   if (tabs.value.length < 2) {
     if (event.key !== 'Escape') return
     if (reportTarget.value) closeReport()
-    if (deleteTarget.value) closeDeleteConfirm()
     return
   }
 
@@ -1367,7 +1350,6 @@ function handleGlobalKeydown(event) {
 
   if (event.key !== 'Escape') return
   if (reportTarget.value) closeReport()
-  if (deleteTarget.value) closeDeleteConfirm()
 }
 
 onMounted(() => {
@@ -1507,17 +1489,17 @@ defineExpose({ load, prepend })
 
 /* Error Message */
 .error-message {
-  background: rgb(var(--color-danger-rgb) / 0.1);
-  border: 1px solid rgb(var(--color-danger-rgb) / 0.3);
-  color: var(--color-danger);
-  padding: 12px 16px;
-  border-radius: 8px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 0;
   margin-bottom: 16px;
   font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  display: block;
+}
+
+.error-message :deep(.inlineStatus) {
+  margin: 0;
 }
 
 /* Loading Skeleton */

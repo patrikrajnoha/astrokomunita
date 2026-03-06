@@ -1,7 +1,7 @@
 <template>
   <div v-if="showInitError" class="appInitScreen appInitScreen--error">
     <div class="card">
-      <h1>App failed to start</h1>
+      <h1>Aplikacia sa nepodarila spustit</h1>
       <p>{{ initMessage }}</p>
       <pre v-if="showStack && initStack">{{ initStack }}</pre>
     </div>
@@ -9,8 +9,8 @@
 
   <div v-else-if="showLoading" class="appInitScreen">
     <div class="card">
-      <h1>Loading app...</h1>
-      <p>Initializing session and router.</p>
+      <h1>Nacitavam aplikaciu...</h1>
+      <p>Inicializujem relaciu a smerovanie.</p>
     </div>
   </div>
 
@@ -31,7 +31,7 @@ import { appInitState } from '@/bootstrap/appInitState'
 const showInitError = computed(() => Boolean(appInitState.initError))
 const showLoading = computed(() => appInitState.initializing && !showInitError.value)
 const showStack = computed(() => import.meta.env.DEV)
-const initMessage = computed(() => appInitState.initError?.message || 'Unknown startup error')
+const initMessage = computed(() => appInitState.initError?.message || 'Neznama chyba pri starte')
 const initStack = computed(() => appInitState.initError?.stack || '')
 </script>
 
@@ -78,6 +78,6 @@ const initStack = computed(() => appInitState.initError?.stack || '')
 }
 
 .appInitScreen--error .card {
-  border-color: var(--primary-active);
+  border-color: var(--color-danger);
 }
 </style>

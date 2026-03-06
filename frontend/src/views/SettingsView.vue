@@ -4,9 +4,9 @@
     <div class="settings-glow settings-glow-2" aria-hidden="true"></div>
 
     <header class="settings-header">
-      <p class="settings-eyebrow">Account</p>
-      <h1 class="settings-title">Settings</h1>
-      <p class="settings-subtitle">Manage your account details and security.</p>
+      <p class="settings-eyebrow">Ucet</p>
+      <h1 class="settings-title">Nastavenia</h1>
+      <p class="settings-subtitle">Sprava uctu, bezpecnosti a sukromia.</p>
     </header>
 
     <router-view />

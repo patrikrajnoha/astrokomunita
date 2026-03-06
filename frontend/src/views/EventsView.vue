@@ -68,7 +68,7 @@
 
         <template v-if="!isCalendarView">
           <div v-if="filtersOpen" class="filters-content">
-            <div class="filter-row" role="tablist" aria-label="Event type filters">
+            <div class="filter-row" role="tablist" aria-label="Filtre typu udalosti">
               <button
                 class="filter-btn"
                 :class="{ active: selectedType === 'all' }"
@@ -181,15 +181,20 @@
         <CalendarView />
       </section>
 
-      <div v-else-if="loading" class="state-card">
-        <div class="spinner" aria-hidden="true"></div>
-        <h3>Nacitavam udalosti</h3>
-      </div>
+      <AsyncState
+        v-else-if="loading"
+        mode="loading"
+        title="Nacitavam udalosti"
+      />
 
-      <div v-else-if="error" class="state-card state-error">
-        <h3>Nastala chyba</h3>
-        <p>{{ error }}</p>
-      </div>
+      <section v-else-if="error" class="state-card state-error">
+        <InlineStatus
+          variant="error"
+          :message="error"
+          action-label="Skusit znova"
+          @action="fetchEvents"
+        />
+      </section>
 
       <section v-else-if="events.length > 0">
         <div
@@ -335,6 +340,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import CalendarView from './CalendarView.vue'
 import FutureEventsEmptyState from '@/components/events/FutureEventsEmptyState.vue'
+import AsyncState from '@/components/ui/AsyncState.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useAuthStore } from '@/stores/auth'
 import { getEvents, getEventYears, lookupEventsByIds } from '@/services/events'
@@ -1177,17 +1184,11 @@ onBeforeUnmount(() => {
 }
 
 .state-error {
-  border-color: rgb(248 113 113 / 0.28);
+  text-align: left;
 }
 
-.spinner {
-  width: 1.5rem;
-  height: 1.5rem;
-  margin: 0 auto 0.45rem;
-  border-radius: 999px;
-  border: 2px solid rgb(var(--color-primary-rgb) / 0.18);
-  border-top-color: rgb(var(--color-primary-rgb) / 0.85);
-  animation: spin 1s linear infinite;
+.state-error :deep(.inlineStatus) {
+  margin-top: 0;
 }
 
 .calendar-panel {
@@ -1446,15 +1447,6 @@ onBeforeUnmount(() => {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 @keyframes fade-slide {

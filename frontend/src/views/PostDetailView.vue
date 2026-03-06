@@ -7,13 +7,16 @@
       </div>
 
       <!-- loading -->
-      <div v-if="loading" class="loading">
-        Nacitavam prispevok...
-      </div>
+      <AsyncState v-if="loading" mode="loading" title="Nacitavam prispevok..." />
 
       <!-- error -->
-      <div v-else-if="error" class="error">
-        {{ error }}
+      <div v-else-if="error" class="inlineErrorWrap">
+        <InlineStatus
+          variant="error"
+          :message="error"
+          action-label="Skusit znova"
+          @action="loadPost"
+        />
       </div>
 
       <!-- content -->
@@ -31,7 +34,7 @@
               <div class="who">
                 <div class="nameRow">
                   <button class="name linkBtn" type="button" @click="openProfile(root?.user)">
-                    {{ root?.user?.name ?? 'User' }}
+                    {{ root?.user?.name ?? 'Pouzivatel' }}
                   </button>
                   <span class="nameTime">{{ fmt(root?.created_at) }}</span>
                 </div>
@@ -50,8 +53,8 @@
                 <DropdownMenu
                   v-if="root && menuItemsForPost(root).length"
                   :items="menuItemsForPost(root)"
-                  label="More actions"
-                  menu-label="Post actions"
+                  label="Dalsie akcie"
+                  menu-label="Akcie prispevku"
                   @select="(item) => onMenuAction(item, root)"
                 />
               </div>
@@ -113,13 +116,13 @@
             </div>
 
             <div v-if="root?.attachment_url" class="mediaWrap">
-              <div v-if="isAttachmentBlocked(root)" class="removedMedia">Removed</div>
+              <div v-if="isAttachmentBlocked(root)" class="removedMedia">Odstranene</div>
               <PostMediaImage
                 v-else-if="isImage(root)"
                 :src="attachmentSrc(root)"
                 alt="Priloha prispevku"
                 :blurred="isAttachmentPending(root)"
-                pending-label="Checking..."
+                pending-label="Kontrolujem..."
               />
 
               <a
@@ -170,23 +173,23 @@
 
         <!-- REPLIES -->
         <div id="replies" class="replies">
-          <div class="repliesHead">
-            <div class="repliesHeading">
-              <div class="repliesTitle">Replies</div>
+            <div class="repliesHead">
+              <div class="repliesHeading">
+              <div class="repliesTitle">Odpovede</div>
               <div class="repliesSub">
                 {{ repliesCountLabel }}
               </div>
-            </div>
+              </div>
             <button class="replyBtn repliesCtaBtn" type="button" @click="focusReplyComposer">
-              Napis reply
+              Napisat odpoved
             </button>
           </div>
 
           <div v-if="replies.length === 0" class="repliesEmpty">
-            <p class="repliesEmptyTitle">Zatial bez reply.</p>
+            <p class="repliesEmptyTitle">Zatial bez odpovedi.</p>
             <p class="repliesEmptyText">Bud prvy, kto odpovie na tento post.</p>
             <button class="replyBtn repliesEmptyBtn" type="button" @click="focusReplyComposer">
-              Pridat reply
+              Pridat odpoved
             </button>
           </div>
 
@@ -209,7 +212,7 @@
                   <div class="replyHeadMain">
                     <div class="nameRow">
                       <button class="name linkBtn" type="button" @click="openProfile(r?.user)">
-                        {{ r?.user?.name ?? 'User' }}
+                        {{ r?.user?.name ?? 'Pouzivatel' }}
                       </button>
                       <span class="nameTime">{{ fmt(r?.created_at) }}</span>
                     </div>
@@ -218,8 +221,8 @@
                     <DropdownMenu
                       v-if="menuItemsForPost(r).length"
                       :items="menuItemsForPost(r)"
-                      label="More actions"
-                      menu-label="Reply actions"
+                      label="Dalsie akcie"
+                      menu-label="Akcie odpovede"
                       @select="(item) => onMenuAction(item, r)"
                     />
                   </div>
@@ -260,13 +263,13 @@
                 </div>
 
                 <div v-if="r.attachment_url" class="mediaWrapSm">
-                  <div v-if="isAttachmentBlocked(r)" class="removedMedia">Removed</div>
+                  <div v-if="isAttachmentBlocked(r)" class="removedMedia">Odstranene</div>
                   <PostMediaImage
                     v-else-if="isImage(r)"
                     :src="attachmentSrc(r)"
                     alt="Priloha prispevku"
                     :blurred="isAttachmentPending(r)"
-                    pending-label="Checking..."
+                    pending-label="Kontrolujem..."
                   />
 
                   <a
@@ -321,7 +324,7 @@
                         <div class="replyHeadMain">
                           <div class="nameRow">
                             <button class="name linkBtn" type="button" @click="openProfile(c?.user)">
-                              {{ c?.user?.name ?? 'User' }}
+                              {{ c?.user?.name ?? 'Pouzivatel' }}
                             </button>
                             <span class="nameTime">{{ fmt(c?.created_at) }}</span>
                           </div>
@@ -330,8 +333,8 @@
                           <DropdownMenu
                             v-if="menuItemsForPost(c).length"
                             :items="menuItemsForPost(c)"
-                            label="More actions"
-                            menu-label="Reply actions"
+                            label="Dalsie akcie"
+                            menu-label="Akcie odpovede"
                             @select="(item) => onMenuAction(item, c)"
                           />
                         </div>
@@ -372,13 +375,13 @@
                       </div>
 
                       <div v-if="c.attachment_url" class="mediaWrapSm">
-                        <div v-if="isAttachmentBlocked(c)" class="removedMedia">Removed</div>
+                        <div v-if="isAttachmentBlocked(c)" class="removedMedia">Odstranene</div>
                         <PostMediaImage
                           v-else-if="isImage(c)"
                           :src="attachmentSrc(c)"
                           alt="Priloha prispevku"
                           :blurred="isAttachmentPending(c)"
-                          pending-label="Checking..."
+                          pending-label="Kontrolujem..."
                         />
 
                         <a
@@ -412,21 +415,21 @@
       <div v-if="reportTarget" class="reportBox">
         <div class="reportTitle">Nahlásiť príspevok</div>
         <div class="reportRow">
-          <label>Reason</label>
+          <label>Dovod</label>
           <select v-model="reportReason">
-            <option value="spam">spam</option>
-            <option value="abuse">abuse</option>
-            <option value="misinfo">misinfo</option>
-            <option value="other">other</option>
+            <option value="spam">Spam</option>
+            <option value="abuse">Nevhodny obsah</option>
+            <option value="misinfo">Dezinformacie</option>
+            <option value="other">Ine</option>
           </select>
         </div>
         <div class="reportRow">
-          <label>Message (optional)</label>
+          <label>Sprava (volitelne)</label>
           <textarea v-model="reportMessage" rows="3" placeholder="Popis..." />
         </div>
         <div class="reportActions">
-          <button class="replyBtn" type="button" @click="closeReport">Cancel</button>
-          <button class="replyBtn" type="button" @click="submitReport">Submit</button>
+          <button class="replyBtn" type="button" @click="closeReport">Zrusit</button>
+          <button class="replyBtn" type="button" @click="submitReport">Odoslat</button>
         </div>
       </div>
       <ShareModal :open="!!shareTarget" :post="shareTarget" @close="closeShareModal" />
@@ -446,6 +449,8 @@ import ShareModal from '@/components/share/ShareModal.vue'
 import api from '@/services/api'
 import ReplyComposer from '@/components/ReplyComposer.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
+import AsyncState from '@/components/ui/AsyncState.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useBookmarksStore } from '@/stores/bookmarks'
 import { useToast } from '@/composables/useToast'
@@ -816,11 +821,11 @@ function menuItemsForPost(post) {
   }
 
   if (canReportPost(post, auth.user)) {
-    items.push({ key: 'report', label: 'Report', danger: false })
+    items.push({ key: 'report', label: 'Nahlasit', danger: false })
   }
 
   if (canAdminEditBotPost(post)) {
-    items.push({ key: 'edit', label: 'Edit', danger: false })
+    items.push({ key: 'edit', label: 'Upravit', danger: false })
   }
 
   return items
@@ -1021,12 +1026,12 @@ async function submitReport() {
       reason: reportReason.value,
       message: reportMessage.value || null,
     })
-    reportNotice.value = 'Thanks, we will review it.'
+    reportNotice.value = 'Dakujeme, nahlasenie sme prijali.'
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) reportNotice.value = 'Prihlas sa.'
     else if (status === 409) reportNotice.value = 'Už si reportoval tento post.'
-    else reportNotice.value = e?.response?.data?.message || 'Report zlyhal.'
+    else reportNotice.value = e?.response?.data?.message || 'Nahlasenie zlyhalo.'
   } finally {
     closeReport()
   }
@@ -1106,8 +1111,9 @@ const repliesCount = computed(() => {
 
 const repliesCountLabel = computed(() => {
   const count = Number(repliesCount.value || 0)
-  if (count === 1) return '1 reply'
-  return `${count} replies`
+  if (count === 1) return '1 odpoved'
+  if (count >= 2 && count <= 4) return `${count} odpovede`
+  return `${count} odpovedi`
 })
 </script>
 
@@ -1133,6 +1139,11 @@ const repliesCountLabel = computed(() => {
 .top {
   margin-bottom: 0.75rem;
 }
+
+.inlineErrorWrap {
+  margin-bottom: 0.8rem;
+}
+
 .back {
   display: inline-flex;
   padding: 0.5rem 0.75rem;
@@ -1145,14 +1156,6 @@ const repliesCountLabel = computed(() => {
   border-color: var(--color-primary);
   color: var(--color-surface);
   background: rgb(var(--color-primary-rgb) / 0.08);
-}
-
-/* states */
-.loading {
-  color: var(--color-text-secondary);
-}
-.error {
-  color: var(--color-danger);
 }
 
 /* post layout (same as feed) */

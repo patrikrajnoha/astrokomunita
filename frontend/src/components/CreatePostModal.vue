@@ -36,7 +36,7 @@
               />
 
               <div v-if="imagePreviewUrl" class="mediaCard">
-                <img class="mediaImg" :src="imagePreviewUrl" alt="Preview" />
+                <img class="mediaImg" :src="imagePreviewUrl" alt="Nahlad" />
                 <button class="mediaRemove" type="button" :disabled="submitting" @click="removeFile">x</button>
               </div>
 
@@ -713,6 +713,7 @@ async function submit() {
         : null,
     })
 
+    toast.success?.('Prispevok bol publikovany.')
     emit('created', response?.data)
     resetState()
     emit('close')
