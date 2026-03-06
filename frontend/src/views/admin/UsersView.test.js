@@ -127,6 +127,7 @@ describe('UsersView', () => {
     const botRow = wrapper.get('[data-row-id="4"]')
     expect(botRow.find('.roleBadge').text()).toBe('BOT')
     expect(botRow.find('.col-email .truncateText').text()).toBe('—')
+    expect(botRow.find('.default-avatar').exists()).toBe(true)
 
     const hint = botRow.get('.botAccountHint')
     expect(hint.text()).toBe('(bot účet)')
@@ -142,3 +143,4 @@ describe('UsersView', () => {
     expect(debugBanner.text()).toContain('env=local; rev=abc123')
   })
 })
+

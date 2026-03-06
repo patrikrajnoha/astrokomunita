@@ -53,4 +53,52 @@ describe('resolveAvatarState', () => {
 
     expect(state.usesImage).toBe(true)
   })
+
+  it('applies deterministic kozmobot preset when bot has no uploaded avatar', () => {
+    const state = resolveAvatarState({
+      id: 42,
+      username: 'kozmobot',
+      role: 'bot',
+      is_bot: true,
+      avatar_mode: 'image',
+      avatar_url: null,
+      avatar_path: null,
+    })
+
+    expect(state.usesImage).toBe(false)
+    expect(state.mode).toBe('generated')
+    expect(state.colorIndex).toBe(3)
+    expect(state.iconIndex).toBe(0)
+  })
+
+  it('applies deterministic stellarbot preset when bot has no uploaded avatar', () => {
+    const state = resolveAvatarState({
+      id: 43,
+      username: 'stellarbot',
+      role: 'bot',
+      is_bot: true,
+      avatar_mode: 'image',
+      avatar_url: null,
+      avatar_path: null,
+    })
+
+    expect(state.usesImage).toBe(false)
+    expect(state.mode).toBe('generated')
+    expect(state.colorIndex).toBe(4)
+    expect(state.iconIndex).toBe(2)
+  })
+
+  it('uses uploaded avatar for bot when image exists', () => {
+    const state = resolveAvatarState({
+      id: 77,
+      username: 'kozmobot',
+      role: 'bot',
+      is_bot: true,
+      avatar_mode: 'image',
+      avatar_url: '/api/media/file/avatars/77/bot.png',
+    })
+
+    expect(state.usesImage).toBe(true)
+    expect(state.imageUrl).toContain('/api/media/file/avatars/77/bot.png')
+  })
 })

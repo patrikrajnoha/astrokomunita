@@ -78,11 +78,26 @@ class AdminRoleAndBotGovernanceTest extends TestCase
         $this->patchJson("/api/admin/users/{$bot->id}/profile", [
             'name' => 'Edited by admin',
             'bio' => 'admin update',
-            'avatar_path' => 'avatars/bot.png',
-            'cover_path' => 'covers/bot.png',
         ])->assertOk()
             ->assertJsonPath('name', 'Edited by admin')
             ->assertJsonPath('bio', 'admin update');
+    }
+
+    public function test_bot_profile_rejects_raw_avatar_and_cover_path_updates(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $bot = User::factory()->bot()->create([
+            'username' => 'stellarbot',
+            'name' => 'Stellar Bot',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/admin/users/{$bot->id}/profile", [
+            'avatar_path' => 'avatars/bot.png',
+            'cover_path' => 'covers/bot.png',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['avatar_path', 'cover_path']);
     }
 
     public function test_bot_role_email_is_forced_to_null(): void
