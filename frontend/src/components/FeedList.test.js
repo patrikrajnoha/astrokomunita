@@ -256,6 +256,7 @@ describe('FeedList tabs', () => {
     const badge = wrapper.find('.author-bot-badge')
     expect(badge.exists()).toBe(true)
     expect(badge.text()).toBe('BOT')
+    expect(wrapper.find('.post-avatar .default-avatar').exists()).toBe(true)
   })
 
   it('falls back to generic Bot label for legacy posts without meta', async () => {
