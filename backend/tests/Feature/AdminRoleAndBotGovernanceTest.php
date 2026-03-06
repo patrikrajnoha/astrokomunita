@@ -100,6 +100,23 @@ class AdminRoleAndBotGovernanceTest extends TestCase
             ->assertJsonValidationErrors(['avatar_path', 'cover_path']);
     }
 
+    public function test_regular_profile_rejects_raw_avatar_and_cover_path_updates(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $regularUser = User::factory()->create([
+            'is_bot' => false,
+            'role' => User::ROLE_USER,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/admin/users/{$regularUser->id}/profile", [
+            'avatar_path' => 'avatars/user.png',
+            'cover_path' => 'covers/user.png',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['avatar_path', 'cover_path']);
+    }
+
     public function test_admin_can_manage_bot_avatar_preferences_and_remove_media(): void
     {
         $admin = User::factory()->admin()->create();

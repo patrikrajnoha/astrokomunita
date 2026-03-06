@@ -238,15 +238,10 @@ class AdminUserController extends Controller
         $rules = [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'bio' => ['nullable', 'string', 'max:160'],
+            // Media paths are managed through dedicated bot media endpoints only.
+            'avatar_path' => ['prohibited'],
+            'cover_path' => ['prohibited'],
         ];
-
-        if ($user->isBot()) {
-            $rules['avatar_path'] = ['prohibited'];
-            $rules['cover_path'] = ['prohibited'];
-        } else {
-            $rules['avatar_path'] = ['nullable', 'string', 'max:255'];
-            $rules['cover_path'] = ['nullable', 'string', 'max:255'];
-        }
 
         $validated = $request->validate($rules);
 

@@ -152,6 +152,40 @@ describe('AdminUserDetailView', () => {
     expect(apiGetMock).toHaveBeenCalledWith('/admin/users/42')
   })
 
+  it('does not expose avatar or cover path editing for regular users', async () => {
+    const router = makeRouter()
+    await router.push('/admin/users/42')
+    await router.isReady()
+
+    const wrapper = mount(AdminUserDetailView, {
+      global: {
+        plugins: [router],
+        stubs: { teleport: true },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(wrapper.find('#profile-avatar').exists()).toBe(false)
+    expect(wrapper.find('#profile-cover').exists()).toBe(false)
+
+    const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Save profile'))
+    expect(saveButton).toBeTruthy()
+    await saveButton.trigger('click')
+    await flush()
+
+    const profileCall = apiPatchMock.mock.calls.find(([url]) => url === '/admin/users/42/profile')
+    expect(profileCall).toBeTruthy()
+    const payload = profileCall[1]
+    expect(payload).toEqual({
+      name: 'Raj User',
+      bio: null,
+    })
+    expect(payload).not.toHaveProperty('avatar_path')
+    expect(payload).not.toHaveProperty('cover_path')
+  })
+
   it('uses profile-style bot media cards and hides raw storage paths', async () => {
     apiGetMock.mockImplementation((url) => {
       if (url === '/admin/users/42') {
