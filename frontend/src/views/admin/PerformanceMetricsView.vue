@@ -683,7 +683,7 @@ onMounted(() => {
 .warningCard {
   display: flex;
   gap: 8px;
-  color: #92400e;
+  color: var(--color-warning);
   border-color: rgb(217 119 6 / 0.35);
   background: rgb(245 158 11 / 0.12);
 }

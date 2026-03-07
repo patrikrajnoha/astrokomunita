@@ -319,7 +319,7 @@ onBeforeUnmount(() => {
   color: inherit;
 }
 
-.fieldInput:focus {
+.fieldInput:focus-visible {
   outline: 0;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.2);

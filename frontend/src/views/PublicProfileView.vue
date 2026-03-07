@@ -8,11 +8,24 @@
       </div>
     </header>
 
-    <div v-if="loading" class="card muted">Nacitavam profil...</div>
-    <div v-else-if="err" class="card err">{{ err }}</div>
+    <AsyncState
+      v-if="loading"
+      mode="loading"
+      title="Nacitavam profil"
+      loading-style="skeleton"
+      :skeleton-rows="4"
+      compact
+    />
+    <InlineStatus
+      v-else-if="err"
+      variant="error"
+      :message="err"
+      action-label="Skusit znova"
+      @action="refreshProfile"
+    />
 
     <template v-else>
-      <section class="profileShell">
+      <section class="profileShell ui-profile-shell">
         <div
           class="cover"
           data-testid="public-profile-cover"
@@ -29,11 +42,11 @@
           </div>
 
           <div class="headActions">
-            <button class="btn ghost" @click="copyProfileLink">{{ copyLabel }}</button>
+            <button class="ui-btn ui-btn--ghost" @click="copyProfileLink">{{ copyLabel }}</button>
           </div>
         </div>
 
-        <div class="identity">
+        <div class="identity ui-profile-header ui-profile-identity">
           <div class="nameRow">
             <h1 class="name">{{ displayName }}</h1>
             <span v-if="user?.is_admin" class="badge">Admin</span>
@@ -52,18 +65,18 @@
           </div>
         </div>
 
-        <div class="statsRow">
-          <div class="stat">
-            <div class="statNum">{{ stats.posts }}</div>
-            <div class="statLabel">Príspevky</div>
+        <div class="statsRow ui-profile-stats">
+          <div class="stat ui-profile-stat">
+            <strong>{{ stats.posts }}</strong>
+            <span>Prispevky</span>
           </div>
-          <div class="stat">
-            <div class="statNum">{{ stats.replies }}</div>
-            <div class="statLabel">Odpovede</div>
+          <div class="stat ui-profile-stat">
+            <strong>{{ stats.replies }}</strong>
+            <span>Odpovede</span>
           </div>
-          <div class="stat">
-            <div class="statNum">{{ stats.media }}</div>
-            <div class="statLabel">Médiá</div>
+          <div class="stat ui-profile-stat">
+            <strong>{{ stats.media }}</strong>
+            <span>Media</span>
           </div>
         </div>
       </section>
@@ -82,15 +95,30 @@
           </button>
         </div>
 
-        <div v-if="tabState[activeTab].err" class="msg err">{{ tabState[activeTab].err }}</div>
+        <InlineStatus
+          v-if="tabState[activeTab].err"
+          variant="error"
+          :message="tabState[activeTab].err"
+          action-label="Skusit znova"
+          @action="loadTab(activeTab, true)"
+        />
 
-        <div v-if="tabState[activeTab].loading && tabState[activeTab].items.length === 0" class="muted padTop">
-          Nacitavam...
-        </div>
+        <AsyncState
+          v-if="tabState[activeTab].loading && tabState[activeTab].items.length === 0"
+          mode="loading"
+          title="Nacitavam obsah"
+          loading-style="skeleton"
+          :skeleton-rows="4"
+          compact
+        />
 
-        <div v-else-if="!tabState[activeTab].loading && tabState[activeTab].items.length === 0" class="muted padTop">
-          {{ activeTab === 'observations' ? 'Zatial ziadne pozorovania.' : 'Zatial ziadny obsah.' }}
-        </div>
+        <AsyncState
+          v-else-if="!tabState[activeTab].loading && tabState[activeTab].items.length === 0"
+          mode="empty"
+          :title="activeTab === 'observations' ? 'Zatial ziadne pozorovania' : 'Zatial ziadny obsah'"
+          :message="activeTab === 'observations' ? 'Pouzivatel este nepridal pozorovanie.' : 'Tento feed je momentalne prazdny.'"
+          compact
+        />
 
         <div v-else-if="activeTab === 'observations'" class="observationsList">
           <ObservationCard
@@ -103,25 +131,25 @@
           />
         </div>
 
-        <div v-else class="postList">
-          <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem">
+        <div v-else class="postList ui-stream">
+          <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem ui-stream-item">
             <div class="avatar sm">
               <UserAvatar class="avatarImg" :user="avatarUser" :alt="displayName" />
             </div>
 
             <div class="postBody">
-              <div class="postMeta">
+              <div class="postMeta ui-stream-item__meta">
                 <div class="postName">{{ displayName }}</div>
-                <div class="dot">·</div>
+                <div class="dot">&middot;</div>
                 <div class="postTime">{{ fmt(p.created_at) }}</div>
               </div>
 
               <div v-if="p.parent && activeTab === 'replies'" class="replyContext">
-                Odpoveď na: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
+                Odpoved na: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
                 <span class="replyText">{{ shorten(p.parent.content) }}</span>
               </div>
 
-              <HashtagText class="postContent" :content="p.content" />
+              <HashtagText class="postContent ui-stream-item__body" :content="p.content" />
 
               <div v-if="p.attachment_url" class="attachment">
                 <img
@@ -131,13 +159,13 @@
                   alt="attachment"
                 />
                 <a v-else class="attachmentFile" :href="p.attachment_url" target="_blank" rel="noreferrer">
-                  {{ p.attachment_original_name || 'Príloha' }}
+                  {{ p.attachment_original_name || 'Priloha' }}
                 </a>
               </div>
 
-              <div class="postActions">
-                <button class="btn outline" @click="openPost(p)">
-                  Zobraziť vlákno
+              <div class="postActions ui-stream-item__actions">
+                <button class="ui-btn ui-btn--secondary" @click="openPost(p)">
+                  Zobrazit vlakno
                 </button>
               </div>
             </div>
@@ -147,7 +175,7 @@
         <div class="loadMore">
           <button
             v-if="tabState[activeTab].next"
-            class="btn outline"
+            class="ui-btn ui-btn--secondary"
             :disabled="tabState[activeTab].loading"
             @click="loadTab(activeTab, false)"
           >
@@ -165,6 +193,8 @@ import { useRoute, useRouter } from 'vue-router'
 import UserAvatar from '@/components/UserAvatar.vue'
 import ObservationCard from '@/components/observations/ObservationCard.vue'
 import HashtagText from '@/components/HashtagText.vue'
+import AsyncState from '@/components/ui/AsyncState.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import http from '@/services/api'
 import { listObservations } from '@/services/observations'
 import { formatDateTimeCompact } from '@/utils/dateUtils'
@@ -567,20 +597,8 @@ onMounted(async () => {
 .statsRow {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-top: 1px solid var(--divider-color);
-  border-bottom: 1px solid var(--divider-color);
 }
-.stat { padding: 0.85rem 1rem; }
-.statNum { font-weight: 950; font-size: 1.05rem; color: var(--text-primary); }
-.statLabel { color: var(--text-secondary); font-size: var(--font-size-sm); margin-top: 0.25rem; }
-
-.card {
-  border: 1px solid var(--border-default);
-  background: rgb(var(--bg-surface-rgb) / 0.86);
-  border-radius: var(--radius-xl);
-  padding: var(--space-4);
-  margin-top: var(--space-3);
-}
+.stat { padding: var(--space-3) var(--space-4); }
 
 .feedShell {
   margin-top: 0.6rem;
@@ -635,12 +653,10 @@ onMounted(async () => {
   color: var(--text-secondary);
 }
 
-.padTop { margin-top: 0.75rem; }
-
 .observationsList {
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
   display: grid;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .postList {
@@ -651,46 +667,46 @@ onMounted(async () => {
 .postItem {
   display: grid;
   grid-template-columns: 56px 1fr;
-  gap: 0.85rem;
-  padding: 0.9rem 0.1rem;
-  border-top: 1px solid var(--divider-color);
+  gap: var(--space-3);
+  padding: var(--space-4);
   min-width: 0;
+  transition: background-color var(--motion-fast);
 }
-.postItem:first-child { border-top: 0; }
+
+.postItem:hover {
+  background: var(--interactive-hover);
+}
 
 .postBody {
   min-width: 0;
+  display: grid;
+  gap: var(--space-2);
 }
 
 .postMeta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
 .postName { color: var(--text-primary); font-weight: 950; }
 .dot { opacity: 0.6; }
+.postTime {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+}
 
 .replyContext {
-  margin-top: 0.4rem;
-  padding: 0.45rem 0.6rem;
+  padding: var(--space-2) var(--space-3);
   border-radius: 0.75rem;
   background: rgb(var(--bg-app-rgb) / 0.52);
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
 }
 .replyAuthor { color: var(--text-primary); font-weight: 700; margin: 0 0.25rem; }
 .replyText { color: var(--text-primary); margin-left: 0.25rem; }
 
 .postContent {
-  display: block;
-  max-width: 100%;
-  margin-top: 0.25rem;
-  color: var(--text-primary);
+  max-width: 66ch;
   white-space: pre-wrap;
-  line-height: 1.55;
+  line-height: 1.52;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -713,9 +729,7 @@ onMounted(async () => {
 }
 
 .postActions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.6rem;
+  margin-top: var(--space-1);
 }
 
 .loadMore {
@@ -724,40 +738,6 @@ onMounted(async () => {
   padding-top: 0.75rem;
 }
 
-.btn {
-  min-height: var(--control-height-md);
-  padding: 0 0.9rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid rgb(var(--primary-rgb) / 0.42);
-  background: rgb(var(--primary-rgb) / 0.2);
-  color: var(--text-primary);
-  font-weight: 800;
-}
-.btn:hover { background: rgb(var(--primary-rgb) / 0.28); }
-.btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.btn.outline {
-  background: rgb(var(--bg-app-rgb) / 0.32);
-  border-color: var(--border-default);
-  color: var(--text-primary);
-}
-.btn.outline:hover { border-color: rgb(var(--primary-rgb) / 0.5); background: var(--interactive-hover); }
-
-.btn.ghost {
-  border-color: var(--border-default);
-  background: rgb(var(--bg-app-rgb) / 0.3);
-  color: var(--text-secondary);
-}
-.btn.ghost:hover { border-color: rgb(var(--primary-rgb) / 0.5); color: var(--text-primary); background: var(--interactive-hover); }
-
-.msg {
-  margin-top: 0.75rem;
-  padding: 0.6rem 0.8rem;
-  border-radius: 1rem;
-  font-size: 0.95rem;
-}
-.msg.err { border: 1px solid rgb(var(--danger-rgb) / 0.45); background: rgb(var(--danger-rgb) / 0.1); color: var(--danger); }
-
 .muted { color: var(--text-secondary); }
-.err { color: var(--danger); }
 </style>
+

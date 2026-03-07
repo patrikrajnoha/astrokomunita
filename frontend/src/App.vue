@@ -17,7 +17,7 @@
   <template v-else>
     <RouterView />
     <Toaster />
-    <ConfirmDialog />
+    <ConfirmModal />
   </template>
 </template>
 
@@ -25,7 +25,7 @@
 import { computed } from 'vue'
 import { RouterView } from 'vue-router'
 import Toaster from '@/components/ui/Toaster.vue'
-import ConfirmDialog from '@/components/ui/ConfirmDialog.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import { appInitState } from '@/bootstrap/appInitState'
 
 const showInitError = computed(() => Boolean(appInitState.initError))

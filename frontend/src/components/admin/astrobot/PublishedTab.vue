@@ -80,8 +80,8 @@ export default {
         title: 'Presunut do rejected',
         message: 'Dovod presunu do rejected (volitelne):',
         placeholder: 'Napis poznamku',
-        confirmText: 'Presunut',
-        cancelText: 'Cancel',
+        confirmText: 'Presunut do rejected',
+        cancelText: 'Zrusit',
         variant: 'danger',
       })
       if (note === null) return
@@ -115,7 +115,7 @@ export default {
 .postsList { list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; }
 .postCard { padding: 1rem; border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2); background: rgb(var(--color-bg-rgb) / 0.4); border-radius: 0.9rem; display: grid; gap: 0.6rem; }
 .postHeader { display: flex; justify-content: space-between; align-items: center; }
-.postBadge { padding: 0.25rem 0.7rem; background: #10b981; color: #fff; border-radius: 0.4rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.postBadge { padding: 0.25rem 0.7rem; background: var(--color-success); color: var(--color-white); border-radius: 0.4rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
 .postMeta { color: var(--color-text-secondary); font-size: 0.83rem; }
 .postContent { color: var(--color-surface); font-weight: 700; }
 .postSummary { color: var(--color-text-secondary); }

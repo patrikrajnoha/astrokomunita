@@ -108,19 +108,19 @@ const isActive = (item) => {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.35rem;
   padding: 0.45rem 0.45rem calc(0.45rem + env(safe-area-inset-bottom));
-  border: 1px solid rgb(var(--border-rgb) / 0.92);
-  border-radius: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
   background: rgb(var(--bg-surface-2-rgb) / 0.94);
   backdrop-filter: blur(14px);
-  box-shadow: 0 18px 40px rgb(var(--bg-app-rgb) / 0.34);
+  box-shadow: var(--shadow-medium);
 }
 
 .mobileBottomNav__item {
   min-height: 3.35rem;
-  border-radius: 0.85rem;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   text-decoration: none;
   display: grid;
   place-items: center;
@@ -135,7 +135,7 @@ const isActive = (item) => {
 }
 
 .mobileBottomNav__item:hover {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .mobileBottomNav__item:active {
@@ -148,13 +148,13 @@ const isActive = (item) => {
 }
 
 .mobileBottomNav__item.is-active {
-  border-color: rgb(var(--primary-rgb) / 0.48);
+  border-color: rgb(var(--color-accent-rgb) / 0.48);
   background: linear-gradient(
     180deg,
-    rgb(var(--primary-rgb) / 0.22),
-    rgb(var(--primary-rgb) / 0.14)
+    rgb(var(--color-accent-rgb) / 0.22),
+    rgb(var(--color-accent-rgb) / 0.14)
   );
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .mobileBottomNav__iconWrap {
@@ -163,12 +163,12 @@ const isActive = (item) => {
   justify-content: center;
   width: 1.9rem;
   height: 1.9rem;
-  border-radius: 0.75rem;
+  border-radius: var(--radius-sm);
   background: rgb(var(--bg-app-rgb) / 0.22);
 }
 
 .mobileBottomNav__item.is-active .mobileBottomNav__iconWrap {
-  background: rgb(var(--primary-rgb) / 0.2);
+  background: rgb(var(--color-accent-rgb) / 0.2);
 }
 
 .mobileBottomNav__icon {

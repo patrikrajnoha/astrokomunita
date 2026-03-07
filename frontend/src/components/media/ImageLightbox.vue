@@ -157,7 +157,7 @@ function onKeydown(event) {
   z-index: 2;
 }
 
-.lightbox-close:focus {
+.lightbox-close:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

@@ -34,19 +34,30 @@ const rootProps = computed(() => (props.viewTo ? { to: props.viewTo } : {}))
   gap: 8px;
   min-height: 96px;
   padding: 13px 14px;
-  border: 1px solid var(--dashboard-border, rgb(var(--color-surface-rgb) / 0.1));
+  border: 1px solid var(--dashboard-border, var(--color-border));
   border-radius: var(--dashboard-radius, 18px);
   background: var(--dashboard-panel, rgb(var(--color-bg-rgb) / 0.34));
   color: inherit;
   text-decoration: none;
   transition:
     border-color 160ms ease,
-    background-color 160ms ease;
+    background-color 160ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .kpiCard.linked:hover {
   border-color: rgb(var(--color-primary-rgb) / 0.26);
   background: var(--dashboard-panel-strong, rgb(var(--color-bg-rgb) / 0.48));
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.kpiCard.linked:focus-visible {
+  outline: none;
+  border-color: rgb(var(--color-primary-rgb) / 0.34);
+  background: var(--dashboard-panel-strong, rgb(var(--color-bg-rgb) / 0.48));
+  box-shadow: var(--focus-ring);
 }
 
 .kpiLabel {
@@ -68,5 +79,6 @@ const rootProps = computed(() => (props.viewTo ? { to: props.viewTo } : {}))
 
 .tone-accent {
   border-color: rgb(var(--color-primary-rgb) / 0.18);
+  background: rgb(var(--color-primary-rgb) / 0.1);
 }
 </style>

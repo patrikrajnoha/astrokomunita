@@ -637,7 +637,7 @@ defineExpose({ focusInput })
   min-height: 72px;
 }
 
-.input:focus {
+.input:focus-visible {
   border-color: rgb(var(--color-primary-rgb) / 0.95);
   box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.18);
   outline: none;

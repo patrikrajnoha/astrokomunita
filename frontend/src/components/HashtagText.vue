@@ -69,7 +69,7 @@ const segments = computed(() => {
 }
 
 .hashtag-link {
-  color: var(--hashtag-color, #3b82f6);
+  color: var(--hashtag-color, var(--color-accent));
   text-decoration: none;
   font-weight: 600;
   border-bottom: 1px solid transparent;
@@ -78,6 +78,6 @@ const segments = computed(() => {
 
 .hashtag-link:hover {
   border-bottom-color: currentColor;
-  color: var(--hashtag-hover-color, #2563eb);
+  color: var(--hashtag-hover-color, var(--color-primary-hover));
 }
 </style>

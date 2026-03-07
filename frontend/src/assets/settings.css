@@ -10,7 +10,7 @@
 .settings-page .settings-header {
   position: relative;
   overflow: hidden;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   padding: 1.2rem 1.1rem;
   background:
@@ -62,7 +62,7 @@
 }
 
 .settings-page .settings-nav-block {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: linear-gradient(170deg, rgb(var(--bg-surface-rgb) / 0.86), rgb(var(--bg-surface-2-rgb) / 0.72));
   box-shadow: var(--elevation-2);
@@ -103,8 +103,8 @@
   content: '';
   position: absolute;
   top: 0;
-  left: 3.75rem;
-  right: 0.95rem;
+  left: 0;
+  right: 0;
   height: 1px;
   background: var(--divider-color);
   pointer-events: none;
@@ -231,7 +231,7 @@
 }
 
 .settings-page .settings-card {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 1.2rem;
   background: linear-gradient(170deg, rgb(var(--bg-surface-rgb) / 0.86), rgb(var(--bg-surface-2-rgb) / 0.72));
@@ -459,15 +459,14 @@
 }
 
 .settings-page .btn-danger {
-  color: var(--text-primary);
-  border-color: rgb(var(--danger-rgb) / 0.55);
-  background: rgb(var(--danger-rgb) / 0.26);
+  color: var(--color-white);
+  border: none;
+  background: var(--color-danger);
   box-shadow: none;
 }
 
 .settings-page .btn-danger:hover {
-  border-color: rgb(var(--danger-rgb) / 0.8);
-  background: rgb(var(--danger-rgb) / 0.34);
+  filter: brightness(1.1);
 }
 
 .settings-page .toggle-box {

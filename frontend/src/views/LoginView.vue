@@ -1,232 +1,173 @@
 <template>
-  <div class="loginPage">
-    <div class="loginShell">
-      <header class="loginHeader">
-        <h1 class="loginTitle">Prihlasenie</h1>
-        <p class="loginSubtitle">Prihlas sa do Astrokomunity.</p>
-      </header>
+  <AuthSplitLayout>
+    <template #hero>
+      <AuthHeroPanel
+        eyebrow="Account access"
+        title="Sign in"
+        subtitle="Continue to your Astrokomunita account with a clean and secure sign-in flow."
+      />
+    </template>
 
-      <form class="panel" @submit.prevent="submit">
-        <div class="field">
-          <label class="label">Email</label>
-          <input v-model="email" class="input" type="email" autocomplete="email" />
-        </div>
+    <AuthFormSection
+      kicker="Account"
+      title="Welcome back"
+      description="Use your account email and password to access your profile and community feed."
+    >
+      <form class="authForm" @submit.prevent="submit" novalidate>
+        <AuthField
+          v-model="email"
+          label="Email"
+          type="email"
+          autocomplete="email"
+          placeholder="you@example.com"
+          :error="emailError"
+          required
+        >
+          <template #icon>
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M3.5 7.5 12 13l8.5-5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <rect x="3.5" y="5.5" width="17" height="13" rx="2.8" stroke="currentColor" stroke-width="1.8" />
+            </svg>
+          </template>
+        </AuthField>
 
-        <div class="field">
-          <label class="label">Heslo</label>
-          <input v-model="password" class="input" type="password" autocomplete="current-password" />
-        </div>
+        <AuthField
+          v-model="password"
+          label="Password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Enter password"
+          :error="passwordError"
+          required
+        >
+          <template #icon>
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M7.5 11V9.2A4.5 4.5 0 0 1 12 4.7a4.5 4.5 0 0 1 4.5 4.5V11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <rect x="5" y="11" width="14" height="9.5" rx="2.7" stroke="currentColor" stroke-width="1.8" />
+            </svg>
+          </template>
+          <template #labelAction>
+            <RouterLink :to="forgotPasswordLink" class="authInlineLink">Forgot?</RouterLink>
+          </template>
+        </AuthField>
 
-        <p v-if="error" class="errorText">{{ error }}</p>
-        <div v-if="isBannedState" class="bannedNotice">
-          <p class="bannedTitle">Tento ucet je zablokovany.</p>
-          <p v-if="bannedReason" class="bannedDetail"><strong>Dovod:</strong> {{ bannedReason }}</p>
-          <p v-if="bannedAtLabel" class="bannedDetail"><strong>Zablokovane:</strong> {{ bannedAtLabel }}</p>
-        </div>
+        <AuthAlert
+          v-if="error"
+          title="Unable to sign in"
+          :message="error"
+        />
 
-        <button class="actionbtn ui-pill ui-pill--primary ui-pill--full" type="submit" :disabled="auth.loading">
-          {{ auth.loading ? 'Prihlasujem...' : 'Prihlasit' }}
-        </button>
+        <AuthAlert
+          v-if="isBannedState"
+          title="Account blocked"
+          :message="bannedDetails"
+        />
 
-        <p class="registerHint">
-          Nemas ucet?
-          <router-link class="link" :to="registerLink">Registruj sa</router-link>
+        <p v-if="resetSuccessMessage" class="authField__meta">{{ resetSuccessMessage }}</p>
+
+        <AuthActions
+          :back-to="{ name: 'home' }"
+          back-label="Back"
+          submit-label="Sign in"
+          loading-label="Signing in..."
+          :loading="auth.loading"
+        />
+
+        <p class="authFootnote">
+          Need an account?
+          <RouterLink class="authInlineLink" :to="registerLink">Create one</RouterLink>
         </p>
       </form>
-    </div>
-  </div>
+    </AuthFormSection>
+  </AuthSplitLayout>
 </template>
 
-<script>
+<script setup>
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import AuthActions from '@/components/auth/AuthActions.vue'
+import AuthAlert from '@/components/auth/AuthAlert.vue'
+import AuthField from '@/components/auth/AuthField.vue'
+import AuthFormSection from '@/components/auth/AuthFormSection.vue'
+import AuthHeroPanel from '@/components/auth/AuthHeroPanel.vue'
+import AuthSplitLayout from '@/components/auth/AuthSplitLayout.vue'
 import { useAuthStore } from '@/stores/auth'
 
-export default {
-  name: 'LoginView',
-  data() {
-    return {
-      email: '',
-      password: '',
-      error: null,
+const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+
+const email = ref(typeof route.query.email === 'string' ? route.query.email : '')
+const password = ref('')
+const error = ref('')
+const attempted = ref(false)
+
+const redirect = computed(() => {
+  const candidate = route.query.redirect
+  return typeof candidate === 'string' && candidate.startsWith('/') ? candidate : '/'
+})
+
+const registerLink = computed(() => ({
+  name: 'register',
+  query: { redirect: redirect.value },
+}))
+
+const forgotPasswordLink = computed(() => ({
+  name: 'forgot-password',
+  query: email.value ? { email: email.value } : undefined,
+}))
+
+const emailError = computed(() => (attempted.value && !email.value.trim() ? 'Email is required.' : ''))
+const passwordError = computed(() => (attempted.value && !password.value ? 'Password is required.' : ''))
+const resetSuccessMessage = computed(() => (
+  route.query.reset === '1' ? 'Password updated. You can sign in with your new password.' : ''
+))
+
+const isBannedState = computed(() => auth.error?.type === 'banned')
+const bannedDetails = computed(() => {
+  if (!isBannedState.value) return ''
+
+  const reason = String(auth.error?.reason || '').trim()
+  const bannedAtRaw = auth.error?.bannedAt
+  let bannedAt = ''
+
+  if (bannedAtRaw) {
+    const parsed = new Date(bannedAtRaw)
+    bannedAt = Number.isNaN(parsed.getTime()) ? String(bannedAtRaw) : parsed.toLocaleString()
+  }
+
+  if (reason && bannedAt) return `Reason: ${reason}. Blocked: ${bannedAt}.`
+  if (reason) return `Reason: ${reason}.`
+  if (bannedAt) return `Blocked: ${bannedAt}.`
+  return 'This account is blocked.'
+})
+
+async function submit() {
+  attempted.value = true
+  error.value = ''
+
+  if (!email.value.trim() || !password.value) {
+    return
+  }
+
+  try {
+    await auth.login({
+      email: email.value.trim(),
+      password: password.value,
+    })
+
+    if (
+      !auth.isAdmin &&
+      auth.user?.requires_email_verification &&
+      !auth.user?.email_verified_at
+    ) {
+      await router.push({ name: 'settings.email', query: { redirect: redirect.value } })
+      return
     }
-  },
-  computed: {
-    auth() {
-      return useAuthStore()
-    },
-    redirect() {
-      const r = this.$route.query.redirect
-      return typeof r === 'string' && r.startsWith('/') ? r : '/'
-    },
-    registerLink() {
-      // nech sa aj register po registracii vrati tam, kam user chcel ist
-      return { name: 'register', query: { redirect: this.redirect } }
-    },
-    isBannedState() {
-      return this.auth.error?.type === 'banned'
-    },
-    bannedReason() {
-      return this.auth.error?.reason || ''
-    },
-    bannedAtLabel() {
-      const value = this.auth.error?.bannedAt
-      if (!value) return ''
-      const date = new Date(value)
-      if (Number.isNaN(date.getTime())) return String(value)
-      return date.toLocaleString()
-    },
-  },
-  methods: {
-    async submit() {
-      this.error = null
-      try {
-        await this.auth.login({ email: this.email, password: this.password })
-        if (
-          !this.auth.isAdmin &&
-          this.auth.user?.requires_email_verification &&
-          !this.auth.user?.email_verified_at
-        ) {
-          this.$router.push({ name: 'settings.email', query: { redirect: this.redirect } })
-          return
-        }
-        this.$router.push(this.redirect)
-      } catch (e) {
-        this.error = e?.response?.data?.message || e?.authError?.message || e?.message || 'Prihlasenie zlyhalo.'
-      }
-    },
-  },
+
+    await router.push(redirect.value)
+  } catch (e) {
+    error.value = e?.response?.data?.message || e?.authError?.message || e?.message || 'Sign in failed.'
+  }
 }
 </script>
-
-<style scoped>
-.loginPage {
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-  background: transparent;
-}
-
-.loginShell {
-  width: min(100%, 440px);
-  display: grid;
-  gap: 1rem;
-}
-
-.loginHeader {
-  text-align: center;
-  display: grid;
-  gap: 0.35rem;
-}
-
-.loginTitle {
-  margin: 0;
-  font-size: clamp(1.5rem, 2.3vw, 1.9rem);
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.loginSubtitle {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-}
-
-.panel {
-  border: 1px solid var(--border);
-  background: var(--bg-surface);
-  border-radius: 1rem;
-  padding: 1.25rem;
-  box-shadow: 0 20px 40px rgb(var(--bg-app-rgb) / 0.26);
-  backdrop-filter: blur(8px);
-  display: grid;
-  gap: 0.9rem;
-}
-
-.field {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.label {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.input {
-  width: 100%;
-  padding: 0.72rem 0.9rem;
-  border-radius: 0.9rem;
-  border: 1px solid var(--border);
-  background: rgb(var(--bg-app-rgb) / 0.34);
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
-}
-
-.input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / 0.22);
-  background: rgb(var(--bg-app-rgb) / 0.5);
-}
-
-.errorText {
-  color: var(--primary-active);
-  font-size: 0.86rem;
-  margin: 0.1rem 0 0;
-}
-
-.bannedNotice {
-  border: 1px solid var(--primary-active);
-  background: rgb(var(--primary-active-rgb) / 0.12);
-  border-radius: 0.9rem;
-  padding: 0.65rem 0.75rem;
-  display: grid;
-  gap: 0.25rem;
-}
-
-.bannedTitle {
-  margin: 0;
-  color: var(--primary-active);
-  font-weight: 700;
-  font-size: 0.9rem;
-}
-
-.bannedDetail {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 0.82rem;
-}
-
-.actionbtn {
-  width: 100%;
-}
-
-.registerHint {
-  margin: 0.2rem 0 0;
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-  text-align: center;
-}
-
-.link {
-  color: var(--primary);
-  font-weight: 600;
-}
-
-.link:hover {
-  color: var(--text-primary);
-}
-
-@media (max-width: 480px) {
-  .loginPage {
-    padding: 0.75rem;
-  }
-
-  .panel {
-    padding: 1rem;
-    border-radius: 1rem;
-  }
-}
-</style>

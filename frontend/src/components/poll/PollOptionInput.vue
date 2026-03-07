@@ -138,7 +138,7 @@ function onFileChange(event) {
   font-size: 0.9rem;
 }
 
-.optionInput:focus {
+.optionInput:focus-visible {
   outline: none;
 }
 

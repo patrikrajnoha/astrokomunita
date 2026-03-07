@@ -58,16 +58,16 @@ const badgeType = computed(() => {
   display: inline-flex;
   align-items: center;
   min-height: 1.75rem;
-  padding: 0.2rem 0.7rem;
+  padding: 0.2rem 0.6rem;
   border-radius: 9999px;
-  font-size: 0.8125rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 600;
   line-height: 1;
   text-transform: none;
   white-space: nowrap;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border);
   background: rgb(var(--bg-surface-2-rgb) / 0.74);
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 
 .statusBadge--small {
@@ -103,8 +103,8 @@ const badgeType = computed(() => {
 }
 
 .statusBadge--gray {
-  border-color: var(--border);
+  border-color: var(--color-border);
   background: rgb(var(--bg-app-rgb) / 0.24);
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 </style>

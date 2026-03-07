@@ -141,11 +141,11 @@ function formatTooltip(point) {
   padding-top: 8px;
   background-image: linear-gradient(
     to top,
-    rgb(var(--color-surface-rgb) / 0.08) 1px,
+    var(--color-divider) 1px,
     transparent 1px
   );
   background-size: 100% 33.33%;
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  border-bottom: 1px solid var(--color-divider);
 }
 
 .barWrap {

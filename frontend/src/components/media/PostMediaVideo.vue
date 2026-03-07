@@ -103,10 +103,10 @@ watch(
 
 .feed-video-player {
   width: 100%;
-  max-height: 420px;
+  max-height: 340px;
   border-radius: 12px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
-  background: #000;
+  background: var(--color-bg-main);
   display: block;
   overflow: hidden;
 }
@@ -115,11 +115,11 @@ watch(
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
-  background: #000;
+  background: var(--color-bg-main);
 }
 
 :deep(.plyr video) {
-  max-height: 420px;
+  max-height: 340px;
   object-fit: contain;
 }
 </style>

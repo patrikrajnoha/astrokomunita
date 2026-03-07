@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import MarkYourCalendarModal from '@/components/MarkYourCalendarModal.vue'
+import { useConfirm } from '@/composables/useConfirm'
 import { getEvents } from '@/services/api/admin/events'
 import {
   applyFallbackAsFeatured,
@@ -13,6 +14,7 @@ import {
   updateFeaturedPopupSettings,
 } from '@/services/api/admin/featuredEvents'
 
+const { confirm } = useConfirm()
 const loading = ref(false)
 const saving = ref(false)
 const forcing = ref(false)
@@ -140,6 +142,16 @@ async function toggleActive(item, checked) {
 }
 
 async function removeItem(item) {
+  const approved = await confirm({
+    title: 'Odstranit vybranu udalost?',
+    message: 'Udalost bude odstranena z popup zoznamu pre zvoleny mesiac.',
+    confirmText: 'Odstranit udalost',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
+
+  if (!approved) return
+
   saving.value = true
   error.value = ''
   try {

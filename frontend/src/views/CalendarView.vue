@@ -494,8 +494,8 @@ function isoWeekStart(year, week) {
 
 <style>
 .calendar-card {
-  --bg: #151d28;
-  --bg-soft: #151d28;
+  --bg: var(--color-bg-main);
+  --bg-soft: var(--color-bg-surface);
   --text: var(--color-surface);
   --text-dim: var(--color-text-secondary);
   --text-muted: var(--color-text-secondary);

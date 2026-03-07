@@ -151,8 +151,8 @@ onBeforeUnmount(() => {
   z-index: -1;
   border-radius: var(--radius-xl);
   background:
-    radial-gradient(110% 80% at 0% 0%, rgb(var(--primary-rgb) / 0.11), transparent 58%),
-    radial-gradient(90% 70% at 100% 10%, rgb(var(--text-secondary-rgb) / 0.06), transparent 64%);
+    radial-gradient(110% 80% at 0% 0%, rgb(var(--color-accent-rgb) / 0.09), transparent 58%),
+    radial-gradient(90% 70% at 100% 10%, rgb(var(--color-text-secondary-rgb) / 0.05), transparent 64%);
   pointer-events: none;
 }
 
@@ -173,11 +173,11 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: var(--font-size-xs);
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   background: rgb(var(--bg-app-rgb) / 0.5);
 }
 
@@ -186,14 +186,14 @@ onBeforeUnmount(() => {
 }
 
 .adminHub__aiStatusTime {
-  color: rgb(var(--text-secondary-rgb) / 0.82);
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
 }
 
 .adminHub__contentCard {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  background: rgb(var(--bg-surface-rgb) / 0.9);
-  box-shadow: var(--elevation-2);
+  background: var(--color-card);
+  box-shadow: var(--shadow-soft);
   backdrop-filter: blur(6px);
   min-width: 0;
   overflow: hidden;

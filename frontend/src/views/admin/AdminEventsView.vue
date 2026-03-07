@@ -1,8 +1,9 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import AsyncState from '@/components/ui/AsyncState.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import api from '@/services/api'
-import LoadingIndicator from '@/components/shared/LoadingIndicator.vue'
 
 const router = useRouter()
 
@@ -22,7 +23,7 @@ async function load() {
     })
     data.value = res.data
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Failed to load events.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat udalosti.'
   } finally {
     loading.value = false
   }
@@ -59,110 +60,197 @@ onMounted(load)
 </script>
 
 <template>
-  <div style="max-width: 1100px; margin: 0 auto; padding: 24px 16px;">
-    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px;">
+  <section class="adminEvents">
+    <header class="adminEvents__header">
       <div>
-        <h1 style="margin:0 0 6px;">Events</h1>
-        <div style="opacity:.8; font-size: 14px;">
-          Admin events list (MVP).
-        </div>
+        <h1 class="adminEvents__title">Udalosti</h1>
+        <p class="adminEvents__subtitle">Prehlad udalosti a rychly pristup k uprave.</p>
       </div>
-
       <button
-        @click="openCreate"
+        type="button"
+        class="ui-btn ui-btn--secondary"
         :disabled="loading"
-        style="padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
+        @click="openCreate"
       >
-        Create event
+        Vytvorit udalost
       </button>
-    </div>
+    </header>
 
-    <div v-if="error" style="margin-top: 12px; color: var(--color-danger);">
-      {{ error }}
-    </div>
+    <InlineStatus
+      v-if="error"
+      variant="error"
+      :message="error"
+      action-label="Skusit znova"
+      @action="load"
+    />
 
-    <LoadingIndicator :loading="loading" text="Loading..." />
+    <AsyncState
+      v-else-if="loading"
+      mode="loading"
+      title="Nacitavam udalosti"
+      loading-style="skeleton"
+      :skeleton-rows="5"
+      compact
+    />
 
-    <div
-      v-if="data && !loading"
-      style="
-        margin-top: 16px;
-        border: 1px solid rgb(var(--color-surface-rgb) / .12);
-        border-radius: 12px;
-        overflow: hidden;
-      "
-    >
-      <table style="width:100%; border-collapse:collapse;">
-        <thead style="background: rgb(var(--color-surface-rgb) / .05);">
+    <div v-else class="adminEvents__tableWrap">
+      <table class="adminEvents__table">
+        <thead>
           <tr>
-            <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Title</th>
-            <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Type</th>
-            <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Start</th>
-            <th style="text-align:left; padding:12px; font-size:12px; opacity:.85;">Visibility</th>
-            <th style="text-align:right; padding:12px; font-size:12px; opacity:.85;">Action</th>
+            <th>Nazov</th>
+            <th>Typ</th>
+            <th>Zaciatok</th>
+            <th>Viditelnost</th>
+            <th class="is-right">Akcia</th>
           </tr>
         </thead>
-
         <tbody>
-          <tr
-            v-for="ev in data.data"
-            :key="ev.id"
-            style="border-top: 1px solid rgb(var(--color-surface-rgb) / .08);"
-          >
-            <td style="padding:12px;">{{ ev.title }}</td>
-            <td style="padding:12px; white-space:nowrap;">{{ ev.type }}</td>
-            <td style="padding:12px; white-space:nowrap;">{{ formatDate(ev.start_at || ev.starts_at || ev.max_at) }}</td>
-            <td style="padding:12px; white-space:nowrap;">{{ ev.visibility === 1 ? 'public' : 'hidden' }}</td>
-            <td style="padding:12px; text-align:right;">
-              <button
-                @click="openEdit(ev.id)"
-                style="padding:8px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
-              >
-                Edit
+          <tr v-for="ev in data?.data || []" :key="ev.id" class="adminEvents__row">
+            <td>{{ ev.title }}</td>
+            <td>{{ ev.type || '-' }}</td>
+            <td>{{ formatDate(ev.start_at || ev.starts_at || ev.max_at) }}</td>
+            <td>{{ ev.visibility === 1 ? 'public' : 'hidden' }}</td>
+            <td class="is-right">
+              <button type="button" class="ui-btn ui-btn--secondary" @click="openEdit(ev.id)">
+                Upravit
               </button>
             </td>
           </tr>
-
-          <tr v-if="data.data.length === 0">
-            <td colspan="5" style="padding:16px; opacity:.8;">
-              No events found.
+          <tr v-if="!(data?.data?.length)">
+            <td colspan="5" class="adminEvents__emptyCell">
+              <AsyncState
+                mode="empty"
+                title="Ziadne udalosti"
+                message="Skus upravit filtre alebo vytvor novu udalost."
+                compact
+              />
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div
-      v-if="data"
-      style="
-        margin-top: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-      "
-    >
-      <div style="opacity:.85; font-size: 14px;">
-        Page {{ data.current_page }} / {{ data.last_page }} (total {{ data.total }})
-      </div>
+    <footer v-if="data" class="adminEvents__footer">
+      <p>
+        Strana <strong>{{ data.current_page }}</strong> z <strong>{{ data.last_page }}</strong>
+        (spolu {{ data.total }})
+      </p>
 
-      <div style="display:flex; gap:10px;">
+      <div class="adminEvents__pagination">
         <button
-          @click="prevPage"
+          type="button"
+          class="ui-btn ui-btn--secondary"
           :disabled="loading || page <= 1"
-          style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+          @click="prevPage"
         >
-          Prev
+          Predchadzajuca
         </button>
         <button
+          type="button"
+          class="ui-btn ui-btn--secondary"
+          :disabled="loading || page >= data.last_page"
           @click="nextPage"
-          :disabled="loading || (data && page >= data.last_page)"
-          style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
         >
-          Next
+          Dalsia
         </button>
       </div>
-    </div>
-  </div>
+    </footer>
+  </section>
 </template>
+
+<style scoped>
+.adminEvents {
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.adminEvents__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.adminEvents__title {
+  margin: 0;
+  font-size: clamp(1.15rem, 1.6vw, 1.45rem);
+}
+
+.adminEvents__subtitle {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.adminEvents__tableWrap {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: auto;
+  background: rgb(var(--bg-surface-rgb) / 0.7);
+}
+
+.adminEvents__table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.adminEvents__table th {
+  text-align: left;
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-secondary);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.adminEvents__table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+  vertical-align: middle;
+}
+
+.adminEvents__row {
+  transition: background-color var(--motion-fast), transform 120ms ease;
+}
+
+.adminEvents__row:hover {
+  background: var(--interactive-hover);
+}
+
+.adminEvents__row:last-child td {
+  border-bottom: 0;
+}
+
+.adminEvents__emptyCell {
+  padding: var(--space-3);
+}
+
+.is-right {
+  text-align: right;
+}
+
+.adminEvents__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.adminEvents__footer p {
+  margin: 0;
+}
+
+.adminEvents__pagination {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+</style>

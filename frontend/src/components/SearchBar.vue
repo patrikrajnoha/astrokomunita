@@ -3,7 +3,7 @@
     <label for="sidebar-search" class="sr-only">Vyhladat prispevky a pouzivatelov</label>
 
     <div class="sidebarSearch__field relative">
-      <span class="sidebarSearch__icon pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#7b8faa]" aria-hidden="true">
+      <span class="sidebarSearch__icon pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true">
         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
@@ -22,7 +22,7 @@
         :aria-controls="listboxId"
         aria-autocomplete="list"
         :aria-activedescendant="activeDescendantId"
-        class="sidebarSearch__input w-full border border-transparent bg-[#222e3f] pl-9 pr-10 text-[13px] text-[#7b8faa] placeholder:text-[#7b8faa] transition-[border-color,box-shadow] focus:border-[#0f73ff] focus:outline-none focus:ring-1 focus:ring-[#0f73ff]/20"
+        class="sidebarSearch__input w-full pl-9 pr-10 text-[13px] transition-[border-color,box-shadow] focus:outline-none"
         @focus="handleFocus"
         @blur="handleBlur"
         @keydown="handleKeydown"
@@ -392,9 +392,26 @@ onBeforeUnmount(() => {
 
 .sidebarSearch__icon {
   opacity: 0.92;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
 }
 
 .sidebarSearch__dropdown {
   border-radius: 0.75rem;
+}
+
+.sidebarSearch__input {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(var(--color-bg-rgb) / 0.68);
+  color: var(--color-text-primary);
+}
+
+.sidebarSearch__input::placeholder {
+  color: rgb(var(--color-text-secondary-rgb) / 0.88);
+}
+
+.sidebarSearch__input:focus-visible {
+  border-color: rgb(var(--color-accent-rgb) / 0.85);
+  box-shadow: 0 0 0 1px rgb(var(--color-accent-rgb) / 0.2);
 }
 </style>

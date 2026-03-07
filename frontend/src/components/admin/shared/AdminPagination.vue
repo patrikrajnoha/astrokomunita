@@ -51,8 +51,9 @@ function setPage(page) {
 }
 
 .adminPagination__info {
-  opacity: 0.85;
-  font-size: 14px;
+  opacity: 0.9;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
 }
 
 .adminPagination__controls {
@@ -62,11 +63,11 @@ function setPage(page) {
 }
 
 .adminPagination__btn {
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  background: transparent;
-  color: inherit;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: rgb(var(--bg-surface-rgb) / 0.84);
+  color: var(--color-text-primary);
   cursor: pointer;
 }
 

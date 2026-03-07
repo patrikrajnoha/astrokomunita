@@ -291,7 +291,7 @@ async function banUser(user) {
     title: 'Ban user',
     message: `Provide ban reason for ${user.email}.`,
     confirmText: 'Ban user',
-    cancelText: 'Cancel',
+    cancelText: 'Zrusit',
     placeholder: 'Ban reason...',
     required: true,
     multiline: true,
@@ -317,7 +317,7 @@ async function unbanUser(user) {
     title: 'Unban user',
     message: `Unban user ${user.email}?`,
     confirmText: 'Unban',
-    cancelText: 'Cancel',
+    cancelText: 'Zrusit',
   })
 
   if (!ok) return
@@ -339,7 +339,7 @@ async function deactivateUser(user) {
     title: 'Deactivate user',
     message: `Deactivate user ${user.email}?`,
     confirmText: 'Deactivate',
-    cancelText: 'Cancel',
+    cancelText: 'Zrusit',
     variant: 'danger',
   })
 
@@ -362,7 +362,7 @@ async function resetProfile(user) {
     title: 'Reset profile',
     message: `Reset profile for ${user.email}?`,
     confirmText: 'Reset',
-    cancelText: 'Cancel',
+    cancelText: 'Zrusit',
     variant: 'danger',
   })
 

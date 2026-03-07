@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, defineComponent, h, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ADMIN_SECTION_KEYS, getAdminSectionLabel } from '@/components/admin/adminSections'
 import { useAuthStore } from '@/stores/auth'
@@ -10,11 +10,86 @@ const wipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCa
 const routeName = computed(() => String(route.name || ''))
 const expandedGroups = ref(new Set())
 
+const createAdminIcon = (paths, filled = false) =>
+  defineComponent({
+    name: filled ? 'AdminSubNavFilledIcon' : 'AdminSubNavOutlineIcon',
+    render() {
+      return h(
+        'svg',
+        {
+          class: 'adminSubNav__iconSvg',
+          viewBox: '0 0 24 24',
+          fill: filled ? 'currentColor' : 'none',
+          stroke: filled ? 'none' : 'currentColor',
+          'stroke-width': filled ? undefined : '1.9',
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          'aria-hidden': 'true',
+        },
+        paths.map((path, index) => h('path', { key: `path-${index}`, d: path })),
+      )
+    },
+  })
+
+const adminIcons = {
+  overview: createAdminIcon([
+    'M3.75 10.5 12 4l8.25 6.5',
+    'M5.75 9.75V19a1 1 0 0 0 1 1h3.75v-5.25a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1V20h3.75a1 1 0 0 0 1-1V9.75',
+  ]),
+  events: createAdminIcon([
+    'M7 3.75v2.5',
+    'M17 3.75v2.5',
+    'M4.75 9.25h14.5',
+    'M6 5.75h12A1.25 1.25 0 0 1 19.25 7v11A1.25 1.25 0 0 1 18 19.25H6A1.25 1.25 0 0 1 4.75 18V7A1.25 1.25 0 0 1 6 5.75Z',
+  ]),
+  content: createAdminIcon([
+    'M6 5.75h12A1.25 1.25 0 0 1 19.25 7v10A1.25 1.25 0 0 1 18 18.25H6A1.25 1.25 0 0 1 4.75 17V7A1.25 1.25 0 0 1 6 5.75Z',
+    'M8 9h8',
+    'M8 12h8',
+    'M8 15h5',
+  ]),
+  featured: createAdminIcon([
+    'M12 3l2.6 5.5 6 .9-4.3 4.2 1 6-5.3-2.9-5.3 2.9 1-6L3.4 9.4l6-.9L12 3Z',
+  ]),
+  contests: createAdminIcon([
+    'M7.5 5.5h9v3a2.5 2.5 0 0 0 2.5 2.5v1A2.5 2.5 0 0 0 16.5 14.5v4h-9v-4A2.5 2.5 0 0 0 5 12v-1A2.5 2.5 0 0 0 7.5 8.5v-3Z',
+    'M10 9.5h4',
+    'M10 13h4',
+  ]),
+  community: createAdminIcon([
+    'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
+    'M4.75 20a7.25 7.25 0 0 1 14.5 0',
+  ]),
+  sidebar: createAdminIcon([
+    'M4.75 5.75h5.5v12.5h-5.5z',
+    'M11.75 5.75h7.5v4h-7.5z',
+    'M11.75 11.25h7.5v7h-7.5z',
+  ]),
+  bots: createAdminIcon([
+    'M8 9h8v7H8z',
+    'M10 6h4',
+    'M12 3.75v2.25',
+    'M9 14h0',
+    'M15 14h0',
+  ]),
+  performance: createAdminIcon([
+    'M4.75 18.25h14.5',
+    'M8 16V9.75',
+    'M12 16V6.75',
+    'M16 16v-4.5',
+  ]),
+  bannedWords: createAdminIcon([
+    'M6.5 6.5l11 11',
+    'M17.5 6.5l-11 11',
+    'M4.75 12a7.25 7.25 0 1 0 14.5 0 7.25 7.25 0 0 0-14.5 0Z',
+  ]),
+}
+
 const overviewItem = {
   key: 'overview',
   label: 'Prehľad',
   to: { name: 'admin.dashboard' },
-  icon: 'D',
+  iconKey: 'overview',
   routeNames: ['admin.dashboard'],
 }
 
@@ -24,14 +99,14 @@ const navGroups = computed(() => {
       key: 'featured-events',
       label: 'Vybrané udalosti',
       to: { name: 'admin.featured-events' },
-      icon: 'V',
+      iconKey: 'featured',
       routeNames: ['admin.featured-events'],
     },
     {
       key: 'contests',
       label: 'Súťaže',
       to: { name: 'admin.contests' },
-      icon: 'S',
+      iconKey: 'contests',
       routeNames: ['admin.contests'],
     },
     ...(wipEnabled
@@ -39,7 +114,7 @@ const navGroups = computed(() => {
           key: 'banned-words',
           label: 'Zakázané slová',
           to: { name: 'admin.banned-words' },
-          icon: 'W',
+          iconKey: 'bannedWords',
           routeNames: ['admin.banned-words'],
           tone: 'danger',
         }]
@@ -54,14 +129,14 @@ const navGroups = computed(() => {
           key: 'events',
           label: getAdminSectionLabel(ADMIN_SECTION_KEYS.EVENTS),
           to: { name: 'admin.events' },
-          icon: 'E',
+          iconKey: 'events',
           section: ADMIN_SECTION_KEYS.EVENTS,
         },
         {
           key: 'content',
           label: getAdminSectionLabel(ADMIN_SECTION_KEYS.CONTENT),
           to: { name: 'admin.blog' },
-          icon: 'O',
+          iconKey: 'content',
           section: ADMIN_SECTION_KEYS.CONTENT,
           children: contentChildren,
         },
@@ -74,7 +149,7 @@ const navGroups = computed(() => {
           key: 'community',
           label: getAdminSectionLabel(ADMIN_SECTION_KEYS.COMMUNITY),
           to: { name: 'admin.users' },
-          icon: 'K',
+          iconKey: 'community',
           section: ADMIN_SECTION_KEYS.COMMUNITY,
         },
       ],
@@ -86,14 +161,14 @@ const navGroups = computed(() => {
           key: 'sidebar',
           label: 'Bočný panel',
           to: { name: 'admin.sidebar' },
-          icon: 'P',
+          iconKey: 'sidebar',
           routeNames: ['admin.sidebar'],
         },
         {
           key: 'bots',
           label: 'Boti',
           to: { name: 'admin.bots' },
-          icon: 'B',
+          iconKey: 'bots',
           routeNames: ['admin.bots', 'admin.astrobot'],
           routeNamePrefixes: ['admin.bots'],
         },
@@ -101,7 +176,7 @@ const navGroups = computed(() => {
           key: 'performance',
           label: 'Výkonnosť',
           to: { name: 'admin.performance-metrics' },
-          icon: 'M',
+          iconKey: 'performance',
           routeNames: ['admin.performance-metrics'],
         },
       ],
@@ -123,7 +198,7 @@ const visibleGroups = computed(() => {
           key: 'content',
           label: getAdminSectionLabel(ADMIN_SECTION_KEYS.CONTENT),
           to: { name: 'admin.blog' },
-          icon: 'O',
+          iconKey: 'content',
           section: ADMIN_SECTION_KEYS.CONTENT,
         },
       ],
@@ -133,6 +208,11 @@ const visibleGroups = computed(() => {
 
 function hasChildren(item) {
   return Array.isArray(item.children) && item.children.length > 0
+}
+
+function resolveItemIcon(item) {
+  const key = String(item?.iconKey || '')
+  return adminIcons[key] || adminIcons.content
 }
 
 function sectionFromMeta() {
@@ -303,7 +383,9 @@ const activeLabel = computed(() => {
       :class="{ active: isActive(overviewItem) }"
       :title="`Otvoriť ${overviewItem.label}`"
     >
-      <span class="adminSubNav__icon" aria-hidden="true">{{ overviewItem.icon }}</span>
+      <span class="adminSubNav__icon" aria-hidden="true">
+        <component :is="resolveItemIcon(overviewItem)" />
+      </span>
       <span>{{ overviewItem.label }}</span>
     </RouterLink>
 
@@ -324,7 +406,9 @@ const activeLabel = computed(() => {
                   :class="{ active: isActive(item) }"
                   :title="`Otvoriť ${item.label}`"
                 >
-                  <span class="adminSubNav__icon" aria-hidden="true">{{ item.icon }}</span>
+                  <span class="adminSubNav__icon" aria-hidden="true">
+                    <component :is="resolveItemIcon(item)" />
+                  </span>
                   <span>{{ item.label }}</span>
                 </RouterLink>
 
@@ -350,7 +434,9 @@ const activeLabel = computed(() => {
                     :class="{ active: isActive(child), 'adminSubNav__item--danger': child.tone === 'danger' }"
                     :title="`Otvoriť ${child.label}`"
                   >
-                    <span class="adminSubNav__icon" aria-hidden="true">{{ child.icon }}</span>
+                    <span class="adminSubNav__icon" aria-hidden="true">
+                      <component :is="resolveItemIcon(child)" />
+                    </span>
                     <span>{{ child.label }}</span>
                   </RouterLink>
                 </div>
@@ -364,7 +450,9 @@ const activeLabel = computed(() => {
               :class="{ active: isActive(item), 'adminSubNav__item--danger': item.tone === 'danger' }"
               :title="`Otvoriť ${item.label}`"
             >
-              <span class="adminSubNav__icon" aria-hidden="true">{{ item.icon }}</span>
+              <span class="adminSubNav__icon" aria-hidden="true">
+                <component :is="resolveItemIcon(item)" />
+              </span>
               <span>{{ item.label }}</span>
             </RouterLink>
           </template>
@@ -376,23 +464,16 @@ const activeLabel = computed(() => {
 
 <style scoped>
 .adminSubNav {
-  --admin-nav-bg: #151d28;
-  --admin-nav-surface: #1d2228;
-  --admin-nav-accent: #01a6ff;
-  --admin-nav-text: #e6f2ff;
-  --admin-nav-danger: #eb2452;
-  border: 1px solid rgb(1 166 255 / 0.18);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-3);
-  background:
-    linear-gradient(180deg, rgb(29 34 40 / 0.58), transparent 30%),
-    var(--admin-nav-bg);
-  box-shadow: 0 14px 28px rgb(0 0 0 / 0.24);
-  color: var(--admin-nav-text);
+  background: var(--color-card);
+  box-shadow: var(--shadow-soft);
+  color: var(--color-text-primary);
 }
 
 .adminSubNav__head {
-  border-bottom: 1px solid rgb(230 242 255 / 0.13);
+  border-bottom: 1px solid var(--color-divider);
   padding-bottom: 10px;
 }
 
@@ -405,7 +486,7 @@ const activeLabel = computed(() => {
 .adminSubNav__caption {
   margin-top: 4px;
   font-size: var(--font-size-sm);
-  color: rgb(230 242 255 / 0.76);
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
 }
 
 .adminSubNav__groups {
@@ -423,7 +504,7 @@ const activeLabel = computed(() => {
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgb(230 242 255 / 0.54);
+  color: rgb(var(--color-text-secondary-rgb) / 0.68);
   padding: 0 2px;
 }
 
@@ -443,26 +524,31 @@ const activeLabel = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid rgb(230 242 255 / 0.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 8px 10px;
-  color: rgb(230 242 255 / 0.84);
+  color: var(--color-text-secondary);
   text-decoration: none;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  background: var(--admin-nav-surface);
-  transition: border-color var(--motion-fast), background-color var(--motion-fast), color var(--motion-fast);
+  font-size: 14px;
+  font-weight: 500;
+  background: rgb(var(--bg-surface-rgb) / 0.88);
+  transition:
+    border-color var(--motion-fast),
+    background-color var(--motion-fast),
+    color var(--motion-fast),
+    transform 120ms ease;
 }
 
 .adminSubNav__item:hover {
-  border-color: rgb(1 166 255 / 0.4);
-  color: var(--admin-nav-text);
+  border-color: rgb(var(--color-accent-rgb) / 0.45);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
 }
 
 .adminSubNav__item.active {
-  background: rgb(1 166 255 / 0.16);
-  border-color: rgb(1 166 255 / 0.58);
-  color: var(--admin-nav-text);
+  background: rgb(var(--color-accent-rgb) / 0.16);
+  border-color: rgb(var(--color-accent-rgb) / 0.56);
+  color: var(--color-text-primary);
 }
 
 .adminSubNav__item--overview {
@@ -480,33 +566,35 @@ const activeLabel = computed(() => {
 }
 
 .adminSubNav__item--danger {
-  border-color: rgb(235 36 82 / 0.34);
+  border-color: rgb(var(--color-danger-rgb) / 0.36);
 }
 
 .adminSubNav__item--danger.active {
-  background: rgb(235 36 82 / 0.18);
-  border-color: rgb(235 36 82 / 0.62);
+  background: rgb(var(--color-danger-rgb) / 0.18);
+  border-color: rgb(var(--color-danger-rgb) / 0.62);
+}
+
+.adminSubNav__item:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
 }
 
 .adminSubNav__icon {
-  width: 1.6rem;
-  height: 1.6rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgb(230 242 255 / 0.18);
-  background: rgb(21 29 40 / 0.72);
-  display: grid;
-  place-items: center;
-  font-size: 0.64rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: rgb(230 242 255 / 0.84);
+  width: 1rem;
+  height: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  opacity: 0.92;
   flex-shrink: 0;
 }
 
-.adminSubNav__item.active .adminSubNav__icon {
-  border-color: rgb(1 166 255 / 0.5);
-  color: var(--admin-nav-text);
-  background: rgb(1 166 255 / 0.2);
+.adminSubNav__iconSvg {
+  width: 1rem;
+  height: 1rem;
+  display: block;
 }
 
 .adminSubNav__collapsible {
@@ -521,27 +609,38 @@ const activeLabel = computed(() => {
 
 .adminSubNav__collapseToggle {
   width: 34px;
-  border: 1px solid rgb(230 242 255 / 0.12);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background: var(--admin-nav-surface);
-  color: rgb(230 242 255 / 0.76);
+  background: rgb(var(--bg-surface-rgb) / 0.88);
+  color: var(--color-text-secondary);
   display: grid;
   place-items: center;
   font-size: 0.86rem;
   line-height: 1;
   cursor: pointer;
-  transition: border-color var(--motion-fast), background-color var(--motion-fast), color var(--motion-fast);
+  transition:
+    border-color var(--motion-fast),
+    background-color var(--motion-fast),
+    color var(--motion-fast),
+    transform 120ms ease;
 }
 
 .adminSubNav__collapseToggle:hover {
-  border-color: rgb(1 166 255 / 0.4);
-  color: var(--admin-nav-text);
+  border-color: rgb(var(--color-accent-rgb) / 0.45);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
 }
 
 .adminSubNav__collapseToggle.active {
-  border-color: rgb(1 166 255 / 0.58);
-  color: var(--admin-nav-text);
-  background: rgb(1 166 255 / 0.16);
+  border-color: rgb(var(--color-accent-rgb) / 0.58);
+  color: var(--color-text-primary);
+  background: rgb(var(--color-accent-rgb) / 0.16);
+}
+
+.adminSubNav__collapseToggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
 }
 
 .adminSubNavReveal-enter-active,

@@ -7,7 +7,14 @@
       </div>
 
       <!-- loading -->
-      <AsyncState v-if="loading" mode="loading" title="Nacitavam prispevok..." />
+      <AsyncState
+        v-if="loading"
+        mode="loading"
+        title="Nacitavam prispevok..."
+        loading-style="skeleton"
+        :skeleton-rows="4"
+        compact
+      />
 
       <!-- error -->
       <div v-else-if="error" class="inlineErrorWrap">

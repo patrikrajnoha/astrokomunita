@@ -580,7 +580,7 @@ function daysInMonth(year, month) {
   transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
 }
 
-.input:focus {
+.input:focus-visible {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / 0.2);
   background: rgb(var(--bg-app-rgb) / 0.5);

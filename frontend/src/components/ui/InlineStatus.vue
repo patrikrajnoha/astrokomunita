@@ -41,10 +41,10 @@ defineEmits(['action'])
 <style scoped>
 .inlineStatus {
   margin-top: var(--space-3);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   border: 1px solid transparent;
   padding: 0.65rem 0.78rem;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   line-height: 1.35;
   display: flex;
   align-items: center;
@@ -59,26 +59,26 @@ defineEmits(['action'])
 .inlineStatus__action {
   min-height: var(--control-height-sm);
   white-space: nowrap;
-  font-size: var(--font-size-sm);
-  padding-inline: 0.9rem;
+  font-size: 14px;
+  padding-inline: 14px;
 }
 
 .inlineStatus--success {
-  border-color: rgb(var(--success-rgb) / 0.45);
-  background: rgb(var(--success-rgb) / 0.12);
-  color: var(--success);
+  border-color: rgb(var(--color-success-rgb) / 0.45);
+  background: rgb(var(--color-success-rgb) / 0.12);
+  color: var(--color-success);
 }
 
 .inlineStatus--error {
-  border-color: rgb(var(--danger-rgb) / 0.45);
-  background: rgb(var(--danger-rgb) / 0.14);
-  color: var(--text-primary);
+  border-color: rgb(var(--color-danger-rgb) / 0.45);
+  background: rgb(var(--color-danger-rgb) / 0.14);
+  color: var(--color-text-primary);
 }
 
 .inlineStatus--info {
-  border-color: var(--border-default);
+  border-color: var(--color-border);
   background: rgb(var(--bg-surface-2-rgb) / 0.62);
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 640px) {

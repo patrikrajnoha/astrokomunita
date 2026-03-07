@@ -4,7 +4,7 @@
     :style="appShellStyle"
   >
     <header
-      class="appMobileHeader sticky top-0 z-40 flex items-center justify-between border-b border-[var(--border)] bg-[color:rgb(var(--bg-app-rgb)/0.92)] px-4 backdrop-blur md:hidden"
+      class="appMobileHeader sticky top-0 z-40 flex items-center justify-between border-b border-[var(--divider-color)] bg-[color:rgb(var(--bg-app-rgb)/0.92)] px-4 backdrop-blur md:hidden"
     >
       <button
         type="button"
@@ -29,7 +29,7 @@
     <aside
       :class="[
         'fixed inset-y-0 left-0 hidden w-60 flex-col bg-[var(--bg-app)] px-3 py-5 md:left-3 md:inset-y-3 md:rounded-2xl md:flex xl:hidden',
-        isHomeFeedRoute ? '' : 'border-r border-[var(--border)]',
+        isHomeFeedRoute ? '' : 'border-r border-[var(--divider-color)]',
       ]"
     >
       <div class="flex h-full flex-col">
@@ -72,7 +72,7 @@
             v-if="showDesktopMainSidebar"
             :class="[
               'hidden h-screen overflow-hidden bg-[var(--bg-app)] px-3 py-5 xl:pl-5 2xl:pl-6 xl:sticky xl:top-0 xl:block',
-              isHomeFeedRoute ? '' : 'border-r border-[var(--border)]',
+              isHomeFeedRoute ? '' : 'border-r border-[var(--divider-color)]',
             ]"
             data-testid="layout-left"
           >
@@ -88,7 +88,6 @@
               'min-w-0',
               isProfileRoute ? 'px-0 py-0 md:px-0 md:py-0' : 'px-4 py-6 md:px-8',
               isAdminRoute ? 'xl:px-6' : isProfileRoute ? 'xl:px-4 2xl:px-6' : 'xl:px-2 2xl:px-4',
-              isProfileRoute ? 'lg:border-x lg:border-[var(--border)]' : '',
             ]"
             data-testid="layout-center"
           >
@@ -108,7 +107,7 @@
             data-testid="right-rail"
             :class="[
               'rightRail h-screen w-[20.5rem] overflow-y-auto overflow-x-hidden bg-[var(--bg-app)] px-3.5 py-3.5 xl:sticky xl:top-0',
-              isHomeFeedRoute ? '' : 'border-l border-[var(--border)]',
+              isHomeFeedRoute ? '' : 'border-l border-[var(--divider-color)]',
             ]"
           >
             <div class="rightRail__inner">
@@ -193,7 +192,7 @@
         v-if="isDrawerOpen"
         :class="[
           'fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto bg-[var(--bg-app)] px-4 py-6 md:hidden',
-          isHomeFeedRoute ? '' : 'border-r border-[var(--border)]',
+          isHomeFeedRoute ? '' : 'border-r border-[var(--divider-color)]',
         ]"
         aria-label="Mobilna navigacia"
       >
@@ -539,9 +538,9 @@ const centerShellClass = computed(() => {
   return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:gap-1 2xl:gap-2'
 })
 const centerShellColumns = computed(() => {
-  if (isAdminRoute.value) return '15rem minmax(0, 1fr)'
+  if (isAdminRoute.value) return '16rem minmax(0, 1fr)'
 
-  return '15rem minmax(600px, 640px)'
+  return '16rem minmax(600px, 640px)'
 })
 const centerShellStyle = computed(() => {
   return {
@@ -1156,17 +1155,18 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: var(--space-3);
   margin: var(--space-3) auto 0;
-  padding: 0.625rem 0.875rem;
+  padding: 0.7rem 0.9rem;
   max-width: 1160px;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface-1);
-  color: var(--text-primary);
+  background: var(--color-card);
+  color: var(--color-text-primary);
   font-size: var(--font-size-sm);
+  box-shadow: var(--shadow-soft);
 }
 
 .authFallbackBanner.is-danger {
-  border-color: rgb(var(--danger-rgb) / 0.56);
+  border-color: rgb(var(--color-danger-rgb) / 0.56);
   background: rgb(var(--danger-rgb) / 0.14);
 }
 
@@ -1185,10 +1185,10 @@ onBeforeUnmount(() => {
   z-index: 79;
   max-height: 85vh;
   overflow: hidden;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface-2);
-  box-shadow: var(--elevation-3);
+  background: var(--color-card);
+  box-shadow: var(--shadow-medium);
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
 }
@@ -1212,8 +1212,8 @@ onBeforeUnmount(() => {
 
 .sheetTitle {
   font-size: 0.92rem;
-  font-weight: 800;
-  color: var(--text-primary);
+  font-weight: 700;
+  color: var(--color-text-primary);
 }
 
 .sheetList,
@@ -1259,7 +1259,7 @@ onBeforeUnmount(() => {
 
 .sheetActionText {
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .createAction {
@@ -1273,7 +1273,7 @@ onBeforeUnmount(() => {
 
 .sheetEmpty {
   padding: 1.2rem 0.3rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   text-align: center;
   font-size: 0.88rem;
 }
@@ -1376,7 +1376,7 @@ onBeforeUnmount(() => {
 .rightSidebarFooterLinks {
   margin-top: auto;
   padding-top: var(--space-4);
-  border-top: 1px solid var(--divider-color);
+  border-top: 1px solid var(--color-divider);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -1386,11 +1386,11 @@ onBeforeUnmount(() => {
 .rightSidebarFooterLinks__item {
   display: inline-flex;
   align-items: center;
-  padding: 0.4rem;
+  padding: 0.3rem 0.45rem;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   line-height: 1.2;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   text-decoration: none;
   transition: color 0.18s ease, background-color 0.18s ease;
 }
@@ -1398,12 +1398,12 @@ onBeforeUnmount(() => {
 .rightSidebarFooterLinks__item + .rightSidebarFooterLinks__item::before {
   content: '\00B7';
   margin-right: 0.625rem;
-  color: rgb(var(--text-secondary-rgb) / 0.62);
+  color: rgb(var(--color-text-secondary-rgb) / 0.62);
 }
 
 .rightSidebarFooterLinks__item:hover,
 .rightSidebarFooterLinks__item.router-link-active {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   background: var(--interactive-hover);
 }
 
@@ -1448,17 +1448,10 @@ onBeforeUnmount(() => {
     grid-template-columns: auto auto;
     margin-left: auto !important;
     margin-right: auto !important;
-    transform: translateX(-2rem);
   }
 
   .centerShellGrid {
     grid-template-columns: var(--center-shell-cols);
-  }
-}
-
-@media (min-width: 1536px) {
-  .desktopFrame {
-    transform: translateX(-1rem);
   }
 }
 </style>

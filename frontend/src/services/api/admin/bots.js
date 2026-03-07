@@ -192,6 +192,24 @@ export function deleteAllBotPosts(params = {}) {
   })
 }
 
+export function getBotPostRetentionSettings() {
+  return api.get('/admin/bots/post-retention', {
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function updateBotPostRetentionSettings(payload = {}) {
+  return api.patch('/admin/bots/post-retention', payload, {
+    meta: { skipErrorToast: true },
+  })
+}
+
+export function runBotPostRetentionCleanup(payload = {}) {
+  return api.post('/admin/bots/post-retention/cleanup', payload, {
+    meta: { skipErrorToast: true },
+  })
+}
+
 export function publishBotRun(runId, payload = {}) {
   return api.post(`/admin/bots/runs/${encodeURIComponent(runId)}/publish`, payload, {
     meta: { skipErrorToast: true },

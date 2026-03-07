@@ -182,11 +182,11 @@ const displayDescription = computed(() => eventDisplayDescription(props.event))
 }
 
 .notify-msg.ok {
-  color: #6ed7a2;
+  color: var(--color-success);
 }
 
 .notify-msg.err {
-  color: #ff7f94;
+  color: var(--color-danger);
 }
 
 .debug-box {
@@ -220,4 +220,3 @@ const displayDescription = computed(() => eventDisplayDescription(props.event))
   transform: translateY(100%);
 }
 </style>
-

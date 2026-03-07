@@ -484,7 +484,7 @@ async function remove() {
     title: 'Delete post',
     message: 'Are you sure you want to delete this post?',
     confirmText: 'Delete',
-    cancelText: 'Cancel',
+    cancelText: 'Zrusit',
     variant: 'danger',
   })
   if (!ok) return;
@@ -1549,11 +1549,11 @@ button:disabled {
   width: 100%;
 }
 
-input:focus,
-textarea:focus,
-select:focus,
-button:focus,
-summary:focus {
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+summary:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--ring);
 }

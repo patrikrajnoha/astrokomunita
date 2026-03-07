@@ -2,17 +2,32 @@
   <section class="card panel">
     <div class="panelTitle sidebarSection__header">{{ title }}</div>
 
-    <div v-if="loading" class="panelLoading" aria-live="polite">
-      <div v-for="index in 4" :key="index" class="skeletonRow">
-        <div class="skeleton skeletonDate"></div>
-        <div class="skeleton skeletonTitle"></div>
-      </div>
-    </div>
+    <AsyncState
+      v-if="loading"
+      mode="loading"
+      title="Nacitavam udalosti"
+      loading-style="skeleton"
+      :skeleton-rows="4"
+      compact
+    />
 
-    <div v-else-if="error" class="state stateError">
-      <div class="stateTitle">{{ loadErrorTitle }}</div>
-      <div class="stateText">{{ error }}</div>
-    </div>
+    <AsyncState
+      v-else-if="error"
+      mode="error"
+      :title="loadErrorTitle"
+      :message="error"
+      action-label="Skusit znova"
+      compact
+      @action="fetchItems"
+    />
+
+    <AsyncState
+      v-else-if="!items.length"
+      mode="empty"
+      title="Ziadne blizke udalosti"
+      message="Skus pozriet kalendar alebo obnovit data neskor."
+      compact
+    />
 
     <div v-else class="eventsViewport">
       <transition-group tag="ul" name="fade" class="eventsList">
@@ -31,11 +46,15 @@
 
 <script>
 import { onMounted, ref } from 'vue'
+import AsyncState from '@/components/ui/AsyncState.vue'
 import { getUpcomingEventsWidget } from '@/services/widgets'
 import { EVENT_TIMEZONE, formatEventDate } from '@/utils/eventTime'
 
 export default {
   name: 'UpcomingEventsWidget',
+  components: {
+    AsyncState,
+  },
   props: {
     title: {
       type: String,
@@ -43,7 +62,7 @@ export default {
     },
     showMoreLabel: {
       type: String,
-      default: 'Zobrazit viac',
+      default: 'Show more',
     },
     showMoreTo: {
       type: String,
@@ -89,6 +108,7 @@ export default {
       items,
       loading,
       error,
+      fetchItems,
       formatDate,
     }
   },
@@ -138,10 +158,15 @@ export default {
   row-gap: 0;
   border-bottom: 1px solid var(--divider-color);
   padding: 0.38rem 0;
+  border-radius: var(--radius-sm);
 }
 
 .eventItem:last-child {
   border-bottom: none;
+}
+
+.eventItem:hover {
+  background: var(--interactive-hover);
 }
 
 .eventDate {
@@ -174,76 +199,24 @@ export default {
   font-weight: 600;
   text-decoration: none;
   line-height: 1.2;
+  border-radius: var(--radius-pill);
+  padding: 0.15rem 0.36rem;
+  transition: background-color var(--motion-fast), color var(--motion-fast);
 }
 
 .showMoreLink:hover {
-  text-decoration: underline;
-}
-
-.panelLoading {
-  min-height: 5.3rem;
-  display: grid;
-  gap: var(--sb-gap-sm, 0.5rem);
-}
-
-.skeletonRow {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    rgb(var(--color-text-secondary-rgb) / 0.08),
-    rgb(var(--color-text-secondary-rgb) / 0.16),
-    rgb(var(--color-text-secondary-rgb) / 0.08)
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
-  border-radius: 0.75rem;
-}
-
-.skeletonDate {
-  width: 36%;
-  height: 0.7rem;
-}
-
-.skeletonTitle {
-  width: 84%;
-  height: 1rem;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.stateTitle {
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: var(--color-surface);
-  line-height: 1.24;
-}
-
-.stateText {
-  margin-top: 0.2rem;
-  color: var(--color-text-secondary);
-  font-size: 0.76rem;
-  line-height: 1.32;
-}
-
-.stateError .stateTitle,
-.stateError .stateText {
-  color: var(--color-danger);
+  color: var(--color-text-primary);
+  background: var(--interactive-hover);
 }
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 180ms ease, transform 180ms ease-out;
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+  transform: translateY(2px);
 }
 </style>

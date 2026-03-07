@@ -937,8 +937,8 @@ watch(
 
 <style scoped>
 .mainNavbar {
-  border-right: 1px solid var(--divider-color);
-  background: linear-gradient(180deg, rgb(var(--bg-app-rgb) / 0.97), rgb(var(--bg-app-rgb) / 0.93));
+  border-right: 1px solid var(--color-divider);
+  background: linear-gradient(180deg, rgb(var(--bg-app-rgb) / 0.98), rgb(var(--bg-app-rgb) / 0.94));
 }
 
 .navScroll {
@@ -972,42 +972,48 @@ watch(
   gap: 0.56rem;
   border-radius: var(--radius-md);
   padding: 0.35rem 0.44rem 0.35rem 0.38rem;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   text-decoration: none;
   transition:
     background-color var(--motion-fast),
     color var(--motion-fast),
-    border-color var(--motion-fast);
+    border-color var(--motion-fast),
+    transform 120ms ease;
 }
 
 .navItem:hover {
   background: var(--interactive-hover);
-  color: var(--text-primary);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
 }
 
 .navItem.active {
-  background: var(--interactive-selected);
-  color: var(--text-primary);
+  background: rgb(var(--color-accent-rgb) / 0.18);
+  color: var(--color-text-primary);
+}
+
+.navItem:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring);
 }
 
 .navIconChip {
   display: inline-flex;
-  height: 2.2rem;
-  width: 2.2rem;
+  height: auto;
+  width: auto;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: rgb(var(--bg-surface-rgb) / 0.64);
-  color: var(--text-primary);
-  transition: background-color var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: currentColor;
+  transition: color var(--motion-fast);
 }
 
 .navItem.active .navIconChip {
-  border-color: rgb(var(--primary-rgb) / 0.46);
-  background: rgb(var(--primary-rgb) / 0.2);
-  color: var(--text-primary);
+  color: inherit;
 }
 
 .navLabel {
@@ -1025,9 +1031,9 @@ watch(
   transform-origin: center;
   will-change: transform;
   min-width: 1.55rem;
-  border: 1px solid rgb(var(--primary-rgb) / 0.5);
-  background: rgb(var(--primary-rgb) / 0.22);
-  color: var(--text-primary);
+  border: 1px solid rgb(var(--color-accent-rgb) / 0.5);
+  background: rgb(var(--color-accent-rgb) / 0.22);
+  color: var(--color-text-primary);
   box-shadow: none;
 }
 
@@ -1056,22 +1062,28 @@ watch(
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: rgb(var(--bg-surface-rgb) / 0.72);
-  color: var(--text-primary);
-  padding: 0 var(--space-4);
+  border: 1px solid rgb(var(--color-accent-rgb) / 0.45);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--color-accent-rgb) / 0.9);
+  color: var(--color-white);
+  padding: 8px 14px;
   font-size: var(--font-size-md);
-  font-weight: 700;
+  font-weight: 600;
   transition:
     border-color var(--motion-fast),
     background-color var(--motion-fast),
-    color var(--motion-fast);
+    color var(--motion-fast),
+    transform 120ms ease;
 }
 
 .createTrigger:hover {
-  border-color: rgb(var(--primary-rgb) / 0.42);
-  background: rgb(var(--primary-rgb) / 0.14);
+  border-color: rgb(var(--color-accent-rgb) / 0.55);
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.createTrigger:active {
+  transform: scale(0.98);
 }
 
 .createTrigger:focus-visible {
@@ -1086,27 +1098,31 @@ watch(
   bottom: calc(100% + 0.55rem);
   z-index: 50;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-default);
-  background: rgb(var(--bg-surface-rgb) / 0.96);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
   padding: var(--space-2);
   backdrop-filter: blur(10px);
-  box-shadow: var(--elevation-2);
+  box-shadow: var(--shadow-medium);
 }
 
 .createPickerItem {
   width: 100%;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
   background: rgb(var(--bg-app-rgb) / 0.46);
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   min-height: var(--control-height-md);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 0.55rem;
   padding: 0.45rem 0.6rem;
   text-align: left;
+  transition:
+    border-color var(--motion-fast),
+    background-color var(--motion-fast),
+    transform 120ms ease;
 }
 
 .createPickerItem + .createPickerItem {
@@ -1114,8 +1130,9 @@ watch(
 }
 
 .createPickerItem:hover {
-  border-color: rgb(var(--primary-rgb) / 0.48);
-  background: rgb(var(--primary-rgb) / 0.14);
+  border-color: rgb(var(--color-accent-rgb) / 0.55);
+  background: rgb(var(--color-accent-rgb) / 0.14);
+  transform: translateY(-1px);
 }
 
 .createPickerItem:focus-visible {
@@ -1176,5 +1193,3 @@ watch(
   }
 }
 </style>
-
-

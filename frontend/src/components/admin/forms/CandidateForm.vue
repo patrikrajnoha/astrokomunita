@@ -281,7 +281,7 @@ async function handleSubmit() {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.formInput:focus, .formTextarea:focus, .formSelect:focus {
+.formInput:focus-visible, .formTextarea:focus-visible, .formSelect:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);

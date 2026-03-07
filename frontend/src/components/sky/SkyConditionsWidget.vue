@@ -473,7 +473,7 @@ function parseFreshnessMinutes(value) {
   display: grid;
   gap: 0.9rem;
   padding: 1rem;
-  background: linear-gradient(180deg, rgb(var(--bg-surface-rgb) / 0.96) 0%, rgb(var(--bg-surface-rgb) / 0.88) 100%);
+  background: #151d28;
   border-color: rgb(var(--border-rgb) / 0.88);
   color: var(--text-primary);
   box-shadow: 0 14px 34px rgb(var(--bg-app-rgb) / 0.24);

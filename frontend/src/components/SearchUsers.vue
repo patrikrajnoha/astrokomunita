@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="w-full">
     <!-- Moderné vyhľadávacie pole -->
     <div class="relative mb-6">
@@ -62,7 +62,7 @@
               v-for="user in users"
               :key="user.id"
               :to="`/users/${user.username}`"
-              class="flex items-center gap-4 px-4 py-4 transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-700 focus:bg-slate-50 dark:focus:bg-slate-700 focus:outline-none group"
+              class="flex items-center gap-4 px-4 py-4 transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-700 focus-visible:bg-slate-50 dark:focus-visible:bg-slate-700 focus-visible:outline-none group"
               @click="clearSearch"
             >
               <div class="relative">
@@ -72,7 +72,7 @@
                   :size="48"
                   :alt="user.name || 'avatar'"
                 />
-                <div class="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 rounded-full border-2 border-white dark:border-slate-800"></div>
+                <div class="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 rounded-full border-2 border-[var(--color-bg-surface)]"></div>
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1">

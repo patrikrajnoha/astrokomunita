@@ -197,8 +197,8 @@ export default {
       const ok = await confirm({
         title: 'Publikovat polozku',
         message: 'Publikovat tuto polozku?',
-        confirmText: 'Publish',
-        cancelText: 'Cancel',
+        confirmText: 'Publikovat polozku',
+        cancelText: 'Zrusit',
       })
       if (!ok) return
       this.actionLoading[item.id] = 'publish'
@@ -219,8 +219,8 @@ export default {
         title: 'Zamietnut polozku',
         message: 'Dovod zamietnutia (volitelne):',
         placeholder: 'Napis poznamku',
-        confirmText: 'Reject',
-        cancelText: 'Cancel',
+        confirmText: 'Zamietnut polozku',
+        cancelText: 'Zrusit',
       })
       if (note === null) return
       this.actionLoading[item.id] = 'reject'
@@ -271,7 +271,7 @@ export default {
 .itemCard { padding: 1rem; border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2); background: rgb(var(--color-bg-rgb) / 0.4); border-radius: 0.9rem; display: grid; gap: 0.6rem; }
 .itemHeader { display: flex; gap: 0.5rem; align-items: center; }
 .itemBadge { padding: 0.2rem 0.6rem; border-radius: 0.4rem; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; }
-.badge-review { background: #f59e0b; color: #fff; }
+.badge-review { background: var(--color-warning); color: var(--color-white); }
 .sourceBadge { padding: 0.2rem 0.6rem; background: rgb(var(--color-primary-rgb) / 0.16); color: var(--color-primary); border-radius: 0.4rem; font-size: 0.78rem; }
 .itemTitle { font-weight: 700; color: var(--color-surface); }
 .itemSummary { color: var(--color-text-secondary); }

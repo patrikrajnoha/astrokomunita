@@ -1,10 +1,10 @@
 <template>
   <RouterLink
     :to="to"
-    class="group block rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.62)] p-4 shadow-sm transition hover:-translate-y-px hover:bg-[color:rgb(var(--color-bg-rgb)/0.78)] hover:shadow-[0_10px_20px_rgb(0_0_0/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgb(var(--color-primary-rgb)/0.34)]"
+    class="group block rounded-xl border border-[var(--color-border)] bg-[color:rgb(var(--color-bg-rgb)/0.62)] p-4 shadow-sm transition hover:-translate-y-px hover:bg-[color:rgb(var(--color-bg-rgb)/0.78)] hover:shadow-[0_10px_20px_rgb(0_0_0/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgb(var(--color-primary-rgb)/0.34)]"
   >
     <div class="flex items-start gap-3">
-      <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[color:rgb(var(--color-text-secondary-rgb)/0.2)] bg-[color:rgb(var(--color-bg-rgb)/0.88)] text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">
+      <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[color:rgb(var(--color-bg-rgb)/0.88)] text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             v-for="(path, index) in iconPaths"

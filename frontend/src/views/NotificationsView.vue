@@ -5,7 +5,7 @@
         <h1 class="text-3xl font-black tracking-tight sm:text-4xl">Notifikacie</h1>
         <button
           data-testid="open-notification-settings"
-          class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:rgb(var(--text-secondary-rgb)/0.3)] text-[var(--text-secondary)] transition hover:border-[color:rgb(var(--text-secondary-rgb)/0.55)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+          class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
           type="button"
           @click="openSettingsModal"
         >
@@ -17,7 +17,7 @@
         </button>
       </header>
 
-      <div class="border-b border-[color:rgb(var(--text-secondary-rgb)/0.2)]"></div>
+      <div class="border-b border-[var(--divider-color)]"></div>
 
       <div v-if="isInitialLoading" class="mx-auto w-full max-w-3xl space-y-3 px-5 py-7 sm:px-8" data-testid="notifications-page-loading">
         <div
@@ -54,12 +54,12 @@
           </button>
         </div>
 
-        <div class="overflow-hidden rounded-2xl border border-[color:rgb(var(--text-secondary-rgb)/0.15)] bg-[color:rgb(var(--bg-surface-rgb)/0.4)]">
+        <div class="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[color:rgb(var(--bg-surface-rgb)/0.4)]">
           <button
             v-for="item in items"
             :key="item.id"
             type="button"
-            class="group flex w-full items-center gap-4 border-b border-[color:rgb(var(--text-secondary-rgb)/0.15)] px-5 py-4 text-left transition hover:bg-[color:rgb(var(--bg-surface-2-rgb)/0.58)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] last:border-b-0"
+            class="group flex w-full items-center gap-4 border-b border-[var(--divider-color)] px-5 py-4 text-left transition hover:bg-[color:rgb(var(--bg-surface-2-rgb)/0.58)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] last:border-b-0"
             :class="item.read_at ? 'opacity-80' : 'bg-[color:rgb(var(--bg-surface-2-rgb)/0.42)]'"
             @click="openNotification(item)"
           >

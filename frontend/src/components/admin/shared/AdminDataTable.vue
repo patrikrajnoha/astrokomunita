@@ -1,5 +1,5 @@
 <script setup>
-import LoadingIndicator from '@/components/shared/LoadingIndicator.vue'
+import AsyncState from '@/components/ui/AsyncState.vue'
 
 const props = defineProps({
   columns: {
@@ -34,6 +34,10 @@ const props = defineProps({
     type: Function,
     default: null,
   },
+  loadingRows: {
+    type: Number,
+    default: 5,
+  },
 })
 
 defineEmits(['clear-filters'])
@@ -66,24 +70,32 @@ function resolveRowClass(row) {
       </thead>
 
       <tbody>
-        <tr v-if="loading">
-          <td :colspan="columns.length" class="adminTable__state">
-            <LoadingIndicator :loading="true" text="Nacitavam..." align="center" />
-          </td>
-        </tr>
+        <template v-if="loading">
+          <tr
+            v-for="index in loadingRows"
+            :key="`table-skeleton-${index}`"
+            class="adminTable__row adminTable__row--skeleton"
+          >
+            <td
+              v-for="column in columns"
+              :key="`table-skeleton-cell-${index}-${column.key}`"
+              class="adminTable__cell"
+            >
+              <span class="adminTable__skeleton ui-skeleton ui-skeleton--line"></span>
+            </td>
+          </tr>
+        </template>
 
         <tr v-else-if="!rows.length">
           <td :colspan="columns.length" class="adminTable__state">
-            <div class="adminTable__emptyTitle">{{ emptyTitle }}</div>
-            <div class="adminTable__emptyText">{{ emptyDescription }}</div>
-            <button
-              v-if="canClearFilters"
-              type="button"
-              class="adminTable__clearBtn"
-              @click="$emit('clear-filters')"
-            >
-              Vymazat filtre
-            </button>
+            <AsyncState
+              mode="empty"
+              :title="emptyTitle"
+              :message="emptyDescription"
+              :action-label="canClearFilters ? 'Vymazat filtre' : ''"
+              compact
+              @action="$emit('clear-filters')"
+            />
           </td>
         </tr>
 
@@ -118,9 +130,9 @@ function resolveRowClass(row) {
 
 <style scoped>
 .adminTableWrap {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: rgb(var(--bg-app-rgb) / 0.26);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: rgb(var(--bg-app-rgb) / 0.28);
   overflow: auto;
 }
 
@@ -134,16 +146,16 @@ function resolveRowClass(row) {
   text-align: left;
   padding: 12px;
   font-size: var(--font-size-xs);
-  color: var(--text-secondary);
-  background: rgb(var(--bg-app-rgb) / 0.5);
-  border-bottom: 1px solid var(--divider-color);
+  color: var(--color-text-secondary);
+  background: rgb(var(--bg-app-rgb) / 0.58);
+  border-bottom: 1px solid var(--color-divider);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
 .adminTable__row {
-  border-bottom: 1px solid var(--divider-color);
-  transition: background-color var(--motion-fast);
+  border-bottom: 1px solid var(--color-divider);
+  transition: background-color var(--motion-fast), transform 120ms ease;
 }
 
 .adminTable__row:hover {
@@ -162,34 +174,22 @@ function resolveRowClass(row) {
 .adminTable__state {
   padding: 18px;
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 
-.adminTable__emptyTitle {
-  font-weight: 600;
-}
-
-.adminTable__emptyText {
-  margin-top: 6px;
-  opacity: 1;
-}
-
-.adminTable__clearBtn {
-  margin-top: var(--space-2);
-  border: 1px solid var(--border-default);
+.adminTable__row--skeleton:hover {
   background: transparent;
-  color: var(--text-secondary);
-  border-radius: var(--radius-sm);
-  min-height: var(--control-height-sm);
-  padding: 8px 14px;
-  cursor: pointer;
-  transition: border-color var(--motion-fast), background-color var(--motion-fast), color var(--motion-fast);
+  transform: none;
 }
 
-.adminTable__clearBtn:hover {
-  border-color: rgb(var(--primary-rgb) / 0.42);
-  background: var(--interactive-hover);
-  color: var(--text-primary);
+.adminTable__skeleton {
+  display: block;
+  width: 100%;
+  height: 0.72rem;
+}
+
+.adminTable__skeleton:nth-child(2n) {
+  width: 76%;
 }
 
 .is-right {

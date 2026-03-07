@@ -156,7 +156,7 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   align-items: center;
   justify-content: space-between;
   padding-top: 0.5rem;
-  border-top: 1px solid var(--divider-color);
+  border-top: 1px solid var(--color-divider);
   min-width: 0;
 }
 
@@ -175,30 +175,31 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   display: inline-flex;
   align-items: center;
   gap: 0.28rem;
-  padding: 0.22rem 0.48rem;
-  border: none;
+  padding: 8px 10px;
+  border: 1px solid transparent;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   border-radius: var(--radius-pill);
-  font-size: 0.77rem;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--motion-fast);
+  transition: border-color var(--motion-fast), background-color var(--motion-fast), color var(--motion-fast), transform var(--motion-fast);
   min-height: var(--control-height-sm);
   min-width: var(--control-height-sm);
   text-decoration: none;
 }
 
 .action-btn:hover:not(:disabled) {
+  border-color: var(--color-border);
   background: var(--interactive-hover);
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .action-btn:active:not(:disabled) {
   transform: scale(0.95);
 }
 
-.action-btn:focus {
+.action-btn:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
@@ -209,12 +210,12 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 }
 
 .action-btn--like {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   position: relative;
 }
 
 .action-btn--like.action-btn--liked {
-  color: var(--danger);
+  color: var(--color-danger);
   font-weight: 600;
 }
 
@@ -227,12 +228,12 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 }
 
 .action-btn--bookmark.action-btn--bookmarked {
-  color: var(--accent-primary);
+  color: var(--color-accent);
   font-weight: 600;
 }
 
 .action-btn--bookmark.action-btn--bookmarked:hover:not(:disabled) {
-  color: var(--color-primary);
+  color: var(--color-accent);
 }
 
 .post-actions-more {
@@ -251,15 +252,16 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   justify-content: center;
   min-height: var(--control-height-sm);
   min-width: var(--control-height-sm);
-  padding: 0.22rem 0.48rem;
+  padding: 8px 10px;
   border-radius: 999px;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   transition: all var(--motion-fast);
 }
 
 .post-actions-more :deep(.dropdownTrigger:hover:not(:disabled)) {
+  border-color: var(--color-border);
   background: var(--interactive-hover);
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .action-count {

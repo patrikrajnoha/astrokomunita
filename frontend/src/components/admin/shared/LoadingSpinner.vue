@@ -63,7 +63,7 @@ defineProps({
   width: 2rem;
   height: 2rem;
   border: 2px solid var(--color-border);
-  border-top: 2px solid var(--color-primary);
+  border-top: 2px solid var(--color-accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }

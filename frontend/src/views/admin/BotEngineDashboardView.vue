@@ -2,7 +2,15 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
-import { getBotOverview } from '@/services/api/admin/bots'
+import {
+  deleteAllBotPosts,
+  getBotOverview,
+  getBotPostRetentionSettings,
+  runBotPostRetentionCleanup,
+  updateBotPostRetentionSettings,
+} from '@/services/api/admin/bots'
+import { useConfirm } from '@/composables/useConfirm'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
   embedded: {
@@ -13,6 +21,20 @@ const props = defineProps({
 
 const loading = ref(false)
 const error = ref('')
+const retentionLoading = ref(false)
+const retentionSaving = ref(false)
+const retentionRunning = ref(false)
+const deletingAllPosts = ref(false)
+const retention = ref({
+  enabled: false,
+  auto_delete_after_hours: 48,
+  allowed_hours: [24, 48, 72, 168],
+  scheduled_frequency: 'hourly',
+})
+const retentionForm = ref({
+  enabled: false,
+  auto_delete_after_hours: 48,
+})
 const payload = ref({
   window_hours: 24,
   generated_at: null,
@@ -24,9 +46,16 @@ const payload = ref({
   },
   bots: [],
 })
+const { confirm } = useConfirm()
+const toast = useToast()
 
 const bots = computed(() => (Array.isArray(payload.value?.bots) ? payload.value.bots : []))
 const overall = computed(() => payload.value?.overall || {})
+const retentionAllowedHours = computed(() => {
+  const values = Array.isArray(retention.value?.allowed_hours) ? retention.value.allowed_hours : []
+  return values.filter((value) => Number.isInteger(Number(value)) && Number(value) > 0)
+})
+const retentionStatusLabel = computed(() => (retentionForm.value.enabled ? 'Zapnute' : 'Vypnute'))
 
 function formatDateTime(value) {
   if (!value) return '-'
@@ -59,8 +88,120 @@ async function load() {
   }
 }
 
+async function loadRetentionSettings() {
+  retentionLoading.value = true
+  try {
+    const response = await getBotPostRetentionSettings()
+    const data = response?.data?.data || {}
+    const allowedHours = Array.isArray(data?.allowed_hours) && data.allowed_hours.length > 0
+      ? data.allowed_hours
+      : [24, 48, 72, 168]
+    const selectedHours = Number(data?.auto_delete_after_hours || allowedHours[0] || 48)
+
+    retention.value = {
+      enabled: Boolean(data?.enabled),
+      auto_delete_after_hours: selectedHours,
+      allowed_hours: allowedHours,
+      scheduled_frequency: String(data?.scheduled_frequency || 'hourly'),
+    }
+    retentionForm.value = {
+      enabled: Boolean(data?.enabled),
+      auto_delete_after_hours: selectedHours,
+    }
+  } catch (e) {
+    toast.error(e?.response?.data?.message || 'Nacitanie retention nastaveni zlyhalo.')
+  } finally {
+    retentionLoading.value = false
+  }
+}
+
+async function saveRetentionSettings() {
+  if (retentionSaving.value) return
+
+  retentionSaving.value = true
+  try {
+    const response = await updateBotPostRetentionSettings({
+      enabled: Boolean(retentionForm.value.enabled),
+      auto_delete_after_hours: Number(retentionForm.value.auto_delete_after_hours || 0),
+    })
+    const data = response?.data?.data || {}
+    retention.value = {
+      enabled: Boolean(data?.enabled),
+      auto_delete_after_hours: Number(data?.auto_delete_after_hours || retentionForm.value.auto_delete_after_hours || 48),
+      allowed_hours: Array.isArray(data?.allowed_hours) && data.allowed_hours.length > 0
+        ? data.allowed_hours
+        : retentionAllowedHours.value,
+      scheduled_frequency: String(data?.scheduled_frequency || 'hourly'),
+    }
+    retentionForm.value = {
+      enabled: retention.value.enabled,
+      auto_delete_after_hours: retention.value.auto_delete_after_hours,
+    }
+    toast.success('Nastavenie auto mazania bot prispevkov bolo ulozene.')
+  } catch (e) {
+    toast.error(e?.response?.data?.message || 'Ulozenie retention nastaveni zlyhalo.')
+  } finally {
+    retentionSaving.value = false
+  }
+}
+
+async function deleteAllPublishedBotPosts() {
+  if (deletingAllPosts.value) return
+
+  const approved = await confirm({
+    title: 'Vymazat bot prispevky',
+    message: 'Naozaj vymazat publikovane bot prispevky?',
+    confirmText: 'Vymazat',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
+  if (!approved) return
+
+  deletingAllPosts.value = true
+  try {
+    const response = await deleteAllBotPosts({})
+    const result = response?.data || {}
+    toast.success(
+      `Vymazane posty: ${Number(result.deleted_posts || 0)} | bez postu: ${Number(result.missing_posts || 0)} | chyby: ${Number(result.failed_items || 0)}.`,
+    )
+    await Promise.all([load(), loadRetentionSettings()])
+  } catch (e) {
+    toast.error(e?.response?.data?.message || 'Mazanie bot prispevkov zlyhalo.')
+  } finally {
+    deletingAllPosts.value = false
+  }
+}
+
+async function runCleanupNow() {
+  if (retentionRunning.value) return
+
+  const approved = await confirm({
+    title: 'Spustit cleanup',
+    message: 'Spustit okamzite vymazanie bot prispevkov podla retention pravidla?',
+    confirmText: 'Spustit',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
+  if (!approved) return
+
+  retentionRunning.value = true
+  try {
+    const response = await runBotPostRetentionCleanup({ limit: 200 })
+    const result = response?.data?.data || {}
+    toast.success(
+      `Cleanup hotovy: vymazane ${Number(result.deleted_posts || 0)} posty, chyby ${Number(result.failed_items || 0)}.`,
+    )
+    await load()
+  } catch (e) {
+    toast.error(e?.response?.data?.message || 'Retention cleanup zlyhal.')
+  } finally {
+    retentionRunning.value = false
+  }
+}
+
 onMounted(() => {
   void load()
+  void loadRetentionSettings()
 })
 </script>
 
@@ -109,6 +250,72 @@ onMounted(() => {
       <RouterLink :to="{ name: 'admin.bots.sources' }" class="quickLink">Source Health</RouterLink>
       <RouterLink :to="{ name: 'admin.bots.schedules' }" class="quickLink">Schedules</RouterLink>
       <RouterLink :to="{ name: 'admin.bots.engine' }" class="quickLink">Engine Controls</RouterLink>
+    </section>
+
+    <section class="card retentionCard">
+      <div class="retentionHead">
+        <div>
+          <h3>Bot Post Cleanup</h3>
+          <p class="muted">Automaticke mazanie bot prispevkov podla casovaca.</p>
+        </div>
+        <span class="retentionStatus" :class="{ 'retentionStatus--on': retentionForm.enabled }">
+          {{ retentionStatusLabel }}
+        </span>
+      </div>
+
+      <div class="retentionGrid">
+        <label class="retentionField retentionField--toggle">
+          <input
+            v-model="retentionForm.enabled"
+            type="checkbox"
+            :disabled="retentionLoading || retentionSaving"
+          />
+          <span>Zapnut auto mazanie</span>
+        </label>
+
+        <label class="retentionField">
+          <span>Zmazat po</span>
+          <select
+            v-model.number="retentionForm.auto_delete_after_hours"
+            :disabled="retentionLoading || retentionSaving || !retentionForm.enabled"
+          >
+            <option v-for="hours in retentionAllowedHours" :key="`retention-${hours}`" :value="Number(hours)">
+              {{ Number(hours) }} h
+            </option>
+          </select>
+        </label>
+
+        <button
+          type="button"
+          class="actionBtn"
+          :disabled="retentionLoading || retentionSaving"
+          @click="saveRetentionSettings"
+        >
+          {{ retentionSaving ? 'Ukladam...' : 'Ulozit' }}
+        </button>
+
+        <button
+          type="button"
+          class="dangerBtn"
+          :disabled="deletingAllPosts"
+          @click="deleteAllPublishedBotPosts"
+        >
+          {{ deletingAllPosts ? 'Mazem...' : 'Vymazat bot prispevky' }}
+        </button>
+
+        <button
+          type="button"
+          class="ghostActionBtn"
+          :disabled="retentionRunning"
+          @click="runCleanupNow"
+        >
+          {{ retentionRunning ? 'Spustam...' : 'Spustit cleanup teraz' }}
+        </button>
+      </div>
+
+      <p class="muted retentionHint">
+        Scheduler bezi {{ retention.scheduled_frequency || 'hourly' }}. Cleanup maze iba prispevky starsie ako zvoleny limit.
+      </p>
     </section>
 
     <section class="card">
@@ -294,6 +501,81 @@ onMounted(() => {
   margin: 0;
 }
 
+.retentionCard {
+  display: grid;
+  gap: 10px;
+}
+
+.retentionHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.retentionHead h3 {
+  margin: 0 0 4px;
+  font-size: 0.98rem;
+}
+
+.retentionStatus {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.retentionStatus--on {
+  border-color: rgb(var(--color-success-rgb) / 0.55);
+  color: var(--color-success);
+}
+
+.retentionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.retentionField {
+  display: grid;
+  gap: 5px;
+}
+
+.retentionField span {
+  font-size: 0.78rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+}
+
+.retentionField select {
+  min-height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.26);
+  background: rgb(var(--color-bg-rgb) / 0.36);
+  color: var(--color-text-primary);
+  padding: 0 10px;
+}
+
+.retentionField--toggle {
+  min-height: 36px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.retentionField--toggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.retentionHint {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
 .actionBtn {
   border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
   border-radius: 10px;
@@ -303,5 +585,26 @@ onMounted(() => {
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
+}
+
+.dangerBtn,
+.ghostActionBtn {
+  border-radius: 10px;
+  padding: 7px 11px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dangerBtn {
+  border: 1px solid rgb(var(--color-danger-rgb) / 0.55);
+  background: rgb(var(--color-danger-rgb) / 0.16);
+  color: var(--color-text-primary);
+}
+
+.ghostActionBtn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.26);
+  background: rgb(var(--color-bg-rgb) / 0.3);
+  color: var(--color-text-primary);
 }
 </style>

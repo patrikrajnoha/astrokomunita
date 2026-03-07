@@ -185,6 +185,9 @@
         v-else-if="loading"
         mode="loading"
         title="Nacitavam udalosti"
+        loading-style="skeleton"
+        :skeleton-rows="5"
+        compact
       />
 
       <section v-else-if="error" class="state-card state-error">
@@ -970,12 +973,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .events-page {
-  --events-bg: #151d28;
-  --events-surface: #151d28;
-  --events-text: #ffffff;
-  --events-muted: #94a3b8;
-  --events-border: rgb(148 163 184 / 0.16);
-  --events-border-strong: rgb(148 163 184 / 0.24);
+  --events-bg: var(--color-bg-main);
+  --events-surface: var(--color-bg-main);
+  --events-text: var(--color-text-primary);
+  --events-muted: var(--color-text-muted);
+  --events-border: var(--color-border);
+  --events-border-strong: var(--color-border-strong);
+  --events-divider: var(--color-divider);
   --events-pill: rgb(255 255 255 / 0.04);
   --events-pill-hover: rgb(255 255 255 / 0.07);
   --events-pill-active: rgb(255 255 255 / 0.1);
@@ -986,7 +990,7 @@ onBeforeUnmount(() => {
 }
 
 .hero {
-  border-bottom: 1px solid var(--events-border);
+  border-bottom: 1px solid var(--events-divider);
 }
 
 .hero-inner {
@@ -1303,7 +1307,7 @@ onBeforeUnmount(() => {
 
 .favorite-switch.active .favorite-switch-thumb {
   transform: translateX(1rem);
-  background: #ffffff;
+  background: var(--color-white);
 }
 
 .meta-row {

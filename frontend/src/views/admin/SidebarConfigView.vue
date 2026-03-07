@@ -1287,8 +1287,8 @@ onBeforeRouteLeave(async () => {
 .spinner {
   width: 13px;
   height: 13px;
-  border: 2px solid rgb(255 255 255 / 0.35);
-  border-top-color: white;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -1339,4 +1339,3 @@ onBeforeRouteLeave(async () => {
   }
 }
 </style>
-

@@ -117,7 +117,7 @@ function onOpen() {
 
 <style scoped>
 .observation-card {
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   background: rgb(var(--bg-surface-rgb) / 0.8);
   border-radius: var(--radius-md);
   padding: 0.78rem;
@@ -135,7 +135,7 @@ function onOpen() {
 }
 
 .observation-card--clickable:hover {
-  border-color: rgb(var(--primary-rgb) / 0.48);
+  border-color: rgb(var(--color-accent-rgb) / 0.48);
   background: rgb(var(--bg-surface-rgb) / 0.92);
 }
 
@@ -152,7 +152,7 @@ function onOpen() {
 
 .observation-title {
   margin: 0;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.3;
@@ -160,23 +160,23 @@ function onOpen() {
 
 .observation-time {
   margin: 0.2rem 0 0;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 0.78rem;
 }
 
 .observation-rating {
-  border: 1px solid rgb(var(--primary-rgb) / 0.45);
+  border: 1px solid rgb(var(--color-accent-rgb) / 0.45);
   border-radius: 999px;
   padding: 0.14rem 0.48rem;
   font-size: 0.7rem;
-  color: var(--accent-primary);
-  background: rgb(var(--primary-rgb) / 0.16);
+  color: var(--color-accent);
+  background: rgb(var(--color-accent-rgb) / 0.16);
   white-space: nowrap;
 }
 
 .observation-description {
   margin: 0;
-  color: rgb(var(--text-primary-rgb) / 0.92);
+  color: rgb(var(--color-text-primary-rgb) / 0.92);
   line-height: 1.48;
   white-space: pre-wrap;
 }
@@ -205,23 +205,23 @@ function onOpen() {
 
 .observation-meta-item {
   font-size: 0.74rem;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
   border-radius: 999px;
   padding: 0.12rem 0.45rem;
 }
 
 .observation-event-link {
   font-size: 0.74rem;
-  color: var(--accent-primary);
+  color: var(--color-accent);
   text-decoration: none;
-  border: 1px solid rgb(var(--primary-rgb) / 0.35);
+  border: 1px solid rgb(var(--color-accent-rgb) / 0.35);
   border-radius: 999px;
   padding: 0.12rem 0.45rem;
 }
 
 .observation-event-link:hover {
-  border-color: rgb(var(--primary-rgb) / 0.65);
-  background: rgb(var(--primary-rgb) / 0.14);
+  border-color: rgb(var(--color-accent-rgb) / 0.65);
+  background: rgb(var(--color-accent-rgb) / 0.14);
 }
 </style>

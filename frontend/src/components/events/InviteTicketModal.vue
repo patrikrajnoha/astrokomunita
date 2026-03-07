@@ -350,8 +350,8 @@ async function copyText(value) {
   outline: none;
 }
 
-.field input:focus,
-.field textarea:focus {
+.field input:focus-visible,
+.field textarea:focus-visible {
   border-color: rgb(var(--color-primary-rgb) / 0.72);
   box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.18);
 }
@@ -391,13 +391,13 @@ async function copyText(value) {
 }
 
 .fieldError {
-  color: #ff8ea7;
+  color: var(--color-danger);
   font-size: 0.78rem;
   margin: 0;
 }
 
 .fieldSuccess {
-  color: #91efcc;
+  color: var(--color-success);
   font-size: 0.78rem;
   margin: 0;
 }
@@ -522,7 +522,7 @@ async function copyText(value) {
     position: fixed;
     inset: 0;
     padding: 14mm;
-    background: #fff;
+    background: var(--color-white);
     z-index: 9999;
     align-items: center;
     justify-items: center;
@@ -532,9 +532,9 @@ async function copyText(value) {
     width: 100%;
     max-width: 180mm;
     min-height: auto;
-    color: #111;
-    background: #fff;
-    border: 1px solid #ddd;
+    color: rgb(17 17 17);
+    background: var(--color-white);
+    border: 1px solid rgb(221 221 221);
     box-shadow: none;
   }
 
@@ -543,7 +543,7 @@ async function copyText(value) {
   .ticketSubtitle,
   .ticketCta,
   .nameRow span {
-    color: #333;
+    color: rgb(51 51 51);
   }
 }
 </style>

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section class="composerCard">
     <div class="composerRow">
       <div class="avatar" aria-hidden="true">
@@ -1126,7 +1126,7 @@ function parseEventDate(value) {
   min-height: 82px;
 }
 
-.composerInput:focus {
+.composerInput:focus-visible {
   border-color: rgb(var(--color-primary-rgb) / 0.55);
   box-shadow: none;
 }
@@ -1213,7 +1213,7 @@ function parseEventDate(value) {
   font-size: 0.82rem;
 }
 
-.pollOptionInput:focus {
+.pollOptionInput:focus-visible {
   outline: none;
   border-color: var(--primary);
 }
@@ -1232,7 +1232,7 @@ function parseEventDate(value) {
   color: var(--surface);
   padding: 0.32rem 0.62rem;
   font-size: 0.74rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .pollToggleBtn:disabled {
@@ -1299,11 +1299,11 @@ function parseEventDate(value) {
 
 .fileRemove {
   border: 1px solid rgb(var(--color-danger-rgb) / 0.5);
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   background: rgb(var(--color-danger-rgb) / 0.15);
   color: var(--color-danger);
-  padding: 0.35rem 0.55rem;
-  font-size: 0.73rem;
+  padding: 8px 12px;
+  font-size: 12px;
 }
 
 .eventAttachCard {
@@ -1337,19 +1337,20 @@ function parseEventDate(value) {
 
 .eventCalendarBtn,
 .eventRemoveBtn {
-  border-radius: 999px;
-  min-height: 30px;
+  border-radius: var(--radius-pill);
+  min-height: 36px;
   border: 1px solid var(--soft-border);
   background: rgb(var(--color-bg-rgb) / 0.35);
   color: var(--surface);
-  font-size: 0.74rem;
-  font-weight: 700;
-  padding: 0.28rem 0.6rem;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 14px;
 }
 
 .eventCalendarBtn {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  background: rgb(var(--color-primary-rgb) / 0.16);
+  border-color: rgb(var(--color-accent-rgb) / 0.5);
+  background: rgb(var(--color-accent-rgb) / 0.16);
+  color: var(--color-text-primary);
 }
 
 .actionsBar {
@@ -1376,26 +1377,26 @@ function parseEventDate(value) {
   align-items: center;
   justify-content: center;
   gap: 0.3rem;
-  min-height: 32px;
+  min-height: 36px;
   border-radius: 999px;
-  font-size: 0.77rem;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 500;
   transition: background-color 0.16s ease, border-color 0.16s ease, opacity 0.16s ease;
 }
 
 .publishBtn {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
-  background: rgb(var(--color-surface-rgb) / 0.74);
-  color: rgb(var(--color-bg-rgb) / 0.95);
-  padding: 0.36rem 0.95rem;
+  border: 1px solid rgb(var(--color-accent-rgb) / 0.45);
+  background: var(--color-accent);
+  color: var(--color-white);
+  padding: 8px 14px;
 }
 
 .actionIconBtn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.4);
-  background: transparent;
+  border: 1px solid var(--color-border);
+  background: rgb(var(--color-bg-rgb) / 0.2);
   color: var(--surface);
   display: inline-flex;
   align-items: center;
@@ -1414,7 +1415,7 @@ function parseEventDate(value) {
 }
 
 .publishBtn:hover {
-  background: rgb(var(--color-surface-rgb) / 0.9);
+  background: var(--color-primary-hover);
 }
 
 .actionIconBtn:disabled,
@@ -1460,10 +1461,10 @@ function parseEventDate(value) {
 .autocompletePopover {
   position: fixed;
   z-index: 1000;
-  background: var(--color-bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 22px rgb(0 0 0 / 0.2);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-medium);
   max-width: 300px;
   overflow: hidden;
 }
@@ -1482,9 +1483,9 @@ function parseEventDate(value) {
   width: min(100%, 620px);
   max-height: 80vh;
   overflow: auto;
-  border-radius: 14px;
-  border: 1px solid var(--soft-border);
-  background: rgb(var(--color-bg-rgb) / 0.96);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
   padding: 0.8rem;
   display: grid;
   gap: 0.65rem;
@@ -1499,23 +1500,23 @@ function parseEventDate(value) {
 .modalHead h3 {
   margin: 0;
   font-size: 1rem;
-  color: var(--surface);
+  color: var(--color-text-primary);
 }
 
 .modalClose {
-  border: 1px solid var(--soft-border);
-  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--surface);
-  width: 28px;
-  height: 28px;
+  color: var(--color-text-primary);
+  width: 36px;
+  height: 36px;
 }
 
 .modalInput {
-  border: 1px solid var(--soft-border);
-  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   background: rgb(var(--color-bg-rgb) / 0.46);
-  color: var(--surface);
+  color: var(--color-text-primary);
   padding: 0.52rem 0.65rem;
 }
 
@@ -1560,10 +1561,10 @@ function parseEventDate(value) {
 }
 
 .eventItem {
-  border: 1px solid var(--soft-border);
-  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--surface);
+  color: var(--color-text-primary);
   text-align: left;
   padding: 0.5rem 0.58rem;
   display: grid;
@@ -1576,7 +1577,7 @@ function parseEventDate(value) {
 
 .eventItemDate {
   font-size: 0.74rem;
-  color: var(--muted);
+  color: var(--color-text-secondary);
 }
 
 .modalHint,

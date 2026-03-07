@@ -2,7 +2,11 @@
   <div
     ref="rootRef"
     class="feedSwitcher"
-    :class="{ 'is-scrolled': isScrolled }"
+    :class="{
+      'is-scrolled': isScrolled,
+      'shadow-none': !isScrolled,
+      'bg-[rgb(var(--color-bg-rgb)/0.96)]': isScrolled,
+    }"
     :style="{ '--feed-tabs-offset': 'var(--app-header-h, 56px)' }"
     data-testid="feed-tabs-sticky"
   >
@@ -288,15 +292,15 @@ onBeforeUnmount(() => {
   position: sticky;
   top: var(--feed-tabs-offset);
   z-index: 20;
-  background: rgb(var(--bg-app-rgb) / 0.9);
-  border-bottom: 1px solid var(--divider-color);
+  background: rgb(var(--bg-app-rgb) / 0.92);
+  border-bottom: 1px solid var(--color-divider);
   backdrop-filter: blur(8px);
   transition: background-color var(--motion-base), border-color var(--motion-base);
 }
 
 .feedSwitcher.is-scrolled {
   background: rgb(var(--bg-app-rgb) / 0.96);
-  border-bottom-color: var(--divider-strong);
+  border-bottom-color: var(--color-border-strong);
 }
 
 .feedSwitcher__list {
@@ -315,21 +319,21 @@ onBeforeUnmount(() => {
   padding: 0 var(--space-3);
   border: 0;
   background: transparent;
-  color: rgb(var(--text-secondary-rgb) / 0.86);
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
   font-size: var(--font-size-md);
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: color var(--motion-fast), background-color var(--motion-fast);
 }
 
 .feedSwitcher__tab:hover {
   background: var(--interactive-hover);
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .feedSwitcher__tab.active {
-  color: var(--text-primary);
-  font-weight: 700;
+  color: var(--color-text-primary);
+  font-weight: 600;
 }
 
 .feedSwitcher__tab:focus-visible {
@@ -340,9 +344,9 @@ onBeforeUnmount(() => {
 .feedSwitcher__ink {
   position: absolute;
   bottom: 0;
-  height: 2px;
+  height: 3px;
   border-radius: var(--radius-pill);
-  background: var(--accent-primary);
+  background: var(--color-accent);
   transition: transform var(--motion-base), width var(--motion-base), opacity var(--motion-base);
 }
 

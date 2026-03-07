@@ -22,7 +22,7 @@ const emit = defineEmits(['action'])
         <button
           v-if="actionLabel"
           type="button"
-          class="sectionAction"
+          class="ui-btn ui-btn--secondary sectionAction"
           :disabled="actionDisabled"
           @click="emit('action')"
         >
@@ -42,9 +42,10 @@ const emit = defineEmits(['action'])
   display: grid;
   gap: 12px;
   padding: 12px;
-  border: 1px solid var(--dashboard-border, rgb(var(--color-surface-rgb) / 0.1));
+  border: 1px solid var(--dashboard-border, var(--color-border));
   border-radius: var(--dashboard-radius, 18px);
   background: var(--dashboard-panel, rgb(var(--color-bg-rgb) / 0.34));
+  transition: border-color 160ms ease, background-color 160ms ease;
 }
 
 .sectionHead {
@@ -90,20 +91,10 @@ const emit = defineEmits(['action'])
 }
 
 .sectionAction {
-  height: 32px;
-  border: 1px solid var(--dashboard-border-strong, rgb(var(--color-surface-rgb) / 0.15));
-  border-radius: 999px;
-  padding: 0 12px;
-  background: transparent;
-  color: inherit;
+  min-height: 32px;
+  padding-inline: 12px;
   font-size: 12px;
   font-weight: 600;
-  cursor: pointer;
-}
-
-.sectionAction:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 .sectionBody {

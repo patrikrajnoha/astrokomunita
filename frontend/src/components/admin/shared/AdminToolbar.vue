@@ -26,15 +26,16 @@ defineProps({
 
 <style scoped>
 .adminToolbar {
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   padding: var(--space-3);
-  background: rgb(var(--bg-app-rgb) / 0.3);
+  background: rgb(var(--bg-app-rgb) / 0.32);
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
   flex-wrap: wrap;
+  box-shadow: var(--shadow-soft);
 }
 
 .adminToolbar.is-loading {

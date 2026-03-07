@@ -35,12 +35,22 @@ defineProps({
   text-decoration: none;
   transition:
     border-color 160ms ease,
-    background-color 160ms ease;
+    background-color 160ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .quickActionTile:hover {
-  border-color: var(--dashboard-border-strong, rgb(var(--color-surface-rgb) / 0.15));
+  border-color: var(--dashboard-border-strong, var(--color-border-strong));
   background: rgb(var(--color-bg-rgb) / 0.42);
+  transform: translateY(-1px);
+}
+
+.quickActionTile:focus-visible {
+  outline: none;
+  border-color: rgb(var(--color-primary-rgb) / 0.32);
+  background: rgb(var(--color-bg-rgb) / 0.46);
+  box-shadow: var(--focus-ring);
 }
 
 .quickActionBody {
@@ -72,7 +82,7 @@ defineProps({
   height: 28px;
   padding: 0 10px;
   border-radius: 999px;
-  border: 1px solid var(--dashboard-border-strong, rgb(var(--color-surface-rgb) / 0.15));
+  border: 1px solid var(--dashboard-border-strong, var(--color-border-strong));
   background: rgb(var(--color-bg-rgb) / 0.56);
   color: var(--color-surface);
   font-size: 12px;
@@ -81,9 +91,20 @@ defineProps({
 }
 
 .quickActionBadge.tone-accent,
-.quickActionBadge.tone-attention,
-.quickActionBadge.tone-danger {
+.quickActionBadge.tone-attention {
   border-color: rgb(var(--color-primary-rgb) / 0.26);
   background: rgb(var(--color-primary-rgb) / 0.16);
+}
+
+.quickActionBadge.tone-warning {
+  border-color: rgb(var(--color-warning-rgb) / 0.32);
+  background: rgb(var(--color-warning-rgb) / 0.16);
+  color: rgb(var(--color-warning-rgb));
+}
+
+.quickActionBadge.tone-danger {
+  border-color: rgb(var(--color-danger-rgb) / 0.34);
+  background: rgb(var(--color-danger-rgb) / 0.16);
+  color: rgb(var(--color-danger-rgb));
 }
 </style>

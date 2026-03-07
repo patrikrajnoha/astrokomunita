@@ -68,7 +68,7 @@
                     :size="48"
                     :alt="post.user.name || 'avatar'"
                   />
-                  <div class="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 rounded-full border-2 border-white dark:border-slate-800"></div>
+                  <div class="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 rounded-full border-2 border-[var(--color-bg-surface)]"></div>
                 </div>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 mb-1">
@@ -153,7 +153,7 @@
             :disabled="isLoadingMore"
             class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
-            <div v-if="isLoadingMore" class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            <div v-if="isLoadingMore" class="h-4 w-4 animate-spin rounded-full border-2 border-[color:rgb(var(--color-text-secondary-rgb)/0.45)] border-t-transparent" />
             <span v-else>Načítať viac príspevkov</span>
           </button>
         </div>

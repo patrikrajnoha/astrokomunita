@@ -24,6 +24,7 @@ function makeRouter() {
       { path: '/login', component: LoginView, name: 'login' },
       { path: '/', component: { template: '<div>home</div>' }, name: 'home' },
       { path: '/register', component: { template: '<div>register</div>' }, name: 'register' },
+      { path: '/forgot-password', component: { template: '<div>forgot</div>' }, name: 'forgot-password' },
       { path: '/settings', component: { template: '<div>settings</div>' }, name: 'settings' },
       { path: '/settings/email', component: { template: '<div>settings-email</div>' }, name: 'settings.email' },
     ],
@@ -57,8 +58,8 @@ describe('LoginView', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Tento ucet je zablokovany.')
+    expect(wrapper.text()).toContain('Account blocked')
     expect(wrapper.text()).toContain('Repeated abusive behavior.')
-    expect(wrapper.text()).toContain('Zablokovane:')
+    expect(wrapper.text()).toContain('Blocked:')
   })
 })
