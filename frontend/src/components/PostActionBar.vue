@@ -151,12 +151,12 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 
 <style scoped>
 .post-actions {
-  margin-top: 0.48rem;
+  margin-top: 0.55rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 0.35rem;
-  border-top: 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--divider-color);
   min-width: 0;
 }
 
@@ -175,22 +175,22 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   display: inline-flex;
   align-items: center;
   gap: 0.28rem;
-  padding: 0.35rem 0.5rem;
+  padding: 0.22rem 0.48rem;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.77rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
-  min-height: 44px;
-  min-width: 44px;
+  transition: all var(--motion-fast);
+  min-height: var(--control-height-sm);
+  min-width: var(--control-height-sm);
   text-decoration: none;
 }
 
 .action-btn:hover:not(:disabled) {
-  background: rgb(var(--color-text-secondary-rgb) / 0.08);
+  background: var(--interactive-hover);
   color: var(--text-primary);
 }
 
@@ -199,8 +199,8 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 }
 
 .action-btn:focus {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .action-btn:disabled {
@@ -214,7 +214,7 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 }
 
 .action-btn--like.action-btn--liked {
-  color: var(--color-danger);
+  color: var(--danger);
   font-weight: 600;
 }
 
@@ -227,7 +227,7 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 }
 
 .action-btn--bookmark.action-btn--bookmarked {
-  color: var(--color-primary);
+  color: var(--accent-primary);
   font-weight: 600;
 }
 
@@ -249,16 +249,16 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  min-width: 44px;
-  padding: 0.35rem 0.5rem;
+  min-height: var(--control-height-sm);
+  min-width: var(--control-height-sm);
+  padding: 0.22rem 0.48rem;
   border-radius: 999px;
   color: var(--text-secondary);
-  transition: all 0.2s ease;
+  transition: all var(--motion-fast);
 }
 
 .post-actions-more :deep(.dropdownTrigger:hover:not(:disabled)) {
-  background: rgb(var(--color-text-secondary-rgb) / 0.08);
+  background: var(--interactive-hover);
   color: var(--text-primary);
 }
 
@@ -283,10 +283,10 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 
 @media (max-width: 480px) {
   .action-btn {
-    padding: 0.3rem 0.44rem;
+    padding: 0.24rem 0.42rem;
     font-size: 0.72rem;
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 32px;
+    min-width: 32px;
   }
 
   .action-count {
@@ -296,10 +296,10 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 
 @media (min-width: 481px) and (max-width: 768px) {
   .action-btn {
-    padding: 0.32rem 0.48rem;
+    padding: 0.26rem 0.45rem;
     font-size: 0.74rem;
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 34px;
+    min-width: 34px;
   }
 }
 </style>

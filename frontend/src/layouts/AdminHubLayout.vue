@@ -141,7 +141,7 @@ onBeforeUnmount(() => {
   --admin-center-max: 1200px;
   position: relative;
   display: grid;
-  gap: 18px;
+  gap: var(--space-4);
   isolation: isolate;
 }
 
@@ -149,10 +149,10 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: -10px -12px;
   z-index: -1;
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   background:
-    radial-gradient(110% 80% at 0% 0%, rgb(var(--primary-rgb) / 0.12), transparent 58%),
-    radial-gradient(90% 70% at 100% 10%, rgb(var(--text-secondary-rgb) / 0.08), transparent 64%);
+    radial-gradient(110% 80% at 0% 0%, rgb(var(--primary-rgb) / 0.11), transparent 58%),
+    radial-gradient(90% 70% at 100% 10%, rgb(var(--text-secondary-rgb) / 0.06), transparent 64%);
   pointer-events: none;
 }
 
@@ -166,19 +166,19 @@ onBeforeUnmount(() => {
 .adminHub__statusWrap {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .adminHub__aiStatus {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border: 1px solid var(--border-default);
   border-radius: 999px;
   padding: 4px 10px;
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
-  background: rgb(var(--color-bg-rgb) / 0.45);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  background: rgb(var(--bg-app-rgb) / 0.5);
 }
 
 .adminHub__aiStatus--link {
@@ -186,14 +186,14 @@ onBeforeUnmount(() => {
 }
 
 .adminHub__aiStatusTime {
-  color: rgb(var(--color-text-secondary-rgb) / 0.8);
+  color: rgb(var(--text-secondary-rgb) / 0.82);
 }
 
 .adminHub__contentCard {
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--bg-surface);
-  box-shadow: 0 20px 38px rgb(var(--bg-app-rgb) / 0.22);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  background: rgb(var(--bg-surface-rgb) / 0.9);
+  box-shadow: var(--elevation-2);
   backdrop-filter: blur(6px);
   min-width: 0;
   overflow: hidden;
@@ -209,7 +209,7 @@ onBeforeUnmount(() => {
 
 .adminHub__sticky {
   position: sticky;
-  top: 92px;
+  top: calc(var(--navbar-height) + var(--space-6));
 }
 
 @media (min-width: 901px) {
@@ -235,11 +235,11 @@ onBeforeUnmount(() => {
 
 @media (max-width: 900px) {
   .adminHub {
-    gap: 14px;
+    gap: var(--space-3);
   }
 
   .adminHub__contentCard {
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
   }
 }
 
@@ -253,9 +253,9 @@ onBeforeUnmount(() => {
     border-radius: 14px;
   }
 
-  .adminHub__subNav--mobile {
+.adminHub__subNav--mobile {
     position: sticky;
-    top: 58px;
+    top: calc(var(--navbar-height) + 2px);
     z-index: 8;
   }
 

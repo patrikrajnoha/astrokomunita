@@ -109,64 +109,64 @@ function clearFilters() {
 
 <style scoped>
 .candidatesFilters {
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
+  background: rgb(var(--bg-app-rgb) / 0.3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
 .filtersHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-3);
 }
 
 .filtersHeader h3 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--text-primary);
 }
 
 .filtersGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 .filterField {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .filterLabel {
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   font-weight: 500;
-  color: var(--color-text);
+  color: var(--text-secondary);
 }
 
 .filterSelect, .filterInput {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
-  background: var(--color-background);
-  color: var(--color-text);
-  font-size: 0.875rem;
-  transition: border-color 0.2s;
+  padding: 0.58rem 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: rgb(var(--bg-app-rgb) / 0.4);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  transition: border-color var(--motion-fast), box-shadow var(--motion-fast), background-color var(--motion-fast);
 }
 
 .filterSelect:focus, .filterInput:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: rgb(var(--primary-rgb) / 0.8);
+  box-shadow: var(--focus-ring);
 }
 
 .filterInput::placeholder {
-  color: var(--color-text-secondary);
+  color: var(--text-muted);
 }
 
 .filtersActions {
@@ -175,13 +175,14 @@ function clearFilters() {
 }
 
 .btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  min-height: var(--control-height-sm);
+  padding: 0 1rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color var(--motion-fast), background-color var(--motion-fast), color var(--motion-fast);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -189,25 +190,26 @@ function clearFilters() {
 }
 
 .btn-primary {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
+  background: var(--accent-primary);
+  color: var(--text-primary);
+  border-color: rgb(var(--primary-rgb) / 0.42);
 }
 
 .btn-primary:hover {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
+  background: var(--accent-primary-hover);
+  border-color: rgb(var(--primary-hover-rgb) / 0.5);
 }
 
 .btn-ghost {
   background: transparent;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   border-color: transparent;
 }
 
 .btn-ghost:hover {
-  background: var(--color-background-hover);
-  color: var(--color-text);
+  border-color: var(--border-default);
+  background: var(--interactive-hover);
+  color: var(--text-primary);
 }
 
 .btn-sm {

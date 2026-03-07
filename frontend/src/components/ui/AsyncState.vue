@@ -50,11 +50,11 @@ defineEmits(['action'])
 
 <style scoped>
 .asyncState {
-  margin-top: 0.9rem;
-  border-radius: 1rem;
-  border: 1px solid rgb(var(--text-secondary-rgb) / 0.22);
-  padding: 1rem 1rem 0.95rem;
-  background: rgb(var(--bg-surface-rgb) / 0.74);
+  margin-top: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  padding: var(--space-4) var(--space-4) calc(var(--space-4) - 2px);
+  background: rgb(var(--bg-surface-rgb) / 0.82);
   color: var(--text-primary);
   display: grid;
   justify-items: center;
@@ -67,7 +67,7 @@ defineEmits(['action'])
   height: 1.5rem;
   border-radius: 999px;
   border: 2px solid rgb(var(--primary-rgb) / 0.24);
-  border-top-color: rgb(var(--primary-rgb) / 0.95);
+  border-top-color: rgb(var(--primary-rgb) / 0.92);
   animation: async-state-spin 1s linear infinite;
 }
 
@@ -78,7 +78,7 @@ defineEmits(['action'])
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgb(var(--text-secondary-rgb) / 0.4);
+  border: 1px solid var(--border-default);
   color: rgb(var(--text-secondary-rgb) / 0.95);
   font-size: 0.85rem;
   font-weight: 700;
@@ -86,12 +86,12 @@ defineEmits(['action'])
 
 .asyncState__icon--error {
   border-color: rgb(var(--danger-rgb) / 0.55);
-  color: rgb(var(--danger-rgb) / 0.95);
+  color: var(--danger);
 }
 
 .asyncState__title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: var(--font-size-base);
   line-height: 1.3;
   font-weight: 700;
 }
@@ -99,7 +99,7 @@ defineEmits(['action'])
 .asyncState__message {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.84rem;
+  font-size: var(--font-size-sm);
   line-height: 1.45;
   max-width: 44ch;
 }
@@ -110,7 +110,8 @@ defineEmits(['action'])
 }
 
 .asyncState--error {
-  border-color: rgb(var(--danger-rgb) / 0.28);
+  border-color: rgb(var(--danger-rgb) / 0.36);
+  background: rgb(var(--danger-rgb) / 0.08);
 }
 
 @keyframes async-state-spin {

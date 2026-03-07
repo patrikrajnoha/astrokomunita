@@ -72,6 +72,24 @@ describe('AdminSubNav', () => {
     authState.isEditor = false
   })
 
+  it('renders grouped IA and supports collapsible content sub-navigation', async () => {
+    const { wrapper } = await mountAt('/admin/dashboard')
+
+    expect(wrapper.text()).toContain('Prehľad')
+    expect(wrapper.text()).toContain('HLAVNÉ')
+    expect(wrapper.text()).toContain('KOMUNITA')
+    expect(wrapper.text()).toContain('SYSTÉM')
+    expect(wrapper.text()).toContain('Udalosti')
+    expect(wrapper.text()).toContain('Obsah')
+    expect(wrapper.text()).not.toContain('Vybrané udalosti')
+    expect(wrapper.text()).not.toContain('Súťaže')
+
+    await wrapper.get('button[aria-label="Zobraziť podsekcie Obsah"]').trigger('click')
+
+    expect(wrapper.text()).toContain('Vybrané udalosti')
+    expect(wrapper.text()).toContain('Súťaže')
+  })
+
   it('hides banned words link when VITE_FEATURE_WIP is not enabled', async () => {
     const { wrapper } = await mountAt('/admin/dashboard')
 
@@ -79,6 +97,16 @@ describe('AdminSubNav', () => {
     expect(wrapper.text()).not.toContain('Zakázané slová')
     expect(wrapper.text()).toContain('Udalosti')
     expect(wrapper.text()).toContain('Správa komunity')
+    expect(wrapper.text()).toContain('Boti')
+    expect(wrapper.text()).toContain('Výkonnosť')
+  })
+
+  it('marks featured events sub-item active inside Obsah group', async () => {
+    const { wrapper } = await mountAt('/admin/featured-events')
+
+    const active = activeItems(wrapper)
+    expect(active).toHaveLength(1)
+    expect(active[0].text()).toContain('Vybrané udalosti')
   })
 
   it.each([

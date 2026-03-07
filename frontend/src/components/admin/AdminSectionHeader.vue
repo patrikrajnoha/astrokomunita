@@ -138,8 +138,8 @@ const backTarget = computed(() => {
 <style scoped>
 .adminSectionHeader {
   display: grid;
-  gap: 8px;
-  margin-bottom: 14px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
 }
 
 .adminSectionHeader__top {
@@ -155,10 +155,10 @@ const backTarget = computed(() => {
 }
 
 .adminSectionHeader__section {
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  color: var(--text-secondary);
   font-weight: 700;
 }
 
@@ -167,23 +167,26 @@ const backTarget = computed(() => {
   font-size: clamp(1.05rem, 2vw, 1.35rem);
   font-weight: 700;
   letter-spacing: -0.01em;
+  color: var(--text-primary);
 }
 
 .adminSectionHeader__back {
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
   padding: 7px 11px;
   text-decoration: none;
-  color: inherit;
-  background: rgb(var(--color-surface-rgb) / 0.06);
+  color: var(--text-secondary);
+  background: rgb(var(--bg-app-rgb) / 0.34);
+  transition: border-color var(--motion-fast), background-color var(--motion-fast), color var(--motion-fast);
 }
 
 .adminSectionHeader__back:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.4);
-  background: rgb(var(--color-primary-rgb) / 0.12);
+  border-color: rgb(var(--primary-rgb) / 0.44);
+  background: rgb(var(--primary-rgb) / 0.14);
+  color: var(--text-primary);
 }
 
 @media (max-width: 767px) {
