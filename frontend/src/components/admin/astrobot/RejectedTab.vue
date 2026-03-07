@@ -77,8 +77,8 @@ export default {
       const ok = await confirm({
         title: 'Publikovat rejected polozku',
         message: 'Publikovat rejected polozku?',
-        confirmText: 'Publish',
-        cancelText: 'Cancel',
+        confirmText: 'Publikovat polozku',
+        cancelText: 'Zrusit',
       })
       if (!ok) return
       try {
@@ -106,7 +106,7 @@ export default {
 .itemsList { list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; }
 .itemCard { padding: 1rem; border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2); background: rgb(var(--color-bg-rgb) / 0.4); border-radius: 0.9rem; display: grid; gap: 0.6rem; }
 .itemHeader { display: flex; justify-content: space-between; align-items: center; }
-.itemBadge { padding: 0.25rem 0.7rem; background: #ef4444; color: #fff; border-radius: 0.4rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+.itemBadge { padding: 0.25rem 0.7rem; background: var(--color-danger); color: var(--color-white); border-radius: 0.4rem; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
 .itemMeta { color: var(--color-text-secondary); font-size: 0.83rem; }
 .itemTitle { color: var(--color-surface); font-weight: 700; }
 .itemNote { color: var(--color-text-secondary); font-size: 0.88rem; }

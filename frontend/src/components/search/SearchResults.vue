@@ -19,7 +19,7 @@
             v-for="item in recentSearches"
             :key="item"
             type="button"
-            class="rounded-full border border-white/5 bg-[color:rgb(var(--color-bg-rgb)/0.86)] px-3 py-1.5 text-xs text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+            class="rounded-full border border-[var(--color-divider)] bg-[color:rgb(var(--color-bg-rgb)/0.86)] px-3 py-1.5 text-xs text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
             @click="applyRecent(item)"
           >
             {{ item }}
@@ -122,7 +122,7 @@
         <div v-if="canLoadMore" class="pt-2">
           <button
             type="button"
-            class="w-full rounded-xl border border-white/5 bg-[color:rgb(var(--color-bg-rgb)/0.84)] px-3 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
+            class="w-full rounded-xl border border-[var(--color-divider)] bg-[color:rgb(var(--color-bg-rgb)/0.84)] px-3 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
             @click="loadMore"
           >
             Nacitat viac

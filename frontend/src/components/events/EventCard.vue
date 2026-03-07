@@ -132,14 +132,14 @@ const publicConfidenceTooltip = computed(() => {
 <style scoped>
 .event-card {
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   background: linear-gradient(
     160deg,
     rgb(var(--bg-surface-rgb) / 0.94) 0%,
     rgb(var(--bg-surface-2-rgb) / 0.9) 100%
   );
   overflow: hidden;
-  box-shadow: var(--elevation-2);
+  box-shadow: var(--shadow-soft);
 }
 
 .hero-wrap {
@@ -160,8 +160,13 @@ const publicConfidenceTooltip = computed(() => {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-weight: 700;
-  color: rgb(var(--text-primary-rgb) / 0.8);
-  background: radial-gradient(circle at 20% 20%, #1f4b87 0%, #0f172a 55%, #060b15 100%);
+  color: rgb(var(--color-text-primary-rgb) / 0.8);
+  background: radial-gradient(
+    circle at 20% 20%,
+    rgb(var(--color-accent-rgb) / 0.38) 0%,
+    rgb(var(--color-bg-light-rgb) / 0.52) 55%,
+    rgb(var(--color-bg-main-rgb) / 0.98) 100%
+  );
 }
 
 .hero-overlay {
@@ -178,7 +183,7 @@ const publicConfidenceTooltip = computed(() => {
   font-size: 1.18rem;
   line-height: 1.2;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .title-row {
@@ -219,7 +224,7 @@ const publicConfidenceTooltip = computed(() => {
 .visibility-row {
   margin-top: 0.35rem;
   font-size: 0.9rem;
-  color: rgb(var(--text-secondary-rgb) / 0.88);
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
 }
 
 .visibility-row {
@@ -237,7 +242,7 @@ const publicConfidenceTooltip = computed(() => {
 }
 
 .bio {
-  color: rgb(var(--text-primary-rgb) / 0.88);
+  color: rgb(var(--color-text-primary-rgb) / 0.9);
   font-size: 0.92rem;
   line-height: 1.5;
   overflow: hidden;
@@ -258,26 +263,26 @@ const publicConfidenceTooltip = computed(() => {
 
 .bio-action {
   margin-left: 0.45rem;
-  color: var(--accent-primary);
+  color: var(--color-accent);
   font-weight: 600;
 }
 
 .more-btn {
   margin-top: 0.7rem;
-  min-height: var(--control-height-sm);
-  border: 1px solid var(--border-default);
+  min-height: 36px;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   background: rgb(var(--bg-app-rgb) / 0.35);
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  padding: 0 0.8rem;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 14px;
   transition: border-color var(--motion-fast), background-color var(--motion-fast), color var(--motion-fast);
 }
 
 .more-btn:hover {
-  border-color: rgb(var(--primary-rgb) / 0.44);
-  background: rgb(var(--primary-rgb) / 0.14);
+  border-color: rgb(var(--color-accent-rgb) / 0.44);
+  background: rgb(var(--color-accent-rgb) / 0.14);
 }
 
 .bio-expand-enter-active,

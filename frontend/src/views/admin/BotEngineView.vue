@@ -2672,7 +2672,7 @@ onBeforeUnmount(() => {
 
 :deep(.adminPageShell.botEngineShell) {
   padding: 18px 16px;
-  background: #151d28;
+  background: var(--color-bg-main);
 }
 
 :deep(.adminPageShell.botEngineShell .adminPageShell__header) {

@@ -246,7 +246,7 @@ async function banUser() {
     title: 'Ban user',
     message: `Provide ban reason for ${user.value.email}.`,
     confirmText: 'Ban user',
-    cancelText: 'Cancel',
+    cancelText: 'Zrusit',
     placeholder: 'Ban reason...',
     required: true,
     multiline: true,
@@ -270,7 +270,7 @@ async function unbanUser() {
     title: 'Unban user',
     message: `Unban user ${user.value.email}?`,
     confirmText: 'Unban',
-    cancelText: 'Cancel',
+    cancelText: 'Zrusit',
   })
   if (!ok) return
 
@@ -290,7 +290,7 @@ async function deactivateUser() {
     title: 'Deactivate user',
     message: `Deactivate user ${user.value.email}?`,
     confirmText: 'Deactivate',
-    cancelText: 'Cancel',
+    cancelText: 'Zrusit',
     variant: 'danger',
   })
   if (!ok) return
@@ -311,7 +311,7 @@ async function resetProfile() {
     title: 'Reset profile',
     message: `Reset profile for ${user.value.email}?`,
     confirmText: 'Reset',
-    cancelText: 'Cancel',
+    cancelText: 'Zrusit',
     variant: 'danger',
   })
   if (!ok) return
@@ -648,12 +648,19 @@ async function saveCoverEditor() {
 
 async function reportAction(report, action) {
   if (!report?.id) return
+
+  const isHide = action === 'hide'
+  const title = isHide ? 'Skryt nahlaseny obsah?' : 'Potvrdit akciu?'
+  const message = isHide
+    ? 'Nahlaseny obsah bude skryty pre ostatnych pouzivatelov.'
+    : `Naozaj vykonat "${action}"?`
+
   const ok = await confirm({
-    title: 'Potvrdenie akcie',
-    message: `Naozaj vykonat "${action}"?`,
-    confirmText: action === 'hide' ? 'Resolve' : 'Confirm',
-    cancelText: 'Cancel',
-    variant: action === 'hide' ? 'danger' : 'default',
+    title,
+    message,
+    confirmText: isHide ? 'Skryt obsah' : 'Potvrdit',
+    cancelText: 'Zrusit',
+    variant: isHide ? 'danger' : 'default',
   })
   if (!ok) return
 

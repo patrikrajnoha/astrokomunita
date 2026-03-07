@@ -337,7 +337,7 @@ function onDownloadGenerated() {
 .share-btn--primary {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: #fff;
+  color: var(--color-white);
 }
 
 .share-btn--secondary,
@@ -358,12 +358,12 @@ function onDownloadGenerated() {
   width: 100%;
   border-radius: 12px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: #0b0f14;
+  background: var(--color-bg-main);
 }
 
-.share-btn:focus,
-.copy-link:focus,
-.icon-close:focus {
+.share-btn:focus-visible,
+.copy-link:focus-visible,
+.icon-close:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

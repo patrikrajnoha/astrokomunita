@@ -12,10 +12,12 @@ import {
   runEventSourceCrawl,
   updateEventSource,
 } from '@/services/api/admin/eventSources'
+import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const toast = useToast()
+const { confirm } = useConfirm()
 
 const loading = ref(false)
 const error = ref('')
@@ -23,8 +25,6 @@ const runningSelected = ref(false)
 const purging = ref(false)
 const runningByKey = ref({})
 const purgeDryRun = ref(true)
-const purgeModalOpen = ref(false)
-const purgeConfirmInput = ref('')
 
 const sources = ref([])
 const selectedKeys = ref([])
@@ -106,6 +106,7 @@ const artifactsHasFindings = computed(() => artifactsSuspiciousCount.value > 0)
 const artifactsReportTone = computed(() => (artifactsHasFindings.value ? 'danger' : 'success'))
 
 const canRepairArtifacts = computed(() => !artifactsRepairing.value && artifactsSuspiciousCount.value > 0)
+const purgeConfirmToken = 'delete_crawled_events'
 
 const purgeTargetKeys = computed(() => {
   const selectedSet = new Set(selectedKeys.value.map((key) => normalizeSourceKey(key)))
@@ -501,6 +502,22 @@ async function runSelected() {
   }
 }
 
+async function requestPurgeConfirmation() {
+  return confirm({
+    title: purgeDryRun.value ? 'Spustit dry run mazania?' : 'Vymazat crawlnute data?',
+    message: 'Vymaze crawlnute udalosti, kandidatov aj crawl runy.',
+    confirmText: 'Vymazat',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
+}
+
+async function startPurgeFlow() {
+  if (purging.value) return
+  if (!(await requestPurgeConfirmation())) return
+  await purgeCrawledData()
+}
+
 async function purgeCrawledData() {
   if (purging.value) {
     return
@@ -514,7 +531,7 @@ async function purgeCrawledData() {
     const response = await purgeEventSources({
       source_keys: purgeTargetKeys.value,
       dry_run: Boolean(purgeDryRun.value),
-      confirm: 'delete_crawled_events',
+      confirm: purgeConfirmToken,
     })
 
     const deleted = response?.data?.deleted || {}
@@ -529,21 +546,8 @@ async function purgeCrawledData() {
     error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Mazanie zlyhalo.'
   } finally {
     purging.value = false
-    purgeModalOpen.value = false
-    purgeConfirmInput.value = ''
     endOperation()
   }
-}
-
-function openPurgeModal() {
-  purgeConfirmInput.value = ''
-  purgeModalOpen.value = true
-}
-
-function closePurgeModal() {
-  if (purging.value) return
-  purgeModalOpen.value = false
-  purgeConfirmInput.value = ''
 }
 
 async function runSingleSource(source) {
@@ -697,7 +701,7 @@ onUnmounted(() => {
 
         <button
           type="button"
-          class="dangerBtn"
+          class="btn-danger"
           data-testid="translation-artifacts-repair-btn"
           :disabled="!canRepairArtifacts"
           @click="runTranslationArtifactsRepair"
@@ -783,10 +787,10 @@ onUnmounted(() => {
 
         <button
           type="button"
-          class="dangerBtn"
+          class="btn-danger"
           data-testid="purge-crawled-btn"
           :disabled="purging"
-          @click="openPurgeModal"
+          @click="startPurgeFlow"
         >
           {{ purging ? 'Maže sa...' : 'Vymazať crawlnuté udalosti' }}
         </button>
@@ -794,38 +798,6 @@ onUnmounted(() => {
 
       <p class="runPanel__hint">Vytvorí crawl run a naimportuje kandidátov. Cieľ mazania = vybrané podporované zdroje (alebo všetky, ak nič nie je vybrané).</p>
     </section>
-
-    <div v-if="purgeModalOpen" class="modalBackdrop" @click.self="closePurgeModal">
-      <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="purge-modal-title">
-        <h3 id="purge-modal-title">Potvrdit mazanie</h3>
-        <p class="modalText">
-          Toto vymaže crawlnuté udalosti, kandidátov a crawl runy pre vybrané podporované zdroje.
-          Pre pokracovanie napis <code>delete_crawled_events</code>.
-        </p>
-        <input
-          v-model="purgeConfirmInput"
-          data-testid="purge-confirm-input"
-          class="modalInput"
-          type="text"
-          autocomplete="off"
-          :disabled="purging"
-        />
-        <div class="modalActions">
-          <button type="button" class="ghostBtn" data-testid="purge-cancel-btn" :disabled="purging" @click="closePurgeModal">
-            Zrušiť
-          </button>
-          <button
-            type="button"
-            class="dangerBtn"
-            data-testid="purge-confirm-btn"
-            :disabled="purging || purgeConfirmInput !== 'delete_crawled_events'"
-            @click="purgeCrawledData"
-          >
-            {{ purging ? 'Maže sa...' : (purgeDryRun ? 'Spustiť dry run' : 'Vymazať teraz') }}
-          </button>
-        </div>
-      </div>
-    </div>
 
     <section class="card">
       <div class="cardHead">
@@ -1110,17 +1082,8 @@ onUnmounted(() => {
   background: rgb(var(--color-primary-rgb) / 0.12);
 }
 
-.dangerBtn {
-  border: 1px solid rgb(220 38 38 / 0.35);
-  border-radius: 10px;
-  padding: 7px 10px;
-  background: rgb(220 38 38 / 0.12);
-  color: inherit;
-}
-
 .ghostBtn:disabled,
-.primaryBtn:disabled,
-.dangerBtn:disabled {
+.primaryBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -1171,51 +1134,6 @@ onUnmounted(() => {
 
 .progressBar__fill--translation {
   background: linear-gradient(90deg, rgb(5 150 105 / 0.9), rgb(22 163 74 / 0.9));
-}
-
-.modalBackdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  background: rgb(0 0 0 / 0.45);
-  padding: 16px;
-}
-
-.modalCard {
-  width: min(520px, 100%);
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb));
-  padding: 14px;
-  display: grid;
-  gap: 10px;
-}
-
-.modalCard h3 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.modalText {
-  margin: 0;
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
-}
-
-.modalInput {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
-  border-radius: 10px;
-  padding: 8px 10px;
-  background: transparent;
-  color: inherit;
-}
-
-.modalActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 
 .tableWrap {

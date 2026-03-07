@@ -775,7 +775,7 @@ onBeforeUnmount(() => {
   opacity: 0.82;
 }
 
-.input:focus {
+.input:focus-visible {
   border-color: rgb(var(--color-primary-rgb) / 0.9);
 }
 

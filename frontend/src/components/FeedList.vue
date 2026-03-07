@@ -39,40 +39,36 @@
         <div v-if="loading && items.length === 0" class="skeleton-container">
           <div class="skeleton-post" v-for="i in 3" :key="i">
             <div class="skeleton-header">
-              <div class="skeleton-avatar"></div>
+              <div class="skeleton-avatar ui-skeleton ui-skeleton--avatar"></div>
               <div class="skeleton-meta">
-                <div class="skeleton-line skeleton-name"></div>
-                <div class="skeleton-line skeleton-time"></div>
+                <div class="skeleton-line skeleton-name ui-skeleton ui-skeleton--line"></div>
+                <div class="skeleton-line skeleton-time ui-skeleton ui-skeleton--line"></div>
               </div>
             </div>
             <div class="skeleton-content">
-              <div class="skeleton-line skeleton-text"></div>
-              <div class="skeleton-line skeleton-text"></div>
+              <div class="skeleton-line skeleton-text ui-skeleton ui-skeleton--line"></div>
+              <div class="skeleton-line skeleton-text ui-skeleton ui-skeleton--line"></div>
             </div>
-            <div class="skeleton-media"></div>
+            <div class="skeleton-media ui-skeleton ui-skeleton--card"></div>
           </div>
         </div>
 
-        <div v-else-if="!loading && items.length === 0" class="empty-state">
-          <p>
-            {{
-              isBookmarksMode ? 'Zatial nemas ziadne ulozene prispevky.' : 'Zatial tu nic nie je.'
-            }}
-          </p>
-          <button v-if="isBookmarksMode" type="button" class="ui-btn ui-btn--ghost retry-btn" @click="goExplore">
-            Preskumat
-          </button>
-          <button v-else type="button" class="ui-btn ui-btn--ghost retry-btn" @click="retryCurrentTab">
-            Obnovit feed
-          </button>
-        </div>
+        <AsyncState
+          v-else-if="!loading && items.length === 0"
+          mode="empty"
+          :title="isBookmarksMode ? 'Ziadne ulozene prispevky' : 'Feed je zatial prazdny'"
+          :message="isBookmarksMode ? 'Uloz prispevok a zobrazime ho tu.' : 'Skus obnovit feed alebo sa vratit neskor.'"
+          :action-label="isBookmarksMode ? 'Preskumat' : 'Obnovit feed'"
+          compact
+          @action="handleEmptyAction"
+        />
 
         <!-- Feed -->
-        <div v-else class="feed-list">
+        <div v-else class="feed-list ui-stream">
           <article
             v-for="p in items"
             :key="p.id"
-            class="post-card"
+            class="post-card ui-stream-item"
             :class="{
               'post-card--pinned': p.pinned_at,
               'post-card--astrobot': isBotPost(p),
@@ -90,7 +86,7 @@
               <!-- Header -->
               <div class="post-header">
                 <div class="post-meta">
-                  <div class="post-author">
+                  <div class="post-author ui-stream-item__meta">
                     <button class="author-name" type="button" @click.stop="openProfile(p)">
                       {{ p?.user?.name ?? 'Pouzivatel' }}
                     </button>
@@ -113,7 +109,7 @@
                 :compact="true"
               />
               <!-- Content -->
-              <div v-if="!observationForPost(p)" class="post-text" @click.stop>
+              <div v-if="!observationForPost(p)" class="post-text ui-stream-item__body" @click.stop>
                 <template v-if="isEditingPost(p)">
                   <textarea
                     v-model="editContentDraft"
@@ -313,6 +309,7 @@ import PostMediaVideo from '@/components/media/PostMediaVideo.vue'
 import ShareModal from '@/components/share/ShareModal.vue'
 import ObservationCard from '@/components/observations/ObservationCard.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
+import AsyncState from '@/components/ui/AsyncState.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useBookmarksStore } from '@/stores/bookmarks'
@@ -451,6 +448,15 @@ function openProfile(post) {
 
 function goExplore() {
   router.push('/search')
+}
+
+function handleEmptyAction() {
+  if (isBookmarksMode.value) {
+    goExplore()
+    return
+  }
+
+  retryCurrentTab()
 }
 
 function canDelete(post) {
@@ -1423,26 +1429,6 @@ defineExpose({ load, prepend })
   width: 100%;
 }
 
-.empty-state {
-  background: rgb(var(--bg-surface-rgb) / 0.62);
-  color: var(--text-secondary);
-  padding: 0.95rem 0.9rem;
-  display: grid;
-  gap: var(--space-2);
-  justify-items: start;
-  border-bottom: 1px solid var(--divider-color);
-}
-
-.retry-btn {
-  min-height: var(--control-height-sm);
-  padding-inline: 0.82rem;
-  font-size: var(--font-size-xs);
-}
-
-.retry-btn:hover {
-  color: var(--text-primary);
-}
-
 /* Modern Tabs */
 .feed-tabs {
   display: flex;
@@ -1478,7 +1464,7 @@ defineExpose({ load, prepend })
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.tab-button:focus {
+.tab-button:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
@@ -1508,9 +1494,9 @@ defineExpose({ load, prepend })
 
 .skeleton-post {
   background: transparent;
-  border-bottom: 1px solid var(--divider-color);
+  border-bottom: 1px solid var(--color-divider);
   border-radius: 0;
-  padding: 0.78rem 0.82rem 0.86rem;
+  padding: 0.68rem 0.74rem 0.74rem;
   overflow: hidden;
 }
 
@@ -1524,14 +1510,6 @@ defineExpose({ load, prepend })
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(
-    90deg,
-    rgb(var(--color-text-secondary-rgb) / 0.08),
-    rgb(var(--color-text-secondary-rgb) / 0.16),
-    rgb(var(--color-text-secondary-rgb) / 0.08)
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
 }
 
 .skeleton-meta {
@@ -1549,22 +1527,13 @@ defineExpose({ load, prepend })
 }
 
 .skeleton-media {
-  height: 180px;
+  height: 150px;
   border-radius: var(--radius-md);
-  background: rgb(var(--text-secondary-rgb) / 0.08);
 }
 
 .skeleton-line {
   height: 12px;
   border-radius: 4px;
-  background: linear-gradient(
-    90deg,
-    rgb(var(--color-text-secondary-rgb) / 0.08),
-    rgb(var(--color-text-secondary-rgb) / 0.16),
-    rgb(var(--color-text-secondary-rgb) / 0.08)
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
 }
 
 .skeleton-name {
@@ -1580,15 +1549,6 @@ defineExpose({ load, prepend })
   width: 70%;
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
 /* Modern Post Cards */
 .feed-list {
   display: flex;
@@ -1596,15 +1556,15 @@ defineExpose({ load, prepend })
   gap: 0;
   padding: 0;
   min-width: 0;
-  border-top: 1px solid var(--divider-color);
+  border-top: 1px solid var(--color-divider);
 }
 
 .post-card {
   background: transparent;
   border: 0;
-  border-bottom: 1px solid var(--divider-color);
+  border-bottom: 1px solid var(--color-divider);
   border-radius: 0;
-  padding: 0.82rem 0.86rem;
+  padding: 0.68rem 0.78rem 0.72rem;
   transition: background-color var(--motion-fast);
   cursor: pointer;
   position: relative;
@@ -1627,7 +1587,7 @@ defineExpose({ load, prepend })
 
 .post-card--new {
   animation: newPostReveal 760ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  background: rgb(var(--primary-rgb) / 0.08);
+  background: rgb(var(--color-accent-rgb) / 0.08);
 }
 
 @keyframes newPostReveal {
@@ -1646,11 +1606,11 @@ defineExpose({ load, prepend })
 
 /* Pinned posts */
 .post-card--pinned {
-  background: rgb(var(--primary-rgb) / 0.08);
+  background: rgb(var(--color-accent-rgb) / 0.08);
 }
 
 .post-card--pinned:hover {
-  background: rgb(var(--primary-rgb) / 0.11);
+  background: rgb(var(--color-accent-rgb) / 0.11);
 }
 
 /* AstroBot posts */
@@ -1665,7 +1625,7 @@ defineExpose({ load, prepend })
 /* Post Layout */
 .post-card {
   display: flex;
-  gap: 0.68rem;
+  gap: 0.52rem;
 }
 
 .post-avatar {
@@ -1675,6 +1635,8 @@ defineExpose({ load, prepend })
 .post-content {
   flex: 1;
   min-width: 0;
+  display: grid;
+  gap: 0.38rem;
 }
 
 .embedded-observation-card {
@@ -1697,14 +1659,14 @@ defineExpose({ load, prepend })
   transform: scale(1.05);
 }
 
-.avatar-button:focus {
+.avatar-button:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
 .avatar-image {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   object-fit: cover;
   display: block;
@@ -1712,7 +1674,7 @@ defineExpose({ load, prepend })
 }
 
 .avatar-fallback {
-  --default-avatar-size: 40px;
+  --default-avatar-size: 36px;
   display: block;
   border: 1px solid var(--border-subtle);
 }
@@ -1723,7 +1685,7 @@ defineExpose({ load, prepend })
   align-items: center;
   justify-content: space-between;
   gap: 0.55rem;
-  margin-bottom: 0.32rem;
+  margin-bottom: 0;
 }
 
 .post-meta {
@@ -1741,29 +1703,30 @@ defineExpose({ load, prepend })
 }
 
 .author-name {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0.12rem 0.34rem;
+  color: var(--color-text-primary);
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
+  border-radius: var(--radius-pill);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .author-name:hover {
+  border-color: var(--color-border);
   background: var(--interactive-hover);
 }
 
-.author-name:focus {
+.author-name:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
 .author-username {
-  color: var(--text-secondary);
-  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+  font-size: 0.74rem;
   font-weight: 400;
 }
 
@@ -1772,17 +1735,17 @@ defineExpose({ load, prepend })
   align-items: center;
   padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid rgb(var(--primary-rgb) / 0.46);
-  background: rgb(var(--primary-rgb) / 0.16);
-  color: var(--accent-primary);
+  border: 1px solid rgb(var(--color-accent-rgb) / 0.46);
+  background: rgb(var(--color-accent-rgb) / 0.16);
+  color: var(--color-accent);
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
 
 .author-time {
-  color: var(--text-secondary);
-  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
   font-weight: 500;
 }
 
@@ -1794,9 +1757,9 @@ defineExpose({ load, prepend })
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  background: rgb(var(--primary-rgb) / 0.14);
-  color: var(--text-primary);
-  border: 1px solid rgb(var(--primary-rgb) / 0.3);
+  background: rgb(var(--color-accent-rgb) / 0.14);
+  color: var(--color-text-primary);
+  border: 1px solid rgb(var(--color-accent-rgb) / 0.3);
 }
 
 .post-time {
@@ -1835,7 +1798,7 @@ defineExpose({ load, prepend })
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.01em;
@@ -1861,7 +1824,7 @@ defineExpose({ load, prepend })
   color: var(--text-primary);
 }
 
-.action-button:focus {
+.action-button:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
@@ -1873,23 +1836,23 @@ defineExpose({ load, prepend })
 
 /* Modern Post Content */
 .post-text {
-  margin-bottom: 0.46rem;
-  color: var(--text-primary);
+  margin-bottom: 0;
+  color: var(--color-text-primary);
   white-space: pre-wrap;
   line-height: var(--line-height-base);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   word-wrap: break-word;
   word-break: break-word;
   overflow-wrap: break-word;
-  max-width: 100%;
+  max-width: 62ch;
 }
 
 .inline-edit-textarea {
   width: 100%;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: rgb(var(--bg-app-rgb) / 0.52);
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   padding: 0.55rem 0.65rem;
   resize: vertical;
   font: inherit;
@@ -1908,7 +1871,7 @@ defineExpose({ load, prepend })
 }
 
 .post-text a {
-  color: var(--accent-primary);
+  color: var(--color-accent);
   text-decoration: none;
   font-weight: 500;
   border-bottom: 1px solid transparent;
@@ -1916,7 +1879,7 @@ defineExpose({ load, prepend })
 }
 
 .post-text a:hover {
-  border-bottom-color: var(--accent-primary);
+  border-bottom-color: var(--color-accent);
 }
 
 .bot-translation-toggle {
@@ -1930,7 +1893,7 @@ defineExpose({ load, prepend })
 .bot-toggle-btn {
   border: none;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 11px;
   font-weight: 600;
   min-width: 34px;
@@ -1939,34 +1902,34 @@ defineExpose({ load, prepend })
 }
 
 .bot-toggle-btn--active {
-  background: rgb(var(--primary-rgb) / 0.16);
-  color: var(--accent-primary);
+  background: rgb(var(--color-accent-rgb) / 0.16);
+  color: var(--color-accent);
 }
 
 .bot-toggle-btn:hover {
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .show-more-btn {
-  margin-top: 8px;
-  border: 1px solid var(--border-subtle);
+  margin-top: 6px;
+  border: 1px solid var(--color-border);
   background: rgb(var(--bg-app-rgb) / 0.42);
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 600;
-  padding: 4px 10px;
+  font-weight: 500;
+  padding: 6px 12px;
   cursor: pointer;
 }
 
 .show-more-btn:hover {
-  border-color: rgb(var(--primary-rgb) / 0.45);
-  color: var(--accent-primary);
+  border-color: rgb(var(--color-accent-rgb) / 0.45);
+  color: var(--color-accent);
 }
 
 /* Source URL */
 .source-url {
-  margin-top: 0.42rem;
+  margin-top: 0;
 }
 
 .source-url--bot {
@@ -2005,15 +1968,15 @@ defineExpose({ load, prepend })
 
 /* Media */
 .post-media {
-  margin-top: 0.4rem;
+  margin-top: 0.3rem;
 }
 
 .post-media--stela {
-  margin-top: 0.48rem;
+  margin-top: 0.34rem;
 }
 
 .post-media--gif {
-  margin-top: 0.48rem;
+  margin-top: 0.34rem;
 }
 
 .attached-event-card {
@@ -2060,7 +2023,7 @@ defineExpose({ load, prepend })
 
 .gifEmbed {
   width: 100%;
-  max-height: 420px;
+  max-height: 340px;
   object-fit: cover;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
@@ -2139,11 +2102,11 @@ defineExpose({ load, prepend })
 
 /* Modern Action Buttons */
 .post-actions {
-  margin-top: 0.48rem;
+  margin-top: 0.3rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 0.35rem;
+  padding-top: 0.2rem;
   border-top: 0;
   min-width: 0;
 }
@@ -2186,7 +2149,7 @@ defineExpose({ load, prepend })
   transform: scale(0.95);
 }
 
-.action-btn:focus {
+.action-btn:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
@@ -2346,25 +2309,9 @@ defineExpose({ load, prepend })
 
 .load-more-btn {
   min-height: var(--control-height-sm);
-  padding-inline: 0.86rem;
-  font-size: 0.76rem;
-  font-weight: 600;
-}
-
-.load-more-btn:hover:not(:disabled) {
-  border-color: rgb(var(--primary-rgb) / 0.38);
-  background: rgb(var(--primary-rgb) / 0.11);
-  color: var(--text-primary);
-  transform: translateY(-1px);
-}
-
-.load-more-btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.load-more-btn:focus {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  padding-inline: 14px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .load-more-btn:disabled {
@@ -2388,21 +2335,21 @@ defineExpose({ load, prepend })
 }
 
 .report-content {
-  background: var(--bg-surface-1);
-  border: 1px solid var(--border-default);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
   max-width: 400px;
   width: 100%;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: var(--elevation-3);
+  box-shadow: var(--shadow-medium);
 }
 
 .report-title {
   font-size: 18px;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   margin-bottom: 16px;
   font-family: inherit;
 }
@@ -2422,7 +2369,7 @@ defineExpose({ load, prepend })
 .form-label {
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
 }
 
 .form-select,
@@ -2430,10 +2377,10 @@ defineExpose({ load, prepend })
   font-size: var(--font-size-md);
 }
 
-.form-select:focus,
-.form-textarea:focus {
+.form-select:focus-visible,
+.form-textarea:focus-visible {
   outline: none;
-  border-color: rgb(var(--primary-rgb) / 0.8);
+  border-color: rgb(var(--color-accent-rgb) / 0.8);
 }
 
 .form-textarea {
@@ -2469,8 +2416,8 @@ defineExpose({ load, prepend })
   }
 
   .post-card {
-    padding: 0.62rem 0.62rem 0.66rem;
-    gap: 0.52rem;
+    padding: 0.56rem 0.62rem 0.62rem;
+    gap: 0.45rem;
   }
 
   .post-header {
@@ -2479,12 +2426,12 @@ defineExpose({ load, prepend })
   }
 
   .avatar-image {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
   }
 
   .avatar-fallback {
-    --default-avatar-size: 36px;
+    --default-avatar-size: 32px;
   }
 
   .author-name {
@@ -2500,8 +2447,8 @@ defineExpose({ load, prepend })
   }
 
   .post-text {
-    font-size: 0.86rem;
-    line-height: 1.48;
+    font-size: 0.84rem;
+    line-height: 1.44;
   }
 
   .post-time {
@@ -2531,8 +2478,8 @@ defineExpose({ load, prepend })
   }
 
   .post-card {
-    padding: 0.68rem 0.68rem 0.72rem;
-    gap: 0.56rem;
+    padding: 0.62rem 0.7rem 0.66rem;
+    gap: 0.48rem;
   }
 
   .post-header {
@@ -2540,12 +2487,12 @@ defineExpose({ load, prepend })
   }
 
   .avatar-image {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
   }
 
   .avatar-fallback {
-    --default-avatar-size: 40px;
+    --default-avatar-size: 34px;
   }
 
   .author-name {
@@ -2561,8 +2508,8 @@ defineExpose({ load, prepend })
   }
 
   .post-text {
-    font-size: 0.89rem;
-    line-height: 1.52;
+    font-size: 0.86rem;
+    line-height: 1.46;
   }
 
   .action-btn {
@@ -2584,8 +2531,8 @@ defineExpose({ load, prepend })
   }
 
   .post-card {
-    padding: 0.75rem 0.78rem 0.82rem;
-    gap: 0.62rem;
+    padding: 0.7rem 0.78rem 0.74rem;
+    gap: 0.5rem;
   }
 }
 </style>

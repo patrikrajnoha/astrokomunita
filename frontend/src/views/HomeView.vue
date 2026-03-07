@@ -70,19 +70,20 @@ export default {
   width: 100%;
   max-width: var(--content-max-width);
   min-width: 0;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  background: #151d28;
+  background: var(--color-card);
+  box-shadow: var(--shadow-soft);
 }
 
 .composerTrigger {
   width: 100%;
   border: 0;
   min-height: 58px;
-  border-bottom: 1px solid var(--divider-color);
+  border-bottom: 1px solid var(--color-divider);
   background: rgb(var(--bg-app-rgb) / 0.34);
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   display: grid;
   grid-template-columns: 40px 1fr auto;
   align-items: center;
@@ -122,17 +123,17 @@ export default {
 }
 
 .triggerText {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-base);
 }
 
 .triggerCta {
-  border: 1px solid rgb(var(--primary-rgb) / 0.62);
+  border: 1px solid rgb(var(--color-accent-rgb) / 0.62);
   border-radius: 999px;
-  background: rgb(var(--primary-rgb) / 0.2);
-  color: var(--text-primary);
+  background: rgb(var(--color-accent-rgb) / 0.2);
+  color: var(--color-text-primary);
   font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: 600;
   padding: 0.35rem 0.8rem;
 }
 

@@ -33,7 +33,7 @@ defineProps({
 .adminPageShell {
   width: 100%;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4);
+  padding: var(--space-6) var(--space-5);
 }
 
 .adminPageShell__header {
@@ -43,19 +43,19 @@ defineProps({
   gap: var(--space-4);
   margin-bottom: var(--space-4);
   padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--divider-color);
+  border-bottom: 1px solid var(--color-divider);
 }
 
 .adminPageShell__title {
-  margin: 0 0 6px;
-  font-size: 1.6rem;
+  margin: 0 0 4px;
+  font-size: clamp(1.2rem, 1.75vw, 1.5rem);
   line-height: 1.2;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .adminPageShell__subtitle {
   margin: 0;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
 }
 

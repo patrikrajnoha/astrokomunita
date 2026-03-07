@@ -83,7 +83,7 @@ const onPerPageChange = () => {
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 0;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-divider);
   margin-top: 1rem;
 }
 
@@ -99,17 +99,17 @@ const onPerPageChange = () => {
 }
 
 .paginationBtn {
-  padding: 0.5rem 1rem;
+  padding: 8px 14px;
   border: 1px solid var(--color-border);
-  background: var(--color-background);
-  color: var(--color-text);
-  border-radius: 0.375rem;
+  background: rgb(var(--bg-surface-rgb) / 0.84);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 
 .paginationBtn:hover:not(:disabled) {
-  background: var(--color-background-hover);
+  background: var(--interactive-hover);
 }
 
 .paginationBtn:disabled {
@@ -131,11 +131,11 @@ const onPerPageChange = () => {
 }
 
 .paginationPerPage select {
-  padding: 0.25rem 0.5rem;
+  padding: 8px 12px;
   border: 1px solid var(--color-border);
-  border-radius: 0.25rem;
-  background: var(--color-background);
-  color: var(--color-text);
+  border-radius: var(--radius-md);
+  background: rgb(var(--bg-app-rgb) / 0.45);
+  color: var(--color-text-primary);
 }
 
 @media (max-width: 768px) {

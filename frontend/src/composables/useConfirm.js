@@ -19,6 +19,8 @@ const defaultPromptOptions = {
   initialValue: '',
   required: false,
   multiline: false,
+  matchValue: '',
+  matchValueTrim: true,
   variant: 'default',
   closeOnBackdrop: true,
   closeOnEsc: true,
@@ -49,17 +51,49 @@ function normalizeVariant(value) {
   return value === 'danger' ? 'danger' : 'default'
 }
 
+function normalizeOptions(baseOptions, input = {}) {
+  const options = {
+    ...baseOptions,
+    ...(input || {}),
+    variant: normalizeVariant(input?.variant),
+  }
+
+  if (options.variant === 'danger' && !String(options.message || '').trim()) {
+    options.message = 'Tato akcia sa neda vratit.'
+  }
+
+  return options
+}
+
+function normalizedPromptValue(value, trim) {
+  const resolved = String(value || '')
+  if (trim === false) return resolved
+  return resolved.trim()
+}
+
+export function isPromptInputValid(value, options = {}) {
+  const source = String(value || '')
+
+  if (options.required && source.trim() === '') {
+    return false
+  }
+
+  const expected = String(options.matchValue || '')
+  if (expected === '') {
+    return true
+  }
+
+  const trim = options.matchValueTrim !== false
+  return normalizedPromptValue(source, trim) === normalizedPromptValue(expected, trim)
+}
+
 function confirm(input = {}) {
   if (confirmState.open) {
     closeDialog(false)
   }
 
   confirmState.mode = 'confirm'
-  confirmState.options = {
-    ...defaultConfirmOptions,
-    ...(input || {}),
-    variant: normalizeVariant(input?.variant),
-  }
+  confirmState.options = normalizeOptions(defaultConfirmOptions, input)
   confirmState.value = ''
   confirmState.open = true
 
@@ -74,11 +108,7 @@ function prompt(input = {}) {
   }
 
   confirmState.mode = 'prompt'
-  confirmState.options = {
-    ...defaultPromptOptions,
-    ...(input || {}),
-    variant: normalizeVariant(input?.variant),
-  }
+  confirmState.options = normalizeOptions(defaultPromptOptions, input)
   confirmState.value = String(confirmState.options.initialValue || '')
   confirmState.open = true
 
@@ -92,7 +122,7 @@ function confirmProceed() {
 
   if (confirmState.mode === 'prompt') {
     const value = String(confirmState.value || '')
-    if (confirmState.options.required && !value.trim()) return
+    if (!isPromptInputValid(value, confirmState.options)) return
     closeDialog(value)
     return
   }

@@ -109,8 +109,8 @@ const watermarkText = computed(() => `${props.brandDomain}  •  #${props.post?.
   height: 1350px;
   padding: 96px;
   box-sizing: border-box;
-  background: #0b0f14;
-  color: #eef2ff;
+  background: var(--color-bg-main, rgb(11 15 20));
+  color: var(--color-text-primary, rgb(238 242 255));
   font-family: InterVariable, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Liberation Sans', Helvetica, Arial, sans-serif;
 }
@@ -121,7 +121,7 @@ const watermarkText = computed(() => `${props.brandDomain}  •  #${props.post?.
   border-radius: 48px;
   padding: 72px;
   box-sizing: border-box;
-  background: #111827;
+  background: var(--color-bg-surface, rgb(17 24 39));
   box-shadow: 0 28px 90px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
@@ -187,7 +187,7 @@ const watermarkText = computed(() => `${props.brandDomain}  •  #${props.post?.
   font-size: 54px;
   font-weight: 600;
   line-height: 1.16;
-  color: #f8fafc;
+  color: var(--color-text-primary, rgb(248 250 252));
 }
 
 .snippet {

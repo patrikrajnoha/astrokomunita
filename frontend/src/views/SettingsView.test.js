@@ -11,6 +11,7 @@ import SettingsNewsletterView from './settings/SettingsNewsletterView.vue'
 import SettingsOnboardingView from './settings/SettingsOnboardingView.vue'
 import SettingsPasswordView from './settings/SettingsPasswordView.vue'
 import SettingsDeactivateView from './settings/SettingsDeactivateView.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const authMock = vi.hoisted(() => ({
   user: {
@@ -85,7 +86,8 @@ async function mountAt(path, options = {}) {
 
   const wrapper = mount(
     {
-      template: '<router-view />',
+      components: { ConfirmModal },
+      template: '<router-view /><ConfirmModal />',
     },
     {
       attachTo: options.attachTo,
@@ -299,6 +301,10 @@ describe('SettingsView', () => {
     const { wrapper, router } = await mountAt('/settings')
 
     await wrapper.get('#settings-logout-button').trigger('click')
+    await flush()
+    const confirmButton = document.querySelector('.confirmModalCard .btn-danger')
+    expect(confirmButton).not.toBeNull()
+    confirmButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flush()
 
     expect(authMock.logout).toHaveBeenCalledTimes(1)

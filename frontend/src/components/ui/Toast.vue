@@ -77,12 +77,12 @@ defineEmits(['dismiss', 'action'])
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: start;
   gap: 0.65rem;
-  border-radius: 0.95rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.34);
-  background: rgb(var(--color-bg-rgb) / 0.96);
-  color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-text-primary);
   padding: 0.72rem 0.72rem;
-  box-shadow: 0 18px 40px rgb(0 0 0 / 0.34);
+  box-shadow: var(--shadow-medium);
   backdrop-filter: blur(8px);
 }
 
@@ -91,7 +91,7 @@ defineEmits(['dismiss', 'action'])
 }
 
 .toast--warn {
-  border-color: rgb(245 158 11 / 0.5);
+  border-color: rgb(var(--color-warning-rgb) / 0.5);
 }
 
 .toast--error {
@@ -102,7 +102,7 @@ defineEmits(['dismiss', 'action'])
   width: 1.1rem;
   height: 1.1rem;
   margin-top: 0.08rem;
-  color: rgb(var(--color-primary-rgb) / 0.9);
+  color: rgb(var(--color-accent-rgb) / 0.9);
 }
 
 .toast--success .toastIcon {
@@ -133,14 +133,14 @@ defineEmits(['dismiss', 'action'])
 .toastTitle {
   margin: 0;
   font-size: 0.79rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .toastMessage {
   margin: 0;
   font-size: 0.84rem;
   line-height: 1.3;
-  color: rgb(var(--color-surface-rgb) / 0.95);
+  color: rgb(var(--color-text-primary-rgb) / 0.95);
 }
 
 .toastAction,
@@ -153,8 +153,8 @@ defineEmits(['dismiss', 'action'])
 .toastAction {
   align-self: center;
   font-size: 0.76rem;
-  font-weight: 700;
-  color: var(--color-primary);
+  font-weight: 600;
+  color: var(--color-accent);
   padding: 0.2rem 0.3rem;
   border-radius: 0.45rem;
 }
@@ -184,7 +184,7 @@ defineEmits(['dismiss', 'action'])
 
 .toastAction:focus-visible,
 .toastClose:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 </style>

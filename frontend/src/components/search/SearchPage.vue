@@ -2,7 +2,7 @@
   <section class="searchPage w-full min-w-0 text-[var(--color-surface)]" data-testid="search-page-root">
     <div class="searchPage__shell w-full min-w-0 px-3 py-4 sm:px-4 sm:py-5 md:py-6" data-testid="search-page-shell">
       <section
-        class="sticky top-2 z-20 rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.2)] bg-[color:rgb(var(--color-bg-rgb)/0.78)] p-3 shadow-sm backdrop-blur sm:top-3 sm:p-4"
+        class="sticky top-2 z-20 rounded-2xl border border-[var(--color-border)] bg-[color:rgb(var(--color-bg-rgb)/0.78)] p-3 shadow-sm backdrop-blur sm:top-3 sm:p-4"
         data-testid="search-page-toolbar"
       >
         <SearchBar
@@ -80,7 +80,7 @@
                 v-for="item in globalResults.keywords"
                 :key="`k-${item.id}`"
                 type="button"
-                class="rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.28)] bg-[color:rgb(var(--color-bg-rgb)/0.72)] px-3 py-1.5 text-xs font-medium text-[color:rgb(var(--color-text-secondary-rgb)/0.92)] transition hover:border-[color:rgb(var(--color-primary-rgb)/0.58)] hover:text-[var(--color-primary)]"
+                class="rounded-full border border-[var(--color-border)] bg-[color:rgb(var(--color-bg-rgb)/0.72)] px-3 py-1.5 text-xs font-medium text-[color:rgb(var(--color-text-secondary-rgb)/0.92)] transition hover:border-[color:rgb(var(--color-primary-rgb)/0.58)] hover:text-[var(--color-primary)]"
                 @click="useKeyword(item.value)"
               >
                 {{ item.value }}
@@ -150,7 +150,7 @@
                 v-for="item in discovery.keywords"
                 :key="`dk-${item.id}`"
                 type="button"
-                class="rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.28)] bg-[color:rgb(var(--color-bg-rgb)/0.72)] px-3 py-1.5 text-xs font-medium text-[color:rgb(var(--color-text-secondary-rgb)/0.92)] transition hover:border-[color:rgb(var(--color-primary-rgb)/0.58)] hover:text-[var(--color-primary)]"
+                class="rounded-full border border-[var(--color-border)] bg-[color:rgb(var(--color-bg-rgb)/0.72)] px-3 py-1.5 text-xs font-medium text-[color:rgb(var(--color-text-secondary-rgb)/0.92)] transition hover:border-[color:rgb(var(--color-primary-rgb)/0.58)] hover:text-[var(--color-primary)]"
                 @click="useKeyword(item.value)"
               >
                 {{ item.value }}

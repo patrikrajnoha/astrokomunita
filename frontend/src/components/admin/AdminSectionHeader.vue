@@ -158,7 +158,7 @@ const backTarget = computed(() => {
   font-size: var(--font-size-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-weight: 700;
 }
 
@@ -167,26 +167,26 @@ const backTarget = computed(() => {
   font-size: clamp(1.05rem, 2vw, 1.35rem);
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .adminSectionHeader__back {
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 7px 11px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 8px 14px;
   text-decoration: none;
-  color: var(--text-secondary);
+  color: var(--color-text-primary);
   background: rgb(var(--bg-app-rgb) / 0.34);
   transition: border-color var(--motion-fast), background-color var(--motion-fast), color var(--motion-fast);
 }
 
 .adminSectionHeader__back:hover {
-  border-color: rgb(var(--primary-rgb) / 0.44);
-  background: rgb(var(--primary-rgb) / 0.14);
-  color: var(--text-primary);
+  border-color: rgb(var(--color-accent-rgb) / 0.44);
+  background: rgb(var(--color-accent-rgb) / 0.14);
+  color: var(--color-text-primary);
 }
 
 @media (max-width: 767px) {

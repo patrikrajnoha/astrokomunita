@@ -4,6 +4,9 @@
       v-if="loading"
       mode="loading"
       title="Nacitavam pozorovanie..."
+      loading-style="skeleton"
+      :skeleton-rows="4"
+      compact
     />
     <AsyncState
       v-else-if="error"

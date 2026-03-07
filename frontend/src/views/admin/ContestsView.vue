@@ -333,7 +333,7 @@ select {
 }
 
 .error {
-  color: #fda4af;
+  color: var(--color-danger);
 }
 
 .muted {

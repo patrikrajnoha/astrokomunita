@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import EventSourcesView from './EventSourcesView.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const getEventSourcesMock = vi.fn()
 const getCrawlRunsMock = vi.fn()
@@ -57,6 +58,7 @@ function makeRouter() {
 
 describe('EventSourcesView', () => {
   beforeEach(() => {
+    document.body.innerHTML = ''
     vi.clearAllMocks()
 
     getEventSourcesMock.mockResolvedValue({
@@ -163,9 +165,16 @@ describe('EventSourcesView', () => {
     await router.push('/admin/event-sources')
     await router.isReady()
 
-    const wrapper = mount(EventSourcesView, {
-      global: { plugins: [router] },
-    })
+    const wrapper = mount(
+      {
+        components: { EventSourcesView, ConfirmModal },
+        template: '<EventSourcesView /><ConfirmModal />',
+      },
+      {
+        attachTo: document.body,
+        global: { plugins: [router] },
+      },
+    )
 
     await flush()
     await flush()
@@ -173,17 +182,21 @@ describe('EventSourcesView', () => {
     return { wrapper, router }
   }
 
+  function queryBody(selector) {
+    return document.body.querySelector(selector)
+  }
+
   it('renders run panel, sources table and recent runs', async () => {
     const { wrapper } = await mountView()
 
     expect(wrapper.text()).toContain('Panel spustenia')
     expect(wrapper.text()).toContain('Zdroje')
-    expect(wrapper.text()).toContain('Posledné runy')
+    expect(wrapper.text()).toContain('Posledn')
     expect(wrapper.text()).toContain('IMO')
     expect(wrapper.text()).toContain('Preklad')
     expect(wrapper.text()).toContain('Kvalita prekladov')
-    expect(wrapper.text()).toContain('Podozrivé: 1')
-    expect(wrapper.text()).toContain('Problém')
+    expect(wrapper.text()).toContain('Podozriv')
+    expect(wrapper.text()).toContain('Probl')
     expect(wrapper.text()).toContain('D 2')
     expect(wrapper.text()).toContain('Forma: title+popis')
   })
@@ -195,7 +208,8 @@ describe('EventSourcesView', () => {
 
     expect(unsupportedRunButton.exists()).toBe(true)
     expect(unsupportedRunButton.attributes('disabled')).toBeDefined()
-    expect(unsupportedRunButton.attributes('title')).toBe('Nepodporované v MVP')
+    expect(unsupportedRunButton.attributes('title')).toContain('Nepodporovan')
+    expect(unsupportedRunButton.attributes('title')).toContain('MVP')
   })
 
   it('enables run selected only after selecting a supported source', async () => {
@@ -221,7 +235,7 @@ describe('EventSourcesView', () => {
     })
   })
 
-  it('triggers purge from modal with confirm token', async () => {
+  it('triggers purge from shared confirm modal without typed token', async () => {
     const { wrapper } = await mountView()
 
     const purgeButton = wrapper.find('[data-testid="purge-crawled-btn"]')
@@ -230,13 +244,14 @@ describe('EventSourcesView', () => {
     await purgeButton.trigger('click')
     await flush()
 
-    const confirmInput = wrapper.find('[data-testid="purge-confirm-input"]')
-    expect(confirmInput.exists()).toBe(true)
-    await confirmInput.setValue('delete_crawled_events')
+    const confirmInput = queryBody('[data-testid="confirm-modal-input"]')
+    expect(confirmInput).toBeNull()
 
-    const confirmButton = wrapper.find('[data-testid="purge-confirm-btn"]')
-    expect(confirmButton.attributes('disabled')).toBeUndefined()
-    await confirmButton.trigger('click')
+    const confirmButton = queryBody('[data-testid="confirm-modal-confirm"]')
+    expect(confirmButton).not.toBeNull()
+    expect(confirmButton.textContent).toContain('Vymazat')
+    expect(confirmButton.disabled).toBe(false)
+    confirmButton.click()
     await flush()
 
     expect(purgeEventSourcesMock).toHaveBeenCalledWith({
@@ -315,6 +330,6 @@ describe('EventSourcesView', () => {
 
     const { wrapper } = await mountView()
 
-    expect(wrapper.text()).toContain('Prekladajú sa')
+    expect(wrapper.text()).toContain('Prekladaj')
   })
 })

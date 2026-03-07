@@ -7,7 +7,7 @@
     <div v-else-if="error" class="errorState">
       <div class="errorIcon">⚠️</div>
       <div class="errorText">{{ error }}</div>
-      <button class="btn btn-outline" @click="$emit('refresh')">Skúsiť znova</button>
+      <button class="ui-btn ui-btn--secondary" @click="$emit('refresh')">Skúsiť znova</button>
     </div>
     
     <!-- Empty state -->
@@ -64,42 +64,42 @@
             <td v-if="showActions" class="tableCell tableActions">
               <div class="actionButtons" @click.stop>
                 <button
-                  class="actionBtn actionBtn--primary"
+                  class="ui-btn ui-btn--primary actionBtn actionBtn--primary"
                   @click="$emit('approve', candidate)"
                   v-if="candidate.status === 'pending'"
                 >
                   Schváliť
                 </button>
                 <button
-                  class="actionBtn actionBtn--secondary"
+                  class="ui-btn ui-btn--secondary actionBtn actionBtn--secondary"
                   @click="$emit('reject', candidate)"
                   v-if="candidate.status === 'pending'"
                 >
                   Zamietnuť
                 </button>
                 <button
-                  class="actionBtn actionBtn--success"
+                  class="ui-btn ui-btn--primary actionBtn actionBtn--success"
                   @click="$emit('publish', candidate)"
                   v-if="candidate.status === 'approved'"
                 >
                   Publikovať
                 </button>
                 <button
-                  class="actionBtn actionBtn--edit"
+                  class="ui-btn ui-btn--ghost actionBtn actionBtn--edit"
                   @click="$emit('edit', candidate)"
                   v-if="candidate.source === 'manual'"
                 >
                   Upraviť
                 </button>
                 <button
-                  class="actionBtn actionBtn--danger"
+                  class="ui-btn ui-btn--danger actionBtn actionBtn--danger"
                   @click="$emit('delete', candidate)"
                   v-if="candidate.source === 'manual'"
                 >
                   Vymazať
                 </button>
                 <button
-                  class="actionBtn actionBtn--secondary"
+                  class="ui-btn ui-btn--secondary actionBtn actionBtn--secondary"
                   @click="$emit('unreview', candidate)"
                   v-if="candidate.status === 'approved'"
                 >
@@ -157,8 +157,8 @@ defineEmits([
 
 <style scoped>
 .candidatesTable {
-  background: var(--color-background);
-  border-radius: 0.5rem;
+  background: transparent;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -184,8 +184,9 @@ defineEmits([
 
 .tableContainer {
   overflow-x: auto;
-  border: 0;
-  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-card);
 }
 
 .table {
@@ -195,11 +196,11 @@ defineEmits([
 }
 
 .tableHeader {
-  background: var(--color-background-secondary);
+  background: rgb(var(--bg-app-rgb) / 0.58);
   padding: 0.75rem 1rem;
   text-align: left;
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--color-text-secondary);
   border-bottom: 1px solid var(--divider-color);
   white-space: nowrap;
 }
@@ -211,7 +212,7 @@ defineEmits([
 }
 
 .tableRow:hover {
-  background: var(--color-background-hover);
+  background: var(--interactive-hover);
 }
 
 .tableRow:last-child {
@@ -225,7 +226,7 @@ defineEmits([
 
 .candidateTitle {
   font-weight: 500;
-  color: var(--color-text);
+  color: var(--color-text-primary);
   margin-bottom: 0.25rem;
 }
 
@@ -238,7 +239,7 @@ defineEmits([
 
 .sourceText {
   font-family: monospace;
-  background: var(--color-background-secondary);
+  background: rgb(var(--bg-app-rgb) / 0.55);
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
   font-size: 0.75rem;
@@ -247,7 +248,7 @@ defineEmits([
 
 .dateInfo {
   font-size: 0.875rem;
-  color: var(--color-text);
+  color: var(--color-text-primary);
 }
 
 .endDate {
@@ -268,64 +269,14 @@ defineEmits([
 }
 
 .actionBtn {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--divider-color);
-  border-radius: 0.25rem;
+  padding: 8px 14px;
   font-size: 0.75rem;
   font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
   white-space: nowrap;
 }
 
 .actionBtn--primary {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
-}
-
-.actionBtn--primary:hover {
-  background: var(--color-primary-hover);
-}
-
-.actionBtn--secondary {
-  background: var(--color-background);
-  color: var(--color-text);
-  border-color: var(--divider-color);
-}
-
-.actionBtn--secondary:hover {
-  background: var(--color-background-hover);
-}
-
-.actionBtn--success {
-  background: var(--color-success);
-  color: white;
-  border-color: var(--color-success);
-}
-
-.actionBtn--success:hover {
-  background: var(--color-success-hover);
-}
-
-.actionBtn--danger {
-  background: var(--color-danger);
-  color: white;
-  border-color: var(--color-danger);
-}
-
-.actionBtn--danger:hover {
-  background: var(--color-danger-hover);
-}
-
-.actionBtn--edit {
-  background: var(--color-warning);
-  color: white;
-  border-color: var(--color-warning);
-}
-
-.actionBtn--edit:hover {
-  background: var(--color-warning-hover);
+  font-weight: 600;
 }
 
 @media (max-width: 768px) {

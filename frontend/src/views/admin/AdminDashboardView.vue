@@ -5,6 +5,7 @@ import DashboardSection from '@/components/admin/dashboard/DashboardSection.vue'
 import KpiCard from '@/components/admin/dashboard/KpiCard.vue'
 import QuickActionTile from '@/components/admin/dashboard/QuickActionTile.vue'
 import StatsChart from '@/components/admin/dashboard/StatsChart.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { getStats, downloadStatsCsv } from '@/services/api/admin/stats'
 import { getAuthSettings, updateAuthSettings } from '@/services/api/admin/authSettings'
 import { useToast } from '@/composables/useToast'
@@ -245,20 +246,22 @@ onMounted(() => {
 <template>
   <AdminPageShell title="Prehľad">
     <template #right-actions>
-      <button type="button" class="btn btnPrimary" :disabled="loading" @click="loadDashboard(true)">
+      <button type="button" class="ui-btn ui-btn--primary" :disabled="loading" @click="loadDashboard(true)">
         {{ loading ? 'Načítavam...' : 'Obnoviť' }}
       </button>
-      <button type="button" class="btn btnSecondary" :disabled="exporting" @click="exportCsv">
+      <button type="button" class="ui-btn ui-btn--secondary" :disabled="exporting" @click="exportCsv">
         {{ exporting ? 'Exportujem...' : 'Export CSV' }}
       </button>
     </template>
 
     <div class="dashboardView">
-      <div v-if="error" class="adminAlert" role="alert">
-        <span>{{ error }}</span>
-        <button type="button" class="btn btnSecondary" @click="loadDashboard(true)">
-          Skúsiť znova
-        </button>
+      <div v-if="error" class="dashboardAlert">
+        <InlineStatus
+          variant="error"
+          :message="error"
+          action-label="Skúsiť znova"
+          @action="loadDashboard(true)"
+        />
       </div>
 
       <section class="settingsRow sectionFade" aria-label="Overenie e-mailu">
@@ -267,7 +270,7 @@ onMounted(() => {
             <h2 class="settingsLabel">Overenie e-mailu pre nových používateľov</h2>
             <span class="settingsInfo" :title="emailVerificationHint">i</span>
           </div>
-          <p v-if="authSettingsError" class="settingsError">{{ authSettingsError }}</p>
+          <InlineStatus v-if="authSettingsError" variant="error" :message="authSettingsError" />
         </div>
 
         <label class="switchField">
@@ -395,6 +398,12 @@ onMounted(() => {
   gap: 10px;
 }
 
+:deep(.adminPageShell__actions .ui-btn) {
+  min-height: 34px;
+  padding-inline: 14px;
+  font-size: 13px;
+}
+
 :deep(.adminPageShell__content) {
   gap: 12px;
 }
@@ -405,8 +414,8 @@ onMounted(() => {
   --dashboard-gap-md: 14px;
   --dashboard-gap-lg: 18px;
   --dashboard-radius: 18px;
-  --dashboard-border: rgb(var(--color-surface-rgb) / 0.1);
-  --dashboard-border-strong: rgb(var(--color-surface-rgb) / 0.15);
+  --dashboard-border: var(--color-border);
+  --dashboard-border-strong: var(--color-border-strong);
   --dashboard-panel: rgb(var(--color-bg-rgb) / 0.34);
   --dashboard-panel-strong: rgb(var(--color-bg-rgb) / 0.48);
   --dashboard-muted: rgb(var(--color-text-secondary-rgb) / 0.88);
@@ -424,59 +433,12 @@ onMounted(() => {
     sans-serif;
 }
 
-.adminAlert {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--dashboard-gap-sm);
-  padding: 12px 14px;
-  border-radius: var(--dashboard-radius);
-  border: 1px solid rgb(var(--color-danger-rgb, 239 68 68) / 0.28);
-  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.08);
-  color: rgb(var(--color-danger-rgb, 239 68 68));
+.dashboardAlert :deep(.inlineStatus) {
+  margin-top: 0;
 }
 
-.btn {
-  height: 34px;
-  border: 1px solid var(--dashboard-border-strong);
-  border-radius: 999px;
-  padding: 0 14px;
-  background: transparent;
-  color: var(--color-surface);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  cursor: pointer;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    color 160ms ease;
-}
-
-.btn:hover:not(:disabled) {
-  border-color: rgb(var(--color-primary-rgb) / 0.28);
-}
-
-.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.btnPrimary {
-  border-color: rgb(var(--color-primary-rgb) / 0.34);
-  background: rgb(var(--color-primary-rgb) / 0.18);
-}
-
-.btnPrimary:hover:not(:disabled) {
-  background: rgb(var(--color-primary-rgb) / 0.24);
-}
-
-.btnSecondary {
-  background: rgb(var(--color-bg-rgb) / 0.52);
-}
-
-.btnSecondary:hover:not(:disabled) {
-  background: rgb(var(--color-bg-rgb) / 0.68);
+.settingsCopy :deep(.inlineStatus) {
+  margin-top: var(--space-2);
 }
 
 .settingsRow {
@@ -530,12 +492,6 @@ onMounted(() => {
   font-weight: 700;
   flex: 0 0 auto;
   cursor: help;
-}
-
-.settingsError {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: rgb(var(--color-danger-rgb, 239 68 68));
 }
 
 .switchField {
@@ -651,12 +607,23 @@ onMounted(() => {
   cursor: pointer;
   transition:
     background-color 160ms ease,
-    color 160ms ease;
+    color 160ms ease,
+    transform 120ms ease;
+}
+
+.metricBtn:hover:not(.active) {
+  background: rgb(var(--color-bg-rgb) / 0.62);
+  color: var(--color-surface);
 }
 
 .metricBtn.active {
   background: rgb(var(--color-primary-rgb) / 0.18);
   color: var(--color-surface);
+}
+
+.metricBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .actionList {
@@ -751,7 +718,7 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .adminAlert,
+  .dashboardAlert,
   .settingsRow {
     align-items: flex-start;
     flex-direction: column;
@@ -791,4 +758,3 @@ onMounted(() => {
   }
 }
 </style>
-

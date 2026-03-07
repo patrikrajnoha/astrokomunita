@@ -195,7 +195,7 @@ describe('ProfileView avatar panel', () => {
     await iconChoices[2].trigger('click')
     await colorChoices[4].trigger('click')
 
-    const saveButton = wrapper.findAll('.avatarActionRowSave .btn')[1]
+    const saveButton = wrapper.findAll('.avatarActionRowSave .ui-btn')[1]
     await saveButton.trigger('click')
     await flush()
     await flush()
@@ -217,7 +217,7 @@ describe('ProfileView avatar panel', () => {
 
     expect(wrapper.find('input[maxlength="60"]').exists()).toBe(false)
 
-    const editButton = wrapper.find('.headActions .btn.outline')
+    const editButton = wrapper.find('.headActions .ui-btn.ui-btn--secondary')
     expect(editButton.exists()).toBe(true)
     await editButton.trigger('click')
     await flush()

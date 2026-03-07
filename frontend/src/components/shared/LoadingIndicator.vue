@@ -69,13 +69,13 @@ const sizeClass = {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: rgb(var(--color-surface-rgb) / 0.9);
+  color: rgb(var(--color-text-primary-rgb) / 0.92);
 }
 
 .spinner {
   border-radius: 999px;
-  border-color: rgb(var(--color-surface-rgb) / 0.35);
-  border-top-color: rgb(var(--color-primary-rgb) / 1);
+  border-color: rgb(var(--color-text-primary-rgb) / 0.35);
+  border-top-color: rgb(var(--color-accent-rgb) / 1);
   animation: spin 0.9s linear infinite;
 }
 

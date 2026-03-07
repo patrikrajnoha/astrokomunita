@@ -172,20 +172,20 @@ defineExpose({ close })
 
 .dropdownTrigger {
   background: transparent;
-  border: 1px solid transparent;
+  border: 1px solid var(--color-border);
   min-width: var(--control-height-sm);
   min-height: var(--control-height-sm);
   padding: 6px;
   border-radius: var(--radius-pill);
-  color: var(--text-muted);
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: background-color var(--motion-fast), color var(--motion-fast), border-color var(--motion-fast);
 }
 
 .dropdownTrigger:hover {
-  border-color: var(--border-subtle);
+  border-color: var(--color-border-strong);
   background: var(--interactive-hover);
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .dropdownTrigger:focus-visible {
@@ -199,29 +199,30 @@ defineExpose({ close })
   right: 0;
   z-index: 80;
   min-width: 180px;
-  border: 1px solid var(--border-default);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: rgb(var(--bg-surface-rgb) / 0.98);
+  background: var(--color-card);
   padding: 6px;
   display: grid;
   gap: 4px;
-  box-shadow: var(--elevation-2);
+  box-shadow: var(--shadow-medium);
   animation: dropdownIn 140ms ease-out;
 }
 
 .dropdownItem {
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   background: transparent;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
   text-align: left;
-  padding: 0.48rem 0.62rem;
+  padding: 8px 14px;
   cursor: pointer;
-  font-size: var(--font-size-sm);
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .dropdownItem:hover {
-  border-color: var(--border-subtle);
+  border-color: var(--color-border);
   background: var(--interactive-hover);
 }
 
@@ -231,12 +232,12 @@ defineExpose({ close })
 }
 
 .dropdownItem--danger {
-  color: var(--danger);
+  color: var(--color-danger);
 }
 
 .dropdownItem--danger:hover {
-  border-color: rgb(var(--danger-rgb) / 0.35);
-  background: rgb(var(--danger-rgb) / 0.14);
+  border-color: rgb(var(--color-danger-rgb) / 0.35);
+  background: rgb(var(--color-danger-rgb) / 0.14);
 }
 
 @keyframes dropdownIn {

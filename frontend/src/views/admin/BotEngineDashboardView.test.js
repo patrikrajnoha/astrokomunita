@@ -2,10 +2,30 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import BotEngineDashboardView from '@/views/admin/BotEngineDashboardView.vue'
-import { getBotOverview } from '@/services/api/admin/bots'
+import {
+  getBotOverview,
+  getBotPostRetentionSettings,
+} from '@/services/api/admin/bots'
 
 vi.mock('@/services/api/admin/bots', () => ({
   getBotOverview: vi.fn(),
+  getBotPostRetentionSettings: vi.fn(),
+  updateBotPostRetentionSettings: vi.fn(),
+  deleteAllBotPosts: vi.fn(),
+  runBotPostRetentionCleanup: vi.fn(),
+}))
+
+vi.mock('@/composables/useToast', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+  }),
+}))
+
+vi.mock('@/composables/useConfirm', () => ({
+  useConfirm: () => ({
+    confirm: vi.fn(async () => true),
+  }),
 }))
 
 function flush() {
@@ -43,6 +63,17 @@ describe('BotEngineDashboardView', () => {
         ],
       },
     })
+
+    getBotPostRetentionSettings.mockResolvedValue({
+      data: {
+        data: {
+          enabled: true,
+          auto_delete_after_hours: 48,
+          allowed_hours: [24, 48, 72],
+          scheduled_frequency: 'hourly',
+        },
+      },
+    })
   })
 
   it('renders summary cards and bot table from overview payload', async () => {
@@ -59,11 +90,14 @@ describe('BotEngineDashboardView', () => {
     await flush()
 
     expect(getBotOverview).toHaveBeenCalledTimes(1)
+    expect(getBotPostRetentionSettings).toHaveBeenCalledTimes(1)
     expect(wrapper.text()).toContain('7')
     expect(wrapper.text()).toContain('4')
     expect(wrapper.text()).toContain('2')
     expect(wrapper.text()).toContain('1')
     expect(wrapper.text()).toContain('kozmobot')
     expect(wrapper.text()).toContain('View activity')
+    expect(wrapper.text()).toContain('Bot Post Cleanup')
+    expect(wrapper.text()).toContain('Zapnut auto mazanie')
   })
 })

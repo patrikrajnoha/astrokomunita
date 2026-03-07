@@ -139,12 +139,34 @@ function updateRow(updated) {
 async function act(report, action) {
   if (!report?.id) return
 
+  const isDelete = action === 'delete'
+  const isBan = action === 'ban'
+  const isDestructive = isDelete || isBan
+
+  const title = isDelete
+    ? 'Zmazat obsah?'
+    : isBan
+      ? 'Zablokovat pouzivatela?'
+      : 'Potvrdit akciu?'
+
+  const message = isDelete
+    ? 'Obsah bude natrvalo odstraneny.'
+    : isBan
+      ? 'Pouzivatel bude zablokovany.'
+      : `Naozaj chces vykonat akciu "${action}"?`
+
+  const confirmText = isDelete
+    ? 'Zmazat obsah'
+    : isBan
+      ? 'Zablokovat'
+      : 'Potvrdit'
+
   const ok = await confirm({
-    title: 'Potvrdenie akcie',
-    message: `Naozaj chces vykonat akciu "${action}"?`,
-    confirmText: action === 'delete' || action === 'ban' ? 'Pokracovat' : 'Potvrdit',
+    title,
+    message,
+    confirmText,
     cancelText: 'Zrusit',
-    variant: action === 'delete' || action === 'ban' ? 'danger' : 'default',
+    variant: isDestructive ? 'danger' : 'default',
   })
   if (!ok) return
 

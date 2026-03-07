@@ -121,7 +121,7 @@ async function renderShareCard(post: GenericRecord, forcePlaceholderAvatar: bool
       height: SHARE_HEIGHT,
       pixelRatio: 1,
       cacheBust: true,
-      backgroundColor: '#0b0f14',
+      backgroundColor: 'rgb(21 29 40)',
     })
 
     if (!blob) {

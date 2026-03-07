@@ -33,7 +33,7 @@
           type="button"
           class="settings-logout-button"
           :disabled="logoutState.loading"
-          @click="submitLogout"
+          @click="confirmLogout"
         >
           <span class="settings-logout-icon" aria-hidden="true">L</span>
           <span class="settings-logout-label">{{ logoutState.loading ? 'Odhlasujem...' : 'Odhlasit sa' }}</span>
@@ -46,8 +46,25 @@
 
 <script setup>
 import SettingsListItem from '@/components/settings/SettingsListItem.vue'
+import { useConfirm } from '@/composables/useConfirm'
 import { useSettingsContext } from '@/composables/settingsContext'
 import { settingsGroups } from '@/views/settings/settingsSections'
 
 const { logoutState, submitLogout } = useSettingsContext()
+const { confirm } = useConfirm()
+
+async function confirmLogout() {
+  if (logoutState.loading) return
+
+  const approved = await confirm({
+    title: 'Odhlasit sa?',
+    message: 'Budete odhlaseny z tohto zariadenia.',
+    confirmText: 'Odhlasit sa',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
+
+  if (!approved) return
+  await submitLogout()
+}
 </script>

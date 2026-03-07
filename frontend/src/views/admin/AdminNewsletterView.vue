@@ -951,16 +951,20 @@ button:disabled {
 
 .emailPreview {
   margin-top: 10px;
-  border: 1px solid #263247;
+  border: 1px solid var(--color-border);
   border-radius: 16px;
-  background: #121a2a;
-  color: #e5ecff;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
   overflow: hidden;
 }
 
 .emailHero {
   padding: 24px;
-  background: linear-gradient(135deg, #1f3c88, #0f7490);
+  background: linear-gradient(
+    135deg,
+    rgb(var(--color-accent-rgb) / 0.32),
+    rgb(var(--color-info-rgb) / 0.32)
+  );
 }
 
 .emailEyebrow {
@@ -968,27 +972,27 @@ button:disabled {
   font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #dbeafe;
+  color: var(--color-text-secondary);
 }
 
 .emailTitle {
   margin: 0;
   font-size: 28px;
   line-height: 1.2;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .emailSubjectLine {
   margin: 0 0 8px;
   font-size: 12px;
-  color: #dbeafe;
+  color: var(--color-text-secondary);
 }
 
 .emailIntro {
   margin: 10px 0 0;
   font-size: 14px;
   line-height: 1.5;
-  color: #e2e8f0;
+  color: var(--color-text-secondary);
 }
 
 .emailSection {
@@ -998,13 +1002,13 @@ button:disabled {
 .emailSection h5 {
   margin: 0 0 10px;
   font-size: 18px;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .emailSection ul {
   margin: 0;
   padding: 0 0 0 18px;
-  color: #dbeafe;
+  color: var(--color-text-secondary);
 }
 
 .emailSection li {
@@ -1013,7 +1017,7 @@ button:disabled {
 }
 
 .emailSection a {
-  color: #93c5fd;
+  color: var(--color-accent);
   text-decoration: none;
   font-weight: 700;
 }
@@ -1022,14 +1026,14 @@ button:disabled {
   display: block;
   margin-top: 2px;
   font-size: 13px;
-  color: #9fb2d1;
+  color: var(--color-text-muted);
 }
 
 .emailSection p {
   margin: 0;
   font-size: 14px;
   line-height: 1.6;
-  color: #dbeafe;
+  color: var(--color-text-secondary);
 }
 
 .emailFooter {
@@ -1046,15 +1050,15 @@ button:disabled {
   text-decoration: none;
   font-weight: 700;
   font-size: 14px;
-  color: #ffffff;
+  color: var(--color-white);
 }
 
 .emailBtnPrimary {
-  background: #2563eb;
+  background: var(--color-accent);
 }
 
 .emailBtnSecondary {
-  background: #0f766e;
+  background: var(--color-success);
 }
 </style>
 

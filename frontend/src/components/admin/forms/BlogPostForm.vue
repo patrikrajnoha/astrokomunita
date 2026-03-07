@@ -322,7 +322,7 @@ async function handleSubmit() {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
-.formInput:focus, .formTextarea:focus {
+.formInput:focus-visible, .formTextarea:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);

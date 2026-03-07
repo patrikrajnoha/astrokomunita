@@ -27,7 +27,7 @@ defineEmits(['show-all', 'reset-filters'])
 .future-empty {
   border-radius: 1rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
-  background: #151d28;
+  background: var(--color-bg-main);
 }
 
 .future-empty__content {
@@ -73,7 +73,7 @@ defineEmits(['show-all', 'reset-filters'])
 
 .future-empty__secondary {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: #151d28;
+  background: var(--color-bg-main);
   color: var(--color-surface);
 }
 </style>

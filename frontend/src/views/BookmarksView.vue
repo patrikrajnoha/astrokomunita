@@ -40,7 +40,7 @@ import FeedList from '@/components/FeedList.vue'
   border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  background: #151d28;
+  background: var(--color-bg-main);
 }
 
 @media (max-width: 720px) {

@@ -180,6 +180,6 @@ h1 {
 }
 
 .error {
-  color: #fda4af;
+  color: var(--color-danger);
 }
 </style>

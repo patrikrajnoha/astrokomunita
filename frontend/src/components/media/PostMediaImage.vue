@@ -49,8 +49,8 @@ import ImageLightbox from '@/components/media/ImageLightbox.vue'
 const props = defineProps({
   src: { type: String, required: true },
   alt: { type: String, default: 'Priloha' },
-  maxHeightDesktop: { type: Number, default: 520 },
-  maxHeightMobile: { type: Number, default: 420 },
+  maxHeightDesktop: { type: Number, default: 380 },
+  maxHeightMobile: { type: Number, default: 300 },
   blurred: { type: Boolean, default: false },
   status: { type: String, default: '' },
   pendingLabel: { type: String, default: 'Kontroluje sa…' },
@@ -144,7 +144,7 @@ onBeforeUnmount(() => {
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  max-height: 520px;
+  max-height: 380px;
   overflow: hidden;
   border-radius: 10px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
@@ -157,7 +157,7 @@ onBeforeUnmount(() => {
   cursor: default;
 }
 
-.feed-media-frame:focus {
+.feed-media-frame:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
@@ -211,7 +211,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.media-overlay-btn:focus {
+.media-overlay-btn:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
@@ -224,7 +224,7 @@ onBeforeUnmount(() => {
   place-items: center;
   padding: 12px;
   background: rgb(2 6 23 / 0.56);
-  color: #fff;
+  color: var(--color-white);
   pointer-events: none;
 }
 
@@ -235,9 +235,9 @@ onBeforeUnmount(() => {
   min-width: 164px;
   padding: 8px 14px;
   border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / 0.16);
+  border: 1px solid var(--color-border);
   background: rgb(2 6 23 / 0.64);
-  color: #fff;
+  color: var(--color-white);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   .feed-media-frame {
-    max-height: 420px;
+    max-height: 300px;
   }
 }
 </style>

@@ -8,16 +8,27 @@
       </div>
     </header>
 
-    <div v-if="!auth.initialized" class="card muted">Nacitavam profil...</div>
+    <AsyncState
+      v-if="!auth.initialized"
+      mode="loading"
+      title="Nacitavam profil"
+      loading-style="skeleton"
+      :skeleton-rows="4"
+      compact
+    />
 
     <template v-else>
-      <div v-if="!auth.user" class="card info">
-        <div class="infoTitle">Profil je dostupny po prihlaseni.</div>
-        <div class="infoSub">Prihlas sa a uvidis svoje prispevky, pozorovania, media a zalozky.</div>
-        <button class="btn" @click="goLogin">Prihlasit sa</button>
-      </div>
+      <AsyncState
+        v-if="!auth.user"
+        mode="empty"
+        title="Profil je dostupny po prihlaseni"
+        message="Prihlas sa a uvidis svoje prispevky, pozorovania, media a zalozky."
+        action-label="Prihlasit sa"
+        compact
+        @action="goLogin"
+      />
 
-      <section class="profileShell">
+      <section v-if="auth.user" class="profileShell ui-profile-shell">
         <div class="cover" :class="{ uploading: coverUploading }">
           <img
             v-if="coverSrc && !coverLoadFailed"
@@ -77,18 +88,22 @@
           <div class="headActions">
             <button
               v-if="auth.user"
-              class="btn outline"
+              class="ui-btn ui-btn--secondary"
               @click="goToProfileEdit"
             >
-              Upraviť profil
+              Upravit profil
             </button>
-            <button class="btn ghost copyBtn" @click="copyProfileLink">{{ copyLabel }}</button>
+            <button class="ui-btn ui-btn--ghost copyBtn" @click="copyProfileLink">{{ copyLabel }}</button>
           </div>
         </div>
 
-        <div v-if="mediaErr" class="msg err">{{ mediaErr }}</div>
+        <InlineStatus
+          v-if="mediaErr"
+          variant="error"
+          :message="mediaErr"
+        />
 
-        <div class="identity">
+        <div class="identity ui-profile-header ui-profile-identity">
           <div class="nameRow">
             <h1 class="name">{{ displayName }}</h1>
             <span v-if="auth.user?.is_admin" class="badge">Admin</span>
@@ -107,6 +122,21 @@
 
           <div v-if="auth.user?.email" class="meta">
             <span class="metaItem">E-mail: {{ auth.user.email }}</span>
+          </div>
+        </div>
+
+        <div class="statsRow ui-profile-stats" aria-label="Profilove statistiky">
+          <div class="stat ui-profile-stat">
+            <strong>{{ stats.posts }}</strong>
+            <span>Prispevky</span>
+          </div>
+          <div class="stat ui-profile-stat">
+            <strong>{{ tabState.observations.total || '--' }}</strong>
+            <span>Pozorovania</span>
+          </div>
+          <div class="stat ui-profile-stat">
+            <strong>{{ tabState.events.total || '--' }}</strong>
+            <span>Sledovane udalosti</span>
           </div>
         </div>
 
@@ -161,13 +191,13 @@
             <p class="avatarHint">Pri mode Fotka bez obrazka ostava fallback avatar.</p>
           </div>
 
-          <div v-if="avatarErr" class="msg err avatarMsg">{{ avatarErr }}</div>
+          <InlineStatus v-if="avatarErr" variant="error" :message="avatarErr" class="avatarMsg" />
 
           <template v-if="avatarDraft.mode === 'image'">
             <div class="avatarImageActions">
               <button
                 type="button"
-                class="btn outline"
+                class="ui-btn ui-btn--secondary"
                 :disabled="avatarUploading || avatarRemoving"
                 @click="openPicker('avatar')"
               >
@@ -175,7 +205,7 @@
               </button>
               <button
                 type="button"
-                class="btn ghost"
+                class="ui-btn ui-btn--ghost"
                 :disabled="avatarUploading || avatarRemoving"
                 @click="removeAvatarImage"
               >
@@ -234,20 +264,20 @@
             </div>
 
             <div class="avatarActionRow">
-              <button type="button" class="btn outline" :disabled="avatarSaving" @click="randomizeAvatar">
+              <button type="button" class="ui-btn ui-btn--secondary" :disabled="avatarSaving" @click="randomizeAvatar">
                 Nahodne
               </button>
-              <button type="button" class="btn ghost" :disabled="avatarSaving" @click="resetGeneratedAvatar">
+              <button type="button" class="ui-btn ui-btn--ghost" :disabled="avatarSaving" @click="resetGeneratedAvatar">
                 Reset
               </button>
             </div>
           </template>
 
           <div class="avatarActionRow avatarActionRowSave">
-            <button type="button" class="btn ghost" :disabled="avatarSaving" @click="avatarModalOpen = false">
+            <button type="button" class="ui-btn ui-btn--ghost" :disabled="avatarSaving" @click="avatarModalOpen = false">
               Zavriet
             </button>
-            <button type="button" class="btn" :disabled="avatarSaving" @click="saveAvatarPreferences">
+            <button type="button" class="ui-btn ui-btn--primary" :disabled="avatarSaving" @click="saveAvatarPreferences">
               {{ avatarSaving ? 'Ukladam...' : 'Ulozit' }}
             </button>
           </div>
@@ -256,8 +286,8 @@
 
       <section v-if="pinnedPost" class="card pinCard">
         <div class="pinHeader">
-          <div class="pinTitle">Pripnutý príspevok</div>
-          <button class="btn ghost" @click="clearPinned">Odopnúť</button>
+          <div class="pinTitle">Pripnuty prispevok</div>
+          <button class="ui-btn ui-btn--ghost" @click="clearPinned">Odopnut</button>
         </div>
         <div class="pinBody">
           <div class="pinContent">{{ pinnedPost.content }}</div>
@@ -269,14 +299,14 @@
               alt="attachment"
             />
             <a v-else class="attachmentFile" :href="pinnedPost.attachment_url" target="_blank" rel="noreferrer">
-              {{ pinnedPost.attachment_original_name || 'Príloha' }}
+              {{ pinnedPost.attachment_original_name || 'Priloha' }}
             </a>
           </div>
         </div>
       </section>
 
 
-      <section class="feedShell">
+      <section v-if="auth.user" class="feedShell">
         <div class="tabs">
           <button
             v-for="t in tabs"
@@ -292,27 +322,33 @@
           </button>
         </div>
 
-        <div v-if="!auth.user" class="msg info">Prihlas sa.</div>
+        <InlineStatus v-if="actionMsg" variant="success" :message="actionMsg" />
+        <InlineStatus v-if="actionErr" variant="error" :message="actionErr" />
 
-        <template v-else>
-          <div v-if="actionMsg" class="msg ok">{{ actionMsg }}</div>
-          <div v-if="actionErr" class="msg err">{{ actionErr }}</div>
+        <InlineStatus
+          v-if="tabState[activeTab].err"
+          variant="error"
+          :message="tabState[activeTab].err"
+          action-label="Skusit znova"
+          @action="loadTab(activeTab, true)"
+        />
 
-          <div v-if="tabState[activeTab].err" class="msg err">{{ tabState[activeTab].err }}</div>
+        <AsyncState
+          v-if="tabState[activeTab].loading && tabState[activeTab].items.length === 0"
+          mode="loading"
+          title="Nacitavam obsah"
+          loading-style="skeleton"
+          :skeleton-rows="4"
+          compact
+        />
 
-          <div v-if="tabState[activeTab].loading && tabState[activeTab].items.length === 0" class="muted padTop">
-            Nacitavam...
-          </div>
-
-          <div v-else-if="!tabState[activeTab].loading && tabState[activeTab].items.length === 0" class="muted padTop">
-            {{
-              activeTab === 'events'
-                ? 'Zatial nesledujes ziadne udalosti.'
-                : activeTab === 'observations'
-                  ? 'Zatial ziadne pozorovania.'
-                  : 'Zatial ziadny obsah.'
-            }}
-          </div>
+        <AsyncState
+          v-else-if="!tabState[activeTab].loading && tabState[activeTab].items.length === 0"
+          mode="empty"
+          :title="activeTab === 'events' ? 'Zatial nesledujes ziadne udalosti' : activeTab === 'observations' ? 'Zatial ziadne pozorovania' : 'Zatial ziadny obsah'"
+          :message="activeTab === 'events' ? 'Sleduj udalost a zobrazime ju tu.' : activeTab === 'observations' ? 'Pridaj prve pozorovanie a zobrazime ho tu.' : 'Tento feed je momentalne prazdny.'"
+          compact
+        />
 
           <div v-else-if="activeTab === 'observations'" class="observationsList">
             <ObservationCard
@@ -334,8 +370,8 @@
             />
           </div>
 
-          <div v-else class="postList">
-            <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem" :class="{ pinned: pinnedPost?.id === p.id }">
+          <div v-else class="postList ui-stream">
+            <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem ui-stream-item" :class="{ pinned: pinnedPost?.id === p.id }">
               <div class="avatar sm">
                 <UserAvatar
                   class="avatarImg"
@@ -345,18 +381,18 @@
               </div>
 
               <div class="postBody">
-                <div class="postMeta">
+                <div class="postMeta ui-stream-item__meta">
                   <div class="postName">{{ displayName }}</div>
-                  <div class="dot">·</div>
+                  <div class="dot">&middot;</div>
                   <div class="postTime">{{ formatPostTimestamp(p) }}</div>
                 </div>
 
                 <div v-if="p.parent && activeTab === 'replies'" class="replyContext">
-                  Odpoveď na: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
+                  Odpoved na: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
                   <span class="replyText">{{ shorten(p.parent.content) }}</span>
                 </div>
 
-                <HashtagText class="postContent" :content="p.content" />
+                <HashtagText class="postContent ui-stream-item__body" :content="p.content" />
 
                 <div v-if="attachedEventForPost(p)" class="attachedEventCard">
                   <div class="attachedEventCopy">
@@ -365,7 +401,7 @@
                       {{ formatEventRange(attachedEventForPost(p).start_at, attachedEventForPost(p).end_at) }}
                     </p>
                   </div>
-                  <button type="button" class="btn outline" @click="openAttachedEvent(p)">
+                  <button type="button" class="ui-btn ui-btn--secondary" @click="openAttachedEvent(p)">
                     Otvorit udalost
                   </button>
                 </div>
@@ -382,41 +418,41 @@
                     alt="attachment"
                   />
                   <a v-else class="attachmentFile" :href="p.attachment_url" target="_blank" rel="noreferrer">
-                    {{ p.attachment_original_name || 'Príloha' }}
+                    {{ p.attachment_original_name || 'Priloha' }}
                   </a>
                 </div>
 
-                <div class="postActions" @click.stop>
+                <div class="postActions ui-stream-item__actions" @click.stop>
                   <button
                     class="postActionIconBtn"
                     type="button"
-                    title="Zobraziť vlákno"
-                    aria-label="Zobraziť vlákno"
+                    title="Zobrazit vlakno"
+                    aria-label="Zobrazit vlakno"
                     @click.stop="openPost(p)"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.3 8.3 0 0 1-3.6-.8L3 21l1.8-5.8a8.3 8.3 0 0 1-.8-3.7A8.5 8.5 0 0 1 12.5 3h.5A8.5 8.5 0 0 1 21 11.5z" />
                     </svg>
-                    <span class="postActionLabel">Zobraziť vlákno</span>
+                    <span class="postActionLabel">Zobrazit vlakno</span>
                   </button>
                   <button
                     class="postActionIconBtn"
                     :class="{ active: pinnedPost?.id === p.id }"
                     type="button"
-                    :title="pinnedPost?.id === p.id ? 'Odopnúť' : 'Pripnúť'"
-                    :aria-label="pinnedPost?.id === p.id ? 'Odopnúť' : 'Pripnúť'"
+                    :title="pinnedPost?.id === p.id ? 'Odopnut' : 'Pripnut'"
+                    :aria-label="pinnedPost?.id === p.id ? 'Odopnut' : 'Pripnut'"
                     @click.stop="togglePin(p)"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M14 3v5.2l4 3V13h-5v7l-2-1.9V13H6v-1.8l4-3V3z" />
                     </svg>
-                    <span class="postActionLabel">{{ pinnedPost?.id === p.id ? 'Odopnúť' : 'Pripnúť' }}</span>
+                    <span class="postActionLabel">{{ pinnedPost?.id === p.id ? 'Odopnut' : 'Pripnut' }}</span>
                   </button>
                   <button
                     class="postActionIconBtn danger"
                     type="button"
-                    title="Vymazať"
-                    aria-label="Vymazať"
+                    title="Vymazat"
+                    aria-label="Vymazat"
                     :disabled="deleteLoadingId === p.id"
                     @click.stop="deletePost(p)"
                   >
@@ -426,24 +462,23 @@
                       <path d="M7 7l1 12h8l1-12" />
                       <path d="M10 11v5M14 11v5" />
                     </svg>
-                    <span class="postActionLabel">{{ deleteLoadingId === p.id ? 'Mažem...' : 'Vymazať' }}</span>
+                    <span class="postActionLabel">{{ deleteLoadingId === p.id ? 'Mazem...' : 'Vymazat' }}</span>
                   </button>
                 </div>
               </div>
             </article>
           </div>
 
-          <div class="loadMore">
-            <button
-              v-if="tabState[activeTab].next"
-              class="btn outline"
-              :disabled="tabState[activeTab].loading"
-              @click="loadTab(activeTab, false)"
-            >
-              {{ tabState[activeTab].loading ? 'Nacitavam...' : 'Nacitat viac' }}
-            </button>
-          </div>
-        </template>
+        <div class="loadMore">
+          <button
+            v-if="tabState[activeTab].next"
+            class="ui-btn ui-btn--secondary"
+            :disabled="tabState[activeTab].loading"
+            @click="loadTab(activeTab, false)"
+          >
+            {{ tabState[activeTab].loading ? 'Nacitavam...' : 'Nacitat viac' }}
+          </button>
+        </div>
       </section>
     </template>
   </div>
@@ -461,6 +496,8 @@ import { useToast } from '@/composables/useToast'
 import ProfileEventCard from '@/components/profile/ProfileEventCard.vue'
 import ObservationCard from '@/components/observations/ObservationCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import AsyncState from '@/components/ui/AsyncState.vue'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 import DefaultAvatar from '@/components/DefaultAvatar.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import HashtagText from '@/components/HashtagText.vue'
@@ -513,12 +550,12 @@ function logAvatarProfileState(scope, extra = {}) {
 }
 
 const tabs = [
-  { key: 'posts', label: 'Príspevky', kind: 'roots' },
+  { key: 'posts', label: 'Prispevky', kind: 'roots' },
   { key: 'observations', label: 'Pozorovania', kind: 'observations' },
   { key: 'events', label: 'Udalosti', kind: 'events' },
-  { key: 'bookmarks', label: 'Záložky', kind: 'bookmarks' },
-  { key: 'media', label: 'Médiá', kind: 'media' },
-  { key: 'likes', label: 'Páči sa', kind: 'likes' },
+  { key: 'bookmarks', label: 'Zalozky', kind: 'bookmarks' },
+  { key: 'media', label: 'Media', kind: 'media' },
+  { key: 'likes', label: 'Paci sa', kind: 'likes' },
 ]
 
 const stats = reactive({ posts: '--', replies: '--', media: '--' })
@@ -749,6 +786,16 @@ async function saveAvatarPreferences(successMessage = 'Avatar ulozeny.') {
 
 async function removeAvatarImage() {
   if (!auth.user || avatarRemoving.value || avatarUploading.value) return
+
+  const approved = await confirm({
+    title: 'Odstranit profilovu fotku',
+    message: 'Naozaj chces odstranit profilovu fotku?',
+    confirmText: 'Odstranit',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
+
+  if (!approved) return
 
   avatarErr.value = ''
   mediaErr.value = ''
@@ -1158,10 +1205,10 @@ function togglePin(post) {
 async function deletePost(post) {
   if (!post?.id || deleteLoadingId.value) return
   const ok = await confirm({
-    title: 'Vymazať príspevok',
-    message: 'Naozaj chceš vymazať tento príspevok?',
-    confirmText: 'Vymazať',
-    cancelText: 'Zrušiť',
+    title: 'Vymazat prispevok',
+    message: 'Naozaj chces vymazat tento prispevok?',
+    confirmText: 'Vymazat',
+    cancelText: 'Zrusit',
     variant: 'danger',
   })
   if (!ok) return
@@ -1186,7 +1233,7 @@ async function deletePost(post) {
       clearPinned()
     }
 
-    actionMsg.value = 'Príspevok bol vymazaný.'
+    actionMsg.value = 'Prispevok bol vymazany.'
     await loadCounts()
   } catch (e) {
     const status = e?.response?.status
@@ -1463,7 +1510,7 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-xl);
   overflow: hidden;
   margin-top: var(--space-3);
-  background: rgb(var(--bg-surface-rgb) / 0.88);
+  background: #151d28;
 }
 
 .cover {
@@ -1602,7 +1649,6 @@ onBeforeUnmount(() => {
 .identity {
   padding: 0 var(--space-4) var(--space-4);
   margin-top: -6px;
-  border-bottom: 1px solid var(--divider-color);
 }
 .nameRow { display: flex; align-items: center; gap: 0.5rem; }
 .name { margin: 0; font-size: 1.9rem; font-weight: 900; color: var(--text-primary); line-height: 1.05; }
@@ -1875,7 +1921,7 @@ onBeforeUnmount(() => {
   color: var(--text-primary);
   outline: none;
 }
-.input:focus {
+.input:focus-visible {
   border-color: rgb(var(--primary-rgb) / 0.8);
   box-shadow: var(--focus-ring);
 }
@@ -1900,45 +1946,6 @@ onBeforeUnmount(() => {
   padding-top: 0.25rem;
   justify-content: flex-end;
 }
-
-.btn {
-  min-height: var(--control-height-lg);
-  padding: 0 1.1rem;
-  border-radius: var(--radius-pill);
-  border: 1px solid rgb(var(--primary-rgb) / 0.42);
-  background: var(--accent-primary);
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: var(--font-size-md);
-  line-height: 1;
-  transition: background-color var(--motion-fast), border-color var(--motion-fast), transform var(--motion-fast), box-shadow var(--motion-fast), color var(--motion-fast);
-}
-.btn:hover {
-  background: var(--accent-primary-hover);
-  transform: translateY(-1px);
-}
-.btn:active { transform: translateY(1px); }
-.btn:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
-
-.btn.outline {
-  background: var(--bg-surface-2);
-  border-color: var(--border-default);
-  color: var(--text-secondary);
-}
-.btn.outline:hover { border-color: rgb(var(--primary-rgb) / 0.35); color: var(--text-primary); background: var(--interactive-hover); }
-.btn.outline.danger { border-color: rgb(var(--danger-rgb) / 0.62); color: var(--danger); }
-.btn.outline.danger:hover { border-color: rgb(var(--danger-rgb) / 0.72); background: rgb(var(--danger-rgb) / 0.14); color: var(--text-primary); }
-
-.btn.ghost {
-  border-color: var(--border-default);
-  background: transparent;
-  color: var(--text-secondary);
-}
-.btn.ghost:hover { border-color: rgb(var(--primary-rgb) / 0.35); background: var(--interactive-hover); color: var(--text-primary); }
 
 .feedShell {
   margin-top: 0.6rem;
@@ -1994,8 +2001,6 @@ onBeforeUnmount(() => {
   color: var(--text-primary);
 }
 
-.padTop { margin-top: 0.75rem; }
-
 .observationsList {
   display: grid;
   gap: 0.9rem;
@@ -2016,13 +2021,11 @@ onBeforeUnmount(() => {
 .postItem {
   display: grid;
   grid-template-columns: 48px 1fr;
-  gap: 0.68rem;
-  padding: 0.55rem 0.45rem;
-  border-radius: 0.9rem;
-  border-top: 1px solid var(--divider-color);
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: 0;
   transition: background-color var(--motion-fast), border-color var(--motion-fast);
 }
-.postItem:first-child { border-top: 0; }
 .postItem:hover {
   background: var(--interactive-hover);
 }
@@ -2034,22 +2037,17 @@ onBeforeUnmount(() => {
 .postBody {
   min-width: 0;
   display: grid;
-  gap: 0.34rem;
+  gap: var(--space-2);
 }
 
 .postMeta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 }
 .postName { color: var(--text-primary); font-weight: 950; }
 .dot { opacity: 0.6; }
 .postTime {
   color: var(--text-secondary);
-  font-size: 0.82rem;
+  font-size: var(--font-size-xs);
 }
 
 .replyContext {
@@ -2064,13 +2062,12 @@ onBeforeUnmount(() => {
 .replyText { color: var(--text-primary); margin-left: 0.25rem; }
 
 .postContent {
-  margin-top: 0.04rem;
-  color: var(--text-primary);
   font-size: 0.95rem;
   white-space: pre-wrap;
-  line-height: 1.45;
-  --hashtag-color: #3b82f6;
-  --hashtag-hover-color: #2563eb;
+  line-height: 1.5;
+  max-width: 66ch;
+  --hashtag-color: var(--color-accent);
+  --hashtag-hover-color: var(--color-primary-hover);
 }
 
 .attachedEventCard {
@@ -2115,14 +2112,13 @@ onBeforeUnmount(() => {
 }
 
 .postActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.32rem;
-  margin-top: 0.24rem;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
 }
 
 .postActionIconBtn {
-  min-height: 30px;
+  min-height: var(--control-height-sm);
+  min-width: var(--control-height-sm);
   padding: 0.3rem 0.56rem;
   border-radius: 999px;
   border: 1px solid transparent;
@@ -2184,16 +2180,6 @@ onBeforeUnmount(() => {
   padding-top: 0.75rem;
 }
 
-.msg {
-  margin-top: 0.75rem;
-  padding: 0.6rem 0.8rem;
-  border-radius: 1rem;
-  font-size: 0.95rem;
-}
-.msg.ok { border: 1px solid var(--primary); background: rgb(var(--primary-rgb) / 0.1); color: var(--primary); }
-.msg.err { border: 1px solid rgb(var(--danger-rgb) / 0.42); background: rgb(var(--danger-rgb) / 0.12); color: var(--danger); }
-.msg.info { border: 1px solid rgb(var(--primary-rgb) / 0.35); background: rgb(var(--primary-rgb) / 0.12); color: var(--text-primary); }
-
 .muted { color: var(--text-secondary); }
 
 @media (max-width: 767px) {
@@ -2236,7 +2222,7 @@ onBeforeUnmount(() => {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .avatarActionRow .btn {
+  .avatarActionRow .ui-btn {
     flex: 1 1 auto;
   }
 
@@ -2264,3 +2250,5 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+
