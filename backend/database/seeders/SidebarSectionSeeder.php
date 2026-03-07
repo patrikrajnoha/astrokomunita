@@ -45,7 +45,7 @@ class SidebarSectionSeeder extends Seeder
             ],
             [
                 'key' => 'nasa_apod',
-                'title' => 'NASA obrazok dna',
+                'title' => 'NASA Novinky',
                 'is_visible' => true,
                 'sort_order' => 5,
             ],

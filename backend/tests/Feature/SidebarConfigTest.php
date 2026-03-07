@@ -160,6 +160,54 @@ class SidebarConfigTest extends TestCase
             ->assertJsonValidationErrors(['items.0.section_key']);
     }
 
+    public function test_admin_put_rejects_more_than_two_enabled_widgets(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->putJson('/api/admin/sidebar-config?scope=home', [
+            'items' => [
+                ['kind' => 'builtin', 'section_key' => 'search', 'order' => 0, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'nasa_apod', 'order' => 1, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'next_event', 'order' => 2, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'observing_conditions', 'order' => 3, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'latest_articles', 'order' => 4, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'upcoming_events', 'order' => 5, 'is_enabled' => false],
+            ],
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['items']);
+    }
+
+    public function test_admin_put_rejects_observing_conditions_combined_with_other_enabled_widget(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->putJson('/api/admin/sidebar-config?scope=home', [
+            'items' => [
+                ['kind' => 'builtin', 'section_key' => 'search', 'order' => 0, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'observing_conditions', 'order' => 1, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'nasa_apod', 'order' => 2, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'next_event', 'order' => 3, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'latest_articles', 'order' => 4, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'upcoming_events', 'order' => 5, 'is_enabled' => false],
+            ],
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['items']);
+    }
+
     public function test_post_detail_scope_can_be_configured(): void
     {
         $admin = User::factory()->create([

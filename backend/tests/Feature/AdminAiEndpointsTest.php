@@ -221,7 +221,7 @@ class AdminAiEndpointsTest extends TestCase
         ])
             ->assertStatus(409)
             ->assertJsonPath('status', 'locked')
-            ->assertJsonPath('message', 'Insights priming is already running. Retry shortly.');
+            ->assertJsonPath('message', 'Priprava insights uz prebieha. Skuste to o chvilu znova.');
 
         $retryAfterSeconds = $locked->json('retry_after_seconds');
         $this->assertIsInt($retryAfterSeconds);
@@ -916,5 +916,4 @@ class AdminAiEndpointsTest extends TestCase
         ]);
     }
 }
-
 

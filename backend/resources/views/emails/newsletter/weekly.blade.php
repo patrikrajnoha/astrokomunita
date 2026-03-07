@@ -15,11 +15,11 @@
   $unsubscribeUrl = (string) ($unsubscribeUrl ?? '#');
 @endphp
 <!doctype html>
-<html lang="en">
+<html lang="sk">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Weekly Newsletter</title>
+  <title>Tyzdenny newsletter</title>
 </head>
 <body style="margin:0;padding:0;background:#0b1220;color:#e5ecff;font-family:InterVariable,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Liberation Sans',Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;background:#0b1220;">
@@ -88,10 +88,10 @@
               <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;">
                 <tr>
                   <td style="padding:0 8px 8px 0;">
-                    <a href="{{ $calendarUrl }}" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">Open calendar</a>
+                    <a href="{{ $calendarUrl }}" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">Otvorit kalendar</a>
                   </td>
                   <td style="padding:0 0 8px 8px;">
-                    <a href="{{ $eventsUrl }}" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">Browse events</a>
+                    <a href="{{ $eventsUrl }}" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">Prejst udalosti</a>
                   </td>
                 </tr>
               </table>

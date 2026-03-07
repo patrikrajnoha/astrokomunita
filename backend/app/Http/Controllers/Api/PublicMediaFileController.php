@@ -18,14 +18,14 @@ class PublicMediaFileController extends Controller
         $normalizedPath = trim(str_replace('\\', '/', $path), '/');
         if ($normalizedPath === '' || str_contains($normalizedPath, '..')) {
             return response()->json([
-                'message' => 'Not found.',
+                'message' => 'Nenaslo sa.',
             ], 404);
         }
 
         $disk = Storage::disk($this->mediaStorage->publicDiskName());
         if (!$disk->exists($normalizedPath)) {
             return response()->json([
-                'message' => 'Not found.',
+                'message' => 'Nenaslo sa.',
             ], 404);
         }
 
@@ -37,3 +37,4 @@ class PublicMediaFileController extends Controller
         ]);
     }
 }
+

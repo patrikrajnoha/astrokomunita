@@ -76,7 +76,7 @@ class PerformanceMetricsController extends Controller
         $lock = Cache::lock('performance_runner', 600);
         if (!$lock->get()) {
             return response()->json([
-                'message' => 'Benchmark already running.',
+                'message' => 'Benchmark uz bezi.',
             ], 409);
         }
 
@@ -122,3 +122,4 @@ class PerformanceMetricsController extends Controller
         ]);
     }
 }
+

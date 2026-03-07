@@ -210,7 +210,7 @@ class AdminUserController extends Controller
 
         if ($user->isAdmin() || $user->isBot()) {
             return response()->json([
-                'message' => 'Role change is not allowed for this account.',
+                'message' => 'Zmena roly pre tento ucet nie je povolena.',
             ], 422);
         }
 
@@ -336,7 +336,7 @@ class AdminUserController extends Controller
     {
         $actor = $request->user();
         if ($actor && Gate::forUser($actor)->denies($ability, $target)) {
-            abort(403, 'Forbidden');
+            abort(403, 'Zakazane');
         }
     }
 
@@ -408,7 +408,7 @@ class AdminUserController extends Controller
     {
         if (! $user->isBot()) {
             throw new HttpResponseException(response()->json([
-                'message' => 'Media upload endpoint is available only for bot accounts.',
+                'message' => 'Endpoint na upload media je dostupny iba pre bot ucty.',
             ], 422));
         }
     }
@@ -482,3 +482,4 @@ class AdminUserController extends Controller
         ]);
     }
 }
+

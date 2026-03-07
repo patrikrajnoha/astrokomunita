@@ -1224,7 +1224,7 @@ class AdminBotControllerTest extends TestCase
 
         $this->deleteJson('/api/admin/bots/items/' . $item->id . '/post')
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Item has no published post to delete.');
+            ->assertJsonPath('message', 'Polozka nema publikovany prispevok na vymazanie.');
     }
 
     public function test_admin_can_get_and_update_bot_post_retention_settings(): void

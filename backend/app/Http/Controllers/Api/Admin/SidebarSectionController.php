@@ -44,7 +44,7 @@ class SidebarSectionController extends Controller
             $updatedSections = SidebarSection::ordered()->get();
 
             return response()->json([
-                'message' => 'Sidebar sections updated successfully',
+                'message' => 'Sekcie sidebaru boli uspesne aktualizovane',
                 'data' => $updatedSections,
             ]);
 
@@ -52,9 +52,10 @@ class SidebarSectionController extends Controller
             DB::rollBack();
 
             return response()->json([
-                'message' => 'Failed to update sidebar sections',
+                'message' => 'Nepodarilo sa aktualizovat sekcie sidebaru',
                 'error' => $e->getMessage(),
             ], 500);
         }
     }
 }
+

@@ -28,8 +28,9 @@ class SidebarCustomComponentsTableGuard
         $status = app()->environment(['local', 'development']) ? 500 : 503;
 
         return response()->json([
-            'message' => 'Missing database table "sidebar_custom_components". Run migrations: php artisan migrate',
+            'message' => 'Chyba databazova tabulka "sidebar_custom_components". Spustite migracie: php artisan migrate',
             'error_code' => 'missing_sidebar_custom_components_table',
         ], $status);
     }
 }
+

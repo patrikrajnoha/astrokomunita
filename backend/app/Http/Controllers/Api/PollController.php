@@ -37,14 +37,14 @@ class PollController extends Controller
 
         if (now()->greaterThanOrEqualTo($poll->ends_at)) {
             return response()->json([
-                'message' => 'Poll is already closed.',
+                'message' => 'Anketa je uz uzavreta.',
             ], 422);
         }
 
         $option = $poll->options->firstWhere('id', $optionId);
         if (!$option) {
             return response()->json([
-                'message' => 'Invalid poll option.',
+                'message' => 'Neplatna moznost ankety.',
             ], 422);
         }
 
@@ -62,7 +62,7 @@ class PollController extends Controller
         } catch (QueryException $exception) {
             if ($this->isUniqueVoteViolation($exception)) {
                 return response()->json([
-                    'message' => 'You have already voted in this poll.',
+                    'message' => 'V tejto ankete ste uz hlasovali.',
                 ], 409);
             }
 
@@ -93,3 +93,4 @@ class PollController extends Controller
         return str_contains($message, 'poll_votes.poll_id') && str_contains($message, 'poll_votes.user_id');
     }
 }
+

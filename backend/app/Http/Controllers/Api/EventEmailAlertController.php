@@ -11,7 +11,7 @@ class EventEmailAlertController extends Controller
     public function store(Request $request, Event $event)
     {
         return response()->json([
-            'message' => 'Email alerts are currently disabled.',
+            'message' => 'E-mailove upozornenia su momentalne vypnute.',
             'status' => 'disabled',
         ], 410);
     }

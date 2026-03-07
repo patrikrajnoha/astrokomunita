@@ -14,7 +14,7 @@ class EnsureEmailIsVerifiedOrAdmin
 
         if (! $user) {
             return response()->json([
-                'message' => 'Unauthenticated.',
+                'message' => 'Neautentifikovany pouzivatel.',
             ], 401);
         }
 
@@ -31,7 +31,7 @@ class EnsureEmailIsVerifiedOrAdmin
         }
 
         return response()->json([
-            'message' => 'Email address is not verified.',
+            'message' => 'E-mailova adresa nie je overena.',
             'error_code' => 'EMAIL_NOT_VERIFIED',
             'action' => 'GO_TO_SETTINGS_EMAIL',
         ], 403);

@@ -18,6 +18,11 @@ use Illuminate\Validation\ValidationException;
 
 class SidebarConfigController extends Controller
 {
+    private const MAX_ENABLED_WIDGETS = 2;
+    private const EXCLUSIVE_SECTION_KEYS = [
+        'observing_conditions',
+    ];
+
     public function index(Request $request): JsonResponse
     {
         if (app()->environment(['local', 'staging'])) {
@@ -130,7 +135,7 @@ class SidebarConfigController extends Controller
                 'section_key' => $sectionKey,
                 'custom_component_id' => null,
                 'order' => (int) ($registrySection['default_order'] ?? $defaultOrder),
-                'is_enabled' => (bool) ($registrySection['default_enabled'] ?? true),
+                'is_enabled' => false,
             ];
         }
 
@@ -139,6 +144,35 @@ class SidebarConfigController extends Controller
 
         foreach ($normalized as $index => $item) {
             $normalized[$index]['order'] = $index;
+        }
+
+        $enabledItems = array_values(array_filter(
+            $normalized,
+            static fn (array $item): bool => (bool) ($item['is_enabled'] ?? false)
+        ));
+
+        if (count($enabledItems) > self::MAX_ENABLED_WIDGETS) {
+            throw ValidationException::withMessages([
+                'items' => ['Sidebar moze mat aktivne maximalne 2 widgety.'],
+            ]);
+        }
+
+        $hasExclusiveEnabled = false;
+        $hasNonExclusiveEnabled = false;
+        foreach ($enabledItems as $enabledItem) {
+            $sectionKey = (string) ($enabledItem['section_key'] ?? '');
+            if (in_array($sectionKey, self::EXCLUSIVE_SECTION_KEYS, true)) {
+                $hasExclusiveEnabled = true;
+                continue;
+            }
+
+            $hasNonExclusiveEnabled = true;
+        }
+
+        if ($hasExclusiveEnabled && $hasNonExclusiveEnabled) {
+            throw ValidationException::withMessages([
+                'items' => ['Observing Conditions widget musi byt v sidebare aktivny samostatne.'],
+            ]);
         }
 
         DB::transaction(function () use ($scope, $normalized): void {
@@ -157,7 +191,7 @@ class SidebarConfigController extends Controller
         });
 
         return response()->json([
-            'message' => 'Sidebar configuration updated.',
+            'message' => 'Konfiguracia sidebaru bola aktualizovana.',
             'scope' => $scope,
             'data' => $this->buildConfig($scope),
         ]);
@@ -211,3 +245,4 @@ class SidebarConfigController extends Controller
         return array_values($items);
     }
 }
+

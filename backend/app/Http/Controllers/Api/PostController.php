@@ -56,7 +56,7 @@ class PostController extends Controller
 
         if (($post->is_hidden || $post->hidden_at || $post->moderation_status === 'blocked') && !$canViewRestricted) {
             return response()->json([
-                'message' => 'Not found.',
+                'message' => 'Nenaslo sa.',
             ], 404);
         }
 
@@ -64,7 +64,7 @@ class PostController extends Controller
             $payload = $this->posts->getThread($post, $viewer);
         } catch (ModelNotFoundException) {
             return response()->json([
-                'message' => 'Not found.',
+                'message' => 'Nenaslo sa.',
             ], 404);
         }
 
@@ -200,7 +200,7 @@ class PostController extends Controller
 
         if (($post->is_hidden || $post->hidden_at || $post->moderation_status === 'blocked') && !$canViewRestricted) {
             return response()->json([
-                'message' => 'Not found.',
+                'message' => 'Nenaslo sa.',
             ], 404);
         }
 
@@ -285,3 +285,4 @@ class PostController extends Controller
         return $meta;
     }
 }
+

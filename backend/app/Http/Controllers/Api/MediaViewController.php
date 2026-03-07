@@ -22,21 +22,21 @@ class MediaViewController extends Controller
         $viewer = $request->user() ?? $request->user('sanctum');
         if (!$this->canViewMedia($viewer, $media)) {
             return response()->json([
-                'message' => 'Forbidden.',
+                'message' => 'Zakazane.',
             ], 403);
         }
 
         $path = $media->attachment_web_path ?: $media->attachment_path;
         if (!$path) {
             return response()->json([
-                'message' => 'Not found.',
+                'message' => 'Nenaslo sa.',
             ], 404);
         }
 
         $disk = Storage::disk($this->mediaStorage->publicDiskName());
         if (!$disk->exists($path)) {
             return response()->json([
-                'message' => 'Not found.',
+                'message' => 'Nenaslo sa.',
             ], 404);
         }
 
@@ -65,3 +65,4 @@ class MediaViewController extends Controller
             && $post->attachment_hidden_at === null;
     }
 }
+

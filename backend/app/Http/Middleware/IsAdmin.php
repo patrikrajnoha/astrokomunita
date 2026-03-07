@@ -14,16 +14,17 @@ class IsAdmin
 
         if (!$user) {
             return response()->json([
-                'message' => 'Unauthenticated',
+                'message' => 'Neautentifikovany pouzivatel',
             ], 401);
         }
 
         if (!$user->isAdmin()) {
             return response()->json([
-                'message' => 'Forbidden',
+                'message' => 'Zakazane',
             ], 403);
         }
 
         return $next($request);
     }
 }
+

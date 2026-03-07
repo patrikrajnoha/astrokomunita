@@ -25,7 +25,7 @@ class AdminPostController extends Controller
         });
 
         return response()->json([
-            'message' => 'Post pinned successfully',
+            'message' => 'Prispevok bol uspesne pripnuty',
             'post' => $post->fresh(['user:id,name,username'])
         ]);
     }
@@ -40,8 +40,9 @@ class AdminPostController extends Controller
         $post->update(['pinned_at' => null]);
 
         return response()->json([
-            'message' => 'Post unpinned successfully',
+            'message' => 'Prispevok bol uspesne odopnuty',
             'post' => $post->fresh(['user:id,name,username'])
         ]);
     }
 }
+

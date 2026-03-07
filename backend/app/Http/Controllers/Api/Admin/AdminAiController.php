@@ -82,7 +82,7 @@ class AdminAiController extends Controller
     {
         if (! (bool) config('events.ai.newsletter_copy_draft_admin_enabled', false)) {
             return response()->json([
-                'message' => 'AI newsletter copy draft is disabled.',
+                'message' => 'AI draft newsletteru je vypnuty.',
             ], 403);
         }
 
@@ -102,7 +102,7 @@ class AdminAiController extends Controller
     {
         if (! (bool) config('events.ai.title_postedit_admin_enabled', false)) {
             return response()->json([
-                'message' => 'AI title post-edit is disabled.',
+                'message' => 'AI post-edit nadpisu je vypnuty.',
             ], 403);
         }
 
@@ -270,7 +270,7 @@ class AdminAiController extends Controller
 
             return response()->json([
                 'status' => 'locked',
-                'message' => 'Insights priming is already running. Retry shortly.',
+                'message' => 'Priprava insights uz prebieha. Skuste to o chvilu znova.',
                 'retry_after_seconds' => $retryAfterSeconds,
             ], 409);
         }
@@ -359,7 +359,7 @@ class AdminAiController extends Controller
         $run = DescriptionGenerationRun::query()->find($runId);
         if (! $run) {
             return response()->json([
-                'message' => 'Job not found.',
+                'message' => 'Uloha sa nenasla.',
             ], 404);
         }
 
@@ -513,3 +513,4 @@ class AdminAiController extends Controller
         return $originalTitle !== '' ? $originalTitle : null;
     }
 }
+

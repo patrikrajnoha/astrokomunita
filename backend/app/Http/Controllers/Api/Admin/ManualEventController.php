@@ -97,7 +97,7 @@ class ManualEventController extends Controller
     {
         if ($manualEvent->status === 'published' && $manualEvent->published_event_id) {
             return response()->json([
-                'message' => 'Already published.',
+                'message' => 'Uz publikovane.',
                 'event_id' => $manualEvent->published_event_id,
             ], 409);
         }
@@ -233,3 +233,4 @@ class ManualEventController extends Controller
         ]);
     }
 }
+

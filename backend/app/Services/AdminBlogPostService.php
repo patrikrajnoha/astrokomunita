@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\BlogPost;
 use App\Models\Tag;
 use App\Services\Storage\MediaStorageService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
@@ -16,7 +17,7 @@ class AdminBlogPostService
     ) {
     }
 
-    public function list(?string $status): LengthAwarePaginator
+    public function list(?string $status, ?string $search = null, int $perPage = 10): LengthAwarePaginator
     {
         $query = BlogPost::query()
             ->with(['user:id,name,email,is_admin', 'tags:id,name,slug'])
@@ -31,7 +32,26 @@ class AdminBlogPostService
             $query->whereNull('published_at');
         }
 
-        return $query->paginate(10);
+        $normalizedSearch = trim((string) $search);
+        if ($normalizedSearch !== '') {
+            $like = '%' . $normalizedSearch . '%';
+            $query->where(function (Builder $builder) use ($like): void {
+                $builder->where('title', 'like', $like)
+                    ->orWhere('content', 'like', $like)
+                    ->orWhereHas('tags', function (Builder $tagQuery) use ($like): void {
+                        $tagQuery->where('name', 'like', $like);
+                    })
+                    ->orWhereHas('user', function (Builder $userQuery) use ($like): void {
+                        $userQuery
+                            ->where('name', 'like', $like)
+                            ->orWhere('email', 'like', $like);
+                    });
+            });
+        }
+
+        $safePerPage = max(5, min($perPage, 50));
+
+        return $query->paginate($safePerPage);
     }
 
     public function create(array $validated, int $userId, ?UploadedFile $coverImage): BlogPost

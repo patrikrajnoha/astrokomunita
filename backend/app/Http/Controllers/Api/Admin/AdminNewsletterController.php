@@ -112,7 +112,7 @@ class AdminNewsletterController extends Controller
         if (! $sent) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Preview email could not be sent.',
+                'message' => 'E-mail s nahladom sa nepodarilo odoslat.',
             ], 422);
         }
 
@@ -254,3 +254,4 @@ class AdminNewsletterController extends Controller
         return $field . ' ' . $message;
     }
 }
+

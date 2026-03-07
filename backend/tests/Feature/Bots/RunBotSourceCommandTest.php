@@ -114,7 +114,7 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertNotNull($source->last_error_at);
         $this->assertSame(1, (int) $source->consecutive_failures);
         $this->assertSame(429, (int) $source->last_status_code);
-        $this->assertStringContainsString('api key', strtolower((string) $source->last_error_message));
+        $this->assertStringContainsString('api kluc', strtolower((string) $source->last_error_message));
     }
 
     public function test_ingest_attempts_are_logged_as_created_and_skipped_duplicate(): void
@@ -312,7 +312,7 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame('nasa_apod', (string) data_get($run->meta, 'provider'));
         $this->assertSame(429, (int) data_get($run->meta, 'http_status'));
         $this->assertSame(120, (int) data_get($run->meta, 'retry_after_sec'));
-        $this->assertStringContainsString('rate limit', strtolower((string) data_get($run->meta, 'message')));
+        $this->assertStringContainsString('limit poziadaviek', strtolower((string) data_get($run->meta, 'message')));
         $this->assertNotNull(data_get($run->meta, 'cooldown_until'));
 
         $source->refresh();
@@ -340,7 +340,7 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame('skipped', (string) $run->status->value);
         $this->assertSame('needs_api_key', (string) data_get($run->meta, 'failure_reason'));
         $this->assertSame('nasa_apod', (string) data_get($run->meta, 'provider'));
-        $this->assertSame('NASA APOD API requires API key. Add NASA_API_KEY or wait.', (string) data_get($run->meta, 'message'));
+        $this->assertSame('NASA APOD API vyzaduje API kluc. Pridajte NASA_API_KEY alebo pockajte.', (string) data_get($run->meta, 'message'));
         $this->assertNull(data_get($run->meta, 'cooldown_until'));
         $this->assertNull(data_get($run->meta, 'retry_after_sec'));
 

@@ -23,7 +23,7 @@ class EventEmailAlertDisabledTest extends TestCase
 
         $response->assertStatus(410);
         $response->assertJsonPath('status', 'disabled');
-        $response->assertJsonPath('message', 'Email alerts are currently disabled.');
+        $response->assertJsonPath('message', 'E-mailove upozornenia su momentalne vypnute.');
 
         $this->assertDatabaseCount('event_email_alerts', 0);
     }

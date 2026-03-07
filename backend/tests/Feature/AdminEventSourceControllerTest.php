@@ -202,7 +202,7 @@ class AdminEventSourceControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        $response->assertJsonPath('message', 'One or more sources are not available in this environment.');
+        $response->assertJsonPath('message', 'Jeden alebo viac zdrojov nie je v tomto prostredi dostupnych.');
         $response->assertJsonPath('errors.source_keys.0', 'Source key(s) not allowed: go_astronomy');
     }
 

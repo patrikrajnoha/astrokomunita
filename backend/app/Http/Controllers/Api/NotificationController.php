@@ -110,9 +110,10 @@ class NotificationController extends Controller
         };
 
         if (!$notification) {
-            return response()->json(['message' => 'Notification was not created.'], 422);
+            return response()->json(['message' => 'Notifikacia nebola vytvorena.'], 422);
         }
 
         return new NotificationResource($notification);
     }
 }
+

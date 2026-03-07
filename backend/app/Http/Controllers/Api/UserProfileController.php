@@ -39,7 +39,7 @@ class UserProfileController extends Controller
             ->first();
 
         if (!$user) {
-            return response()->json(['message' => 'User not found.'], 404);
+            return response()->json(['message' => 'Pouzivatel sa nenasiel.'], 404);
         }
 
         return response()->json($user);
@@ -49,7 +49,7 @@ class UserProfileController extends Controller
     {
         $user = User::query()->select(['id', 'username'])->where('username', $username)->first();
         if (!$user) {
-            return response()->json(['message' => 'User not found.'], 404);
+            return response()->json(['message' => 'Pouzivatel sa nenasiel.'], 404);
         }
 
         $perPage = (int) $request->query('per_page', 20);
@@ -104,3 +104,4 @@ class UserProfileController extends Controller
         );
     }
 }
+

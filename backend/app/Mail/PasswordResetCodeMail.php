@@ -27,7 +27,7 @@ class PasswordResetCodeMail extends Mailable
 
         return new Envelope(
             from: $from,
-            subject: 'Password reset code',
+            subject: 'Kod na obnovu hesla',
         );
     }
 

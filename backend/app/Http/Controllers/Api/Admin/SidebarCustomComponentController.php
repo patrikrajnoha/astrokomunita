@@ -58,7 +58,7 @@ class SidebarCustomComponentController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Custom component created.',
+            'message' => 'Vlastna komponenta bola vytvorena.',
             'data' => SidebarCustomComponentPayload::toArray($component),
         ], 201);
     }
@@ -87,7 +87,7 @@ class SidebarCustomComponentController extends Controller
         ])->save();
 
         return response()->json([
-            'message' => 'Custom component updated.',
+            'message' => 'Vlastna komponenta bola aktualizovana.',
             'data' => SidebarCustomComponentPayload::toArray($component->fresh()),
         ]);
     }
@@ -97,7 +97,8 @@ class SidebarCustomComponentController extends Controller
         $component->delete();
 
         return response()->json([
-            'message' => 'Custom component deleted.',
+            'message' => 'Vlastna komponenta bola vymazana.',
         ]);
     }
 }
+

@@ -100,7 +100,7 @@ class ObservationController extends Controller
 
         if (!$canView) {
             return response()->json([
-                'message' => 'Not found.',
+                'message' => 'Nenaslo sa.',
             ], 404);
         }
 
@@ -213,3 +213,4 @@ class ObservationController extends Controller
         return array_values(array_filter($raw, static fn (mixed $file): bool => $file instanceof UploadedFile));
     }
 }
+
