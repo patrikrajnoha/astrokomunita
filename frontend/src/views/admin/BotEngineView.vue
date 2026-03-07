@@ -714,7 +714,7 @@ async function executeQuickRun(identity) {
       }
     } catch (error) {
       failedCount++
-      lastErrorMessage = toErrorMessage(error, `Failed to run source "${source.key}".`)
+      lastErrorMessage = toErrorMessage(error, `Nepodarilo sa spustit zdroj "${source.key}".`)
     }
   }
 
@@ -1089,7 +1089,7 @@ async function retryTranslateForRun() {
     }
 
     toast.success(
-      `Retry hotové: ${Number(result.done_count || 0)} OK, ${Number(result.skipped_count || 0)} preskočené, ${Number(result.failed_count || 0)} chyby.`,
+      `Opakovanie hotové: ${Number(result.done_count || 0)} OK, ${Number(result.skipped_count || 0)} preskočené, ${Number(result.failed_count || 0)} chyby.`,
     )
 
     await store.fetchItemsForRun(selectedRun.value?.id, {
@@ -1775,7 +1775,7 @@ onBeforeUnmount(() => {
                   <div class="advancedTools__body">
                     <div class="advancedActions">
                       <label class="inlineField">
-                        <span>Retry</span>
+                        <span>Opakovat</span>
                         <input
                           v-model.number="retryTranslationLimit"
                           type="number"

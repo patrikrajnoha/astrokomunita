@@ -342,11 +342,11 @@ load()
 
       <template #[`cell(actions)`]="{ row }">
         <div class="rowActions">
-          <button class="btn action" :disabled="loading" @click="act(row, 'hide')">Hide</button>
-          <button class="btn action" :disabled="loading" @click="act(row, 'delete')">Delete</button>
-          <button class="btn action subtle" :disabled="loading" @click="act(row, 'warn')">Warn</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'hide')">Skryt</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'delete')">Zmazat</button>
+          <button class="btn action subtle" :disabled="loading" @click="act(row, 'warn')">Upozornit</button>
           <button class="btn action" :disabled="loading" @click="act(row, 'ban')">Ban</button>
-          <button class="btn action" :disabled="loading" @click="act(row, 'dismiss')">Dismiss</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'dismiss')">Zamietnut</button>
         </div>
       </template>
     </AdminDataTable>

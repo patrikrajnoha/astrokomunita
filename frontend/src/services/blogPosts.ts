@@ -104,6 +104,7 @@ export const blogPosts = {
     status?: BlogPostStatus;
     page?: number;
     per_page?: number;
+    q?: string;
   }) {
     const res = await api.get<LaravelPaginator<BlogPost>>("/admin/blog-posts", {
       params,

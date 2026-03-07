@@ -566,6 +566,8 @@ const createNavIconComponent = (paths, filled = false) =>
           fill: filled ? 'currentColor' : 'none',
           stroke: filled ? 'none' : 'currentColor',
           'stroke-width': filled ? undefined : '1.9',
+          'fill-rule': filled ? 'evenodd' : undefined,
+          'clip-rule': filled ? 'evenodd' : undefined,
           'stroke-linecap': 'round',
           'stroke-linejoin': 'round',
           'aria-hidden': 'true',
@@ -575,16 +577,20 @@ const createNavIconComponent = (paths, filled = false) =>
     },
   })
 
+const homeSaturnOutlinePaths = [
+  'M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z',
+  'M3.25 12.05c0-1.9 3.92-3.45 8.75-3.45s8.75 1.55 8.75 3.45-3.92 3.45-8.75 3.45-8.75-1.55-8.75-3.45Z',
+]
+
+const homeSaturnFilledPaths = [
+  'M12 7.35a4.65 4.65 0 1 0 0 9.3 4.65 4.65 0 0 0 0-9.3Z',
+  'M12 8.2c-4.95 0-9 1.57-9 3.5s4.05 3.5 9 3.5 9-1.57 9-3.5-4.05-3.5-9-3.5Zm0 1.55c4.22 0 7.45 1.24 7.45 1.95s-3.23 1.95-7.45 1.95-7.45-1.24-7.45-1.95 3.23-1.95 7.45-1.95Z',
+]
+
 const navIcons = {
   home: {
-    outline: createNavIconComponent([
-      'M3.75 10.5 12 4l8.25 6.5',
-      'M5.75 9.75V19a1 1 0 0 0 1 1h3.75v-5.25a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1V20h3.75a1 1 0 0 0 1-1V9.75',
-    ]),
-    filled: createNavIconComponent(
-      ['M12 3.6 3.75 10v10A1.25 1.25 0 0 0 5 21.25h4.75v-5.3a1 1 0 0 1 1-1h2.5a1 1 0 0 1 1 1v5.3H19A1.25 1.25 0 0 0 20.25 20V10L12 3.6Z'],
-      true,
-    ),
+    outline: createNavIconComponent(homeSaturnOutlinePaths),
+    filled: createNavIconComponent(homeSaturnFilledPaths, true),
   },
   search: {
     outline: createNavIconComponent(['M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z', 'm20 20-3.5-3.5']),
@@ -637,10 +643,12 @@ const navIcons = {
   },
   admin: {
     outline: createNavIconComponent([
-      'M12 3.5 18 6v5.1c0 4.2-2.55 7.98-6 9.4-3.45-1.42-6-5.2-6-9.4V6l6-2.5Z',
-      'M9.5 11.75l1.6 1.6 3.4-3.6',
+      'M4 18.25h16',
+      'M5.1 18.25 6.35 9.5l4.05 2.95L12 7.5l1.6 4.95 4.05-2.95 1.25 8.75',
     ]),
-    filled: createNavIconComponent(['M12 2.75 5 5.6v5.5c0 4.6 2.8 8.75 7 10.15 4.2-1.4 7-5.55 7-10.15V5.6l-7-2.85Z'], true),
+    filled: createNavIconComponent([
+      'M4 18.75h16l-1.25-9.2-4.15 3.05L12 7.35 9.4 12.6 5.25 9.55 4 18.75Z',
+    ], true),
   },
   user: {
     outline: createNavIconComponent([
@@ -734,18 +742,6 @@ const primaryLinks = computed(() => {
     })
   }
 
-  if (auth.isAdmin || auth.isEditor) {
-    links.push({
-      key: 'admin',
-      to: auth.isAdmin ? { name: 'admin.dashboard' } : { name: 'admin.blog' },
-      label: auth.isAdmin ? 'Admin' : 'Editor',
-      icon: 'A',
-      iconOutline: navIcons.admin.outline,
-      iconFilled: navIcons.admin.filled,
-      matchPrefix: '/admin',
-    })
-  }
-
   if (auth.user) {
     links.push({
       key: 'profile',
@@ -767,6 +763,18 @@ const primaryLinks = computed(() => {
       iconOutline: navIcons.settings.outline,
       iconFilled: navIcons.settings.filled,
       matchPrefix: '/settings',
+    })
+  }
+
+  if (auth.isAdmin || auth.isEditor) {
+    links.push({
+      key: 'admin',
+      to: auth.isAdmin ? { name: 'admin.dashboard' } : { name: 'admin.blog' },
+      label: auth.isAdmin ? 'Admin' : 'Editor',
+      icon: 'A',
+      iconOutline: navIcons.admin.outline,
+      iconFilled: navIcons.admin.filled,
+      matchPrefix: '/admin',
     })
   }
 

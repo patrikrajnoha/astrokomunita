@@ -4,10 +4,10 @@ import api from '@/services/api'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 
 const tabs = [
-  { id: 'pending', label: 'Pending' },
-  { id: 'flagged', label: 'Flagged' },
-  { id: 'blocked', label: 'Blocked' },
-  { id: 'reviewed', label: 'Reviewed' },
+  { id: 'pending', label: 'Caka' },
+  { id: 'flagged', label: 'Nahlasene' },
+  { id: 'blocked', label: 'Blokovane' },
+  { id: 'reviewed', label: 'Skontrolovane' },
 ]
 
 const activeTab = ref('pending')
@@ -53,7 +53,7 @@ async function loadQueue() {
 
     await loadDetail(selectedId.value)
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Failed to load moderation queue.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat moderacnu frontu.'
   } finally {
     loading.value = false
   }
@@ -66,7 +66,7 @@ async function loadDetail(id) {
     const res = await api.get(`/admin/moderation/${id}`)
     detail.value = res.data
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Failed to load moderation detail.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat detail moderacie.'
   }
 }
 
@@ -85,7 +85,7 @@ async function act(action) {
     note.value = ''
     await loadQueue()
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Failed to update moderation state.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa aktualizovat stav moderacie.'
   } finally {
     actionLoading.value = false
   }
@@ -107,7 +107,7 @@ async function loadModerationHealth() {
       status: 'down',
       checkedAt: e?.response?.data?.checked_at || null,
       device: null,
-      error: e?.response?.data?.error?.message || 'Moderation service is unavailable.',
+      error: e?.response?.data?.error?.message || 'Moderacna sluzba je nedostupna.',
     }
   } finally {
     healthLoading.value = false
@@ -154,20 +154,20 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <AdminPageShell title="Moderation" subtitle="Automated queue for posts and attachments.">
+  <AdminPageShell title="Moderacia" subtitle="Automaticka fronta pre prispevky a prilohy.">
     <div class="healthBar">
       <div class="healthState">
         <span class="dot" :class="`is-${moderationHealth.status}`" />
         <strong>
-          Moderation service:
-          {{ moderationHealth.status === 'running' ? 'running' : moderationHealth.status === 'checking' ? 'checking...' : 'down' }}
+          Moderacna sluzba:
+          {{ moderationHealth.status === 'running' ? 'bezi' : moderationHealth.status === 'checking' ? 'kontrolujem...' : 'mimo prevadzky' }}
         </strong>
         <span v-if="moderationHealth.device" class="meta">({{ moderationHealth.device }})</span>
       </div>
       <div class="healthMeta">
-        <span class="meta" v-if="moderationHealth.checkedAt">Last check: {{ formatDate(moderationHealth.checkedAt) }}</span>
+        <span class="meta" v-if="moderationHealth.checkedAt">Posledna kontrola: {{ formatDate(moderationHealth.checkedAt) }}</span>
         <button class="tab" type="button" :disabled="healthLoading" @click="loadModerationHealth">
-          {{ healthLoading ? 'Checking...' : 'Refresh status' }}
+          {{ healthLoading ? 'Kontrolujem...' : 'Obnovit stav' }}
         </button>
       </div>
     </div>
@@ -191,8 +191,8 @@ onUnmounted(() => {
 
     <div class="layout">
       <section class="queue">
-        <div v-if="loading" class="hint">Loading moderation queue...</div>
-        <div v-else-if="!items.length" class="hint">No items.</div>
+        <div v-if="loading" class="hint">Nacitavam moderacnu frontu...</div>
+        <div v-else-if="!items.length" class="hint">Ziadne polozky.</div>
         <button
           v-for="item in items"
           :key="item.id"
@@ -212,7 +212,7 @@ onUnmounted(() => {
       </section>
 
       <section class="detail">
-        <div v-if="!detail" class="hint">Select an item to inspect.</div>
+        <div v-if="!detail" class="hint">Vyberte polozku na kontrolu.</div>
         <template v-else>
           <div class="detailHeader">
             <h3>Post #{{ detail.post.id }}</h3>
@@ -232,23 +232,23 @@ onUnmounted(() => {
             v-model="note"
             class="note"
             rows="3"
-            placeholder="Admin note"
+            placeholder="Poznamka admina"
           />
 
           <div class="actions">
-            <button class="btn" type="button" :disabled="actionLoading" @click="act('approve')">Approve</button>
-            <button class="btn danger" type="button" :disabled="actionLoading" @click="act('reject')">Reject</button>
+            <button class="btn" type="button" :disabled="actionLoading" @click="act('approve')">Schvalit</button>
+            <button class="btn danger" type="button" :disabled="actionLoading" @click="act('reject')">Zamietnut</button>
           </div>
 
-          <h4>Logs</h4>
-          <div v-if="!detail.logs?.length" class="hint">No logs yet.</div>
+          <h4>Logy</h4>
+          <div v-if="!detail.logs?.length" class="hint">Zatial bez logov.</div>
           <div v-for="log in detail.logs" :key="log.id" class="logItem">
             <div class="row">
               <span>{{ log.entity_type }}</span>
               <span class="badge">{{ log.decision }}</span>
             </div>
             <div class="meta">{{ formatDate(log.created_at) }} | {{ log.latency_ms }}ms</div>
-            <div class="meta">error: {{ log.error_code || '-' }}</div>
+            <div class="meta">chyba: {{ log.error_code || '-' }}</div>
             <pre class="json">{{ JSON.stringify(log.model_versions || {}, null, 2) }}</pre>
           </div>
         </template>

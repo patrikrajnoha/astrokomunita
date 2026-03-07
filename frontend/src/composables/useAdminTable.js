@@ -98,8 +98,8 @@ export function useAdminTable(fetchFunction, options = {}) {
       const response = await fetchFunction(params);
       data.value = response.data;
     } catch (err) {
-      console.error('Failed to fetch table data:', err);
-      error.value = err.response?.data?.message || 'Failed to load data';
+      console.error('Nepodarilo sa nacitat tabulkove data:', err);
+      error.value = err.response?.data?.message || 'Nepodarilo sa nacitat data';
       data.value = null;
     } finally {
       loading.value = false;

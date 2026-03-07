@@ -1,8 +1,8 @@
 <template>
   <div class="settingsTab">
     <div class="settingsCard">
-      <h2 class="settingsTitle">AstroBot Settings</h2>
-      <p class="settingsSubtitle">Configure RSS pipeline and automation (placeholder MVP)</p>
+      <h2 class="settingsTitle">Nastavenia AstroBot</h2>
+      <p class="settingsSubtitle">Konfiguracia RSS pipeline a automatizacie (docasne MVP)</p>
 
       <div class="settingsSection">
         <h3>Auto-sync</h3>
@@ -13,10 +13,10 @@
             class="toggleInput"
           />
           <span class="toggleSlider"></span>
-          Enable RSS sync scheduler (hourly)
+          Povolit RSS sync scheduler (kazdu hodinu)
         </label>
         <p class="settingsNote">
-          This setting is UI-only. Scheduler runs <code>astrobot:sync-rss</code> hourly in <code>routes/console.php</code>.
+          Toto nastavenie je iba UI. Scheduler spusta <code>astrobot:sync-rss</code> kazdu hodinu v <code>routes/console.php</code>.
         </p>
       </div>
 
@@ -29,7 +29,7 @@
             class="toggleInput"
           />
           <span class="toggleSlider"></span>
-          Auto-publish safe items
+          Automaticky publikovat bezpecne polozky
         </label>
         <p class="settingsNote">
           Controlled by <code>ASTROBOT_AUTO_PUBLISH_ENABLED</code>.
@@ -39,15 +39,15 @@
       <div class="settingsSection">
         <h3>Info</h3>
         <ul class="infoList">
-          <li><strong>Source:</strong> NASA News Release RSS</li>
-          <li><strong>Deduplication:</strong> stable_key = GUID or hash(link + published_at)</li>
-          <li><strong>Bot user:</strong> AstroBot (astrobot@astrokomunita.local)</li>
-          <li><strong>Review:</strong> Needs review only for risky items or when auto-publish is OFF</li>
+          <li><strong>Zdroj:</strong> NASA News Release RSS</li>
+          <li><strong>Deduplikacia:</strong> stable_key = GUID alebo hash(link + published_at)</li>
+          <li><strong>Bot ucet:</strong> AstroBot (astrobot@astrokomunita.local)</li>
+          <li><strong>Kontrola:</strong> potreba iba pri rizikovych polozkach alebo ked je auto-publish vypnuty</li>
         </ul>
       </div>
 
       <div class="settingsSection">
-        <h3>Manual commands</h3>
+        <h3>Manualne prikazy</h3>
         <div class="codeBlock">
           <div class="codeLine">
             <span class="codePrompt">$</span> php artisan astrobot:ensure-user
@@ -62,7 +62,7 @@
       </div>
 
       <div class="settingsSection">
-        <h3>API endpoints</h3>
+        <h3>API endpointy</h3>
         <div class="codeBlock">
           <div class="codeLine">GET /api/admin/astrobot/items</div>
           <div class="codeLine">POST /api/admin/astrobot/sync</div>

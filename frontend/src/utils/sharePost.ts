@@ -145,7 +145,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('Failed to read generated image.'))
+    reader.onerror = () => reject(new Error('Nepodarilo sa precitat vygenerovany obrazok.'))
     reader.readAsDataURL(blob)
   })
 }

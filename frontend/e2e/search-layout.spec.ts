@@ -4,12 +4,12 @@ test.describe('search layout smoke', () => {
   test('search page keeps visible input, stable columns and no horizontal overflow', async ({ page }) => {
     await page.goto('/search')
 
-    const searchInput = page.getByRole('searchbox', { name: 'Search' }).first()
+    const searchInput = page.getByRole('searchbox', { name: /search|hladat/i }).first()
     await expect(searchInput).toBeVisible()
 
     const mainColumn = page.locator('main').first()
     await expect(mainColumn).toBeVisible()
-    await expect(page.getByRole('navigation', { name: 'Search tabs' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: /search tabs|karty hladania/i })).toBeVisible()
     await expect(page.getByRole('heading', { level: 2, name: /top|spravy|udalosti/i }).first()).toBeVisible()
 
     const hasHorizontalOverflow = await page.evaluate(() => {

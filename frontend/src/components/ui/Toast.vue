@@ -45,7 +45,7 @@
       v-if="item.dismissible"
       type="button"
       class="toastClose"
-      aria-label="Dismiss notification"
+      aria-label="Zavriet notifikaciu"
       @click="$emit('dismiss', item.id)"
     >
       <svg viewBox="0 0 20 20" fill="none">

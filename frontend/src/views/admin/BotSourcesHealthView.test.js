@@ -114,9 +114,13 @@ describe('BotSourcesHealthView', () => {
     await flush()
     await flush()
 
-    const resetBtn = wrapper.findAll('button').find((btn) => btn.text() === 'Reset health')
-    const reviveBtn = wrapper.findAll('button').find((btn) => btn.text() === 'Revive')
-    const clearBtn = wrapper.findAll('button').find((btn) => btn.text() === 'Clear cooldown')
+    const findRowActionButton = (label) => {
+      const firstRow = wrapper.findAll('tbody tr')[0]
+      return firstRow?.findAll('button').find((btn) => btn.text() === label)
+    }
+    const resetBtn = findRowActionButton('Reset zdravia')
+    const reviveBtn = findRowActionButton('Obnovit')
+    const clearBtn = findRowActionButton('Vycistit cooldown')
 
     if (!resetBtn || !reviveBtn || !clearBtn) {
       throw new Error('Expected reset/revive/clear action buttons to be rendered.')
@@ -130,7 +134,12 @@ describe('BotSourcesHealthView', () => {
     await flush()
     expect(clearBotSourceCooldown).toHaveBeenCalledWith(9)
 
-    await reviveBtn.trigger('click')
+    const reviveBtnAfterRefresh = findRowActionButton('Obnovit')
+    if (!reviveBtnAfterRefresh) {
+      throw new Error('Expected revive action button to be rendered after refresh.')
+    }
+
+    await reviveBtnAfterRefresh.trigger('click')
     await flush()
     expect(reviveBotSource).toHaveBeenCalledWith(9)
   })

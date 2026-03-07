@@ -101,7 +101,7 @@
 
     <div class="metaRow">
       <span class="metaKey">ID: <code>{{ entry.id }}</code></span>
-      <span class="metaKey">Source: <code>{{ entry.sourcePath }}</code></span>
+      <span class="metaKey">Zdroj: <code>{{ entry.sourcePath }}</code></span>
     </div>
 
     <details v-if="showCode" class="codeBlock" open>

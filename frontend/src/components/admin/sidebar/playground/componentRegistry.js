@@ -1,6 +1,6 @@
 import SearchBar from '@/components/SearchBar.vue'
 import RightObservingSidebar from '@/components/RightObservingSidebar.vue'
-import NasaApodWidget from '@/components/widgets/NasaApodWidget.vue'
+import NasaHighlightsWidget from '@/components/widgets/NasaHighlightsWidget.vue'
 import NextEventWidget from '@/components/widgets/NextEventWidget.vue'
 import LatestArticlesWidget from '@/components/widgets/LatestArticlesWidget.vue'
 import UpcomingEventsWidget from '@/components/widgets/UpcomingEventsWidget.vue'
@@ -17,7 +17,7 @@ const toInt = (value, fallback = 0) => {
 export const sidebarComponentPlaygroundRegistry = [
   {
     id: 'sidebar-search',
-    label: 'Search',
+    label: 'Hladat',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/SearchBar.vue',
     description: 'Realny search widget zo sidebaru.',
@@ -27,7 +27,7 @@ export const sidebarComponentPlaygroundRegistry = [
   },
   {
     id: 'sidebar-observing-conditions',
-    label: 'Observing Conditions',
+    label: 'Podmienky pozorovania',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/RightObservingSidebar.vue',
     description: 'Sky conditions widget zo sidebaru.',
@@ -39,29 +39,29 @@ export const sidebarComponentPlaygroundRegistry = [
       locationName: 'Bratislava',
     },
     editableProps: [
-      { key: 'lat', label: 'Latitude', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
-      { key: 'lon', label: 'Longitude', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
-      { key: 'tz', label: 'Timezone', type: 'text', defaultValue: 'Europe/Bratislava' },
-      { key: 'locationName', label: 'Location', type: 'text', defaultValue: 'Bratislava' },
+      { key: 'lat', label: 'Zemepisna sirka', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
+      { key: 'lon', label: 'Zemepisna dlzka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
+      { key: 'tz', label: 'Casove pasmo', type: 'text', defaultValue: 'Europe/Bratislava' },
+      { key: 'locationName', label: 'Lokalita', type: 'text', defaultValue: 'Bratislava' },
     ],
   },
   {
     id: 'sidebar-nasa-apod',
-    label: 'NASA APOD',
+    label: 'NASA Novinky',
     category: 'Sidebar widgety',
-    sourcePath: 'frontend/src/components/widgets/NasaApodWidget.vue',
-    description: 'NASA obrazok dna widget zo sidebaru.',
-    component: NasaApodWidget,
+    sourcePath: 'frontend/src/components/widgets/NasaHighlightsWidget.vue',
+    description: 'NASA novinky widget zo sidebaru.',
+    component: NasaHighlightsWidget,
     initialProps: {
-      title: 'NASA - Obrazok dna',
+      title: 'NASA Novinky',
     },
     editableProps: [
-      { key: 'title', label: 'Title', type: 'text', defaultValue: 'NASA - Obrazok dna' },
+      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'NASA Novinky' },
     ],
   },
   {
     id: 'sidebar-next-event',
-    label: 'Next Event',
+    label: 'Najblizsia udalost',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/widgets/NextEventWidget.vue',
     description: 'Widget najblizsej udalosti zo sidebaru.',
@@ -70,12 +70,12 @@ export const sidebarComponentPlaygroundRegistry = [
       title: 'Najblizsia udalost',
     },
     editableProps: [
-      { key: 'title', label: 'Title', type: 'text', defaultValue: 'Najblizsia udalost' },
+      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Najblizsia udalost' },
     ],
   },
   {
     id: 'sidebar-latest-articles',
-    label: 'Latest Articles',
+    label: 'Najnovsie clanky',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/widgets/LatestArticlesWidget.vue',
     description: 'Widget pre najnovsie a najcitanejsie clanky zo sidebaru.',
@@ -89,13 +89,13 @@ export const sidebarComponentPlaygroundRegistry = [
       refetchIntervalMs: 180000,
     },
     editableProps: [
-      { key: 'mostReadTitle', label: 'Most read title', type: 'text', defaultValue: 'Najcitanejsie clanky' },
-      { key: 'latestTitle', label: 'Latest title', type: 'text', defaultValue: 'Najnovsie clanky' },
-      { key: 'emptyStateTitle', label: 'Empty state text', type: 'text', defaultValue: 'Zatial ziadne clanky' },
-      { key: 'loadErrorTitle', label: 'Error title', type: 'text', defaultValue: 'Nepodarilo sa nacitat' },
+      { key: 'mostReadTitle', label: 'Nadpis najcitanejsich', type: 'text', defaultValue: 'Najcitanejsie clanky' },
+      { key: 'latestTitle', label: 'Nadpis najnovsich', type: 'text', defaultValue: 'Najnovsie clanky' },
+      { key: 'emptyStateTitle', label: 'Text prazdneho stavu', type: 'text', defaultValue: 'Zatial ziadne clanky' },
+      { key: 'loadErrorTitle', label: 'Nadpis chyby', type: 'text', defaultValue: 'Nepodarilo sa nacitat' },
       {
         key: 'switchIntervalMs',
-        label: 'Switch interval ms',
+        label: 'Interval prepinania (ms)',
         type: 'number',
         defaultValue: 60000,
         min: 1000,
@@ -105,7 +105,7 @@ export const sidebarComponentPlaygroundRegistry = [
       },
       {
         key: 'refetchIntervalMs',
-        label: 'Refetch interval ms',
+        label: 'Interval obnovenia (ms)',
         type: 'number',
         defaultValue: 180000,
         min: 5000,
@@ -117,20 +117,20 @@ export const sidebarComponentPlaygroundRegistry = [
   },
   {
     id: 'sidebar-upcoming-events',
-    label: 'Co sa deje (Upcoming Events)',
+    label: 'Co sa deje (Nadchadzajuce udalosti)',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/widgets/UpcomingEventsWidget.vue',
     description: 'Widget upcoming events zo sidebaru.',
     component: UpcomingEventsWidget,
     initialProps: {
       title: 'Co sa deje',
-      showMoreLabel: 'Show more',
+      showMoreLabel: 'Zobrazit viac',
       loadErrorTitle: 'Nepodarilo sa nacitat',
     },
     editableProps: [
-      { key: 'title', label: 'Title', type: 'text', defaultValue: 'Co sa deje' },
-      { key: 'showMoreLabel', label: 'Show more label', type: 'text', defaultValue: 'Show more' },
-      { key: 'loadErrorTitle', label: 'Error title', type: 'text', defaultValue: 'Nepodarilo sa nacitat' },
+      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Co sa deje' },
+      { key: 'showMoreLabel', label: 'Text tlacidla viac', type: 'text', defaultValue: 'Zobrazit viac' },
+      { key: 'loadErrorTitle', label: 'Nadpis chyby', type: 'text', defaultValue: 'Nepodarilo sa nacitat' },
     ],
   },
 ]

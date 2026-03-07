@@ -91,6 +91,6 @@ describe('ResetPasswordView', () => {
     await flush()
 
     expect(httpMock.post).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('You have entered an invalid code. It should look like XXXXX-XXXXX.')
+    expect(wrapper.text()).toContain('Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.')
   })
 })

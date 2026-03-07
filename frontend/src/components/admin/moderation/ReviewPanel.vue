@@ -62,7 +62,7 @@ async function load() {
 }
 
 function sourceLabel(item) {
-  return item.kind === 'report' ? 'Report' : 'Fronta'
+  return item.kind === 'report' ? 'Nahlasenie' : 'Fronta'
 }
 
 function targetSummary(item) {

@@ -208,12 +208,12 @@ onMounted(() => {
 <template>
   <component
     :is="props.embedded ? 'section' : AdminPageShell"
-    v-bind="props.embedded ? {} : { title: 'Bot Engine', subtitle: 'Pipeline dashboard za poslednych 24 hodin.' }"
+    v-bind="props.embedded ? {} : { title: 'Bot modul', subtitle: 'Prehlad pipeline za poslednych 24 hodin.' }"
     class="botSection"
   >
     <div v-if="props.embedded" class="embeddedHeader">
       <div>
-        <h2 class="embeddedTitle">Overview</h2>
+        <h2 class="embeddedTitle">Prehlad</h2>
         <p class="embeddedSubtitle">Pipeline dashboard za poslednych 24 hodin.</p>
       </div>
       <button type="button" class="actionBtn" :disabled="loading" @click="load">
@@ -229,33 +229,33 @@ onMounted(() => {
 
     <section class="cards">
       <article class="card metricCard">
-        <p class="metricLabel">Active Sources</p>
+        <p class="metricLabel">Aktivne zdroje</p>
         <p class="metricValue">{{ Number(overall.active_sources || 0) }}</p>
       </article>
       <article class="card metricCard">
-        <p class="metricLabel">Failing Sources</p>
+        <p class="metricLabel">Chybove zdroje</p>
         <p class="metricValue">{{ Number(overall.failing_sources || 0) }}</p>
       </article>
       <article class="card metricCard">
-        <p class="metricLabel">Dead Sources</p>
+        <p class="metricLabel">Neaktivne zdroje</p>
         <p class="metricValue">{{ Number(overall.dead_sources || 0) }}</p>
       </article>
       <article class="card metricCard">
-        <p class="metricLabel">Cooldown Skips (24h)</p>
+        <p class="metricLabel">Preskocenia cooldownu (24h)</p>
         <p class="metricValue">{{ Number(overall.cooldown_skips_24h || 0) }}</p>
       </article>
     </section>
 
     <section v-if="!props.embedded" class="card quickLinks">
-      <RouterLink :to="{ name: 'admin.bots.sources' }" class="quickLink">Source Health</RouterLink>
-      <RouterLink :to="{ name: 'admin.bots.schedules' }" class="quickLink">Schedules</RouterLink>
-      <RouterLink :to="{ name: 'admin.bots.engine' }" class="quickLink">Engine Controls</RouterLink>
+      <RouterLink :to="{ name: 'admin.bots.sources' }" class="quickLink">Zdravie zdrojov</RouterLink>
+      <RouterLink :to="{ name: 'admin.bots.schedules' }" class="quickLink">Plany</RouterLink>
+      <RouterLink :to="{ name: 'admin.bots.engine' }" class="quickLink">Ovladanie modulu</RouterLink>
     </section>
 
     <section class="card retentionCard">
       <div class="retentionHead">
         <div>
-          <h3>Bot Post Cleanup</h3>
+          <h3>Cistenie bot prispevkov</h3>
           <p class="muted">Automaticke mazanie bot prispevkov podla casovaca.</p>
         </div>
         <span class="retentionStatus" :class="{ 'retentionStatus--on': retentionForm.enabled }">
@@ -270,11 +270,11 @@ onMounted(() => {
             type="checkbox"
             :disabled="retentionLoading || retentionSaving"
           />
-          <span>Zapnut auto mazanie</span>
+        <span>Zapnut automaticke mazanie</span>
         </label>
 
         <label class="retentionField">
-          <span>Zmazat po</span>
+          <span>Odstranit po</span>
           <select
             v-model.number="retentionForm.auto_delete_after_hours"
             :disabled="retentionLoading || retentionSaving || !retentionForm.enabled"
@@ -332,7 +332,7 @@ onMounted(() => {
               <th>Duplicates (24h)</th>
               <th>Failures (24h)</th>
               <th>Rate limit</th>
-              <th>Action</th>
+              <th>Akcia</th>
             </tr>
           </thead>
           <tbody>
@@ -355,7 +355,7 @@ onMounted(() => {
                   class="activityLink"
                   :to="{ name: 'admin.bots.activity', query: { bot_identity: row.bot_identity || undefined } }"
                 >
-                  View activity
+                  Zobrazit aktivitu
                 </RouterLink>
               </td>
             </tr>

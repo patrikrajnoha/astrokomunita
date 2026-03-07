@@ -2,26 +2,26 @@
   <AuthSplitLayout>
     <template #hero>
       <AuthHeroPanel
-        eyebrow="Password recovery"
-        title="Reset Password"
-        subtitle="Enter the reset code from your email and choose a new password to finish account recovery."
+        eyebrow="Obnova hesla"
+        title="Reset hesla"
+        subtitle="Zadajte obnovovaci kod z emailu a nastavte nove heslo na dokoncnie obnovy uctu."
       />
     </template>
 
     <AuthFormSection
-      kicker="Recovery"
-      title="Enter code and new password"
-      description="Check your inbox for the reset code, then submit it together with your new password."
+      kicker="Obnova"
+      title="Zadajte kod a nove heslo"
+      description="Skontrolujte emailovu schranku pre obnovovaci kod a odošlite ho spolu s novym heslom."
     >
       <form class="authForm" @submit.prevent="submit" novalidate>
         <p v-if="prefilledEmailLabel" class="authPrefill">
-          Resetting password for <strong>{{ prefilledEmailLabel }}</strong>.
+          Obnovujete heslo pre <strong>{{ prefilledEmailLabel }}</strong>.
         </p>
 
         <AuthField
           v-if="needsEmailField"
           v-model="email"
-          label="Email"
+          label="E-mail"
           type="email"
           autocomplete="email"
           placeholder="you@example.com"
@@ -38,7 +38,7 @@
 
         <AuthField
           v-model="code"
-          label="Reset code"
+          label="Obnovovaci kod"
           placeholder="XXXXX-XXXXX"
           autocomplete="one-time-code"
           :error="codeError"
@@ -55,11 +55,11 @@
 
         <AuthField
           v-model="password"
-          label="New password"
+          label="Nove heslo"
           type="password"
           autocomplete="new-password"
-          placeholder="Create a strong password"
-          helper="Use at least 8 characters."
+          placeholder="Vytvorte silne heslo"
+          helper="Pouzite aspon 8 znakov."
           :error="passwordError"
           required
         >
@@ -73,13 +73,13 @@
 
         <AuthAlert
           v-if="invalidCodeMessage"
-          title="Invalid reset code"
+          title="Neplatny obnovovaci kod"
           :message="invalidCodeMessage"
         />
 
         <AuthAlert
           v-if="error && !invalidCodeMessage"
-          title="Unable to reset password"
+          title="Heslo sa nepodarilo resetovat"
           :message="error"
         />
 
@@ -87,9 +87,9 @@
 
         <AuthActions
           :back-to="{ name: 'forgot-password', query: emailQuery }"
-          back-label="Back"
-          submit-label="Next"
-          loading-label="Updating..."
+          back-label="Spat"
+          submit-label="Dalej"
+          loading-label="Aktualizujem..."
           :loading="loading"
         />
       </form>
@@ -125,23 +125,23 @@ const invalidCodeMessage = ref('')
 const needsEmailField = computed(() => !initialEmail)
 const prefilledEmailLabel = computed(() => (needsEmailField.value ? '' : email.value.trim()))
 const sentMessage = computed(() => (
-  route.query.sent === '1' ? 'We sent a reset code to your email. Enter it below.' : ''
+  route.query.sent === '1' ? 'Poslali sme obnovovaci kod na vas e-mail. Zadajte ho nizsie.' : ''
 ))
 
 const emailQuery = computed(() => (email.value.trim() ? { email: email.value.trim() } : undefined))
-const emailError = computed(() => (attempted.value && !email.value.trim() ? 'Email is required.' : ''))
+const emailError = computed(() => (attempted.value && !email.value.trim() ? 'E-mail je povinny.' : ''))
 const codeError = computed(() => {
   if (!attempted.value) return ''
-  if (!code.value.trim()) return 'Reset code is required.'
+  if (!code.value.trim()) return 'Obnovovaci kod je povinny.'
   if (!looksLikeCodeFormat(code.value)) {
-    return 'Code format must look like XXXXX-XXXXX.'
+    return 'Format kodu musi byt XXXXX-XXXXX.'
   }
   return ''
 })
 const passwordError = computed(() => {
   if (!attempted.value) return ''
-  if (!password.value) return 'New password is required.'
-  if (password.value.length < 8) return 'Password must have at least 8 characters.'
+  if (!password.value) return 'Nove heslo je povinne.'
+  if (password.value.length < 8) return 'Heslo musi mat aspon 8 znakov.'
   return ''
 })
 
@@ -155,8 +155,8 @@ async function submit() {
   invalidCodeMessage.value = ''
 
   if (emailError.value || codeError.value || passwordError.value) {
-    if (codeError.value.includes('format')) {
-      invalidCodeMessage.value = 'You have entered an invalid code. It should look like XXXXX-XXXXX.'
+    if (codeError.value.toLowerCase().includes('format')) {
+      invalidCodeMessage.value = 'Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.'
     }
     return
   }
@@ -186,10 +186,10 @@ async function submit() {
   } catch (e) {
     const backendCode = String(e?.response?.data?.error_code || '')
     const backendMessage = String(e?.response?.data?.message || '')
-    const fallback = 'Unable to reset password. Please try again.'
+    const fallback = 'Heslo sa nepodarilo resetovat. Skuste to znova.'
 
     if (backendCode === 'PASSWORD_RESET_CODE_INVALID' || backendMessage.includes('invalid code')) {
-      invalidCodeMessage.value = backendMessage || 'You have entered an invalid code. It should look like XXXXX-XXXXX.'
+      invalidCodeMessage.value = backendMessage || 'Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.'
       return
     }
 

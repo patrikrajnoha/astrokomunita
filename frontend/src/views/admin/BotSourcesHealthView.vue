@@ -152,12 +152,12 @@ onMounted(() => {
 <template>
   <component
     :is="props.embedded ? 'section' : AdminPageShell"
-    v-bind="props.embedded ? {} : { title: 'Bot Sources', subtitle: 'Health monitoring a konfiguracia zdrojov.' }"
+    v-bind="props.embedded ? {} : { title: 'Bot zdroje', subtitle: 'Monitoring zdravia a konfiguracia zdrojov.' }"
     class="botSection"
   >
     <div v-if="props.embedded" class="embeddedHeader">
       <div>
-        <h2 class="embeddedTitle">Sources</h2>
+        <h2 class="embeddedTitle">Zdroje</h2>
         <p class="embeddedSubtitle">Health monitoring a konfiguracia zdrojov.</p>
       </div>
       <button class="actionBtn" type="button" :disabled="loading" @click="load">
@@ -173,20 +173,20 @@ onMounted(() => {
 
     <section class="card filters">
       <label class="field">
-        <span>Search</span>
+        <span>Hladat</span>
         <input v-model="filters.q" type="text" placeholder="source key / name / url" />
       </label>
       <label class="field">
-        <span>Enabled</span>
+        <span>Povolene</span>
         <select v-model="filters.enabled">
           <option value="">Vsetky</option>
-          <option value="1">Enabled</option>
-          <option value="0">Disabled</option>
+          <option value="1">Povolene</option>
+          <option value="0">Zakazane</option>
         </select>
       </label>
       <label class="field field--inline">
         <input v-model="filters.failing_only" type="checkbox" />
-        <span>Failing only</span>
+        <span>Iba chybove</span>
       </label>
       <div class="actions">
         <button class="actionBtn" type="button" :disabled="loading" @click="load">Filtrovat</button>
@@ -194,14 +194,14 @@ onMounted(() => {
     </section>
 
     <section v-if="editor.id" class="card editor">
-      <h3>Edit source #{{ editor.id }}</h3>
+      <h3>Upravit zdroj #{{ editor.id }}</h3>
       <div class="editorGrid">
         <label class="field">
-          <span>Name</span>
+          <span>Nazov</span>
           <input v-model="editor.name" type="text" maxlength="160" />
         </label>
         <label class="field">
-          <span>URL</span>
+          <span>URL adresa</span>
           <input v-model="editor.url" type="url" maxlength="2048" />
         </label>
       </div>
@@ -219,17 +219,17 @@ onMounted(() => {
         <table class="table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Latency</th>
+              <th>Nazov</th>
+              <th>Typ</th>
+              <th>Stav</th>
+              <th>Latencia</th>
               <th>Cooldown</th>
-              <th>Last success</th>
-              <th>Last error</th>
-              <th>Failures</th>
-              <th>Rates (24h)</th>
-              <th>Enabled</th>
-              <th>Action</th>
+              <th>Posledny uspech</th>
+              <th>Posledna chyba</th>
+              <th>Zlyhania</th>
+              <th>Miera (24h)</th>
+              <th>Povolene</th>
+              <th>Akcia</th>
             </tr>
           </thead>
           <tbody>
@@ -266,10 +266,10 @@ onMounted(() => {
               <td>
                 <div class="actions">
                   <button class="actionBtn ghost" type="button" :disabled="savingId === row.id" @click="startEdit(row)">
-                    Edit
+                    Upravit
                   </button>
                   <button class="actionBtn ghost" type="button" :disabled="savingId === row.id" @click="resetHealth(row)">
-                    Reset health
+                    Reset zdravia
                   </button>
                   <button
                     class="actionBtn ghost"
@@ -277,7 +277,7 @@ onMounted(() => {
                     :disabled="savingId === row.id || !row.cooldown_until"
                     @click="clearCooldown(row)"
                   >
-                    Clear cooldown
+                    Vycistit cooldown
                   </button>
                   <button
                     class="actionBtn ghost"
@@ -285,7 +285,7 @@ onMounted(() => {
                     :disabled="savingId === row.id"
                     @click="reviveSource(row)"
                   >
-                    Revive
+                    Obnovit
                   </button>
                 </div>
                 <span v-if="row.is_dead" class="status status--dead">DEAD</span>

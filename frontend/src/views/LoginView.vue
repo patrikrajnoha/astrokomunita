@@ -2,21 +2,21 @@
   <AuthSplitLayout>
     <template #hero>
       <AuthHeroPanel
-        eyebrow="Account access"
-        title="Sign in"
-        subtitle="Continue to your Astrokomunita account with a clean and secure sign-in flow."
+        eyebrow="Prihlasovanie"
+        title="Prihlasenie"
+        subtitle="Pokracujte do svojho Astrokomunita uctu bezpecnym prihlasenim."
       />
     </template>
 
     <AuthFormSection
-      kicker="Account"
-      title="Welcome back"
-      description="Use your account email and password to access your profile and community feed."
+      kicker="Ucet"
+      title="Vitajte spat"
+      description="Pouzite e-mail a heslo pre pristup k profilu a komunitnemu feedu."
     >
       <form class="authForm" @submit.prevent="submit" novalidate>
         <AuthField
           v-model="email"
-          label="Email"
+          label="E-mail"
           type="email"
           autocomplete="email"
           placeholder="you@example.com"
@@ -33,10 +33,10 @@
 
         <AuthField
           v-model="password"
-          label="Password"
+          label="Heslo"
           type="password"
           autocomplete="current-password"
-          placeholder="Enter password"
+          placeholder="Zadajte heslo"
           :error="passwordError"
           required
         >
@@ -47,19 +47,19 @@
             </svg>
           </template>
           <template #labelAction>
-            <RouterLink :to="forgotPasswordLink" class="authInlineLink">Forgot?</RouterLink>
+            <RouterLink :to="forgotPasswordLink" class="authInlineLink">Zabudnute?</RouterLink>
           </template>
         </AuthField>
 
         <AuthAlert
           v-if="error"
-          title="Unable to sign in"
+          title="Nepodarilo sa prihlasit"
           :message="error"
         />
 
         <AuthAlert
           v-if="isBannedState"
-          title="Account blocked"
+          title="Ucet je blokovany"
           :message="bannedDetails"
         />
 
@@ -67,15 +67,15 @@
 
         <AuthActions
           :back-to="{ name: 'home' }"
-          back-label="Back"
-          submit-label="Sign in"
-          loading-label="Signing in..."
+          back-label="Spat"
+          submit-label="Prihlasit sa"
+          loading-label="Prihlasujem..."
           :loading="auth.loading"
         />
 
         <p class="authFootnote">
-          Need an account?
-          <RouterLink class="authInlineLink" :to="registerLink">Create one</RouterLink>
+          Potrebujete ucet?
+          <RouterLink class="authInlineLink" :to="registerLink">Vytvorit ucet</RouterLink>
         </p>
       </form>
     </AuthFormSection>
@@ -117,10 +117,10 @@ const forgotPasswordLink = computed(() => ({
   query: email.value ? { email: email.value } : undefined,
 }))
 
-const emailError = computed(() => (attempted.value && !email.value.trim() ? 'Email is required.' : ''))
-const passwordError = computed(() => (attempted.value && !password.value ? 'Password is required.' : ''))
+const emailError = computed(() => (attempted.value && !email.value.trim() ? 'E-mail je povinny.' : ''))
+const passwordError = computed(() => (attempted.value && !password.value ? 'Heslo je povinne.' : ''))
 const resetSuccessMessage = computed(() => (
-  route.query.reset === '1' ? 'Password updated. You can sign in with your new password.' : ''
+  route.query.reset === '1' ? 'Heslo bolo zmenene. Mozete sa prihlasit novym heslom.' : ''
 ))
 
 const isBannedState = computed(() => auth.error?.type === 'banned')
@@ -136,10 +136,10 @@ const bannedDetails = computed(() => {
     bannedAt = Number.isNaN(parsed.getTime()) ? String(bannedAtRaw) : parsed.toLocaleString()
   }
 
-  if (reason && bannedAt) return `Reason: ${reason}. Blocked: ${bannedAt}.`
-  if (reason) return `Reason: ${reason}.`
-  if (bannedAt) return `Blocked: ${bannedAt}.`
-  return 'This account is blocked.'
+  if (reason && bannedAt) return `Dovod: ${reason}. Blokovane: ${bannedAt}.`
+  if (reason) return `Dovod: ${reason}.`
+  if (bannedAt) return `Blokovane: ${bannedAt}.`
+  return 'Tento ucet je blokovany.'
 })
 
 async function submit() {
@@ -167,7 +167,7 @@ async function submit() {
 
     await router.push(redirect.value)
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.authError?.message || e?.message || 'Sign in failed.'
+    error.value = e?.response?.data?.message || e?.authError?.message || e?.message || 'Prihlasenie zlyhalo.'
   }
 }
 </script>

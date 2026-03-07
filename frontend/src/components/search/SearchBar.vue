@@ -19,7 +19,7 @@
         :placeholder="placeholder"
         class="w-full rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.36)] bg-[color:rgb(var(--color-bg-rgb)/0.88)] py-3 pl-9 pr-20 text-sm text-[var(--color-surface)] placeholder-[color:rgb(var(--color-text-secondary-rgb)/0.85)] shadow-sm transition focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[color:rgb(var(--color-primary-rgb)/0.24)]"
         autocomplete="off"
-        aria-label="Search"
+        aria-label="Hladat"
       />
 
       <div class="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5">

@@ -48,7 +48,10 @@ async function ensureRealtimeReady(page: Page): Promise<void> {
   ).toBe(true)
 }
 
-async function triggerDevNotification(page: Page, contestName: string): Promise<void> {
+async function triggerDevNotification(
+  page: Page,
+  contestName: string,
+): Promise<{ ok: boolean; status: number; body: string }> {
   const result = await page.evaluate(
     async ({ apiOrigin, contestNameValue }) => {
       const cookie = (name: string): string => {
@@ -90,10 +93,7 @@ async function triggerDevNotification(page: Page, contestName: string): Promise<
     { apiOrigin: API_ORIGIN, contestNameValue: contestName },
   )
 
-  expect(
-    result.ok,
-    `Dev notification trigger failed (${result.status}): ${result.body}`,
-  ).toBeTruthy()
+  return result
 }
 
 async function notificationBadgeCount(page: Page): Promise<number> {
@@ -130,7 +130,14 @@ test('realtime notification appears in another context without refresh', async (
     const beforeBadge = await notificationBadgeCount(secondPage)
     expect(beforeBadge).toBeLessThan(99)
 
-    await triggerDevNotification(page, `Playwright Smoke ${Date.now()}`)
+    const triggerResult = await triggerDevNotification(page, `Playwright Smoke ${Date.now()}`)
+    if (!triggerResult.ok && triggerResult.status === 404) {
+      test.skip(true, `Dev notification endpoint unavailable (${triggerResult.status}).`)
+    }
+    expect(
+      triggerResult.ok,
+      `Dev notification trigger failed (${triggerResult.status}): ${triggerResult.body}`,
+    ).toBeTruthy()
 
     await expect.poll(() => notificationBadgeCount(secondPage), { timeout: 30_000 }).toBeGreaterThan(beforeBadge)
     await expect.poll(() => secondPage.url(), { timeout: 30_000 }).toBe(beforeUrl)

@@ -720,7 +720,7 @@ onUnmounted(() => {
             <tr>
               <th>Candidate</th>
               <th>Event</th>
-              <th>Source title</th>
+              <th>Nazov zdroja</th>
               <th>Translated title</th>
               <th>Event title</th>
             </tr>

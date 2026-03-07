@@ -170,7 +170,7 @@ describe('AdminUserDetailView', () => {
     expect(wrapper.find('#profile-avatar').exists()).toBe(false)
     expect(wrapper.find('#profile-cover').exists()).toBe(false)
 
-    const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Save profile'))
+    const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Ulozit profil'))
     expect(saveButton).toBeTruthy()
     await saveButton.trigger('click')
     await flush()

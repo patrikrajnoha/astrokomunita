@@ -9,7 +9,7 @@
     </div>
 
     <div v-else-if="!nasaItem || !nasaItem.available" class="state">
-      <div class="stateText">Obrázok dňa je momentálne nedostupný</div>
+      <div class="stateText">NASA novinky su momentalne nedostupne.</div>
     </div>
 
     <div v-else class="nasaCard">
@@ -38,7 +38,7 @@
           target="_blank"
           rel="noopener noreferrer"
         >
-          Zobraziť na NASA.gov
+          Zobrazit na NASA.gov
         </a>
       </div>
     </div>
@@ -50,12 +50,12 @@ import { ref, onMounted, computed } from 'vue'
 import api from '@/services/api'
 
 export default {
-  name: 'NasaApodWidget',
+  name: 'NasaHighlightsWidget',
   props: {
     title: {
       type: String,
-      default: 'NASA – Obrázok dňa'
-    }
+      default: 'NASA Novinky',
+    },
   },
   setup() {
     const nasaItem = ref(null)
@@ -87,7 +87,7 @@ export default {
         error.value =
           err?.response?.data?.message ||
           err?.message ||
-          'Nepodarilo sa načítať NASA Image of the Day.'
+          'Nepodarilo sa nacitat NASA novinky.'
         nasaItem.value = null
       } finally {
         loading.value = false
@@ -105,9 +105,9 @@ export default {
       loading,
       error,
       nasaEnabled,
-      fetchNasaIotd
+      fetchNasaIotd,
     }
-  }
+  },
 }
 </script>
 

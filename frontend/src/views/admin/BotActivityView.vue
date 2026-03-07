@@ -153,13 +153,13 @@ watch(
 <template>
   <component
     :is="props.embedded ? 'section' : AdminPageShell"
-    v-bind="props.embedded ? {} : { title: 'Bot aktivita', subtitle: 'Publish/run logy s dovodmi skip/fail.' }"
+    v-bind="props.embedded ? {} : { title: 'Bot aktivita', subtitle: 'Logy publikovania/spusteni s dovodmi preskocenia alebo chyby.' }"
     class="botSection"
   >
     <div v-if="props.embedded" class="embeddedHeader">
       <div>
-        <h2 class="embeddedTitle">Activity</h2>
-        <p class="embeddedSubtitle">Publish/run logy s dovodmi skip/fail.</p>
+        <h2 class="embeddedTitle">Aktivita</h2>
+        <p class="embeddedSubtitle">Logy publikovania/spusteni s dovodmi preskocenia alebo chyby.</p>
       </div>
       <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
         {{ loading ? 'Nacitavam...' : 'Obnovit' }}
@@ -175,7 +175,7 @@ watch(
     <section class="card filterCard">
       <div class="filterGrid">
         <label class="field">
-          <span>Source</span>
+          <span>Zdroj</span>
           <input v-model="filters.sourceKey" type="text" placeholder="nasa_rss_breaking" />
         </label>
         <label class="field">
@@ -187,7 +187,7 @@ watch(
           </select>
         </label>
         <label class="field">
-          <span>Action</span>
+          <span>Akcia</span>
           <select v-model="filters.action">
             <option value="">Vsetky</option>
             <option value="run">run</option>
@@ -195,7 +195,7 @@ watch(
           </select>
         </label>
         <label class="field">
-          <span>Outcome</span>
+          <span>Vysledok</span>
           <select v-model="filters.outcome">
             <option value="">Vsetky</option>
             <option value="success">success</option>
@@ -230,12 +230,12 @@ watch(
             <tr>
               <th>Cas</th>
               <th>Bot</th>
-              <th>Source</th>
-              <th>Action</th>
-              <th>Outcome</th>
+              <th>Zdroj</th>
+              <th>Akcia</th>
+              <th>Vysledok</th>
               <th>Item/Post</th>
               <th>Dovod</th>
-              <th>Message</th>
+              <th>Sprava</th>
             </tr>
           </thead>
           <tbody>

@@ -93,8 +93,7 @@ const propsForSection = (section) => {
     || sectionKey === 'latest_articles'
     || sectionKey === 'upcoming_events'
   ) {
-    const staticSection = currentItems.value.find((item) => item.section_key === sectionKey)
-    return staticSection?.title ? { title: staticSection.title } : {}
+    return section?.title ? { title: section.title } : {}
   }
 
   return {}

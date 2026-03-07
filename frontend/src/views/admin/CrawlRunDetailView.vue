@@ -61,7 +61,7 @@ function openRunCandidates() {
 
 async function loadRun() {
   if (!Number.isFinite(runId.value) || runId.value <= 0) {
-    error.value = 'Invalid crawl run id.'
+    error.value = 'Neplatne ID crawl runu.'
     return
   }
 
@@ -72,7 +72,7 @@ async function loadRun() {
     const response = await getCrawlRun(runId.value)
     run.value = response?.data || null
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Failed to load crawl run.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa nacitat crawl run.'
   } finally {
     loading.value = false
   }
@@ -82,7 +82,7 @@ onMounted(loadRun)
 </script>
 
 <template>
-  <AdminPageShell title="Crawl run detail" subtitle="Run metadata and direct link to candidate review.">
+  <AdminPageShell title="Detail crawl runu" subtitle="Metadata behu a priamy odkaz na kontrolu kandidatov.">
     <AdminSectionHeader
       section="events"
       title="Detail crawl runu"
@@ -91,46 +91,46 @@ onMounted(loadRun)
     />
 
     <div v-if="error" class="alert">{{ error }}</div>
-    <div v-if="loading" class="muted">Loading run...</div>
+    <div v-if="loading" class="muted">Nacitavam run...</div>
 
     <template v-else-if="run">
       <section class="card">
         <div class="head">
           <div>
             <h2>#{{ run.id }} - {{ sourceLabel(run.source_name) }}</h2>
-            <p class="muted">Year {{ run.year || '-' }} | Status {{ run.status || '-' }}</p>
+            <p class="muted">Rok {{ run.year || '-' }} | Stav {{ run.status || '-' }}</p>
           </div>
         </div>
 
         <dl class="metaGrid">
-          <dt>Started</dt>
+          <dt>Spustene</dt>
           <dd>{{ formatDate(run.started_at) }}</dd>
 
-          <dt>Finished</dt>
+          <dt>Dokoncene</dt>
           <dd>{{ formatDate(run.finished_at) }}</dd>
 
-          <dt>Fetched</dt>
+          <dt>Nacitane</dt>
           <dd>{{ toCount(run.fetched_count) }}</dd>
 
-          <dt>Created</dt>
+          <dt>Vytvorene</dt>
           <dd>{{ toCount(run.created_candidates_count) }}</dd>
 
-          <dt>Updated</dt>
+          <dt>Aktualizovane</dt>
           <dd>{{ toCount(run.updated_candidates_count) }}</dd>
 
-          <dt>Skipped</dt>
+          <dt>Preskocene</dt>
           <dd>{{ toCount(run.skipped_duplicates_count) }}</dd>
         </dl>
       </section>
 
       <details v-if="run.status === 'failed' && (run.error_summary || run.error_log)" class="card">
-        <summary>Error</summary>
+        <summary>Chyba</summary>
         <pre class="errorBlock">{{ run.error_summary || run.error_log }}</pre>
       </details>
 
       <section class="card actionCard">
         <button type="button" class="primaryBtn" data-testid="view-candidates-btn" @click="openRunCandidates">
-          View candidates from this run
+          Zobrazit kandidatov z tohto behu
         </button>
       </section>
     </template>

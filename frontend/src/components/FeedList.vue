@@ -191,6 +191,9 @@
                   alt="Stela APOD nahlad"
                   :blurred="isAttachmentPending(p)"
                   :status="p?.status"
+                  fit="cover"
+                  frame-aspect-ratio="2 / 1"
+                  :show-oversize-overlay="false"
                 />
               </div>
 
@@ -207,6 +210,9 @@
                   alt="Priloha prispevku"
                   :blurred="isAttachmentPending(p)"
                   :status="p?.status"
+                  fit="cover"
+                  frame-aspect-ratio="2 / 1"
+                  :show-oversize-overlay="false"
                 />
 
                 <PostMediaVideo
@@ -499,6 +505,11 @@ function botIdentity(post) {
 
 function botSourceLabel(post) {
   if (!isBotPost(post)) return ''
+  const sourceKey = normalizeToken(post?.meta?.bot_source_key)
+  if (sourceKey === 'nasa_apod_daily') {
+    return 'APOD dňa'
+  }
+
   const sourceLabel = String(post?.meta?.bot_source_label || '').trim()
   return sourceLabel || 'Bot'
 }
@@ -1496,7 +1507,7 @@ defineExpose({ load, prepend })
   background: transparent;
   border-bottom: 1px solid var(--color-divider);
   border-radius: 0;
-  padding: 0.68rem 0.74rem 0.74rem;
+  padding: 0.46rem 0.54rem 0.54rem;
   overflow: hidden;
 }
 
@@ -1560,11 +1571,11 @@ defineExpose({ load, prepend })
 }
 
 .post-card {
-  background: transparent;
+  background: #151d28;
   border: 0;
   border-bottom: 1px solid var(--color-divider);
   border-radius: 0;
-  padding: 0.68rem 0.78rem 0.72rem;
+  padding: 0.46rem 0.54rem 0.54rem;
   transition: background-color var(--motion-fast);
   cursor: pointer;
   position: relative;
@@ -1578,7 +1589,7 @@ defineExpose({ load, prepend })
 }
 
 .post-card:hover {
-  background: var(--interactive-hover);
+  background: #1b2532;
 }
 
 .post-card:active {
@@ -1600,7 +1611,7 @@ defineExpose({ load, prepend })
     transform: translateY(0) scale(1);
   }
   100% {
-    background: transparent;
+    background: #151d28;
   }
 }
 
@@ -1615,17 +1626,17 @@ defineExpose({ load, prepend })
 
 /* AstroBot posts */
 .post-card--astrobot {
-  background: transparent;
+  background: #151d28;
 }
 
 .post-card--astrobot:hover {
-  background: var(--interactive-hover);
+  background: #1b2532;
 }
 
 /* Post Layout */
 .post-card {
   display: flex;
-  gap: 0.52rem;
+  gap: 0.36rem;
 }
 
 .post-avatar {
@@ -1636,12 +1647,12 @@ defineExpose({ load, prepend })
   flex: 1;
   min-width: 0;
   display: grid;
-  gap: 0.38rem;
+  gap: 0.2rem;
 }
 
 .embedded-observation-card {
-  margin-top: 0.25rem;
-  margin-bottom: 0.55rem;
+  margin-top: 0.2rem;
+  margin-bottom: 0.42rem;
 }
 
 /* Modern Avatar */
@@ -1665,8 +1676,8 @@ defineExpose({ load, prepend })
 }
 
 .avatar-image {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   display: block;
@@ -1674,7 +1685,7 @@ defineExpose({ load, prepend })
 }
 
 .avatar-fallback {
-  --default-avatar-size: 36px;
+  --default-avatar-size: 32px;
   display: block;
   border: 1px solid var(--border-subtle);
 }
@@ -1684,7 +1695,7 @@ defineExpose({ load, prepend })
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.55rem;
+  gap: 0.42rem;
   margin-bottom: 0;
 }
 
@@ -1696,19 +1707,19 @@ defineExpose({ load, prepend })
 .post-author {
   display: flex;
   align-items: center;
-  gap: 0.42rem;
+  gap: 0.26rem;
   flex-wrap: wrap;
-  margin-bottom: 0.12rem;
+  margin-bottom: 0.04rem;
   min-width: 0;
 }
 
 .author-name {
   background: transparent;
   border: 1px solid transparent;
-  padding: 0.12rem 0.34rem;
+  padding: 0.04rem 0.22rem;
   color: var(--color-text-primary);
   font-weight: 700;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
   cursor: pointer;
   border-radius: var(--radius-pill);
   transition: background-color 0.2s ease, border-color 0.2s ease;
@@ -1726,26 +1737,26 @@ defineExpose({ load, prepend })
 
 .author-username {
   color: var(--color-text-secondary);
-  font-size: 0.74rem;
+  font-size: 0.66rem;
   font-weight: 400;
 }
 
 .author-bot-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 1px 7px;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-accent-rgb) / 0.46);
   background: rgb(var(--color-accent-rgb) / 0.16);
   color: var(--color-accent);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
 
 .author-time {
   color: var(--color-text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   font-weight: 500;
 }
 
@@ -1754,7 +1765,7 @@ defineExpose({ load, prepend })
   align-items: center;
   padding: 2px 8px;
   border-radius: 12px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.02em;
   background: rgb(var(--color-accent-rgb) / 0.14);
@@ -1786,7 +1797,7 @@ defineExpose({ load, prepend })
 }
 
 .bot-meta-row {
-  margin-top: 4px;
+  margin-top: 2px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1799,7 +1810,7 @@ defineExpose({ load, prepend })
   border: 0;
   background: transparent;
   color: var(--color-text-secondary);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.01em;
   text-transform: uppercase;
@@ -1839,12 +1850,12 @@ defineExpose({ load, prepend })
   margin-bottom: 0;
   color: var(--color-text-primary);
   white-space: pre-wrap;
-  line-height: var(--line-height-base);
-  font-size: 0.9rem;
+  line-height: 1.34;
+  font-size: 0.8rem;
   word-wrap: break-word;
   word-break: break-word;
   overflow-wrap: break-word;
-  max-width: 62ch;
+  max-width: 56ch;
 }
 
 .inline-edit-textarea {
@@ -1853,15 +1864,15 @@ defineExpose({ load, prepend })
   border-radius: var(--radius-md);
   background: rgb(var(--bg-app-rgb) / 0.52);
   color: var(--color-text-primary);
-  padding: 0.55rem 0.65rem;
+  padding: 0.48rem 0.56rem;
   resize: vertical;
   font: inherit;
 }
 
 .inline-edit-actions {
-  margin-top: 0.45rem;
+  margin-top: 0.36rem;
   display: flex;
-  gap: 0.35rem;
+  gap: 0.3rem;
 }
 
 .editActionBtn {
@@ -1911,14 +1922,14 @@ defineExpose({ load, prepend })
 }
 
 .show-more-btn {
-  margin-top: 6px;
+  margin-top: 3px;
   border: 1px solid var(--color-border);
   background: rgb(var(--bg-app-rgb) / 0.42);
   color: var(--color-text-primary);
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 500;
-  padding: 6px 12px;
+  padding: 3px 9px;
   cursor: pointer;
 }
 
@@ -1968,27 +1979,27 @@ defineExpose({ load, prepend })
 
 /* Media */
 .post-media {
-  margin-top: 0.3rem;
+  margin-top: 0.16rem;
 }
 
 .post-media--stela {
-  margin-top: 0.34rem;
+  margin-top: 0.2rem;
 }
 
 .post-media--gif {
-  margin-top: 0.34rem;
+  margin-top: 0.2rem;
 }
 
 .attached-event-card {
-  margin-top: 0.48rem;
+  margin-top: 0.28rem;
   border: 1px solid rgb(var(--primary-rgb) / 0.26);
   border-radius: var(--radius-md);
   background: rgb(var(--primary-rgb) / 0.1);
-  padding: 0.55rem 0.6rem;
+  padding: 0.36rem 0.44rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
+  gap: 0.46rem;
 }
 
 .attached-event-copy {
@@ -1998,21 +2009,21 @@ defineExpose({ load, prepend })
 .attached-event-title {
   margin: 0;
   color: var(--text-primary);
-  font-size: 0.85rem;
+  font-size: 0.76rem;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
 .attached-event-date {
-  margin: 0.18rem 0 0;
+  margin: 0.12rem 0 0;
   color: var(--text-secondary);
-  font-size: 0.74rem;
+  font-size: 0.66rem;
 }
 
 .attached-event-btn {
   min-height: var(--control-height-sm);
-  padding-inline: 0.72rem;
-  font-size: 0.72rem;
+  padding-inline: 0.58rem;
+  font-size: 0.68rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -2023,7 +2034,7 @@ defineExpose({ load, prepend })
 
 .gifEmbed {
   width: 100%;
-  max-height: 340px;
+  max-height: 280px;
   object-fit: cover;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
@@ -2044,7 +2055,7 @@ defineExpose({ load, prepend })
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0.55rem 0.62rem;
+  padding: 0.48rem 0.54rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   background: rgb(var(--bg-app-rgb) / 0.24);
@@ -2060,8 +2071,8 @@ defineExpose({ load, prepend })
 }
 
 .file-icon {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -2072,7 +2083,7 @@ defineExpose({ load, prepend })
     rgb(var(--primary-rgb) / 0.08) 100%
   );
   border: 1px solid rgb(var(--primary-rgb) / 0.2);
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .file-info {
@@ -2082,13 +2093,13 @@ defineExpose({ load, prepend })
 
 .file-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   margin-bottom: 2px;
 }
 
 .file-name {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2304,7 +2315,7 @@ defineExpose({ load, prepend })
 .load-more {
   display: flex;
   justify-content: center;
-  padding: 0.78rem 0.6rem 0.96rem;
+  padding: 0.64rem 0.52rem 0.82rem;
 }
 
 .load-more-btn {
@@ -2416,8 +2427,8 @@ defineExpose({ load, prepend })
   }
 
   .post-card {
-    padding: 0.56rem 0.62rem 0.62rem;
-    gap: 0.45rem;
+    padding: 0.42rem 0.48rem 0.48rem;
+    gap: 0.32rem;
   }
 
   .post-header {
@@ -2426,29 +2437,29 @@ defineExpose({ load, prepend })
   }
 
   .avatar-image {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
   }
 
   .avatar-fallback {
-    --default-avatar-size: 32px;
+    --default-avatar-size: 30px;
   }
 
   .author-name {
-    font-size: 0.86rem;
+    font-size: 0.78rem;
   }
 
   .author-username {
-    font-size: 0.76rem;
+    font-size: 0.64rem;
   }
 
   .author-time {
-    font-size: 0.72rem;
+    font-size: 0.62rem;
   }
 
   .post-text {
-    font-size: 0.84rem;
-    line-height: 1.44;
+    font-size: 0.78rem;
+    line-height: 1.32;
   }
 
   .post-time {
@@ -2478,8 +2489,8 @@ defineExpose({ load, prepend })
   }
 
   .post-card {
-    padding: 0.62rem 0.7rem 0.66rem;
-    gap: 0.48rem;
+    padding: 0.44rem 0.52rem 0.52rem;
+    gap: 0.34rem;
   }
 
   .post-header {
@@ -2487,36 +2498,29 @@ defineExpose({ load, prepend })
   }
 
   .avatar-image {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
   }
 
   .avatar-fallback {
-    --default-avatar-size: 34px;
+    --default-avatar-size: 32px;
   }
 
   .author-name {
-    font-size: 14px;
+    font-size: 0.8rem;
   }
 
   .author-username {
-    font-size: 13px;
+    font-size: 0.66rem;
   }
 
   .author-time {
-    font-size: 12px;
+    font-size: 0.63rem;
   }
 
   .post-text {
-    font-size: 0.86rem;
-    line-height: 1.46;
-  }
-
-  .action-btn {
-    padding: 0.28rem 0.4rem;
-    font-size: 0.74rem;
-    min-height: 34px;
-    min-width: 34px;
+    font-size: 0.8rem;
+    line-height: 1.34;
   }
 
   .report-content {
@@ -2531,8 +2535,8 @@ defineExpose({ load, prepend })
   }
 
   .post-card {
-    padding: 0.7rem 0.78rem 0.74rem;
-    gap: 0.5rem;
+    padding: 0.46rem 0.54rem 0.54rem;
+    gap: 0.36rem;
   }
 }
 </style>

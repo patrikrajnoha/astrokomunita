@@ -46,24 +46,8 @@
                   <span class="nameTime">{{ fmt(root?.created_at) }}</span>
                 </div>
                 <div class="meta">
-                  <span class="viewMeta" title="Počet zobrazení" aria-label="Počet zobrazení">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                    <span>{{ Number(root?.views ?? 0) }}</span>
-                  </span>
                   <span v-if="isBotPost(root)" class="botVerifiedBadge">BOT</span>
                 </div>
-              </div>
-              <div class="postActionsMenu">
-                <DropdownMenu
-                  v-if="root && menuItemsForPost(root).length"
-                  :items="menuItemsForPost(root)"
-                  label="Dalsie akcie"
-                  menu-label="Akcie prispevku"
-                  @select="(item) => onMenuAction(item, root)"
-                />
               </div>
             </div>
 
@@ -180,24 +164,18 @@
 
         <!-- REPLIES -->
         <div id="replies" class="replies">
-            <div class="repliesHead">
-              <div class="repliesHeading">
+          <div class="repliesHead">
+            <div class="repliesHeading">
               <div class="repliesTitle">Odpovede</div>
               <div class="repliesSub">
                 {{ repliesCountLabel }}
               </div>
-              </div>
-            <button class="replyBtn repliesCtaBtn" type="button" @click="focusReplyComposer">
-              Napisat odpoved
-            </button>
+            </div>
           </div>
 
           <div v-if="replies.length === 0" class="repliesEmpty">
             <p class="repliesEmptyTitle">Zatial bez odpovedi.</p>
             <p class="repliesEmptyText">Bud prvy, kto odpovie na tento post.</p>
-            <button class="replyBtn repliesEmptyBtn" type="button" @click="focusReplyComposer">
-              Pridat odpoved
-            </button>
           </div>
 
           <div v-else class="replyList">
@@ -1268,13 +1246,6 @@ const repliesCountLabel = computed(() => {
   overflow-wrap: anywhere;
 }
 .dot { opacity: 0.65; }
-.viewMeta {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.78rem;
-  color: var(--color-text-secondary);
-}
 
 .postText {
   margin-top: 0.5rem;
@@ -1405,8 +1376,8 @@ const repliesCountLabel = computed(() => {
 /* Replies section */
 .replies {
   margin-top: 1.55rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  padding-top: 0.15rem;
+  border-top: 0;
 }
 .repliesHead {
   display: flex;
@@ -1435,9 +1406,6 @@ const repliesCountLabel = computed(() => {
   background: rgb(var(--color-bg-rgb) / 0.22);
   width: fit-content;
 }
-.repliesCtaBtn {
-  flex-shrink: 0;
-}
 
 .repliesEmpty {
   padding: 0.85rem;
@@ -1459,9 +1427,6 @@ const repliesCountLabel = computed(() => {
 }
 .repliesEmptyText {
   font-size: 0.88rem;
-}
-.repliesEmptyBtn {
-  margin-top: 0.08rem;
 }
 
 .replyList {
@@ -1739,10 +1704,5 @@ const repliesCountLabel = computed(() => {
     align-items: stretch;
   }
 
-  .repliesCtaBtn,
-  .repliesEmptyBtn {
-    width: 100%;
-    justify-content: center;
-  }
 }
 </style>

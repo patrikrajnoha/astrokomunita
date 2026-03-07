@@ -77,7 +77,7 @@ describe('CrawlRunDetailView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Crawl run detail')
+    expect(wrapper.text()).toContain('Detail crawl runu')
     expect(wrapper.text()).toContain('Udalosti')
     expect(wrapper.find('.adminSectionTabs__tab.active').text()).toContain('Zber')
 

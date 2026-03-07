@@ -38,7 +38,7 @@
             <div>ID: {{ event?.id ?? '—' }}</div>
             <div>UID: {{ event?.source?.uid || '—' }}</div>
             <div>HASH: {{ event?.source?.hash || '—' }}</div>
-            <div>Source: {{ event?.source?.name || '—' }}</div>
+            <div>Zdroj: {{ event?.source?.name || '—' }}</div>
           </div>
         </section>
       </transition>

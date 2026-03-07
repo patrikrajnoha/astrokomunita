@@ -23,7 +23,7 @@
         loading="lazy"
         @load="onLoad"
       />
-      <div v-if="isOversized && !blurred" class="media-overlay-wrap">
+      <div v-if="shouldShowOversizeOverlay" class="media-overlay-wrap">
         <button
           type="button"
           class="media-overlay-btn"
@@ -53,7 +53,14 @@ const props = defineProps({
   maxHeightMobile: { type: Number, default: 300 },
   blurred: { type: Boolean, default: false },
   status: { type: String, default: '' },
-  pendingLabel: { type: String, default: 'Kontroluje sa…' },
+  pendingLabel: { type: String, default: 'Kontroluje sa...' },
+  fit: {
+    type: String,
+    default: 'contain',
+    validator: (value) => ['contain', 'cover'].includes(String(value || '')),
+  },
+  frameAspectRatio: { type: String, default: '' },
+  showOversizeOverlay: { type: Boolean, default: true },
 })
 
 const frameRef = ref(null)
@@ -70,22 +77,49 @@ const isPendingStatus = computed(() => {
   return normalizedStatus.value === 'processing' || normalizedStatus.value === 'pending_moderation'
 })
 const resolvedPendingLabel = computed(() => {
-  if (normalizedStatus.value === 'processing') return 'Publikuje sa…'
-  if (normalizedStatus.value === 'pending_moderation') return 'Kontroluje sa…'
-  return props.pendingLabel || 'Kontroluje sa…'
+  if (normalizedStatus.value === 'processing') return 'Publikuje sa...'
+  if (normalizedStatus.value === 'pending_moderation') return 'Kontroluje sa...'
+  return props.pendingLabel || 'Kontroluje sa...'
 })
+const hasFixedAspectRatio = computed(() => String(props.frameAspectRatio || '').trim() !== '')
 const frameStyle = computed(() => {
-  if (!frameHeight.value) return {}
-  return { height: `${frameHeight.value}px` }
+  const style = {
+    '--feed-media-fit': props.fit,
+  }
+
+  const ratio = String(props.frameAspectRatio || '').trim()
+  if (ratio) {
+    return {
+      ...style,
+      aspectRatio: ratio,
+    }
+  }
+
+  if (!frameHeight.value) return style
+  return {
+    ...style,
+    height: `${frameHeight.value}px`,
+  }
+})
+const shouldShowOversizeOverlay = computed(() => {
+  if (props.blurred) return false
+  if (!props.showOversizeOverlay) return false
+  if (props.fit !== 'contain') return false
+  if (hasFixedAspectRatio.value) return false
+  return isOversized.value
 })
 
 function onLoad(event) {
   const img = event?.target
   naturalWidth.value = img?.naturalWidth || 0
   naturalHeight.value = img?.naturalHeight || 0
-  recalcDimensions()
+  if (!hasFixedAspectRatio.value) {
+    recalcDimensions()
+  }
   window.removeEventListener('resize', onResize)
-  window.addEventListener('resize', onResize)
+  if (!hasFixedAspectRatio.value) {
+    window.addEventListener('resize', onResize)
+  }
 }
 
 function onResize() {
@@ -178,7 +212,7 @@ onBeforeUnmount(() => {
   z-index: 1;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: var(--feed-media-fit, contain);
   display: block;
   background: transparent;
 }

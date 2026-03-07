@@ -196,7 +196,7 @@ export function useSettingsState() {
         message:
           extractFirstError(data.errors, 'new_email') ||
           extractFirstError(data.errors, 'code') ||
-          'Check the highlighted field.',
+          'Skontrolujte zvyraznene pole.',
         fieldError:
           extractFirstError(data.errors, 'new_email') ||
           extractFirstError(data.errors, 'code') ||
@@ -215,6 +215,7 @@ export function useSettingsState() {
 
     if (!auth.user) {
       emailState.error = 'You are not signed in.'
+      emailState.error = 'Nie ste prihlaseny.'
       return
     }
 
@@ -224,9 +225,9 @@ export function useSettingsState() {
       await auth.csrf()
       const response = await http.post('/account/email/verification/send', {})
       applyEmailStatus(response?.data?.data || {})
-      emailState.success = response?.data?.message || 'Verification code sent.'
+      emailState.success = response?.data?.message || 'Overovaci kod bol odoslany.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Failed to send verification code.')
+      const resolved = resolveEmailError(error, 'Nepodarilo sa odoslat overovaci kod.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -238,12 +239,12 @@ export function useSettingsState() {
     resetEmailState()
 
     if (!auth.user) {
-      emailState.error = 'You are not signed in.'
+      emailState.error = 'Nie ste prihlaseny.'
       return
     }
 
     if (!emailForm.code) {
-      emailState.fieldError = 'Verification code is required.'
+      emailState.fieldError = 'Overovaci kod je povinny.'
       return
     }
 
@@ -257,9 +258,9 @@ export function useSettingsState() {
 
       applyEmailStatus(response?.data?.data || {})
       emailForm.code = ''
-      emailState.success = response?.data?.message || 'Email verified successfully.'
+      emailState.success = response?.data?.message || 'E-mail bol uspesne overeny.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Failed to verify email code.')
+      const resolved = resolveEmailError(error, 'Nepodarilo sa overit overovaci kod.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -271,12 +272,12 @@ export function useSettingsState() {
     resetEmailState()
 
     if (!auth.user) {
-      emailState.error = 'You are not signed in.'
+      emailState.error = 'Nie ste prihlaseny.'
       return
     }
 
     if (!emailForm.newEmail) {
-      emailState.fieldError = 'New email is required.'
+      emailState.fieldError = 'Novy e-mail je povinny.'
       return
     }
 
@@ -290,9 +291,9 @@ export function useSettingsState() {
 
       applyEmailStatus(response?.data?.data || {})
       emailForm.newEmail = ''
-      emailState.success = response?.data?.message || 'Email change requested.'
+      emailState.success = response?.data?.message || 'Zmena e-mailu bola vyziadana.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Email change request failed.')
+      const resolved = resolveEmailError(error, 'Poziadavka na zmenu e-mailu zlyhala.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -304,7 +305,7 @@ export function useSettingsState() {
     resetEmailState()
 
     if (!auth.user) {
-      emailState.error = 'You are not signed in.'
+      emailState.error = 'Nie ste prihlaseny.'
       return
     }
 
@@ -314,9 +315,9 @@ export function useSettingsState() {
       await auth.csrf()
       const response = await http.post('/account/email/change/confirm-current', {})
       applyEmailStatus(response?.data?.data || {})
-      emailState.success = response?.data?.message || 'Code sent to current email.'
+      emailState.success = response?.data?.message || 'Kod bol odoslany na aktualny e-mail.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Failed to send current email confirmation code.')
+      const resolved = resolveEmailError(error, 'Nepodarilo sa odoslat kod na potvrdenie aktualneho e-mailu.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -328,12 +329,12 @@ export function useSettingsState() {
     resetEmailState()
 
     if (!auth.user) {
-      emailState.error = 'You are not signed in.'
+      emailState.error = 'Nie ste prihlaseny.'
       return
     }
 
     if (!emailForm.currentCode) {
-      emailState.fieldError = 'Current email confirmation code is required.'
+      emailState.fieldError = 'Potvrdzovaci kod z aktualneho e-mailu je povinny.'
       return
     }
 
@@ -347,9 +348,9 @@ export function useSettingsState() {
 
       applyEmailStatus(response?.data?.data || {})
       emailForm.currentCode = ''
-      emailState.success = response?.data?.message || 'Current email confirmed.'
+      emailState.success = response?.data?.message || 'Aktualny e-mail bol potvrdeny.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Failed to confirm current email code.')
+      const resolved = resolveEmailError(error, 'Nepodarilo sa potvrdit kod z aktualneho e-mailu.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -361,7 +362,7 @@ export function useSettingsState() {
     resetEmailState()
 
     if (!auth.user) {
-      emailState.error = 'You are not signed in.'
+      emailState.error = 'Nie ste prihlaseny.'
       return
     }
 
@@ -373,9 +374,9 @@ export function useSettingsState() {
       applyEmailStatus(response?.data?.data || {})
       emailForm.code = ''
       emailState.success =
-        response?.data?.message || 'New email applied. Verify it with the code sent to your new email.'
+        response?.data?.message || 'Novy e-mail bol pouzity. Overte ho kodom odoslanym na novy e-mail.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Failed to apply new email change.')
+      const resolved = resolveEmailError(error, 'Nepodarilo sa pouzit novy e-mail.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -393,22 +394,22 @@ export function useSettingsState() {
     resetPasswordState()
 
     if (!auth.user) {
-      passwordState.error = 'You are not signed in.'
+      passwordState.error = 'Nie ste prihlaseny.'
       return
     }
 
     if (!passwordForm.current || !passwordForm.password || !passwordForm.confirm) {
-      passwordState.fieldError = 'All fields are required.'
+      passwordState.fieldError = 'Vsetky polia su povinne.'
       return
     }
 
     if (passwordForm.password.length < 8) {
-      passwordState.fieldError = 'Password must be at least 8 characters.'
+      passwordState.fieldError = 'Heslo musi mat aspon 8 znakov.'
       return
     }
 
     if (passwordForm.password !== passwordForm.confirm) {
-      passwordState.fieldError = 'Passwords do not match.'
+      passwordState.fieldError = 'Hesla sa nezhoduju.'
       return
     }
 
@@ -425,7 +426,7 @@ export function useSettingsState() {
       passwordForm.current = ''
       passwordForm.password = ''
       passwordForm.confirm = ''
-      passwordState.success = 'Password updated.'
+      passwordState.success = 'Heslo bolo zmenene.'
     } catch (error) {
       const status = error?.response?.status
       const data = error?.response?.data
@@ -434,9 +435,9 @@ export function useSettingsState() {
         passwordState.fieldError =
           extractFirstError(data.errors, 'current_password') ||
           extractFirstError(data.errors, 'password') ||
-          'Check the highlighted fields.'
+          'Skontrolujte zvyraznene polia.'
       } else {
-        passwordState.error = data?.message || 'Password update failed.'
+        passwordState.error = data?.message || 'Zmena hesla zlyhala.'
       }
     } finally {
       passwordState.loading = false
@@ -449,7 +450,7 @@ export function useSettingsState() {
 
     try {
       if (!auth.user) {
-        throw new Error('You are not signed in.')
+        throw new Error('Nie ste prihlaseny.')
       }
 
       await auth.csrf()
@@ -458,7 +459,7 @@ export function useSettingsState() {
       router.push({ name: 'login' })
     } catch (error) {
       const data = error?.response?.data
-      deactivateState.error = data?.message || error?.message || 'Account deactivation failed.'
+      deactivateState.error = data?.message || error?.message || 'Deaktivacia uctu zlyhala.'
     } finally {
       deactivateState.loading = false
     }
@@ -472,7 +473,7 @@ export function useSettingsState() {
       await auth.logout()
       await router.push({ name: 'login' })
     } catch (error) {
-      logoutState.error = error?.message || 'Logout failed.'
+      logoutState.error = error?.message || 'Odhlasenie zlyhalo.'
     } finally {
       logoutState.loading = false
     }
@@ -485,7 +486,7 @@ export function useSettingsState() {
 
     try {
       if (!auth.user) {
-        throw new Error('You are not signed in.')
+        throw new Error('Nie ste prihlaseny.')
       }
 
       await auth.csrf()
@@ -499,10 +500,10 @@ export function useSettingsState() {
         newsletter_subscribed: newsletterSubscribed.value,
       }
       newsletterState.success = newsletterSubscribed.value
-        ? 'Newsletter subscription enabled.'
-        : 'Newsletter subscription disabled.'
+        ? 'Odber newslettera bol zapnuty.'
+        : 'Odber newslettera bol vypnuty.'
     } catch (error) {
-      newsletterState.error = error?.response?.data?.message || error?.message || 'Newsletter update failed.'
+      newsletterState.error = error?.response?.data?.message || error?.message || 'Aktualizacia newslettera zlyhala.'
       newsletterSubscribed.value = Boolean(auth.user?.newsletter_subscribed)
     } finally {
       newsletterState.loading = false
@@ -544,7 +545,7 @@ export function useSettingsState() {
 
     try {
       if (!auth.user) {
-        throw new Error('You are not signed in.')
+        throw new Error('Nie ste prihlaseny.')
       }
 
       const response = await http.get('/me/export', {
@@ -567,15 +568,15 @@ export function useSettingsState() {
       anchor.remove()
       URL.revokeObjectURL(url)
 
-      exportState.success = 'Export downloaded.'
+      exportState.success = 'Export bol stiahnuty.'
     } catch (error) {
       const status = Number(error?.response?.status || 0)
 
       if (status === 429) {
-        exportState.error = 'Too many export requests. Try again in a minute.'
+        exportState.error = 'Prilis vela poziadaviek na export. Skuste to znova o minutu.'
       } else {
         exportState.error =
-          error?.response?.data?.message || error?.userMessage || error?.message || 'Data export failed.'
+          error?.response?.data?.message || error?.userMessage || error?.message || 'Export dat zlyhal.'
       }
     } finally {
       exportState.loading = false
