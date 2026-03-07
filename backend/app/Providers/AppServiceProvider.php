@@ -103,6 +103,18 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->ip() . '|username-available');
         });
 
+        RateLimiter::for('auth-password-reset-send', function (Request $request) {
+            $email = mb_strtolower(trim((string) $request->input('email', '')));
+
+            return Limit::perMinute(8)->by($request->ip() . '|password-reset-send|' . sha1($email));
+        });
+
+        RateLimiter::for('auth-password-reset-confirm', function (Request $request) {
+            $email = mb_strtolower(trim((string) $request->input('email', '')));
+
+            return Limit::perMinute(20)->by($request->ip() . '|password-reset-confirm|' . sha1($email));
+        });
+
         RateLimiter::for('post-create', function (Request $request) {
             $userId = $request->user()?->id ?? 'guest';
             return Limit::perMinute(20)->by('post-create|' . $userId . '|' . $request->ip());

@@ -9,6 +9,7 @@ class EmailVerification extends Model
 {
     public const PURPOSE_ACCOUNT_VERIFICATION = 'account_verification';
     public const PURPOSE_EMAIL_CHANGE_CURRENT = 'email_change_current';
+    public const PURPOSE_PASSWORD_RESET = 'password_reset';
 
     protected $fillable = [
         'user_id',
