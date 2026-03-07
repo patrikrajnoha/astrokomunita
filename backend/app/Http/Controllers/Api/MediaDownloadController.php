@@ -23,20 +23,20 @@ class MediaDownloadController extends Controller
         $viewer = $request->user() ?? $request->user('sanctum');
         if (!$this->canDownloadOriginal($viewer, $media)) {
             return response()->json([
-                'message' => 'Forbidden.',
+                'message' => 'Zakazane.',
             ], 403);
         }
 
         if (!$this->isImageAttachment($media)) {
             return response()->json([
-                'message' => 'Not found.',
+                'message' => 'Nenaslo sa.',
             ], 404);
         }
 
         $originalPath = $media->attachment_original_path ?: $media->attachment_path;
         if (!$originalPath) {
             return response()->json([
-                'message' => 'Not found.',
+                'message' => 'Nenaslo sa.',
             ], 404);
         }
 
@@ -47,7 +47,7 @@ class MediaDownloadController extends Controller
         $disk = Storage::disk($diskName);
         if (!$disk->exists($originalPath)) {
             return response()->json([
-                'message' => 'Not found.',
+                'message' => 'Nenaslo sa.',
             ], 404);
         }
 
@@ -106,3 +106,4 @@ class MediaDownloadController extends Controller
         };
     }
 }
+

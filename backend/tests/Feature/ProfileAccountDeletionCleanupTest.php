@@ -63,7 +63,7 @@ class ProfileAccountDeletionCleanupTest extends TestCase
 
         $this->deleteJson('/api/profile')
             ->assertOk()
-            ->assertJsonPath('message', 'Account deactivated.');
+            ->assertJsonPath('message', 'Ucet bol deaktivovany.');
 
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
         Storage::disk('public')->assertMissing('avatars/10/avatar.png');
@@ -91,7 +91,7 @@ class ProfileAccountDeletionCleanupTest extends TestCase
 
         $this->deleteJson('/api/profile')
             ->assertOk()
-            ->assertJsonPath('message', 'Account deactivated.');
+            ->assertJsonPath('message', 'Ucet bol deaktivovany.');
 
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
     }

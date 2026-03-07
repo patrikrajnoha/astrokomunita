@@ -78,7 +78,7 @@ class TagController extends Controller
 
         if (!$tagModel) {
             return response()->json([
-                'message' => 'Tag not found',
+                'message' => 'Tag sa nenasiel',
                 'tag' => $tag
             ], 404);
         }
@@ -115,3 +115,4 @@ class TagController extends Controller
         ]);
     }
 }
+

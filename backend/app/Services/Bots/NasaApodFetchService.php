@@ -41,12 +41,12 @@ class NasaApodFetchService
 
         if ($requiresApiKey && $apiKey === '') {
             throw new BotSourceRunException(
-                'NASA APOD API requires API key. Add NASA_API_KEY or wait.',
+                'NASA APOD API vyzaduje API kluc. Pridajte NASA_API_KEY alebo pockajte.',
                 'needs_api_key',
                 [
                     'provider' => 'nasa_apod',
                     'http_status' => null,
-                    'message' => 'NASA APOD API requires API key. Add NASA_API_KEY or wait.',
+                    'message' => 'NASA APOD API vyzaduje API kluc. Pridajte NASA_API_KEY alebo pockajte.',
                 ]
             );
         }
@@ -79,12 +79,12 @@ class NasaApodFetchService
         if (!$response->successful()) {
             if ($response->status() === 429) {
                 throw new BotSourceRunException(
-                    'NASA APOD API rate limit (HTTP 429). Add NASA_API_KEY or try later.',
+                    'NASA APOD API limit poziadaviek (HTTP 429). Pridajte NASA_API_KEY alebo skuste neskor.',
                     'rate_limited',
                     [
                         'provider' => 'nasa_apod',
                         'http_status' => 429,
-                        'message' => 'NASA APOD API rate limit (HTTP 429). Add NASA_API_KEY or try later.',
+                        'message' => 'NASA APOD API limit poziadaviek (HTTP 429). Pridajte NASA_API_KEY alebo skuste neskor.',
                         'retry_after_sec' => $this->resolveRetryAfterSeconds($response),
                     ]
                 );
@@ -238,3 +238,4 @@ class NasaApodFetchService
         }
     }
 }
+

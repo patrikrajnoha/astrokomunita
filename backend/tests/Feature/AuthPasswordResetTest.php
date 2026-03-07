@@ -26,7 +26,7 @@ class AuthPasswordResetTest extends TestCase
             'email' => 'reset-me@example.com',
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'If the account exists, we sent a reset code to your email.');
+            ->assertJsonPath('message', 'Ak ucet existuje, poslali sme obnovovaci kod na vas e-mail.');
 
         $verification = EmailVerification::query()->firstOrFail();
         $this->assertSame($user->id, $verification->user_id);
@@ -53,7 +53,7 @@ class AuthPasswordResetTest extends TestCase
             'email' => 'missing-user@example.com',
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'If the account exists, we sent a reset code to your email.');
+            ->assertJsonPath('message', 'Ak ucet existuje, poslali sme obnovovaci kod na vas e-mail.');
 
         Mail::assertNothingSent();
         $this->assertDatabaseCount('email_verifications', 0);
@@ -86,7 +86,7 @@ class AuthPasswordResetTest extends TestCase
             'password_confirmation' => 'new-password-123',
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'Password was reset successfully. You can now sign in.');
+            ->assertJsonPath('message', 'Heslo bolo uspesne obnovene. Teraz sa mozete prihlasit.');
 
         $user->refresh();
         $this->assertTrue(Hash::check('new-password-123', (string) $user->password));
@@ -115,7 +115,7 @@ class AuthPasswordResetTest extends TestCase
         ])
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'PASSWORD_RESET_CODE_INVALID')
-            ->assertJsonPath('message', 'You have entered an invalid code. It should look like XXXXX-XXXXX.');
+            ->assertJsonPath('message', 'Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.');
 
         $this->postJson('/api/auth/password/reset', [
             'email' => 'invalid-code@example.com',
@@ -125,6 +125,6 @@ class AuthPasswordResetTest extends TestCase
         ])
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'PASSWORD_RESET_CODE_INVALID')
-            ->assertJsonPath('message', 'You have entered an invalid code. It should look like XXXXX-XXXXX.');
+            ->assertJsonPath('message', 'Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.');
     }
 }

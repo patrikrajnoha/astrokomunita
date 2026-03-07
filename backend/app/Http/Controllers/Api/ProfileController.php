@@ -77,7 +77,7 @@ class ProfileController extends Controller
 
             if ($requestedEmail !== '' && $requestedEmail !== $currentEmail) {
                 return response()->json([
-                    'message' => 'Use account email verification flow to change email.',
+                    'message' => 'Na zmenu e-mailu pouzite tok overenia e-mailu uctu.',
                     'error_code' => 'EMAIL_CHANGE_REQUIRES_VERIFICATION_FLOW',
                 ], 422);
             }
@@ -143,7 +143,7 @@ class ProfileController extends Controller
             $request->session()->regenerateToken();
         }
 
-        return response()->json(['message' => 'Account deactivated.']);
+        return response()->json(['message' => 'Ucet bol deaktivovany.']);
     }
 
     public function uploadMedia(Request $request)
@@ -345,7 +345,8 @@ class ProfileController extends Controller
     private function ensureBotProfileEditAllowed(User $user): void
     {
         if ($user->isBot() && ! $user->isAdmin()) {
-            abort(403, 'Bot profiles can only be edited by admin.');
+            abort(403, 'Bot profily moze upravovat iba admin.');
         }
     }
 }
+

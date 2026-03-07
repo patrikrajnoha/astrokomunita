@@ -99,7 +99,7 @@ class AdminUserMediaUploadTest extends TestCase
             'file' => $this->fakeImage('avatar.png'),
         ], ['Accept' => 'application/json'])
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Media upload endpoint is available only for bot accounts.');
+            ->assertJsonPath('message', 'Endpoint na upload media je dostupny iba pre bot ucty.');
     }
 
     private function fakeImage(string $name): UploadedFile

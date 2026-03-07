@@ -46,31 +46,31 @@ class SidebarSectionRegistry
         return [
             [
                 'section_key' => 'search',
-                'title' => 'Search',
+                'title' => 'Hladat',
                 'default_enabled' => true,
                 'default_order' => 0,
             ],
             [
                 'section_key' => 'observing_conditions',
-                'title' => 'Observing Conditions',
+                'title' => 'Podmienky pozorovania',
                 'default_enabled' => true,
                 'default_order' => 1,
             ],
             [
                 'section_key' => 'nasa_apod',
-                'title' => 'NASA APOD',
+                'title' => 'NASA Novinky',
                 'default_enabled' => true,
                 'default_order' => 2,
             ],
             [
                 'section_key' => 'next_event',
-                'title' => 'Next Event',
+                'title' => 'Najblizsia udalost',
                 'default_enabled' => true,
                 'default_order' => 3,
             ],
             [
                 'section_key' => 'latest_articles',
-                'title' => 'Latest Articles',
+                'title' => 'Najnovsie clanky',
                 'default_enabled' => true,
                 'default_order' => 4,
             ],

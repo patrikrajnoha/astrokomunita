@@ -25,7 +25,7 @@ class EventCandidateReviewController extends Controller
         if ($candidate->status !== EventCandidate::STATUS_PENDING) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Candidate is not pending.',
+                'message' => 'Kandidat nie je v stave cakania.',
                 'status' => $candidate->status,
             ], 409);
         }
@@ -174,7 +174,7 @@ class EventCandidateReviewController extends Controller
         if ($candidate->status !== EventCandidate::STATUS_PENDING) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Candidate is not pending.',
+                'message' => 'Kandidat nie je v stave cakania.',
                 'status' => $candidate->status,
             ], 409);
         }
@@ -192,7 +192,7 @@ class EventCandidateReviewController extends Controller
         } catch (RuntimeException) {
             return response()->json([
                 'ok' => false,
-                'message' => 'Candidate is not pending.',
+                'message' => 'Kandidat nie je v stave cakania.',
                 'status' => $candidate->fresh()->status,
             ], 409);
         }
@@ -222,7 +222,7 @@ class EventCandidateReviewController extends Controller
         return response()->json([
             'ok' => true,
             'candidate' => $candidate->fresh(),
-            'message' => 'Retranslation queued.',
+            'message' => 'Preklad bol zaradeny do fronty.',
         ]);
     }
 
@@ -363,7 +363,7 @@ class EventCandidateReviewController extends Controller
         if ($translatedTitle === '') {
             return response()->json([
                 'ok' => false,
-                'message' => 'Translated title is required.',
+                'message' => 'Prelozeny nadpis je povinny.',
             ], 422);
         }
 
@@ -419,3 +419,4 @@ class EventCandidateReviewController extends Controller
         TranslateEventCandidateJob::dispatch($candidateId, true)->afterCommit();
     }
 }
+

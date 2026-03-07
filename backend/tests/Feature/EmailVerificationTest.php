@@ -152,7 +152,7 @@ class EmailVerificationTest extends TestCase
 
         $this->getJson($url)
             ->assertOk()
-            ->assertJsonPath('message', 'Email verified successfully.');
+            ->assertJsonPath('message', 'E-mail bol uspesne overeny.');
 
         $this->assertNotNull($user->fresh()->email_verified_at);
     }

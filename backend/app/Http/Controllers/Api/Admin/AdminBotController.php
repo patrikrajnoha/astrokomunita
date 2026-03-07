@@ -113,7 +113,7 @@ class AdminBotController extends Controller
         $source = BotSource::query()->find($sourceId);
         if (!$source) {
             return response()->json([
-                'message' => 'Bot source was not found.',
+                'message' => 'Zdroj bota sa nenasiel.',
             ], 404);
         }
 
@@ -144,7 +144,7 @@ class AdminBotController extends Controller
         $source = BotSource::query()->find($sourceId);
         if (!$source) {
             return response()->json([
-                'message' => 'Bot source was not found.',
+                'message' => 'Zdroj bota sa nenasiel.',
             ], 404);
         }
 
@@ -162,7 +162,7 @@ class AdminBotController extends Controller
         $source = BotSource::query()->find($sourceId);
         if (!$source) {
             return response()->json([
-                'message' => 'Bot source was not found.',
+                'message' => 'Zdroj bota sa nenasiel.',
             ], 404);
         }
 
@@ -180,7 +180,7 @@ class AdminBotController extends Controller
         $source = BotSource::query()->find($sourceId);
         if (!$source) {
             return response()->json([
-                'message' => 'Bot source was not found.',
+                'message' => 'Zdroj bota sa nenasiel.',
             ], 404);
         }
 
@@ -411,7 +411,7 @@ class AdminBotController extends Controller
         $schedule = BotSchedule::query()->find($scheduleId);
         if (!$schedule) {
             return response()->json([
-                'message' => 'Bot schedule was not found.',
+                'message' => 'Plan bota sa nenasiel.',
             ], 404);
         }
 
@@ -445,7 +445,7 @@ class AdminBotController extends Controller
         $schedule = BotSchedule::query()->find($scheduleId);
         if (!$schedule) {
             return response()->json([
-                'message' => 'Bot schedule was not found.',
+                'message' => 'Plan bota sa nenasiel.',
             ], 404);
         }
 
@@ -636,7 +636,7 @@ class AdminBotController extends Controller
 
             return response()->json([
                 'ok' => false,
-                'message' => 'Translation test failed.',
+                'message' => 'Test prekladu zlyhal.',
                 'failure_reason' => $failureReason,
                 'error' => $this->truncateErrorText($e->getMessage(), 300),
             ], $statusCode);
@@ -1010,14 +1010,14 @@ class AdminBotController extends Controller
         $item = BotItem::query()->find($botItemId);
         if (!$item) {
             return response()->json([
-                'message' => 'Bot item was not found.',
+                'message' => 'Polozka bota sa nenasla.',
             ], 404);
         }
 
         $publishStatus = strtolower(trim((string) ($item->publish_status?->value ?? $item->publish_status)));
         if ($item->post_id || $publishStatus === BotPublishStatus::PUBLISHED->value) {
             return response()->json([
-                'message' => 'Item is already published.',
+                'message' => 'Polozka je uz publikovana.',
                 'already_published' => true,
                 'item' => $this->serializeItem($item->fresh() ?? $item),
             ]);
@@ -1027,7 +1027,7 @@ class AdminBotController extends Controller
             $skipReason = $this->nullableString(data_get($item->meta, 'skip_reason'));
 
             return response()->json([
-                'message' => 'Item is skipped and cannot be published.',
+                'message' => 'Polozka je preskocena a neda sa publikovat.',
                 'skip_reason' => $skipReason,
             ], 422);
         }
@@ -1039,7 +1039,7 @@ class AdminBotController extends Controller
             $item = $this->markItemPublishedManually($item);
 
             return response()->json([
-                'message' => 'Item published.',
+                'message' => 'Polozka publikovana.',
                 'already_published' => false,
                 'item' => $this->serializeItem($item),
             ]);
@@ -1048,7 +1048,7 @@ class AdminBotController extends Controller
         $skipReason = $result->reason ?? $this->nullableString(data_get($item->meta, 'skip_reason'));
 
         return response()->json([
-            'message' => 'Item could not be published.',
+            'message' => 'Polozku sa nepodarilo publikovat.',
             'skip_reason' => $skipReason,
             'item' => $this->serializeItem($item),
         ], 422);
@@ -1063,7 +1063,7 @@ class AdminBotController extends Controller
         $run = BotRun::query()->find($runId);
         if (!$run) {
             return response()->json([
-                'message' => 'Run was not found.',
+                'message' => 'Beh sa nenasiel.',
             ], 404);
         }
 
@@ -1113,14 +1113,14 @@ class AdminBotController extends Controller
         $item = BotItem::query()->find($botItemId);
         if (!$item) {
             return response()->json([
-                'message' => 'Bot item was not found.',
+                'message' => 'Polozka bota sa nenasla.',
             ], 404);
         }
 
         $postId = (int) ($item->post_id ?? 0);
         if ($postId <= 0) {
             return response()->json([
-                'message' => 'Item has no published post to delete.',
+                'message' => 'Polozka nema publikovany prispevok na vymazanie.',
             ], 422);
         }
 
@@ -1129,10 +1129,10 @@ class AdminBotController extends Controller
             $this->postService->deletePost($post);
         }
 
-        $item = $this->markItemPostDeletedManually($item, $postId);
+        $item = $this->markItemPostVymazaneManually($item, $postId);
 
         return response()->json([
-            'message' => 'Published post deleted.',
+            'message' => 'Publikovany prispevok bol vymazany.',
             'item' => $this->serializeItem($item),
             'deleted_post_id' => $postId,
         ]);
@@ -1170,7 +1170,7 @@ class AdminBotController extends Controller
         $matchedCount = (clone $query)->count();
         if ($matchedCount <= 0) {
             return response()->json([
-                'message' => 'No published bot posts found for selected filters.',
+                'message' => 'Pre vybrane filtre sa nenasli publikovane bot prispevky.',
                 'matched_items' => 0,
                 'deleted_posts' => 0,
                 'missing_posts' => 0,
@@ -1184,7 +1184,7 @@ class AdminBotController extends Controller
         $missingPosts = 0;
         $updatedItems = 0;
         $failedItems = 0;
-        $sampleDeletedPostIds = [];
+        $sampleVymazanePostIds = [];
 
         $query
             ->orderBy('id')
@@ -1193,7 +1193,7 @@ class AdminBotController extends Controller
                 &$missingPosts,
                 &$updatedItems,
                 &$failedItems,
-                &$sampleDeletedPostIds
+                &$sampleVymazanePostIds
             ): void {
                 foreach ($items as $item) {
                     $postId = (int) ($item->post_id ?? 0);
@@ -1206,14 +1206,14 @@ class AdminBotController extends Controller
                         if ($post) {
                             $this->postService->deletePost($post);
                             $deletedPosts++;
-                            if (count($sampleDeletedPostIds) < 50) {
-                                $sampleDeletedPostIds[] = $postId;
+                            if (count($sampleVymazanePostIds) < 50) {
+                                $sampleVymazanePostIds[] = $postId;
                             }
                         } else {
                             $missingPosts++;
                         }
 
-                        $this->markItemPostDeletedManually($item, $postId);
+                        $this->markItemPostVymazaneManually($item, $postId);
                         $updatedItems++;
                     } catch (Throwable $e) {
                         $failedItems++;
@@ -1227,13 +1227,13 @@ class AdminBotController extends Controller
             }, 'id');
 
         return response()->json([
-            'message' => 'Bulk delete completed.',
+            'message' => 'Hromadne mazanie dokoncene.',
             'matched_items' => $matchedCount,
             'deleted_posts' => $deletedPosts,
             'missing_posts' => $missingPosts,
             'updated_items' => $updatedItems,
             'failed_items' => $failedItems,
-            'sample_deleted_post_ids' => $sampleDeletedPostIds,
+            'sample_deleted_post_ids' => $sampleVymazanePostIds,
         ]);
     }
 
@@ -1277,7 +1277,7 @@ class AdminBotController extends Controller
         );
 
         return response()->json([
-            'message' => 'Bot post retention cleanup finished.',
+            'message' => 'Cistenie retention bot prispevkov dokoncene.',
             'data' => $result,
         ]);
     }
@@ -1580,7 +1580,7 @@ class AdminBotController extends Controller
         return $item->fresh() ?? $item;
     }
 
-    private function markItemPostDeletedManually(BotItem $item, int $postId): BotItem
+    private function markItemPostVymazaneManually(BotItem $item, int $postId): BotItem
     {
         $meta = is_array($item->meta) ? $item->meta : [];
         $meta['deleted_manually'] = true;
@@ -1666,3 +1666,4 @@ class AdminBotController extends Controller
         return substr($normalized, 0, $maxLength);
     }
 }
+

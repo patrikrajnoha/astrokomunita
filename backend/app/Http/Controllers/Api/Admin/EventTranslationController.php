@@ -25,7 +25,7 @@ class EventTranslationController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'message' => 'Validation failed.',
+                'message' => 'Validacia zlyhala.',
                 'errors' => $validator->errors(),
             ], 422);
         }
@@ -46,3 +46,4 @@ class EventTranslationController extends Controller
         ]);
     }
 }
+

@@ -143,7 +143,8 @@ class ReportQueueController extends Controller
     private function authorizeReview(Request $request, Report $report): void
     {
         if (Gate::forUser($request->user())->denies('review', $report)) {
-            abort(403, 'Forbidden');
+            abort(403, 'Zakazane');
         }
     }
 }
+

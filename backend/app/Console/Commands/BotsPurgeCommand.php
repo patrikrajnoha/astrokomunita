@@ -66,8 +66,9 @@ class BotsPurgeCommand extends Command
         $deletedRuns = (clone $runsQuery)->delete();
         $deletedItems = (clone $itemsQuery)->delete();
 
-        $this->info(sprintf('Deleted runs=%d items=%d', $deletedRuns, $deletedItems));
+        $this->info(sprintf('Vymazane runs=%d items=%d', $deletedRuns, $deletedItems));
 
         return self::SUCCESS;
     }
 }
+

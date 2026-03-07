@@ -106,7 +106,7 @@ class EventController extends Controller
         if (!$event) {
             return response()->json([
                 'data' => null,
-                'message' => 'No events found.',
+                'message' => 'Nenasli sa ziadne udalosti.',
             ]);
         }
 
@@ -159,3 +159,4 @@ class EventController extends Controller
         return $this->publishedEventQuery->base();
     }
 }
+

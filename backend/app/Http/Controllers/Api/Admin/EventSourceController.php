@@ -103,7 +103,7 @@ class EventSourceController extends Controller
 
         if ($blockedKeys !== []) {
             return response()->json([
-                'message' => 'One or more sources are not available in this environment.',
+                'message' => 'Jeden alebo viac zdrojov nie je v tomto prostredi dostupnych.',
                 'errors' => [
                     'source_keys' => [
                         sprintf('Source key(s) not allowed: %s', implode(', ', $blockedKeys)),
@@ -125,7 +125,7 @@ class EventSourceController extends Controller
                 $results[] = [
                     'source_key' => $key,
                     'status' => 'missing',
-                    'message' => 'Unknown event source.',
+                    'message' => 'Neznamy zdroj udalosti.',
                 ];
                 continue;
             }
@@ -134,7 +134,7 @@ class EventSourceController extends Controller
                 $results[] = [
                     'source_key' => $key,
                     'status' => 'skipped',
-                    'message' => 'Source is disabled.',
+                    'message' => 'Zdroj je vypnuty.',
                 ];
                 continue;
             }
@@ -144,7 +144,7 @@ class EventSourceController extends Controller
                 $results[] = [
                     'source_key' => $key,
                     'status' => 'unsupported',
-                    'message' => 'Manual run is not supported for this source.',
+                    'message' => 'Manualny beh nie je pre tento zdroj podporovany.',
                 ];
                 continue;
             }
@@ -218,7 +218,7 @@ class EventSourceController extends Controller
                 'status' => 'noop',
                 'dry_run' => $dryRun,
                 'source_keys' => [],
-                'message' => 'No crawl-capable source keys selected.',
+                'message' => 'Neboli vybrane ziadne kluce crawl zdrojov.',
             ]);
         }
 
@@ -349,3 +349,4 @@ class EventSourceController extends Controller
         }
     }
 }
+

@@ -28,7 +28,7 @@ class ReportController extends Controller
         $honeypot = trim((string) ($validated['_hp'] ?? $validated['website'] ?? ''));
         if ($honeypot !== '') {
             return response()->json([
-                'message' => 'Invalid report request.',
+                'message' => 'Neplatna poziadavka na nahlasenie.',
             ], 422);
         }
 
@@ -37,13 +37,13 @@ class ReportController extends Controller
         $targetPost = Post::query()->select('id', 'user_id')->findOrFail($postId);
         if ((int) $targetPost->user_id === (int) $user->id) {
             return response()->json([
-                'message' => 'You cannot report your own post.',
+                'message' => 'Nemozete nahlasit vlastny prispevok.',
             ], 403);
         }
 
         if (Gate::forUser($user)->denies('create', [Report::class, $targetPost])) {
             return response()->json([
-                'message' => 'You cannot report your own post.',
+                'message' => 'Nemozete nahlasit vlastny prispevok.',
             ], 403);
         }
 
@@ -56,7 +56,7 @@ class ReportController extends Controller
         if ($exists) {
             return response()->json([
                 'status' => 'already_reported',
-                'message' => 'Report already submitted.',
+                'message' => 'Nahlasenie uz bolo odoslane.',
             ], 409);
         }
 
@@ -72,7 +72,7 @@ class ReportController extends Controller
             if ((string) $exception->getCode() === '23000') {
                 return response()->json([
                     'status' => 'already_reported',
-                    'message' => 'Report already submitted.',
+                    'message' => 'Nahlasenie uz bolo odoslane.',
                 ], 409);
             }
 

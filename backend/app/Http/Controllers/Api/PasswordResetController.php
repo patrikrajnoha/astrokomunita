@@ -24,7 +24,7 @@ class PasswordResetController extends Controller
         ]);
 
         $email = $this->normalizeEmail((string) $validated['email']);
-        $genericMessage = 'If the account exists, we sent a reset code to your email.';
+        $genericMessage = 'Ak ucet existuje, poslali sme obnovovaci kod na vas e-mail.';
 
         if ($email === '') {
             return response()->json(['message' => $genericMessage]);
@@ -91,7 +91,7 @@ class PasswordResetController extends Controller
         $confirmRateKey = $this->confirmRateKey($email, (string) $request->ip());
         if (RateLimiter::tooManyAttempts($confirmRateKey, $this->maxConfirmAttemptsPerWindow())) {
             return response()->json([
-                'message' => 'Too many reset attempts. Try again later.',
+                'message' => 'Prilis vela pokusov o reset. Skuste to neskor.',
                 'error_code' => 'PASSWORD_RESET_ATTEMPTS_EXCEEDED',
             ], 429);
         }
@@ -109,14 +109,14 @@ class PasswordResetController extends Controller
 
         if ($verification->expires_at === null || now()->greaterThan($verification->expires_at)) {
             return response()->json([
-                'message' => 'Your reset code has expired. Request a new one.',
+                'message' => 'Platnost obnovovacieho kodu vyprsala. Vyziadajte si novy.',
                 'error_code' => 'PASSWORD_RESET_CODE_EXPIRED',
             ], 422);
         }
 
         if ((int) $verification->attempts >= $this->maxConfirmAttemptsPerToken()) {
             return response()->json([
-                'message' => 'Too many attempts for this reset code.',
+                'message' => 'Prilis vela pokusov pre tento obnovovaci kod.',
                 'error_code' => 'PASSWORD_RESET_CODE_ATTEMPTS_EXCEEDED',
             ], 429);
         }
@@ -127,7 +127,7 @@ class PasswordResetController extends Controller
 
             if ((int) $verification->attempts >= $this->maxConfirmAttemptsPerToken()) {
                 return response()->json([
-                    'message' => 'Too many attempts for this reset code.',
+                    'message' => 'Prilis vela pokusov pre tento obnovovaci kod.',
                     'error_code' => 'PASSWORD_RESET_CODE_ATTEMPTS_EXCEEDED',
                 ], 429);
             }
@@ -157,14 +157,14 @@ class PasswordResetController extends Controller
         });
 
         return response()->json([
-            'message' => 'Password was reset successfully. You can now sign in.',
+            'message' => 'Heslo bolo uspesne obnovene. Teraz sa mozete prihlasit.',
         ]);
     }
 
     private function invalidCodeResponse(): JsonResponse
     {
         return response()->json([
-            'message' => 'You have entered an invalid code. It should look like XXXXX-XXXXX.',
+            'message' => 'Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.',
             'error_code' => 'PASSWORD_RESET_CODE_INVALID',
         ], 422);
     }
@@ -282,3 +282,4 @@ class PasswordResetController extends Controller
         return sprintf('password-reset:confirm:%s:%s', sha1($email), $ip);
     }
 }
+

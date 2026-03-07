@@ -17,7 +17,7 @@ class BlogPostCommentController extends Controller
 
         if (!$blogPost) {
             return response()->json([
-                'message' => 'Not found',
+                'message' => 'Nenaslo sa',
             ], 404);
         }
 
@@ -40,7 +40,7 @@ class BlogPostCommentController extends Controller
 
         if (!$blogPost) {
             return response()->json([
-                'message' => 'Not found',
+                'message' => 'Nenaslo sa',
             ], 404);
         }
 
@@ -73,21 +73,21 @@ class BlogPostCommentController extends Controller
 
         if (!$blogPost || $comment->blog_post_id !== $blogPost->id) {
             return response()->json([
-                'message' => 'Not found',
+                'message' => 'Nenaslo sa',
             ], 404);
         }
 
         $user = $request->user();
         if ($comment->user_id !== $user->id && !$user->is_admin) {
             return response()->json([
-                'message' => 'Forbidden',
+                'message' => 'Zakazane',
             ], 403);
         }
 
         $comment->delete();
 
         return response()->json([
-            'message' => 'Deleted',
+            'message' => 'Vymazane',
         ]);
     }
 
@@ -147,3 +147,4 @@ class BlogPostCommentController extends Controller
         });
     }
 }
+

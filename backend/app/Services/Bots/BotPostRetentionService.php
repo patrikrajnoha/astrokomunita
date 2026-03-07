@@ -174,7 +174,7 @@ class BotPostRetentionService
                     $missingPosts++;
                 }
 
-                $this->markItemPostDeletedByRetention($item, $postId);
+                $this->markItemPostVymazaneByRetention($item, $postId);
                 $updatedItems++;
             } catch (Throwable $e) {
                 $failedItems++;
@@ -243,7 +243,7 @@ class BotPostRetentionService
         Cache::put(self::CACHE_KEY, $payload, now()->addMinutes(10));
     }
 
-    private function markItemPostDeletedByRetention(BotItem $item, int $postId): BotItem
+    private function markItemPostVymazaneByRetention(BotItem $item, int $postId): BotItem
     {
         $meta = is_array($item->meta) ? $item->meta : [];
         $meta['deleted_by_retention'] = true;
@@ -273,4 +273,5 @@ class BotPostRetentionService
         return mb_substr($normalized, 0, $maxLength - 3) . '...';
     }
 }
+
 

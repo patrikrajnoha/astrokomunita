@@ -46,7 +46,7 @@ class BlogPostController extends Controller
 
         if (!$blogPost) {
             return response()->json([
-                'message' => 'Not found',
+                'message' => 'Nenaslo sa',
             ], 404);
         }
 
@@ -64,7 +64,7 @@ class BlogPostController extends Controller
 
         if (!$blogPost) {
             return response()->json([
-                'message' => 'Not found',
+                'message' => 'Nenaslo sa',
             ], 404);
         }
 
@@ -125,19 +125,19 @@ class BlogPostController extends Controller
     {
         $query = BlogPost::query()->published();
 
-        // Validácia a sanitizácia slugu
+        // ValidĂˇcia a sanitizĂˇcia slugu
         $slug = trim($slug);
         if (empty($slug)) {
             return null;
         }
 
-        // Ak je to číslo, hľadaj podľa ID, inak podľa slugu
+        // Ak je to ÄŤĂ­slo, hÄľadaj podÄľa ID, inak podÄľa slugu
         if (ctype_digit($slug)) {
             $id = (int) $slug;
             return $query->where('id', $id)->first();
         }
 
-        // Ochrana proti SQL injection - povoliť len validné znaky pre slug
+        // Ochrana proti SQL injection - povoliĹĄ len validnĂ© znaky pre slug
         if (!preg_match('/^[a-z0-9\-_]+$/', $slug)) {
             return null;
         }
@@ -160,3 +160,4 @@ class BlogPostController extends Controller
             ->all();
     }
 }
+

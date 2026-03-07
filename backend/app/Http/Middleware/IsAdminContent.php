@@ -14,7 +14,7 @@ class IsAdminContent
 
         if (! $user) {
             return response()->json([
-                'message' => 'Unauthenticated',
+                'message' => 'Neautentifikovany pouzivatel',
             ], 401);
         }
 
@@ -23,7 +23,8 @@ class IsAdminContent
         }
 
         return response()->json([
-            'message' => 'Forbidden',
+            'message' => 'Zakazane',
         ], 403);
     }
 }
+

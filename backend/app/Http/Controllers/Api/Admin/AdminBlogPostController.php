@@ -22,9 +22,15 @@ class AdminBlogPostController extends Controller
     {
         $validated = $request->validate([
             'status' => ['nullable', 'string', Rule::in(['published', 'draft', 'scheduled'])],
+            'q' => ['nullable', 'string', 'max:255'],
+            'per_page' => ['nullable', 'integer', 'min:5', 'max:50'],
         ]);
 
-        return response()->json($this->blogPosts->list($validated['status'] ?? null));
+        return response()->json($this->blogPosts->list(
+            $validated['status'] ?? null,
+            $validated['q'] ?? null,
+            (int) ($validated['per_page'] ?? 10),
+        ));
     }
 
     public function show(BlogPost $blogPost)
@@ -83,7 +89,7 @@ class AdminBlogPostController extends Controller
         $this->blogPosts->delete($blogPost);
 
         return response()->json([
-            'message' => 'Deleted',
+            'message' => 'Vymazane',
         ]);
     }
 
@@ -99,3 +105,4 @@ class AdminBlogPostController extends Controller
         ]);
     }
 }
+
