@@ -1,5 +1,5 @@
 <template>
-  <div class="post-actions" @click.stop>
+  <div class="post-actions" :class="{ 'post-actions--menu-open': isMenuOpen }" @click.stop>
     <div class="post-actions-left">
       <button class="action-btn action-btn--reply" type="button" :title="replyTitle" @click.stop="$emit('reply')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -89,6 +89,8 @@
           :items="menuItems"
           label="Ďalšie akcie"
           :menu-label="menuLabel"
+          @open="isMenuOpen = true"
+          @close="isMenuOpen = false"
           @select="(menuItem) => $emit('menu-select', menuItem)"
         />
       </div>
@@ -97,7 +99,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
 
 const props = defineProps({
@@ -145,48 +147,65 @@ const props = defineProps({
 
 defineEmits(['reply', 'like', 'bookmark', 'share', 'menu-select'])
 
+const isMenuOpen = ref(false)
 const replyCount = computed(() => Number(props.replyCount ?? 0))
 const likeCount = computed(() => Number(props.likeCount ?? 0))
 </script>
 
 <style scoped>
 .post-actions {
-  margin-top: 0.55rem;
-  display: flex;
+  margin-top: 0.28rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--color-divider);
+  gap: 0.38rem;
+  padding-top: 0.14rem;
+  border-top: 0;
   min-width: 0;
+  position: relative;
+  z-index: 4;
+}
+
+.post-actions--menu-open {
+  z-index: 40;
 }
 
 .post-actions-left,
 .post-actions-right {
   display: flex;
   align-items: center;
-  gap: 0.82rem;
+  gap: 0.24rem;
+  min-width: 0;
 }
 
 .post-actions-right {
-  margin-left: auto;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
 .action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
-  padding: 8px 10px;
+  justify-content: center;
+  gap: 0.22rem;
+  padding: 3px 5px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--color-text-secondary);
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: 0.7rem;
   font-weight: 500;
   cursor: pointer;
   transition: border-color var(--motion-fast), background-color var(--motion-fast), color var(--motion-fast), transform var(--motion-fast);
-  min-height: var(--control-height-sm);
-  min-width: var(--control-height-sm);
+  min-height: 26px;
+  min-width: 26px;
   text-decoration: none;
+}
+
+.action-btn :is(svg) {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .action-btn:hover:not(:disabled) {
@@ -205,7 +224,7 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 }
 
 .action-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.62;
   cursor: not-allowed;
 }
 
@@ -250,9 +269,9 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--control-height-sm);
-  min-width: var(--control-height-sm);
-  padding: 8px 10px;
+  min-height: 26px;
+  min-width: 26px;
+  padding: 3px 5px;
   border-radius: 999px;
   color: var(--color-text-secondary);
   transition: all var(--motion-fast);
@@ -265,10 +284,11 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 }
 
 .action-count {
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   font-weight: 500;
-  min-width: 16px;
+  min-width: 11px;
   text-align: center;
+  line-height: 1;
 }
 
 @keyframes likePop {
@@ -283,25 +303,41 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
+  .post-actions {
+    gap: 0.26rem;
+  }
+
   .action-btn {
-    padding: 0.24rem 0.42rem;
-    font-size: 0.72rem;
-    min-height: 32px;
-    min-width: 32px;
+    padding: 2px 4px;
+    min-height: 24px;
+    min-width: 24px;
   }
 
   .action-count {
-    font-size: 0.68rem;
+    font-size: 0.62rem;
+  }
+
+  .action-btn :is(svg) {
+    width: 14px;
+    height: 14px;
+  }
+
+  .post-actions-more :deep(.dropdownTrigger) {
+    min-height: 24px;
+    min-width: 24px;
+    padding: 2px 4px;
   }
 }
 
-@media (min-width: 481px) and (max-width: 768px) {
-  .action-btn {
-    padding: 0.26rem 0.45rem;
-    font-size: 0.74rem;
-    min-height: 34px;
-    min-width: 34px;
+@media (max-width: 430px) {
+  .post-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .post-actions-right {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 </style>

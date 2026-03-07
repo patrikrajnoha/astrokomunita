@@ -126,21 +126,20 @@ describe('UsersView', () => {
 
     const botRow = wrapper.get('[data-row-id="4"]')
     expect(botRow.find('.roleBadge').text()).toBe('BOT')
-    expect(botRow.find('.col-email .truncateText').text()).toBe('—')
+    expect(botRow.find('.col-email .truncateText').text()).toBe('-')
     expect(botRow.find('.default-avatar').exists()).toBe(true)
 
     const hint = botRow.get('.botAccountHint')
-    expect(hint.text()).toBe('(bot účet)')
-    expect(hint.attributes('title')).toContain('Automatizovaný účet')
+    expect(hint.text()).toBe('(bot ucet)')
+    expect(hint.attributes('title')).toContain('Automatizovany ucet')
 
     const regularRow = wrapper.get('[data-row-id="9"]')
     expect(regularRow.find('.col-email .truncateText').text()).toBe('regular@example.test')
 
     const debugBanner = wrapper.get('.devConnectivityBanner')
-    expect(debugBanner.text()).toContain('DEV API Connectivity')
+    expect(debugBanner.text()).toContain('DEV API konektivita')
     expect(debugBanner.text()).toContain('api.defaults.baseURL')
     expect(debugBanner.text()).toContain('/api/_health')
     expect(debugBanner.text()).toContain('env=local; rev=abc123')
   })
 })
-

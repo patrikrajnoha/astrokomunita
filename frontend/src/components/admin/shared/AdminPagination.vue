@@ -27,15 +27,15 @@ function setPage(page) {
 <template>
   <div v-if="hasMeta" class="adminPagination">
     <div class="adminPagination__info">
-      Page {{ meta.current_page }} / {{ meta.last_page }} (total {{ meta.total ?? 0 }})
+      Strana {{ meta.current_page }} / {{ meta.last_page }} (spolu {{ meta.total ?? 0 }})
     </div>
 
     <div class="adminPagination__controls">
       <button type="button" :disabled="!canPrev" class="adminPagination__btn" @click="setPage(meta.current_page - 1)">
-        Prev
+        Predosla
       </button>
       <button type="button" :disabled="!canNext" class="adminPagination__btn" @click="setPage(meta.current_page + 1)">
-        Next
+        Dalsia
       </button>
     </div>
   </div>

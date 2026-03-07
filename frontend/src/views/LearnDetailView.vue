@@ -1,934 +1,868 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
-import { useRoute } from "vue-router";
-import { blogPosts } from "@/services/blogPosts";
-import { blogComments } from "@/services/blogComments";
-import { useAuthStore } from "@/stores/auth";
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { blogPosts } from '@/services/blogPosts'
+import { blogComments } from '@/services/blogComments'
+import { useAuthStore } from '@/stores/auth'
 
-const route = useRoute();
-const auth = useAuthStore();
-const loading = ref(false);
-const error = ref(null);
-const post = ref(null);
-const related = ref([]);
-const copied = ref(false);
-const commentsData = ref(null);
-const commentsLoading = ref(false);
-const commentsError = ref(null);
-const commentInput = ref("");
-const commentSubmitting = ref(false);
-const commentPage = ref(1);
+const route = useRoute()
+const auth = useAuthStore()
+
+const loading = ref(false)
+const error = ref('')
+const post = ref(null)
+const related = ref([])
+const relatedLoading = ref(false)
+
+const copied = ref(false)
+const commentsData = ref(null)
+const commentsLoading = ref(false)
+const commentsError = ref('')
+const commentInput = ref('')
+const commentSubmitting = ref(false)
+const commentPage = ref(1)
+
+const slug = computed(() => String(route.params.slug || ''))
+const comments = computed(() => commentsData.value?.data || [])
 
 function setMeta({ title, description, image }) {
-  if (typeof document === "undefined") return;
-  document.title = title;
+  if (typeof document === 'undefined') return
+  document.title = title
 
   const ensure = (name, property) => {
-    let tag = document.querySelector(`meta[${property ? "property" : "name"}='${name}']`);
+    const selector = property ? `meta[property='${name}']` : `meta[name='${name}']`
+    let tag = document.querySelector(selector)
     if (!tag) {
-      tag = document.createElement("meta");
-      tag.setAttribute(property ? "property" : "name", name);
-      document.head.appendChild(tag);
+      tag = document.createElement('meta')
+      tag.setAttribute(property ? 'property' : 'name', name)
+      document.head.appendChild(tag)
     }
-    return tag;
-  };
+    return tag
+  }
 
-  ensure("description", false).setAttribute("content", description);
-  ensure("og:title", true).setAttribute("content", title);
-  ensure("og:description", true).setAttribute("content", description);
+  ensure('description', false).setAttribute('content', description)
+  ensure('og:title', true).setAttribute('content', title)
+  ensure('og:description', true).setAttribute('content', description)
+
   if (image) {
-    ensure("og:image", true).setAttribute("content", image);
-  }
-}
-
-function shareUrl() {
-  if (typeof window === "undefined") return "";
-  return window.location.href;
-}
-
-async function copyLink() {
-  const url = shareUrl();
-  try {
-    await navigator.clipboard.writeText(url);
-    copied.value = true;
-    setTimeout(() => (copied.value = false), 2000);
-  } catch {
-    copied.value = false;
-  }
-}
-
-function shareTo(platform) {
-  const url = encodeURIComponent(shareUrl());
-  const text = encodeURIComponent(post.value?.title || "");
-  let share;
-  if (platform === "x") {
-    share = `https://x.com/intent/tweet?url=${url}&text=${text}`;
-  } else if (platform === "facebook") {
-    share = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
-  } else if (platform === "linkedin") {
-    share = `https://www.linkedin.com/sharing/share-offsite/?url=${url}`;
-  }
-  if (share) {
-    window.open(share, "_blank", "noopener,noreferrer");
+    ensure('og:image', true).setAttribute('content', image)
   }
 }
 
 function formatDate(value) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return String(value);
-  return d.toLocaleDateString("sk-SK", { dateStyle: "long" });
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleDateString('sk-SK', { dateStyle: 'long' })
+}
+
+function stripHtml(text) {
+  return String(text || '').replace(/<[^>]*>/g, ' ')
+}
+
+function excerpt(text, limit = 180) {
+  const clean = stripHtml(text).replace(/\s+/g, ' ').trim()
+  if (!clean) return ''
+  if (clean.length <= limit) return clean
+  return `${clean.slice(0, limit).trim()}...`
+}
+
+const readTime = computed(() => {
+  const clean = stripHtml(post.value?.content || '').trim()
+  if (!clean) return '1 min citania'
+  const words = clean.split(/\s+/).filter(Boolean).length
+  const minutes = Math.max(1, Math.round(words / 220))
+  return `${minutes} min citania`
+})
+
+function currentUrl() {
+  if (typeof window === 'undefined') return ''
+  return window.location.href
+}
+
+async function copyLink() {
+  const value = currentUrl()
+  if (!value) return
+
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value)
+    } else {
+      const input = document.createElement('input')
+      input.value = value
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand('copy')
+      document.body.removeChild(input)
+    }
+
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 1800)
+  } catch {
+    copied.value = false
+  }
 }
 
 function commentDepth(comment) {
-  const rawDepth = Number(comment?.depth ?? 0);
-  if (!Number.isFinite(rawDepth) || rawDepth <= 0) return 0;
-  return Math.min(rawDepth, 3);
+  const depth = Number(comment?.depth ?? 0)
+  if (!Number.isFinite(depth) || depth <= 0) return 0
+  return Math.min(depth, 3)
 }
 
 function commentThreadStyle(comment) {
   return {
-    marginLeft: `${commentDepth(comment) * 20}px`,
-  };
+    marginLeft: `${commentDepth(comment) * 14}px`,
+  }
 }
 
-const readTime = computed(() => {
-  const text = post.value?.content || "";
-  const words = text.trim().split(/\s+/).filter(Boolean).length;
-  const minutes = Math.max(1, Math.round(words / 220));
-  return `${minutes} min čítania`;
-});
-
 function slugifyHeading(text) {
-  return text
+  return String(text || '')
     .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
     .trim()
-    .replace(/\s+/g, "-")
-    .slice(0, 80);
+    .replace(/\s+/g, '-')
+    .slice(0, 80)
 }
 
 function escapeHtml(text) {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function inlineMarkdown(text) {
-  const safe = escapeHtml(text);
-  let html = safe;
-  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
-  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  let html = escapeHtml(text)
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
   html = html.replace(
     /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-  );
-  return html;
+    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+  )
+  return html
 }
 
 const contentBlocks = computed(() => {
-  const raw = post.value?.content || "";
-  if (!raw.trim()) return [];
+  const raw = post.value?.content || ''
+  if (!raw.trim()) return []
 
-  const lines = raw.split(/\r?\n/);
-  const blocks = [];
-  let buffer = [];
-  let listBuffer = [];
+  const lines = raw.split(/\r?\n/)
+  const blocks = []
+  let paragraph = []
+  let list = []
 
   const flushParagraph = () => {
-    const text = buffer.join(" ").trim();
+    const text = paragraph.join(' ').trim()
     if (text) {
-      blocks.push({ type: "p", html: inlineMarkdown(text) });
+      blocks.push({ type: 'p', html: inlineMarkdown(text) })
     }
-    buffer = [];
-  };
+    paragraph = []
+  }
 
   const flushList = () => {
-    if (listBuffer.length) {
-      blocks.push({
-        type: "ul",
-        items: listBuffer.map((item) => inlineMarkdown(item)),
-      });
-      listBuffer = [];
-    }
-  };
+    if (!list.length) return
+    blocks.push({ type: 'ul', items: list.map((item) => inlineMarkdown(item)) })
+    list = []
+  }
 
   lines.forEach((line) => {
-    const trimmed = line.trim();
-    const h2 = trimmed.startsWith("## ");
-    const h3 = trimmed.startsWith("### ");
-    const isList = trimmed.startsWith("- ") || trimmed.startsWith("* ");
+    const trimmed = line.trim()
+    const h2 = trimmed.startsWith('## ')
+    const h3 = trimmed.startsWith('### ')
+    const isList = trimmed.startsWith('- ') || trimmed.startsWith('* ')
 
     if (h2 || h3) {
-      flushList();
-      flushParagraph();
-      const title = trimmed.replace(/^###?\s+/, "");
+      flushList()
+      flushParagraph()
+      const title = trimmed.replace(/^###?\s+/, '')
       blocks.push({
-        type: h3 ? "h3" : "h2",
+        type: h3 ? 'h3' : 'h2',
         text: title,
         id: slugifyHeading(title),
-      });
-      return;
+      })
+      return
     }
 
-    if (trimmed === "") {
-      flushList();
-      flushParagraph();
-      return;
+    if (!trimmed) {
+      flushList()
+      flushParagraph()
+      return
     }
 
     if (isList) {
-      flushParagraph();
-      listBuffer.push(trimmed.replace(/^[-*]\s+/, ""));
-      return;
+      flushParagraph()
+      list.push(trimmed.replace(/^[-*]\s+/, ''))
+      return
     }
 
-    buffer.push(trimmed);
-  });
+    paragraph.push(trimmed)
+  })
 
-  flushList();
-  flushParagraph();
-  return blocks;
-});
+  flushList()
+  flushParagraph()
+  return blocks
+})
 
-const tocItems = computed(() =>
-  contentBlocks.value.filter((b) => b.type === "h2" || b.type === "h3")
-);
+const tocItems = computed(() => {
+  return contentBlocks.value.filter((item) => item.type === 'h2' || item.type === 'h3')
+})
 
-async function load() {
-  const slug = String(route.params.slug || "");
-  if (!slug) {
-    error.value = "Neplatný článok.";
-    return;
-  }
+function postLink(value) {
+  return `/clanky/${value.slug || value.id}`
+}
 
-  loading.value = true;
-  error.value = null;
+async function loadRelated() {
+  if (!slug.value) return
+  relatedLoading.value = true
 
   try {
-    post.value = await blogPosts.getPublic(slug);
-    await loadComments();
-    try {
-      related.value = await blogPosts.getRelated(slug);
-    } catch {
-      related.value = [];
-    }
-
-    const desc = post.value?.content
-      ? String(post.value.content).replace(/\s+/g, " ").trim().slice(0, 160)
-      : "Článok z oblasti astronómie a pozorovania oblohy.";
-    setMeta({
-      title: `${post.value?.title || "Článok"} | Nebeský sprievodca`,
-      description: desc,
-      image: post.value?.cover_image_url || null,
-    });
-  } catch (e) {
-    error.value =
-      e?.response?.data?.message || "Článok sa nepodarilo načítať.";
+    related.value = await blogPosts.getRelated(slug.value)
+  } catch {
+    related.value = []
   } finally {
-    loading.value = false;
+    relatedLoading.value = false
   }
 }
 
 async function loadComments() {
-  const slug = String(route.params.slug || "");
-  if (!slug) return;
-  commentsLoading.value = true;
-  commentsError.value = null;
+  if (!slug.value) return
+
+  commentsLoading.value = true
+  commentsError.value = ''
+
   try {
-    commentsData.value = await blogComments.list(slug, {
+    commentsData.value = await blogComments.list(slug.value, {
       page: commentPage.value,
       withDepth: 1,
-    });
+    })
   } catch (e) {
-    commentsError.value =
-      e?.response?.data?.message || "Chyba pri načítaní komentárov.";
+    commentsError.value = e?.response?.data?.message || 'Komentare sa nepodarilo nacitat.'
   } finally {
-    commentsLoading.value = false;
+    commentsLoading.value = false
+  }
+}
+
+async function load() {
+  if (!slug.value) {
+    error.value = 'Neplatny clanok.'
+    return
+  }
+
+  loading.value = true
+  error.value = ''
+  post.value = null
+  related.value = []
+  commentPage.value = 1
+  commentsData.value = null
+
+  try {
+    const payload = await blogPosts.getPublic(slug.value)
+    post.value = payload
+
+    setMeta({
+      title: `${payload?.title || 'Clanok'} | Astrokomunita`,
+      description: excerpt(payload?.content || '', 160) || 'Clanok o astronomii a pozorovani oblohy.',
+      image: payload?.cover_image_url || null,
+    })
+
+    loadComments()
+    loadRelated()
+  } catch (e) {
+    error.value = e?.response?.data?.message || 'Clanok sa nepodarilo nacitat.'
+  } finally {
+    loading.value = false
   }
 }
 
 async function submitComment() {
   if (!auth.isAuthed) {
-    commentsError.value = "Pre pridanie komentára sa prihlás.";
-    return;
+    commentsError.value = 'Pre pridanie komentara sa prihlas.'
+    return
   }
-  const slug = String(route.params.slug || "");
-  const content = commentInput.value.trim();
-  if (!content) return;
 
-  commentSubmitting.value = true;
-  commentsError.value = null;
+  const content = commentInput.value.trim()
+  if (!content || !slug.value) return
+
+  commentSubmitting.value = true
+  commentsError.value = ''
+
   try {
-    await blogComments.create(slug, { content });
-    commentInput.value = "";
-    commentPage.value = 1;
-    await loadComments();
+    await blogComments.create(slug.value, { content })
+    commentInput.value = ''
+    commentPage.value = 1
+    await loadComments()
   } catch (e) {
-    commentsError.value =
-      e?.response?.data?.message || "Komentár sa nepodarilo uložiť.";
+    commentsError.value = e?.response?.data?.message || 'Komentar sa nepodarilo odoslat.'
   } finally {
-    commentSubmitting.value = false;
+    commentSubmitting.value = false
   }
 }
 
 async function removeComment(id) {
-  const slug = String(route.params.slug || "");
+  if (!slug.value) return
+
   try {
-    await blogComments.remove(slug, id);
-    await loadComments();
+    await blogComments.remove(slug.value, id)
+    await loadComments()
   } catch (e) {
-    commentsError.value =
-      e?.response?.data?.message || "Komentár sa nepodarilo zmazať.";
+    commentsError.value = e?.response?.data?.message || 'Komentar sa nepodarilo zmazat.'
   }
 }
 
 function prevComments() {
-  if (!commentsData.value || commentPage.value <= 1) return;
-  commentPage.value -= 1;
-  loadComments();
+  if (!commentsData.value || commentPage.value <= 1) return
+  commentPage.value -= 1
+  loadComments()
 }
 
 function nextComments() {
-  if (!commentsData.value || commentPage.value >= commentsData.value.last_page) return;
-  commentPage.value += 1;
-  loadComments();
+  if (!commentsData.value || commentPage.value >= commentsData.value.last_page) return
+  commentPage.value += 1
+  loadComments()
 }
-onMounted(load);
+
+onMounted(load)
+
 watch(
   () => route.params.slug,
-  () => load()
-);
+  () => {
+    load()
+  },
+)
 </script>
 
 <template>
-  <article class="detail">
-    <router-link class="back" to="/clanky">← Späť na články</router-link>
+  <article class="detailPage">
+    <router-link class="backLink" to="/clanky">‹ Spat na clanky</router-link>
 
-    <div v-if="error" class="error">{{ error }}</div>
-    <div v-else-if="loading" class="muted">Načítavam článok…</div>
+    <div v-if="error" class="state state--error">{{ error }}</div>
+    <div v-else-if="loading" class="state">Nacitavam clanok...</div>
 
     <template v-else-if="post">
       <header class="hero">
-        <div class="hero-left">
-          <p class="kicker">Vzdelávanie</p>
-          <h1>{{ post.title }}</h1>
-          <div v-if="post.tags?.length" class="taglist">
-            <span v-for="tag in post.tags" :key="tag.id" class="tag-pill">
-              {{ tag.name }}
-            </span>
-          </div>
-          <div class="meta">
-            <span>{{ formatDate(post.published_at) }}</span>
-            <span>•</span>
-            <span>{{ post.user?.name || "Redakcia" }}</span>
-            <span>•</span>
-            <span>{{ readTime }}</span>
-            <span v-if="typeof post.views === 'number'">•</span>
-            <span v-if="typeof post.views === 'number'">
-              {{ post.views }} zobrazení
-            </span>
-          </div>
-          <div class="share">
-            <button class="share-btn" @click="copyLink">
-              {{ copied ? "Skopírované" : "Kopírovať link" }}
-            </button>
-            <button class="share-btn" @click="shareTo('x')">X</button>
-            <button class="share-btn" @click="shareTo('facebook')">Facebook</button>
-            <button class="share-btn" @click="shareTo('linkedin')">LinkedIn</button>
-          </div>
+        <p class="hero__eyebrow">Clanok</p>
+        <h1>{{ post.title }}</h1>
+        <p class="hero__summary">{{ excerpt(post.content, 210) }}</p>
+
+        <p class="hero__meta">
+          {{ formatDate(post.published_at) }} ·
+          {{ post.user?.name || 'Redakcia' }} ·
+          {{ readTime }}
+          <template v-if="typeof post.views === 'number'"> · {{ post.views }} zobrazeni</template>
+        </p>
+
+        <div v-if="post.tags?.length" class="hero__tags">
+          <span v-for="tag in post.tags" :key="tag.id">{{ tag.name }}</span>
         </div>
 
-        <div v-if="post.cover_image_url" class="hero-media">
-          <img :src="post.cover_image_url" :alt="post.title" />
-        </div>
+        <button class="hero__share" type="button" @click="copyLink">
+          {{ copied ? 'Link skopirovany' : 'Kopirovat link' }}
+        </button>
       </header>
 
-      <section class="layout">
-        <aside class="rail">
-          <div class="rail-card">
-            <div class="rail-label">Rýchly prehľad</div>
-            <div class="rail-meta">
-              <div class="rail-item">
-                <span>Publikované</span>
-                <strong>{{ formatDate(post.published_at) }}</strong>
-              </div>
-              <div class="rail-item">
-                <span>Autor</span>
-                <strong>{{ post.user?.name || "Redakcia" }}</strong>
-              </div>
-              <div class="rail-item">
-                <span>Čas čítania</span>
-                <strong>{{ readTime }}</strong>
-              </div>
-            </div>
-          </div>
+      <figure v-if="post.cover_image_url" class="cover">
+        <img :src="post.cover_image_url" :alt="post.title" loading="lazy" />
+      </figure>
 
-          <div v-if="tocItems.length" class="toc">
-            <div class="toc-title">Obsah</div>
-            <ul>
-              <li v-for="item in tocItems" :key="item.id" :class="item.type">
-                <a :href="`#${item.id}`">{{ item.text }}</a>
-              </li>
-            </ul>
-          </div>
-        </aside>
+      <section v-if="tocItems.length" class="toc">
+        <p class="toc__title">Obsah clanku</p>
+        <ul>
+          <li v-for="item in tocItems" :key="item.id" :class="item.type">
+            <a :href="`#${item.id}`">{{ item.text }}</a>
+          </li>
+        </ul>
+      </section>
 
-        <div class="content">
-          <template v-for="(block, i) in contentBlocks" :key="i">
-            <h2 v-if="block.type === 'h2'" :id="block.id">{{ block.text }}</h2>
-            <h3 v-else-if="block.type === 'h3'" :id="block.id">
-              {{ block.text }}
-            </h3>
-            <ul v-else-if="block.type === 'ul'">
-              <li v-for="(item, idx) in block.items" :key="idx" v-html="item"></li>
-            </ul>
-            <p v-else v-html="block.html"></p>
-          </template>
-        </div>
+      <section class="content">
+        <template v-for="(block, index) in contentBlocks" :key="index">
+          <h2 v-if="block.type === 'h2'" :id="block.id">{{ block.text }}</h2>
+          <h3 v-else-if="block.type === 'h3'" :id="block.id">{{ block.text }}</h3>
+          <ul v-else-if="block.type === 'ul'">
+            <li v-for="(item, itemIndex) in block.items" :key="itemIndex" v-html="item"></li>
+          </ul>
+          <p v-else v-html="block.html"></p>
+        </template>
       </section>
 
       <section class="comments">
-        <div class="comments-head">
-          <h2>Komentáre</h2>
-          <span v-if="post?.comments_count" class="muted">
-            {{ post.comments_count }} celkom
-          </span>
+        <div class="comments__head">
+          <h2>Komentare</h2>
+          <span>{{ commentsData?.total || 0 }} celkom</span>
         </div>
 
-        <div v-if="commentsError" class="error">{{ commentsError }}</div>
+        <div v-if="commentsError" class="state state--error">{{ commentsError }}</div>
 
-        <div v-if="auth.isAuthed" class="comment-form">
+        <div v-if="auth.isAuthed" class="commentForm">
           <textarea
             v-model="commentInput"
             rows="3"
-            placeholder="Napíš svoj komentár..."
+            placeholder="Napis komentar..."
           ></textarea>
           <button
-            class="ghost"
-            @click="submitComment"
+            type="button"
             :disabled="commentSubmitting || !commentInput.trim()"
+            @click="submitComment"
           >
-            {{ commentSubmitting ? "Odosielam..." : "Pridať komentár" }}
+            {{ commentSubmitting ? 'Odosielam...' : 'Pridat komentar' }}
           </button>
         </div>
-        <div v-else class="comment-locked">
-          Pre pridanie komentára sa prihlás.
-        </div>
+        <p v-else class="comments__hint">Pre pridanie komentara sa prihlas.</p>
 
-        <div v-if="commentsLoading" class="muted">Načítavam komentáre…</div>
+        <p v-if="commentsLoading" class="comments__hint">Nacitavam komentare...</p>
 
-        <div v-else class="comment-list">
-          <div v-if="(commentsData?.data || []).length === 0" class="muted">
-            Zatiaľ žiadne komentáre.
-          </div>
+        <div v-else-if="comments.length" class="commentList">
           <article
-            v-for="c in commentsData?.data || []"
-            :key="c.id"
-            class="relative"
-            :style="commentThreadStyle(c)"
+            v-for="comment in comments"
+            :key="comment.id"
+            class="commentItem"
+            :style="commentThreadStyle(comment)"
           >
-            <div
-              v-if="commentDepth(c) > 0"
-              class="absolute left-0 top-0 bottom-0 w-px bg-gray-300/80 dark:bg-gray-600/80"
-            ></div>
-            <div class="comment" :class="commentDepth(c) > 0 ? 'pl-4' : ''">
-              <div class="comment-meta">
-                <strong>{{ c.user?.name || "Používateľ" }}</strong>
-                <span>•</span>
-                <span>{{ formatDate(c.created_at) }}</span>
-              </div>
-              <p>{{ c.content }}</p>
+            <span v-if="commentDepth(comment) > 0" class="commentItem__line"></span>
+            <div class="commentItem__card">
+              <p class="commentItem__meta">
+                <strong>{{ comment.user?.name || 'Pouzivatel' }}</strong>
+                <span>·</span>
+                <span>{{ formatDate(comment.created_at) }}</span>
+              </p>
+              <p class="commentItem__text">{{ comment.content }}</p>
               <button
-                v-if="auth.user && (auth.user.id === c.user_id || auth.user.is_admin)"
-                class="ghost danger"
-                @click="removeComment(c.id)"
+                v-if="auth.user && (auth.user.id === comment.user_id || auth.user.is_admin)"
+                type="button"
+                class="commentItem__remove"
+                @click="removeComment(comment.id)"
               >
-                Zmazať
+                Zmazat
               </button>
             </div>
           </article>
         </div>
 
-        <div v-if="commentsData" class="pager comments-pager">
-          <button class="ghost" @click="prevComments" :disabled="commentsLoading || commentPage <= 1">
-            Predošlé
+        <p v-else class="comments__hint">Zatial bez komentarov.</p>
+
+        <div v-if="commentsData && commentsData.last_page > 1" class="commentsPager">
+          <button type="button" :disabled="commentsLoading || commentPage <= 1" @click="prevComments">
+            Predosle
           </button>
-          <div class="muted">
-            Strana {{ commentsData.current_page }} z {{ commentsData.last_page }}
-          </div>
+          <p>Strana {{ commentsData.current_page }} z {{ commentsData.last_page }}</p>
           <button
-            class="ghost"
-            @click="nextComments"
+            type="button"
             :disabled="commentsLoading || commentPage >= commentsData.last_page"
+            @click="nextComments"
           >
-            Ďalšie
+            Dalsie
           </button>
         </div>
       </section>
 
-      <section v-if="related.length" class="related">
-        <div class="related-head">
-          <h2>Podobné články</h2>
-          <p>Výber na základe spoločných tém.</p>
+      <section v-if="relatedLoading || related.length" class="related">
+        <div class="related__head">
+          <h2>Podobne clanky</h2>
+          <span v-if="relatedLoading">Nacitavam...</span>
         </div>
-        <div class="related-grid">
-          <article v-for="item in related" :key="item.id" class="related-card">
-            <div
-              v-if="item.cover_image_url"
-              class="related-media"
-              :style="{ backgroundImage: `url(${item.cover_image_url})` }"
-            ></div>
-            <div class="related-body">
-              <div class="related-tags" v-if="item.tags?.length">
-                <span v-for="tag in item.tags" :key="tag.id" class="tag-pill">
-                  {{ tag.name }}
-                </span>
-              </div>
-              <h3>
-                <router-link :to="`/clanky/${item.slug || item.id}`">
-                  {{ item.title }}
-                </router-link>
-              </h3>
-              <div class="related-meta">
-                <span>{{ formatDate(item.published_at) }}</span>
-                <span>•</span>
-                <span>{{ item.user?.name || "Redakcia" }}</span>
-              </div>
-            </div>
-          </article>
+
+        <div v-if="related.length" class="related__list">
+          <router-link
+            v-for="item in related"
+            :key="item.id"
+            :to="postLink(item)"
+            class="related__item"
+          >
+            <strong>{{ item.title }}</strong>
+            <span>{{ formatDate(item.published_at) }}</span>
+          </router-link>
         </div>
+        <p v-else-if="!relatedLoading" class="related__empty">K tomuto clanku zatial nie su podobne temy.</p>
       </section>
     </template>
   </article>
 </template>
 
 <style scoped>
-.detail {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  font-family: inherit;
+.detailPage {
+  display: grid;
+  gap: 0.85rem;
 }
 
-.back {
-  text-decoration: none;
-  color: rgba(186, 230, 253, 0.9);
-  font-size: 13px;
+.backLink {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  width: fit-content;
+}
+
+.backLink:hover {
+  color: var(--color-text-primary);
+}
+
+.hero,
+.cover,
+.content,
+.toc,
+.comments,
+.related,
+.state {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-bg-rgb) / 0.56);
 }
 
 .hero {
+  padding: 0.95rem;
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr);
-  gap: 18px;
-  padding: 24px;
-  border-radius: 22px;
-  background: linear-gradient(
-      140deg,
-      rgb(var(--color-bg-rgb) / 0.95),
-      rgba(2, 132, 199, 0.15)
-    ),
-    radial-gradient(circle at 80% 10%, rgba(94, 234, 212, 0.2), transparent 40%);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  gap: 0.45rem;
+  background:
+    radial-gradient(circle at 12% 0%, rgb(var(--color-primary-rgb) / 0.17), transparent 38%),
+    rgb(var(--color-bg-rgb) / 0.72);
 }
 
-.hero-left {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.kicker {
+.hero__eyebrow {
+  margin: 0;
   text-transform: uppercase;
-  letter-spacing: 0.25em;
-  font-size: 12px;
-  color: rgb(var(--color-surface-rgb) / 0.7);
-  margin: 0 0 10px;
+  letter-spacing: 0.14em;
+  font-size: 0.66rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.86);
 }
 
 .hero h1 {
   margin: 0;
-  font-size: 34px;
+  font-size: clamp(1.3rem, 3.5vw, 1.9rem);
   line-height: 1.2;
 }
 
-.meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  color: rgb(var(--color-surface-rgb) / 0.75);
-  font-size: 13px;
+.hero__summary {
+  margin: 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
-.share {
+.hero__meta {
+  margin: 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.86);
+  font-size: 0.76rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 0.26rem;
+  align-items: center;
 }
 
-.share-btn {
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: rgb(var(--color-bg-rgb) / 0.5);
-  color: inherit;
-  font-size: 12px;
+.hero__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.36rem;
+}
+
+.hero__tags span {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 0.22rem 0.56rem;
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+  background: rgb(var(--color-bg-rgb) / 0.58);
+}
+
+.hero__share,
+.commentForm button,
+.commentsPager button,
+.commentItem__remove {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  min-height: 34px;
+  background: rgb(var(--color-bg-rgb) / 0.64);
+  color: var(--color-text-primary);
+  padding: 0 0.75rem;
+  font-size: 0.76rem;
+  font-weight: 600;
   cursor: pointer;
+  transition: border-color var(--motion-base), background-color var(--motion-base);
 }
 
-.share-btn:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.4);
-  color: var(--color-primary);
+.hero__share {
+  width: fit-content;
 }
 
-.taglist {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.hero__share:hover,
+.commentForm button:hover,
+.commentsPager button:hover,
+.commentItem__remove:hover {
+  border-color: var(--color-border-strong);
+  background: var(--interactive-hover);
 }
 
-.tag-pill {
-  font-size: 11px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
-  color: rgb(var(--color-surface-rgb) / 0.8);
-}
-
-.hero-media {
-  border-radius: 18px;
+.cover {
   overflow: hidden;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
-  background: rgb(var(--color-bg-rgb) / 0.6);
-  min-height: 220px;
 }
 
-.hero-media img {
-  display: block;
+.cover img {
   width: 100%;
-  height: 100%;
+  max-height: 360px;
+  display: block;
   object-fit: cover;
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: minmax(0, 0.65fr) minmax(0, 2fr);
-  gap: 16px;
-}
-
-.rail {
-  display: grid;
-  gap: 12px;
-  align-self: start;
-  position: sticky;
-  top: 90px;
-}
-
-.rail-card {
-  padding: 14px;
-  border-radius: 14px;
-  background: rgb(var(--color-bg-rgb) / 0.7);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-}
-
-.rail-label {
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-size: 11px;
-  color: rgb(var(--color-surface-rgb) / 0.6);
-  margin-bottom: 10px;
-}
-
-.rail-meta {
-  display: grid;
-  gap: 8px;
-  font-size: 13px;
-}
-
-.rail-item {
-  display: grid;
-  gap: 4px;
-}
-
-.rail-item span {
-  color: rgb(var(--color-surface-rgb) / 0.6);
-  font-size: 12px;
-}
-
-.rail-item strong {
-  font-weight: 600;
-}
-
 .toc {
-  padding: 14px;
-  border-radius: 14px;
-  background: rgb(var(--color-bg-rgb) / 0.7);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  font-size: 13px;
+  padding: 0.85rem;
 }
 
-.toc-title {
+.toc__title {
+  margin: 0;
+  font-size: 0.74rem;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
-  font-size: 11px;
-  color: rgb(var(--color-surface-rgb) / 0.6);
-  margin-bottom: 10px;
+  letter-spacing: 0.12em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.84);
 }
 
 .toc ul {
-  list-style: none;
+  margin: 0.55rem 0 0;
   padding: 0;
-  margin: 0;
+  list-style: none;
   display: grid;
-  gap: 6px;
+  gap: 0.35rem;
 }
 
-.toc li a {
-  color: rgba(186, 230, 253, 0.9);
-  text-decoration: none;
+.toc li {
+  margin: 0;
 }
 
 .toc li.h3 {
-  margin-left: 10px;
-  font-size: 12px;
+  padding-left: 0.7rem;
+}
+
+.toc a {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.toc a:hover {
+  color: var(--color-primary);
 }
 
 .content {
-  padding: 16px 22px 26px;
-  border-radius: 18px;
-  background: rgb(var(--color-bg-rgb) / 0.8);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  line-height: 1.8;
-  font-size: 16px;
-  color: rgb(var(--color-surface-rgb) / 0.9);
+  padding: 0.95rem;
+  line-height: 1.72;
+  color: rgb(var(--color-text-primary-rgb) / 0.92);
+}
+
+.content h2,
+.content h3 {
+  margin: 1.1rem 0 0.5rem;
+  line-height: 1.35;
+}
+
+.content h2 {
+  font-size: 1.2rem;
+}
+
+.content h3 {
+  font-size: 1rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
 }
 
 .content p {
-  margin: 0 0 16px;
-}
-
-.content p:last-child {
-  margin-bottom: 0;
+  margin: 0 0 0.78rem;
+  font-size: 0.95rem;
 }
 
 .content ul {
-  margin: 0 0 16px;
-  padding-left: 18px;
+  margin: 0 0 0.85rem;
+  padding-left: 1.1rem;
 }
 
 .content li {
-  margin: 6px 0;
+  margin: 0.32rem 0;
+  font-size: 0.93rem;
 }
 
 .content a {
   color: var(--color-primary);
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .content code {
-  font-family: "Courier New", monospace;
-  font-size: 0.9em;
-  background: rgb(var(--color-bg-rgb) / 0.6);
-  padding: 2px 5px;
+  padding: 0.08rem 0.34rem;
   border-radius: 6px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  border: 1px solid var(--color-border);
+  background: rgb(var(--color-bg-rgb) / 0.72);
+  font-size: 0.86em;
 }
 
-.content h2,
-.content h3 {
-  margin: 22px 0 10px;
-  line-height: 1.4;
+.comments,
+.related,
+.state {
+  padding: 0.9rem;
 }
 
-.content h2 {
-  font-size: 22px;
+.state {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
 }
 
-.content h3 {
-  font-size: 18px;
-  color: rgb(var(--color-surface-rgb) / 0.85);
+.state--error {
+  border-color: rgb(var(--color-danger-rgb) / 0.55);
+  background: rgb(var(--color-danger-rgb) / 0.12);
+  color: var(--color-text-primary);
 }
 
-.error {
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid rgb(var(--color-danger-rgb) / 0.5);
-  background: rgb(var(--color-danger-rgb) / 0.15);
-  color: var(--color-danger);
-}
-
-.muted {
-  color: rgb(var(--color-surface-rgb) / 0.7);
-  font-size: 14px;
-}
-
-.related {
-  margin-top: 6px;
-  padding: 18px;
-  border-radius: 18px;
-  background: rgb(var(--color-bg-rgb) / 0.75);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-}
-
-.comments {
-  margin-top: 10px;
-  padding: 18px;
-  border-radius: 18px;
-  background: rgb(var(--color-bg-rgb) / 0.75);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-}
-
-.comments-head {
+.comments__head,
+.related__head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
 }
 
-.comment-form {
+.comments__head h2,
+.related__head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.comments__head span,
+.related__head span,
+.comments__hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+}
+
+.commentForm {
   display: grid;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
 }
 
-.comment-form textarea {
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: rgb(var(--color-bg-rgb) / 0.6);
-  color: inherit;
+.commentForm textarea {
+  width: 100%;
+  min-height: 92px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(var(--color-bg-rgb) / 0.7);
+  color: var(--color-text-primary);
+  padding: 0.62rem 0.7rem;
+  resize: vertical;
 }
 
-.comment-locked {
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.35);
-  color: rgb(var(--color-surface-rgb) / 0.7);
-  font-size: 13px;
+.commentForm button:disabled,
+.commentsPager button:disabled {
+  opacity: var(--interactive-disabled-opacity);
+  cursor: not-allowed;
 }
 
-.comment-list {
+.commentList {
   display: grid;
-  gap: 10px;
+  gap: 0.48rem;
 }
 
-.comment {
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(var(--color-bg-rgb) / 0.6);
+.commentItem {
+  position: relative;
 }
 
-.comment-meta {
+.commentItem__line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgb(var(--color-text-secondary-rgb) / 0.4);
+}
+
+.commentItem__card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(var(--color-bg-rgb) / 0.64);
+  padding: 0.62rem;
+}
+
+.commentItem__meta {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: rgb(var(--color-surface-rgb) / 0.65);
-  margin-bottom: 6px;
+  gap: 0.25rem;
+  flex-wrap: wrap;
 }
 
-.comment p {
-  margin: 0 0 8px;
-  line-height: 1.6;
+.commentItem__text {
+  margin: 0.38rem 0 0.44rem;
+  color: rgb(var(--color-text-primary-rgb) / 0.94);
+  line-height: 1.52;
+  font-size: 0.87rem;
 }
 
-.comments-pager {
-  margin-top: 10px;
-}
-
-.ghost.danger {
-  border-color: rgb(var(--color-danger-rgb) / 0.45);
+.commentItem__remove {
+  min-height: 30px;
   color: var(--color-danger);
+  border-color: rgb(var(--color-danger-rgb) / 0.44);
+  background: rgb(var(--color-danger-rgb) / 0.08);
 }
 
-.related-head h2 {
-  margin: 0 0 6px;
-  font-size: 20px;
-}
-
-.related-head p {
-  margin: 0 0 16px;
-  color: rgb(var(--color-surface-rgb) / 0.7);
-  font-size: 13px;
-}
-
-.related-grid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-}
-
-.related-card {
-  border-radius: 14px;
-  overflow: hidden;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(var(--color-bg-rgb) / 0.8);
+.commentsPager {
+  margin-top: 0.72rem;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
-.related-media {
-  height: 120px;
-  background-size: cover;
-  background-position: center;
-}
-
-.related-body {
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.related-body h3 {
+.commentsPager p {
   margin: 0;
-  font-size: 16px;
-  line-height: 1.4;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
 }
 
-.related-body h3 a {
-  color: inherit;
-  text-decoration: none;
+.related__list {
+  display: grid;
+  gap: 0.42rem;
 }
 
-.related-body h3 a:hover {
-  color: var(--color-primary);
-}
-
-.related-meta {
+.related__item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(var(--color-bg-rgb) / 0.62);
+  padding: 0.56rem 0.66rem;
+  color: var(--color-text-primary);
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 12px;
-  color: rgb(var(--color-surface-rgb) / 0.6);
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
-.related-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.related__item strong {
+  font-size: 0.89rem;
+  line-height: 1.33;
 }
 
-@media (max-width: 900px) {
-  .hero {
-    grid-template-columns: 1fr;
+.related__item span,
+.related__empty {
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+}
+
+.related__empty {
+  margin: 0;
+}
+
+@media (max-width: 540px) {
+  .content {
+    padding: 0.8rem;
   }
 
-  .layout {
-    grid-template-columns: 1fr;
-  }
-
-  .rail {
-    position: static;
+  .hero,
+  .comments,
+  .related,
+  .state,
+  .toc {
+    padding: 0.75rem;
   }
 }
 </style>
+
+

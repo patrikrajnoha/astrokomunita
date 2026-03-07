@@ -486,7 +486,7 @@ onMounted(async () => {
   border-radius: var(--radius-xl);
   overflow: hidden;
   margin-top: var(--space-3);
-  background: rgb(var(--bg-surface-rgb) / 0.88);
+  background: #151d28;
 }
 
 .cover {

@@ -132,10 +132,10 @@ function normalizeHttpErrorMessage(error) {
   }
 
   if (status >= 500) {
-    return 'Server error. Skus to neskor.'
+    return 'Chyba servera. Skus to neskor.'
   }
 
-  return String(error?.response?.data?.message || message || 'Request failed.')
+  return String(error?.response?.data?.message || message || 'Poziadavka zlyhala.')
 }
 
 api.interceptors.request.use((config) => {
@@ -189,7 +189,7 @@ api.interceptors.response.use(
         toast.warn(verificationMessage, {
           action: shouldOfferSettingsLink
             ? {
-                label: 'Otvorit Settings',
+                label: 'Otvorit Nastavenia',
                 onClick: () => redirectToEmailSettingsIfNeeded(),
               }
             : undefined,

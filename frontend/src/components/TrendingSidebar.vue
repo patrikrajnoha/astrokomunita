@@ -5,7 +5,7 @@
         <svg class="h-5 w-5 text-[var(--color-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
         </svg>
-        Trending
+        Trendy
       </h3>
       <p class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.7)] mt-1">
         Najpopulárnejšie za 24h

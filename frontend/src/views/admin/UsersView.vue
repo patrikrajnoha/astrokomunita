@@ -64,11 +64,11 @@ const devProxyTarget = (() => {
 
 const devHealthSummary = computed(() => {
   if (!isDevBuild) return ''
-  if (devHealthLoading.value) return 'loading...'
+  if (devHealthLoading.value) return 'nacitavam...'
   if (devHealthError.value) return `error: ${devHealthError.value}`
 
   const payload = devHealth.value
-  if (!payload || typeof payload !== 'object') return 'not loaded'
+  if (!payload || typeof payload !== 'object') return 'nenacitane'
 
   const env = payload?.env || 'n/a'
   const revision = payload?.git_sha || payload?.build_id || 'n/a'
@@ -85,10 +85,10 @@ const showSkeleton = computed(() => loading.value && rows.value.length === 0)
 const isCurrentActorAdmin = computed(() => Boolean(auth.isAdmin))
 
 const syncPillLabel = computed(() => {
-  if (loading.value) return 'Syncing users'
-  if (error.value) return 'Sync issue'
-  if (!lastLoadedAt.value) return 'No sync yet'
-  return `Updated ${formatRelative(lastLoadedAt.value)}`
+  if (loading.value) return 'Synchronizujem pouzivatelov'
+  if (error.value) return 'Problem synchronizacie'
+  if (!lastLoadedAt.value) return 'Bez synchronizacie'
+  return `Aktualizovane ${formatRelative(lastLoadedAt.value)}`
 })
 
 const syncPillClass = computed(() => {
@@ -204,30 +204,30 @@ function userHandle(user) {
 
 function userEmail(user) {
   if (isBotRole(user)) {
-    return '—'
+    return '-'
   }
 
   return String(user?.email || '-')
 }
 
 function botAccountHint() {
-  return 'Automatizovaný účet — e-mail je zámerne prázdny.'
+  return 'Automatizovany ucet - e-mail je zamerne prazdny.'
 }
 
 function formatRelative(value) {
-  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return 'just now'
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return 'prave teraz'
 
   const diffMs = Math.max(0, Date.now() - value.getTime())
   const diffMinutes = Math.floor(diffMs / 60000)
 
-  if (diffMinutes <= 0) return 'just now'
-  if (diffMinutes < 60) return `${diffMinutes}m ago`
+  if (diffMinutes <= 0) return 'prave teraz'
+  if (diffMinutes < 60) return `pred ${diffMinutes}m`
 
   const diffHours = Math.floor(diffMinutes / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffHours < 24) return `pred ${diffHours}h`
 
   const diffDays = Math.floor(diffHours / 24)
-  return `${diffDays}d ago`
+  return `pred ${diffDays}d`
 }
 
 async function load() {
@@ -248,7 +248,7 @@ async function load() {
     data.value = res.data
     lastLoadedAt.value = new Date()
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Failed to load users.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat pouzivatelov.'
   } finally {
     loading.value = false
   }
@@ -288,11 +288,11 @@ async function banUser(user) {
   if (!user || isSelf(user)) return
 
   const reason = await prompt({
-    title: 'Ban user',
-    message: `Provide ban reason for ${user.email}.`,
-    confirmText: 'Ban user',
+    title: 'Zablokovat pouzivatela',
+    message: `Zadajte dovod blokacie pre ${user.email}.`,
+    confirmText: 'Zablokovat',
     cancelText: 'Zrusit',
-    placeholder: 'Ban reason...',
+    placeholder: 'Dovod blokacie...',
     required: true,
     multiline: true,
     variant: 'danger',
@@ -303,9 +303,9 @@ async function banUser(user) {
   try {
     const res = await api.patch(`/admin/users/${user.id}/ban`, { reason: String(reason).trim() })
     updateRow(res.data)
-    toast.success('User banned.')
+    toast.success('Pouzivatel bol zablokovany.')
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Ban failed.'
+    error.value = e?.response?.data?.message || 'Blokovanie zlyhalo.'
     toast.error(error.value)
   }
 }
@@ -314,9 +314,9 @@ async function unbanUser(user) {
   if (!user || isSelf(user)) return
 
   const ok = await confirm({
-    title: 'Unban user',
-    message: `Unban user ${user.email}?`,
-    confirmText: 'Unban',
+    title: 'Odblokovat pouzivatela',
+    message: `Odblokovat pouzivatela ${user.email}?`,
+    confirmText: 'Odblokovat',
     cancelText: 'Zrusit',
   })
 
@@ -325,9 +325,9 @@ async function unbanUser(user) {
   try {
     const res = await api.post(`/admin/users/${user.id}/unban`)
     updateRow(res.data)
-    toast.success('User unbanned.')
+    toast.success('Pouzivatel bol odblokovany.')
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Unban failed.'
+    error.value = e?.response?.data?.message || 'Odblokovanie zlyhalo.'
     toast.error(error.value)
   }
 }
@@ -336,9 +336,9 @@ async function deactivateUser(user) {
   if (!user || isSelf(user) || !user.is_active) return
 
   const ok = await confirm({
-    title: 'Deactivate user',
-    message: `Deactivate user ${user.email}?`,
-    confirmText: 'Deactivate',
+    title: 'Deaktivovat pouzivatela',
+    message: `Deaktivovat pouzivatela ${user.email}?`,
+    confirmText: 'Deaktivovat',
     cancelText: 'Zrusit',
     variant: 'danger',
   })
@@ -348,9 +348,9 @@ async function deactivateUser(user) {
   try {
     const res = await api.post(`/admin/users/${user.id}/deactivate`)
     updateRow(res.data)
-    toast.success('User deactivated.')
+    toast.success('Pouzivatel bol deaktivovany.')
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Deactivate failed.'
+    error.value = e?.response?.data?.message || 'Deaktivacia zlyhala.'
     toast.error(error.value)
   }
 }
@@ -359,9 +359,9 @@ async function resetProfile(user) {
   if (!user) return
 
   const ok = await confirm({
-    title: 'Reset profile',
-    message: `Reset profile for ${user.email}?`,
-    confirmText: 'Reset',
+    title: 'Resetovat profil',
+    message: `Resetovat profil pre ${user.email}?`,
+    confirmText: 'Resetovat',
     cancelText: 'Zrusit',
     variant: 'danger',
   })
@@ -371,9 +371,9 @@ async function resetProfile(user) {
   try {
     const res = await api.post(`/admin/users/${user.id}/reset-profile`)
     updateRow(res.data)
-    toast.success('Profile reset done.')
+    toast.success('Profil bol resetovany.')
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Reset profile failed.'
+    error.value = e?.response?.data?.message || 'Reset profilu zlyhal.'
     toast.error(error.value)
   }
 }
@@ -384,15 +384,15 @@ async function updateEditorRole(user, nextRole) {
   try {
     const res = await api.patch(`/admin/users/${user.id}/role`, { role: nextRole })
     updateRow(res.data)
-    toast.success(nextRole === 'editor' ? 'Editor role granted.' : 'Editor role removed.')
+    toast.success(nextRole === 'editor' ? 'Rola editora pridana.' : 'Rola editora odobrata.')
   } catch (e) {
     const status = Number(e?.response?.status || 0)
     if (status === 403) {
-      error.value = 'You are not allowed to change roles.'
+      error.value = 'Nemate opravnenie menit roly.'
     } else if (status === 422) {
-      error.value = e?.response?.data?.message || 'Role change is invalid.'
+      error.value = e?.response?.data?.message || 'Zmena roly je neplatna.'
     } else {
-      error.value = e?.response?.data?.message || 'Role change failed.'
+      error.value = e?.response?.data?.message || 'Zmena roly zlyhala.'
     }
     toast.error(error.value)
   }
@@ -408,25 +408,25 @@ function rowActionItems(user) {
 
   if (!isSelf(user)) {
     if (user.is_banned) {
-      items.push({ key: 'unban', label: 'Unban user' })
+      items.push({ key: 'unban', label: 'Odblokovat pouzivatela' })
     } else {
-      items.push({ key: 'ban', label: 'Ban user', danger: true })
+      items.push({ key: 'ban', label: 'Zablokovat pouzivatela', danger: true })
     }
 
     if (user.is_active) {
-      items.push({ key: 'deactivate', label: 'Deactivate user', danger: true })
+      items.push({ key: 'deactivate', label: 'Deaktivovat pouzivatela', danger: true })
     }
   }
 
   if (canToggleEditorRole) {
     if (targetRole === 'user') {
-      items.push({ key: 'grant-editor', label: 'Grant Editor role' })
+      items.push({ key: 'grant-editor', label: 'Pridat rolu editora' })
     } else if (targetRole === 'editor') {
-      items.push({ key: 'remove-editor', label: 'Remove Editor role' })
+      items.push({ key: 'remove-editor', label: 'Odobrat rolu editora' })
     }
   }
 
-  items.push({ key: 'reset', label: 'Reset profile', danger: true })
+  items.push({ key: 'reset', label: 'Resetovat profil', danger: true })
 
   return items
 }
@@ -517,8 +517,8 @@ loadDevHealth()
 <template>
   <AdminPageShell
     class="usersPageShell"
-    title="Users"
-    subtitle="Manage community accounts, roles and account health."
+    title="Pouzivatelia"
+    subtitle="Sprava komunitnych uctov, roli a stavu uctu."
   >
     <template #right-actions>
       <span class="usersSyncPill" :class="syncPillClass">
@@ -530,19 +530,19 @@ loadDevHealth()
     <div class="usersView">
       <div v-if="error" class="usersErrorBanner" role="alert">
         <span>{{ error }}</span>
-        <button type="button" class="errorRetryBtn" :disabled="loading" @click="refresh">Retry</button>
+        <button type="button" class="errorRetryBtn" :disabled="loading" @click="refresh">Skusit znova</button>
       </div>
 
       <div v-if="isDevBuild" class="devConnectivityBanner" role="status" aria-live="polite">
-        <div class="devConnectivityTitle">DEV API Connectivity</div>
+        <div class="devConnectivityTitle">DEV API konektivita</div>
         <div class="devConnectivityGrid">
-          <span class="devConnectivityLabel">Frontend origin</span>
+          <span class="devConnectivityLabel">Frontend povod</span>
           <code class="devConnectivityValue">{{ devOrigin }}</code>
 
           <span class="devConnectivityLabel">api.defaults.baseURL</span>
           <code class="devConnectivityValue">{{ devApiBase }}</code>
 
-          <span class="devConnectivityLabel">Vite proxy target</span>
+          <span class="devConnectivityLabel">Vite proxy ciel</span>
           <code class="devConnectivityValue">{{ devProxyTarget }}</code>
 
           <span class="devConnectivityLabel">/api/_health</span>
@@ -567,7 +567,7 @@ loadDevHealth()
         <AdminToolbar :loading="loading" class="usersToolbar">
           <template #search>
             <div class="toolbarField toolbarField--search">
-              <label class="toolbarLabel" for="users-search">Search</label>
+              <label class="toolbarLabel" for="users-search">Hladat</label>
               <div class="searchInputWrap">
                 <span class="searchIcon" aria-hidden="true">
                   <svg viewBox="0 0 20 20" fill="none">
@@ -580,14 +580,14 @@ loadDevHealth()
                   v-model="searchInput"
                   :disabled="loading"
                   type="search"
-                  placeholder="Search users by name, handle or email"
+                  placeholder="Hladat pouzivatelov podla mena, handle alebo emailu"
                   class="toolbarInput"
                 />
                 <button
                   v-if="searchInput"
                   type="button"
                   class="searchClearBtn"
-                  aria-label="Clear search"
+                  aria-label="Vymazat hladanie"
                   :disabled="loading"
                   @click="clearSearch"
                 >
@@ -599,7 +599,7 @@ loadDevHealth()
 
           <template #filters>
             <div class="toolbarInlineField">
-              <label class="toolbarLabel" for="users-per-page">Per page</label>
+              <label class="toolbarLabel" for="users-per-page">Na stranu</label>
               <select
                 id="users-per-page"
                 v-model.number="perPage"
@@ -624,28 +624,28 @@ loadDevHealth()
                   <path d="M4.8 11A6 6 0 0 0 15 14.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
                 </svg>
               </span>
-              <span>Refresh</span>
+              <span>Obnovit</span>
             </button>
           </template>
         </AdminToolbar>
 
-        <section class="usersTableWrap" aria-label="Users table">
+        <section class="usersTableWrap" aria-label="Tabulka pouzivatelov">
           <div class="usersTableScroll">
             <table class="usersTable">
               <thead>
                 <tr>
-                  <th class="col-user">User</th>
-                  <th class="col-email">Email</th>
-                  <th class="col-role">Role</th>
-                  <th class="col-status">Status</th>
-                  <th class="col-actions">Actions</th>
+                  <th class="col-user">Pouzivatel</th>
+                  <th class="col-email">E-mail</th>
+                  <th class="col-role">Rola</th>
+                  <th class="col-status">Stav</th>
+                  <th class="col-actions">Akcie</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-if="!rows.length">
                   <td colspan="5" class="usersEmptyState">
-                    <div class="usersEmptyTitle">No users found</div>
-                    <div class="usersEmptyText">Try adjusting your filters.</div>
+                    <div class="usersEmptyTitle">Nenasli sa ziadni pouzivatelia</div>
+                    <div class="usersEmptyText">Skuste upravit filtre.</div>
                     <button
                       v-if="hasActiveFilters"
                       type="button"
@@ -653,13 +653,13 @@ loadDevHealth()
                       :disabled="loading"
                       @click="clearFilters"
                     >
-                      Clear search filter
+                      Vycistit hladanie
                     </button>
                   </td>
                 </tr>
 
                 <tr v-for="row in rows" v-else :key="row.id" class="usersRow" :data-row-id="row.id">
-                  <td data-label="User" class="col-user">
+                  <td data-label="Pouzivatel" class="col-user">
                     <div class="userCell">
                       <div class="avatar" :aria-label="`Avatar ${userName(row)}`">
                         <UserAvatar class="avatarFallback" :user="row" :alt="`${userName(row)} avatar`" />
@@ -679,7 +679,7 @@ loadDevHealth()
                     </div>
                   </td>
 
-                  <td data-label="Email" class="col-email">
+                  <td data-label="E-mail" class="col-email">
                     <div class="emailCell">
                       <span class="truncateText" :title="userEmail(row)">{{ userEmail(row) }}</span>
                       <span
@@ -687,16 +687,16 @@ loadDevHealth()
                         class="botAccountHint"
                         :title="botAccountHint()"
                       >
-                        (bot účet)
+                        (bot ucet)
                       </span>
                     </div>
                   </td>
 
-                  <td data-label="Role" class="col-role">
+                  <td data-label="Rola" class="col-role">
                     <span class="badge roleBadge" :class="roleClass(row)">{{ roleLabel(row) }}</span>
                   </td>
 
-                  <td data-label="Status" class="col-status">
+                  <td data-label="Stav" class="col-status">
                     <div class="statusCell">
                       <span class="badge statusBadge" :class="statusClass(row)">
                         {{ statusLabel(row) }}
@@ -711,17 +711,17 @@ loadDevHealth()
                     </div>
                   </td>
 
-                  <td data-label="Actions" class="col-actions">
+                  <td data-label="Akcie" class="col-actions">
                     <div class="rowActions">
                       <RouterLink :to="{ name: 'admin.users.detail', params: { id: row.id } }" class="actionBtn actionBtn--view">
-                        View
+                        Zobrazit
                       </RouterLink>
 
                       <DropdownMenu
                         v-if="isCurrentActorAdmin"
                         :items="rowActionItems(row)"
-                        :label="`More actions for ${userName(row)}`"
-                        menu-label="User actions"
+                        :label="`Dalsie akcie pre ${userName(row)}`"
+                        menu-label="Akcie pouzivatela"
                         @select="onRowActionSelect(row, $event)"
                       >
                         <template #trigger>
@@ -737,7 +737,7 @@ loadDevHealth()
         </section>
 
         <div class="usersPaginationFooter">
-          <div class="usersPaginationMeta">Users total: {{ totalUsers }}</div>
+          <div class="usersPaginationMeta">Spolu pouzivatelov: {{ totalUsers }}</div>
           <AdminPagination :meta="data" @page-change="page = $event" />
         </div>
       </template>
@@ -1573,3 +1573,5 @@ loadDevHealth()
   }
 }
 </style>
+
+

@@ -1,7 +1,7 @@
 import SearchBar from '@/components/SearchBar.vue'
 import RightObservingSidebar from '@/components/RightObservingSidebar.vue'
 import LatestArticlesWidget from '@/components/widgets/LatestArticlesWidget.vue'
-import NasaApodWidget from '@/components/widgets/NasaApodWidget.vue'
+import NasaHighlightsWidget from '@/components/widgets/NasaHighlightsWidget.vue'
 import NextEventWidget from '@/components/widgets/NextEventWidget.vue'
 import UpcomingEventsWidget from '@/components/widgets/UpcomingEventsWidget.vue'
 import SidebarWidgetRenderer from '@/components/widgets/SidebarWidgetRenderer.vue'
@@ -12,10 +12,13 @@ import {
   normalizeWidgetType,
 } from '@/sidebar/customWidgets/types'
 
+export const MAX_ENABLED_SIDEBAR_WIDGETS = 2
+export const EXCLUSIVE_SIDEBAR_SECTION_KEYS = Object.freeze(['observing_conditions'])
+
 export const sidebarComponentMap = {
   search: SearchBar,
   observing_conditions: RightObservingSidebar,
-  nasa_apod: NasaApodWidget,
+  nasa_apod: NasaHighlightsWidget,
   next_event: NextEventWidget,
   latest_articles: LatestArticlesWidget,
   upcoming_events: UpcomingEventsWidget,
@@ -77,32 +80,48 @@ const toSafeNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+const resolveBuiltinSectionTitle = (sectionKey, title) => {
+  if (sectionKey === 'nasa_apod') {
+    return 'NASA Novinky'
+  }
+
+  return title
+}
+
 export const normalizeSidebarSections = (items) => {
   if (!Array.isArray(items)) return []
 
   return items
-    .map((item) => ({
-      kind: item?.kind === 'custom_component' ? 'custom_component' : 'builtin',
-      section_key: String(item?.section_key || ''),
-      title: String(item?.title || ''),
-      custom_component_id: Number.isFinite(Number(item?.custom_component_id))
-        ? Number(item.custom_component_id)
-        : null,
-      custom_component: item?.custom_component && typeof item.custom_component === 'object'
-        ? {
-            id: Number.isFinite(Number(item.custom_component.id)) ? Number(item.custom_component.id) : null,
-            name: String(item.custom_component.name || ''),
-            type: normalizeWidgetType(String(item.custom_component.type || '')),
-            is_active: Boolean(item.custom_component.is_active),
-            config_json: normalizeWidgetConfig(
-              item.custom_component.type,
-              item.custom_component.config_json || item.custom_component.config || {},
-            ),
-          }
-        : null,
-      order: toSafeNumber(item?.order, 0),
-      is_enabled: Boolean(item?.is_enabled),
-    }))
+    .map((item) => {
+      const kind = item?.kind === 'custom_component' ? 'custom_component' : 'builtin'
+      const sectionKey = String(item?.section_key || '')
+      const originalTitle = String(item?.title || '')
+
+      return {
+        kind,
+        section_key: sectionKey,
+        title: kind === 'builtin'
+          ? resolveBuiltinSectionTitle(sectionKey, originalTitle)
+          : originalTitle,
+        custom_component_id: Number.isFinite(Number(item?.custom_component_id))
+          ? Number(item.custom_component_id)
+          : null,
+        custom_component: item?.custom_component && typeof item.custom_component === 'object'
+          ? {
+              id: Number.isFinite(Number(item.custom_component.id)) ? Number(item.custom_component.id) : null,
+              name: String(item.custom_component.name || ''),
+              type: normalizeWidgetType(String(item.custom_component.type || '')),
+              is_active: Boolean(item.custom_component.is_active),
+              config_json: normalizeWidgetConfig(
+                item.custom_component.type,
+                item.custom_component.config_json || item.custom_component.config || {},
+              ),
+            }
+          : null,
+        order: toSafeNumber(item?.order, 0),
+        is_enabled: Boolean(item?.is_enabled),
+      }
+    })
     .filter((item) => {
       if (item.kind === 'custom_component') {
         return Number.isFinite(item.custom_component_id)
@@ -113,7 +132,16 @@ export const normalizeSidebarSections = (items) => {
 }
 
 export const getEnabledSidebarSections = (items) => {
-  return normalizeSidebarSections(items).filter((item) => item.is_enabled)
+  const normalized = normalizeSidebarSections(items)
+  const enabled = normalized.filter((item) => item.is_enabled)
+  const exclusiveKeySet = new Set(EXCLUSIVE_SIDEBAR_SECTION_KEYS)
+  const exclusiveSection = enabled.find((item) => exclusiveKeySet.has(item.section_key))
+
+  if (exclusiveSection) {
+    return [exclusiveSection]
+  }
+
+  return enabled.slice(0, MAX_ENABLED_SIDEBAR_WIDGETS)
 }
 
 export const resolveSidebarComponent = (section) => {

@@ -18,7 +18,7 @@ export const settingsGroups = [
       {
         key: 'email',
         routeName: 'settings.email',
-        title: 'Email',
+        title: 'E-mail',
         description: 'Stav overenia, overovaci kod a bezpecna zmena emailu.',
         iconPaths: [
           'M4.5 6.25h15a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-9.5a1 1 0 0 1 1-1Z',

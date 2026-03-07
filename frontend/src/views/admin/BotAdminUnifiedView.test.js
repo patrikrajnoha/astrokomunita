@@ -66,7 +66,7 @@ describe('BotAdminUnifiedView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Schedules')
+    expect(wrapper.text()).toContain('Plany')
     expect(wrapper.find('[data-testid="schedules-panel"]').exists()).toBe(true)
     expect(getBotOverview).toHaveBeenCalledTimes(1)
   })
@@ -90,7 +90,7 @@ describe('BotAdminUnifiedView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Warning')
+    expect(wrapper.text()).toContain('Upozornenie')
     expect(wrapper.text()).toContain('7')
     expect(wrapper.text()).toContain('3')
     expect(wrapper.text()).toContain('2')

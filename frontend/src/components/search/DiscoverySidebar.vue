@@ -1,10 +1,10 @@
-<template>
+﻿<template>
   <div class="ui-section-stack rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.66)] backdrop-blur">
     <section class="p-4">
       <header class="mb-3 flex items-center justify-between">
-        <h2 class="text-sm font-semibold text-[var(--color-surface)]">Trending</h2>
+        <h2 class="text-sm font-semibold text-[var(--color-surface)]">Trendy</h2>
         <button type="button" class="text-xs text-[var(--color-primary)] transition hover:opacity-80" @click="emit('refresh')">
-          Refresh
+          Obnovit
         </button>
       </header>
 
@@ -70,7 +70,7 @@
         >
           <p class="line-clamp-2 text-sm text-[var(--color-surface)]">{{ snippet(post.content) }}</p>
           <p class="mt-1 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
-            {{ post.user?.name || 'Neznamy autor' }} • {{ post.likes_count || 0 }} likes
+            {{ post.user?.name || 'Neznamy autor' }} â€˘ {{ post.likes_count || 0 }} lajkov
           </p>
         </RouterLink>
       </div>
@@ -119,3 +119,5 @@ const snippet = (content) => {
   return text.length > 92 ? `${text.slice(0, 92)}...` : text
 }
 </script>
+
+

@@ -12,7 +12,7 @@
           @submit="loadGlobalResults"
         />
 
-        <nav class="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Search tabs">
+        <nav class="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Karty hladania">
           <button
             v-for="tab in tabs"
             :key="tab.key"

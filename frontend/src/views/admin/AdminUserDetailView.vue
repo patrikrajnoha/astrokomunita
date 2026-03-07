@@ -198,7 +198,7 @@ async function loadUser() {
     clearPendingMedia('avatar')
     clearPendingMedia('cover')
   } catch (e) {
-    userError.value = e?.response?.data?.message || 'Failed to load user.'
+    userError.value = e?.response?.data?.message || 'Nepodarilo sa nacitat pouzivatela.'
   } finally {
     userLoading.value = false
   }
@@ -224,7 +224,7 @@ async function loadReports() {
     const res = await api.get(`/admin/users/${userId.value}/reports`, { params })
     reportsData.value = res.data
   } catch (e) {
-    reportsError.value = e?.response?.data?.message || 'Failed to load reports.'
+    reportsError.value = e?.response?.data?.message || 'Nepodarilo sa nacitat reporty.'
   } finally {
     reportsLoading.value = false
   }
@@ -243,11 +243,11 @@ function updateUser(updated) {
 async function banUser() {
   if (!user.value || isSelf(user.value)) return
   const reason = await prompt({
-    title: 'Ban user',
-    message: `Provide ban reason for ${user.value.email}.`,
-    confirmText: 'Ban user',
+    title: 'Zablokovat pouzivatela',
+    message: `Zadajte dovod blokacie pre ${user.value.email}.`,
+    confirmText: 'Zablokovat',
     cancelText: 'Zrusit',
-    placeholder: 'Ban reason...',
+    placeholder: 'Dovod blokacie...',
     required: true,
     multiline: true,
     variant: 'danger',
@@ -257,9 +257,9 @@ async function banUser() {
   try {
     const res = await api.patch(`/admin/users/${user.value.id}/ban`, { reason: String(reason).trim() })
     updateUser(res.data)
-    toast.success('User banned.')
+    toast.success('Pouzivatel bol zablokovany.')
   } catch (e) {
-    userError.value = e?.response?.data?.message || 'Ban failed.'
+    userError.value = e?.response?.data?.message || 'Blokovanie zlyhalo.'
     toast.error(userError.value)
   }
 }
@@ -267,9 +267,9 @@ async function banUser() {
 async function unbanUser() {
   if (!user.value || isSelf(user.value)) return
   const ok = await confirm({
-    title: 'Unban user',
-    message: `Unban user ${user.value.email}?`,
-    confirmText: 'Unban',
+    title: 'Odblokovat pouzivatela',
+    message: `Odblokovat pouzivatela ${user.value.email}?`,
+    confirmText: 'Odblokovat',
     cancelText: 'Zrusit',
   })
   if (!ok) return
@@ -277,9 +277,9 @@ async function unbanUser() {
   try {
     const res = await api.post(`/admin/users/${user.value.id}/unban`)
     updateUser(res.data)
-    toast.success('User unbanned.')
+    toast.success('Pouzivatel bol odblokovany.')
   } catch (e) {
-    userError.value = e?.response?.data?.message || 'Unban failed.'
+    userError.value = e?.response?.data?.message || 'Odblokovanie zlyhalo.'
     toast.error(userError.value)
   }
 }
@@ -287,9 +287,9 @@ async function unbanUser() {
 async function deactivateUser() {
   if (!user.value || isSelf(user.value) || !user.value.is_active) return
   const ok = await confirm({
-    title: 'Deactivate user',
-    message: `Deactivate user ${user.value.email}?`,
-    confirmText: 'Deactivate',
+    title: 'Deaktivovat pouzivatela',
+    message: `Deaktivovat pouzivatela ${user.value.email}?`,
+    confirmText: 'Deaktivovat',
     cancelText: 'Zrusit',
     variant: 'danger',
   })
@@ -298,9 +298,9 @@ async function deactivateUser() {
   try {
     const res = await api.post(`/admin/users/${user.value.id}/deactivate`)
     updateUser(res.data)
-    toast.success('User deactivated.')
+    toast.success('Pouzivatel bol deaktivovany.')
   } catch (e) {
-    userError.value = e?.response?.data?.message || 'Deactivate failed.'
+    userError.value = e?.response?.data?.message || 'Deaktivacia zlyhala.'
     toast.error(userError.value)
   }
 }
@@ -308,9 +308,9 @@ async function deactivateUser() {
 async function resetProfile() {
   if (!user.value) return
   const ok = await confirm({
-    title: 'Reset profile',
-    message: `Reset profile for ${user.value.email}?`,
-    confirmText: 'Reset',
+    title: 'Resetovat profil',
+    message: `Resetovat profil pre ${user.value.email}?`,
+    confirmText: 'Resetovat',
     cancelText: 'Zrusit',
     variant: 'danger',
   })
@@ -319,9 +319,9 @@ async function resetProfile() {
   try {
     const res = await api.post(`/admin/users/${user.value.id}/reset-profile`)
     updateUser(res.data)
-    toast.success('Profile reset done.')
+    toast.success('Profil bol resetovany.')
   } catch (e) {
-    userError.value = e?.response?.data?.message || 'Reset profile failed.'
+    userError.value = e?.response?.data?.message || 'Reset profilu zlyhal.'
     toast.error(userError.value)
   }
 }
@@ -337,9 +337,9 @@ async function saveProfile() {
   try {
     const res = await api.patch(`/admin/users/${user.value.id}/profile`, payload)
     updateUser(res.data)
-    toast.success('Profile updated.')
+    toast.success('Profil bol aktualizovany.')
   } catch (e) {
-    userError.value = e?.response?.data?.message || 'Profile update failed.'
+    userError.value = e?.response?.data?.message || 'Aktualizacia profilu zlyhala.'
     toast.error(userError.value)
   }
 }
@@ -506,7 +506,7 @@ function markCoverForRemoval() {
   clearMediaPreview('cover')
 }
 
-function resolveMediaErrorMessage(error, fallback = 'Media update failed.') {
+function resolveMediaErrorMessage(error, fallback = 'Aktualizacia media zlyhala.') {
   const status = error?.response?.status ?? null
   const data = error?.response?.data
 
@@ -530,7 +530,7 @@ async function compressProfileMedia(file) {
   }
 
   if ((uploadFile?.size || 0) > PROFILE_MEDIA_UPLOAD_MAX_BYTES) {
-    throw new Error('Selected image is too large. Maximum size is 20 MB.')
+    throw new Error('Vybrany obrazok je prilis velky. Maximalna velkost je 20 MB.')
   }
 
   return uploadFile
@@ -556,7 +556,7 @@ async function onBotMediaChange(type, event) {
       coverRemoveRequested.value = false
     }
   } catch (error) {
-    const message = String(error?.message || 'Media update failed.')
+    const message = String(error?.message || 'Aktualizacia media zlyhala.')
     mediaError.value = message
     if (type === 'avatar') {
       avatarErr.value = message
@@ -603,9 +603,9 @@ async function saveAvatarPreferences() {
     syncAvatarDraftFromUser()
     clearPendingMedia('avatar')
     avatarModalOpen.value = false
-    toast.success('Bot avatar updated.')
+    toast.success('Avatar bota bol aktualizovany.')
   } catch (error) {
-    const message = resolveMediaErrorMessage(error, 'Avatar update failed.')
+    const message = resolveMediaErrorMessage(error, 'Aktualizacia avatara zlyhala.')
     avatarErr.value = message
     mediaError.value = message
     toast.error(message)
@@ -634,9 +634,9 @@ async function saveCoverEditor() {
 
     clearPendingMedia('cover')
     coverModalOpen.value = false
-    toast.success('Bot cover updated.')
+    toast.success('Titulna fotka bota bola aktualizovana.')
   } catch (error) {
-    const message = resolveMediaErrorMessage(error, 'Cover update failed.')
+    const message = resolveMediaErrorMessage(error, 'Aktualizacia titulnej fotky zlyhala.')
     mediaError.value = message
     toast.error(message)
   } finally {
@@ -667,9 +667,9 @@ async function reportAction(report, action) {
   try {
     await api.post(`/admin/reports/${report.id}/${action}`)
     loadReports()
-    toast.success('Action completed.')
+    toast.success('Akcia bola dokoncena.')
   } catch (e) {
-    reportsError.value = e?.response?.data?.message || 'Action failed.'
+    reportsError.value = e?.response?.data?.message || 'Akcia zlyhala.'
     toast.error(reportsError.value)
   }
 }
@@ -787,12 +787,12 @@ onBeforeUnmount(() => {
         >
           Deactivate
         </button>
-        <button class="btn action subtle" :disabled="userLoading" @click="resetProfile">Reset profile</button>
+        <button class="btn action subtle" :disabled="userLoading" @click="resetProfile">Resetovat profil</button>
       </div>
     </section>
 
     <section class="overviewCard">
-      <h3>Profile fields</h3>
+      <h3>Polia profilu</h3>
       <div v-if="isBotTarget && !isCurrentActorAdmin" class="adminAlert">
         Bot profiles are read-only for non-admin users.
       </div>
@@ -888,7 +888,7 @@ onBeforeUnmount(() => {
 
       <div class="headerActions">
         <button class="btn action" :disabled="!canEditProfile || userLoading" @click="saveProfile">
-          Save profile
+          Ulozit profil
         </button>
       </div>
 
@@ -1126,7 +1126,7 @@ onBeforeUnmount(() => {
         :class="{ active: activeTab === 'overview' }"
         @click="activeTab = 'overview'"
       >
-        Overview
+        Prehlad
       </button>
       <button
         type="button"
@@ -1134,32 +1134,32 @@ onBeforeUnmount(() => {
         :class="{ active: activeTab === 'reports' }"
         @click="activeTab = 'reports'"
       >
-        Reports
+        Reporty
       </button>
     </div>
 
     <section v-if="activeTab === 'overview'" class="overviewCard">
       <div><strong>ID:</strong> {{ user?.id || '-' }}</div>
-      <div><strong>Name:</strong> {{ user?.name || '-' }}</div>
-      <div><strong>Email:</strong> {{ user?.email || '-' }}</div>
-      <div><strong>Role:</strong> {{ user?.role || '-' }}</div>
-      <div><strong>Status:</strong> {{ statusLabel(user) }}</div>
-      <div><strong>Banned at:</strong> {{ formatDate(user?.banned_at) }}</div>
-      <div><strong>Ban reason:</strong> {{ user?.ban_reason || '-' }}</div>
-      <div><strong>Created:</strong> {{ formatDate(user?.created_at) }}</div>
+      <div><strong>Meno:</strong> {{ user?.name || '-' }}</div>
+      <div><strong>E-mail:</strong> {{ user?.email || '-' }}</div>
+      <div><strong>Rola:</strong> {{ user?.role || '-' }}</div>
+      <div><strong>Stav:</strong> {{ statusLabel(user) }}</div>
+      <div><strong>Zablokovany od:</strong> {{ formatDate(user?.banned_at) }}</div>
+      <div><strong>Dovod blokacie:</strong> {{ user?.ban_reason || '-' }}</div>
+      <div><strong>Vytvorene:</strong> {{ formatDate(user?.created_at) }}</div>
     </section>
 
     <section v-if="activeTab === 'reports'" class="reportsTab">
       <AdminToolbar :loading="reportsLoading">
         <template #search>
-          <label class="fieldLabel" for="user-reports-search">Search</label>
+          <label class="fieldLabel" for="user-reports-search">Hladat</label>
           <input
             id="user-reports-search"
             v-model="reportsSearchInput"
             type="search"
             class="fieldInput"
             :disabled="reportsLoading"
-            placeholder="Search reports..."
+            placeholder="Hladat reporty..."
           />
         </template>
 
@@ -1182,7 +1182,7 @@ onBeforeUnmount(() => {
               </select>
             </div>
             <div>
-              <label class="fieldLabel" for="user-reports-per-page">Per page</label>
+              <label class="fieldLabel" for="user-reports-per-page">Na stranu</label>
               <select
                 id="user-reports-per-page"
                 v-model.number="reportsPerPage"
@@ -1199,9 +1199,9 @@ onBeforeUnmount(() => {
         </template>
 
         <template #actions>
-          <button type="button" class="btn action" :disabled="reportsLoading" @click="loadReports">Refresh</button>
+          <button type="button" class="btn action" :disabled="reportsLoading" @click="loadReports">Obnovit</button>
           <button type="button" class="btn action subtle" :disabled="reportsLoading" @click="clearReportFilters">
-            Clear filters
+            Vycistit filtre
           </button>
         </template>
       </AdminToolbar>
@@ -1210,8 +1210,8 @@ onBeforeUnmount(() => {
         :columns="reportColumns"
         :rows="reportRows"
         :loading="reportsLoading"
-        empty-title="No reports for this user"
-        empty-description="No report matched current filters."
+        empty-title="Ziadne reporty pre tohto pouzivatela"
+        empty-description="Aktualnym filtrom nezodpoveda ziaden report."
       >
         <template #[`cell(type)`]="{ row }">
           <span class="statusBadge">{{ reportType(row) }}</span>
@@ -1232,11 +1232,11 @@ onBeforeUnmount(() => {
               :to="{ name: 'post-detail', params: { id: row.target.id } }"
               class="btn action"
             >
-              View
+              Zobrazit
             </RouterLink>
-            <button class="btn action" :disabled="reportsLoading" @click="reportAction(row, 'hide')">Resolve</button>
+            <button class="btn action" :disabled="reportsLoading" @click="reportAction(row, 'hide')">Vyriesit</button>
             <button class="btn action subtle" :disabled="reportsLoading" @click="reportAction(row, 'dismiss')">
-              Dismiss
+              Zamietnut
             </button>
           </div>
         </template>

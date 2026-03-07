@@ -106,7 +106,7 @@
             <!-- bottom actions -->
             <div class="postActions" @click.stop>
               <button class="actBtn" type="button" title="Nahlasit vo vlakne" @click.stop="openReport(p)">
-                ⚑ Report
+                ⚑ Nahlasit
               </button>
               <button class="actBtn" type="button" title="Reagovať" disabled>
                 .. <span>{{ p.replies_count ?? 0 }}</span>
@@ -125,8 +125,8 @@
                 ♡ <span>{{ p.likes_count ?? 0 }}</span>
               </button>
               <div class="spacer"></div>
-              <button class="actBtn" type="button" title="View thread" @click.stop="openPost(p)">
-                View thread
+              <button class="actBtn" type="button" title="Zobrazit vlakno" @click.stop="openPost(p)">
+                Zobrazit vlakno
               </button>
             </div>
           </div>
@@ -157,9 +157,9 @@
             :disabled="reportLoading"
           >
             <option value="spam">Spam</option>
-            <option value="abuse">Abuse</option>
-            <option value="misinfo">Misinformation</option>
-            <option value="other">Other</option>
+            <option value="abuse">Zneuzitie</option>
+            <option value="misinfo">Dezinformacie</option>
+            <option value="other">Ine</option>
           </select>
 
           <label class="reportLabel" for="tag-feed-report-message">Poznamka (volitelne)</label>
@@ -286,7 +286,7 @@ async function submitReport() {
       _hp: '',
     })
 
-    toast.success('Report bol odoslany. Dakujeme.')
+    toast.success('Nahlasenie bolo odoslane. Dakujeme.')
     closeReport(true)
   } catch (e) {
     const status = e?.response?.status
@@ -296,8 +296,8 @@ async function submitReport() {
         : status === 403
           ? 'Svoj vlastny prispevok nemozes nahlasit.'
           : status === 409
-            ? 'Tento prispevok si uz reportoval.'
-            : e?.response?.data?.message || 'Report sa nepodarilo odoslat.'
+            ? 'Tento prispevok ste uz nahlasili.'
+            : e?.response?.data?.message || 'Nahlasenie sa nepodarilo odoslat.'
 
     error.value = message
     toast.warn(message)

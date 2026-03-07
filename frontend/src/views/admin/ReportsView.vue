@@ -26,12 +26,12 @@ const data = ref(null)
 let searchDebounce = null
 
 const columns = [
-  { key: 'type', label: 'Type' },
-  { key: 'target', label: 'Target' },
-  { key: 'reason', label: 'Reason' },
-  { key: 'status', label: 'Status' },
-  { key: 'created_at', label: 'Created' },
-  { key: 'actions', label: 'Actions', align: 'right' },
+  { key: 'type', label: 'Typ' },
+  { key: 'target', label: 'Ciel' },
+  { key: 'reason', label: 'Dovod' },
+  { key: 'status', label: 'Stav' },
+  { key: 'created_at', label: 'Vytvorene' },
+  { key: 'actions', label: 'Akcie', align: 'right' },
 ]
 
 const rows = computed(() => data.value?.data || [])
@@ -112,7 +112,7 @@ async function load() {
     const res = await api.get('/admin/reports', { params })
     data.value = res.data
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Failed to load reports.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat reporty.'
   } finally {
     loading.value = false
   }
@@ -169,7 +169,7 @@ async function act(report, action) {
     updateRow(res.data)
     toast.success('Akcia bola vykonana.')
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Action failed.'
+    error.value = e?.response?.data?.message || 'Akcia zlyhala.'
     toast.error(error.value)
   } finally {
     loading.value = false
@@ -194,7 +194,7 @@ function formatDate(value) {
   const hourMs = 60 * minuteMs
   const dayMs = 24 * hourMs
 
-  if (absDiffMs < minuteMs) return 'now'
+  if (absDiffMs < minuteMs) return 'teraz'
 
   const formatUnit = (value, unit) => `${value}${unit}`
 
@@ -257,20 +257,20 @@ load()
 </script>
 
 <template>
-  <AdminPageShell title="Reports" subtitle="Moderation queue (MVP).">
+  <AdminPageShell title="Reporty" subtitle="Moderacna fronta (MVP).">
     <div v-if="error" class="adminAlert">
       {{ error }}
     </div>
 
     <AdminToolbar :loading="loading">
       <template #search>
-        <label class="fieldLabel" for="reports-search">Search</label>
+        <label class="fieldLabel" for="reports-search">Hladat</label>
         <input
           id="reports-search"
           v-model="searchInput"
           :disabled="loading"
           type="search"
-          placeholder="Search reports..."
+          placeholder="Hladat reporty..."
           class="fieldInput"
         />
       </template>
@@ -278,7 +278,7 @@ load()
       <template #filters>
         <div class="filtersRow">
           <div>
-            <label class="fieldLabel" for="reports-status">Status</label>
+            <label class="fieldLabel" for="reports-status">Stav</label>
             <select
               id="reports-status"
               v-model="status"
@@ -294,7 +294,7 @@ load()
           </div>
 
           <div>
-            <label class="fieldLabel" for="reports-per-page">Per page</label>
+            <label class="fieldLabel" for="reports-per-page">Na stranu</label>
             <select
               id="reports-per-page"
               v-model.number="perPage"
@@ -311,7 +311,7 @@ load()
       </template>
 
       <template #actions>
-        <button type="button" class="btn ghost" :disabled="loading" @click="refresh">Refresh</button>
+        <button type="button" class="btn ghost" :disabled="loading" @click="refresh">Obnovit</button>
       </template>
     </AdminToolbar>
 
@@ -319,8 +319,8 @@ load()
       :columns="columns"
       :rows="rows"
       :loading="loading"
-      empty-title="No reports found"
-      empty-description="Try adjusting your filters."
+      empty-title="Nenasli sa ziadne reporty"
+      empty-description="Skuste upravit filtre."
       :can-clear-filters="hasActiveFilters"
       @clear-filters="clearFilters"
     >
@@ -342,11 +342,11 @@ load()
 
       <template #[`cell(actions)`]="{ row }">
         <div class="rowActions">
-          <button class="btn action" :disabled="loading" @click="act(row, 'hide')">Hide</button>
-          <button class="btn action" :disabled="loading" @click="act(row, 'delete')">Delete</button>
-          <button class="btn action subtle" :disabled="loading" @click="act(row, 'warn')">Warn</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'hide')">Skryt</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'delete')">Zmazat</button>
+          <button class="btn action subtle" :disabled="loading" @click="act(row, 'warn')">Upozornit</button>
           <button class="btn action" :disabled="loading" @click="act(row, 'ban')">Ban</button>
-          <button class="btn action" :disabled="loading" @click="act(row, 'dismiss')">Dismiss</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'dismiss')">Zamietnut</button>
         </div>
       </template>
     </AdminDataTable>

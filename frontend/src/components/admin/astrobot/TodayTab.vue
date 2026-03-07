@@ -13,7 +13,7 @@
     </div>
 
     <div class="actionsHint">
-      <strong>Needs review:</strong> tu su polozky, ktore sa nepublikovali automaticky. Môzes ich upravit,
+      <strong>Potrebuje kontrolu:</strong> tu su polozky, ktore sa nepublikovali automaticky. Môzes ich upravit,
       publikovat alebo zamietnut.
     </div>
 
@@ -31,7 +31,7 @@
 
     <div v-else-if="items.length === 0" class="state">
       <div class="stateTitle">Inbox je prazdny</div>
-      <div class="stateText">Aktualne nie su ziadne polozky na manualny review.</div>
+      <div class="stateText">Aktualne nie su ziadne polozky na manualnu kontrolu.</div>
     </div>
 
     <ul v-else class="itemsList">
@@ -52,10 +52,10 @@
         <div class="itemActions">
           <button class="ghostbtn" @click="openEdit(item)">Upravit</button>
           <button class="actionbtn" @click="publishItem(item)" :disabled="actionLoading[item.id] === 'publish'">
-            {{ actionLoading[item.id] === 'publish' ? 'Publikujem...' : 'Publish' }}
+            {{ actionLoading[item.id] === 'publish' ? 'Publikujem...' : 'Publikovat' }}
           </button>
           <button class="ghostbtn danger" @click="rejectItem(item)" :disabled="actionLoading[item.id] === 'reject'">
-            {{ actionLoading[item.id] === 'reject' ? 'Zamietam...' : 'Reject' }}
+            {{ actionLoading[item.id] === 'reject' ? 'Zamietam...' : 'Zamietnut' }}
           </button>
           <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="ghostbtn">Zdroj</a>
         </div>
@@ -229,7 +229,7 @@ export default {
         await this.loadItems()
         toast.success('Polozka bola zamietnuta.')
       } catch (err) {
-        this.error = 'Reject zlyhal: ' + (err?.response?.data?.message || err?.message)
+        this.error = 'Zamietnutie zlyhalo: ' + (err?.response?.data?.message || err?.message)
         toast.error(this.error)
       } finally {
         delete this.actionLoading[item.id]

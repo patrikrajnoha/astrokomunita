@@ -2,25 +2,25 @@
   <AuthSplitLayout>
     <template #hero>
       <AuthHeroPanel
-        eyebrow="Password recovery"
-        title="Forgot Password"
-        subtitle="Enter your account email and we will send a reset code to help you set a new password."
+        eyebrow="Obnova hesla"
+        title="Zabudnute heslo"
+        subtitle="Zadajte e-mail k uctu a posleme vam obnovovaci kod na nastavenie noveho hesla."
       />
     </template>
 
     <AuthFormSection
-      kicker="Recovery"
-      title="Request a reset code"
-      description="Type your account email below. The code arrives by email and works for a limited time."
+      kicker="Obnova"
+      title="Vyziadat obnovovaci kod"
+      description="Zadajte e-mail uctu. Kod pride e-mailom a plati obmedzeny cas."
     >
       <form class="authForm" @submit.prevent="submit" novalidate>
         <AuthField
           v-model="email"
-          label="Email"
+          label="E-mail"
           type="email"
           autocomplete="email"
           placeholder="you@example.com"
-          helper="You will receive a reset code by email."
+          helper="Obnovovaci kod dostanete e-mailom."
           :error="emailError"
           required
         >
@@ -32,21 +32,21 @@
           </template>
         </AuthField>
 
-        <AuthAlert v-if="error" title="Unable to continue" :message="error" />
+        <AuthAlert v-if="error" title="Neda sa pokracovat" :message="error" />
 
         <AuthActions
           :back-to="{ name: 'login' }"
-          back-label="Back"
-          submit-label="Next"
-          loading-label="Sending..."
+          back-label="Spat"
+          submit-label="Dalej"
+          loading-label="Odosielam..."
           :loading="loading"
         />
 
-        <AuthDivider text="or" />
+        <AuthDivider text="alebo" />
 
         <p class="authFootnote">
-          Already have a code?
-          <RouterLink class="authInlineLink" :to="resetLink">Continue to reset</RouterLink>
+          Uz mate kod?
+          <RouterLink class="authInlineLink" :to="resetLink">Pokracovat na reset</RouterLink>
         </p>
       </form>
     </AuthFormSection>
@@ -75,7 +75,7 @@ const loading = ref(false)
 const attempted = ref(false)
 const error = ref('')
 
-const emailError = computed(() => (attempted.value && !email.value.trim() ? 'Email is required.' : ''))
+const emailError = computed(() => (attempted.value && !email.value.trim() ? 'E-mail je povinny.' : ''))
 const resetLink = computed(() => ({
   name: 'reset-password',
   query: email.value.trim() ? { email: email.value.trim() } : undefined,
@@ -109,7 +109,7 @@ async function submit() {
       },
     })
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.message || 'Unable to send reset code.'
+    error.value = e?.response?.data?.message || e?.message || 'Nepodarilo sa odoslat obnovovaci kod.'
   } finally {
     loading.value = false
   }

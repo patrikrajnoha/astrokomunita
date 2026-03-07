@@ -51,7 +51,7 @@ const items = computed(() => [
     label: 'Domov',
     to: '/',
     exact: true,
-    iconPaths: ['M3 10.5 12 3l9 7.5', 'M5 9.8V20h14V9.8', 'M9.5 20v-5h5V20'],
+    iconPaths: ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z', 'M3 12h18', 'M12 3a12.5 12.5 0 0 1 0 18', 'M12 3a12.5 12.5 0 0 0 0 18'],
   },
   {
     label: 'Preskúmať',

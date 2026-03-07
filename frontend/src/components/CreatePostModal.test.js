@@ -44,6 +44,8 @@ describe('CreatePostModal GIF selection', () => {
     vi.useFakeTimers()
     getMock.mockReset()
     pushMock.mockReset()
+    URL.createObjectURL = vi.fn(() => 'blob:preview-image')
+    URL.revokeObjectURL = vi.fn()
     getMock.mockResolvedValue({
       data: {
         data: [
@@ -123,6 +125,31 @@ describe('CreatePostModal GIF selection', () => {
 
     expect(pushMock).toHaveBeenCalledWith('/observations/new')
     expect(wrapper.emitted('close')).toBeTruthy()
+
+    wrapper.unmount()
+  })
+
+  it('prefills selected image when opened with initial attachment file', async () => {
+    const shortcutFile = new File(['image-bytes'], 'shortcut.png', { type: 'image/png' })
+    const wrapper = mount(CreatePostModal, {
+      props: {
+        open: true,
+        initialAttachmentFile: shortcutFile,
+      },
+      attachTo: document.body,
+      global: {
+        stubs: {
+          teleport: true,
+          PollComposerPanel: true,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    const previewImage = wrapper.find('.contentCol .mediaCard .mediaImg')
+    expect(previewImage.exists()).toBe(true)
+    expect(previewImage.attributes('src')).toBe('blob:preview-image')
 
     wrapper.unmount()
   })

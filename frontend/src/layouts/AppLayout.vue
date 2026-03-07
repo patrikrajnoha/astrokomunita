@@ -225,6 +225,7 @@
     <CreatePostModal
       :open="isComposerOpen"
       :initial-action="composerInitialAction"
+      :initial-attachment-file="composerInitialAttachmentFile"
       @close="closeComposerModal"
       @created="onPostCreated"
     />
@@ -482,6 +483,7 @@ const COMPOSER_OPEN_EVENT = 'post:composer:open'
 const isDrawerOpen = ref(false)
 const isComposerOpen = ref(false)
 const composerInitialAction = ref('post')
+const composerInitialAttachmentFile = ref(null)
 const isWidgetMenuOpen = ref(false)
 const isWidgetSheetOpen = ref(false)
 const showAllWidgets = ref(false)
@@ -707,22 +709,30 @@ const normalizeComposerAction = (action) => {
   return ['post', 'poll', 'event'].includes(normalized) ? normalized : 'post'
 }
 
-const openComposerModal = (action = 'post') => {
+const normalizeComposerAttachmentFile = (value) => {
+  if (typeof File === 'undefined') return null
+  return value instanceof File ? value : null
+}
+
+const openComposerModal = (action = 'post', { attachmentFile = null } = {}) => {
   if (!auth.isAuthed) return
   closeWidgetLayers()
   closeDrawer()
   composerInitialAction.value = normalizeComposerAction(action)
+  composerInitialAttachmentFile.value = normalizeComposerAttachmentFile(attachmentFile)
   isComposerOpen.value = true
 }
 
 const closeComposerModal = () => {
   isComposerOpen.value = false
   composerInitialAction.value = 'post'
+  composerInitialAttachmentFile.value = null
 }
 
 const handleComposerOpenEvent = (event) => {
   const action = normalizeComposerAction(event?.detail?.action)
-  openComposerModal(action)
+  const attachmentFile = normalizeComposerAttachmentFile(event?.detail?.attachmentFile)
+  openComposerModal(action, { attachmentFile })
 }
 
 const closeWidgetMenu = () => {

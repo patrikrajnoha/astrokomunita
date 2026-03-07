@@ -171,12 +171,12 @@ onMounted(async () => {
 <template>
   <component
     :is="props.embedded ? 'section' : AdminPageShell"
-    v-bind="props.embedded ? {} : { title: 'Bot Schedules', subtitle: 'Sprava planov bez potreby deployu.' }"
+    v-bind="props.embedded ? {} : { title: 'Plany botov', subtitle: 'Sprava planov bez potreby nasadenia.' }"
     class="botSection"
   >
     <div v-if="props.embedded" class="embeddedHeader">
       <div>
-        <h2 class="embeddedTitle">Schedules</h2>
+        <h2 class="embeddedTitle">Plany</h2>
         <p class="embeddedSubtitle">Sprava planov bez potreby deployu.</p>
       </div>
       <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
@@ -203,9 +203,9 @@ onMounted(async () => {
           </select>
         </label>
         <label class="field">
-          <span>Source (optional)</span>
+          <span>Zdroj (volitelne)</span>
           <select v-model="form.source_id">
-            <option value="">Vsetky enabled sources</option>
+            <option value="">Vsetky povolene zdroje</option>
             <option v-for="source in sourceOptions" :key="source.id" :value="String(source.id)">
               {{ source.key }}
             </option>
@@ -216,12 +216,12 @@ onMounted(async () => {
           <input v-model.number="form.interval_minutes" type="number" min="1" max="10080" />
         </label>
         <label class="field">
-          <span>Jitter (sec)</span>
+          <span>Jitter (sek)</span>
           <input v-model.number="form.jitter_seconds" type="number" min="0" max="86400" />
         </label>
         <label class="field field--inline">
           <input v-model="form.enabled" type="checkbox" />
-          <span>Enabled</span>
+          <span>Povolene</span>
         </label>
       </div>
       <div class="actions">
@@ -239,14 +239,14 @@ onMounted(async () => {
             <tr>
               <th>ID</th>
               <th>Bot</th>
-              <th>Source</th>
+              <th>Zdroj</th>
               <th>Interval</th>
               <th>Jitter</th>
-              <th>Enabled</th>
-              <th>Last run</th>
-              <th>Next run</th>
-              <th>Result</th>
-              <th>Action</th>
+              <th>Povolene</th>
+              <th>Posledny beh</th>
+              <th>Dalsi beh</th>
+              <th>Vysledok</th>
+              <th>Akcia</th>
             </tr>
           </thead>
           <tbody>
@@ -270,13 +270,13 @@ onMounted(async () => {
               </td>
               <td>
                 <div class="rowActions">
-                  <button class="actionBtn ghost" type="button" :disabled="savingId === row.id" @click="saveRow(row)">Save</button>
-                  <button class="actionBtn danger" type="button" :disabled="savingId === row.id" @click="removeRow(row)">Delete</button>
+                  <button class="actionBtn ghost" type="button" :disabled="savingId === row.id" @click="saveRow(row)">Ulozit</button>
+                  <button class="actionBtn danger" type="button" :disabled="savingId === row.id" @click="removeRow(row)">Zmazat</button>
                   <RouterLink
                     class="activityLink"
                     :to="{ name: 'admin.bots.activity', query: { bot_identity: row?.source?.bot_identity || undefined } }"
                   >
-                    Activity
+                    Aktivita
                   </RouterLink>
                 </div>
               </td>

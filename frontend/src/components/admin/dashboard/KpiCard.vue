@@ -7,7 +7,7 @@ const props = defineProps({
   value: { type: [String, Number], default: '-' },
   delta: { type: [String, Number], default: null },
   hint: { type: String, default: '' },
-  viewLabel: { type: String, default: 'View' },
+  viewLabel: { type: String, default: 'Zobrazit' },
   viewTo: { type: [String, Object], default: null },
   tone: { type: String, default: 'default' },
 })

@@ -1,5 +1,5 @@
 <template>
-  <div class="share-canvas" role="img" aria-label="Share card post preview">
+  <div class="share-canvas" role="img" aria-label="Nahlad zdielacej karty prispevku">
     <div class="share-card">
       <header class="share-head">
         <div class="author-wrap">

@@ -94,6 +94,7 @@
 
       <div class="quickStats">
         <span class="statPill">Polozky: {{ sections.length }}</span>
+        <span class="statPill">Aktivne: {{ enabledSectionsCount }} / {{ MAX_ENABLED_SIDEBAR_WIDGETS }}</span>
         <span class="statPill">Custom komponenty: {{ availableCustomComponents.length }}</span>
         <span class="statPill">Match: {{ matchingSectionsCount }} / {{ sections.length }}</span>
       </div>
@@ -178,7 +179,11 @@
                   </div>
 
                   <label class="toggle">
-                    <input v-model="section.is_enabled" type="checkbox" />
+                    <input
+                      :checked="section.is_enabled"
+                      type="checkbox"
+                      @change="toggleSectionEnabled(section, $event?.target?.checked)"
+                    />
                     <span class="toggleSlider"></span>
                     <span class="toggleLabel">{{ section.is_enabled ? 'On' : 'Off' }}</span>
                   </label>
@@ -279,6 +284,7 @@ import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { sidebarConfigAdminApi, sidebarCustomComponentsAdminApi } from '@/services/api/admin/sidebarConfig'
 import { DEFAULT_SIDEBAR_SCOPE, SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
+import { EXCLUSIVE_SIDEBAR_SECTION_KEYS, MAX_ENABLED_SIDEBAR_WIDGETS } from '@/sidebar/engine'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 import SidebarCustomComponentsView from '@/components/admin/sidebar/SidebarCustomComponentsView.vue'
 import SidebarComponentRegistryView from '@/components/admin/sidebar/SidebarComponentRegistryView.vue'
@@ -351,6 +357,8 @@ const matchingSectionsCount = computed(() => {
   if (!hasLayoutSearch.value) return sections.value.length
   return sections.value.filter((section) => sectionMatchesLayoutSearch(section)).length
 })
+
+const enabledSectionsCount = computed(() => sections.value.filter((section) => section.is_enabled).length)
 
 const formatSavedAt = (value) => {
   if (!value) return 'Caka na ulozenie'
@@ -436,8 +444,37 @@ const applyOrderFromPosition = () => {
   })
 }
 
+const isExclusiveSection = (section) => {
+  return EXCLUSIVE_SIDEBAR_SECTION_KEYS.includes(String(section?.section_key || ''))
+}
+
+const applyLayoutRules = (items) => {
+  const rows = normalizeLayoutItems(items)
+  const enabled = rows.filter((item) => item.is_enabled)
+  const exclusiveEnabled = enabled.find((item) => isExclusiveSection(item))
+
+  if (exclusiveEnabled) {
+    rows.forEach((item) => {
+      item.is_enabled = item.client_key === exclusiveEnabled.client_key
+    })
+    return rows
+  }
+
+  let activeCount = 0
+  rows.forEach((item) => {
+    if (!item.is_enabled) return
+    if (activeCount >= MAX_ENABLED_SIDEBAR_WIDGETS) {
+      item.is_enabled = false
+      return
+    }
+    activeCount += 1
+  })
+
+  return rows
+}
+
 const setScopeData = (items) => {
-  sections.value = normalizeLayoutItems(items)
+  sections.value = applyLayoutRules(items)
   applyOrderFromPosition()
   originalSections.value = normalizeLayoutItems(sections.value)
 }
@@ -563,6 +600,42 @@ const moveSection = (clientKey, direction) => {
   applyOrderFromPosition()
 }
 
+const toggleSectionEnabled = (section, checked) => {
+  const nextEnabled = Boolean(checked)
+  if (!section || typeof section !== 'object') return
+
+  if (!nextEnabled) {
+    section.is_enabled = false
+    return
+  }
+
+  if (isExclusiveSection(section)) {
+    sections.value.forEach((item) => {
+      item.is_enabled = String(item.client_key) === String(section.client_key)
+    })
+    showToast('Observing Conditions je exkluzivny widget a moze byt aktivny iba samostatne.', 'warning')
+    return
+  }
+
+  const hasExclusiveEnabled = sections.value.some(
+    (item) => item.is_enabled && String(item.client_key) !== String(section.client_key) && isExclusiveSection(item),
+  )
+  if (hasExclusiveEnabled) {
+    showToast('Najprv vypni Observing Conditions. Tento widget sa neda kombinovat s inymi.', 'warning')
+    return
+  }
+
+  const currentlyEnabled = sections.value.filter(
+    (item) => item.is_enabled && String(item.client_key) !== String(section.client_key),
+  ).length
+  if (currentlyEnabled >= MAX_ENABLED_SIDEBAR_WIDGETS) {
+    showToast(`Na jeden sidebar mozu byt aktivne maximalne ${MAX_ENABLED_SIDEBAR_WIDGETS} widgety.`, 'warning')
+    return
+  }
+
+  section.is_enabled = true
+}
+
 const getCustomComponentUsage = (componentId) => {
   const id = Number(componentId)
   if (!Number.isFinite(id) || id < 1) return 0
@@ -572,7 +645,7 @@ const getCustomComponentUsage = (componentId) => {
 const addCustomComponentToLayout = (component) => {
   if (!component || !component.id) return
 
-  sections.value.push({
+  const nextSection = {
     client_key: `custom:${component.id}:${Date.now()}`,
     kind: 'custom_component',
     section_key: 'custom_component',
@@ -580,9 +653,13 @@ const addCustomComponentToLayout = (component) => {
     custom_component_id: component.id,
     custom_component: component,
     order: sections.value.length,
-    is_enabled: true,
-  })
+    is_enabled: false,
+  }
+
+  sections.value.push(nextSection)
   applyOrderFromPosition()
+
+  toggleSectionEnabled(nextSection, true)
   showToast('Komponent bol pridany do rozlozenia. Nezabudni ulozit.', 'success')
 }
 

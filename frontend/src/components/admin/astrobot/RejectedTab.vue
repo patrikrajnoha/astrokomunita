@@ -33,7 +33,7 @@
         <div class="itemTitle">{{ item.title }}</div>
         <div v-if="item.review_note" class="itemNote">Poznamka: {{ item.review_note }}</div>
         <div class="itemActions">
-          <button class="actionbtn" @click="publishItem(item)">Publish</button>
+          <button class="actionbtn" @click="publishItem(item)">Publikovat</button>
           <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="ghostbtn">Zdroj</a>
         </div>
       </li>

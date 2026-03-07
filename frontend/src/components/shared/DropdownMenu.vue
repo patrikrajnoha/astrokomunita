@@ -15,26 +15,30 @@
       </slot>
     </button>
 
-    <div
-      v-if="open"
-      ref="menuRef"
-      class="dropdownMenu"
-      role="menu"
-      :aria-label="menuLabel"
-      @keydown="onMenuKeydown"
-    >
-      <button
-        v-for="item in items"
-        :key="item.key"
-        type="button"
-        role="menuitem"
-        class="dropdownItem"
-        :class="{ 'dropdownItem--danger': item.danger }"
-        @click.stop="onSelect(item)"
+    <teleport to="body">
+      <div
+        v-if="open"
+        ref="menuRef"
+        class="dropdownMenu"
+        role="menu"
+        :aria-label="menuLabel"
+        :style="menuStyle"
+        @click.stop
+        @keydown="onMenuKeydown"
       >
-        {{ item.label }}
-      </button>
-    </div>
+        <button
+          v-for="item in items"
+          :key="item.key"
+          type="button"
+          role="menuitem"
+          class="dropdownItem"
+          :class="{ 'dropdownItem--danger': item.danger }"
+          @click.stop="onSelect(item)"
+        >
+          {{ item.label }}
+        </button>
+      </div>
+    </teleport>
   </div>
 </template>
 
@@ -53,6 +57,8 @@ const open = ref(false)
 const rootRef = ref(null)
 const triggerRef = ref(null)
 const menuRef = ref(null)
+const menuStyle = ref({})
+let repositionRaf = null
 
 const focusItemByIndex = (index) => {
   const menu = menuRef.value
@@ -65,6 +71,7 @@ const focusItemByIndex = (index) => {
 const focusFirstItem = () => focusItemByIndex(0)
 
 const close = (restoreFocus = true) => {
+  removePositionListeners()
   open.value = false
   emit('close')
   if (restoreFocus) {
@@ -77,6 +84,8 @@ const openMenu = async () => {
   open.value = true
   emit('open')
   await nextTick()
+  positionMenu()
+  addPositionListeners()
   focusFirstItem()
 }
 
@@ -139,18 +148,86 @@ const onMenuKeydown = (event) => {
 
 const handleClickOutside = (event) => {
   const root = rootRef.value
+  const menu = menuRef.value
   if (!open.value || !root || !(event.target instanceof Node)) return
-  if (!root.contains(event.target)) {
-    close(false)
+  if (root.contains(event.target) || menu?.contains(event.target)) return
+  close(false)
+}
+
+const positionMenu = () => {
+  const trigger = triggerRef.value
+  const menu = menuRef.value
+  if (!trigger || !menu) return
+
+  const triggerRect = trigger.getBoundingClientRect()
+  const menuRect = menu.getBoundingClientRect()
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const viewportPadding = 8
+  const gap = 8
+
+  let left = triggerRect.right - menuRect.width
+  left = Math.max(viewportPadding, Math.min(left, viewportWidth - menuRect.width - viewportPadding))
+
+  let top = triggerRect.bottom + gap
+  let originY = 'top'
+  const maxTop = viewportHeight - menuRect.height - viewportPadding
+
+  if (top > maxTop) {
+    const flippedTop = triggerRect.top - menuRect.height - gap
+    if (flippedTop >= viewportPadding) {
+      top = flippedTop
+      originY = 'bottom'
+    } else {
+      top = Math.max(viewportPadding, maxTop)
+    }
+  }
+
+  menuStyle.value = {
+    left: `${Math.round(left)}px`,
+    top: `${Math.round(top)}px`,
+    '--dropdown-origin-y': originY,
+  }
+}
+
+const schedulePosition = () => {
+  if (repositionRaf !== null) {
+    window.cancelAnimationFrame(repositionRaf)
+  }
+  repositionRaf = window.requestAnimationFrame(() => {
+    repositionRaf = null
+    positionMenu()
+  })
+}
+
+const handleViewportChange = () => {
+  if (!open.value) return
+  schedulePosition()
+}
+
+const addPositionListeners = () => {
+  window.addEventListener('resize', handleViewportChange, { passive: true })
+  window.addEventListener('scroll', handleViewportChange, true)
+}
+
+const removePositionListeners = () => {
+  window.removeEventListener('resize', handleViewportChange)
+  window.removeEventListener('scroll', handleViewportChange, true)
+  if (repositionRaf !== null) {
+    window.cancelAnimationFrame(repositionRaf)
+    repositionRaf = null
   }
 }
 
 onMounted(() => {
   document.addEventListener('mousedown', handleClickOutside)
+  document.addEventListener('touchstart', handleClickOutside, { passive: true })
 })
 
 onBeforeUnmount(() => {
+  removePositionListeners()
   document.removeEventListener('mousedown', handleClickOutside)
+  document.removeEventListener('touchstart', handleClickOutside)
 })
 
 watch(
@@ -168,6 +245,8 @@ defineExpose({ close })
 <style scoped>
 .dropdownRoot {
   position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
 .dropdownTrigger {
@@ -194,11 +273,15 @@ defineExpose({ close })
 }
 
 .dropdownMenu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 80;
+  position: fixed;
+  z-index: 1200;
   min-width: 180px;
+  max-width: min(280px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-card);
@@ -206,7 +289,13 @@ defineExpose({ close })
   display: grid;
   gap: 4px;
   box-shadow: var(--shadow-medium);
+  transform-origin: right var(--dropdown-origin-y, top);
   animation: dropdownIn 140ms ease-out;
+}
+
+.dropdownMenu::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .dropdownItem {
@@ -243,12 +332,12 @@ defineExpose({ close })
 @keyframes dropdownIn {
   from {
     opacity: 0;
-    transform: translateY(-4px) scale(0.98);
+    transform: scale(0.98);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: scale(1);
   }
 }
 </style>

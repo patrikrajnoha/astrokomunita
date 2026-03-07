@@ -58,8 +58,8 @@ describe('LoginView', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Account blocked')
+    expect(wrapper.text()).toContain('Ucet je blokovany')
     expect(wrapper.text()).toContain('Repeated abusive behavior.')
-    expect(wrapper.text()).toContain('Blocked:')
+    expect(wrapper.text()).toContain('Blokovane:')
   })
 })

@@ -192,6 +192,7 @@ const EMOJI_SET = ['😀', '😂', '😍', '🤩', '🥳', '🚀', '🌙', '✨'
 const props = defineProps({
   open: { type: Boolean, default: false },
   initialAction: { type: String, default: 'post' },
+  initialAttachmentFile: { type: Object, default: null },
 })
 const emit = defineEmits(['close', 'created'])
 
@@ -264,12 +265,21 @@ watch(() => props.open, async (isOpen) => {
     focusTextarea()
     autoResize()
     applyInitialAction()
+    applyInitialAttachment()
     return
   }
   window.removeEventListener('keydown', onKeydown)
   document.body.style.overflow = bodyOverflow
   resetState()
 }, { immediate: true })
+
+watch(
+  () => props.initialAttachmentFile,
+  (nextFile) => {
+    if (!props.open || !nextFile) return
+    applyInitialAttachment(nextFile)
+  },
+)
 
 onBeforeUnmount(() => {
   if (typeof window !== 'undefined') window.removeEventListener('keydown', onKeydown)
@@ -363,21 +373,32 @@ function pickFile() {
 
 function onFileChange(event) {
   const pickedFile = event?.target?.files?.[0] || null
-  if (!pickedFile) return
+  if (pickedFile) {
+    setSelectedImageFile(pickedFile)
+  }
+  if (fileInput.value) fileInput.value.value = ''
+}
+
+function setSelectedImageFile(pickedFile) {
+  if (pollEnabled.value) {
+    errorMessage.value = 'Pri ankete nie je mozne pridat obrazok alebo GIF.'
+    return false
+  }
   if (!isImageFile(pickedFile)) {
     errorMessage.value = 'Povolene su iba obrazky.'
-    return
+    return false
   }
   if (pickedFile.size > MAX_BYTES) {
     errorMessage.value = `Subor je prilis velky. Max ${prettySize(MAX_BYTES)}.`
-    return
+    return false
   }
+
   errorMessage.value = ''
   removeFile()
   file.value = pickedFile
   if (selectedGif.value) removeGif()
   imagePreviewUrl.value = createObjectUrl(pickedFile)
-  if (fileInput.value) fileInput.value.value = ''
+  return true
 }
 
 function toggleEmoji() {
@@ -421,6 +442,11 @@ function applyInitialAction() {
   if (action === 'event') {
     openEventModal()
   }
+}
+
+function applyInitialAttachment(nextFile = props.initialAttachmentFile) {
+  if (!nextFile) return
+  setSelectedImageFile(nextFile)
 }
 
 function openObservationCreate() {

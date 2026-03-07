@@ -8,14 +8,27 @@
             type="button"
             class="composerTrigger"
             aria-label="Novy prispevok"
-            @click="openComposer"
+            @click="onComposerTriggerClick"
           >
             <span class="triggerAvatar" aria-hidden="true">
               <UserAvatar class="triggerAvatarImg" :user="auth?.user" :size="40" :alt="auth?.user?.name || 'avatar'" />
             </span>
             <span class="triggerText">Čo je nové na oblohe?</span>
-            <span class="triggerCta">Pridat</span>
+            <span class="triggerCta" data-shortcut-image aria-label="Pridat obrazok">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7" />
+                <path d="m7 15 3.2-3.2a1 1 0 0 1 1.4 0L14 14l2-2a1 1 0 0 1 1.4 0L20 14.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                <circle cx="9" cy="9" r="1.2" fill="currentColor" />
+              </svg>
+            </span>
           </button>
+          <input
+            ref="composerImageInput"
+            class="composerImageInput"
+            type="file"
+            accept="image/*"
+            @change="onComposerImageShortcutChange"
+          />
         </template>
       </FeedList>
     </div>
@@ -45,6 +58,36 @@ export default {
       if (typeof window === 'undefined') return
       window.dispatchEvent(new CustomEvent('post:composer:open'))
     },
+    onComposerTriggerClick(event) {
+      const clickedShortcut = Boolean(event?.target?.closest?.('[data-shortcut-image]'))
+      if (clickedShortcut) {
+        this.openImageShortcut()
+        return
+      }
+
+      this.openComposer()
+    },
+    openImageShortcut() {
+      this.$refs.composerImageInput?.click?.()
+    },
+    onComposerImageShortcutChange(event) {
+      const pickedFile = event?.target?.files?.[0] || null
+      if (!pickedFile) return
+
+      if (this.$refs.composerImageInput) {
+        this.$refs.composerImageInput.value = ''
+      }
+
+      if (typeof pickedFile?.type !== 'string' || !pickedFile.type.startsWith('image/')) return
+      if (typeof window === 'undefined') return
+
+      window.dispatchEvent(new CustomEvent('post:composer:open', {
+        detail: {
+          action: 'post',
+          attachmentFile: pickedFile,
+        },
+      }))
+    },
   },
   mounted() {
     if (typeof window !== 'undefined') {
@@ -71,6 +114,7 @@ export default {
   max-width: var(--content-max-width);
   min-width: 0;
   border: 1px solid var(--color-border);
+  border-left: 0;
   border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--color-card);
@@ -128,13 +172,33 @@ export default {
 }
 
 .triggerCta {
-  border: 1px solid rgb(var(--color-accent-rgb) / 0.62);
+  width: 2.4rem;
+  height: 2.2rem;
+  border: 1px solid rgb(var(--color-accent-rgb) / 0.72);
   border-radius: 999px;
-  background: rgb(var(--color-accent-rgb) / 0.2);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  padding: 0.35rem 0.8rem;
+  background: rgb(var(--color-accent-rgb) / 0.14);
+  color: rgb(var(--color-accent-rgb) / 1);
+  display: grid;
+  place-items: center;
+  transition: background-color var(--motion-fast), transform var(--motion-fast), box-shadow var(--motion-fast);
+}
+
+.triggerCta svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.composerTrigger:hover .triggerCta {
+  background: rgb(var(--color-accent-rgb) / 0.24);
+  transform: translateY(-1px);
+}
+
+.composerTrigger:focus-visible .triggerCta {
+  box-shadow: 0 0 0 3px rgb(var(--color-accent-rgb) / 0.26);
+}
+
+.composerImageInput {
+  display: none;
 }
 
 @media (max-width: 720px) {

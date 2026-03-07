@@ -26,35 +26,35 @@ const overview = ref({
 const tabs = Object.freeze([
   {
     key: 'overview',
-    label: 'Overview',
+    label: 'Prehlad',
     subtitle: 'Rychly prehlad stavu bot pipeline.',
     routeNames: ['admin.bots'],
     component: BotEngineDashboardView,
   },
   {
     key: 'sources',
-    label: 'Sources',
+    label: 'Zdroje',
     subtitle: 'Zdravie zdrojov, cooldown a recovery.',
     routeNames: ['admin.bots.sources'],
     component: BotSourcesHealthView,
   },
   {
     key: 'schedules',
-    label: 'Schedules',
+    label: 'Plany',
     subtitle: 'Intervaly behov a planovanie automatizacie.',
     routeNames: ['admin.bots.schedules'],
     component: BotSchedulesView,
   },
   {
     key: 'engine',
-    label: 'Engine',
+    label: 'Modul',
     subtitle: 'Run control, preklady a publish workflow.',
     routeNames: ['admin.bots.engine'],
     component: BotEngineView,
   },
   {
     key: 'activity',
-    label: 'Activity',
+    label: 'Aktivita',
     subtitle: 'Audit a chronologia behov/publish akcii.',
     routeNames: ['admin.bots.activity'],
     component: BotActivityView,
@@ -83,13 +83,13 @@ const systemStatus = computed(() => {
 
   if (failing > 0) {
     return {
-      label: 'Warning',
+      label: 'Upozornenie',
       className: 'statusBadge statusBadge--warn',
     }
   }
 
   return {
-    label: 'Healthy',
+    label: 'V poriadku',
     className: 'statusBadge statusBadge--ok',
   }
 })
@@ -121,52 +121,52 @@ onMounted(() => {
 </script>
 
 <template>
-  <AdminPageShell title="Bot Manager" subtitle="Unified admin rozhranie pre spravu bot pipeline.">
+  <AdminPageShell title="Sprava botov" subtitle="Zjednotene admin rozhranie pre spravu bot pipeline.">
     <template #right-actions>
       <button class="actionBtn" type="button" :disabled="loading" @click="loadOverview">
-        {{ loading ? 'Nacitavam...' : 'Obnovit summary' }}
+        {{ loading ? 'Nacitavam...' : 'Obnovit prehlad' }}
       </button>
-      <RouterLink class="ghostBtn" :to="{ name: 'admin.bots.activity' }">Open activity</RouterLink>
+      <RouterLink class="ghostBtn" :to="{ name: 'admin.bots.activity' }">Otvorit aktivitu</RouterLink>
     </template>
 
     <section class="summaryWrap">
       <article class="summaryCard summaryCard--status">
-        <p class="summaryLabel">System Status</p>
+        <p class="summaryLabel">Stav systemu</p>
         <div class="statusRow">
           <span :class="systemStatus.className">{{ systemStatus.label }}</span>
-          <span class="summaryHint">Updated {{ formatDateTime(overview.generated_at) }}</span>
+          <span class="summaryHint">Aktualizovane {{ formatDateTime(overview.generated_at) }}</span>
         </div>
       </article>
 
       <article class="summaryCard">
-        <p class="summaryLabel">Active sources</p>
+        <p class="summaryLabel">Aktivne zdroje</p>
         <p class="summaryValue">{{ Number(overall.active_sources || 0) }}</p>
       </article>
 
       <article class="summaryCard">
-        <p class="summaryLabel">Failing sources</p>
+        <p class="summaryLabel">Chybove zdroje</p>
         <p class="summaryValue">{{ Number(overall.failing_sources || 0) }}</p>
       </article>
 
       <article class="summaryCard">
-        <p class="summaryLabel">Dead sources</p>
+        <p class="summaryLabel">Neaktivne zdroje</p>
         <p class="summaryValue">{{ Number(overall.dead_sources || 0) }}</p>
       </article>
 
       <article class="summaryCard">
-        <p class="summaryLabel">Cooldown skips (24h)</p>
+        <p class="summaryLabel">Preskocenia cooldownu (24h)</p>
         <p class="summaryValue">{{ Number(overall.cooldown_skips_24h || 0) }}</p>
       </article>
 
       <article class="summaryCard">
-        <p class="summaryLabel">Managed bots</p>
+        <p class="summaryLabel">Spravovane boty</p>
         <p class="summaryValue">{{ botsCount }}</p>
       </article>
     </section>
 
     <p v-if="error" class="error">{{ error }}</p>
 
-    <nav class="tabNav" aria-label="Bot sections">
+    <nav class="tabNav" aria-label="Sekcie botov">
       <RouterLink
         v-for="tab in tabs"
         :key="tab.key"

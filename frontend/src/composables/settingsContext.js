@@ -6,7 +6,7 @@ export function useSettingsContext() {
   const context = inject(settingsContextKey, null)
 
   if (!context) {
-    throw new Error('Settings context is unavailable. Mount this view under /settings.')
+    throw new Error('Kontext nastaveni nie je dostupny. Pripojte toto zobrazenie pod /settings.')
   }
 
   return context

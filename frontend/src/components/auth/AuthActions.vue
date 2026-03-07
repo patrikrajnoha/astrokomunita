@@ -25,15 +25,15 @@ defineProps({
   },
   backLabel: {
     type: String,
-    default: 'Back',
+    default: 'Spat',
   },
   submitLabel: {
     type: String,
-    default: 'Next',
+    default: 'Dalej',
   },
   loadingLabel: {
     type: String,
-    default: 'Processing...',
+    default: 'Spracuvam...',
   },
   disabled: {
     type: Boolean,

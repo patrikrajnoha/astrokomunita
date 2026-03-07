@@ -9,11 +9,11 @@ import { appInitState, setInitError, setInitializing, setMounted } from '@/boots
 import { useAuthStore } from '@/stores/auth'
 
 function formatError(errorLike) {
-  if (!errorLike) return { message: 'Unknown error', stack: '' }
+  if (!errorLike) return { message: 'Neznama chyba', stack: '' }
 
   if (errorLike instanceof Error) {
     return {
-      message: errorLike.message || 'Unknown error',
+      message: errorLike.message || 'Neznama chyba',
       stack: errorLike.stack || '',
     }
   }
@@ -21,7 +21,7 @@ function formatError(errorLike) {
   if (typeof errorLike === 'object') {
     const anyError = errorLike
     return {
-      message: String(anyError.message || anyError.reason || 'Unknown error'),
+      message: String(anyError.message || anyError.reason || 'Neznama chyba'),
       stack: String(anyError.stack || anyError.reason?.stack || ''),
     }
   }
@@ -60,12 +60,12 @@ function ensureFatalOverlay(errorLike, source = 'runtime') {
   overlay.style.overflow = 'auto'
 
   const title = document.createElement('h1')
-  title.textContent = 'App failed to start'
+  title.textContent = 'Aplikacia sa nepodarilo spustit'
   title.style.margin = '0 0 12px'
   title.style.fontSize = '18px'
 
   const subtitle = document.createElement('div')
-  subtitle.textContent = `Source: ${source}`
+  subtitle.textContent = `Zdroj: ${source}`
   subtitle.style.marginBottom = '12px'
   subtitle.style.opacity = '0.85'
 
@@ -90,7 +90,7 @@ function attachGlobalDiagnostics() {
   }
 
   window.onunhandledrejection = function onUnhandledRejection(event) {
-    const reason = event?.reason || new Error('Unhandled promise rejection')
+    const reason = event?.reason || new Error('Nespracovane odmietnutie slubu')
     console.error('[APP ERROR] unhandledrejection', reason)
     ensureFatalOverlay(reason, 'unhandledrejection')
   }

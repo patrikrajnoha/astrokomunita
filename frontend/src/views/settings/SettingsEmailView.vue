@@ -1,6 +1,6 @@
 <template>
   <SettingsDetailShell
-    title="Email"
+    title="E-mail"
     subtitle="Stav overenia, overovaci kod a bezpecna zmena emailu."
   >
     <div class="email-status-row" data-testid="settings-email-status">

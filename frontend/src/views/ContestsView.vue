@@ -87,12 +87,12 @@ onBeforeUnmount(() => {
 <template>
   <section class="contestsPage">
     <header>
-      <h1>Contest</h1>
-      <p class="lead">Minimal contest feed powered by hashtag participation.</p>
+      <h1>Sutaz</h1>
+      <p class="lead">Minimalny sutazny feed zalozeny na ucasti cez hashtagy.</p>
     </header>
 
     <article class="card" v-if="loading">
-      <p>Loading contest...</p>
+      <p>Nacitavam sutaz...</p>
     </article>
 
     <article class="card error" v-else-if="error">
@@ -100,7 +100,7 @@ onBeforeUnmount(() => {
     </article>
 
     <article class="card" v-else-if="activeContest">
-      <p class="badge">Active</p>
+      <p class="badge">Aktivna</p>
       <h2>{{ activeContest.name }}</h2>
       <p>{{ activeContest.description || 'Zapojte sa postom s hashtagom.' }}</p>
       <p class="instruction">{{ instructionText }}</p>
@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
     </article>
 
     <article class="card" v-if="finishedContest">
-      <p class="badge done">Latest finished</p>
+      <p class="badge done">Posledna ukoncena</p>
       <h3>{{ finishedContest.name }}</h3>
       <p v-if="finishedContest.winner_post_id">
         Vyherny post: #{{ finishedContest.winner_post_id }}
