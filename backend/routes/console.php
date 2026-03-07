@@ -82,6 +82,10 @@ Schedule::command('bots:schedules:run --limit=30')
     ->everyMinute()
     ->withoutOverlapping();
 
+Schedule::command('bots:posts:cleanup --limit=200')
+    ->hourly()
+    ->withoutOverlapping();
+
 Schedule::command('bots:sources:sync --quiet-summary')
     ->dailyAt('00:10')
     ->withoutOverlapping();

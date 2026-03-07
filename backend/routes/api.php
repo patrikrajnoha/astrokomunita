@@ -73,6 +73,7 @@ use App\Http\Controllers\Api\ObserveSummaryController;
 use App\Http\Controllers\Api\ObserveDiagnosticsController;
 use App\Http\Controllers\Api\ObservingSkySummaryController;
 use App\Http\Controllers\Api\SkyController;
+use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\MarkYourCalendarPopupController;
 use App\Http\Controllers\Api\NewsletterSubscriptionController;
@@ -159,6 +160,8 @@ Route::middleware('web')->prefix('auth')->group(function () {
 
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth-register');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth-login');
+    Route::post('/password/forgot', [PasswordResetController::class, 'sendCode'])->middleware('throttle:auth-password-reset-send');
+    Route::post('/password/reset', [PasswordResetController::class, 'reset'])->middleware('throttle:auth-password-reset-confirm');
     Route::get('/username-available', [AuthController::class, 'usernameAvailable'])->middleware('throttle:auth-username-available');
 
     Route::post('/logout', [AuthController::class, 'logout'])
@@ -527,6 +530,9 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
             Route::post('/items/{botItemId}/publish', [AdminBotController::class, 'publishItem']);
             Route::delete('/items/{botItemId}/post', [AdminBotController::class, 'deleteItemPost']);
             Route::delete('/posts', [AdminBotController::class, 'deleteAllPosts']);
+            Route::get('/post-retention', [AdminBotController::class, 'postRetention']);
+            Route::patch('/post-retention', [AdminBotController::class, 'updatePostRetention']);
+            Route::post('/post-retention/cleanup', [AdminBotController::class, 'runPostRetentionCleanup']);
             Route::post('/runs/{runId}/publish', [AdminBotController::class, 'publishRun']);
         });
     });

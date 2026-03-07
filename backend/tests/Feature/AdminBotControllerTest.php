@@ -64,6 +64,9 @@ class AdminBotControllerTest extends TestCase
         $this->postJson('/api/admin/bots/translation/backfill/' . $source->key)->assertStatus(403);
         $this->postJson('/api/admin/bots/items/1/publish')->assertStatus(403);
         $this->deleteJson('/api/admin/bots/items/1/post')->assertStatus(403);
+        $this->getJson('/api/admin/bots/post-retention')->assertStatus(403);
+        $this->patchJson('/api/admin/bots/post-retention', ['enabled' => true])->assertStatus(403);
+        $this->postJson('/api/admin/bots/post-retention/cleanup')->assertStatus(403);
         $this->postJson('/api/admin/bots/runs/1/publish')->assertStatus(403);
     }
 
@@ -1222,6 +1225,104 @@ class AdminBotControllerTest extends TestCase
         $this->deleteJson('/api/admin/bots/items/' . $item->id . '/post')
             ->assertStatus(422)
             ->assertJsonPath('message', 'Item has no published post to delete.');
+    }
+
+    public function test_admin_can_get_and_update_bot_post_retention_settings(): void
+    {
+        $this->actingAsAdmin();
+        AppSetting::put('bots.posts.auto_delete_enabled', '0');
+        AppSetting::put('bots.posts.auto_delete_after_hours', '48');
+
+        $this->getJson('/api/admin/bots/post-retention')
+            ->assertOk()
+            ->assertJsonPath('data.enabled', false)
+            ->assertJsonPath('data.auto_delete_after_hours', 48);
+
+        $this->patchJson('/api/admin/bots/post-retention', [
+            'enabled' => true,
+            'auto_delete_after_hours' => 24,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.enabled', true)
+            ->assertJsonPath('data.auto_delete_after_hours', 24);
+
+        $this->assertSame(true, AppSetting::getBool('bots.posts.auto_delete_enabled', false));
+        $this->assertSame(24, AppSetting::getInt('bots.posts.auto_delete_after_hours', 48));
+    }
+
+    public function test_admin_can_run_bot_post_retention_cleanup_and_it_unlinks_items(): void
+    {
+        $source = $this->createRssSource('retention_cleanup_source');
+        $botUser = User::factory()->create([
+            'is_bot' => true,
+            'role' => User::ROLE_BOT,
+            'username' => 'retentionbot',
+            'email' => null,
+        ]);
+
+        $oldPost = Post::query()->create([
+            'user_id' => $botUser->id,
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'kozmo',
+            'content' => 'Old bot post for retention cleanup.',
+            'source_name' => 'bot_' . $source->key,
+            'source_uid' => sha1('retention-old'),
+            'moderation_status' => 'ok',
+        ]);
+        $oldPost->forceFill([
+            'created_at' => now()->subHours(60),
+            'updated_at' => now()->subHours(60),
+        ])->save();
+
+        $freshPost = Post::query()->create([
+            'user_id' => $botUser->id,
+            'feed_key' => 'astro',
+            'author_kind' => 'bot',
+            'bot_identity' => 'kozmo',
+            'content' => 'Fresh bot post for retention cleanup.',
+            'source_name' => 'bot_' . $source->key,
+            'source_uid' => sha1('retention-fresh'),
+            'moderation_status' => 'ok',
+        ]);
+
+        $oldItem = $this->createBotItem($source, 'retention-old-item', now()->subHours(60), [
+            'post_id' => $oldPost->id,
+            'publish_status' => 'published',
+            'translation_status' => 'done',
+        ]);
+        $freshItem = $this->createBotItem($source, 'retention-fresh-item', now()->subHours(2), [
+            'post_id' => $freshPost->id,
+            'publish_status' => 'published',
+            'translation_status' => 'done',
+        ]);
+
+        AppSetting::put('bots.posts.auto_delete_enabled', '1');
+        AppSetting::put('bots.posts.auto_delete_after_hours', '24');
+        $this->actingAsAdmin();
+
+        $response = $this->postJson('/api/admin/bots/post-retention/cleanup', [
+            'limit' => 200,
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.deleted_posts', 1)
+            ->assertJsonPath('data.failed_items', 0)
+            ->assertJsonPath('data.retention_hours', 24);
+
+        $this->assertDatabaseMissing('posts', ['id' => $oldPost->id]);
+        $this->assertDatabaseHas('posts', ['id' => $freshPost->id]);
+
+        $oldItem->refresh();
+        $freshItem->refresh();
+
+        $this->assertNull($oldItem->post_id);
+        $this->assertSame('pending', (string) ($oldItem->publish_status?->value ?? $oldItem->publish_status));
+        $this->assertTrue((bool) data_get($oldItem->meta, 'deleted_by_retention'));
+
+        $this->assertSame($freshPost->id, (int) $freshItem->post_id);
+        $this->assertSame('published', (string) ($freshItem->publish_status?->value ?? $freshItem->publish_status));
     }
 
     private function actingAsAdmin(): void

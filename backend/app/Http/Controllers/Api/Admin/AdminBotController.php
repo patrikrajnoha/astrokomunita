@@ -14,6 +14,7 @@ use App\Models\BotSource;
 use App\Models\Post;
 use App\Models\User;
 use App\Services\Bots\BotPostTranslationBackfillService;
+use App\Services\Bots\BotPostRetentionService;
 use App\Services\Bots\BotOverviewService;
 use App\Services\Bots\Contracts\BotTranslationServiceInterface;
 use App\Services\Bots\BotPublisherService;
@@ -31,6 +32,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -47,6 +49,7 @@ class AdminBotController extends Controller
         private readonly BotSourceHealthPolicy $botSourceHealthPolicy,
         private readonly BotSourceHealthService $botSourceHealthService,
         private readonly TranslationOutageSimulationService $outageSimulationService,
+        private readonly BotPostRetentionService $botPostRetentionService,
     ) {
     }
 
@@ -1231,6 +1234,51 @@ class AdminBotController extends Controller
             'updated_items' => $updatedItems,
             'failed_items' => $failedItems,
             'sample_deleted_post_ids' => $sampleDeletedPostIds,
+        ]);
+    }
+
+    public function postRetention(): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->botPostRetentionService->settingsPayload(),
+        ]);
+    }
+
+    public function updatePostRetention(Request $request): JsonResponse
+    {
+        $allowedHours = $this->botPostRetentionService->settingsPayload()['allowed_hours'] ?? [];
+        $validated = $request->validate([
+            'enabled' => 'sometimes|boolean',
+            'auto_delete_after_hours' => ['sometimes', 'integer', Rule::in($allowedHours)],
+        ]);
+
+        $updated = $this->botPostRetentionService->updateSettings(
+            array_key_exists('enabled', $validated)
+                ? (bool) $validated['enabled']
+                : null,
+            array_key_exists('auto_delete_after_hours', $validated)
+                ? (int) $validated['auto_delete_after_hours']
+                : null,
+        );
+
+        return response()->json([
+            'data' => $updated,
+        ]);
+    }
+
+    public function runPostRetentionCleanup(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'limit' => 'nullable|integer|min:1|max:1000',
+        ]);
+
+        $result = $this->botPostRetentionService->cleanupExpiredPosts(
+            isset($validated['limit']) ? (int) $validated['limit'] : 200
+        );
+
+        return response()->json([
+            'message' => 'Bot post retention cleanup finished.',
+            'data' => $result,
         ]);
     }
 

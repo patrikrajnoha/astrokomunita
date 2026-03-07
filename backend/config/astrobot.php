@@ -76,6 +76,14 @@ return [
         'cooldown_medium_seconds' => (int) env('BOT_SOURCE_COOLDOWN_MEDIUM_SECONDS', 30 * 60),
         'cooldown_long_seconds' => (int) env('BOT_SOURCE_COOLDOWN_LONG_SECONDS', 2 * 60 * 60),
     ],
+    'post_retention' => [
+        'enabled' => filter_var(env('BOT_POST_RETENTION_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'after_hours' => (int) env('BOT_POST_RETENTION_AFTER_HOURS', 48),
+        'allowed_hours' => array_values(array_filter(array_map(
+            static fn (string $hours): int => (int) trim($hours),
+            explode(',', (string) env('BOT_POST_RETENTION_ALLOWED_HOURS', '24,48,72,168'))
+        ), static fn (int $hours): bool => $hours > 0)),
+    ],
 
     /*
     |--------------------------------------------------------------------------
