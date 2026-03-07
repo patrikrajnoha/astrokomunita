@@ -118,8 +118,9 @@ function resolveRowClass(row) {
 
 <style scoped>
 .adminTableWrap {
-  border: 0;
-  border-radius: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: rgb(var(--bg-app-rgb) / 0.26);
   overflow: auto;
 }
 
@@ -132,14 +133,21 @@ function resolveRowClass(row) {
 .adminTable__head {
   text-align: left;
   padding: 12px;
-  font-size: 12px;
-  opacity: 0.85;
-  background: rgb(var(--color-surface-rgb) / 0.05);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  background: rgb(var(--bg-app-rgb) / 0.5);
   border-bottom: 1px solid var(--divider-color);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .adminTable__row {
   border-bottom: 1px solid var(--divider-color);
+  transition: background-color var(--motion-fast);
+}
+
+.adminTable__row:hover {
+  background: var(--interactive-hover);
 }
 
 .adminTable__row:last-child {
@@ -154,6 +162,7 @@ function resolveRowClass(row) {
 .adminTable__state {
   padding: 18px;
   text-align: center;
+  color: var(--text-secondary);
 }
 
 .adminTable__emptyTitle {
@@ -162,22 +171,25 @@ function resolveRowClass(row) {
 
 .adminTable__emptyText {
   margin-top: 6px;
-  opacity: 0.8;
+  opacity: 1;
 }
 
 .adminTable__clearBtn {
-  margin-top: 10px;
-  border: 1px solid var(--divider-color);
+  margin-top: var(--space-2);
+  border: 1px solid var(--border-default);
   background: transparent;
-  color: inherit;
-  border-radius: 10px;
-  min-height: 44px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  min-height: var(--control-height-sm);
   padding: 8px 14px;
   cursor: pointer;
+  transition: border-color var(--motion-fast), background-color var(--motion-fast), color var(--motion-fast);
 }
 
 .adminTable__clearBtn:hover {
-  background: rgb(var(--color-surface-rgb) / 0.08);
+  border-color: rgb(var(--primary-rgb) / 0.42);
+  background: var(--interactive-hover);
+  color: var(--text-primary);
 }
 
 .is-right {

@@ -35,4 +35,18 @@ import FeedList from '@/components/FeedList.vue'
   color: var(--color-text-secondary);
   font-size: 0.92rem;
 }
+
+:deep(.feed-container) {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: #151d28;
+}
+
+@media (max-width: 720px) {
+  :deep(.feed-container) {
+    border: 0;
+    border-radius: 0;
+  }
+}
 </style>

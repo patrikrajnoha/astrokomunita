@@ -178,9 +178,10 @@ const loading = ref(true)
 const err = ref('')
 
 const tabs = [
-  { key: 'posts', label: 'Príspevky', kind: 'roots' },
+  { key: 'posts', label: 'Prispevky', kind: 'roots' },
+  { key: 'replies', label: 'Odpovede', kind: 'replies' },
   { key: 'observations', label: 'Pozorovania', kind: 'observations' },
-  { key: 'media', label: 'Médiá', kind: 'media' },
+  { key: 'media', label: 'Media', kind: 'media' },
 ]
 
 const stats = reactive({ posts: '--', replies: '--', media: '--' })
@@ -188,6 +189,7 @@ const activeTab = ref('posts')
 
 const tabState = reactive({
   posts: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
+  replies: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   observations: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   media: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
 })
@@ -203,27 +205,6 @@ const coverMedia = computed(() => resolvedMedia.value.cover)
 
 function safeHandle(input) {
   return String(input).toLowerCase().replace(/[^a-z0-9_]+/g, '').slice(0, 20) || 'user'
-}
-
-function mergeUniqueById(existingItems, incomingItems) {
-  const seen = new Set()
-  const merged = []
-
-  const append = (item) => {
-    const id = Number(item?.id || 0)
-    if (!Number.isInteger(id) || id <= 0) {
-      merged.push(item)
-      return
-    }
-    if (seen.has(id)) return
-    seen.add(id)
-    merged.push(item)
-  }
-
-  ;(Array.isArray(existingItems) ? existingItems : []).forEach(append)
-  ;(Array.isArray(incomingItems) ? incomingItems : []).forEach(append)
-
-  return merged
 }
 
 function resetTabState(tabKey) {
@@ -371,9 +352,7 @@ async function loadTab(key, reset = true) {
       })
 
       const rows = Array.isArray(data?.data) ? data.data : []
-      state.items = reset
-        ? mergeUniqueById([], rows)
-        : mergeUniqueById(state.items, rows)
+      state.items = reset ? rows : [...state.items, ...rows]
 
       const currentPage = Number(data?.current_page || page)
       const lastPage = Number(data?.last_page || currentPage)
@@ -424,6 +403,7 @@ watch(
   async () => {
     activeTab.value = 'posts'
     resetTabState('posts')
+    resetTabState('replies')
     resetTabState('observations')
     resetTabState('media')
     await refreshProfile()
@@ -437,58 +417,60 @@ onMounted(async () => {
 
 <style scoped>
 .page {
-  max-width: 820px;
+  max-width: var(--content-max-width);
   margin: 0 auto;
-  padding: 0 1rem 2rem;
+  padding: 0 0 var(--space-7);
 }
 
 .topbar {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgb(var(--color-bg-rgb) / 0.72);
+  background: rgb(var(--bg-app-rgb) / 0.94);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
-  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--divider-color);
+  padding: 0.45rem 0.86rem;
   display: flex;
-  gap: 0.75rem;
+  gap: var(--space-3);
   align-items: center;
 }
 
 .iconBtn {
-  width: 38px;
-  height: 38px;
+  width: var(--control-height-lg);
+  height: var(--control-height-lg);
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.8);
-  background: rgb(var(--color-bg-rgb) / 0.35);
-  color: var(--color-surface);
+  border: 1px solid var(--border-default);
+  background: rgb(var(--bg-surface-rgb) / 0.68);
+  color: var(--text-primary);
+  transition: border-color var(--motion-fast), background-color var(--motion-fast);
 }
-.iconBtn:hover { border-color: rgb(var(--color-primary-rgb) / 0.85); }
+.iconBtn:hover { border-color: rgb(var(--primary-rgb) / 0.55); background: var(--interactive-hover); }
+.iconBtn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 .topmeta { display: grid; line-height: 1.1; }
-.topname { font-weight: 900; color: var(--color-surface); }
-.topsmall { color: var(--color-text-secondary); font-size: 0.85rem; }
+.topname { font-weight: 900; color: var(--text-primary); }
+.topsmall { color: var(--text-secondary); font-size: var(--font-size-sm); }
 
 .profileShell {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.75);
-  border-radius: 1.25rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
   overflow: hidden;
-  margin-top: 1rem;
-  background: rgb(var(--color-bg-rgb) / 0.55);
+  margin-top: var(--space-3);
+  background: rgb(var(--bg-surface-rgb) / 0.88);
 }
 
 .cover {
-  height: 160px;
+  height: 152px;
   position: relative;
   background:
-    radial-gradient(900px 220px at 20% 20%, rgb(var(--color-primary-rgb) / 0.25), transparent 60%),
-    radial-gradient(700px 220px at 80% 30%, rgb(var(--color-primary-rgb) / 0.12), transparent 60%),
-    linear-gradient(180deg, rgb(var(--color-bg-rgb) / 0.2), rgb(var(--color-bg-rgb) / 0.9));
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
+    radial-gradient(860px 210px at 20% 20%, rgb(var(--primary-rgb) / 0.24), transparent 60%),
+    radial-gradient(680px 190px at 82% 30%, rgb(var(--primary-rgb) / 0.11), transparent 60%),
+    linear-gradient(180deg, rgb(var(--bg-app-rgb) / 0.24), rgb(var(--bg-app-rgb) / 0.82));
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .cover--bot-fallback {
-  box-shadow: inset 0 0 0 1px rgb(var(--color-primary-rgb) / 0.24);
+  box-shadow: inset 0 0 0 1px rgb(var(--primary-rgb) / 0.24);
 }
 .coverImg {
   position: absolute;
@@ -502,9 +484,9 @@ onMounted(async () => {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(2px 2px at 20% 30%, rgb(var(--color-surface-rgb) / 0.35), transparent 60%),
-    radial-gradient(2px 2px at 70% 40%, rgb(var(--color-surface-rgb) / 0.25), transparent 60%),
-    radial-gradient(2px 2px at 50% 70%, rgb(var(--color-surface-rgb) / 0.2), transparent 60%);
+    radial-gradient(2px 2px at 20% 30%, rgb(var(--text-primary-rgb) / 0.35), transparent 60%),
+    radial-gradient(2px 2px at 70% 40%, rgb(var(--text-primary-rgb) / 0.25), transparent 60%),
+    radial-gradient(2px 2px at 50% 70%, rgb(var(--text-primary-rgb) / 0.2), transparent 60%);
   opacity: 0.6;
 }
 
@@ -512,7 +494,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 0 1rem;
+  padding: 0 var(--space-4);
   transform: translateY(-28px);
 }
 
@@ -522,10 +504,10 @@ onMounted(async () => {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  border: 2px solid rgb(var(--color-bg-rgb) / 0.95);
-  outline: 1px solid rgb(var(--color-primary-rgb) / 0.55);
-  background: rgb(var(--color-primary-rgb) / 0.16);
-  color: var(--color-surface);
+  border: 2px solid rgb(var(--bg-app-rgb) / 0.95);
+  outline: 1px solid rgb(var(--primary-rgb) / 0.55);
+  background: rgb(var(--primary-rgb) / 0.16);
+  color: var(--text-primary);
   font-weight: 900;
   font-size: 1.25rem;
   overflow: hidden;
@@ -541,7 +523,7 @@ onMounted(async () => {
   height: 44px;
   font-size: 0.95rem;
   border-width: 1px;
-  outline: 1px solid rgb(var(--color-primary-rgb) / 0.35);
+  outline: 1px solid rgb(var(--primary-rgb) / 0.35);
 }
 
 .headActions {
@@ -551,33 +533,33 @@ onMounted(async () => {
 }
 
 .identity {
-  padding: 0 1rem 1rem;
+  padding: 0 var(--space-4) var(--space-4);
   margin-top: -18px;
 }
 .nameRow { display: flex; align-items: center; gap: 0.5rem; }
-.name { margin: 0; font-size: 1.35rem; font-weight: 950; color: var(--color-surface); }
+.name { margin: 0; font-size: 1.35rem; font-weight: 950; color: var(--text-primary); }
 .badge {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-success-rgb) / 0.55);
-  background: rgb(var(--color-primary-rgb) / 0.12);
-  color: var(--color-success);
+  border: 1px solid rgb(var(--primary-rgb) / 0.46);
+  background: rgb(var(--primary-rgb) / 0.14);
+  color: var(--text-primary);
 }
 
 .badgeBot {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  background: rgb(var(--color-primary-rgb) / 0.16);
-  color: var(--color-primary);
+  border-color: rgb(var(--primary-rgb) / 0.5);
+  background: rgb(var(--primary-rgb) / 0.16);
+  color: var(--text-primary);
 }
-.handle { color: var(--color-text-secondary); margin-top: 0.15rem; }
-.bio { margin: 0.75rem 0 0; color: var(--color-surface); }
+.handle { color: var(--text-secondary); margin-top: 0.15rem; }
+.bio { margin: 0.75rem 0 0; color: var(--text-primary); }
 .meta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem 1rem;
   margin-top: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 .metaItem { white-space: nowrap; }
@@ -585,58 +567,72 @@ onMounted(async () => {
 .statsRow {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
+  border-top: 1px solid var(--divider-color);
+  border-bottom: 1px solid var(--divider-color);
 }
 .stat { padding: 0.85rem 1rem; }
-.statNum { font-weight: 950; font-size: 1.05rem; color: var(--color-surface); }
-.statLabel { color: var(--color-text-secondary); font-size: 0.85rem; margin-top: 0.25rem; }
+.statNum { font-weight: 950; font-size: 1.05rem; color: var(--text-primary); }
+.statLabel { color: var(--text-secondary); font-size: var(--font-size-sm); margin-top: 0.25rem; }
 
 .card {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.85);
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  border-radius: 1.25rem;
-  padding: 1rem;
-  margin-top: 1rem;
+  border: 1px solid var(--border-default);
+  background: rgb(var(--bg-surface-rgb) / 0.86);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4);
+  margin-top: var(--space-3);
 }
 
 .feedShell {
-  margin-top: 1rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.75);
-  border-radius: 1.25rem;
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  padding: 1rem;
+  margin-top: 0.6rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  display: flex;
+  gap: 0.15rem;
+  position: sticky;
+  top: calc(var(--app-header-h, 56px) + 4px);
+  z-index: 8;
+  background: rgb(var(--bg-app-rgb) / 0.9);
+  backdrop-filter: blur(8px);
+  padding: 0 0 0.25rem;
+  border-bottom: 1px solid var(--divider-color);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .tab {
-  padding: 0.6rem 0.8rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.75);
-  background: rgb(var(--color-bg-rgb) / 0.35);
-  color: var(--color-surface);
-  font-weight: 800;
+  padding: 0.7rem 0.25rem 0.55rem;
+  border-radius: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.86rem;
   display: inline-flex;
-  gap: 0.4rem;
+  gap: 0.35rem;
   justify-content: center;
   align-items: center;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 .tab.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.85);
-  background: rgb(var(--color-primary-rgb) / 0.2);
+  border-bottom-color: var(--accent-primary);
+  color: var(--text-primary);
 }
 
 .tabCount {
-  font-size: 0.75rem;
-  padding: 0.1rem 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.12rem 0.42rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.65);
-  color: var(--color-text-secondary);
+  border: 1px solid rgb(var(--text-secondary-rgb) / 0.3);
+  color: var(--text-secondary);
 }
 
 .padTop { margin-top: 0.75rem; }
@@ -648,7 +644,7 @@ onMounted(async () => {
 }
 
 .postList {
-  margin-top: 0.75rem;
+  margin-top: 0;
   display: grid;
 }
 
@@ -657,7 +653,7 @@ onMounted(async () => {
   grid-template-columns: 56px 1fr;
   gap: 0.85rem;
   padding: 0.9rem 0.1rem;
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
+  border-top: 1px solid var(--divider-color);
   min-width: 0;
 }
 .postItem:first-child { border-top: 0; }
@@ -671,28 +667,28 @@ onMounted(async () => {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
-.postName { color: var(--color-surface); font-weight: 950; }
+.postName { color: var(--text-primary); font-weight: 950; }
 .dot { opacity: 0.6; }
 
 .replyContext {
   margin-top: 0.4rem;
   padding: 0.45rem 0.6rem;
   border-radius: 0.75rem;
-  background: rgb(var(--color-bg-rgb) / 0.5);
-  color: var(--color-text-secondary);
+  background: rgb(var(--bg-app-rgb) / 0.52);
+  color: var(--text-secondary);
   font-size: 0.85rem;
 }
-.replyAuthor { color: var(--color-surface); font-weight: 700; margin: 0 0.25rem; }
-.replyText { color: var(--color-surface); margin-left: 0.25rem; }
+.replyAuthor { color: var(--text-primary); font-weight: 700; margin: 0 0.25rem; }
+.replyText { color: var(--text-primary); margin-left: 0.25rem; }
 
 .postContent {
   display: block;
   max-width: 100%;
   margin-top: 0.25rem;
-  color: var(--color-surface);
+  color: var(--text-primary);
   white-space: pre-wrap;
   line-height: 1.55;
   overflow-wrap: anywhere;
@@ -704,15 +700,15 @@ onMounted(async () => {
   width: 100%;
   max-height: 320px;
   object-fit: cover;
-  border-radius: 0.9rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
 }
 .attachmentFile {
   display: inline-flex;
   padding: 0.4rem 0.6rem;
-  border-radius: 0.75rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.6);
-  color: var(--color-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
   text-decoration: none;
 }
 
@@ -729,29 +725,30 @@ onMounted(async () => {
 }
 
 .btn {
-  padding: 0.6rem 0.9rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.85);
-  background: rgb(var(--color-primary-rgb) / 0.15);
-  color: var(--color-surface);
+  min-height: var(--control-height-md);
+  padding: 0 0.9rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgb(var(--primary-rgb) / 0.42);
+  background: rgb(var(--primary-rgb) / 0.2);
+  color: var(--text-primary);
   font-weight: 800;
 }
-.btn:hover { background: rgb(var(--color-primary-rgb) / 0.25); }
+.btn:hover { background: rgb(var(--primary-rgb) / 0.28); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn.outline {
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.85);
-  color: var(--color-surface);
+  background: rgb(var(--bg-app-rgb) / 0.32);
+  border-color: var(--border-default);
+  color: var(--text-primary);
 }
-.btn.outline:hover { border-color: rgb(var(--color-primary-rgb) / 0.85); }
+.btn.outline:hover { border-color: rgb(var(--primary-rgb) / 0.5); background: var(--interactive-hover); }
 
 .btn.ghost {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.95);
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  color: var(--color-surface);
+  border-color: var(--border-default);
+  background: rgb(var(--bg-app-rgb) / 0.3);
+  color: var(--text-secondary);
 }
-.btn.ghost:hover { border-color: rgb(var(--color-primary-rgb) / 0.85); color: var(--color-surface); }
+.btn.ghost:hover { border-color: rgb(var(--primary-rgb) / 0.5); color: var(--text-primary); background: var(--interactive-hover); }
 
 .msg {
   margin-top: 0.75rem;
@@ -759,8 +756,8 @@ onMounted(async () => {
   border-radius: 1rem;
   font-size: 0.95rem;
 }
-.msg.err { border: 1px solid rgb(var(--color-danger-rgb) / 0.45); background: rgb(var(--color-danger-rgb) / 0.1); color: var(--color-danger); }
+.msg.err { border: 1px solid rgb(var(--danger-rgb) / 0.45); background: rgb(var(--danger-rgb) / 0.1); color: var(--danger); }
 
-.muted { color: var(--color-text-secondary); }
-.err { color: var(--color-danger); }
+.muted { color: var(--text-secondary); }
+.err { color: var(--danger); }
 </style>

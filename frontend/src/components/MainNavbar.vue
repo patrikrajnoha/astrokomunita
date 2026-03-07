@@ -1,6 +1,6 @@
 <template>
   <nav
-    class="mainNavbar flex h-full min-h-0 flex-col bg-[linear-gradient(180deg,rgb(var(--color-bg-rgb)/0.96)_0%,rgb(var(--color-bg-rgb)/0.92)_100%)] px-3 py-3.5"
+    class="mainNavbar flex h-full min-h-0 flex-col px-3 py-3.5"
     aria-label="Hlavná navigácia"
   >
     <RouterLink
@@ -27,7 +27,7 @@
             type="button"
             class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.8125rem] font-semibold !text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] transition-all duration-200 ease-out hover:!text-[var(--color-surface)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.55)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
             :class="isMoreActive
-              ? `bg-[color:rgb(var(--color-bg-rgb)/0.65)] !text-[var(--color-surface)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.3)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+              ? `bg-[color:rgb(var(--color-bg-rgb)/0.65)] !text-[var(--color-surface)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.3)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
               : ''"
             :aria-expanded="isMoreOpen ? 'true' : 'false'"
             aria-controls="more-menu"
@@ -63,7 +63,7 @@
                 @click="() => { closeMore(); moreNavigate(); }"
                 class="group relative flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                 :class="isMoreItemActive
-                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
                   : ''"
                 role="menuitem"
                 aria-label="Nastavenia"
@@ -89,7 +89,7 @@
                 @click="() => { closeMore(); moreNavigate(); }"
                 class="group relative mt-1 flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                 :class="isMoreItemActive
-                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                  ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
                   : ''"
                 role="menuitem"
                 aria-label="Štúdio tvorcu"
@@ -110,7 +110,7 @@
             type="button"
             class="group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-[0.8125rem] font-semibold !text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] transition-all duration-200 ease-out hover:!text-[var(--color-surface)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.55)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
             :class="isAdminActive
-              ? `bg-[color:rgb(var(--color-bg-rgb)/0.65)] !text-[var(--color-surface)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.3)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+              ? `bg-[color:rgb(var(--color-bg-rgb)/0.65)] !text-[var(--color-surface)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.3)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
               : ''"
             :aria-expanded="isAdminOpen ? 'true' : 'false'"
             aria-controls="admin-menu"
@@ -150,7 +150,7 @@
                   @click="() => { closeAdmin(); adminNavigate(); }"
                   class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                   :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
                     : ''"
                   role="menuitem"
                   aria-label="Prehľad"
@@ -175,7 +175,7 @@
                   @click="() => { closeAdmin(); adminNavigate(); }"
                   class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                   :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
                     : ''"
                   role="menuitem"
                   aria-label="Používatelia"
@@ -200,7 +200,7 @@
                   @click="() => { closeAdmin(); adminNavigate(); }"
                   class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                   :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
                     : ''"
                   role="menuitem"
                   aria-label="Kandidáti"
@@ -225,7 +225,7 @@
                   @click="() => { closeAdmin(); adminNavigate(); }"
                   class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                   :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
                     : ''"
                   role="menuitem"
                   aria-label="Moderácia"
@@ -251,7 +251,7 @@
                   @click="() => { closeAdmin(); adminNavigate(); }"
                   class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                   :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
                     : ''"
                   role="menuitem"
                   aria-label="Zakázané slová"
@@ -282,7 +282,7 @@
                   @click="() => { closeAdmin(); adminNavigate(); }"
                   class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                   :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
                     : ''"
                   role="menuitem"
                   aria-label="Udalosti"
@@ -307,7 +307,7 @@
                   @click="() => { closeAdmin(); adminNavigate(); }"
                   class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                   :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
                     : ''"
                   role="menuitem"
                   aria-label="Články"
@@ -332,7 +332,7 @@
                   @click="() => { closeAdmin(); adminNavigate(); }"
                   class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                   :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
                     : ''"
                   role="menuitem"
                   aria-label="Bočný panel"
@@ -357,7 +357,7 @@
                   @click="() => { closeAdmin(); adminNavigate(); }"
                   class="group relative flex items-center gap-3 rounded-xl px-3 py-2 text-[0.8125rem] font-semibold !text-[var(--color-surface)] transition-all duration-200 ease-out hover:bg-[color:rgb(var(--color-bg-rgb)/0.65)] hover:translate-x-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]"
                   :class="isAdminItemActive
-                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+                    ? `bg-[color:rgb(var(--color-bg-rgb)/0.75)] shadow-[0_10px_25px_rgb(var(--color-bg-rgb)/0.25)] before:content-[''] before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
                     : ''"
                   role="menuitem"
                   aria-label="Správa botov"
@@ -386,7 +386,7 @@
           :class="[
             'navItem group focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-surface)]',
             isPrimaryLinkActive(item, isActive, isExactActive)
-              ? `active before:content-[''] before:absolute before:-left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-surface)]`
+              ? `active before:content-[''] before:absolute before:-left-1.5 before:top-2 before:bottom-2 before:w-0.5 before:rounded-full before:bg-[var(--color-primary)]`
               : 'text-[var(--color-surface)]',
           ]"
         >
@@ -411,7 +411,7 @@
     <div v-if="auth.isAuthed" ref="createPickerWrapperRef" class="relative mt-4 shrink-0">
       <button
         type="button"
-        class="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.3)] px-4 text-[0.875rem] font-semibold text-[var(--color-surface)] transition-all duration-200 hover:border-[color:rgb(var(--color-text-secondary-rgb)/0.34)] hover:bg-[color:rgb(var(--color-bg-rgb)/0.46)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-surface)]"
+        class="createTrigger"
         aria-label="Nový obsah"
         aria-haspopup="menu"
         :aria-expanded="isCreatePickerOpen ? 'true' : 'false'"
@@ -439,7 +439,7 @@
       <div
         v-if="isCreatePickerOpen"
         id="create-content-menu"
-        class="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.92)] p-2 backdrop-blur-md ring-1 ring-[color:rgb(var(--color-text-secondary-rgb)/0.2)] shadow-[0_18px_55px_rgb(0_0_0/0.45)]"
+        class="createPickerMenu"
         role="menu"
         aria-label="Nový obsah"
       >
@@ -937,7 +937,8 @@ watch(
 
 <style scoped>
 .mainNavbar {
-  border-right: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  border-right: 1px solid var(--divider-color);
+  background: linear-gradient(180deg, rgb(var(--bg-app-rgb) / 0.97), rgb(var(--bg-app-rgb) / 0.93));
 }
 
 .navScroll {
@@ -951,7 +952,7 @@ watch(
 }
 
 .navIcon {
-  filter: drop-shadow(0 1px 1px rgb(var(--color-bg-rgb) / 0.22));
+  filter: none;
 }
 
 .navIcon--filled {
@@ -967,23 +968,26 @@ watch(
   display: flex;
   width: 100%;
   align-items: center;
-  min-height: 2.75rem;
-  gap: 0.5rem;
-  border-radius: 0.85rem;
-  padding: 0.32rem 0.38rem 0.32rem 0.34rem;
-  color: rgb(var(--color-surface-rgb) / 0.96);
+  min-height: 2.85rem;
+  gap: 0.56rem;
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.44rem 0.35rem 0.38rem;
+  color: var(--text-secondary);
   text-decoration: none;
   transition:
-    background-color 170ms ease,
-    color 170ms ease;
+    background-color var(--motion-fast),
+    color var(--motion-fast),
+    border-color var(--motion-fast);
 }
 
 .navItem:hover {
-  background: rgb(var(--color-bg-rgb) / 0.3);
+  background: var(--interactive-hover);
+  color: var(--text-primary);
 }
 
 .navItem.active {
-  background: rgb(var(--color-bg-rgb) / 0.4);
+  background: var(--interactive-selected);
+  color: var(--text-primary);
 }
 
 .navIconChip {
@@ -993,19 +997,21 @@ watch(
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  border-radius: 0.75rem;
-  background: rgb(var(--color-bg-rgb) / 0.34);
-  color: rgb(var(--color-surface-rgb) / 0.95);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgb(var(--bg-surface-rgb) / 0.64);
+  color: var(--text-primary);
+  transition: background-color var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast);
 }
 
 .navItem.active .navIconChip {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.35);
-  background: rgb(var(--color-bg-rgb) / 0.55);
+  border-color: rgb(var(--primary-rgb) / 0.46);
+  background: rgb(var(--primary-rgb) / 0.2);
+  color: var(--text-primary);
 }
 
 .navLabel {
-  font-size: 1rem;
+  font-size: 0.96rem;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: 0;
@@ -1019,9 +1025,10 @@ watch(
   transform-origin: center;
   will-change: transform;
   min-width: 1.55rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
-  background: rgb(var(--color-bg-rgb) / 0.5);
-  color: rgb(var(--color-surface-rgb) / 0.92);
+  border: 1px solid rgb(var(--primary-rgb) / 0.5);
+  background: rgb(var(--primary-rgb) / 0.22);
+  color: var(--text-primary);
+  box-shadow: none;
 }
 
 .notificationBadge::after {
@@ -1042,14 +1049,58 @@ watch(
   animation: badge-pulse 650ms ease-out;
 }
 
+.createTrigger {
+  width: 100%;
+  min-height: var(--control-height-lg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: rgb(var(--bg-surface-rgb) / 0.72);
+  color: var(--text-primary);
+  padding: 0 var(--space-4);
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  transition:
+    border-color var(--motion-fast),
+    background-color var(--motion-fast),
+    color var(--motion-fast);
+}
+
+.createTrigger:hover {
+  border-color: rgb(var(--primary-rgb) / 0.42);
+  background: rgb(var(--primary-rgb) / 0.14);
+}
+
+.createTrigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.createPickerMenu {
+  position: absolute;
+  right: 0;
+  left: 0;
+  bottom: calc(100% + 0.55rem);
+  z-index: 50;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  background: rgb(var(--bg-surface-rgb) / 0.96);
+  padding: var(--space-2);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--elevation-2);
+}
+
 .createPickerItem {
   width: 100%;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  border-radius: 0.75rem;
-  background: rgb(var(--color-bg-rgb) / 0.45);
-  color: var(--color-surface);
-  min-height: 2.25rem;
-  font-size: 0.8125rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgb(var(--bg-app-rgb) / 0.46);
+  color: var(--text-primary);
+  min-height: var(--control-height-md);
+  font-size: var(--font-size-sm);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -1063,13 +1114,13 @@ watch(
 }
 
 .createPickerItem:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  background: rgb(var(--color-bg-rgb) / 0.62);
+  border-color: rgb(var(--primary-rgb) / 0.48);
+  background: rgb(var(--primary-rgb) / 0.14);
 }
 
 .createPickerItem:focus-visible {
-  outline: 2px solid rgb(var(--color-primary-rgb) / 0.75);
-  outline-offset: 1px;
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .createPickerIcon {
@@ -1125,3 +1176,5 @@ watch(
   }
 }
 </style>
+
+

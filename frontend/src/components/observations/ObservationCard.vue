@@ -117,12 +117,12 @@ function onOpen() {
 
 <style scoped>
 .observation-card {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
-  background: rgb(var(--color-bg-rgb) / 0.45);
-  border-radius: 0.9rem;
-  padding: 0.8rem;
+  border: 1px solid var(--border-default);
+  background: rgb(var(--bg-surface-rgb) / 0.8);
+  border-radius: var(--radius-md);
+  padding: 0.78rem;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.5rem;
 }
 
 .observation-card--compact {
@@ -135,7 +135,8 @@ function onOpen() {
 }
 
 .observation-card--clickable:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.55);
+  border-color: rgb(var(--primary-rgb) / 0.48);
+  background: rgb(var(--bg-surface-rgb) / 0.92);
 }
 
 .observation-header {
@@ -151,7 +152,7 @@ function onOpen() {
 
 .observation-title {
   margin: 0;
-  color: var(--color-surface);
+  color: var(--text-primary);
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.3;
@@ -159,23 +160,23 @@ function onOpen() {
 
 .observation-time {
   margin: 0.2rem 0 0;
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: 0.78rem;
 }
 
 .observation-rating {
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.45);
+  border: 1px solid rgb(var(--primary-rgb) / 0.45);
   border-radius: 999px;
   padding: 0.14rem 0.48rem;
   font-size: 0.7rem;
-  color: var(--color-primary);
-  background: rgb(var(--color-primary-rgb) / 0.16);
+  color: var(--accent-primary);
+  background: rgb(var(--primary-rgb) / 0.16);
   white-space: nowrap;
 }
 
 .observation-description {
   margin: 0;
-  color: rgb(var(--color-surface-rgb) / 0.92);
+  color: rgb(var(--text-primary-rgb) / 0.92);
   line-height: 1.48;
   white-space: pre-wrap;
 }
@@ -190,9 +191,9 @@ function onOpen() {
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
-  border-radius: 0.6rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(var(--color-bg-rgb) / 0.5);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: rgb(var(--bg-app-rgb) / 0.5);
 }
 
 .observation-meta {
@@ -204,22 +205,23 @@ function onOpen() {
 
 .observation-meta-item {
   font-size: 0.74rem;
-  color: var(--color-text-secondary);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
   border-radius: 999px;
   padding: 0.12rem 0.45rem;
 }
 
 .observation-event-link {
   font-size: 0.74rem;
-  color: var(--color-primary);
+  color: var(--accent-primary);
   text-decoration: none;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.35);
+  border: 1px solid rgb(var(--primary-rgb) / 0.35);
   border-radius: 999px;
   padding: 0.12rem 0.45rem;
 }
 
 .observation-event-link:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.65);
+  border-color: rgb(var(--primary-rgb) / 0.65);
+  background: rgb(var(--primary-rgb) / 0.14);
 }
 </style>

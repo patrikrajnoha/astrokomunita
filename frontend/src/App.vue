@@ -48,10 +48,10 @@ const initStack = computed(() => appInitState.initError?.stack || '')
 
 .card {
   width: min(720px, 100%);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px;
-  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--bg-surface-1);
 }
 
 .card h1 {
@@ -65,19 +65,19 @@ const initStack = computed(() => appInitState.initError?.stack || '')
 }
 
 .card pre {
-  margin-top: 12px;
+  margin-top: var(--space-3);
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 46vh;
   overflow: auto;
-  padding: 10px;
-  border-radius: 8px;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
   background: var(--bg-surface-2);
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   line-height: 1.45;
 }
 
 .appInitScreen--error .card {
-  border-color: var(--color-danger);
+  border-color: rgb(var(--danger-rgb) / 0.62);
 }
 </style>

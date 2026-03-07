@@ -33,38 +33,41 @@ defineProps({
 .adminPageShell {
   width: 100%;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: var(--space-6) var(--space-4);
 }
 
 .adminPageShell__header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .adminPageShell__title {
   margin: 0 0 6px;
-  font-size: 1.75rem;
+  font-size: 1.6rem;
   line-height: 1.2;
+  color: var(--text-primary);
 }
 
 .adminPageShell__subtitle {
   margin: 0;
-  opacity: 0.8;
-  font-size: 14px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
 }
 
 .adminPageShell__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .adminPageShell__content {
   display: grid;
-  gap: 14px;
+  gap: var(--space-4);
 }
 
 @media (max-width: 768px) {

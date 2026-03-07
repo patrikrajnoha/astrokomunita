@@ -1,14 +1,14 @@
 <template>
   <div
     ref="rootRef"
-    class="sticky top-[var(--feed-tabs-offset)] z-20 bg-[rgb(var(--color-bg-rgb)/0.9)] backdrop-blur-sm transition-colors duration-200 md:top-0"
-    :class="isScrolled ? 'bg-[rgb(var(--color-bg-rgb)/0.96)]' : 'shadow-none'"
+    class="feedSwitcher"
+    :class="{ 'is-scrolled': isScrolled }"
     :style="{ '--feed-tabs-offset': 'var(--app-header-h, 56px)' }"
     data-testid="feed-tabs-sticky"
   >
     <div
       ref="tabListRef"
-      class="relative flex w-full"
+      class="feedSwitcher__list"
       role="tablist"
       aria-label="Feed sekcie"
       data-testid="feed-tabs-list"
@@ -20,8 +20,8 @@
         :ref="(el) => setTabRef(el, index)"
         role="tab"
         type="button"
-        class="relative flex h-11 flex-1 select-none items-center justify-center text-sm transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 focus-visible:ring-inset"
-        :class="modelValue === tab.id ? 'font-semibold text-white' : 'text-white/65'"
+        class="feedSwitcher__tab"
+        :class="{ active: modelValue === tab.id }"
         :tabindex="modelValue === tab.id ? 0 : -1"
         :aria-controls="tab.panelId"
         :aria-selected="modelValue === tab.id ? 'true' : 'false'"
@@ -35,7 +35,7 @@
       </button>
 
       <div
-        class="absolute bottom-0 h-[2px] rounded-full bg-sky-500 transition-[transform,width,opacity] duration-200 ease-out"
+        class="feedSwitcher__ink"
         :style="inkBarStyle"
         data-testid="feed-tabs-ink-bar"
         aria-hidden="true"
@@ -282,3 +282,73 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', handleWindowResize)
 })
 </script>
+
+<style scoped>
+.feedSwitcher {
+  position: sticky;
+  top: var(--feed-tabs-offset);
+  z-index: 20;
+  background: rgb(var(--bg-app-rgb) / 0.9);
+  border-bottom: 1px solid var(--divider-color);
+  backdrop-filter: blur(8px);
+  transition: background-color var(--motion-base), border-color var(--motion-base);
+}
+
+.feedSwitcher.is-scrolled {
+  background: rgb(var(--bg-app-rgb) / 0.96);
+  border-bottom-color: var(--divider-strong);
+}
+
+.feedSwitcher__list {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.feedSwitcher__tab {
+  position: relative;
+  display: flex;
+  min-height: var(--control-height-lg);
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-3);
+  border: 0;
+  background: transparent;
+  color: rgb(var(--text-secondary-rgb) / 0.86);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--motion-fast), background-color var(--motion-fast);
+}
+
+.feedSwitcher__tab:hover {
+  background: var(--interactive-hover);
+  color: var(--text-primary);
+}
+
+.feedSwitcher__tab.active {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.feedSwitcher__tab:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgb(var(--primary-rgb) / 0.38);
+}
+
+.feedSwitcher__ink {
+  position: absolute;
+  bottom: 0;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-primary);
+  transition: transform var(--motion-base), width var(--motion-base), opacity var(--motion-base);
+}
+
+@media (min-width: 768px) {
+  .feedSwitcher {
+    top: 0;
+  }
+}
+</style>

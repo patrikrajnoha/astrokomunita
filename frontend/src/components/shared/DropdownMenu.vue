@@ -172,67 +172,71 @@ defineExpose({ close })
 
 .dropdownTrigger {
   background: transparent;
-  border: none;
-  min-width: 44px;
-  min-height: 44px;
+  border: 1px solid transparent;
+  min-width: var(--control-height-sm);
+  min-height: var(--control-height-sm);
   padding: 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--text-muted);
   cursor: pointer;
-  transition: background-color 150ms ease, color 150ms ease;
+  transition: background-color var(--motion-fast), color var(--motion-fast), border-color var(--motion-fast);
 }
 
 .dropdownTrigger:hover {
-  background: rgb(var(--primary-rgb) / 0.12);
-  color: var(--primary);
+  border-color: var(--border-subtle);
+  background: var(--interactive-hover);
+  color: var(--text-primary);
 }
 
 .dropdownTrigger:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .dropdownMenu {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   right: 0;
   z-index: 80;
-  min-width: 170px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-surface-2);
-  padding: 4px;
+  min-width: 180px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: rgb(var(--bg-surface-rgb) / 0.98);
+  padding: 6px;
   display: grid;
-  gap: 2px;
+  gap: 4px;
+  box-shadow: var(--elevation-2);
   animation: dropdownIn 140ms ease-out;
 }
 
 .dropdownItem {
-  border: none;
-  border-radius: 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-primary);
   text-align: left;
-  padding: 0.45rem 0.6rem;
+  padding: 0.48rem 0.62rem;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 .dropdownItem:hover {
-  background: rgb(var(--text-primary-rgb) / 0.08);
+  border-color: var(--border-subtle);
+  background: var(--interactive-hover);
 }
 
 .dropdownItem:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 1px;
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .dropdownItem--danger {
-  color: var(--color-danger);
+  color: var(--danger);
 }
 
 .dropdownItem--danger:hover {
-  background: rgb(var(--color-danger-rgb) / 0.15);
+  border-color: rgb(var(--danger-rgb) / 0.35);
+  background: rgb(var(--danger-rgb) / 0.14);
 }
 
 @keyframes dropdownIn {

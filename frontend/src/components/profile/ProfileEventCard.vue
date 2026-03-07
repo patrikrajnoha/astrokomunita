@@ -154,12 +154,12 @@ function mapVisibility(value) {
 <style scoped>
 .eventCard {
   overflow: hidden;
-  border-radius: 1.2rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
   background:
     linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent 30%),
-    linear-gradient(160deg, rgb(18 27 39 / 0.92), rgb(12 18 28 / 0.98));
-  box-shadow: 0 24px 48px rgb(0 0 0 / 0.18);
+    linear-gradient(160deg, rgb(var(--bg-surface-rgb) / 0.94), rgb(var(--bg-surface-2-rgb) / 0.96));
+  box-shadow: var(--elevation-2);
 }
 
 .eventCard__cover {
@@ -167,7 +167,7 @@ function mapVisibility(value) {
   min-height: 5.2rem;
   padding: 0.8rem 0.9rem 0;
   background:
-    radial-gradient(circle at top left, rgb(var(--color-primary-rgb) / 0.28), transparent 52%),
+    radial-gradient(circle at top left, rgb(var(--primary-rgb) / 0.28), transparent 52%),
     radial-gradient(circle at top right, rgb(116 143 189 / 0.16), transparent 46%);
 }
 
@@ -195,18 +195,18 @@ function mapVisibility(value) {
   min-height: 1.8rem;
   padding: 0 0.72rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.28);
-  background: rgb(var(--color-primary-rgb) / 0.14);
-  color: rgb(236 243 252 / 0.96);
+  border: 1px solid rgb(var(--primary-rgb) / 0.28);
+  background: rgb(var(--primary-rgb) / 0.14);
+  color: rgb(var(--text-primary-rgb) / 0.96);
   font-size: 0.73rem;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .eventCard__pill--muted {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.18);
+  border-color: var(--border-subtle);
   background: rgb(255 255 255 / 0.06);
-  color: rgb(255 255 255 / 0.72);
+  color: rgb(var(--text-secondary-rgb) / 0.9);
 }
 
 .eventCard__body {
@@ -219,20 +219,20 @@ function mapVisibility(value) {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem 0.8rem;
-  color: rgb(255 255 255 / 0.5);
+  color: rgb(var(--text-secondary-rgb) / 0.82);
   font-size: 0.78rem;
 }
 
 .eventCard__title {
   margin: 0;
-  color: rgb(255 255 255 / 0.94);
+  color: rgb(var(--text-primary-rgb) / 0.94);
   font-size: 1.05rem;
   line-height: 1.2;
   font-weight: 600;
 }
 
 .eventCard__summary {
-  color: rgb(255 255 255 / 0.72);
+  color: rgb(var(--text-secondary-rgb) / 0.92);
   line-height: 1.6;
   font-size: 0.92rem;
   display: -webkit-box;
@@ -250,25 +250,25 @@ function mapVisibility(value) {
 }
 
 .eventCard__visibility {
-  color: rgb(255 255 255 / 0.56);
+  color: rgb(var(--text-secondary-rgb) / 0.86);
   font-size: 0.8rem;
 }
 
 .eventCard__button {
   min-height: 2.5rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
-  background: rgb(255 255 255 / 0.04);
-  color: rgb(255 255 255 / 0.92);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-default);
+  background: rgb(var(--bg-app-rgb) / 0.42);
+  color: rgb(var(--text-primary-rgb) / 0.94);
   padding: 0 0.95rem;
   font-size: 0.84rem;
   font-weight: 600;
-  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition: background-color var(--motion-fast), border-color var(--motion-fast), transform var(--motion-fast);
 }
 
 .eventCard__button:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.4);
-  background: rgb(var(--color-primary-rgb) / 0.12);
+  border-color: rgb(var(--primary-rgb) / 0.42);
+  background: rgb(var(--primary-rgb) / 0.16);
   transform: translateY(-1px);
 }
 </style>

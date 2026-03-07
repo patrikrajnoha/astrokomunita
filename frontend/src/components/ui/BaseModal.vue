@@ -197,7 +197,7 @@ function getFocusableElements(root) {
   z-index: 1400;
   display: grid;
   place-items: center;
-  background: rgb(0 0 0 / 0.66);
+  background: var(--bg-overlay);
   padding: 1rem;
 }
 
@@ -205,11 +205,11 @@ function getFocusableElements(root) {
   width: min(42rem, 100%);
   max-height: min(90vh, 48rem);
   overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: 1.5rem;
-  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  background: var(--bg-surface-1);
   color: var(--text-primary);
-  box-shadow: 0 18px 40px rgb(var(--bg-app-rgb) / 0.34);
+  box-shadow: var(--elevation-3);
 }
 
 .modalHead {
@@ -217,7 +217,9 @@ function getFocusableElements(root) {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.25rem 1.25rem 0;
+  padding: var(--space-5) var(--space-5) 0;
+  border-bottom: 1px solid var(--divider-color);
+  padding-bottom: var(--space-4);
 }
 
 .modalHeading {
@@ -226,7 +228,7 @@ function getFocusableElements(root) {
 
 .modalTitle {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--font-size-xl);
   font-weight: 800;
   color: var(--text-primary);
 }
@@ -236,7 +238,7 @@ function getFocusableElements(root) {
 }
 
 .modalBody {
-  padding: 1rem 1.25rem 1.25rem;
+  padding: var(--space-4) var(--space-5) var(--space-5);
 }
 
 .modal-fade-enter-active,

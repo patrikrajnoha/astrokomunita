@@ -68,43 +68,45 @@ export default {
 
 .timelineColumn {
   width: 100%;
-  max-width: 680px;
+  max-width: var(--content-max-width);
   min-width: 0;
-  border: var(--divider);
-  border-radius: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
   overflow: hidden;
-  background: rgb(var(--color-bg-rgb) / 0.26);
+  background: #151d28;
 }
 
 .composerTrigger {
   width: 100%;
   border: 0;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(var(--color-bg-rgb) / 0.5);
-  color: rgb(var(--color-surface-rgb) / 0.96);
+  min-height: 58px;
+  border-bottom: 1px solid var(--divider-color);
+  background: rgb(var(--bg-app-rgb) / 0.34);
+  color: var(--text-primary);
   display: grid;
   grid-template-columns: 40px 1fr auto;
   align-items: center;
-  gap: 0.6rem;
+  gap: var(--space-3);
   text-align: left;
-  padding: 0.72rem;
+  padding: 0.78rem var(--space-4);
+  transition: background-color var(--motion-fast);
 }
 
 .composerTrigger:hover {
-  background: rgb(var(--color-bg-rgb) / 0.62);
+  background: var(--interactive-hover);
 }
 
 .composerTrigger:focus-visible {
-  outline: 2px solid rgb(var(--color-primary-rgb) / 0.9);
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgb(var(--primary-rgb) / 0.55);
 }
 
 .triggerAvatar {
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
-  background: rgb(var(--color-primary-rgb) / 0.16);
+  border: 1px solid rgb(var(--primary-rgb) / 0.5);
+  background: rgb(var(--primary-rgb) / 0.16);
   display: grid;
   place-items: center;
   font-size: 0.85rem;
@@ -120,16 +122,16 @@ export default {
 }
 
 .triggerText {
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
-  font-size: 0.97rem;
+  color: var(--text-secondary);
+  font-size: var(--font-size-base);
 }
 
 .triggerCta {
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.65);
+  border: 1px solid rgb(var(--primary-rgb) / 0.62);
   border-radius: 999px;
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  color: rgb(var(--color-surface-rgb) / 0.96);
-  font-size: 0.76rem;
+  background: rgb(var(--primary-rgb) / 0.2);
+  color: var(--text-primary);
+  font-size: var(--font-size-xs);
   font-weight: 700;
   padding: 0.35rem 0.8rem;
 }

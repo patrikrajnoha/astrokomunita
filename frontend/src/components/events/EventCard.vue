@@ -131,20 +131,20 @@ const publicConfidenceTooltip = computed(() => {
 
 <style scoped>
 .event-card {
-  border-radius: 1.4rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
   background: linear-gradient(
     160deg,
-    rgb(var(--color-bg-rgb) / 0.95) 0%,
-    rgb(var(--color-bg-rgb) / 0.86) 100%
+    rgb(var(--bg-surface-rgb) / 0.94) 0%,
+    rgb(var(--bg-surface-2-rgb) / 0.9) 100%
   );
   overflow: hidden;
-  box-shadow: 0 18px 48px rgb(5 12 30 / 0.4);
+  box-shadow: var(--elevation-2);
 }
 
 .hero-wrap {
   position: relative;
-  height: 250px;
+  height: 220px;
 }
 
 .hero-image,
@@ -160,25 +160,25 @@ const publicConfidenceTooltip = computed(() => {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-weight: 700;
-  color: rgb(var(--color-surface-rgb) / 0.8);
+  color: rgb(var(--text-primary-rgb) / 0.8);
   background: radial-gradient(circle at 20% 20%, #1f4b87 0%, #0f172a 55%, #060b15 100%);
 }
 
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 48%, rgb(3 8 22 / 0.74) 100%);
+  background: linear-gradient(180deg, transparent 52%, rgb(6 11 18 / 0.74) 100%);
 }
 
 .card-body {
-  padding: 1rem 1rem 1.1rem;
+  padding: var(--space-4) var(--space-4) var(--space-5);
 }
 
 .title {
-  font-size: 1.34rem;
+  font-size: 1.18rem;
   line-height: 1.2;
   font-weight: 700;
-  color: var(--color-surface);
+  color: var(--text-primary);
 }
 
 .title-row {
@@ -198,28 +198,28 @@ const publicConfidenceTooltip = computed(() => {
 }
 
 .confidence-verified {
-  color: #0f5132;
-  background: #d1e7dd;
-  border-color: #badbcc;
+  color: rgb(var(--success-rgb) / 1);
+  background: rgb(var(--success-rgb) / 0.14);
+  border-color: rgb(var(--success-rgb) / 0.35);
 }
 
 .confidence-partial {
-  color: #664d03;
-  background: #fff3cd;
-  border-color: #ffecb5;
+  color: rgb(var(--warning-rgb) / 1);
+  background: rgb(var(--warning-rgb) / 0.14);
+  border-color: rgb(var(--warning-rgb) / 0.35);
 }
 
 .confidence-low {
-  color: #842029;
-  background: #f8d7da;
-  border-color: #f5c2c7;
+  color: rgb(var(--danger-rgb) / 1);
+  background: rgb(var(--danger-rgb) / 0.16);
+  border-color: rgb(var(--danger-rgb) / 0.4);
 }
 
 .meta-row,
 .visibility-row {
   margin-top: 0.35rem;
   font-size: 0.9rem;
-  color: rgb(var(--color-surface-rgb) / 0.78);
+  color: rgb(var(--text-secondary-rgb) / 0.88);
 }
 
 .visibility-row {
@@ -237,7 +237,7 @@ const publicConfidenceTooltip = computed(() => {
 }
 
 .bio {
-  color: rgb(var(--color-surface-rgb) / 0.88);
+  color: rgb(var(--text-primary-rgb) / 0.88);
   font-size: 0.92rem;
   line-height: 1.5;
   overflow: hidden;
@@ -258,18 +258,26 @@ const publicConfidenceTooltip = computed(() => {
 
 .bio-action {
   margin-left: 0.45rem;
-  color: var(--color-primary);
+  color: var(--accent-primary);
   font-weight: 600;
 }
 
 .more-btn {
   margin-top: 0.7rem;
-  border: none;
-  background: transparent;
-  color: var(--color-primary);
-  font-size: 0.84rem;
+  min-height: var(--control-height-sm);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--bg-app-rgb) / 0.35);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
   font-weight: 600;
-  padding: 0;
+  padding: 0 0.8rem;
+  transition: border-color var(--motion-fast), background-color var(--motion-fast), color var(--motion-fast);
+}
+
+.more-btn:hover {
+  border-color: rgb(var(--primary-rgb) / 0.44);
+  background: rgb(var(--primary-rgb) / 0.14);
 }
 
 .bio-expand-enter-active,
@@ -283,4 +291,3 @@ const publicConfidenceTooltip = computed(() => {
   transform: translateY(4px);
 }
 </style>
-

@@ -505,6 +505,7 @@ const calendarPopupAckInFlight = ref(false)
 const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const showMobileBottomNav = computed(() => isMobileViewport.value && !isAdminRoute.value)
 const appShellStyle = computed(() => ({
+  '--app-header-h': 'var(--navbar-height)',
   '--mobile-bottom-nav-offset': showMobileBottomNav.value ? '88px' : '0px',
   '--guest-cta-bottom-offset': showMobileBottomNav.value && !auth.isAuthed ? '88px' : '0px',
 }))
@@ -1114,7 +1115,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .appMobileHeader {
-  height: 56px;
+  height: var(--navbar-height);
   position: relative;
 }
 
@@ -1153,27 +1154,27 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.8rem;
-  margin: 0.8rem auto 0;
-  padding: 0.65rem 0.9rem;
+  gap: var(--space-3);
+  margin: var(--space-3) auto 0;
+  padding: 0.625rem 0.875rem;
   max-width: 1160px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-1);
   color: var(--text-primary);
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
 }
 
 .authFallbackBanner.is-danger {
-  border-color: rgb(var(--color-danger-rgb) / 0.56);
-  background: rgb(var(--color-danger-rgb) / 0.16);
+  border-color: rgb(var(--danger-rgb) / 0.56);
+  background: rgb(var(--danger-rgb) / 0.14);
 }
 
 .sheetOverlay {
   position: fixed;
   inset: 0;
   z-index: 78;
-  background: rgb(var(--bg-app-rgb) / 0.72);
+  background: var(--bg-overlay);
 }
 
 .sheetDialog {
@@ -1184,10 +1185,10 @@ onBeforeUnmount(() => {
   z-index: 79;
   max-height: 85vh;
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 1.15rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
   background: var(--bg-surface-2);
-  box-shadow: 0 24px 50px rgb(var(--bg-app-rgb) / 0.36);
+  box-shadow: var(--elevation-3);
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
 }
@@ -1198,7 +1199,7 @@ onBeforeUnmount(() => {
   margin: 0.55rem auto 0.25rem;
   border: 0;
   border-radius: 999px;
-  background: rgb(var(--text-secondary-rgb) / 0.4);
+  background: rgb(var(--text-secondary-rgb) / 0.45);
 }
 
 .sheetHead {
@@ -1239,12 +1240,12 @@ onBeforeUnmount(() => {
 .sheetActionIconWrap {
   width: 1.9rem;
   height: 1.9rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgb(var(--bg-app-rgb) / 0.22);
+  background: rgb(var(--bg-app-rgb) / 0.34);
 }
 
 .sheetActionIcon {
@@ -1262,7 +1263,7 @@ onBeforeUnmount(() => {
 }
 
 .createAction {
-  box-shadow: 0 12px 24px rgb(var(--primary-rgb) / 0.18);
+  box-shadow: none;
 }
 
 .sheetWidgetList {
@@ -1374,8 +1375,8 @@ onBeforeUnmount(() => {
 
 .rightSidebarFooterLinks {
   margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid rgb(var(--border-rgb) / 0.78);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--divider-color);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -1386,8 +1387,8 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   padding: 0.4rem;
-  border-radius: 0.5rem;
-  font-size: 0.78rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
   line-height: 1.2;
   color: var(--text-secondary);
   text-decoration: none;
@@ -1397,13 +1398,13 @@ onBeforeUnmount(() => {
 .rightSidebarFooterLinks__item + .rightSidebarFooterLinks__item::before {
   content: '\00B7';
   margin-right: 0.625rem;
-  color: rgb(var(--text-secondary-rgb) / 0.7);
+  color: rgb(var(--text-secondary-rgb) / 0.62);
 }
 
 .rightSidebarFooterLinks__item:hover,
 .rightSidebarFooterLinks__item.router-link-active {
   color: var(--text-primary);
-  background: rgb(var(--bg-app-rgb) / 0.44);
+  background: var(--interactive-hover);
 }
 
 @media (max-width: 640px) {
