@@ -17,7 +17,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
-class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
+class TranslateEventCandidateJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -25,16 +25,47 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
     use SerializesModels;
 
     private const REFINED_DESCRIPTION_MAX_LENGTH = 600;
+
     private const SHORT_MAX_LENGTH = 180;
 
+    /**
+     * @var array<int,string>
+     */
+    private const EN_SHORT_HINT_TOKENS = [
+        'the',
+        'and',
+        'with',
+        'for',
+        'from',
+        'this',
+        'that',
+        'are',
+        'was',
+        'were',
+        'best',
+        'known',
+        'producing',
+        'years',
+        'when',
+        'activity',
+        'maximum',
+        'minimum',
+        'lunar',
+        'phase',
+        'meteor',
+        'shower',
+        'visible',
+        'visibility',
+    ];
+
     public int $tries = 4;
+
     public int $uniqueFor = 600;
 
     public function __construct(
         public readonly int $candidateId,
         public readonly bool $force = false,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<int,int>
@@ -46,7 +77,7 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
 
     public function uniqueId(): string
     {
-        return 'event-candidate-translation-' . $this->candidateId . '-' . ($this->force ? 'force' : 'normal');
+        return 'event-candidate-translation-'.$this->candidateId.'-'.($this->force ? 'force' : 'normal');
     }
 
     public function handle(
@@ -85,6 +116,8 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
                 $originalDescription !== null ? (string) $originalDescription : null,
                 'sk'
             );
+            $qualityFlags = $this->extractTranslationQualityFlags($translationResult);
+            $forceTemplateFromQuality = $this->shouldForceTemplateFromQualityFlags($qualityFlags);
 
             $translatedTitle = trim((string) ($translationResult['translated_title'] ?? ''));
             if ($translatedTitle === '') {
@@ -107,13 +140,26 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
             }
 
             $finalDescription = $translatedDescription;
-            $finalShort = $this->resolveInitialShort($candidate, $translatedDescription, $translatedTitle);
-            $usedTemplateFallback = $this->shouldGenerateTemplateDescription($originalDescription, $templateMinLength);
+            $finalShort = $this->resolveInitialShort(
+                $candidate,
+                $translatedDescription,
+                $translatedTitle,
+                $phraseNormalizer
+            );
+            $usedTemplateFallback = $forceTemplateFromQuality
+                || $this->shouldGenerateTemplateDescription($originalDescription, $templateMinLength);
 
             if ($usedTemplateFallback) {
                 $template = $this->buildDeterministicSkTemplate($candidate, $translatedTitle);
                 $finalDescription = $template['description'];
                 $finalShort = $template['short'];
+            }
+
+            if ($forceTemplateFromQuality) {
+                Log::warning('Event candidate template fallback forced by translation quality flags.', [
+                    'event_candidate_id' => $candidate->id,
+                    'quality_flags' => $qualityFlags,
+                ]);
             }
 
             if ($this->isDescriptionRefinementEnabled()) {
@@ -155,6 +201,17 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
                 }
             }
 
+            if (! $usedTemplateFallback && $this->shouldFallbackForDescriptionQuality($finalDescription, $phraseNormalizer)) {
+                $template = $this->buildDeterministicSkTemplate($candidate, $translatedTitle);
+                $finalDescription = $template['description'];
+                $finalShort = $template['short'];
+                $usedTemplateFallback = true;
+
+                Log::warning('Event candidate template fallback forced by untranslated description quality gate.', [
+                    'event_candidate_id' => $candidate->id,
+                ]);
+            }
+
             $finalDescription = $this->sanitizeDescription($finalDescription);
             $finalShort = $this->sanitizeShort($finalShort);
             if ($finalShort === null) {
@@ -175,6 +232,8 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
                 'event_candidate_id' => $candidate->id,
                 'force' => $this->force,
                 'template_fallback_used' => $usedTemplateFallback,
+                'quality_flags' => $qualityFlags,
+                'template_fallback_forced_by_quality' => $forceTemplateFromQuality,
             ]);
         } catch (\Throwable $exception) {
             $template = $this->buildDeterministicSkTemplate($candidate, $originalTitle);
@@ -211,6 +270,60 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
         }
 
         return mb_strlen(trim($description), 'UTF-8') < $minLength;
+    }
+
+    /**
+     * @param  array<string,mixed>  $translationResult
+     * @return array<int,string>
+     */
+    private function extractTranslationQualityFlags(array $translationResult): array
+    {
+        $meta = $translationResult['meta'] ?? null;
+        if (! is_array($meta)) {
+            return [];
+        }
+
+        $flags = $meta['quality_flags'] ?? null;
+        if (! is_array($flags)) {
+            return [];
+        }
+
+        $normalized = array_values(array_unique(array_filter(array_map(
+            static fn (mixed $flag): string => strtolower(trim((string) $flag)),
+            $flags
+        ), static fn (string $flag): bool => $flag !== '')));
+
+        return $normalized;
+    }
+
+    /**
+     * @param  array<int,string>  $qualityFlags
+     */
+    private function shouldForceTemplateFromQualityFlags(array $qualityFlags): bool
+    {
+        if ($qualityFlags === []) {
+            return false;
+        }
+
+        if (! (bool) config('events.translation.quality_gate.force_template_on_severe_flags', true)) {
+            return false;
+        }
+
+        $severe = config('events.translation.quality_gate.severe_flags', []);
+        if (! is_array($severe) || $severe === []) {
+            return false;
+        }
+
+        $severeSet = array_values(array_unique(array_filter(array_map(
+            static fn (mixed $flag): string => strtolower(trim((string) $flag)),
+            $severe
+        ), static fn (string $flag): bool => $flag !== '')));
+
+        if ($severeSet === []) {
+            return false;
+        }
+
+        return array_intersect($qualityFlags, $severeSet) !== [];
     }
 
     /**
@@ -257,6 +370,7 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
         }
 
         $timezone = (string) config('events.timezone', config('events.source_timezone', 'Europe/Bratislava'));
+
         return $moment->clone()->setTimezone($timezone)->format('d.m.Y');
     }
 
@@ -283,6 +397,7 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
         }
 
         $value = (int) $zhr;
+
         return $value > 0 ? $value : null;
     }
 
@@ -315,11 +430,15 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
     private function resolveInitialShort(
         EventCandidate $candidate,
         ?string $translatedDescription,
-        string $translatedTitle
+        string $translatedTitle,
+        AstronomyPhraseNormalizer $phraseNormalizer
     ): ?string {
         $candidateShort = $this->sanitizeShort((string) ($candidate->short ?? ''));
         if ($candidateShort !== null) {
-            return $candidateShort;
+            $candidateShort = $this->applyTerminologyMap($candidateShort, $phraseNormalizer);
+            if (! $this->isLikelyUntranslatedShort($candidateShort, $phraseNormalizer)) {
+                return $candidateShort;
+            }
         }
 
         return $this->buildShort($translatedDescription, $translatedTitle);
@@ -375,7 +494,57 @@ class TranslateEventCandidateJob implements ShouldQueue, ShouldBeUnique
         }
 
         $normalized = preg_replace('/\s+/u', ' ', $normalized) ?? $normalized;
+
         return trim($normalized);
+    }
+
+    private function isLikelyUntranslatedShort(string $value, AstronomyPhraseNormalizer $phraseNormalizer): bool
+    {
+        if ($value === '') {
+            return false;
+        }
+
+        if ($phraseNormalizer->hasResidualEnglishTokens($value, 'sk')) {
+            return true;
+        }
+
+        return $this->countKnownEnglishTokens($value) >= 2;
+    }
+
+    private function shouldFallbackForDescriptionQuality(?string $value, AstronomyPhraseNormalizer $phraseNormalizer): bool
+    {
+        $description = $this->sanitizeDescription($value);
+        if ($description === null) {
+            return true;
+        }
+
+        if ($phraseNormalizer->hasResidualEnglishTokens($description, 'sk')) {
+            return true;
+        }
+
+        return $this->countKnownEnglishTokens($description) >= 5;
+    }
+
+    private function countKnownEnglishTokens(string $value): int
+    {
+        $matches = [];
+        preg_match_all('/\b[a-z]{2,}\b/i', $value, $matches);
+        $tokens = $matches[0] ?? [];
+        if ($tokens === []) {
+            return 0;
+        }
+
+        $knownTokens = array_flip(self::EN_SHORT_HINT_TOKENS);
+        $count = 0;
+        foreach ($tokens as $token) {
+            $normalized = strtolower(trim((string) $token));
+            if ($normalized === '' || ! isset($knownTokens[$normalized])) {
+                continue;
+            }
+            $count++;
+        }
+
+        return $count;
     }
 
     private function resolveErrorCode(\Throwable $exception): string

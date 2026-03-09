@@ -27,6 +27,12 @@ class AstronomyPhraseNormalizerTest extends TestCase
 
         $first = $normalizer->normalize("PRV\u{0130} KVARTN\u{0130} MOON", 'sk');
         $this->assertSame("Prv\u{00E1} \u{0161}tvr\u{0165} Mesiaca", $first);
+
+        $badSkLastQuarter = $normalizer->normalize("Posledn\u{00FD} \u{0161}tvr\u{0165} Mesiac", 'sk');
+        $this->assertSame("Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca", $badSkLastQuarter);
+
+        $badSkFirstQuarter = $normalizer->normalize("Prv\u{00FD} \u{0161}tvr\u{0165} Mesiac", 'sk');
+        $this->assertSame("Prv\u{00E1} \u{0161}tvr\u{0165} Mesiaca", $badSkFirstQuarter);
     }
 
     public function test_it_uses_original_title_fallback_when_mixed_language_remains(): void
@@ -72,5 +78,34 @@ class AstronomyPhraseNormalizerTest extends TestCase
         $this->assertTrue((bool) $resolution['used_fallback']);
         $this->assertSame('deterministic_original_mismatch', $resolution['reason']);
         $this->assertSame('Mars v konjunkcii so Slnkom', $resolution['title']);
+    }
+
+    public function test_it_normalizes_common_english_description_fragments(): void
+    {
+        $normalizer = app(AstronomyPhraseNormalizer::class);
+
+        $result = $normalizer->normalize(
+            'Lunar phase from USNO API for Bratislava. Visibility from Slovakia depends on local weather. N Taurid Meteor Shower.',
+            'sk'
+        );
+
+        $this->assertStringContainsString('fáza Mesiaca', $result);
+        $this->assertStringContainsString('viditeľnosť zo Slovenska', $result);
+        $this->assertStringContainsString('závisí od miestneho počasia', $result);
+        $this->assertStringContainsString('meteoricky roj', mb_strtolower($result, 'UTF-8'));
+    }
+
+    public function test_it_normalizes_meteor_shower_title_variants_from_astropixels(): void
+    {
+        $normalizer = app(AstronomyPhraseNormalizer::class);
+
+        $result = $normalizer->normalize('Geminid Meteor Sprcha', 'sk');
+        $this->assertSame('Meteoricky roj Geminidy', $result);
+
+        $second = $normalizer->normalize('Eta-Aquarid meteorická sprcha', 'sk');
+        $this->assertSame('Meteoricky roj Eta-Akvaridy', $second);
+
+        $third = $normalizer->normalize('Leonids (LEO) meteor shower', 'sk');
+        $this->assertSame('Meteoricky roj Leonidy', $third);
     }
 }

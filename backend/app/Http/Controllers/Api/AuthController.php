@@ -47,7 +47,7 @@ class AuthController extends Controller
             $this->turnstileService->logMissingSecretWarningOnce();
 
             return response()->json([
-                'message' => 'BezpeÄŤnostnĂ© overenie je doÄŤasne nedostupnĂ©.',
+                'message' => 'Bezpečnostné overenie je dočasne nedostupné.',
             ], 503);
         }
 

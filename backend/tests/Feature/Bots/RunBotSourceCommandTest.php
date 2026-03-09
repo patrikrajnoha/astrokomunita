@@ -27,6 +27,8 @@ class RunBotSourceCommandTest extends TestCase
         config()->set('services.nasa.key', 'test-nasa-key');
         config()->set('bots.sources.nasa_apod_daily.requires_api_key', true);
         config()->set('bots.sources.nasa_apod_daily.rate_limit_backoff_minutes', 360);
+        config()->set('bots.sources.nasa_apod_daily.enable_rss_fallback', false);
+        config()->set('bots.sources.nasa_apod_daily.rss_fallback_url', 'https://apod.nasa.gov/apod.rss');
     }
 
     public function test_first_run_creates_bot_items_and_publishes_posts_to_astro_feed(): void
@@ -320,6 +322,60 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertTrue($source->cooldown_until->isFuture());
     }
 
+    public function test_apod_http_429_uses_rss_fallback_when_enabled(): void
+    {
+        config()->set('bots.sources.nasa_apod_daily.enable_rss_fallback', true);
+
+        $source = $this->createApodSource();
+        Http::fake([
+            $source->url . '*' => Http::response([
+                'error' => [
+                    'code' => 'OVER_RATE_LIMIT',
+                    'message' => 'API rate limit exceeded.',
+                ],
+            ], 429, [
+                'Content-Type' => 'application/json',
+                'Retry-After' => '120',
+            ]),
+            'https://apod.nasa.gov/apod.rss*' => Http::response(
+                $this->apodRssPayload(),
+                200,
+                ['Content-Type' => 'application/rss+xml']
+            ),
+            'https://apod.nasa.gov/apod/ap260220.html*' => Http::response(
+                $this->apodRssArticleHtml(),
+                200,
+                ['Content-Type' => 'text/html']
+            ),
+            'https://apod.nasa.gov/apod/image/test-full.jpg*' => Http::response(
+                $this->imageFixtureBinary(),
+                200,
+                ['Content-Type' => 'image/jpeg']
+            ),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertDatabaseCount('bot_items', 1);
+        $this->assertDatabaseCount('posts', 1);
+
+        $run = BotRun::query()->latest('id')->firstOrFail();
+        $this->assertSame('success', (string) $run->status->value);
+        $this->assertSame(1, (int) data_get($run->stats, 'published_count', 0));
+        $this->assertNull(data_get($run->meta, 'failure_reason'));
+
+        $item = BotItem::query()->firstOrFail();
+        $this->assertSame('apod_rss', (string) data_get($item->meta, 'fallback_source'));
+        $this->assertSame('rate_limited', (string) data_get($item->meta, 'fallback_reason'));
+        $this->assertSame('2026-02-20', (string) data_get($item->meta, 'apod_date'));
+        $this->assertSame('https://apod.nasa.gov/apod/image/test-full.jpg', (string) data_get($item->meta, 'image_url'));
+        $this->assertSame('https://apod.nasa.gov/apod/image/test-full.jpg', (string) data_get($item->meta, 'hdurl'));
+
+        $source->refresh();
+        $this->assertNull($source->cooldown_until);
+    }
+
     public function test_apod_missing_api_key_marks_run_as_needs_api_key_and_does_not_call_http(): void
     {
         config()->set('bots.sources.nasa_apod_daily.requires_api_key', true);
@@ -348,17 +404,18 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertNull($source->cooldown_until);
     }
 
-    public function test_publish_repairs_legacy_bot_username_and_display_name_to_configured_identity(): void
+    public function test_publish_repairs_legacy_bot_username_but_preserves_custom_display_name(): void
     {
         config()->set('bots.identities.kozmo.username', 'kozmobot');
         config()->set('bots.identities.kozmo.display_name', 'Kozmo');
+        $customDisplayName = 'Legacy Kozmo 🚀';
 
         $legacyBot = User::factory()->create([
             'is_bot' => true,
             'is_active' => true,
             'email_verified_at' => now(),
             'username' => 'kozmo',
-            'name' => 'Legacy Kozmo',
+            'name' => $customDisplayName,
             'email' => 'kozmo@astrokomunita.local',
         ]);
 
@@ -372,7 +429,7 @@ class RunBotSourceCommandTest extends TestCase
 
         $legacyBot->refresh();
         $this->assertSame('kozmobot', (string) $legacyBot->username);
-        $this->assertSame('Kozmo', (string) $legacyBot->name);
+        $this->assertSame($customDisplayName, (string) $legacyBot->name);
     }
 
     public function test_apod_video_item_is_published_without_attachment(): void
@@ -493,6 +550,75 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame(0, (int) ($run->stats['failed_count'] ?? 0));
     }
 
+    public function test_apod_duplicate_skipped_item_with_missing_title_is_healed_and_published(): void
+    {
+        $source = $this->createApodSource();
+
+        $existingItem = BotItem::query()->create([
+            'bot_identity' => 'stela',
+            'source_id' => $source->id,
+            'stable_key' => '2026-02-20',
+            'title' => '',
+            'summary' => 'APOD explanation text long enough to pass content checks for publishing.',
+            'content' => 'APOD explanation text long enough to pass content checks for publishing.',
+            'url' => 'https://apod.nasa.gov/apod/image/test-hd.jpg',
+            'published_at' => Carbon::parse('2026-02-20 12:00:00'),
+            'fetched_at' => now()->subMinute(),
+            'lang_original' => 'en',
+            'translation_status' => 'done',
+            'publish_status' => 'skipped',
+            'meta' => [
+                'apod_date' => '2026-02-20',
+                'image_url' => null,
+                'hdurl' => 'https://apod.nasa.gov/apod/image/test-hd.jpg',
+                'media_type' => 'image',
+                'skip_reason' => 'missing_title_or_url',
+            ],
+        ]);
+
+        Http::fake([
+            $source->url . '*' => Http::response($this->apodPayload([
+                'date' => '2026-02-20',
+                'title' => null,
+                'explanation' => 'APOD explanation text long enough to pass content checks for publishing.',
+                'url' => 'https://apod.nasa.gov/apod/image/test.jpg',
+                'hdurl' => 'https://apod.nasa.gov/apod/image/test-hd.jpg',
+                'media_type' => 'image',
+            ]), 200, ['Content-Type' => 'application/json']),
+            'https://apod.nasa.gov/apod/image/test-hd.jpg*' => Http::response(
+                $this->imageFixtureBinary(),
+                200,
+                ['Content-Type' => 'image/jpeg']
+            ),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertDatabaseCount('bot_items', 1);
+        $this->assertDatabaseCount('posts', 1);
+
+        $existingItem->refresh();
+        $this->assertNotNull($existingItem->post_id);
+        $this->assertSame('published', (string) $existingItem->publish_status->value);
+        $this->assertSame('NASA APOD 2026-02-20', (string) $existingItem->title);
+        $this->assertSame('https://apod.nasa.gov/apod/image/test-hd.jpg', (string) $existingItem->url);
+        $this->assertNull(data_get($existingItem->meta, 'skip_reason'));
+        $this->assertTrue((bool) data_get($existingItem->meta, 'field_recovery.title_recovered', false));
+
+        $this->assertDatabaseHas('bot_activity_logs', [
+            'action' => 'publish',
+            'outcome' => 'published',
+            'bot_item_id' => $existingItem->id,
+        ]);
+
+        $run = BotRun::query()->latest('id')->firstOrFail();
+        $this->assertSame('success', (string) $run->status->value);
+        $this->assertSame(1, (int) ($run->stats['dupes_count'] ?? 0));
+        $this->assertSame(1, (int) ($run->stats['published_count'] ?? 0));
+        $this->assertSame(0, (int) ($run->stats['skipped_count'] ?? 0));
+    }
+
     public function test_apod_run_with_active_cooldown_is_skipped_without_api_call(): void
     {
         $source = $this->createApodSource();
@@ -514,6 +640,39 @@ class RunBotSourceCommandTest extends TestCase
         $this->assertSame('cooldown_rate_limited', (string) data_get($run->meta, 'failure_reason'));
         $this->assertNotNull(data_get($run->meta, 'cooldown_until'));
         $this->assertSame(1, (int) data_get($run->stats, 'skipped_count', 0));
+    }
+
+    public function test_apod_run_with_active_cooldown_and_force_manual_override_executes(): void
+    {
+        $source = $this->createApodSource();
+        $source->forceFill([
+            'cooldown_until' => now()->addHours(2),
+        ])->save();
+
+        Http::fake([
+            $source->url . '*' => Http::response($this->apodPayload(), 200, ['Content-Type' => 'application/json']),
+            'https://apod.nasa.gov/apod/image/test-hd.jpg*' => Http::response(
+                $this->imageFixtureBinary(),
+                200,
+                ['Content-Type' => 'image/jpeg']
+            ),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', [
+            'sourceKey' => $source->key,
+            '--force-manual-override' => true,
+        ]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertDatabaseCount('posts', 1);
+
+        $run = BotRun::query()->latest('id')->firstOrFail();
+        $this->assertSame('success', (string) $run->status->value);
+        $this->assertSame(1, (int) data_get($run->stats, 'published_count', 0));
+        $this->assertTrue((bool) data_get($run->meta, 'cooldown_bypassed', false));
+
+        $source->refresh();
+        $this->assertNull($source->cooldown_until);
     }
 
     public function test_apod_image_larger_than_policy_limit_is_skipped(): void
@@ -1236,6 +1395,44 @@ class RunBotSourceCommandTest extends TestCase
             'media_type' => 'image',
             'copyright' => 'NASA/ESA',
         ], $overrides);
+    }
+
+    private function apodRssPayload(): string
+    {
+        return <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>APOD</title>
+    <item>
+      <title>APOD: 2026-02-20 Test fallback title</title>
+      <link>https://apod.nasa.gov/apod/ap260220.html</link>
+      <pubDate>Fri, 20 Feb 2026 12:00:00 GMT</pubDate>
+      <description><![CDATA[
+        <p>Fallback explanation text long enough for publishing.</p>
+        <img src="https://apod.nasa.gov/apod/calendar/S_260220.jpg" />
+      ]]></description>
+      <enclosure url="https://apod.nasa.gov/apod/calendar/S_260220.jpg" length="12345" type="image/jpeg" />
+      <media:content url="https://apod.nasa.gov/apod/calendar/S_260220.jpg" medium="image" />
+    </item>
+  </channel>
+</rss>
+XML;
+    }
+
+    private function apodRssArticleHtml(): string
+    {
+        return <<<'HTML'
+<!doctype html>
+<html>
+  <body>
+    <a href="image/test-full.jpg">
+      <img src="calendar/S_260220.jpg" />
+    </a>
+    <p>Fallback APOD article page.</p>
+  </body>
+</html>
+HTML;
     }
 
     private function imageFixtureBinary(): string

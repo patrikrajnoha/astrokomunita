@@ -5,6 +5,7 @@ namespace App\Services\Crawlers;
 use App\Enums\EventSource;
 use App\Models\CrawlRun;
 use App\Models\EventSource as EventSourceModel;
+use App\Services\Crawlers\Astropixels\AstropixelsYearUnavailableException;
 use App\Services\EventImport\EventImportService;
 use Carbon\CarbonImmutable;
 use Throwable;
@@ -86,6 +87,18 @@ class CrawlerOrchestrator
                 'error_log' => null,
                 'error_summary' => null,
             ]);
+        } catch (AstropixelsYearUnavailableException $e) {
+            $finishedAt = CarbonImmutable::now('UTC');
+
+            $run->update([
+                'finished_at' => $finishedAt,
+                'duration_ms' => $startedAt->diffInMilliseconds($finishedAt),
+                'status' => 'skipped',
+                'errors_count' => 0,
+                'error_code' => 'astropixels_year_unavailable',
+                'error_log' => null,
+                'error_summary' => $this->truncateText($e->getMessage(), 2000),
+            ]);
         } catch (Throwable $e) {
             $finishedAt = CarbonImmutable::now('UTC');
             $summary = mb_substr($e->getMessage(), 0, 2000);
@@ -108,13 +121,28 @@ class CrawlerOrchestrator
     {
         return match ($source) {
             EventSource::ASTROPIXELS => sprintf(
-                (string) config('events.astropixels.base_url_pattern', 'https://astropixels.com/almanac/almanac21/almanac%dcet.html'),
-                $year
+                (string) config(
+                    'events.astropixels.base_url_pattern',
+                    'https://astropixels.com/almanac/almanac%2$02d/almanac%1$dcet.html'
+                ),
+                $year,
+                $this->resolveAstropixelsDecadeFolderCode($year)
             ),
-            EventSource::NASA => (string) config('bots.nasa_rss_url', 'https://www.nasa.gov/rss/dyn/breaking_news.rss'),
-            EventSource::NASA_WATCH_THE_SKIES => (string) config('events.nasa_watch_the_skies.url', 'https://science.nasa.gov/skywatching/'),
+            EventSource::NASA => (string) config('events.nasa.eclipses_year_url', 'https://aa.usno.navy.mil/api/eclipses/solar/year'),
+            EventSource::NASA_WATCH_THE_SKIES => (string) config(
+                'events.nasa_watch_the_skies.moon_phases_year_url',
+                config('events.nasa_watch_the_skies.url', 'https://aa.usno.navy.mil/api/moon/phases/year')
+            ),
             EventSource::IMO => (string) config('events.imo.url', 'https://www.imo.net/resources/calendar/'),
         };
+    }
+
+    private function resolveAstropixelsDecadeFolderCode(int $year): int
+    {
+        $normalizedYear = max(2001, $year);
+        $decadeStartYear = 2001 + intdiv($normalizedYear - 2001, 10) * 10;
+
+        return $decadeStartYear % 100;
     }
 
     private function encodeDiagnostics(array $diagnostics): ?string
@@ -155,6 +183,18 @@ class CrawlerOrchestrator
         }
         if (str_contains($message, 'IMO_PARSE_ERROR')) {
             return 'imo_parse_error';
+        }
+        if (str_contains($message, 'NASA_USNO_HTTP_ERROR')) {
+            return 'nasa_http_error';
+        }
+        if (str_contains($message, 'NASA_USNO_PARSE_ERROR')) {
+            return 'nasa_parse_error';
+        }
+        if (str_contains($message, 'NASA_WTS_HTTP_ERROR')) {
+            return 'nasa_wts_http_error';
+        }
+        if (str_contains($message, 'NASA_WTS_PARSE_ERROR')) {
+            return 'nasa_wts_parse_error';
         }
         if (str_contains($message, 'SSL')) {
             return 'crawler_ssl_error';

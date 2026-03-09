@@ -9,6 +9,7 @@ use App\Models\Event;
 use App\Models\EventCandidate;
 use App\Services\Events\EventCandidatePublisher;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -55,6 +56,9 @@ class EventCandidateReviewController extends Controller
             'run_id'      => ['nullable', 'integer', 'min:1'],
             'year'        => ['nullable', 'integer', 'min:2000', 'max:2100'],
             'month'       => ['nullable', 'integer', 'min:1', 'max:12'],
+            'week'        => ['nullable', 'integer', 'min:1', 'max:53'],
+            'date_from'   => ['nullable', 'date'],
+            'date_to'     => ['nullable', 'date', 'after_or_equal:date_from'],
             'q'           => ['nullable', 'string', 'max:200'],
             'limit'       => ['nullable', 'integer', 'min:1', 'max:5000'],
         ]);
@@ -67,6 +71,9 @@ class EventCandidateReviewController extends Controller
         $runId = $validated['run_id'] ?? null;
         $year = $validated['year'] ?? null;
         $month = $validated['month'] ?? null;
+        $week = $validated['week'] ?? null;
+        $dateFrom = isset($validated['date_from']) ? (string) $validated['date_from'] : null;
+        $dateTo = isset($validated['date_to']) ? (string) $validated['date_to'] : null;
         $q = isset($validated['q']) ? trim((string) $validated['q']) : null;
         $limit = (int) ($validated['limit'] ?? 1000);
 
@@ -104,20 +111,18 @@ class EventCandidateReviewController extends Controller
 
                     $qq->whereBetween('created_at', [$startedAt, $windowEnd]);
                 }
-            })
-            ->when($year && $month, function ($qq) use ($year, $month) {
-                $start = sprintf('%04d-%02d-01 00:00:00', (int) $year, (int) $month);
-                $end = date('Y-m-t 23:59:59', strtotime($start));
-                $qq->whereBetween('start_at', [$start, $end]);
-            })
-            ->when($q !== null && $q !== '', function ($qq) use ($q) {
-                $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
-                $qq->where(function ($sub) use ($like) {
-                    $sub->where('title', 'like', $like)
-                        ->orWhere('short', 'like', $like)
-                        ->orWhere('description', 'like', $like);
-                });
             });
+
+        $this->applyCalendarFilter($query, $year, $month, $week, $dateFrom, $dateTo);
+
+        $query->when($q !== null && $q !== '', function ($qq) use ($q) {
+            $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
+            $qq->where(function ($sub) use ($like) {
+                $sub->where('title', 'like', $like)
+                    ->orWhere('short', 'like', $like)
+                    ->orWhere('description', 'like', $like);
+            });
+        });
 
         $ids = $query
             ->where('status', EventCandidate::STATUS_PENDING)
@@ -242,6 +247,9 @@ class EventCandidateReviewController extends Controller
             'run_id'      => ['nullable', 'integer', 'min:1'],
             'year'        => ['nullable', 'integer', 'min:2000', 'max:2100'],
             'month'       => ['nullable', 'integer', 'min:1', 'max:12'],
+            'week'        => ['nullable', 'integer', 'min:1', 'max:53'],
+            'date_from'   => ['nullable', 'date'],
+            'date_to'     => ['nullable', 'date', 'after_or_equal:date_from'],
             'q'           => ['nullable', 'string', 'max:200'],
             'limit'       => ['nullable', 'integer', 'min:1', 'max:5000'],
         ]);
@@ -254,6 +262,9 @@ class EventCandidateReviewController extends Controller
         $runId = $validated['run_id'] ?? null;
         $year = $validated['year'] ?? null;
         $month = $validated['month'] ?? null;
+        $week = $validated['week'] ?? null;
+        $dateFrom = isset($validated['date_from']) ? (string) $validated['date_from'] : null;
+        $dateTo = isset($validated['date_to']) ? (string) $validated['date_to'] : null;
         $q = isset($validated['q']) ? trim((string) $validated['q']) : null;
         $limit = (int) ($validated['limit'] ?? 1000);
 
@@ -291,20 +302,18 @@ class EventCandidateReviewController extends Controller
 
                     $qq->whereBetween('created_at', [$startedAt, $windowEnd]);
                 }
-            })
-            ->when($year && $month, function ($qq) use ($year, $month) {
-                $start = sprintf('%04d-%02d-01 00:00:00', (int) $year, (int) $month);
-                $end = date('Y-m-t 23:59:59', strtotime($start));
-                $qq->whereBetween('start_at', [$start, $end]);
-            })
-            ->when($q !== null && $q !== '', function ($qq) use ($q) {
-                $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
-                $qq->where(function ($sub) use ($like) {
-                    $sub->where('title', 'like', $like)
-                        ->orWhere('short', 'like', $like)
-                        ->orWhere('description', 'like', $like);
-                });
             });
+
+        $this->applyCalendarFilter($query, $year, $month, $week, $dateFrom, $dateTo);
+
+        $query->when($q !== null && $q !== '', function ($qq) use ($q) {
+            $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
+            $qq->where(function ($sub) use ($like) {
+                $sub->where('title', 'like', $like)
+                    ->orWhere('short', 'like', $like)
+                    ->orWhere('description', 'like', $like);
+            });
+        });
 
         $ids = $query->orderByDesc('id')->limit($limit)->pluck('id')->map(fn ($id) => (int) $id)->all();
         if ($ids === []) {
@@ -399,6 +408,61 @@ class EventCandidateReviewController extends Controller
             'ok' => true,
             'candidate' => $candidate->fresh(),
         ]);
+    }
+
+    private function applyCalendarFilter(
+        Builder $query,
+        mixed $year,
+        mixed $month,
+        mixed $week,
+        ?string $dateFrom,
+        ?string $dateTo,
+    ): void {
+        $hasDateRange = ($dateFrom !== null && trim($dateFrom) !== '') || ($dateTo !== null && trim($dateTo) !== '');
+
+        if ($hasDateRange) {
+            $from = $dateFrom !== null && trim($dateFrom) !== ''
+                ? CarbonImmutable::parse($dateFrom)->startOfDay()
+                : null;
+            $to = $dateTo !== null && trim($dateTo) !== ''
+                ? CarbonImmutable::parse($dateTo)->endOfDay()
+                : null;
+
+            if ($from && $to) {
+                $query->whereBetween('start_at', [$from, $to]);
+                return;
+            }
+
+            if ($from) {
+                $query->where('start_at', '>=', $from);
+                return;
+            }
+
+            if ($to) {
+                $query->where('start_at', '<=', $to);
+            }
+
+            return;
+        }
+
+        if ($year && $month) {
+            $start = CarbonImmutable::create((int) $year, (int) $month, 1, 0, 0, 0);
+            $query->whereBetween('start_at', [$start->startOfDay(), $start->endOfMonth()->endOfDay()]);
+            return;
+        }
+
+        if ($year && $week) {
+            $start = CarbonImmutable::now()->setISODate((int) $year, (int) $week, 1)->startOfDay();
+            $end = CarbonImmutable::now()->setISODate((int) $year, (int) $week, 7)->endOfDay();
+            $query->whereBetween('start_at', [$start, $end]);
+            return;
+        }
+
+        if ($year) {
+            $start = CarbonImmutable::create((int) $year, 1, 1, 0, 0, 0)->startOfDay();
+            $end = CarbonImmutable::create((int) $year, 12, 31, 23, 59, 59)->endOfDay();
+            $query->whereBetween('start_at', [$start, $end]);
+        }
     }
 
     private function dispatchRetranslationJob(int $candidateId): void

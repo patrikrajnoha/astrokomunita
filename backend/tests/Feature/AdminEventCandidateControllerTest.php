@@ -124,6 +124,110 @@ class AdminEventCandidateControllerTest extends TestCase
         $response->assertJsonPath('data.0.id', $insideWindow->id);
     }
 
+    public function test_admin_can_preview_pending_duplicate_groups(): void
+    {
+        $this->actingAsAdmin();
+
+        $ids = $this->seedDuplicateCandidateGroup();
+
+        $response = $this->getJson('/api/admin/event-candidates/duplicates/preview?limit_groups=10&per_group=3');
+
+        $response->assertOk();
+        $response->assertJsonPath('status', 'ok');
+        $response->assertJsonPath('summary.group_count', 1);
+        $response->assertJsonPath('summary.duplicate_candidates', 2);
+        $response->assertJsonPath('groups.0.count', 3);
+        $response->assertJsonPath('groups.0.duplicates.0.id', $ids['duplicate_first']);
+        $response->assertJsonPath('groups.0.duplicates.1.id', $ids['duplicate_second']);
+        $response->assertJsonPath('groups.0.keeper.id', $ids['keeper']);
+    }
+
+    public function test_admin_can_merge_pending_duplicate_groups(): void
+    {
+        $this->actingAsAdmin();
+
+        $ids = $this->seedDuplicateCandidateGroup();
+
+        $response = $this->postJson('/api/admin/event-candidates/duplicates/merge', [
+            'limit_groups' => 10,
+            'dry_run' => false,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('status', 'ok');
+        $response->assertJsonPath('summary.group_count', 1);
+        $response->assertJsonPath('summary.merged_candidates', 2);
+        $response->assertJsonPath('groups.0.keeper_id', $ids['keeper']);
+        $response->assertJsonPath('groups.0.duplicate_ids.0', $ids['duplicate_first']);
+        $response->assertJsonPath('groups.0.duplicate_ids.1', $ids['duplicate_second']);
+
+        $this->assertDatabaseHas('event_candidates', [
+            'id' => $ids['duplicate_second'],
+            'status' => EventCandidate::STATUS_DUPLICATE,
+            'reject_reason' => 'auto_duplicate_merge',
+        ]);
+        $this->assertDatabaseHas('event_candidates', [
+            'id' => $ids['duplicate_first'],
+            'status' => EventCandidate::STATUS_DUPLICATE,
+            'reject_reason' => 'auto_duplicate_merge',
+        ]);
+        $this->assertDatabaseHas('event_candidates', [
+            'id' => $ids['keeper'],
+            'status' => EventCandidate::STATUS_PENDING,
+        ]);
+    }
+
+    /**
+     * @return array{keeper:int,duplicate_first:int,duplicate_second:int}
+     */
+    private function seedDuplicateCandidateGroup(): array
+    {
+        $first = EventCandidate::query()->create($this->candidatePayload([
+            'source_name' => 'astropixels',
+            'source_uid' => 'dup-1',
+            'external_id' => 'dup-1',
+            'stable_key' => 'dup-1',
+            'canonical_key' => 'meteor shower|2026-04-22|lyrids',
+            'confidence_score' => 0.70,
+            'matched_sources' => ['astropixels'],
+            'title' => 'Lyrids',
+            'start_at' => '2026-04-22 20:00:00',
+            'max_at' => '2026-04-22 20:00:00',
+        ]));
+
+        $second = EventCandidate::query()->create($this->candidatePayload([
+            'source_name' => 'imo',
+            'source_uid' => 'dup-2',
+            'external_id' => 'dup-2',
+            'stable_key' => 'dup-2',
+            'canonical_key' => 'meteor shower|2026-04-22|lyrids',
+            'confidence_score' => 0.90,
+            'matched_sources' => ['imo'],
+            'title' => 'Lyrids meteor shower',
+            'start_at' => '2026-04-22 20:00:00',
+            'max_at' => '2026-04-22 20:00:00',
+        ]));
+
+        $third = EventCandidate::query()->create($this->candidatePayload([
+            'source_name' => 'nasa_wts',
+            'source_uid' => 'dup-3',
+            'external_id' => 'dup-3',
+            'stable_key' => 'dup-3',
+            'canonical_key' => 'meteor shower|2026-04-22|lyrids',
+            'confidence_score' => 1.00,
+            'matched_sources' => ['astropixels', 'imo', 'nasa_wts'],
+            'title' => 'Lyrids (LEO)',
+            'start_at' => '2026-04-22 20:00:00',
+            'max_at' => '2026-04-22 20:00:00',
+        ]));
+
+        return [
+            'keeper' => (int) $third->id,
+            'duplicate_first' => (int) $second->id,
+            'duplicate_second' => (int) $first->id,
+        ];
+    }
+
     /**
      * @param array<string,mixed> $overrides
      * @return array<string,mixed>

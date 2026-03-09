@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Crawlers\Astropixels\AstropixelsYearCatalogService;
 use App\Services\Crawlers\AstropixelsCrawlerService;
 use App\Services\Crawlers\CrawlContext;
 use App\Services\Crawlers\CrawlerOrchestrator;
@@ -22,6 +23,7 @@ class CrawlAstropixelsEventsCommand extends Command
     public function __construct(
         private readonly AstropixelsCrawlerService $crawler,
         private readonly CrawlerOrchestrator $orchestrator,
+        private readonly AstropixelsYearCatalogService $yearCatalogService,
     ) {
         parent::__construct();
     }
@@ -102,9 +104,22 @@ class CrawlAstropixelsEventsCommand extends Command
     private function resolveYears(): array
     {
         $minYear = (int) config('events.astropixels.min_year', 2021);
-        $maxYear = (int) config('events.astropixels.max_year', 2030);
+        $maxYear = (int) config('events.astropixels.max_year', 2100);
 
         if ((bool) $this->option('all-years')) {
+            $snapshot = $this->yearCatalogService->snapshot();
+            $status = (string) ($snapshot['status'] ?? '');
+            $catalogYears = array_map('intval', (array) ($snapshot['available_years'] ?? []));
+            $catalogYears = array_values(array_filter(
+                $catalogYears,
+                static fn (int $year): bool => $year >= $minYear && $year <= $maxYear
+            ));
+            sort($catalogYears);
+
+            if ($status === 'ok' && $catalogYears !== []) {
+                return $catalogYears;
+            }
+
             return range($minYear, $maxYear);
         }
 

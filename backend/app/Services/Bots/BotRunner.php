@@ -136,7 +136,10 @@ class BotRunner
 
         $this->recoverStaleRunsIfNeeded($source, $run, $stats, $runMeta);
 
-        if ($this->isSourceInCooldown($source)) {
+        $inCooldown = $this->isSourceInCooldown($source);
+        $cooldownBypassed = $inCooldown && $this->shouldBypassCooldown($context, $forceManualOverride);
+
+        if ($inCooldown && !$cooldownBypassed) {
             $status = BotRunStatus::SKIPPED;
             $stats['skipped_count']++;
             $runMeta = array_replace($runMeta, $this->buildCooldownSkipMeta($source));
@@ -188,6 +191,13 @@ class BotRunner
             $finalizedRun = $this->finalizeRunSafely($run, $status, $stats, $errorText, $runMeta);
 
             return $finalizedRun;
+        }
+
+        if ($cooldownBypassed) {
+            $runMeta['cooldown_bypassed'] = true;
+            if ($source->cooldown_until instanceof Carbon) {
+                $runMeta['cooldown_until'] = $source->cooldown_until->copy()->toIso8601String();
+            }
         }
 
         $status = BotRunStatus::SUCCESS;
@@ -951,6 +961,15 @@ class BotRunner
         }
 
         return $publishLimit;
+    }
+
+    private function shouldBypassCooldown(string $runContext, bool $forceManualOverride): bool
+    {
+        if (!$forceManualOverride) {
+            return false;
+        }
+
+        return in_array($runContext, ['manual', 'admin', 'cli'], true);
     }
 
     /**

@@ -8,6 +8,8 @@ class AstronomyPhraseNormalizer
      * @var array<string,string>
      */
     private const SK_PATTERNS = [
+        '/\bprv(?:[iIyY]|\x{00FD}|\x{0130}|\x{0131})\s+(?:\x{0161}tvr(?:\x{0165}|t)|stvrt)\s+mesiac(?:a|om)?\b/iu' => "Prv\u{00E1} \u{0161}tvr\u{0165} Mesiaca",
+        '/\bposledn(?:[iIyY]|\x{00FD}|\x{0130}|\x{0131})\s+(?:\x{0161}tvr(?:\x{0165}|t)|stvrt)\s+mesiac(?:a|om)?\b/iu' => "Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca",
         '/\bprv(?:a|\x{00E1})\s+tla(?:c|\x{010D})\s+mesiaca\b/iu' => "Prv\u{00E1} \u{0161}tvr\u{0165} Mesiaca",
         '/\bpolo(?:z|\x{017E})en(?:a|\x{00E1})\s+tla(?:c|\x{010D})\s+mesiaca\b/iu' => "Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca",
         '/\bprv(?:[iIyY]|\x{00FD}|\x{0130}|\x{0131})\s+(?:quarter|kvartn\pL*|\x{0161}t[a\x{00E1}]t|stat)\s+moon\b/iu' => "Prv\u{00E1} \u{0161}tvr\u{0165} Mesiaca",
@@ -20,6 +22,28 @@ class AstronomyPhraseNormalizer
         '/\bfull\s+moon\b/iu' => 'Spln',
         '/\blunar\s+eclipse\b/iu' => "Mesa\u{010D}n\u{00E9} zatmenie",
         '/\bsolar\s+eclipse\b/iu' => "Slne\u{010D}n\u{00E9} zatmenie",
+        '/\blunar\s+phase\b/iu' => "f\u{00E1}za Mesiaca",
+        '/\bgeminid(?:s)?\b/iu' => 'Geminidy',
+        '/\bperseid(?:s)?\b/iu' => 'Perzeidy',
+        '/\bleonid(?:s)?\b/iu' => 'Leonidy',
+        '/\blyrid(?:s)?\b/iu' => 'Lyridy',
+        '/\borionid(?:s)?\b/iu' => 'Orionidy',
+        '/\bquadrantid(?:s)?\b/iu' => 'Kvadrantidy',
+        '/\bursid(?:s)?\b/iu' => 'Ursidy',
+        '/\bdelta-aquarid(?:s)?\b/iu' => 'Delta-Akvaridy',
+        '/\beta-aquarid(?:s)?\b/iu' => 'Eta-Akvaridy',
+        '/\bs\s+taurid(?:s)?\b/iu' => 'Juzne Tauridy',
+        '/\bn\s+taurid(?:s)?\b/iu' => 'Severne Tauridy',
+        '/\btaurid(?:s)?\b/iu' => 'Tauridy',
+        '/\b([\pL][\pL\-]*(?:\s+[\pL][\pL\-]*){0,3})(?:\s+\([A-Z]{2,5}\))?\s+meteor\s+sprcha\b/iu' => 'Meteoricky roj $1',
+        '/\b([\pL][\pL\-]*(?:\s+[\pL][\pL\-]*){0,3})(?:\s+\([A-Z]{2,5}\))?\s+meteorick(?:\x{00E1}|a)\s+sprcha\b/iu' => 'Meteoricky roj $1',
+        '/\b([\pL][\pL\-]*(?:\s+[\pL][\pL\-]*){0,3})(?:\s+\([A-Z]{2,5}\))?\s+meteor(?:ic)?\s+shower\b/iu' => 'Meteoricky roj $1',
+        '/\b([\pL][\pL\-]*(?:\s+[\pL][\pL\-]*){0,3})(?:\s+\([A-Z]{2,5}\))?\s+meteorick(?:\x{00FD}|y)\s+roj\b/iu' => 'Meteoricky roj $1',
+        '/\bmeteorick(?:\x{00E1}|a)\s+sprcha\b/iu' => 'meteoricky roj',
+        '/\bmeteor\s+sprcha\b/iu' => 'meteoricky roj',
+        '/\bmeteor\s+shower\b/iu' => "meteorick\u{00FD} roj",
+        '/\bvisibility\s+from\s+slovakia\b/iu' => "vidite\u{013E}nos\u{0165} zo Slovenska",
+        '/\bdepends\s+on\s+local\s+weather\b/iu' => "z\u{00E1}vis\u{00ED} od miestneho po\u{010D}asia",
         '/\bin\s+conjunction\s+with\s+sun\b/iu' => 'v konjunkcii so Slnkom',
         '/\bin\s+conjunction\s+with\s+slnko\b/iu' => 'v konjunkcii so Slnkom',
         '/\bin\s+conjunction\s+with\b/iu' => 'v konjunkcii s',
@@ -45,6 +69,13 @@ class AstronomyPhraseNormalizer
         '/\b(?:superior|inferior)\s+conjunction\b/iu',
         '/\bconjunction\b/iu',
         '/\bquarter\s+moon\b/iu',
+        '/\bmeteor\s+sprcha\b/iu',
+        '/\bmeteorick(?:\x{00E1}|a)\s+sprcha\b/iu',
+        '/\bmeteor\s+shower\b/iu',
+        '/\bmeteoric\s+shower\b/iu',
+        '/\blunar\s+phase\b/iu',
+        '/\bvisibility\s+from\s+slovakia\b/iu',
+        '/\bdepends\s+on\s+local\s+weather\b/iu',
         '/\bwith\s+(?:sun|moon)\b/iu',
         '/\bwith\s+slnko\b/iu',
         '/\bwith\s+mesiac(?:om|a)?\b/iu',
@@ -170,6 +201,7 @@ class AstronomyPhraseNormalizer
         }
 
         $normalized = preg_replace('/\s+/u', ' ', $normalized) ?? $normalized;
+
         return trim($normalized);
     }
 
@@ -247,7 +279,7 @@ class AstronomyPhraseNormalizer
     }
 
     /**
-     * @param array{title:string,planet:string,type:string} $expected
+     * @param  array{title:string,planet:string,type:string}  $expected
      */
     private function isDeterministicPlanetMismatch(string $candidateTitle, array $expected): bool
     {
@@ -333,6 +365,7 @@ class AstronomyPhraseNormalizer
     {
         $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
         $normalized = $ascii !== false ? strtolower($ascii) : strtolower($value);
+
         return preg_replace('/[^a-z]+/', '', $normalized) ?? '';
     }
 }

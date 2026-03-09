@@ -1,0 +1,41 @@
+{
+  "apiversion": "4.0.1",
+  "geometry": {
+    "coordinates": [
+      17.1077,
+      48.1486
+    ],
+    "height": "150m",
+    "type": "Point"
+  },
+  "properties": {
+    "day": 12,
+    "delta_t": "74.0s",
+    "description": "Sun in Partial Eclipse at this Location",
+    "duration": "0h 48m 38.2s",
+    "event": "Solar Eclipse of 2026 Aug. 12",
+    "local_data": [
+      {
+        "altitude": "6.8",
+        "azimuth": "284.6",
+        "day": "12",
+        "phenomenon": "Eclipse Begins",
+        "position_angle": "289.2",
+        "time": "17:21:56.8",
+        "vertex_angle": "247.3"
+      },
+      {
+        "altitude": "----",
+        "azimuth": "293.5",
+        "day": "12",
+        "phenomenon": "Sunset",
+        "time": "18:11"
+      }
+    ],
+    "magnitude": "0.893",
+    "month": 8,
+    "obscuration": "87.2%",
+    "year": 2026
+  },
+  "type": "Feature"
+}

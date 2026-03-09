@@ -186,6 +186,17 @@ class AdminUserController extends Controller
         return response()->json($this->mapUser($user));
     }
 
+    public function reactivate(Request $request, int $id)
+    {
+        $user = User::findOrFail($id);
+        $this->ensureAllowed($request, 'reactivate', $user);
+
+        $user->is_active = true;
+        $user->save();
+
+        return response()->json($this->mapUser($user));
+    }
+
     public function resetProfile(Request $request, int $id)
     {
         $user = User::findOrFail($id);

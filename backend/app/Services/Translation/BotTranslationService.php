@@ -17,8 +17,7 @@ class BotTranslationService implements BotTranslationServiceInterface
         private readonly LibreTranslateClient $libreTranslateClient,
         private readonly OllamaTranslateClient $ollamaTranslateClient,
         private readonly TranslationOutageSimulationService $outageSimulation,
-    ) {
-    }
+    ) {}
 
     public function translate(?string $title, ?string $content, string $to = 'sk'): array
     {
@@ -163,7 +162,7 @@ class BotTranslationService implements BotTranslationServiceInterface
     }
 
     /**
-     * @param list<string> $providerOrder
+     * @param  list<string>  $providerOrder
      * @return array{
      *   text:string,
      *   provider:string,
@@ -233,7 +232,7 @@ class BotTranslationService implements BotTranslationServiceInterface
     }
 
     /**
-     * @param list<string> $providerOrder
+     * @param  list<string>  $providerOrder
      * @return array{
      *   text:string,
      *   provider:string,
@@ -252,8 +251,7 @@ class BotTranslationService implements BotTranslationServiceInterface
         string $targetLang,
         string $sourceLang,
         array $providerOrder
-    ): array
-    {
+    ): array {
         $errors = [];
 
         foreach ($providerOrder as $index => $providerName) {
@@ -337,7 +335,7 @@ class BotTranslationService implements BotTranslationServiceInterface
         }
 
         $errorText = $errors !== [] ? implode(' | ', $errors) : 'no_provider_available';
-        throw new BotTranslationException('Translation failed. ' . $this->limitText($errorText, 500));
+        throw new BotTranslationException('Translation failed. '.$this->limitText($errorText, 500));
     }
 
     /**
@@ -364,7 +362,7 @@ class BotTranslationService implements BotTranslationServiceInterface
     }
 
     /**
-     * @param list<string> $providerOrder
+     * @param  list<string>  $providerOrder
      * @return array{
      *   text:string,
      *   provider:?string,
@@ -385,7 +383,7 @@ class BotTranslationService implements BotTranslationServiceInterface
     ): array {
         $qualityEnabled = (bool) config('bots.translation.quality.enabled', true);
         $flags = $qualityEnabled
-            ? $this->evaluateQualityFlags($originalText, $translatedText)
+            ? $this->evaluateQualityFlags($originalText, $translatedText, $targetLang)
             : [];
 
         if ($flags === []) {
@@ -401,7 +399,7 @@ class BotTranslationService implements BotTranslationServiceInterface
             ];
         }
 
-        if (!in_array('ollama', $providerOrder, true)) {
+        if (! in_array('ollama', $providerOrder, true)) {
             return [
                 'text' => $translatedText,
                 'provider' => null,
@@ -451,7 +449,7 @@ class BotTranslationService implements BotTranslationServiceInterface
                 $providerChain[] = 'ollama_direct';
                 $mode = 'ollama_direct';
                 $retryCount++;
-                $flags = $this->evaluateQualityFlags($originalText, $resultText);
+                $flags = $this->evaluateQualityFlags($originalText, $resultText, $targetLang);
             } catch (Throwable $exception) {
                 Log::warning('Bot translation quality retry failed.', [
                     'provider' => 'ollama',
@@ -477,14 +475,16 @@ class BotTranslationService implements BotTranslationServiceInterface
     /**
      * @return list<string>
      */
-    private function evaluateQualityFlags(string $originalText, string $translatedText): array
+    private function evaluateQualityFlags(string $originalText, string $translatedText, string $targetLang): array
     {
         $flags = [];
         $original = trim($originalText);
         $translated = trim($translatedText);
+        $targetLanguage = strtolower(trim($targetLang));
 
         if ($translated === '') {
             $flags[] = 'empty_result';
+
             return $flags;
         }
 
@@ -505,9 +505,89 @@ class BotTranslationService implements BotTranslationServiceInterface
             $flags[] = 'too_much_en';
         }
 
+        if ($targetLanguage === 'sk' && $this->hasEnglishFragmentsForSlovak($translated)) {
+            $flags[] = 'contains_en_connectors';
+        }
+
+        if ($targetLanguage === 'sk' && $this->hasEncodingArtifacts($translated)) {
+            $flags[] = 'encoding_artifacts';
+        }
+
         return array_values(array_unique($flags));
     }
 
+    private function hasEnglishFragmentsForSlovak(string $text): bool
+    {
+        $normalized = strtolower(trim($text));
+        if ($normalized === '') {
+            return false;
+        }
+
+        $knownBadPhrasePattern = '/\b('
+            .'in conjunction with'
+            .'|inferior conjunction'
+            .'|superior conjunction'
+            .'|first quarter moon'
+            .'|last quarter moon'
+            .'|full moon'
+            .'|new moon'
+            .'|meteor shower'
+            .'|solar eclipse'
+            .'|lunar eclipse'
+            .'|occurs on'
+            .'|visible from'
+            .')\b/iu';
+
+        if (preg_match($knownBadPhrasePattern, $normalized) === 1) {
+            return true;
+        }
+
+        preg_match_all('/\b[a-z]{2,12}\b/u', $normalized, $matches);
+        $tokens = $matches[0] ?? [];
+        if ($tokens === []) {
+            return false;
+        }
+
+        $connectors = [
+            'with',
+            'from',
+            'into',
+            'during',
+            'around',
+            'between',
+            'before',
+            'after',
+            'occurs',
+            'moon',
+            'sun',
+            'conjunction',
+            'meteor',
+            'shower',
+            'peak',
+            'visible',
+            'maximum',
+            'minimum',
+        ];
+
+        $count = 0;
+        foreach ($tokens as $token) {
+            if (! in_array($token, $connectors, true)) {
+                continue;
+            }
+
+            $count++;
+            if ($count >= 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasEncodingArtifacts(string $text): bool
+    {
+        return preg_match('/(?:[\x{00C3}\x{00C2}\x{00C4}\x{0139}\x{0102}][^\s]|\x{00E2}[^\s]{1,2}|\x{FFFD})/u', $text) === 1;
+    }
     private function normalizedForComparison(string $value): string
     {
         return strtolower(trim(preg_replace('/\s+/u', ' ', $value) ?? ''));
@@ -529,7 +609,7 @@ class BotTranslationService implements BotTranslationServiceInterface
             if ($tokenText === '') {
                 continue;
             }
-            if (!preg_match('/^[a-z]{3,}$/i', $tokenText)) {
+            if (! preg_match('/^[a-z]{3,}$/i', $tokenText)) {
                 continue;
             }
             if (strtoupper($tokenText) === $tokenText && strlen($tokenText) <= 6) {
@@ -542,26 +622,27 @@ class BotTranslationService implements BotTranslationServiceInterface
     }
 
     /**
-     * @param list<string> $providerOrder
+     * @param  list<string>  $providerOrder
      */
     private function shouldUsePostEdit(string $targetLang, array $providerOrder): bool
     {
         if (strtolower(trim($targetLang)) !== 'sk') {
             return false;
         }
-        if (!(bool) config('bots.translation.post_edit.enabled', true)) {
+        if (! (bool) config('bots.translation.post_edit.enabled', true)) {
             return false;
         }
-        if (!in_array('ollama', $providerOrder, true)) {
+        if (! in_array('ollama', $providerOrder, true)) {
             return false;
         }
 
         $requireFallback = (bool) config('bots.translation.post_edit.require_ollama_fallback', true);
-        if (!$requireFallback) {
+        if (! $requireFallback) {
             return true;
         }
 
         $configuredFallback = $this->normalizeProviderName((string) config('bots.translation.fallback', 'ollama'));
+
         return $configuredFallback === 'ollama';
     }
 
@@ -571,7 +652,7 @@ class BotTranslationService implements BotTranslationServiceInterface
     private function protectTermsInText(string $text): array
     {
         $protectedTerms = config('bots.translation.protected_terms', []);
-        if (!is_array($protectedTerms) || $protectedTerms === []) {
+        if (! is_array($protectedTerms) || $protectedTerms === []) {
             return ['text' => $text, 'map' => []];
         }
 
@@ -590,13 +671,14 @@ class BotTranslationService implements BotTranslationServiceInterface
         $counter = 0;
 
         foreach ($terms as $term) {
-            $pattern = '/' . preg_quote($term, '/') . '/iu';
+            $pattern = '/'.preg_quote($term, '/').'/iu';
             $protectedText = (string) preg_replace_callback(
                 $pattern,
                 function (array $matches) use (&$map, &$counter): string {
                     $counter++;
                     $placeholder = sprintf('__AKPH_%d__', $counter);
                     $map[$placeholder] = (string) ($matches[0] ?? '');
+
                     return $placeholder;
                 },
                 $protectedText
@@ -607,7 +689,7 @@ class BotTranslationService implements BotTranslationServiceInterface
     }
 
     /**
-     * @param array<string,string> $map
+     * @param  array<string,string>  $map
      */
     private function restoreProtectedTerms(string $text, array $map): string
     {
@@ -618,7 +700,7 @@ class BotTranslationService implements BotTranslationServiceInterface
         $restored = str_replace(array_keys($map), array_values($map), $text);
 
         foreach ($map as $placeholder => $original) {
-            if (!is_string($placeholder) || !is_string($original) || $original === '') {
+            if (! is_string($placeholder) || ! is_string($original) || $original === '') {
                 continue;
             }
 
@@ -632,7 +714,7 @@ class BotTranslationService implements BotTranslationServiceInterface
             }
 
             // Some providers normalize placeholders into "AKPH 1" or legacy "TERM 1".
-            $variantPattern = '/\b(?:AKPH|TERM)[\s_]*' . preg_quote($id, '/') . '\b/iu';
+            $variantPattern = '/\b(?:AKPH|TERM)[\s_]*'.preg_quote($id, '/').'\b/iu';
             $restored = (string) preg_replace($variantPattern, $original, $restored);
         }
 
@@ -642,7 +724,7 @@ class BotTranslationService implements BotTranslationServiceInterface
     private function applyTerminologyMap(string $text): string
     {
         $map = config('bots.translation.terminology_map', []);
-        if (!is_array($map) || $map === []) {
+        if (! is_array($map) || $map === []) {
             return $text;
         }
 
@@ -654,7 +736,7 @@ class BotTranslationService implements BotTranslationServiceInterface
                 continue;
             }
 
-            $pattern = '/(?<!\pL)' . preg_quote($source, '/') . '(?!\pL)/iu';
+            $pattern = '/(?<!\pL)'.preg_quote($source, '/').'(?!\pL)/iu';
             $result = (string) preg_replace($pattern, $target, $result);
         }
 
@@ -753,9 +835,10 @@ class BotTranslationService implements BotTranslationServiceInterface
                 continue;
             }
 
-            $candidate = $buffer === '' ? $paragraph : ($buffer . "\n\n" . $paragraph);
+            $candidate = $buffer === '' ? $paragraph : ($buffer."\n\n".$paragraph);
             if ($this->stringLength($candidate) <= $maxChars) {
                 $buffer = $candidate;
+
                 continue;
             }
 
@@ -801,9 +884,10 @@ class BotTranslationService implements BotTranslationServiceInterface
                 continue;
             }
 
-            $candidate = $buffer === '' ? $sentence : ($buffer . ' ' . $sentence);
+            $candidate = $buffer === '' ? $sentence : ($buffer.' '.$sentence);
             if ($this->stringLength($candidate) <= $maxChars) {
                 $buffer = $candidate;
+
                 continue;
             }
 
@@ -887,6 +971,7 @@ class BotTranslationService implements BotTranslationServiceInterface
     private function normalizeSourceLanguage(string $value): string
     {
         $normalized = strtolower(trim($value));
+
         return $normalized !== '' ? $normalized : 'auto';
     }
 
@@ -913,7 +998,7 @@ class BotTranslationService implements BotTranslationServiceInterface
     }
 
     /**
-     * @param list<string> $providers
+     * @param  list<string>  $providers
      */
     private function resolveCombinedProviderFromList(array $providers): string
     {
@@ -935,7 +1020,7 @@ class BotTranslationService implements BotTranslationServiceInterface
     }
 
     /**
-     * @param list<string> $modes
+     * @param  list<string>  $modes
      */
     private function resolveModeFromList(array $modes): string
     {
@@ -957,8 +1042,8 @@ class BotTranslationService implements BotTranslationServiceInterface
     }
 
     /**
-     * @param list<string> $a
-     * @param list<string> $b
+     * @param  list<string>  $a
+     * @param  list<string>  $b
      * @return list<string>
      */
     private function mergeStringLists(array $a, array $b): array
@@ -986,7 +1071,7 @@ class BotTranslationService implements BotTranslationServiceInterface
 
     private function isLikelySlovak(string $title, string $content): bool
     {
-        $combined = trim($title . ' ' . $content);
+        $combined = trim($title.' '.$content);
         if ($combined === '') {
             return false;
         }
@@ -1000,7 +1085,7 @@ class BotTranslationService implements BotTranslationServiceInterface
             ? mb_strtolower($combined, 'UTF-8')
             : strtolower($combined);
 
-        preg_match_all('/[ĂˇĂ¤ÄŤÄŹĂ©Ă­ÄşÄľĹĂłĂ´Ĺ•ĹˇĹĄĂşĂ˝Ĺľ]/u', $normalized, $diacriticsMatches);
+        preg_match_all('/[\x{00E1}\x{00E4}\x{010D}\x{010F}\x{00E9}\x{00ED}\x{013A}\x{013E}\x{0148}\x{00F3}\x{00F4}\x{0155}\x{0161}\x{0165}\x{00FA}\x{00FD}\x{017E}]/u', $normalized, $diacriticsMatches);
         $diacriticsCount = count($diacriticsMatches[0] ?? []);
         if ($diacriticsCount < 3) {
             return false;
@@ -1011,13 +1096,13 @@ class BotTranslationService implements BotTranslationServiceInterface
             ' sa ',
             ' v ',
             ' na ',
-            ' Ĺľe ',
+            " \u{017E}e ",
             ' pre ',
             ' ako ',
-            ' ktorĂ˝ ',
-            ' ktorĂˇ ',
-            ' ktorĂ© ',
-            ' sĂş ',
+            " ktor\u{00FD} ",
+            " ktor\u{00E1} ",
+            " ktor\u{00E9} ",
+            " s\u{00FA} ",
             ' sme ',
             ' bol ',
             ' bola ',
@@ -1025,7 +1110,7 @@ class BotTranslationService implements BotTranslationServiceInterface
         $englishHintsPattern = '/\b(the|and|with|for|from|this|that|are|was|were|mission|space|telescope)\b/u';
 
         $slovakHintCount = 0;
-        $padded = ' ' . $normalized . ' ';
+        $padded = ' '.$normalized.' ';
         foreach ($slovakHints as $hint) {
             if (str_contains($padded, $hint)) {
                 $slovakHintCount++;
@@ -1041,7 +1126,6 @@ class BotTranslationService implements BotTranslationServiceInterface
 
         return $englishHintCount <= ($slovakHintCount * 2);
     }
-
     private function nullableString(mixed $value): ?string
     {
         $normalized = trim((string) $value);

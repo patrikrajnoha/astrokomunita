@@ -13,6 +13,7 @@ class SidebarCustomComponent extends Model
     public const TYPE_INFO_CARD = SidebarWidgetConfigSchema::TYPE_INFO_CARD;
     public const TYPE_LINK_LIST = SidebarWidgetConfigSchema::TYPE_LINK_LIST;
     public const TYPE_HTML = SidebarWidgetConfigSchema::TYPE_HTML;
+    public const TYPE_CONTEST = SidebarWidgetConfigSchema::TYPE_CONTEST;
 
     public const TYPE_SPECIAL_EVENT = SidebarWidgetConfigSchema::LEGACY_TYPE_SPECIAL_EVENT;
 

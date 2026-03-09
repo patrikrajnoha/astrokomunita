@@ -58,7 +58,7 @@ class BotTranslationServiceTest extends TestCase
         $paragraphOne = 'First paragraph has enough words for chunking.';
         $paragraphTwo = 'Second paragraph also keeps the chunk flowing.';
         $paragraphThree = 'Third paragraph confirms merge behavior.';
-        $input = $paragraphOne . "\n\n" . $paragraphTwo . "\n\n" . $paragraphThree;
+        $input = $paragraphOne."\n\n".$paragraphTwo."\n\n".$paragraphThree;
 
         $libre = $this->createMock(LibreTranslateClient::class);
         $captured = [];
@@ -68,7 +68,7 @@ class BotTranslationServiceTest extends TestCase
                 $captured[] = $text;
 
                 return [
-                    'text' => 'SK<' . $text . '>',
+                    'text' => 'SK<'.$text.'>',
                     'provider' => 'libretranslate',
                     'model' => null,
                     'duration_ms' => 10,
@@ -85,7 +85,7 @@ class BotTranslationServiceTest extends TestCase
         $this->assertCount(3, $captured);
         $this->assertSame('done', $result['status']);
         $this->assertSame(
-            'SK<' . $paragraphOne . ">\n\nSK<" . $paragraphTwo . ">\n\nSK<" . $paragraphThree . '>',
+            'SK<'.$paragraphOne.">\n\nSK<".$paragraphTwo.">\n\nSK<".$paragraphThree.'>',
             $result['translated_content']
         );
         $this->assertSame('libretranslate', $result['meta']['provider']);
@@ -173,6 +173,87 @@ class BotTranslationServiceTest extends TestCase
         $this->assertSame(1, (int) $result['meta']['quality_retry_count']);
     }
 
+    public function test_quality_retry_runs_when_slovak_output_contains_english_connectors(): void
+    {
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'ollama');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', true);
+        config()->set('bots.translation.quality.max_retries', 1);
+        config()->set('bots.translation.quality.min_length_ratio', 0.1);
+        config()->set('bots.translation.quality.max_english_ratio', 1.0);
+
+        $libre = $this->createMock(LibreTranslateClient::class);
+        $libre->expects($this->once())
+            ->method('translate')
+            ->willReturn([
+                'text' => 'Saturn with Slnko',
+                'provider' => 'libretranslate',
+                'model' => null,
+                'duration_ms' => 10,
+                'chars' => 40,
+            ]);
+
+        $ollama = $this->createMock(OllamaTranslateClient::class);
+        $ollama->expects($this->once())
+            ->method('translateDirect')
+            ->willReturn([
+                'text' => 'Saturn v konjunkcii so Slnkom',
+                'provider' => 'ollama',
+                'model' => 'mistral',
+                'duration_ms' => 25,
+                'chars' => 40,
+            ]);
+
+        $service = $this->makeService($libre, $ollama);
+        $result = $service->translate('Saturn in Conjunction with Sun', null, 'sk');
+
+        $this->assertSame('done', $result['status']);
+        $this->assertSame('Saturn v konjunkcii so Slnkom', $result['translated_title']);
+        $this->assertSame('ollama', $result['meta']['provider']);
+        $this->assertSame(1, (int) $result['meta']['quality_retry_count']);
+    }
+
+    public function test_quality_retry_runs_when_translation_has_encoding_artifacts(): void
+    {
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'ollama');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', true);
+        config()->set('bots.translation.quality.max_retries', 1);
+        config()->set('bots.translation.quality.min_length_ratio', 0.1);
+        config()->set('bots.translation.quality.max_english_ratio', 1.0);
+
+        $libre = $this->createMock(LibreTranslateClient::class);
+        $libre->expects($this->once())
+            ->method('translate')
+            ->willReturn([
+                'text' => "Venu\u{00C5}\u{00A1}a v Inferior Conjunction",
+                'provider' => 'libretranslate',
+                'model' => null,
+                'duration_ms' => 10,
+                'chars' => 42,
+            ]);
+
+        $ollama = $this->createMock(OllamaTranslateClient::class);
+        $ollama->expects($this->once())
+            ->method('translateDirect')
+            ->willReturn([
+                'text' => "Venu\u{0161}a v dolnej konjunkcii",
+                'provider' => 'ollama',
+                'model' => 'mistral',
+                'duration_ms' => 25,
+                'chars' => 42,
+            ]);
+
+        $service = $this->makeService($libre, $ollama);
+        $result = $service->translate('Venus at Inferior Conjunction', null, 'sk');
+
+        $this->assertSame('done', $result['status']);
+        $this->assertSame("Venu\u{0161}a v dolnej konjunkcii", $result['translated_title']);
+        $this->assertSame('ollama', $result['meta']['provider']);
+        $this->assertSame(1, (int) $result['meta']['quality_retry_count']);
+    }
     public function test_uses_ollama_post_edit_after_libretranslate_when_enabled(): void
     {
         config()->set('bots.translation.primary', 'libretranslate');
@@ -287,7 +368,7 @@ class BotTranslationServiceTest extends TestCase
                 $isTitle = str_contains($text, 'Meet Regina Senegal');
 
                 return [
-                    'text' => $isTitle ? 'NASA skĂşma novĂ© Ăşdaje.' : 'BezpeÄŤnosĹĄ a kvalita sĂş kÄľĂşÄŤovĂ© pre programy NASA.',
+                    'text' => $isTitle ? 'NASA skúma nové údaje.' : 'Bezpečnosť a kvalita sú kľúčové pre programy NASA.',
                     'provider' => 'libretranslate',
                     'model' => null,
                     'duration_ms' => 10,
@@ -301,7 +382,7 @@ class BotTranslationServiceTest extends TestCase
 
         $service = $this->makeService($libre, $ollama);
         $result = $service->translate(
-            "Meet Regina Senegal, Acting Chief of Johnsonâ€™s Quality and Flight Equipment Division",
+            'Meet Regina Senegal, Acting Chief of Johnson’s Quality and Flight Equipment Division',
             "Safety and quality management are integral to every program at NASA's Johnson Space Center.",
             'sk'
         );
@@ -326,8 +407,8 @@ class BotTranslationServiceTest extends TestCase
 
         $service = $this->makeService($libre, $ollama);
         $result = $service->translate(
-            'VesmĂ­rna agentĂşra dnes zverejnila novĂ© Ăşdaje o hviezdach.',
-            'TĂˇto sprĂˇva je v slovenÄŤine a obsahuje diakritiku pre sprĂˇvnu detekciu.',
+            'Vesmírna agentúra dnes zverejnila nové údaje o hviezdach.',
+            'Táto správa je v slovenčine a obsahuje diakritiku pre správnu detekciu.',
             'sk'
         );
 

@@ -15,12 +15,18 @@ class EventCandidate extends Model
 
     private static ?bool $hasTimeColumns = null;
 
-    public const STATUS_PENDING   = EventCandidateStatus::Pending->value;
-    public const STATUS_APPROVED  = EventCandidateStatus::Approved->value;
-    public const STATUS_REJECTED  = EventCandidateStatus::Rejected->value;
+    public const STATUS_PENDING = EventCandidateStatus::Pending->value;
+
+    public const STATUS_APPROVED = EventCandidateStatus::Approved->value;
+
+    public const STATUS_REJECTED = EventCandidateStatus::Rejected->value;
+
     public const STATUS_DUPLICATE = EventCandidateStatus::Duplicate->value;
+
     public const TRANSLATION_PENDING = 'pending';
+
     public const TRANSLATION_DONE = 'done';
+
     public const TRANSLATION_FAILED = 'failed';
 
     protected $fillable = [
@@ -34,6 +40,7 @@ class EventCandidate extends Model
         'canonical_key',
         'matched_sources',
         'source_hash',
+        'fingerprint_v2',
 
         'title',
         'original_title',
@@ -65,9 +72,9 @@ class EventCandidate extends Model
     ];
 
     protected $casts = [
-        'max_at'      => 'datetime',
-        'start_at'    => 'datetime',
-        'end_at'      => 'datetime',
+        'max_at' => 'datetime',
+        'start_at' => 'datetime',
+        'end_at' => 'datetime',
         'translated_at' => 'datetime',
         'reviewed_at' => 'datetime',
         'confidence_score' => 'decimal:2',

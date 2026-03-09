@@ -42,6 +42,7 @@ return [
         'image/gif',
     ],
     'post_image_max_pixels' => 10000,
+    'post_image_processing_max_pixels' => (int) env('POST_IMAGE_PROCESSING_MAX_PIXELS', 16000000),
     'post_image_web_max_width' => 1600,
     'post_image_webp_quality' => 80,
     'post_image_jpeg_quality' => 82,

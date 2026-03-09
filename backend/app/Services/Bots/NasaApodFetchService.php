@@ -9,6 +9,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
+use SimpleXMLElement;
 
 class NasaApodFetchService
 {
@@ -17,8 +18,21 @@ class NasaApodFetchService
      */
     public function fetch(BotSource $source): array
     {
-        $payload = $this->fetchJson((string) $source->url);
-        $row = $this->normalizePayload($payload);
+        try {
+            $payload = $this->fetchJson((string) $source->url);
+            $row = $this->normalizePayload($payload);
+        } catch (BotSourceRunException $exception) {
+            if (!$this->canFallbackToRss($exception)) {
+                throw $exception;
+            }
+
+            $fallbackRow = $this->fetchFromRssFallback($exception->failureReason());
+            if ($fallbackRow === null) {
+                throw $exception;
+            }
+
+            $row = $fallbackRow;
+        }
 
         if ($row === null) {
             return [];
@@ -108,6 +122,409 @@ class NasaApodFetchService
         }
 
         return $json;
+    }
+
+    private function canFallbackToRss(BotSourceRunException $exception): bool
+    {
+        if (!$this->isRssFallbackEnabled()) {
+            return false;
+        }
+
+        $reason = strtolower(trim($exception->failureReason()));
+
+        return in_array($reason, ['rate_limited', 'needs_api_key'], true);
+    }
+
+    /**
+     * @return array{stable_key:string,payload:array<string,mixed>}|null
+     */
+    private function fetchFromRssFallback(string $failureReason): ?array
+    {
+        $fallbackUrl = $this->resolveRssFallbackUrl();
+        if ($fallbackUrl === '') {
+            return null;
+        }
+
+        $timeoutSeconds = max(1, (int) config('bots.rss_timeout_seconds', 10));
+        $retryTimes = max(0, (int) config('bots.rss_retry_times', 2));
+        $retrySleepMs = max(0, (int) config('bots.rss_retry_sleep_ms', 250));
+        $attempts = $retryTimes + 1;
+
+        try {
+            $response = Http::secure()
+                ->accept('application/rss+xml, application/xml, text/xml')
+                ->timeout($timeoutSeconds)
+                ->retry($attempts, $retrySleepMs, null, false)
+                ->get($fallbackUrl);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (!$response->successful()) {
+            return null;
+        }
+
+        try {
+            $xml = $this->parseRssXml((string) $response->body());
+            $item = $this->extractFirstRssItem($xml);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (!$item) {
+            return null;
+        }
+
+        return $this->normalizeRssFallbackItem($item, strtolower(trim($failureReason)));
+    }
+
+    private function isRssFallbackEnabled(): bool
+    {
+        return (bool) config('bots.sources.nasa_apod_daily.enable_rss_fallback', true);
+    }
+
+    private function resolveRssFallbackUrl(): string
+    {
+        return trim((string) config(
+            'bots.sources.nasa_apod_daily.rss_fallback_url',
+            'https://apod.nasa.gov/apod.rss'
+        ));
+    }
+
+    private function parseRssXml(string $payload): SimpleXMLElement
+    {
+        libxml_use_internal_errors(true);
+        $xml = simplexml_load_string($payload, SimpleXMLElement::class, LIBXML_NOCDATA);
+
+        if ($xml !== false) {
+            return $xml;
+        }
+
+        $errors = libxml_get_errors();
+        libxml_clear_errors();
+        $message = trim((string) ($errors[0]->message ?? 'Failed to parse APOD RSS XML.'));
+        throw new RuntimeException($message !== '' ? $message : 'Failed to parse APOD RSS XML.');
+    }
+
+    private function extractFirstRssItem(SimpleXMLElement $xml): ?SimpleXMLElement
+    {
+        $items = null;
+
+        if (isset($xml->channel->item)) {
+            $items = $xml->channel->item;
+        } elseif (isset($xml->item)) {
+            $items = $xml->item;
+        }
+
+        if (!$items) {
+            return null;
+        }
+
+        $first = $items[0] ?? null;
+
+        return $first instanceof SimpleXMLElement ? $first : null;
+    }
+
+    /**
+     * @return array{stable_key:string,payload:array<string,mixed>}|null
+     */
+    private function normalizeRssFallbackItem(SimpleXMLElement $item, string $failureReason): ?array
+    {
+        $title = $this->normalizeText((string) ($item->title ?? ''));
+        $link = trim((string) ($item->link ?? ''));
+        $description = (string) ($item->description ?? '');
+        $contentEncoded = $this->extractRssContentEncoded($item);
+        $textSource = $contentEncoded !== '' ? $contentEncoded : $description;
+        $content = $this->normalizeText(strip_tags($textSource));
+        $imageUrl = $this->extractRssImageUrl($item, $contentEncoded, $description);
+        $imageUrl = $this->promoteRssFallbackImageUrl($imageUrl, $link);
+        $apodDate = $this->extractApodDateFromRss($item, $link);
+        $canonicalUrl = $link !== '' ? $link : $imageUrl;
+
+        if ($title === null && $content === null && $canonicalUrl === '') {
+            return null;
+        }
+
+        $mediaType = $imageUrl !== '' ? 'image' : 'video';
+        $publishedAt = $this->parseDate(
+            $apodDate !== '' ? $apodDate : trim((string) ($item->pubDate ?? ''))
+        );
+
+        return [
+            'stable_key' => $this->buildStableKey($apodDate, $canonicalUrl),
+            'payload' => [
+                'title' => $title ?? '',
+                'summary' => $content,
+                'content' => $content,
+                'url' => $canonicalUrl !== '' ? $canonicalUrl : null,
+                'published_at' => $publishedAt,
+                'fetched_at' => now(),
+                'lang_original' => 'en',
+                'meta' => [
+                    'apod_date' => $apodDate !== '' ? $apodDate : null,
+                    'image_url' => $imageUrl !== '' ? $imageUrl : null,
+                    'hdurl' => $imageUrl !== '' ? $imageUrl : null,
+                    'media_type' => $mediaType,
+                    'copyright' => null,
+                    'fallback_source' => 'apod_rss',
+                    'fallback_reason' => $failureReason,
+                ],
+            ],
+        ];
+    }
+
+    private function extractRssContentEncoded(SimpleXMLElement $item): string
+    {
+        try {
+            $content = $item->children('content', true);
+            return (string) ($content->encoded ?? '');
+        } catch (\Throwable) {
+            return '';
+        }
+    }
+
+    private function extractRssImageUrl(SimpleXMLElement $item, string $contentEncoded, string $description): string
+    {
+        try {
+            $media = $item->children('media', true);
+            if (isset($media->content)) {
+                $attrs = $media->content->attributes();
+                $url = isset($attrs['url']) ? trim((string) $attrs['url']) : '';
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+            if (isset($media->thumbnail)) {
+                $attrs = $media->thumbnail->attributes();
+                $url = isset($attrs['url']) ? trim((string) $attrs['url']) : '';
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        } catch (\Throwable) {
+            // ignore
+        }
+
+        try {
+            if (isset($item->enclosure)) {
+                $attrs = $item->enclosure->attributes();
+                $url = isset($attrs['url']) ? trim((string) $attrs['url']) : '';
+                if ($url !== '') {
+                    return $url;
+                }
+            }
+        } catch (\Throwable) {
+            // ignore
+        }
+
+        $html = $contentEncoded !== '' ? $contentEncoded : $description;
+        if ($html !== '' && preg_match('/<img[^>]+src=["\']([^"\']+)["\']/i', $html, $matches)) {
+            $url = trim((string) ($matches[1] ?? ''));
+            if ($url !== '') {
+                return $url;
+            }
+        }
+
+        return '';
+    }
+
+    private function promoteRssFallbackImageUrl(string $imageUrl, string $articleLink): string
+    {
+        $baseArticleUrl = $this->toAbsoluteUrl($articleLink, 'https://apod.nasa.gov/apod/astropix.html');
+        $normalizedImageUrl = $this->toAbsoluteUrl($imageUrl, $baseArticleUrl !== '' ? $baseArticleUrl : 'https://apod.nasa.gov/apod/');
+
+        if ($baseArticleUrl === '') {
+            return $normalizedImageUrl;
+        }
+
+        $articleImageUrl = $this->extractImageUrlFromApodArticle($baseArticleUrl);
+        if ($articleImageUrl === '') {
+            return $normalizedImageUrl;
+        }
+
+        if ($normalizedImageUrl === '') {
+            return $articleImageUrl;
+        }
+
+        if ($this->isApodCalendarThumbnail($normalizedImageUrl) && !$this->isApodCalendarThumbnail($articleImageUrl)) {
+            return $articleImageUrl;
+        }
+
+        return $normalizedImageUrl;
+    }
+
+    private function extractImageUrlFromApodArticle(string $articleUrl): string
+    {
+        $timeoutSeconds = max(1, (int) config('bots.rss_timeout_seconds', 10));
+        $retryTimes = max(0, (int) config('bots.rss_retry_times', 2));
+        $retrySleepMs = max(0, (int) config('bots.rss_retry_sleep_ms', 250));
+        $attempts = $retryTimes + 1;
+
+        try {
+            $response = Http::secure()
+                ->accept('text/html,application/xhtml+xml,*/*;q=0.8')
+                ->timeout($timeoutSeconds)
+                ->retry($attempts, $retrySleepMs, null, false)
+                ->get($articleUrl);
+        } catch (\Throwable) {
+            return '';
+        }
+
+        if (!$response->successful()) {
+            return '';
+        }
+
+        $html = (string) $response->body();
+        if (trim($html) === '') {
+            return '';
+        }
+
+        $best = $this->findBestImageCandidateFromHtml($html, '/<a[^>]+href=["\']([^"\']+)["\']/i', $articleUrl);
+        if ($best !== '') {
+            return $best;
+        }
+
+        return $this->findBestImageCandidateFromHtml($html, '/<img[^>]+src=["\']([^"\']+)["\']/i', $articleUrl);
+    }
+
+    private function findBestImageCandidateFromHtml(string $html, string $pattern, string $baseUrl): string
+    {
+        preg_match_all($pattern, $html, $matches);
+        $rawCandidates = is_array($matches[1] ?? null) ? $matches[1] : [];
+        $candidates = [];
+
+        foreach ($rawCandidates as $raw) {
+            $candidate = $this->toAbsoluteUrl((string) $raw, $baseUrl);
+            if ($candidate === '' || !$this->isLikelyImageUrl($candidate)) {
+                continue;
+            }
+
+            $candidates[] = $candidate;
+        }
+
+        if ($candidates === []) {
+            return '';
+        }
+
+        foreach ($candidates as $candidate) {
+            if (str_contains(strtolower($candidate), '/image/') && !$this->isApodCalendarThumbnail($candidate)) {
+                return $candidate;
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            if (!$this->isApodCalendarThumbnail($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $candidates[0];
+    }
+
+    private function toAbsoluteUrl(string $value, string $baseUrl): string
+    {
+        $url = trim($value);
+        if ($url === '') {
+            return '';
+        }
+
+        if (preg_match('/^https?:\/\//i', $url) === 1) {
+            return $url;
+        }
+
+        if (str_starts_with($url, '//')) {
+            return 'https:' . $url;
+        }
+
+        $base = trim($baseUrl);
+        if ($base === '') {
+            return '';
+        }
+
+        $scheme = (string) (parse_url($base, PHP_URL_SCHEME) ?: 'https');
+        $host = (string) (parse_url($base, PHP_URL_HOST) ?: '');
+        if ($host === '') {
+            return '';
+        }
+
+        if (str_starts_with($url, '/')) {
+            return sprintf('%s://%s%s', $scheme, $host, $url);
+        }
+
+        $basePath = (string) (parse_url($base, PHP_URL_PATH) ?: '/');
+        if (!str_ends_with($basePath, '/')) {
+            $basePath = dirname($basePath);
+        }
+        if ($basePath === '.' || $basePath === '\\') {
+            $basePath = '/';
+        }
+
+        $basePath = '/' . trim(str_replace('\\', '/', $basePath), '/');
+        if (!str_ends_with($basePath, '/')) {
+            $basePath .= '/';
+        }
+
+        return sprintf('%s://%s%s%s', $scheme, $host, $basePath, ltrim($url, '/'));
+    }
+
+    private function isLikelyImageUrl(string $url): bool
+    {
+        $path = strtolower(trim((string) parse_url($url, PHP_URL_PATH)));
+        if ($path === '') {
+            return false;
+        }
+
+        $extension = strtolower(trim((string) pathinfo($path, PATHINFO_EXTENSION)));
+        if ($extension === '') {
+            return false;
+        }
+
+        return in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true);
+    }
+
+    private function isApodCalendarThumbnail(string $url): bool
+    {
+        $path = strtolower(trim((string) parse_url($url, PHP_URL_PATH)));
+        if ($path === '') {
+            return false;
+        }
+
+        if (str_contains($path, '/calendar/')) {
+            return true;
+        }
+
+        return preg_match('/\/s_[0-9]{6}\.(jpg|jpeg|png|webp|gif)$/i', $path) === 1;
+    }
+
+    private function extractApodDateFromRss(SimpleXMLElement $item, string $link): string
+    {
+        if ($link !== '' && preg_match('/ap(\d{2})(\d{2})(\d{2})\.html/i', $link, $matches)) {
+            $year = $this->convertTwoDigitYearToFourDigits((int) $matches[1]);
+            $month = max(1, min(12, (int) $matches[2]));
+            $day = max(1, min(31, (int) $matches[3]));
+
+            return sprintf('%04d-%02d-%02d', $year, $month, $day);
+        }
+
+        $pubDate = trim((string) ($item->pubDate ?? ''));
+        if ($pubDate !== '') {
+            try {
+                return Carbon::parse($pubDate)->toDateString();
+            } catch (\Throwable) {
+                // ignore
+            }
+        }
+
+        return '';
+    }
+
+    private function convertTwoDigitYearToFourDigits(int $year): int
+    {
+        if ($year >= 95) {
+            return 1900 + $year;
+        }
+
+        return 2000 + $year;
     }
 
     /**

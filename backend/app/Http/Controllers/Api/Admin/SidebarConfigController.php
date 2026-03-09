@@ -18,10 +18,7 @@ use Illuminate\Validation\ValidationException;
 
 class SidebarConfigController extends Controller
 {
-    private const MAX_ENABLED_WIDGETS = 2;
-    private const EXCLUSIVE_SECTION_KEYS = [
-        'observing_conditions',
-    ];
+    private const MAX_ENABLED_WIDGETS = 3;
 
     public function index(Request $request): JsonResponse
     {
@@ -153,25 +150,7 @@ class SidebarConfigController extends Controller
 
         if (count($enabledItems) > self::MAX_ENABLED_WIDGETS) {
             throw ValidationException::withMessages([
-                'items' => ['Sidebar moze mat aktivne maximalne 2 widgety.'],
-            ]);
-        }
-
-        $hasExclusiveEnabled = false;
-        $hasNonExclusiveEnabled = false;
-        foreach ($enabledItems as $enabledItem) {
-            $sectionKey = (string) ($enabledItem['section_key'] ?? '');
-            if (in_array($sectionKey, self::EXCLUSIVE_SECTION_KEYS, true)) {
-                $hasExclusiveEnabled = true;
-                continue;
-            }
-
-            $hasNonExclusiveEnabled = true;
-        }
-
-        if ($hasExclusiveEnabled && $hasNonExclusiveEnabled) {
-            throw ValidationException::withMessages([
-                'items' => ['Observing Conditions widget musi byt v sidebare aktivny samostatne.'],
+                'items' => ['Sidebar moze mat aktivne maximalne 3 widgety.'],
             ]);
         }
 

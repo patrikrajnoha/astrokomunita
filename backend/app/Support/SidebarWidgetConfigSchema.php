@@ -15,6 +15,7 @@ class SidebarWidgetConfigSchema
     public const TYPE_INFO_CARD = 'info_card';
     public const TYPE_LINK_LIST = 'link_list';
     public const TYPE_HTML = 'html';
+    public const TYPE_CONTEST = 'contest';
 
     public const LEGACY_TYPE_SPECIAL_EVENT = 'special_event';
 
@@ -28,6 +29,7 @@ class SidebarWidgetConfigSchema
             self::TYPE_INFO_CARD,
             self::TYPE_LINK_LIST,
             self::TYPE_HTML,
+            self::TYPE_CONTEST,
         ];
     }
 
@@ -98,6 +100,11 @@ class SidebarWidgetConfigSchema
             self::TYPE_HTML => [
                 'config_json.html' => ['required', 'string', 'max:12000'],
             ],
+            self::TYPE_CONTEST => [
+                'config_json.title' => ['required', 'string', 'max:140'],
+                'config_json.description' => ['required', 'string', 'max:320'],
+                'config_json.imageUrl' => ['nullable', 'string', 'max:2048', self::pathOrUrlValidationRule()],
+            ],
             default => [],
         };
     }
@@ -113,6 +120,7 @@ class SidebarWidgetConfigSchema
             self::TYPE_INFO_CARD => self::normalizeInfoCardConfig($config),
             self::TYPE_LINK_LIST => self::normalizeLinkListConfig($config),
             self::TYPE_HTML => self::normalizeHtmlConfig($config),
+            self::TYPE_CONTEST => self::normalizeContestConfig($config),
             default => self::normalizeCtaConfig($config),
         };
     }
@@ -188,6 +196,19 @@ class SidebarWidgetConfigSchema
     {
         return [
             'html' => self::sanitizeHtml($config['html'] ?? null),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     * @return array<string, mixed>
+     */
+    private static function normalizeContestConfig(array $config): array
+    {
+        return [
+            'title' => self::sanitizeString($config['title'] ?? $config['headline'] ?? null),
+            'description' => self::sanitizeString($config['description'] ?? $config['body'] ?? null),
+            'imageUrl' => self::sanitizePathOrUrl($config['imageUrl'] ?? null),
         ];
     }
 

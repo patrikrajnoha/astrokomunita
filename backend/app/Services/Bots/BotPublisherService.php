@@ -29,6 +29,7 @@ class BotPublisherService
     public function publishItemToAstroFeed(BotItem $item, string $runContext = 'manual'): PublishResult
     {
         $publishPayload = $this->resolvePublishPayload($item);
+        $resolvedSourceUrl = $this->canonicalItemUrlForPublish($item);
         $publishStatus = $item->publish_status?->value ?? (string) $item->publish_status;
         $normalizedRunContext = $this->normalizeRunContext($runContext);
 
@@ -49,7 +50,8 @@ class BotPublisherService
             }
         }
 
-        $skipReason = $this->resolveSkipReason($item, $publishPayload);
+        $this->repairRecoverablePublishFields($item, $publishPayload, $resolvedSourceUrl, $normalizedRunContext);
+        $skipReason = $this->resolveSkipReason($item, $publishPayload, $resolvedSourceUrl);
         if ($skipReason !== null) {
             $this->markSkipped($item, $skipReason, $publishPayload['used_translation'], $normalizedRunContext);
             $this->logPublishActivity($item, 'skipped', $skipReason, $normalizedRunContext);
@@ -141,7 +143,7 @@ class BotPublisherService
         $content = $this->buildPostContent(
             $publishPayload['title'],
             $publishPayload['body'],
-            trim((string) ($item->url ?? '')),
+            $resolvedSourceUrl,
             $botIdentity,
             $item,
             $source
@@ -171,7 +173,7 @@ class BotPublisherService
                     'author_kind' => PostAuthorKind::BOT->value,
                     'bot_identity' => $botIdentity,
                     'source_name' => $sourceName,
-                    'source_url' => $postMeta['source_url'] ?? $item->url,
+                    'source_url' => $postMeta['source_url'] ?? $resolvedSourceUrl,
                     'source_uid' => $sourceUid,
                     'bot_item_id' => $item->id,
                     'source_published_at' => $item->published_at,
@@ -345,7 +347,7 @@ class BotPublisherService
         if ((string) $user->username !== $targetUsername) {
             $updates['username'] = $targetUsername;
         }
-        if ((string) $user->name !== $targetName) {
+        if (trim((string) $user->name) === '') {
             $updates['name'] = $targetName;
         }
         if ((string) $user->email !== '') {
@@ -657,6 +659,11 @@ class BotPublisherService
             return $itemUrl;
         }
 
+        $fallbackUrl = $this->nullableString($this->canonicalItemUrlForPublish($item));
+        if ($fallbackUrl !== null) {
+            return $fallbackUrl;
+        }
+
         return $this->nullableString($source->url);
     }
 
@@ -683,7 +690,7 @@ class BotPublisherService
     /**
      * @param array{title:string,body:string,used_translation:bool} $publishPayload
      */
-    private function resolveSkipReason(BotItem $item, array $publishPayload): ?string
+    private function resolveSkipReason(BotItem $item, array $publishPayload, string $resolvedSourceUrl): ?string
     {
         $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
         if ($this->isStelaIdentity($botIdentity)) {
@@ -693,7 +700,7 @@ class BotPublisherService
         }
 
         $title = trim($publishPayload['title']);
-        $url = trim((string) ($item->url ?? ''));
+        $url = trim($resolvedSourceUrl);
         if ($title === '' || $url === '') {
             return 'missing_title_or_url';
         }
@@ -906,6 +913,7 @@ class BotPublisherService
             'non_image_media',
             'image_download_failed',
             'missing_image_url',
+            'missing_title_or_url',
             'publish_rate_limited',
         ], true);
     }
@@ -1002,6 +1010,70 @@ class BotPublisherService
         }
 
         return 'manual';
+    }
+
+    /**
+     * @param array{title:string,body:string,used_translation:bool} $publishPayload
+     */
+    private function repairRecoverablePublishFields(
+        BotItem $item,
+        array $publishPayload,
+        string $resolvedSourceUrl,
+        string $runContext
+    ): void {
+        $title = trim((string) ($publishPayload['title'] ?? ''));
+        $url = trim($resolvedSourceUrl);
+
+        $updates = [];
+        if (trim((string) ($item->title ?? '')) === '' && $title !== '') {
+            $updates['title'] = $title;
+        }
+        if (trim((string) ($item->url ?? '')) === '' && $url !== '') {
+            $updates['url'] = $url;
+        }
+
+        if ($updates === []) {
+            return;
+        }
+
+        $meta = is_array($item->meta) ? $item->meta : [];
+        $meta['field_recovery'] = [
+            'applied_at' => now()->toIso8601String(),
+            'run_context' => $runContext,
+            'title_recovered' => array_key_exists('title', $updates),
+            'url_recovered' => array_key_exists('url', $updates),
+        ];
+
+        $item->forceFill(array_replace($updates, ['meta' => $meta]))->save();
+    }
+
+    private function canonicalItemUrlForPublish(BotItem $item): string
+    {
+        $itemUrl = trim((string) ($item->url ?? ''));
+        if ($itemUrl !== '') {
+            return $itemUrl;
+        }
+
+        $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
+        if (!$this->isStelaIdentity($botIdentity)) {
+            return '';
+        }
+
+        $attachmentUrl = trim($this->resolveStelaAttachmentUrl($item));
+        if ($attachmentUrl !== '') {
+            return $attachmentUrl;
+        }
+
+        $apodDate = trim((string) data_get($item->meta, 'apod_date', ''));
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $apodDate, $matches) === 1) {
+            $year = (int) $matches[1];
+            $month = (int) $matches[2];
+            $day = (int) $matches[3];
+
+            return sprintf('https://apod.nasa.gov/apod/ap%02d%02d%02d.html', $year % 100, $month, $day);
+        }
+
+        return '';
     }
 
     /**
@@ -1129,9 +1201,17 @@ class BotPublisherService
 
         $useTranslatedTitle = $translationDone && $titleTranslated !== '';
         $useTranslatedBody = $translationDone && $bodyTranslated !== '';
+        $resolvedTitle = $useTranslatedTitle ? $titleTranslated : $titleOriginal;
+        if ($resolvedTitle === '') {
+            $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
+            if ($this->isStelaIdentity($botIdentity)) {
+                $apodDate = trim((string) data_get($item->meta, 'apod_date', ''));
+                $resolvedTitle = $apodDate !== '' ? sprintf('NASA APOD %s', $apodDate) : 'NASA APOD';
+            }
+        }
 
         return [
-            'title' => $useTranslatedTitle ? $titleTranslated : $titleOriginal,
+            'title' => $resolvedTitle,
             'body' => $useTranslatedBody ? $bodyTranslated : $bodyOriginal,
             'used_translation' => $useTranslatedTitle || $useTranslatedBody,
         ];

@@ -3,6 +3,7 @@
 namespace App\Services\Crawlers;
 
 use App\Enums\EventSource;
+use App\Services\Crawlers\Astropixels\AstropixelsYearUnavailableException;
 use App\Support\Http\SslVerificationPolicy;
 use App\Services\Crawlers\Astropixels\AstropixelsAlmanacParser;
 use Carbon\CarbonImmutable;
@@ -44,11 +45,20 @@ class AstropixelsCrawlerService implements CrawlerInterface
         try {
             $response->throw();
         } catch (RequestException $e) {
+            $status = $e->response?->status() ?? null;
+            if ($status === 404) {
+                throw new AstropixelsYearUnavailableException(
+                    year: $context->year,
+                    url: $url,
+                    previous: $e
+                );
+            }
+
             throw new DomainException(
                 sprintf(
                     'ASTROPIXELS_HTTP_ERROR: GET %s failed with status %s.',
                     $url,
-                    $e->response?->status() ?? 'n/a'
+                    $status ?? 'n/a',
                 ),
                 previous: $e
             );
@@ -93,8 +103,21 @@ class AstropixelsCrawlerService implements CrawlerInterface
 
     private function buildUrlForYear(int $year): string
     {
-        $pattern = (string) config('events.astropixels.base_url_pattern', 'https://astropixels.com/almanac/almanac21/almanac%dcet.html');
-        return sprintf($pattern, $year);
+        $pattern = (string) config(
+            'events.astropixels.base_url_pattern',
+            'https://astropixels.com/almanac/almanac%2$02d/almanac%1$dcet.html'
+        );
+        $decadeFolderCode = $this->resolveAlmanacDecadeFolderCode($year);
+
+        return sprintf($pattern, $year, $decadeFolderCode);
+    }
+
+    private function resolveAlmanacDecadeFolderCode(int $year): int
+    {
+        $normalizedYear = max(2001, $year);
+        $decadeStartYear = 2001 + intdiv($normalizedYear - 2001, 10) * 10;
+
+        return $decadeStartYear % 100;
     }
 
     private function resolveSourceTimezone(CrawlContext $context): string

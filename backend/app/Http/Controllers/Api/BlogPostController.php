@@ -125,19 +125,19 @@ class BlogPostController extends Controller
     {
         $query = BlogPost::query()->published();
 
-        // ValidĂˇcia a sanitizĂˇcia slugu
+        // Validácia a sanitizácia slugu
         $slug = trim($slug);
         if (empty($slug)) {
             return null;
         }
 
-        // Ak je to ÄŤĂ­slo, hÄľadaj podÄľa ID, inak podÄľa slugu
+        // Ak je to číslo, hľadaj podľa ID, inak podľa slugu
         if (ctype_digit($slug)) {
             $id = (int) $slug;
             return $query->where('id', $id)->first();
         }
 
-        // Ochrana proti SQL injection - povoliĹĄ len validnĂ© znaky pre slug
+        // Ochrana proti SQL injection - povoliť len validné znaky pre slug
         if (!preg_match('/^[a-z0-9\-_]+$/', $slug)) {
             return null;
         }

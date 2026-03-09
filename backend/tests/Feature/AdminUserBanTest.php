@@ -11,13 +11,13 @@ class AdminUserBanTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_ban_user_with_reason_via_patch_endpoint(): void
+    public function test_admin_can_ban_bot_user_with_reason_via_patch_endpoint(): void
     {
         $admin = User::factory()->create([
             'is_admin' => true,
             'role' => 'admin',
         ]);
-        $target = User::factory()->create();
+        $target = User::factory()->bot()->create();
 
         Sanctum::actingAs($admin);
 
@@ -43,13 +43,34 @@ class AdminUserBanTest extends TestCase
             'is_admin' => true,
             'role' => 'admin',
         ]);
-        $target = User::factory()->create();
+        $target = User::factory()->bot()->create();
 
         Sanctum::actingAs($admin);
 
         $this->patchJson("/api/admin/users/{$target->id}/ban", [])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['reason']);
+    }
+
+    public function test_admin_can_ban_non_bot_user_when_target_is_not_admin_or_self(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+        ]);
+        $target = User::factory()->create([
+            'is_bot' => false,
+            'role' => User::ROLE_USER,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/admin/users/{$target->id}/ban", [
+            'reason' => 'Attempt for non-bot account.',
+        ])->assertOk()
+            ->assertJsonPath('id', $target->id)
+            ->assertJsonPath('is_banned', true)
+            ->assertJsonPath('ban_reason', 'Attempt for non-bot account.');
     }
 
     public function test_banned_at_blocks_protected_endpoints_even_when_legacy_flag_is_false(): void

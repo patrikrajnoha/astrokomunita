@@ -152,6 +152,50 @@ class AdminEventSourceControllerTest extends TestCase
         ]);
     }
 
+    public function test_manual_run_skips_astropixels_year_when_catalog_does_not_list_it(): void
+    {
+        config()->set('events.astropixels.catalog_fetch_during_tests', true);
+        config()->set('events.astropixels.catalog_url', 'https://astropixels.test/almanac/almanac.html');
+
+        EventSource::query()->create([
+            'key' => EventSourceEnum::ASTROPIXELS->value,
+            'name' => EventSourceEnum::ASTROPIXELS->label(),
+            'base_url' => 'https://astropixels.com/almanac/almanac21/almanac2026cet.html',
+            'is_enabled' => true,
+        ]);
+
+        $this->actingAsAdmin();
+
+        Http::fake([
+            'https://astropixels.test/almanac/almanac.html' => Http::response(
+                '<a href="almanac26/almanac2026cet.html">2026</a>',
+                200
+            ),
+            'https://astropixels.com/*' => Http::response('should_not_be_called', 500),
+        ]);
+
+        $response = $this->postJson('/api/admin/event-sources/run', [
+            'source_keys' => [EventSourceEnum::ASTROPIXELS->value],
+            'year' => 2031,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('results.0.source_key', EventSourceEnum::ASTROPIXELS->value);
+        $response->assertJsonPath('results.0.status', 'skipped');
+        $this->assertStringContainsString(
+            'este nie je publikovany',
+            (string) $response->json('results.0.message')
+        );
+
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => $request->url() === 'https://astropixels.test/almanac/almanac.html');
+
+        $this->assertDatabaseMissing('crawl_runs', [
+            'source_name' => EventSourceEnum::ASTROPIXELS->value,
+            'year' => 2031,
+        ]);
+    }
+
     public function test_manual_run_executes_imo_source(): void
     {
         EventSource::query()->create([
@@ -182,6 +226,83 @@ class AdminEventSourceControllerTest extends TestCase
             'source_name' => EventSourceEnum::IMO->value,
             'status' => 'success',
             'created_candidates_count' => 2,
+        ]);
+    }
+
+    public function test_manual_run_executes_nasa_and_nasa_watch_the_skies_sources(): void
+    {
+        config()->set('events.nasa.eclipses_year_url', 'https://aa.usno.navy.mil/api/eclipses/solar/year');
+        config()->set('events.nasa.eclipse_date_url', 'https://aa.usno.navy.mil/api/eclipses/solar/date');
+        config()->set('events.nasa_watch_the_skies.moon_phases_year_url', 'https://aa.usno.navy.mil/api/moon/phases/year');
+        config()->set('events.nasa.include_only_visible', true);
+
+        EventSource::query()->create([
+            'key' => EventSourceEnum::NASA->value,
+            'name' => EventSourceEnum::NASA->label(),
+            'base_url' => 'https://aa.usno.navy.mil/api/eclipses/solar/year',
+            'is_enabled' => true,
+        ]);
+        EventSource::query()->create([
+            'key' => EventSourceEnum::NASA_WATCH_THE_SKIES->value,
+            'name' => EventSourceEnum::NASA_WATCH_THE_SKIES->label(),
+            'base_url' => 'https://aa.usno.navy.mil/api/moon/phases/year',
+            'is_enabled' => true,
+        ]);
+
+        $this->actingAsAdmin();
+
+        $yearPayload = File::get(base_path('tests/Fixtures/usno/eclipses_year_2026.json'));
+        $notVisiblePayload = File::get(base_path('tests/Fixtures/usno/eclipse_not_visible.json'));
+        $visiblePayload = File::get(base_path('tests/Fixtures/usno/eclipse_date_2026_08_12_bratislava.json'));
+        $moonPhasesPayload = File::get(base_path('tests/Fixtures/usno/moon_phases_2026.json'));
+
+        Http::fake(function ($request) use ($yearPayload, $notVisiblePayload, $visiblePayload, $moonPhasesPayload) {
+            $url = $request->url();
+
+            if (str_contains($url, '/api/eclipses/solar/year')) {
+                return Http::response($yearPayload, 200, ['Content-Type' => 'application/json']);
+            }
+
+            if (str_contains($url, '/api/eclipses/solar/date') && str_contains($url, 'date=2026-02-17')) {
+                return Http::response($notVisiblePayload, 400, ['Content-Type' => 'application/json']);
+            }
+
+            if (str_contains($url, '/api/eclipses/solar/date') && str_contains($url, 'date=2026-08-12')) {
+                return Http::response($visiblePayload, 200, ['Content-Type' => 'application/json']);
+            }
+
+            if (str_contains($url, '/api/moon/phases/year')) {
+                return Http::response($moonPhasesPayload, 200, ['Content-Type' => 'application/json']);
+            }
+
+            return Http::response('Not found', 404);
+        });
+
+        $response = $this->postJson('/api/admin/event-sources/run', [
+            'source_keys' => [
+                EventSourceEnum::NASA->value,
+                EventSourceEnum::NASA_WATCH_THE_SKIES->value,
+            ],
+            'year' => 2026,
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('results.0.source_key', EventSourceEnum::NASA->value);
+        $response->assertJsonPath('results.0.status', 'success');
+        $response->assertJsonPath('results.0.created_candidates_count', 1);
+        $response->assertJsonPath('results.1.source_key', EventSourceEnum::NASA_WATCH_THE_SKIES->value);
+        $response->assertJsonPath('results.1.status', 'success');
+        $response->assertJsonPath('results.1.created_candidates_count', 4);
+
+        $this->assertDatabaseHas('crawl_runs', [
+            'source_name' => EventSourceEnum::NASA->value,
+            'status' => 'success',
+            'created_candidates_count' => 1,
+        ]);
+        $this->assertDatabaseHas('crawl_runs', [
+            'source_name' => EventSourceEnum::NASA_WATCH_THE_SKIES->value,
+            'status' => 'success',
+            'created_candidates_count' => 4,
         ]);
     }
 

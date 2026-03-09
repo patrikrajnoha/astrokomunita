@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Contest;
-use App\Models\Notification;
+use App\Models\Hashtag;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,30 +13,6 @@ use Tests\TestCase;
 class ContestFeatureTest extends TestCase
 {
     use RefreshDatabase;
-
-    public function test_admin_can_create_contest(): void
-    {
-        Sanctum::actingAs($this->adminUser());
-
-        $response = $this->postJson('/api/admin/contests', [
-            'name' => 'Februarova sutaz',
-            'description' => 'Sutaz o ceny.',
-            'hashtag' => '#SuTaZiM',
-            'starts_at' => now()->subDay()->toIso8601String(),
-            'ends_at' => now()->addDay()->toIso8601String(),
-            'status' => 'active',
-        ]);
-
-        $response->assertCreated()
-            ->assertJsonPath('name', 'Februarova sutaz')
-            ->assertJsonPath('hashtag', 'sutazim');
-
-        $this->assertDatabaseHas('contests', [
-            'name' => 'Februarova sutaz',
-            'hashtag' => 'sutazim',
-            'status' => 'active',
-        ]);
-    }
 
     public function test_active_contest_returns_via_public_endpoint(): void
     {
@@ -98,96 +74,80 @@ class ContestFeatureTest extends TestCase
             ->assertJsonPath('data.0.username', 'winner_user');
     }
 
-    public function test_selecting_winner_sets_correct_winner_fields(): void
+    public function test_admin_contest_mutation_endpoints_are_not_available(): void
     {
         Sanctum::actingAs($this->adminUser());
 
         $contest = Contest::query()->create([
-            'name' => 'Ukoncena sutaz',
+            'name' => 'Legacy route contest',
             'hashtag' => 'sutazim',
             'starts_at' => now()->subDays(3),
-            'ends_at' => now()->subHour(),
+            'ends_at' => now()->addDay(),
             'status' => 'active',
         ]);
 
-        $post = Post::factory()->create([
-            'content' => 'Moj prispevok #sutazim',
-            'created_at' => now()->subDay(),
-        ]);
+        $this->postJson('/api/admin/contests', [
+            'name' => 'Februarova sutaz',
+            'starts_at' => now()->subDay()->toIso8601String(),
+            'ends_at' => now()->addDay()->toIso8601String(),
+        ])->assertNotFound();
 
-        $response = $this->postJson("/api/admin/contests/{$contest->id}/select-winner", [
-            'post_id' => $post->id,
-        ]);
-
-        $response->assertOk()
-            ->assertJsonPath('winner_post_id', $post->id)
-            ->assertJsonPath('winner_user_id', $post->user_id)
-            ->assertJsonPath('status', 'finished');
-
-        $this->assertDatabaseHas('contests', [
-            'id' => $contest->id,
-            'winner_post_id' => $post->id,
-            'winner_user_id' => $post->user_id,
-            'status' => 'finished',
-        ]);
-    }
-
-    public function test_selecting_invalid_post_returns_422(): void
-    {
-        Sanctum::actingAs($this->adminUser());
-
-        $contest = Contest::query()->create([
-            'name' => 'Ukoncena sutaz',
-            'hashtag' => 'sutazim',
-            'starts_at' => now()->subDays(3),
-            'ends_at' => now()->subHour(),
-            'status' => 'active',
-        ]);
-
-        $invalidPost = Post::factory()->create([
-            'content' => 'Toto nie je sutazny prispevok #ine',
-            'created_at' => now()->subDay(),
-        ]);
-
-        $response = $this->postJson("/api/admin/contests/{$contest->id}/select-winner", [
-            'post_id' => $invalidPost->id,
-        ]);
-
-        $response->assertStatus(422)
-            ->assertJsonValidationErrors(['post_id']);
-    }
-
-    public function test_winner_notification_created(): void
-    {
-        Sanctum::actingAs($this->adminUser());
-
-        $contest = Contest::query()->create([
-            'name' => 'Vyherna sutaz',
-            'hashtag' => 'sutazim',
-            'starts_at' => now()->subDays(2),
-            'ends_at' => now()->subMinute(),
-            'status' => 'active',
-        ]);
-
-        $post = Post::factory()->create([
-            'content' => 'Ja idem vyhrat #sutazim',
-            'created_at' => now()->subHour(),
-        ]);
+        $this->patchJson("/api/admin/contests/{$contest->id}", [
+            'name' => 'Updated',
+        ])->assertNotFound();
 
         $this->postJson("/api/admin/contests/{$contest->id}/select-winner", [
-            'post_id' => $post->id,
-        ])->assertOk();
+            'post_id' => 1,
+        ])->assertNotFound();
+    }
 
-        $notification = Notification::query()
-            ->where('user_id', $post->user_id)
-            ->where('type', 'contest_winner')
-            ->latest('id')
-            ->first();
+    public function test_admin_contest_list_endpoint_is_not_available(): void
+    {
+        Sanctum::actingAs($this->adminUser());
 
-        $this->assertNotNull($notification);
-        $this->assertSame($contest->id, $notification->data['contest_id'] ?? null);
-        $this->assertSame('Vyherna sutaz', $notification->data['contest_name'] ?? null);
-        $this->assertSame($post->id, $notification->data['post_id'] ?? null);
+        $response = $this->getJson('/api/admin/contests');
+
+        $response->assertNotFound();
+    }
+
+    public function test_admin_can_preview_hashtags_with_posts_and_user_email(): void
+    {
+        Sanctum::actingAs($this->adminUser());
+
+        $user = User::factory()->create([
+            'username' => 'preview_user',
+            'email' => 'preview@example.com',
+        ]);
+
+        $matchingPost = Post::factory()->create([
+            'user_id' => $user->id,
+            'content' => 'Sutazny post #sutazim',
+            'created_at' => now()->subDay(),
+        ]);
+
+        $outOfRangePost = Post::factory()->create([
+            'content' => 'Stary post #sutazim',
+            'created_at' => now()->subDays(90),
+        ]);
+
+        $matchingTag = Hashtag::query()->create(['name' => 'sutazim']);
+        $matchingTag->posts()->sync([$matchingPost->id, $outOfRangePost->id]);
+
+        Hashtag::query()->create(['name' => 'inytag']);
+
+        $response = $this->getJson('/api/admin/contests/hashtags-preview?' . http_build_query([
+            'query' => 'sutaz',
+            'from' => now()->subDays(10)->toDateString(),
+            'to' => now()->toDateString(),
+            'hashtags_limit' => 10,
+            'posts_limit' => 5,
+        ]));
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.name', 'sutazim')
+            ->assertJsonPath('data.0.posts_count', 1)
+            ->assertJsonPath('data.0.posts.0.id', $matchingPost->id)
+            ->assertJsonPath('data.0.posts.0.user.email', 'preview@example.com');
     }
 
     private function adminUser(): User

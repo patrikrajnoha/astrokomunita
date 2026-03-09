@@ -7,7 +7,9 @@ use App\Http\Requests\EventIndexRequest;
 use App\Http\Resources\EventResource;
 use App\Services\Events\EventFilter;
 use App\Services\Events\PublishedEventQuery;
+use App\Support\EventFollowTable;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class EventController extends Controller
@@ -62,7 +64,7 @@ class EventController extends Controller
     public function years()
     {
         $minYear = (int) config('events.astropixels.min_year', 2021);
-        $maxYear = (int) config('events.astropixels.max_year', 2030);
+        $maxYear = (int) config('events.astropixels.max_year', 2100);
         $currentYear = (int) now((string) config('events.timezone', 'Europe/Bratislava'))->year;
         $currentYearBounded = max($minYear, min($maxYear, $currentYear));
         $defaultYear = $currentYearBounded;
@@ -116,9 +118,14 @@ class EventController extends Controller
     /**
      * GET /api/events/{id}
      */
-    public function show(int $id)
+    public function show(Request $request, int $id)
     {
-        $event = $this->basePublishedQuery()
+        $query = $this->basePublishedQuery()
+            ->select('events.*');
+
+        $this->applyUserFollowContext($query, $request->user()?->id);
+
+        $event = $query
             ->findOrFail($id);
 
         return new EventResource($event);
@@ -157,6 +164,32 @@ class EventController extends Controller
     private function basePublishedQuery()
     {
         return $this->publishedEventQuery->base();
+    }
+
+    private function applyUserFollowContext(Builder $query, ?int $userId): void
+    {
+        if (! $userId) {
+            return;
+        }
+
+        $table = EventFollowTable::resolve();
+        $alias = 'event_follow_context';
+
+        $query->leftJoin($table.' as '.$alias, function ($join) use ($alias, $userId): void {
+            $join->on($alias.'.event_id', '=', 'events.id')
+                ->where($alias.'.user_id', '=', $userId);
+        });
+
+        $query->addSelect($alias.'.created_at as followed_at');
+
+        if (EventFollowTable::supportsPersonalPlanColumns($table)) {
+            $query->addSelect([
+                $alias.'.personal_note as personal_note',
+                $alias.'.reminder_at as reminder_at',
+                $alias.'.planned_time as planned_time',
+                $alias.'.planned_location_label as planned_location_label',
+            ]);
+        }
     }
 }
 

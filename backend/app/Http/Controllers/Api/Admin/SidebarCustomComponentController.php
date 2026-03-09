@@ -9,12 +9,20 @@ use App\Models\SidebarCustomComponent;
 use App\Support\SidebarCustomComponentsTableGuard;
 use App\Support\SidebarCustomComponentPayload;
 use App\Support\SidebarWidgetConfigSchema;
+use App\Services\Storage\MediaStorageService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SidebarCustomComponentController extends Controller
 {
+    private const CONTEST_IMAGE_UPLOAD_MAX_KB = 8192;
+
+    public function __construct(
+        private readonly MediaStorageService $mediaStorage,
+    ) {
+    }
+
     public function index(Request $request): JsonResponse
     {
         try {
@@ -99,6 +107,26 @@ class SidebarCustomComponentController extends Controller
         return response()->json([
             'message' => 'Vlastna komponenta bola vymazana.',
         ]);
+    }
+
+    public function uploadImage(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.self::CONTEST_IMAGE_UPLOAD_MAX_KB],
+        ]);
+
+        $path = $this->mediaStorage->storeSidebarWidgetImage(
+            $request->file('file'),
+            (int) $request->user()->id
+        );
+
+        return response()->json([
+            'message' => 'Obrazok bol nahrany.',
+            'data' => [
+                'path' => $path,
+                'url' => $this->mediaStorage->absoluteUrl($path),
+            ],
+        ], 201);
     }
 }
 

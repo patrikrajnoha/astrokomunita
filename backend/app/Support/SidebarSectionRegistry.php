@@ -45,40 +45,52 @@ class SidebarSectionRegistry
     {
         return [
             [
-                'section_key' => 'search',
-                'title' => 'Hladat',
+                'section_key' => 'observing_conditions',
+                'title' => 'Astronomicke podmienky',
                 'default_enabled' => true,
                 'default_order' => 0,
             ],
             [
-                'section_key' => 'observing_conditions',
-                'title' => 'Podmienky pozorovania',
+                'section_key' => 'observing_weather',
+                'title' => 'Pocasie pre pozorovanie',
                 'default_enabled' => true,
                 'default_order' => 1,
+            ],
+            [
+                'section_key' => 'night_sky',
+                'title' => 'Nocna obloha',
+                'default_enabled' => true,
+                'default_order' => 2,
+            ],
+            [
+                'section_key' => 'search',
+                'title' => 'Hladat',
+                'default_enabled' => true,
+                'default_order' => 3,
             ],
             [
                 'section_key' => 'nasa_apod',
                 'title' => 'NASA Novinky',
                 'default_enabled' => true,
-                'default_order' => 2,
+                'default_order' => 4,
             ],
             [
                 'section_key' => 'next_event',
                 'title' => 'Najblizsia udalost',
                 'default_enabled' => true,
-                'default_order' => 3,
+                'default_order' => 5,
             ],
             [
                 'section_key' => 'latest_articles',
                 'title' => 'Najnovsie clanky',
                 'default_enabled' => true,
-                'default_order' => 4,
+                'default_order' => 6,
             ],
             [
                 'section_key' => 'upcoming_events',
                 'title' => 'Co sa deje',
                 'default_enabled' => true,
-                'default_order' => 5,
+                'default_order' => 7,
             ],
         ];
     }

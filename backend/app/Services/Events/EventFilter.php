@@ -215,7 +215,7 @@ class EventFilter
 
         if ($year === null && ($month !== null || $week !== null)) {
             $minYear = (int) config('events.astropixels.min_year', 2021);
-            $maxYear = (int) config('events.astropixels.max_year', 2030);
+            $maxYear = (int) config('events.astropixels.max_year', 2100);
             $year = max($minYear, min($maxYear, (int) now($timezone)->year));
         }
 

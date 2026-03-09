@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Translation\TranslationServiceException;
+use App\Services\TranslationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use SimpleXMLElement;
 
@@ -15,9 +18,14 @@ class NasaIotdController extends Controller
     public const FEED_URL = 'https://www.nasa.gov/feeds/iotd-feed/';
     public const APOD_API_URL = 'https://api.nasa.gov/planetary/apod';
 
+    public function __construct(
+        private readonly TranslationService $translationService,
+    ) {
+    }
+
     public function show(): JsonResponse
     {
-        $cacheKey = 'nasa_iotd_widget_v2';
+        $cacheKey = 'nasa_iotd_widget_v3';
         $cached = Cache::get($cacheKey);
         if (is_array($cached)) {
             return response()->json($cached);
@@ -179,6 +187,8 @@ class NasaIotdController extends Controller
         }
 
         $excerpt = $this->buildExcerpt($contentEncoded !== '' ? $contentEncoded : $description);
+        $title = $this->translateWidgetText($title);
+        $excerpt = $this->translateWidgetText($excerpt);
 
         return [
             'available' => true,
@@ -215,6 +225,8 @@ class NasaIotdController extends Controller
         }
 
         $excerpt = $this->buildExcerpt((string) ($json['explanation'] ?? ''));
+        $title = $this->translateWidgetText($title);
+        $excerpt = $this->translateWidgetText($excerpt);
 
         return [
             'available' => true,
@@ -289,5 +301,29 @@ class NasaIotdController extends Controller
         $s = trim($s);
 
         return $s !== '' ? $s : null;
+    }
+
+    private function translateWidgetText(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        try {
+            $translated = $this->translationService->translateEnToSk($value, 'astronomy');
+            return $this->normalizeText($translated) ?? $value;
+        } catch (TranslationServiceException $exception) {
+            Log::warning('NASA widget translation failed via translation service.', [
+                'error_code' => $exception->errorCode(),
+                'status_code' => $exception->statusCode(),
+                'message' => $exception->getMessage(),
+            ]);
+            return $value;
+        } catch (\Throwable $exception) {
+            Log::warning('NASA widget translation failed unexpectedly.', [
+                'message' => $exception->getMessage(),
+            ]);
+            return $value;
+        }
     }
 }
