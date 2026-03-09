@@ -209,6 +209,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::get('/events/{id}/follow-state', [EventFollowController::class, 'state'])->middleware('throttle:60,1');
     Route::post('/events/{id}/follow', [EventFollowController::class, 'store'])->middleware('throttle:60,1');
     Route::delete('/events/{id}/follow', [EventFollowController::class, 'destroy'])->middleware('throttle:60,1');
+    Route::patch('/events/{id}/plan', [EventFollowController::class, 'plan'])->middleware('throttle:60,1');
     Route::get('/me/followed-events', [EventFollowController::class, 'index'])->middleware('throttle:60,1');
 });
 
@@ -364,6 +365,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
 
         // Candidates (list + detail)
         Route::get('/event-candidates',                  [EventCandidateController::class, 'index']);
+        Route::get('/event-candidates/duplicates/preview', [EventCandidateController::class, 'duplicatesPreview']);
+        Route::post('/event-candidates/duplicates/merge', [EventCandidateController::class, 'mergeDuplicates']);
         Route::get('/event-candidates/{eventCandidate}', [EventCandidateController::class, 'show']);
 
         // Meta for filters
@@ -388,10 +391,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::post('/event-sources/translation-artifacts/repair', [EventSourceController::class, 'translationArtifactsRepair']);
         Route::get('/translation-health', TranslationHealthController::class);
         Route::get('/event-translation-health', EventTranslationHealthController::class);
-        Route::get('/contests', [AdminContestController::class, 'index']);
-        Route::post('/contests', [AdminContestController::class, 'store']);
-        Route::patch('/contests/{contest}', [AdminContestController::class, 'update']);
-        Route::post('/contests/{contest}/select-winner', [AdminContestController::class, 'selectWinner']);
+        Route::get('/contests/hashtags-preview', [AdminContestController::class, 'hashtagsPreview']);
 
         /*
         |----------------------------------------------------------------------
@@ -404,6 +404,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::put('/sidebar-config', [AdminSidebarConfigController::class, 'update']);
         Route::get('/sidebar/custom-components', [AdminSidebarCustomComponentController::class, 'index']);
         Route::post('/sidebar/custom-components', [AdminSidebarCustomComponentController::class, 'store']);
+        Route::post('/sidebar/custom-components/upload-image', [AdminSidebarCustomComponentController::class, 'uploadImage']);
         Route::get('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'show']);
         Route::put('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'update']);
         Route::patch('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'update']);
@@ -440,6 +441,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::patch('/users/{user}/cover', [AdminUserController::class, 'uploadCover']);
         Route::delete('/users/{user}/cover', [AdminUserController::class, 'removeCover']);
         Route::post('/users/{id}/deactivate', [AdminUserController::class, 'deactivate']);
+        Route::post('/users/{id}/reactivate', [AdminUserController::class, 'reactivate']);
         Route::post('/users/{id}/reset-profile', [AdminUserController::class, 'resetProfile']);
 
         /*

@@ -15,20 +15,20 @@ class EventSourceSeeder extends Seeder
             [
                 'key' => EventSource::ASTROPIXELS->value,
                 'name' => EventSource::ASTROPIXELS->label(),
-                'base_url' => 'https://astropixels.com/almanac/almanac21/',
+                'base_url' => 'https://astropixels.com/almanac/almanac%2$02d/almanac%1$dcet.html',
                 'is_enabled' => true,
             ],
             [
                 'key' => EventSource::NASA->value,
                 'name' => EventSource::NASA->label(),
-                'base_url' => 'https://www.nasa.gov/',
+                'base_url' => 'https://aa.usno.navy.mil/api/eclipses/solar/year',
                 'is_enabled' => true,
             ],
             [
                 'key' => EventSource::NASA_WATCH_THE_SKIES->value,
                 'name' => EventSource::NASA_WATCH_THE_SKIES->label(),
-                'base_url' => 'https://science.nasa.gov/skywatching/',
-                'is_enabled' => false,
+                'base_url' => 'https://aa.usno.navy.mil/api/moon/phases/year',
+                'is_enabled' => true,
             ],
             [
                 'key' => EventSource::IMO->value,

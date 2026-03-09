@@ -9,8 +9,8 @@ use App\Services\EventImport\Parsers\EventSourceParser;
 use App\Services\Events\CanonicalKeyService;
 use App\Support\EventTime;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Throwable;
 
 class EventImportService
@@ -19,8 +19,7 @@ class EventImportService
         private HtmlSourceFetcher $fetcher,
         private EventTypeClassifier $typeClassifier,
         private CanonicalKeyService $canonicalKeyService,
-    ) {
-    }
+    ) {}
 
     public function importFromUrl(string $sourceName, string $sourceUrl, EventSourceParser $parser): EventImportResult
     {
@@ -46,7 +45,7 @@ class EventImportService
     }
 
     /**
-     * @param array<int, CandidateItem> $items
+     * @param  array<int, CandidateItem>  $items
      */
     public function importFromCandidateItems(
         string $sourceName,
@@ -105,6 +104,13 @@ class EventImportService
                 canonicalKey: $canonicalKey,
                 matchedSources: $matchedSources
             );
+            $fingerprintV2 = $this->buildFingerprintV2(
+                canonicalKey: $canonicalKey,
+                normalizedType: $normalizedType ?: 'other',
+                startAt: $startAt,
+                maxAt: $maxAt,
+                title: $title
+            );
 
             $payloadString = json_encode($item->rawPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
             $sourceHash = $this->buildSourceHash($sourceName, $sourceUid, $payloadString);
@@ -120,6 +126,7 @@ class EventImportService
                 'canonical_key' => $canonicalKey,
                 'matched_sources' => $matchedSources,
                 'source_hash' => $sourceHash,
+                'fingerprint_v2' => $fingerprintV2,
 
                 'title' => $title,
                 'original_title' => $title,
@@ -151,12 +158,18 @@ class EventImportService
                 sourceName: $sourceName,
                 eventSourceId: $eventSourceId,
                 sourceUid: $sourceUid,
-                sourceHash: $sourceHash
+                sourceHash: $sourceHash,
+                canonicalKey: $canonicalKey,
+                normalizedType: $normalizedType ?: 'other',
+                startAt: $startAt,
+                maxAt: $maxAt,
+                title: $title,
+                fingerprintV2: $fingerprintV2,
             );
 
             if ($existing === null) {
                 $candidateId = null;
-                if (!$dryRun) {
+                if (! $dryRun) {
                     $candidate = EventCandidate::create($attributes);
                     $candidateId = (int) $candidate->id;
                     $this->syncCanonicalSignals(
@@ -169,20 +182,39 @@ class EventImportService
                 if ($candidateId !== null) {
                     $this->dispatchCandidateTranslation($candidateId, $sourceName);
                 }
+
                 continue;
             }
 
-            if (!$this->shouldUpdateCandidate($existing, $attributes)) {
+            if ($this->isCrossSourceMatch($existing, $sourceName, $eventSourceId)) {
+                if (! $dryRun) {
+                    $this->mergeCrossSourceSignals(
+                        existing: $existing,
+                        incomingSourceName: $sourceName,
+                        canonicalKey: $canonicalKey,
+                        incomingMatchedSources: $matchedSources,
+                        incomingConfidenceScore: $confidenceScore,
+                        incomingFingerprintV2: $fingerprintV2
+                    );
+                }
                 $duplicates++;
+
+                continue;
+            }
+
+            if (! $this->shouldUpdateCandidate($existing, $attributes)) {
+                $duplicates++;
+
                 continue;
             }
 
             if ($existing->status !== EventCandidate::STATUS_PENDING) {
                 $duplicates++;
+
                 continue;
             }
 
-            if (!$dryRun) {
+            if (! $dryRun) {
                 $existing->fill($attributes);
                 $existing->save();
                 $this->syncCanonicalSignals(
@@ -233,28 +265,78 @@ class EventImportService
         string $sourceName,
         ?int $eventSourceId,
         ?string $sourceUid,
-        string $sourceHash
+        string $sourceHash,
+        ?string $canonicalKey,
+        string $normalizedType,
+        ?\DateTimeInterface $startAt,
+        ?\DateTimeInterface $maxAt,
+        string $title,
+        string $fingerprintV2,
     ): ?EventCandidate {
-        return EventCandidate::query()
+        $scope = EventCandidate::query()
             ->when(
                 $eventSourceId,
                 fn ($query) => $query->where('event_source_id', $eventSourceId),
                 fn ($query) => $query->where('source_name', $sourceName)
-            )
-            ->where(function ($query) use ($sourceUid, $sourceHash) {
-                if ($sourceUid !== null && $sourceUid !== '') {
+            );
+
+        if ($sourceUid !== null && $sourceUid !== '') {
+            $bySourceUid = (clone $scope)
+                ->where(function ($query) use ($sourceUid) {
                     $query->where('external_id', $sourceUid)
                         ->orWhere('source_uid', $sourceUid)
-                        ->orWhere('stable_key', $sourceUid)
-                        ->orWhere('source_hash', $sourceHash);
+                        ->orWhere('stable_key', $sourceUid);
+                })
+                ->orderByDesc('id')
+                ->first();
+            if ($bySourceUid !== null) {
+                return $bySourceUid;
+            }
+        }
 
-                    return;
-                }
-
-                $query->where('source_hash', $sourceHash);
-            })
+        $byFingerprint = (clone $scope)
+            ->where('fingerprint_v2', $fingerprintV2)
             ->orderByDesc('id')
             ->first();
+        if ($byFingerprint !== null) {
+            return $byFingerprint;
+        }
+
+        if ($canonicalKey !== null && $canonicalKey !== '') {
+            $byCanonical = (clone $scope)
+                ->where('canonical_key', $canonicalKey)
+                ->orderByDesc('id')
+                ->first();
+            if ($byCanonical !== null) {
+                return $byCanonical;
+            }
+        }
+
+        $bySourceHash = (clone $scope)
+            ->where('source_hash', $sourceHash)
+            ->orderByDesc('id')
+            ->first();
+        if ($bySourceHash !== null) {
+            return $bySourceHash;
+        }
+
+        $byCrossSourceCanonical = $this->findCrossSourceCanonicalCandidate(
+            sourceName: $sourceName,
+            eventSourceId: $eventSourceId,
+            canonicalKey: $canonicalKey,
+            fingerprintV2: $fingerprintV2
+        );
+        if ($byCrossSourceCanonical !== null) {
+            return $byCrossSourceCanonical;
+        }
+
+        return $this->findFuzzyExistingCandidate(
+            scope: $scope,
+            normalizedType: $normalizedType,
+            startAt: $startAt,
+            maxAt: $maxAt,
+            title: $title
+        );
     }
 
     private function shouldUpdateCandidate(EventCandidate $candidate, array $attributes): bool
@@ -270,6 +352,7 @@ class EventImportService
             'canonical_key',
             'matched_sources',
             'source_hash',
+            'fingerprint_v2',
             'title',
             'raw_type',
             'type',
@@ -290,6 +373,259 @@ class EventImportService
         }
 
         return false;
+    }
+
+    private function isCrossSourceMatch(EventCandidate $candidate, string $sourceName, ?int $eventSourceId): bool
+    {
+        $existingSource = strtolower(trim((string) $candidate->source_name));
+        $incomingSource = strtolower(trim($sourceName));
+
+        if ($existingSource !== '' && $incomingSource !== '' && $existingSource !== $incomingSource) {
+            return true;
+        }
+
+        if ($eventSourceId === null || $candidate->event_source_id === null) {
+            return false;
+        }
+
+        return (int) $candidate->event_source_id !== $eventSourceId;
+    }
+
+    private function findCrossSourceCanonicalCandidate(
+        string $sourceName,
+        ?int $eventSourceId,
+        ?string $canonicalKey,
+        string $fingerprintV2
+    ): ?EventCandidate {
+        $query = EventCandidate::query()
+            ->where(function ($scope) use ($sourceName, $eventSourceId) {
+                if ($eventSourceId !== null) {
+                    $scope->where(function ($q) use ($eventSourceId) {
+                        $q->whereNotNull('event_source_id')
+                            ->where('event_source_id', '!=', $eventSourceId);
+                    })->orWhere(function ($q) use ($sourceName) {
+                        $q->whereNull('event_source_id')
+                            ->where('source_name', '!=', $sourceName);
+                    });
+
+                    return;
+                }
+
+                $scope->where('source_name', '!=', $sourceName);
+            });
+
+        $normalizedCanonical = $this->normalizeText($canonicalKey);
+        if ($normalizedCanonical !== null) {
+            $query->where('canonical_key', $normalizedCanonical);
+        } else {
+            $query->where('fingerprint_v2', $fingerprintV2);
+        }
+
+        return $query
+            ->orderByDesc('confidence_score')
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * @param  array<int,string>|null  $incomingMatchedSources
+     */
+    private function mergeCrossSourceSignals(
+        EventCandidate $existing,
+        string $incomingSourceName,
+        ?string $canonicalKey,
+        ?array $incomingMatchedSources,
+        ?float $incomingConfidenceScore,
+        string $incomingFingerprintV2
+    ): void {
+        $existingCanonical = $this->normalizeText($existing->canonical_key);
+        $resolvedCanonical = $existingCanonical ?: $this->normalizeText($canonicalKey);
+
+        $mergedSources = $this->normalizeMatchedSources(array_merge(
+            is_array($existing->matched_sources) ? $existing->matched_sources : [],
+            $incomingMatchedSources ?? [],
+            [(string) $existing->source_name, $incomingSourceName]
+        ));
+
+        $deterministicScore = $this->resolveDeterministicConfidenceScore($resolvedCanonical, $mergedSources);
+        $scoreCandidates = [];
+        if ($deterministicScore !== null) {
+            $scoreCandidates[] = $deterministicScore;
+        }
+        if ($incomingConfidenceScore !== null) {
+            $scoreCandidates[] = $incomingConfidenceScore;
+        }
+        if ($existing->confidence_score !== null && is_numeric((string) $existing->confidence_score)) {
+            $scoreCandidates[] = (float) $existing->confidence_score;
+        }
+        $resolvedScore = $scoreCandidates !== [] ? round(max($scoreCandidates), 2) : null;
+
+        $hasChanges = false;
+        if ($resolvedCanonical !== null && $existingCanonical !== $resolvedCanonical) {
+            $existing->canonical_key = $resolvedCanonical;
+            $hasChanges = true;
+        }
+
+        if ($this->normalizeComparableValue($existing->matched_sources, 'matched_sources') !== $this->normalizeComparableValue($mergedSources, 'matched_sources')) {
+            $existing->matched_sources = $mergedSources;
+            $hasChanges = true;
+        }
+
+        if ($this->normalizeComparableValue($existing->confidence_score, 'confidence_score') !== $this->normalizeComparableValue($resolvedScore, 'confidence_score')) {
+            $existing->confidence_score = $resolvedScore;
+            $hasChanges = true;
+        }
+
+        $existingFingerprint = $this->normalizeText((string) $existing->fingerprint_v2);
+        if ($existingFingerprint === null && $incomingFingerprintV2 !== '') {
+            $existing->fingerprint_v2 = $incomingFingerprintV2;
+            $hasChanges = true;
+        }
+
+        if ($hasChanges) {
+            $existing->save();
+        }
+
+        if ($resolvedCanonical !== null) {
+            $this->syncCanonicalSignals(
+                canonicalKey: $resolvedCanonical,
+                matchedSources: $mergedSources,
+                confidenceScore: $resolvedScore
+            );
+        }
+    }
+
+    private function buildFingerprintV2(
+        ?string $canonicalKey,
+        string $normalizedType,
+        ?\DateTimeInterface $startAt,
+        ?\DateTimeInterface $maxAt,
+        string $title
+    ): string {
+        $parts = [];
+
+        $normalizedCanonical = $this->normalizeForSimilarity($canonicalKey);
+        if ($normalizedCanonical !== null) {
+            $parts[] = 'ck:'.$normalizedCanonical;
+        }
+
+        $normalizedTypeValue = $this->normalizeForSimilarity($normalizedType);
+        if ($normalizedTypeValue !== null) {
+            $parts[] = 'tp:'.$normalizedTypeValue;
+        }
+
+        $anchor = $this->resolveReferenceMoment($startAt, $maxAt);
+        if ($anchor !== null) {
+            $parts[] = 'dt:'.CarbonImmutable::instance($anchor)->utc()->toDateString();
+        }
+
+        $normalizedTitle = $this->normalizeForSimilarity($title);
+        if ($normalizedTitle !== null) {
+            $parts[] = 'ttl:'.$normalizedTitle;
+        }
+
+        return hash('sha256', implode('|', $parts));
+    }
+
+    private function findFuzzyExistingCandidate(
+        \Illuminate\Database\Eloquent\Builder $scope,
+        string $normalizedType,
+        ?\DateTimeInterface $startAt,
+        ?\DateTimeInterface $maxAt,
+        string $title
+    ): ?EventCandidate {
+        if (! (bool) config('events.deduplication.fuzzy.enabled', true)) {
+            return null;
+        }
+
+        $anchor = $this->resolveReferenceMoment($startAt, $maxAt);
+        $titleForSimilarity = $this->normalizeForSimilarity($title);
+        if ($anchor === null || $titleForSimilarity === null) {
+            return null;
+        }
+
+        $windowHours = max(1, (int) config('events.deduplication.fuzzy.window_hours', 36));
+        $from = CarbonImmutable::instance($anchor)->subHours($windowHours);
+        $to = CarbonImmutable::instance($anchor)->addHours($windowHours);
+
+        $threshold = (float) config('events.deduplication.fuzzy.min_title_similarity', 0.86);
+        $threshold = max(0.5, min(1.0, $threshold));
+
+        $candidateRows = (clone $scope)
+            ->where('type', $normalizedType)
+            ->where(function ($query) use ($from, $to) {
+                $query->whereBetween('start_at', [$from, $to])
+                    ->orWhereBetween('max_at', [$from, $to]);
+            })
+            ->orderByDesc('id')
+            ->limit(40)
+            ->get(['id', 'title']);
+
+        $best = null;
+        $bestScore = 0.0;
+
+        foreach ($candidateRows as $row) {
+            $existingTitle = $this->normalizeForSimilarity((string) $row->title);
+            if ($existingTitle === null) {
+                continue;
+            }
+
+            $score = $this->titleSimilarity($titleForSimilarity, $existingTitle);
+            if ($score < $threshold || $score <= $bestScore) {
+                continue;
+            }
+
+            $best = $row;
+            $bestScore = $score;
+        }
+
+        return $best instanceof EventCandidate ? $best : null;
+    }
+
+    private function resolveReferenceMoment(
+        ?\DateTimeInterface $startAt,
+        ?\DateTimeInterface $maxAt
+    ): ?\DateTimeInterface {
+        if ($startAt !== null) {
+            return $startAt;
+        }
+
+        if ($maxAt !== null) {
+            return $maxAt;
+        }
+
+        return null;
+    }
+
+    private function normalizeForSimilarity(?string $value): ?string
+    {
+        $normalized = $this->normalizeText($value);
+        if ($normalized === null) {
+            return null;
+        }
+
+        if (function_exists('mb_strtolower')) {
+            $normalized = mb_strtolower($normalized, 'UTF-8');
+        } else {
+            $normalized = strtolower($normalized);
+        }
+
+        $normalized = preg_replace('/[^\pL\pN\s]/u', ' ', $normalized) ?? $normalized;
+        $normalized = preg_replace('/\s+/u', ' ', $normalized) ?? $normalized;
+        $normalized = trim($normalized);
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function titleSimilarity(string $left, string $right): float
+    {
+        if ($left === '' || $right === '') {
+            return 0.0;
+        }
+
+        similar_text($left, $right, $percent);
+
+        return round(((float) $percent) / 100, 4);
     }
 
     private function normalizeComparableValue(mixed $value, ?string $field = null): ?string
@@ -314,6 +650,7 @@ class EventImportService
             sort($normalized);
 
             $json = json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
             return $json !== false ? $json : null;
         }
 
@@ -367,11 +704,13 @@ class EventImportService
                     'candidate_id' => $candidateId,
                     'source_name' => $sourceName,
                 ]);
+
                 return;
             }
 
             if ($queueConnection === 'sync' && $allowSyncQueue) {
                 TranslateEventCandidateJob::dispatchSync($candidateId);
+
                 return;
             }
 
@@ -419,7 +758,7 @@ class EventImportService
     }
 
     /**
-     * @param array<int,mixed>|null $incomingMatchedSources
+     * @param  array<int,mixed>|null  $incomingMatchedSources
      * @return array<int,string>|null
      */
     private function collectCanonicalMatchedSources(
@@ -452,7 +791,7 @@ class EventImportService
     }
 
     /**
-     * @param array<int,string>|null $matchedSources
+     * @param  array<int,string>|null  $matchedSources
      */
     private function resolveDeterministicConfidenceScore(?string $canonicalKey, ?array $matchedSources): ?float
     {
@@ -461,11 +800,12 @@ class EventImportService
         }
 
         $count = is_array($matchedSources) ? count($matchedSources) : 0;
+
         return $count >= 2 ? 1.0 : 0.7;
     }
 
     /**
-     * @param array<int,string>|null $matchedSources
+     * @param  array<int,string>|null  $matchedSources
      */
     private function syncCanonicalSignals(?string $canonicalKey, ?array $matchedSources, ?float $confidenceScore): void
     {
@@ -482,7 +822,7 @@ class EventImportService
     }
 
     /**
-     * @param array<int,mixed>|null $matchedSources
+     * @param  array<int,mixed>|null  $matchedSources
      * @return array<int,string>|null
      */
     private function normalizeMatchedSources(?array $matchedSources): ?array

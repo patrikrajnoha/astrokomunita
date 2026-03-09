@@ -22,6 +22,9 @@ class EventTranslationArtifactDetector
         '%v konflikte so slnkom%',
         '%na vrchole%',
         '%odrazeferora%',
+        '%meteor sprcha%',
+        '%meteoricka sprcha%',
+        '%meteorická sprcha%',
     ];
 
     public function suspiciousCount(): int

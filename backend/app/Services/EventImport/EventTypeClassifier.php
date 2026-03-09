@@ -5,66 +5,90 @@ namespace App\Services\EventImport;
 class EventTypeClassifier
 {
     /**
-     * Jednotná interná taxonómia typov udalostí.
-     * Vracia napr.: meteor_shower, meteor, eclipse_solar, eclipse_lunar, planetary_event,
-     * comet, asteroid, space_event, observation_window, other
+     * Returns normalized internal event taxonomy.
      */
     public function classify(?string $rawType, ?string $title = null): string
     {
         $raw = $this->norm($rawType);
-        $t   = $this->norm($title);
+        $t = $this->norm($title);
 
-        // --- helper: "eclipse" signál môže byť v raw aj v title
+        // Eclipse signal can appear in either raw type or title.
         $hasEclipse = $this->hasAny($raw, ['eclipse', 'zatmenie']) || $this->hasAny($t, ['eclipse', 'zatmenie']);
 
-        // 1) ZATMENIA (musí zachytiť aj rawType = "lunar_eclipse"/"solar_eclipse" a aj rawType="eclipse" + title obsahuje solar/lunar)
+        // 1) Eclipses.
         if (
             $this->hasAny($raw, ['solar_eclipse', 'eclipse_solar', 'solareclipse']) ||
-            ($hasEclipse && $this->hasAny($raw . ' ' . $t, ['solar', 'slnk']))
+            ($hasEclipse && $this->hasAny($raw.' '.$t, ['solar', 'slnk']))
         ) {
             return 'eclipse_solar';
         }
 
         if (
             $this->hasAny($raw, ['lunar_eclipse', 'eclipse_lunar', 'lunareclipse']) ||
-            ($hasEclipse && $this->hasAny($raw . ' ' . $t, ['lunar', 'mesiac', 'mes']))
+            ($hasEclipse && $this->hasAny($raw.' '.$t, ['lunar', 'mesiac', 'mes']))
         ) {
             return 'eclipse_lunar';
         }
 
-        // 2) METEORICKÉ ROJE / METEORY
+        // 2) Meteor showers / meteors.
         if (
-            $this->hasAny($raw, ['meteor shower', 'meteor_shower', 'shower', 'meteorický roj', 'meteoricky roj', 'roj']) ||
+            $this->hasAny($raw, ['meteor shower', 'meteor_shower', 'shower', 'meteoricky roj', 'meteorický roj', 'roj']) ||
             $this->hasAny($t, ['perseid', 'leonid', 'geminid', 'quadrantid', 'eta aquariid', 'orionid', 'taurid'])
         ) {
             return 'meteor_shower';
         }
 
-        if ($this->hasAny($raw . ' ' . $t, ['meteor', 'fireball', 'bolid']) && !$this->hasAny($raw . ' ' . $t, ['shower', 'roj'])) {
+        if ($this->hasAny($raw.' '.$t, ['meteor', 'fireball', 'bolid']) && ! $this->hasAny($raw.' '.$t, ['shower', 'roj'])) {
             return 'meteor';
         }
 
-        // 3) PLANÉTARNE JAVY
+        // 3) Lunar phases.
+        // Keep moon phases under observation_window so cross-source canonical keys
+        // remain compatible (e.g. AstroPixels vs NASA WTS).
         if (
-            $this->hasAny($raw, ['conjunction', 'konjunkcia', 'opposition', 'opozícia', 'opozicia', 'elongation', 'retrograde', 'stationary']) ||
-            $this->hasAny($t, ['konjunkcia', 'opozícia', 'opozicia', 'retrogr', 'elong'])
+            $this->hasAny($raw, ['moon_phase', 'moon phase', 'lunar phase']) ||
+            $this->hasAny($t, [
+                'full moon',
+                'new moon',
+                'first quarter',
+                'last quarter',
+                'lunar phase',
+                'spln',
+                'nov',
+                'prva stvrt',
+                'prva stvrt mesiaca',
+                'prvá štvrť',
+                'prvá štvrť mesiaca',
+                'posledna stvrt',
+                'posledna stvrt mesiaca',
+                'posledná štvrť',
+                'posledná štvrť mesiaca',
+            ])
+        ) {
+            return 'observation_window';
+        }
+
+        // 4) Planetary events.
+        if (
+            $this->hasAny($raw, ['conjunction', 'konjunkcia', 'opposition', 'opozicia', 'opozícia', 'elongation', 'retrograde', 'stationary']) ||
+            $this->hasAny($t, ['konjunkcia', 'opozicia', 'opozícia', 'retrogr', 'elong'])
         ) {
             return 'planetary_event';
         }
 
-        // 4) KOMÉTY / ASTEROIDY
-        if ($this->hasAny($raw . ' ' . $t, ['comet', 'kométa', 'kometa', 'komét', 'komet'])) {
+        // 5) Comets / asteroids.
+        if ($this->hasAny($raw.' '.$t, ['comet', 'kometa', 'komet'])) {
             return 'comet';
         }
 
         if (
-            $this->hasAny($raw, ['asteroid', 'neo', 'nea', 'nasa jpl', 'close approach', 'priblíženie', 'priblizenie']) ||
+            $this->hasAny($raw, ['asteroid', 'neo', 'nea', 'nasa jpl', 'close approach', 'priblizenie', 'priblíženie']) ||
             $this->hasAny($t, ['asteroid', 'pribl'])
         ) {
             return 'asteroid';
         }
 
-        // 5) ISS / SATELITY / LAUNCH
+        // 6) ISS / satellites / launches.
         if (
             $this->hasAny($raw, ['iss', 'satellite', 'satelit', 'launch', 'rocket', 'falcon', 'starlink']) ||
             $this->hasAny($t, ['iss', 'starlink', 'launch', 'satelit'])
@@ -72,10 +96,10 @@ class EventTypeClassifier
             return 'space_event';
         }
 
-        // 6) POZOROVANIE (okná, viditeľnosť)
+        // 7) Generic observing windows.
         if (
-            $this->hasAny($raw, ['best', 'visibility', 'observable', 'window', 'pozorovanie', 'viditeľnosť', 'viditelnost']) ||
-            $this->hasAny($t, ['pozor', 'viditeľn', 'viditeln', 'okno'])
+            $this->hasAny($raw, ['best', 'visibility', 'observable', 'window', 'pozorovanie', 'viditelnost', 'viditeľnosť']) ||
+            $this->hasAny($t, ['pozor', 'viditeln', 'viditeľn', 'okno'])
         ) {
             return 'observation_window';
         }
@@ -89,14 +113,18 @@ class EventTypeClassifier
         $s = mb_strtolower($s);
         $s = preg_replace('/\s+/u', ' ', $s) ?? $s;
 
-        // zjednotíme underscore/hyphen a odstránime dvojité medzery
-        $s = str_replace(['-', '__'], ['_', '_'], $s);
-        return $s;
+        // Normalize underscore/hyphen variants.
+        return str_replace(['-', '__'], ['_', '_'], $s);
     }
 
+    /**
+     * @param  array<int,string>  $needles
+     */
     private function hasAny(string $haystack, array $needles): bool
     {
-        if ($haystack === '') return false;
+        if ($haystack === '') {
+            return false;
+        }
 
         foreach ($needles as $n) {
             $n = $this->norm($n);

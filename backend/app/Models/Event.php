@@ -4,8 +4,8 @@ namespace App\Models;
 
 use App\Enums\RegionScope;
 use App\Services\Events\EventInsightsCacheService;
-use App\Support\EventTime;
 use App\Support\EventFollowTable;
+use App\Support\EventTime;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -33,6 +33,7 @@ class Event extends Model
         'source_name',
         'source_uid',
         'source_hash',
+        'fingerprint_v2',
         'confidence_score',
         'canonical_key',
         'matched_sources',

@@ -22,6 +22,7 @@ class EventCandidatePublisherTest extends TestCase
             'source_uid' => 'imo:lyrids:2026',
             'external_id' => 'imo:lyrids:2026',
             'stable_key' => 'imo:lyrids:2026',
+            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'),
             'canonical_key' => 'meteor shower|2026-04-22|lyrids lyr',
             'confidence_score' => 1.0,
             'matched_sources' => ['astropixels', 'imo'],
@@ -52,6 +53,7 @@ class EventCandidatePublisherTest extends TestCase
             'source_name' => 'astropixels',
             'source_uid' => 'astropixels:lyrids:2026',
             'source_hash' => hash('sha256', 'existing-event'),
+            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'),
             'canonical_key' => 'meteor shower|2026-04-22|lyrids lyr',
             'confidence_score' => 0.7,
             'matched_sources' => ['astropixels'],
@@ -62,6 +64,7 @@ class EventCandidatePublisherTest extends TestCase
             'source_uid' => 'astropixels:lyrids:2026',
             'external_id' => 'astropixels:lyrids:2026',
             'stable_key' => 'astropixels:lyrids:2026',
+            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'),
             'canonical_key' => 'meteor shower|2026-04-22|lyrids lyr',
             'confidence_score' => 1.0,
             'matched_sources' => ['astropixels', 'imo'],
@@ -82,8 +85,60 @@ class EventCandidatePublisherTest extends TestCase
         $this->assertSame($existingEvent->id, (int) $candidate->published_event_id);
     }
 
+    public function test_approve_reuses_existing_event_from_other_source_by_canonical_signals(): void
+    {
+        $reviewer = User::factory()->create();
+
+        $existingEvent = Event::query()->create([
+            'title' => 'Lyrids',
+            'description' => 'Existing Astropixels event',
+            'type' => 'meteor_shower',
+            'start_at' => CarbonImmutable::parse('2026-04-22 20:00:00', 'UTC'),
+            'end_at' => null,
+            'max_at' => CarbonImmutable::parse('2026-04-22 20:00:00', 'UTC'),
+            'short' => 'Lyrids short',
+            'visibility' => 1,
+            'source_name' => 'astropixels',
+            'source_uid' => 'astropixels:lyrids:2026',
+            'source_hash' => hash('sha256', 'existing-astropixels-event'),
+            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'),
+            'canonical_key' => 'meteor shower|2026-04-22|lyrids lyr',
+            'confidence_score' => 0.7,
+            'matched_sources' => ['astropixels'],
+        ]);
+
+        $candidate = $this->makeCandidate([
+            'source_name' => 'imo',
+            'source_uid' => 'imo:lyrids:2026',
+            'external_id' => 'imo:lyrids:2026',
+            'stable_key' => 'imo:lyrids:2026',
+            'source_hash' => hash('sha256', 'imo:lyrids:2026'),
+            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'),
+            'canonical_key' => 'meteor shower|2026-04-22|lyrids lyr',
+            'confidence_score' => 1.0,
+            'matched_sources' => ['astropixels', 'imo'],
+        ]);
+
+        /** @var EventCandidatePublisher $publisher */
+        $publisher = app(EventCandidatePublisher::class);
+        $published = $publisher->approve($candidate, $reviewer->id);
+
+        $this->assertSame($existingEvent->id, $published->id);
+        $this->assertSame(1, Event::query()->count());
+
+        $published->refresh();
+        $this->assertSame(['astropixels', 'imo'], $published->matched_sources);
+        $this->assertSame('1.00', (string) $published->confidence_score);
+        $this->assertSame('meteor shower|2026-04-22|lyrids lyr', $published->canonical_key);
+        $this->assertSame(hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'), $published->fingerprint_v2);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::STATUS_APPROVED, $candidate->status);
+        $this->assertSame($existingEvent->id, (int) $candidate->published_event_id);
+    }
+
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     private function makeCandidate(array $overrides = []): EventCandidate
     {
@@ -94,6 +149,7 @@ class EventCandidatePublisherTest extends TestCase
             'external_id' => 'candidate-1',
             'stable_key' => 'candidate-1',
             'source_hash' => hash('sha256', 'candidate-1'),
+            'fingerprint_v2' => hash('sha256', 'candidate-1'),
             'title' => 'Lyrids',
             'description' => 'Candidate description',
             'type' => 'meteor_shower',
@@ -107,4 +163,3 @@ class EventCandidatePublisherTest extends TestCase
         ], $overrides));
     }
 }
-

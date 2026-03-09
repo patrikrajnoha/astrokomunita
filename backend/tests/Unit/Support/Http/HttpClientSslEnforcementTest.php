@@ -22,7 +22,7 @@ class HttpClientSslEnforcementTest extends TestCase
 
     public function test_astropixels_crawler_forces_ssl_verification_in_production_even_when_disabled_in_config(): void
     {
-        config()->set('events.astropixels.base_url_pattern', 'https://example.test/almanac%dcet.html');
+        config()->set('events.astropixels.base_url_pattern', 'https://example.test/almanac%2$02d/almanac%1$dcet.html');
         config()->set('events.crawler_ssl_verify', false);
         config()->set('events.crawler_ssl_ca_bundle', '');
 
@@ -43,9 +43,28 @@ class HttpClientSslEnforcementTest extends TestCase
         $this->assertNotNull($summer);
         $this->assertSame('2026-07-06 18:00:00', $summer->startsAtUtc->format('Y-m-d H:i:s'));
         Http::assertSent(function ($request) {
-            return $request->url() === 'https://example.test/almanac2026cet.html'
+            return $request->url() === 'https://example.test/almanac21/almanac2026cet.html'
                 && data_get($request->attributes(), 'ssl_verify') === true;
         });
+    }
+
+    public function test_astropixels_crawler_uses_decade_folder_for_year_2031(): void
+    {
+        config()->set('events.astropixels.base_url_pattern', 'https://example.test/almanac%2$02d/almanac%1$dcet.html');
+        config()->set('events.crawler_ssl_verify', true);
+
+        Http::fake([
+            'https://example.test/*' => Http::response(
+                File::get(base_path('tests/Fixtures/astropixels/almanac2026cet.html')),
+                200
+            ),
+        ]);
+
+        $service = new AstropixelsCrawlerService(new AstropixelsAlmanacParser());
+        $batch = $service->fetchCandidates(new CrawlContext(2031));
+
+        $this->assertGreaterThan(0, count($batch->items));
+        Http::assertSent(fn ($request) => $request->url() === 'https://example.test/almanac31/almanac2031cet.html');
     }
 
     public function test_ollama_client_forces_ssl_verification_in_production_even_when_disabled_in_config(): void

@@ -28,7 +28,7 @@ class SidebarConfigTest extends TestCase
             ->assertOk()
             ->assertJsonPath('scope', 'home')
             ->assertJsonCount($defaultSectionsCount, 'data')
-            ->assertJsonPath('data.0.section_key', 'search')
+            ->assertJsonPath('data.0.section_key', 'observing_conditions')
             ->assertJsonPath('data.0.order', 0)
             ->assertJsonPath('data.0.is_enabled', true);
     }
@@ -56,10 +56,14 @@ class SidebarConfigTest extends TestCase
 
         $getResponse
             ->assertOk()
-            ->assertJsonPath('data.0.section_key', 'latest_articles')
-            ->assertJsonPath('data.0.order', 0)
-            ->assertJsonPath('data.0.is_enabled', true)
-            ->assertJsonPath('data.1.section_key', 'nasa_apod')
+            ->assertJsonFragment([
+                'section_key' => 'latest_articles',
+                'is_enabled' => true,
+            ])
+            ->assertJsonFragment([
+                'section_key' => 'nasa_apod',
+                'is_enabled' => true,
+            ])
             ->assertJsonFragment([
                 'section_key' => 'search',
                 'is_enabled' => false,
@@ -160,7 +164,7 @@ class SidebarConfigTest extends TestCase
             ->assertJsonValidationErrors(['items.0.section_key']);
     }
 
-    public function test_admin_put_rejects_more_than_two_enabled_widgets(): void
+    public function test_admin_put_rejects_more_than_three_enabled_widgets(): void
     {
         $admin = User::factory()->create([
             'role' => 'admin',
@@ -173,8 +177,8 @@ class SidebarConfigTest extends TestCase
                 ['kind' => 'builtin', 'section_key' => 'search', 'order' => 0, 'is_enabled' => true],
                 ['kind' => 'builtin', 'section_key' => 'nasa_apod', 'order' => 1, 'is_enabled' => true],
                 ['kind' => 'builtin', 'section_key' => 'next_event', 'order' => 2, 'is_enabled' => true],
-                ['kind' => 'builtin', 'section_key' => 'observing_conditions', 'order' => 3, 'is_enabled' => false],
-                ['kind' => 'builtin', 'section_key' => 'latest_articles', 'order' => 4, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'latest_articles', 'order' => 3, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'observing_conditions', 'order' => 4, 'is_enabled' => false],
                 ['kind' => 'builtin', 'section_key' => 'upcoming_events', 'order' => 5, 'is_enabled' => false],
             ],
         ]);
@@ -184,7 +188,7 @@ class SidebarConfigTest extends TestCase
             ->assertJsonValidationErrors(['items']);
     }
 
-    public function test_admin_put_rejects_observing_conditions_combined_with_other_enabled_widget(): void
+    public function test_admin_put_allows_observing_widgets_combination(): void
     {
         $admin = User::factory()->create([
             'role' => 'admin',
@@ -194,18 +198,32 @@ class SidebarConfigTest extends TestCase
 
         $response = $this->putJson('/api/admin/sidebar-config?scope=home', [
             'items' => [
-                ['kind' => 'builtin', 'section_key' => 'search', 'order' => 0, 'is_enabled' => true],
-                ['kind' => 'builtin', 'section_key' => 'observing_conditions', 'order' => 1, 'is_enabled' => true],
-                ['kind' => 'builtin', 'section_key' => 'nasa_apod', 'order' => 2, 'is_enabled' => false],
-                ['kind' => 'builtin', 'section_key' => 'next_event', 'order' => 3, 'is_enabled' => false],
-                ['kind' => 'builtin', 'section_key' => 'latest_articles', 'order' => 4, 'is_enabled' => false],
-                ['kind' => 'builtin', 'section_key' => 'upcoming_events', 'order' => 5, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'observing_conditions', 'order' => 0, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'observing_weather', 'order' => 1, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'night_sky', 'order' => 2, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'search', 'order' => 3, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'nasa_apod', 'order' => 4, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'next_event', 'order' => 5, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'latest_articles', 'order' => 6, 'is_enabled' => false],
+                ['kind' => 'builtin', 'section_key' => 'upcoming_events', 'order' => 7, 'is_enabled' => false],
             ],
         ]);
 
         $response
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['items']);
+            ->assertOk()
+            ->assertJsonPath('scope', 'home')
+            ->assertJsonFragment([
+                'section_key' => 'observing_conditions',
+                'is_enabled' => true,
+            ])
+            ->assertJsonFragment([
+                'section_key' => 'observing_weather',
+                'is_enabled' => true,
+            ])
+            ->assertJsonFragment([
+                'section_key' => 'night_sky',
+                'is_enabled' => true,
+            ]);
     }
 
     public function test_post_detail_scope_can_be_configured(): void

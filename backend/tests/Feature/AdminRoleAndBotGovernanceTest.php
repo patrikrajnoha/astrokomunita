@@ -14,7 +14,7 @@ class AdminRoleAndBotGovernanceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_grant_and_revoke_editor_role(): void
+    public function test_admin_can_change_role_for_regular_non_bot_account(): void
     {
         $admin = User::factory()->admin()->create();
         $target = User::factory()->create([
@@ -46,6 +46,27 @@ class AdminRoleAndBotGovernanceTest extends TestCase
         Sanctum::actingAs($editor);
 
         $this->patchJson("/api/admin/users/{$target->id}/role", ['role' => User::ROLE_EDITOR])
+            ->assertForbidden();
+    }
+
+    public function test_non_admin_cannot_ban_deactivate_or_reset_accounts(): void
+    {
+        $editor = User::factory()->editor()->create();
+        $target = User::factory()->create([
+            'role' => User::ROLE_USER,
+            'is_admin' => false,
+            'is_bot' => false,
+            'is_active' => true,
+            'is_banned' => false,
+        ]);
+
+        Sanctum::actingAs($editor);
+
+        $this->patchJson("/api/admin/users/{$target->id}/ban", ['reason' => 'Not allowed'])
+            ->assertForbidden();
+        $this->postJson("/api/admin/users/{$target->id}/deactivate")
+            ->assertForbidden();
+        $this->postJson("/api/admin/users/{$target->id}/reset-profile")
             ->assertForbidden();
     }
 
@@ -100,7 +121,7 @@ class AdminRoleAndBotGovernanceTest extends TestCase
             ->assertJsonValidationErrors(['avatar_path', 'cover_path']);
     }
 
-    public function test_regular_profile_rejects_raw_avatar_and_cover_path_updates(): void
+    public function test_regular_profile_update_is_forbidden_for_admin(): void
     {
         $admin = User::factory()->admin()->create();
         $regularUser = User::factory()->create([
@@ -113,8 +134,7 @@ class AdminRoleAndBotGovernanceTest extends TestCase
         $this->patchJson("/api/admin/users/{$regularUser->id}/profile", [
             'avatar_path' => 'avatars/user.png',
             'cover_path' => 'covers/user.png',
-        ])->assertStatus(422)
-            ->assertJsonValidationErrors(['avatar_path', 'cover_path']);
+        ])->assertForbidden();
     }
 
     public function test_admin_can_manage_bot_avatar_preferences_and_remove_media(): void
@@ -158,6 +178,70 @@ class AdminRoleAndBotGovernanceTest extends TestCase
             'avatar_seed' => 'bot-seed-2',
         ])->assertOk()
             ->assertJsonPath('avatar_mode', 'generated');
+    }
+
+    public function test_admin_write_endpoints_for_deactivate_and_reset_are_allowed_for_non_admin_targets(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $bot = User::factory()->bot()->create([
+            'is_active' => true,
+            'bio' => 'bot bio',
+        ]);
+        $regular = User::factory()->create([
+            'is_bot' => false,
+            'role' => User::ROLE_USER,
+            'is_active' => true,
+            'bio' => 'regular bio',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->postJson("/api/admin/users/{$regular->id}/deactivate")
+            ->assertOk()
+            ->assertJsonPath('is_active', false);
+
+        $this->postJson("/api/admin/users/{$regular->id}/reactivate")
+            ->assertOk()
+            ->assertJsonPath('is_active', true);
+
+        $this->postJson("/api/admin/users/{$regular->id}/reset-profile")
+            ->assertOk()
+            ->assertJsonPath('bio', null)
+            ->assertJsonPath('avatar_path', null)
+            ->assertJsonPath('cover_path', null);
+
+        $this->postJson("/api/admin/users/{$bot->id}/deactivate")
+            ->assertOk()
+            ->assertJsonPath('is_active', false);
+
+        $this->postJson("/api/admin/users/{$bot->id}/reset-profile")
+            ->assertOk()
+            ->assertJsonPath('bio', null)
+            ->assertJsonPath('avatar_path', null)
+            ->assertJsonPath('cover_path', null);
+    }
+
+    public function test_admin_cannot_change_role_or_account_state_for_admin_targets_or_self(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $adminTarget = User::factory()->admin()->create();
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/admin/users/{$adminTarget->id}/role", ['role' => User::ROLE_EDITOR])
+            ->assertForbidden();
+        $this->patchJson("/api/admin/users/{$admin->id}/role", ['role' => User::ROLE_EDITOR])
+            ->assertForbidden();
+
+        $this->patchJson("/api/admin/users/{$adminTarget->id}/ban", ['reason' => 'Forbidden'])
+            ->assertForbidden();
+        $this->patchJson("/api/admin/users/{$admin->id}/ban", ['reason' => 'Forbidden'])
+            ->assertForbidden();
+
+        $this->postJson("/api/admin/users/{$adminTarget->id}/deactivate")
+            ->assertForbidden();
+        $this->postJson("/api/admin/users/{$admin->id}/deactivate")
+            ->assertForbidden();
     }
 
     public function test_non_admin_cannot_manage_bot_media_endpoints(): void

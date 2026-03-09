@@ -488,6 +488,33 @@ class AdminBotControllerTest extends TestCase
             ->assertJsonPath('source_key', $source->key);
     }
 
+    public function test_admin_post_run_force_manual_override_bypasses_active_cooldown(): void
+    {
+        $source = $this->createRssSource('cooldown_override_rss_source');
+        $source->forceFill([
+            'cooldown_until' => now()->addHours(2),
+        ])->save();
+        $this->actingAsAdmin();
+
+        Http::fake([
+            $source->url => Http::response($this->singleItemRss(), 200, ['Content-Type' => 'application/rss+xml']),
+        ]);
+
+        $response = $this->postJson('/api/admin/bots/run/' . $source->key, [
+            'force_manual_override' => true,
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('source_key', $source->key)
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('stats.published_count', 1)
+            ->assertJsonPath('meta.cooldown_bypassed', true);
+
+        $source->refresh();
+        $this->assertNull($source->cooldown_until);
+    }
+
     public function test_admin_get_runs_returns_latest_run_with_pagination_payload(): void
     {
         $source = $this->createRssSource('runs_rss_source');

@@ -6,6 +6,8 @@ use App\Models\SidebarCustomComponent;
 use App\Models\SidebarSectionConfig;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -257,6 +259,52 @@ class SidebarCustomComponentTest extends TestCase
             ->assertJsonPath('data.config_json.body', 'Legacy payload')
             ->assertJsonPath('data.config_json.buttonText', 'Open detail')
             ->assertJsonPath('data.config_json.buttonHref', '/events/42');
+    }
+
+    public function test_admin_can_create_contest_sidebar_widget(): void
+    {
+        Sanctum::actingAs($this->createAdmin());
+
+        $response = $this->postJson('/api/admin/sidebar/custom-components', [
+            'name' => 'Sutaz marec',
+            'type' => SidebarCustomComponent::TYPE_CONTEST,
+            'is_active' => true,
+            'config_json' => [
+                'title' => 'Sutaz o teleskop',
+                'description' => 'Pridaj fotku oblohy a vyhraj.',
+                'imageUrl' => '/api/media/file/sidebar-widgets/1/sutaz.jpg',
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.type', SidebarCustomComponent::TYPE_CONTEST)
+            ->assertJsonPath('data.config_json.title', 'Sutaz o teleskop')
+            ->assertJsonPath('data.config_json.description', 'Pridaj fotku oblohy a vyhraj.')
+            ->assertJsonPath('data.config_json.imageUrl', '/api/media/file/sidebar-widgets/1/sutaz.jpg');
+    }
+
+    public function test_admin_can_upload_contest_sidebar_image(): void
+    {
+        Storage::fake('public');
+        config(['media.disk' => 'public']);
+        Sanctum::actingAs($this->createAdmin());
+
+        $response = $this->post('/api/admin/sidebar/custom-components/upload-image', [
+            'file' => UploadedFile::fake()->create('contest-cover.jpg', 256, 'image/jpeg'),
+        ], [
+            'Accept' => 'application/json',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('message', 'Obrazok bol nahrany.');
+
+        $path = (string) $response->json('data.path');
+        $url = (string) $response->json('data.url');
+
+        $this->assertNotSame('', $path);
+        $this->assertStringStartsWith('sidebar-widgets/', $path);
+        $this->assertStringContainsString('/api/media/file/', $url);
+        Storage::disk('public')->assertExists($path);
     }
 
     private function createAdmin(): User

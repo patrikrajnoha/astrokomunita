@@ -14,40 +14,52 @@ class SidebarSectionSeeder extends Seeder
     {
         $sections = [
             [
-                'key' => 'search',
-                'title' => 'Search',
+                'key' => 'observing_conditions',
+                'title' => 'Astronomicke podmienky',
                 'is_visible' => true,
                 'sort_order' => 0,
             ],
             [
-                'key' => 'observing_conditions',
-                'title' => 'Observing Conditions',
+                'key' => 'observing_weather',
+                'title' => 'Pocasie pre pozorovanie',
                 'is_visible' => true,
                 'sort_order' => 1,
             ],
             [
-                'key' => 'next_event',
-                'title' => 'Najblizsia udalost',
+                'key' => 'night_sky',
+                'title' => 'Nocna obloha',
                 'is_visible' => true,
                 'sort_order' => 2,
             ],
             [
-                'key' => 'latest_articles',
-                'title' => 'Najnovsie clanky',
+                'key' => 'search',
+                'title' => 'Search',
                 'is_visible' => true,
                 'sort_order' => 3,
-            ],
-            [
-                'key' => 'upcoming_events',
-                'title' => 'Co sa deje',
-                'is_visible' => true,
-                'sort_order' => 4,
             ],
             [
                 'key' => 'nasa_apod',
                 'title' => 'NASA Novinky',
                 'is_visible' => true,
+                'sort_order' => 4,
+            ],
+            [
+                'key' => 'next_event',
+                'title' => 'Najblizsia udalost',
+                'is_visible' => true,
                 'sort_order' => 5,
+            ],
+            [
+                'key' => 'latest_articles',
+                'title' => 'Najnovsie clanky',
+                'is_visible' => true,
+                'sort_order' => 6,
+            ],
+            [
+                'key' => 'upcoming_events',
+                'title' => 'Co sa deje',
+                'is_visible' => true,
+                'sort_order' => 7,
             ],
         ];
 

@@ -14,6 +14,17 @@ class CrawlAstropixelsCommandTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config()->set('events.astropixels.min_year', 2021);
+        config()->set('events.astropixels.max_year', 2030);
+        config()->set(
+            'events.astropixels.base_url_pattern',
+            'https://astropixels.com/almanac/almanac%2$02d/almanac%1$dcet.html'
+        );
+    }
+
     public function test_command_creates_crawl_run_and_candidates_and_skips_duplicates(): void
     {
         $html = File::get(base_path('tests/Fixtures/astropixels/almanac2026cet.html'));
@@ -102,13 +113,38 @@ class CrawlAstropixelsCommandTest extends TestCase
         });
 
         $this->artisan('events:crawl-astropixels --all-years')
-            ->assertExitCode(Command::FAILURE);
+            ->assertExitCode(Command::SUCCESS);
 
         $runs = CrawlRun::query()->where('source_name', 'astropixels')->get();
         $this->assertCount(10, $runs);
         $this->assertSame(2, $runs->where('status', 'success')->count());
-        $this->assertSame(8, $runs->where('status', 'failed')->count());
-        $this->assertGreaterThan(0, $runs->where('status', 'failed')->whereNotNull('error_code')->count());
+        $this->assertSame(8, $runs->where('status', 'skipped')->count());
+        $this->assertSame(8, $runs->where('error_code', 'astropixels_year_unavailable')->count());
         $this->assertGreaterThan(0, EventCandidate::query()->count());
+    }
+
+    public function test_command_builds_decade_specific_url_for_year_2031(): void
+    {
+        config()->set('events.astropixels.max_year', 2100);
+
+        $html = File::get(base_path('tests/Fixtures/astropixels/almanac2026cet.html'));
+        Http::fake([
+            'https://astropixels.com/*' => Http::response($html, 200),
+        ]);
+
+        $this->artisan('events:crawl-astropixels --year=2031')
+            ->assertSuccessful();
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://astropixels.com/almanac/almanac31/almanac2031cet.html';
+        });
+
+        $this->assertDatabaseHas('crawl_runs', [
+            'source_name' => 'astropixels',
+            'year' => 2031,
+            'source_year' => 2031,
+            'status' => 'success',
+            'source_url' => 'https://astropixels.com/almanac/almanac31/almanac2031cet.html',
+        ]);
     }
 }

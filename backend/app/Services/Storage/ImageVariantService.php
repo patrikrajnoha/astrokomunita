@@ -133,6 +133,10 @@ class ImageVariantService
             ];
         }
 
+        if ($this->shouldBypassRasterProcessing($width, $height)) {
+            return $this->buildUnprocessedFallback($sourcePath, $originalMime, $width, $height);
+        }
+
         $imagickResult = $this->buildWithImagick($sourcePath, $originalMime);
         if ($imagickResult !== null) {
             return $imagickResult;
@@ -143,19 +147,7 @@ class ImageVariantService
             return $gdResult;
         }
 
-        $fallbackContents = file_get_contents($sourcePath);
-        if ($fallbackContents === false) {
-            throw new RuntimeException('Unable to read source image for fallback variant.');
-        }
-
-        return [
-            'mime' => $originalMime,
-            'extension' => $this->extensionForMime($originalMime) ?? 'jpg',
-            'contents' => $fallbackContents,
-            'width' => $width,
-            'height' => $height,
-            'processed' => false,
-        ];
+        return $this->buildUnprocessedFallback($sourcePath, $originalMime, $width, $height);
     }
 
     /**
@@ -230,12 +222,7 @@ class ImageVariantService
             return null;
         }
 
-        $raw = file_get_contents($sourcePath);
-        if ($raw === false) {
-            return null;
-        }
-
-        $source = @imagecreatefromstring($raw);
+        $source = $this->createGdImageResource($sourcePath, $originalMime);
         if (!$source) {
             return null;
         }
@@ -300,6 +287,30 @@ class ImageVariantService
     }
 
     /**
+     * @return resource|\GdImage|false
+     */
+    private function createGdImageResource(string $sourcePath, string $originalMime): mixed
+    {
+        $source = match ($originalMime) {
+            'image/jpeg' => function_exists('imagecreatefromjpeg') ? @imagecreatefromjpeg($sourcePath) : false,
+            'image/png' => function_exists('imagecreatefrompng') ? @imagecreatefrompng($sourcePath) : false,
+            'image/webp' => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($sourcePath) : false,
+            default => false,
+        };
+
+        if ($source !== false) {
+            return $source;
+        }
+
+        $raw = file_get_contents($sourcePath);
+        if ($raw === false) {
+            return false;
+        }
+
+        return @imagecreatefromstring($raw);
+    }
+
+    /**
      * @return array{width: int|null, height: int|null}
      */
     private function extractDimensions(string $sourcePath): array
@@ -315,6 +326,43 @@ class ImageVariantService
         return [
             'width' => $width > 0 ? $width : null,
             'height' => $height > 0 ? $height : null,
+        ];
+    }
+
+    private function shouldBypassRasterProcessing(?int $width, ?int $height): bool
+    {
+        if ($width === null || $height === null || $width < 1 || $height < 1) {
+            return false;
+        }
+
+        $maxDimension = max(1, (int) config('media.post_image_max_pixels', 10000));
+        if ($width > $maxDimension || $height > $maxDimension) {
+            return true;
+        }
+
+        $maxTotalPixels = max(1, (int) config('media.post_image_processing_max_pixels', 16000000));
+        $totalPixels = (float) $width * (float) $height;
+
+        return $totalPixels > $maxTotalPixels;
+    }
+
+    /**
+     * @return array{mime: string, extension: string, contents: string, width: int|null, height: int|null, processed: bool}
+     */
+    private function buildUnprocessedFallback(string $sourcePath, string $mime, ?int $width, ?int $height): array
+    {
+        $contents = file_get_contents($sourcePath);
+        if ($contents === false) {
+            throw new RuntimeException('Unable to read source image for fallback variant.');
+        }
+
+        return [
+            'mime' => $mime,
+            'extension' => $this->extensionForMime($mime) ?? 'jpg',
+            'contents' => $contents,
+            'width' => $width,
+            'height' => $height,
+            'processed' => false,
         ];
     }
 

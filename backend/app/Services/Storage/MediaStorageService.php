@@ -52,6 +52,11 @@ class MediaStorageService
         return $this->storePublicly($file, sprintf('observations/%d/images', $observationId));
     }
 
+    public function storeSidebarWidgetImage(UploadedFile $file, int $userId): string
+    {
+        return $this->storePublicly($file, sprintf('sidebar-widgets/%d', $userId));
+    }
+
     public function delete(?string $path, ?string $diskName = null): void
     {
         if (!$path) {

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Event;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -122,6 +123,108 @@ class EventFollowTest extends TestCase
         $response->assertJsonPath('data.1.id', $olderEvent->id);
         $response->assertJsonPath('total', 2);
         $this->assertNotNull(data_get($response->json(), 'data.0.followed_at'));
+    }
+
+    public function test_user_can_save_personal_plan_for_event_and_follow_is_ensured(): void
+    {
+        $user = User::factory()->create();
+        $event = $this->createPublishedEvent([
+            'source_uid' => 'event-plan-endpoint',
+            'start_at' => CarbonImmutable::parse('2026-04-17 21:30:00', 'UTC'),
+            'end_at' => CarbonImmutable::parse('2026-04-17 23:10:00', 'UTC'),
+            'description' => 'Najlepsie podmienky po zotmeni.',
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->patchJson("/api/events/{$event->id}/plan", [
+            'personal_note' => 'Vziat stativ a cierny caj.',
+            'reminder_at' => '2026-04-17T19:00:00+00:00',
+            'planned_time' => '2026-04-17T21:45:00+00:00',
+            'planned_location_label' => 'Maly Karpaty vyhliadka',
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('followed', true)
+            ->assertJsonPath('data.id', $event->id)
+            ->assertJsonPath('data.plan.personal_note', 'Vziat stativ a cierny caj.')
+            ->assertJsonPath('data.plan.reminder_at', '2026-04-17T19:00:00+00:00')
+            ->assertJsonPath('data.plan.planned_time', '2026-04-17T21:45:00+00:00')
+            ->assertJsonPath('data.plan.planned_location_label', 'Maly Karpaty vyhliadka');
+
+        $this->assertDatabaseHas('user_event_follows', [
+            'user_id' => $user->id,
+            'event_id' => $event->id,
+            'personal_note' => 'Vziat stativ a cierny caj.',
+            'planned_location_label' => 'Maly Karpaty vyhliadka',
+        ]);
+    }
+
+    public function test_followed_events_index_includes_personal_plan_payload_when_present(): void
+    {
+        $user = User::factory()->create();
+        $event = $this->createPublishedEvent([
+            'source_uid' => 'followed-events-plan-payload',
+            'start_at' => CarbonImmutable::parse('2026-05-12 20:00:00', 'UTC'),
+            'end_at' => CarbonImmutable::parse('2026-05-12 23:00:00', 'UTC'),
+            'description' => 'Pozorovanie po zotmeni.',
+        ]);
+
+        DB::table('user_event_follows')->insert([
+            'user_id' => $user->id,
+            'event_id' => $event->id,
+            'personal_note' => 'Dorazit skor.',
+            'reminder_at' => '2026-05-12 18:30:00',
+            'planned_time' => '2026-05-12 20:30:00',
+            'planned_location_label' => 'Luka pri meste',
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/me/followed-events?per_page=10');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $event->id)
+            ->assertJsonPath('data.0.plan.personal_note', 'Dorazit skor.')
+            ->assertJsonPath('data.0.plan.has_reminder', true)
+            ->assertJsonPath('data.0.plan.has_planned_time', true)
+            ->assertJsonPath('data.0.plan.has_planned_location', true)
+            ->assertJsonPath('data.0.plan.planned_location_label', 'Luka pri meste')
+            ->assertJsonPath('data.0.recommended_viewing_label', 'Odporucany cas okolo 22:00');
+    }
+
+    public function test_event_detail_for_authenticated_user_exposes_follow_plan_context(): void
+    {
+        $user = User::factory()->create();
+        $event = $this->createPublishedEvent([
+            'source_uid' => 'event-detail-plan-context',
+            'start_at' => CarbonImmutable::parse('2026-06-20 19:00:00', 'UTC'),
+            'end_at' => CarbonImmutable::parse('2026-06-20 21:00:00', 'UTC'),
+        ]);
+
+        DB::table('user_event_follows')->insert([
+            'user_id' => $user->id,
+            'event_id' => $event->id,
+            'personal_note' => 'Skontrolovat oblacnost.',
+            'reminder_at' => '2026-06-20 17:00:00',
+            'planned_time' => '2026-06-20 19:30:00',
+            'planned_location_label' => 'Nad mestom',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $this->getJson("/api/events/{$event->id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $event->id)
+            ->assertJsonPath('data.is_followed', true)
+            ->assertJsonPath('data.plan.personal_note', 'Skontrolovat oblacnost.')
+            ->assertJsonPath('data.plan.has_data', true);
     }
 
     public function test_follow_unique_constraint_rejects_duplicates(): void

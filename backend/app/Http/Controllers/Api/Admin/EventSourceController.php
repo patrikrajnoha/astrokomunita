@@ -8,6 +8,7 @@ use App\Models\CrawlRun;
 use App\Models\Event;
 use App\Models\EventCandidate;
 use App\Models\EventSource;
+use App\Services\Crawlers\Astropixels\AstropixelsYearCatalogService;
 use App\Services\Crawlers\CrawlContext;
 use App\Services\Crawlers\CrawlerOrchestrator;
 use App\Services\Crawlers\CrawlerRegistry;
@@ -25,6 +26,7 @@ class EventSourceController extends Controller
     public function __construct(
         private readonly CrawlerRegistry $crawlerRegistry,
         private readonly CrawlerOrchestrator $orchestrator,
+        private readonly AstropixelsYearCatalogService $astropixelsYearCatalogService,
         private readonly EventTranslationArtifactDetector $artifactDetector,
         private readonly EventTranslationBackfillService $translationBackfillService,
     ) {
@@ -34,18 +36,23 @@ class EventSourceController extends Controller
     {
         $this->ensureDefaultSources();
 
+        $astropixelsCatalog = null;
+
         $sources = EventSource::query()
             ->whereNotIn('key', self::DISABLED_SOURCE_KEYS)
             ->orderBy('key')
             ->get()
-            ->map(fn (EventSource $source): array => [
-                'id' => $source->id,
-                'key' => $source->key,
-                'name' => $source->name,
-                'base_url' => $source->base_url,
-                'is_enabled' => (bool) $source->is_enabled,
-                'manual_run_supported' => $this->crawlerRegistry->forSourceKey($source->key) !== null,
-            ])
+            ->map(function (EventSource $source) use (&$astropixelsCatalog): array {
+                return [
+                    'id' => $source->id,
+                    'key' => $source->key,
+                    'name' => $source->name,
+                    'base_url' => $source->base_url,
+                    'is_enabled' => (bool) $source->is_enabled,
+                    'manual_run_supported' => $this->crawlerRegistry->forSourceKey($source->key) !== null,
+                    'year_catalog' => $this->resolveSourceYearCatalog((string) $source->key, $astropixelsCatalog),
+                ];
+            })
             ->values();
 
         return response()->json([
@@ -147,6 +154,32 @@ class EventSourceController extends Controller
                     'message' => 'Manualny beh nie je pre tento zdroj podporovany.',
                 ];
                 continue;
+            }
+
+            if ($key === 'astropixels') {
+                $availability = $this->astropixelsYearCatalogService->isYearAvailable($year);
+                if ($availability === false) {
+                    $snapshot = $this->astropixelsYearCatalogService->snapshot();
+                    $catalogYears = array_map('intval', (array) ($snapshot['available_years'] ?? []));
+                    $rangeHint = $catalogYears !== []
+                        ? sprintf(
+                            ' Dostupny rozsah v katalogu: %d-%d.',
+                            min($catalogYears),
+                            max($catalogYears)
+                        )
+                        : '';
+
+                    $results[] = [
+                        'source_key' => $key,
+                        'status' => 'skipped',
+                        'message' => sprintf(
+                            'AstroPixels almanac pre rok %d este nie je publikovany.%s',
+                            $year,
+                            $rangeHint
+                        ),
+                    ];
+                    continue;
+                }
             }
 
             $timezone = $this->resolveSourceTimezone($key);
@@ -347,6 +380,39 @@ class EventSourceController extends Controller
                 'message' => $error->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * @param array<string,mixed>|null $astropixelsCatalogCache
+     * @return array<string,mixed>|null
+     */
+    private function resolveSourceYearCatalog(string $sourceKey, ?array &$astropixelsCatalogCache): ?array
+    {
+        if (strtolower(trim($sourceKey)) !== 'astropixels') {
+            return null;
+        }
+
+        if ($astropixelsCatalogCache === null) {
+            $astropixelsCatalogCache = $this->astropixelsYearCatalogService->snapshot();
+        }
+
+        $availableYears = array_map('intval', (array) ($astropixelsCatalogCache['available_years'] ?? []));
+        sort($availableYears);
+
+        $fallbackMin = (int) config('events.astropixels.min_year', 2021);
+        $fallbackMax = (int) config('events.astropixels.max_year', 2100);
+        $resolvedMin = $availableYears !== [] ? min($availableYears) : $fallbackMin;
+        $resolvedMax = $availableYears !== [] ? max($availableYears) : $fallbackMax;
+
+        return [
+            'status' => (string) ($astropixelsCatalogCache['status'] ?? 'unknown'),
+            'checked_at' => (string) ($astropixelsCatalogCache['checked_at'] ?? now()->toISOString()),
+            'source_url' => (string) ($astropixelsCatalogCache['source_url'] ?? ''),
+            'error' => $astropixelsCatalogCache['error'] ?? null,
+            'min_year' => $resolvedMin,
+            'max_year' => $resolvedMax,
+            'available_years' => $availableYears,
+        ];
     }
 }
 

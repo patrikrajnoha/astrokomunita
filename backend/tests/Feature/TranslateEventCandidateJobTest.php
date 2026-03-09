@@ -27,13 +27,17 @@ class TranslateEventCandidateJobTest extends TestCase
         config()->set('bots.translation.timeout_sec', 8);
     }
 
-    private function fakeTranslationResult(?string $translatedTitle, ?string $translatedContent): void
+    /**
+     * @param  array<string,mixed>  $meta
+     */
+    private function fakeTranslationResult(?string $translatedTitle, ?string $translatedContent, array $meta = []): void
     {
         $this->app->instance(
             BotTranslationServiceInterface::class,
             new TranslateEventCandidateJobTranslationStub(
                 translatedTitle: $translatedTitle,
                 translatedContent: $translatedContent,
+                meta: $meta,
             )
         );
     }
@@ -233,8 +237,8 @@ class TranslateEventCandidateJobTest extends TestCase
     {
         $this->configureTranslation();
         $this->fakeTranslationResult(
-            'VenuĹˇa v Inferior Conjunction',
-            'VenuĹˇa v Inferior Conjunction nastane 24.10.2026.'
+            'Venuša v Inferior Conjunction',
+            'Venuša v Inferior Conjunction nastane 24.10.2026.'
         );
 
         $candidate = $this->makeCandidate([
@@ -247,7 +251,7 @@ class TranslateEventCandidateJobTest extends TestCase
 
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
-        $this->assertSame('VenuĹˇa v dolnej konjunkcii', $candidate->translated_title);
+        $this->assertSame('Venuša v dolnej konjunkcii', $candidate->translated_title);
         $this->assertStringContainsString('v dolnej konjunkcii', (string) $candidate->translated_description);
     }
 
@@ -292,7 +296,8 @@ class TranslateEventCandidateJobTest extends TestCase
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertSame('Saturn v konjunkcii so Slnkom', $candidate->translated_title);
-        $this->assertStringContainsString('Saturn with Slnko', (string) $candidate->translated_description);
+        $this->assertStringContainsString('Astronomicka udalost', (string) $candidate->translated_description);
+        $this->assertStringNotContainsString('with Slnko', (string) $candidate->translated_description);
     }
 
     public function test_job_normalizes_peak_and_odrazeferora_variants(): void
@@ -339,6 +344,39 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->assertStringContainsString('v dolnej konjunkcii', (string) $candidate->translated_description);
     }
 
+    public function test_job_forces_template_when_translation_quality_flags_are_severe(): void
+    {
+        $this->configureTranslation();
+        config()->set('events.translation.quality_gate.force_template_on_severe_flags', true);
+        config()->set('events.translation.quality_gate.severe_flags', [
+            'empty_result',
+            'identical',
+            'too_short',
+            'too_much_en',
+            'contains_en_connectors',
+            'encoding_artifacts',
+        ]);
+
+        $this->fakeTranslationResult(
+            'Saturn with Slnko',
+            'Saturn with Slnko occurs on 25.03.2026.',
+            ['quality_flags' => ['too_much_en', 'contains_en_connectors']]
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Saturn in Conjunction with Sun',
+            'description' => 'Saturn in Conjunction with Sun occurs on 25.03.2026 with sufficient content for non-template flow.',
+            'type' => 'planetary_event',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertStringContainsString('Astronomicka udalost', (string) $candidate->translated_description);
+        $this->assertStringNotContainsString('occurs on', (string) $candidate->translated_description);
+    }
+
     public function test_job_normalizes_mixed_quarter_moon_variants(): void
     {
         $this->configureTranslation();
@@ -361,8 +399,101 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->assertStringContainsString("Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca", (string) $candidate->translated_description);
     }
 
+    public function test_job_fixes_wrong_slovak_moon_phase_grammar(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            "Posledn\u{00FD} \u{0161}tvr\u{0165} Mesiac",
+            "Posledn\u{00FD} \u{0161}tvr\u{0165} Mesiac nastane 30.12.2026."
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'LAST QUARTER MOON',
+            'description' => 'LAST QUARTER MOON occurs on 30.12.2026.',
+            'type' => 'observation_window',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame("Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca", $candidate->translated_title);
+        $this->assertStringContainsString("Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca", (string) $candidate->translated_description);
+    }
+
+    public function test_job_replaces_english_source_short_with_translated_short(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            'Leonidy',
+            'Leonidy su meteoricky roj s maximom priblizne 17.11.2026.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Leonids (LEO)',
+            'description' => 'The Leonids are best known for producing meteor storms.',
+            'short' => 'The Leonids are best known for producing meteor storms.',
+            'type' => 'meteor_shower',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame('Leonidy', $candidate->translated_title);
+        $this->assertStringContainsString('Leonidy', (string) $candidate->short);
+        $this->assertStringNotContainsString('best known', (string) $candidate->short);
+    }
+
+    public function test_job_normalizes_astropixels_meteor_sprcha_title_to_slovak(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            'Geminid Meteor Sprcha',
+            'Maximum roja Geminid Meteor Sprcha je priblizne 14.12.2026.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Geminid Meteor Shower',
+            'description' => 'Geminid Meteor Shower peaks around 14.12.2026.',
+            'short' => 'Geminid Meteor Sprcha',
+            'type' => 'meteor_shower',
+            'source_name' => 'astropixels',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame('Meteoricky roj Geminidy', $candidate->translated_title);
+        $this->assertStringContainsString('meteoricky', mb_strtolower((string) $candidate->short, 'UTF-8'));
+    }
+
+    public function test_job_falls_back_to_template_when_translated_description_stays_english(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            'Leonidy',
+            'The Leonids are best known for producing meteor storms in the years of 1833, 1866, and 1966.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Leonids (LEO)',
+            'description' => 'The Leonids are best known for producing meteor storms in the years of 1833, 1866, and 1966.',
+            'type' => 'meteor_shower',
+            'source_name' => 'imo',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertStringContainsString('Meteoricky roj', (string) $candidate->translated_description);
+        $this->assertStringNotContainsString('best known', (string) $candidate->translated_description);
+    }
+
     /**
-     * @param array<string,mixed> $overrides
+     * @param  array<string,mixed>  $overrides
      */
     private function makeCandidate(array $overrides = []): EventCandidate
     {
@@ -392,9 +523,9 @@ final class TranslateEventCandidateJobTranslationStub implements BotTranslationS
     public function __construct(
         private readonly ?string $translatedTitle = null,
         private readonly ?string $translatedContent = null,
+        private readonly array $meta = [],
         private readonly ?\Throwable $exception = null,
-    ) {
-    }
+    ) {}
 
     public function translate(?string $title, ?string $content, string $to = 'sk'): array
     {
@@ -408,10 +539,10 @@ final class TranslateEventCandidateJobTranslationStub implements BotTranslationS
             'title_translated' => $this->translatedTitle,
             'content_translated' => $this->translatedContent,
             'status' => $this->translatedTitle !== null || $this->translatedContent !== null ? 'done' : 'skipped',
-            'meta' => [
+            'meta' => array_merge([
                 'provider' => 'test-double',
                 'target_lang' => $to,
-            ],
+            ], $this->meta),
         ];
     }
 }
@@ -421,13 +552,13 @@ final class TranslateEventCandidateJobRefinementStub extends OllamaRefinementSer
     public int $calls = 0;
 
     /**
-     * @param array{refined_title?:string,refined_description?:?string,used_fallback?:bool} $result
+     * @param  array{refined_title?:string,refined_description?:?string,used_fallback?:bool}  $result
      */
     public function __construct(
         private readonly array $result = [],
         private readonly ?\Throwable $exception = null,
     ) {
-        parent::__construct(new OllamaClient());
+        parent::__construct(new OllamaClient);
     }
 
     public function refine(
