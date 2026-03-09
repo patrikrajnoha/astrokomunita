@@ -39,6 +39,11 @@ export const sidebarCustomComponentsAdminApi = {
     return response?.data
   },
 
+  async uploadImage(formData) {
+    const response = await api.post('/admin/sidebar/custom-components/upload-image', formData)
+    return response?.data
+  },
+
   async update(id, payload) {
     const response = await api.put(`/admin/sidebar/custom-components/${id}`, payload)
     return response?.data

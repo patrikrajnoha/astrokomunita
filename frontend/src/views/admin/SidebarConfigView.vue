@@ -1,259 +1,223 @@
-﻿<template>
+<template>
   <div class="sidebarAdmin">
-    <header class="heroHeader">
-      <div>
-        <h1>Konfiguracia sidebaru</h1>
-        <p>
-          Zachovava existujuci builder rozlozenia, custom widget workflow a doplna
-          compact gallery pre sidebar widgety.
-        </p>
-      </div>
-
-      <div class="heroStats">
-        <span class="heroPill">Scope: {{ activeTabLabel }}</span>
-        <span class="heroPill" :class="{ warning: hasBuilderChanges }">
-          {{ hasBuilderChanges ? 'Neulozene zmeny' : 'Rozlozenie synchronizovane' }}
-        </span>
-        <span class="heroPill">{{ saveStatusLabel }}</span>
-      </div>
+    <header class="pageHeader">
+      <h1>Konfiguracia sidebaru</h1>
+      <p class="metaLine">{{ headerMetaLine }}</p>
     </header>
 
     <div class="modeTabs" role="tablist" aria-label="Rezim spravy sidebaru">
       <button
+        v-for="mode in modeTabs"
+        :key="mode.value"
         type="button"
-        class="modeBtn"
-        :class="{ active: activeMode === 'layout' }"
-        @click="onModeClick('layout')"
+        class="modeTab"
+        :class="{ active: activeMode === mode.value }"
+        @click="onModeClick(mode.value)"
       >
-        <strong>Editor rozlozenia</strong>
-        <small>Polozky, poradie, viditelnost, scope tabs</small>
-      </button>
-
-      <button
-        type="button"
-        class="modeBtn"
-        :class="{ active: activeMode === 'custom' }"
-        @click="onModeClick('custom')"
-      >
-        <strong>Vlastne komponenty</strong>
-        <small>Tvorba a editacia custom widgetov</small>
-      </button>
-
-      <button
-        type="button"
-        class="modeBtn"
-        :class="{ active: activeMode === 'registry' }"
-        @click="onModeClick('registry')"
-      >
-        <strong>Sidebar widgety</strong>
-        <small>Preview + editable props iba pre sidebar komponenty</small>
+        {{ mode.label }}
       </button>
     </div>
 
     <div v-if="stickyErrorBanner" class="alert alertError alertSticky" role="alert">
       <div>{{ stickyErrorBanner }}</div>
-      <button class="uiBtn uiBtnGhost" type="button" :disabled="retryLoading" @click="retrySidebarLoad">
+      <button class="btn btnGhost" type="button" :disabled="retryLoading" @click="retrySidebarLoad">
         {{ retryLoading ? 'Opakujem...' : 'Skusit znova' }}
       </button>
     </div>
 
-    <section v-if="activeMode === 'layout'" class="workspaceCard">
-      <div class="scopeTabs" role="tablist" aria-label="Kontexty sidebaru">
-        <button
-          v-for="tab in scopeTabs"
-          :key="tab.value"
-          type="button"
-          class="scopeBtn"
-          :class="{ active: activeScope === tab.value }"
-          :disabled="loading"
-          @click="onScopeClick(tab.value)"
-        >
-          {{ tab.label }}
-        </button>
+    <section v-if="activeMode === 'layout'" class="modePanel">
+      <div class="scopeRow">
+        <span class="scopeLabel">Kontext</span>
+        <div class="scopeTabs" role="tablist" aria-label="Kontexty sidebaru">
+          <button
+            v-for="tab in scopeTabs"
+            :key="tab.value"
+            type="button"
+            class="scopeTab"
+            :class="{ active: activeScope === tab.value }"
+            :disabled="loadingScope || savingLayout"
+            @click="onScopeClick(tab.value)"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
       </div>
 
-      <div class="workspaceHeader">
-        <div>
-          <h2>{{ activeTabLabel }} rozlozenie</h2>
-          <p>Drag and drop, keyboard-friendly reorder a prehladne stavy pre kazdu polozku.</p>
+      <div class="toolbar">
+        <div class="searchWrap">
+          <input
+            v-model="layoutSearch"
+            type="text"
+            class="searchInput"
+            placeholder="Hladat polozky sidebaru"
+          />
+          <p class="summaryLine">{{ layoutSummary }}</p>
         </div>
 
-        <div class="workspaceActions">
-          <button class="uiBtn" type="button" @click="openCreateCustomComponent">Novy komponent</button>
-          <button class="uiBtn uiBtnGhost" type="button" :disabled="!hasBuilderChanges || loading" @click="resetLayoutChanges">
-            Reset zmen
+        <div class="toolbarActions">
+          <span class="saveState" :class="saveStateTone">{{ saveStateLabel }}</span>
+          <button
+            type="button"
+            class="btn btnGhost"
+            :disabled="!hasBuilderChanges || loadingScope || savingLayout"
+            @click="resetLayoutChanges"
+          >
+            Reset zmien
           </button>
-          <button class="uiBtn uiBtnPrimary" :disabled="loading || !hasBuilderChanges" @click="saveLayoutChanges">
-            <span v-if="loading" class="spinner"></span>
-            {{ loading ? 'Ukladam...' : 'Ulozit rozlozenie' }}
+          <button
+            type="button"
+            class="btn btnPrimary"
+            :disabled="loadingScope || savingLayout || !hasBuilderChanges"
+            @click="saveLayoutChanges"
+          >
+            <span v-if="savingLayout" class="spinner"></span>
+            {{ savingLayout ? 'Ukladam...' : 'Ulozit rozlozenie' }}
           </button>
         </div>
       </div>
 
       <div v-if="error" class="alert alertError">{{ error }}</div>
 
-      <div class="quickStats">
-        <span class="statPill">Polozky: {{ sections.length }}</span>
-        <span class="statPill">Aktivne: {{ enabledSectionsCount }} / {{ MAX_ENABLED_SIDEBAR_WIDGETS }}</span>
-        <span class="statPill">Custom komponenty: {{ availableCustomComponents.length }}</span>
-        <span class="statPill">Match: {{ matchingSectionsCount }} / {{ sections.length }}</span>
-      </div>
-
-      <div class="builderGrid">
-        <section class="builderPanel">
-          <header class="panelHeader">
-            <div>
-              <h3>Polozky sidebaru</h3>
-              <p>Vstavane aj custom polozky v jednom zozname.</p>
-            </div>
-
-            <label class="searchField">
-              <span>Filter</span>
-              <input
-                v-model="layoutSearch"
-                type="text"
-                placeholder="Nazov, slug, custom..."
-              />
-            </label>
+      <div class="builderGrid" :class="{ singleColumn: !showRightPanel }">
+        <section class="listPanel">
+          <header class="listHeader">
+            <h2>Polozky sidebaru</h2>
           </header>
 
+          <div v-if="filteredSections.length === 0" class="emptyState">
+            <h3>Ziadne polozky nevyhovuju filtru</h3>
+            <p>Skus iny vyraz alebo vycisti filter.</p>
+            <button v-if="hasLayoutSearch" type="button" class="btn btnGhost" @click="layoutSearch = ''">Vymazat filter</button>
+          </div>
+
           <draggable
+            v-else-if="!hasLayoutSearch"
             v-model="sections"
             item-key="client_key"
             handle=".dragHandle"
-            class="sectionsList"
+            class="rowsList"
             @end="dragEnd"
           >
             <template #item="{ element: section }">
-              <article
-                class="sectionItem"
-                :class="{
-                  isHidden: !section.is_enabled,
-                  isMuted: hasLayoutSearch && !sectionMatchesLayoutSearch(section),
-                }"
-              >
-                <div class="sectionTop">
-                  <button type="button" class="dragHandle" aria-label="Presunut sekciu">::</button>
-
-                  <div class="sectionCopy">
-                    <div class="sectionTitleRow">
-                      <h4>{{ section.title || 'Bez nazvu' }}</h4>
-                      <div class="sectionBadges">
-                        <span class="kindBadge">{{ section.kind === 'builtin' ? 'Vstavane' : 'Vlastne' }}</span>
-                        <span class="visibilityBadge" :class="{ on: section.is_enabled }">
-                          {{ section.is_enabled ? 'Viditelne' : 'Skryte' }}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div class="sectionMeta">
-                      <code>{{ section.kind === 'builtin' ? section.section_key : `custom:${section.custom_component_id}` }}</code>
-                      <span>Poradie: {{ section.order + 1 }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="sectionBottom">
-                  <div class="moveControls">
-                    <button
-                      type="button"
-                      class="iconBtn"
-                      :disabled="!canMoveUp(section)"
-                      @click="moveSection(section.client_key, -1)"
-                    >
-                      &uarr;
-                    </button>
-                    <button
-                      type="button"
-                      class="iconBtn"
-                      :disabled="!canMoveDown(section)"
-                      @click="moveSection(section.client_key, 1)"
-                    >
-                      &darr;
-                    </button>
-                  </div>
-
-                  <div v-if="section.kind === 'custom_component'" class="inlineActions">
-                    <button type="button" class="textBtn" @click="editCustomComponentFromLayout(section)">Upravit</button>
-                    <button type="button" class="textBtn danger" @click="removeCustomComponentFromLayout(section)">Odobrat</button>
-                  </div>
-
-                  <label class="toggle">
-                    <input
-                      :checked="section.is_enabled"
-                      type="checkbox"
-                      @change="toggleSectionEnabled(section, $event?.target?.checked)"
-                    />
-                    <span class="toggleSlider"></span>
-                    <span class="toggleLabel">{{ section.is_enabled ? 'On' : 'Off' }}</span>
-                  </label>
-                </div>
-              </article>
+              <SidebarBuilderRow
+                :section="section"
+                :selected="String(selectedSectionKey) === String(section.client_key)"
+                :draggable-enabled="true"
+                @select="selectSection"
+                @toggle="toggleSectionEnabled"
+              />
             </template>
           </draggable>
+
+          <div v-else class="rowsList">
+            <SidebarBuilderRow
+              v-for="section in filteredSections"
+              :key="section.client_key"
+              :section="section"
+              :selected="String(selectedSectionKey) === String(section.client_key)"
+              :draggable-enabled="false"
+              @select="selectSection"
+              @toggle="toggleSectionEnabled"
+            />
+          </div>
         </section>
 
-        <aside class="catalogPanel">
-          <header class="panelHeader">
-            <div>
-              <h3>Aktivne vlastne komponenty</h3>
-              <p>Pridavaj a upravuj custom widgety bez opustenia builderu.</p>
-            </div>
-            <button class="textBtn" type="button" @click="openCreateCustomComponent">Vytvorit</button>
-          </header>
+        <aside v-if="showRightPanel" class="sidePanel">
+          <section v-if="selectedSection" class="panelSection">
+            <header class="panelHeader">
+              <h3>Detail polozky</h3>
+            </header>
 
-          <label class="searchField">
-            <span>Filter</span>
+            <dl class="detailList">
+              <div>
+                <dt>Nazov</dt>
+                <dd>{{ selectedSection.title || 'Bez nazvu' }}</dd>
+              </div>
+              <div>
+                <dt>Identifikator</dt>
+                <dd>{{ sectionIdentifier(selectedSection) }}</dd>
+              </div>
+              <div>
+                <dt>Stav</dt>
+                <dd>{{ selectedSection.is_enabled ? 'Viditelna' : 'Skryta' }}</dd>
+              </div>
+            </dl>
+
+            <div class="panelActions">
+              <button
+                type="button"
+                class="btn btnGhost"
+                :disabled="!canMoveUp(selectedSection)"
+                @click="moveSection(selectedSection.client_key, -1)"
+              >
+                Posunut vyssie
+              </button>
+              <button
+                type="button"
+                class="btn btnGhost"
+                :disabled="!canMoveDown(selectedSection)"
+                @click="moveSection(selectedSection.client_key, 1)"
+              >
+                Posunut nizsie
+              </button>
+              <button
+                v-if="selectedSection.kind === 'custom_component'"
+                type="button"
+                class="btn btnGhost"
+                @click="editCustomComponentFromLayout(selectedSection)"
+              >
+                Upravit komponent
+              </button>
+              <button
+                v-if="selectedSection.kind === 'custom_component'"
+                type="button"
+                class="btn btnDanger"
+                @click="removeCustomComponentFromLayout(selectedSection)"
+              >
+                Odobrat z rozlozenia
+              </button>
+            </div>
+          </section>
+
+          <section v-if="availableCustomComponents.length > 0" class="panelSection">
+            <header class="panelHeader panelHeaderTight">
+              <h3>Vlastne komponenty</h3>
+              <button type="button" class="btn btnGhost" @click="openCreateCustomComponent">Novy komponent</button>
+            </header>
+
             <input
               v-model="customSearch"
               type="text"
-              placeholder="Najst komponent..."
+              class="searchInput"
+              placeholder="Hladat komponent"
             />
-          </label>
 
-          <div v-if="availableCustomComponents.length === 0" class="emptyBox">
-            <p>Zatial nemas aktivne custom komponenty.</p>
-            <button class="uiBtn uiBtnGhost" type="button" @click="openCreateCustomComponent">Vytvorit prvy komponent</button>
-          </div>
+            <div v-if="filteredAvailableCustomComponents.length === 0" class="emptyInline">
+              Ziadny komponent nevyhovuje filtru.
+            </div>
 
-          <div v-else-if="filteredAvailableCustomComponents.length === 0" class="emptyBox">
-            <p>Ziadny komponent nevyhovuje filtru.</p>
-          </div>
-
-          <div v-else class="availableList">
-            <article v-for="component in filteredAvailableCustomComponents" :key="component.id" class="availableItem">
-              <div class="availableCopy">
-                <div class="availableNameRow">
+            <ul v-else class="customList">
+              <li v-for="component in filteredAvailableCustomComponents" :key="component.id" class="customItem">
+                <div class="customCopy">
                   <strong>{{ component.name }}</strong>
-                  <span class="typeBadge">{{ component.type }}</span>
+                  <span>{{ component.type }} - pouzitie {{ getCustomComponentUsage(component.id) }}x</span>
                 </div>
-                <div class="availableMeta">
-                  <span>ID: {{ component.id }}</span>
-                  <span>V rozlozeni: {{ getCustomComponentUsage(component.id) }}x</span>
-                </div>
-              </div>
 
-              <div class="availableActions">
-                <button class="uiBtn uiBtnSmall" type="button" @click="addCustomComponentToLayout(component)">
-                  {{ getCustomComponentUsage(component.id) > 0 ? 'Pridat dalsiu' : 'Pridat' }}
-                </button>
-                <button class="uiBtn uiBtnSmall uiBtnGhost" type="button" @click="openEditCustomComponent(component)">
-                  Upravit
-                </button>
-              </div>
-            </article>
-          </div>
+                <div class="customActions">
+                  <button type="button" class="btn btnSmall" @click="addCustomComponentToLayout(component)">Pridat</button>
+                  <button type="button" class="btn btnGhost btnSmall" @click="openEditCustomComponent(component)">Upravit</button>
+                </div>
+              </li>
+            </ul>
+          </section>
         </aside>
       </div>
     </section>
 
-    <section v-else-if="activeMode === 'custom'" class="workspaceCard workspaceCard--flat">
-      <div class="workspaceHeader workspaceHeaderCompact">
-        <div>
-          <h2>Vlastne komponenty</h2>
-          <p>Povodny workflow ostava zachovany, vratane list + formular + live preview.</p>
-        </div>
-        <button class="uiBtn uiBtnGhost" type="button" @click="onModeClick('layout')">Spat na rozlozenie</button>
+    <section v-else-if="activeMode === 'custom'" class="modePanel modePanelFlat">
+      <div class="modeToolbar">
+        <p>Sprava vlastnych komponentov</p>
+        <button type="button" class="btn" @click="openCreateCustomComponent">Novy komponent</button>
       </div>
 
       <SidebarCustomComponentsView
@@ -263,14 +227,7 @@
       />
     </section>
 
-    <section v-else class="workspaceCard workspaceCard--flat">
-      <div class="workspaceHeader workspaceHeaderCompact">
-      <div>
-        <h2>Sidebar widgety gallery</h2>
-        <p>Kompaktny playground iba pre widgety, ktore su realne v sidebare.</p>
-      </div>
-      </div>
-
+    <section v-else class="modePanel modePanelFlat">
       <SidebarComponentRegistryView />
     </section>
   </div>
@@ -284,10 +241,17 @@ import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
 import { sidebarConfigAdminApi, sidebarCustomComponentsAdminApi } from '@/services/api/admin/sidebarConfig'
 import { DEFAULT_SIDEBAR_SCOPE, SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
-import { EXCLUSIVE_SIDEBAR_SECTION_KEYS, MAX_ENABLED_SIDEBAR_WIDGETS } from '@/sidebar/engine'
+import { MAX_ENABLED_SIDEBAR_WIDGETS } from '@/sidebar/engine'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
+import SidebarBuilderRow from '@/components/admin/sidebar/SidebarBuilderRow.vue'
 import SidebarCustomComponentsView from '@/components/admin/sidebar/SidebarCustomComponentsView.vue'
 import SidebarComponentRegistryView from '@/components/admin/sidebar/SidebarComponentRegistryView.vue'
+
+const modeTabs = [
+  { value: 'layout', label: 'Rozlozenie' },
+  { value: 'custom', label: 'Vlastne komponenty' },
+  { value: 'widgets', label: 'Widgety' },
+]
 
 const scopeTabs = [
   { value: SIDEBAR_SCOPE.HOME, label: 'Domov' },
@@ -296,7 +260,7 @@ const scopeTabs = [
   { value: SIDEBAR_SCOPE.SEARCH, label: 'Vyhladavanie' },
   { value: SIDEBAR_SCOPE.NOTIFICATIONS, label: 'Notifikacie' },
   { value: SIDEBAR_SCOPE.POST_DETAIL, label: 'Detail prispevku' },
-  { value: SIDEBAR_SCOPE.PROFILE, label: 'Profil + verejny profil (/u/:username)' },
+  { value: SIDEBAR_SCOPE.PROFILE, label: 'Profil' },
   { value: SIDEBAR_SCOPE.SETTINGS, label: 'Nastavenia' },
   { value: SIDEBAR_SCOPE.OBSERVING, label: 'Pozorovanie' },
 ]
@@ -305,7 +269,8 @@ const activeMode = ref('layout')
 const activeScope = ref(DEFAULT_SIDEBAR_SCOPE)
 const sections = ref([])
 const originalSections = ref([])
-const loading = ref(false)
+const loadingScope = ref(false)
+const savingLayout = ref(false)
 const error = ref('')
 const retryLoading = ref(false)
 const customSearch = ref('')
@@ -316,6 +281,8 @@ const shownErrorMessages = ref(new Set())
 const customFormDirty = ref(false)
 const customViewRef = ref(null)
 const lastSavedAt = ref(null)
+const saveError = ref('')
+const selectedSectionKey = ref('')
 
 const { showToast } = useToast()
 const { confirm } = useConfirm()
@@ -353,32 +320,42 @@ const sectionMatchesLayoutSearch = (section) => {
   return haystack.includes(query)
 }
 
-const matchingSectionsCount = computed(() => {
-  if (!hasLayoutSearch.value) return sections.value.length
-  return sections.value.filter((section) => sectionMatchesLayoutSearch(section)).length
+const filteredSections = computed(() => {
+  if (!hasLayoutSearch.value) return sections.value
+  return sections.value.filter((section) => sectionMatchesLayoutSearch(section))
 })
 
 const enabledSectionsCount = computed(() => sections.value.filter((section) => section.is_enabled).length)
 
+const layoutSummary = computed(() => {
+  const total = sections.value.length
+  const shown = filteredSections.value.length
+
+  if (hasLayoutSearch.value) {
+    return `Zobrazenych ${shown} z ${total} poloziek - ${enabledSectionsCount.value} aktivne`
+  }
+
+  return `${total} poloziek - ${enabledSectionsCount.value} aktivne`
+})
+
+const selectedSection = computed(() => {
+  return sections.value.find((item) => String(item?.client_key || '') === String(selectedSectionKey.value || '')) || null
+})
+
+const showRightPanel = computed(() => {
+  return Boolean(selectedSection.value) || availableCustomComponents.value.length > 0
+})
+
 const formatSavedAt = (value) => {
-  if (!value) return 'Caka na ulozenie'
+  if (!value) return null
   const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return 'Caka na ulozenie'
+  if (Number.isNaN(parsed.getTime())) return null
 
   return new Intl.DateTimeFormat('sk-SK', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   }).format(parsed)
 }
-
-const saveStatusLabel = computed(() => {
-  if (loading.value) return 'Prave ukladam...'
-  if (hasBuilderChanges.value) return 'Neulozene lokalne zmeny'
-  return `Naposledy: ${formatSavedAt(lastSavedAt.value)}`
-})
 
 const normalizeLayoutItems = (items) => {
   return [...(Array.isArray(items) ? items : [])]
@@ -425,6 +402,38 @@ const hasBuilderChanges = computed(() => {
   return current !== initial
 })
 
+const syncStateLabel = computed(() => {
+  if (savingLayout.value) return 'Uklada sa'
+  if (saveError.value) return 'Chyba pri ukladani'
+  if (hasBuilderChanges.value) return 'Neulozene zmeny'
+  return 'Synchronizovane'
+})
+
+const updatedAtLabel = computed(() => {
+  const formatted = formatSavedAt(lastSavedAt.value)
+  if (!formatted) return 'bez ulozenia'
+  return `naposledy ${formatted}`
+})
+
+const headerMetaLine = computed(() => {
+  return `${activeTabLabel.value} - ${syncStateLabel.value} - ${updatedAtLabel.value}`
+})
+
+const saveStateLabel = computed(() => {
+  if (savingLayout.value) return 'Ukladam...'
+  if (saveError.value) return 'Chyba pri ukladani'
+  if (hasBuilderChanges.value) return 'Neulozene zmeny'
+  if (lastSavedAt.value) return 'Ulozene prave teraz'
+  return 'Pripravene'
+})
+
+const saveStateTone = computed(() => {
+  if (savingLayout.value) return 'isSaving'
+  if (saveError.value) return 'isError'
+  if (hasBuilderChanges.value) return 'isDirty'
+  return 'isSaved'
+})
+
 const filteredAvailableCustomComponents = computed(() => {
   const query = customSearch.value.trim().toLowerCase()
   const rows = [...availableCustomComponents.value]
@@ -444,21 +453,8 @@ const applyOrderFromPosition = () => {
   })
 }
 
-const isExclusiveSection = (section) => {
-  return EXCLUSIVE_SIDEBAR_SECTION_KEYS.includes(String(section?.section_key || ''))
-}
-
 const applyLayoutRules = (items) => {
   const rows = normalizeLayoutItems(items)
-  const enabled = rows.filter((item) => item.is_enabled)
-  const exclusiveEnabled = enabled.find((item) => isExclusiveSection(item))
-
-  if (exclusiveEnabled) {
-    rows.forEach((item) => {
-      item.is_enabled = item.client_key === exclusiveEnabled.client_key
-    })
-    return rows
-  }
 
   let activeCount = 0
   rows.forEach((item) => {
@@ -474,9 +470,15 @@ const applyLayoutRules = (items) => {
 }
 
 const setScopeData = (items) => {
+  const previousSelectedKey = selectedSectionKey.value
+
   sections.value = applyLayoutRules(items)
   applyOrderFromPosition()
   originalSections.value = normalizeLayoutItems(sections.value)
+
+  if (!sections.value.some((item) => String(item?.client_key || '') === String(previousSelectedKey || ''))) {
+    selectedSectionKey.value = ''
+  }
 }
 
 const isMissingCustomComponentsTableError = (err) => {
@@ -509,7 +511,7 @@ const handleSidebarLoadError = (err, fallbackMessage) => {
 }
 
 const loadScope = async (scope) => {
-  loading.value = true
+  loadingScope.value = true
   error.value = ''
 
   try {
@@ -519,13 +521,15 @@ const loadScope = async (scope) => {
       ? payload.available_custom_components
       : []
     stickyErrorBanner.value = ''
+    saveError.value = ''
     lastSavedAt.value = new Date().toISOString()
   } catch (err) {
     const message = handleSidebarLoadError(err, 'Nepodarilo sa nacitat konfiguraciu sidebaru.')
     error.value = message
     setScopeData(sidebarConfigStore.getDefaultForScope())
+    availableCustomComponents.value = []
   } finally {
-    loading.value = false
+    loadingScope.value = false
   }
 }
 
@@ -554,6 +558,7 @@ const onScopeClick = async (nextScope) => {
   }
 
   activeScope.value = nextScope
+  selectedSectionKey.value = ''
   await loadScope(nextScope)
 }
 
@@ -600,28 +605,21 @@ const moveSection = (clientKey, direction) => {
   applyOrderFromPosition()
 }
 
+const selectSection = (sectionOrItem) => {
+  const key = typeof sectionOrItem === 'string'
+    ? sectionOrItem
+    : sectionOrItem?.client_key
+  selectedSectionKey.value = String(key || '')
+}
+
 const toggleSectionEnabled = (section, checked) => {
   const nextEnabled = Boolean(checked)
   if (!section || typeof section !== 'object') return
 
+  saveError.value = ''
+
   if (!nextEnabled) {
     section.is_enabled = false
-    return
-  }
-
-  if (isExclusiveSection(section)) {
-    sections.value.forEach((item) => {
-      item.is_enabled = String(item.client_key) === String(section.client_key)
-    })
-    showToast('Observing Conditions je exkluzivny widget a moze byt aktivny iba samostatne.', 'warning')
-    return
-  }
-
-  const hasExclusiveEnabled = sections.value.some(
-    (item) => item.is_enabled && String(item.client_key) !== String(section.client_key) && isExclusiveSection(item),
-  )
-  if (hasExclusiveEnabled) {
-    showToast('Najprv vypni Observing Conditions. Tento widget sa neda kombinovat s inymi.', 'warning')
     return
   }
 
@@ -658,6 +656,7 @@ const addCustomComponentToLayout = (component) => {
 
   sections.value.push(nextSection)
   applyOrderFromPosition()
+  selectSection(nextSection)
 
   toggleSectionEnabled(nextSection, true)
   showToast('Komponent bol pridany do rozlozenia. Nezabudni ulozit.', 'success')
@@ -699,6 +698,11 @@ const removeCustomComponentFromLayout = async (section) => {
   const currentKey = String(section?.client_key || '')
   sections.value = sections.value.filter((item) => String(item?.client_key || '') !== currentKey)
   applyOrderFromPosition()
+
+  if (String(selectedSectionKey.value) === currentKey) {
+    selectedSectionKey.value = ''
+  }
+
   showToast('Komponent bol odobrany z rozlozenia. Uloz rozlozenie pre potvrdenie zmien.', 'success')
 }
 
@@ -715,13 +719,15 @@ const resetLayoutChanges = async () => {
   if (!confirmed) return
 
   setScopeData(originalSections.value)
+  saveError.value = ''
   showToast('Neulozene zmeny boli zahodene.', 'success')
 }
 
 const saveLayoutChanges = async () => {
   if (!hasBuilderChanges.value) return
 
-  loading.value = true
+  savingLayout.value = true
+  saveError.value = ''
   error.value = ''
 
   try {
@@ -742,10 +748,11 @@ const saveLayoutChanges = async () => {
     showToast('Rozlozenie sidebaru bolo ulozene.', 'success')
   } catch (err) {
     const message = err?.response?.data?.message || 'Nepodarilo sa ulozit konfiguraciu sidebaru.'
+    saveError.value = message
     error.value = message
     notifyErrorOnce(message)
   } finally {
-    loading.value = false
+    savingLayout.value = false
   }
 }
 
@@ -796,6 +803,14 @@ const onCustomComponentsChanged = async () => {
 
 const onCustomDirtyChange = (value) => {
   customFormDirty.value = Boolean(value)
+}
+
+const sectionIdentifier = (section) => {
+  if (!section || typeof section !== 'object') return ''
+  if (section.kind === 'custom_component') {
+    return `custom:${section.custom_component_id || 'n/a'}`
+  }
+  return String(section.section_key || '')
 }
 
 const beforeUnloadListener = (event) => {
@@ -1376,6 +1391,344 @@ onBeforeRouteLeave(async () => {
   }
 }
 
+.sidebarAdmin {
+  max-width: 1380px;
+  padding: 1rem;
+  gap: 0.9rem;
+}
+
+.pageHeader h1 {
+  margin: 0;
+  font-size: 1.42rem;
+  color: var(--color-surface);
+}
+
+.metaLine {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.modeTabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  padding-bottom: 0.4rem;
+}
+
+.modeTab {
+  border: 0;
+  border-radius: 0.56rem;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.4rem 0.64rem;
+}
+
+.modeTab.active {
+  background: rgb(var(--color-primary-rgb) / 0.17);
+  color: var(--color-surface);
+}
+
+.modePanel {
+  border-radius: 0.9rem;
+  background: rgb(var(--color-bg-rgb) / 0.2);
+  box-shadow: inset 0 0 0 1px rgb(var(--color-text-secondary-rgb) / 0.14);
+  padding: 0.78rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.modePanelFlat {
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+}
+
+.scopeRow {
+  display: grid;
+  gap: 0.34rem;
+}
+
+.scopeLabel {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+}
+
+.scopeTabs {
+  display: flex;
+  gap: 0.3rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+}
+
+.scopeTab {
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  background: rgb(var(--color-bg-rgb) / 0.25);
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 0.28rem 0.58rem;
+}
+
+.scopeTab.active {
+  border-color: rgb(var(--color-primary-rgb) / 0.5);
+  background: rgb(var(--color-primary-rgb) / 0.19);
+  color: var(--color-surface);
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.searchWrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.searchInput {
+  width: 100%;
+  min-height: 2rem;
+  border-radius: 0.66rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  background: rgb(var(--color-bg-rgb) / 0.34);
+  color: var(--color-surface);
+  font-size: 0.78rem;
+  padding: 0.36rem 0.5rem;
+}
+
+.summaryLine {
+  margin: 0.25rem 0 0;
+  font-size: 0.74rem;
+  color: var(--color-text-secondary);
+}
+
+.toolbarActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.saveState {
+  font-size: 0.73rem;
+  color: var(--color-text-secondary);
+}
+
+.saveState.isDirty {
+  color: rgb(var(--color-warning-rgb, 255 178 64));
+}
+
+.saveState.isError {
+  color: var(--color-danger);
+}
+
+.saveState.isSaving {
+  color: var(--color-surface);
+}
+
+.btn {
+  min-height: 1.94rem;
+  border-radius: 0.66rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: rgb(var(--color-bg-rgb) / 0.32);
+  color: var(--color-surface);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.38rem 0.62rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+.btn:disabled {
+  opacity: 0.56;
+}
+
+.btnPrimary {
+  border-color: rgb(var(--color-primary-rgb) / 0.58);
+  background: rgb(var(--color-primary-rgb) / 0.24);
+}
+
+.btnGhost {
+  background: transparent;
+}
+
+.btnDanger {
+  border-color: rgb(var(--color-danger-rgb) / 0.44);
+  color: var(--color-danger);
+  background: rgb(var(--color-danger-rgb) / 0.08);
+}
+
+.btnSmall {
+  min-height: 1.74rem;
+  padding: 0.28rem 0.5rem;
+  font-size: 0.72rem;
+}
+
+.builderGrid {
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.95fr);
+}
+
+.builderGrid.singleColumn {
+  grid-template-columns: 1fr;
+}
+
+.listPanel,
+.sidePanel {
+  min-width: 0;
+  border-radius: 0.82rem;
+  background: rgb(var(--color-bg-rgb) / 0.14);
+  box-shadow: inset 0 0 0 1px rgb(var(--color-text-secondary-rgb) / 0.14);
+  padding: 0.62rem;
+}
+
+.listHeader {
+  margin-bottom: 0.45rem;
+}
+
+.listHeader h2 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.rowsList {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.sidePanel {
+  display: grid;
+  gap: 0.52rem;
+  align-content: start;
+}
+
+.panelSection {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.panelHeaderTight {
+  align-items: flex-start;
+}
+
+.detailList {
+  margin: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.detailList div {
+  display: grid;
+  gap: 0.06rem;
+}
+
+.detailList dt {
+  font-size: 0.68rem;
+  color: var(--color-text-secondary);
+}
+
+.detailList dd {
+  margin: 0;
+  font-size: 0.77rem;
+  color: var(--color-surface);
+}
+
+.panelActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+}
+
+.customList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.customItem {
+  border-radius: 0.7rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  background: rgb(var(--color-bg-rgb) / 0.2);
+  padding: 0.42rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.42rem;
+}
+
+.customCopy strong {
+  display: block;
+  font-size: 0.79rem;
+}
+
+.customCopy span {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+}
+
+.customActions {
+  display: inline-flex;
+  gap: 0.24rem;
+}
+
+.emptyInline {
+  border-radius: 0.7rem;
+  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.3);
+  padding: 0.62rem;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.emptyState {
+  border-radius: 0.76rem;
+  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: rgb(var(--color-bg-rgb) / 0.18);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.32rem;
+  justify-items: start;
+}
+
+.emptyState h3 {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--color-text-secondary);
+}
+
+.modeToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.1rem 0.1rem 0.35rem;
+}
+
+.modeToolbar p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
 @media (max-width: 1220px) {
   .builderGrid {
     grid-template-columns: 1fr;
@@ -1383,36 +1736,20 @@ onBeforeRouteLeave(async () => {
 }
 
 @media (max-width: 980px) {
-  .heroHeader,
-  .workspaceHeader {
+  .toolbar,
+  .modeToolbar {
     flex-direction: column;
+    align-items: stretch;
   }
 
-  .heroStats {
+  .toolbarActions {
     justify-content: flex-start;
-  }
-
-  .workspaceActions {
-    justify-content: flex-start;
-  }
-
-  .modeTabs {
-    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 720px) {
   .sidebarAdmin {
     padding: 0.75rem;
-  }
-
-  .panelHeader {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .searchField {
-    min-width: 0;
   }
 }
 </style>

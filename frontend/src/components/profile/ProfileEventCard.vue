@@ -17,6 +17,33 @@
       <h3 class="eventCard__title">{{ title }}</h3>
       <p class="eventCard__summary">{{ summary }}</p>
 
+      <div v-if="showPlanMeta" class="eventCard__planMeta">
+        <span v-if="hasPersonalNote" class="eventCard__metaBadge">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 4h10l4 4v12H5z" />
+            <path d="M15 4v4h4" />
+            <path d="M8 12h8M8 16h8" />
+          </svg>
+          Poznamka
+        </span>
+
+        <span v-if="hasReminder" class="eventCard__metaBadge">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 3a4 4 0 0 1 4 4v1.5a7 7 0 0 0 2 5V16H6v-2.5a7 7 0 0 0 2-5V7a4 4 0 0 1 4-4z" />
+            <path d="M10 18a2 2 0 0 0 4 0" />
+          </svg>
+          Pripomienka nastavena
+        </span>
+
+        <span v-if="recommendedPlanLabel" class="eventCard__metaBadge eventCard__metaBadge--highlight">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" />
+            <circle cx="12" cy="12" r="2.5" />
+          </svg>
+          {{ recommendedPlanLabel }}
+        </span>
+      </div>
+
       <div class="eventCard__footer">
         <p class="eventCard__visibility">{{ visibilityLabel }}</p>
         <button type="button" class="eventCard__button" @click="$emit('open', event)">
@@ -62,6 +89,26 @@ const formattedDate = computed(() => formatDateRange(props.event))
 const visibilityLabel = computed(() => mapVisibility(props.event?.visibility))
 const statusLabel = computed(() => mapStatus(props.event))
 const typeLabel = computed(() => mapType(props.event?.type))
+const planPayload = computed(() => (
+  props.event?.plan && typeof props.event.plan === 'object'
+    ? props.event.plan
+    : null
+))
+const hasPersonalNote = computed(() => (
+  Boolean(planPayload.value?.has_personal_note) || toNullableText(planPayload.value?.personal_note) !== null
+))
+const hasReminder = computed(() => (
+  Boolean(planPayload.value?.has_reminder) || toNullableText(planPayload.value?.reminder_at) !== null
+))
+const recommendedPlanLabel = computed(() => {
+  const value = toNullableText(props.event?.recommended_viewing_label)
+  if (!value) return ''
+
+  const maxLength = 46
+  if (value.length <= maxLength) return value
+  return `${value.slice(0, maxLength - 3)}...`
+})
+const showPlanMeta = computed(() => hasPersonalNote.value || hasReminder.value || Boolean(recommendedPlanLabel.value))
 
 function mapType(type) {
   const types = {
@@ -148,6 +195,12 @@ function mapVisibility(value) {
   if (value === 1 || value === '1') return 'Viditelne zo Slovenska'
   if (value === 0 || value === '0') return 'Neviditelne zo Slovenska'
   return 'Viditelnost upresnime'
+}
+
+function toNullableText(value) {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed === '' ? null : trimmed
 }
 </script>
 
@@ -239,6 +292,43 @@ function mapVisibility(value) {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.eventCard__planMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.eventCard__metaBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  min-height: 1.65rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--text-secondary-rgb) / 0.28);
+  background: rgb(var(--bg-app-rgb) / 0.4);
+  color: rgb(var(--text-secondary-rgb) / 0.94);
+  font-size: 0.74rem;
+  padding: 0 0.56rem;
+  max-width: 100%;
+}
+
+.eventCard__metaBadge svg {
+  width: 0.82rem;
+  height: 0.82rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: 0 0 auto;
+}
+
+.eventCard__metaBadge--highlight {
+  border-color: rgb(var(--primary-rgb) / 0.42);
+  background: rgb(var(--primary-rgb) / 0.14);
+  color: rgb(var(--text-primary-rgb) / 0.94);
 }
 
 .eventCard__footer {

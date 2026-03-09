@@ -1,5 +1,8 @@
 import SearchBar from '@/components/SearchBar.vue'
 import RightObservingSidebar from '@/components/RightObservingSidebar.vue'
+import ObservingWeatherWidget from '@/components/sky/ObservingWeatherWidget.vue'
+import NightSkyWidget from '@/components/sky/NightSkyWidget.vue'
+import IssPassWidget from '@/components/sky/IssPassWidget.vue'
 import NasaHighlightsWidget from '@/components/widgets/NasaHighlightsWidget.vue'
 import NextEventWidget from '@/components/widgets/NextEventWidget.vue'
 import LatestArticlesWidget from '@/components/widgets/LatestArticlesWidget.vue'
@@ -27,10 +30,10 @@ export const sidebarComponentPlaygroundRegistry = [
   },
   {
     id: 'sidebar-observing-conditions',
-    label: 'Podmienky pozorovania',
+    label: 'Astronomicke podmienky',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/RightObservingSidebar.vue',
-    description: 'Sky conditions widget zo sidebaru.',
+    description: 'Hlavny summary widget pre rychly stav oblohy.',
     component: RightObservingSidebar,
     initialProps: {
       lat: 48.1486,
@@ -43,6 +46,60 @@ export const sidebarComponentPlaygroundRegistry = [
       { key: 'lon', label: 'Zemepisna dlzka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
       { key: 'tz', label: 'Casove pasmo', type: 'text', defaultValue: 'Europe/Bratislava' },
       { key: 'locationName', label: 'Lokalita', type: 'text', defaultValue: 'Bratislava' },
+    ],
+  },
+  {
+    id: 'sidebar-observing-weather',
+    label: 'Pocasie pre pozorovanie',
+    category: 'Sidebar widgety',
+    sourcePath: 'frontend/src/components/sky/ObservingWeatherWidget.vue',
+    description: 'Kompaktne metriky pocasia pre pozorovanie.',
+    component: ObservingWeatherWidget,
+    initialProps: {
+      lat: 48.1486,
+      lon: 17.1077,
+      tz: 'Europe/Bratislava',
+    },
+    editableProps: [
+      { key: 'lat', label: 'Zemepisna sirka', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
+      { key: 'lon', label: 'Zemepisna dlzka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
+      { key: 'tz', label: 'Casove pasmo', type: 'text', defaultValue: 'Europe/Bratislava' },
+    ],
+  },
+  {
+    id: 'sidebar-night-sky',
+    label: 'Nocna obloha',
+    category: 'Sidebar widgety',
+    sourcePath: 'frontend/src/components/sky/NightSkyWidget.vue',
+    description: 'Mesiac, Bortle a viditelne planety bez balastu.',
+    component: NightSkyWidget,
+    initialProps: {
+      lat: 48.1486,
+      lon: 17.1077,
+      tz: 'Europe/Bratislava',
+    },
+    editableProps: [
+      { key: 'lat', label: 'Zemepisna sirka', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
+      { key: 'lon', label: 'Zemepisna dlzka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
+      { key: 'tz', label: 'Casove pasmo', type: 'text', defaultValue: 'Europe/Bratislava' },
+    ],
+  },
+  {
+    id: 'sidebar-iss-pass',
+    label: 'ISS prelet',
+    category: 'Sidebar widgety',
+    sourcePath: 'frontend/src/components/sky/IssPassWidget.vue',
+    description: 'Zobrazi sa iba pri viditelnom ISS prelete.',
+    component: IssPassWidget,
+    initialProps: {
+      lat: 48.1486,
+      lon: 17.1077,
+      tz: 'Europe/Bratislava',
+    },
+    editableProps: [
+      { key: 'lat', label: 'Zemepisna sirka', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
+      { key: 'lon', label: 'Zemepisna dlzka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
+      { key: 'tz', label: 'Casove pasmo', type: 'text', defaultValue: 'Europe/Bratislava' },
     ],
   },
   {

@@ -407,6 +407,23 @@
           </span>
         </a>
       </RouterLink>
+
+      <div v-if="!auth.isAuthed" class="guestAuthActions mt-2 shrink-0" data-testid="guest-auth-actions">
+        <RouterLink
+          to="/register"
+          class="ui-pill ui-pill--primary guestAuthActions__btn guestAuthActions__btn--register"
+          aria-label="Vytvorit ucet"
+        >
+          Vytvorit ucet
+        </RouterLink>
+        <RouterLink
+          to="/login"
+          class="ui-pill ui-pill--secondary guestAuthActions__btn"
+          aria-label="Prihlasit sa"
+        >
+          Prihlasit sa
+        </RouterLink>
+      </div>
     </div>
     <div v-if="auth.isAuthed" ref="createPickerWrapperRef" class="relative mt-4 shrink-0">
       <button
@@ -1159,6 +1176,30 @@ watch(
 .createPickerIcon svg {
   width: 100%;
   height: 100%;
+}
+
+.guestAuthActions {
+  display: flex;
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.guestAuthActions__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.guestAuthActions__btn--register {
+  background: #1699f4;
+  border-color: #4fb2f7;
+  color: #04233a;
+}
+
+.guestAuthActions__btn--register:hover:not(:disabled):not([aria-disabled='true']) {
+  background: #108be4;
+  border-color: #66bdfa;
+  color: #031c2f;
 }
 
 @keyframes badge-bounce {

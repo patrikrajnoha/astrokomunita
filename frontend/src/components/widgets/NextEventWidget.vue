@@ -11,21 +11,21 @@
     <div v-else-if="error" class="state stateError">
       <div class="stateTitle">Nepodarilo sa nacitat</div>
       <div class="stateText">{{ error }}</div>
-      <button class="ghostbtn" @click="fetchNextEvent">Skusit znova</button>
+      <button class="eventGhostBtn" @click="fetchNextEvent">Skusit znova</button>
     </div>
 
     <div v-else-if="!nextEvent" class="state">
       <div class="stateTitle">Zatial ziadna udalost</div>
       <div class="stateText">Pozri kalendar alebo udalosti.</div>
       <div class="panelActions">
-        <router-link class="ghostbtn" to="/events">Vsetky udalosti</router-link>
+        <router-link class="eventGhostBtn" to="/events">Vsetky udalosti</router-link>
       </div>
     </div>
 
     <div v-else class="eventCard">
       <div class="eventTitle">{{ nextEvent.title }}</div>
       <div class="eventMeta">{{ formatDateTime(nextEvent) }}</div>
-      <router-link class="actionbtn" :to="`/events/${nextEvent.id}`">
+      <router-link class="eventActionBtn" :to="`/events/${nextEvent.id}`">
         Detail
       </router-link>
     </div>
@@ -97,10 +97,10 @@ export default {
       const context = resolveEventTimeContext(event, EVENT_TIMEZONE)
 
       if (!context.showTimezoneLabel) {
-        return `${dateLabel} · ${context.message}`
+        return `${dateLabel} - ${context.message}`
       }
 
-      return `${dateLabel} · ${context.timeString} (${context.timezoneLabelShort})`
+      return `${dateLabel} - ${context.timeString} (${context.timezoneLabelShort})`
     }
 
     onMounted(() => {
@@ -125,12 +125,12 @@ export default {
   background: transparent;
   border-radius: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .panel {
   display: grid;
-  gap: var(--sb-gap-sm, 0.5rem);
+  gap: 0.24rem;
   min-width: 0;
 }
 
@@ -148,74 +148,77 @@ export default {
 
 .eventCard {
   display: grid;
-  gap: 0.38rem;
+  gap: 0.24rem;
   min-width: 0;
 }
 
 .eventTitle {
-  font-size: 0.89rem;
+  font-size: 0.86rem;
   font-weight: 800;
   color: var(--color-surface);
-  line-height: 1.2;
+  line-height: 1.18;
   display: -webkit-box;
   line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .eventMeta {
   color: var(--color-text-secondary);
-  font-size: 0.76rem;
-  line-height: 1.26;
+  font-size: 0.74rem;
+  line-height: 1.24;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .panelActions {
-  display: flex;
-  gap: var(--sb-gap-xs, 0.3rem);
-  flex-wrap: wrap;
+  display: block;
+  width: 100%;
+  min-width: 0;
 }
 
-.actionbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  justify-self: start;
-  width: auto;
-  min-height: 1.95rem;
-  padding: 0.34rem 0.64rem;
-  border-radius: 0.64rem;
-  border: 1px solid var(--color-primary);
-  background: rgb(var(--color-primary-rgb) / 0.16);
+.eventActionBtn,
+.eventGhostBtn {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 1.68rem;
+  padding: 0.24rem 0.48rem;
+  box-sizing: border-box;
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 0.72rem;
+  line-height: 1.12;
+  border-radius: 0 !important;
+}
+
+.eventActionBtn {
   color: var(--color-surface);
-  font-size: 0.76rem;
-  line-height: 1.15;
+  background: rgb(var(--color-primary-rgb) / 0.16);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
 }
 
-.actionbtn:hover {
+.eventActionBtn:hover {
   background: rgb(var(--color-primary-rgb) / 0.28);
+  transform: none;
 }
 
-.ghostbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  justify-self: start;
-  width: auto;
-  min-height: 1.95rem;
-  padding: 0.34rem 0.64rem;
-  border-radius: 0.64rem;
-  border: 1px solid var(--color-text-secondary);
+.eventGhostBtn {
   color: var(--color-surface);
   background: rgb(var(--color-bg-rgb) / 0.2);
-  font-size: 0.76rem;
-  line-height: 1.15;
+  box-shadow: inset 0 0 0 1px var(--color-text-secondary);
 }
 
-.ghostbtn:hover {
-  border-color: var(--color-primary);
+.eventGhostBtn:hover {
   color: var(--color-surface);
   background: rgb(var(--color-primary-rgb) / 0.08);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+  transform: none;
 }
 
 .stateTitle {
@@ -246,7 +249,7 @@ export default {
   );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
-  border-radius: 0.75rem;
+  border-radius: 0;
 }
 
 @keyframes shimmer {
@@ -274,3 +277,4 @@ export default {
   width: 100%;
 }
 </style>
+

@@ -24,11 +24,6 @@
         </router-link>
       </li>
     </transition-group>
-
-    <div v-if="hasLoadedAnyData" class="modeIndicator" :class="{ spin: modeChangeTick > 0 }" aria-hidden="true">o</div>
-    <div v-if="hasLoadedAnyData" class="switchProgress" aria-hidden="true">
-      <span class="switchProgressBar" :style="{ transform: `scaleX(${switchProgress})` }"></span>
-    </div>
   </section>
 </template>
 
@@ -71,13 +66,9 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const typedTitle = ref('')
-    const switchProgress = ref(0)
-    const modeChangeTick = ref(0)
 
     let modeSwitchIntervalId = null
     let refetchIntervalId = null
-    let progressIntervalId = null
-    let cycleStartTs = Date.now()
     let titleAnimationToken = 0
     const timeoutIds = new Set()
 
@@ -129,14 +120,6 @@ export default {
 
     const setMode = (nextMode) => {
       mode.value = nextMode
-      cycleStartTs = Date.now()
-      switchProgress.value = 0
-      modeChangeTick.value += 1
-      const id = setTimeout(() => {
-        timeoutIds.delete(id)
-        modeChangeTick.value = 0
-      }, 420)
-      timeoutIds.add(id)
     }
 
     const fetchWidgetData = async ({ showLoader = false } = {}) => {
@@ -170,13 +153,6 @@ export default {
       }, props.refetchIntervalMs)
     }
 
-    const startProgressUpdates = () => {
-      progressIntervalId = setInterval(() => {
-        const elapsed = Date.now() - cycleStartTs
-        switchProgress.value = Math.min(Math.max(elapsed / props.switchIntervalMs, 0), 1)
-      }, 100)
-    }
-
     watch(modeTitle, (nextTitle) => {
       runHeaderTyping(nextTitle)
     })
@@ -186,13 +162,11 @@ export default {
       runHeaderTyping(modeTitle.value)
       startModeSwitching()
       startRefetching()
-      startProgressUpdates()
     })
 
     onBeforeUnmount(() => {
       if (modeSwitchIntervalId) clearInterval(modeSwitchIntervalId)
       if (refetchIntervalId) clearInterval(refetchIntervalId)
-      if (progressIntervalId) clearInterval(progressIntervalId)
       titleAnimationToken += 1
       clearTrackedTimeouts()
     })
@@ -202,10 +176,7 @@ export default {
       mode,
       loading,
       error,
-      hasLoadedAnyData,
       typedTitle,
-      switchProgress,
-      modeChangeTick,
     }
   },
 }
@@ -218,12 +189,12 @@ export default {
   background: transparent;
   border-radius: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .panel {
   display: grid;
-  gap: var(--sb-gap-sm, 0.5rem);
+  gap: 0.24rem;
   min-width: 0;
 }
 
@@ -250,13 +221,13 @@ export default {
 }
 
 .articleViewport {
-  min-height: 4.2rem;
+  min-height: 3.4rem;
 }
 
 .articleItem {
   display: block;
   border-bottom: 1px solid var(--divider-color);
-  padding: 0.38rem 0;
+  padding: 0.3rem 0;
 }
 
 .articleItem:last-child {
@@ -267,13 +238,15 @@ export default {
   color: var(--color-surface);
   text-decoration: none;
   font-weight: 600;
-  font-size: 0.8rem;
-  line-height: 1.24;
+  font-size: 0.76rem;
+  line-height: 1.2;
   display: -webkit-box;
   line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .articleLink:hover {
@@ -308,7 +281,7 @@ export default {
   );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
-  border-radius: 0.75rem;
+  border-radius: 0;
 }
 
 @keyframes shimmer {
@@ -338,44 +311,5 @@ export default {
 
 .articleSwap-move {
   transition: transform 0.35s ease;
-}
-
-.modeIndicator {
-  position: absolute;
-  top: 0.62rem;
-  right: 0.62rem;
-  font-size: 0.64rem;
-  opacity: 0.26;
-  color: var(--color-surface);
-  transform-origin: 50% 50%;
-}
-
-.modeIndicator.spin {
-  animation: modeSpin 0.42s ease;
-}
-
-.switchProgress {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--divider-color);
-}
-
-.switchProgressBar {
-  display: block;
-  width: 100%;
-  height: 100%;
-  transform-origin: left center;
-  background: rgb(var(--color-primary-rgb) / 0.55);
-  transition: transform 0.12s linear;
-}
-
-@keyframes modeSpin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(180deg); }
 }
 </style>

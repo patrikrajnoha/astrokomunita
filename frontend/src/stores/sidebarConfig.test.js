@@ -25,8 +25,8 @@ describe('sidebarConfig store', () => {
     const items = await store.fetchScope(undefined)
 
     expect(api.get).not.toHaveBeenCalled()
-    expect(items).toHaveLength(6)
-    expect(items[0].section_key).toBe('search')
+    expect(items).toHaveLength(8)
+    expect(items[0].section_key).toBe('observing_conditions')
   })
 
   it('uses local fallback and does not request API for null-like scopes', async () => {

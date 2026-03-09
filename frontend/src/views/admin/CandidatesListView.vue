@@ -1,16 +1,24 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/services/api";
 import { eventCandidates } from "@/services/eventCandidates";
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import { candidateDisplayShort, candidateDisplayTitle } from '@/utils/translatedFields'
+import {
+  resolveUserCoordinates,
+  resolveUserLocationLabel,
+  resolveUserPreferredTimezone,
+} from '@/utils/userTimezone'
 
 const route = useRoute();
 const router = useRouter();
 const { confirm } = useConfirm()
 const toast = useToast()
+const auth = useAuthStore()
 
 const activeTab = ref("crawled");
 
@@ -24,11 +32,27 @@ const status = ref("pending"); // crawled: default MVP
 const type = ref("");          // crawled: all
 const source = ref("");        // crawled: text input
 const q = ref("");             // crawled: search input
+const showAdvancedFilters = ref(false);
+const currentDate = new Date();
+const timePreset = ref("none");
+const filterYear = ref(currentDate.getFullYear());
+const filterMonth = ref(currentDate.getMonth() + 1);
+const filterWeek = ref(getIsoWeek(currentDate));
 
 const page = ref(1);
 const per_page = ref(20);
 
 const data = ref(null);
+const duplicatePreview = ref(null);
+const duplicateLoading = ref(false);
+const duplicateMerging = ref(false);
+const duplicateDryRunning = ref(false);
+const duplicateGroupLimit = ref(8);
+const duplicatePerGroup = ref(3);
+const candidateDetailOpen = ref(false);
+const candidateDetailLoading = ref(false);
+const candidateDetailError = ref("");
+const candidateDetail = ref(null);
 
 const manualLoading = ref(false);
 const manualError = ref(null);
@@ -39,6 +63,11 @@ const manualPage = ref(1);
 const manualPerPage = ref(20);
 const manualData = ref(null);
 const publishMode = ref("crawled");
+const astronomyContext = ref(null);
+const astronomyContextLoading = ref(false);
+const showObservationContext = ref(false);
+const translationRefreshDelayMs = 5000;
+let translationRefreshTimerId = null;
 
 const showManualForm = ref(false);
 const manualEditingId = ref(null);
@@ -56,6 +85,29 @@ const manualTypeOptions = [
   { value: "eclipse_solar", label: "Zatmenie Slnka" },
   { value: "planetary_event", label: "Planetarny ukaz" },
   { value: "other", label: "Iná udalosť" },
+];
+
+const timePresetOptions = [
+  { value: "none", label: "Vsetko" },
+  { value: "week", label: "Tyzden" },
+  { value: "month", label: "Mesiac" },
+  { value: "year", label: "Rok" },
+  { value: "next_7_days", label: "Najblizsich 7 dni" },
+  { value: "next_30_days", label: "Najblizsich 30 dni" },
+];
+const monthOptions = [
+  { value: 1, label: "Januar" },
+  { value: 2, label: "Februar" },
+  { value: 3, label: "Marec" },
+  { value: 4, label: "April" },
+  { value: 5, label: "Maj" },
+  { value: 6, label: "Jun" },
+  { value: 7, label: "Jul" },
+  { value: 8, label: "August" },
+  { value: 9, label: "September" },
+  { value: 10, label: "Oktober" },
+  { value: 11, label: "November" },
+  { value: 12, label: "December" },
 ];
 
 const manualFormErrors = computed(() => {
@@ -77,6 +129,11 @@ const manualFormErrors = computed(() => {
 });
 
 const manualCanSave = computed(() => manualFormErrors.value.length === 0);
+const preferredTimezone = computed(() => resolveUserPreferredTimezone(auth.user));
+const preferredLocationLabel = computed(() => resolveUserLocationLabel(auth.user));
+const preferredCoordinates = computed(() => resolveUserCoordinates(auth.user));
+const timezoneInfoLabel = computed(() => `${preferredLocationLabel.value} (${preferredTimezone.value})`);
+const astronomyContextAvailable = computed(() => astronomyContext.value && typeof astronomyContext.value === "object");
 
 const runFilter = computed(() => {
   const runId = Number(route.query?.run_id);
@@ -104,6 +161,11 @@ const visiblePendingCandidateIds = computed(() => {
     .filter((row) => String(row?.status || "").toLowerCase() === "pending")
     .map((row) => Number(row.id))
     .filter((id) => Number.isFinite(id) && id > 0);
+});
+
+const hasPendingTranslationsOnPage = computed(() => {
+  const rows = Array.isArray(data.value?.data) ? data.value.data : [];
+  return rows.some((row) => isPendingTranslation(row));
 });
 
 const crawledStats = computed(() => {
@@ -140,6 +202,32 @@ const manualStats = computed(() => {
   };
 });
 
+const duplicateSummary = computed(() => duplicatePreview.value?.summary || {
+  group_count: 0,
+  duplicate_candidates: 0,
+  limit_groups: duplicateGroupLimit.value,
+  per_group: duplicatePerGroup.value,
+});
+
+const duplicateGroups = computed(() => {
+  const groups = duplicatePreview.value?.groups;
+  return Array.isArray(groups) ? groups : [];
+});
+
+const canMergeDuplicates = computed(() => {
+  return !duplicateMerging.value && !duplicateDryRunning.value && duplicateGroups.value.length > 0;
+});
+const showConfidenceColumn = computed(() => Boolean(auth.isAdmin));
+const showYearFilter = computed(() => ["week", "month", "year"].includes(String(timePreset.value || "")));
+const showMonthFilter = computed(() => String(timePreset.value || "") === "month");
+const showWeekFilter = computed(() => String(timePreset.value || "") === "week");
+const detailModalTitle = computed(() => {
+  if (!candidateDetail.value) {
+    return "Detail kandidata";
+  }
+  return candidateDisplayTitle(candidateDetail.value) || "Detail kandidata";
+});
+
 // --- helpers ---
 function normalizeTranslationStatus(value) {
   const statusValue = String(value || "").trim().toLowerCase();
@@ -151,12 +239,12 @@ function normalizeTranslationStatus(value) {
 function translationStatusStyle(value) {
   const normalized = normalizeTranslationStatus(value);
   if (normalized === "Prelozene") {
-    return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(22,163,74,.35); background:rgba(22,163,74,.12); font-size:12px;";
+    return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(22,163,74,.25); background:rgba(22,163,74,.05); font-size:12px;";
   }
   if (normalized === "Zlyhalo") {
-    return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(239,68,68,.35); background:rgba(239,68,68,.12); font-size:12px;";
+    return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(239,68,68,.25); background:rgba(239,68,68,.05); font-size:12px;";
   }
-  return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(245,158,11,.35); background:rgba(245,158,11,.12); font-size:12px;";
+  return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(245,158,11,.25); background:rgba(245,158,11,.05); font-size:12px;";
 }
 
 function applyRunFilterFromRoute() {
@@ -182,7 +270,77 @@ function formatDate(value) {
   if (!value) return "-";
   const d = new Date(value);
   if (isNaN(d.getTime())) return String(value);
-  return d.toLocaleString("sk-SK", { dateStyle: "medium", timeStyle: "short" });
+  return d.toLocaleString("sk-SK", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: preferredTimezone.value,
+  });
+}
+
+function isPendingTranslation(candidate) {
+  const statusValue = String(candidate?.translation_status || "").trim().toLowerCase();
+  return statusValue === "pending";
+}
+
+function candidatePreviewShort(candidate) {
+  if (!isPendingTranslation(candidate)) {
+    return candidateDisplayShort(candidate);
+  }
+
+  const translated = String(candidate?.translated_description || candidate?.translated_title || "").trim();
+  if (translated !== "") {
+    return translated;
+  }
+
+  return "Preklad prebieha...";
+}
+
+function formatAstronomyTime(value) {
+  if (typeof value !== "string" || value.trim() === "") return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "-";
+
+  return new Intl.DateTimeFormat("sk-SK", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: preferredTimezone.value,
+  }).format(parsed);
+}
+
+function moonPhaseLabel(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "new_moon") return "Nov";
+  if (normalized === "waxing_crescent") return "Dorastajuci kosacik";
+  if (normalized === "first_quarter") return "Prva stvrt";
+  if (normalized === "waxing_gibbous") return "Dorastajuci Mesiac";
+  if (normalized === "full_moon") return "Spln";
+  if (normalized === "waning_gibbous") return "Ubudajuci Mesiac";
+  if (normalized === "last_quarter") return "Posledna stvrt";
+  if (normalized === "waning_crescent") return "Ubudajuci kosacik";
+  return "-";
+}
+
+async function loadAstronomyContext() {
+  astronomyContextLoading.value = true;
+  try {
+    const params = { tz: preferredTimezone.value };
+    const coordinates = preferredCoordinates.value;
+    if (coordinates) {
+      params.lat = coordinates.lat;
+      params.lon = coordinates.lon;
+    }
+
+    const response = await api.get("/sky/astronomy", {
+      params,
+      meta: { skipErrorToast: true },
+    });
+    astronomyContext.value = response?.data || null;
+  } catch {
+    astronomyContext.value = null;
+  } finally {
+    astronomyContextLoading.value = false;
+  }
 }
 
 function formatConfidence(value) {
@@ -190,6 +348,137 @@ function formatConfidence(value) {
   const numeric = Number(value);
   if (Number.isNaN(numeric)) return "-";
   return numeric.toFixed(2);
+}
+
+function clampInteger(value, min, max, fallback) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.min(max, Math.max(min, Math.trunc(numeric)));
+}
+
+function toIsoDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function startOfDay(value) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function endOfDay(value) {
+  const date = new Date(value);
+  date.setHours(23, 59, 59, 999);
+  return date;
+}
+
+function getIsoWeek(value) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+  const weekOne = new Date(date.getFullYear(), 0, 4);
+  weekOne.setHours(0, 0, 0, 0);
+  const diffDays = (date.getTime() - weekOne.getTime()) / 86400000;
+  return 1 + Math.round((diffDays - 3 + ((weekOne.getDay() + 6) % 7)) / 7);
+}
+
+function resolveIsoWeekRange(year, week) {
+  const safeYear = clampInteger(year, 2000, 2100, new Date().getFullYear());
+  const safeWeek = clampInteger(week, 1, 53, getIsoWeek(new Date()));
+
+  const jan4 = new Date(safeYear, 0, 4);
+  const jan4Day = jan4.getDay() || 7;
+  const weekOneMonday = new Date(safeYear, 0, 4 - jan4Day + 1);
+  const weekStart = startOfDay(new Date(weekOneMonday));
+  weekStart.setDate(weekOneMonday.getDate() + (safeWeek - 1) * 7);
+
+  const weekEnd = endOfDay(new Date(weekStart));
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  return {
+    from: toIsoDate(weekStart),
+    to: toIsoDate(weekEnd),
+    week: safeWeek,
+    year: safeYear,
+  };
+}
+
+function resolveTimeFilterParams() {
+  const preset = String(timePreset.value || "none");
+  const now = new Date();
+  const safeYear = clampInteger(filterYear.value, 2000, 2100, now.getFullYear());
+  const safeMonth = clampInteger(filterMonth.value, 1, 12, now.getMonth() + 1);
+  const safeWeek = clampInteger(filterWeek.value, 1, 53, getIsoWeek(now));
+
+  if (preset === "month") {
+    return {
+      year: safeYear,
+      month: safeMonth,
+      week: undefined,
+      date_from: undefined,
+      date_to: undefined,
+    };
+  }
+
+  if (preset === "year") {
+    return {
+      year: safeYear,
+      month: undefined,
+      week: undefined,
+      date_from: toIsoDate(startOfDay(new Date(safeYear, 0, 1))),
+      date_to: toIsoDate(endOfDay(new Date(safeYear, 11, 31))),
+    };
+  }
+
+  if (preset === "week") {
+    const range = resolveIsoWeekRange(safeYear, safeWeek);
+    return {
+      year: range.year,
+      month: undefined,
+      week: range.week,
+      date_from: range.from,
+      date_to: range.to,
+    };
+  }
+
+  if (preset === "next_7_days") {
+    const from = startOfDay(now);
+    const to = endOfDay(new Date(from));
+    to.setDate(to.getDate() + 6);
+    return {
+      year: undefined,
+      month: undefined,
+      week: undefined,
+      date_from: toIsoDate(from),
+      date_to: toIsoDate(to),
+    };
+  }
+
+  if (preset === "next_30_days") {
+    const from = startOfDay(now);
+    const to = endOfDay(new Date(from));
+    to.setDate(to.getDate() + 29);
+    return {
+      year: undefined,
+      month: undefined,
+      week: undefined,
+      date_from: toIsoDate(from),
+      date_to: toIsoDate(to),
+    };
+  }
+
+  return {
+    year: undefined,
+    month: undefined,
+    week: undefined,
+    date_from: undefined,
+    date_to: undefined,
+  };
 }
 
 function normalizeSources(values) {
@@ -203,7 +492,7 @@ function sourceLabel(source) {
   const key = String(source || "").toLowerCase();
   if (key === "astropixels") return "AstroPixels";
   if (key === "imo") return "IMO";
-  if (key === "nasa_watch_the_skies") return "NASA WTS";
+  if (key === "nasa_watch_the_skies" || key === "nasa_wts") return "NASA WTS";
   if (key === "nasa") return "NASA";
   return key || "-";
 }
@@ -211,21 +500,60 @@ function sourceLabel(source) {
 function sourceBadgeStyle(source) {
   const key = String(source || "").toLowerCase();
   if (key === "astropixels") {
-    return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(30,64,175,.35); background:rgba(30,64,175,.12); font-size:12px;";
+    return "display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgba(30,64,175,.24); background:rgba(30,64,175,.04); font-size:12px;";
   }
   if (key === "imo") {
-    return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(6,95,70,.35); background:rgba(6,95,70,.12); font-size:12px;";
+    return "display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgba(6,95,70,.24); background:rgba(6,95,70,.04); font-size:12px;";
   }
-  if (key === "nasa") {
-    return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(107,33,168,.35); background:rgba(107,33,168,.12); font-size:12px;";
+  if (key === "nasa" || key === "nasa_wts" || key === "nasa_watch_the_skies") {
+    return "display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgba(107,33,168,.24); background:rgba(107,33,168,.04); font-size:12px;";
   }
-  return "display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:rgb(var(--color-surface-rgb) / .08); font-size:12px;";
+  return "display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgb(var(--color-surface-rgb) / .16); background:transparent; font-size:12px;";
 }
 
-function openCandidate(id) {
+function statusBadgeStyle(value) {
+  const key = String(value || "").toLowerCase();
+  if (key === "approved") {
+    return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(22,163,74,.24); background:rgba(22,163,74,.05); font-size:12px;";
+  }
+  if (key === "rejected" || key === "duplicate") {
+    return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(239,68,68,.24); background:rgba(239,68,68,.05); font-size:12px;";
+  }
+  return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(245,158,11,.24); background:rgba(245,158,11,.05); font-size:12px;";
+}
+
+async function openCandidate(id) {
+  const candidateId = Number(id);
+  if (!Number.isFinite(candidateId) || candidateId <= 0) return;
+
+  candidateDetailOpen.value = true;
+  candidateDetailLoading.value = true;
+  candidateDetailError.value = "";
+  candidateDetail.value = null;
+
+  try {
+    candidateDetail.value = await eventCandidates.get(candidateId);
+  } catch (fetchError) {
+    candidateDetailError.value = fetchError?.response?.data?.message || "Detail kandidata sa nepodarilo nacitat.";
+  } finally {
+    candidateDetailLoading.value = false;
+  }
+}
+
+function resetCandidateDetailModal() {
+  candidateDetailLoading.value = false;
+  candidateDetailError.value = "";
+  candidateDetail.value = null;
+}
+
+function openCandidateFullDetail() {
+  const candidateId = Number(candidateDetail.value?.id);
+  if (!Number.isFinite(candidateId) || candidateId <= 0) return;
+
+  candidateDetailOpen.value = false;
   router.push({
-    name: 'admin.candidate.detail',
-    params: { id: String(id) },
+    name: "admin.candidate.detail",
+    params: { id: String(candidateId) },
   });
 }
 
@@ -249,6 +577,31 @@ function finishPublishProgress() {
     publishProgressLabel.value = "";
     publishProgressPercent.value = 0;
   }, 500);
+}
+
+function stopTranslationRefreshPoll() {
+  if (translationRefreshTimerId === null) return;
+  window.clearTimeout(translationRefreshTimerId);
+  translationRefreshTimerId = null;
+}
+
+function scheduleTranslationRefreshPoll() {
+  stopTranslationRefreshPoll();
+
+  if (activeTab.value !== "crawled") return;
+  if (!hasPendingTranslationsOnPage.value) return;
+  if (loading.value) return;
+
+  translationRefreshTimerId = window.setTimeout(async () => {
+    translationRefreshTimerId = null;
+    if (activeTab.value !== "crawled" || loading.value) {
+      scheduleTranslationRefreshPoll();
+      return;
+    }
+
+    await load();
+    scheduleTranslationRefreshPoll();
+  }, translationRefreshDelayMs);
 }
 
 async function publishCandidateQuick(candidate) {
@@ -275,6 +628,23 @@ async function publishCandidateQuick(candidate) {
     toast.error(error.value);
   } finally {
     finishPublishProgress();
+    loading.value = false;
+  }
+}
+
+async function retranslateCandidateQuick(candidate) {
+  if (!candidate?.id || loading.value) return;
+
+  loading.value = true;
+  error.value = null;
+  try {
+    await eventCandidates.retranslate(candidate.id);
+    toast.success("Retranslate spusteny.");
+    await load();
+  } catch (e) {
+    error.value = e?.response?.data?.message || "Retranslate zlyhal";
+    toast.error(error.value);
+  } finally {
     loading.value = false;
   }
 }
@@ -355,7 +725,11 @@ async function publishAllByFilter() {
       source_key: params.source_key,
       run_id: params.run_id,
       q: params.q,
-      year: runFilter.value?.year || undefined,
+      year: params.year,
+      month: params.month,
+      week: params.week,
+      date_from: params.date_from,
+      date_to: params.date_to,
       limit: 1000,
     };
 
@@ -377,11 +751,13 @@ async function publishAllByFilter() {
 }
 
 function buildManualBatchPayload() {
+  const timeFilters = resolveTimeFilterParams();
   return {
     status: manualStatus.value || "draft",
     type: manualType.value || undefined,
     q: manualQ.value?.trim() ? manualQ.value.trim() : undefined,
-    year: runFilter.value?.year || undefined,
+    year: timeFilters.year,
+    month: timeFilters.month,
     limit: 1000,
   };
 }
@@ -409,14 +785,19 @@ async function publishBySelectedMode() {
   let completedSteps = 0;
 
   try {
+    const params = buildParams();
     const crawledPayload = {
-      status: buildParams().status,
-      type: buildParams().type,
-      source: buildParams().source,
-      source_key: buildParams().source_key,
-      run_id: buildParams().run_id,
-      q: buildParams().q,
-      year: runFilter.value?.year || undefined,
+      status: params.status,
+      type: params.type,
+      source: params.source,
+      source_key: params.source_key,
+      run_id: params.run_id,
+      q: params.q,
+      year: params.year,
+      month: params.month,
+      week: params.week,
+      date_from: params.date_from,
+      date_to: params.date_to,
       limit: 1000,
     };
     const manualPayload = buildManualBatchPayload();
@@ -522,7 +903,11 @@ async function retranslateByFilter() {
       source_key: params.source_key,
       run_id: params.run_id,
       q: params.q,
-      year: runFilter.value?.year || undefined,
+      year: params.year,
+      month: params.month,
+      week: params.week,
+      date_from: params.date_from,
+      date_to: params.date_to,
       limit: 1000,
     };
 
@@ -551,6 +936,7 @@ function resetToFirstPage() {
 
 function buildParams() {
   const sourceValue = source.value?.trim() ? source.value.trim() : undefined;
+  const timeFilters = resolveTimeFilterParams();
 
   return {
     status: status.value || undefined,
@@ -559,9 +945,114 @@ function buildParams() {
     source_key: sourceValue,
     run_id: runFilter.value?.runId ? Number(runFilter.value.runId) : undefined,
     q: q.value?.trim() ? q.value.trim() : undefined,
+    year: timeFilters.year,
+    month: timeFilters.month,
+    week: timeFilters.week,
+    date_from: timeFilters.date_from,
+    date_to: timeFilters.date_to,
     page: page.value,
     per_page: per_page.value,
   };
+}
+
+function buildDuplicateParams() {
+  const params = buildParams();
+  const limitGroups = Math.max(1, Math.min(50, Number(duplicateGroupLimit.value) || 8));
+  const perGroup = Math.max(2, Math.min(10, Number(duplicatePerGroup.value) || 3));
+
+  return {
+    status: "pending",
+    type: params.type,
+    source: params.source,
+    source_key: params.source_key,
+    run_id: params.run_id,
+    q: params.q,
+    year: params.year,
+    month: params.month,
+    week: params.week,
+    date_from: params.date_from,
+    date_to: params.date_to,
+    limit_groups: limitGroups,
+    per_group: perGroup,
+  };
+}
+
+async function loadDuplicatePreview() {
+  if (activeTab.value !== "crawled") return;
+
+  if (String(status.value || "").toLowerCase() !== "pending") {
+    duplicatePreview.value = null;
+    return;
+  }
+
+  duplicateLoading.value = true;
+  try {
+    duplicatePreview.value = await eventCandidates.duplicatesPreview(buildDuplicateParams());
+  } catch {
+    duplicatePreview.value = null;
+  } finally {
+    duplicateLoading.value = false;
+  }
+}
+
+async function mergeDuplicateGroups() {
+  if (!canMergeDuplicates.value) return;
+
+  const plannedGroups = Number(duplicateSummary.value?.group_count || 0);
+  const plannedCandidates = Number(duplicateSummary.value?.duplicate_candidates || 0);
+
+  const ok = await confirm({
+    title: "Zlucit duplicity",
+    message: `Oznacit duplicity ako duplicate? Skupiny: ${plannedGroups}, kandidati: ${plannedCandidates}.`,
+    confirmText: "Zlucit",
+    cancelText: "Zrusit",
+    variant: "danger",
+  });
+  if (!ok) return;
+
+  duplicateMerging.value = true;
+  try {
+    const params = buildDuplicateParams();
+    const result = await eventCandidates.mergeDuplicates({
+      ...params,
+      limit_groups: params.limit_groups,
+      dry_run: false,
+    });
+    const merged = Number(result?.summary?.merged_candidates || 0);
+    toast.success(`Deduplikacia hotova, oznacene duplicate: ${merged}.`);
+    await load();
+  } catch (e) {
+    const message = e?.response?.data?.message || "Deduplikacia zlyhala";
+    error.value = message;
+    toast.error(message);
+  } finally {
+    duplicateMerging.value = false;
+  }
+}
+
+async function dryRunDuplicateMerge() {
+  if (!canMergeDuplicates.value) return;
+
+  duplicateDryRunning.value = true;
+  try {
+    const params = buildDuplicateParams();
+    const result = await eventCandidates.mergeDuplicates({
+      ...params,
+      limit_groups: params.limit_groups,
+      dry_run: true,
+    });
+
+    const groups = Number(result?.summary?.group_count || 0);
+    const merged = Number(result?.summary?.merged_candidates || 0);
+    toast.success(`Dry-run: skupiny ${groups}, navrh duplicit ${merged}.`);
+    await loadDuplicatePreview();
+  } catch (e) {
+    const message = e?.response?.data?.message || "Dry-run deduplikacie zlyhal";
+    error.value = message;
+    toast.error(message);
+  } finally {
+    duplicateDryRunning.value = false;
+  }
 }
 
 async function load() {
@@ -570,6 +1061,7 @@ async function load() {
 
   try {
     data.value = await eventCandidates.list(buildParams());
+    await loadDuplicatePreview();
   } catch (e) {
     error.value = e?.response?.data?.message || "Chyba pri načítaní kandidátov";
   } finally {
@@ -606,12 +1098,25 @@ async function loadManual() {
 }
 
 function clearFilters() {
+  const now = new Date();
   status.value = "pending";
   type.value = "";
   source.value = "";
   q.value = "";
+  timePreset.value = "none";
+  filterYear.value = now.getFullYear();
+  filterMonth.value = now.getMonth() + 1;
+  filterWeek.value = getIsoWeek(now);
   page.value = 1;
   per_page.value = 20;
+  showAdvancedFilters.value = false;
+  load();
+}
+
+function quickSetStatus(nextStatus) {
+  if (!nextStatus || status.value === nextStatus) return;
+  status.value = nextStatus;
+  resetToFirstPage();
   load();
 }
 
@@ -625,7 +1130,7 @@ function clearManualFilters() {
 }
 
 // Auto-reload pri zmene filtrov (bez ?skratky?: iba to, ?o je prirodzen?)
-watch([status, type, per_page], () => {
+watch([status, type, per_page, timePreset, filterYear, filterMonth, filterWeek], () => {
   resetToFirstPage();
   if (activeTab.value === "crawled") load();
 });
@@ -819,7 +1324,16 @@ async function publishManual(row) {
 
 function setTab(tab) {
   activeTab.value = tab;
-  if (tab === "crawled" && !data.value) load();
+  if (tab !== "crawled") {
+    duplicatePreview.value = null;
+  }
+  if (tab === "crawled") {
+    if (!data.value) {
+      load();
+    } else {
+      loadDuplicatePreview();
+    }
+  }
   if (tab === "manual" && !manualData.value) loadManual();
 }
 
@@ -833,44 +1347,66 @@ watch(
   { deep: true }
 );
 
+watch(
+  () => [activeTab.value, hasPendingTranslationsOnPage.value, loading.value],
+  () => {
+    if (activeTab.value !== "crawled" || loading.value || !hasPendingTranslationsOnPage.value) {
+      stopTranslationRefreshPoll();
+      return;
+    }
+
+    scheduleTranslationRefreshPoll();
+  }
+);
+
+watch(
+  () => [preferredTimezone.value, preferredCoordinates.value?.lat, preferredCoordinates.value?.lon],
+  () => {
+    loadAstronomyContext();
+  },
+  { immediate: true }
+);
+
 onMounted(() => {
   applyRunFilterFromRoute();
   load();
 });
+
+onUnmounted(() => {
+  stopTranslationRefreshPoll();
+});
 </script>
 
 <template>
-  <div style="max-width: 980px; margin: 0 auto; padding: 10px 8px;">
-    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:10px;">
+  <div class="candidatesPage">
+    <div class="pageHeader">
       <div>
-        <h1 style="margin:0 0 4px;">Kandidáti udalostí</h1>
+        <h1 class="pageTitle">Kandidáti udalostí</h1>
       </div>
 
-      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+      <div class="headerActions">
+        <div class="tabSwitch" role="tablist" aria-label="Typ kandidátov">
+          <button
+            @click="setTab('crawled')"
+            :disabled="loading || manualLoading"
+            :class="['toolbarButton', 'toolbarButton--tab', { 'toolbarButton--active': activeTab === 'crawled' }]"
+          >
+            Crawlovaní kandidáti
+          </button>
+          <button
+            @click="setTab('manual')"
+            :disabled="loading || manualLoading"
+            :class="['toolbarButton', 'toolbarButton--tab', { 'toolbarButton--active': activeTab === 'manual' }]"
+          >
+            Manuálne návrhy
+          </button>
+        </div>
         <button
           @click="openCrawlingHub"
           :disabled="loading || manualLoading"
-          style="padding:7px 10px; border:1px solid rgb(var(--color-primary-rgb) / .35); border-radius:8px; background:rgb(var(--color-primary-rgb) / .12); color:inherit;"
+          class="toolbarButton toolbarButton--ghost"
         >
           Centrum crawlovania
-        </button>
-        <button
-          @click="setTab('crawled')"
-          :disabled="loading || manualLoading"
-          :style="activeTab === 'crawled'
-            ? 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .4); border-radius:8px; background:rgb(var(--color-surface-rgb) / .08); color:inherit;'
-            : 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;'"
-        >
-          Crawlovaní kandidáti
-        </button>
-        <button
-          @click="setTab('manual')"
-          :disabled="loading || manualLoading"
-          :style="activeTab === 'manual'
-            ? 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .4); border-radius:8px; background:rgb(var(--color-surface-rgb) / .08); color:inherit;'
-            : 'padding:7px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;'"
-        >
-          Manuálne návrhy
         </button>
       </div>
     </div>
@@ -886,320 +1422,544 @@ onMounted(() => {
           <strong>{{ crawledStats.pending }}</strong>
         </div>
         <div class="uxOverview__item">
-          <span>Prelozene</span>
-          <strong>{{ crawledStats.translated }}</strong>
+          <span>Schvalene</span>
+          <strong>{{ crawledStats.approved }}</strong>
         </div>
         <div class="uxOverview__item">
-          <span>Chyba prekladu</span>
+          <span>Preklad fail</span>
           <strong>{{ crawledStats.failedTranslation }}</strong>
         </div>
       </div>
 
-      <div
-        v-if="runFilter"
-        style="margin-top: 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;"
-      >
-        <span style="display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; border:1px solid rgb(var(--color-primary-rgb) / .35); background:rgb(var(--color-primary-rgb) / .12); font-size:12px;">
+      <div class="contextToggleRow">
+        <button
+          type="button"
+          class="toolbarButton toolbarButton--ghost"
+          :disabled="loading"
+          @click="showObservationContext = !showObservationContext"
+        >
+          {{ showObservationContext ? 'Skryt podmienky pozorovania' : 'Zobrazit podmienky pozorovania' }}
+        </button>
+      </div>
+
+      <div v-if="showObservationContext" class="timeContextBar">
+        <div class="timeContextBar__item">
+          <span>Casove pasmo</span>
+          <strong>{{ timezoneInfoLabel }}</strong>
+        </div>
+        <div class="timeContextBar__item">
+          <span>Zapad slnka</span>
+          <strong>
+            {{ astronomyContextAvailable ? formatAstronomyTime(astronomyContext?.sunset_at) : "-" }}
+          </strong>
+        </div>
+        <div class="timeContextBar__item">
+          <span>Koniec obcianskeho sumraku</span>
+          <strong>
+            {{ astronomyContextAvailable ? formatAstronomyTime(astronomyContext?.civil_twilight_end_at) : "-" }}
+          </strong>
+        </div>
+        <div class="timeContextBar__item">
+          <span>Faza Mesiaca</span>
+          <strong>
+            {{ astronomyContextAvailable ? moonPhaseLabel(astronomyContext?.moon_phase) : "-" }}
+          </strong>
+        </div>
+        <div v-if="astronomyContextLoading" class="timeContextBar__loading">
+          Nacitavam astronomicky kontext...
+        </div>
+      </div>
+
+      <div v-if="runFilter" class="runFilterBar">
+        <span class="runFilterChip">
           Run #{{ runFilter.runId }} / {{ sourceLabel(runFilter.sourceKey || '-') }}<span v-if="runFilter.year"> / {{ runFilter.year }}</span>
         </span>
         <button
           type="button"
           @click="clearRunFilter"
-          style="padding:6px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
+          class="toolbarButton toolbarButton--ghost"
         >
-          Zrušiť filter runu
+          Zrusit run filter
+        </button>
+      </div>
+
+      <div class="statusPills">
+        <button
+          type="button"
+          @click="quickSetStatus('pending')"
+          :class="['statusPill', { 'statusPill--active': status === 'pending' }]"
+          :disabled="loading"
+        >
+          Pending ({{ crawledStats.pending }})
+        </button>
+        <button
+          type="button"
+          @click="quickSetStatus('approved')"
+          :class="['statusPill', { 'statusPill--active': status === 'approved' }]"
+          :disabled="loading"
+        >
+          Schvalene ({{ crawledStats.approved }})
+        </button>
+        <button
+          type="button"
+          @click="quickSetStatus('rejected')"
+          :class="['statusPill', { 'statusPill--active': status === 'rejected' }]"
+          :disabled="loading"
+        >
+          Zamietnute ({{ crawledStats.rejected }})
         </button>
       </div>
 
       <div class="uxActionBar">
-        <select
-          v-model="publishMode"
-          :disabled="loading"
-          style="padding:8px 10px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit; margin-right:8px;"
-        >
-          <option value="crawled">Publikovať: Crawlované</option>
-          <option value="manual">Publikovať: Manuálne</option>
-          <option value="all">Publikovať: Oboje</option>
-        </select>
-        <button
-          @click="publishBySelectedMode"
-          :disabled="loading"
-          style="padding:8px 12px; border:1px solid rgb(var(--color-success-rgb) / .35); border-radius:8px; background:rgb(var(--color-success-rgb) / .10); color:inherit; margin-right:8px;"
-        >
-          Publikovať podľa režimu
-        </button>
-        <button
-          @click="publishAllByFilter"
-          :disabled="loading"
-          style="padding:8px 12px; border:1px solid rgb(var(--color-success-rgb) / .35); border-radius:8px; background:rgb(var(--color-success-rgb) / .10); color:inherit; margin-right:8px;"
-        >
-          Publikovať všetko (podľa filtra)
-        </button>
-        <button
-          @click="publishAllVisiblePending"
-          :disabled="loading || visiblePendingCandidateIds.length === 0"
-          style="padding:8px 12px; border:1px solid rgb(var(--color-success-rgb) / .35); border-radius:8px; background:rgb(var(--color-success-rgb) / .10); color:inherit; margin-right:8px;"
-        >
-          Publikovať všetko (viditeľné)
-        </button>
-        <button
-          @click="retranslateByFilter"
-          :disabled="loading"
-          style="padding:8px 12px; border:1px solid rgb(var(--color-primary-rgb) / .35); border-radius:8px; background:rgb(var(--color-primary-rgb) / .12); color:inherit; margin-right:8px;"
-        >
-          Preložiť znova (podľa filtra)
-        </button>
-        <button
-          @click="retranslateVisiblePending"
-          :disabled="loading || visiblePendingCandidateIds.length === 0"
-          style="padding:8px 12px; border:1px solid rgb(var(--color-primary-rgb) / .35); border-radius:8px; background:rgb(var(--color-primary-rgb) / .12); color:inherit; margin-right:8px;"
-        >
-          Prelozit znova (viditelne)
-        </button>
-        <button
-          @click="clearFilters"
-          :disabled="loading"
-          style="padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
-        >
-          Resetovat filtre
-        </button>
-      </div>
-
-      <div
-        v-if="publishProgressActive"
-        style="margin-top: 10px; border: 1px solid rgb(var(--color-surface-rgb) / .14); border-radius: 10px; padding: 8px 10px; background: rgb(var(--color-surface-rgb) / .04);"
-      >
-        <div style="display:flex; justify-content:space-between; gap:10px; font-size:12px; margin-bottom:6px;">
-          <span>{{ publishProgressLabel || 'Publikujem...' }}</span>
-          <strong>{{ publishProgressPercent }}%</strong>
-        </div>
-        <div style="height: 7px; border-radius: 999px; background: rgb(var(--color-surface-rgb) / .16); overflow: hidden;">
-          <div
-            style="height: 100%; background: linear-gradient(90deg, rgb(var(--color-primary-rgb) / .95), rgb(var(--color-success-rgb) / .95)); transition: width .25s ease;"
-            :style="{ width: `${publishProgressPercent}%` }"
-          ></div>
-        </div>
-      </div>
-
-      <div
-        style="
-          margin-top: 10px;
-          padding: 7px;
-          border: 1px solid rgb(var(--color-surface-rgb) / .12);
-          border-radius: 12px;
-          display: grid;
-          grid-template-columns: repeat(12, 1fr);
-          gap: 6px;
-        "
-      >
-        <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Stav</label>
-          <select
-            v-model="status"
-            :disabled="loading"
-            style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-          >
-            <option value="pending">Čakajúce</option>
-            <option value="approved">Schvalene</option>
-            <option value="rejected">Zamietnuté</option>
+        <div class="uxActionBar__group">
+          <select v-model="publishMode" :disabled="loading" class="toolbarSelect">
+            <option value="crawled">Publikovat: Crawlovane</option>
+            <option value="manual">Publikovat: Manualne</option>
+            <option value="all">Publikovat: Oboje</option>
           </select>
+          <button @click="publishBySelectedMode" :disabled="loading" class="toolbarButton toolbarButton--success">
+            Publikovat mode
+          </button>
+          <button @click="publishAllByFilter" :disabled="loading" class="toolbarButton toolbarButton--success">
+            Publikovat filter
+          </button>
+          <button @click="publishAllVisiblePending" :disabled="loading || visiblePendingCandidateIds.length === 0" class="toolbarButton toolbarButton--success">
+            Publikovat viditelne
+          </button>
         </div>
-
-        <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Typ</label>
-          <select
-            v-model="type"
-            :disabled="loading"
-            style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-          >
-            <option value="">všetky</option>
-            <option value="eclipse_lunar">eclipse_lunar</option>
-            <option value="eclipse_solar">eclipse_solar</option>
-            <option value="meteor_shower">meteor_shower</option>
-            <option value="planetary_event">planetary_event</option>
-            <option value="other">other</option>
-          </select>
-        </div>
-
-        <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Zdroj</label>
-          <input
-            v-model="source"
-            :disabled="loading"
-            placeholder="napr. astropixels"
-            @keyup.enter="resetToFirstPage(); load()"
-            style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-          />
-        </div>
-
-        <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Na stranku</label>
-          <select
-            v-model.number="per_page"
-            :disabled="loading"
-            style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-          >
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="50">50</option>
-            <option :value="100">100</option>
-          </select>
-        </div>
-
-        <div style="grid-column: span 9;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Hladaj</label>
-          <input
-            v-model="q"
-            :disabled="loading"
-            placeholder="hladaj v title/short/description (q)"
-            @keyup.enter="resetToFirstPage(); load()"
-            style="width:100%; padding:7px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-          />
-        </div>
-
-        <div style="grid-column: span 3; display:flex; align-items:flex-end; gap:10px;">
-          <button
-            @click="resetToFirstPage(); load()"
-            :disabled="loading"
-            style="width:100%; padding:7px 9px; border-radius:9px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
-          >
-            Hladat
+        <div class="uxActionBar__group">
+          <button @click="retranslateByFilter" :disabled="loading" class="toolbarButton toolbarButton--primary">
+            Retr. filter
+          </button>
+          <button @click="retranslateVisiblePending" :disabled="loading || visiblePendingCandidateIds.length === 0" class="toolbarButton toolbarButton--primary">
+            Retr. viditelne
+          </button>
+          <button @click="clearFilters" :disabled="loading" class="toolbarButton toolbarButton--ghost">
+            Reset
           </button>
         </div>
       </div>
 
-      <div v-if="error" style="margin-top: 12px; color: var(--color-danger);">
-        {{ error }}
+      <div class="duplicatesPanel">
+        <div class="duplicatesPanel__head">
+          <strong>Deduplikacia pending kandidatom</strong>
+          <div class="duplicatesPanel__actions">
+            <label>
+              Skupiny
+              <input
+                v-model.number="duplicateGroupLimit"
+                type="number"
+                min="1"
+                max="50"
+                :disabled="loading || duplicateLoading || duplicateMerging || duplicateDryRunning"
+                class="filterInput"
+              />
+            </label>
+            <label>
+              Kandidati/skup.
+              <input
+                v-model.number="duplicatePerGroup"
+                type="number"
+                min="2"
+                max="10"
+                :disabled="loading || duplicateLoading || duplicateMerging || duplicateDryRunning"
+                class="filterInput"
+              />
+            </label>
+            <button
+              @click="loadDuplicatePreview"
+              :disabled="loading || duplicateLoading || duplicateMerging || duplicateDryRunning"
+              class="toolbarButton toolbarButton--ghost"
+            >
+              {{ duplicateLoading ? 'Kontrolujem...' : 'Obnovit' }}
+            </button>
+            <button
+              @click="dryRunDuplicateMerge"
+              :disabled="!canMergeDuplicates || loading || duplicateLoading"
+              class="toolbarButton toolbarButton--primary"
+            >
+              {{ duplicateDryRunning ? 'Dry-run...' : 'Dry-run merge' }}
+            </button>
+            <button
+              @click="mergeDuplicateGroups"
+              :disabled="!canMergeDuplicates || loading || duplicateLoading"
+              class="toolbarButton toolbarButton--success"
+            >
+              {{ duplicateMerging ? 'Zlucujem...' : 'Zlucit duplicity' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="duplicatesPanel__summary">
+          <span>Skupiny: {{ duplicateSummary.group_count }}</span>
+          <span>Duplicity: {{ duplicateSummary.duplicate_candidates }}</span>
+        </div>
+
+        <div v-if="duplicateGroups.length > 0" class="duplicatesPanel__groups">
+          <article v-for="group in duplicateGroups" :key="group.canonical_key" class="dupGroup">
+            <div class="dupGroup__key">{{ group.canonical_key }}</div>
+            <div class="dupGroup__row">
+              keep #{{ group.keeper.id }} {{ group.keeper.title }}
+              <span class="cellMuted">({{ sourceLabel(group.keeper.source_name) }}, {{ formatDate(group.keeper.start_at) }})</span>
+            </div>
+            <div
+              v-for="duplicate in group.duplicates"
+              :key="`dup-${group.canonical_key}-${duplicate.id}`"
+              class="dupGroup__row cellMuted"
+            >
+              dup #{{ duplicate.id }} {{ duplicate.title }}
+              <span>({{ sourceLabel(duplicate.source_name) }}, {{ formatDate(duplicate.start_at) }})</span>
+            </div>
+            <div v-if="group.hidden_duplicates > 0" class="dupGroup__row cellMuted">
+              +{{ group.hidden_duplicates }} dalsich duplicit
+            </div>
+          </article>
+        </div>
+        <div v-else class="duplicatesPanel__empty">
+          {{ duplicateLoading ? 'Kontrolujem duplicity...' : 'Pre aktualny filter zatial nie su najdene zlucitelne duplicity.' }}
+        </div>
       </div>
 
-      <div v-if="loading" style="margin-top: 12px; opacity: .85;">
-        Načítavam...
+      <div v-if="publishProgressActive" class="publishProgress">
+        <div class="publishProgress__meta">
+          <span>{{ publishProgressLabel || 'Publikujem...' }}</span>
+          <strong>{{ publishProgressPercent }}%</strong>
+        </div>
+        <div class="publishProgress__track">
+          <div class="publishProgress__bar" :style="{ width: `${publishProgressPercent}%` }"></div>
+        </div>
       </div>
 
-      <div
-        v-if="data && !loading"
-        style="
-          margin-top: 12px;
-          border: 1px solid rgb(var(--color-surface-rgb) / .12);
-          border-radius: 12px;
-          overflow: hidden;
-        "
-      >
-        <table style="width:100%; border-collapse:collapse;">
-          <thead style="background: rgb(var(--color-surface-rgb) / .05);">
+      <div class="filterPanel">
+        <div class="filterGrid">
+          <div class="filterField filterField--wide">
+            <label>Hladaj</label>
+            <input
+              v-model="q"
+              :disabled="loading"
+              placeholder="title / short / description"
+              @keyup.enter="resetToFirstPage(); load()"
+              class="filterInput"
+            />
+          </div>
+
+          <div class="filterField">
+            <label>Na stranku</label>
+            <select v-model.number="per_page" :disabled="loading" class="filterInput">
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+              <option :value="100">100</option>
+            </select>
+          </div>
+
+          <div class="filterField">
+            <label>Stav</label>
+            <select v-model="status" :disabled="loading" class="filterInput">
+              <option value="pending">Pending</option>
+              <option value="approved">Schvalene</option>
+              <option value="rejected">Zamietnute</option>
+            </select>
+          </div>
+
+          <div class="filterField">
+            <label>Obdobie</label>
+            <select v-model="timePreset" :disabled="loading" class="filterInput">
+              <option v-for="option in timePresetOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+
+          <div v-if="showYearFilter" class="filterField">
+            <label>Rok</label>
+            <input
+              v-model.number="filterYear"
+              type="number"
+              min="2000"
+              max="2100"
+              :disabled="loading"
+              class="filterInput"
+            />
+          </div>
+
+          <div v-if="showMonthFilter" class="filterField">
+            <label>Mesiac</label>
+            <select v-model.number="filterMonth" :disabled="loading" class="filterInput">
+              <option v-for="option in monthOptions" :key="`month-${option.value}`" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+
+          <div v-if="showWeekFilter" class="filterField">
+            <label>Tyzden</label>
+            <input
+              v-model.number="filterWeek"
+              type="number"
+              min="1"
+              max="53"
+              :disabled="loading"
+              class="filterInput"
+            />
+          </div>
+
+          <div class="filterActions">
+            <button @click="resetToFirstPage(); load()" :disabled="loading" class="toolbarButton toolbarButton--primary">
+              Hladat
+            </button>
+            <button @click="showAdvancedFilters = !showAdvancedFilters" :disabled="loading" class="toolbarButton toolbarButton--ghost">
+              {{ showAdvancedFilters ? 'Skryt pokrocile' : 'Pokrocile filtre' }}
+            </button>
+          </div>
+
+          <template v-if="showAdvancedFilters">
+            <div class="filterField">
+              <label>Typ</label>
+              <select v-model="type" :disabled="loading" class="filterInput">
+                <option value="">vsetky</option>
+                <option value="eclipse_lunar">eclipse_lunar</option>
+                <option value="eclipse_solar">eclipse_solar</option>
+                <option value="meteor_shower">meteor_shower</option>
+                <option value="planetary_event">planetary_event</option>
+                <option value="observation_window">observation_window</option>
+                <option value="other">other</option>
+              </select>
+            </div>
+
+            <div class="filterField">
+              <label>Zdroj</label>
+              <input
+                v-model="source"
+                :disabled="loading"
+                placeholder="astropixels / imo / nasa / nasa_wts"
+                @keyup.enter="resetToFirstPage(); load()"
+                class="filterInput"
+              />
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <div v-if="error" class="inlineError">{{ error }}</div>
+      <div v-if="loading" class="inlineLoading">Nacitavam...</div>
+
+      <div v-if="data && !loading" class="candidatesTableWrap">
+        <table class="candidatesTable">
+          <thead>
             <tr>
-              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">ID</th>
-              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Typ</th>
-              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Názov</th>
-              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Zdroj</th>
-              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Dovera</th>
-              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Spárované zdroje</th>
-              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Zaciatok</th>
-              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Stav</th>
-              <th style="text-align:left; padding:6px; font-size:12px; opacity:.85;">Preklad a akcie</th>
+              <th>ID</th>
+              <th>Nazov</th>
+              <th>Zdroj / typ</th>
+              <th>Zaciatok / stav</th>
+              <th v-if="showConfidenceColumn">Skore zdrojov</th>
+              <th>Preklad</th>
+              <th>Akcie</th>
             </tr>
           </thead>
-
           <tbody>
-            <tr
-              v-for="c in data.data"
-              :key="c.id"
-              style="border-top: 1px solid rgb(var(--color-surface-rgb) / .08);"
-            >
-              <td style="padding:6px; white-space:nowrap;">{{ c.id }}</td>
-              <td style="padding:6px; white-space:nowrap;">{{ c.type }}</td>
-              <td style="padding:6px;">
-                <div style="font-weight:600;">{{ candidateDisplayTitle(c) }}</div>
-                <div v-if="candidateDisplayShort(c) && candidateDisplayShort(c) !== '-'" style="opacity:.75; font-size:12px; margin-top:4px;">
-                  {{ candidateDisplayShort(c) }}
+            <tr v-for="c in data.data" :key="c.id" class="candidatesRow">
+              <td class="cellMono">{{ c.id }}</td>
+              <td>
+                <div class="candidateTitle">{{ candidateDisplayTitle(c) }}</div>
+                <div v-if="candidatePreviewShort(c) && candidatePreviewShort(c) !== '-'" class="candidateShort">
+                  {{ candidatePreviewShort(c) }}
                 </div>
               </td>
-              <td style="padding:6px; white-space:nowrap;">
-                <span :style="sourceBadgeStyle(c.source_name)">{{ sourceLabel(c.source_name) }}</span>
-              </td>
-              <td style="padding:6px; white-space:nowrap;">{{ formatConfidence(c.confidence_score) }}</td>
-              <td style="padding:6px;">
-                <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                  <span
-                    v-for="src in normalizeSources(c.matched_sources)"
-                    :key="`matched-${c.id}-${src}`"
-                    :style="sourceBadgeStyle(src)"
-                  >
+              <td>
+                <div class="cellStack">
+                  <span :style="sourceBadgeStyle(c.source_name)">{{ sourceLabel(c.source_name) }}</span>
+                  <span class="typeTag">{{ c.type || '-' }}</span>
+                </div>
+                <div class="matchedSources">
+                  <span v-for="src in normalizeSources(c.matched_sources)" :key="`matched-${c.id}-${src}`" class="matchedSourceTag">
                     {{ sourceLabel(src) }}
                   </span>
-                  <span v-if="normalizeSources(c.matched_sources).length === 0" style="opacity:.75;">-</span>
+                  <span v-if="normalizeSources(c.matched_sources).length === 0" class="cellMuted">-</span>
                 </div>
               </td>
-              <td style="padding:6px; white-space:nowrap;">{{ formatDate(c.start_at) }}</td>
-              <td style="padding:6px; white-space:nowrap;">{{ c.status }}</td>
-              <td style="padding:6px; white-space:nowrap;">
-                <span :style="translationStatusStyle(c.translation_status)">
-                  {{ normalizeTranslationStatus(c.translation_status) }}
-                </span>
-                <div style="display:flex; gap:6px; margin-top:6px;">
+              <td>
+                <div class="cellStack">
+                  <span>{{ formatDate(c.start_at) }}</span>
+                  <span :style="statusBadgeStyle(c.status)">{{ c.status }}</span>
+                </div>
+              </td>
+              <td v-if="showConfidenceColumn" class="cellMono">{{ formatConfidence(c.confidence_score) }}</td>
+              <td>
+                <span :style="translationStatusStyle(c.translation_status)">{{ normalizeTranslationStatus(c.translation_status) }}</span>
+              </td>
+              <td>
+                <div class="rowActions">
                   <button
                     v-if="c.status === 'pending'"
                     @click="publishCandidateQuick(c)"
                     :disabled="loading"
-                    style="padding:6px 8px; border-radius:8px; border:1px solid rgb(var(--color-success-rgb) / .35); background:rgb(var(--color-success-rgb) / .10); color:inherit;"
+                    class="rowActionButton rowActionButton--success"
                   >
-                    Publikovať
+                    Publikovat
                   </button>
-                  <button
-                    @click="openCandidate(c.id)"
-                    style="padding:6px 8px; border-radius:8px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
-                  >
-                    Otvorit
+                  <button @click="retranslateCandidateQuick(c)" :disabled="loading" class="rowActionButton rowActionButton--primary">
+                    Retr.
+                  </button>
+                  <button @click="openCandidate(c.id)" class="rowActionButton rowActionButton--ghost">
+                    Detail
                   </button>
                 </div>
               </td>
             </tr>
 
             <tr v-if="data.data.length === 0">
-              <td colspan="9" style="padding:0;"></td>
+              <td :colspan="showConfidenceColumn ? 7 : 6" class="tableEmpty">Ziadne kandidaty pre aktualny filter.</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <div
-        v-if="data"
-        style="
-          margin-top: 14px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          flex-wrap: wrap;
-        "
-      >
-        <div style="opacity:.85; font-size: 14px;">
+      <div v-if="data && !loading" class="candidatesMobileList">
+        <article v-for="c in data.data" :key="`mobile-${c.id}`" class="candidateMobileCard">
+          <div class="candidateMobileCard__head">
+            <span class="candidateMobileCard__id">#{{ c.id }}</span>
+            <span :style="translationStatusStyle(c.translation_status)">
+              {{ normalizeTranslationStatus(c.translation_status) }}
+            </span>
+          </div>
+          <div class="candidateMobileCard__title">{{ candidateDisplayTitle(c) }}</div>
+          <div v-if="candidatePreviewShort(c) && candidatePreviewShort(c) !== '-'" class="candidateShort">
+            {{ candidatePreviewShort(c) }}
+          </div>
+          <div class="candidateMobileCard__meta">
+            <span :style="sourceBadgeStyle(c.source_name)">{{ sourceLabel(c.source_name) }}</span>
+            <span class="typeTag">{{ c.type || '-' }}</span>
+            <span class="cellMuted">{{ formatDate(c.start_at) }}</span>
+            <span v-if="showConfidenceColumn" class="cellMono">Skore {{ formatConfidence(c.confidence_score) }}</span>
+          </div>
+          <div class="matchedSources">
+            <span v-for="src in normalizeSources(c.matched_sources)" :key="`matched-mobile-${c.id}-${src}`" class="matchedSourceTag">
+              {{ sourceLabel(src) }}
+            </span>
+            <span v-if="normalizeSources(c.matched_sources).length === 0" class="cellMuted">-</span>
+          </div>
+          <div class="rowActions">
+            <button
+              v-if="c.status === 'pending'"
+              @click="publishCandidateQuick(c)"
+              :disabled="loading"
+              class="rowActionButton rowActionButton--success"
+            >
+              Publikovat
+            </button>
+            <button @click="retranslateCandidateQuick(c)" :disabled="loading" class="rowActionButton rowActionButton--primary">
+              Retr.
+            </button>
+            <button @click="openCandidate(c.id)" class="rowActionButton rowActionButton--ghost">
+              Detail
+            </button>
+          </div>
+        </article>
+        <div v-if="data.data.length === 0" class="tableEmpty">
+          Ziadne kandidaty pre aktualny filter.
+        </div>
+      </div>
+
+      <div v-if="data" class="pagerRow">
+        <div class="pagerMeta">
           Strana {{ data.current_page }} / {{ data.last_page }} (spolu {{ data.total }})
         </div>
 
-        <div style="display:flex; gap:10px;">
+        <div class="pagerActions">
           <button
             @click="prevPage"
             :disabled="loading || page <= 1"
-            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            class="toolbarButton toolbarButton--ghost"
           >
             Pred
           </button>
           <button
             @click="nextPage"
             :disabled="loading || (data && page >= data.last_page)"
-            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            class="toolbarButton toolbarButton--ghost"
           >
-            Ďalšia
+            Dalsia
           </button>
         </div>
       </div>
-    </div>
 
+      <BaseModal
+        v-model:open="candidateDetailOpen"
+        :title="detailModalTitle"
+        test-id="candidate-detail-modal"
+        close-test-id="candidate-detail-modal-close"
+        @close="resetCandidateDetailModal"
+      >
+        <div v-if="candidateDetailLoading" class="candidateDetailModalState">Nacitavam...</div>
+        <div v-else-if="candidateDetailError" class="candidateDetailModalState candidateDetailModalState--error">
+          {{ candidateDetailError }}
+        </div>
+        <div v-else-if="candidateDetail" class="candidateDetailModal">
+          <div class="candidateDetailModalGrid">
+            <div class="candidateDetailModalItem">
+              <span>ID</span>
+              <strong>#{{ candidateDetail.id }}</strong>
+            </div>
+            <div class="candidateDetailModalItem">
+              <span>Stav</span>
+              <strong>{{ candidateDetail.status || "-" }}</strong>
+            </div>
+            <div class="candidateDetailModalItem">
+              <span>Zaciatok</span>
+              <strong>{{ formatDate(candidateDetail.start_at) }}</strong>
+            </div>
+            <div class="candidateDetailModalItem">
+              <span>Max</span>
+              <strong>{{ formatDate(candidateDetail.max_at) }}</strong>
+            </div>
+            <div class="candidateDetailModalItem">
+              <span>Zdroj</span>
+              <strong>{{ sourceLabel(candidateDetail.source_name) }}</strong>
+            </div>
+            <div class="candidateDetailModalItem">
+              <span>Typ</span>
+              <strong>{{ candidateDetail.type || "-" }}</strong>
+            </div>
+            <div v-if="showConfidenceColumn" class="candidateDetailModalItem">
+              <span>Skore zdrojov</span>
+              <strong>{{ formatConfidence(candidateDetail.confidence_score) }}</strong>
+            </div>
+            <div class="candidateDetailModalItem">
+              <span>Preklad</span>
+              <strong>{{ normalizeTranslationStatus(candidateDetail.translation_status) }}</strong>
+            </div>
+          </div>
+
+          <p v-if="candidatePreviewShort(candidateDetail) && candidatePreviewShort(candidateDetail) !== '-'" class="candidateDetailModalText">
+            {{ candidatePreviewShort(candidateDetail) }}
+          </p>
+
+          <div class="candidateDetailModalSources">
+            <span
+              v-for="src in normalizeSources(candidateDetail.matched_sources)"
+              :key="`detail-source-${candidateDetail.id}-${src}`"
+              class="matchedSourceTag"
+            >
+              {{ sourceLabel(src) }}
+            </span>
+            <span v-if="normalizeSources(candidateDetail.matched_sources).length === 0" class="cellMuted">
+              Bez matched source.
+            </span>
+          </div>
+
+          <div class="candidateDetailModalActions">
+            <button type="button" class="toolbarButton toolbarButton--ghost" @click="openCandidateFullDetail">
+              Plny detail
+            </button>
+          </div>
+        </div>
+      </BaseModal>
+    </div>
     <div v-else>
-      <div class="uxOverview">
+      <div class="uxOverview uxOverview--manual">
         <div class="uxOverview__item">
-          <span>Na stránke</span>
+          <span>Na stranke</span>
           <strong>{{ manualStats.total }}</strong>
         </div>
         <div class="uxOverview__item">
@@ -1212,147 +1972,127 @@ onMounted(() => {
         </div>
       </div>
 
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 12px;">
+      <div class="manualToolbar">
         <button
           @click="openManualFormCreate"
           :disabled="manualLoading"
-          style="padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
+          class="toolbarButton toolbarButton--primary"
         >
           Vytvoriť manuálnu udalosť
         </button>
         <button
           @click="clearManualFilters"
           :disabled="manualLoading"
-          style="padding:8px 12px; border:1px solid rgb(var(--color-surface-rgb) / .2); border-radius:8px; background:transparent; color:inherit;"
+          class="toolbarButton toolbarButton--ghost"
         >
-          Resetovat filtre
+          Resetovať filtre
         </button>
       </div>
 
-      <div
-        style="
-          margin-top: 12px;
-          padding: 8px;
-          border: 1px solid rgb(var(--color-surface-rgb) / .12);
-          border-radius: 12px;
-          display: grid;
-          grid-template-columns: repeat(12, 1fr);
-          gap: 8px;
-        "
-      >
-        <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Stav</label>
-          <select
-            v-model="manualStatus"
-            :disabled="manualLoading"
-            style="width:100%; padding:8px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-          >
-            <option value="draft">Návrh</option>
-            <option value="published">Publikované</option>
-          </select>
-        </div>
+      <div class="filterPanel manualFilterPanel">
+        <div class="filterGrid">
+          <div class="filterField">
+            <label>Stav</label>
+            <select v-model="manualStatus" :disabled="manualLoading" class="filterInput">
+              <option value="draft">Návrh</option>
+              <option value="published">Publikované</option>
+            </select>
+          </div>
 
-        <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Typ</label>
-          <select
-            v-model="manualType"
-            :disabled="manualLoading"
-            style="width:100%; padding:8px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-          >
-            <option value="">všetky</option>
-            <option value="eclipse_lunar">eclipse_lunar</option>
-            <option value="eclipse_solar">eclipse_solar</option>
-            <option value="meteor_shower">meteor_shower</option>
-            <option value="planetary_event">planetary_event</option>
-            <option value="other">other</option>
-          </select>
-        </div>
+          <div class="filterField">
+            <label>Typ</label>
+            <select v-model="manualType" :disabled="manualLoading" class="filterInput">
+              <option value="">všetky</option>
+              <option value="eclipse_lunar">eclipse_lunar</option>
+              <option value="eclipse_solar">eclipse_solar</option>
+              <option value="meteor_shower">meteor_shower</option>
+              <option value="planetary_event">planetary_event</option>
+              <option value="other">other</option>
+            </select>
+          </div>
 
-        <div style="grid-column: span 3;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Na stranku</label>
-          <select
-            v-model.number="manualPerPage"
-            :disabled="manualLoading"
-            style="width:100%; padding:8px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-          >
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="50">50</option>
-            <option :value="100">100</option>
-          </select>
-        </div>
+          <div class="filterField">
+            <label>Na stránku</label>
+            <select v-model.number="manualPerPage" :disabled="manualLoading" class="filterInput">
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+              <option :value="100">100</option>
+            </select>
+          </div>
 
-        <div style="grid-column: span 9;">
-          <label style="display:block; font-size:12px; opacity:.8; margin-bottom:4px;">Hladaj</label>
-          <input
-            v-model="manualQ"
-            :disabled="manualLoading"
-            placeholder="hladaj v title (q)"
-            @keyup.enter="resetManualToFirstPage(); loadManual()"
-            style="width:100%; padding:8px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-          />
-        </div>
+          <div class="filterField filterField--wide">
+            <label>Hľadaj</label>
+            <input
+              v-model="manualQ"
+              :disabled="manualLoading"
+              placeholder="hľadaj v názve"
+              @keyup.enter="resetManualToFirstPage(); loadManual()"
+              class="filterInput"
+            />
+          </div>
 
-        <div style="grid-column: span 3; display:flex; align-items:flex-end; gap:10px;">
-          <button
-            @click="resetManualToFirstPage(); loadManual()"
-            :disabled="manualLoading"
-            style="width:100%; padding:8px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
-          >
-            Hladat
-          </button>
+          <div class="filterActions">
+            <button
+              @click="resetManualToFirstPage(); loadManual()"
+              :disabled="manualLoading"
+              class="toolbarButton toolbarButton--primary"
+            >
+              Hľadať
+            </button>
+          </div>
         </div>
       </div>
 
-      <div v-if="showManualForm" style="margin-top: 12px; border:1px solid rgb(var(--color-surface-rgb) / .14); border-radius:14px; background:rgb(var(--color-surface-rgb) / .03); padding:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+      <section v-if="showManualForm" class="manualFormPanel">
+        <div class="manualFormHeader">
           <div>
-            <div style="font-weight:700;">{{ manualEditingId ? 'Upraviť manuálny návrh' : 'Nový manuálny návrh' }}</div>
-            <div style="font-size:12px; opacity:.78; margin-top:2px;">Vypln nazov, typ a termin. Zvysok mozes doplnit neskor.</div>
+            <div class="manualFormTitle">{{ manualEditingId ? 'Upraviť manuálny návrh' : 'Nový manuálny návrh' }}</div>
+            <div class="manualFormHint">Vyplň názov, typ a termín. Zvyšok môžeš doplniť neskôr.</div>
           </div>
-          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <div class="manualQuickActions">
             <button
               @click="setManualStartNow"
               :disabled="manualLoading"
-              style="padding:6px 9px; border-radius:999px; border:1px solid rgb(var(--color-primary-rgb) / .3); background:rgb(var(--color-primary-rgb) / .11); color:inherit; font-size:12px;"
+              class="quickChip quickChip--primary"
             >
-              Zaciatok teraz
+              Začiatok teraz
             </button>
             <button
               @click="setManualEndByHours(1)"
               :disabled="manualLoading"
-              style="padding:6px 9px; border-radius:999px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit; font-size:12px;"
+              class="quickChip"
             >
-              Koniec +1h
+              Koniec +1 h
             </button>
             <button
               @click="setManualEndByHours(2)"
               :disabled="manualLoading"
-              style="padding:6px 9px; border-radius:999px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit; font-size:12px;"
+              class="quickChip"
             >
-              Koniec +2h
+              Koniec +2 h
             </button>
           </div>
         </div>
 
-        <div style="display:grid; grid-template-columns: repeat(12, 1fr); gap:10px;">
-          <div style="grid-column: span 8;">
-            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Názov udalosti *</label>
+        <div class="manualFormGrid">
+          <div class="manualField manualField--wide">
+            <label>Názov udalosti *</label>
             <input
               v-model="manualForm.title"
               type="text"
-              placeholder="napr. Pozorovanie Mesiaca na hvezdarni"
+              placeholder="napr. Pozorovanie Mesiaca na hvezdárni"
               :disabled="manualLoading"
-              style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
+              class="filterInput manualInput"
             />
           </div>
 
-          <div style="grid-column: span 4;">
-            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Typ *</label>
+          <div class="manualField">
+            <label>Typ *</label>
             <select
               v-model="manualForm.event_type"
               :disabled="manualLoading"
-              style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
+              class="filterInput manualInput"
             >
               <option
                 v-for="opt in manualTypeOptions"
@@ -1364,85 +2104,77 @@ onMounted(() => {
             </select>
           </div>
 
-          <div style="grid-column: span 6;">
-            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Zaciatok *</label>
+          <div class="manualField">
+            <label>Začiatok *</label>
             <input
               v-model="manualForm.starts_at"
               type="datetime-local"
               :disabled="manualLoading"
-              style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
+              class="filterInput manualInput"
             />
           </div>
 
-          <div style="grid-column: span 6;">
-            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Koniec (volitelne)</label>
+          <div class="manualField">
+            <label>Koniec (voliteľne)</label>
             <input
               v-model="manualForm.ends_at"
               type="datetime-local"
               :disabled="manualLoading"
-              style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
+              class="filterInput manualInput"
             />
           </div>
 
-          <div style="grid-column: span 12;">
-            <label style="display:block; font-size:12px; opacity:.82; margin-bottom:4px;">Popis</label>
+          <div class="manualField manualField--full">
+            <label>Popis</label>
             <textarea
               v-model="manualForm.description"
               rows="4"
-              placeholder="Kratky popis, co sa deje a kedy je najlepsie pozorovanie."
+              placeholder="Krátky popis, čo sa deje a kedy je najlepšie pozorovanie."
               :disabled="manualLoading"
-              style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
+              class="filterInput manualTextarea"
             ></textarea>
           </div>
         </div>
 
-        <div v-if="manualFormErrors.length > 0" style="margin-top:10px; padding:8px 10px; border:1px solid rgb(239 68 68 / .35); border-radius:10px; background:rgb(239 68 68 / .08); font-size:12px;">
+        <div v-if="manualFormErrors.length > 0" class="manualFormError">
           {{ manualFormErrors[0] }}
         </div>
 
-        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;">
+        <div class="manualFormActions">
           <button
             @click="closeManualForm"
             :disabled="manualLoading"
-            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:transparent; color:inherit;"
+            class="toolbarButton toolbarButton--ghost"
           >
             Zrušiť
           </button>
           <button
             @click="saveManual"
             :disabled="manualLoading || !manualCanSave"
-            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-primary-rgb) / .32); background:rgb(var(--color-primary-rgb) / .12); color:inherit;"
+            class="toolbarButton toolbarButton--primary"
           >
             {{ manualLoading ? 'Ukladá sa...' : 'Uložiť návrh' }}
           </button>
         </div>
-      </div>
+      </section>
 
-      <div v-if="manualError" style="margin-top: 12px; color: var(--color-danger);">
+      <div v-if="manualError" class="inlineError">
         {{ manualError }}
       </div>
 
-      <div v-if="manualLoading" style="margin-top: 12px; opacity: .85;">
+      <div v-if="manualLoading" class="inlineLoading">
         Načítavam...
       </div>
 
-      <div
-        v-if="manualData && !manualLoading"
-        style="
-          margin-top: 16px;
-          border: 1px solid rgb(var(--color-surface-rgb) / .12);
-          border-radius: 12px;
-          overflow: hidden;
-        "
-      >
-        <table style="width:100%; border-collapse:collapse;">
-          <thead style="background: rgb(var(--color-surface-rgb) / .05);">
+      <div v-if="manualData && !manualLoading" class="manualTableWrap">
+        <table class="manualTable">
+          <thead>
             <tr>
-              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Názov</th>
-              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Typ</th>
-              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Zaciatok</th>
-              <th style="text-align:left; padding:8px; font-size:12px; opacity:.85;">Stav</th>
-              <th style="text-align:right; padding:8px; font-size:12px; opacity:.85;">Akcie</th>
+              <th>Názov</th>
+              <th>Typ</th>
+              <th>Začiatok</th>
+              <th>Stav</th>
+              <th>Akcie</th>
             </tr>
           </thead>
 
@@ -1450,73 +2182,114 @@ onMounted(() => {
             <tr
               v-for="row in manualData.data"
               :key="row.id"
-              style="border-top: 1px solid rgb(var(--color-surface-rgb) / .08);"
             >
-              <td style="padding:8px;">{{ row.title }}</td>
-              <td style="padding:8px; white-space:nowrap;">{{ row.event_type }}</td>
-              <td style="padding:8px; white-space:nowrap;">{{ formatDate(row.starts_at) }}</td>
-              <td style="padding:8px; white-space:nowrap;">{{ row.status }}</td>
-              <td style="padding:8px; text-align:right; white-space:nowrap;">
-                <button
-                  @click="openManualFormEdit(row)"
-                  :disabled="manualLoading"
-                  style="padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+              <td>{{ row.title }}</td>
+              <td><span class="typeTag">{{ row.event_type }}</span></td>
+              <td class="cellMono">{{ formatDate(row.starts_at) }}</td>
+              <td>
+                <span
+                  :class="['manualStatusTag', { 'manualStatusTag--published': String(row.status || '').toLowerCase() === 'published' }]"
                 >
-                  Upraviť
-                </button>
-                <button
-                  @click="deleteManual(row)"
-                  :disabled="manualLoading"
-                  style="margin-left:6px; padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
-                >
-                  Zmazat
-                </button>
-                <button
-                  @click="publishManual(row)"
-                  :disabled="manualLoading || row.status === 'published'"
-                  style="margin-left:6px; padding:6px 10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
-                >
-                  Publikovať
-                </button>
+                  {{ row.status }}
+                </span>
+              </td>
+              <td>
+                <div class="rowActions rowActions--right">
+                  <button
+                    @click="openManualFormEdit(row)"
+                    :disabled="manualLoading"
+                    class="rowActionButton"
+                  >
+                    Upraviť
+                  </button>
+                  <button
+                    @click="deleteManual(row)"
+                    :disabled="manualLoading"
+                    class="rowActionButton"
+                  >
+                    Zmazať
+                  </button>
+                  <button
+                    @click="publishManual(row)"
+                    :disabled="manualLoading || row.status === 'published'"
+                    class="rowActionButton rowActionButton--primary"
+                  >
+                    Publikovať
+                  </button>
+                </div>
               </td>
             </tr>
 
             <tr v-if="manualData.data.length === 0">
-              <td colspan="5" style="padding:16px; opacity:.8;">
-                Ziadne drafty.
+              <td colspan="5" class="tableEmpty">
+                Žiadne drafty.
               </td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <div
-        v-if="manualData"
-        style="
-          margin-top: 14px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          flex-wrap: wrap;
-        "
-      >
-        <div style="opacity:.85; font-size: 14px;">
+      <div v-if="manualData && !manualLoading" class="manualMobileList">
+        <article v-for="row in manualData.data" :key="`manual-mobile-${row.id}`" class="manualMobileCard">
+          <div class="manualMobileCard__head">
+            <span class="cellMono">#{{ row.id }}</span>
+            <span
+              :class="['manualStatusTag', { 'manualStatusTag--published': String(row.status || '').toLowerCase() === 'published' }]"
+            >
+              {{ row.status }}
+            </span>
+          </div>
+          <div class="manualMobileCard__title">{{ row.title }}</div>
+          <div class="manualMobileCard__meta">
+            <span class="typeTag">{{ row.event_type }}</span>
+            <span class="cellMono">{{ formatDate(row.starts_at) }}</span>
+          </div>
+          <div class="rowActions">
+            <button
+              @click="openManualFormEdit(row)"
+              :disabled="manualLoading"
+              class="rowActionButton"
+            >
+              Upraviť
+            </button>
+            <button
+              @click="deleteManual(row)"
+              :disabled="manualLoading"
+              class="rowActionButton"
+            >
+              Zmazať
+            </button>
+            <button
+              @click="publishManual(row)"
+              :disabled="manualLoading || row.status === 'published'"
+              class="rowActionButton rowActionButton--primary"
+            >
+              Publikovať
+            </button>
+          </div>
+        </article>
+        <div v-if="manualData.data.length === 0" class="tableEmpty">
+          Žiadne drafty.
+        </div>
+      </div>
+
+      <div v-if="manualData" class="pagerRow">
+        <div class="pagerMeta">
           Strana {{ manualData.current_page }} / {{ manualData.last_page }} (spolu {{ manualData.total }})
         </div>
 
-        <div style="display:flex; gap:10px;">
+        <div class="pagerActions">
           <button
             @click="prevManualPage"
             :disabled="manualLoading || manualPage <= 1"
-            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            class="toolbarButton toolbarButton--ghost"
           >
             Pred
           </button>
           <button
             @click="nextManualPage"
             :disabled="manualLoading || (manualData && manualPage >= manualData.last_page)"
-            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            class="toolbarButton toolbarButton--ghost"
           >
             Ďalšia
           </button>
@@ -1527,6 +2300,43 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.candidatesPage {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 10px 8px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  margin: 0 0 4px;
+  font-size: clamp(20px, 2.4vw, 25px);
+  line-height: 1.12;
+}
+
+.headerActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.tabSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.94);
+}
+
 .uxOverview {
   margin-top: 10px;
   display: grid;
@@ -1535,10 +2345,10 @@ onMounted(() => {
 }
 
 .uxOverview__item {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
   border-radius: 10px;
-  background: rgb(var(--color-surface-rgb) / 0.04);
-  padding: 6px 8px;
+  background: rgb(var(--color-bg-rgb) / 0.95);
+  padding: 5px 8px;
   display: grid;
   gap: 2px;
 }
@@ -1552,29 +2362,871 @@ onMounted(() => {
   font-size: 14px;
 }
 
+.timeContextBar {
+  margin-top: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+  padding: 7px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.timeContextBar__item {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  border-radius: 8px;
+  padding: 5px 7px;
+  display: grid;
+  gap: 2px;
+}
+
+.timeContextBar__item span {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.timeContextBar__item strong {
+  font-size: 13px;
+}
+
+.timeContextBar__loading {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.contextToggleRow {
+  margin-top: 8px;
+}
+
+.runFilterBar {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.runFilterChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+  font-size: 12px;
+}
+
+.statusPills {
+  margin-top: 10px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.statusPill {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.statusPill--active {
+  border-color: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+}
+
 .uxActionBar {
   margin-top: 10px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 6px;
   flex-wrap: wrap;
-  position: sticky;
-  top: 8px;
-  z-index: 4;
+  position: static;
   padding: 6px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+}
+
+.uxActionBar__group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.duplicatesPanel {
+  margin-top: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.duplicatesPanel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.duplicatesPanel__actions {
+  display: flex;
+  align-items: end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.duplicatesPanel__actions label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  opacity: 0.86;
+}
+
+.duplicatesPanel__actions .filterInput {
+  width: 90px;
+}
+
+.duplicatesPanel__summary {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  opacity: 0.86;
+}
+
+.duplicatesPanel__groups {
+  display: grid;
+  gap: 6px;
+}
+
+.dupGroup {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.dupGroup__key {
+  font-size: 11px;
+  opacity: 0.72;
+  overflow-wrap: anywhere;
+}
+
+.dupGroup__row {
+  font-size: 12px;
+}
+
+.duplicatesPanel__empty {
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.toolbarSelect,
+.toolbarButton,
+.filterInput {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+}
+
+.toolbarSelect {
+  padding: 8px 10px;
+}
+
+.toolbarButton {
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.toolbarButton--success {
+  border-color: rgb(var(--color-success-rgb) / 0.35);
+  background: rgb(var(--color-success-rgb) / 0.1);
+}
+
+.toolbarButton--primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+}
+
+.toolbarButton--ghost {
+  background: rgb(var(--color-surface-rgb) / 0.08);
+}
+
+.toolbarButton--active {
+  border-color: rgb(var(--color-surface-rgb) / 0.4);
+  background: rgb(var(--color-surface-rgb) / 0.12);
+}
+
+.toolbarButton--tab {
+  border-color: transparent;
+  background: transparent;
+}
+
+.filterPanel {
+  margin-top: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 12px;
+  padding: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.filterField {
+  grid-column: span 3;
+  display: grid;
+  gap: 4px;
+}
+
+.filterField--wide {
+  grid-column: span 6;
+}
+
+.filterField label {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.filterInput {
+  width: 100%;
+  padding: 8px;
+}
+
+.filterActions {
+  grid-column: span 3;
+  display: flex;
+  align-items: end;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.uxOverview--manual {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.manualToolbar {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.manualFilterPanel {
+  margin-top: 8px;
+}
+
+.manualFormPanel {
+  margin-top: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+  display: grid;
+  gap: 10px;
+}
+
+.manualFormHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.manualFormTitle {
+  font-weight: 700;
+}
+
+.manualFormHint {
+  margin-top: 2px;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.manualQuickActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.quickChip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.quickChip--primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.1);
+}
+
+.manualFormGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.manualField {
+  grid-column: span 6;
+  display: grid;
+  gap: 4px;
+}
+
+.manualField--wide {
+  grid-column: span 8;
+}
+
+.manualField--full {
+  grid-column: span 12;
+}
+
+.manualField label {
+  font-size: 12px;
+  opacity: 0.82;
+}
+
+.manualInput {
+  padding: 10px;
+}
+
+.manualTextarea {
+  min-height: 96px;
+  resize: vertical;
+  padding: 10px;
+}
+
+.manualFormError {
+  padding: 8px 10px;
+  border: 1px solid rgb(239 68 68 / 0.35);
+  border-radius: 10px;
+  background: rgb(239 68 68 / 0.08);
+  font-size: 12px;
+}
+
+.manualFormActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.publishProgress {
+  margin-top: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+}
+
+.publishProgress__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.publishProgress__track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--color-surface-rgb) / 0.12);
+  overflow: hidden;
+}
+
+.publishProgress__bar {
+  height: 100%;
+  background: linear-gradient(90deg, rgb(var(--color-primary-rgb) / 0.95), rgb(var(--color-success-rgb) / 0.95));
+  transition: width 0.25s ease;
+}
+
+.candidatesTableWrap {
+  margin-top: 12px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 12px;
+  overflow: auto;
+  background: rgb(var(--color-bg-rgb) / 0.98);
+}
+
+.candidatesMobileList {
+  margin-top: 10px;
+  display: none;
+  gap: 8px;
+}
+
+.candidateMobileCard {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+  padding: 9px;
+  display: grid;
+  gap: 7px;
+}
+
+.candidateMobileCard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.candidateMobileCard__id {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.candidateMobileCard__title {
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.candidateMobileCard__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.candidatesTable {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+}
+
+.candidatesTable thead {
+  background: rgb(var(--color-surface-rgb) / 0.05);
+}
+
+.candidatesTable th {
+  text-align: left;
+  padding: 7px 6px;
+  font-size: 12px;
+  opacity: 0.85;
+  background: rgb(var(--color-surface-rgb) / 0.04);
+}
+
+.candidatesTable td {
+  padding: 7px 6px;
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.06);
+  vertical-align: top;
+}
+
+.candidatesRow:hover {
+  background: rgb(var(--color-surface-rgb) / 0.02);
+}
+
+.manualTableWrap {
+  margin-top: 12px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 12px;
+  overflow: auto;
+  background: rgb(var(--color-bg-rgb) / 0.98);
+}
+
+.manualTable {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.manualTable thead {
+  background: rgb(var(--color-surface-rgb) / 0.05);
+}
+
+.manualTable th {
+  text-align: left;
+  padding: 7px 6px;
+  font-size: 12px;
+  opacity: 0.85;
+  background: rgb(var(--color-surface-rgb) / 0.04);
+}
+
+.manualTable td {
+  padding: 7px 6px;
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.06);
+  vertical-align: top;
+}
+
+.manualStatusTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: rgb(var(--color-surface-rgb) / 0.08);
+  font-size: 12px;
+}
+
+.manualStatusTag--published {
+  border-color: rgb(var(--color-success-rgb) / 0.28);
+  background: rgb(var(--color-success-rgb) / 0.08);
+}
+
+.manualMobileList {
+  margin-top: 10px;
+  display: none;
+  gap: 8px;
+}
+
+.manualMobileCard {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+  padding: 9px;
+  display: grid;
+  gap: 7px;
+}
+
+.manualMobileCard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.manualMobileCard__title {
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.manualMobileCard__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.candidateTitle {
+  font-weight: 600;
+}
+
+.candidateShort {
+  opacity: 0.75;
+  font-size: 12px;
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+.cellMono {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.cellStack {
+  display: grid;
+  gap: 4px;
+}
+
+.typeTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: rgb(var(--color-surface-rgb) / 0.08);
+  font-size: 11px;
+  width: fit-content;
+}
+
+.matchedSources {
+  margin-top: 6px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.matchedSourceTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  background: transparent;
+  font-size: 11px;
+}
+
+.cellMuted {
+  opacity: 0.7;
+}
+
+.rowActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rowActions--right {
+  justify-content: flex-end;
+}
+
+.rowActionButton {
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rowActionButton--success {
+  border-color: rgb(var(--color-success-rgb) / 0.24);
+  background: rgb(var(--color-success-rgb) / 0.05);
+}
+
+.rowActionButton--primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.24);
+  background: rgb(var(--color-primary-rgb) / 0.06);
+}
+
+.rowActionButton--ghost {
+  background: rgb(var(--color-surface-rgb) / 0.08);
+}
+
+.candidateDetailModalState {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.candidateDetailModalState--error {
+  color: var(--color-danger);
+  opacity: 1;
+}
+
+.candidateDetailModal {
+  display: grid;
+  gap: 10px;
+}
+
+.candidateDetailModalGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.candidateDetailModalItem {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
   border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
   border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.88);
-  backdrop-filter: blur(4px);
+  background: rgb(var(--color-bg-rgb) / 0.94);
+}
+
+.candidateDetailModalItem span {
+  font-size: 11px;
+  opacity: 0.76;
+}
+
+.candidateDetailModalItem strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.candidateDetailModalText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.candidateDetailModalSources {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.candidateDetailModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tableEmpty {
+  padding: 20px 10px;
+  opacity: 0.75;
+}
+
+.inlineError {
+  margin-top: 12px;
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.inlineLoading {
+  margin-top: 12px;
+  opacity: 0.85;
+  font-size: 13px;
+}
+
+.pagerRow {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pagerMeta {
+  opacity: 0.85;
+  font-size: 14px;
+}
+
+.pagerActions {
+  display: flex;
+  gap: 10px;
 }
 
 @media (max-width: 900px) {
+  .candidatesPage {
+    padding: 8px 6px;
+  }
+
+  .pageHeader {
+    align-items: stretch;
+  }
+
+  .headerActions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .tabSwitch {
+    width: 100%;
+  }
+
+  .tabSwitch .toolbarButton {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .headerActions > .toolbarButton {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
   .uxOverview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .timeContextBar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .uxActionBar {
     position: static;
+  }
+
+  .uxActionBar__group,
+  .duplicatesPanel__actions {
+    width: 100%;
+  }
+
+  .uxActionBar__group .toolbarButton,
+  .duplicatesPanel__actions .toolbarButton {
+    flex: 1 1 auto;
+  }
+
+  .duplicatesPanel__actions label {
+    width: calc(50% - 3px);
+  }
+
+  .duplicatesPanel__actions .filterInput {
+    width: 100%;
+  }
+
+  .filterField,
+  .filterField--wide,
+  .filterActions {
+    grid-column: span 12;
+  }
+
+  .filterActions {
+    justify-content: flex-start;
+  }
+
+  .candidatesTableWrap {
+    display: none;
+  }
+
+  .candidatesMobileList {
+    display: grid;
+  }
+
+  .manualToolbar .toolbarButton {
+    flex: 1 1 auto;
+  }
+
+  .manualField,
+  .manualField--wide,
+  .manualField--full {
+    grid-column: span 12;
+  }
+
+  .manualQuickActions {
+    width: 100%;
+  }
+
+  .quickChip {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .manualFormActions {
+    width: 100%;
+  }
+
+  .manualFormActions .toolbarButton {
+    flex: 1 1 auto;
+  }
+
+  .manualTableWrap {
+    display: none;
+  }
+
+  .manualMobileList {
+    display: grid;
+  }
+
+  .candidateDetailModalGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .pagerRow {
+    gap: 8px;
+  }
+
+  .pagerMeta {
+    width: 100%;
+    font-size: 13px;
+  }
+
+  .pagerActions {
+    width: 100%;
+  }
+
+  .pagerActions .toolbarButton {
+    flex: 1 1 auto;
   }
 }
 </style>

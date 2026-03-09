@@ -6,7 +6,7 @@ export function clampYear(year, minYear, maxYear) {
 
 export function resolveDefaultYear(meta, now = new Date()) {
   const minYear = Number(meta?.minYear ?? 2021)
-  const maxYear = Number(meta?.maxYear ?? 2030)
+  const maxYear = Number(meta?.maxYear ?? 2100)
   const candidate = Number(meta?.defaultYear ?? now.getFullYear())
   return clampYear(candidate, minYear, maxYear)
 }

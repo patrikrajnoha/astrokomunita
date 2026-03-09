@@ -37,6 +37,11 @@ export function useSkyWidget(options = {}) {
   const lat = options.lat
   const lon = options.lon
   const tz = options.tz
+  const includeWeather = options.includeWeather !== false
+  const includeAstronomy = options.includeAstronomy !== false
+  const includePlanets = options.includePlanets !== false
+  const includeIss = options.includeIss !== false
+  const includeLightPollution = options.includeLightPollution !== false
 
   const weather = ref(null)
   const astronomy = ref(null)
@@ -566,6 +571,14 @@ export function useSkyWidget(options = {}) {
   }
 
   async function fetchWeather(options = {}) {
+    if (!includeWeather) {
+      weatherLoading.value = false
+      weatherError.value = ''
+      weather.value = null
+      weatherFetchedAt.value = null
+      return
+    }
+
     const token = nextToken('weather')
     if (!options.silent) weatherLoading.value = true
     weatherError.value = ''
@@ -597,6 +610,14 @@ export function useSkyWidget(options = {}) {
   }
 
   async function fetchAstronomy(options = {}) {
+    if (!includeAstronomy) {
+      astronomyLoading.value = false
+      astronomyError.value = ''
+      astronomy.value = null
+      astronomyFetchedAt.value = null
+      return
+    }
+
     const token = nextToken('astronomy')
     if (!options.silent) astronomyLoading.value = true
     astronomyError.value = ''
@@ -628,6 +649,14 @@ export function useSkyWidget(options = {}) {
   }
 
   async function fetchPlanets(options = {}) {
+    if (!includePlanets) {
+      planetsLoading.value = false
+      planetsError.value = ''
+      planetsPayload.value = { planets: [], sample_at: null, sun_altitude_deg: null }
+      planetsFetchedAt.value = null
+      return
+    }
+
     const token = nextToken('planets')
     if (!options.silent) planetsLoading.value = true
     planetsError.value = ''
@@ -660,6 +689,14 @@ export function useSkyWidget(options = {}) {
   }
 
   async function fetchIssPreview(options = {}) {
+    if (!includeIss) {
+      issLoading.value = false
+      issError.value = ''
+      issPreview.value = { available: false }
+      issFetchedAt.value = null
+      return
+    }
+
     const token = nextToken('iss')
     if (!options.silent) issLoading.value = true
     issError.value = ''
@@ -690,6 +727,14 @@ export function useSkyWidget(options = {}) {
   }
 
   async function fetchLightPollution(options = {}) {
+    if (!includeLightPollution) {
+      lightPollutionLoading.value = false
+      lightPollutionError.value = ''
+      lightPollution.value = null
+      lightPollutionFetchedAt.value = null
+      return
+    }
+
     const token = nextToken('light')
     if (!options.silent) lightPollutionLoading.value = true
     lightPollutionError.value = ''
@@ -720,23 +765,28 @@ export function useSkyWidget(options = {}) {
   }
 
   function queueDeferredFetches(options = {}) {
+    if (!includePlanets && !includeIss) return
+
     if (deferredTimer) {
       clearTimeout(deferredTimer)
       deferredTimer = null
     }
 
     deferredTimer = setTimeout(() => {
-      fetchPlanets(options)
-      fetchIssPreview(options)
+      if (includePlanets) fetchPlanets(options)
+      if (includeIss) fetchIssPreview(options)
     }, 25)
   }
 
   async function fetchEssentialBlocks(options = {}) {
-    await Promise.all([
-      fetchWeather(options),
-      fetchAstronomy(options),
-      fetchLightPollution(options),
-    ])
+    const requests = []
+
+    if (includeWeather) requests.push(fetchWeather(options))
+    if (includeAstronomy) requests.push(fetchAstronomy(options))
+    if (includeLightPollution) requests.push(fetchLightPollution(options))
+
+    if (requests.length === 0) return
+    await Promise.all(requests)
   }
 
   async function initialize(options = {}) {
@@ -747,13 +797,13 @@ export function useSkyWidget(options = {}) {
   }
 
   function refreshCheapBlocks(options = { silent: true }) {
-    fetchWeather(options)
-    fetchPlanets(options)
-    fetchIssPreview(options)
+    if (includeWeather) fetchWeather(options)
+    if (includePlanets) fetchPlanets(options)
+    if (includeIss) fetchIssPreview(options)
   }
 
   function refreshAstronomyBlock(options = { silent: true }) {
-    fetchAstronomy(options)
+    if (includeAstronomy) fetchAstronomy(options)
   }
 
   function refreshAll(options = {}) {
@@ -1121,4 +1171,3 @@ function formatFreshness(value, tick) {
 function toFriendlyError(_error, fallback) {
   return fallback
 }
-

@@ -2,18 +2,22 @@
   <article class="playCard" :class="{ compact }">
     <header class="playCardHeader">
       <div class="titleWrap">
-        <p class="category">{{ entry.category }}</p>
         <h3>{{ entry.label }}</h3>
         <p v-if="entry.description" class="description">{{ entry.description }}</p>
+        <p class="microMeta">ID: <code>{{ entry.id }}</code></p>
       </div>
 
       <div class="headActions">
-        <button v-if="controls.length" type="button" class="ghostBtn" @click="showEditor = !showEditor">
-          {{ showEditor ? 'Skryt props' : `Props (${controls.length})` }}
+        <button
+          v-if="hasAdvancedContent"
+          type="button"
+          class="ghostBtn"
+          @click="showAdvanced = !showAdvanced"
+        >
+          {{ showAdvanced ? 'Skryt detail' : 'Detail' }}
         </button>
-        <button type="button" class="ghostBtn" @click="resetToDefaults">Reset</button>
-        <button type="button" class="ghostBtn" @click="showCode = !showCode">
-          {{ showCode ? 'Skryt payload' : 'Payload' }}
+        <button v-if="isDirty" type="button" class="ghostBtn" @click="resetToDefaults">
+          Reset
         </button>
       </div>
     </header>
@@ -38,76 +42,75 @@
       <component :is="resolvedComponent" v-bind="resolvedProps" />
     </div>
 
-    <div v-if="showEditor" class="editorPane">
-      <p class="paneTitle">Editable props</p>
+    <section v-if="showAdvanced" class="advancedPane">
+      <div v-if="controls.length" class="editorPane">
+        <p class="paneTitle">Nastavenie widgetu</p>
 
-      <div v-if="controls.length === 0" class="emptyProps">
-        Tento komponent nema nakonfigurovane editable props.
-      </div>
+        <div class="controlList">
+          <label v-for="control in controls" :key="control.key" class="controlRow">
+            <span class="controlLabel">{{ control.label }}</span>
 
-      <div v-else class="controlList">
-        <label v-for="control in controls" :key="control.key" class="controlRow">
-          <span class="controlLabel">{{ control.label }}</span>
+            <small v-if="control.helpText" class="controlHelp">{{ control.helpText }}</small>
 
-          <small v-if="control.helpText" class="controlHelp">{{ control.helpText }}</small>
-
-          <input
-            v-if="isTextLike(control.type)"
-            :value="displayValue(control)"
-            :type="control.type === CONTROL_TYPES.NUMBER ? 'number' : 'text'"
-            class="controlInput"
-            :step="control.step"
-            :min="control.min"
-            :max="control.max"
-            @input="updateControl(control, $event.target.value)"
-          />
-
-          <textarea
-            v-else-if="control.type === CONTROL_TYPES.TEXTAREA"
-            :value="displayValue(control)"
-            class="controlInput controlInputTextarea"
-            rows="3"
-            @input="updateControl(control, $event.target.value)"
-          ></textarea>
-
-          <select
-            v-else-if="control.type === CONTROL_TYPES.SELECT"
-            :value="String(displayValue(control))"
-            class="controlInput"
-            @change="updateControl(control, $event.target.value)"
-          >
-            <option
-              v-for="option in control.options || []"
-              :key="String(option.value)"
-              :value="String(option.value)"
-            >
-              {{ option.label }}
-            </option>
-          </select>
-
-          <label v-else-if="control.type === CONTROL_TYPES.BOOLEAN" class="toggleRow">
             <input
-              type="checkbox"
-              :checked="Boolean(displayValue(control))"
-              @change="updateControl(control, $event.target.checked)"
+              v-if="isTextLike(control.type)"
+              :value="displayValue(control)"
+              :type="control.type === CONTROL_TYPES.NUMBER ? 'number' : 'text'"
+              class="controlInput"
+              :step="control.step"
+              :min="control.min"
+              :max="control.max"
+              @input="updateControl(control, $event.target.value)"
             />
-            <span>{{ Boolean(displayValue(control)) ? 'Zapnute' : 'Vypnute' }}</span>
+
+            <textarea
+              v-else-if="control.type === CONTROL_TYPES.TEXTAREA"
+              :value="displayValue(control)"
+              class="controlInput controlInputTextarea"
+              rows="3"
+              @input="updateControl(control, $event.target.value)"
+            ></textarea>
+
+            <select
+              v-else-if="control.type === CONTROL_TYPES.SELECT"
+              :value="String(displayValue(control))"
+              class="controlInput"
+              @change="updateControl(control, $event.target.value)"
+            >
+              <option
+                v-for="option in control.options || []"
+                :key="String(option.value)"
+                :value="String(option.value)"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+
+            <label v-else-if="control.type === CONTROL_TYPES.BOOLEAN" class="toggleRow">
+              <input
+                type="checkbox"
+                :checked="Boolean(displayValue(control))"
+                @change="updateControl(control, $event.target.checked)"
+              />
+              <span>{{ Boolean(displayValue(control)) ? 'Zapnute' : 'Vypnute' }}</span>
+            </label>
+
+            <div class="defaultValue">Default: {{ describeControlDefault(control) }}</div>
           </label>
-
-          <div class="defaultValue">Default: {{ describeControlDefault(control) }}</div>
-        </label>
+        </div>
       </div>
-    </div>
 
-    <div class="metaRow">
-      <span class="metaKey">ID: <code>{{ entry.id }}</code></span>
-      <span class="metaKey">Zdroj: <code>{{ entry.sourcePath }}</code></span>
-    </div>
+      <p v-else class="emptyProps">Tento widget nema editovatelne nastavenia.</p>
 
-    <details v-if="showCode" class="codeBlock" open>
-      <summary>Aktualny props payload</summary>
-      <pre>{{ serializedProps }}</pre>
-    </details>
+      <details class="codeBlock">
+        <summary>Payload</summary>
+        <pre>{{ serializedProps }}</pre>
+      </details>
+
+      <p class="sourceLine">
+        Zdroj: <code>{{ entry.sourcePath }}</code>
+      </p>
+    </section>
   </article>
 </template>
 
@@ -137,8 +140,7 @@ const props = defineProps({
 
 const selectedVariantId = ref('')
 const propsState = ref({})
-const showCode = ref(false)
-const showEditor = ref(false)
+const showAdvanced = ref(false)
 
 const controls = computed(() => {
   return Array.isArray(props.entry?.editableProps) ? props.entry.editableProps : []
@@ -146,6 +148,10 @@ const controls = computed(() => {
 
 const variantOptions = computed(() => {
   return Array.isArray(props.entry?.variants) ? props.entry.variants : []
+})
+
+const hasAdvancedContent = computed(() => {
+  return controls.value.length > 0 || Boolean(props.entry?.sourcePath)
 })
 
 const resolvedComponent = computed(() => {
@@ -164,12 +170,21 @@ const serializedProps = computed(() => {
   return JSON.stringify(resolvedProps.value, null, 2)
 })
 
+const defaultStateSnapshot = computed(() => {
+  return JSON.stringify(createPropsState(props.entry, selectedVariantId.value))
+})
+
+const currentStateSnapshot = computed(() => JSON.stringify(propsState.value))
+
+const isDirty = computed(() => {
+  return currentStateSnapshot.value !== defaultStateSnapshot.value
+})
+
 const initializeState = () => {
   const firstVariantId = variantOptions.value[0]?.id || ''
   selectedVariantId.value = String(firstVariantId || '')
   propsState.value = createPropsState(props.entry, selectedVariantId.value)
-  showEditor.value = false
-  showCode.value = false
+  showAdvanced.value = false
 }
 
 const selectVariant = (variantId) => {
@@ -206,286 +221,229 @@ watch(
 <style scoped>
 .playCard {
   display: grid;
-  gap: 0.58rem;
-  border-radius: 0.84rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
-  background: rgb(var(--color-bg-rgb) / 0.22);
-  padding: 0.66rem;
+  gap: 0.48rem;
+  border-radius: 0.76rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  background: rgb(var(--color-bg-rgb) / 0.14);
+  padding: 0.58rem;
 }
 
 .playCard.compact {
-  gap: 0.46rem;
-  border-radius: 0.72rem;
+  gap: 0.44rem;
   padding: 0.54rem;
 }
 
 .playCardHeader {
   display: flex;
   justify-content: space-between;
-  gap: 0.56rem;
+  align-items: flex-start;
+  gap: 0.5rem;
 }
 
-.playCard.compact .playCardHeader {
-  gap: 0.42rem;
+.titleWrap {
+  min-width: 0;
 }
 
 .titleWrap h3 {
-  margin: 0.08rem 0 0;
-  font-size: 0.92rem;
-}
-
-.playCard.compact .titleWrap h3 {
-  margin-top: 0.04rem;
-  font-size: 0.84rem;
-}
-
-.category {
   margin: 0;
-  color: var(--color-text-secondary);
-  font-size: 0.64rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.86rem;
+  line-height: 1.25;
 }
 
 .description {
-  margin: 0.18rem 0 0;
+  margin: 0.16rem 0 0;
   color: var(--color-text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.71rem;
   line-height: 1.35;
 }
 
-.playCard.compact .description {
-  margin-top: 0.12rem;
-  font-size: 0.68rem;
-  line-height: 1.28;
+.microMeta {
+  margin: 0.18rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.66rem;
+}
+
+.microMeta code {
+  color: var(--color-surface);
 }
 
 .headActions {
   display: inline-flex;
-  align-items: flex-start;
-  gap: 0.26rem;
+  align-items: center;
+  gap: 0.24rem;
   flex-wrap: wrap;
 }
 
-.playCard.compact .headActions {
-  gap: 0.2rem;
-}
-
 .ghostBtn {
-  min-height: 1.7rem;
-  border-radius: 0.58rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.33);
-  background: rgb(var(--color-bg-rgb) / 0.26);
-  color: var(--color-surface);
-  padding: 0.24rem 0.48rem;
-  font-size: 0.68rem;
-  font-weight: 600;
-}
-
-.playCard.compact .ghostBtn {
-  min-height: 1.56rem;
+  min-height: 1.68rem;
   border-radius: 0.5rem;
-  padding: 0.2rem 0.42rem;
-  font-size: 0.64rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: transparent;
+  color: var(--color-text-secondary);
+  padding: 0.24rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
 }
 
 .variantsRow {
   display: flex;
   align-items: center;
-  gap: 0.34rem;
+  gap: 0.3rem;
   flex-wrap: wrap;
-}
-
-.playCard.compact .variantsRow {
-  gap: 0.26rem;
 }
 
 .variantsLabel {
   color: var(--color-text-secondary);
-  font-size: 0.68rem;
+  font-size: 0.67rem;
 }
 
 .variantChips {
   display: inline-flex;
   align-items: center;
-  gap: 0.22rem;
+  gap: 0.2rem;
   flex-wrap: wrap;
 }
 
 .chipBtn {
-  min-height: 1.56rem;
+  min-height: 1.52rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
   background: transparent;
   color: var(--color-text-secondary);
-  padding: 0.14rem 0.46rem;
+  padding: 0.12rem 0.42rem;
   font-size: 0.64rem;
   font-weight: 700;
 }
 
 .chipBtn.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.52);
-  background: rgb(var(--color-primary-rgb) / 0.2);
+  border-color: rgb(var(--color-primary-rgb) / 0.5);
+  background: rgb(var(--color-primary-rgb) / 0.16);
   color: var(--color-surface);
 }
 
 .previewPane {
-  border-radius: 0.72rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
-  background: rgb(var(--color-bg-rgb) / 0.25);
-  padding: 0.52rem;
-  min-height: 8.8rem;
+  border-radius: 0.64rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
+  background: rgb(var(--color-bg-rgb) / 0.2);
+  padding: 0.48rem;
+  min-height: 8.3rem;
   display: grid;
   align-content: start;
+  gap: 0.4rem;
+}
+
+.advancedPane {
+  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
+  padding-top: 0.42rem;
+  display: grid;
   gap: 0.42rem;
 }
 
-.playCard.compact .previewPane {
-  border-radius: 0.62rem;
-  padding: 0.44rem;
-  min-height: 7.5rem;
-  gap: 0.34rem;
-}
-
 .editorPane {
-  border-radius: 0.72rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
-  background: rgb(var(--color-bg-rgb) / 0.22);
-  padding: 0.52rem;
-}
-
-.playCard.compact .editorPane {
-  border-radius: 0.62rem;
-  padding: 0.44rem;
+  display: grid;
+  gap: 0.34rem;
 }
 
 .paneTitle {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .emptyProps {
-  margin-top: 0.32rem;
+  margin: 0;
   color: var(--color-text-secondary);
   font-size: 0.72rem;
 }
 
 .controlList {
-  margin-top: 0.42rem;
   display: grid;
-  gap: 0.42rem;
-}
-
-.playCard.compact .controlList {
-  margin-top: 0.34rem;
-  gap: 0.34rem;
+  gap: 0.38rem;
 }
 
 .controlRow {
   display: grid;
-  gap: 0.18rem;
+  gap: 0.16rem;
 }
 
 .controlLabel {
-  font-size: 0.69rem;
+  font-size: 0.68rem;
   color: var(--color-surface);
   font-weight: 600;
 }
 
 .controlHelp {
   color: var(--color-text-secondary);
-  font-size: 0.64rem;
+  font-size: 0.63rem;
 }
 
 .controlInput {
-  min-height: 1.84rem;
-  border-radius: 0.58rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
-  background: rgb(var(--color-bg-rgb) / 0.36);
+  min-height: 1.78rem;
+  border-radius: 0.52rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: rgb(var(--color-bg-rgb) / 0.32);
   color: var(--color-surface);
-  font-size: 0.72rem;
-  padding: 0.32rem 0.44rem;
-}
-
-.playCard.compact .controlInput {
-  min-height: 1.72rem;
-  border-radius: 0.5rem;
-  font-size: 0.68rem;
-  padding: 0.28rem 0.38rem;
+  font-size: 0.7rem;
+  padding: 0.3rem 0.4rem;
 }
 
 .controlInputTextarea {
   resize: vertical;
-  min-height: 3.1rem;
+  min-height: 3rem;
 }
 
 .toggleRow {
   display: inline-flex;
   align-items: center;
-  gap: 0.34rem;
+  gap: 0.3rem;
   color: var(--color-text-secondary);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
 }
 
 .defaultValue {
   font-size: 0.62rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.84);
-}
-
-.metaRow {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0.38rem;
-}
-
-.playCard.compact .metaRow {
-  gap: 0.28rem;
-}
-
-.metaKey {
-  font-size: 0.64rem;
-  color: var(--color-text-secondary);
-}
-
-.playCard.compact .metaKey {
-  font-size: 0.6rem;
-}
-
-.metaKey code {
-  color: var(--color-surface);
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
 }
 
 .codeBlock {
-  border-radius: 0.66rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(var(--color-bg-rgb) / 0.4);
-  padding: 0.36rem 0.46rem;
-}
-
-.playCard.compact .codeBlock {
-  border-radius: 0.56rem;
-  padding: 0.3rem 0.38rem;
+  border-radius: 0.58rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  background: rgb(var(--color-bg-rgb) / 0.28);
+  padding: 0.28rem 0.38rem;
 }
 
 .codeBlock summary {
   cursor: pointer;
-  font-size: 0.68rem;
+  font-size: 0.67rem;
   color: var(--color-text-secondary);
 }
 
 .codeBlock pre {
-  margin: 0.36rem 0 0;
+  margin: 0.3rem 0 0;
   overflow: auto;
-  font-size: 0.66rem;
+  font-size: 0.64rem;
+  color: var(--color-surface);
+}
+
+.sourceLine {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.65rem;
+}
+
+.sourceLine code {
   color: var(--color-surface);
 }
 
 @media (max-width: 760px) {
   .playCardHeader {
     flex-direction: column;
+  }
+
+  .headActions {
+    width: 100%;
   }
 }
 </style>

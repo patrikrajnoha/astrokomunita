@@ -56,6 +56,10 @@ const retentionAllowedHours = computed(() => {
   return values.filter((value) => Number.isInteger(Number(value)) && Number(value) > 0)
 })
 const retentionStatusLabel = computed(() => (retentionForm.value.enabled ? 'Zapnute' : 'Vypnute'))
+const dashboardMetaLine = computed(() => {
+  const windowHours = Number(payload.value?.window_hours || 24)
+  return `Okno ${windowHours}h | aktualizovane ${formatDateTime(payload.value?.generated_at)}`
+})
 
 function formatDateTime(value) {
   if (!value) return '-'
@@ -214,7 +218,7 @@ onMounted(() => {
     <div v-if="props.embedded" class="embeddedHeader">
       <div>
         <h2 class="embeddedTitle">Prehlad</h2>
-        <p class="embeddedSubtitle">Pipeline dashboard za poslednych 24 hodin.</p>
+        <p class="embeddedSubtitle">{{ dashboardMetaLine }}</p>
       </div>
       <button type="button" class="actionBtn" :disabled="loading" @click="load">
         {{ loading ? 'Nacitavam...' : 'Obnovit' }}
@@ -256,21 +260,23 @@ onMounted(() => {
       <div class="retentionHead">
         <div>
           <h3>Cistenie bot prispevkov</h3>
-          <p class="muted">Automaticke mazanie bot prispevkov podla casovaca.</p>
+          <p class="muted retentionHint">
+            Scheduler bezi {{ retention.scheduled_frequency || 'hourly' }}. Cleanup maze iba prispevky starsie ako zvoleny limit.
+          </p>
         </div>
         <span class="retentionStatus" :class="{ 'retentionStatus--on': retentionForm.enabled }">
           {{ retentionStatusLabel }}
         </span>
       </div>
 
-      <div class="retentionGrid">
+      <div class="retentionMainRow">
         <label class="retentionField retentionField--toggle">
           <input
             v-model="retentionForm.enabled"
             type="checkbox"
             :disabled="retentionLoading || retentionSaving"
           />
-        <span>Zapnut automaticke mazanie</span>
+          <span>Zapnut automaticke mazanie</span>
         </label>
 
         <label class="retentionField">
@@ -293,29 +299,29 @@ onMounted(() => {
         >
           {{ retentionSaving ? 'Ukladam...' : 'Ulozit' }}
         </button>
-
-        <button
-          type="button"
-          class="dangerBtn"
-          :disabled="deletingAllPosts"
-          @click="deleteAllPublishedBotPosts"
-        >
-          {{ deletingAllPosts ? 'Mazem...' : 'Vymazat bot prispevky' }}
-        </button>
-
-        <button
-          type="button"
-          class="ghostActionBtn"
-          :disabled="retentionRunning"
-          @click="runCleanupNow"
-        >
-          {{ retentionRunning ? 'Spustam...' : 'Spustit cleanup teraz' }}
-        </button>
       </div>
 
-      <p class="muted retentionHint">
-        Scheduler bezi {{ retention.scheduled_frequency || 'hourly' }}. Cleanup maze iba prispevky starsie ako zvoleny limit.
-      </p>
+      <details class="retentionAdvanced">
+        <summary>Pokrocile akcie</summary>
+        <div class="retentionDangerActions">
+          <button
+            type="button"
+            class="ghostActionBtn"
+            :disabled="retentionRunning"
+            @click="runCleanupNow"
+          >
+            {{ retentionRunning ? 'Spustam...' : 'Spustit cleanup teraz' }}
+          </button>
+          <button
+            type="button"
+            class="dangerBtn"
+            :disabled="deletingAllPosts"
+            @click="deleteAllPublishedBotPosts"
+          >
+            {{ deletingAllPosts ? 'Mazem...' : 'Vymazat bot prispevky' }}
+          </button>
+        </div>
+      </details>
     </section>
 
     <section class="card">
@@ -369,40 +375,40 @@ onMounted(() => {
 <style scoped>
 .botSection {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .embeddedHeader {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .embeddedTitle {
-  margin: 0 0 6px;
-  font-size: 1.06rem;
+  margin: 0 0 4px;
+  font-size: 1rem;
   font-weight: 800;
 }
 
 .embeddedSubtitle {
   margin: 0;
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .cards {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .card {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.72);
-  padding: 14px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.66);
+  padding: 12px;
 }
 
 .metricCard {
@@ -412,15 +418,15 @@ onMounted(() => {
 
 .metricLabel {
   margin: 0;
-  font-size: 0.74rem;
-  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgb(var(--color-text-secondary-rgb) / 0.86);
 }
 
 .metricValue {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 800;
 }
 
@@ -451,16 +457,16 @@ onMounted(() => {
 
 .table {
   width: 100%;
-  min-width: 800px;
+  min-width: 760px;
   border-collapse: collapse;
 }
 
 .table th,
 .table td {
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  padding: 9px 10px;
+  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  padding: 8px 9px;
   text-align: left;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
 }
 
 .table th {
@@ -503,27 +509,27 @@ onMounted(() => {
 
 .retentionCard {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .retentionHead {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .retentionHead h3 {
-  margin: 0 0 4px;
-  font-size: 0.98rem;
+  margin: 0 0 2px;
+  font-size: 0.92rem;
 }
 
 .retentionStatus {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
   border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 0.75rem;
+  padding: 2px 9px;
+  font-size: 0.72rem;
   font-weight: 700;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
 }
@@ -533,10 +539,10 @@ onMounted(() => {
   color: var(--color-success);
 }
 
-.retentionGrid {
+.retentionMainRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, auto) minmax(96px, auto);
+  gap: 8px;
   align-items: end;
 }
 
@@ -546,52 +552,52 @@ onMounted(() => {
 }
 
 .retentionField span {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.92);
 }
 
 .retentionField select {
-  min-height: 36px;
-  border-radius: 10px;
+  min-height: 34px;
+  border-radius: 8px;
   border: 1px solid rgb(var(--color-surface-rgb) / 0.26);
   background: rgb(var(--color-bg-rgb) / 0.36);
   color: var(--color-text-primary);
-  padding: 0 10px;
+  padding: 0 9px;
 }
 
 .retentionField--toggle {
-  min-height: 36px;
+  min-height: 34px;
   display: inline-flex;
-  gap: 8px;
+  gap: 7px;
   align-items: center;
 }
 
 .retentionField--toggle input {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
 }
 
 .retentionHint {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
 }
 
 .actionBtn {
   border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
-  border-radius: 10px;
+  border-radius: 8px;
   background: rgb(var(--color-primary-rgb) / 0.2);
   color: var(--color-surface);
-  padding: 7px 11px;
-  font-size: 0.82rem;
+  padding: 6px 10px;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
 }
 
 .dangerBtn,
 .ghostActionBtn {
-  border-radius: 10px;
-  padding: 7px 11px;
-  font-size: 0.82rem;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -606,5 +612,30 @@ onMounted(() => {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.26);
   background: rgb(var(--color-bg-rgb) / 0.3);
   color: var(--color-text-primary);
+}
+
+.retentionAdvanced {
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  padding-top: 8px;
+}
+
+.retentionAdvanced > summary {
+  cursor: pointer;
+  font-size: 0.76rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.retentionDangerActions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+@media (max-width: 880px) {
+  .retentionMainRow {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
 }
 </style>

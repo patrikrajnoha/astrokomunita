@@ -18,6 +18,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
+import { useAuthStore } from '@/stores/auth'
 import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import {
   getEnabledSidebarSections,
@@ -49,13 +50,15 @@ const props = defineProps({
 
 const route = useRoute()
 const sidebarConfigStore = useSidebarConfigStore()
+const auth = useAuthStore()
 const isDesktop = ref(typeof window === 'undefined' ? true : window.matchMedia('(min-width: 1280px)').matches)
 const currentItems = ref([])
 
 const activeScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
+const isGuest = computed(() => !auth.isAuthed)
 
 const renderedSections = computed(() => {
-  return getEnabledSidebarSections(currentItems.value).filter((section) => {
+  return getEnabledSidebarSections(currentItems.value, { isGuest: isGuest.value }).filter((section) => {
     return Boolean(resolveSidebarComponent(section))
   })
 })
@@ -77,7 +80,11 @@ const propsForSection = (section) => {
     }
   }
 
-  if (sectionKey === 'observing_conditions') {
+  if (
+    sectionKey === 'observing_conditions'
+    || sectionKey === 'observing_weather'
+    || sectionKey === 'night_sky'
+  ) {
     return {
       lat: props.observingLat,
       lon: props.observingLon,
@@ -210,5 +217,50 @@ onBeforeUnmount(() => {
   border-radius: 0.7rem;
   font-size: 0.78rem;
   line-height: 1.15;
+}
+
+.sidebar-dense :deep(.nasaActionBtn) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 1.68rem;
+  padding: 0.24rem 0.48rem;
+  border-radius: 0 !important;
+  font-size: 0.72rem;
+  line-height: 1.12;
+}
+
+.sidebar-dense :deep(.nasaCard .ghostbtn) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 1.68rem;
+  padding: 0.24rem 0.48rem;
+  border-radius: 0 !important;
+  font-size: 0.72rem;
+  line-height: 1.12;
+}
+
+.sidebar-dense :deep(.eventActionBtn),
+.sidebar-dense :deep(.eventGhostBtn) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 1.68rem;
+  padding: 0.24rem 0.48rem;
+  border-radius: 0 !important;
+  font-size: 0.72rem;
+  line-height: 1.12;
+}
+
+.sidebar-dense :deep(.upcomingMoreLink) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 1.68rem;
+  padding: 0.24rem 0.48rem;
+  border-radius: 0 !important;
+  font-size: 0.72rem;
+  line-height: 1.12;
 }
 </style>

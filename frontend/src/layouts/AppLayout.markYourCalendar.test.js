@@ -333,7 +333,6 @@ describe('AppLayout mark-your-calendar popup', () => {
           },
           PostComposer: { template: '<div class="post-composer-stub">composer</div>' },
           MobileFab: { template: '<button class="mobile-fab-stub">fab</button>' },
-          GuestBottomCTA: { template: '<div class="guest-cta-stub">cta</div>' },
           TypingText: { template: '<span class="typing-text-stub">brand</span>' },
           MarkYourCalendarModal: { template: '<div class="calendar-modal-stub">calendar</div>' },
           OnboardingTour: { template: '<div class="onboarding-tour-stub">tour</div>' },

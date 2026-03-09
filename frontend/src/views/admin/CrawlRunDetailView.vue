@@ -26,7 +26,7 @@ function sourceLabel(value) {
   const key = normalizeSourceKey(value)
   if (key === 'astropixels') return 'AstroPixels'
   if (key === 'imo') return 'IMO'
-  if (key === 'nasa_watch_the_skies') return 'NASA WTS'
+  if (key === 'nasa_watch_the_skies' || key === 'nasa_wts') return 'NASA WTS'
   if (key === 'nasa') return 'NASA'
   return key || '-'
 }

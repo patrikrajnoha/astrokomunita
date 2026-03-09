@@ -1,34 +1,29 @@
 <template>
-  <section class="registryRoot" :class="{ compactMode }">
+  <section class="registryRoot">
     <header class="registryHeader">
       <div>
-        <h2>Sidebar widgety</h2>
-        <p>Galeria obsahuje iba komponenty, ktore sa realne pouzivaju v sidebare.</p>
+        <h2>Widgety</h2>
+        <p>{{ summaryLine }}</p>
       </div>
-
-      <div class="headerStats">
-        <span class="statPill">Vsetky: {{ allEntriesCount }}</span>
-        <span class="statPill">Kategoria: {{ selectedCategoryLabel }}</span>
-        <span class="statPill">{{ filteredEntries.length }} zobrazenych</span>
-      </div>
+      <button
+        v-if="hasActiveFilters"
+        type="button"
+        class="clearBtn"
+        @click="clearFilters"
+      >
+        Vycistit filtre
+      </button>
     </header>
 
     <div class="toolbar">
       <label class="searchField">
-        <span>Vyhladavanie</span>
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Nazov, id, popis alebo source path"
+          class="searchInput"
+          placeholder="Hladat widgety podla nazvu, id alebo popisu"
         />
       </label>
-
-      <div class="toolbarActions">
-        <button type="button" class="ghostBtn" @click="compactMode = !compactMode">
-          {{ compactMode ? 'Normal layout' : 'Ultra compact' }}
-        </button>
-        <button type="button" class="ghostBtn" @click="clearFilters">Reset</button>
-      </div>
     </div>
 
     <div v-if="visibleCategories.length > 1" class="categoryRow">
@@ -53,9 +48,9 @@
     </div>
 
     <div v-if="filteredEntries.length === 0" class="emptyState">
-      <h3>Ziadny sidebar komponent nevyhovuje filtru.</h3>
-      <p>Skus iny vyraz alebo reset filtrov.</p>
-      <button type="button" class="ghostBtn" @click="clearFilters">Resetovat</button>
+      <h3>Ziadny widget nevyhovuje filtru.</h3>
+      <p>Skus iny vyraz alebo vymaz filtre.</p>
+      <button type="button" class="clearBtn" @click="clearFilters">Vycistit filtre</button>
     </div>
 
     <div v-else class="registryGrid">
@@ -63,14 +58,14 @@
         v-for="entry in filteredEntries"
         :key="entry.id"
         :entry="entry"
-        :compact="compactMode"
+        :compact="true"
       />
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import ComponentPlaygroundCard from '@/components/admin/sidebar/playground/ComponentPlaygroundCard.vue'
 import {
   componentRegistryCategories,
@@ -80,7 +75,6 @@ import {
 
 const searchQuery = ref('')
 const selectedCategory = ref('all')
-const compactMode = ref(false)
 
 const allEntries = sidebarComponentPlaygroundRegistry.slice()
 const categories = componentRegistryCategories.slice()
@@ -96,13 +90,20 @@ const visibleCategories = computed(() => {
   return categories.filter((category) => (categoryCounts.value[category] || 0) > 0)
 })
 
-const selectedCategoryLabel = computed(() => {
-  if (selectedCategory.value === 'all') return 'Vsetky'
-  return selectedCategory.value
-})
-
 const normalizedSearch = computed(() => {
   return String(searchQuery.value || '').trim().toLowerCase()
+})
+
+const hasActiveFilters = computed(() => {
+  return selectedCategory.value !== 'all' || normalizedSearch.value.length > 0
+})
+
+const summaryLine = computed(() => {
+  if (hasActiveFilters.value) {
+    return `${filteredEntries.value.length} zobrazenych z ${allEntriesCount}`
+  }
+
+  return `${allEntriesCount} dostupnych widgetov`
 })
 
 const filteredEntries = computed(() => {
@@ -139,199 +140,124 @@ const clearFilters = () => {
   searchQuery.value = ''
   selectedCategory.value = 'all'
 }
-
-onMounted(() => {
-  if (typeof window !== 'undefined' && window.innerWidth <= 1400) {
-    compactMode.value = true
-  }
-})
 </script>
 
 <style scoped>
 .registryRoot {
   display: grid;
-  gap: 0.7rem;
+  gap: 0.58rem;
 }
 
 .registryHeader {
   display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 0.7rem;
-  align-items: flex-start;
+  gap: 0.8rem;
 }
 
 .registryHeader h2 {
   margin: 0;
-  font-size: 1.02rem;
+  font-size: 0.98rem;
 }
 
 .registryHeader p {
-  margin: 0.2rem 0 0;
+  margin: 0.18rem 0 0;
   color: var(--color-text-secondary);
-  font-size: 0.77rem;
+  font-size: 0.74rem;
 }
 
-.headerStats {
-  display: inline-flex;
-  gap: 0.3rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.statPill {
-  font-size: 0.68rem;
-  padding: 0.18rem 0.5rem;
-  border-radius: 999px;
-  background: rgb(var(--color-bg-rgb) / 0.26);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+.clearBtn {
+  min-height: 1.86rem;
+  border-radius: 0.56rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.34);
+  background: transparent;
   color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.3rem 0.58rem;
 }
 
 .toolbar {
   display: grid;
-  gap: 0.45rem;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-}
-
-.toolbarActions {
-  display: inline-flex;
-  gap: 0.36rem;
+  gap: 0.4rem;
 }
 
 .searchField {
-  display: grid;
-  gap: 0.24rem;
+  min-width: 0;
 }
 
-.searchField span {
-  font-size: 0.69rem;
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.searchField input {
-  min-height: 2rem;
-  border-radius: 0.66rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: rgb(var(--color-bg-rgb) / 0.35);
+.searchInput {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.1rem;
+  border-radius: 0.62rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  background: rgb(var(--color-bg-rgb) / 0.26);
   color: var(--color-surface);
-  padding: 0.36rem 0.52rem;
-  font-size: 0.77rem;
-}
-
-.ghostBtn {
-  min-height: 2rem;
-  border-radius: 0.66rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
-  background: transparent;
-  color: var(--color-surface);
-  font-size: 0.74rem;
-  font-weight: 600;
-  padding: 0.36rem 0.68rem;
+  padding: 0.4rem 0.58rem;
+  font-size: 0.75rem;
 }
 
 .categoryRow {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.28rem;
+  gap: 0.24rem;
+  overflow-x: auto;
+  padding-bottom: 0.08rem;
 }
 
 .chipBtn {
-  min-height: 1.72rem;
+  min-height: 1.64rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.26);
   background: transparent;
   color: var(--color-text-secondary);
-  font-size: 0.69rem;
+  font-size: 0.67rem;
   font-weight: 700;
-  padding: 0.16rem 0.54rem;
+  white-space: nowrap;
+  padding: 0.14rem 0.52rem;
 }
 
 .chipBtn.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.54);
-  background: rgb(var(--color-primary-rgb) / 0.2);
+  border-color: rgb(var(--color-primary-rgb) / 0.5);
+  background: rgb(var(--color-primary-rgb) / 0.16);
   color: var(--color-surface);
 }
 
 .emptyState {
-  border-radius: 0.82rem;
+  border-radius: 0.76rem;
   border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.34);
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  padding: 0.78rem;
+  background: rgb(var(--color-bg-rgb) / 0.17);
+  padding: 0.72rem;
   display: grid;
-  gap: 0.28rem;
+  gap: 0.26rem;
   justify-items: start;
 }
 
 .emptyState h3 {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
 }
 
 .emptyState p {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 0.74rem;
+  font-size: 0.72rem;
 }
 
 .registryGrid {
   display: grid;
-  gap: 0.58rem;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-}
-
-.registryRoot.compactMode .registryGrid {
-  gap: 0.42rem;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-}
-
-.registryRoot.compactMode .headerStats {
-  gap: 0.24rem;
-}
-
-.registryRoot.compactMode .statPill {
-  font-size: 0.64rem;
-  padding: 0.14rem 0.44rem;
-}
-
-.registryRoot.compactMode .chipBtn {
-  min-height: 1.6rem;
-  font-size: 0.64rem;
-  padding: 0.14rem 0.46rem;
-}
-
-.registryRoot.compactMode .searchField input {
-  min-height: 1.86rem;
-  font-size: 0.72rem;
-}
-
-@media (max-width: 980px) {
-  .registryHeader {
-    flex-direction: column;
-  }
-
-  .headerStats {
-    justify-content: flex-start;
-  }
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
 @media (max-width: 760px) {
-  .toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .toolbarActions {
-    justify-content: flex-start;
-    flex-wrap: wrap;
+  .registryHeader {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.4rem;
   }
 
   .registryGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .registryRoot.compactMode .registryGrid {
     grid-template-columns: 1fr;
   }
 }

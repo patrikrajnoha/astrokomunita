@@ -81,6 +81,7 @@ describe('InviteTicketModal', () => {
     const wrapper = makeWrapper()
 
     await wrapper.find('[data-testid="attendee-name-input"]').setValue('Marek')
+    await wrapper.find('.optionalToggle').trigger('click')
     await wrapper.find('input[type="email"]').setValue('marek@example.com')
     await wrapper.find('textarea').setValue('Tesim sa na teba')
     await wrapper.find('[data-testid="send-invite-btn"]').trigger('click')
@@ -102,6 +103,7 @@ describe('InviteTicketModal', () => {
 
     const wrapper = makeWrapper()
     await wrapper.find('[data-testid="attendee-name-input"]').setValue('Marek')
+    await wrapper.find('.menuBtn').trigger('click')
     await wrapper.find('[data-testid="share-ticket-btn"]').trigger('click')
 
     expect(shareMock).toHaveBeenCalledTimes(1)
@@ -115,6 +117,7 @@ describe('InviteTicketModal', () => {
     })
 
     const wrapper = makeWrapper()
+    await wrapper.find('.menuBtn').trigger('click')
     await wrapper.find('[data-testid="print-ticket-btn"]').trigger('click')
 
     expect(printMock).toHaveBeenCalledTimes(1)

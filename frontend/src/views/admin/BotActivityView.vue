@@ -35,6 +35,21 @@ const filters = reactive({
 
 const canPrev = computed(() => Number(pagination.current_page || 1) > 1)
 const canNext = computed(() => Number(pagination.current_page || 1) < Number(pagination.last_page || 1))
+const hasActiveFilters = computed(() => {
+  return (
+    String(filters.sourceKey || '').trim() !== '' ||
+    String(filters.bot_identity || '').trim() !== '' ||
+    String(filters.action || '').trim() !== '' ||
+    String(filters.outcome || '').trim() !== '' ||
+    String(filters.date_from || '').trim() !== '' ||
+    String(filters.date_to || '').trim() !== ''
+  )
+})
+
+const summaryLine = computed(() => {
+  if (loading.value) return 'Nacitavam aktivitu...'
+  return `${pagination.total} zaznamov | strana ${pagination.current_page}/${pagination.last_page}`
+})
 
 function readQueryValue(value) {
   if (Array.isArray(value)) {
@@ -153,13 +168,13 @@ watch(
 <template>
   <component
     :is="props.embedded ? 'section' : AdminPageShell"
-    v-bind="props.embedded ? {} : { title: 'Bot aktivita', subtitle: 'Logy publikovania/spusteni s dovodmi preskocenia alebo chyby.' }"
+    v-bind="props.embedded ? {} : { title: 'Bot aktivita', subtitle: 'Logy publikovania a behov s vysledkami.' }"
     class="botSection"
   >
     <div v-if="props.embedded" class="embeddedHeader">
       <div>
         <h2 class="embeddedTitle">Aktivita</h2>
-        <p class="embeddedSubtitle">Logy publikovania/spusteni s dovodmi preskocenia alebo chyby.</p>
+        <p class="embeddedSubtitle">{{ summaryLine }}</p>
       </div>
       <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
         {{ loading ? 'Nacitavam...' : 'Obnovit' }}
@@ -173,12 +188,12 @@ watch(
     </template>
 
     <section class="card filterCard">
-      <div class="filterGrid">
-        <label class="field">
-          <span>Zdroj</span>
-          <input v-model="filters.sourceKey" type="text" placeholder="nasa_rss_breaking" />
+      <div class="filterRow">
+        <label class="field field--search">
+          <input v-model="filters.sourceKey" type="text" placeholder="Hladat podla source key" />
         </label>
-        <label class="field">
+
+        <label class="field field--compact">
           <span>Bot</span>
           <select v-model="filters.bot_identity">
             <option value="">Vsetky</option>
@@ -186,15 +201,8 @@ watch(
             <option value="stela">Stela</option>
           </select>
         </label>
-        <label class="field">
-          <span>Akcia</span>
-          <select v-model="filters.action">
-            <option value="">Vsetky</option>
-            <option value="run">run</option>
-            <option value="publish">publish</option>
-          </select>
-        </label>
-        <label class="field">
+
+        <label class="field field--compact">
           <span>Vysledok</span>
           <select v-model="filters.outcome">
             <option value="">Vsetky</option>
@@ -205,19 +213,34 @@ watch(
             <option value="failed">failed</option>
           </select>
         </label>
-        <label class="field">
-          <span>Od</span>
-          <input v-model="filters.date_from" type="date" />
-        </label>
-        <label class="field">
-          <span>Do</span>
-          <input v-model="filters.date_to" type="date" />
-        </label>
+
+        <div class="filterActions">
+          <button class="actionBtn" type="button" :disabled="loading" @click="applyFilters">Filtrovat</button>
+          <button v-if="hasActiveFilters" class="ghostBtn" type="button" :disabled="loading" @click="resetFilters">Vycistit</button>
+        </div>
       </div>
-      <div class="filterActions">
-        <button class="actionBtn" type="button" :disabled="loading" @click="applyFilters">Filtrovat</button>
-        <button class="actionBtn ghost" type="button" :disabled="loading" @click="resetFilters">Reset</button>
-      </div>
+
+      <details class="advancedFilters">
+        <summary>Pokrocile filtre</summary>
+        <div class="advancedFiltersBody">
+          <label class="field field--compact">
+            <span>Akcia</span>
+            <select v-model="filters.action">
+              <option value="">Vsetky</option>
+              <option value="run">run</option>
+              <option value="publish">publish</option>
+            </select>
+          </label>
+          <label class="field field--compact">
+            <span>Od</span>
+            <input v-model="filters.date_from" type="date" />
+          </label>
+          <label class="field field--compact">
+            <span>Do</span>
+            <input v-model="filters.date_to" type="date" />
+          </label>
+        </div>
+      </details>
     </section>
 
     <section class="card tableCard">
@@ -249,25 +272,25 @@ watch(
                   {{ row.outcome || '-' }}
                 </span>
               </td>
-              <td>
-                <div>ID item: {{ row.bot_item_id || '-' }}</div>
-                <div>ID post: {{ row.post_id || '-' }}</div>
+              <td class="idCell">
+                <span>ID item: {{ row.bot_item_id || '-' }}</span>
+                <span>ID post: {{ row.post_id || '-' }}</span>
               </td>
               <td>{{ row.reason || '-' }}</td>
-              <td>{{ row.message || '-' }}</td>
+              <td class="messageCell">{{ row.message || '-' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <div class="pager">
-        <button class="actionBtn ghost" type="button" :disabled="loading || !canPrev" @click="previousPage">
+        <button class="ghostBtn" type="button" :disabled="loading || !canPrev" @click="previousPage">
           Predosla
         </button>
         <span class="muted">
           Strana {{ pagination.current_page }} / {{ pagination.last_page }} - {{ pagination.total }} zaznamov
         </span>
-        <button class="actionBtn ghost" type="button" :disabled="loading || !canNext" @click="nextPage">
+        <button class="ghostBtn" type="button" :disabled="loading || !canNext" @click="nextPage">
           Dalsia
         </button>
       </div>
@@ -278,92 +301,128 @@ watch(
 <style scoped>
 .botSection {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .embeddedHeader {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .embeddedTitle {
-  margin: 0 0 6px;
-  font-size: 1.06rem;
+  margin: 0 0 4px;
+  font-size: 1rem;
   font-weight: 800;
 }
 
 .embeddedSubtitle {
   margin: 0;
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .card {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.7);
-  padding: 14px;
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.66);
+  padding: 12px;
 }
 
 .filterCard {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  padding: 10px;
 }
 
-.filterGrid {
+.filterRow {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: minmax(220px, 1fr) minmax(130px, auto) minmax(150px, auto) auto;
+  align-items: end;
+  gap: 8px;
 }
 
 .field {
   display: grid;
-  gap: 6px;
-  font-size: 0.8rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  gap: 5px;
+  font-size: 0.74rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.94);
+}
+
+.field--search {
+  min-width: 0;
 }
 
 .field input,
 .field select {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.4);
+  border-radius: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.38);
   color: var(--color-surface);
-  padding: 8px 10px;
+  min-height: 34px;
+  padding: 7px 9px;
+}
+
+.field--compact {
+  min-width: 120px;
 }
 
 .filterActions {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-flex;
   gap: 8px;
+  align-items: center;
+}
+
+.advancedFilters {
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  padding-top: 8px;
+}
+
+.advancedFilters > summary {
+  cursor: pointer;
+  font-size: 0.76rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.advancedFiltersBody {
+  margin-top: 8px;
+  display: inline-grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+}
+
+.actionBtn,
+.ghostBtn {
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .actionBtn {
   border: 1px solid rgb(var(--color-primary-rgb) / 0.6);
-  border-radius: 10px;
   background: rgb(var(--color-primary-rgb) / 0.2);
   color: var(--color-surface);
-  font-weight: 700;
-  padding: 7px 11px;
-  cursor: pointer;
 }
 
-.actionBtn.ghost {
-  border-color: rgb(var(--color-surface-rgb) / 0.3);
-  background: rgb(var(--color-bg-rgb) / 0.45);
+.ghostBtn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  background: transparent;
+  color: rgb(var(--color-surface-rgb) / 0.95);
 }
 
-.actionBtn:disabled {
-  opacity: 0.5;
+.actionBtn:disabled,
+.ghostBtn:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .tableCard {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .tableWrap {
@@ -374,21 +433,21 @@ watch(
 .activityTable {
   width: 100%;
   border-collapse: collapse;
-  min-width: 860px;
+  min-width: 840px;
 }
 
 .activityTable th,
 .activityTable td {
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  padding: 8px 10px;
+  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  padding: 8px 9px;
   text-align: left;
   vertical-align: top;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
 }
 
 .activityTable th {
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
 }
@@ -396,10 +455,10 @@ watch(
 .outcome {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-surface-rgb) / 0.25);
-  font-size: 0.73rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
@@ -420,6 +479,15 @@ watch(
   color: var(--color-danger);
 }
 
+.idCell {
+  display: grid;
+  gap: 2px;
+}
+
+.messageCell {
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
 .pager {
   display: flex;
   flex-wrap: wrap;
@@ -430,11 +498,22 @@ watch(
 
 .muted {
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
 }
 
 .error {
   color: var(--color-danger);
   margin: 0;
+}
+
+@media (max-width: 1024px) {
+  .filterRow {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .advancedFiltersBody {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

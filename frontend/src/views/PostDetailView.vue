@@ -1640,6 +1640,41 @@ const repliesCountLabel = computed(() => {
 }
 .composerWrapSm { margin-top: 0.6rem; }
 
+/* No divider lines on post detail */
+.card,
+.back,
+.avatar,
+.inlineEditTextarea,
+.attachedEventCard,
+.gifEmbed,
+.removedMedia,
+.fileCard,
+.repliesEmpty,
+.replyCard,
+.reportBox,
+.reportRow select,
+.reportRow textarea,
+.badge,
+.botVerifiedBadge,
+.repliesDisabledNotice,
+.replyBtn {
+  border: 0 !important;
+}
+
+.replyBtn:hover {
+  border-color: transparent;
+}
+
+:deep(.post-actions .action-btn),
+:deep(.post-actions-more .dropdownTrigger) {
+  border: 0 !important;
+}
+
+:deep(.post-actions .action-btn:hover:not(:disabled)),
+:deep(.post-actions-more .dropdownTrigger:hover:not(:disabled)) {
+  border-color: transparent !important;
+}
+
 @media (max-width: 768px) {
   .card {
     border-radius: 1.2rem;

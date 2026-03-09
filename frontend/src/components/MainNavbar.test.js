@@ -142,12 +142,31 @@ describe('MainNavbar active route state', () => {
     expect(wrapper.find('.navScroll a[aria-label="Nastavenia"]').exists()).toBe(false)
   })
 
+  it('shows guest auth actions for unauthenticated users', async () => {
+    const wrapper = await mountNavbarAt('/')
+    const links = wrapper.get('[data-testid="guest-auth-actions"]').findAll('a')
+
+    expect(links).toHaveLength(2)
+    expect(links[0].attributes('href')).toBe('/register')
+    expect(links[0].text()).toBe('Vytvorit ucet')
+    expect(links[1].attributes('href')).toBe('/login')
+    expect(links[1].text()).toBe('Prihlasit sa')
+  })
+
   it('shows Nastavenia for authenticated users', async () => {
     authStore.isAuthed = true
     authStore.user = { id: 1, name: 'Test User' }
     const wrapper = await mountNavbarAt('/')
 
     expect(wrapper.find('.navScroll a[aria-label="Nastavenia"]').exists()).toBe(true)
+  })
+
+  it('hides guest auth actions for authenticated users', async () => {
+    authStore.isAuthed = true
+    authStore.user = { id: 1, name: 'Test User' }
+    const wrapper = await mountNavbarAt('/')
+
+    expect(wrapper.find('[data-testid="guest-auth-actions"]').exists()).toBe(false)
   })
 
   it('shows content picker with Pozorovanie and routes to observation create', async () => {

@@ -933,7 +933,7 @@ onMounted(async () => {
     selectedYear.value = defaultYear
   } catch {
     const minYear = 2021
-    const maxYear = 2030
+    const maxYear = 2100
     const defaults = currentPeriodDefaults()
     const defaultYear = resolveDefaultYear(
       { minYear, maxYear },

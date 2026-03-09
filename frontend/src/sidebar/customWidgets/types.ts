@@ -7,6 +7,7 @@ export const SIDEBAR_WIDGET_TYPES = {
   INFO_CARD: 'info_card',
   LINK_LIST: 'link_list',
   HTML: 'html',
+  CONTEST: 'contest',
 } as const
 
 export const LEGACY_WIDGET_TYPE_SPECIAL_EVENT = 'special_event' as const
@@ -44,11 +45,18 @@ export interface SidebarWidgetHtmlConfig {
   html: string
 }
 
+export interface SidebarWidgetContestConfig {
+  title: string
+  description: string
+  imageUrl: string
+}
+
 export type SidebarWidgetConfig =
   | SidebarWidgetCtaConfig
   | SidebarWidgetInfoCardConfig
   | SidebarWidgetLinkListConfig
   | SidebarWidgetHtmlConfig
+  | SidebarWidgetContestConfig
 
 export interface SidebarCustomComponentPayload {
   id: number | null
@@ -73,6 +81,7 @@ export const SIDEBAR_WIDGET_TYPE_OPTIONS: Array<{ value: SidebarWidgetType; labe
   { value: SIDEBAR_WIDGET_TYPES.INFO_CARD, label: 'Info karta' },
   { value: SIDEBAR_WIDGET_TYPES.LINK_LIST, label: 'Zoznam odkazov' },
   { value: SIDEBAR_WIDGET_TYPES.HTML, label: 'HTML blok' },
+  { value: SIDEBAR_WIDGET_TYPES.CONTEST, label: 'SUTAZ' },
 ]
 
 const typeLabelMap: Record<SidebarWidgetType, string> = {
@@ -80,6 +89,7 @@ const typeLabelMap: Record<SidebarWidgetType, string> = {
   [SIDEBAR_WIDGET_TYPES.INFO_CARD]: 'Info karta',
   [SIDEBAR_WIDGET_TYPES.LINK_LIST]: 'Zoznam odkazov',
   [SIDEBAR_WIDGET_TYPES.HTML]: 'HTML blok',
+  [SIDEBAR_WIDGET_TYPES.CONTEST]: 'SUTAZ',
 }
 
 const trimString = (value: unknown): string => {
@@ -139,6 +149,16 @@ const normalizeHtmlConfig = (input: unknown): SidebarWidgetHtmlConfig => {
   }
 }
 
+const normalizeContestConfig = (input: unknown): SidebarWidgetContestConfig => {
+  const source = input && typeof input === 'object' ? (input as Record<string, unknown>) : {}
+
+  return {
+    title: trimString(source.title) || trimString(source.headline),
+    description: trimString(source.description) || trimString(source.body),
+    imageUrl: trimString(source.imageUrl),
+  }
+}
+
 export const normalizeWidgetType = (type: SidebarWidgetTypeInput): SidebarWidgetType => {
   const raw = String(type || '').trim().toLowerCase()
 
@@ -149,6 +169,7 @@ export const normalizeWidgetType = (type: SidebarWidgetTypeInput): SidebarWidget
   if (raw === SIDEBAR_WIDGET_TYPES.INFO_CARD) return SIDEBAR_WIDGET_TYPES.INFO_CARD
   if (raw === SIDEBAR_WIDGET_TYPES.LINK_LIST) return SIDEBAR_WIDGET_TYPES.LINK_LIST
   if (raw === SIDEBAR_WIDGET_TYPES.HTML) return SIDEBAR_WIDGET_TYPES.HTML
+  if (raw === SIDEBAR_WIDGET_TYPES.CONTEST) return SIDEBAR_WIDGET_TYPES.CONTEST
 
   return SIDEBAR_WIDGET_TYPES.CTA
 }
@@ -169,6 +190,10 @@ export const normalizeWidgetConfig = (
 
   if (type === SIDEBAR_WIDGET_TYPES.HTML) {
     return normalizeHtmlConfig(configInput)
+  }
+
+  if (type === SIDEBAR_WIDGET_TYPES.CONTEST) {
+    return normalizeContestConfig(configInput)
   }
 
   return normalizeCtaConfig(configInput)

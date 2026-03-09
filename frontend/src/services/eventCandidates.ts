@@ -69,6 +69,24 @@ export type CandidateDetail = CandidateListItem & {
   published_event_id: number | null;
 };
 
+export type DuplicateCandidatePreviewItem = {
+  id: number;
+  title: string;
+  source_name: string;
+  status: string;
+  start_at: string | null;
+  confidence_score: number | null;
+  matched_sources: string[];
+};
+
+export type DuplicateGroupPreview = {
+  canonical_key: string;
+  count: number;
+  keeper: DuplicateCandidatePreviewItem;
+  duplicates: DuplicateCandidatePreviewItem[];
+  hidden_duplicates: number;
+};
+
 export const eventCandidates = {
   async list(params: {
     status?: CandidateStatus;
@@ -76,6 +94,11 @@ export const eventCandidates = {
     source?: string;
     source_key?: string;
     run_id?: number;
+    year?: number;
+    month?: number;
+    week?: number;
+    date_from?: string;
+    date_to?: string;
     q?: string;
     page?: number;
     per_page?: number;
@@ -108,6 +131,9 @@ export const eventCandidates = {
     q?: string;
     year?: number;
     month?: number;
+    week?: number;
+    date_from?: string;
+    date_to?: string;
     limit?: number;
   }) {
     const res = await api.post(`/admin/event-candidates/approve-batch`, params);
@@ -145,6 +171,9 @@ export const eventCandidates = {
     q?: string;
     year?: number;
     month?: number;
+    week?: number;
+    date_from?: string;
+    date_to?: string;
     limit?: number;
   }) {
     const res = await api.post(`/admin/event-candidates/retranslate-batch`, params);
@@ -157,5 +186,66 @@ export const eventCandidates = {
   ) {
     const res = await api.patch(`/admin/event-candidates/${id}/translation`, payload);
     return res.data;
+  },
+
+  async duplicatesPreview(params: {
+    status?: CandidateStatus;
+    type?: CandidateType;
+    source?: string;
+    source_key?: string;
+    run_id?: number;
+    q?: string;
+    year?: number;
+    month?: number;
+    week?: number;
+    date_from?: string;
+    date_to?: string;
+    limit_groups?: number;
+    per_group?: number;
+  }) {
+    const res = await api.get('/admin/event-candidates/duplicates/preview', { params });
+    return res.data as {
+      status: 'ok';
+      summary: {
+        group_count: number;
+        duplicate_candidates: number;
+        limit_groups: number;
+        per_group: number;
+      };
+      groups: DuplicateGroupPreview[];
+    };
+  },
+
+  async mergeDuplicates(payload: {
+    status?: CandidateStatus;
+    type?: CandidateType;
+    source?: string;
+    source_key?: string;
+    run_id?: number;
+    q?: string;
+    year?: number;
+    month?: number;
+    week?: number;
+    date_from?: string;
+    date_to?: string;
+    limit_groups?: number;
+    dry_run?: boolean;
+  }) {
+    const res = await api.post('/admin/event-candidates/duplicates/merge', payload);
+    return res.data as {
+      status: 'ok' | 'dry_run';
+      dry_run: boolean;
+      summary: {
+        group_count: number;
+        merged_candidates: number;
+        limit_groups: number;
+      };
+      groups: Array<{
+        canonical_key: string;
+        keeper_id: number;
+        duplicate_ids: number[];
+        count: number;
+      }>;
+    };
   },
 };

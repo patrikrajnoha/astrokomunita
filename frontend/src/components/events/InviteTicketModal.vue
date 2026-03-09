@@ -4,7 +4,7 @@
       <header class="modalHead">
         <div>
           <h2 id="invite-ticket-title">Pozvanka / Vstupenka</h2>
-          <p>Darcekova pozvanka na astronomicke podujatie</p>
+          <p>Posli personalizovanu pozvanku na astronomicke podujatie.</p>
         </div>
         <button type="button" class="ghostBtn" @click="close">Zavriet</button>
       </header>
@@ -19,24 +19,36 @@
               maxlength="80"
               placeholder="Napr. Jan Novak"
               data-testid="attendee-name-input"
+              @blur="attendeeNameTouched = true"
             />
           </label>
           <p v-if="attendeeNameError" class="fieldError">{{ attendeeNameError }}</p>
 
-          <label class="field">
-            <span>Email pozvaneho (volitelne)</span>
-            <input v-model.trim="inviteeEmail" type="email" placeholder="meno@email.com" />
-          </label>
+          <button
+            type="button"
+            class="optionalToggle"
+            :aria-expanded="String(showOptionalFields)"
+            @click="showOptionalFields = !showOptionalFields"
+          >
+            {{ showOptionalFields ? 'Skryt volitelne polia' : 'Pridat email a spravu' }}
+          </button>
 
-          <label class="field">
-            <span>Sprava (volitelne)</span>
-            <textarea v-model.trim="message" rows="3" maxlength="240" placeholder="Kratky odkaz k pozvanke" />
-          </label>
+          <div v-if="showOptionalFields" class="optionalFields">
+            <label class="field">
+              <span>Email pozvaneho (volitelne)</span>
+              <input v-model.trim="inviteeEmail" type="email" placeholder="meno@email.com" />
+            </label>
+
+            <label class="field">
+              <span>Sprava (volitelne)</span>
+              <textarea v-model.trim="message" rows="3" maxlength="240" placeholder="Kratky odkaz k pozvanke" />
+            </label>
+          </div>
 
           <p v-if="submitError" class="fieldError">{{ submitError }}</p>
           <p v-if="submitSuccess" class="fieldSuccess">{{ submitSuccess }}</p>
 
-          <div class="actions">
+          <div class="actionsPrimary">
             <button
               type="button"
               class="primaryBtn"
@@ -46,10 +58,21 @@
             >
               {{ sending ? 'Odosielam...' : 'Odoslat pozvanku' }}
             </button>
-            <button type="button" class="secondaryBtn" data-testid="share-ticket-btn" @click="shareTicket">
+            <button
+              type="button"
+              class="menuBtn"
+              :aria-expanded="String(showSecondaryActions)"
+              @click="showSecondaryActions = !showSecondaryActions"
+            >
+              Viac
+            </button>
+          </div>
+
+          <div v-if="showSecondaryActions" class="actionsSecondary">
+            <button type="button" class="tertiaryBtn" data-testid="share-ticket-btn" @click="shareTicket">
               Zdielat
             </button>
-            <button type="button" class="secondaryBtn" data-testid="print-ticket-btn" @click="printTicket">
+            <button type="button" class="tertiaryBtn" data-testid="print-ticket-btn" @click="printTicket">
               Vytlacit vstupenku
             </button>
           </div>
@@ -58,12 +81,11 @@
         <div class="ticketPrintRoot">
           <article class="ticketPreview">
             <div class="watermarkLayer" aria-hidden="true">
-              <span v-for="idx in 8" :key="`wm-${idx}`">Astrokomunita • Astrokomunita • Astrokomunita</span>
+              <span v-for="idx in 5" :key="`wm-${idx}`">Astrokomunita * Astrokomunita * Astrokomunita</span>
             </div>
 
-            <p class="ticketKicker">Vstupenka do Nebeskeho divadla</p>
+            <p class="ticketKicker">Darcekova vstupenka</p>
             <h3>{{ eventTitle }}</h3>
-            <p class="ticketAltTitle">Vstupenka do Astronomickeho divadla</p>
             <p class="ticketMeta">{{ eventDateTime }}</p>
             <p v-if="eventPlace" class="ticketMeta">{{ eventPlace }}</p>
 
@@ -72,8 +94,7 @@
               <strong>{{ attendeeNamePreview }}</strong>
             </div>
 
-            <p class="ticketSubtitle">Darcekova pozvanka na astronomicke podujatie</p>
-            <p class="ticketCta">Darcek pre fanusika astronomie</p>
+            <p class="ticketHint">Ukaz tuto vstupenku pri vstupe na podujatie.</p>
           </article>
         </div>
       </div>
@@ -105,19 +126,28 @@ const toast = useToast()
 const attendeeName = ref('')
 const inviteeEmail = ref('')
 const message = ref('')
+const attendeeNameTouched = ref(false)
+const submitAttempted = ref(false)
+const showOptionalFields = ref(false)
+const showSecondaryActions = ref(false)
 const sending = ref(false)
 const createdInvite = ref(null)
 const submitError = ref('')
 const submitSuccess = ref('')
 
-const attendeeNameError = computed(() => {
+const attendeeNameValidation = computed(() => {
   const value = String(attendeeName.value || '').trim()
   if (!value) return 'Meno na vstupenke je povinne.'
   if (value.length > 80) return 'Meno na vstupenke moze mat najviac 80 znakov.'
   return ''
 })
 
-const isSubmitDisabled = computed(() => sending.value || Boolean(attendeeNameError.value) || !props.event?.id)
+const attendeeNameError = computed(() => {
+  if (!attendeeNameTouched.value && !submitAttempted.value) return ''
+  return attendeeNameValidation.value
+})
+
+const isSubmitDisabled = computed(() => sending.value || !props.event?.id)
 
 const eventTitle = computed(() => props.event?.title || 'Astronomicke podujatie')
 
@@ -138,10 +168,10 @@ const eventDateTime = computed(() => {
   const context = resolveEventTimeContext(props.event, EVENT_TIMEZONE)
 
   if (!context.showTimezoneLabel) {
-    return `${dateLabel} · ${context.message}`
+    return `${dateLabel} - ${context.message}`
   }
 
-  return `${dateLabel} · ${context.timeString} (${context.timezoneLabelShort})`
+  return `${dateLabel} - ${context.timeString} (${context.timezoneLabelShort})`
 })
 
 const attendeeNamePreview = computed(() => {
@@ -153,6 +183,10 @@ watch(
   () => props.open,
   (open) => {
     if (!open) return
+    attendeeNameTouched.value = false
+    submitAttempted.value = false
+    showOptionalFields.value = false
+    showSecondaryActions.value = false
     submitError.value = ''
     submitSuccess.value = ''
   },
@@ -163,11 +197,13 @@ function close() {
 }
 
 async function submitInvite() {
+  submitAttempted.value = true
+  attendeeNameTouched.value = true
   submitError.value = ''
   submitSuccess.value = ''
 
-  if (attendeeNameError.value) {
-    submitError.value = attendeeNameError.value
+  if (attendeeNameValidation.value) {
+    submitError.value = attendeeNameValidation.value
     return
   }
 
@@ -202,7 +238,7 @@ async function submitInvite() {
 async function shareTicket() {
   const url = resolveShareUrl()
   const shareTitle = 'Vstupenka do Nebeskeho divadla'
-  const shareText = `Darcekova pozvanka na astronomicke podujatie pre ${attendeeNamePreview.value}.`
+  const shareText = `Pozvanka pre ${attendeeNamePreview.value} na podujatie ${eventTitle.value}.`
 
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
@@ -292,89 +328,113 @@ async function copyText(value) {
   border-radius: 1rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
   background:
-    radial-gradient(circle at top right, rgb(var(--color-primary-rgb) / 0.22), transparent 46%),
+    radial-gradient(circle at top right, rgb(var(--color-primary-rgb) / 0.15), transparent 44%),
     rgb(var(--color-bg-rgb) / 0.96);
-  box-shadow: 0 28px 62px rgb(2 6 12 / 0.5);
+  box-shadow: 0 20px 40px rgb(2 6 12 / 0.45);
 }
 
 .modalHead {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1rem 0.8rem;
+  padding: 1.2rem 1.2rem 1rem;
   border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
 }
 
 .modalHead h2 {
   margin: 0;
-  font-size: 1.08rem;
+  font-size: 1.12rem;
 }
 
 .modalHead p {
-  margin: 0.3rem 0 0;
-  color: rgb(var(--color-surface-rgb) / 0.68);
-  font-size: 0.86rem;
+  margin: 0.4rem 0 0;
+  color: rgb(var(--color-surface-rgb) / 0.72);
+  font-size: 0.88rem;
 }
 
 .modalBody {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1rem;
-  padding: 1rem;
+  gap: 1.2rem;
+  padding: 1.2rem;
 }
 
 .formPanel {
   display: grid;
-  gap: 0.75rem;
+  gap: 1rem;
   align-content: start;
 }
 
 .field {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.45rem;
 }
 
 .field span {
-  font-size: 0.82rem;
-  color: rgb(var(--color-surface-rgb) / 0.74);
+  font-size: 0.84rem;
+  color: rgb(var(--color-surface-rgb) / 0.78);
 }
 
 .field input,
 .field textarea {
   width: 100%;
-  border-radius: 0.66rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: rgb(var(--color-bg-rgb) / 0.74);
+  border-radius: 0.75rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.26);
+  background: rgb(var(--color-bg-rgb) / 0.68);
   color: var(--color-surface);
-  padding: 0.62rem 0.72rem;
+  padding: 0.7rem 0.8rem;
   outline: none;
 }
 
 .field input:focus-visible,
 .field textarea:focus-visible {
-  border-color: rgb(var(--color-primary-rgb) / 0.72);
-  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.18);
+  border-color: rgb(var(--color-primary-rgb) / 0.64);
+  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.15);
 }
 
-.actions {
+.optionalToggle {
+  justify-self: start;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  border-radius: 999px;
+  background: rgb(var(--color-bg-rgb) / 0.62);
+  color: rgb(var(--color-surface-rgb) / 0.86);
+  padding: 0.44rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.optionalFields {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.actionsPrimary {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  padding-top: 0.4rem;
+}
+
+.actionsSecondary {
   display: flex;
   flex-wrap: wrap;
   gap: 0.55rem;
-  padding-top: 0.35rem;
+  margin-top: -0.2rem;
 }
 
 .primaryBtn,
-.secondaryBtn,
+.menuBtn,
+.tertiaryBtn,
 .ghostBtn {
   border-radius: 999px;
   border: 1px solid transparent;
-  padding: 0.56rem 0.9rem;
-  font-size: 0.82rem;
+  padding: 0.58rem 0.95rem;
+  font-size: 0.83rem;
   font-weight: 700;
 }
 
 .primaryBtn {
-  background: rgb(var(--color-primary-rgb) / 0.9);
+  background: rgb(var(--color-primary-rgb) / 0.88);
   color: rgb(6 14 24);
 }
 
@@ -383,22 +443,28 @@ async function copyText(value) {
   cursor: not-allowed;
 }
 
-.secondaryBtn,
+.menuBtn,
+.tertiaryBtn,
 .ghostBtn {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.3);
+  border-color: rgb(var(--color-text-secondary-rgb) / 0.24);
   color: var(--color-surface);
-  background: rgb(var(--color-bg-rgb) / 0.72);
+  background: rgb(var(--color-bg-rgb) / 0.62);
+}
+
+.menuBtn,
+.tertiaryBtn {
+  font-weight: 600;
 }
 
 .fieldError {
   color: var(--color-danger);
-  font-size: 0.78rem;
+  font-size: 0.79rem;
   margin: 0;
 }
 
 .fieldSuccess {
   color: var(--color-success);
-  font-size: 0.78rem;
+  font-size: 0.79rem;
   margin: 0;
 }
 
@@ -412,90 +478,77 @@ async function copyText(value) {
   overflow: hidden;
   min-height: 360px;
   border-radius: 1rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
   background:
-    linear-gradient(140deg, rgb(9 22 36 / 0.95), rgb(12 30 48 / 0.98)),
-    linear-gradient(45deg, rgb(var(--color-primary-rgb) / 0.18), transparent 55%);
-  padding: 1rem;
+    linear-gradient(140deg, rgb(9 22 36 / 0.94), rgb(11 28 44 / 0.96)),
+    linear-gradient(45deg, rgb(var(--color-primary-rgb) / 0.14), transparent 56%);
+  padding: 1.1rem;
   display: grid;
-  gap: 0.7rem;
-  box-shadow: inset 0 0 0 1px rgb(var(--color-primary-rgb) / 0.15);
+  gap: 0.8rem;
 }
 
 .watermarkLayer {
   position: absolute;
   inset: -28% -30%;
   display: grid;
-  gap: 1.3rem;
+  gap: 1.1rem;
   transform: rotate(-24deg);
-  opacity: 0.1;
+  opacity: 0.06;
   pointer-events: none;
-  mix-blend-mode: screen;
 }
 
 .watermarkLayer span {
   white-space: nowrap;
-  letter-spacing: 0.2rem;
-  font-size: 1rem;
-  color: rgb(184 214 255 / 0.75);
+  letter-spacing: 0.17rem;
+  font-size: 0.86rem;
+  color: rgb(184 214 255 / 0.5);
 }
 
 .ticketKicker {
   margin: 0;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
-  font-size: 0.76rem;
-  color: rgb(186 219 255 / 0.9);
+  letter-spacing: 0.08em;
+  font-size: 0.74rem;
+  color: rgb(186 219 255 / 0.78);
 }
 
 .ticketPreview h3 {
   margin: 0;
-  font-size: 1.28rem;
+  font-size: 1.26rem;
   line-height: 1.2;
-}
-
-.ticketAltTitle {
-  margin: -0.2rem 0 0;
-  color: rgb(210 231 255 / 0.9);
-  font-size: 0.82rem;
 }
 
 .ticketMeta {
   margin: 0;
-  color: rgb(220 233 250 / 0.84);
-  font-size: 0.86rem;
+  color: rgb(220 233 250 / 0.82);
+  font-size: 0.85rem;
 }
 
 .nameRow {
-  margin-top: 0.45rem;
-  border: 1px solid rgb(160 200 255 / 0.3);
+  margin-top: 0.6rem;
+  border: 1px solid rgb(160 200 255 / 0.22);
   border-radius: 0.7rem;
-  padding: 0.72rem;
-  background: rgb(6 20 33 / 0.42);
+  padding: 0.75rem;
+  background: rgb(6 20 33 / 0.32);
   display: grid;
   gap: 0.3rem;
 }
 
 .nameRow span {
-  font-size: 0.76rem;
-  color: rgb(197 223 255 / 0.78);
+  font-size: 0.75rem;
+  color: rgb(197 223 255 / 0.72);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .nameRow strong {
-  font-size: 1.1rem;
+  font-size: 1.08rem;
 }
 
-.ticketSubtitle,
-.ticketCta {
+.ticketHint {
   margin: 0;
-  font-size: 0.84rem;
-  color: rgb(218 236 255 / 0.84);
-}
-
-.ticketCta {
-  font-weight: 700;
+  font-size: 0.82rem;
+  color: rgb(218 236 255 / 0.74);
 }
 
 @media (max-width: 860px) {
@@ -540,8 +593,7 @@ async function copyText(value) {
 
   .ticketKicker,
   .ticketMeta,
-  .ticketSubtitle,
-  .ticketCta,
+  .ticketHint,
   .nameRow span {
     color: rgb(51 51 51);
   }

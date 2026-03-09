@@ -187,4 +187,49 @@ describe('PublicProfileView media fallback', () => {
     const headerAvatarImg = wrapper.get('.profileHead .avatar img.user-avatar-media')
     expect(headerAvatarImg.attributes('src')).toContain('/api/media/file/avatars/9/custom.png')
   })
+
+  it('never renders email-looking name in public profile header', async () => {
+    apiGetMock.mockImplementation((url, config = {}) => {
+      if (url === '/users/astro') {
+        return Promise.resolve({
+          data: {
+            id: 10,
+            username: 'astro',
+            name: 'astro@example.com',
+            bio: null,
+          },
+        })
+      }
+
+      if (url === '/users/astro/posts') {
+        const kind = String(config?.params?.kind || 'roots')
+        if (kind === 'roots') {
+          return Promise.resolve({ data: makePostsResponse([], 0) })
+        }
+        return Promise.resolve({ data: makePostsResponse([], 0) })
+      }
+
+      throw new Error(`Unexpected GET ${url}`)
+    })
+
+    const router = makeRouter()
+    await router.push('/u/astro')
+    await router.isReady()
+
+    const wrapper = mount(PublicProfileView, {
+      global: {
+        plugins: [router],
+        stubs: {
+          ObservationCard: { template: '<div class="obs-stub"></div>' },
+          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
+        },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(wrapper.text()).not.toContain('astro@example.com')
+    expect(wrapper.text()).toContain('@astro')
+  })
 })

@@ -95,15 +95,16 @@ describe('ProfileEdit', () => {
     }
   })
 
-  it('renders three location modes', async () => {
+  it('renders simplified location actions without legacy mode tabs', async () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
-    const modeButtons = wrapper.findAll('.modeBtn').map((button) => button.text())
-    expect(modeButtons).toEqual(expect.arrayContaining(['Predvolba mesta', 'Pouzit GPS', 'Manualne']))
+    expect(wrapper.findAll('.modeBtn').length).toBe(0)
+    const actionButtons = wrapper.findAll('.quickActions button').map((button) => button.text())
+    expect(actionButtons).toEqual(expect.arrayContaining(['Pouzit GPS']))
   })
 
-  it('uses the unified location editor instead of a legacy plain Location input', async () => {
+  it('uses unified location editor instead of a plain legacy location input', async () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
@@ -111,11 +112,10 @@ describe('ProfileEdit', () => {
     expect(wrapper.find('input[maxlength="60"]').exists()).toBe(false)
   })
 
-  it('preset mode fills latitude/longitude/timezone/label and saves with source preset', async () => {
+  it('preset selection fills coordinates/timezone/label and saves with source preset', async () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
-    await wrapper.findAll('.modeBtn')[0].trigger('click')
     await wrapper.find('select').setValue('nitra')
 
     const numberInputs = wrapper.findAll('input[type="number"]')
@@ -128,17 +128,19 @@ describe('ProfileEdit', () => {
     await flush()
 
     expect(httpMock.patch.mock.calls.map(([url]) => url)).toEqual(['/me/location'])
-
-    expect(httpMock.patch).toHaveBeenCalledWith('/me/location', expect.objectContaining({
-      latitude: 48.3064,
-      longitude: 18.0764,
-      timezone: 'Europe/Bratislava',
-      location_label: 'Nitra',
-      location_source: 'preset',
-    }))
+    expect(httpMock.patch).toHaveBeenCalledWith(
+      '/me/location',
+      expect.objectContaining({
+        latitude: 48.3064,
+        longitude: 18.0764,
+        timezone: 'Europe/Bratislava',
+        location_label: 'Nitra',
+        location_source: 'preset',
+      }),
+    )
   })
 
-  it('gps mode uses geolocation and timezone from Intl with source gps', async () => {
+  it('gps action uses geolocation and timezone from Intl with source gps', async () => {
     const resolvedOptionsSpy = vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
       locale: 'sk-SK',
       calendar: 'gregory',
@@ -167,20 +169,22 @@ describe('ProfileEdit', () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
-    await wrapper.findAll('.modeBtn')[1].trigger('click')
-    await wrapper.findAll('button').find((button) => button.text().includes('Pouzit moju polohu')).trigger('click')
+    await wrapper.findAll('button').find((button) => button.text().includes('Pouzit GPS')).trigger('click')
     await flush()
 
     await saveButton(wrapper).trigger('click')
     await flush()
 
     expect(geolocationMock.getCurrentPosition).toHaveBeenCalledTimes(1)
-    expect(httpMock.patch).toHaveBeenCalledWith('/me/location', expect.objectContaining({
-      latitude: 48.3064,
-      longitude: 18.0764,
-      timezone: 'Europe/Prague',
-      location_source: 'gps',
-    }))
+    expect(httpMock.patch).toHaveBeenCalledWith(
+      '/me/location',
+      expect.objectContaining({
+        latitude: 48.3064,
+        longitude: 18.0764,
+        timezone: 'Europe/Prague',
+        location_source: 'gps',
+      }),
+    )
     expect(httpMock.patch.mock.calls.map(([url]) => url)).toEqual(['/me/location'])
 
     resolvedOptionsSpy.mockRestore()

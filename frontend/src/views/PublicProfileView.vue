@@ -227,14 +227,35 @@ const tabState = reactive({
 const copyLabel = ref('Kopirovat link')
 
 const username = computed(() => String(route.params.username || ''))
-const displayName = computed(() => user.value?.name || 'Profil')
-const handle = computed(() => user.value?.username || safeHandle(user.value?.name || 'user'))
+const displayName = computed(() => {
+  const name = toNonEmptyText(user.value?.name)
+  if (name && !looksLikeEmail(name)) return name
+
+  const profileUsername = toNonEmptyText(user.value?.username)
+  return profileUsername || 'Profil'
+})
+const handle = computed(() => {
+  const profileUsername = toNonEmptyText(user.value?.username)
+  if (profileUsername) return safeHandle(profileUsername)
+  return safeHandle(displayName.value || 'user')
+})
 const resolvedMedia = computed(() => resolveUserProfileMedia(user.value))
 const avatarUser = computed(() => resolvedMedia.value.avatarUser)
 const coverMedia = computed(() => resolvedMedia.value.cover)
 
 function safeHandle(input) {
   return String(input).toLowerCase().replace(/[^a-z0-9_]+/g, '').slice(0, 20) || 'user'
+}
+
+function toNonEmptyText(value) {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed === '' ? null : trimmed
+}
+
+function looksLikeEmail(value) {
+  if (typeof value !== 'string') return false
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 }
 
 function resetTabState(tabKey) {
@@ -284,8 +305,9 @@ function isImage(post) {
 function parentHandle(post) {
   const parentUser = post?.parent?.user
   if (parentUser?.username) return parentUser.username
-  const base = parentUser?.name || 'user'
-  return safeHandle(base)
+  const name = toNonEmptyText(parentUser?.name)
+  if (name && !looksLikeEmail(name)) return safeHandle(name)
+  return 'user'
 }
 
 async function copyProfileLink() {

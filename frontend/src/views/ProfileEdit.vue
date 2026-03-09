@@ -1,152 +1,123 @@
 <template>
   <div class="wrap">
     <header class="top">
-      <button class="iconBtn" @click="back">&larr;</button>
-      <div>
-        <div class="title">Upraviť profil</div>
-        <div class="subtitle">Meno, bio a poloha</div>
-      </div>
-      <button class="btn ghost" @click="resetForm" :disabled="saving">Reset</button>
+      <button class="iconBtn" @click="back" aria-label="Spat">&larr;</button>
+      <h1 class="title">Profil</h1>
     </header>
 
-    <div v-if="!auth.initialized" class="card muted">Nacitavam...</div>
-    <div v-else-if="!auth.user" class="card err">Nie si prihlaseny.</div>
+    <div v-if="!auth.initialized" class="state muted">Nacitavam...</div>
+    <div v-else-if="!auth.user" class="state err">Nie si prihlaseny.</div>
 
-    <template v-else>
-      <div class="card">
-        <div v-if="msg" class="msg ok">{{ msg }}</div>
-        <div v-if="err" class="msg err">{{ err }}</div>
+    <form v-else class="card form" @submit.prevent>
+      <div v-if="msg" class="msg ok">{{ msg }}</div>
+      <div v-if="err" class="msg err">{{ err }}</div>
 
-        <div class="form">
-          <div class="field">
-            <label>Meno</label>
-            <input class="input" v-model="form.name" type="text" />
-            <p v-if="fieldErr.name" class="fieldErr">{{ fieldErr.name }}</p>
-          </div>
+      <div class="field">
+        <label>Meno</label>
+        <input class="input" v-model="form.name" type="text" />
+        <p v-if="fieldErr.name" class="fieldErr">{{ fieldErr.name }}</p>
+      </div>
 
-          <div class="field">
-            <label>O mne</label>
-            <textarea class="input textarea" v-model="form.bio" rows="4" maxlength="160"></textarea>
-            <div class="hint">{{ (form.bio || '').length }}/160</div>
-            <p v-if="fieldErr.bio" class="fieldErr">{{ fieldErr.bio }}</p>
-          </div>
+      <div class="field">
+        <div class="labelRow">
+          <label>Bio</label>
+          <span class="hint">{{ (form.bio || '').length }}/160</span>
+        </div>
+        <textarea class="input textarea" v-model="form.bio" rows="3" maxlength="160"></textarea>
+        <p v-if="fieldErr.bio" class="fieldErr">{{ fieldErr.bio }}</p>
+      </div>
 
-          <section
-            id="location"
-            ref="locationSectionRef"
-            class="locationCard"
-            :class="{ locationHighlight: locationHighlightActive }"
+      <section
+        id="location"
+        ref="locationSectionRef"
+        class="locationCard"
+        :class="{ locationHighlight: locationHighlightActive }"
+      >
+        <h2 class="sectionTitle">Poloha</h2>
+
+        <div class="field">
+          <label>Mesto</label>
+          <select class="input" v-model="form.presetKey" @change="onPresetChanged">
+            <option value="">Bez predvolby</option>
+            <option v-for="preset in locationPresets" :key="preset.key" :value="preset.key">
+              {{ preset.label }}
+            </option>
+          </select>
+          <p v-if="fieldErr.locationSource" class="fieldErr">{{ fieldErr.locationSource }}</p>
+        </div>
+
+        <div class="quickActions">
+          <button class="btn ghost" type="button" @click="useMyLocation" :disabled="saving || geolocating">
+            {{ geolocating ? 'Ziskavam GPS...' : 'Pouzit GPS' }}
+          </button>
+          <button
+            v-if="isCoordinatesReadOnly"
+            class="btn ghost"
+            type="button"
+            @click="enableManualEditing"
+            :disabled="saving || geolocating"
           >
-            <div class="locationHead">
-              <h3 class="sectionTitle">Poloha</h3>
-              <p class="sectionHint">Jedna kanonicka poloha pre observing a widgety.</p>
-            </div>
+            Manualne
+          </button>
+        </div>
 
-            <div class="modeSwitch" role="tablist" aria-label="Sposob nastavenia polohy">
-              <button
-                v-for="option in modeOptions"
-                :key="option.key"
-                class="modeBtn"
-                :class="{ active: form.locationMode === option.key }"
-                type="button"
-                role="tab"
-                :aria-selected="form.locationMode === option.key ? 'true' : 'false'"
-                @click="setLocationMode(option.key)"
-              >
-                {{ option.label }}
-              </button>
-            </div>
+        <div class="field">
+          <label>Nazov</label>
+          <input
+            class="input"
+            v-model.trim="form.locationLabel"
+            type="text"
+            maxlength="80"
+            placeholder="Napriklad Bratislava"
+          />
+          <p v-if="fieldErr.locationLabel" class="fieldErr">{{ fieldErr.locationLabel }}</p>
+        </div>
 
-            <div class="quickGps">
-              <button class="btn ghost quickGpsBtn" type="button" @click="useMyLocation" :disabled="saving || geolocating">
-                {{ geolocating ? 'Ziskavam GPS...' : 'Pouzit moju polohu' }}
-              </button>
-            </div>
-
-            <div class="field">
-              <label>Nazov polohy</label>
-              <input
-                class="input"
-                v-model.trim="form.locationLabel"
-                type="text"
-                maxlength="80"
-                placeholder="Napriklad Bratislava"
-              />
-              <p v-if="fieldErr.locationLabel" class="fieldErr">{{ fieldErr.locationLabel }}</p>
-            </div>
-
-            <div v-if="form.locationMode === 'preset'" class="field">
-              <label>Predvolba mesta</label>
-              <select class="input" v-model="form.presetKey" @change="onPresetChanged">
-                <option value="">-- Vyber predvolbu --</option>
-                <option v-for="preset in locationPresets" :key="preset.key" :value="preset.key">
-                  {{ preset.label }}
-                </option>
-              </select>
-              <p class="hint">Pri predvolbe su suradnice iba na citanie.</p>
-              <p v-if="fieldErr.locationSource" class="fieldErr">{{ fieldErr.locationSource }}</p>
-            </div>
-
-            <div v-if="form.locationMode === 'gps'" class="field">
-              <label>GPS</label>
-              <p class="hint">Ak GPS zlyha, prepni na manualny rezim.</p>
-            </div>
-
-            <div v-if="form.locationMode === 'manual'" class="field">
-              <label>Manualne</label>
-              <p class="hint">Zadaj suradnice a timezone rucne v casti Rozsirene.</p>
-            </div>
-
-            <details class="advanced" open>
-              <summary>Rozsirene</summary>
-              <div class="fieldGrid">
-                <div class="field">
-                  <label>Latitude</label>
-                  <input
-                    class="input"
-                    v-model="form.latitude"
-                    type="number"
-                    step="0.0000001"
-                    :readonly="isCoordinatesReadOnly"
-                  />
-                  <p v-if="fieldErr.latitude" class="fieldErr">{{ fieldErr.latitude }}</p>
-                </div>
-                <div class="field">
-                  <label>Longitude</label>
-                  <input
-                    class="input"
-                    v-model="form.longitude"
-                    type="number"
-                    step="0.0000001"
-                    :readonly="isCoordinatesReadOnly"
-                  />
-                  <p v-if="fieldErr.longitude" class="fieldErr">{{ fieldErr.longitude }}</p>
-                </div>
-              </div>
-
-              <div class="field">
-                <label>Timezone</label>
-                <input
-                  class="input"
-                  v-model.trim="form.timezone"
-                  type="text"
-                  placeholder="Europe/Bratislava"
-                  :readonly="isCoordinatesReadOnly"
-                />
-                <p v-if="fieldErr.timezone" class="fieldErr">{{ fieldErr.timezone }}</p>
-              </div>
-            </details>
-          </section>
-
-          <div class="actions">
-            <button class="btn" @click="save" :disabled="saving">
-              {{ saving ? 'Ukladam...' : 'Ulozit' }}
-            </button>
-            <button class="btn ghost" @click="back" :disabled="saving">Zrusit</button>
+        <div class="fieldGrid">
+          <div class="field">
+            <label>Latitude</label>
+            <input
+              class="input"
+              v-model="form.latitude"
+              type="number"
+              step="0.0000001"
+              :readonly="isCoordinatesReadOnly"
+            />
+            <p v-if="fieldErr.latitude" class="fieldErr">{{ fieldErr.latitude }}</p>
+          </div>
+          <div class="field">
+            <label>Longitude</label>
+            <input
+              class="input"
+              v-model="form.longitude"
+              type="number"
+              step="0.0000001"
+              :readonly="isCoordinatesReadOnly"
+            />
+            <p v-if="fieldErr.longitude" class="fieldErr">{{ fieldErr.longitude }}</p>
           </div>
         </div>
+
+        <div class="field">
+          <label>Timezone</label>
+          <input
+            class="input"
+            v-model.trim="form.timezone"
+            type="text"
+            placeholder="Europe/Bratislava"
+            :readonly="isCoordinatesReadOnly"
+          />
+          <p class="hint">{{ locationModeLabel }}</p>
+          <p v-if="fieldErr.timezone" class="fieldErr">{{ fieldErr.timezone }}</p>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button class="btn" type="button" @click="save" :disabled="saving">
+          {{ saving ? 'Ukladam...' : 'Ulozit' }}
+        </button>
       </div>
-    </template>
+    </form>
   </div>
 </template>
 
@@ -159,12 +130,6 @@ import http from '@/services/api'
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
-
-const modeOptions = [
-  { key: 'preset', label: 'Predvolba mesta' },
-  { key: 'gps', label: 'Pouzit GPS' },
-  { key: 'manual', label: 'Manualne' },
-]
 
 const locationPresets = [
   { key: 'bratislava', label: 'Bratislava', latitude: 48.1486, longitude: 17.1077, timezone: 'Europe/Bratislava' },
@@ -220,6 +185,12 @@ const fieldErr = reactive({
 })
 
 const isCoordinatesReadOnly = computed(() => form.locationMode !== 'manual')
+
+const locationModeLabel = computed(() => {
+  if (form.locationMode === 'preset') return 'Predvolba mesta'
+  if (form.locationMode === 'gps') return 'GPS'
+  return 'Manualne'
+})
 
 function back() {
   router.push({ name: 'profile' })
@@ -322,10 +293,10 @@ function buildStateFromUser(user) {
 
   let source = normalizeSource(location?.source || user?.location_source)
   if (!source) {
-    source = preset ? 'preset' : hasCoordinates ? 'manual' : 'manual'
+    source = preset ? 'preset' : 'manual'
   }
   if (source === 'preset' && !preset) {
-    source = hasCoordinates ? 'manual' : 'manual'
+    source = 'manual'
   }
 
   return {
@@ -360,26 +331,22 @@ function syncFromUser(user) {
   applyState(state)
 }
 
-function resetForm() {
-  clearErrors()
-  if (savedState.value) {
-    applyState(savedState.value)
-    return
-  }
-  if (auth.user) {
-    syncFromUser(auth.user)
-  }
-}
-
 function setLocationMode(mode) {
   form.locationMode = mode
   fieldErr.locationSource = ''
-  if (mode === 'manual' && !form.timezone) {
-    form.timezone = browserTimezone()
+  if (mode === 'manual') {
+    form.presetKey = ''
+    if (!form.timezone) {
+      form.timezone = browserTimezone()
+    }
   }
   if (mode === 'preset' && form.presetKey) {
     applyPreset(form.presetKey, true)
   }
+}
+
+function enableManualEditing() {
+  setLocationMode('manual')
 }
 
 function applyPreset(presetKey, keepLabel = false) {
@@ -396,6 +363,10 @@ function applyPreset(presetKey, keepLabel = false) {
 }
 
 function onPresetChanged() {
+  if (!form.presetKey) {
+    setLocationMode('manual')
+    return
+  }
   applyPreset(form.presetKey)
 }
 
@@ -455,7 +426,7 @@ function validateLocationPayload() {
   }
 
   if (!['preset', 'gps', 'manual'].includes(payload.location_source)) {
-    fieldErr.locationSource = 'Zvol jeden rezim polohy.'
+    fieldErr.locationSource = 'Vyber validny sposob polohy.'
     valid = false
   }
 
@@ -574,7 +545,7 @@ async function save() {
   const locationDirty = !isEqualPayload(locationPayload, savedLocationPayload)
 
   if (!profileDirty && !locationDirty) {
-    msg.value = 'Žiadne zmeny.'
+    msg.value = 'Ziadne zmeny.'
     return
   }
 
@@ -708,112 +679,105 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .wrap {
-  max-width: 760px;
+  max-width: 680px;
   margin: 0 auto;
   padding: 1rem;
-  display: grid;
-  gap: 1rem;
-}
-
-.top {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.iconBtn {
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.8);
-  background: rgb(var(--color-bg-rgb) / 0.35);
-  color: var(--color-surface);
-}
-
-.title {
-  font-weight: 900;
-  color: var(--color-surface);
-}
-
-.subtitle {
-  color: var(--color-text-secondary);
-  font-size: 0.9rem;
-}
-
-.card {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.8);
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  border-radius: 1.25rem;
-  padding: 1.1rem;
-}
-
-.form {
-  margin-top: 0.75rem;
   display: grid;
   gap: 0.9rem;
 }
 
-.field label {
-  display: block;
-  font-size: 0.8rem;
+.top {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: none;
+  background: rgb(var(--color-bg-rgb) / 0.38);
   color: var(--color-surface);
-  margin-bottom: 0.35rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--color-surface);
+}
+
+.state {
+  border: none;
+  border-radius: 0.9rem;
+  padding: 0.8rem 0.95rem;
+  background: rgb(var(--color-bg-rgb) / 0.42);
+}
+
+.card {
+  border: none;
+  border-radius: 1rem;
+  padding: 1rem;
+  background: rgb(var(--color-bg-rgb) / 0.5);
+}
+
+.form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.labelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.field label {
+  font-size: 0.82rem;
+  color: var(--color-surface);
 }
 
 .input {
   width: 100%;
-  padding: 0.7rem 0.85rem;
-  border-radius: 1rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.85);
-  background: rgb(var(--color-bg-rgb) / 0.35);
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: rgb(var(--color-bg-rgb) / 0.42);
   color: var(--color-surface);
   outline: none;
 }
 
 .input[readonly] {
-  opacity: 0.82;
+  opacity: 0.75;
 }
 
 .input:focus-visible {
-  border-color: rgb(var(--color-primary-rgb) / 0.9);
+  box-shadow: 0 0 0 2px rgb(var(--color-primary-rgb) / 0.38);
 }
 
 .textarea {
   resize: vertical;
 }
 
-.hint {
-  margin-top: 0.35rem;
-  color: var(--color-text-secondary);
-  font-size: 0.84rem;
-}
-
-.sectionHint {
-  margin: 0.15rem 0 0;
-  color: var(--color-text-secondary);
-  font-size: 0.84rem;
-}
-
-.fieldErr {
-  margin-top: 0.35rem;
-  font-size: 0.84rem;
-  color: var(--color-danger);
-}
-
 .locationCard {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
-  border-radius: 1rem;
+  border: none;
+  border-radius: 0.9rem;
   padding: 0.85rem;
   display: grid;
-  gap: 0.8rem;
+  gap: 0.75rem;
   background: rgb(var(--color-bg-rgb) / 0.28);
-  transition: border-color 220ms ease, box-shadow 220ms ease;
+  transition: box-shadow 180ms ease;
 }
 
 .locationCard.locationHighlight {
-  border-color: rgb(var(--color-primary-rgb) / 0.85);
-  box-shadow: 0 0 0 2px rgb(var(--color-primary-rgb) / 0.26);
+  box-shadow: 0 0 0 2px rgb(var(--color-primary-rgb) / 0.2);
 }
 
 .sectionTitle {
@@ -822,34 +786,10 @@ onBeforeUnmount(() => {
   color: var(--color-surface);
 }
 
-.modeSwitch {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
-.quickGps {
+.quickActions {
   display: flex;
-  justify-content: flex-start;
-}
-
-.quickGpsBtn {
-  width: fit-content;
-}
-
-.modeBtn {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.75);
-  border-radius: 999px;
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  color: var(--color-surface);
-  padding: 0.5rem 0.6rem;
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.modeBtn.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.85);
-  background: rgb(var(--color-primary-rgb) / 0.2);
+  gap: 0.45rem;
+  flex-wrap: wrap;
 }
 
 .fieldGrid {
@@ -858,74 +798,59 @@ onBeforeUnmount(() => {
   gap: 0.75rem;
 }
 
-.advanced {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.48);
-  border-radius: 0.9rem;
-  padding: 0.7rem;
-  background: rgb(var(--color-bg-rgb) / 0.2);
-}
-
-.advanced summary {
-  cursor: pointer;
-  font-weight: 700;
-  color: var(--color-surface);
-}
-
-.advanced .fieldGrid,
-.advanced .field {
-  margin-top: 0.65rem;
-}
-
 .actions {
   display: flex;
-  gap: 0.5rem;
-  padding-top: 0.3rem;
   justify-content: flex-end;
 }
 
 .btn {
-  padding: 0.6rem 0.95rem;
+  padding: 0.58rem 0.92rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.85);
-  background: rgb(var(--color-primary-rgb) / 0.16);
+  border: none;
+  background: rgb(var(--color-primary-rgb) / 0.2);
   color: var(--color-surface);
-  font-weight: 800;
-}
-
-.btn:hover {
-  background: rgb(var(--color-primary-rgb) / 0.24);
+  font-weight: 700;
 }
 
 .btn:disabled {
-  opacity: 0.6;
+  opacity: 0.62;
   cursor: not-allowed;
 }
 
 .btn.ghost {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.9);
-  background: rgb(var(--color-bg-rgb) / 0.2);
+  background: rgb(var(--color-bg-rgb) / 0.32);
+}
+
+.hint {
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
+.fieldErr {
+  font-size: 0.82rem;
+  color: var(--color-danger);
 }
 
 .msg {
-  margin-bottom: 0.75rem;
-  padding: 0.6rem 0.8rem;
-  border-radius: 1rem;
-  font-size: 0.93rem;
+  border-radius: 0.8rem;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
 }
 
 .msg.ok {
-  border: 1px solid rgb(var(--color-success-rgb) / 0.45);
+  border: none;
   background: rgb(var(--color-success-rgb) / 0.12);
   color: var(--color-success);
 }
 
 .msg.err {
-  border: 1px solid rgb(var(--color-danger-rgb) / 0.45);
+  border: none;
   background: rgb(var(--color-danger-rgb) / 0.12);
   color: var(--color-danger);
 }
 
 .muted {
+  margin: 0;
   color: var(--color-text-secondary);
 }
 
@@ -934,9 +859,16 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 640px) {
-  .fieldGrid,
-  .modeSwitch {
+  .fieldGrid {
     grid-template-columns: 1fr;
+  }
+
+  .actions {
+    justify-content: stretch;
+  }
+
+  .actions .btn {
+    width: 100%;
   }
 }
 </style>

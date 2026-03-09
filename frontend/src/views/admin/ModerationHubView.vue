@@ -6,7 +6,6 @@ import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import ReportsPanel from '@/components/admin/moderation/ReportsPanel.vue'
 import QueuePanel from '@/components/admin/moderation/QueuePanel.vue'
 import ReviewPanel from '@/components/admin/moderation/ReviewPanel.vue'
-import ServicePanel from '@/components/admin/moderation/ServicePanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,7 +14,6 @@ const tabs = [
   { id: 'review', label: 'Na kontrolu' },
   { id: 'reports', label: 'Reporty' },
   { id: 'queue', label: 'Fronta' },
-  { id: 'service', label: 'Sluzba' },
   { id: 'reviewed', label: 'Skontrolovane' },
 ]
 
@@ -47,9 +45,6 @@ function tabBadge(tabId) {
   if (tabId === 'reports') return Number(overview.value?.counts?.reports_open || 0)
   if (tabId === 'queue') return queueCount.value
   if (tabId === 'reviewed') return reviewedCount.value
-  if (tabId === 'service') {
-    return overview.value?.service?.status === 'down' ? '!' : ''
-  }
   return ''
 }
 
@@ -157,7 +152,6 @@ watch(activeTab, () => {
       :initial-status="route.query.queueStatus || 'pending'"
       @changed="loadOverview"
     />
-    <ServicePanel v-else-if="activeTab === 'service'" />
     <ReviewPanel
       v-else
       mode="reviewed"
