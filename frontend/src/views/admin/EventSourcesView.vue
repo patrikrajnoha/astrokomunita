@@ -14,10 +14,13 @@ import {
 } from '@/services/api/admin/eventSources'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { createDictionaryTranslator } from '@/i18n/dictionary'
+import { adminEventSourcesMessages } from '@/i18n/adminEventSources.messages'
 
 const router = useRouter()
 const toast = useToast()
 const { confirm } = useConfirm()
+const { t } = createDictionaryTranslator(adminEventSourcesMessages, 'sk')
 
 const loading = ref(false)
 const error = ref('')
@@ -27,6 +30,7 @@ const runningByKey = ref({})
 const purgeDryRun = ref(true)
 
 const sources = ref([])
+const sourceFilter = ref('all')
 const selectedKeys = ref([])
 const recentRuns = ref([])
 const latestRunBySourceKey = ref({})
@@ -38,7 +42,10 @@ const progressValue = ref(0)
 let progressIntervalId = null
 const translationHealth = ref(null)
 const translationHealthLoading = ref(false)
+const translationPollFailureCount = ref(0)
 let translationPollId = null
+const translationPollBaseDelayMs = 3500
+const translationPollMaxDelayMs = 28000
 const artifactsSummary = ref({
   suspicious_candidates: 0,
   sample_limit: 20,
@@ -60,23 +67,85 @@ const supportedSelectedKeys = computed(() => {
     .map((source) => normalizeSourceKey(source.key))
 })
 
-const canRunSelected = computed(() => {
-  return !runningSelected.value && supportedSelectedKeys.value.length > 0
+const astropixelsSource = computed(() =>
+  sources.value.find((source) => normalizeSourceKey(source?.key) === 'astropixels') || null,
+)
+const astropixelsYearCatalog = computed(() => astropixelsSource.value?.year_catalog || null)
+const runYearMin = computed(() => {
+  const fromCatalog = Number(astropixelsYearCatalog.value?.min_year)
+  return Number.isFinite(fromCatalog) && fromCatalog >= 2000 ? fromCatalog : 2000
 })
+const runYearMax = computed(() => {
+  const fromCatalog = Number(astropixelsYearCatalog.value?.max_year)
+  return Number.isFinite(fromCatalog) && fromCatalog >= runYearMin.value ? fromCatalog : 2100
+})
+const isRunYearValid = computed(() => {
+  const y = Number(year.value)
+  if (!Number.isFinite(y)) return false
+  return y >= runYearMin.value && y <= runYearMax.value
+})
+const runYearHint = computed(() => {
+  const catalog = astropixelsYearCatalog.value
+  if (!catalog) {
+    return t('runPanel.yearHintFallback', { min: runYearMin.value, max: runYearMax.value })
+  }
+
+  const checkedAt = formatDate(catalog?.checked_at)
+  if (String(catalog.status || '') === 'ok') {
+    return t('runPanel.yearHintCatalog', { min: runYearMin.value, max: runYearMax.value, checkedAt })
+  }
+
+  return t('runPanel.yearHintFallback', { min: runYearMin.value, max: runYearMax.value })
+})
+
+const selectedIncludesAstropixels = computed(() => supportedSelectedKeys.value.includes('astropixels'))
+const isRunYearValidForSelected = computed(() => !selectedIncludesAstropixels.value || isRunYearValid.value)
+
+const canRunSelected = computed(() => !runningSelected.value && supportedSelectedKeys.value.length > 0 && isRunYearValidForSelected.value)
+
+const totalSourcesCount = computed(() => sources.value.length)
+const enabledSourcesCount = computed(() => sources.value.filter((source) => Boolean(source?.is_enabled)).length)
+const supportedSourcesCount = computed(() => sources.value.filter((source) => Boolean(source?.manual_run_supported)).length)
+const selectedSourcesCount = computed(() => selectedKeys.value.length)
+const canClearSelection = computed(() => selectedKeys.value.length > 0 && !runningSelected.value)
+const filteredSources = computed(() => {
+  if (sourceFilter.value === 'selected') {
+    const selectedSet = new Set(selectedKeys.value.map((key) => normalizeSourceKey(key)))
+    return sources.value.filter((source) => selectedSet.has(normalizeSourceKey(source?.key)))
+  }
+
+  if (sourceFilter.value === 'supported') {
+    return sources.value.filter((source) => isSourceSupported(source))
+  }
+  if (sourceFilter.value === 'enabled') {
+    return sources.value.filter((source) => Boolean(source?.is_enabled))
+  }
+  if (sourceFilter.value === 'unsupported') {
+    return sources.value.filter((source) => !isSourceSupported(source))
+  }
+  return sources.value
+})
+
+const sourceFilterOptions = computed(() => [
+  { value: 'all', label: t('sources.filters.all') },
+  { value: 'selected', label: t('sources.filters.selected') },
+  { value: 'supported', label: t('sources.filters.supported') },
+  { value: 'enabled', label: t('sources.filters.enabled') },
+  { value: 'unsupported', label: t('sources.filters.unsupported') },
+])
 
 const isBusy = computed(() => activeOps.value > 0)
 
 const progressLabel = computed(() => {
-  if (runningSelected.value) return 'Prebieha crawling vybraných zdrojov...'
-  if (purging.value) return 'Prebieha mazanie crawlnutých dát...'
-  if (isBusy.value) return 'Prebieha načítavanie...'
+  if (runningSelected.value) return t('progress.crawlingSelected')
+  if (purging.value) return t('progress.purging')
+  if (isBusy.value) return t('progress.loading')
   return ''
 })
 
 const translationPendingCount = computed(() => Number(translationHealth.value?.pending_candidates_total || 0))
-
 const translationQueuedJobs = computed(() => Number(translationHealth.value?.queue?.queued_event_translation_jobs || 0))
-
+const translationQueueTotal = computed(() => translationPendingCount.value + translationQueuedJobs.value)
 const translationCounts = computed(() => translationHealth.value?.counts_24h || {})
 
 const translationProgressPercent = computed(() => {
@@ -93,19 +162,19 @@ const translationIsActive = computed(() => {
 })
 
 const translationProgressLabel = computed(() => {
-  if (!translationIsActive.value) return 'Preklad udalostí momentálne nebeží.'
-  return `Prekladajú sa udalosti... pending ${translationPendingCount.value}, vo fronte ${translationQueuedJobs.value}.`
+  if (!translationIsActive.value) return t('progress.translateIdle')
+  return t('progress.translateRunning', {
+    pending: translationPendingCount.value,
+    queued: translationQueuedJobs.value,
+  })
 })
 
 const artifactsSuspiciousCount = computed(() => Number(artifactsSummary.value?.suspicious_candidates || 0))
-
 const artifactsCheckedAtLabel = computed(() => formatDate(artifactsSummary.value?.checked_at))
-
 const artifactsHasFindings = computed(() => artifactsSuspiciousCount.value > 0)
-
 const artifactsReportTone = computed(() => (artifactsHasFindings.value ? 'danger' : 'success'))
-
 const canRepairArtifacts = computed(() => !artifactsRepairing.value && artifactsSuspiciousCount.value > 0)
+
 const purgeConfirmToken = 'delete_crawled_events'
 
 const purgeTargetKeys = computed(() => {
@@ -121,20 +190,30 @@ function normalizeSourceKey(value) {
   return String(value || '').trim().toLowerCase()
 }
 
+function clampRunYear() {
+  const numericYear = Number(year.value)
+  if (!Number.isFinite(numericYear)) {
+    year.value = runYearMin.value
+    return
+  }
+
+  year.value = Math.max(runYearMin.value, Math.min(runYearMax.value, Math.floor(numericYear)))
+}
+
 function sourceLabel(sourceKey) {
   const key = normalizeSourceKey(sourceKey)
   if (key === 'astropixels') return 'AstroPixels'
   if (key === 'imo') return 'IMO'
-  if (key === 'nasa_watch_the_skies') return 'NASA WTS'
+  if (key === 'nasa_watch_the_skies' || key === 'nasa_wts') return 'NASA WTS'
   if (key === 'nasa') return 'NASA'
-  return key || '-'
+  return key || t('common.na')
 }
 
 function sourceToneClass(sourceKey) {
   const key = normalizeSourceKey(sourceKey)
   if (key === 'astropixels') return 'sourceBadge--astropixels'
   if (key === 'imo') return 'sourceBadge--imo'
-  if (key === 'nasa' || key === 'nasa_watch_the_skies') return 'sourceBadge--nasa'
+  if (key === 'nasa' || key === 'nasa_watch_the_skies' || key === 'nasa_wts') return 'sourceBadge--nasa'
   return 'sourceBadge--generic'
 }
 
@@ -143,8 +222,8 @@ function isSourceSupported(source) {
 }
 
 function sourceStatusLabel(source) {
-  if (!isSourceSupported(source)) return 'Nepodporované'
-  return source?.is_enabled ? 'Zapnuté' : 'Vypnuté'
+  if (!isSourceSupported(source)) return t('statuses.unsupported')
+  return source?.is_enabled ? t('statuses.enabled') : t('statuses.disabled')
 }
 
 function sourceStatusTone(source) {
@@ -162,9 +241,9 @@ function runStatusTone(status) {
 }
 
 function formatDate(value) {
-  if (!value) return '-'
+  if (!value) return t('common.na')
   const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return '-'
+  if (Number.isNaN(parsed.getTime())) return t('common.na')
   return parsed.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
@@ -208,58 +287,58 @@ function runTranslation(run) {
 }
 
 function runTranslationModeLabel(run) {
-  const t = runTranslation(run)
+  const details = runTranslation(run)
 
-  if (t.done <= 0) {
-    return t.pending > 0 ? 'čakajúce' : 'zatiaľ nič'
+  if (details.done <= 0) {
+    return details.pending > 0 ? t('runs.translationMode.pending') : t('runs.translationMode.none')
   }
 
-  if (t.both > 0 && t.titleOnly === 0 && t.descriptionOnly === 0 && t.withoutText === 0) {
-    return 'title+popis'
+  if (details.both > 0 && details.titleOnly === 0 && details.descriptionOnly === 0 && details.withoutText === 0) {
+    return t('runs.translationMode.both')
   }
 
-  if (t.titleOnly > 0 && t.both === 0 && t.descriptionOnly === 0) {
-    return 'iba title'
+  if (details.titleOnly > 0 && details.both === 0 && details.descriptionOnly === 0) {
+    return t('runs.translationMode.titleOnly')
   }
 
-  if (t.descriptionOnly > 0 && t.both === 0 && t.titleOnly === 0) {
-    return 'iba popis'
+  if (details.descriptionOnly > 0 && details.both === 0 && details.titleOnly === 0) {
+    return t('runs.translationMode.descriptionOnly')
   }
 
-  return 'mix'
+  return t('runs.translationMode.mix')
 }
 
 function isRunTranslationFullyCorrect(run) {
-  const t = runTranslation(run)
-  if (t.total <= 0) return false
-  if (t.failed > 0 || t.pending > 0) return false
-  if (t.done !== t.total) return false
-  if (t.withoutText > 0) return false
-  if (t.titleOnly > 0 || t.descriptionOnly > 0) return false
+  const details = runTranslation(run)
+  if (details.total <= 0) return false
+  if (details.failed > 0 || details.pending > 0) return false
+  if (details.done !== details.total) return false
+  if (details.withoutText > 0) return false
+  if (details.titleOnly > 0 || details.descriptionOnly > 0) return false
   return true
 }
 
 function isRunTranslationInProgress(run) {
-  const t = runTranslation(run)
-  if (t.total <= 0) return false
+  const details = runTranslation(run)
+  if (details.total <= 0) return false
 
   const status = String(run?.status || '').toLowerCase()
   if (status === 'running' || status === 'processing') return true
-  if (t.pending > 0) return true
+  if (details.pending > 0) return true
 
-  return t.done + t.failed < t.total
+  return details.done + details.failed < details.total
 }
 
 function runTranslationQualityLabel(run) {
-  const t = runTranslation(run)
-  if (t.total <= 0) return 'Nehodnotené'
-  if (isRunTranslationInProgress(run)) return 'Prekladajú sa'
-  return isRunTranslationFullyCorrect(run) ? 'Preklad OK' : 'Problém'
+  const details = runTranslation(run)
+  if (details.total <= 0) return t('runs.translationQuality.notRated')
+  if (isRunTranslationInProgress(run)) return t('runs.translationQuality.inProgress')
+  return isRunTranslationFullyCorrect(run) ? t('runs.translationQuality.ok') : t('runs.translationQuality.problem')
 }
 
 function runTranslationQualityTone(run) {
-  const t = runTranslation(run)
-  if (t.total <= 0) return 'muted'
+  const details = runTranslation(run)
+  if (details.total <= 0) return 'muted'
   if (isRunTranslationInProgress(run)) return 'warning'
   return isRunTranslationFullyCorrect(run) ? 'success' : 'danger'
 }
@@ -270,9 +349,9 @@ function findLatestRunForSource(sourceKey) {
 }
 
 function runStatusLabel(run) {
-  if (!run) return 'Nikdy'
+  if (!run) return t('common.never')
   const status = String(run.status || '').trim()
-  return status !== '' ? status : 'Neznáme'
+  return status !== '' ? status : t('common.unknown')
 }
 
 function isSourceCheckboxDisabled(source) {
@@ -281,19 +360,33 @@ function isSourceCheckboxDisabled(source) {
 
 function isRowRunDisabled(source) {
   const key = normalizeSourceKey(source?.key)
-  return runningSelected.value || Boolean(runningByKey.value[key]) || !source?.is_enabled || !isSourceSupported(source)
+  const yearBlocked = key === 'astropixels' && !isRunYearValid.value
+  return runningSelected.value
+    || Boolean(runningByKey.value[key])
+    || !source?.is_enabled
+    || !isSourceSupported(source)
+    || yearBlocked
 }
 
 function rowRunDisabledReason(source) {
   if (!isSourceSupported(source)) {
-    return 'Nepodporované v MVP'
+    return t('statuses.unsupportedMvp')
   }
 
   if (!source?.is_enabled) {
-    return 'Najprv zapni zdroj'
+    return t('statuses.enableFirst')
+  }
+
+  if (normalizeSourceKey(source?.key) === 'astropixels' && !isRunYearValid.value) {
+    return t('statuses.yearOutOfRange', { min: runYearMin.value, max: runYearMax.value })
   }
 
   return ''
+}
+
+function clearSelectedSources() {
+  if (!canClearSelection.value) return
+  selectedKeys.value = []
 }
 
 function beginOperation() {
@@ -328,10 +421,7 @@ async function load() {
   error.value = ''
 
   try {
-    const [sourcesRes, runsRes] = await Promise.all([
-      getEventSources(),
-      getCrawlRuns({ per_page: 10 }),
-    ])
+    const [sourcesRes, runsRes] = await Promise.all([getEventSources(), getCrawlRuns({ per_page: 10 })])
 
     const sourceList = Array.isArray(sourcesRes?.data?.data) ? sourcesRes.data.data : []
     sources.value = sourceList
@@ -342,9 +432,7 @@ async function load() {
     const latestByKey = {}
     for (const run of runList) {
       const key = normalizeSourceKey(run?.source_name)
-      if (key === '' || latestByKey[key]) {
-        continue
-      }
+      if (key === '' || latestByKey[key]) continue
       latestByKey[key] = run
     }
     latestRunBySourceKey.value = latestByKey
@@ -353,8 +441,9 @@ async function load() {
       const latestYear = Number(runList[0]?.year)
       year.value = Number.isFinite(latestYear) && latestYear >= 2000 ? latestYear : new Date().getFullYear()
     }
+    clampRunYear()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa načítať crawling dáta.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || t('messages.loadError')
   } finally {
     loading.value = false
     endOperation()
@@ -366,24 +455,52 @@ async function loadTranslationHealth() {
   try {
     const response = await getEventTranslationHealth()
     translationHealth.value = response?.data || null
+    translationPollFailureCount.value = 0
+    return true
   } catch {
-    // Neriesime toast, je to iba doplnkova diagnostika.
+    translationPollFailureCount.value = Math.min(4, translationPollFailureCount.value + 1)
+    return false
   } finally {
     translationHealthLoading.value = false
   }
 }
 
+function resolveNextTranslationPollDelay() {
+  if (translationPollFailureCount.value <= 0) {
+    return translationPollBaseDelayMs
+  }
+
+  return Math.min(
+    translationPollMaxDelayMs,
+    translationPollBaseDelayMs * (2 ** translationPollFailureCount.value),
+  )
+}
+
 function startTranslationPoll() {
   if (translationPollId !== null) return
-  translationPollId = window.setInterval(() => {
-    loadTranslationHealth()
-  }, 3500)
+  translationPollId = window.setTimeout(async () => {
+    translationPollId = null
+    await loadTranslationHealth()
+    startTranslationPoll()
+  }, resolveNextTranslationPollDelay())
 }
 
 function stopTranslationPoll() {
   if (translationPollId === null) return
-  window.clearInterval(translationPollId)
+  window.clearTimeout(translationPollId)
   translationPollId = null
+}
+
+function handleVisibilityChange() {
+  if (typeof document === 'undefined') return
+
+  if (document.visibilityState === 'hidden') {
+    stopTranslationPoll()
+    return
+  }
+
+  void loadTranslationHealth()
+  startTranslationPoll()
 }
 
 function normalizePositiveInt(value, fallback) {
@@ -412,15 +529,16 @@ async function loadTranslationArtifactsReport(showSuccessToast = false) {
     artifactsSamples.value = samples
 
     if (showSuccessToast) {
-      if (Number(summary.suspicious_candidates || 0) > 0) {
-        toast.warn(`Nájdené podozrivé preklady: ${Number(summary.suspicious_candidates || 0)}.`)
+      const count = Number(summary.suspicious_candidates || 0)
+      if (count > 0) {
+        toast.warn(t('messages.qualityFound', { count }))
       } else {
-        toast.success('Kvalita prekladov je aktuálne bez nálezov.')
+        toast.success(t('messages.qualityClear'))
       }
     }
   } catch (fetchError) {
     if (showSuccessToast) {
-      error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa načítať report kvality prekladov.'
+      error.value = fetchError?.response?.data?.message || fetchError?.userMessage || t('messages.artifactsLoadError')
     }
   } finally {
     artifactsLoading.value = false
@@ -428,9 +546,7 @@ async function loadTranslationArtifactsReport(showSuccessToast = false) {
 }
 
 async function runTranslationArtifactsRepair() {
-  if (!canRepairArtifacts.value) {
-    return
-  }
+  if (!canRepairArtifacts.value) return
 
   artifactsRepairing.value = true
   beginOperation()
@@ -449,15 +565,11 @@ async function runTranslationArtifactsRepair() {
     const translated = Number(summary.translated || 0)
     const failed = Number(summary.failed || 0)
 
-    toast.success(`Repair hotový. Spracované ${processed}, preložené ${translated}, zlyhalo ${failed}.`)
+    toast.success(t('messages.repairDone', { processed, translated, failed }))
 
-    await Promise.all([
-      loadTranslationArtifactsReport(false),
-      load(),
-      loadTranslationHealth(),
-    ])
+    await Promise.all([loadTranslationArtifactsReport(false), load(), loadTranslationHealth()])
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Repair prekladov zlyhal.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || t('messages.artifactsRepairError')
   } finally {
     artifactsRepairing.value = false
     endOperation()
@@ -474,13 +586,14 @@ async function toggleSource(source, checked) {
       selectedKeys.value = selectedKeys.value.filter((item) => normalizeSourceKey(item) !== key)
     }
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa aktualizovat zdroj.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || t('messages.sourceUpdateError')
   }
 }
 
 async function runSelected() {
-  if (!canRunSelected.value) {
-    return
+  if (!canRunSelected.value) return
+  if (selectedIncludesAstropixels.value) {
+    clampRunYear()
   }
 
   runningSelected.value = true
@@ -492,10 +605,10 @@ async function runSelected() {
       source_keys: supportedSelectedKeys.value,
       year: Number(year.value),
     })
-    toast.success('Crawl run bol vytvoreny pre vybrane zdroje.')
+    toast.success(t('messages.runSelectedSuccess'))
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Ručné spustenie zlyhalo.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || t('messages.runSelectedError')
   } finally {
     runningSelected.value = false
     endOperation()
@@ -504,10 +617,10 @@ async function runSelected() {
 
 async function requestPurgeConfirmation() {
   return confirm({
-    title: purgeDryRun.value ? 'Spustit dry run mazania?' : 'Vymazat crawlnute data?',
-    message: 'Vymaze crawlnute udalosti, kandidatov aj crawl runy.',
-    confirmText: 'Vymazat',
-    cancelText: 'Zrusit',
+    title: purgeDryRun.value ? t('dialogs.purgeDryRunTitle') : t('dialogs.purgeHardTitle'),
+    message: t('dialogs.purgeMessage'),
+    confirmText: t('dialogs.purgeConfirm'),
+    cancelText: t('dialogs.purgeCancel'),
     variant: 'danger',
   })
 }
@@ -519,9 +632,7 @@ async function startPurgeFlow() {
 }
 
 async function purgeCrawledData() {
-  if (purging.value) {
-    return
-  }
+  if (purging.value) return
 
   purging.value = true
   beginOperation()
@@ -538,12 +649,12 @@ async function purgeCrawledData() {
     const events = Number(deleted.events || 0)
     const candidates = Number(deleted.event_candidates || 0)
     const runs = Number(deleted.crawl_runs || 0)
-    const mode = purgeDryRun.value ? 'Dry run:' : 'Vymazane:'
-    toast.success(`${mode} udalosti ${events}, kandidáti ${candidates}, runy ${runs}.`)
+    const key = purgeDryRun.value ? 'messages.purgeDryRunDone' : 'messages.purgeDone'
+    toast.success(t(key, { events, candidates, runs }))
 
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Mazanie zlyhalo.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || t('messages.purgeError')
   } finally {
     purging.value = false
     endOperation()
@@ -552,8 +663,9 @@ async function purgeCrawledData() {
 
 async function runSingleSource(source) {
   const key = normalizeSourceKey(source?.key)
-  if (!key || isRowRunDisabled(source)) {
-    return
+  if (!key || isRowRunDisabled(source)) return
+  if (key === 'astropixels') {
+    clampRunYear()
   }
 
   runningByKey.value = {
@@ -569,10 +681,10 @@ async function runSingleSource(source) {
       source_keys: [key],
       year: Number(year.value),
     })
-    toast.success(`Crawl run bol vytvoreny pre ${sourceLabel(key)}.`)
+    toast.success(t('messages.runSingleSuccess', { source: sourceLabel(key) }))
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Ručné spustenie zlyhalo.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || t('messages.runSingleError')
   } finally {
     runningByKey.value = {
       ...runningByKey.value,
@@ -617,17 +729,47 @@ function openCandidateDetail(candidateId) {
 
 onMounted(async () => {
   await Promise.all([load(), loadTranslationHealth(), loadTranslationArtifactsReport(false)])
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+  }
   startTranslationPoll()
 })
 
 onUnmounted(() => {
   stopTranslationPoll()
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }
 })
 </script>
 
 <template>
-  <AdminPageShell title="Crawling" subtitle="Zapni zdroj -> spusti crawling -> skontroluj kandidátov z runu.">
+  <AdminPageShell :title="t('page.title')" :subtitle="t('page.subtitle')">
     <div v-if="error" class="alert">{{ error }}</div>
+
+    <section class="statsGrid">
+      <article class="statCard">
+        <span class="statCard__label">{{ t('stats.totalSources') }}</span>
+        <strong class="statCard__value">{{ totalSourcesCount }}</strong>
+      </article>
+      <article class="statCard">
+        <span class="statCard__label">{{ t('stats.enabledSources') }}</span>
+        <strong class="statCard__value">{{ enabledSourcesCount }}</strong>
+      </article>
+      <article class="statCard">
+        <span class="statCard__label">{{ t('stats.supportedSources') }}</span>
+        <strong class="statCard__value">{{ supportedSourcesCount }}</strong>
+      </article>
+      <article class="statCard">
+        <span class="statCard__label">{{ t('stats.selectedSources') }}</span>
+        <strong class="statCard__value">{{ selectedSourcesCount }}</strong>
+      </article>
+      <article class="statCard">
+        <span class="statCard__label">{{ t('stats.translationQueue') }}</span>
+        <strong class="statCard__value">{{ translationQueueTotal }}</strong>
+      </article>
+    </section>
+
     <section v-if="isBusy || progressValue > 0" class="progressPanel" data-testid="crawl-progress-panel">
       <div class="progressPanel__label">{{ progressLabel }}</div>
       <div class="progressBar">
@@ -645,309 +787,440 @@ onUnmounted(() => {
         <div class="progressBar__fill progressBar__fill--translation" :style="{ width: `${translationProgressPercent}%` }"></div>
       </div>
       <div class="progressPanel__meta">
-        <span>Done: {{ Number(translationCounts.done || 0) }}</span>
-        <span>Failed: {{ Number(translationCounts.failed || 0) }}</span>
-        <span>Pending: {{ Number(translationCounts.pending || 0) }}</span>
+        <span>{{ t('progress.done') }}: {{ Number(translationCounts.done || 0) }}</span>
+        <span>{{ t('progress.failed') }}: {{ Number(translationCounts.failed || 0) }}</span>
+        <span>{{ t('progress.pending') }}: {{ Number(translationCounts.pending || 0) }}</span>
       </div>
     </section>
 
-    <section class="card qualityPanel" data-testid="translation-quality-panel">
-      <div class="cardHead">
-        <h2>Kvalita prekladov</h2>
-        <span class="muted">Kontrola artefaktov + repair bez terminalu</span>
-      </div>
+    <section class="topGrid">
+      <section class="card runPanel">
+        <div class="cardHead">
+          <h2>{{ t('runPanel.title') }}</h2>
+          <span class="muted">{{ t('runPanel.selectedSupported', { count: supportedSelectedKeys.length }) }}</span>
+        </div>
 
-      <div class="qualityPanel__summary">
-        <span class="pill" :class="`pill--${artifactsReportTone}`" data-testid="translation-artifacts-count">
-          Podozrivé: {{ artifactsSuspiciousCount }}
-        </span>
-        <span class="muted">Posledna kontrola: {{ artifactsCheckedAtLabel }}</span>
-      </div>
+        <div class="runPanel__actions">
+          <label class="field" for="run-year">
+            <span>{{ t('runPanel.year') }}</span>
+            <input
+              id="run-year"
+              v-model.number="year"
+              type="number"
+              :min="runYearMin"
+              :max="runYearMax"
+              :disabled="runningSelected"
+              @input="yearTouched = true"
+            />
+            <span class="muted">{{ runYearHint }}</span>
+          </label>
 
-      <div class="qualityPanel__actions">
-        <label class="qualityPanel__field" for="artifacts-sample-limit">
-          <span>Vzorka</span>
-          <input
-            id="artifacts-sample-limit"
-            v-model.number="artifactsSampleLimit"
-            type="number"
-            min="1"
-            max="100"
+          <button
+            type="button"
+            class="primaryBtn"
+            data-testid="run-selected-btn"
+            :disabled="!canRunSelected"
+            @click="runSelected"
+          >
+            {{ runningSelected ? t('runPanel.runSelectedLoading') : t('runPanel.runSelectedIdle') }}
+          </button>
+
+          <label class="switchLabel" for="purge-dry-run">
+            <input id="purge-dry-run" v-model="purgeDryRun" type="checkbox" :disabled="purging" />
+            <span>{{ t('runPanel.purgeDryRun') }}</span>
+          </label>
+
+          <button
+            type="button"
+            class="btn-danger"
+            data-testid="purge-crawled-btn"
+            :disabled="purging"
+            @click="startPurgeFlow"
+          >
+            {{ purging ? t('runPanel.purgeLoading') : t('runPanel.purgeIdle') }}
+          </button>
+        </div>
+
+        <p class="muted">{{ t('runPanel.hint') }}</p>
+      </section>
+
+      <section class="card qualityPanel" data-testid="translation-quality-panel">
+        <div class="cardHead">
+          <h2>{{ t('quality.title') }}</h2>
+          <span class="muted">{{ t('quality.subtitle') }}</span>
+        </div>
+
+        <div class="qualityPanel__summary">
+          <span class="pill" :class="`pill--${artifactsReportTone}`" data-testid="translation-artifacts-count">
+            {{ t('quality.suspicious', { count: artifactsSuspiciousCount }) }}
+          </span>
+          <span class="muted">{{ t('quality.checkedAt', { value: artifactsCheckedAtLabel }) }}</span>
+        </div>
+
+        <div class="qualityPanel__actions">
+          <label class="field" for="artifacts-sample-limit">
+            <span>{{ t('quality.sample') }}</span>
+            <input
+              id="artifacts-sample-limit"
+              v-model.number="artifactsSampleLimit"
+              type="number"
+              min="1"
+              max="100"
+              :disabled="artifactsLoading || artifactsRepairing"
+            />
+          </label>
+
+          <label class="field" for="artifacts-repair-limit">
+            <span>{{ t('quality.repairLimit') }}</span>
+            <input
+              id="artifacts-repair-limit"
+              v-model.number="artifactsRepairLimit"
+              type="number"
+              min="1"
+              max="1000"
+              :disabled="artifactsLoading || artifactsRepairing"
+            />
+          </label>
+
+          <button
+            type="button"
+            class="ghostBtn"
+            data-testid="translation-artifacts-report-btn"
             :disabled="artifactsLoading || artifactsRepairing"
-          />
-        </label>
+            @click="loadTranslationArtifactsReport(true)"
+          >
+            {{ artifactsLoading ? t('quality.checkLoading') : t('quality.checkIdle') }}
+          </button>
 
-        <label class="qualityPanel__field" for="artifacts-repair-limit">
-          <span>Repair limit</span>
-          <input
-            id="artifacts-repair-limit"
-            v-model.number="artifactsRepairLimit"
-            type="number"
-            min="1"
-            max="1000"
-            :disabled="artifactsLoading || artifactsRepairing"
-          />
-        </label>
+          <button
+            type="button"
+            class="btn-danger"
+            data-testid="translation-artifacts-repair-btn"
+            :disabled="!canRepairArtifacts"
+            @click="runTranslationArtifactsRepair"
+          >
+            {{ artifactsRepairing ? t('quality.repairLoading') : t('quality.repairIdle') }}
+          </button>
+        </div>
 
-        <button
-          type="button"
-          class="ghostBtn"
-          data-testid="translation-artifacts-report-btn"
-          :disabled="artifactsLoading || artifactsRepairing"
-          @click="loadTranslationArtifactsReport(true)"
-        >
-          {{ artifactsLoading ? 'Kontrolujem...' : 'Skontrolovat kvalitu' }}
-        </button>
+        <p class="muted">{{ t('quality.hint') }}</p>
 
-        <button
-          type="button"
-          class="btn-danger"
-          data-testid="translation-artifacts-repair-btn"
-          :disabled="!canRepairArtifacts"
-          @click="runTranslationArtifactsRepair"
-        >
-          {{ artifactsRepairing ? 'Opravujem...' : 'Spustiť repair' }}
-        </button>
-      </div>
-
-      <p class="runPanel__hint">
-        Report iba skontroluje podozrivé preklady. Repair spustí force opravu len pre nájdené kandidátne záznamy.
-      </p>
-
-      <div v-if="artifactsSamples.length > 0" class="tableWrap qualityPanel__tableWrap">
-        <table class="table compact">
-          <thead>
-            <tr>
-              <th>Candidate</th>
-              <th>Event</th>
-              <th>Nazov zdroja</th>
-              <th>Translated title</th>
-              <th>Event title</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="sample in artifactsSamples" :key="sample.candidate_id">
-              <td>
-                <button
-                  type="button"
-                  class="inlineLinkBtn"
-                  :data-testid="`translation-artifacts-candidate-link-${sample.candidate_id}`"
-                  @click="openCandidateDetail(sample.candidate_id)"
-                >
-                  {{ sample.candidate_id }}
-                </button>
-              </td>
-              <td>{{ sample.event_id || '-' }}</td>
-              <td>{{ sample.source_title || '-' }}</td>
-              <td>{{ sample.translated_title || '-' }}</td>
-              <td>{{ sample.event_title || '-' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div v-else class="muted qualityPanel__empty">
-        Zatiaľ nie sú k dispozícii žiadne podozrivé záznamy.
-      </div>
-    </section>
-
-    <section class="card runPanel">
-      <div class="runPanel__head">
-        <h2>Panel spustenia</h2>
-        <div class="runPanel__meta">Vybraných podporovaných zdrojov: {{ supportedSelectedKeys.length }}</div>
-      </div>
-
-      <div class="runPanel__actions">
-        <label class="runPanel__field" for="run-year">
-          <span>Rok</span>
-          <input
-            id="run-year"
-            v-model.number="year"
-            type="number"
-            min="2000"
-            max="2100"
-            :disabled="runningSelected"
-            @input="yearTouched = true"
-          />
-        </label>
-
-        <button
-          type="button"
-          class="primaryBtn"
-          data-testid="run-selected-btn"
-          :disabled="!canRunSelected"
-          @click="runSelected"
-        >
-          {{ runningSelected ? 'Spúšťa sa...' : 'Spustiť vybrané' }}
-        </button>
-
-        <label class="runPanel__switch" for="purge-dry-run">
-          <input id="purge-dry-run" v-model="purgeDryRun" type="checkbox" :disabled="purging" />
-          <span>Dry run mazania</span>
-        </label>
-
-        <button
-          type="button"
-          class="btn-danger"
-          data-testid="purge-crawled-btn"
-          :disabled="purging"
-          @click="startPurgeFlow"
-        >
-          {{ purging ? 'Maže sa...' : 'Vymazať crawlnuté udalosti' }}
-        </button>
-      </div>
-
-      <p class="runPanel__hint">Vytvorí crawl run a naimportuje kandidátov. Cieľ mazania = vybrané podporované zdroje (alebo všetky, ak nič nie je vybrané).</p>
+        <div v-if="artifactsSamples.length > 0" class="tableWrap qualityPanel__tableWrap">
+          <table class="table compact">
+            <thead>
+              <tr>
+                <th>{{ t('quality.columns.candidate') }}</th>
+                <th>{{ t('quality.columns.event') }}</th>
+                <th>{{ t('quality.columns.sourceTitle') }}</th>
+                <th>{{ t('quality.columns.translatedTitle') }}</th>
+                <th>{{ t('quality.columns.eventTitle') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="sample in artifactsSamples" :key="sample.candidate_id">
+                <td>
+                  <button
+                    type="button"
+                    class="inlineLinkBtn"
+                    :data-testid="`translation-artifacts-candidate-link-${sample.candidate_id}`"
+                    @click="openCandidateDetail(sample.candidate_id)"
+                  >
+                    {{ sample.candidate_id }}
+                  </button>
+                </td>
+                <td>{{ sample.event_id || t('common.na') }}</td>
+                <td>{{ sample.source_title || t('common.na') }}</td>
+                <td>{{ sample.translated_title || t('common.na') }}</td>
+                <td>{{ sample.event_title || t('common.na') }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-else class="muted qualityPanel__empty">
+          {{ t('quality.empty') }}
+        </div>
+      </section>
     </section>
 
     <section class="card">
       <div class="cardHead">
-        <h2>Zdroje</h2>
+        <h2>{{ t('sources.title') }}</h2>
+        <div class="sourceToolbar">
+          <label class="field field--inline" for="source-filter">
+            <select id="source-filter" v-model="sourceFilter" data-testid="source-filter">
+              <option v-for="option in sourceFilterOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <button
+            type="button"
+            class="ghostBtn"
+            data-testid="source-clear-selection-btn"
+            :disabled="!canClearSelection"
+            @click="clearSelectedSources"
+          >
+            {{ t('sources.clearSelection') }}
+          </button>
+          <span class="muted">{{ t('sources.shown', { shown: filteredSources.length, total: sources.length }) }}</span>
+        </div>
       </div>
 
-      <div v-if="loading" class="muted">Načítavam zdroje...</div>
-      <div v-else class="tableWrap">
-        <table class="table compact">
-          <thead>
-            <tr>
-              <th aria-label="Vyber zdroja">[ ]</th>
-              <th>Zdroj</th>
-              <th>Stav</th>
-              <th>Posledny run</th>
-              <th>Počítadlá</th>
-              <th>Akcie</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="source in sources" :key="source.id" :data-testid="`source-row-${normalizeSourceKey(source.key)}`">
-              <td class="tight">
+      <div v-if="loading" class="muted">{{ t('sources.loading') }}</div>
+      <div v-else-if="filteredSources.length === 0" class="muted">{{ t('sources.emptyFiltered') }}</div>
+      <div v-else>
+        <div class="tableWrap sourcesTableWrap">
+          <table class="table compact">
+            <thead>
+              <tr>
+                <th aria-label="Vyber zdroja">{{ t('sources.columns.select') }}</th>
+                <th>{{ t('sources.columns.source') }}</th>
+                <th>{{ t('sources.columns.status') }}</th>
+                <th>{{ t('sources.columns.lastRun') }}</th>
+                <th>{{ t('sources.columns.counters') }}</th>
+                <th>{{ t('sources.columns.actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="source in filteredSources"
+                :key="source.id"
+                :data-testid="`source-row-${normalizeSourceKey(source.key)}`"
+              >
+                <td class="tight">
+                  <input
+                    :id="`source-select-${source.id}`"
+                    v-model="selectedKeys"
+                    :value="source.key"
+                    type="checkbox"
+                    :data-testid="`source-select-${normalizeSourceKey(source.key)}`"
+                    :disabled="isSourceCheckboxDisabled(source)"
+                  />
+                </td>
+
+                <td>
+                  <span class="sourceBadge" :class="sourceToneClass(source.key)">{{ sourceLabel(source.key) }}</span>
+                </td>
+
+                <td>
+                  <span class="pill" :class="`pill--${sourceStatusTone(source)}`">{{ sourceStatusLabel(source) }}</span>
+                </td>
+
+                <td>
+                  <div class="stackTiny">
+                    <span>{{ formatDate(findLatestRunForSource(source.key)?.started_at) }}</span>
+                    <span class="pill" :class="`pill--${runStatusTone(runStatusLabel(findLatestRunForSource(source.key)))}`">
+                      {{ runStatusLabel(findLatestRunForSource(source.key)) }}
+                    </span>
+                  </div>
+                </td>
+
+                <td>
+                  <div class="counterRow">
+                    <span>F {{ runCounters(findLatestRunForSource(source.key)).fetched }}</span>
+                    <span>C {{ runCounters(findLatestRunForSource(source.key)).created }}</span>
+                    <span>U {{ runCounters(findLatestRunForSource(source.key)).updated }}</span>
+                    <span>S {{ runCounters(findLatestRunForSource(source.key)).skipped }}</span>
+                  </div>
+                </td>
+
+                <td>
+                  <div class="actionRow">
+                    <label :for="`source-enabled-${source.id}`" class="switchLabel">
+                      <input
+                        :id="`source-enabled-${source.id}`"
+                        :checked="source.is_enabled"
+                        type="checkbox"
+                        :disabled="runningSelected"
+                        @change="toggleSource(source, $event.target.checked)"
+                      />
+                      <span>{{ source.is_enabled ? t('sources.switchOn') : t('sources.switchOff') }}</span>
+                    </label>
+
+                    <button
+                      type="button"
+                      class="ghostBtn"
+                      :data-testid="`run-source-${normalizeSourceKey(source.key)}`"
+                      :disabled="isRowRunDisabled(source)"
+                      :title="rowRunDisabledReason(source)"
+                      @click="runSingleSource(source)"
+                    >
+                      {{ runningByKey[normalizeSourceKey(source.key)] ? t('sources.runLoading') : t('sources.runIdle') }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sourcesMobileList">
+          <article
+            v-for="source in filteredSources"
+            :key="`mobile-${source.id}`"
+            class="sourceMobileCard"
+          >
+            <div class="sourceMobileCard__head">
+              <label class="sourceMobileCard__select" :for="`source-select-mobile-${source.id}`">
                 <input
-                  :id="`source-select-${source.id}`"
+                  :id="`source-select-mobile-${source.id}`"
                   v-model="selectedKeys"
                   :value="source.key"
                   type="checkbox"
-                  :data-testid="`source-select-${normalizeSourceKey(source.key)}`"
                   :disabled="isSourceCheckboxDisabled(source)"
                 />
-              </td>
-
-              <td>
                 <span class="sourceBadge" :class="sourceToneClass(source.key)">{{ sourceLabel(source.key) }}</span>
-              </td>
+              </label>
+              <span class="pill" :class="`pill--${sourceStatusTone(source)}`">{{ sourceStatusLabel(source) }}</span>
+            </div>
 
-              <td>
-                <span class="pill" :class="`pill--${sourceStatusTone(source)}`">{{ sourceStatusLabel(source) }}</span>
-              </td>
+            <div class="sourceMobileCard__meta">
+              <span>{{ t('sources.columns.lastRun') }}: {{ formatDate(findLatestRunForSource(source.key)?.started_at) }}</span>
+              <span class="pill" :class="`pill--${runStatusTone(runStatusLabel(findLatestRunForSource(source.key)))}`">
+                {{ runStatusLabel(findLatestRunForSource(source.key)) }}
+              </span>
+            </div>
 
-              <td>
-                <div class="stackTiny">
-                  <span>{{ formatDate(findLatestRunForSource(source.key)?.started_at) }}</span>
-                  <span class="pill" :class="`pill--${runStatusTone(runStatusLabel(findLatestRunForSource(source.key)))}`">
-                    {{ runStatusLabel(findLatestRunForSource(source.key)) }}
-                  </span>
-                </div>
-              </td>
+            <div class="counterRow">
+              <span>F {{ runCounters(findLatestRunForSource(source.key)).fetched }}</span>
+              <span>C {{ runCounters(findLatestRunForSource(source.key)).created }}</span>
+              <span>U {{ runCounters(findLatestRunForSource(source.key)).updated }}</span>
+              <span>S {{ runCounters(findLatestRunForSource(source.key)).skipped }}</span>
+            </div>
 
-              <td>
-                <div class="counterRow">
-                  <span>F {{ runCounters(findLatestRunForSource(source.key)).fetched }}</span>
-                  <span>C {{ runCounters(findLatestRunForSource(source.key)).created }}</span>
-                  <span>U {{ runCounters(findLatestRunForSource(source.key)).updated }}</span>
-                  <span>S {{ runCounters(findLatestRunForSource(source.key)).skipped }}</span>
-                </div>
-              </td>
+            <div class="sourceMobileCard__actions">
+              <label :for="`source-enabled-mobile-${source.id}`" class="switchLabel">
+                <input
+                  :id="`source-enabled-mobile-${source.id}`"
+                  :checked="source.is_enabled"
+                  type="checkbox"
+                  :disabled="runningSelected"
+                  @change="toggleSource(source, $event.target.checked)"
+                />
+                <span>{{ source.is_enabled ? t('sources.switchOn') : t('sources.switchOff') }}</span>
+              </label>
 
-              <td>
-                <div class="actionRow">
-                  <label :for="`source-enabled-${source.id}`" class="switchLabel">
-                    <input
-                      :id="`source-enabled-${source.id}`"
-                      :checked="source.is_enabled"
-                      type="checkbox"
-                      :disabled="runningSelected"
-                      @change="toggleSource(source, $event.target.checked)"
-                    />
-                    <span>{{ source.is_enabled ? 'Zap' : 'Vyp' }}</span>
-                  </label>
+              <button
+                type="button"
+                class="ghostBtn"
+                :disabled="isRowRunDisabled(source)"
+                :title="rowRunDisabledReason(source)"
+                @click="runSingleSource(source)"
+              >
+                {{ runningByKey[normalizeSourceKey(source.key)] ? t('sources.runLoading') : t('sources.runIdle') }}
+              </button>
+            </div>
 
-                  <button
-                    type="button"
-                    class="ghostBtn"
-                    :data-testid="`run-source-${normalizeSourceKey(source.key)}`"
-                    :disabled="isRowRunDisabled(source)"
-                    :title="rowRunDisabledReason(source)"
-                    @click="runSingleSource(source)"
-                  >
-                    {{ runningByKey[normalizeSourceKey(source.key)] ? 'Spúšťa sa...' : 'Spustiť' }}
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+            <p v-if="rowRunDisabledReason(source)" class="muted sourceMobileCard__hint">
+              {{ rowRunDisabledReason(source) }}
+            </p>
+          </article>
+        </div>
       </div>
     </section>
 
     <section class="card">
       <div class="cardHead">
-        <h2>Posledné runy</h2>
-        <span class="muted">Poslednych 10</span>
+        <h2>{{ t('runs.title') }}</h2>
+        <span class="muted">{{ t('runs.subtitle') }}</span>
       </div>
 
-      <div v-if="recentRuns.length === 0" class="muted">Zatiaľ žiadne runy.</div>
-      <div v-else class="tableWrap">
-        <table class="table compact">
-          <thead>
-            <tr>
-              <th>Cas</th>
-              <th>Zdroj</th>
-              <th>Rok</th>
-              <th>Stav</th>
-              <th>Počítadlá</th>
-              <th>Preklad</th>
-              <th>Akcie</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="run in recentRuns" :key="run.id">
-              <td>{{ formatDate(run.started_at) }}</td>
-              <td>
-                <span class="sourceBadge" :class="sourceToneClass(run.source_name)">{{ sourceLabel(run.source_name) }}</span>
-              </td>
-              <td>{{ run.year || '-' }}</td>
-              <td>
-                <span class="pill" :class="`pill--${runStatusTone(run.status)}`">{{ run.status || 'nezname' }}</span>
-              </td>
-              <td>
-                <div class="counterRow">
-                  <span>F {{ runCounters(run).fetched }}</span>
-                  <span>C {{ runCounters(run).created }}</span>
-                  <span>U {{ runCounters(run).updated }}</span>
-                  <span>S {{ runCounters(run).skipped }}</span>
-                </div>
-              </td>
-              <td>
-                <div v-if="runTranslation(run).total > 0" class="stackTiny">
-                  <span class="pill" :class="`pill--${runTranslationQualityTone(run)}`">
-                    {{ runTranslationQualityLabel(run) }}
-                  </span>
+      <div v-if="recentRuns.length === 0" class="muted">{{ t('runs.empty') }}</div>
+      <div v-else>
+        <div class="tableWrap runsTableWrap">
+          <table class="table compact">
+            <thead>
+              <tr>
+                <th>{{ t('runs.columns.time') }}</th>
+                <th>{{ t('runs.columns.source') }}</th>
+                <th>{{ t('runs.columns.year') }}</th>
+                <th>{{ t('runs.columns.status') }}</th>
+                <th>{{ t('runs.columns.counters') }}</th>
+                <th>{{ t('runs.columns.translation') }}</th>
+                <th>{{ t('runs.columns.actions') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="run in recentRuns" :key="run.id">
+                <td>{{ formatDate(run.started_at) }}</td>
+                <td>
+                  <span class="sourceBadge" :class="sourceToneClass(run.source_name)">{{ sourceLabel(run.source_name) }}</span>
+                </td>
+                <td>{{ run.year || t('common.na') }}</td>
+                <td>
+                  <span class="pill" :class="`pill--${runStatusTone(run.status)}`">{{ run.status || t('common.unknown') }}</span>
+                </td>
+                <td>
                   <div class="counterRow">
-                    <span>D {{ runTranslation(run).done }}</span>
-                    <span>F {{ runTranslation(run).failed }}</span>
-                    <span>P {{ runTranslation(run).pending }}</span>
+                    <span>F {{ runCounters(run).fetched }}</span>
+                    <span>C {{ runCounters(run).created }}</span>
+                    <span>U {{ runCounters(run).updated }}</span>
+                    <span>S {{ runCounters(run).skipped }}</span>
                   </div>
-                  <span class="muted">Forma: {{ runTranslationModeLabel(run) }}</span>
-                </div>
-                <span v-else class="muted">-</span>
-              </td>
-              <td>
-                <div class="actionRow">
-                  <button type="button" class="ghostBtn" @click="viewRunCandidates(run)">Kandidáti</button>
-                  <button type="button" class="ghostBtn" @click="openRunDetails(run)">Detail</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                </td>
+                <td>
+                  <div v-if="runTranslation(run).total > 0" class="stackTiny">
+                    <span class="pill" :class="`pill--${runTranslationQualityTone(run)}`">
+                      {{ runTranslationQualityLabel(run) }}
+                    </span>
+                    <div class="counterRow">
+                      <span>D {{ runTranslation(run).done }}</span>
+                      <span>F {{ runTranslation(run).failed }}</span>
+                      <span>P {{ runTranslation(run).pending }}</span>
+                    </div>
+                    <span class="muted">{{ t('runs.translationForm', { mode: runTranslationModeLabel(run) }) }}</span>
+                  </div>
+                  <span v-else class="muted">{{ t('common.na') }}</span>
+                </td>
+                <td>
+                  <div class="actionRow">
+                    <button type="button" class="ghostBtn" @click="viewRunCandidates(run)">{{ t('runs.candidates') }}</button>
+                    <button type="button" class="ghostBtn" @click="openRunDetails(run)">{{ t('runs.detail') }}</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="runsMobileList">
+          <article v-for="run in recentRuns" :key="`run-mobile-${run.id}`" class="runMobileCard">
+            <div class="runMobileCard__head">
+              <span class="sourceBadge" :class="sourceToneClass(run.source_name)">{{ sourceLabel(run.source_name) }}</span>
+              <span class="pill" :class="`pill--${runStatusTone(run.status)}`">{{ run.status || t('common.unknown') }}</span>
+            </div>
+
+            <div class="runMobileCard__meta">
+              <span>{{ formatDate(run.started_at) }}</span>
+              <span>{{ t('runs.columns.year') }}: {{ run.year || t('common.na') }}</span>
+            </div>
+
+            <div class="counterRow">
+              <span>F {{ runCounters(run).fetched }}</span>
+              <span>C {{ runCounters(run).created }}</span>
+              <span>U {{ runCounters(run).updated }}</span>
+              <span>S {{ runCounters(run).skipped }}</span>
+            </div>
+
+            <div v-if="runTranslation(run).total > 0" class="runMobileCard__translation">
+              <span class="pill" :class="`pill--${runTranslationQualityTone(run)}`">
+                {{ runTranslationQualityLabel(run) }}
+              </span>
+              <div class="counterRow">
+                <span>D {{ runTranslation(run).done }}</span>
+                <span>F {{ runTranslation(run).failed }}</span>
+                <span>P {{ runTranslation(run).pending }}</span>
+              </div>
+              <span class="muted">{{ t('runs.translationForm', { mode: runTranslationModeLabel(run) }) }}</span>
+            </div>
+            <span v-else class="muted">{{ t('common.na') }}</span>
+
+            <div class="actionRow runMobileCard__actions">
+              <button type="button" class="ghostBtn" @click="viewRunCandidates(run)">{{ t('runs.candidates') }}</button>
+              <button type="button" class="ghostBtn" @click="openRunDetails(run)">{{ t('runs.detail') }}</button>
+            </div>
+          </article>
+        </div>
       </div>
     </section>
   </AdminPageShell>
@@ -955,10 +1228,10 @@ onUnmounted(() => {
 
 <style scoped>
 .card {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
   border-radius: 12px;
-  padding: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.82);
+  padding: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.92);
 }
 
 .cardHead {
@@ -966,55 +1239,117 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
-.cardHead h2,
-.runPanel__head h2 {
+.cardHead h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
 }
 
-.runPanel {
+.statsGrid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.statCard {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  border-radius: 10px;
+  padding: 7px 9px;
+  background: rgb(var(--color-bg-rgb) / 0.98);
+  display: grid;
+  gap: 2px;
+}
+
+.statCard__label {
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.statCard__value {
+  font-size: 19px;
+  line-height: 1.1;
+}
+
+.topGrid {
   display: grid;
   gap: 8px;
+  grid-template-columns: 1.1fr 1fr;
 }
 
+.runPanel,
 .qualityPanel {
   display: grid;
   gap: 10px;
 }
 
-.qualityPanel__summary {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
+.runPanel__actions,
 .qualityPanel__actions {
   display: flex;
   align-items: end;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-.qualityPanel__field {
+.field {
   display: grid;
   gap: 4px;
   font-size: 12px;
 }
 
-.qualityPanel__field input {
+.field input,
+.field select {
   width: 120px;
 }
 
-.qualityPanel__field input {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
-  border-radius: 10px;
-  padding: 7px 10px;
+.field input,
+.field select,
+.ghostBtn,
+.primaryBtn,
+.btn-danger {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  border-radius: 8px;
+  padding: 6px 9px;
   background: transparent;
   color: inherit;
+}
+
+.primaryBtn {
+  border-color: rgb(var(--color-primary-rgb) / 0.22);
+  background: rgb(var(--color-primary-rgb) / 0.08);
+}
+
+.btn-danger {
+  border-color: rgb(220 38 38 / 0.22);
+  background: rgb(220 38 38 / 0.06);
+}
+
+.ghostBtn:disabled,
+.primaryBtn:disabled,
+.btn-danger:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.field--inline {
+  gap: 0;
+}
+
+.sourceToolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.qualityPanel__summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .qualityPanel__tableWrap {
@@ -1022,7 +1357,7 @@ onUnmounted(() => {
 }
 
 .qualityPanel__empty {
-  padding: 6px 0;
+  padding: 6px 0 2px;
 }
 
 .inlineLinkBtn {
@@ -1036,67 +1371,8 @@ onUnmounted(() => {
   cursor: pointer;
 }
 
-.runPanel__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.runPanel__meta,
-.runPanel__hint,
-.muted {
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-}
-
-.runPanel__actions {
-  display: flex;
-  align-items: end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.runPanel__field {
-  display: grid;
-  gap: 4px;
-  font-size: 12px;
-}
-
-.runPanel__field input {
-  width: 120px;
-}
-
-.runPanel__field input,
-.ghostBtn,
-.primaryBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
-  border-radius: 10px;
-  padding: 7px 10px;
-  background: transparent;
-  color: inherit;
-}
-
-.primaryBtn {
-  border-color: rgb(var(--color-primary-rgb) / 0.35);
-  background: rgb(var(--color-primary-rgb) / 0.12);
-}
-
-.ghostBtn:disabled,
-.primaryBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.runPanel__switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
 .progressPanel {
-  margin-bottom: 10px;
+  margin-bottom: 2px;
   display: grid;
   gap: 6px;
 }
@@ -1116,9 +1392,9 @@ onUnmounted(() => {
 
 .progressBar {
   width: 100%;
-  height: 8px;
+  height: 6px;
   border-radius: 999px;
-  background: rgb(var(--color-surface-rgb) / 0.18);
+  background: rgb(var(--color-surface-rgb) / 0.12);
   overflow: hidden;
 }
 
@@ -1141,6 +1417,11 @@ onUnmounted(() => {
   overflow-x: auto;
 }
 
+.sourcesMobileList,
+.runsMobileList {
+  display: none;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -1149,8 +1430,8 @@ onUnmounted(() => {
 .table th,
 .table td {
   text-align: left;
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  padding: 7px 8px;
+  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  padding: 6px 7px;
   vertical-align: middle;
 }
 
@@ -1168,50 +1449,50 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.25);
-  background: rgb(var(--color-surface-rgb) / 0.1);
-  padding: 2px 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: transparent;
+  padding: 1px 7px;
   font-size: 12px;
 }
 
 .sourceBadge--astropixels {
-  border-color: rgb(30 64 175 / 0.35);
-  background: rgb(30 64 175 / 0.12);
+  border-color: rgb(30 64 175 / 0.25);
+  background: rgb(30 64 175 / 0.04);
 }
 
 .sourceBadge--imo {
-  border-color: rgb(6 95 70 / 0.35);
-  background: rgb(6 95 70 / 0.12);
+  border-color: rgb(6 95 70 / 0.25);
+  background: rgb(6 95 70 / 0.04);
 }
 
 .sourceBadge--nasa {
-  border-color: rgb(107 33 168 / 0.35);
-  background: rgb(107 33 168 / 0.12);
+  border-color: rgb(107 33 168 / 0.25);
+  background: rgb(107 33 168 / 0.04);
 }
 
 .pill {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
-  padding: 2px 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  padding: 1px 7px;
   font-size: 12px;
-  background: rgb(var(--color-surface-rgb) / 0.08);
+  background: transparent;
 }
 
 .pill--success {
-  border-color: rgb(22 163 74 / 0.35);
-  background: rgb(22 163 74 / 0.12);
+  border-color: rgb(22 163 74 / 0.24);
+  background: rgb(22 163 74 / 0.05);
 }
 
 .pill--warning {
-  border-color: rgb(202 138 4 / 0.35);
-  background: rgb(202 138 4 / 0.12);
+  border-color: rgb(202 138 4 / 0.24);
+  background: rgb(202 138 4 / 0.05);
 }
 
 .pill--danger {
-  border-color: rgb(220 38 38 / 0.35);
-  background: rgb(220 38 38 / 0.12);
+  border-color: rgb(220 38 38 / 0.24);
+  background: rgb(220 38 38 / 0.05);
 }
 
 .stackTiny {
@@ -1234,6 +1515,56 @@ onUnmounted(() => {
   flex-wrap: wrap;
 }
 
+.sourceMobileCard,
+.runMobileCard {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.98);
+  padding: 9px;
+  display: grid;
+  gap: 8px;
+}
+
+.sourceMobileCard__head,
+.runMobileCard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sourceMobileCard__select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sourceMobileCard__meta,
+.runMobileCard__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.sourceMobileCard__actions,
+.runMobileCard__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sourceMobileCard__hint {
+  margin: 0;
+}
+
+.runMobileCard__translation {
+  display: grid;
+  gap: 6px;
+}
+
 .switchLabel {
   display: inline-flex;
   align-items: center;
@@ -1241,8 +1572,12 @@ onUnmounted(() => {
   font-size: 12px;
 }
 
+.muted {
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
 .alert {
-  margin-bottom: 10px;
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid rgb(239 68 68 / 0.35);
@@ -1250,13 +1585,54 @@ onUnmounted(() => {
   color: rgb(185 28 28);
 }
 
+@media (max-width: 1100px) {
+  .topGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   .card {
     padding: 10px;
   }
 
-  .runPanel__actions {
+  .runPanel__actions,
+  .qualityPanel__actions {
     align-items: stretch;
+  }
+
+  .field input {
+    width: 100%;
+  }
+
+  .field select {
+    width: 100%;
+  }
+
+  .sourcesTableWrap,
+  .runsTableWrap {
+    display: none;
+  }
+
+  .sourcesMobileList,
+  .runsMobileList {
+    display: grid;
+    gap: 8px;
+  }
+
+  .sourceMobileCard__actions,
+  .runMobileCard__actions {
+    width: 100%;
+  }
+
+  .sourceMobileCard__actions .ghostBtn,
+  .runMobileCard__actions .ghostBtn,
+  .sourceMobileCard__actions .switchLabel {
+    flex: 1 1 auto;
+  }
+
+  .runMobileCard__actions .ghostBtn {
+    text-align: center;
   }
 }
 </style>

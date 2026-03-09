@@ -3,6 +3,7 @@ import api from '@/services/api'
 import {
   getCrawlRuns,
   getEventSources,
+  getEventTranslationHealth,
   getTranslationArtifactsReport,
   purgeEventSources,
   repairTranslationArtifacts,
@@ -73,7 +74,11 @@ describe('admin event sources api client', () => {
 
     await getTranslationArtifactsReport({ sample: 20 })
 
-    expect(api.get).toHaveBeenCalledWith('/admin/event-sources/translation-artifacts/report', { params: { sample: 20 } })
+    expect(api.get).toHaveBeenCalledWith('/admin/event-sources/translation-artifacts/report', {
+      params: { sample: 20 },
+      timeout: 30000,
+      meta: { skipErrorToast: true },
+    })
   })
 
   it('repairs translation artifacts via admin endpoint', async () => {
@@ -85,6 +90,31 @@ describe('admin event sources api client', () => {
       limit: 300,
       dry_run: false,
       sample: 20,
+    })
+  })
+
+  it('loads event translation health with silent background config', async () => {
+    api.get.mockResolvedValue({ data: { counts_24h: {}, queue: {} } })
+
+    await getEventTranslationHealth()
+
+    expect(api.get).toHaveBeenCalledWith('/admin/event-translation-health', {
+      timeout: 30000,
+      meta: { skipErrorToast: true },
+    })
+  })
+
+  it('allows overriding silent meta on event translation health request', async () => {
+    api.get.mockResolvedValue({ data: {} })
+
+    await getEventTranslationHealth({
+      timeout: 45000,
+      meta: { skipErrorToast: false, sampleTag: 'manual' },
+    })
+
+    expect(api.get).toHaveBeenCalledWith('/admin/event-translation-health', {
+      timeout: 45000,
+      meta: { skipErrorToast: false, sampleTag: 'manual' },
     })
   })
 })

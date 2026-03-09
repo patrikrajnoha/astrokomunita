@@ -40,6 +40,14 @@
       <p v-if="validLinks.length === 0" class="widgetHint">Zatial ziadne odkazy.</p>
     </template>
 
+    <template v-else-if="widgetType === SIDEBAR_WIDGET_TYPES.CONTEST">
+      <div v-if="contestConfig.imageUrl" class="widgetMedia">
+        <img :src="contestConfig.imageUrl" alt="" loading="lazy" />
+      </div>
+      <h3 class="widgetTitle">{{ contestConfig.title || 'SUTAZ' }}</h3>
+      <p class="widgetText">{{ contestConfig.description || 'Dopln kratky popis sutaze.' }}</p>
+    </template>
+
     <template v-else>
       <div class="htmlWidget" v-html="htmlConfig.html || '<p>Dopln HTML obsah widgetu.</p>'"></div>
     </template>
@@ -105,6 +113,7 @@ const ctaConfig = computed(() => normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.CTA,
 const infoCardConfig = computed(() => normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.INFO_CARD, normalizedConfig.value))
 const linkListConfig = computed(() => normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.LINK_LIST, normalizedConfig.value))
 const htmlConfig = computed(() => normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.HTML, normalizedConfig.value))
+const contestConfig = computed(() => normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.CONTEST, normalizedConfig.value))
 
 const validLinks = computed(() => {
   const links = Array.isArray(linkListConfig.value.links) ? linkListConfig.value.links : []

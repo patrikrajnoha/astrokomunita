@@ -105,17 +105,9 @@ describe('AdminUserDetailView', () => {
     apiGetMock.mockImplementation((url) => {
       if (url === '/admin/users/42') {
         return Promise.resolve({
-          data: {
-            id: 42,
-            name: 'Raj User',
-            email: 'raj@example.test',
-            role: 'user',
-            is_active: true,
-            is_banned: false,
+          data: makeBotUser({
             created_at: '2026-03-01T12:00:00Z',
-            banned_at: null,
-            ban_reason: null,
-          },
+          }),
         })
       }
 
@@ -152,7 +144,7 @@ describe('AdminUserDetailView', () => {
     expect(apiGetMock).toHaveBeenCalledWith('/admin/users/42')
   })
 
-  it('does not expose avatar or cover path editing for regular users', async () => {
+  it('saves profile fields for bot user via admin profile endpoint', async () => {
     const router = makeRouter()
     await router.push('/admin/users/42')
     await router.isReady()
@@ -167,11 +159,7 @@ describe('AdminUserDetailView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.find('#profile-avatar').exists()).toBe(false)
-    expect(wrapper.find('#profile-cover').exists()).toBe(false)
-
-    const saveButton = wrapper.findAll('button').find((button) => button.text().includes('Ulozit profil'))
-    expect(saveButton).toBeTruthy()
+    const saveButton = wrapper.get('[data-testid="admin-profile-save"]')
     await saveButton.trigger('click')
     await flush()
 
@@ -179,11 +167,54 @@ describe('AdminUserDetailView', () => {
     expect(profileCall).toBeTruthy()
     const payload = profileCall[1]
     expect(payload).toEqual({
-      name: 'Raj User',
+      name: 'Kozmo',
       bio: null,
     })
-    expect(payload).not.toHaveProperty('avatar_path')
-    expect(payload).not.toHaveProperty('cover_path')
+  })
+
+  it('shows non-bot detail in read-only mode without write actions', async () => {
+    apiGetMock.mockImplementation((url) => {
+      if (url === '/admin/users/42') {
+        return Promise.resolve({
+          data: {
+            id: 42,
+            name: 'Raj User',
+            email: 'raj@example.test',
+            role: 'user',
+            is_bot: false,
+            is_active: true,
+            is_banned: false,
+            created_at: '2026-03-01T12:00:00Z',
+            banned_at: null,
+            ban_reason: null,
+          },
+        })
+      }
+
+      return Promise.resolve({ data: { data: [] } })
+    })
+
+    const router = makeRouter()
+    await router.push('/admin/users/42')
+    await router.isReady()
+
+    const wrapper = mount(AdminUserDetailView, {
+      global: {
+        plugins: [router],
+        stubs: { teleport: true },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(router.currentRoute.value.name).toBe('admin.users.detail')
+    expect(wrapper.text().toLowerCase()).toContain('nie je mozne upravovat')
+    expect(wrapper.find('[data-testid="admin-profile-save"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="danger-zone"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Zablokovat ucet')
+    expect(wrapper.text()).toContain('Deaktivovat ucet')
+    expect(wrapper.text()).toContain('Pridat rolu editor')
   })
 
   it('uses profile-style bot media cards and hides raw storage paths', async () => {
@@ -398,7 +429,102 @@ describe('AdminUserDetailView', () => {
     expect(wrapper.find('[data-testid="admin-bot-avatar-edit"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="admin-bot-cover-edit"]').exists()).toBe(false)
     expect(wrapper.text().toLowerCase()).toContain('read-only preview')
+    expect(wrapper.find('[data-testid="admin-profile-save"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="danger-zone"]').exists()).toBe(false)
     expect(wrapper.find('.avatarCardMeta').exists()).toBe(true)
     expect(wrapper.find('.botMediaPreview.cover').exists()).toBe(true)
+  })
+
+  it('shows danger zone only when write actions are allowed for bot account', async () => {
+    const router = makeRouter()
+    await router.push('/admin/users/42')
+    await router.isReady()
+
+    const wrapper = mount(AdminUserDetailView, {
+      global: {
+        plugins: [router],
+        stubs: { teleport: true },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(wrapper.find('[data-testid="danger-zone"]').exists()).toBe(true)
+
+    authState.isAdmin = false
+    const readOnlyRouter = makeRouter()
+    await readOnlyRouter.push('/admin/users/42')
+    await readOnlyRouter.isReady()
+
+    const readOnlyWrapper = mount(AdminUserDetailView, {
+      global: {
+        plugins: [readOnlyRouter],
+        stubs: { teleport: true },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(readOnlyWrapper.find('[data-testid="danger-zone"]').exists()).toBe(false)
+  })
+
+  it('allows admin to add and remove editor role for eligible non-bot user', async () => {
+    let userState = {
+      id: 42,
+      name: 'Regular User',
+      email: 'regular@example.test',
+      role: 'user',
+      is_bot: false,
+      is_active: true,
+      is_banned: false,
+      created_at: '2026-03-01T12:00:00Z',
+      banned_at: null,
+      ban_reason: null,
+    }
+
+    apiGetMock.mockImplementation((url) => {
+      if (url === '/admin/users/42') {
+        return Promise.resolve({ data: { ...userState } })
+      }
+      return Promise.resolve({ data: { data: [] } })
+    })
+
+    apiPatchMock.mockImplementation((url, payload) => {
+      if (url === '/admin/users/42/role') {
+        userState = { ...userState, role: payload.role }
+      }
+      return Promise.resolve({ data: { ...userState } })
+    })
+
+    const router = makeRouter()
+    await router.push('/admin/users/42')
+    await router.isReady()
+
+    const wrapper = mount(AdminUserDetailView, {
+      global: {
+        plugins: [router],
+        stubs: { teleport: true },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    const addButton = wrapper.findAll('button').find((button) => button.text().includes('Pridat rolu editor'))
+    expect(addButton).toBeTruthy()
+    await addButton.trigger('click')
+    await flush()
+
+    expect(apiPatchMock).toHaveBeenCalledWith('/admin/users/42/role', { role: 'editor' })
+    expect(wrapper.text()).toContain('Pouzivatel je editor')
+
+    const removeButton = wrapper.findAll('button').find((button) => button.text().includes('Odobrat rolu editor'))
+    expect(removeButton).toBeTruthy()
+    await removeButton.trigger('click')
+    await flush()
+
+    expect(apiPatchMock).toHaveBeenCalledWith('/admin/users/42/role', { role: 'user' })
   })
 })

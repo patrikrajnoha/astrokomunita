@@ -233,6 +233,7 @@ describe('ProfileView avatar panel', () => {
     expect(wrapper.text()).not.toMatch(/lokalita/i)
     expect(wrapper.text()).not.toMatch(/upraviť polohu/i)
     expect(wrapper.text()).not.toMatch(/nastaviť polohu/i)
+    expect(wrapper.text()).not.toContain('test@example.com')
     expect(wrapper.find('.avatarCard').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Profilovy avatar')
 

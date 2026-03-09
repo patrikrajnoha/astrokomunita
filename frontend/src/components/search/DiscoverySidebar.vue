@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="ui-section-stack rounded-2xl bg-[color:rgb(var(--color-bg-rgb)/0.66)] backdrop-blur">
     <section class="p-4">
       <header class="mb-3 flex items-center justify-between">
@@ -70,7 +70,7 @@
         >
           <p class="line-clamp-2 text-sm text-[var(--color-surface)]">{{ snippet(post.content) }}</p>
           <p class="mt-1 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
-            {{ post.user?.name || 'Neznamy autor' }} â€˘ {{ post.likes_count || 0 }} lajkov
+            {{ post.user?.name || 'Neznamy autor' }} • {{ post.likes_count || 0 }} lajkov
           </p>
         </RouterLink>
       </div>

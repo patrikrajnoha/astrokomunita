@@ -6,12 +6,15 @@ import AdminAiActionPanel from '@/components/admin/shared/AdminAiActionPanel.vue
 import { eventCandidates } from '@/services/eventCandidates'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
 import { candidateDisplayDescription, candidateDisplayShort, candidateDisplayTitle } from '@/utils/translatedFields'
+import { resolveUserLocationLabel, resolveUserPreferredTimezone } from '@/utils/userTimezone'
 
 const route = useRoute()
 const router = useRouter()
 const { confirm } = useConfirm()
 const toast = useToast()
+const auth = useAuthStore()
 
 const id = computed(() => Number(route.params.id))
 const candidateListRoute = computed(() => ({
@@ -47,12 +50,18 @@ const aiPanelStatus = computed(() => {
 
   return aiTranslationStatus.value
 })
+const preferredTimezone = computed(() => resolveUserPreferredTimezone(auth.user))
+const timezoneInfoLabel = computed(() => `${resolveUserLocationLabel(auth.user)} (${preferredTimezone.value})`)
 
 function formatDate(value) {
   if (!value) return '-'
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return String(value)
-  return d.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
+  return d.toLocaleString('sk-SK', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: preferredTimezone.value,
+  })
 }
 
 function formatConfidence(value) {
@@ -73,7 +82,7 @@ function sourceLabel(source) {
   const key = String(source || '').toLowerCase()
   if (key === 'astropixels') return 'AstroPixels'
   if (key === 'imo') return 'IMO'
-  if (key === 'nasa_watch_the_skies') return 'NASA WTS'
+  if (key === 'nasa_watch_the_skies' || key === 'nasa_wts') return 'NASA WTS'
   if (key === 'nasa') return 'NASA'
   return key || '-'
 }
@@ -86,7 +95,7 @@ function sourceBadgeStyle(source) {
   if (key === 'imo') {
     return 'display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(6,95,70,.35); background:rgba(6,95,70,.12); font-size:12px;'
   }
-  if (key === 'nasa') {
+  if (key === 'nasa' || key === 'nasa_wts' || key === 'nasa_watch_the_skies') {
     return 'display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(107,33,168,.35); background:rgba(107,33,168,.12); font-size:12px;'
   }
   return 'display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:rgb(var(--color-surface-rgb) / .08); font-size:12px;'
@@ -425,6 +434,9 @@ onMounted(load)
         <h3 style="margin:0 0 10px;">Čas</h3>
 
         <div style="display:grid; grid-template-columns: 180px 1fr; gap:8px 12px; font-size: 14px;">
+          <div style="grid-column: 1 / -1; font-size:12px; opacity:.78; margin-bottom:4px;">
+            Casove pasmo: {{ timezoneInfoLabel }}
+          </div>
           <div style="opacity:.75;">Start</div><div>{{ formatDate(candidate.start_at) }}</div>
           <div style="opacity:.75;">End</div><div>{{ formatDate(candidate.end_at) }}</div>
           <div style="opacity:.75;">Max</div><div>{{ formatDate(candidate.max_at) }}</div>

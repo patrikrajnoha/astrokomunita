@@ -30,8 +30,6 @@ const auth = useAuthStore()
 const { confirm, prompt } = useConfirm()
 const toast = useToast()
 
-const activeTab = ref('overview')
-
 const user = ref(null)
 const userLoading = ref(false)
 const userError = ref('')
@@ -91,12 +89,47 @@ const usersListRoute = computed(() => ({
 const reportRows = computed(() => reportsData.value?.data || [])
 const isCurrentActorAdmin = computed(() => Boolean(auth.isAdmin))
 const isBotTarget = computed(() => String(user.value?.role || '').toLowerCase() === 'bot' || Boolean(user.value?.is_bot))
-const canEditProfile = computed(() => {
-  if (!user.value) return false
-  if (!isBotTarget.value) return true
-  return isCurrentActorAdmin.value
-})
+const canEditProfile = computed(() => Boolean(user.value && isBotTarget.value && isCurrentActorAdmin.value))
+const canModerateAccount = computed(() =>
+  Boolean(
+    user.value
+    && isCurrentActorAdmin.value
+    && !isSelf(user.value)
+    && roleLabel(user.value) !== 'admin',
+  ),
+)
+const canUseDangerActions = computed(() => canModerateAccount.value)
+const canToggleEditorRole = computed(() =>
+  Boolean(
+    user.value
+    && canModerateAccount.value
+    && !isBotTarget.value
+    && roleLabel(user.value) !== 'admin',
+  ),
+)
 const canUploadBotMedia = computed(() => isBotTarget.value && canEditProfile.value && isCurrentActorAdmin.value)
+const profileIdentifier = computed(() => {
+  if (!user.value) return '-'
+  if (user.value.username) return `@${user.value.username}`
+  if (user.value.email) return user.value.email
+  return `ID ${user.value.id ?? '-'}`
+})
+const statusText = computed(() => statusLabel(user.value))
+const roleText = computed(() => roleLabel(user.value))
+const accountInfoRows = computed(() => {
+  if (!user.value) return []
+
+  return [
+    { key: 'id', label: 'ID pouzivatela', value: user.value.id ?? '-' },
+    { key: 'email', label: 'E-mail', value: user.value.email || '-' },
+    { key: 'username', label: 'Pouzivatelske meno', value: user.value.username ? `@${user.value.username}` : '-' },
+    { key: 'role', label: 'Rola', value: roleText.value },
+    { key: 'status', label: 'Stav', value: statusText.value },
+    { key: 'created_at', label: 'Vytvoreny', value: formatDate(user.value.created_at) },
+    { key: 'banned_at', label: 'Zablokovany od', value: formatDate(user.value.banned_at) },
+    { key: 'ban_reason', label: 'Dovod blokacie', value: user.value.ban_reason || '-' },
+  ]
+})
 const avatarSrc = computed(() =>
   avatarPreview.value || normalizeAvatarUrl(user.value?.avatar_url || user.value?.avatarUrl || ''),
 )
@@ -154,27 +187,59 @@ const mediaActionBusy = computed(() =>
 )
 
 const reportColumns = [
-  { key: 'type', label: 'Type' },
-  { key: 'reason', label: 'Reason' },
-  { key: 'status', label: 'Status' },
-  { key: 'created_at', label: 'Created' },
-  { key: 'actions', label: 'Actions', align: 'right' },
+  { key: 'type', label: 'Typ' },
+  { key: 'reason', label: 'Dovod' },
+  { key: 'status', label: 'Stav' },
+  { key: 'created_at', label: 'Vytvorene' },
+  { key: 'actions', label: 'Akcie', align: 'right' },
 ]
 
 function statusLabel(userRow) {
-  if (!userRow?.is_active) return 'inactive'
-  if (userRow?.is_banned) return 'banned'
-  return 'active'
+  if (!userRow?.is_active) return 'deaktivovany'
+  if (userRow?.is_banned) return 'zablokovany'
+  return 'aktivny'
+}
+
+function statusClass(userRow) {
+  if (!userRow?.is_active) return 'is-inactive'
+  if (userRow?.is_banned) return 'is-banned'
+  return 'is-active'
+}
+
+function roleLabel(userRow) {
+  const role = String(userRow?.role || '').trim().toLowerCase()
+  if (role === 'admin') return 'admin'
+  if (role === 'editor') return 'editor'
+  if (role === 'bot') return 'bot'
+  return 'user'
+}
+
+function roleClass(userRow) {
+  const role = String(userRow?.role || '').trim().toLowerCase()
+  if (role === 'admin') return 'is-admin'
+  if (role === 'editor') return 'is-editor'
+  if (role === 'bot') return 'is-bot'
+  return 'is-user'
 }
 
 function isSelf(userRow) {
   return auth.user && userRow && Number(auth.user.id) === Number(userRow.id)
 }
 
+function subjectLabel(userRow) {
+  if (!userRow) return 'pouzivatela'
+  if (userRow.email) return userRow.email
+  if (userRow.username) return `@${userRow.username}`
+  if (userRow.name) return userRow.name
+  return `ID ${userRow.id ?? '-'}`
+}
+
 function reportType(report) {
-  if (!report?.target_type) return 'post'
+  if (!report?.target_type) return 'prispevok'
   const parts = String(report.target_type).split('\\')
-  return (parts[parts.length - 1] || 'post').toLowerCase()
+  const value = (parts[parts.length - 1] || 'post').toLowerCase()
+  if (value === 'post') return 'prispevok'
+  return value
 }
 
 function formatDate(value) {
@@ -190,6 +255,7 @@ async function loadUser() {
   try {
     const res = await api.get(`/admin/users/${userId.value}`)
     user.value = res.data
+
     profileForm.value = {
       name: String(user.value?.name || ''),
       bio: String(user.value?.bio || ''),
@@ -241,10 +307,10 @@ function updateUser(updated) {
 }
 
 async function banUser() {
-  if (!user.value || isSelf(user.value)) return
+  if (!user.value || !canModerateAccount.value) return
   const reason = await prompt({
     title: 'Zablokovat pouzivatela',
-    message: `Zadajte dovod blokacie pre ${user.value.email}.`,
+    message: `Zadajte dovod blokacie pre ${subjectLabel(user.value)}.`,
     confirmText: 'Zablokovat',
     cancelText: 'Zrusit',
     placeholder: 'Dovod blokacie...',
@@ -265,10 +331,10 @@ async function banUser() {
 }
 
 async function unbanUser() {
-  if (!user.value || isSelf(user.value)) return
+  if (!user.value || !canModerateAccount.value) return
   const ok = await confirm({
     title: 'Odblokovat pouzivatela',
-    message: `Odblokovat pouzivatela ${user.value.email}?`,
+    message: `Odblokovat pouzivatela ${subjectLabel(user.value)}?`,
     confirmText: 'Odblokovat',
     cancelText: 'Zrusit',
   })
@@ -285,10 +351,10 @@ async function unbanUser() {
 }
 
 async function deactivateUser() {
-  if (!user.value || isSelf(user.value) || !user.value.is_active) return
+  if (!user.value || !canModerateAccount.value || !user.value.is_active) return
   const ok = await confirm({
     title: 'Deaktivovat pouzivatela',
-    message: `Deaktivovat pouzivatela ${user.value.email}?`,
+    message: `Deaktivovat pouzivatela ${subjectLabel(user.value)}?`,
     confirmText: 'Deaktivovat',
     cancelText: 'Zrusit',
     variant: 'danger',
@@ -305,11 +371,31 @@ async function deactivateUser() {
   }
 }
 
+async function reactivateUser() {
+  if (!user.value || !canModerateAccount.value || user.value.is_active) return
+  const ok = await confirm({
+    title: 'Reaktivovat pouzivatela',
+    message: `Reaktivovat pouzivatela ${subjectLabel(user.value)}?`,
+    confirmText: 'Reaktivovat',
+    cancelText: 'Zrusit',
+  })
+  if (!ok) return
+
+  try {
+    const res = await api.post(`/admin/users/${user.value.id}/reactivate`)
+    updateUser(res.data)
+    toast.success('Pouzivatel bol reaktivovany.')
+  } catch (e) {
+    userError.value = e?.response?.data?.message || 'Reaktivacia zlyhala.'
+    toast.error(userError.value)
+  }
+}
+
 async function resetProfile() {
-  if (!user.value) return
+  if (!user.value || !canUseDangerActions.value) return
   const ok = await confirm({
     title: 'Resetovat profil',
-    message: `Resetovat profil pre ${user.value.email}?`,
+    message: `Resetovat profil pre ${subjectLabel(user.value)}?`,
     confirmText: 'Resetovat',
     cancelText: 'Zrusit',
     variant: 'danger',
@@ -322,6 +408,26 @@ async function resetProfile() {
     toast.success('Profil bol resetovany.')
   } catch (e) {
     userError.value = e?.response?.data?.message || 'Reset profilu zlyhal.'
+    toast.error(userError.value)
+  }
+}
+
+async function updateEditorRole(nextRole) {
+  if (!user.value || !canToggleEditorRole.value) return
+
+  try {
+    const res = await api.patch(`/admin/users/${user.value.id}/role`, { role: nextRole })
+    updateUser(res.data)
+    toast.success(nextRole === 'editor' ? 'Rola editor bola pridana.' : 'Rola editor bola odobrata.')
+  } catch (e) {
+    const status = Number(e?.response?.status || 0)
+    if (status === 403) {
+      userError.value = 'Nemate opravnenie menit roly.'
+    } else if (status === 422) {
+      userError.value = e?.response?.data?.message || 'Zmena roly je neplatna.'
+    } else {
+      userError.value = e?.response?.data?.message || 'Zmena roly zlyhala.'
+    }
     toast.error(userError.value)
   }
 }
@@ -692,9 +798,7 @@ watch(reportsSearchInput, (value) => {
 })
 
 watch([reportsSearch, reportsStatus, reportsPage, reportsPerPage], () => {
-  if (activeTab.value === 'reports') {
-    loadReports()
-  }
+  loadReports()
 })
 
 watch(
@@ -708,17 +812,9 @@ watch(
     clearPendingMedia('avatar')
     clearPendingMedia('cover')
     loadUser()
-    if (activeTab.value === 'reports') {
-      loadReports()
-    }
+    loadReports()
   },
 )
-
-watch(activeTab, (tab) => {
-  if (tab === 'reports' && !reportsData.value) {
-    loadReports()
-  }
-})
 
 watch(
   () => avatarModalOpen.value,
@@ -742,6 +838,7 @@ watch(
 )
 
 loadUser()
+loadReports()
 
 onBeforeUnmount(() => {
   if (searchDebounce) clearTimeout(searchDebounce)
@@ -752,8 +849,8 @@ onBeforeUnmount(() => {
 
 <template>
   <AdminPageShell
-    :title="user?.name ? `User: ${user.name}` : 'User detail'"
-    :subtitle="user?.email || 'Admin user detail'"
+    title="Detail pouzivatela"
+    :subtitle="profileIdentifier"
   >
     <AdminSectionHeader
       section="community"
@@ -763,133 +860,245 @@ onBeforeUnmount(() => {
     />
 
     <div v-if="userError" class="adminAlert">{{ userError }}</div>
-    <div v-if="reportsError && activeTab === 'reports'" class="adminAlert">{{ reportsError }}</div>
+    <div v-if="!user && userLoading" class="sectionCard loadingCard">Nacitavam detail pouzivatela...</div>
 
-    <section class="userHeader">
-      <div class="userMeta">
-        <div class="userRow"><strong>Email:</strong> {{ user?.email || '-' }}</div>
-        <div class="userRow"><strong>Role:</strong> {{ user?.role || '-' }}</div>
-        <div class="userRow">
-          <strong>Status:</strong>
-          <span class="statusBadge">{{ statusLabel(user) }}</span>
+    <template v-else-if="user">
+      <section class="identityHeader sectionCard">
+        <div class="identityMain">
+          <div class="avatar identityAvatar">
+            <UserAvatar class="avatarImg" :user="user" :alt="`${user?.name || 'Pouzivatel'} avatar`" />
+          </div>
+          <div class="identityText">
+            <h2 class="identityName">{{ user?.name || 'Pouzivatel' }}</h2>
+            <p class="identitySubline">{{ profileIdentifier }}</p>
+            <div class="identityBadges">
+              <span class="statusBadge roleBadge" :class="roleClass(user)">{{ roleText }}</span>
+              <span class="statusBadge" :class="statusClass(user)">{{ statusText }}</span>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div class="headerActions">
-        <button v-if="!user?.is_banned" class="btn action" :disabled="userLoading || isSelf(user)" @click="banUser">
-          Ban
-        </button>
-        <button v-else class="btn action" :disabled="userLoading || isSelf(user)" @click="unbanUser">Unban</button>
-        <button
-          class="btn action"
-          :disabled="userLoading || isSelf(user) || !user?.is_active"
-          @click="deactivateUser"
-        >
-          Deactivate
-        </button>
-        <button class="btn action subtle" :disabled="userLoading" @click="resetProfile">Resetovat profil</button>
-      </div>
-    </section>
-
-    <section class="overviewCard">
-      <h3>Polia profilu</h3>
-      <div v-if="isBotTarget && !isCurrentActorAdmin" class="adminAlert">
-        Bot profiles are read-only for non-admin users.
-      </div>
-      <div class="formGrid">
-        <label class="fieldLabel" for="profile-name">Name</label>
-        <input
-          id="profile-name"
-          v-model="profileForm.name"
-          class="fieldInput"
-          :disabled="!canEditProfile || userLoading"
-          type="text"
-        />
-
-        <label class="fieldLabel" for="profile-bio">Bio</label>
-        <textarea
-          id="profile-bio"
-          v-model="profileForm.bio"
-          class="fieldInput"
-          :disabled="!canEditProfile || userLoading"
-          rows="3"
-        ></textarea>
-
-      </div>
-
-      <div v-if="isBotTarget" class="botMediaGrid">
-        <section class="botMediaCard profileCardLike">
-          <div class="avatarCardHead">
-            <div>
-              <h4 class="avatarCardTitle">Profilovy avatar</h4>
-              <p class="avatarCardSub">Fotka alebo generovany avatar.</p>
-            </div>
-            <button
-              v-if="canUploadBotMedia"
-              type="button"
-              data-testid="admin-bot-avatar-edit"
-              class="btn outline avatarOpenBtn"
-              :disabled="mediaActionBusy"
-              @click="openAvatarEditor"
-            >
-              Upravit
-            </button>
-          </div>
-
-          <div class="avatarCardMeta">
-            <div class="avatar sm avatarCardPreview">
-              <UserAvatar
-                class="avatarImg"
-                :user="user"
-                :avatar-url="avatarSrc"
-                :alt="`${user?.name || 'Bot'} avatar`"
-              />
-            </div>
-            <div class="avatarCardInfo">
-              <div class="avatarModePill">{{ persistedAvatarMode === 'generated' ? 'Rezim Avatar' : 'Rezim Fotka' }}</div>
-              <p class="avatarHint avatarCardHint">Bez fotky sa pouzije fallback avatar.</p>
-            </div>
-          </div>
-
-          <div v-if="!canUploadBotMedia" class="botMediaReadonly">Read-only preview</div>
-          <div v-if="mediaError" class="msg err">{{ mediaError }}</div>
-        </section>
-
-        <section class="botMediaCard profileCardLike">
-          <div class="avatarCardHead">
-            <div>
-              <h4 class="avatarCardTitle">Titulna fotka</h4>
-              <p class="avatarCardSub">Nahraj alebo odstran titulnu fotku bota.</p>
-            </div>
-            <button
-              v-if="canUploadBotMedia"
-              type="button"
-              data-testid="admin-bot-cover-edit"
-              class="btn outline avatarOpenBtn"
-              :disabled="mediaActionBusy"
-              @click="openCoverEditor"
-            >
-              Upravit
-            </button>
-          </div>
-
-          <div
-            class="botMediaPreview cover"
-            :class="{ 'botMediaPreview--fallback': botCoverMedia.isBotFallback }"
-            :style="botCoverMedia.fallbackStyle"
+        <div class="identityActions">
+          <RouterLink
+            v-if="user?.username"
+            :to="{ name: 'user-profile', params: { username: user.username } }"
+            class="btn subtle"
           >
-            <img v-if="botCoverMedia.hasImage" :src="botCoverMedia.imageUrl" alt="Bot cover" class="botCoverImage" />
-            <div class="coverGlow"></div>
+            Zobrazit verejny profil
+          </RouterLink>
+        </div>
+      </section>
+
+      <div class="detailGrid">
+        <section class="sectionCard profileSection">
+          <header class="sectionHeader">
+            <h3>Profil</h3>
+            <p class="sectionSubline">Editovatelne polia pouzivatelskeho profilu.</p>
+          </header>
+
+          <div v-if="canEditProfile" class="formGrid">
+            <label class="fieldLabel" for="profile-name">Meno</label>
+            <input
+              id="profile-name"
+              v-model="profileForm.name"
+              class="fieldInput"
+              :disabled="userLoading"
+              type="text"
+            />
+
+            <label class="fieldLabel" for="profile-bio">Bio</label>
+            <textarea
+              id="profile-bio"
+              v-model="profileForm.bio"
+              class="fieldInput"
+              :disabled="userLoading"
+              rows="3"
+            ></textarea>
+
+            <div class="profileActions">
+              <button
+                class="btn"
+                data-testid="admin-profile-save"
+                :disabled="userLoading"
+                @click="saveProfile"
+              >
+                Ulozit zmeny
+              </button>
+            </div>
           </div>
 
-          <div v-if="!canUploadBotMedia" class="botMediaReadonly">Read-only preview</div>
-        </section>
-      </div>
+          <div v-else class="readonlyHint">
+            Tento profil nie je mozne upravovat cez admin UI.
+          </div>
 
-      <div class="headerActions">
-        <button class="btn action" :disabled="!canEditProfile || userLoading" @click="saveProfile">
-          Ulozit profil
-        </button>
+          <div v-if="isBotTarget" class="botMediaGrid">
+            <section class="botMediaCard profileCardLike">
+              <div class="avatarCardHead">
+                <div>
+                  <h4 class="avatarCardTitle">Profilovy avatar</h4>
+                  <p class="avatarCardSub">Fotka alebo generovany avatar.</p>
+                </div>
+                <button
+                  v-if="canUploadBotMedia"
+                  type="button"
+                  data-testid="admin-bot-avatar-edit"
+                  class="btn outline avatarOpenBtn"
+                  :disabled="mediaActionBusy"
+                  @click="openAvatarEditor"
+                >
+                  Upravit
+                </button>
+              </div>
+
+              <div class="avatarCardMeta">
+                <div class="avatar sm avatarCardPreview">
+                  <UserAvatar
+                    class="avatarImg"
+                    :user="user"
+                    :avatar-url="avatarSrc"
+                    :alt="`${user?.name || 'Bot'} avatar`"
+                  />
+                </div>
+                <div class="avatarCardInfo">
+                  <div class="avatarModePill">{{ persistedAvatarMode === 'generated' ? 'Rezim Avatar' : 'Rezim Fotka' }}</div>
+                  <p class="avatarHint avatarCardHint">Bez fotky sa pouzije fallback avatar.</p>
+                </div>
+              </div>
+
+              <div v-if="!canUploadBotMedia" class="botMediaReadonly">Read-only preview</div>
+              <div v-if="mediaError" class="msg err">{{ mediaError }}</div>
+            </section>
+
+            <section class="botMediaCard profileCardLike">
+              <div class="avatarCardHead">
+                <div>
+                  <h4 class="avatarCardTitle">Titulna fotka</h4>
+                  <p class="avatarCardSub">Nahraj alebo odstran titulnu fotku bota.</p>
+                </div>
+                <button
+                  v-if="canUploadBotMedia"
+                  type="button"
+                  data-testid="admin-bot-cover-edit"
+                  class="btn outline avatarOpenBtn"
+                  :disabled="mediaActionBusy"
+                  @click="openCoverEditor"
+                >
+                  Upravit
+                </button>
+              </div>
+
+              <div
+                class="botMediaPreview cover"
+                :class="{ 'botMediaPreview--fallback': botCoverMedia.isBotFallback }"
+                :style="botCoverMedia.fallbackStyle"
+              >
+                <img v-if="botCoverMedia.hasImage" :src="botCoverMedia.imageUrl" alt="Bot cover" class="botCoverImage" />
+                <div class="coverGlow"></div>
+              </div>
+
+              <div v-if="!canUploadBotMedia" class="botMediaReadonly">Read-only preview</div>
+            </section>
+          </div>
+        </section>
+
+        <aside class="sidePanel">
+          <section class="sectionCard">
+            <header class="sectionHeader">
+              <h3>Informacie o ucte</h3>
+            </header>
+
+            <dl class="accountInfoList">
+              <div v-for="item in accountInfoRows" :key="item.key" class="accountInfoItem">
+                <dt>{{ item.label }}</dt>
+                <dd>{{ item.value }}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="sectionCard">
+            <header class="sectionHeader">
+              <h3>Opravnenia a roly</h3>
+              <p class="sectionSubline">Aktualna rola a moznost spravy roly editor.</p>
+            </header>
+            <div class="accountInfoItem">
+              <dt>Aktualna rola</dt>
+              <dd>
+                <span class="statusBadge roleBadge" :class="roleClass(user)">{{ roleText }}</span>
+              </dd>
+            </div>
+            <div class="accountInfoItem">
+              <dt>Stav editor</dt>
+              <dd>{{ roleText === 'editor' ? 'Pouzivatel je editor' : 'Pouzivatel nie je editor' }}</dd>
+            </div>
+            <div v-if="canToggleEditorRole" class="actionStack">
+              <button
+                v-if="roleText !== 'editor'"
+                class="btn subtle"
+                :disabled="userLoading"
+                @click="updateEditorRole('editor')"
+              >
+                Pridat rolu editor
+              </button>
+              <button
+                v-else
+                class="btn subtle"
+                :disabled="userLoading"
+                @click="updateEditorRole('user')"
+              >
+                Odobrat rolu editor
+              </button>
+            </div>
+          </section>
+
+          <section class="sectionCard moderationCard">
+            <header class="sectionHeader">
+              <h3>Moderacia</h3>
+              <p class="sectionSubline">Reverzibilne akcie pre stav uctu.</p>
+            </header>
+
+            <div v-if="canModerateAccount" class="actionStack">
+              <button
+                v-if="!user?.is_banned"
+                class="btn subtle"
+                :disabled="userLoading"
+                @click="banUser"
+              >
+                Zablokovat ucet
+              </button>
+              <button
+                v-else
+                class="btn subtle"
+                :disabled="userLoading"
+                @click="unbanUser"
+              >
+                Odblokovat ucet
+              </button>
+
+              <button
+                class="btn subtle"
+                :disabled="userLoading || !user?.is_active"
+                @click="deactivateUser"
+              >
+                Deaktivovat ucet
+              </button>
+              <button
+                class="btn subtle"
+                :disabled="userLoading || user?.is_active"
+                @click="reactivateUser"
+              >
+                Reaktivovat ucet
+              </button>
+            </div>
+            <p v-else class="readonlyHint">Pre tento ucet nie su moderacne write akcie povolene.</p>
+          </section>
+
+          <section v-if="canUseDangerActions" class="sectionCard dangerZone" data-testid="danger-zone">
+            <header class="sectionHeader">
+              <h3>Danger zone</h3>
+              <p class="sectionSubline">Nevratne operacie nad profilom.</p>
+            </header>
+            <button class="btn danger" :disabled="userLoading" @click="resetProfile">Resetovat profil</button>
+          </section>
+        </aside>
       </div>
 
       <BaseModal
@@ -1117,39 +1326,14 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </BaseModal>
-    </section>
 
-    <div class="tabs">
-      <button
-        type="button"
-        class="tabBtn"
-        :class="{ active: activeTab === 'overview' }"
-        @click="activeTab = 'overview'"
-      >
-        Prehlad
-      </button>
-      <button
-        type="button"
-        class="tabBtn"
-        :class="{ active: activeTab === 'reports' }"
-        @click="activeTab = 'reports'"
-      >
-        Reporty
-      </button>
-    </div>
+      <section class="sectionCard reportsSection">
+        <header class="sectionHeader">
+          <h3>Reporty</h3>
+          <p class="sectionSubline">Nahlasenia spojene s obsahom tohto pouzivatela.</p>
+        </header>
+        <div v-if="reportsError" class="adminAlert">{{ reportsError }}</div>
 
-    <section v-if="activeTab === 'overview'" class="overviewCard">
-      <div><strong>ID:</strong> {{ user?.id || '-' }}</div>
-      <div><strong>Meno:</strong> {{ user?.name || '-' }}</div>
-      <div><strong>E-mail:</strong> {{ user?.email || '-' }}</div>
-      <div><strong>Rola:</strong> {{ user?.role || '-' }}</div>
-      <div><strong>Stav:</strong> {{ statusLabel(user) }}</div>
-      <div><strong>Zablokovany od:</strong> {{ formatDate(user?.banned_at) }}</div>
-      <div><strong>Dovod blokacie:</strong> {{ user?.ban_reason || '-' }}</div>
-      <div><strong>Vytvorene:</strong> {{ formatDate(user?.created_at) }}</div>
-    </section>
-
-    <section v-if="activeTab === 'reports'" class="reportsTab">
       <AdminToolbar :loading="reportsLoading">
         <template #search>
           <label class="fieldLabel" for="user-reports-search">Hladat</label>
@@ -1199,8 +1383,8 @@ onBeforeUnmount(() => {
         </template>
 
         <template #actions>
-          <button type="button" class="btn action" :disabled="reportsLoading" @click="loadReports">Obnovit</button>
-          <button type="button" class="btn action subtle" :disabled="reportsLoading" @click="clearReportFilters">
+          <button type="button" class="btn subtle" :disabled="reportsLoading" @click="loadReports">Obnovit</button>
+          <button type="button" class="btn subtle" :disabled="reportsLoading" @click="clearReportFilters">
             Vycistit filtre
           </button>
         </template>
@@ -1230,12 +1414,12 @@ onBeforeUnmount(() => {
             <RouterLink
               v-if="row?.target?.id"
               :to="{ name: 'post-detail', params: { id: row.target.id } }"
-              class="btn action"
+              class="btn subtle"
             >
               Zobrazit
             </RouterLink>
-            <button class="btn action" :disabled="reportsLoading" @click="reportAction(row, 'hide')">Vyriesit</button>
-            <button class="btn action subtle" :disabled="reportsLoading" @click="reportAction(row, 'dismiss')">
+            <button class="btn subtle" :disabled="reportsLoading" @click="reportAction(row, 'hide')">Vyriesit</button>
+            <button class="btn subtle" :disabled="reportsLoading" @click="reportAction(row, 'dismiss')">
               Zamietnut
             </button>
           </div>
@@ -1243,7 +1427,8 @@ onBeforeUnmount(() => {
       </AdminDataTable>
 
       <AdminPagination :meta="reportsData" @page-change="reportsPage = $event" />
-    </section>
+      </section>
+    </template>
   </AdminPageShell>
 </template>
 
@@ -1256,63 +1441,162 @@ onBeforeUnmount(() => {
   background: rgb(var(--color-danger-rgb, 239 68 68) / 0.08);
 }
 
-.userHeader {
+.sectionCard {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
   border-radius: 12px;
   padding: 14px;
+  background: rgb(var(--color-bg-rgb) / 0.3);
+}
+
+.loadingCard {
+  font-size: 14px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.identityHeader {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.userMeta {
-  display: grid;
-  gap: 6px;
-}
-
-.userRow {
+.identityMain {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  min-width: 0;
 }
 
-.headerActions,
-.rowActions {
-  display: inline-flex;
+.identityAvatar {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+.identityText {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.identityName {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.identitySubline {
+  margin: 0;
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.identityBadges {
+  display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.tabs {
-  display: flex;
-  gap: 8px;
+.identityActions {
+  display: inline-flex;
+  align-items: center;
 }
 
-.tabBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  border-radius: 10px;
-  padding: 8px 12px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.tabBtn.active {
-  background: rgb(var(--color-surface-rgb) / 0.1);
-}
-
-.overviewCard {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 12px;
-  padding: 14px;
+.detailGrid {
   display: grid;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
+  gap: 12px;
 }
 
 .formGrid {
   display: grid;
+  gap: 10px;
+}
+
+.profileActions {
+  margin-top: 4px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.sidePanel {
+  display: grid;
+  gap: 12px;
+}
+
+.sectionHeader {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.sectionHeader h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.sectionSubline {
+  margin: 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+}
+
+.readonlyHint {
+  margin: 0;
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.86);
+}
+
+.accountInfoList {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.accountInfoItem {
+  display: grid;
+  gap: 3px;
+}
+
+.accountInfoItem dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.76);
+}
+
+.accountInfoItem dd {
+  margin: 0;
+  font-size: 13px;
+}
+
+.moderationCard,
+.dangerZone {
+  gap: 10px;
+}
+
+.actionStack {
+  display: grid;
   gap: 8px;
+}
+
+.dangerZone {
+  border-color: rgb(var(--color-danger-rgb, 239 68 68) / 0.35);
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.04);
+}
+
+.reportsSection {
+  margin-top: 12px;
+}
+
+.rowActions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .botMediaGrid {
@@ -1638,11 +1922,55 @@ onBeforeUnmount(() => {
 .statusBadge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  justify-content: center;
+  padding: 2px 9px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
   border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  text-transform: uppercase;
+  text-transform: lowercase;
+}
+
+.statusBadge.is-active {
+  color: rgb(var(--color-success-rgb) / 0.92);
+  border-color: rgb(var(--color-success-rgb) / 0.34);
+  background: rgb(var(--color-success-rgb) / 0.14);
+}
+
+.statusBadge.is-banned {
+  color: rgb(var(--color-danger-rgb, 239 68 68));
+  border-color: rgb(var(--color-danger-rgb, 239 68 68) / 0.36);
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.12);
+}
+
+.statusBadge.is-inactive {
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  border-color: rgb(var(--color-surface-rgb) / 0.26);
+  background: rgb(var(--color-surface-rgb) / 0.1);
+}
+
+.roleBadge.is-admin {
+  color: rgb(var(--color-primary-rgb) / 0.98);
+  border-color: rgb(var(--color-primary-rgb) / 0.34);
+  background: rgb(var(--color-primary-rgb) / 0.14);
+}
+
+.roleBadge.is-editor {
+  color: rgb(var(--color-text-primary-rgb) / 0.92);
+  border-color: rgb(var(--color-surface-rgb) / 0.28);
+  background: rgb(var(--color-surface-rgb) / 0.12);
+}
+
+.roleBadge.is-bot {
+  color: rgb(var(--color-success-rgb) / 0.95);
+  border-color: rgb(var(--color-success-rgb) / 0.34);
+  background: rgb(var(--color-success-rgb) / 0.12);
+}
+
+.roleBadge.is-user {
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  border-color: rgb(var(--color-surface-rgb) / 0.24);
+  background: rgb(var(--color-surface-rgb) / 0.1);
 }
 
 .btn {
@@ -1680,9 +2008,55 @@ onBeforeUnmount(() => {
   border-color: rgb(var(--color-surface-rgb) / 0.16);
 }
 
+.btn.danger {
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.16);
+  color: rgb(var(--color-danger-rgb, 239 68 68));
+  border-color: rgb(var(--color-danger-rgb, 239 68 68) / 0.42);
+}
+
+.btn.danger:hover:not(:disabled) {
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.24);
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+}
+
+@media (max-width: 980px) {
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .identityHeader {
+    align-items: stretch;
+  }
+
+  .identityActions {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .identityMain {
+    align-items: flex-start;
+  }
+
+  .identityName {
+    font-size: 20px;
+  }
+
+  .identitySubline {
+    white-space: normal;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .profileActions {
+    justify-content: stretch;
+  }
 }
 </style>

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick, ref } from 'vue'
 import EventsUnifiedView from '@/views/admin/EventsUnifiedView.vue'
@@ -55,6 +55,11 @@ function flush() {
   return Promise.resolve().then(() => nextTick())
 }
 
+function findBodyButton(text) {
+  return Array.from(document.body.querySelectorAll('button'))
+    .find((button) => (button.textContent || '').includes(text))
+}
+
 describe('EventsUnifiedView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -104,6 +109,10 @@ describe('EventsUnifiedView', () => {
     })
   })
 
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
   it('renders title panel and Navrhnut action in edit mode', async () => {
     const wrapper = mount(EventsUnifiedView)
     await flush()
@@ -115,11 +124,9 @@ describe('EventsUnifiedView', () => {
       .trigger('click')
     await flush()
 
-    const suggestButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Navrhn'))
+    const suggestButton = findBodyButton('Navrhn')
 
-    expect(wrapper.text()).toContain('AI: Zlep')
+    expect(document.body.textContent || '').toContain('AI: Zlep')
     expect(suggestButton).toBeTruthy()
   })
 
@@ -134,17 +141,16 @@ describe('EventsUnifiedView', () => {
       .trigger('click')
     await flush()
 
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Navrhn'))
-      .trigger('click')
+    const suggestButton = findBodyButton('Navrhn')
+    expect(suggestButton).toBeTruthy()
+    suggestButton.click()
     await flush()
     await flush()
 
     expect(postEditAdminEventTitleMock).toHaveBeenCalledWith(7, { mode: 'preview' })
-    expect(wrapper.text()).toContain('Mars Opposition')
-    expect(wrapper.text()).toContain('Mars v opozicii')
-    expect(wrapper.find('[data-testid="events-unified-title-apply-btn"]').exists()).toBe(true)
+    expect(document.body.textContent || '').toContain('Mars Opposition')
+    expect(document.body.textContent || '').toContain('Mars v opozicii')
+    expect(document.body.querySelector('[data-testid="events-unified-title-apply-btn"]')).toBeTruthy()
   })
 
   it('apply updates title input and undo restores original value', async () => {
@@ -158,27 +164,33 @@ describe('EventsUnifiedView', () => {
       .trigger('click')
     await flush()
 
-    expect(wrapper.find('input[type="text"]').element.value).toBe('Mars Opposition')
+    const titleInput = document.body.querySelector('input[type="text"]')
+    expect(titleInput).toBeTruthy()
+    expect(titleInput.value).toBe('Mars Opposition')
 
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Navrhn'))
-      .trigger('click')
+    const suggestButton = findBodyButton('Navrhn')
+    expect(suggestButton).toBeTruthy()
+    suggestButton.click()
     await flush()
     await flush()
 
-    await wrapper.find('[data-testid="events-unified-title-apply-btn"]').trigger('click')
+    const applyButton = document.body.querySelector('[data-testid="events-unified-title-apply-btn"]')
+    expect(applyButton).toBeTruthy()
+    applyButton.click()
     await flush()
 
-    expect(wrapper.find('input[type="text"]').element.value).toBe('Mars v opozicii')
+    const updatedTitleInput = document.body.querySelector('input[type="text"]')
+    expect(updatedTitleInput).toBeTruthy()
+    expect(updatedTitleInput.value).toBe('Mars v opozicii')
 
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Undo'))
-      .trigger('click')
+    const undoButton = findBodyButton('Undo')
+    expect(undoButton).toBeTruthy()
+    undoButton.click()
     await flush()
 
-    expect(wrapper.find('input[type="text"]').element.value).toBe('Mars Opposition')
+    const restoredTitleInput = document.body.querySelector('input[type="text"]')
+    expect(restoredTitleInput).toBeTruthy()
+    expect(restoredTitleInput.value).toBe('Mars Opposition')
   })
 
   it('shows fallback badge when preview uses fallback', async () => {
@@ -205,13 +217,12 @@ describe('EventsUnifiedView', () => {
       .trigger('click')
     await flush()
 
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Navrhn'))
-      .trigger('click')
+    const suggestButton = findBodyButton('Navrhn')
+    expect(suggestButton).toBeTruthy()
+    suggestButton.click()
     await flush()
     await flush()
 
-    expect(wrapper.text().toLowerCase()).toContain('fallback')
+    expect((document.body.textContent || '').toLowerCase()).toContain('fallback')
   })
 })

@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import {
   clearBotSourceCooldown,
@@ -31,6 +31,22 @@ const editor = reactive({
   id: null,
   name: '',
   url: '',
+})
+
+const hasActiveFilters = computed(() => {
+  return (
+    String(filters.q || '').trim() !== '' ||
+    filters.enabled === '1' ||
+    filters.enabled === '0' ||
+    filters.failing_only
+  )
+})
+
+const summaryLine = computed(() => {
+  const count = rows.value.length
+  if (loading.value) return 'Nacitavam zdroje...'
+  if (hasActiveFilters.value) return `${count} zdrojov pre aktivne filtre`
+  return `${count} zdrojov`
 })
 
 function formatDateTime(value) {
@@ -65,6 +81,13 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+async function clearFilters() {
+  filters.q = ''
+  filters.enabled = ''
+  filters.failing_only = false
+  await load()
 }
 
 function startEdit(row) {
@@ -158,7 +181,7 @@ onMounted(() => {
     <div v-if="props.embedded" class="embeddedHeader">
       <div>
         <h2 class="embeddedTitle">Zdroje</h2>
-        <p class="embeddedSubtitle">Health monitoring a konfiguracia zdrojov.</p>
+        <p class="embeddedSubtitle">{{ summaryLine }}</p>
       </div>
       <button class="actionBtn" type="button" :disabled="loading" @click="load">
         {{ loading ? 'Nacitavam...' : 'Obnovit' }}
@@ -171,29 +194,36 @@ onMounted(() => {
       </button>
     </template>
 
-    <section class="card filters">
-      <label class="field">
-        <span>Hladat</span>
-        <input v-model="filters.q" type="text" placeholder="source key / name / url" />
-      </label>
-      <label class="field">
-        <span>Povolene</span>
-        <select v-model="filters.enabled">
-          <option value="">Vsetky</option>
-          <option value="1">Povolene</option>
-          <option value="0">Zakazane</option>
-        </select>
-      </label>
-      <label class="field field--inline">
-        <input v-model="filters.failing_only" type="checkbox" />
-        <span>Iba chybove</span>
-      </label>
-      <div class="actions">
-        <button class="actionBtn" type="button" :disabled="loading" @click="load">Filtrovat</button>
+    <section class="card filterCard">
+      <div class="filterRow">
+        <label class="field field--search">
+          <input v-model="filters.q" type="text" placeholder="Hladat zdroj podla key, nazvu alebo URL" />
+        </label>
+
+        <label class="field field--compact">
+          <span>Povolene</span>
+          <select v-model="filters.enabled">
+            <option value="">Vsetky</option>
+            <option value="1">Povolene</option>
+            <option value="0">Zakazane</option>
+          </select>
+        </label>
+
+        <label class="field field--toggle">
+          <input v-model="filters.failing_only" type="checkbox" />
+          <span>Iba chybove</span>
+        </label>
+
+        <div class="filterActions">
+          <button class="actionBtn" type="button" :disabled="loading" @click="load">Filtrovat</button>
+          <button v-if="hasActiveFilters" class="ghostBtn" type="button" :disabled="loading" @click="clearFilters">
+            Vycistit
+          </button>
+        </div>
       </div>
     </section>
 
-    <section v-if="editor.id" class="card editor">
+    <section v-if="editor.id" class="card editorCard">
       <h3>Upravit zdroj #{{ editor.id }}</h3>
       <div class="editorGrid">
         <label class="field">
@@ -205,13 +235,13 @@ onMounted(() => {
           <input v-model="editor.url" type="url" maxlength="2048" />
         </label>
       </div>
-      <div class="actions">
+      <div class="editorActions">
         <button class="actionBtn" type="button" :disabled="savingId === editor.id" @click="saveEdit">Ulozit</button>
-        <button class="actionBtn ghost" type="button" :disabled="savingId === editor.id" @click="cancelEdit">Zrusit</button>
+        <button class="ghostBtn" type="button" :disabled="savingId === editor.id" @click="cancelEdit">Zrusit</button>
       </div>
     </section>
 
-    <section class="card">
+    <section class="card tableCard">
       <p v-if="error" class="error">{{ error }}</p>
       <p v-else-if="!loading && rows.length === 0" class="muted">Ziadne zdroje pre vybrane filtre.</p>
 
@@ -236,13 +266,16 @@ onMounted(() => {
             <tr v-for="row in rows" :key="row.id">
               <td>
                 <div class="name">{{ row.name || row.key }}</div>
-                <div class="muted">{{ row.key }}</div>
+                <div class="muted muted--small">{{ row.key }}</div>
               </td>
               <td>{{ row.source_type || '-' }}</td>
               <td>
-                <span class="status" :class="`status--${String(row.status || '').toLowerCase()}`">
-                  {{ String(row.status || 'unknown').toUpperCase() }}
-                </span>
+                <div class="statusCell">
+                  <span class="status" :class="`status--${String(row.status || '').toLowerCase()}`">
+                    {{ String(row.status || 'unknown').toUpperCase() }}
+                  </span>
+                  <span v-if="row.is_dead" class="status status--dead">DEAD</span>
+                </div>
               </td>
               <td>{{ row.avg_latency_ms ? `${row.avg_latency_ms} ms` : '-' }}</td>
               <td>{{ formatDateTime(row.cooldown_until) }}</td>
@@ -250,8 +283,8 @@ onMounted(() => {
               <td>{{ formatDateTime(row.last_error_at) }}</td>
               <td>{{ Number(row.consecutive_failures || 0) }}</td>
               <td>
-                <div class="muted">S {{ formatRate(row?.metrics_24h?.success_rate) }}</div>
-                <div class="muted">F {{ formatRate(row?.metrics_24h?.failure_rate) }}</div>
+                <div class="muted muted--small">S {{ formatRate(row?.metrics_24h?.success_rate) }}</div>
+                <div class="muted muted--small">F {{ formatRate(row?.metrics_24h?.failure_rate) }}</div>
               </td>
               <td>
                 <button
@@ -264,31 +297,30 @@ onMounted(() => {
                 </button>
               </td>
               <td>
-                <div class="actions">
-                  <button class="actionBtn ghost" type="button" :disabled="savingId === row.id" @click="startEdit(row)">
+                <div class="rowActions">
+                  <button class="ghostBtn" type="button" :disabled="savingId === row.id" @click="startEdit(row)">
                     Upravit
                   </button>
-                  <button class="actionBtn ghost" type="button" :disabled="savingId === row.id" @click="resetHealth(row)">
-                    Reset zdravia
-                  </button>
-                  <button
-                    class="actionBtn ghost"
-                    type="button"
-                    :disabled="savingId === row.id || !row.cooldown_until"
-                    @click="clearCooldown(row)"
-                  >
-                    Vycistit cooldown
-                  </button>
-                  <button
-                    class="actionBtn ghost"
-                    type="button"
-                    :disabled="savingId === row.id"
-                    @click="reviveSource(row)"
-                  >
-                    Obnovit
-                  </button>
+                  <details class="rowMenu">
+                    <summary>Viac</summary>
+                    <div class="rowMenuBody">
+                      <button class="ghostBtn" type="button" :disabled="savingId === row.id" @click="resetHealth(row)">
+                        Reset zdravia
+                      </button>
+                      <button
+                        class="ghostBtn"
+                        type="button"
+                        :disabled="savingId === row.id || !row.cooldown_until"
+                        @click="clearCooldown(row)"
+                      >
+                        Vycistit cooldown
+                      </button>
+                      <button class="ghostBtn" type="button" :disabled="savingId === row.id" @click="reviveSource(row)">
+                        Obnovit
+                      </button>
+                    </div>
+                  </details>
                 </div>
-                <span v-if="row.is_dead" class="status status--dead">DEAD</span>
               </td>
             </tr>
           </tbody>
@@ -301,93 +333,132 @@ onMounted(() => {
 <style scoped>
 .botSection {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .embeddedHeader {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .embeddedTitle {
-  margin: 0 0 6px;
-  font-size: 1.06rem;
+  margin: 0 0 4px;
+  font-size: 1rem;
   font-weight: 800;
 }
 
 .embeddedSubtitle {
   margin: 0;
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .card {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.72);
-  padding: 14px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.66);
+  padding: 12px;
 }
 
-.filters {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+.filterCard {
+  padding: 10px;
 }
 
-.editor {
+.filterRow {
   display: grid;
-  gap: 10px;
-}
-
-.editorGrid {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: minmax(220px, 1fr) minmax(120px, auto) minmax(130px, auto) auto;
+  align-items: end;
+  gap: 8px;
 }
 
 .field {
   display: grid;
-  gap: 6px;
-  font-size: 0.8rem;
+  gap: 5px;
+  font-size: 0.74rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.94);
+}
+
+.field--search {
+  min-width: 0;
 }
 
 .field input,
 .field select {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.4);
+  border-radius: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.38);
   color: var(--color-surface);
-  padding: 8px 10px;
+  min-height: 34px;
+  padding: 7px 9px;
 }
 
-.field--inline {
+.field--compact {
+  min-width: 120px;
+}
+
+.field--toggle {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.field--toggle input {
+  width: 15px;
+  height: 15px;
+}
+
+.filterActions {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.actionBtn,
+.ghostBtn,
+.toggleBtn {
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .actionBtn {
   border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
-  border-radius: 10px;
   background: rgb(var(--color-primary-rgb) / 0.2);
   color: var(--color-surface);
-  font-weight: 700;
-  padding: 7px 11px;
-  cursor: pointer;
 }
 
-.actionBtn.ghost {
-  border-color: rgb(var(--color-surface-rgb) / 0.26);
-  background: rgb(var(--color-bg-rgb) / 0.35);
+.ghostBtn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  background: transparent;
+  color: rgb(var(--color-surface-rgb) / 0.95);
+}
+
+.editorCard {
+  display: grid;
+  gap: 8px;
+}
+
+.editorCard h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.editorGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.editorActions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .tableWrap {
@@ -403,17 +474,24 @@ onMounted(() => {
 
 .table th,
 .table td {
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  padding: 8px 10px;
+  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  padding: 8px 9px;
   text-align: left;
   vertical-align: top;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
 }
 
 .table th {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.statusCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
 .name {
@@ -424,11 +502,15 @@ onMounted(() => {
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
 }
 
+.muted--small {
+  font-size: 0.72rem;
+}
+
 .status {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
   border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.7rem;
+  padding: 2px 7px;
+  font-size: 0.66rem;
   font-weight: 700;
 }
 
@@ -449,18 +531,69 @@ onMounted(() => {
 }
 
 .toggleBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.26);
-  border-radius: 999px;
-  padding: 4px 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
   background: rgb(var(--color-bg-rgb) / 0.35);
   color: var(--color-surface);
-  font-size: 0.75rem;
+}
+
+.rowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rowMenu {
+  position: relative;
+}
+
+.rowMenu > summary {
+  list-style: none;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.rowMenu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.rowMenuBody {
+  position: absolute;
+  right: 0;
+  margin-top: 6px;
+  min-width: 170px;
+  z-index: 20;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.95);
+  padding: 6px;
+  display: grid;
+  gap: 6px;
+}
+
+.rowMenuBody .ghostBtn {
+  text-align: left;
+  justify-content: flex-start;
 }
 
 .error {
   color: var(--color-danger);
   margin: 0;
+}
+
+@media (max-width: 980px) {
+  .filterRow {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .filterActions {
+    justify-content: flex-start;
+  }
 }
 </style>

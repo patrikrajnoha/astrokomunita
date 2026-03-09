@@ -119,10 +119,6 @@
 
           <p v-if="auth.user?.bio" class="bio">{{ auth.user.bio }}</p>
           <p v-else class="bio muted">Zatial bez popisu.</p>
-
-          <div v-if="auth.user?.email" class="meta">
-            <span class="metaItem">E-mail: {{ auth.user.email }}</span>
-          </div>
         </div>
 
         <div class="statsRow ui-profile-stats" aria-label="Profilove statistiky">
@@ -334,7 +330,7 @@
         />
 
         <AsyncState
-          v-if="tabState[activeTab].loading && tabState[activeTab].items.length === 0"
+          v-if="shouldShowLoadingState"
           mode="loading"
           title="Nacitavam obsah"
           loading-style="skeleton"
@@ -343,10 +339,10 @@
         />
 
         <AsyncState
-          v-else-if="!tabState[activeTab].loading && tabState[activeTab].items.length === 0"
+          v-else-if="shouldShowEmptyState"
           mode="empty"
-          :title="activeTab === 'events' ? 'Zatial nesledujes ziadne udalosti' : activeTab === 'observations' ? 'Zatial ziadne pozorovania' : 'Zatial ziadny obsah'"
-          :message="activeTab === 'events' ? 'Sleduj udalost a zobrazime ju tu.' : activeTab === 'observations' ? 'Pridaj prve pozorovanie a zobrazime ho tu.' : 'Tento feed je momentalne prazdny.'"
+          :title="globalEmptyTitle"
+          :message="globalEmptyMessage"
           compact
         />
 
@@ -361,13 +357,39 @@
             />
           </div>
 
-          <div v-else-if="activeTab === 'events'" class="eventGrid">
-            <ProfileEventCard
-              v-for="eventItem in tabState.events.items"
-              :key="eventItem.id"
-              :event="eventItem"
-              @open="openFollowedEvent"
+          <div v-else-if="activeTab === 'events'">
+            <div class="eventSegments" role="tablist" aria-label="Filter udalosti">
+              <button
+                v-for="segment in eventSegments"
+                :key="segment.key"
+                type="button"
+                class="eventSegment"
+                :class="{ active: activeEventSegment === segment.key }"
+                role="tab"
+                :aria-selected="activeEventSegment === segment.key ? 'true' : 'false'"
+                @click="activeEventSegment = segment.key"
+              >
+                <span>{{ segment.label }}</span>
+                <span class="eventSegment__count">{{ eventSegmentCounts[segment.key] || 0 }}</span>
+              </button>
+            </div>
+
+            <AsyncState
+              v-if="activeEventItems.length === 0"
+              mode="empty"
+              :title="eventSegmentEmptyTitle"
+              :message="eventSegmentEmptyMessage"
+              compact
             />
+
+            <div v-else class="eventGrid">
+              <ProfileEventCard
+                v-for="eventItem in activeEventItems"
+                :key="eventItem.id"
+                :event="eventItem"
+                @open="openFollowedEvent"
+              />
+            </div>
           </div>
 
           <div v-else class="postList ui-stream">
@@ -560,6 +582,11 @@ const tabs = [
 
 const stats = reactive({ posts: '--', replies: '--', media: '--' })
 const activeTab = ref('posts')
+const eventSegments = [
+  { key: 'planned', label: 'Planovane' },
+  { key: 'following', label: 'Sledujes' },
+]
+const activeEventSegment = ref('planned')
 
 const tabState = reactive({
   posts: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
@@ -569,6 +596,57 @@ const tabState = reactive({
   media: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
   likes: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
 })
+const plannedEventItems = computed(() => (
+  tabState.events.items.filter((item) => hasEventPlanData(item))
+))
+const followingEventItems = computed(() => (
+  tabState.events.items.filter((item) => !hasEventPlanData(item))
+))
+const activeEventItems = computed(() => (
+  activeEventSegment.value === 'planned' ? plannedEventItems.value : followingEventItems.value
+))
+const eventSegmentCounts = computed(() => ({
+  planned: plannedEventItems.value.length,
+  following: followingEventItems.value.length,
+}))
+const activeTabItems = computed(() => {
+  if (activeTab.value === 'events') {
+    return tabState.events.items
+  }
+
+  const state = tabState[activeTab.value]
+  return Array.isArray(state?.items) ? state.items : []
+})
+const shouldShowLoadingState = computed(() => (
+  Boolean(tabState[activeTab.value]?.loading) && activeTabItems.value.length === 0
+))
+const shouldShowEmptyState = computed(() => (
+  !tabState[activeTab.value]?.loading && activeTabItems.value.length === 0
+))
+const globalEmptyTitle = computed(() => (
+  activeTab.value === 'events'
+    ? 'Zatial nesledujes ziadne udalosti'
+    : activeTab.value === 'observations'
+      ? 'Zatial ziadne pozorovania'
+      : 'Zatial ziadny obsah'
+))
+const globalEmptyMessage = computed(() => (
+  activeTab.value === 'events'
+    ? 'Sleduj udalost a zobrazime ju tu.'
+    : activeTab.value === 'observations'
+      ? 'Pridaj prve pozorovanie a zobrazime ho tu.'
+      : 'Tento feed je momentalne prazdny.'
+))
+const eventSegmentEmptyTitle = computed(() => (
+  activeEventSegment.value === 'planned'
+    ? 'Zatial nemas planovane udalosti'
+    : 'Zatial nemas udalosti v sledovani'
+))
+const eventSegmentEmptyMessage = computed(() => (
+  activeEventSegment.value === 'planned'
+    ? 'Pridaj k udalosti poznamku, pripomienku alebo cas a zobrazime ju medzi planovanymi.'
+    : 'Sleduj udalost a zobrazime ju v segmente Sledujes.'
+))
 
 const copyLabel = ref('Kopirovat link')
 const actionMsg = ref('')
@@ -601,11 +679,21 @@ const avatarDraft = reactive({
 
 const pinnedPost = ref(null)
 
-const displayName = computed(() => auth.user?.name || 'Profil')
+const displayName = computed(() => {
+  const name = toNonEmptyText(auth.user?.name)
+  if (name && !looksLikeEmail(name)) return name
+
+  const username = toNonEmptyText(auth.user?.username)
+  return username || 'Profil'
+})
 const handle = computed(() => {
-  const email = auth.user?.email || ''
-  const base = email.split('@')[0] || auth.user?.name || 'user'
-  return String(base).toLowerCase().replace(/[^a-z0-9_]+/g, '').slice(0, 20) || 'user'
+  const username = toNonEmptyText(auth.user?.username)
+  if (username) return safeHandle(username)
+
+  const name = toNonEmptyText(auth.user?.name)
+  if (name && !looksLikeEmail(name)) return safeHandle(name)
+
+  return 'user'
 })
 
 const avatarSrc = computed(() =>
@@ -975,6 +1063,25 @@ function resetObservationTabState() {
   tabState.observations.total = null
 }
 
+function hasEventPlanData(item) {
+  const plan = item?.plan && typeof item.plan === 'object' ? item.plan : null
+  if (!plan) return false
+  if (plan.has_data === true) return true
+
+  return [
+    toNonEmptyText(plan.personal_note),
+    toNonEmptyText(plan.reminder_at),
+    toNonEmptyText(plan.planned_time),
+    toNonEmptyText(plan.planned_location_label),
+  ].some((value) => value !== null)
+}
+
+function toNonEmptyText(value) {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed === '' ? null : trimmed
+}
+
 function formatEventRange(startAt, endAt) {
   const startLabel = formatShortEventDate(startAt, true)
   const endLabel = formatShortEventDate(endAt, true)
@@ -1001,8 +1108,22 @@ function formatShortEventDate(value, includeYear = false) {
 
 function parentHandle(post) {
   const parentUser = post?.parent?.user
-  const base = parentUser?.email?.split('@')[0] || parentUser?.name || 'user'
-  return String(base).toLowerCase().replace(/[^a-z0-9_]+/g, '').slice(0, 20) || 'user'
+  const username = toNonEmptyText(parentUser?.username)
+  if (username) return safeHandle(username)
+
+  const name = toNonEmptyText(parentUser?.name)
+  if (name && !looksLikeEmail(name)) return safeHandle(name)
+
+  return 'user'
+}
+
+function safeHandle(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9_]+/g, '').slice(0, 20) || 'user'
+}
+
+function looksLikeEmail(value) {
+  if (typeof value !== 'string') return false
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 }
 
 function extractFirstError(errorsObj, field) {
@@ -2005,6 +2126,50 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 0.9rem;
   margin-top: 0.85rem;
+}
+
+.eventSegments {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  margin-top: 0.85rem;
+  padding: 0.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: rgb(var(--bg-surface-rgb) / 0.72);
+}
+
+.eventSegment {
+  min-height: 2.05rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.77rem;
+  font-weight: 650;
+  padding: 0 0.72rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.eventSegment__count {
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 0.14rem 0.36rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--text-secondary-rgb) / 0.34);
+  color: inherit;
+}
+
+.eventSegment.active {
+  border-color: rgb(var(--primary-rgb) / 0.32);
+  background: rgb(var(--primary-rgb) / 0.16);
+  color: var(--text-primary);
+}
+
+.eventSegment.active .eventSegment__count {
+  border-color: rgb(var(--primary-rgb) / 0.44);
 }
 
 .eventGrid {

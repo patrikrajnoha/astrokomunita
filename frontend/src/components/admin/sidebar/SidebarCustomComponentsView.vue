@@ -1,25 +1,18 @@
 ﻿<template>
   <div class="customRoot">
     <header class="customHeader">
-      <div>
+      <div class="headerCopy">
         <h2>Vlastne komponenty</h2>
-        <p>Vytvor si vlastne widgety do sidebaru a hned ich over v produkcnom rendereri.</p>
+        <p>{{ components.length }} komponentov</p>
       </div>
-      <button type="button" class="primaryBtn" :disabled="saving" @click="startCreate">
-        Novy komponent
-      </button>
-    </header>
-
-    <div class="quickStats">
-      <span class="statPill">Komponenty: {{ components.length }}</span>
-      <span class="statPill">Zobrazenych: {{ filteredComponents.length }}</span>
-      <span class="statPill" :class="{ warning: hasUnsavedChanges }">
-        {{ hasUnsavedChanges ? 'Formular ma neulozene zmeny' : 'Formular synchronizovany' }}
+      <span class="stateChip" :class="{ warning: hasUnsavedChanges }">
+        {{ hasUnsavedChanges ? 'Neulozene zmeny' : 'Bez neulozenych zmien' }}
       </span>
-    </div>
+    </header>
 
     <div class="customGrid">
       <SidebarComponentList
+        class="listPanel"
         v-model="searchQuery"
         :items="filteredComponents"
         :selected-id="formState.id"
@@ -29,21 +22,29 @@
         @select="openEditor"
         @toggle-active="toggleActive"
         @delete-item="deleteComponent"
+        @create-item="startCreate"
       />
 
-      <SidebarComponentForm
-        v-model="formState"
-        :saving="saving"
-        :validation-errors="validationErrors"
-        @submit="saveComponent"
-        @reset="startCreate"
-      />
+      <div class="editorColumn">
+        <SidebarComponentForm
+          v-model="formState"
+          :saving="saving"
+          :contest-image-uploading="contestImageUploading"
+          :image-upload-error="imageUploadError"
+          :validation-errors="validationErrors"
+          @submit="saveComponent"
+          @reset="startCreate"
+          @upload-contest-image="uploadContestImage"
+        />
 
-      <section class="previewPanel">
-        <h3>Zivy nahlad</h3>
-        <p>Nahlad pouziva rovnaky renderer ako produkcny sidebar.</p>
-        <SidebarWidgetRenderer :widget="previewWidget" preview />
-      </section>
+        <section class="previewPanel">
+          <div class="previewHead">
+            <h3>Nahlad</h3>
+            <span class="previewMeta">{{ previewWidget.type }}</span>
+          </div>
+          <SidebarWidgetRenderer :widget="previewWidget" preview />
+        </section>
+      </div>
     </div>
   </div>
 </template>
@@ -74,6 +75,8 @@ const searchQuery = ref('')
 const formState = ref(createEmptyWidgetFormState())
 const saving = ref(false)
 const validationErrors = ref({})
+const contestImageUploading = ref(false)
+const imageUploadError = ref('')
 const originalSnapshot = ref(JSON.stringify(cloneWidgetFormState(formState.value)))
 
 const { confirm } = useConfirm()
@@ -125,6 +128,7 @@ const setFormFromComponent = (payload) => {
 
   originalSnapshot.value = JSON.stringify(cloneWidgetFormState(formState.value))
   validationErrors.value = {}
+  imageUploadError.value = ''
 }
 
 const loadComponents = async ({ selectedId = formState.value.id, preserveSelection = true } = {}) => {
@@ -154,6 +158,7 @@ const startCreate = () => {
   formState.value = createEmptyWidgetFormState()
   originalSnapshot.value = JSON.stringify(cloneWidgetFormState(formState.value))
   validationErrors.value = {}
+  imageUploadError.value = ''
 }
 
 const openEditor = async (itemOrId) => {
@@ -251,6 +256,15 @@ const validateForm = () => {
     }
   }
 
+  if (type === SIDEBAR_WIDGET_TYPES.CONTEST) {
+    if (!String(config.title || '').trim()) errors['config_json.title'] = 'Nadpis je povinny.'
+    if (!String(config.description || '').trim()) errors['config_json.description'] = 'Kratky popis je povinny.'
+
+    if (String(config.imageUrl || '').trim() && !isValidUrlOrPath(config.imageUrl)) {
+      errors['config_json.imageUrl'] = 'Obrazok musi mat platnu URL alebo absolutnu cestu.'
+    }
+  }
+
   return errors
 }
 
@@ -280,6 +294,7 @@ const buildPayload = () => {
 }
 
 const saveComponent = async () => {
+  imageUploadError.value = ''
   validationErrors.value = validateForm()
   if (Object.keys(validationErrors.value).length > 0) {
     showToast('Skontroluj formular a oprav chyby.', 'error')
@@ -307,6 +322,39 @@ const saveComponent = async () => {
     }
   } finally {
     saving.value = false
+  }
+}
+
+const uploadContestImage = async (file) => {
+  if (!file || contestImageUploading.value || saving.value) return
+
+  imageUploadError.value = ''
+  contestImageUploading.value = true
+
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await sidebarCustomComponentsAdminApi.uploadImage(formData)
+    const uploadedUrl = String(response?.data?.url || '').trim()
+
+    if (!uploadedUrl) {
+      throw new Error('Upload nevratil URL obrazka.')
+    }
+
+    formState.value = {
+      ...formState.value,
+      config_json: {
+        ...(formState.value?.config_json || {}),
+        imageUrl: uploadedUrl,
+      },
+    }
+
+    showToast('Obrazok bol nahrany.', 'success')
+  } catch (error) {
+    imageUploadError.value = error?.response?.data?.message || String(error?.message || 'Upload obrazka zlyhal.')
+    showToast(imageUploadError.value, 'error')
+  } finally {
+    contestImageUploading.value = false
   }
 }
 
@@ -396,100 +444,96 @@ onMounted(async () => {
 <style scoped>
 .customRoot {
   display: grid;
-  gap: 0.9rem;
-}
-
-.quickStats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.statPill {
-  font-size: 0.72rem;
-  padding: 0.18rem 0.52rem;
-  border-radius: 999px;
-  background: rgb(var(--color-bg-rgb) / 0.3);
-  color: var(--color-text-secondary);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.16);
-}
-
-.statPill.warning {
-  border-color: rgb(var(--color-warning-rgb, 255 178 64) / 0.42);
-  color: rgb(var(--color-warning-rgb, 255 178 64));
+  gap: 0.7rem;
 }
 
 .customHeader {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.8rem;
+  gap: 0.65rem;
+}
+
+.headerCopy {
+  min-width: 0;
 }
 
 .customHeader h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1rem;
   color: var(--color-surface);
 }
 
 .customHeader p {
-  margin: 0.25rem 0 0;
+  margin: 0.2rem 0 0;
   color: var(--color-text-secondary);
-  font-size: 0.84rem;
+  font-size: 0.76rem;
 }
 
-.primaryBtn {
-  border-radius: 0.76rem;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.58);
-  background: rgb(var(--color-primary-rgb) / 0.24);
-  color: var(--color-surface);
-  font-size: 0.8rem;
-  font-weight: 700;
-  padding: 0.5rem 0.78rem;
+.stateChip {
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
+  background: rgb(var(--color-bg-rgb) / 0.28);
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  padding: 0.18rem 0.52rem;
 }
 
-.primaryBtn:disabled {
-  opacity: 0.6;
+.stateChip.warning {
+  border-color: rgb(var(--color-warning-rgb, 255 178 64) / 0.42);
+  color: rgb(var(--color-warning-rgb, 255 178 64));
 }
 
 .customGrid {
   display: grid;
-  gap: 0.8rem;
-  grid-template-columns: 1.22fr 1fr 0.92fr;
+  gap: 0.7rem;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr);
 }
 
-.customGrid > * {
+.listPanel,
+.editorColumn {
   min-width: 0;
   border-radius: 0.95rem;
   background: rgb(var(--color-bg-rgb) / 0.22);
   box-shadow: inset 0 0 0 1px rgb(var(--color-text-secondary-rgb) / 0.14);
   padding: 0.72rem;
+  overflow: hidden;
 }
 
-.previewPanel {
+.editorColumn {
   display: grid;
   gap: 0.62rem;
   align-content: start;
 }
 
+.previewPanel {
+  display: grid;
+  gap: 0.44rem;
+  align-content: start;
+}
+
+.previewHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .previewPanel h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
-.previewPanel p {
-  margin: 0;
+.previewMeta {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
 }
 
-@media (max-width: 1320px) {
+@media (max-width: 1380px) {
   .customGrid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .previewPanel {
-    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
   }
 }
 

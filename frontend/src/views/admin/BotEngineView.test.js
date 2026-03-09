@@ -218,6 +218,67 @@ describe('BotEngineView', () => {
     })
   })
 
+  it('quick run all reports completion with errors and compact summary', async () => {
+    store.runSource.mockImplementation(async (sourceKey) => {
+      if (sourceKey === 'nasa_rss_breaking') {
+        return { status: 'success', stats: {} }
+      }
+
+      throw {
+        response: {
+          data: {
+            message: 'Stela run failed.',
+          },
+        },
+      }
+    })
+
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    await wrapper.get('[data-testid="quick-run-all"]').trigger('click')
+    await flush()
+    await flush()
+
+    expect(toastErrorMock).toHaveBeenCalled()
+    const message = String(toastErrorMock.mock.calls.at(-1)?.[0] || '')
+    expect(message).toContain('Spustenie dokoncene s chybami.')
+    expect(message).toContain('KozmoBot: 1 zdroj (OK 1).')
+    expect(message).toContain('StellarBot: 1 zdroj (chyby 1).')
+    expect(message).not.toContain('OK 0')
+    expect(message).not.toContain('ciastocne 0')
+  })
+
+  it('quick run all reports skipped sources separately from errors', async () => {
+    store.runSource.mockImplementation(async (sourceKey) => {
+      if (sourceKey === 'nasa_rss_breaking') {
+        return { status: 'success', stats: {} }
+      }
+
+      return {
+        status: 'skipped',
+        ui_message: 'Source "nasa_apod_daily" je v cooldowne do 2026-03-09T13:00:00+00:00.',
+        stats: {},
+      }
+    })
+
+    const wrapper = mountView()
+    await flush()
+    await flush()
+
+    await wrapper.get('[data-testid="quick-run-all"]').trigger('click')
+    await flush()
+    await flush()
+
+    expect(toastSuccessMock).toHaveBeenCalled()
+    const message = String(toastSuccessMock.mock.calls.at(-1)?.[0] || '')
+    expect(message).toContain('Spustenie dokoncene s preskocenymi zdrojmi.')
+    expect(message).toContain('KozmoBot: 1 zdroj (OK 1).')
+    expect(message).toContain('StellarBot: 1 zdroj (preskočené 1).')
+    expect(message).not.toContain('chyby 1')
+  })
+
   it('uses single primary CTA for translation test and shows advanced output', async () => {
     const wrapper = mountView()
     await flush()

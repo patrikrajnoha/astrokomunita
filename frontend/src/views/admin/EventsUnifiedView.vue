@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useAdminTable } from '@/composables/useAdminTable'
 import { useConfirm } from '@/composables/useConfirm'
 import AdminAiActionPanel from '@/components/admin/shared/AdminAiActionPanel.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import http from '@/services/api'
 import {
   generateAdminEventDescription,
@@ -18,6 +19,7 @@ const formSuccess = ref('')
 const translationActionLoading = ref(false)
 const translationError = ref('')
 const translationSummary = ref(null)
+const showTranslationTools = ref(false)
 const aiConfig = ref(null)
 const aiConfigLoading = ref(false)
 const aiActionLoading = ref(false)
@@ -29,6 +31,7 @@ const aiActionNotice = ref('')
 const aiActionRawStatus = ref(null)
 const aiUndoSnapshot = ref(null)
 const aiShortDraft = ref('')
+const showAdvancedAiInForm = ref(false)
 const aiTitleActionLoading = ref(false)
 const aiTitleActionError = ref('')
 const aiTitleActionStatus = ref('idle')
@@ -79,6 +82,13 @@ const {
 )
 
 const isEdit = computed(() => mode.value === 'edit' && Boolean(editingEvent.value))
+const isFormModalOpen = computed({
+  get: () => mode.value !== 'list',
+  set: (open) => {
+    if (!open) closeForm()
+  },
+})
+const formModalTitle = computed(() => (isEdit.value ? 'Upravit udalost' : 'Nova udalost'))
 const editingEventId = computed(() => Number(editingEvent.value?.id || 0))
 const aiEnabled = computed(() => Boolean(aiConfig.value?.events_ai_humanized_enabled))
 const aiPanelEnabled = computed(() => aiEnabled.value && editingEventId.value > 0)
@@ -203,7 +213,9 @@ function openCreate() {
   aiTitleSuggestion.value = ''
   aiTitleSource.value = ''
   aiTitleUndoSnapshot.value = null
+  showAdvancedAiInForm.value = false
   mode.value = 'create'
+  showTranslationTools.value = false
   loadAiConfig()
 }
 
@@ -235,7 +247,9 @@ function openEdit(event) {
   aiTitleSuggestion.value = ''
   aiTitleSource.value = String(event.title || '')
   aiTitleUndoSnapshot.value = null
+  showAdvancedAiInForm.value = false
   mode.value = 'edit'
+  showTranslationTools.value = false
   loadAiConfig(event?.id)
 }
 
@@ -259,6 +273,8 @@ function closeForm() {
   aiTitleSuggestion.value = ''
   aiTitleSource.value = ''
   aiTitleUndoSnapshot.value = null
+  showAdvancedAiInForm.value = false
+  showTranslationTools.value = false
 }
 
 function formatDate(value) {
@@ -359,6 +375,10 @@ async function runTranslationBackfill() {
   })
   if (!approved) return
   await requestTranslationBackfill(false)
+}
+
+function toggleTranslationTools() {
+  showTranslationTools.value = !showTranslationTools.value
 }
 
 async function runAiSuggestTitle() {
@@ -518,32 +538,60 @@ onMounted(() => {
         <p>Kompaktný prehľad publikovaných a manuálnych udalostí.</p>
       </div>
       <div class="toolbar">
-        <button class="btn ghost" :disabled="translationActionLoading" @click="previewTranslationBackfill">Náhľad retranslate</button>
-        <button class="btn ghost" :disabled="translationActionLoading" @click="runTranslationBackfill">Spustiť retranslate</button>
+        <button class="btn ghost" :disabled="translationActionLoading" @click="toggleTranslationTools">
+          {{ showTranslationTools ? 'Skryť nástroje' : 'Nástroje prekladu' }}
+        </button>
         <button class="btn primary" @click="openCreate">Nová udalosť</button>
       </div>
     </section>
 
-    <section v-if="translationError" class="notice noticeError">{{ translationError }}</section>
-    <section v-else-if="translationSummary" class="notice noticeOk">
-      Kandidáti: {{ translationSummary.summary?.total_candidates ?? 0 }} |
-      Preložené: {{ translationSummary.summary?.translated ?? 0 }} |
-      Zlyhalo: {{ translationSummary.summary?.failed ?? 0 }} |
-      Aktualizované eventy: {{ translationSummary.summary?.events_updated ?? 0 }} |
-      Dry run: {{ translationSummary.summary?.dry_run ? 'áno' : 'nie' }}
+    <section v-if="showTranslationTools" class="panel toolsPanel">
+      <div class="toolsPanel__head">
+        <div>
+          <h2>Preklad kandidátov</h2>
+          <p>Náhľad alebo spustenie hromadného retranslate pre schválené položky.</p>
+        </div>
+        <div class="toolbar">
+          <button class="btn ghost" :disabled="translationActionLoading" @click="previewTranslationBackfill">Náhľad</button>
+          <button class="btn ghost" :disabled="translationActionLoading" @click="runTranslationBackfill">Spustiť</button>
+        </div>
+      </div>
+
+      <div v-if="translationError" class="notice noticeError">{{ translationError }}</div>
+      <div v-else-if="translationSummary" class="notice noticeOk noticeCompact">
+        Kandidáti: {{ translationSummary.summary?.total_candidates ?? 0 }} |
+        Preložené: {{ translationSummary.summary?.translated ?? 0 }} |
+        Zlyhalo: {{ translationSummary.summary?.failed ?? 0 }} |
+        Eventy: {{ translationSummary.summary?.events_updated ?? 0 }} |
+        Dry run: {{ translationSummary.summary?.dry_run ? 'áno' : 'nie' }}
+      </div>
+      <p v-else class="toolsPanel__hint">
+        Retranslate používaj po úpravách slovníka alebo pri zistení prekladových artefaktov.
+      </p>
     </section>
 
-    <section v-if="mode !== 'list'" class="panel formPanel">
-      <div class="formHead">
-        <div>
-          <h2>{{ isEdit ? 'Upraviť udalosť' : 'Vytvoriť udalosť' }}</h2>
-          <p>{{ isEdit ? 'Upravíš existujúci záznam.' : 'Vytvoríš novú manuálnu udalosť.' }}</p>
-        </div>
-        <div class="quickBtns">
-          <button class="btn tiny" type="button" @click="setStartNow">Začiatok teraz</button>
-          <button class="btn tiny" type="button" @click="setEndAfter(1)">Koniec +1h</button>
-          <button class="btn tiny" type="button" @click="setEndAfter(2)">Koniec +2h</button>
-        </div>
+    <BaseModal
+      v-model:open="isFormModalOpen"
+      :title="formModalTitle"
+      test-id="events-published-form-modal"
+      close-test-id="events-published-form-modal-close"
+      @close="closeForm"
+    >
+      <section class="formPanel">
+        <div class="formHead">
+          <div class="quickBtns quickBtns--right">
+            <button class="btn tiny" type="button" @click="setStartNow">Začiatok teraz</button>
+            <button class="btn tiny" type="button" @click="setEndAfter(1)">Koniec +1h</button>
+            <button class="btn tiny" type="button" @click="setEndAfter(2)">Koniec +2h</button>
+            <button
+              v-if="aiEnabled"
+              class="btn tiny ghost"
+              type="button"
+              @click="showAdvancedAiInForm = !showAdvancedAiInForm"
+            >
+              {{ showAdvancedAiInForm ? 'Skryt AI opis' : 'AI opis' }}
+            </button>
+          </div>
       </div>
 
       <AdminAiActionPanel
@@ -596,45 +644,47 @@ onMounted(() => {
           </div>
         </template>
       </AdminAiActionPanel>
-      <AdminAiActionPanel
-        v-if="aiPanelReady"
-        style="margin-top:10px;"
-        title="AI pomocnik"
-        description="Vylepsi opis udalosti bez zobrazenia internych detailov."
-        action-label="Vylepšiť opis"
-        :enabled="aiPanelEnabled"
-        :status="aiActionStatus"
-        :latency-ms="aiEventLastRun?.latency_ms ?? null"
-        :last-run-at="aiEventLastRun?.updated_at ?? null"
-        :retry-count="aiEventLastRun?.retry_count ?? null"
-        :raw-status-code="aiActionRawStatus"
-        :is-loading="aiActionLoading"
-        :error-message="aiActionError"
-        @run="runAiGenerateDescription"
-      >
-        <p v-if="editingEventId <= 0" class="aiHint">
-          Najprv uloz udalost, potom mozes vylepsit opis.
+      <template v-if="showAdvancedAiInForm">
+        <AdminAiActionPanel
+          v-if="aiPanelReady"
+          class="aiPanelSpacer"
+          title="AI pomocnik"
+          description="Vylepsi opis udalosti bez zobrazenia internych detailov."
+          action-label="Vylepšiť opis"
+          :enabled="aiPanelEnabled"
+          :status="aiActionStatus"
+          :latency-ms="aiEventLastRun?.latency_ms ?? null"
+          :last-run-at="aiEventLastRun?.updated_at ?? null"
+          :retry-count="aiEventLastRun?.retry_count ?? null"
+          :raw-status-code="aiActionRawStatus"
+          :is-loading="aiActionLoading"
+          :error-message="aiActionError"
+          @run="runAiGenerateDescription"
+        >
+          <p v-if="editingEventId <= 0" class="aiHint">
+            Najprv uloz udalost, potom mozes vylepsit opis.
+          </p>
+          <template v-else>
+            <div v-if="aiActionNotice" class="aiNoticeRow">
+              <span class="aiNotice">Opis aktualizovany.</span>
+              <button
+                v-if="aiUndoSnapshot"
+                type="button"
+                class="aiUndoBtn"
+                @click="undoAiDescription"
+              >
+                Undo
+              </button>
+            </div>
+            <span v-if="aiActionStatus === 'fallback'" class="aiBadge aiBadge--fallback">Použitý fallback</span>
+            <p class="aiHint"><strong>Kratky opis:</strong> {{ aiShortDraft || '-' }}</p>
+            <p class="aiHint"><strong>Opis:</strong> {{ form.description || aiActionResult?.description || '-' }}</p>
+          </template>
+        </AdminAiActionPanel>
+        <p v-else class="aiHint">
+          Načítavam AI konfiguráciu...
         </p>
-        <template v-else>
-          <div v-if="aiActionNotice" class="aiNoticeRow">
-            <span class="aiNotice">Opis aktualizovany.</span>
-            <button
-              v-if="aiUndoSnapshot"
-              type="button"
-              class="aiUndoBtn"
-              @click="undoAiDescription"
-            >
-              Undo
-            </button>
-          </div>
-          <span v-if="aiActionStatus === 'fallback'" class="aiBadge aiBadge--fallback">Použitý fallback</span>
-          <p class="aiHint"><strong>Kratky opis:</strong> {{ aiShortDraft || '-' }}</p>
-          <p class="aiHint"><strong>Opis:</strong> {{ form.description || aiActionResult?.description || '-' }}</p>
-        </template>
-      </AdminAiActionPanel>
-      <p v-else class="aiHint">
-        Načítavam AI konfiguráciu...
-      </p>
+      </template>
 
       <div v-if="formError" class="notice noticeError">{{ formError }}</div>
       <div v-if="formSuccess" class="notice noticeOk">{{ formSuccess }}</div>
@@ -684,7 +734,8 @@ onMounted(() => {
           </button>
         </div>
       </form>
-    </section>
+      </section>
+    </BaseModal>
 
     <section class="panel listPanel">
       <div class="listTop">
@@ -709,41 +760,64 @@ onMounted(() => {
 
       <div v-else-if="loading" class="loading">Načítavam udalosti...</div>
 
-      <div v-else-if="data" class="tableWrap">
-        <table class="compactTable">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Názov</th>
-              <th>Typ</th>
-              <th>Začiatok</th>
-              <th>Stav</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="event in data.data" :key="event.id">
-              <td class="mono">{{ event.id }}</td>
-              <td>
-                <div class="title">{{ event.title }}</div>
-                <div v-if="event.description" class="sub">{{ event.description }}</div>
-              </td>
-              <td><span class="pill">{{ event.type }}</span></td>
-              <td>{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</td>
-              <td>
-                <span class="pill" :class="event.visibility === 1 ? 'ok' : 'muted'">
-                  {{ event.visibility === 1 ? 'verejné' : 'skryté' }}
-                </span>
-              </td>
-              <td class="right">
-                <button class="btn tiny" @click="openEdit(event)">Upraviť</button>
-              </td>
-            </tr>
-            <tr v-if="data.data.length === 0">
-              <td colspan="6" class="empty">Žiadne udalosti.</td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else-if="data">
+        <div class="tableWrap eventsTableWrap">
+          <table class="compactTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Názov</th>
+                <th>Typ</th>
+                <th>Začiatok</th>
+                <th>Stav</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="event in data.data" :key="event.id">
+                <td class="mono">{{ event.id }}</td>
+                <td>
+                  <div class="title">{{ event.title }}</div>
+                  <div v-if="event.description" class="sub">{{ event.description }}</div>
+                </td>
+                <td><span class="pill">{{ event.type }}</span></td>
+                <td>{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</td>
+                <td>
+                  <span class="pill" :class="event.visibility === 1 ? 'ok' : 'muted'">
+                    {{ event.visibility === 1 ? 'verejné' : 'skryté' }}
+                  </span>
+                </td>
+                <td class="right">
+                  <button class="btn tiny" @click="openEdit(event)">Upraviť</button>
+                </td>
+              </tr>
+              <tr v-if="data.data.length === 0">
+                <td colspan="6" class="empty">Žiadne udalosti.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="eventsMobileList">
+          <article v-for="event in data.data" :key="`mobile-event-${event.id}`" class="eventMobileCard">
+            <div class="eventMobileCard__head">
+              <span class="mono">#{{ event.id }}</span>
+              <span class="pill" :class="event.visibility === 1 ? 'ok' : 'muted'">
+                {{ event.visibility === 1 ? 'verejné' : 'skryté' }}
+              </span>
+            </div>
+            <div class="title">{{ event.title }}</div>
+            <div v-if="event.description" class="sub">{{ event.description }}</div>
+            <div class="eventMobileCard__meta">
+              <span class="pill">{{ event.type }}</span>
+              <span>{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</span>
+            </div>
+            <div class="eventMobileCard__actions">
+              <button class="btn tiny" @click="openEdit(event)">Upraviť</button>
+            </div>
+          </article>
+          <div v-if="data.data.length === 0" class="empty">Žiadne udalosti.</div>
+        </div>
       </div>
 
       <div v-if="pagination" class="pager">
@@ -786,6 +860,36 @@ onMounted(() => {
   opacity: 0.82;
 }
 
+.toolsPanel {
+  display: grid;
+  gap: 10px;
+}
+
+.toolsPanel__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.toolsPanel__head h2 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.toolsPanel__head p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.toolsPanel__hint {
+  margin: 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
 .toolbar {
   display: flex;
   gap: 8px;
@@ -816,15 +920,15 @@ onMounted(() => {
 }
 
 .btn.tiny {
-  padding: 5px 9px;
-  font-size: 12px;
+  padding: 4px 8px;
+  font-size: 11px;
   border-radius: 999px;
 }
 
 .notice {
   border-radius: 10px;
-  padding: 8px 10px;
-  font-size: 12px;
+  padding: 6px 8px;
+  font-size: 11px;
 }
 
 .noticeOk {
@@ -835,6 +939,10 @@ onMounted(() => {
 .noticeError {
   border: 1px solid rgb(239 68 68 / 0.35);
   background: rgb(239 68 68 / 0.1);
+}
+
+.noticeCompact {
+  margin: 0;
 }
 
 .aiHint {
@@ -887,15 +995,20 @@ onMounted(() => {
   background: rgb(245 158 11 / 0.12);
 }
 
+.aiPanelSpacer {
+  margin-top: 6px;
+}
+
 .formPanel {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .formHead {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -912,14 +1025,18 @@ onMounted(() => {
 
 .quickBtns {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
+}
+
+.quickBtns--right {
+  margin-left: auto;
 }
 
 .formGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .field {
@@ -928,12 +1045,12 @@ onMounted(() => {
 }
 
 .field span {
-  font-size: 12px;
+  font-size: 11px;
   opacity: 0.82;
 }
 
 .fieldWide {
-  grid-column: span 4;
+  grid-column: span 2;
 }
 
 .field input,
@@ -941,16 +1058,16 @@ onMounted(() => {
 .field select {
   width: 100%;
   border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
-  border-radius: 10px;
+  border-radius: 8px;
   background: transparent;
   color: inherit;
-  padding: 8px 10px;
+  padding: 7px 9px;
 }
 
 .formActions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
 }
 
 .listTop {
@@ -994,6 +1111,41 @@ onMounted(() => {
 
 .tableWrap {
   overflow-x: auto;
+}
+
+.eventsMobileList {
+  display: none;
+  margin-top: 10px;
+  gap: 8px;
+}
+
+.eventMobileCard {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+  padding: 9px;
+  display: grid;
+  gap: 7px;
+}
+
+.eventMobileCard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.eventMobileCard__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.eventMobileCard__actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .compactTable {
@@ -1070,6 +1222,15 @@ onMounted(() => {
 }
 
 @media (max-width: 900px) {
+  .toolbar {
+    width: 100%;
+  }
+
+  .toolbar .btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
   .formGrid {
     grid-template-columns: 1fr;
   }
@@ -1077,7 +1238,40 @@ onMounted(() => {
   .fieldWide {
     grid-column: span 1;
   }
+
+  .formActions {
+    width: 100%;
+  }
+
+  .formActions .btn {
+    flex: 1 1 auto;
+  }
+
+  .eventsTableWrap {
+    display: none;
+  }
+
+  .eventsMobileList {
+    display: grid;
+  }
+
+  .eventMobileCard__actions .btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .pager {
+    justify-content: stretch;
+  }
+
+  .pager .btn {
+    flex: 1 1 auto;
+  }
 }
 </style>
-
-
+
+
+
+
+
+

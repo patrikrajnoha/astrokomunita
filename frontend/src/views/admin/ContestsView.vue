@@ -1,41 +1,42 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
-import { useToast } from '@/composables/useToast'
-import { listContests, createContest, selectContestWinner } from '@/services/api/admin/contests'
-import { getContestParticipants } from '@/services/contests'
-
-const toast = useToast()
+import { previewContestHashtags } from '@/services/api/admin/contests'
 
 const loading = ref(false)
-const saving = ref(false)
-const selectingWinner = ref(false)
 const error = ref('')
-const contests = ref([])
+const hashtags = ref([])
+const requestId = ref(0)
+const copiedPostId = ref(null)
+let debounceTimer = null
+let copiedTimer = null
 
-const participantsModalOpen = ref(false)
-const participantsLoading = ref(false)
-const participants = ref([])
-const selectedContest = ref(null)
-
-const form = ref({
-  name: '',
-  description: '',
-  hashtag: 'sutazim',
-  starts_at: '',
-  ends_at: '',
-  status: 'draft',
+const filters = ref({
+  query: '',
+  from: toDateInput(nowWithOffsetDays(-30)),
+  to: toDateInput(new Date()),
+  hashtags_limit: 12,
+  posts_limit: 5,
 })
 
-const statusLabel = {
-  draft: 'Návrh',
-  active: 'Aktívna',
-  finished: 'Ukončená',
+const canSearch = computed(() => {
+  return Boolean(filters.value.from && filters.value.to)
+})
+
+function nowWithOffsetDays(days) {
+  const value = new Date()
+  value.setDate(value.getDate() + days)
+  return value
 }
 
-const canSubmit = computed(() => {
-  return Boolean(form.value.name && form.value.starts_at && form.value.ends_at && !saving.value)
-})
+function toDateInput(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 function formatDate(value) {
   if (!value) return '-'
@@ -44,214 +45,197 @@ function formatDate(value) {
   return date.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-async function loadContests() {
+async function loadPreview() {
+  if (!canSearch.value) return
+
+  const currentRequest = requestId.value + 1
+  requestId.value = currentRequest
   loading.value = true
   error.value = ''
 
   try {
-    const response = await listContests({ per_page: 50 })
-    contests.value = Array.isArray(response.data?.data) ? response.data.data : []
-  } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať súťaže.'
-  } finally {
-    loading.value = false
-  }
-}
-
-async function submitContest() {
-  if (!canSubmit.value) return
-
-  saving.value = true
-  try {
-    await createContest({
-      name: form.value.name,
-      description: form.value.description || null,
-      hashtag: form.value.hashtag,
-      starts_at: form.value.starts_at,
-      ends_at: form.value.ends_at,
-      status: form.value.status,
+    const response = await previewContestHashtags({
+      query: filters.value.query || undefined,
+      from: filters.value.from,
+      to: filters.value.to,
+      hashtags_limit: filters.value.hashtags_limit,
+      posts_limit: filters.value.posts_limit,
     })
 
-    toast.success('Súťaž bola vytvorená.')
-    form.value = {
-      name: '',
-      description: '',
-      hashtag: 'sutazim',
-      starts_at: '',
-      ends_at: '',
-      status: 'draft',
+    if (currentRequest !== requestId.value) return
+    hashtags.value = Array.isArray(response?.data?.data) ? response.data.data : []
+  } catch (e) {
+    if (currentRequest !== requestId.value) return
+    error.value = e?.response?.data?.message || 'Nacitavanie hashtagov zlyhalo.'
+    hashtags.value = []
+  } finally {
+    if (currentRequest === requestId.value) {
+      loading.value = false
     }
-    await loadContests()
-  } catch (e) {
-    toast.error(e?.response?.data?.message || 'Vytvorenie súťaže zlyhalo.')
-  } finally {
-    saving.value = false
   }
 }
 
-async function openParticipants(contest) {
-  selectedContest.value = contest
-  participants.value = []
-  participantsModalOpen.value = true
-  participantsLoading.value = true
+function queuePreviewLoad() {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+  }
+  debounceTimer = setTimeout(() => {
+    loadPreview()
+  }, 300)
+}
+
+watch(
+  () => [
+    filters.value.query,
+    filters.value.from,
+    filters.value.to,
+    filters.value.hashtags_limit,
+    filters.value.posts_limit,
+  ],
+  () => {
+    queuePreviewLoad()
+  }
+)
+
+onMounted(() => {
+  loadPreview()
+})
+
+onBeforeUnmount(() => {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+  }
+  if (copiedTimer) {
+    clearTimeout(copiedTimer)
+  }
+})
+
+async function copyEmail(email, postId) {
+  if (!email) return
 
   try {
-    const response = await getContestParticipants(contest.id, 100)
-    participants.value = Array.isArray(response?.data) ? response.data : []
-  } catch (e) {
-    toast.error(e?.response?.data?.message || 'Nepodarilo sa načítať účastníkov.')
-  } finally {
-    participantsLoading.value = false
+    await navigator.clipboard.writeText(email)
+    copiedPostId.value = postId
+
+    if (copiedTimer) {
+      clearTimeout(copiedTimer)
+    }
+    copiedTimer = setTimeout(() => {
+      copiedPostId.value = null
+    }, 1600)
+  } catch {
+    copiedPostId.value = null
   }
 }
-
-function closeParticipantsModal() {
-  participantsModalOpen.value = false
-  participants.value = []
-  selectedContest.value = null
-}
-
-async function pickWinner(postId) {
-  if (!selectedContest.value || selectingWinner.value) return
-
-  selectingWinner.value = true
-  try {
-    await selectContestWinner(selectedContest.value.id, postId)
-    toast.success('Výherca bol vybraný.')
-    closeParticipantsModal()
-    await loadContests()
-  } catch (e) {
-    const validationMessage = e?.response?.data?.errors?.post_id?.[0]
-      || e?.response?.data?.errors?.contest?.[0]
-      || e?.response?.data?.message
-      || 'Výber výhercu zlyhal.'
-    toast.error(validationMessage)
-  } finally {
-    selectingWinner.value = false
-  }
-}
-
-onMounted(loadContests)
 </script>
 
 <template>
-  <AdminPageShell title="Súťaže" subtitle="Vytvor súťaž, skontroluj oprávnené príspevky a vyber výhercu.">
+  <AdminPageShell
+    title="Hashtag preview"
+    subtitle="Vyhladavanie hashtagov podla nazvu a obdobia od-do. Zobrazuje aj prispevky, usera a email."
+  >
     <section class="panel">
-      <h2>Vytvoriť súťaž</h2>
-      <form class="formGrid" @submit.prevent="submitContest">
+      <header class="panelHead">
+        <h2>Filtre</h2>
+        <button type="button" class="btn" :disabled="loading || !canSearch" @click="loadPreview">
+          {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+        </button>
+      </header>
+
+      <div class="formGrid">
         <label>
-          <span>Názov</span>
-          <input v-model="form.name" type="text" required />
+          <span>Hashtag nazov (bez #)</span>
+          <input
+            v-model.trim="filters.query"
+            type="text"
+            placeholder="napr. sutazim"
+            autocomplete="off"
+          />
         </label>
+
         <label>
-          <span>Hashtag (bez #)</span>
-          <input v-model="form.hashtag" type="text" required />
+          <span>Datum od</span>
+          <input v-model="filters.from" type="date" />
         </label>
-        <label class="full">
-          <span>Popis</span>
-          <textarea v-model="form.description" rows="3" />
-        </label>
+
         <label>
-          <span>Začína</span>
-          <input v-model="form.starts_at" type="datetime-local" required />
+          <span>Datum do</span>
+          <input v-model="filters.to" type="date" />
         </label>
+
         <label>
-          <span>Končí</span>
-          <input v-model="form.ends_at" type="datetime-local" required />
+          <span>Max hashtagov</span>
+          <input v-model.number="filters.hashtags_limit" type="number" min="1" max="30" />
         </label>
+
         <label>
-          <span>Stav</span>
-          <select v-model="form.status">
-            <option value="draft">Návrh</option>
-            <option value="active">Aktívna</option>
-            <option value="finished">Ukončená</option>
-          </select>
+          <span>Max postov na hashtag</span>
+          <input v-model.number="filters.posts_limit" type="number" min="1" max="30" />
         </label>
-        <div class="actions full">
-          <button type="submit" class="btn primary" :disabled="!canSubmit">
-            {{ saving ? 'Ukladám...' : 'Vytvoriť súťaž' }}
-          </button>
-        </div>
-      </form>
+      </div>
     </section>
 
     <section class="panel">
       <header class="panelHead">
-        <h2>Zoznam súťaží</h2>
-        <button type="button" class="btn" :disabled="loading" @click="loadContests">
-          {{ loading ? 'Načítavam...' : 'Obnoviť' }}
-        </button>
+        <h2>Live preview</h2>
       </header>
 
       <p v-if="error" class="error">{{ error }}</p>
-      <div v-else-if="loading" class="muted">Načítavam súťaže...</div>
-      <div v-else-if="contests.length === 0" class="muted">Zatiaľ žiadne súťaže.</div>
-      <div v-else class="tableWrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Názov</th>
-              <th>Hashtag</th>
-              <th>Trvanie</th>
-              <th>Stav</th>
-              <th>Akcie</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="contest in contests" :key="contest.id">
-              <td>{{ contest.name }}</td>
-              <td>#{{ contest.hashtag }}</td>
-              <td>{{ formatDate(contest.starts_at) }} - {{ formatDate(contest.ends_at) }}</td>
-              <td>
-                <span class="status" :class="contest.status">{{ statusLabel[contest.status] || contest.status }}</span>
-              </td>
-              <td class="rowActions">
-                <button type="button" class="btn small" @click="openParticipants(contest)">Zobraziť účastníkov</button>
+      <div v-else-if="loading" class="muted">Nacitavam preview...</div>
+      <div v-else-if="hashtags.length === 0" class="muted">Pre zvoleny filter sa nenasli hashtagy.</div>
+
+      <div v-else class="previewList">
+        <article v-for="item in hashtags" :key="item.id" class="tagCard">
+          <header class="tagHead">
+            <h3>#{{ item.name }}</h3>
+            <span class="count">{{ item.posts_count }} postov</span>
+          </header>
+
+          <div v-if="!item.posts || item.posts.length === 0" class="muted small">
+            Bez postov v zvolenom rozsahu.
+          </div>
+
+          <div v-else class="postList">
+            <article v-for="post in item.posts" :key="post.id" class="postCard">
+              <div class="postMeta">
+                <span class="metaStrong">Post #{{ post.id }}</span>
+                <span>{{ formatDate(post.created_at) }}</span>
+              </div>
+
+              <p class="postContent">{{ post.content }}</p>
+
+              <figure
+                v-if="post.media?.is_image && post.media?.attachment_url"
+                class="postImageWrap"
+              >
+                <img
+                  class="postImage"
+                  :src="post.media.attachment_url"
+                  alt="Prilozeny obrazok v prispevku"
+                  loading="lazy"
+                />
+              </figure>
+
+              <p class="userRow">
+                <strong>@{{ post.user?.username || 'unknown' }}</strong>
                 <button
                   type="button"
-                  class="btn small primary"
-                  :disabled="contest.status === 'finished'"
-                  @click="openParticipants(contest)"
+                  class="copyEmailBtn"
+                  :disabled="!post.user?.email"
+                  @click="copyEmail(post.user?.email, post.id)"
                 >
-                  Vybrať výhercu
+                  {{
+                    copiedPostId === post.id
+                      ? 'Skopirovane'
+                      : (post.user?.email || 'bez emailu')
+                  }}
                 </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </p>
+            </article>
+          </div>
+        </article>
       </div>
     </section>
-
-    <div v-if="participantsModalOpen" class="modalBackdrop" @click.self="closeParticipantsModal">
-      <div class="modal">
-        <header class="modalHead">
-          <div>
-            <h3>{{ selectedContest?.name }}</h3>
-            <p class="muted">Oprávnené príspevky pre #{{ selectedContest?.hashtag }}</p>
-          </div>
-          <button class="btn small" type="button" @click="closeParticipantsModal">Zavrieť</button>
-        </header>
-
-        <div v-if="participantsLoading" class="muted">Načítavam účastníkov...</div>
-        <div v-else-if="participants.length === 0" class="muted">Nenašli sa žiadni oprávnení účastníci.</div>
-        <div v-else class="participantsList">
-          <article v-for="participant in participants" :key="participant.post_id" class="participantCard">
-            <div>
-              <p class="participantTitle">Post #{{ participant.post_id }} by @{{ participant.username }}</p>
-              <p class="muted">{{ formatDate(participant.created_at) }}</p>
-            </div>
-            <button
-              type="button"
-              class="btn primary small"
-              :disabled="selectingWinner || selectedContest?.status === 'finished'"
-              @click="pickWinner(participant.post_id)"
-            >
-              {{ selectingWinner ? 'Vyberám...' : 'Vybrať výhercu' }}
-            </button>
-          </article>
-        </div>
-      </div>
-    </div>
   </AdminPageShell>
 </template>
 
@@ -272,14 +256,14 @@ onMounted(loadContests)
 }
 
 .panel h2 {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 1.1rem;
 }
 
 .formGrid {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .formGrid label {
@@ -288,24 +272,13 @@ onMounted(loadContests)
   font-size: 0.85rem;
 }
 
-.formGrid .full {
-  grid-column: 1 / -1;
-}
-
-input,
-textarea,
-select {
+input {
   width: 100%;
   border-radius: 10px;
   border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
   background: rgb(var(--color-bg-rgb) / 0.5);
   color: inherit;
   padding: 8px 10px;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .btn {
@@ -315,16 +288,6 @@ select {
   background: transparent;
   color: inherit;
   cursor: pointer;
-}
-
-.btn.small {
-  padding: 5px 9px;
-  font-size: 0.78rem;
-}
-
-.btn.primary {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  background: rgb(var(--color-primary-rgb) / 0.18);
 }
 
 .btn:disabled {
@@ -338,110 +301,131 @@ select {
 
 .muted {
   opacity: 0.75;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
 }
 
-.tableWrap {
-  overflow-x: auto;
+.muted.small {
+  font-size: 0.84rem;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-th,
-td {
-  text-align: left;
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
-  padding: 10px 8px;
-  font-size: 0.87rem;
-}
-
-.rowActions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.status {
-  display: inline-flex;
-  border-radius: 999px;
-  padding: 3px 8px;
-  font-size: 0.74rem;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
-}
-
-.status.active {
-  border-color: rgb(34 197 94 / 0.6);
-  background: rgb(34 197 94 / 0.16);
-}
-
-.status.finished {
-  border-color: rgb(59 130 246 / 0.6);
-  background: rgb(59 130 246 / 0.16);
-}
-
-.status.draft {
-  border-color: rgb(251 191 36 / 0.6);
-  background: rgb(251 191 36 / 0.16);
-}
-
-.modalBackdrop {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 0.55);
+.previewList {
   display: grid;
-  place-items: center;
-  z-index: 40;
-  padding: 18px;
+  gap: 12px;
 }
 
-.modal {
-  width: min(760px, 96vw);
-  max-height: 82vh;
-  overflow: auto;
-  border-radius: 14px;
+.tagCard {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  background: rgb(var(--color-bg-rgb) / 0.98);
-  padding: 14px;
-}
-
-.modalHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.modalHead h3 {
-  margin: 0;
-}
-
-.participantsList {
+  border-radius: 12px;
+  background: rgb(var(--color-bg-rgb) / 0.5);
+  padding: 12px;
   display: grid;
-  gap: 9px;
+  gap: 10px;
 }
 
-.participantCard {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.15);
-  border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.45);
-  padding: 10px;
+.tagHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.participantTitle {
+.tagHead h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.count {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 0.78rem;
+}
+
+.postList {
+  display: grid;
+  gap: 8px;
+}
+
+.postCard {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.45);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.postMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+  opacity: 0.82;
+}
+
+.metaStrong {
+  font-weight: 600;
+}
+
+.postContent {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+.postImageWrap {
   margin: 0;
 }
 
-@media (max-width: 860px) {
+.postImage {
+  display: block;
+  width: 100%;
+  max-width: 460px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.15);
+  background: rgb(var(--color-bg-rgb) / 0.35);
+  object-fit: cover;
+}
+
+.userRow {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.copyEmailBtn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgb(var(--color-bg-rgb) / 0.55);
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.copyEmailBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 980px) {
+  .formGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
   .formGrid {
     grid-template-columns: 1fr;
+  }
+
+  .postMeta {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 </style>

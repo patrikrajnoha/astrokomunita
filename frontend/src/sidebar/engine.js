@@ -1,5 +1,8 @@
 import SearchBar from '@/components/SearchBar.vue'
 import RightObservingSidebar from '@/components/RightObservingSidebar.vue'
+import ObservingWeatherWidget from '@/components/sky/ObservingWeatherWidget.vue'
+import NightSkyWidget from '@/components/sky/NightSkyWidget.vue'
+import GuestObservingPromptWidget from '@/components/sky/GuestObservingPromptWidget.vue'
 import LatestArticlesWidget from '@/components/widgets/LatestArticlesWidget.vue'
 import NasaHighlightsWidget from '@/components/widgets/NasaHighlightsWidget.vue'
 import NextEventWidget from '@/components/widgets/NextEventWidget.vue'
@@ -12,12 +15,21 @@ import {
   normalizeWidgetType,
 } from '@/sidebar/customWidgets/types'
 
-export const MAX_ENABLED_SIDEBAR_WIDGETS = 2
-export const EXCLUSIVE_SIDEBAR_SECTION_KEYS = Object.freeze(['observing_conditions'])
+export const MAX_ENABLED_SIDEBAR_WIDGETS = 3
+export const EXCLUSIVE_SIDEBAR_SECTION_KEYS = Object.freeze([])
+export const OBSERVING_SECTION_KEYS = Object.freeze([
+  'observing_conditions',
+  'observing_weather',
+  'night_sky',
+])
+export const GUEST_OBSERVING_PROMPT_SECTION_KEY = 'guest_observing_prompt'
 
 export const sidebarComponentMap = {
   search: SearchBar,
   observing_conditions: RightObservingSidebar,
+  observing_weather: ObservingWeatherWidget,
+  night_sky: NightSkyWidget,
+  [GUEST_OBSERVING_PROMPT_SECTION_KEY]: GuestObservingPromptWidget,
   nasa_apod: NasaHighlightsWidget,
   next_event: NextEventWidget,
   latest_articles: LatestArticlesWidget,
@@ -29,6 +41,7 @@ export const customSidebarComponentMap = {
   [SIDEBAR_WIDGET_TYPES.INFO_CARD]: SidebarWidgetRenderer,
   [SIDEBAR_WIDGET_TYPES.LINK_LIST]: SidebarWidgetRenderer,
   [SIDEBAR_WIDGET_TYPES.HTML]: SidebarWidgetRenderer,
+  [SIDEBAR_WIDGET_TYPES.CONTEST]: SidebarWidgetRenderer,
   [LEGACY_WIDGET_TYPE_SPECIAL_EVENT]: SidebarWidgetRenderer,
 }
 
@@ -39,7 +52,23 @@ const sidebarIconMap = {
   },
   observing_conditions: {
     viewBox: '0 0 24 24',
-    paths: ['M4 19h16', 'M8 19l2.2-8h3.6L16 19', 'M6.5 8.8 12 5l5.5 3.8', 'M12 5v2.3'],
+    paths: ['M4 19h16', 'M7 14h10', 'M9.5 9.5h5', 'M12 5v2.2', 'M8 7.8 12 5l4 2.8'],
+  },
+  observing_weather: {
+    viewBox: '0 0 24 24',
+    paths: ['M6 15h12', 'M8 18h8', 'M8 12a4 4 0 1 1 7.7-1.6A3.2 3.2 0 1 1 17 15H8'],
+  },
+  night_sky: {
+    viewBox: '0 0 24 24',
+    paths: ['M17.2 4.8a7.5 7.5 0 1 0 2 10.4 6.2 6.2 0 0 1-2-10.4Z', 'M5 4h.01', 'M8 2h.01', 'M12 6h.01'],
+  },
+  [GUEST_OBSERVING_PROMPT_SECTION_KEY]: {
+    viewBox: '0 0 24 24',
+    paths: [
+      'M7 11h10v8H7z',
+      'M9 11V8.8A3 3 0 0 1 12 5.8a3 3 0 0 1 3 3V11',
+      'M12 14.2v2.4',
+    ],
   },
   nasa_apod: {
     viewBox: '0 0 24 24',
@@ -78,6 +107,44 @@ const sidebarIconMap = {
 const toSafeNumber = (value, fallback = 0) => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const observingSectionKeySet = new Set(OBSERVING_SECTION_KEYS)
+
+const toGuestObservingPromptSection = (section) => {
+  return {
+    kind: 'builtin',
+    section_key: GUEST_OBSERVING_PROMPT_SECTION_KEY,
+    title: 'Astronomicke podmienky',
+    custom_component_id: null,
+    custom_component: null,
+    order: toSafeNumber(section?.order, 0),
+    is_enabled: true,
+  }
+}
+
+const collapseObservingSectionsForGuest = (sections, options = {}) => {
+  if (!options?.isGuest) {
+    return sections
+  }
+
+  const source = Array.isArray(sections) ? sections : []
+  let guestPromptInserted = false
+
+  return source.reduce((acc, section) => {
+    const sectionKey = String(section?.section_key || '')
+    if (!observingSectionKeySet.has(sectionKey)) {
+      acc.push(section)
+      return acc
+    }
+
+    if (!guestPromptInserted) {
+      acc.push(toGuestObservingPromptSection(section))
+      guestPromptInserted = true
+    }
+
+    return acc
+  }, [])
 }
 
 const resolveBuiltinSectionTitle = (sectionKey, title) => {
@@ -131,9 +198,12 @@ export const normalizeSidebarSections = (items) => {
     .sort((a, b) => a.order - b.order)
 }
 
-export const getEnabledSidebarSections = (items) => {
+export const getEnabledSidebarSections = (items, options = {}) => {
   const normalized = normalizeSidebarSections(items)
-  const enabled = normalized.filter((item) => item.is_enabled)
+  const enabled = collapseObservingSectionsForGuest(
+    normalized.filter((item) => item.is_enabled),
+    { isGuest: Boolean(options?.isGuest) },
+  )
   const exclusiveKeySet = new Set(EXCLUSIVE_SIDEBAR_SECTION_KEYS)
   const exclusiveSection = enabled.find((item) => exclusiveKeySet.has(item.section_key))
 

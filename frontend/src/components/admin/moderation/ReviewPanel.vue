@@ -14,19 +14,7 @@ const emit = defineEmits(['inspect'])
 
 const loading = ref(false)
 const error = ref('')
-const sourceFilter = ref('all')
 const items = ref([])
-
-const sourceOptions = [
-  { id: 'all', label: 'Vsetko' },
-  { id: 'report', label: 'Reporty' },
-  { id: 'queue', label: 'Fronta' },
-]
-
-const filteredItems = computed(() => {
-  if (sourceFilter.value === 'all') return items.value
-  return items.value.filter((item) => item.kind === sourceFilter.value)
-})
 
 const emptyState = computed(() => {
   if (props.mode === 'reviewed') {
@@ -82,38 +70,19 @@ watch(
 
 <template>
   <section class="reviewPanel">
-    <div class="reviewToolbar">
-      <div class="filterPills" role="tablist" aria-label="Filtre zdroja">
-        <button
-          v-for="option in sourceOptions"
-          :key="option.id"
-          class="pill"
-          :class="{ active: sourceFilter === option.id }"
-          type="button"
-          @click="sourceFilter = option.id"
-        >
-          {{ option.label }}
-        </button>
-      </div>
-
-      <button type="button" class="pill" :disabled="loading" @click="load">
-        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
-      </button>
-    </div>
-
     <div v-if="error" class="alert">{{ error }}</div>
 
     <div v-if="loading" class="list">
       <div v-for="index in 4" :key="index" class="skeletonRow" />
     </div>
 
-    <div v-else-if="!filteredItems.length" class="emptyState">
+    <div v-else-if="!items.length" class="emptyState">
       <div class="emptyTitle">{{ emptyState.title }}</div>
       <div class="emptyDescription">{{ emptyState.description }}</div>
     </div>
 
     <div v-else class="list">
-      <article v-for="item in filteredItems" :key="`${item.kind}-${item.id}`" class="reviewItem">
+      <article v-for="item in items" :key="`${item.kind}-${item.id}`" class="reviewItem">
         <div class="metaRow">
           <span class="sourceBadge">{{ sourceLabel(item) }}</span>
           <span class="timeLabel">{{ formatRelativeTime(item.created_at) }}</span>
@@ -135,35 +104,7 @@ watch(
 <style scoped>
 .reviewPanel {
   display: grid;
-  gap: 14px;
-}
-
-.reviewToolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.filterPills {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.pill,
-.actionBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  border-radius: 999px;
-  padding: 7px 12px;
-  background: transparent;
-  color: inherit;
-}
-
-.pill.active {
-  background: rgb(var(--color-primary-rgb) / 0.16);
-  border-color: rgb(var(--color-primary-rgb) / 0.45);
+  gap: 12px;
 }
 
 .alert {

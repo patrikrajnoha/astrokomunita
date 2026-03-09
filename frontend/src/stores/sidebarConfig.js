@@ -7,12 +7,14 @@ import {
 } from '@/generated/sidebarScopes'
 
 const DEFAULT_ITEMS = [
-  { kind: 'builtin', section_key: 'search', title: 'Hladat', order: 0, is_enabled: true },
-  { kind: 'builtin', section_key: 'observing_conditions', title: 'Podmienky pozorovania', order: 1, is_enabled: true },
-  { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA Novinky', order: 2, is_enabled: true },
-  { kind: 'builtin', section_key: 'next_event', title: 'Najblizsia udalost', order: 3, is_enabled: true },
-  { kind: 'builtin', section_key: 'latest_articles', title: 'Najnovsie clanky', order: 4, is_enabled: true },
-  { kind: 'builtin', section_key: 'upcoming_events', title: 'Co sa deje', order: 5, is_enabled: true },
+  { kind: 'builtin', section_key: 'observing_conditions', title: 'Astronomicke podmienky', order: 0, is_enabled: true },
+  { kind: 'builtin', section_key: 'observing_weather', title: 'Pocasie pre pozorovanie', order: 1, is_enabled: true },
+  { kind: 'builtin', section_key: 'night_sky', title: 'Nocna obloha', order: 2, is_enabled: true },
+  { kind: 'builtin', section_key: 'search', title: 'Hladat', order: 3, is_enabled: true },
+  { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA Novinky', order: 4, is_enabled: true },
+  { kind: 'builtin', section_key: 'next_event', title: 'Najblizsia udalost', order: 5, is_enabled: true },
+  { kind: 'builtin', section_key: 'latest_articles', title: 'Najnovsie clanky', order: 6, is_enabled: true },
+  { kind: 'builtin', section_key: 'upcoming_events', title: 'Co sa deje', order: 7, is_enabled: true },
 ]
 
 const cloneAndSort = (items) => {

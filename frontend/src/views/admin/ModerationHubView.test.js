@@ -189,7 +189,7 @@ describe('ModerationHubView', () => {
 
   it('switches tabs from query params', async () => {
     const router = makeRouter()
-    await router.push('/admin/moderation?tab=service')
+    await router.push('/admin/moderation?tab=reports')
     await router.isReady()
 
     const wrapper = mount(ModerationHubView, {
@@ -201,13 +201,13 @@ describe('ModerationHubView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Obnovit stav')
-
-    await router.push('/admin/moderation?tab=reports')
-    await flush()
-    await flush()
-
     expect(wrapper.find('#reports-search').exists()).toBe(true)
+
+    await router.push('/admin/moderation?tab=reviewed')
+    await flush()
+    await flush()
+
+    expect(wrapper.text()).toContain('Skontrolovany prispevok')
   })
 
   it('renders combined review feed items', async () => {

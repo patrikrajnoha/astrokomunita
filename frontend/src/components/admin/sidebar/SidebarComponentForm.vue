@@ -1,5 +1,5 @@
 ﻿<template>
-  <section class="panel">
+  <section class="panel" :class="{ ultraCompact: props.ultraCompact }">
     <div class="panelHead">
       <h3>{{ isEdit ? 'Upravit komponent' : 'Novy komponent' }}</h3>
       <label class="activeToggle">
@@ -85,6 +85,47 @@
         </label>
       </template>
 
+      <template v-else-if="formState.type === SIDEBAR_WIDGET_TYPES.CONTEST">
+        <label class="field">
+          <span>Nadpis</span>
+          <input :value="contestConfig.title" type="text" :disabled="saving" placeholder="Sutaz mesiaca" @input="setConfig('title', $event.target.value)" />
+          <small v-if="fieldError('config_json.title')" class="errorText">{{ fieldError('config_json.title') }}</small>
+        </label>
+
+        <label class="field">
+          <span>Kratky popis</span>
+          <textarea :value="contestConfig.description" rows="3" :disabled="saving" placeholder="Pridaj fotku nocnej oblohy a vyhraj..." @input="setConfig('description', $event.target.value)"></textarea>
+          <small v-if="fieldError('config_json.description')" class="errorText">{{ fieldError('config_json.description') }}</small>
+        </label>
+
+        <label class="field">
+          <span>Obrazok sutaze</span>
+          <div class="uploadBox">
+            <div v-if="contestConfig.imageUrl" class="uploadPreview">
+              <img :src="contestConfig.imageUrl" alt="" loading="lazy" />
+            </div>
+            <div class="uploadActions">
+              <button type="button" class="ghostBtn" :disabled="saving || contestImageUploading" @click="openContestImagePicker">
+                {{ contestImageUploading ? 'Nahravam...' : 'Nahrat obrazok' }}
+              </button>
+              <button type="button" class="ghostBtn danger" :disabled="saving || contestImageUploading || !contestConfig.imageUrl" @click="setConfig('imageUrl', '')">
+                Odstranit
+              </button>
+            </div>
+            <input
+              ref="contestImageInput"
+              class="hiddenInput"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              :disabled="saving || contestImageUploading"
+              @change="onContestImageChange"
+            />
+          </div>
+          <small v-if="fieldError('config_json.imageUrl')" class="errorText">{{ fieldError('config_json.imageUrl') }}</small>
+          <small v-if="imageUploadError" class="errorText">{{ imageUploadError }}</small>
+        </label>
+      </template>
+
       <template v-else-if="formState.type === SIDEBAR_WIDGET_TYPES.LINK_LIST">
         <label class="field">
           <span>Nadpis</span>
@@ -131,7 +172,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   SIDEBAR_WIDGET_TYPE_OPTIONS,
   SIDEBAR_WIDGET_TYPES,
@@ -148,22 +189,100 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  contestImageUploading: {
+    type: Boolean,
+    default: false,
+  },
+  imageUploadError: {
+    type: String,
+    default: '',
+  },
   validationErrors: {
     type: Object,
     default: () => ({}),
   },
+  ultraCompact: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['update:modelValue', 'submit', 'reset'])
+const emit = defineEmits(['update:modelValue', 'submit', 'reset', 'upload-contest-image'])
 
 const formState = computed(() => props.modelValue)
+const contestImageInput = ref(null)
 
 const isEdit = computed(() => Number.isFinite(Number(formState.value?.id)) && Number(formState.value.id) > 0)
 
-const ctaConfig = computed(() => normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.CTA, formState.value.config_json))
-const infoCardConfig = computed(() => normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.INFO_CARD, formState.value.config_json))
-const linkListConfig = computed(() => normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.LINK_LIST, formState.value.config_json))
-const htmlConfig = computed(() => normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.HTML, formState.value.config_json))
+const configSource = computed(() => {
+  const source = formState.value?.config_json
+  return source && typeof source === 'object' ? source : {}
+})
+
+const pickRawString = (key) => {
+  const value = configSource.value?.[key]
+  return typeof value === 'string' ? value : null
+}
+
+const pickRawLinks = () => {
+  const links = configSource.value?.links
+  if (!Array.isArray(links)) return null
+
+  return links.map((item) => ({
+    label: typeof item?.label === 'string' ? item.label : '',
+    href: typeof item?.href === 'string' ? item.href : '',
+  }))
+}
+
+const ctaConfig = computed(() => {
+  const defaults = normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.CTA, configSource.value)
+  return {
+    ...defaults,
+    headline: pickRawString('headline') ?? defaults.headline,
+    body: pickRawString('body') ?? defaults.body,
+    buttonText: pickRawString('buttonText') ?? defaults.buttonText,
+    buttonHref: pickRawString('buttonHref') ?? defaults.buttonHref,
+    imageUrl: pickRawString('imageUrl') ?? defaults.imageUrl,
+    icon: pickRawString('icon') ?? defaults.icon,
+  }
+})
+
+const infoCardConfig = computed(() => {
+  const defaults = normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.INFO_CARD, configSource.value)
+  return {
+    ...defaults,
+    title: pickRawString('title') ?? defaults.title,
+    content: pickRawString('content') ?? defaults.content,
+    icon: pickRawString('icon') ?? defaults.icon,
+  }
+})
+
+const linkListConfig = computed(() => {
+  const defaults = normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.LINK_LIST, configSource.value)
+  return {
+    ...defaults,
+    title: pickRawString('title') ?? defaults.title,
+    links: pickRawLinks() ?? defaults.links,
+  }
+})
+
+const htmlConfig = computed(() => {
+  const defaults = normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.HTML, configSource.value)
+  return {
+    ...defaults,
+    html: pickRawString('html') ?? defaults.html,
+  }
+})
+
+const contestConfig = computed(() => {
+  const defaults = normalizeWidgetConfig(SIDEBAR_WIDGET_TYPES.CONTEST, configSource.value)
+  return {
+    ...defaults,
+    title: pickRawString('title') ?? defaults.title,
+    description: pickRawString('description') ?? defaults.description,
+    imageUrl: pickRawString('imageUrl') ?? defaults.imageUrl,
+  }
+})
 
 const linkRows = computed(() => {
   const rows = Array.isArray(linkListConfig.value.links) ? linkListConfig.value.links : []
@@ -171,10 +290,13 @@ const linkRows = computed(() => {
 })
 
 const emitModel = (next) => {
+  const sourceConfig = next?.config_json
+  const rawConfig = sourceConfig && typeof sourceConfig === 'object' ? sourceConfig : {}
+
   emit('update:modelValue', {
     ...next,
     type: normalizeWidgetType(next.type),
-    config_json: normalizeWidgetConfig(next.type, next.config_json),
+    config_json: rawConfig,
   })
 }
 
@@ -219,6 +341,17 @@ const updateLink = (index, key, value) => {
   setConfig('links', next)
 }
 
+const openContestImagePicker = () => {
+  contestImageInput.value?.click()
+}
+
+const onContestImageChange = (event) => {
+  const selectedFile = event?.target?.files?.[0]
+  event.target.value = ''
+  if (!selectedFile) return
+  emit('upload-contest-image', selectedFile)
+}
+
 const fieldError = (fieldPath) => {
   return props.validationErrors?.[fieldPath] || ''
 }
@@ -229,6 +362,10 @@ const fieldError = (fieldPath) => {
   display: grid;
   gap: 0.7rem;
   min-width: 0;
+}
+
+.panel.ultraCompact {
+  gap: 0.55rem;
 }
 
 .panelHead {
@@ -254,6 +391,10 @@ const fieldError = (fieldPath) => {
 .form {
   display: grid;
   gap: 0.65rem;
+}
+
+.panel.ultraCompact .form {
+  gap: 0.52rem;
 }
 
 .field {
@@ -293,6 +434,34 @@ const fieldError = (fieldPath) => {
   gap: 0.5rem;
 }
 
+.uploadBox {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.uploadPreview {
+  width: min(100%, 260px);
+  border-radius: 0.7rem;
+  overflow: hidden;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+}
+
+.uploadPreview img {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.uploadActions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.hiddenInput {
+  display: none;
+}
+
 .linksHead {
   display: flex;
   align-items: center;
@@ -315,6 +484,7 @@ const fieldError = (fieldPath) => {
 .actions {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .primaryBtn,
@@ -345,6 +515,25 @@ const fieldError = (fieldPath) => {
   margin: 0;
   color: var(--color-danger);
   font-size: 0.72rem;
+}
+
+.panel.ultraCompact .field span,
+.panel.ultraCompact .linksHead {
+  font-size: 0.7rem;
+}
+
+.panel.ultraCompact .field input,
+.panel.ultraCompact .field select,
+.panel.ultraCompact .field textarea,
+.panel.ultraCompact .linkRow input {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.76rem;
+}
+
+.panel.ultraCompact .primaryBtn,
+.panel.ultraCompact .ghostBtn {
+  font-size: 0.74rem;
+  padding: 0.42rem 0.62rem;
 }
 
 @media (max-width: 1120px) {

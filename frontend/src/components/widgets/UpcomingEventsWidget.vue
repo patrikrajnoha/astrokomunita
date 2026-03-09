@@ -39,7 +39,7 @@
     </div>
 
     <div class="panelActions">
-      <router-link class="showMoreLink" :to="showMoreTo">{{ showMoreLabel }}</router-link>
+      <router-link class="upcomingMoreLink" :to="showMoreTo">{{ showMoreLabel }}</router-link>
     </div>
   </section>
 </template>
@@ -122,12 +122,12 @@ export default {
   background: transparent;
   border-radius: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .panel {
   display: grid;
-  gap: var(--sb-gap-sm, 0.5rem);
+  gap: 0.24rem;
   min-width: 0;
 }
 
@@ -139,7 +139,8 @@ export default {
 }
 
 .eventsViewport {
-  min-height: 5.3rem;
+  min-height: 4.6rem;
+  min-width: 0;
 }
 
 .eventsList {
@@ -152,13 +153,13 @@ export default {
 
 .eventItem {
   display: grid;
-  grid-template-columns: 4.6rem minmax(0, 1fr);
+  grid-template-columns: 4.2rem minmax(0, 1fr);
   align-items: start;
-  column-gap: 0.44rem;
+  column-gap: 0.36rem;
   row-gap: 0;
   border-bottom: 1px solid var(--divider-color);
-  padding: 0.38rem 0;
-  border-radius: var(--radius-sm);
+  padding: 0.3rem 0;
+  border-radius: 0;
 }
 
 .eventItem:last-child {
@@ -166,47 +167,62 @@ export default {
 }
 
 .eventItem:hover {
-  background: var(--interactive-hover);
+  background: transparent;
 }
 
 .eventDate {
   color: var(--color-text-secondary);
-  font-size: 0.69rem;
+  font-size: 0.72rem;
   line-height: 1.15;
   white-space: nowrap;
 }
 
 .eventTitle {
   color: var(--color-surface);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.16;
   display: -webkit-box;
   line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .panelActions {
-  display: flex;
-  padding-top: 0.18rem;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding-top: 0;
+  margin-top: 0.04rem;
 }
 
-.showMoreLink {
+.upcomingMoreLink {
+  display: block;
+  width: 100%;
+  max-width: 100%;
   color: var(--color-primary);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   text-decoration: none;
-  line-height: 1.2;
-  border-radius: var(--radius-pill);
-  padding: 0.15rem 0.36rem;
-  transition: background-color var(--motion-fast), color var(--motion-fast);
+  line-height: 1.12;
+  text-align: center;
+  padding: 0.24rem 0.48rem;
+  min-height: 1.68rem;
+  border-radius: 0 !important;
+  box-sizing: border-box;
+  background: rgb(var(--color-bg-rgb) / 0.2);
+  box-shadow: inset 0 0 0 1px var(--color-text-secondary);
+  transition: background-color var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
 }
 
-.showMoreLink:hover {
+.upcomingMoreLink:hover {
   color: var(--color-text-primary);
-  background: var(--interactive-hover);
+  background: rgb(var(--color-primary-rgb) / 0.08);
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+  transform: none;
 }
 
 .fade-enter-active,
@@ -218,5 +234,12 @@ export default {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(2px);
+}
+
+.eventsViewport,
+.eventsList,
+.eventItem,
+.upcomingMoreLink {
+  border-radius: 0 !important;
 }
 </style>

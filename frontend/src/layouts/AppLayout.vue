@@ -44,7 +44,6 @@
         showMobileBottomNav
           ? 'pb-[calc(var(--mobile-bottom-nav-offset)+env(safe-area-inset-bottom)+1rem)]'
           : 'pb-0',
-        'guest-cta-safe',
         'md:pb-0 md:pl-64 xl:pl-0',
       ]"
     >
@@ -106,27 +105,18 @@
           <div
             data-testid="right-rail"
             :class="[
-              'rightRail h-screen w-[20.5rem] overflow-y-auto overflow-x-hidden bg-[var(--bg-app)] px-3.5 py-3.5 xl:sticky xl:top-0',
+              'rightRail h-screen w-[20.5rem] overflow-y-auto overflow-x-hidden bg-[var(--bg-app)] px-3.5 pb-3.5 pt-6 xl:sticky xl:top-0',
               isHomeFeedRoute ? '' : 'border-l border-[var(--divider-color)]',
             ]"
           >
             <div class="rightRail__inner">
               <div class="rightRail__content sidebar-dense sidebar-ultra">
                 <DynamicSidebar
-                  v-if="!showDirectObservingSidebar"
                   :observing-lat="observingLat"
                   :observing-lon="observingLon"
                   :observing-date="observingDate"
                   :observing-tz="observingTz"
                   :observing-location-name="observingLocationName"
-                />
-                <RightObservingSidebar
-                  v-else
-                  :lat="observingLat"
-                  :lon="observingLon"
-                  :date="observingDate"
-                  :tz="observingTz"
-                  :location-name="observingLocationName"
                 />
               </div>
 
@@ -439,7 +429,6 @@
     <OnboardingTour
       v-if="onboardingTour.isOpen && !isCalendarPopupVisible && !isOnboardingFlowActive"
     />
-    <GuestBottomCTA />
   </div>
 </template>
 
@@ -451,12 +440,9 @@ import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { useNotificationsStore } from '@/stores/notifications'
 import MainNavbar from '@/components/MainNavbar.vue'
 import DynamicSidebar from '@/components/DynamicSidebar.vue'
-import RightObservingSidebar from '@/components/RightObservingSidebar.vue'
 import CreatePostModal from '@/components/CreatePostModal.vue'
 import MobileFab from '@/components/MobileFab.vue'
 import MobileBottomNav from '@/components/nav/MobileBottomNav.vue'
-import GuestBottomCTA from '@/components/GuestBottomCTA.vue'
-import { SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
 import MarkYourCalendarModal from '@/components/MarkYourCalendarModal.vue'
 import OnboardingTour from '@/components/onboarding/OnboardingTour.vue'
 import { useToast } from '@/composables/useToast'
@@ -507,8 +493,7 @@ const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const showMobileBottomNav = computed(() => isMobileViewport.value && !isAdminRoute.value)
 const appShellStyle = computed(() => ({
   '--app-header-h': 'var(--navbar-height)',
-  '--mobile-bottom-nav-offset': showMobileBottomNav.value ? '88px' : '0px',
-  '--guest-cta-bottom-offset': showMobileBottomNav.value && !auth.isAuthed ? '88px' : '0px',
+  '--mobile-bottom-nav-offset': showMobileBottomNav.value ? '96px' : '0px',
 }))
 const legalLinks = [
   { to: '/privacy', label: 'Ochrana súkromia' },
@@ -517,11 +502,6 @@ const legalLinks = [
 ]
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
-const showDirectObservingSidebar = computed(() => {
-  return (
-    currentSidebarScope.value === SIDEBAR_SCOPE.OBSERVING
-  )
-})
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
 const isProfileRoute = computed(() => String(route.path || '').startsWith('/profile'))
 const isHomeFeedRoute = computed(() => route.name === 'home')
@@ -563,7 +543,9 @@ const mainContentClass = computed(() => {
 
   return 'mx-auto w-full max-w-[640px]'
 })
-const enabledMobileSections = computed(() => getEnabledSidebarSections(mobileSidebarSections.value))
+const enabledMobileSections = computed(() => (
+  getEnabledSidebarSections(mobileSidebarSections.value, { isGuest: !auth.isAuthed })
+))
 const activeWidgetComponent = computed(() => resolveSidebarComponent(activeWidgetKey.value))
 const lastOpenedWidget = computed(() => {
   if (!lastWidgetKey.value) return null
@@ -789,7 +771,11 @@ const openComposerFromWidgets = () => {
 }
 
 const propsForWidget = (sectionKey, title) => {
-  if (sectionKey === 'observing_conditions') {
+  if (
+    sectionKey === 'observing_conditions'
+    || sectionKey === 'observing_weather'
+    || sectionKey === 'night_sky'
+  ) {
     return {
       lat: observingLat.value,
       lon: observingLon.value,
@@ -1357,7 +1343,52 @@ onBeforeUnmount(() => {
 }
 
 .sidebar-ultra :deep(.nasaImageWrap) {
-  max-height: 126px;
+  max-height: 104px;
+}
+
+.sidebar-ultra :deep(.nasaActionBtn) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 1.68rem;
+  font-size: 0.72rem;
+  line-height: 1.12;
+  padding: 0.24rem 0.48rem;
+  border-radius: 0 !important;
+}
+
+.sidebar-ultra :deep(.nasaCard .ghostbtn) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 1.68rem;
+  font-size: 0.72rem;
+  line-height: 1.12;
+  padding: 0.24rem 0.48rem;
+  border-radius: 0 !important;
+}
+
+.sidebar-ultra :deep(.eventActionBtn),
+.sidebar-ultra :deep(.eventGhostBtn) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 1.68rem;
+  font-size: 0.72rem;
+  line-height: 1.12;
+  padding: 0.24rem 0.48rem;
+  border-radius: 0 !important;
+}
+
+.sidebar-ultra :deep(.upcomingMoreLink) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 1.68rem;
+  font-size: 0.72rem;
+  line-height: 1.12;
+  padding: 0.24rem 0.48rem;
+  border-radius: 0 !important;
 }
 
 .sidebar-ultra :deep(.nasaTitle),

@@ -31,6 +31,9 @@ export function candidateDisplayShort(candidate) {
     candidate?.short_translated,
     candidate?.translated_short,
     candidate?.short_sk,
+    candidate?.translated_description,
+    candidate?.description_translated,
+    candidate?.description_sk,
     candidate?.short,
     candidateDisplayDescription(candidate),
   ]) || '-'

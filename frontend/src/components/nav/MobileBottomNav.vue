@@ -100,46 +100,52 @@ const isActive = (item) => {
 <style scoped>
 .mobileBottomNav {
   position: fixed;
-  left: 0.65rem;
-  right: 0.65rem;
-  bottom: 0.65rem;
+  left: 0.72rem;
+  right: 0.72rem;
+  bottom: 0.7rem;
   z-index: 65;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.35rem;
-  padding: 0.45rem 0.45rem calc(0.45rem + env(safe-area-inset-bottom));
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: rgb(var(--bg-surface-2-rgb) / 0.94);
-  backdrop-filter: blur(14px);
-  box-shadow: var(--shadow-medium);
+  gap: 0.32rem;
+  padding: 0.38rem 0.38rem calc(0.52rem + env(safe-area-inset-bottom));
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
+  border-radius: 1.4rem;
+  background: #151d28;
+  backdrop-filter: blur(18px) saturate(135%);
+  box-shadow:
+    0 16px 38px rgb(var(--bg-app-rgb) / 0.56),
+    0 1px 0 rgb(var(--color-text-primary-rgb) / 0.06) inset;
+  animation: mobileDockEnter 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .mobileBottomNav__item {
-  min-height: 3.35rem;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
+  position: relative;
+  min-height: 3.55rem;
+  border-radius: 1rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0);
   background: transparent;
   color: var(--color-text-secondary);
   text-decoration: none;
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 0.22rem;
-  padding: 0.3rem 0.2rem;
+  gap: 0.25rem;
+  padding: 0.28rem 0.16rem;
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
     color 160ms ease,
-    transform 160ms ease;
+    transform 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .mobileBottomNav__item:hover {
+  background: rgb(var(--color-text-primary-rgb) / 0.04);
   color: var(--color-text-primary);
 }
 
 .mobileBottomNav__item:active {
-  transform: translateY(1px);
+  transform: translateY(1px) scale(0.985);
 }
 
 .mobileBottomNav__item:focus-visible {
@@ -148,27 +154,58 @@ const isActive = (item) => {
 }
 
 .mobileBottomNav__item.is-active {
-  border-color: rgb(var(--color-accent-rgb) / 0.48);
+  border-color: rgb(var(--color-accent-rgb) / 0.58);
   background: linear-gradient(
     180deg,
-    rgb(var(--color-accent-rgb) / 0.22),
-    rgb(var(--color-accent-rgb) / 0.14)
+    rgb(var(--color-accent-rgb) / 0.32),
+    rgb(var(--color-accent-rgb) / 0.16)
   );
   color: var(--color-text-primary);
+  box-shadow:
+    0 0 0 1px rgb(var(--color-accent-rgb) / 0.25),
+    0 10px 18px rgb(var(--color-accent-rgb) / 0.2);
+}
+
+.mobileBottomNav__item.is-active::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0.28rem;
+  width: 1.2rem;
+  height: 0.18rem;
+  border-radius: var(--radius-pill);
+  transform: translateX(-50%);
+  background: rgb(var(--color-text-primary-rgb) / 0.95);
+  opacity: 0.9;
 }
 
 .mobileBottomNav__iconWrap {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.9rem;
-  height: 1.9rem;
-  border-radius: var(--radius-sm);
-  background: rgb(var(--bg-app-rgb) / 0.22);
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.78rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
+  background: linear-gradient(
+    180deg,
+    rgb(var(--bg-app-rgb) / 0.42),
+    rgb(var(--bg-app-rgb) / 0.22)
+  );
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
 }
 
 .mobileBottomNav__item.is-active .mobileBottomNav__iconWrap {
-  background: rgb(var(--color-accent-rgb) / 0.2);
+  border-color: rgb(var(--color-accent-rgb) / 0.64);
+  background: linear-gradient(
+    180deg,
+    rgb(var(--color-accent-rgb) / 0.28),
+    rgb(var(--color-accent-rgb) / 0.16)
+  );
+  transform: translateY(-1px);
 }
 
 .mobileBottomNav__icon {
@@ -179,9 +216,33 @@ const isActive = (item) => {
 }
 
 .mobileBottomNav__label {
-  font-size: 0.64rem;
+  font-size: clamp(0.6rem, 2.25vw, 0.68rem);
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+
+@keyframes mobileDockEnter {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobileBottomNav {
+    animation: none;
+  }
+
+  .mobileBottomNav__item,
+  .mobileBottomNav__iconWrap {
+    transition: none;
+  }
 }
 </style>

@@ -48,6 +48,11 @@ function makeRouter() {
         name: 'admin.users.detail',
         component: { template: '<div>detail</div>' },
       },
+      {
+        path: '/u/:username',
+        name: 'user-profile',
+        component: { template: '<div>profile</div>' },
+      },
     ],
   })
 }
@@ -94,18 +99,6 @@ describe('UsersView', () => {
         }
       }
 
-      if (url === '/_health') {
-        return {
-          data: {
-            ok: true,
-            env: 'local',
-            git_sha: 'abc123',
-            build_id: null,
-            time: '2026-03-05T12:00:00Z',
-          },
-        }
-      }
-
       throw new Error(`Unexpected GET ${url}`)
     })
   })
@@ -125,7 +118,7 @@ describe('UsersView', () => {
     await flush()
 
     const botRow = wrapper.get('[data-row-id="4"]')
-    expect(botRow.find('.roleBadge').text()).toBe('BOT')
+    expect(botRow.find('.roleBadge').text()).toBe('bot')
     expect(botRow.find('.col-email .truncateText').text()).toBe('-')
     expect(botRow.find('.default-avatar').exists()).toBe(true)
 
@@ -135,11 +128,80 @@ describe('UsersView', () => {
 
     const regularRow = wrapper.get('[data-row-id="9"]')
     expect(regularRow.find('.col-email .truncateText').text()).toBe('regular@example.test')
+  })
 
-    const debugBanner = wrapper.get('.devConnectivityBanner')
-    expect(debugBanner.text()).toContain('DEV API konektivita')
-    expect(debugBanner.text()).toContain('api.defaults.baseURL')
-    expect(debugBanner.text()).toContain('/api/_health')
-    expect(debugBanner.text()).toContain('env=local; rev=abc123')
+  it('shows moderation and editor role actions for eligible non-bot accounts', async () => {
+    const router = makeRouter()
+    await router.push('/admin/community/users')
+    await router.isReady()
+
+    const wrapper = mount(UsersView, {
+      global: {
+        plugins: [router],
+      },
+      attachTo: document.body,
+    })
+
+    await flush()
+    await flush()
+
+    const botRow = wrapper.get('[data-row-id="4"]')
+    await botRow.find('.dropdownTrigger').trigger('click')
+    await flush()
+
+    const botMenu = document.body.querySelector('[role="menu"]')
+    expect(botMenu?.textContent || '').toContain('Sprava uctu')
+    expect(botMenu?.textContent || '').toContain('Zablokovat ucet')
+    expect(botMenu?.textContent || '').toContain('Deaktivovat ucet')
+    expect(botMenu?.textContent || '').toContain('Resetovat profil')
+    expect(botMenu?.textContent || '').not.toContain('Pridat rolu editor')
+
+    await botRow.find('.dropdownTrigger').trigger('click')
+    await flush()
+
+    const regularRow = wrapper.get('[data-row-id="9"]')
+    await regularRow.find('.dropdownTrigger').trigger('click')
+    await flush()
+
+    const regularMenu = document.body.querySelector('[role="menu"]')
+    expect(regularMenu?.textContent || '').toContain('Zobrazit profil')
+    expect(regularMenu?.textContent || '').toContain('Sprava uctu')
+    expect(regularMenu?.textContent || '').toContain('Pridat rolu editor')
+    expect(regularMenu?.textContent || '').toContain('Zablokovat ucet')
+    expect(regularMenu?.textContent || '').toContain('Deaktivovat ucet')
+    expect(regularMenu?.textContent || '').toContain('Resetovat profil')
+  })
+
+  it('allows row-click navigation to user detail for both bot and non-bot accounts', async () => {
+    const router = makeRouter()
+    await router.push('/admin/community/users')
+    await router.isReady()
+
+    const wrapper = mount(UsersView, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+    await flush()
+
+    const regularRow = wrapper.get('[data-row-id="9"]')
+    await regularRow.trigger('click')
+    await flush()
+
+    expect(router.currentRoute.value.name).toBe('admin.users.detail')
+    expect(router.currentRoute.value.params.id).toBe('9')
+
+    await router.push('/admin/community/users')
+    await flush()
+    await flush()
+
+    const botRow = wrapper.get('[data-row-id="4"]')
+    await botRow.trigger('click')
+    await flush()
+
+    expect(router.currentRoute.value.name).toBe('admin.users.detail')
+    expect(router.currentRoute.value.params.id).toBe('4')
   })
 })

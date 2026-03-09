@@ -33,10 +33,11 @@
 
       <div class="panelActions">
         <a
-          class="ghostbtn"
+          class="nasaActionBtn"
           :href="nasaItem.link"
           target="_blank"
           rel="noopener noreferrer"
+          style="border-radius:0;display:block;width:100%;max-width:100%;box-sizing:border-box"
         >
           Zobrazit na NASA.gov
         </a>
@@ -118,12 +119,12 @@ export default {
   background: transparent;
   border-radius: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .panel {
   display: grid;
-  gap: var(--sb-gap-sm, 0.5rem);
+  gap: 0.24rem;
   min-width: 0;
 }
 
@@ -141,23 +142,27 @@ export default {
 
 .nasaCard {
   display: grid;
-  gap: var(--sb-gap-sm, 0.5rem);
+  gap: 0.24rem;
   min-width: 0;
 }
 
 .nasaThumb {
   width: 100%;
-  aspect-ratio: 16 / 7.8;
-  border-radius: 0.68rem;
+  aspect-ratio: 16 / 8.8;
+  border-radius: 0;
 }
 
 .nasaImageWrap {
   width: 100%;
-  aspect-ratio: 16 / 7.8;
-  max-height: 142px;
-  border-radius: 0.68rem;
+  aspect-ratio: 16 / 9.6;
+  max-height: 104px;
+  border-radius: 0;
   overflow: hidden;
   border: 1px solid var(--divider-color);
+}
+
+.nasaImageLink {
+  display: block;
 }
 
 .nasaImageWrap img {
@@ -168,54 +173,90 @@ export default {
 }
 
 .nasaTitle {
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   font-weight: 800;
   color: var(--color-surface);
-  line-height: 1.2;
+  line-height: 1.18;
   display: -webkit-box;
   line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .nasaExcerpt {
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
-  line-height: 1.3;
+  font-size: 0.74rem;
+  line-height: 1.25;
   display: -webkit-box;
-  line-clamp: 2;
-  -webkit-line-clamp: 2;
+  line-clamp: 1;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .panelActions {
-  display: flex;
-  gap: var(--sb-gap-xs, 0.3rem);
-  flex-wrap: wrap;
-  padding-top: 0.08rem;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding-top: 0;
+  margin-bottom: 0.16rem;
 }
 
-.ghostbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: auto;
-  min-height: 1.95rem;
-  padding: 0.36rem 0.64rem;
-  border-radius: 0.66rem;
-  border: 1px solid var(--color-text-secondary);
+.nasaActionBtn {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 1.68rem;
+  padding: 0.24rem 0.48rem;
+  border-radius: 0 !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--color-text-secondary);
   color: var(--color-surface);
   background: rgb(var(--color-bg-rgb) / 0.2);
-  font-size: 0.76rem;
-  line-height: 1.15;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  box-sizing: border-box;
+  text-align: center;
+  white-space: normal;
+  text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
-.ghostbtn:hover {
-  border-color: var(--color-primary);
+.nasaCard .ghostbtn {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 1.68rem;
+  padding: 0.24rem 0.48rem;
+  box-sizing: border-box;
+  border: 0 !important;
+  box-shadow: inset 0 0 0 1px var(--color-text-secondary) !important;
+  border-radius: 0 !important;
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.nasaActionBtn:hover {
+  box-shadow: inset 0 0 0 1px var(--color-primary);
   color: var(--color-surface);
   background: rgb(var(--color-primary-rgb) / 0.08);
+  transform: none;
+}
+
+.nasaCard .ghostbtn:hover {
+  box-shadow: inset 0 0 0 1px var(--color-primary) !important;
+  transform: none !important;
 }
 
 .stateText {
@@ -233,7 +274,18 @@ export default {
   );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
-  border-radius: 0.75rem;
+  border-radius: 0;
+}
+
+.nasaCard,
+.nasaImageWrap,
+.nasaImageWrap img {
+  border-radius: 0 !important;
+}
+
+.nasaCard * {
+  border-radius: 0 !important;
+  min-width: 0;
 }
 
 @keyframes shimmer {
@@ -247,7 +299,7 @@ export default {
 
 @media (max-width: 420px) {
   .nasaImageWrap {
-    max-height: 136px;
+    max-height: 96px;
   }
 
   .nasaExcerpt {

@@ -1,5 +1,5 @@
-﻿<template>
-  <section class="panel">
+<template>
+  <section class="panel" :class="{ ultraCompact: props.ultraCompact }">
     <div class="panelHead">
       <h3>Komponenty</h3>
       <span class="count">{{ items.length }}</span>
@@ -10,14 +10,15 @@
       class="searchInput"
       type="text"
       placeholder="Hladaj podla nazvu"
-      @input="$emit('update:modelValue', $event.target.value)"
+      @input="emit('update:modelValue', $event.target.value)"
     />
 
     <p v-if="loading" class="stateText">Nacitavam komponenty...</p>
     <p v-else-if="errorMessage" class="stateText error">{{ errorMessage }}</p>
-    <p v-else-if="items.length === 0" class="stateText empty">
-      Zatial nemas ziadne vlastne komponenty. Vytvor prvy widget.
-    </p>
+    <div v-else-if="items.length === 0" class="emptyState">
+      <p>Zatial nemas ziadne vlastne komponenty.</p>
+      <button type="button" class="createBtn" :disabled="busy" @click="$emit('create-item')">Vytvorit prvy komponent</button>
+    </div>
 
     <div v-else class="tableWrap">
       <table class="listTable">
@@ -26,7 +27,6 @@
             <th>Nazov</th>
             <th>Typ</th>
             <th>Aktivny</th>
-            <th>Aktualizovane</th>
             <th class="actions">Akcie</th>
           </tr>
         </thead>
@@ -35,27 +35,35 @@
             v-for="item in items"
             :key="item.id"
             :class="{ selected: Number(selectedId) === Number(item.id) }"
-            @click="$emit('select', item)"
+            @click="selectItem(item)"
           >
-            <td>{{ item.name }}</td>
-            <td>{{ getWidgetTypeLabel(item.type) }}</td>
+            <td class="nameCell">{{ item.name }}</td>
+            <td class="typeCell">{{ getWidgetTypeLabel(item.type) }}</td>
             <td>{{ item.is_active ? 'Ano' : 'Nie' }}</td>
-            <td>{{ formatDate(item.updated_at) }}</td>
-            <td class="actions">
-              <button type="button" class="actionBtn" :disabled="busy" @click.stop="$emit('select', item)">
-                Upravit
-              </button>
-              <button type="button" class="actionBtn" :disabled="busy" @click.stop="$emit('toggle-active', item)">
-                {{ item.is_active ? 'Vypnut' : 'Zapnut' }}
-              </button>
-              <button
-                type="button"
-                class="actionBtn danger"
-                :disabled="busy"
-                @click.stop="$emit('delete-item', item)"
-              >
-                Zmazat
-              </button>
+            <td class="actions" @click.stop>
+              <div class="menuWrap">
+                <button
+                  type="button"
+                  class="menuTrigger"
+                  :disabled="busy"
+                  :aria-expanded="isMenuOpen(item) ? 'true' : 'false'"
+                  @click.stop="toggleMenu(item.id)"
+                >
+                  ...
+                </button>
+
+                <div v-if="isMenuOpen(item)" class="menuDropdown">
+                  <button type="button" class="menuItem" :disabled="busy" @click.stop="runAction('select', item)">
+                    Upravit
+                  </button>
+                  <button type="button" class="menuItem" :disabled="busy" @click.stop="runAction('toggle-active', item)">
+                    {{ item.is_active ? 'Vypnut' : 'Zapnut' }}
+                  </button>
+                  <button type="button" class="menuItem danger" :disabled="busy" @click.stop="runAction('delete-item', item)">
+                    Zmazat
+                  </button>
+                </div>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -65,9 +73,10 @@
 </template>
 
 <script setup>
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getWidgetTypeLabel } from '@/sidebar/customWidgets/types'
 
-defineProps({
+const props = defineProps({
   modelValue: {
     type: String,
     default: '',
@@ -92,23 +101,58 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  ultraCompact: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-defineEmits(['update:modelValue', 'select', 'toggle-active', 'delete-item'])
+const emit = defineEmits(['update:modelValue', 'select', 'toggle-active', 'delete-item', 'create-item'])
 
-const formatDate = (value) => {
-  if (!value) return '-'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return '-'
+const openMenuId = ref('')
 
-  return new Intl.DateTimeFormat('sk-SK', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(parsed)
+const keyFor = (id) => String(id ?? '')
+
+const closeMenu = () => {
+  openMenuId.value = ''
 }
+
+const isMenuOpen = (item) => openMenuId.value === keyFor(item?.id)
+
+const toggleMenu = (id) => {
+  if (props.busy) return
+  const next = keyFor(id)
+  openMenuId.value = openMenuId.value === next ? '' : next
+}
+
+const runAction = (action, item) => {
+  emit(action, item)
+  closeMenu()
+}
+
+const selectItem = (item) => {
+  closeMenu()
+  emit('select', item)
+}
+
+const onDocumentClick = () => {
+  closeMenu()
+}
+
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
+})
+
+watch(
+  () => props.busy,
+  (busy) => {
+    if (busy) closeMenu()
+  },
+)
 </script>
 
 <style scoped>
@@ -116,6 +160,10 @@ const formatDate = (value) => {
   display: grid;
   gap: 0.65rem;
   min-width: 0;
+}
+
+.panel.ultraCompact {
+  gap: 0.5rem;
 }
 
 .panelHead {
@@ -155,9 +203,36 @@ const formatDate = (value) => {
   color: var(--color-danger);
 }
 
+.emptyState {
+  border-radius: 0.72rem;
+  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: rgb(var(--color-bg-rgb) / 0.2);
+  padding: 0.7rem;
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.createBtn {
+  min-height: 1.9rem;
+  border-radius: 0.64rem;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
+  background: rgb(var(--color-primary-rgb) / 0.2);
+  color: var(--color-surface);
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.34rem 0.6rem;
+}
+
 .tableWrap {
   overflow: auto;
-  max-height: 62vh;
+  max-height: 56vh;
 }
 
 .listTable {
@@ -165,6 +240,7 @@ const formatDate = (value) => {
   border-collapse: separate;
   border-spacing: 0 0.28rem;
   font-size: 0.78rem;
+  table-layout: fixed;
 }
 
 .listTable th {
@@ -174,9 +250,15 @@ const formatDate = (value) => {
   padding: 0 0.35rem 0.3rem;
 }
 
+.listTable th.actions {
+  text-align: right;
+  width: 3.3rem;
+}
+
 .listTable td {
   padding: 0.5rem 0.35rem;
   background: rgb(var(--color-bg-rgb) / 0.22);
+  vertical-align: middle;
 }
 
 .listTable tr td:first-child {
@@ -197,23 +279,86 @@ const formatDate = (value) => {
   background: rgb(var(--color-primary-rgb) / 0.16);
 }
 
-.actions {
+.nameCell,
+.typeCell {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.actionBtn {
-  border: 0;
-  background: transparent;
-  color: var(--color-surface);
-  font-size: 0.74rem;
-  padding: 0.1rem 0.26rem;
+.actions {
+  text-align: right;
+  white-space: nowrap;
 }
 
-.actionBtn.danger {
+.menuWrap {
+  position: relative;
+  display: inline-block;
+}
+
+.menuTrigger {
+  width: 2rem;
+  min-height: 1.7rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.32);
+  border-radius: 0.56rem;
+  background: rgb(var(--color-bg-rgb) / 0.28);
+  color: var(--color-surface);
+  font-size: 0.82rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.menuTrigger:disabled {
+  opacity: 0.5;
+}
+
+.menuDropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.3rem);
+  width: 8.4rem;
+  border-radius: 0.66rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  background: rgb(var(--color-bg-rgb) / 0.96);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 0.28);
+  padding: 0.2rem;
+  display: grid;
+  z-index: 20;
+}
+
+.menuItem {
+  border: 0;
+  background: transparent;
+  text-align: left;
+  padding: 0.34rem 0.42rem;
+  font-size: 0.74rem;
+  border-radius: 0.5rem;
+  color: var(--color-surface);
+}
+
+.menuItem:hover {
+  background: rgb(var(--color-primary-rgb) / 0.2);
+}
+
+.menuItem.danger {
   color: var(--color-danger);
 }
 
-.actionBtn:disabled {
-  opacity: 0.5;
+.panel.ultraCompact .searchInput {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.76rem;
+}
+
+.panel.ultraCompact .listTable {
+  font-size: 0.74rem;
+}
+
+.panel.ultraCompact .listTable td {
+  padding: 0.42rem 0.3rem;
+}
+
+.panel.ultraCompact .menuTrigger {
+  min-height: 1.56rem;
+  width: 1.86rem;
 }
 </style>

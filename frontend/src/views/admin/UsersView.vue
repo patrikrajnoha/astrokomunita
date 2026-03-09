@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
-import AdminToolbar from '@/components/admin/shared/AdminToolbar.vue'
 import AdminPagination from '@/components/admin/shared/AdminPagination.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
@@ -24,58 +23,6 @@ const search = ref('')
 const page = ref(1)
 const perPage = ref(20)
 const data = ref(null)
-const lastLoadedAt = ref(null)
-const isDevBuild = Boolean(import.meta.env.DEV)
-const devOrigin = typeof window === 'undefined' ? 'n/a' : window.location.origin
-const devHealth = ref(null)
-const devHealthLoading = ref(false)
-const devHealthError = ref('')
-
-const devApiBase = computed(() => {
-  const base = String(api?.defaults?.baseURL || '')
-
-  if (!base) {
-    return '(empty)'
-  }
-
-  if (typeof window !== 'undefined') {
-    try {
-      return new URL(base, window.location.origin).toString()
-    } catch {
-      return base
-    }
-  }
-
-  return base
-})
-
-const devProxyTarget = (() => {
-  if (!isDevBuild) {
-    return ''
-  }
-
-  const targetFromDefine = typeof __VITE_PROXY_TARGET__ !== 'undefined'
-    ? __VITE_PROXY_TARGET__
-    : ''
-
-  const targetFromEnv = String(import.meta.env.VITE_BACKEND_PROXY_TARGET || '')
-  return String(targetFromDefine || targetFromEnv || '(not available in client)')
-})()
-
-const devHealthSummary = computed(() => {
-  if (!isDevBuild) return ''
-  if (devHealthLoading.value) return 'nacitavam...'
-  if (devHealthError.value) return `error: ${devHealthError.value}`
-
-  const payload = devHealth.value
-  if (!payload || typeof payload !== 'object') return 'nenacitane'
-
-  const env = payload?.env || 'n/a'
-  const revision = payload?.git_sha || payload?.build_id || 'n/a'
-  const timestamp = payload?.time || 'n/a'
-  return `env=${env}; rev=${revision}; time=${timestamp}`
-})
-
 let searchDebounce = null
 
 const rows = computed(() => data.value?.data || [])
@@ -83,19 +30,7 @@ const totalUsers = computed(() => Number(data.value?.total || 0))
 const hasActiveFilters = computed(() => Boolean(search.value))
 const showSkeleton = computed(() => loading.value && rows.value.length === 0)
 const isCurrentActorAdmin = computed(() => Boolean(auth.isAdmin))
-
-const syncPillLabel = computed(() => {
-  if (loading.value) return 'Synchronizujem pouzivatelov'
-  if (error.value) return 'Problem synchronizacie'
-  if (!lastLoadedAt.value) return 'Bez synchronizacie'
-  return `Aktualizovane ${formatRelative(lastLoadedAt.value)}`
-})
-
-const syncPillClass = computed(() => {
-  if (loading.value) return 'is-loading'
-  if (error.value) return 'is-error'
-  return 'is-live'
-})
+const shouldShowPagination = computed(() => Number(data.value?.last_page || 1) > 1)
 
 function parsePositiveInt(value, fallback) {
   const parsed = Number.parseInt(String(value || ''), 10)
@@ -179,14 +114,18 @@ function roleClass(user) {
 
 function roleLabel(user) {
   const role = String(user?.role || 'user').trim().toLowerCase()
-  if (role === 'admin') return 'ADMIN'
-  if (role === 'editor') return 'EDITOR'
-  if (role === 'bot') return 'BOT'
-  return 'USER'
+  if (role === 'admin') return 'admin'
+  if (role === 'editor') return 'editor'
+  if (role === 'bot') return 'bot'
+  return 'user'
 }
 
-function isBotRole(user) {
-  return String(user?.role || '').trim().toLowerCase() === 'bot'
+function isBotAccount(user) {
+  return Boolean(user?.is_bot) || String(user?.role || '').trim().toLowerCase() === 'bot'
+}
+
+function isAdminAccount(user) {
+  return String(user?.role || '').trim().toLowerCase() === 'admin' || Boolean(user?.is_admin)
 }
 
 function isSelf(user) {
@@ -203,7 +142,7 @@ function userHandle(user) {
 }
 
 function userEmail(user) {
-  if (isBotRole(user)) {
+  if (isBotAccount(user)) {
     return '-'
   }
 
@@ -212,22 +151,6 @@ function userEmail(user) {
 
 function botAccountHint() {
   return 'Automatizovany ucet - e-mail je zamerne prazdny.'
-}
-
-function formatRelative(value) {
-  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return 'prave teraz'
-
-  const diffMs = Math.max(0, Date.now() - value.getTime())
-  const diffMinutes = Math.floor(diffMs / 60000)
-
-  if (diffMinutes <= 0) return 'prave teraz'
-  if (diffMinutes < 60) return `pred ${diffMinutes}m`
-
-  const diffHours = Math.floor(diffMinutes / 60)
-  if (diffHours < 24) return `pred ${diffHours}h`
-
-  const diffDays = Math.floor(diffHours / 24)
-  return `pred ${diffDays}d`
 }
 
 async function load() {
@@ -246,32 +169,10 @@ async function load() {
 
     const res = await api.get('/admin/users', { params })
     data.value = res.data
-    lastLoadedAt.value = new Date()
   } catch (e) {
     error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat pouzivatelov.'
   } finally {
     loading.value = false
-  }
-}
-
-async function loadDevHealth() {
-  if (!isDevBuild) return
-
-  devHealthLoading.value = true
-  devHealthError.value = ''
-
-  try {
-    const res = await api.get('/_health', {
-      meta: { skipErrorToast: true },
-      skipErrorToast: true,
-    })
-
-    devHealth.value = res?.data && typeof res.data === 'object' ? res.data : null
-  } catch (e) {
-    devHealth.value = null
-    devHealthError.value = String(e?.response?.data?.message || e?.message || 'unavailable')
-  } finally {
-    devHealthLoading.value = false
   }
 }
 
@@ -282,6 +183,24 @@ function updateRow(updated) {
   if (idx >= 0) {
     userRows[idx] = { ...userRows[idx], ...updated }
   }
+}
+
+function openUserDetail(user) {
+  if (!user?.id) return
+
+  router.push({
+    name: 'admin.users.detail',
+    params: { id: user.id },
+  })
+}
+
+function openPublicProfile(user) {
+  if (!user?.username) return
+
+  router.push({
+    name: 'user-profile',
+    params: { username: user.username },
+  })
 }
 
 async function banUser(user) {
@@ -355,6 +274,28 @@ async function deactivateUser(user) {
   }
 }
 
+async function reactivateUser(user) {
+  if (!user || isSelf(user) || user.is_active) return
+
+  const ok = await confirm({
+    title: 'Reaktivovat pouzivatela',
+    message: `Reaktivovat pouzivatela ${user.email || userName(user)}?`,
+    confirmText: 'Reaktivovat',
+    cancelText: 'Zrusit',
+  })
+
+  if (!ok) return
+
+  try {
+    const res = await api.post(`/admin/users/${user.id}/reactivate`)
+    updateRow(res.data)
+    toast.success('Pouzivatel bol reaktivovany.')
+  } catch (e) {
+    error.value = e?.response?.data?.message || 'Reaktivacia zlyhala.'
+    toast.error(error.value)
+  }
+}
+
 async function resetProfile(user) {
   if (!user) return
 
@@ -402,37 +343,57 @@ function rowActionItems(user) {
   if (!user) return []
 
   const items = []
-  const targetRole = String(user.role || '').toLowerCase()
-  const isTargetBotOrAdmin = targetRole === 'bot' || targetRole === 'admin'
-  const canToggleEditorRole = isCurrentActorAdmin.value && !isSelf(user) && !isTargetBotOrAdmin
+  const isBot = isBotAccount(user)
+  const isAdminTarget = isAdminAccount(user)
+  const canManageAccount = isCurrentActorAdmin.value && !isSelf(user) && !isAdminTarget
 
-  if (!isSelf(user)) {
-    if (user.is_banned) {
-      items.push({ key: 'unban', label: 'Odblokovat pouzivatela' })
-    } else {
-      items.push({ key: 'ban', label: 'Zablokovat pouzivatela', danger: true })
-    }
-
-    if (user.is_active) {
-      items.push({ key: 'deactivate', label: 'Deaktivovat pouzivatela', danger: true })
-    }
+  if (user.username) {
+    items.push({ key: 'view', label: 'Zobrazit profil' })
   }
+
+  items.push({ key: 'manage', label: 'Sprava uctu' })
+
+  const targetRole = String(user.role || '').toLowerCase()
+  const canToggleEditorRole = canManageAccount && targetRole !== 'bot' && targetRole !== 'admin'
 
   if (canToggleEditorRole) {
     if (targetRole === 'user') {
-      items.push({ key: 'grant-editor', label: 'Pridat rolu editora' })
+      items.push({ key: 'grant-editor', label: 'Pridat rolu editor' })
     } else if (targetRole === 'editor') {
-      items.push({ key: 'remove-editor', label: 'Odobrat rolu editora' })
+      items.push({ key: 'remove-editor', label: 'Odobrat rolu editor' })
     }
   }
 
-  items.push({ key: 'reset', label: 'Resetovat profil', danger: true })
+  if (canManageAccount) {
+    if (user.is_banned) {
+      items.push({ key: 'unban', label: 'Odblokovat ucet' })
+    } else {
+      items.push({ key: 'ban', label: 'Zablokovat ucet', danger: true })
+    }
+
+    if (user.is_active) {
+      items.push({ key: 'deactivate', label: 'Deaktivovat ucet', danger: true })
+    } else {
+      items.push({ key: 'reactivate', label: 'Reaktivovat ucet' })
+    }
+    items.push({ key: 'reset', label: 'Resetovat profil', danger: true })
+  }
 
   return items
 }
 
 async function onRowActionSelect(user, item) {
   if (loading.value || !item?.key) return
+
+  if (item.key === 'view') {
+    openPublicProfile(user)
+    return
+  }
+
+  if (item.key === 'manage') {
+    openUserDetail(user)
+    return
+  }
 
   if (item.key === 'ban') {
     await banUser(user)
@@ -446,6 +407,11 @@ async function onRowActionSelect(user, item) {
 
   if (item.key === 'deactivate') {
     await deactivateUser(user)
+    return
+  }
+
+  if (item.key === 'reactivate') {
+    await reactivateUser(user)
     return
   }
 
@@ -477,9 +443,8 @@ function clearSearch() {
   page.value = 1
 }
 
-function refresh() {
+function retryLoad() {
   load()
-  loadDevHealth()
 }
 
 watch(
@@ -511,51 +476,19 @@ onBeforeUnmount(() => {
 readQuery(route.query)
 syncQueryWithState()
 load()
-loadDevHealth()
 </script>
 
 <template>
-  <AdminPageShell
-    class="usersPageShell"
-    title="Pouzivatelia"
-    subtitle="Sprava komunitnych uctov, roli a stavu uctu."
-  >
-    <template #right-actions>
-      <span class="usersSyncPill" :class="syncPillClass">
-        <span class="usersSyncDot" aria-hidden="true"></span>
-        <span>{{ syncPillLabel }}</span>
-      </span>
-    </template>
-
+  <AdminPageShell class="usersPageShell" title="Pouzivatelia">
     <div class="usersView">
       <div v-if="error" class="usersErrorBanner" role="alert">
         <span>{{ error }}</span>
-        <button type="button" class="errorRetryBtn" :disabled="loading" @click="refresh">Skusit znova</button>
-      </div>
-
-      <div v-if="isDevBuild" class="devConnectivityBanner" role="status" aria-live="polite">
-        <div class="devConnectivityTitle">DEV API konektivita</div>
-        <div class="devConnectivityGrid">
-          <span class="devConnectivityLabel">Frontend povod</span>
-          <code class="devConnectivityValue">{{ devOrigin }}</code>
-
-          <span class="devConnectivityLabel">api.defaults.baseURL</span>
-          <code class="devConnectivityValue">{{ devApiBase }}</code>
-
-          <span class="devConnectivityLabel">Vite proxy ciel</span>
-          <code class="devConnectivityValue">{{ devProxyTarget }}</code>
-
-          <span class="devConnectivityLabel">/api/_health</span>
-          <code class="devConnectivityValue" :class="{ 'is-error': devHealthError }">
-            {{ devHealthSummary }}
-          </code>
-        </div>
+        <button type="button" class="errorRetryBtn" :disabled="loading" @click="retryLoad">Skusit znova</button>
       </div>
 
       <div v-if="showSkeleton" class="usersSkeleton" aria-hidden="true">
         <div class="usersSkeletonToolbar">
           <span class="skeletonBlock is-wide"></span>
-          <span class="skeletonBlock is-mid"></span>
           <span class="skeletonBlock is-short"></span>
         </div>
         <div class="usersSkeletonTable">
@@ -564,70 +497,49 @@ loadDevHealth()
       </div>
 
       <template v-else>
-        <AdminToolbar :loading="loading" class="usersToolbar">
-          <template #search>
-            <div class="toolbarField toolbarField--search">
-              <label class="toolbarLabel" for="users-search">Hladat</label>
-              <div class="searchInputWrap">
-                <span class="searchIcon" aria-hidden="true">
-                  <svg viewBox="0 0 20 20" fill="none">
-                    <circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.4" />
-                    <path d="M13 13L17 17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-                  </svg>
-                </span>
-                <input
-                  id="users-search"
-                  v-model="searchInput"
-                  :disabled="loading"
-                  type="search"
-                  placeholder="Hladat pouzivatelov podla mena, handle alebo emailu"
-                  class="toolbarInput"
-                />
-                <button
-                  v-if="searchInput"
-                  type="button"
-                  class="searchClearBtn"
-                  aria-label="Vymazat hladanie"
-                  :disabled="loading"
-                  @click="clearSearch"
-                >
-                  <span aria-hidden="true">x</span>
-                </button>
-              </div>
-            </div>
-          </template>
-
-          <template #filters>
-            <div class="toolbarInlineField">
-              <label class="toolbarLabel" for="users-per-page">Na stranu</label>
-              <select
-                id="users-per-page"
-                v-model.number="perPage"
-                :disabled="loading"
-                class="toolbarInput toolbarInput--select"
-                @change="page = 1"
-              >
-                <option :value="10">10</option>
-                <option :value="20">20</option>
-                <option :value="50">50</option>
-              </select>
-            </div>
-          </template>
-
-          <template #actions>
-            <button type="button" class="toolbarBtn" :disabled="loading" @click="refresh">
-              <span class="toolbarBtnIcon" aria-hidden="true">
+        <section class="usersFilters" aria-label="Filtre pouzivatelov">
+          <label class="usersFiltersLabel" for="users-search">Search users...</label>
+          <div class="usersFiltersRow">
+            <div class="searchInputWrap">
+              <span class="searchIcon" aria-hidden="true">
                 <svg viewBox="0 0 20 20" fill="none">
-                  <path d="M16 5V9H12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M4 15V11H8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M15.2 9A6 6 0 0 0 5 5.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-                  <path d="M4.8 11A6 6 0 0 0 15 14.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                  <circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.4" />
+                  <path d="M13 13L17 17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
                 </svg>
               </span>
-              <span>Obnovit</span>
-            </button>
-          </template>
-        </AdminToolbar>
+              <input
+                id="users-search"
+                v-model="searchInput"
+                :disabled="loading"
+                type="search"
+                placeholder="Search users..."
+                class="usersSearchInput"
+              />
+              <button
+                v-if="searchInput"
+                type="button"
+                class="searchClearBtn"
+                aria-label="Vymazat hladanie"
+                :disabled="loading"
+                @click="clearSearch"
+              >
+                <span aria-hidden="true">x</span>
+              </button>
+            </div>
+
+            <select
+              id="users-per-page"
+              v-model.number="perPage"
+              :disabled="loading"
+              class="perPageSelect"
+              @change="page = 1"
+            >
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+          </div>
+        </section>
 
         <section class="usersTableWrap" aria-label="Tabulka pouzivatelov">
           <div class="usersTableScroll">
@@ -658,21 +570,49 @@ loadDevHealth()
                   </td>
                 </tr>
 
-                <tr v-for="row in rows" v-else :key="row.id" class="usersRow" :data-row-id="row.id">
+                <tr
+                  v-for="row in rows"
+                  v-else
+                  :key="row.id"
+                  class="usersRow"
+                  :data-row-id="row.id"
+                  tabindex="0"
+                  role="link"
+                  @click="openUserDetail(row)"
+                  @keydown.enter.prevent="openUserDetail(row)"
+                  @keydown.space.prevent="openUserDetail(row)"
+                >
                   <td data-label="Pouzivatel" class="col-user">
                     <div class="userCell">
-                      <div class="avatar" :aria-label="`Avatar ${userName(row)}`">
-                        <UserAvatar class="avatarFallback" :user="row" :alt="`${userName(row)} avatar`" />
-                      </div>
+                      <RouterLink
+                        :to="{ name: 'admin.users.detail', params: { id: row.id } }"
+                        class="avatarLink"
+                        :aria-label="`Avatar ${userName(row)}`"
+                        @click.stop
+                      >
+                        <div class="avatar">
+                          <UserAvatar class="avatarFallback" :user="row" :alt="`${userName(row)} avatar`" />
+                        </div>
+                      </RouterLink>
                       <div class="userMeta">
                         <RouterLink
                           :to="{ name: 'admin.users.detail', params: { id: row.id } }"
                           class="userLink"
                           :title="userName(row)"
+                          @click.stop
                         >
                           {{ userName(row) }}
                         </RouterLink>
-                        <span class="userSubline" :title="userHandle(row)">
+                        <RouterLink
+                          v-if="row.username"
+                          :to="{ name: 'user-profile', params: { username: row.username } }"
+                          class="userSubline userSublineLink"
+                          :title="userHandle(row)"
+                          @click.stop
+                        >
+                          {{ userHandle(row) }}
+                        </RouterLink>
+                        <span v-else class="userSubline" :title="userHandle(row)">
                           {{ userHandle(row) }}
                         </span>
                       </div>
@@ -683,7 +623,7 @@ loadDevHealth()
                     <div class="emailCell">
                       <span class="truncateText" :title="userEmail(row)">{{ userEmail(row) }}</span>
                       <span
-                        v-if="isBotRole(row)"
+                        v-if="isBotAccount(row)"
                         class="botAccountHint"
                         :title="botAccountHint()"
                       >
@@ -711,16 +651,11 @@ loadDevHealth()
                     </div>
                   </td>
 
-                  <td data-label="Akcie" class="col-actions">
+                  <td data-label="Akcie" class="col-actions" @click.stop>
                     <div class="rowActions">
-                      <RouterLink :to="{ name: 'admin.users.detail', params: { id: row.id } }" class="actionBtn actionBtn--view">
-                        Zobrazit
-                      </RouterLink>
-
                       <DropdownMenu
-                        v-if="isCurrentActorAdmin"
                         :items="rowActionItems(row)"
-                        :label="`Dalsie akcie pre ${userName(row)}`"
+                        :label="`Akcie pre ${userName(row)}`"
                         menu-label="Akcie pouzivatela"
                         @select="onRowActionSelect(row, $event)"
                       >
@@ -736,7 +671,7 @@ loadDevHealth()
           </div>
         </section>
 
-        <div class="usersPaginationFooter">
+        <div v-if="shouldShowPagination" class="usersPaginationFooter">
           <div class="usersPaginationMeta">Spolu pouzivatelov: {{ totalUsers }}</div>
           <AdminPagination :meta="data" @page-change="page = $event" />
         </div>
@@ -747,117 +682,23 @@ loadDevHealth()
 
 <style scoped>
 :deep(.usersPageShell.adminPageShell) {
-  width: min(1160px, 100%);
-  padding: 24px clamp(16px, 2.2vw, 28px) 20px;
+  width: min(1140px, 100%);
+  padding: 20px clamp(14px, 2vw, 24px);
 }
 
 :deep(.usersPageShell .adminPageShell__header) {
-  position: sticky;
-  top: 0;
-  z-index: 6;
-  margin-bottom: 16px;
-  padding: 2px 0 12px;
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
-  background: rgb(var(--color-bg-rgb) / 0.92);
-  backdrop-filter: blur(8px);
-}
-
-:deep(.usersPageShell .adminPageShell__title) {
-  margin-bottom: 4px;
-  font-size: clamp(1.55rem, 2vw, 1.9rem);
-  letter-spacing: -0.03em;
-}
-
-:deep(.usersPageShell .adminPageShell__subtitle) {
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-  font-size: 13px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgb(var(--color-bg-light-rgb) / 0.45);
 }
 
 :deep(.usersPageShell .adminPageShell__content) {
-  gap: 16px;
+  gap: 14px;
 }
 
 .usersView {
   display: grid;
-  gap: 14px;
-}
-
-.devConnectivityBanner {
-  border: 1px dashed rgb(var(--color-warning-rgb, 234 179 8) / 0.45);
-  border-radius: 12px;
-  padding: 10px 12px;
-  background: rgb(var(--color-warning-rgb, 234 179 8) / 0.08);
-  display: grid;
-  gap: 8px;
-}
-
-.devConnectivityTitle {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
-}
-
-.devConnectivityGrid {
-  display: grid;
-  grid-template-columns: minmax(140px, 180px) minmax(0, 1fr);
-  gap: 6px 10px;
-  align-items: baseline;
-}
-
-.devConnectivityLabel {
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-}
-
-.devConnectivityValue {
-  margin: 0;
-  border-radius: 8px;
-  padding: 3px 8px;
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  font-size: 12px;
-  line-height: 1.35;
-  color: rgb(var(--color-text-primary-rgb, var(--color-text-rgb, 255 255 255)) / 0.96);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.devConnectivityValue.is-error {
-  color: rgb(var(--color-danger-rgb, 239 68 68));
-}
-
-.usersSyncPill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 34px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
-  border-radius: 999px;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 600;
-  color: rgb(var(--color-text-secondary-rgb) / 0.96);
-  background: rgb(var(--color-bg-rgb) / 0.65);
-}
-
-.usersSyncDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgb(59 130 246 / 0.9);
-  box-shadow: 0 0 0 4px rgb(59 130 246 / 0.2);
-}
-
-.usersSyncPill.is-loading .usersSyncDot {
-  background: rgb(245 158 11 / 0.95);
-  box-shadow: 0 0 0 4px rgb(245 158 11 / 0.22);
-}
-
-.usersSyncPill.is-error .usersSyncDot {
-  background: rgb(248 113 113 / 0.95);
-  box-shadow: 0 0 0 4px rgb(248 113 113 / 0.24);
+  gap: 12px;
 }
 
 .usersErrorBanner {
@@ -865,41 +706,34 @@ loadDevHealth()
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border: 1px solid rgb(var(--color-danger-rgb, 239 68 68) / 0.34);
-  border-radius: 12px;
+  border: 1px solid rgb(var(--color-danger-rgb) / 0.34);
+  border-radius: 10px;
   padding: 10px 12px;
-  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.1);
-  color: rgb(var(--color-danger-rgb, 239 68 68));
+  background: rgb(var(--color-danger-rgb) / 0.1);
+  color: var(--color-danger);
 }
 
 .errorRetryBtn {
-  min-height: 40px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 10px;
-  padding: 0 14px;
-  background: rgb(var(--color-bg-rgb) / 0.62);
+  min-height: 34px;
+  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.64);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: rgb(var(--color-bg-main-rgb) / 0.65);
   color: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.errorRetryBtn:hover:not(:disabled) {
-  background: rgb(var(--color-bg-rgb) / 0.76);
-}
-
 .usersSkeleton {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .usersSkeletonToolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px 100px;
-  gap: 10px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
-  border-radius: 12px;
-  padding: 12px;
+  grid-template-columns: minmax(0, 1fr) 80px;
+  gap: 8px;
 }
 
 .skeletonBlock,
@@ -907,129 +741,102 @@ loadDevHealth()
   display: block;
   background: linear-gradient(
     90deg,
-    rgb(var(--color-surface-rgb) / 0.05),
-    rgb(var(--color-surface-rgb) / 0.14),
-    rgb(var(--color-surface-rgb) / 0.05)
+    rgb(var(--color-bg-light-rgb) / 0.16),
+    rgb(var(--color-bg-light-rgb) / 0.28),
+    rgb(var(--color-bg-light-rgb) / 0.16)
   );
   background-size: 220% 100%;
   animation: usersShimmer 1.2s linear infinite;
 }
 
 .skeletonBlock {
-  height: 40px;
-  border-radius: 11px;
-}
-
-.skeletonBlock.is-mid {
-  width: 120px;
+  height: 38px;
+  border-radius: 10px;
 }
 
 .skeletonBlock.is-short {
-  width: 100px;
+  width: 80px;
 }
 
 .usersSkeletonTable {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
-  border-radius: 14px;
-  padding: 12px;
   display: grid;
   gap: 8px;
 }
 
 .skeletonRow {
-  height: 44px;
+  height: 42px;
   border-radius: 10px;
 }
 
-.usersToolbar {
-  border-color: rgb(var(--color-surface-rgb) / 0.14);
-  border-radius: 14px;
-  background: rgb(var(--color-bg-rgb) / 0.42);
-  padding: 12px;
-  align-items: flex-end;
+.usersFilters {
+  display: grid;
+  gap: 6px;
 }
 
-.toolbarField {
-  min-width: 0;
+.usersFiltersLabel {
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
 }
 
-.toolbarField--search {
-  min-width: min(420px, 100%);
-}
-
-.toolbarInlineField {
-  min-width: 130px;
-}
-
-.toolbarLabel {
-  display: inline-flex;
+.usersFiltersRow {
+  display: flex;
   align-items: center;
-  min-height: 18px;
-  margin-bottom: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: rgb(var(--color-text-secondary-rgb) / 0.85);
+  gap: 8px;
 }
 
 .searchInputWrap {
   position: relative;
   display: flex;
   align-items: center;
+  flex: 1 1 auto;
 }
 
 .searchIcon {
   position: absolute;
-  left: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+  left: 11px;
+  width: 15px;
+  height: 15px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.84);
   pointer-events: none;
 }
 
-.searchIcon svg,
-.toolbarBtnIcon svg {
+.searchIcon svg {
   width: 100%;
   height: 100%;
 }
 
-.toolbarInput {
-  width: 100%;
-  min-height: 42px;
-  border-radius: 11px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  background: rgb(var(--color-bg-rgb) / 0.52);
+.usersSearchInput,
+.perPageSelect {
+  min-height: 36px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.58);
+  background: rgb(var(--color-bg-surface-rgb) / 0.72);
   color: var(--text-primary);
-  padding: 0 12px;
   transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-.toolbarField--search .toolbarInput {
-  padding-left: 34px;
-  padding-right: 40px;
+.usersSearchInput {
+  width: 100%;
+  padding: 0 36px 0 34px;
 }
 
-.toolbarInput--select {
-  min-width: 108px;
+.perPageSelect {
+  width: 74px;
+  padding: 0 28px 0 10px;
   appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, rgb(var(--color-text-secondary-rgb) / 0.9) 50%),
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgb(var(--color-text-secondary-rgb) / 0.9) 50%),
     linear-gradient(135deg, rgb(var(--color-text-secondary-rgb) / 0.9) 50%, transparent 50%);
-  background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px);
+  background-position: calc(100% - 14px) calc(50% - 2px), calc(100% - 9px) calc(50% - 2px);
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
-  padding-right: 30px;
 }
 
-.toolbarInput:focus-visible,
-.toolbarBtn:focus-visible,
-.actionBtn:focus-visible,
+.usersSearchInput:focus-visible,
+.perPageSelect:focus-visible,
+.searchClearBtn:focus-visible,
 .errorRetryBtn:focus-visible,
-.emptyClearBtn:focus-visible,
-.searchClearBtn:focus-visible {
+.emptyClearBtn:focus-visible {
   outline: none;
   border-color: rgb(var(--color-primary-rgb) / 0.5);
   box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.2);
@@ -1038,60 +845,33 @@ loadDevHealth()
 .searchClearBtn {
   position: absolute;
   right: 8px;
-  width: 24px;
-  height: 24px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.66);
   border-radius: 999px;
-  background: rgb(var(--color-bg-rgb) / 0.75);
+  background: rgb(var(--color-bg-main-rgb) / 0.75);
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
   display: grid;
   place-items: center;
   cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
+  font-size: 11px;
 }
 
-.toolbarBtn {
-  min-height: 42px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 11px;
-  padding: 0 14px;
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  color: var(--text-primary);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.toolbarBtnIcon {
-  width: 14px;
-  height: 14px;
-  display: inline-flex;
-}
-
-.toolbarBtn:disabled,
 .searchClearBtn:disabled,
 .errorRetryBtn:disabled,
-.emptyClearBtn:disabled,
-.actionBtn:disabled {
+.emptyClearBtn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
 .usersTableWrap {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.11);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.4);
-  overflow: hidden;
+  background: transparent;
 }
 
 .usersTableScroll {
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
-  max-height: min(64vh, 700px);
+  max-height: min(65vh, 700px);
 }
 
 .usersTable {
@@ -1102,8 +882,8 @@ loadDevHealth()
 
 .usersTable th,
 .usersTable td {
-  padding: 9px 12px;
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  padding: 9px 10px;
+  border-bottom: 1px solid rgb(var(--color-bg-light-rgb) / 0.34);
   vertical-align: middle;
   text-align: left;
 }
@@ -1114,11 +894,10 @@ loadDevHealth()
   z-index: 2;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: rgb(var(--color-text-secondary-rgb) / 0.82);
-  background: rgb(var(--color-bg-rgb) / 0.94);
-  backdrop-filter: blur(8px);
+  color: rgb(var(--color-text-secondary-rgb) / 0.75);
+  background: rgb(var(--color-bg-main-rgb) / 0.96);
 }
 
 .usersTable tbody tr:last-child td {
@@ -1126,19 +905,21 @@ loadDevHealth()
 }
 
 .usersRow {
-  transition: background-color 150ms ease;
+  cursor: pointer;
+  transition: background-color 140ms ease;
 }
 
-.usersRow:hover {
-  background: rgb(var(--color-surface-rgb) / 0.04);
+.usersRow:hover,
+.usersRow:focus-visible {
+  background: rgb(var(--color-bg-light-rgb) / 0.16);
 }
 
 .col-user {
-  width: 32%;
+  width: 34%;
 }
 
 .col-email {
-  width: 26%;
+  width: 27%;
 }
 
 .col-role {
@@ -1150,7 +931,7 @@ loadDevHealth()
 }
 
 .col-actions {
-  width: 14%;
+  width: 11%;
   text-align: right;
 }
 
@@ -1161,24 +942,22 @@ loadDevHealth()
   min-width: 0;
 }
 
+.avatarLink {
+  display: inline-flex;
+  border-radius: 999px;
+}
+
 .avatar {
   width: 32px;
   height: 32px;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
-  background: rgb(var(--color-surface-rgb) / 0.1);
+  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.58);
+  background: rgb(var(--color-bg-light-rgb) / 0.24);
   overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.avatarImg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
 }
 
 .avatarFallback {
@@ -1194,24 +973,30 @@ loadDevHealth()
 }
 
 .userLink {
-  color: inherit;
+  color: var(--color-text-primary);
   font-weight: 600;
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.userLink:hover {
-  color: rgb(var(--color-primary-rgb) / 0.98);
+  text-decoration: none;
 }
 
 .userSubline {
   font-size: 11px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.84);
+  color: rgb(var(--color-text-secondary-rgb) / 0.86);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.userSublineLink {
+  text-decoration: none;
+}
+
+.userLink:hover,
+.userSublineLink:hover {
+  color: rgb(var(--color-primary-rgb) / 0.98);
 }
 
 .truncateText {
@@ -1232,16 +1017,12 @@ loadDevHealth()
 .botAccountHint {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 20px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  min-height: 18px;
+  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.55);
   border-radius: 999px;
-  padding: 0 7px;
+  padding: 0 6px;
   font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
-  background: rgb(var(--color-surface-rgb) / 0.08);
+  color: rgb(var(--color-text-secondary-rgb) / 0.88);
   white-space: nowrap;
 }
 
@@ -1249,37 +1030,35 @@ loadDevHealth()
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 21px;
-  padding: 0 8px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  min-height: 18px;
+  padding: 0 6px;
+  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.55);
   border-radius: 999px;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: lowercase;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  background: rgb(var(--color-bg-light-rgb) / 0.2);
 }
 
 .roleBadge.is-admin {
-  color: rgb(147 197 253);
-  border-color: rgb(59 130 246 / 0.4);
-  background: rgb(59 130 246 / 0.18);
+  color: rgb(var(--color-primary-rgb) / 0.95);
+  border-color: rgb(var(--color-primary-rgb) / 0.36);
+  background: rgb(var(--color-primary-rgb) / 0.14);
 }
 
 .roleBadge.is-editor {
-  color: rgb(196 181 253);
-  border-color: rgb(139 92 246 / 0.42);
-  background: rgb(139 92 246 / 0.16);
+  color: rgb(var(--color-text-primary-rgb) / 0.86);
+  border-color: rgb(var(--color-bg-light-rgb) / 0.7);
+  background: rgb(var(--color-bg-light-rgb) / 0.28);
 }
 
 .roleBadge.is-bot {
-  color: rgb(134 239 172);
-  border-color: rgb(34 197 94 / 0.42);
-  background: rgb(34 197 94 / 0.16);
-}
-
-.roleBadge.is-user {
-  color: rgb(203 213 225);
-  border-color: rgb(148 163 184 / 0.34);
-  background: rgb(148 163 184 / 0.13);
+  color: rgb(var(--color-success-rgb) / 0.95);
+  border-color: rgb(var(--color-success-rgb) / 0.34);
+  background: rgb(var(--color-success-rgb) / 0.12);
 }
 
 .statusCell {
@@ -1288,30 +1067,26 @@ loadDevHealth()
   justify-items: start;
 }
 
-.statusBadge {
-  text-transform: uppercase;
-}
-
 .statusBadge.is-active {
-  color: rgb(134 239 172);
-  border-color: rgb(34 197 94 / 0.42);
-  background: rgb(34 197 94 / 0.16);
+  color: rgb(var(--color-success-rgb) / 0.95);
+  border-color: rgb(var(--color-success-rgb) / 0.34);
+  background: rgb(var(--color-success-rgb) / 0.12);
 }
 
 .statusBadge.is-inactive {
-  color: rgb(203 213 225);
-  border-color: rgb(100 116 139 / 0.36);
-  background: rgb(100 116 139 / 0.16);
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  border-color: rgb(var(--color-bg-light-rgb) / 0.62);
+  background: rgb(var(--color-bg-light-rgb) / 0.2);
 }
 
 .statusBadge.is-banned {
-  color: rgb(252 165 165);
-  border-color: rgb(239 68 68 / 0.4);
-  background: rgb(239 68 68 / 0.17);
+  color: rgb(var(--color-danger-rgb) / 0.98);
+  border-color: rgb(var(--color-danger-rgb) / 0.35);
+  background: rgb(var(--color-danger-rgb) / 0.13);
 }
 
 .banReasonPreview {
-  max-width: 240px;
+  max-width: 220px;
   font-size: 11px;
   color: rgb(var(--color-text-secondary-rgb) / 0.78);
   white-space: nowrap;
@@ -1323,44 +1098,18 @@ loadDevHealth()
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
-}
-
-.actionBtn {
-  min-height: 34px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 9px;
-  padding: 0 10px;
-  background: rgb(var(--color-bg-rgb) / 0.6);
-  color: var(--text-primary);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.actionBtn--view {
-  border-color: rgb(var(--color-primary-rgb) / 0.34);
-  background: rgb(var(--color-primary-rgb) / 0.16);
-}
-
-.actionBtn:hover:not(:disabled) {
-  border-color: rgb(var(--color-primary-rgb) / 0.48);
 }
 
 .rowMenuTrigger {
-  width: 34px;
-  height: 34px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.62);
   border-radius: 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgb(var(--color-bg-rgb) / 0.58);
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  background: rgb(var(--color-bg-surface-rgb) / 0.78);
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
   font-size: 15px;
   line-height: 1;
 }
@@ -1376,42 +1125,37 @@ loadDevHealth()
   color: inherit;
 }
 
-:deep(.rowActions .dropdownTrigger:focus-visible) {
-  outline: none;
-}
-
 :deep(.rowActions .dropdownMenu) {
   right: 0;
-  border-color: rgb(var(--color-surface-rgb) / 0.2);
-  background: rgb(var(--color-bg-rgb) / 0.98);
+  border-color: rgb(var(--color-bg-light-rgb) / 0.58);
+  background: rgb(var(--color-bg-surface-rgb) / 0.98);
 }
 
 .usersEmptyState {
-  padding: 36px 20px;
+  padding: 34px 20px;
   text-align: center;
 }
 
 .usersEmptyTitle {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
 }
 
 .usersEmptyText {
   margin-top: 4px;
   font-size: 13px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  color: rgb(var(--color-text-secondary-rgb) / 0.88);
 }
 
 .emptyClearBtn {
   margin-top: 12px;
-  min-height: 40px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  border-radius: 10px;
-  padding: 0 14px;
-  background: rgb(var(--color-bg-rgb) / 0.58);
-  color: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  min-height: 34px;
+  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.64);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: rgb(var(--color-bg-surface-rgb) / 0.74);
+  color: var(--color-text-primary);
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -1420,27 +1164,11 @@ loadDevHealth()
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.1);
-  padding-top: 10px;
 }
 
 .usersPaginationMeta {
-  font-size: 13px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-}
-
-:deep(.usersPaginationFooter .adminPagination) {
-  margin-left: auto;
-  width: auto;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 10px;
-  padding: 6px 8px;
-  background: rgb(var(--color-bg-rgb) / 0.45);
-}
-
-:deep(.usersPaginationFooter .adminPagination__btn) {
-  min-height: 34px;
-  min-width: 76px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.86);
 }
 
 @media (max-width: 980px) {
@@ -1466,17 +1194,16 @@ loadDevHealth()
   .usersTable tbody {
     display: grid;
     gap: 8px;
-    padding: 8px;
   }
 
   .usersTable tr {
-    border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+    border: 1px solid rgb(var(--color-bg-light-rgb) / 0.46);
     border-radius: 12px;
-    background: rgb(var(--color-bg-rgb) / 0.5);
+    background: rgb(var(--color-bg-surface-rgb) / 0.72);
   }
 
   .usersTable td {
-    border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+    border-bottom: 1px solid rgb(var(--color-bg-light-rgb) / 0.34);
     padding: 10px 12px;
     display: grid;
     grid-template-columns: minmax(86px, 110px) minmax(0, 1fr);
@@ -1494,7 +1221,7 @@ loadDevHealth()
     font-weight: 700;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: rgb(var(--color-text-secondary-rgb) / 0.78);
+    color: rgb(var(--color-text-secondary-rgb) / 0.74);
     padding-top: 3px;
   }
 
@@ -1514,13 +1241,7 @@ loadDevHealth()
 
 @media (max-width: 768px) {
   :deep(.usersPageShell.adminPageShell) {
-    padding: 16px 12px;
-  }
-
-  :deep(.usersPageShell .adminPageShell__header) {
-    top: 0;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
+    padding: 14px 12px;
   }
 
   .usersErrorBanner {
@@ -1528,31 +1249,18 @@ loadDevHealth()
     align-items: flex-start;
   }
 
-  .usersSkeletonToolbar {
-    grid-template-columns: 1fr;
+  .usersFiltersRow {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .skeletonBlock.is-mid,
-  .skeletonBlock.is-short {
+  .perPageSelect {
     width: 100%;
-  }
-
-  .toolbarField--search,
-  .toolbarInlineField {
-    min-width: 100%;
   }
 
   .usersPaginationFooter {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  :deep(.usersPaginationFooter .adminPagination) {
-    margin-left: 0;
-  }
-
-  .devConnectivityGrid {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -1573,5 +1281,3 @@ loadDevHealth()
   }
 }
 </style>
-
-

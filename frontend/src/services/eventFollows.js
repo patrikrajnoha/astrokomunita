@@ -24,3 +24,9 @@ export function getFollowedEvents(params = {}) {
     meta: { requiresAuth: true },
   })
 }
+
+export function updateEventPlan(eventId, payload = {}) {
+  return api.patch(`/events/${eventId}/plan`, payload, {
+    meta: { requiresAuth: true },
+  })
+}

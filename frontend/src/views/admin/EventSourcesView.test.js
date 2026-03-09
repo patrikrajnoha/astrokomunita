@@ -212,6 +212,59 @@ describe('EventSourcesView', () => {
     expect(unsupportedRunButton.attributes('title')).toContain('MVP')
   })
 
+  it('filters sources table by selected quick filter', async () => {
+    const { wrapper } = await mountView()
+
+    expect(wrapper.find('[data-testid="source-row-imo"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="source-row-nasa"]').exists()).toBe(true)
+
+    const sourceFilter = wrapper.find('[data-testid="source-filter"]')
+    expect(sourceFilter.exists()).toBe(true)
+
+    await sourceFilter.setValue('unsupported')
+    await flush()
+
+    expect(wrapper.find('[data-testid="source-row-imo"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="source-row-nasa"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Zobrazene: 1 / 2')
+  })
+
+  it('filters sources table to selected rows only', async () => {
+    const { wrapper } = await mountView()
+
+    const supportedCheckbox = wrapper.find('[data-testid="source-select-imo"]')
+    expect(supportedCheckbox.exists()).toBe(true)
+    await supportedCheckbox.setValue(true)
+
+    const sourceFilter = wrapper.find('[data-testid="source-filter"]')
+    expect(sourceFilter.exists()).toBe(true)
+    await sourceFilter.setValue('selected')
+    await flush()
+
+    expect(wrapper.find('[data-testid="source-row-imo"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="source-row-nasa"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Zobrazene: 1 / 2')
+  })
+
+  it('clears selected sources from toolbar action', async () => {
+    const { wrapper } = await mountView()
+
+    const supportedCheckbox = wrapper.find('[data-testid="source-select-imo"]')
+    expect(supportedCheckbox.exists()).toBe(true)
+    await supportedCheckbox.setValue(true)
+
+    expect(wrapper.find('[data-testid="run-selected-btn"]').attributes('disabled')).toBeUndefined()
+
+    const clearButton = wrapper.find('[data-testid="source-clear-selection-btn"]')
+    expect(clearButton.exists()).toBe(true)
+    expect(clearButton.attributes('disabled')).toBeUndefined()
+
+    await clearButton.trigger('click')
+    await flush()
+
+    expect(wrapper.find('[data-testid="run-selected-btn"]').attributes('disabled')).toBeDefined()
+  })
+
   it('enables run selected only after selecting a supported source', async () => {
     const { wrapper } = await mountView()
 

@@ -8,6 +8,7 @@ const apiGetMock = vi.hoisted(() => vi.fn())
 const followStateMock = vi.hoisted(() => vi.fn())
 const followEventMock = vi.hoisted(() => vi.fn())
 const unfollowEventMock = vi.hoisted(() => vi.fn())
+const updateEventPlanMock = vi.hoisted(() => vi.fn())
 const authStore = vi.hoisted(() => ({
   isAuthed: true,
   user: null,
@@ -24,6 +25,7 @@ vi.mock('@/services/eventFollows', () => ({
   getEventFollowState: (...args) => followStateMock(...args),
   followEvent: (...args) => followEventMock(...args),
   unfollowEvent: (...args) => unfollowEventMock(...args),
+  updateEventPlan: (...args) => updateEventPlanMock(...args),
   getFollowedEvents: vi.fn(async () => ({ data: { data: [] } })),
 }))
 
@@ -108,6 +110,11 @@ async function mountView(path = '/events/12') {
           props: ['event', 'userLocation'],
           template: '<div class="forecast-strip-stub"></div>',
         },
+        BaseModal: {
+          props: ['open'],
+          emits: ['update:open'],
+          template: '<div v-if="open" class="base-modal-stub"><slot /><button type="button" class="modal-close" @click="$emit(\'update:open\', false)">close</button></div>',
+        },
       },
     },
   })
@@ -124,6 +131,7 @@ describe('EventDetailView', () => {
     followStateMock.mockReset()
     followEventMock.mockReset()
     unfollowEventMock.mockReset()
+    updateEventPlanMock.mockReset()
     authStore.isAuthed = true
     authStore.user = null
     authStore.csrf.mockClear()
@@ -145,6 +153,7 @@ describe('EventDetailView', () => {
     followStateMock.mockResolvedValue({ data: { followed: false } })
     followEventMock.mockResolvedValue({ data: { followed: true } })
     unfollowEventMock.mockResolvedValue({ data: { followed: false } })
+    updateEventPlanMock.mockResolvedValue({ data: { followed: true, data: { id: 12 } } })
   })
 
   it('shows login CTA to guests', async () => {
@@ -180,5 +189,94 @@ describe('EventDetailView', () => {
 
     expect(wrapper.text()).toContain('Pridat do kalendara')
     expect(wrapper.text()).toContain('Zdielat odkaz')
+  })
+
+  it('navigates to next event on swipe left', async () => {
+    apiGetMock.mockImplementation((url) => {
+      if (url === '/events/12') {
+        return Promise.resolve({
+          data: {
+            data: {
+              id: 12,
+              title: 'Ukazka eventu',
+              type: 'other',
+              start_at: '2026-03-14T19:30:00Z',
+              max_at: '2026-03-14T13:00:00Z',
+              description: 'Dlhsi popis pre test detailu udalosti.',
+              visibility: 1,
+            },
+          },
+        })
+      }
+
+      if (url === '/events/13') {
+        return Promise.resolve({
+          data: {
+            data: {
+              id: 13,
+              title: 'Dalsi event',
+              type: 'other',
+              start_at: '2026-03-15T19:30:00Z',
+              max_at: '2026-03-15T13:00:00Z',
+              description: 'Dalsi popis.',
+              visibility: 1,
+            },
+          },
+        })
+      }
+
+      if (url === '/events') {
+        return Promise.resolve({
+          data: {
+            data: [
+              { id: 11, start_at: '2026-03-13T18:00:00Z' },
+              { id: 12, start_at: '2026-03-14T19:30:00Z' },
+              { id: 13, start_at: '2026-03-15T19:30:00Z' },
+            ],
+          },
+        })
+      }
+
+      return Promise.resolve({ data: { data: [] } })
+    })
+
+    const { wrapper, router } = await mountView('/events/12')
+    const card = wrapper.find('.eventCard')
+    expect(card.exists()).toBe(true)
+
+    await card.trigger('touchstart', {
+      touches: [{ clientX: 240, clientY: 200 }],
+    })
+    await card.trigger('touchend', {
+      changedTouches: [{ clientX: 110, clientY: 208 }],
+    })
+    await new Promise((resolve) => setTimeout(resolve, 140))
+    await flush()
+    await flush()
+
+    expect(router.currentRoute.value.params.id).toBe('13')
+  })
+
+  it('saves event plan data via the existing event flow', async () => {
+    const { wrapper } = await mountView()
+
+    const planButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Naplanovat pozorovanie'))
+
+    expect(planButton).toBeTruthy()
+
+    await planButton.trigger('click')
+    await flush()
+
+    await wrapper.find('textarea').setValue('Priniest dalekohlad.')
+    await wrapper.find('input[type="text"]').setValue('Kopec nad mestom')
+    await wrapper.find('form').trigger('submit.prevent')
+    await flush()
+
+    expect(updateEventPlanMock).toHaveBeenCalledWith(12, expect.objectContaining({
+      personal_note: 'Priniest dalekohlad.',
+      planned_location_label: 'Kopec nad mestom',
+    }))
   })
 })
