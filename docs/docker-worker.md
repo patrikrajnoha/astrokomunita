@@ -4,7 +4,7 @@ Tento setup spusti frontend, Laravel API aj queue worker automaticky.
 
 ## Canonical dev URL (odporucane)
 
-- Frontend: `http://127.0.0.1:5174`
+- Frontend: `http://127.0.0.1` (alebo `http://127.0.0.1:5174`)
 - Backend API: `http://127.0.0.1:8001`
 
 ## Start
