@@ -26,6 +26,7 @@ class GenerateSidebarScopesCommandTest extends TestCase
         $this->assertStringContainsString("export const SIDEBAR_SCOPES = [", $contents);
         $this->assertStringContainsString("'home'", $contents);
         $this->assertStringContainsString("'search'", $contents);
+        $this->assertStringContainsString("'article_detail'", $contents);
         $this->assertStringContainsString("'settings'", $contents);
         $this->assertStringContainsString("export const DEFAULT_SIDEBAR_SCOPE: SidebarScope = 'home'", $contents);
         $this->assertStringContainsString('export function normalizeSidebarScope(v: unknown): SidebarScope {', $contents);

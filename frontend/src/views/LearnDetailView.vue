@@ -67,12 +67,34 @@ function excerpt(text, limit = 180) {
   return `${clean.slice(0, limit).trim()}...`
 }
 
-const readTime = computed(() => {
+const articleWordCount = computed(() => {
   const clean = stripHtml(post.value?.content || '').trim()
-  if (!clean) return '1 min citania'
-  const words = clean.split(/\s+/).filter(Boolean).length
+  if (!clean) return 0
+  return clean.split(/\s+/).filter(Boolean).length
+})
+
+const readTime = computed(() => {
+  const words = articleWordCount.value
+  if (!words) return '1 min citania'
   const minutes = Math.max(1, Math.round(words / 220))
   return `${minutes} min citania`
+})
+
+const isLongRead = computed(() => articleWordCount.value >= 500)
+
+const metaParts = computed(() => {
+  if (!post.value) return []
+  const parts = [
+    formatDate(post.value.published_at),
+    post.value.user?.name || 'Redakcia',
+    readTime.value,
+  ]
+
+  if (typeof post.value.views === 'number') {
+    parts.push(`${post.value.views} zobrazeni`)
+  }
+
+  return parts
 })
 
 function currentUrl() {
@@ -214,6 +236,12 @@ const tocItems = computed(() => {
   return contentBlocks.value.filter((item) => item.type === 'h2' || item.type === 'h3')
 })
 
+const showToc = computed(() => {
+  if (tocItems.value.length === 0) return false
+  if (isLongRead.value) return tocItems.value.length >= 2
+  return tocItems.value.length >= 3
+})
+
 function postLink(value) {
   return `/clanky/${value.slug || value.id}`
 }
@@ -339,59 +367,60 @@ watch(
 </script>
 
 <template>
-  <article class="detailPage">
-    <router-link class="backLink" to="/clanky">‹ Spat na clanky</router-link>
+  <article class="detailPage" :class="{ 'detailPage--reading': isLongRead }">
+    <router-link class="backLink" to="/clanky">Spat na clanky</router-link>
 
     <div v-if="error" class="state state--error">{{ error }}</div>
     <div v-else-if="loading" class="state">Nacitavam clanok...</div>
 
     <template v-else-if="post">
-      <header class="hero">
-        <p class="hero__eyebrow">Clanok</p>
+      <header class="header">
         <h1>{{ post.title }}</h1>
-        <p class="hero__summary">{{ excerpt(post.content, 210) }}</p>
 
-        <p class="hero__meta">
-          {{ formatDate(post.published_at) }} ·
-          {{ post.user?.name || 'Redakcia' }} ·
-          {{ readTime }}
-          <template v-if="typeof post.views === 'number'"> · {{ post.views }} zobrazeni</template>
-        </p>
+        <ul class="headerMeta">
+          <li v-for="(part, index) in metaParts" :key="`meta-${index}`">{{ part }}</li>
+        </ul>
 
-        <div v-if="post.tags?.length" class="hero__tags">
-          <span v-for="tag in post.tags" :key="tag.id">{{ tag.name }}</span>
+        <div class="headerActions">
+          <div v-if="post.tags?.length" class="tags">
+            <span v-for="tag in post.tags" :key="tag.id">{{ tag.name }}</span>
+          </div>
+
+          <button class="shareBtn" type="button" @click="copyLink">
+            {{ copied ? 'Link skopirovany' : 'Kopirovat link' }}
+          </button>
         </div>
-
-        <button class="hero__share" type="button" @click="copyLink">
-          {{ copied ? 'Link skopirovany' : 'Kopirovat link' }}
-        </button>
       </header>
 
-      <figure v-if="post.cover_image_url" class="cover">
-        <img :src="post.cover_image_url" :alt="post.title" loading="lazy" />
-      </figure>
+      <section class="articleCard">
+        <figure v-if="post.cover_image_url" class="cover">
+          <img :src="post.cover_image_url" :alt="post.title" loading="lazy" />
+        </figure>
 
-      <section v-if="tocItems.length" class="toc">
-        <p class="toc__title">Obsah clanku</p>
-        <ul>
-          <li v-for="item in tocItems" :key="item.id" :class="item.type">
-            <a :href="`#${item.id}`">{{ item.text }}</a>
-          </li>
-        </ul>
+        <div class="articleBody">
+          <section v-if="showToc" class="toc">
+            <p class="toc__title">Obsah clanku</p>
+            <ul>
+              <li v-for="item in tocItems" :key="item.id" :class="item.type">
+                <a :href="`#${item.id}`">{{ item.text }}</a>
+              </li>
+            </ul>
+          </section>
+
+          <section class="content">
+            <template v-for="(block, index) in contentBlocks" :key="index">
+              <h2 v-if="block.type === 'h2'" :id="block.id">{{ block.text }}</h2>
+              <h3 v-else-if="block.type === 'h3'" :id="block.id">{{ block.text }}</h3>
+              <ul v-else-if="block.type === 'ul'">
+                <li v-for="(item, itemIndex) in block.items" :key="itemIndex" v-html="item"></li>
+              </ul>
+              <p v-else v-html="block.html"></p>
+            </template>
+          </section>
+        </div>
       </section>
 
-      <section class="content">
-        <template v-for="(block, index) in contentBlocks" :key="index">
-          <h2 v-if="block.type === 'h2'" :id="block.id">{{ block.text }}</h2>
-          <h3 v-else-if="block.type === 'h3'" :id="block.id">{{ block.text }}</h3>
-          <ul v-else-if="block.type === 'ul'">
-            <li v-for="(item, itemIndex) in block.items" :key="itemIndex" v-html="item"></li>
-          </ul>
-          <p v-else v-html="block.html"></p>
-        </template>
-      </section>
-
-      <section class="comments">
+      <section class="section comments">
         <div class="comments__head">
           <h2>Komentare</h2>
           <span>{{ commentsData?.total || 0 }} celkom</span>
@@ -424,11 +453,9 @@ watch(
             class="commentItem"
             :style="commentThreadStyle(comment)"
           >
-            <span v-if="commentDepth(comment) > 0" class="commentItem__line"></span>
             <div class="commentItem__card">
               <p class="commentItem__meta">
                 <strong>{{ comment.user?.name || 'Pouzivatel' }}</strong>
-                <span>·</span>
                 <span>{{ formatDate(comment.created_at) }}</span>
               </p>
               <p class="commentItem__text">{{ comment.content }}</p>
@@ -461,7 +488,7 @@ watch(
         </div>
       </section>
 
-      <section v-if="relatedLoading || related.length" class="related">
+      <section v-if="relatedLoading || related.length" class="section related">
         <div class="related__head">
           <h2>Podobne clanky</h2>
           <span v-if="relatedLoading">Nacitavam...</span>
@@ -487,94 +514,93 @@ watch(
 <style scoped>
 .detailPage {
   display: grid;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
 .backLink {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   color: var(--color-text-secondary);
   font-size: 0.82rem;
-  width: fit-content;
+}
+
+.backLink::before {
+  content: '<';
+  opacity: 0.7;
 }
 
 .backLink:hover {
   color: var(--color-text-primary);
 }
 
-.hero,
-.cover,
-.content,
-.toc,
-.comments,
-.related,
-.state {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: rgb(var(--color-bg-rgb) / 0.56);
-}
-
-.hero {
-  padding: 0.95rem;
+.header {
   display: grid;
-  gap: 0.45rem;
-  background:
-    radial-gradient(circle at 12% 0%, rgb(var(--color-primary-rgb) / 0.17), transparent 38%),
-    rgb(var(--color-bg-rgb) / 0.72);
+  gap: 0.72rem;
+  padding-bottom: 0.95rem;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.hero__eyebrow {
+.header h1 {
   margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 0.66rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.86);
-}
-
-.hero h1 {
-  margin: 0;
-  font-size: clamp(1.3rem, 3.5vw, 1.9rem);
+  font-size: clamp(1.35rem, 3.4vw, 2.05rem);
   line-height: 1.2;
 }
 
-.hero__summary {
+.headerMeta {
   margin: 0;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.hero__meta {
-  margin: 0;
-  color: rgb(var(--color-text-secondary-rgb) / 0.86);
-  font-size: 0.76rem;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.26rem;
+  gap: 0.3rem 0.62rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  font-size: 0.78rem;
+}
+
+.headerMeta li {
+  display: inline-flex;
   align-items: center;
 }
 
-.hero__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.36rem;
+.headerMeta li + li::before {
+  content: '/';
+  margin-right: 0.62rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.56);
 }
 
-.hero__tags span {
+.headerActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tags span {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   padding: 0.22rem 0.56rem;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   color: var(--color-text-secondary);
-  background: rgb(var(--color-bg-rgb) / 0.58);
+  background: rgb(var(--color-bg-rgb) / 0.44);
 }
 
-.hero__share,
+.shareBtn,
 .commentForm button,
 .commentsPager button,
 .commentItem__remove {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
   min-height: 34px;
-  background: rgb(var(--color-bg-rgb) / 0.64);
+  background: rgb(var(--color-bg-rgb) / 0.44);
   color: var(--color-text-primary);
   padding: 0 0.75rem;
   font-size: 0.76rem;
@@ -583,11 +609,7 @@ watch(
   transition: border-color var(--motion-base), background-color var(--motion-base);
 }
 
-.hero__share {
-  width: fit-content;
-}
-
-.hero__share:hover,
+.shareBtn:hover,
 .commentForm button:hover,
 .commentsPager button:hover,
 .commentItem__remove:hover {
@@ -595,26 +617,55 @@ watch(
   background: var(--interactive-hover);
 }
 
-.cover {
+.articleCard,
+.section,
+.state {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: rgb(var(--color-bg-rgb) / 0.46);
+}
+
+.articleCard {
   overflow: hidden;
+}
+
+.cover {
+  margin: 0;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .cover img {
   width: 100%;
-  max-height: 360px;
+  max-height: 420px;
   display: block;
   object-fit: cover;
 }
 
+.articleBody {
+  padding: clamp(0.85rem, 2vw, 1.25rem);
+}
+
+.detailPage--reading .header {
+  gap: 0.62rem;
+  padding-bottom: 0.82rem;
+}
+
+.detailPage--reading .articleBody {
+  padding: clamp(1rem, 2.4vw, 1.6rem);
+}
+
 .toc {
-  padding: 0.85rem;
+  max-width: 68ch;
+  margin: 0 auto 1.05rem;
+  padding-left: 0.8rem;
+  border-left: 2px solid rgb(var(--color-text-secondary-rgb) / 0.32);
 }
 
 .toc__title {
   margin: 0;
   font-size: 0.74rem;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.11em;
   color: rgb(var(--color-text-secondary-rgb) / 0.84);
 }
 
@@ -623,20 +674,16 @@ watch(
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 0.35rem;
-}
-
-.toc li {
-  margin: 0;
+  gap: 0.34rem;
 }
 
 .toc li.h3 {
-  padding-left: 0.7rem;
+  padding-left: 0.65rem;
 }
 
 .toc a {
   color: var(--color-text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.84rem;
 }
 
 .toc a:hover {
@@ -644,19 +691,29 @@ watch(
 }
 
 .content {
-  padding: 0.95rem;
-  line-height: 1.72;
-  color: rgb(var(--color-text-primary-rgb) / 0.92);
+  max-width: 68ch;
+  margin: 0 auto;
+  line-height: 1.78;
+  color: rgb(var(--color-text-primary-rgb) / 0.94);
+}
+
+.detailPage--reading .toc,
+.detailPage--reading .content {
+  max-width: 74ch;
+}
+
+.detailPage--reading .content {
+  line-height: 1.9;
 }
 
 .content h2,
 .content h3 {
-  margin: 1.1rem 0 0.5rem;
-  line-height: 1.35;
+  margin: 1.2rem 0 0.5rem;
+  line-height: 1.34;
 }
 
 .content h2 {
-  font-size: 1.2rem;
+  font-size: 1.18rem;
 }
 
 .content h3 {
@@ -665,8 +722,13 @@ watch(
 }
 
 .content p {
-  margin: 0 0 0.78rem;
-  font-size: 0.95rem;
+  margin: 0 0 0.82rem;
+  font-size: 0.98rem;
+}
+
+.detailPage--reading .content p {
+  margin-bottom: 0.95rem;
+  font-size: 1.02rem;
 }
 
 .content ul {
@@ -675,8 +737,8 @@ watch(
 }
 
 .content li {
-  margin: 0.32rem 0;
-  font-size: 0.93rem;
+  margin: 0.3rem 0;
+  font-size: 0.94rem;
 }
 
 .content a {
@@ -693,8 +755,7 @@ watch(
   font-size: 0.86em;
 }
 
-.comments,
-.related,
+.section,
 .state {
   padding: 0.9rem;
 }
@@ -722,7 +783,7 @@ watch(
 .comments__head h2,
 .related__head h2 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1.02rem;
 }
 
 .comments__head span,
@@ -744,7 +805,7 @@ watch(
   min-height: 92px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: rgb(var(--color-bg-rgb) / 0.7);
+  background: rgb(var(--color-bg-rgb) / 0.68);
   color: var(--color-text-primary);
   padding: 0.62rem 0.7rem;
   resize: vertical;
@@ -758,44 +819,32 @@ watch(
 
 .commentList {
   display: grid;
-  gap: 0.48rem;
-}
-
-.commentItem {
-  position: relative;
-}
-
-.commentItem__line {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: rgb(var(--color-text-secondary-rgb) / 0.4);
+  gap: 0.52rem;
 }
 
 .commentItem__card {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: rgb(var(--color-bg-rgb) / 0.64);
+  background: rgb(var(--color-bg-rgb) / 0.58);
   padding: 0.62rem;
 }
 
 .commentItem__meta {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.73rem;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  justify-content: space-between;
+  gap: 0.35rem;
   flex-wrap: wrap;
 }
 
 .commentItem__text {
-  margin: 0.38rem 0 0.44rem;
+  margin: 0.42rem 0 0.44rem;
   color: rgb(var(--color-text-primary-rgb) / 0.94);
-  line-height: 1.52;
-  font-size: 0.87rem;
+  line-height: 1.56;
+  font-size: 0.88rem;
 }
 
 .commentItem__remove {
@@ -827,12 +876,18 @@ watch(
 .related__item {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: rgb(var(--color-bg-rgb) / 0.62);
-  padding: 0.56rem 0.66rem;
+  background: rgb(var(--color-bg-rgb) / 0.48);
+  padding: 0.6rem 0.7rem;
   color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  transition: border-color var(--motion-base), background-color var(--motion-base);
+}
+
+.related__item:hover {
+  border-color: var(--color-border-strong);
+  background: var(--interactive-hover);
 }
 
 .related__item strong {
@@ -850,19 +905,31 @@ watch(
   margin: 0;
 }
 
-@media (max-width: 540px) {
-  .content {
+@media (max-width: 640px) {
+  .detailPage {
+    gap: 0.85rem;
+  }
+
+  .header {
+    gap: 0.65rem;
+    padding-bottom: 0.8rem;
+  }
+
+  .section,
+  .state {
+    padding: 0.76rem;
+  }
+
+  .articleBody {
     padding: 0.8rem;
   }
 
-  .hero,
-  .comments,
-  .related,
-  .state,
-  .toc {
-    padding: 0.75rem;
+  .detailPage--reading .articleBody {
+    padding: 0.9rem;
+  }
+
+  .detailPage--reading .content p {
+    font-size: 1rem;
   }
 }
 </style>
-
-

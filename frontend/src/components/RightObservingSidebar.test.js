@@ -72,6 +72,8 @@ describe('RightObservingSidebar', () => {
     expect(resolveSidebarScopeFromPath('/events')).toBe('events')
     expect(resolveSidebarScopeFromPath('/observations')).toBe('observing')
     expect(resolveSidebarScopeFromPath('/observing/sky-summary')).toBe('observing')
+    expect(resolveSidebarScopeFromPath('/clanky')).toBe('learning')
+    expect(resolveSidebarScopeFromPath('/clanky/neptun')).toBe('article_detail')
     expect(resolveSidebarScopeFromPath('/settings')).toBe('settings')
   })
 

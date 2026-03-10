@@ -8,6 +8,7 @@ export const SIDEBAR_SCOPES = [
   'search',
   'notifications',
   'post_detail',
+  'article_detail',
   'profile',
   'settings',
   'observing'
@@ -23,6 +24,7 @@ export const SIDEBAR_SCOPE = {
   SEARCH: 'search',
   NOTIFICATIONS: 'notifications',
   POST_DETAIL: 'post_detail',
+  ARTICLE_DETAIL: 'article_detail',
   PROFILE: 'profile',
   SETTINGS: 'settings',
   OBSERVING: 'observing'

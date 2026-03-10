@@ -12,6 +12,7 @@ describe('generated sidebar scopes', () => {
   it('keeps valid sidebar scopes unchanged', () => {
     expect(normalizeSidebarScope('search')).toBe('search')
     expect(normalizeSidebarScope('settings')).toBe('settings')
+    expect(normalizeSidebarScope('article_detail')).toBe('article_detail')
   })
 
   it('falls back to the default scope for invalid values', () => {
