@@ -18,6 +18,7 @@ export {
 
 export function resolveSidebarScopeFromPath(path) {
   const normalized = typeof path === 'string' ? path : ''
+  const articleDetailPattern = /^\/(clanky|learn|learning)\/[^/?#]+/
 
   if (normalized === '/' || normalized === '') {
     return DEFAULT_SIDEBAR_SCOPE
@@ -33,6 +34,10 @@ export function resolveSidebarScopeFromPath(path) {
 
   if (normalized.startsWith('/calendar')) {
     return SIDEBAR_SCOPE.CALENDAR
+  }
+
+  if (articleDetailPattern.test(normalized)) {
+    return SIDEBAR_SCOPE.ARTICLE_DETAIL
   }
 
   if (normalized.startsWith('/clanky') || normalized.startsWith('/learn') || normalized.startsWith('/learning')) {

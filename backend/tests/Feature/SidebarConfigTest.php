@@ -256,6 +256,36 @@ class SidebarConfigTest extends TestCase
             ]);
     }
 
+    public function test_article_detail_scope_can_be_configured(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $putResponse = $this->putJson('/api/admin/sidebar-config?scope=article_detail', [
+            'items' => [
+                ['kind' => 'builtin', 'section_key' => 'search', 'order' => 0, 'is_enabled' => true],
+                ['kind' => 'builtin', 'section_key' => 'latest_articles', 'order' => 1, 'is_enabled' => false],
+            ],
+        ]);
+
+        $putResponse
+            ->assertOk()
+            ->assertJsonPath('scope', 'article_detail');
+
+        $getResponse = $this->getJson('/api/admin/sidebar-config?scope=article_detail');
+
+        $getResponse
+            ->assertOk()
+            ->assertJsonPath('scope', 'article_detail')
+            ->assertJsonFragment([
+                'section_key' => 'latest_articles',
+                'is_enabled' => false,
+            ]);
+    }
+
     public function test_profile_scope_can_be_configured(): void
     {
         $admin = User::factory()->create([
