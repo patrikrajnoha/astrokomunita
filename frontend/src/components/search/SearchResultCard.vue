@@ -1,10 +1,10 @@
 <template>
   <RouterLink
     :to="to"
-    class="group block rounded-xl border border-[var(--color-border)] bg-[color:rgb(var(--color-bg-rgb)/0.62)] p-4 shadow-sm transition hover:-translate-y-px hover:bg-[color:rgb(var(--color-bg-rgb)/0.78)] hover:shadow-[0_10px_20px_rgb(0_0_0/0.16)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:rgb(var(--color-primary-rgb)/0.34)]"
+    class="searchResultCard"
   >
-    <div class="flex items-start gap-3">
-      <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[color:rgb(var(--color-bg-rgb)/0.88)] text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">
+    <div class="searchResultCard__row">
+      <span class="searchResultCard__icon" aria-hidden="true">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             v-for="(path, index) in iconPaths"
@@ -17,12 +17,12 @@
         </svg>
       </span>
 
-      <div class="min-w-0 flex-1 space-y-1.5">
-        <p class="text-sm font-semibold text-[var(--color-surface)]">
+      <div class="searchResultCard__content">
+        <p class="searchResultCard__title">
           <template v-for="(part, index) in titleParts" :key="`title-${index}`">
             <mark
               v-if="part.match"
-              class="rounded-sm bg-[color:rgb(var(--color-primary-rgb)/0.26)] px-0.5 text-[var(--color-surface)]"
+              class="searchResultCard__mark"
             >
               {{ part.text }}
             </mark>
@@ -30,11 +30,11 @@
           </template>
         </p>
 
-        <p v-if="excerpt" class="line-clamp-2 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.94)]">
+        <p v-if="excerpt" class="searchResultCard__excerpt">
           <template v-for="(part, index) in excerptParts" :key="`excerpt-${index}`">
             <mark
               v-if="part.match"
-              class="rounded-sm bg-[color:rgb(var(--color-primary-rgb)/0.24)] px-0.5 text-[color:rgb(var(--color-text-secondary-rgb)/0.98)]"
+              class="searchResultCard__mark"
             >
               {{ part.text }}
             </mark>
@@ -42,7 +42,7 @@
           </template>
         </p>
 
-        <p v-if="meta" class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">{{ meta }}</p>
+        <p v-if="meta" class="searchResultCard__meta">{{ meta }}</p>
       </div>
     </div>
   </RouterLink>
@@ -144,3 +144,87 @@ const iconPaths = computed(() => {
   ]
 })
 </script>
+
+<style scoped>
+.searchResultCard {
+  display: block;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(var(--bg-app-rgb) / 0.42);
+  padding: 0.72rem;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base);
+}
+
+.searchResultCard:hover {
+  border-color: var(--color-border-strong);
+  background: rgb(var(--bg-app-rgb) / 0.56);
+}
+
+.searchResultCard:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.searchResultCard__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.62rem;
+  min-width: 0;
+}
+
+.searchResultCard__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: rgb(var(--color-text-secondary-rgb) / 0.94);
+  background: rgb(var(--bg-surface-rgb) / 0.48);
+}
+
+.searchResultCard__content {
+  display: grid;
+  gap: 0.24rem;
+  min-width: 0;
+}
+
+.searchResultCard__title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+  line-height: 1.34;
+}
+
+.searchResultCard__excerpt {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.searchResultCard__meta {
+  margin: 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.searchResultCard__mark {
+  border-radius: 0.28rem;
+  background: rgb(var(--color-accent-rgb) / 0.16);
+  padding-inline: 0.2rem;
+  color: inherit;
+}
+</style>
