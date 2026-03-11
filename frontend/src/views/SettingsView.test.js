@@ -138,27 +138,136 @@ describe('SettingsView', () => {
         })
       }
 
+      if (url === '/me/export/summary') {
+        return Promise.resolve({
+          data: {
+            generated_at: '2026-03-10T12:00:00Z',
+            schema_version: '2.0',
+            estimated_bytes: 14000,
+            counts: {
+              posts_count: 1,
+              invites_received_count: 1,
+              invites_sent_count: 0,
+              reminders_count: 0,
+              followed_events_count: 0,
+              bookmarks_count: 0,
+            },
+            section_counts: {
+              user: 1,
+              newsletter: 1,
+            },
+            sections: ['user', 'newsletter'],
+          },
+        })
+      }
+
+      if (url === '/me/export') {
+        return Promise.resolve({
+          data: new Blob(
+            [
+              JSON.stringify({
+                export_version: '2.0',
+                data_summary: {
+                  posts_count: 1,
+                  invites_count: 1,
+                  invites_scope: 'received',
+                  invites_received_count: 1,
+                  invites_sent_count: 0,
+                  reminders_count: 0,
+                  followed_events_count: 0,
+                  bookmarks_count: 0,
+                  estimated_bytes: 14000,
+                },
+              }),
+            ],
+            { type: 'application/json' },
+          ),
+          headers: {
+            'content-disposition':
+              'attachment; filename="nebesky-sprievodca-export-tester-20260221_173000.json"',
+          },
+        })
+      }
+
+      if (url === '/me/export/jobs/11') {
+        return Promise.resolve({
+          data: {
+            id: 11,
+            status: 'ready',
+            file_name: 'nebesky-sprievodca-export-tester-20260310_120000.zip',
+            download_url: '/api/me/export/jobs/11/download?expires=2000000000&signature=test-signature',
+            checksum_sha256: 'abc',
+          },
+        })
+      }
+
+      if (String(url).startsWith('/api/me/export/jobs/11/download')) {
+        return Promise.resolve({
+          data: new Blob(
+            [
+              JSON.stringify({
+                export_version: '2.0',
+                data_summary: {
+                  posts_count: 1,
+                  invites_count: 1,
+                  invites_scope: 'received',
+                  invites_received_count: 1,
+                  invites_sent_count: 0,
+                  reminders_count: 0,
+                  followed_events_count: 0,
+                  bookmarks_count: 0,
+                  estimated_bytes: 14000,
+                },
+              }),
+            ],
+            { type: 'application/zip' },
+          ),
+          headers: {
+            'content-disposition':
+              'attachment; filename="nebesky-sprievodca-export-tester-20260310_120000.zip"',
+          },
+        })
+      }
+
       return Promise.resolve({
-        data: new Blob(['{"export_version":"1.0"}'], { type: 'application/json' }),
-        headers: {
-          'content-disposition':
-            'attachment; filename="nebesky-sprievodca-export-tester-20260221_173000.json"',
-        },
+        data: {},
+        headers: {},
       })
     })
 
-    httpMock.post.mockResolvedValue({
-      data: {
-        message: 'Verification code sent.',
+    httpMock.post.mockImplementation((url) => {
+      if (url === '/me/export/jobs') {
+        return Promise.resolve({
+          data: {
+            id: 11,
+            status: 'pending',
+            file_name: 'nebesky-sprievodca-export-tester-20260310_120000.zip',
+            download_url: null,
+          },
+        })
+      }
+
+      if (url === '/account/email/verification/send') {
+        return Promise.resolve({
+          data: {
+            message: 'Verification code sent.',
+            data: {
+              email: 'tester@example.com',
+              verified: false,
+              email_verified_at: null,
+              requires_email_verification: true,
+              seconds_to_resend: 60,
+              pending_email_change: null,
+            },
+          },
+        })
+      }
+
+      return Promise.resolve({
         data: {
-          email: 'tester@example.com',
-          verified: false,
-          email_verified_at: null,
-          requires_email_verification: true,
-          seconds_to_resend: 60,
-          pending_email_change: null,
+          message: 'ok',
         },
-      },
+      })
     })
   })
 
@@ -235,13 +344,33 @@ describe('SettingsView', () => {
 
     const { wrapper } = await mountAt('/settings/data-export', { attachTo: document.body })
 
+    await wrapper.get('#settings-export-password').setValue('export-pass-123')
     await wrapper.get('#settings-export-button').trigger('click')
     await flush()
+    await flush()
 
-    expect(httpMock.get).toHaveBeenCalledWith('/me/export', {
-      responseType: 'blob',
+    expect(httpMock.get).toHaveBeenCalledWith('/me/export/summary', {
       meta: { skipErrorToast: true },
     })
+    expect(httpMock.post).toHaveBeenCalledWith(
+      '/me/export/jobs',
+      {
+        current_password: 'export-pass-123',
+      },
+      {
+        meta: { skipErrorToast: true },
+      },
+    )
+    expect(httpMock.get).toHaveBeenCalledWith('/me/export/jobs/11', {
+      meta: { skipErrorToast: true },
+    })
+    expect(httpMock.get).toHaveBeenCalledWith(
+      '/api/me/export/jobs/11/download?expires=2000000000&signature=test-signature',
+      {
+        responseType: 'blob',
+        meta: { skipErrorToast: true },
+      },
+    )
     expect(createObjectUrlSpy).toHaveBeenCalledTimes(1)
     expect(anchorClickSpy).toHaveBeenCalledTimes(1)
 

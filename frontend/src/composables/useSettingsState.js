@@ -76,6 +76,30 @@ export function useSettingsState() {
     loading: false,
     error: '',
     success: '',
+    phase: '',
+  })
+
+  const exportForm = reactive({
+    currentPassword: '',
+  })
+
+  const createDefaultExportCounts = () => ({
+    posts_count: 0,
+    invites_received_count: 0,
+    invites_sent_count: 0,
+    reminders_count: 0,
+    followed_events_count: 0,
+    bookmarks_count: 0,
+  })
+
+  const exportSummaryState = reactive({
+    loading: false,
+    loaded: false,
+    error: '',
+    estimatedBytes: 0,
+    generatedAt: null,
+    counts: createDefaultExportCounts(),
+    sections: [],
   })
 
   const activity = ref(null)
@@ -536,28 +560,226 @@ export function useSettingsState() {
     return `nebesky-sprievodca-export-${safeIdentifier || 'user'}-${new Date().toISOString().slice(0, 10)}.json`
   }
 
+  const toPositiveInt = (value, fallback = 0) => {
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed) || parsed < 0) return fallback
+    return Math.floor(parsed)
+  }
+
+  const formatExportBytes = (bytes) => {
+    const value = Number(bytes || 0)
+    if (!Number.isFinite(value) || value <= 0) return '0 B'
+    if (value < 1024) return `${Math.round(value)} B`
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
+    return `${(value / (1024 * 1024)).toFixed(2)} MB`
+  }
+
+  const normalizeExportSummary = (payload) => {
+    const counts = payload?.counts && typeof payload.counts === 'object' ? payload.counts : {}
+    const sections = Array.isArray(payload?.sections)
+      ? payload.sections.map((item) => String(item || '')).filter(Boolean)
+      : []
+
+    return {
+      estimatedBytes: toPositiveInt(payload?.estimated_bytes, 0),
+      generatedAt: payload?.generated_at || null,
+      counts: {
+        posts_count: toPositiveInt(counts.posts_count, 0),
+        invites_received_count: toPositiveInt(counts.invites_received_count, 0),
+        invites_sent_count: toPositiveInt(counts.invites_sent_count, 0),
+        reminders_count: toPositiveInt(counts.reminders_count, 0),
+        followed_events_count: toPositiveInt(counts.followed_events_count, 0),
+        bookmarks_count: toPositiveInt(counts.bookmarks_count, 0),
+      },
+      sections,
+    }
+  }
+
+  const applyExportSummary = (summary) => {
+    exportSummaryState.loaded = true
+    exportSummaryState.error = ''
+    exportSummaryState.estimatedBytes = summary.estimatedBytes
+    exportSummaryState.generatedAt = summary.generatedAt
+    exportSummaryState.counts = summary.counts
+    exportSummaryState.sections = summary.sections
+  }
+
+  const loadExportSummary = async () => {
+    if (!auth.user || exportSummaryState.loading) return
+
+    exportSummaryState.loading = true
+    exportSummaryState.error = ''
+
+    try {
+      const { data } = await http.get('/me/export/summary', {
+        meta: { skipErrorToast: true },
+      })
+      applyExportSummary(normalizeExportSummary(data))
+    } catch (error) {
+      exportSummaryState.error =
+        error?.response?.data?.message || error?.userMessage || error?.message || 'Nacitavanie sumarizacie exportu zlyhalo.'
+    } finally {
+      exportSummaryState.loading = false
+    }
+  }
+
+  const parseExportBlobPayload = async (blob) => {
+    if (!(blob instanceof Blob)) return null
+    const mime = String(blob.type || '').toLowerCase()
+    if (mime && !mime.includes('json')) {
+      return null
+    }
+
+    try {
+      const text = await blob.text()
+      const parsed = JSON.parse(text)
+      return parsed && typeof parsed === 'object' ? parsed : null
+    } catch {
+      return null
+    }
+  }
+
+  const summarizeDownloadedExport = (payload, fallbackBytes) => {
+    const summary = payload?.data_summary && typeof payload.data_summary === 'object' ? payload.data_summary : {}
+    const postsCount = toPositiveInt(summary.posts_count, 0)
+    const invitesReceivedCount = toPositiveInt(
+      summary.invites_received_count ?? summary.invites_count,
+      0,
+    )
+    const invitesSentCount = toPositiveInt(summary.invites_sent_count, 0)
+    const remindersCount = toPositiveInt(summary.reminders_count, 0)
+    const followedEventsCount = toPositiveInt(summary.followed_events_count, 0)
+    const bookmarksCount = toPositiveInt(summary.bookmarks_count, 0)
+    const estimatedBytes = toPositiveInt(summary.estimated_bytes, fallbackBytes)
+
+    return {
+      estimatedBytes,
+      generatedAt: payload?.exported_at || null,
+      counts: {
+        posts_count: postsCount,
+        invites_received_count: invitesReceivedCount,
+        invites_sent_count: invitesSentCount,
+        reminders_count: remindersCount,
+        followed_events_count: followedEventsCount,
+        bookmarks_count: bookmarksCount,
+      },
+      sections: [
+        'user',
+        'newsletter',
+        'notification_preferences',
+        'activity',
+        'posts',
+        'invites_received',
+        'invites_sent',
+        'reminders',
+        'followed_events',
+        'bookmarks',
+      ],
+    }
+  }
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  const downloadViaAsyncJob = async () => {
+    if (!String(exportForm.currentPassword || '').trim()) {
+      const error = new Error('Aktualne heslo je povinne pre export dat.')
+      error.userMessage = 'Zadajte aktualne heslo pre potvrdenie exportu.'
+      throw error
+    }
+
+    exportState.phase = 'Overujem heslo...'
+    const created = await http.post(
+      '/me/export/jobs',
+      {
+        current_password: exportForm.currentPassword,
+      },
+      {
+        meta: { skipErrorToast: true },
+      },
+    )
+
+    let job = created?.data && typeof created.data === 'object' ? created.data : null
+    let jobId = Number(job?.id || 0)
+    if (jobId <= 0) {
+      throw new Error('Export job nebol vytvoreny.')
+    }
+
+    const maxAttempts = 60
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      if (job?.status === 'ready' && job?.download_url) {
+        exportState.phase = 'Stahujem subor...'
+        return http.get(job.download_url, {
+          responseType: 'blob',
+          meta: { skipErrorToast: true },
+        })
+      }
+
+      if (job?.status === 'failed') {
+        const error = new Error(job?.error_message || 'Generovanie exportu zlyhalo.')
+        error.userMessage = job?.error_message || 'Generovanie exportu zlyhalo.'
+        throw error
+      }
+
+      exportState.phase = 'Generujem export...'
+      const statusResponse = await http.get(`/me/export/jobs/${jobId}`, {
+        meta: { skipErrorToast: true },
+      })
+      job = statusResponse?.data && typeof statusResponse.data === 'object' ? statusResponse.data : null
+      jobId = Number(job?.id || jobId || 0)
+
+      if (job?.status !== 'ready') {
+        await sleep(1000)
+      }
+    }
+
+    const timeoutError = new Error('Generovanie exportu trva dlhsie, skuste to o chvilu znova.')
+    timeoutError.userMessage = 'Generovanie exportu trva dlhsie, skuste to o chvilu znova.'
+    throw timeoutError
+  }
+
+  const downloadViaLegacyEndpoint = async () => {
+    exportState.phase = 'Pripravujem export...'
+    return http.get('/me/export', {
+      responseType: 'blob',
+      meta: { skipErrorToast: true },
+    })
+  }
+
   const downloadProfileExport = async () => {
     if (exportState.loading) return
 
     exportState.error = ''
     exportState.success = ''
     exportState.loading = true
+    exportState.phase = ''
 
     try {
       if (!auth.user) {
         throw new Error('Nie ste prihlaseny.')
       }
 
-      const response = await http.get('/me/export', {
-        responseType: 'blob',
-        meta: { skipErrorToast: true },
-      })
+      let response = null
+      try {
+        response = await downloadViaAsyncJob()
+      } catch (error) {
+        const status = Number(error?.response?.status || 0)
+        if (status === 404 || status === 405 || status === 501) {
+          response = await downloadViaLegacyEndpoint()
+        } else {
+          throw error
+        }
+      }
 
       const filename = resolveExportFilename(response?.headers?.['content-disposition'])
       const blob =
         response?.data instanceof Blob
           ? response.data
           : new Blob([JSON.stringify(response?.data || {})], { type: 'application/json' })
+
+      const parsedPayload = await parseExportBlobPayload(blob)
+      if (parsedPayload) {
+        applyExportSummary(summarizeDownloadedExport(parsedPayload, blob.size))
+      }
 
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
@@ -568,11 +790,18 @@ export function useSettingsState() {
       anchor.remove()
       URL.revokeObjectURL(url)
 
-      exportState.success = 'Export bol stiahnuty.'
+      const sizeLabel = formatExportBytes(blob.size)
+      const postsCount = exportSummaryState.counts.posts_count
+      const invitesTotal =
+        exportSummaryState.counts.invites_received_count + exportSummaryState.counts.invites_sent_count
+      exportState.success = `Export bol stiahnuty (${sizeLabel}, ${postsCount} prispevkov, ${invitesTotal} pozvanok).`
+      exportForm.currentPassword = ''
     } catch (error) {
       const status = Number(error?.response?.status || 0)
 
-      if (status === 429) {
+      if (status === 422 && error?.response?.data?.errors?.current_password?.[0]) {
+        exportState.error = String(error.response.data.errors.current_password[0])
+      } else if (status === 429) {
         exportState.error = 'Prilis vela poziadaviek na export. Skuste to znova o minutu.'
       } else {
         exportState.error =
@@ -580,6 +809,7 @@ export function useSettingsState() {
       }
     } finally {
       exportState.loading = false
+      exportState.phase = ''
     }
   }
 
@@ -675,7 +905,11 @@ export function useSettingsState() {
     emailAccount,
     emailForm,
     emailState,
+    exportForm,
     exportState,
+    exportSummaryState,
+    formatExportBytes,
+    loadExportSummary,
     logoutState,
     newsletterState,
     newsletterSubscribed,

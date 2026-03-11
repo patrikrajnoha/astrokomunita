@@ -27,6 +27,7 @@ class InviteExportResource extends JsonResource
             ],
             'status' => $status,
             'inviter_user_id' => $this->inviter_user_id,
+            'invitee_user_id' => $this->invitee_user_id,
             'invitee_email' => $this->invitee_email,
             'attendee_name' => $this->attendee_name,
             'message' => $this->message,

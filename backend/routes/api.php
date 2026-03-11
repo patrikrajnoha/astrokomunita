@@ -80,6 +80,9 @@ use App\Http\Controllers\Api\MarkYourCalendarPopupController;
 use App\Http\Controllers\Api\NewsletterSubscriptionController;
 use App\Http\Controllers\Api\MeLocationController;
 use App\Http\Controllers\Api\MeDataExportController;
+use App\Http\Controllers\Api\MeDataExportJobController;
+use App\Http\Controllers\Api\MeDataExportJobDownloadController;
+use App\Http\Controllers\Api\MeDataExportSummaryController;
 use App\Http\Controllers\Api\MeActivityController;
 use App\Http\Controllers\Api\Admin\FeaturedEventController;
 
@@ -650,6 +653,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/me/location/auto', [MeLocationController::class, 'auto']);
         Route::get('/me/notifications/preferences', [UserNotificationPreferenceController::class, 'show']);
         Route::post('/me/notifications/preferences', [UserNotificationPreferenceController::class, 'update']);
+        Route::post('/me/export/jobs', [MeDataExportJobController::class, 'store'])->middleware('throttle:me-export');
+        Route::get('/me/export/jobs/{job}', [MeDataExportJobController::class, 'show'])->middleware('throttle:30,1');
+        Route::get('/me/export/jobs/{job}/download', MeDataExportJobDownloadController::class)
+            ->name('me.export.jobs.download')
+            ->middleware('throttle:30,1');
+        Route::get('/me/export/summary', MeDataExportSummaryController::class)->middleware('throttle:30,1');
         Route::get('/me/export', MeDataExportController::class)->middleware('throttle:me-export');
         Route::patch('/me/newsletter', [NewsletterSubscriptionController::class, 'update']);
         Route::delete('/reminders/{reminder}', [EventReminderController::class, 'destroy']);

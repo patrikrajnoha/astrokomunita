@@ -16,24 +16,30 @@ class UserExportResource extends JsonResource
             ? $this->eventPreference
             : null;
 
+        $location = null;
+        if ($this->latitude !== null || $this->longitude !== null || !empty($this->timezone) || !empty($this->location_label)) {
+            $location = [
+                'latitude' => $this->latitude,
+                'longitude' => $this->longitude,
+                'timezone' => $this->timezone,
+                'label' => $this->location_label,
+                'source' => $this->location_source,
+            ];
+        }
+
         return [
             'id' => $this->id,
             'name' => $this->name,
             'username' => $this->username,
             'email' => $this->email,
             'email_verified_at' => optional($this->email_verified_at)?->toIso8601String(),
+            'date_of_birth' => optional($this->date_of_birth)?->toDateString(),
             'created_at' => optional($this->created_at)?->toIso8601String(),
             'updated_at' => optional($this->updated_at)?->toIso8601String(),
-            'location' => $this->when(
-                $this->latitude !== null || $this->longitude !== null || !empty($this->timezone) || !empty($this->location_label),
-                [
-                    'latitude' => $this->latitude,
-                    'longitude' => $this->longitude,
-                    'timezone' => $this->timezone,
-                    'label' => $this->location_label,
-                    'source' => $this->location_source,
-                ]
-            ),
+            'bio' => $this->bio,
+            'avatar_url' => $this->avatar_url,
+            'cover_url' => $this->cover_url,
+            'location' => $location,
             'preferences' => [
                 'event_types' => $preferences?->normalizedEventTypes() ?? [],
                 'interests' => $preferences?->normalizedInterests() ?? [],
@@ -43,6 +49,7 @@ class UserExportResource extends JsonResource
                 'location_lat' => $preferences?->location_lat,
                 'location_lon' => $preferences?->location_lon,
                 'onboarding_completed_at' => $preferences?->onboardingCompletedAtIso(),
+                'bortle_class' => $preferences?->resolvedBortleClass(),
             ],
         ];
     }
