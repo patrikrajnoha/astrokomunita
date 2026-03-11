@@ -169,11 +169,12 @@ describe('MainNavbar active route state', () => {
     expect(wrapper.find('[data-testid="guest-auth-actions"]').exists()).toBe(false)
   })
 
-  it('shows content picker with Pozorovanie and routes to observation create', async () => {
+  it('shows content picker with Pozorovanie and opens observation composer mode', async () => {
     authStore.isAuthed = true
     authStore.user = { id: 1, name: 'Test User' }
     const { wrapper, router } = await mountNavbarAtWithRouter('/')
     const pushSpy = vi.spyOn(router, 'push')
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent')
 
     await wrapper.get('button[data-testid="create-content-trigger"]').trigger('click')
     expect(wrapper.get('#create-content-menu').text()).toContain('Pozorovanie')
@@ -181,7 +182,12 @@ describe('MainNavbar active route state', () => {
     await wrapper.get('button[data-create-type="observation"]').trigger('click')
     await nextTick()
 
-    expect(pushSpy).toHaveBeenCalledWith('/observations/new')
+    expect(pushSpy).not.toHaveBeenCalledWith('/observations/new')
+    expect(router.currentRoute.value.path).toBe('/')
+
+    const composerEventCall = dispatchSpy.mock.calls.find(([event]) => event?.type === 'post:composer:open')
+    expect(Boolean(composerEventCall)).toBe(true)
+    expect(composerEventCall?.[0]?.detail).toEqual(expect.objectContaining({ action: 'observation' }))
   })
 
   it('navigates to notifications page when notifications trigger is clicked', async () => {

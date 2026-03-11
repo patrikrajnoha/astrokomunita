@@ -433,18 +433,14 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, watch, defineAsyncComponent } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { useNotificationsStore } from '@/stores/notifications'
 import MainNavbar from '@/components/MainNavbar.vue'
-import DynamicSidebar from '@/components/DynamicSidebar.vue'
-import CreatePostModal from '@/components/CreatePostModal.vue'
 import MobileFab from '@/components/MobileFab.vue'
 import MobileBottomNav from '@/components/nav/MobileBottomNav.vue'
-import MarkYourCalendarModal from '@/components/MarkYourCalendarModal.vue'
-import OnboardingTour from '@/components/onboarding/OnboardingTour.vue'
 import { useToast } from '@/composables/useToast'
 import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
@@ -456,6 +452,11 @@ import {
   resolveSidebarComponent,
   resolveSidebarIcon,
 } from '@/sidebar/engine'
+
+const DynamicSidebar = defineAsyncComponent(() => import('@/components/DynamicSidebar.vue'))
+const CreatePostModal = defineAsyncComponent(() => import('@/components/CreatePostModal.vue'))
+const MarkYourCalendarModal = defineAsyncComponent(() => import('@/components/MarkYourCalendarModal.vue'))
+const OnboardingTour = defineAsyncComponent(() => import('@/components/onboarding/OnboardingTour.vue'))
 
 const router = useRouter()
 const route = useRoute()
@@ -694,7 +695,7 @@ const closeDrawer = () => {
 
 const normalizeComposerAction = (action) => {
   const normalized = String(action || 'post').toLowerCase()
-  return ['post', 'poll', 'event'].includes(normalized) ? normalized : 'post'
+  return ['post', 'poll', 'event', 'observation'].includes(normalized) ? normalized : 'post'
 }
 
 const normalizeComposerAttachmentFile = (value) => {
@@ -920,6 +921,11 @@ const goToCalendarFromPopup = async () => {
 }
 
 const warmSidebarConfig = async () => {
+  if (!isMobileViewport.value) {
+    mobileSidebarSections.value = []
+    return
+  }
+
   const scope = currentSidebarScope.value
   if (!scope) {
     mobileSidebarSections.value = []
