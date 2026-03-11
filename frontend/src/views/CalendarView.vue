@@ -238,14 +238,14 @@ function formatEventTime(event) {
   const endRaw = event.end_at || event.ends_at
   const endKey = toYMD(endRaw)
 
-  if (endRaw && anchorKey && anchorKey === endKey) {
+  if (context.timeType !== 'peak' && endRaw && anchorKey && anchorKey === endKey) {
     const endTime = formatClockTime(endRaw, EVENT_TIMEZONE).timeString
     if (endTime) {
       return `${context.timeString} - ${endTime} (${context.timezoneLabelShort})`
     }
   }
 
-  return `${context.timeString} (${context.timezoneLabelShort})`
+  return `${context.message} (${context.timezoneLabelShort})`
 }
 
 function openEventDetail(event) {

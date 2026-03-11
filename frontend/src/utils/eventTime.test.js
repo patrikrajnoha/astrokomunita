@@ -97,6 +97,25 @@ describe('eventTime', () => {
     })
   })
 
+  it('marks daytime peaks to avoid confusion with evening viewing', () => {
+    expect(
+      resolveEventTimeContext(
+        {
+          start_at: '2026-03-10T11:32:00Z',
+          max_at: '2026-03-10T11:32:00Z',
+          time_type: 'peak',
+          time_precision: 'exact',
+        },
+        EVENT_TIMEZONE,
+      ),
+    ).toMatchObject({
+      message: 'Maximum javu (cez den) o 12:32',
+      timePrecision: 'exact',
+      showTimezoneLabel: true,
+      timezoneLabelShort: EVENT_TIMEZONE_SHORT_LABEL,
+    })
+  })
+
   it('treats legacy events without time_precision as exact when source is not a fallback midnight source', () => {
     expect(
       resolveEventTimeContext(

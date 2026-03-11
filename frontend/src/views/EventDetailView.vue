@@ -65,7 +65,7 @@
               </span>
             </p>
             <p v-if="showViewingWindowMicrocopy" class="eventTimeBlock__microcopy">
-              Jav nastava cez den, pozorovanie je mozne az po zotmeni.
+              {{ viewingWindowMicrocopy }}
             </p>
             <button
               v-if="viewingForecast.missingLocation"
@@ -80,7 +80,7 @@
           <section v-if="showViewingWindowMicrocopy" class="eventSection">
             <p class="eventSection__label">Ako pozorovat</p>
             <p class="eventSection__text">
-              Jav nastava cez den, pozorovanie je mozne az po zotmeni.
+              {{ howToObserveText }}
             </p>
           </section>
 
@@ -401,16 +401,35 @@ const primaryObservationLine = computed(() => {
 
   return 'Pozorovanie: upresnime'
 })
-const secondaryEventTimeLabel = computed(() => eventTimeContext.value.message)
+const secondaryEventTimeLabel = computed(() => {
+  const context = eventTimeContext.value
+  if (
+    showViewingWindowMicrocopy.value &&
+    context.timeType === 'peak' &&
+    context.timeString
+  ) {
+    const labelPrefix =
+      context.timePrecision === 'approximate'
+        ? 'Priblizne maximum javu (cez den)'
+        : 'Maximum javu (cez den)'
+    return `${labelPrefix} o ${context.timeString}`
+  }
+
+  return context.message
+})
 const secondaryEventTimeTimezoneLabel = computed(() =>
   eventTimeContext.value.showTimezoneLabel ? eventTimeContext.value.timezoneLabelShort : '',
 )
 const secondaryEventTimeAriaLabel = computed(() => {
-  if (!eventTimeContext.value.showTimezoneLabel) {
-    return eventTimeContext.value.message
+  if (!secondaryEventTimeLabel.value) {
+    return ''
   }
 
-  return `${eventTimeContext.value.message} (${eventTimeContext.value.timezoneLabelShort}), cas v ${eventTimeContext.value.timezoneLabelLong}`
+  if (!eventTimeContext.value.showTimezoneLabel) {
+    return secondaryEventTimeLabel.value
+  }
+
+  return `${secondaryEventTimeLabel.value} (${eventTimeContext.value.timezoneLabelShort}), cas v ${eventTimeContext.value.timezoneLabelLong}`
 })
 const showViewingWindowMicrocopy = computed(() => {
   const phenomenonAt = resolvePhenomenonDate(event.value)
@@ -424,6 +443,20 @@ const showViewingWindowMicrocopy = computed(() => {
 
   const localHour = getHourInTimezone(phenomenonAt, viewingTimezone.value)
   return localHour !== null && localHour >= 6 && localHour < 18
+})
+const viewingWindowMicrocopy = computed(() => {
+  if (!showViewingWindowMicrocopy.value) return ''
+
+  if (viewingWindowLabel.value) {
+    return `Maximum je cez den; prakticke pozorovanie je az po zotmeni, v okne ${viewingWindowLabel.value}.`
+  }
+
+  return 'Maximum je cez den; prakticke pozorovanie je az po zotmeni.'
+})
+const howToObserveText = computed(() => {
+  if (!showViewingWindowMicrocopy.value) return ''
+
+  return 'Cas "Maximum" znamena astronomicky vrchol javu, nie vzdy najlepsi cas na pozorovanie. Ked je cez den, riad sa riadkom "Pozorovanie".'
 })
 const canGoPrev = computed(() => Number.isInteger(adjacentEventIds.value.prev))
 const canGoNext = computed(() => Number.isInteger(adjacentEventIds.value.next))
