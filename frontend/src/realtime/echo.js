@@ -1,8 +1,8 @@
 import axios from 'axios'
-import Echo from 'laravel-echo'
-import Pusher from 'pusher-js'
 
 let echoInstance = null
+let echoCtorPromise = null
+let pusherCtorPromise = null
 
 const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || window.location.origin
 const apiOrigin = rawApiBaseUrl.replace(/\/api\/?$/i, '').replace(/\/+$/, '')
@@ -72,7 +72,26 @@ function buildAuthorizer(authEndpoint) {
   })
 }
 
-export function initEcho() {
+async function loadEchoCtor() {
+  if (!echoCtorPromise) {
+    echoCtorPromise = import('laravel-echo').then((mod) => mod.default || mod)
+  }
+  return echoCtorPromise
+}
+
+async function loadPusherCtor() {
+  if (!pusherCtorPromise) {
+    pusherCtorPromise = import('pusher-js').then((mod) => mod.default || mod)
+  }
+  return pusherCtorPromise
+}
+
+async function loadRealtimeConstructors() {
+  const [EchoCtor, PusherCtor] = await Promise.all([loadEchoCtor(), loadPusherCtor()])
+  return { EchoCtor, PusherCtor }
+}
+
+export async function initEcho() {
   if (echoInstance) return echoInstance
 
   const reverb = resolveReverbOptions()
@@ -86,7 +105,12 @@ export function initEcho() {
   const authEndpoint = `${apiOrigin}/broadcasting/auth`
 
   try {
-    echoInstance = new Echo({
+    const { EchoCtor, PusherCtor } = await loadRealtimeConstructors()
+    if (!EchoCtor || !PusherCtor) {
+      return null
+    }
+
+    echoInstance = new EchoCtor({
       broadcaster: 'reverb',
       key: reverb.key,
       wsHost: reverb.host,
@@ -96,7 +120,7 @@ export function initEcho() {
       enabledTransports: ['ws', 'wss'],
       authEndpoint,
       authorizer: buildAuthorizer(authEndpoint),
-      Pusher,
+      Pusher: PusherCtor,
     })
 
     if (typeof window !== 'undefined') {

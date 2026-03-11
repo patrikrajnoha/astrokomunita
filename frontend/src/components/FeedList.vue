@@ -298,21 +298,18 @@
         </div>
       </div>
     </div>
-    <ShareModal :open="!!shareTarget" :post="shareTarget" @close="closeShareModal" />
+    <ShareModal v-if="shareTarget" :open="true" :post="shareTarget" @close="closeShareModal" />
   </section>
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import FeedSwitcher from '@/components/FeedSwitcher.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import HashtagText from './HashtagText.vue'
-import PollCard from '@/components/PollCard.vue'
 import PostActionBar from '@/components/PostActionBar.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
-import PostMediaVideo from '@/components/media/PostMediaVideo.vue'
-import ShareModal from '@/components/share/ShareModal.vue'
 import ObservationCard from '@/components/observations/ObservationCard.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
@@ -324,6 +321,10 @@ import { useConfirm } from '@/composables/useConfirm'
 import { canDeletePost, canReportPost } from '@/utils/postPermissions'
 import { formatRelativeShort } from '@/utils/dateUtils'
 import { avatarDebug } from '@/utils/avatarDebug'
+
+const PollCard = defineAsyncComponent(() => import('@/components/PollCard.vue'))
+const PostMediaVideo = defineAsyncComponent(() => import('@/components/media/PostMediaVideo.vue'))
+const ShareModal = defineAsyncComponent(() => import('@/components/share/ShareModal.vue'))
 
 const props = defineProps({
   mode: {

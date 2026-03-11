@@ -398,7 +398,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
       this.stopRealtime({ disconnect: false })
 
-      const echo = initEcho()
+      const echo = await initEcho()
       if (!echo) {
         this.realtimeReady = false
         this.realtimeChannel = ''

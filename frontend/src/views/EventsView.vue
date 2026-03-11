@@ -675,10 +675,10 @@ async function loadPendingRealtimeEvents(options = {}) {
   }
 }
 
-function startRealtimeFeed() {
+async function startRealtimeFeed() {
   if (isCalendarView.value || activeRealtimeChannel === 'events.feed') return
 
-  const echo = initEcho()
+  const echo = await initEcho()
   if (!echo) return
 
   activeRealtimeChannel = 'events.feed'
@@ -953,7 +953,7 @@ onMounted(async () => {
     await favorites.fetch()
   }
 
-  startRealtimeFeed()
+  void startRealtimeFeed()
 })
 
 watch(isCalendarView, (calendarView) => {
@@ -961,7 +961,7 @@ watch(isCalendarView, (calendarView) => {
     stopRealtimeFeed()
     return
   }
-  startRealtimeFeed()
+  void startRealtimeFeed()
 })
 
 onBeforeUnmount(() => {
