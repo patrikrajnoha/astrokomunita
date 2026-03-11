@@ -17,13 +17,33 @@ class HealthEndpointTest extends TestCase
             'ok',
             'status',
             'app',
-            'env',
             'time',
         ]);
+        $response->assertJsonMissingPath('env');
     }
 
-    public function test_debug_health_endpoint_returns_env_and_revision_fields(): void
+    public function test_debug_health_endpoint_hides_diagnostics_by_default(): void
     {
+        $response = $this->getJson('/api/_health');
+
+        $response->assertOk();
+        $response->assertJsonPath('ok', true);
+        $response->assertJsonPath('status', 'ok');
+        $response->assertJsonStructure([
+            'ok',
+            'status',
+            'app',
+            'time',
+        ]);
+        $response->assertJsonMissingPath('env');
+        $response->assertJsonMissingPath('git_sha');
+        $response->assertJsonMissingPath('build_id');
+    }
+
+    public function test_debug_health_endpoint_can_expose_diagnostics_when_enabled(): void
+    {
+        config()->set('security.health.expose_diagnostics', true);
+
         $response = $this->getJson('/api/_health');
 
         $response->assertOk();

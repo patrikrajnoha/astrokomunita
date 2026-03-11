@@ -92,33 +92,42 @@ use App\Http\Controllers\Api\Admin\FeaturedEventController;
 |--------------------------------------------------------------------------
 */
 Route::get('/health', function () {
-    return response()->json([
+    $payload = [
         'ok' => true,
         'status' => 'ok',
         'app' => config('app.name'),
-        'env' => app()->environment(),
         'time' => now()->toIso8601String(),
-    ]);
+    ];
+
+    if ((bool) config('security.health.expose_diagnostics', false)) {
+        $payload['env'] = app()->environment();
+    }
+
+    return response()->json($payload);
 });
 
 Route::get('/_health', function () {
-    $gitSha = trim((string) (env('APP_GIT_SHA') ?: env('GIT_SHA') ?: ''));
-
-    if ($gitSha === '') {
-        $gitSha = trim((string) @shell_exec('git rev-parse --short HEAD'));
-    }
-
-    $buildId = trim((string) (env('APP_BUILD_ID') ?: env('RELEASE_SHA') ?: ''));
-
-    return response()->json([
+    $payload = [
         'ok' => true,
         'status' => 'ok',
         'app' => config('app.name'),
-        'env' => app()->environment(),
         'time' => now()->toIso8601String(),
-        'git_sha' => $gitSha !== '' ? $gitSha : null,
-        'build_id' => $buildId !== '' ? $buildId : null,
-    ]);
+    ];
+
+    if ((bool) config('security.health.expose_diagnostics', false)) {
+        $gitSha = trim((string) (env('APP_GIT_SHA') ?: env('GIT_SHA') ?: ''));
+        if ($gitSha === '') {
+            $gitSha = trim((string) @shell_exec('git rev-parse --short HEAD'));
+        }
+
+        $buildId = trim((string) (env('APP_BUILD_ID') ?: env('RELEASE_SHA') ?: ''));
+
+        $payload['env'] = app()->environment();
+        $payload['git_sha'] = $gitSha !== '' ? $gitSha : null;
+        $payload['build_id'] = $buildId !== '' ? $buildId : null;
+    }
+
+    return response()->json($payload);
 });
 
 

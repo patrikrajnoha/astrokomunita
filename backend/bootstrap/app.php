@@ -16,6 +16,7 @@ use App\Http\Middleware\IsAdmin;
 use App\Http\Middleware\IsAdminContent;
 use App\Http\Middleware\EnsureUserActive;
 use App\Http\Middleware\EnsureEmailIsVerifiedOrAdmin;
+use App\Http\Middleware\AddSecurityHeaders;
 use App\Http\Middleware\SkyThrottle;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // CORS (API + web)
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
+        $middleware->append(AddSecurityHeaders::class);
 
         // Sanctum SPA session-based auth for API routes.
         $middleware->api(prepend: [
