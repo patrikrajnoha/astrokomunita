@@ -65,6 +65,7 @@ class Post extends Model
         'attachment_is_blurred',
         'attachment_hidden_at',
         'pinned_at',
+        'profile_pinned_at',
     ];
 
     protected $appends = [
@@ -97,6 +98,7 @@ class Post extends Model
         'meta' => 'array',
         'expires_at' => 'datetime',
         'pinned_at' => 'datetime',
+        'profile_pinned_at' => 'datetime',
         'is_hidden' => 'boolean',
         'moderation_summary' => 'array',
         'hidden_at' => 'datetime',
@@ -345,6 +347,7 @@ class Post extends Model
         'attachment_height',
         'attachment_size_web',
         'pinned_at',
+        'profile_pinned_at',
         'expires_at',
         'created_at',
         'updated_at',

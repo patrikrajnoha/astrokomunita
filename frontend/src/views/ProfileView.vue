@@ -283,7 +283,13 @@
       <section v-if="pinnedPost" class="card pinCard">
         <div class="pinHeader">
           <div class="pinTitle">Pripnuty prispevok</div>
-          <button class="ui-btn ui-btn--ghost" @click="clearPinned">Odopnut</button>
+          <button
+            class="ui-btn ui-btn--ghost"
+            :disabled="pinLoadingId === pinnedPost.id"
+            @click="togglePin(pinnedPost)"
+          >
+            {{ pinLoadingId === pinnedPost.id ? 'Odopinam...' : 'Odopnut' }}
+          </button>
         </div>
         <div class="pinBody">
           <div class="pinContent">{{ pinnedPost.content }}</div>
@@ -343,7 +349,9 @@
           mode="empty"
           :title="globalEmptyTitle"
           :message="globalEmptyMessage"
+          :action-label="globalEmptyActionLabel"
           compact
+          @action="onGlobalEmptyAction"
         />
 
           <div v-else-if="activeTab === 'observations'" class="observationsList">
@@ -393,7 +401,7 @@
           </div>
 
           <div v-else class="postList ui-stream">
-            <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem ui-stream-item" :class="{ pinned: pinnedPost?.id === p.id }">
+            <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem ui-stream-item" :class="{ pinned: isPinnedOnProfile(p) }">
               <div class="avatar sm">
                 <UserAvatar
                   class="avatarImg"
@@ -458,17 +466,21 @@
                     <span class="postActionLabel">Zobrazit vlakno</span>
                   </button>
                   <button
+                    v-if="canPinProfilePost(p)"
                     class="postActionIconBtn"
-                    :class="{ active: pinnedPost?.id === p.id }"
+                    :class="{ active: isPinnedOnProfile(p) }"
                     type="button"
-                    :title="pinnedPost?.id === p.id ? 'Odopnut' : 'Pripnut'"
-                    :aria-label="pinnedPost?.id === p.id ? 'Odopnut' : 'Pripnut'"
+                    :title="isPinnedOnProfile(p) ? 'Odopnut' : 'Pripnut'"
+                    :aria-label="isPinnedOnProfile(p) ? 'Odopnut' : 'Pripnut'"
+                    :disabled="pinLoadingId === p.id"
                     @click.stop="togglePin(p)"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M14 3v5.2l4 3V13h-5v7l-2-1.9V13H6v-1.8l4-3V3z" />
                     </svg>
-                    <span class="postActionLabel">{{ pinnedPost?.id === p.id ? 'Odopnut' : 'Pripnut' }}</span>
+                    <span class="postActionLabel">
+                      {{ pinLoadingId === p.id ? 'Ukladam...' : (isPinnedOnProfile(p) ? 'Odopnut' : 'Pripnut') }}
+                    </span>
                   </button>
                   <button
                     class="postActionIconBtn danger"
@@ -637,6 +649,9 @@ const globalEmptyMessage = computed(() => (
       ? 'Pridaj prve pozorovanie a zobrazime ho tu.'
       : 'Tento feed je momentalne prazdny.'
 ))
+const globalEmptyActionLabel = computed(() => (
+  activeTab.value === 'observations' ? 'Pridat pozorovanie' : ''
+))
 const eventSegmentEmptyTitle = computed(() => (
   activeEventSegment.value === 'planned'
     ? 'Zatial nemas planovane udalosti'
@@ -652,6 +667,7 @@ const copyLabel = ref('Kopirovat link')
 const actionMsg = ref('')
 const actionErr = ref('')
 const deleteLoadingId = ref(null)
+const pinLoadingId = ref(null)
 const mediaErr = ref('')
 const avatarUploading = ref(false)
 const avatarRemoving = ref(false)
@@ -718,10 +734,6 @@ const iconOptions = computed(() =>
     label: formatIconLabel(iconKey),
   })),
 )
-const pinKey = computed(() => {
-  const username = auth.user?.username || 'me'
-  return `pinned_post_${username}`
-})
 
 function normalizeAvatarIndex(value, max) {
   const index = coerceAvatarIndex(value, max)
@@ -944,6 +956,12 @@ function goToProfileEdit() {
 function openPost(post) {
   if (!post?.id) return
   router.push(`/posts/${post.id}`)
+}
+
+function onGlobalEmptyAction() {
+  if (activeTab.value === 'observations') {
+    router.push('/observations/new')
+  }
 }
 
 function setActiveTab(key) {
@@ -1295,31 +1313,78 @@ async function copyProfileLink() {
   }, 1500)
 }
 
-function loadPinned() {
-  try {
-    const raw = localStorage.getItem(pinKey.value)
-    pinnedPost.value = raw ? JSON.parse(raw) : null
-  } catch {
+function isPinnedOnProfile(post) {
+  if (!post?.id) return false
+  if (post?.profile_pinned_at) return true
+  return Number(pinnedPost.value?.id) === Number(post.id)
+}
+
+function canPinProfilePost(post) {
+  if (!auth.user?.id || !post?.id) return false
+  if (Number(post?.parent_id || 0) > 0) return false
+
+  const ownerId = Number(post?.user_id ?? post?.user?.id ?? 0)
+  return ownerId === Number(auth.user.id)
+}
+
+function syncPinnedPostFromRows(rows, clearIfMissing = false) {
+  const nextPinned = Array.isArray(rows)
+    ? rows.find((item) => Boolean(item?.profile_pinned_at)) || null
+    : null
+
+  if (nextPinned) {
+    pinnedPost.value = nextPinned
+    return
+  }
+
+  if (clearIfMissing) {
     pinnedPost.value = null
   }
 }
 
-function savePinned(post) {
-  pinnedPost.value = post
-  localStorage.setItem(pinKey.value, JSON.stringify(post))
-}
+async function togglePin(post) {
+  if (!post?.id || pinLoadingId.value) return
 
-function clearPinned() {
-  pinnedPost.value = null
-  localStorage.removeItem(pinKey.value)
-}
+  if (!canPinProfilePost(post)) {
+    actionErr.value = 'Mozes pripnut iba svoj hlavny prispevok.'
+    return
+  }
 
-function togglePin(post) {
-  if (!post?.id) return
-  if (pinnedPost.value?.id === post.id) {
-    clearPinned()
-  } else {
-    savePinned(post)
+  actionMsg.value = ''
+  actionErr.value = ''
+  const wasPinned = isPinnedOnProfile(post)
+  pinLoadingId.value = post.id
+
+  try {
+    await auth.csrf()
+
+    if (wasPinned) {
+      await http.patch(`/profile/posts/${post.id}/unpin`)
+    } else {
+      await http.patch(`/profile/posts/${post.id}/pin`)
+    }
+
+    await loadTab('posts', true)
+
+    if (
+      activeTab.value !== 'posts'
+      && ['bookmarks', 'media'].includes(activeTab.value)
+      && tabState[activeTab.value]?.loaded
+    ) {
+      await loadTab(activeTab.value, true)
+    }
+
+    actionMsg.value = wasPinned
+      ? 'Prispevok bol odopnuty z profilu.'
+      : 'Prispevok bol pripnuty na profile.'
+  } catch (e) {
+    const status = e?.response?.status
+    if (status === 401) actionErr.value = 'Prihlas sa.'
+    else if (status === 403) actionErr.value = 'Nemas opravnenie.'
+    else if (status === 422) actionErr.value = e?.response?.data?.message || 'Pripnut sa da iba hlavny prispevok.'
+    else actionErr.value = e?.response?.data?.message || 'Zmena pripnutia zlyhala.'
+  } finally {
+    pinLoadingId.value = null
   }
 }
 
@@ -1351,7 +1416,7 @@ async function deletePost(post) {
     }
 
     if (pinnedPost.value?.id === post.id) {
-      clearPinned()
+      pinnedPost.value = null
     }
 
     actionMsg.value = 'Prispevok bol vymazany.'
@@ -1484,6 +1549,10 @@ async function loadTab(key, reset = true) {
     if (reset) state.items = rows
     else state.items = [...state.items, ...rows]
 
+    if (key === 'posts') {
+      syncPinnedPostFromRows(state.items, reset)
+    }
+
     if (tab.kind === 'events') {
       eventFollows.hydrateFromEvents(rows)
     }
@@ -1568,7 +1637,6 @@ onMounted(async () => {
   if (auth.user) {
     syncAvatarDraftFromUser()
     logAvatarProfileState('mounted-with-user')
-    loadPinned()
     await loadCounts()
     await loadTab(activeTab.value, true)
   }

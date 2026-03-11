@@ -44,13 +44,14 @@ class PostService
         $scope = $filters['scope'] ?? null;
         $source = $filters['source'] ?? null;
         $tag = isset($filters['tag']) ? strtolower((string) $filters['tag']) : null;
+        $order = $scope === 'me' ? 'profile_pinned_then_created' : 'created_desc';
         $query = $this->feedQueryBuilder->build([
             'kind' => $kind,
             'with_counts' => $withCounts,
             'include_hidden' => $includeHidden,
             'feed_key' => PostFeedKey::COMMUNITY->value,
             'tag' => $tag,
-            'order' => 'pinned_then_created',
+            'order' => $order,
         ], $user);
 
         if ($scope === 'me' && $user) {
