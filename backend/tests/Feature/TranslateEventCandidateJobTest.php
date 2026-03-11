@@ -104,6 +104,34 @@ class TranslateEventCandidateJobTest extends TestCase
         }
     }
 
+    public function test_job_normalizes_meteor_shower_title_in_translation_error_fallback(): void
+    {
+        $this->configureTranslation();
+        $this->app->instance(
+            BotTranslationServiceInterface::class,
+            new TranslateEventCandidateJobTranslationStub(
+                exception: new \App\Services\Bots\Exceptions\BotTranslationException('boom'),
+            )
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Perseid Meteor Sprcha',
+            'description' => null,
+            'type' => 'meteor_shower',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertNull($candidate->translation_error);
+        $this->assertSame('Meteoricky roj Perzeid', $candidate->translated_title);
+        $this->assertNotNull($candidate->translated_description);
+        $this->assertStringContainsString('Meteoricky roj Perzeid ma maximum', (string) $candidate->translated_description);
+        $this->assertStringNotContainsString('Meteoricky roj Meteoricky roj', (string) $candidate->translated_description);
+        $this->assertStringNotContainsString('Meteor Sprcha', (string) $candidate->translated_description);
+    }
+
     public function test_job_generates_template_description_when_original_description_missing(): void
     {
         $this->configureTranslation();
@@ -465,7 +493,7 @@ class TranslateEventCandidateJobTest extends TestCase
 
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
-        $this->assertSame('Meteoricky roj Geminidy', $candidate->translated_title);
+        $this->assertSame('Meteoricky roj Geminid', $candidate->translated_title);
         $this->assertStringContainsString('meteoricky', mb_strtolower((string) $candidate->short, 'UTF-8'));
     }
 
