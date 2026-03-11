@@ -44,7 +44,7 @@ describe('realtime echo config', () => {
     vi.stubEnv('VITE_REVERB_SCHEME', 'https')
 
     const { disconnectEcho, getEcho, initEcho } = await loadEchoModule()
-    const instance = initEcho()
+    const instance = await initEcho()
 
     expect(echoState.ctor).toHaveBeenCalledTimes(1)
     const options = echoState.ctor.mock.calls[0][0]
@@ -67,7 +67,7 @@ describe('realtime echo config', () => {
     vi.stubEnv('VITE_REVERB_SCHEME', 'http')
 
     const { disconnectEcho, initEcho } = await loadEchoModule()
-    initEcho()
+    await initEcho()
 
     const options = echoState.ctor.mock.calls[0][0]
     expect(options.wsHost).toBe(window.location.hostname)
@@ -82,7 +82,7 @@ describe('realtime echo config', () => {
     vi.stubGlobal('window', undefined)
 
     const { disconnectEcho, initEcho } = await loadEchoModule()
-    initEcho()
+    await initEcho()
 
     const options = echoState.ctor.mock.calls[0][0]
     expect(options.wsHost).toBe('127.0.0.1')

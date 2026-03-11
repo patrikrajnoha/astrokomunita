@@ -1,13 +1,4 @@
-import SearchBar from '@/components/SearchBar.vue'
-import RightObservingSidebar from '@/components/RightObservingSidebar.vue'
-import ObservingWeatherWidget from '@/components/sky/ObservingWeatherWidget.vue'
-import NightSkyWidget from '@/components/sky/NightSkyWidget.vue'
-import GuestObservingPromptWidget from '@/components/sky/GuestObservingPromptWidget.vue'
-import LatestArticlesWidget from '@/components/widgets/LatestArticlesWidget.vue'
-import NasaHighlightsWidget from '@/components/widgets/NasaHighlightsWidget.vue'
-import NextEventWidget from '@/components/widgets/NextEventWidget.vue'
-import UpcomingEventsWidget from '@/components/widgets/UpcomingEventsWidget.vue'
-import SidebarWidgetRenderer from '@/components/widgets/SidebarWidgetRenderer.vue'
+import { defineAsyncComponent } from 'vue'
 import {
   LEGACY_WIDGET_TYPE_SPECIAL_EVENT,
   SIDEBAR_WIDGET_TYPES,
@@ -23,6 +14,17 @@ export const OBSERVING_SECTION_KEYS = Object.freeze([
   'night_sky',
 ])
 export const GUEST_OBSERVING_PROMPT_SECTION_KEY = 'guest_observing_prompt'
+
+const SearchBar = defineAsyncComponent(() => import('@/components/SearchBar.vue'))
+const RightObservingSidebar = defineAsyncComponent(() => import('@/components/RightObservingSidebar.vue'))
+const ObservingWeatherWidget = defineAsyncComponent(() => import('@/components/sky/ObservingWeatherWidget.vue'))
+const NightSkyWidget = defineAsyncComponent(() => import('@/components/sky/NightSkyWidget.vue'))
+const GuestObservingPromptWidget = defineAsyncComponent(() => import('@/components/sky/GuestObservingPromptWidget.vue'))
+const LatestArticlesWidget = defineAsyncComponent(() => import('@/components/widgets/LatestArticlesWidget.vue'))
+const NasaHighlightsWidget = defineAsyncComponent(() => import('@/components/widgets/NasaHighlightsWidget.vue'))
+const NextEventWidget = defineAsyncComponent(() => import('@/components/widgets/NextEventWidget.vue'))
+const UpcomingEventsWidget = defineAsyncComponent(() => import('@/components/widgets/UpcomingEventsWidget.vue'))
+const SidebarWidgetRenderer = defineAsyncComponent(() => import('@/components/widgets/SidebarWidgetRenderer.vue'))
 
 export const sidebarComponentMap = {
   search: SearchBar,
