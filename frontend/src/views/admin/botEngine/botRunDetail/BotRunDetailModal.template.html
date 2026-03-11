@@ -1,0 +1,325 @@
+
+  <teleport to="body">
+    <div v-if="props.selectedRun" class="modalBackdrop" @click.self="closeRunDetail">
+      <article class="modalCard" role="dialog" aria-modal="true" aria-label="Detail behu bota">
+        <header class="modalHeader">
+          <h3>Detail behu</h3>
+          <button type="button" class="ghostBtn ghostBtn--compact" @click="closeRunDetail">
+            Zavrieť
+          </button>
+        </header>
+
+        <dl class="detailGrid">
+          <div>
+            <dt>Zdroj</dt>
+            <dd>
+              <code>{{ props.selectedRun.source_key || '-' }}</code>
+            </dd>
+          </div>
+          <div>
+            <dt>Spustené</dt>
+            <dd>{{ formatDateTime(props.selectedRun.started_at) }}</dd>
+          </div>
+          <div>
+            <dt>Dokončené</dt>
+            <dd>{{ formatDateTime(props.selectedRun.finished_at) }}</dd>
+          </div>
+          <div>
+            <dt>Stav</dt>
+            <dd>
+              <span
+                :class="statusClass(props.selectedRun)"
+                :title="runStatusHint(props.selectedRun)"
+              >
+                {{ runStatusLabel(props.selectedRun) }}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>Cooldown</dt>
+            <dd>
+              {{
+                formatDateTime(
+                  props.selectedRun.cooldown_until || props.selectedRun.meta?.cooldown_until,
+                )
+              }}
+            </dd>
+          </div>
+        </dl>
+
+        <div class="detailBlock">
+          <h4>Štatistiky</h4>
+          <pre>{{ formatStatsJson(props.selectedRun.stats) }}</pre>
+        </div>
+
+        <div class="detailBlock">
+          <h4>Chyba</h4>
+          <p>{{ props.selectedRun.error_text || '-' }}</p>
+        </div>
+
+        <div class="detailBlock">
+          <div class="detailBlockHeader">
+            <h4>Položky</h4>
+            <div class="inlineActions">
+              <label class="inlineField">
+                <span>Limit</span>
+                <input
+                  v-model.number="publishAllLimitModel"
+                  data-testid="publish-all-limit"
+                  type="number"
+                  min="1"
+                  max="100"
+                />
+              </label>
+              <button
+                type="button"
+                class="runBtn"
+                data-testid="publish-all-btn"
+                :disabled="props.isRunPublishing(props.selectedRun?.id)"
+                @click="publishAll"
+              >
+                {{
+                  props.isRunPublishing(props.selectedRun?.id)
+                    ? 'Publikujem...'
+                    : 'Publikovať všetko'
+                }}
+              </button>
+              <button type="button" class="ghostBtn" :disabled="props.loadingRunItems" @click="refreshItems">
+                Obnoviť položky
+              </button>
+              <details class="advancedTools advancedTools--inline">
+                <summary>Rozšírené</summary>
+                <div class="advancedTools__body">
+                  <div class="advancedActions">
+                    <label class="inlineField">
+                      <span>Opakovat</span>
+                      <input v-model.number="retryTranslationLimitModel" type="number" min="1" max="100" />
+                    </label>
+                    <button
+                      type="button"
+                      class="ghostBtn"
+                      data-testid="retry-translation-btn"
+                      :disabled="props.isTranslationRetrying(props.selectedRun?.source_key)"
+                      @click="retryTranslation"
+                    >
+                      {{
+                        props.isTranslationRetrying(props.selectedRun?.source_key)
+                          ? 'Skúšam...'
+                          : 'Skúsiť preklad'
+                      }}
+                    </button>
+                    <button
+                      type="button"
+                      class="ghostBtn"
+                      data-testid="backfill-translation-btn"
+                      :disabled="props.isTranslationBackfilling(props.selectedRun?.source_key)"
+                      @click="backfillTranslation"
+                    >
+                      {{
+                        props.isTranslationBackfilling(props.selectedRun?.source_key)
+                          ? 'Dopĺňam...'
+                          : 'Doplniť preklad'
+                      }}
+                    </button>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </div>
+
+          <div class="tableWrap">
+            <table class="table table--compact">
+              <thead>
+                <tr>
+                  <th>Kľúč</th>
+                  <th>Publikovanie</th>
+                  <th>Preklad</th>
+                  <th>Poskytovateľ</th>
+                  <th>Post</th>
+                  <th>Použitý</th>
+                  <th>Dôvod</th>
+                  <th>Čas</th>
+                  <th class="alignRight">Akcie</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-if="props.loadingRunItems">
+                  <tr v-for="index in 4" :key="`items-skeleton-${index}`">
+                    <td colspan="9">
+                      <div class="skeletonRow"></div>
+                    </td>
+                  </tr>
+                </template>
+                <tr v-else-if="props.runItems.length === 0">
+                  <td colspan="9" class="emptyCell">Žiadne položky v tomto behu.</td>
+                </tr>
+                <tr v-else v-for="item in props.runItems" :key="item.id || item.stable_key">
+                  <td>
+                    <code :title="item.stable_key">{{ formatStableKey(item.stable_key) }}</code>
+                  </td>
+                  <td>
+                    <div class="itemStatusCell">
+                      <span :class="itemStatusClass(item.publish_status)">
+                        {{ itemStatusLabel(item.publish_status) }}
+                      </span>
+                      <span v-if="isManualPublishedItem(item)" class="manualBadge">MANUÁL</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span :class="itemStatusClass(item.translation_status)" :title="item.translation_error || ''">
+                      {{ itemStatusLabel(item.translation_status) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      :class="translationProviderClass(item.translation_provider)"
+                      :title="item.translation_error || ''"
+                    >
+                      {{ translationProviderLabel(item.translation_provider) }}
+                    </span>
+                  </td>
+                  <td>
+                    <router-link
+                      v-if="item.post_id"
+                      :to="{ name: 'post-detail', params: { id: item.post_id } }"
+                      class="itemLink"
+                    >
+                      #{{ item.post_id }}
+                    </router-link>
+                    <span v-else>-</span>
+                  </td>
+                  <td>{{ formatBool(item.used_translation) }}</td>
+                  <td>{{ item.skip_reason || '-' }}</td>
+                  <td>{{ formatDateTime(item.fetched_at) }}</td>
+                  <td class="alignRight">
+                    <div class="inlineActions inlineActions--end">
+                      <button type="button" class="ghostBtn" @click="openItemPreview(item)">Náhľad</button>
+                      <button
+                        type="button"
+                        class="runBtn"
+                        data-testid="item-publish-btn"
+                        :disabled="
+                          !canPublishItem(item) ||
+                          props.isItemPublishing(item.id) ||
+                          props.isItemDeleting(item.id)
+                        "
+                        @click="publishItem(item)"
+                      >
+                        {{ props.isItemPublishing(item.id) ? 'Publikujem...' : 'Publikovať' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="dangerBtn"
+                        data-testid="item-delete-btn"
+                        :disabled="
+                          !canDeleteItemPost(item) ||
+                          props.isItemDeleting(item.id) ||
+                          props.isItemPublishing(item.id)
+                        "
+                        @click="deleteItemPost(item)"
+                      >
+                        {{ props.isItemDeleting(item.id) ? 'Mažem...' : 'Vymazať príspevok' }}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <footer v-if="props.runItemsMeta" class="pagination pagination--inner">
+            <div class="paginationInfo">
+              Strana {{ props.runItemsMeta.current_page }} z {{ props.runItemsMeta.last_page }} ·
+              {{ props.runItemsMeta.total }} spolu
+            </div>
+            <div class="paginationActions">
+              <button
+                type="button"
+                class="ghostBtn"
+                :disabled="!props.canPrevItemsPage || props.loadingRunItems"
+                @click="goToItemsPage((props.runItemsMeta.current_page || 1) - 1)"
+              >
+                Späť
+              </button>
+              <button
+                type="button"
+                class="ghostBtn"
+                :disabled="!props.canNextItemsPage || props.loadingRunItems"
+                @click="goToItemsPage((props.runItemsMeta.current_page || 1) + 1)"
+              >
+                Ďalej
+              </button>
+            </div>
+          </footer>
+        </div>
+      </article>
+    </div>
+
+    <div
+      v-if="props.selectedPreviewItem"
+      class="modalBackdrop modalBackdrop--inner"
+      @click.self="closeItemPreview"
+    >
+      <article
+        class="modalCard modalCard--preview"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Náhľad položky bota"
+      >
+        <header class="modalHeader">
+          <h3>Náhľad položky</h3>
+          <button type="button" class="ghostBtn ghostBtn--compact" @click="closeItemPreview">
+            Zavrieť
+          </button>
+        </header>
+
+        <dl class="detailGrid detailGrid--single">
+          <div>
+            <dt>Zdrojový odkaz</dt>
+            <dd>
+              <a
+                v-if="props.selectedPreviewItem.url"
+                class="itemLink"
+                :href="props.selectedPreviewItem.url"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {{ props.selectedPreviewItem.url }}
+              </a>
+              <span v-else>-</span>
+            </dd>
+          </div>
+        </dl>
+
+        <div class="detailBlock">
+          <h4>Stav</h4>
+          <div class="inlineActions">
+            <span :class="itemStatusClass(props.selectedPreviewItem.publish_status)">
+              publikovanie: {{ itemStatusLabel(props.selectedPreviewItem.publish_status) }}
+            </span>
+            <span :class="itemStatusClass(props.selectedPreviewItem.translation_status)">
+              preklad: {{ itemStatusLabel(props.selectedPreviewItem.translation_status) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="detailBlock">
+          <h4>Náhľad</h4>
+          <p>{{ props.selectedPreviewItem.title || '-' }}</p>
+          <p>{{ props.selectedPreviewItem.content || '-' }}</p>
+        </div>
+
+        <div class="detailBlock">
+          <h4>Originál</h4>
+          <p>{{ props.selectedPreviewItem.title_original || '-' }}</p>
+          <p>{{ props.selectedPreviewItem.content_original || '-' }}</p>
+        </div>
+
+        <div class="detailBlock">
+          <h4>Preklad</h4>
+          <p>{{ props.selectedPreviewItem.title_translated || '-' }}</p>
+          <p>{{ props.selectedPreviewItem.content_translated || '-' }}</p>
+        </div>
+      </article>
+    </div>
+  </teleport>

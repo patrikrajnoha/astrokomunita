@@ -1,0 +1,233 @@
+
+  <div class="sidebarAdmin">
+    <header class="pageHeader">
+      <h1>Konfiguracia sidebaru</h1>
+      <p class="metaLine">{{ headerMetaLine }}</p>
+    </header>
+
+    <div class="modeTabs" role="tablist" aria-label="Rezim spravy sidebaru">
+      <button
+        v-for="mode in modeTabs"
+        :key="mode.value"
+        type="button"
+        class="modeTab"
+        :class="{ active: activeMode === mode.value }"
+        @click="onModeClick(mode.value)"
+      >
+        {{ mode.label }}
+      </button>
+    </div>
+
+    <div v-if="stickyErrorBanner" class="alert alertError alertSticky" role="alert">
+      <div>{{ stickyErrorBanner }}</div>
+      <button class="btn btnGhost" type="button" :disabled="retryLoading" @click="retrySidebarLoad">
+        {{ retryLoading ? 'Opakujem...' : 'Skusit znova' }}
+      </button>
+    </div>
+
+    <section v-if="activeMode === 'layout'" class="modePanel">
+      <div class="scopeRow">
+        <span class="scopeLabel">Kontext</span>
+        <div class="scopeTabs" role="tablist" aria-label="Kontexty sidebaru">
+          <button
+            v-for="tab in scopeTabs"
+            :key="tab.value"
+            type="button"
+            class="scopeTab"
+            :class="{ active: activeScope === tab.value }"
+            :disabled="loadingScope || savingLayout"
+            @click="onScopeClick(tab.value)"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="searchWrap">
+          <input
+            v-model="layoutSearch"
+            type="text"
+            class="searchInput"
+            placeholder="Hladat polozky sidebaru"
+          />
+          <p class="summaryLine">{{ layoutSummary }}</p>
+        </div>
+
+        <div class="toolbarActions">
+          <span class="saveState" :class="saveStateTone">{{ saveStateLabel }}</span>
+          <button
+            type="button"
+            class="btn btnGhost"
+            :disabled="!hasBuilderChanges || loadingScope || savingLayout"
+            @click="resetLayoutChanges"
+          >
+            Reset zmien
+          </button>
+          <button
+            type="button"
+            class="btn btnPrimary"
+            :disabled="loadingScope || savingLayout || !hasBuilderChanges"
+            @click="saveLayoutChanges"
+          >
+            <span v-if="savingLayout" class="spinner"></span>
+            {{ savingLayout ? 'Ukladam...' : 'Ulozit rozlozenie' }}
+          </button>
+        </div>
+      </div>
+
+      <div v-if="error" class="alert alertError">{{ error }}</div>
+
+      <div class="builderGrid" :class="{ singleColumn: !showRightPanel }">
+        <section class="listPanel">
+          <header class="listHeader">
+            <h2>Polozky sidebaru</h2>
+          </header>
+
+          <div v-if="filteredSections.length === 0" class="emptyState">
+            <h3>Ziadne polozky nevyhovuju filtru</h3>
+            <p>Skus iny vyraz alebo vycisti filter.</p>
+            <button v-if="hasLayoutSearch" type="button" class="btn btnGhost" @click="layoutSearch = ''">Vymazat filter</button>
+          </div>
+
+          <draggable
+            v-else-if="!hasLayoutSearch"
+            v-model="sections"
+            item-key="client_key"
+            handle=".dragHandle"
+            class="rowsList"
+            @end="dragEnd"
+          >
+            <template #item="{ element: section }">
+              <SidebarBuilderRow
+                :section="section"
+                :selected="String(selectedSectionKey) === String(section.client_key)"
+                :draggable-enabled="true"
+                @select="selectSection"
+                @toggle="toggleSectionEnabled"
+              />
+            </template>
+          </draggable>
+
+          <div v-else class="rowsList">
+            <SidebarBuilderRow
+              v-for="section in filteredSections"
+              :key="section.client_key"
+              :section="section"
+              :selected="String(selectedSectionKey) === String(section.client_key)"
+              :draggable-enabled="false"
+              @select="selectSection"
+              @toggle="toggleSectionEnabled"
+            />
+          </div>
+        </section>
+
+        <aside v-if="showRightPanel" class="sidePanel">
+          <section v-if="selectedSection" class="panelSection">
+            <header class="panelHeader">
+              <h3>Detail polozky</h3>
+            </header>
+
+            <dl class="detailList">
+              <div>
+                <dt>Nazov</dt>
+                <dd>{{ selectedSection.title || 'Bez nazvu' }}</dd>
+              </div>
+              <div>
+                <dt>Identifikator</dt>
+                <dd>{{ sectionIdentifier(selectedSection) }}</dd>
+              </div>
+              <div>
+                <dt>Stav</dt>
+                <dd>{{ selectedSection.is_enabled ? 'Viditelna' : 'Skryta' }}</dd>
+              </div>
+            </dl>
+
+            <div class="panelActions">
+              <button
+                type="button"
+                class="btn btnGhost"
+                :disabled="!canMoveUp(selectedSection)"
+                @click="moveSection(selectedSection.client_key, -1)"
+              >
+                Posunut vyssie
+              </button>
+              <button
+                type="button"
+                class="btn btnGhost"
+                :disabled="!canMoveDown(selectedSection)"
+                @click="moveSection(selectedSection.client_key, 1)"
+              >
+                Posunut nizsie
+              </button>
+              <button
+                v-if="selectedSection.kind === 'custom_component'"
+                type="button"
+                class="btn btnGhost"
+                @click="editCustomComponentFromLayout(selectedSection)"
+              >
+                Upravit komponent
+              </button>
+              <button
+                v-if="selectedSection.kind === 'custom_component'"
+                type="button"
+                class="btn btnDanger"
+                @click="removeCustomComponentFromLayout(selectedSection)"
+              >
+                Odobrat z rozlozenia
+              </button>
+            </div>
+          </section>
+
+          <section v-if="availableCustomComponents.length > 0" class="panelSection">
+            <header class="panelHeader panelHeaderTight">
+              <h3>Vlastne komponenty</h3>
+              <button type="button" class="btn btnGhost" @click="openCreateCustomComponent">Novy komponent</button>
+            </header>
+
+            <input
+              v-model="customSearch"
+              type="text"
+              class="searchInput"
+              placeholder="Hladat komponent"
+            />
+
+            <div v-if="filteredAvailableCustomComponents.length === 0" class="emptyInline">
+              Ziadny komponent nevyhovuje filtru.
+            </div>
+
+            <ul v-else class="customList">
+              <li v-for="component in filteredAvailableCustomComponents" :key="component.id" class="customItem">
+                <div class="customCopy">
+                  <strong>{{ component.name }}</strong>
+                  <span>{{ component.type }} - pouzitie {{ getCustomComponentUsage(component.id) }}x</span>
+                </div>
+
+                <div class="customActions">
+                  <button type="button" class="btn btnSmall" @click="addCustomComponentToLayout(component)">Pridat</button>
+                  <button type="button" class="btn btnGhost btnSmall" @click="openEditCustomComponent(component)">Upravit</button>
+                </div>
+              </li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+    </section>
+
+    <section v-else-if="activeMode === 'custom'" class="modePanel modePanelFlat">
+      <div class="modeToolbar">
+        <p>Sprava vlastnych komponentov</p>
+        <button type="button" class="btn" @click="openCreateCustomComponent">Novy komponent</button>
+      </div>
+
+      <SidebarCustomComponentsView
+        ref="customViewRef"
+        @components-changed="onCustomComponentsChanged"
+        @dirty-change="onCustomDirtyChange"
+      />
+    </section>
+
+    <section v-else class="modePanel modePanelFlat">
+      <SidebarComponentRegistryView />
+    </section>
+  </div>

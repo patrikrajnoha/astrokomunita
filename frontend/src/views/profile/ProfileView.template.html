@@ -1,0 +1,517 @@
+  <div class="page">
+    <header class="topbar">
+      <button class="iconBtn" @click="goHome">&larr;</button>
+      <div class="topmeta">
+        <div class="topname">{{ displayName }}</div>
+        <div class="topsmall">{{ auth.user ? `${stats.posts} postov` : `@${handle}` }}</div>
+      </div>
+    </header>
+
+    <AsyncState
+      v-if="!auth.initialized"
+      mode="loading"
+      title="Nacitavam profil"
+      loading-style="skeleton"
+      :skeleton-rows="4"
+      compact
+    />
+
+    <template v-else>
+      <AsyncState
+        v-if="!auth.user"
+        mode="empty"
+        title="Profil je dostupny po prihlaseni"
+        message="Prihlas sa a uvidis svoje prispevky, pozorovania, media a zalozky."
+        action-label="Prihlasit sa"
+        compact
+        @action="goLogin"
+      />
+
+      <section v-if="auth.user" class="profileShell ui-profile-shell">
+        <div class="cover" :class="{ uploading: coverUploading }">
+          <img
+            v-if="coverSrc && !coverLoadFailed"
+            class="coverImg"
+            :src="coverSrc"
+            alt="cover"
+            @error="onCoverImageError"
+          />
+          <div class="coverGlow"></div>
+          <button
+            v-if="auth.user"
+            class="mediaBtn coverBtn"
+            type="button"
+            :disabled="coverUploading"
+            @click="openPicker('cover')"
+          >
+            {{ coverUploading ? 'Nahravam...' : 'Zmenit titulnu fotku' }}
+          </button>
+          <input
+            ref="coverInput"
+            class="fileInput"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            @change="onMediaChange('cover', $event)"
+          />
+        </div>
+
+        <div class="profileHead">
+          <div
+            class="avatar avatarEditable"
+            :class="{ uploading: avatarUploading, canEdit: !!auth.user }"
+            @click="openAvatarEditor"
+          >
+            <UserAvatar
+              class="avatarImg"
+              :user="auth.user"
+              :avatar-url="avatarSrc"
+              :alt="`${displayName} avatar`"
+            />
+            <button
+              v-if="auth.user"
+              type="button"
+              class="mediaBtn avatarBtn avatarEditTrigger"
+              :disabled="avatarUploading || avatarRemoving"
+              aria-label="Upravit profilovy avatar"
+              @click.stop="openAvatarEditor"
+            >
+              <svg class="avatarBtnIcon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M9 4h6l1.2 1.8H19a3 3 0 0 1 3 3v7.2a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V8.8a3 3 0 0 1 3-3h2.8z"
+                />
+                <circle cx="12" cy="12.4" r="3.3" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="headActions">
+            <button
+              v-if="auth.user"
+              class="ui-btn ui-btn--secondary"
+              @click="goToProfileEdit"
+            >
+              Upravit profil
+            </button>
+            <button class="ui-btn ui-btn--ghost copyBtn" @click="copyProfileLink">{{ copyLabel }}</button>
+          </div>
+        </div>
+
+        <InlineStatus
+          v-if="mediaErr"
+          variant="error"
+          :message="mediaErr"
+        />
+
+        <div class="identity ui-profile-header ui-profile-identity">
+          <div class="nameRow">
+            <h1 class="name">{{ displayName }}</h1>
+            <span v-if="auth.user?.is_admin" class="badge">Admin</span>
+            <span
+              v-if="auth.user?.is_bot || String(auth.user?.role || '').toLowerCase() === 'bot'"
+              class="badge badgeBot"
+            >
+              BOT
+            </span>
+          </div>
+
+          <div class="handle">@{{ handle }}</div>
+
+          <p v-if="auth.user?.bio" class="bio">{{ auth.user.bio }}</p>
+          <p v-else class="bio muted">Zatial bez popisu.</p>
+        </div>
+
+        <div class="statsRow ui-profile-stats" aria-label="Profilove statistiky">
+          <div class="stat ui-profile-stat">
+            <strong>{{ stats.posts }}</strong>
+            <span>Prispevky</span>
+          </div>
+          <div class="stat ui-profile-stat">
+            <strong>{{ tabState.observations.total || '--' }}</strong>
+            <span>Pozorovania</span>
+          </div>
+          <div class="stat ui-profile-stat">
+            <strong>{{ tabState.events.total || '--' }}</strong>
+            <span>Sledovane udalosti</span>
+          </div>
+        </div>
+
+      </section>
+
+      <BaseModal
+        v-if="auth.user"
+        v-model:open="avatarModalOpen"
+        title="Upravit profilovy avatar"
+        test-id="profile-avatar-modal"
+        close-test-id="close-profile-avatar-modal"
+      >
+        <template #description>
+          <p class="avatarCardSub avatarModalSub">Vyber si fotku alebo personalizovany avatar.</p>
+        </template>
+
+        <div class="avatarEditorBody">
+          <div class="avatarModeSwitch" role="tablist" aria-label="Rezim profiloveho avatara">
+            <button
+              type="button"
+              class="modeBtn"
+              :class="{ active: avatarDraft.mode === 'image' }"
+              @click="setAvatarMode('image')"
+            >
+              Fotka
+            </button>
+            <button
+              type="button"
+              class="modeBtn"
+              :class="{ active: avatarDraft.mode === 'generated' }"
+              @click="setAvatarMode('generated')"
+            >
+              Avatar
+            </button>
+          </div>
+
+          <div class="avatarPreviewWrap">
+            <div class="avatar avatarPreviewAvatar">
+              <UserAvatar
+                class="avatarImg"
+                :user="auth.user"
+                :size="112"
+                :avatar-url="avatarSrc"
+                :mode="avatarDraft.mode"
+                :prefer-image="avatarDraft.mode === 'image'"
+                :color-index="avatarDraft.color"
+                :icon-index="avatarDraft.icon"
+                :seed="avatarDraft.seed"
+                :alt="`${displayName} avatar`"
+              />
+            </div>
+            <p class="avatarHint">Pri mode Fotka bez obrazka ostava fallback avatar.</p>
+          </div>
+
+          <InlineStatus v-if="avatarErr" variant="error" :message="avatarErr" class="avatarMsg" />
+
+          <template v-if="avatarDraft.mode === 'image'">
+            <div class="avatarImageActions">
+              <button
+                type="button"
+                class="ui-btn ui-btn--secondary"
+                :disabled="avatarUploading || avatarRemoving"
+                @click="openPicker('avatar')"
+              >
+                {{ avatarUploading ? 'Nahravam...' : 'Nahrat fotku' }}
+              </button>
+              <button
+                type="button"
+                class="ui-btn ui-btn--ghost"
+                :disabled="avatarUploading || avatarRemoving"
+                @click="removeAvatarImage"
+              >
+                {{ avatarRemoving ? 'Odstranujem...' : 'Odstranit fotku' }}
+              </button>
+              <input
+                ref="avatarInput"
+                class="fileInput"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                @change="onMediaChange('avatar', $event)"
+              />
+            </div>
+            <p class="avatarHint">Odporucana velkost: aspon 512x512 px, JPG/PNG/WebP, max 3 MB.</p>
+          </template>
+
+          <template v-else>
+            <div class="avatarPicker">
+              <div class="avatarPickerLabel">Symbol</div>
+              <div class="avatarIconGrid">
+                <button
+                  v-for="option in iconOptions"
+                  :key="option.index"
+                  type="button"
+                  class="avatarChoice iconChoice"
+                  :class="{ active: avatarResolved.iconIndex === option.index }"
+                  @click="selectAvatarIcon(option.index)"
+                >
+                  <DefaultAvatar
+                    class="choiceAvatar"
+                    :size="40"
+                    :color-index="avatarResolved.colorIndex"
+                    :icon-index="option.index"
+                  />
+                  <span class="choiceLabel">{{ option.label }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="avatarPicker">
+              <div class="avatarPickerLabel">Farba</div>
+              <div class="avatarColorGrid">
+                <button
+                  v-for="(color, index) in AVATAR_COLORS"
+                  :key="color"
+                  type="button"
+                  class="avatarChoice colorChoice"
+                  :class="{ active: avatarResolved.colorIndex === index }"
+                  :style="{ '--avatar-choice-color': color }"
+                  @click="selectAvatarColor(index)"
+                >
+                  <span class="colorSwatch" aria-hidden="true"></span>
+                  <span class="choiceLabel">Farba {{ index + 1 }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="avatarActionRow">
+              <button type="button" class="ui-btn ui-btn--secondary" :disabled="avatarSaving" @click="randomizeAvatar">
+                Nahodne
+              </button>
+              <button type="button" class="ui-btn ui-btn--ghost" :disabled="avatarSaving" @click="resetGeneratedAvatar">
+                Reset
+              </button>
+            </div>
+          </template>
+
+          <div class="avatarActionRow avatarActionRowSave">
+            <button type="button" class="ui-btn ui-btn--ghost" :disabled="avatarSaving" @click="avatarModalOpen = false">
+              Zavriet
+            </button>
+            <button type="button" class="ui-btn ui-btn--primary" :disabled="avatarSaving" @click="saveAvatarPreferences">
+              {{ avatarSaving ? 'Ukladam...' : 'Ulozit' }}
+            </button>
+          </div>
+        </div>
+      </BaseModal>
+
+      <section v-if="pinnedPost" class="card pinCard">
+        <div class="pinHeader">
+          <div class="pinTitle">Pripnuty prispevok</div>
+          <button
+            class="ui-btn ui-btn--ghost"
+            :disabled="pinLoadingId === pinnedPost.id"
+            @click="togglePin(pinnedPost)"
+          >
+            {{ pinLoadingId === pinnedPost.id ? 'Odopinam...' : 'Odopnut' }}
+          </button>
+        </div>
+        <div class="pinBody">
+          <div class="pinContent">{{ pinnedPost.content }}</div>
+          <div v-if="pinnedPost.attachment_url" class="attachment">
+            <img
+              v-if="isImage(pinnedPost)"
+              class="attachmentImg"
+              :src="pinnedPost.attachment_url"
+              alt="attachment"
+            />
+            <a v-else class="attachmentFile" :href="pinnedPost.attachment_url" target="_blank" rel="noreferrer">
+              {{ pinnedPost.attachment_original_name || 'Priloha' }}
+            </a>
+          </div>
+        </div>
+      </section>
+
+
+      <section v-if="auth.user" class="feedShell">
+        <div class="tabs">
+          <button
+            v-for="t in tabs"
+            :key="t.key"
+            class="tab"
+            :class="{ active: activeTab === t.key }"
+            @click="setActiveTab(t.key)"
+          >
+            {{ t.label }}
+            <span v-if="t.key === 'observations' && tabState.observations.total !== null" class="tabCount">
+              {{ tabState.observations.total }}
+            </span>
+          </button>
+        </div>
+
+        <InlineStatus v-if="actionMsg" variant="success" :message="actionMsg" />
+        <InlineStatus v-if="actionErr" variant="error" :message="actionErr" />
+
+        <InlineStatus
+          v-if="tabState[activeTab].err"
+          variant="error"
+          :message="tabState[activeTab].err"
+          action-label="Skusit znova"
+          @action="loadTab(activeTab, true)"
+        />
+
+        <AsyncState
+          v-if="shouldShowLoadingState"
+          mode="loading"
+          title="Nacitavam obsah"
+          loading-style="skeleton"
+          :skeleton-rows="4"
+          compact
+        />
+
+        <AsyncState
+          v-else-if="shouldShowEmptyState"
+          mode="empty"
+          :title="globalEmptyTitle"
+          :message="globalEmptyMessage"
+          :action-label="globalEmptyActionLabel"
+          compact
+          @action="onGlobalEmptyAction"
+        />
+
+          <div v-else-if="activeTab === 'observations'" class="observationsList">
+            <ObservationCard
+              v-for="item in tabState.observations.items"
+              :key="item.id"
+              :observation="item"
+              :clickable="true"
+              :show-author="false"
+              @open="openObservation"
+            />
+          </div>
+
+          <div v-else-if="activeTab === 'events'">
+            <div class="eventSegments" role="tablist" aria-label="Filter udalosti">
+              <button
+                v-for="segment in eventSegments"
+                :key="segment.key"
+                type="button"
+                class="eventSegment"
+                :class="{ active: activeEventSegment === segment.key }"
+                role="tab"
+                :aria-selected="activeEventSegment === segment.key ? 'true' : 'false'"
+                @click="activeEventSegment = segment.key"
+              >
+                <span>{{ segment.label }}</span>
+                <span class="eventSegment__count">{{ eventSegmentCounts[segment.key] || 0 }}</span>
+              </button>
+            </div>
+
+            <AsyncState
+              v-if="activeEventItems.length === 0"
+              mode="empty"
+              :title="eventSegmentEmptyTitle"
+              :message="eventSegmentEmptyMessage"
+              compact
+            />
+
+            <div v-else class="eventGrid">
+              <ProfileEventCard
+                v-for="eventItem in activeEventItems"
+                :key="eventItem.id"
+                :event="eventItem"
+                @open="openFollowedEvent"
+              />
+            </div>
+          </div>
+
+          <div v-else class="postList ui-stream">
+            <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem ui-stream-item" :class="{ pinned: isPinnedOnProfile(p) }">
+              <div class="avatar sm">
+                <UserAvatar
+                  class="avatarImg"
+                  :user="auth.user"
+                  :alt="`${displayName} avatar`"
+                />
+              </div>
+
+              <div class="postBody">
+                <div class="postMeta ui-stream-item__meta">
+                  <div class="postName">{{ displayName }}</div>
+                  <div class="dot">&middot;</div>
+                  <div class="postTime">{{ formatPostTimestamp(p) }}</div>
+                </div>
+
+                <div v-if="p.parent && activeTab === 'replies'" class="replyContext">
+                  Odpoved na: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
+                  <span class="replyText">{{ shorten(p.parent.content) }}</span>
+                </div>
+
+                <HashtagText class="postContent ui-stream-item__body" :content="p.content" />
+
+                <div v-if="attachedEventForPost(p)" class="attachedEventCard">
+                  <div class="attachedEventCopy">
+                    <p class="attachedEventTitle">{{ attachedEventForPost(p).title || 'Udalost' }}</p>
+                    <p class="attachedEventDate">
+                      {{ formatEventRange(attachedEventForPost(p).start_at, attachedEventForPost(p).end_at) }}
+                    </p>
+                  </div>
+                  <button type="button" class="ui-btn ui-btn--secondary" @click="openAttachedEvent(p)">
+                    Otvorit udalost
+                  </button>
+                </div>
+
+                <div v-if="postGifUrl(p)" class="attachment">
+                  <img class="attachmentImg" :src="postGifUrl(p)" :alt="postGifTitle(p)" />
+                </div>
+
+                <div v-if="p.attachment_url" class="attachment">
+                  <img
+                    v-if="isImage(p)"
+                    class="attachmentImg"
+                    :src="p.attachment_url"
+                    alt="attachment"
+                  />
+                  <a v-else class="attachmentFile" :href="p.attachment_url" target="_blank" rel="noreferrer">
+                    {{ p.attachment_original_name || 'Priloha' }}
+                  </a>
+                </div>
+
+                <div class="postActions ui-stream-item__actions" @click.stop>
+                  <button
+                    class="postActionIconBtn"
+                    type="button"
+                    title="Zobrazit vlakno"
+                    aria-label="Zobrazit vlakno"
+                    @click.stop="openPost(p)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.3 8.3 0 0 1-3.6-.8L3 21l1.8-5.8a8.3 8.3 0 0 1-.8-3.7A8.5 8.5 0 0 1 12.5 3h.5A8.5 8.5 0 0 1 21 11.5z" />
+                    </svg>
+                    <span class="postActionLabel">Zobrazit vlakno</span>
+                  </button>
+                  <button
+                    v-if="canPinProfilePost(p)"
+                    class="postActionIconBtn"
+                    :class="{ active: isPinnedOnProfile(p) }"
+                    type="button"
+                    :title="isPinnedOnProfile(p) ? 'Odopnut' : 'Pripnut'"
+                    :aria-label="isPinnedOnProfile(p) ? 'Odopnut' : 'Pripnut'"
+                    :disabled="pinLoadingId === p.id"
+                    @click.stop="togglePin(p)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M14 3v5.2l4 3V13h-5v7l-2-1.9V13H6v-1.8l4-3V3z" />
+                    </svg>
+                    <span class="postActionLabel">
+                      {{ pinLoadingId === p.id ? 'Ukladam...' : (isPinnedOnProfile(p) ? 'Odopnut' : 'Pripnut') }}
+                    </span>
+                  </button>
+                  <button
+                    class="postActionIconBtn danger"
+                    type="button"
+                    title="Vymazat"
+                    aria-label="Vymazat"
+                    :disabled="deleteLoadingId === p.id"
+                    @click.stop="deletePost(p)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 7h16" />
+                      <path d="M9 7V5h6v2" />
+                      <path d="M7 7l1 12h8l1-12" />
+                      <path d="M10 11v5M14 11v5" />
+                    </svg>
+                    <span class="postActionLabel">{{ deleteLoadingId === p.id ? 'Mazem...' : 'Vymazat' }}</span>
+                  </button>
+                </div>
+              </div>
+            </article>
+          </div>
+
+        <div class="loadMore">
+          <button
+            v-if="tabState[activeTab].next"
+            class="ui-btn ui-btn--secondary"
+            :disabled="tabState[activeTab].loading"
+            @click="loadTab(activeTab, false)"
+          >
+            {{ tabState[activeTab].loading ? 'Nacitavam...' : 'Nacitat viac' }}
+          </button>
+        </div>
+      </section>
+    </template>
+  </div>

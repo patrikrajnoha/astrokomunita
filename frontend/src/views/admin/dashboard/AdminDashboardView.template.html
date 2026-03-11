@@ -1,0 +1,122 @@
+
+  <AdminPageShell title="Prehľad">
+    <template #right-actions>
+      <button type="button" class="ui-btn ui-btn--primary" :disabled="loading" @click="loadDashboard(true)">
+        {{ loading ? 'Načítavam...' : 'Obnoviť' }}
+      </button>
+      <button type="button" class="ui-btn ui-btn--secondary" :disabled="exporting" @click="exportCsv">
+        {{ exporting ? 'Exportujem...' : 'Export CSV' }}
+      </button>
+    </template>
+
+    <div class="dashboardView">
+      <div v-if="error" class="dashboardAlert">
+        <InlineStatus
+          variant="error"
+          :message="error"
+          action-label="Skúsiť znova"
+          @action="loadDashboard(true)"
+        />
+      </div>
+
+      <section class="settingsRow sectionFade" aria-label="Overenie e-mailu">
+        <div class="settingsCopy">
+          <div class="settingsTitleRow">
+            <h2 class="settingsLabel">Overenie e-mailu pre nových používateľov</h2>
+            <span class="settingsInfo" :title="emailVerificationHint">i</span>
+          </div>
+          <InlineStatus v-if="authSettingsError" variant="error" :message="authSettingsError" />
+        </div>
+
+        <label class="switchField">
+          <span class="switchState">{{ emailVerificationStateLabel }}</span>
+          <span class="switchControl">
+            <input
+              :checked="emailVerificationEnabled"
+              class="switchInput"
+              type="checkbox"
+              role="switch"
+              :disabled="authSettingsLoading || authSettingsSaving"
+              aria-label="Prepnúť overenie e-mailu pre nových používateľov"
+              @change="toggleEmailVerification($event.target.checked)"
+            />
+            <span class="switchTrack"></span>
+          </span>
+        </label>
+      </section>
+
+      <section class="kpiGrid sectionFade" aria-label="Kľúčové ukazovatele">
+        <template v-if="loading && !stats">
+          <div v-for="idx in 5" :key="`kpi-skeleton-${idx}`" class="skeletonCard"></div>
+        </template>
+
+        <template v-else>
+          <KpiCard
+            v-for="item in kpiCards"
+            :key="item.key"
+            :label="item.label"
+            :value="formatNumber(item.value)"
+            :view-to="item.viewTo"
+            :tone="item.tone || 'default'"
+          />
+        </template>
+      </section>
+
+      <section class="mainGrid sectionFade" aria-label="Trend a rýchle akcie">
+        <DashboardSection title="Trend (30 dní)">
+          <template #header-actions>
+            <div class="metricTabs" role="group" aria-label="Prepínanie trendu">
+              <button
+                v-for="option in trendMetricOptions"
+                :key="option.key"
+                type="button"
+                class="metricBtn"
+                :class="{ active: trendMetric === option.key }"
+                @click="trendMetric = option.key"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </template>
+
+          <StatsChart :points="trendPoints" :metric-key="trendMetric" />
+        </DashboardSection>
+
+        <DashboardSection title="Rýchle akcie">
+          <div class="actionList">
+            <QuickActionTile
+              v-for="action in quickActions"
+              :key="action.title"
+              :title="action.title"
+              :subtitle="action.subtitle"
+              :to="action.to"
+              :badge="formatNumber(action.badge)"
+              :badge-tone="action.badgeTone || 'neutral'"
+            />
+          </div>
+        </DashboardSection>
+      </section>
+
+      <section class="summaryStrip sectionFade" aria-label="Rozloženie účtov">
+        <div class="summaryGroup">
+          <p class="summaryLabel">Podľa rolí</p>
+          <div class="summaryItems">
+            <div v-for="item in byRoleList" :key="item.key" class="summaryItem">
+              <strong>{{ formatNumber(item.value) }}</strong>
+              <span>{{ item.label }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="summaryGroup">
+          <p class="summaryLabel">Podľa regiónu</p>
+          <div class="summaryItems">
+            <div v-for="item in byRegionList" :key="item.key" class="summaryItem">
+              <strong>{{ formatNumber(item.value) }}</strong>
+              <span>{{ item.label }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </AdminPageShell>

@@ -1,0 +1,338 @@
+
+  <div class="events-page">
+    <section class="hero">
+      <div class="hero-inner">
+        <h1 class="hero-title">Astronomicke udalosti</h1>
+        <p class="hero-subtitle">Najblizsie ukazy a archiv na jednom mieste.</p>
+      </div>
+    </section>
+
+    <main class="content-wrap">
+      <section class="filter-panel">
+        <div class="toolbar-row">
+          <div class="toolbar-segments">
+            <div class="segmented-control" role="tablist" aria-label="Zobrazenie udalosti">
+              <button
+                class="segment-btn"
+                :class="{ active: !isCalendarView }"
+                type="button"
+                @click="setView('list')"
+              >
+                Zoznam
+              </button>
+              <button
+                class="segment-btn"
+                :class="{ active: isCalendarView }"
+                type="button"
+                @click="setView('calendar')"
+              >
+                Kalendar
+              </button>
+            </div>
+
+            <div
+              v-if="!isCalendarView"
+              class="segmented-control"
+              role="tablist"
+              aria-label="Casovy rozsah udalosti"
+            >
+              <button
+                v-for="option in scopeOptions"
+                :key="option.value"
+                class="segment-btn"
+                :class="{ active: selectedScope === option.value }"
+                type="button"
+                @click="setScope(option.value)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
+
+          <div v-if="!isCalendarView" class="toolbar-actions">
+            <button
+              class="filter-toggle-btn"
+              type="button"
+              :aria-expanded="filtersOpen"
+              @click="filtersOpen = !filtersOpen"
+            >
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M3 5h14" />
+                <path d="M6 10h8" />
+                <path d="M8 15h4" />
+              </svg>
+              <span>{{ filtersOpen ? 'Skryt filtre' : 'Zobrazit filtre' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <template v-if="!isCalendarView">
+          <div v-if="filtersOpen" class="filters-content">
+            <div class="filter-row" role="tablist" aria-label="Filtre typu udalosti">
+              <button
+                class="filter-btn"
+                :class="{ active: selectedType === 'all' }"
+                type="button"
+                @click="selectedType = 'all'"
+              >
+                Vsetky
+              </button>
+              <button
+                class="filter-btn"
+                :class="{ active: selectedType === 'meteors' }"
+                type="button"
+                @click="selectedType = 'meteors'"
+              >
+                Meteoricke roje
+              </button>
+              <button
+                class="filter-btn"
+                :class="{ active: selectedType === 'eclipses' }"
+                type="button"
+                @click="selectedType = 'eclipses'"
+              >
+                Zatmenia
+              </button>
+              <button
+                class="filter-btn"
+                :class="{ active: selectedType === 'conjunctions' }"
+                type="button"
+                @click="selectedType = 'conjunctions'"
+              >
+                Konjunkcie
+              </button>
+              <button
+                class="filter-btn"
+                :class="{ active: selectedType === 'comets' }"
+                type="button"
+                @click="selectedType = 'comets'"
+              >
+                Komety
+              </button>
+            </div>
+
+            <div class="advanced-filters">
+              <label class="filter-field">
+                <span>Rok</span>
+                <select v-model.number="selectedYear" @change="onPeriodSelectionChanged">
+                  <option v-for="year in yearOptions" :key="year" :value="year">{{ year }}</option>
+                </select>
+              </label>
+
+              <label class="filter-field">
+                <span>Obdobie</span>
+                <select v-model="selectedPeriod" @change="onPeriodSelectionChanged">
+                  <option value="month">Mesiac</option>
+                  <option value="week">Tyzden</option>
+                  <option value="year">Vsetko v roku</option>
+                </select>
+              </label>
+
+              <label v-if="selectedPeriod === 'month'" class="filter-field">
+                <span>Mesiac</span>
+                <select v-model.number="selectedMonth" @change="onPeriodSelectionChanged">
+                  <option v-for="month in monthOptions" :key="month.value" :value="month.value">
+                    {{ month.label }}
+                  </option>
+                </select>
+              </label>
+
+              <label v-if="selectedPeriod === 'week'" class="filter-field">
+                <span>ISO tyzden</span>
+                <select v-model.number="selectedWeek" @change="onPeriodSelectionChanged">
+                  <option v-for="week in weekOptions" :key="week" :value="week">{{ week }}</option>
+                </select>
+              </label>
+
+              <label class="filter-field search-field">
+                <span>Hladaj</span>
+                <input
+                  v-model.trim="searchQuery"
+                  type="search"
+                  placeholder="Nazov alebo popis udalosti"
+                  autocomplete="off"
+                />
+              </label>
+
+              <label class="filter-field">
+                <span>Region</span>
+                <select v-model="selectedRegion">
+                  <option value="all">Vsetky regiony</option>
+                  <option value="sk">Slovensko</option>
+                  <option value="eu">Europa</option>
+                  <option value="global">Globalne</option>
+                </select>
+              </label>
+
+              <button class="secondary-btn" type="button" @click="resetFilters">
+                Reset filtrov
+              </button>
+            </div>
+          </div>
+
+          <p class="filter-meta">
+            Vysledkov: <strong>{{ totalEvents }}</strong>
+            <span v-if="hasPagination"> &middot; Strana {{ currentPage }} z {{ lastPage }}</span>
+          </p>
+        </template>
+      </section>
+
+      <section v-if="isCalendarView" class="calendar-panel" data-tour="calendar">
+        <CalendarView />
+      </section>
+
+      <AsyncState
+        v-else-if="loading"
+        mode="loading"
+        title="Nacitavam udalosti"
+        loading-style="skeleton"
+        :skeleton-rows="5"
+        compact
+      />
+
+      <section v-else-if="error" class="state-card state-error">
+        <InlineStatus
+          variant="error"
+          :message="error"
+          action-label="Skusit znova"
+          @action="fetchEvents"
+        />
+      </section>
+
+      <section v-else-if="events.length > 0">
+        <div
+          v-if="shouldShowRealtimeBanner"
+          class="realtime-banner"
+          role="status"
+          aria-live="polite"
+        >
+          <button
+            class="realtime-banner-main"
+            type="button"
+            :disabled="loadingRealtimePending"
+            @click="loadPendingRealtimeEvents"
+          >
+            {{ realtimeBannerLabel }}
+          </button>
+          <button
+            class="realtime-banner-dismiss"
+            type="button"
+            aria-label="Skryt banner novych udalosti"
+            @click="dismissRealtimeBanner"
+          >
+            x
+          </button>
+        </div>
+
+        <div class="events-grid">
+          <RouterLink
+            v-for="eventItem in events"
+            :key="eventItem.id"
+            :to="`/events/${eventItem.id}`"
+            class="event-card"
+            :class="{ 'event-card-new': isEventFresh(eventItem.id) }"
+          >
+            <div class="card-content">
+              <div class="card-header">
+                <div class="card-heading">
+                  <h3 class="card-title">{{ eventDisplayTitle(eventItem) }}</h3>
+                </div>
+
+                <button
+                  class="favorite-switch"
+                  :class="{ active: favorites.isFavorite(eventItem.id) }"
+                  type="button"
+                  :disabled="favorites.loading || !auth.isAuthed"
+                  :aria-pressed="favorites.isFavorite(eventItem.id)"
+                  :aria-label="favoriteToggleLabel(eventItem.id)"
+                  @click.prevent.stop="toggleFavorite(eventItem.id)"
+                >
+                  <span class="favorite-switch-track" aria-hidden="true">
+                    <span class="favorite-switch-thumb"></span>
+                  </span>
+                  <span class="sr-only">{{ favoriteToggleLabel(eventItem.id) }}</span>
+                </button>
+              </div>
+
+              <div class="meta-row">
+                <span class="type-badge">{{ typeLabel(eventItem.type) }}</span>
+                <span
+                  v-if="publicConfidenceBadgeLabel(eventItem)"
+                  class="confidence-badge"
+                  :class="`confidence-${eventItem?.public_confidence?.level || 'unknown'}`"
+                  :title="publicConfidenceTooltip(eventItem)"
+                >
+                  {{ publicConfidenceBadgeLabel(eventItem) }}
+                </span>
+                <span class="card-meta-text">{{ formatCardDate(eventItem.max_at || eventItem.start_at) }}</span>
+                <span class="card-meta-separator" aria-hidden="true">&middot;</span>
+                <span
+                  class="card-meta-text"
+                  :title="eventCardTimeAriaLabel(eventItem)"
+                  :aria-label="eventCardTimeAriaLabel(eventItem)"
+                >
+                  {{ eventCardTimeMessage(eventItem) }}
+                  <span v-if="eventCardTimeTimezoneLabel(eventItem)" class="card-timezone-label">
+                    ({{ eventCardTimeTimezoneLabel(eventItem) }})
+                  </span>
+                </span>
+                <span
+                  v-if="shouldShowRegion(eventItem.region_scope)"
+                  class="card-meta-separator"
+                  aria-hidden="true"
+                  >&middot;</span
+                >
+                <span v-if="shouldShowRegion(eventItem.region_scope)" class="card-meta-text">{{
+                  regionLabel(eventItem.region_scope)
+                }}</span>
+              </div>
+
+              <p v-if="eventCardSummary(eventItem)" class="card-description">
+                {{ eventCardSummary(eventItem) }}
+              </p>
+
+              <div class="card-footer">
+                <span class="open-label">Detail &rarr;</span>
+              </div>
+            </div>
+          </RouterLink>
+        </div>
+
+        <div v-if="hasPagination" class="pager">
+          <p class="pager-meta">
+            Strana {{ currentPage }} z {{ lastPage }} | {{ totalEvents }} spolu
+          </p>
+          <div class="pager-actions">
+            <button
+              class="pager-btn"
+              type="button"
+              :disabled="loading || currentPage <= 1"
+              @click="prevPage"
+            >
+              Predosla
+            </button>
+            <button
+              class="pager-btn"
+              type="button"
+              :disabled="loading || currentPage >= lastPage"
+              @click="nextPage"
+            >
+              Dalsia
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <FutureEventsEmptyState
+        v-else-if="shouldUseFutureEmptyState"
+        @show-all="showAllEvents"
+        @reset-filters="resetFilters"
+      />
+
+      <div v-else-if="!isCalendarView && !loading && !error" class="state-card state-empty">
+        <h3>{{ selectedScope === 'past' ? 'Ziadne minule udalosti' : 'Ziadne udalosti' }}</h3>
+        <p>Skus upravit filtre, zmenit scope alebo rozsirit vyhladavanie.</p>
+        <button class="secondary-btn" type="button" @click="resetFilters">Vymazat filtre</button>
+      </div>
+    </main>
+  </div>

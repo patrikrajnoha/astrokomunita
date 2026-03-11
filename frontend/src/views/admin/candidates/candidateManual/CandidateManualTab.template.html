@@ -1,0 +1,359 @@
+
+  <div class="uxOverview uxOverview--manual">
+    <div class="uxOverview__item">
+      <span>Na stranke</span>
+      <strong>{{ props.manualStats.total }}</strong>
+    </div>
+    <div class="uxOverview__item">
+      <span>Draft</span>
+      <strong>{{ props.manualStats.draft }}</strong>
+    </div>
+    <div class="uxOverview__item">
+      <span>Publikovane</span>
+      <strong>{{ props.manualStats.published }}</strong>
+    </div>
+  </div>
+
+  <div class="manualToolbar">
+    <button
+      type="button"
+      class="toolbarButton toolbarButton--primary"
+      :disabled="props.manualLoading"
+      @click="openManualFormCreate"
+    >
+      Vytvorit manualnu udalost
+    </button>
+    <button
+      type="button"
+      class="toolbarButton toolbarButton--ghost"
+      :disabled="props.manualLoading"
+      @click="clearManualFilters"
+    >
+      Resetovat filtre
+    </button>
+  </div>
+
+  <div class="filterPanel manualFilterPanel">
+    <div class="filterGrid">
+      <div class="filterField">
+        <label>Stav</label>
+        <select
+          class="filterInput"
+          :value="props.manualStatus"
+          :disabled="props.manualLoading"
+          @change="updateManualStatus($event.target.value)"
+        >
+          <option value="draft">Navrh</option>
+          <option value="published">Publikovane</option>
+        </select>
+      </div>
+
+      <div class="filterField">
+        <label>Typ</label>
+        <select
+          class="filterInput"
+          :value="props.manualType"
+          :disabled="props.manualLoading"
+          @change="updateManualType($event.target.value)"
+        >
+          <option value="">vsetky</option>
+          <option value="eclipse_lunar">eclipse_lunar</option>
+          <option value="eclipse_solar">eclipse_solar</option>
+          <option value="meteor_shower">meteor_shower</option>
+          <option value="planetary_event">planetary_event</option>
+          <option value="other">other</option>
+        </select>
+      </div>
+
+      <div class="filterField">
+        <label>Na stranku</label>
+        <select
+          class="filterInput"
+          :value="props.manualPerPage"
+          :disabled="props.manualLoading"
+          @change="updateManualPerPage($event.target.value)"
+        >
+          <option :value="10">10</option>
+          <option :value="20">20</option>
+          <option :value="50">50</option>
+          <option :value="100">100</option>
+        </select>
+      </div>
+
+      <div class="filterField filterField--wide">
+        <label>Hladaj</label>
+        <input
+          class="filterInput"
+          :value="props.manualQ"
+          :disabled="props.manualLoading"
+          placeholder="hladaj v nazve"
+          @input="updateManualQ($event.target.value)"
+          @keyup.enter="searchManual"
+        />
+      </div>
+
+      <div class="filterActions">
+        <button
+          type="button"
+          class="toolbarButton toolbarButton--primary"
+          :disabled="props.manualLoading"
+          @click="searchManual"
+        >
+          Hladat
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <section v-if="props.showManualForm" class="manualFormPanel">
+    <div class="manualFormHeader">
+      <div>
+        <div class="manualFormTitle">
+          {{ props.manualEditingId ? 'Upravit manualny navrh' : 'Novy manualny navrh' }}
+        </div>
+        <div class="manualFormHint">Vypln nazov, typ a termin. Zvysok mozes doplnit neskor.</div>
+      </div>
+      <div class="manualQuickActions">
+        <button
+          type="button"
+          class="quickChip quickChip--primary"
+          :disabled="props.manualLoading"
+          @click="setManualStartNow"
+        >
+          Zaciatok teraz
+        </button>
+        <button
+          type="button"
+          class="quickChip"
+          :disabled="props.manualLoading"
+          @click="setManualEndByHours(1)"
+        >
+          Koniec +1 h
+        </button>
+        <button
+          type="button"
+          class="quickChip"
+          :disabled="props.manualLoading"
+          @click="setManualEndByHours(2)"
+        >
+          Koniec +2 h
+        </button>
+      </div>
+    </div>
+
+    <div class="manualFormGrid">
+      <div class="manualField manualField--wide">
+        <label>Nazov udalosti *</label>
+        <input
+          type="text"
+          class="filterInput manualInput"
+          :value="props.manualForm.title || ''"
+          :disabled="props.manualLoading"
+          placeholder="napr. Pozorovanie mesiaca na hvezdarni"
+          @input="updateManualFormField('title', $event.target.value)"
+        />
+      </div>
+
+      <div class="manualField">
+        <label>Typ *</label>
+        <select
+          class="filterInput manualInput"
+          :value="props.manualForm.event_type || ''"
+          :disabled="props.manualLoading"
+          @change="updateManualFormField('event_type', $event.target.value)"
+        >
+          <option v-for="opt in props.manualTypeOptions" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+      </div>
+
+      <div class="manualField">
+        <label>Zaciatok *</label>
+        <input
+          type="datetime-local"
+          class="filterInput manualInput"
+          :value="props.manualForm.starts_at || ''"
+          :disabled="props.manualLoading"
+          @input="updateManualFormField('starts_at', $event.target.value)"
+        />
+      </div>
+
+      <div class="manualField">
+        <label>Koniec (volitelne)</label>
+        <input
+          type="datetime-local"
+          class="filterInput manualInput"
+          :value="props.manualForm.ends_at || ''"
+          :disabled="props.manualLoading"
+          @input="updateManualFormField('ends_at', $event.target.value)"
+        />
+      </div>
+
+      <div class="manualField manualField--full">
+        <label>Popis</label>
+        <textarea
+          rows="4"
+          class="filterInput manualTextarea"
+          :value="props.manualForm.description || ''"
+          :disabled="props.manualLoading"
+          placeholder="Kratky popis, co sa deje a kedy je najlepsie pozorovanie."
+          @input="updateManualFormField('description', $event.target.value)"
+        ></textarea>
+      </div>
+    </div>
+
+    <div v-if="props.manualFormErrors.length > 0" class="manualFormError">
+      {{ props.manualFormErrors[0] }}
+    </div>
+
+    <div class="manualFormActions">
+      <button
+        type="button"
+        class="toolbarButton toolbarButton--ghost"
+        :disabled="props.manualLoading"
+        @click="closeManualForm"
+      >
+        Zrusit
+      </button>
+      <button
+        type="button"
+        class="toolbarButton toolbarButton--primary"
+        :disabled="props.manualLoading || !props.manualCanSave"
+        @click="saveManual"
+      >
+        {{ props.manualLoading ? 'Uklada sa...' : 'Ulozit navrh' }}
+      </button>
+    </div>
+  </section>
+
+  <div v-if="props.manualError" class="inlineError">
+    {{ props.manualError }}
+  </div>
+
+  <div v-if="props.manualLoading" class="inlineLoading">Nacitavam...</div>
+
+  <div v-if="props.manualData && !props.manualLoading" class="manualTableWrap">
+    <table class="manualTable">
+      <thead>
+        <tr>
+          <th>Nazov</th>
+          <th>Typ</th>
+          <th>Zaciatok</th>
+          <th>Stav</th>
+          <th>Akcie</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="row in manualRows" :key="row.id">
+          <td>{{ row.title }}</td>
+          <td><span class="typeTag">{{ row.event_type }}</span></td>
+          <td class="cellMono">{{ props.formatDate(row.starts_at) }}</td>
+          <td>
+            <span :class="['manualStatusTag', { 'manualStatusTag--published': isPublished(row) }]">
+              {{ row.status }}
+            </span>
+          </td>
+          <td>
+            <div class="rowActions rowActions--right">
+              <button
+                type="button"
+                class="rowActionButton"
+                :disabled="props.manualLoading"
+                @click="openManualFormEdit(row)"
+              >
+                Upravit
+              </button>
+              <button
+                type="button"
+                class="rowActionButton"
+                :disabled="props.manualLoading"
+                @click="deleteManual(row)"
+              >
+                Zmazat
+              </button>
+              <button
+                type="button"
+                class="rowActionButton rowActionButton--primary"
+                :disabled="props.manualLoading || isPublished(row)"
+                @click="publishManual(row)"
+              >
+                Publikovat
+              </button>
+            </div>
+          </td>
+        </tr>
+        <tr v-if="manualRows.length === 0">
+          <td colspan="5" class="tableEmpty">Ziadne drafty.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div v-if="props.manualData && !props.manualLoading" class="manualMobileList">
+    <article v-for="row in manualRows" :key="`manual-mobile-${row.id}`" class="manualMobileCard">
+      <div class="manualMobileCard__head">
+        <span class="cellMono">#{{ row.id }}</span>
+        <span :class="['manualStatusTag', { 'manualStatusTag--published': isPublished(row) }]">
+          {{ row.status }}
+        </span>
+      </div>
+      <div class="manualMobileCard__title">{{ row.title }}</div>
+      <div class="manualMobileCard__meta">
+        <span class="typeTag">{{ row.event_type }}</span>
+        <span class="cellMono">{{ props.formatDate(row.starts_at) }}</span>
+      </div>
+      <div class="rowActions">
+        <button
+          type="button"
+          class="rowActionButton"
+          :disabled="props.manualLoading"
+          @click="openManualFormEdit(row)"
+        >
+          Upravit
+        </button>
+        <button
+          type="button"
+          class="rowActionButton"
+          :disabled="props.manualLoading"
+          @click="deleteManual(row)"
+        >
+          Zmazat
+        </button>
+        <button
+          type="button"
+          class="rowActionButton rowActionButton--primary"
+          :disabled="props.manualLoading || isPublished(row)"
+          @click="publishManual(row)"
+        >
+          Publikovat
+        </button>
+      </div>
+    </article>
+    <div v-if="manualRows.length === 0" class="tableEmpty">Ziadne drafty.</div>
+  </div>
+
+  <div v-if="props.manualData" class="pagerRow">
+    <div class="pagerMeta">
+      Strana {{ props.manualData.current_page }} / {{ props.manualData.last_page }} (spolu
+      {{ props.manualData.total }})
+    </div>
+    <div class="pagerActions">
+      <button
+        type="button"
+        class="toolbarButton toolbarButton--ghost"
+        :disabled="props.manualLoading || props.manualPage <= 1"
+        @click="prevManualPage"
+      >
+        Pred
+      </button>
+      <button
+        type="button"
+        class="toolbarButton toolbarButton--ghost"
+        :disabled="props.manualLoading || (props.manualData && props.manualPage >= props.manualData.last_page)"
+        @click="nextManualPage"
+      >
+        Dalsia
+      </button>
+    </div>
+  </div>

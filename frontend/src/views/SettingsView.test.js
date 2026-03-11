@@ -380,6 +380,41 @@ describe('SettingsView', () => {
     wrapper.unmount()
   })
 
+  it('shows export cooldown after rate limiting', async () => {
+    httpMock.post.mockImplementation((url) => {
+      if (url === '/me/export/jobs') {
+        return Promise.reject({
+          response: {
+            status: 429,
+            headers: {
+              'retry-after': '42',
+            },
+            data: {},
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: {
+          message: 'ok',
+        },
+      })
+    })
+
+    const { wrapper } = await mountAt('/settings/data-export')
+
+    await wrapper.get('#settings-export-password').setValue('export-pass-123')
+    await wrapper.get('#settings-export-button').trigger('click')
+    await flush()
+    await flush()
+
+    expect(wrapper.text()).toContain('Prilis vela poziadaviek na export. Skuste to znova o 42 s.')
+    expect(wrapper.get('#settings-export-button').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('#settings-export-button').text()).toContain('Skuste znova o 42s')
+
+    wrapper.unmount()
+  })
+
   it('keeps user activity hidden by default and loads it on demand', async () => {
     httpMock.get.mockImplementation((url) => {
       if (url === '/account/email') {

@@ -1,0 +1,266 @@
+
+.botSection {
+  display: grid;
+  gap: 12px;
+}
+
+.embeddedHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.embeddedTitle {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.embeddedSubtitle {
+  margin: 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  font-size: 0.8rem;
+}
+
+.card {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.66);
+  padding: 12px;
+}
+
+.filterCard {
+  padding: 10px;
+}
+
+.filterRow {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(120px, auto) minmax(130px, auto) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.field {
+  display: grid;
+  gap: 5px;
+  font-size: 0.74rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.94);
+}
+
+.field--search {
+  min-width: 0;
+}
+
+.field input,
+.field select {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.38);
+  color: var(--color-surface);
+  min-height: 34px;
+  padding: 7px 9px;
+}
+
+.field--compact {
+  min-width: 120px;
+}
+
+.field--toggle {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.field--toggle input {
+  width: 15px;
+  height: 15px;
+}
+
+.filterActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionBtn,
+.ghostBtn,
+.toggleBtn {
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.actionBtn {
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
+  background: rgb(var(--color-primary-rgb) / 0.2);
+  color: var(--color-surface);
+}
+
+.ghostBtn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  background: transparent;
+  color: rgb(var(--color-surface-rgb) / 0.95);
+}
+
+.editorCard {
+  display: grid;
+  gap: 8px;
+}
+
+.editorCard h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.editorGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.editorActions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  padding: 8px 9px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.78rem;
+}
+
+.table th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statusCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.name {
+  font-weight: 700;
+}
+
+.muted {
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.muted--small {
+  font-size: 0.72rem;
+}
+
+.status {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.status--ok {
+  border-color: rgb(var(--color-success-rgb) / 0.55);
+  color: var(--color-success);
+}
+
+.status--warn {
+  border-color: rgb(var(--color-warning-rgb) / 0.55);
+  color: var(--color-warning);
+}
+
+.status--fail,
+.status--dead {
+  border-color: rgb(var(--color-danger-rgb) / 0.55);
+  color: var(--color-danger);
+}
+
+.toggleBtn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  background: rgb(var(--color-bg-rgb) / 0.35);
+  color: var(--color-surface);
+}
+
+.rowActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rowMenu {
+  position: relative;
+}
+
+.rowMenu > summary {
+  list-style: none;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.rowMenu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.rowMenuBody {
+  position: absolute;
+  right: 0;
+  margin-top: 6px;
+  min-width: 170px;
+  z-index: 20;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.95);
+  padding: 6px;
+  display: grid;
+  gap: 6px;
+}
+
+.rowMenuBody .ghostBtn {
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.error {
+  color: var(--color-danger);
+  margin: 0;
+}
+
+@media (max-width: 980px) {
+  .filterRow {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .filterActions {
+    justify-content: flex-start;
+  }
+}

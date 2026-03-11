@@ -1,0 +1,102 @@
+
+  <div v-if="open" class="inviteModalRoot" @click.self="close">
+    <section class="inviteModalCard" role="dialog" aria-modal="true" aria-labelledby="invite-ticket-title">
+      <header class="modalHead">
+        <div>
+          <h2 id="invite-ticket-title">Pozvanka / Vstupenka</h2>
+          <p>Posli personalizovanu pozvanku na astronomicke podujatie.</p>
+        </div>
+        <button type="button" class="ghostBtn" @click="close">Zavriet</button>
+      </header>
+
+      <div class="modalBody">
+        <section class="formPanel">
+          <label class="field">
+            <span>Meno na vstupenke</span>
+            <input
+              v-model.trim="attendeeName"
+              type="text"
+              maxlength="80"
+              placeholder="Napr. Jan Novak"
+              data-testid="attendee-name-input"
+              @blur="attendeeNameTouched = true"
+            />
+          </label>
+          <p v-if="attendeeNameError" class="fieldError">{{ attendeeNameError }}</p>
+
+          <button
+            type="button"
+            class="optionalToggle"
+            :aria-expanded="String(showOptionalFields)"
+            @click="showOptionalFields = !showOptionalFields"
+          >
+            {{ showOptionalFields ? 'Skryt volitelne polia' : 'Pridat email a spravu' }}
+          </button>
+
+          <div v-if="showOptionalFields" class="optionalFields">
+            <label class="field">
+              <span>Email pozvaneho (volitelne)</span>
+              <input v-model.trim="inviteeEmail" type="email" placeholder="meno@email.com" />
+            </label>
+
+            <label class="field">
+              <span>Sprava (volitelne)</span>
+              <textarea v-model.trim="message" rows="3" maxlength="240" placeholder="Kratky odkaz k pozvanke" />
+            </label>
+          </div>
+
+          <p v-if="submitError" class="fieldError">{{ submitError }}</p>
+          <p v-if="submitSuccess" class="fieldSuccess">{{ submitSuccess }}</p>
+
+          <div class="actionsPrimary">
+            <button
+              type="button"
+              class="primaryBtn"
+              :disabled="isSubmitDisabled"
+              data-testid="send-invite-btn"
+              @click="submitInvite"
+            >
+              {{ sending ? 'Odosielam...' : 'Odoslat pozvanku' }}
+            </button>
+            <button
+              type="button"
+              class="menuBtn"
+              :aria-expanded="String(showSecondaryActions)"
+              @click="showSecondaryActions = !showSecondaryActions"
+            >
+              Viac
+            </button>
+          </div>
+
+          <div v-if="showSecondaryActions" class="actionsSecondary">
+            <button type="button" class="tertiaryBtn" data-testid="share-ticket-btn" @click="shareTicket">
+              Zdielat
+            </button>
+            <button type="button" class="tertiaryBtn" data-testid="print-ticket-btn" @click="printTicket">
+              Vytlacit vstupenku
+            </button>
+          </div>
+        </section>
+
+        <div class="ticketPrintRoot">
+          <article class="ticketPreview">
+            <div class="watermarkLayer" aria-hidden="true">
+              <span v-for="idx in 5" :key="`wm-${idx}`">Astrokomunita * Astrokomunita * Astrokomunita</span>
+            </div>
+
+            <p class="ticketKicker">Darcekova vstupenka</p>
+            <h3>{{ eventTitle }}</h3>
+            <p class="ticketMeta">{{ eventDateTime }}</p>
+            <p v-if="eventPlace" class="ticketMeta">{{ eventPlace }}</p>
+
+            <div class="nameRow">
+              <span>Meno navstevnika</span>
+              <strong>{{ attendeeNamePreview }}</strong>
+            </div>
+
+            <p class="ticketHint">Ukaz tuto vstupenku pri vstupe na podujatie.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </div>

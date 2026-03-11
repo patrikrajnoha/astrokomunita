@@ -1,0 +1,121 @@
+
+  <div class="wrap">
+    <header class="top">
+      <button class="iconBtn" @click="back" aria-label="Spat">&larr;</button>
+      <h1 class="title">Profil</h1>
+    </header>
+
+    <div v-if="!auth.initialized" class="state muted">Nacitavam...</div>
+    <div v-else-if="!auth.user" class="state err">Nie si prihlaseny.</div>
+
+    <form v-else class="card form" @submit.prevent>
+      <div v-if="msg" class="msg ok">{{ msg }}</div>
+      <div v-if="err" class="msg err">{{ err }}</div>
+
+      <div class="field">
+        <label>Meno</label>
+        <input class="input" v-model="form.name" type="text" />
+        <p v-if="fieldErr.name" class="fieldErr">{{ fieldErr.name }}</p>
+      </div>
+
+      <div class="field">
+        <div class="labelRow">
+          <label>Bio</label>
+          <span class="hint">{{ (form.bio || '').length }}/160</span>
+        </div>
+        <textarea class="input textarea" v-model="form.bio" rows="3" maxlength="160"></textarea>
+        <p v-if="fieldErr.bio" class="fieldErr">{{ fieldErr.bio }}</p>
+      </div>
+
+      <section
+        id="location"
+        ref="locationSectionRef"
+        class="locationCard"
+        :class="{ locationHighlight: locationHighlightActive }"
+      >
+        <h2 class="sectionTitle">Poloha</h2>
+
+        <div class="field">
+          <label>Mesto</label>
+          <select class="input" v-model="form.presetKey" @change="onPresetChanged">
+            <option value="">Bez predvolby</option>
+            <option v-for="preset in locationPresets" :key="preset.key" :value="preset.key">
+              {{ preset.label }}
+            </option>
+          </select>
+          <p v-if="fieldErr.locationSource" class="fieldErr">{{ fieldErr.locationSource }}</p>
+        </div>
+
+        <div class="quickActions">
+          <button class="btn ghost" type="button" @click="useMyLocation" :disabled="saving || geolocating">
+            {{ geolocating ? 'Ziskavam GPS...' : 'Pouzit GPS' }}
+          </button>
+          <button
+            v-if="isCoordinatesReadOnly"
+            class="btn ghost"
+            type="button"
+            @click="enableManualEditing"
+            :disabled="saving || geolocating"
+          >
+            Manualne
+          </button>
+        </div>
+
+        <div class="field">
+          <label>Nazov</label>
+          <input
+            class="input"
+            v-model.trim="form.locationLabel"
+            type="text"
+            maxlength="80"
+            placeholder="Napriklad Bratislava"
+          />
+          <p v-if="fieldErr.locationLabel" class="fieldErr">{{ fieldErr.locationLabel }}</p>
+        </div>
+
+        <div class="fieldGrid">
+          <div class="field">
+            <label>Latitude</label>
+            <input
+              class="input"
+              v-model="form.latitude"
+              type="number"
+              step="0.0000001"
+              :readonly="isCoordinatesReadOnly"
+            />
+            <p v-if="fieldErr.latitude" class="fieldErr">{{ fieldErr.latitude }}</p>
+          </div>
+          <div class="field">
+            <label>Longitude</label>
+            <input
+              class="input"
+              v-model="form.longitude"
+              type="number"
+              step="0.0000001"
+              :readonly="isCoordinatesReadOnly"
+            />
+            <p v-if="fieldErr.longitude" class="fieldErr">{{ fieldErr.longitude }}</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Timezone</label>
+          <input
+            class="input"
+            v-model.trim="form.timezone"
+            type="text"
+            placeholder="Europe/Bratislava"
+            :readonly="isCoordinatesReadOnly"
+          />
+          <p class="hint">{{ locationModeLabel }}</p>
+          <p v-if="fieldErr.timezone" class="fieldErr">{{ fieldErr.timezone }}</p>
+        </div>
+      </section>
+
+      <div class="actions">
+        <button class="btn" type="button" @click="save" :disabled="saving">
+          {{ saving ? 'Ukladam...' : 'Ulozit' }}
+        </button>
+      </div>
+    </form>
+  </div>

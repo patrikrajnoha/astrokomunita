@@ -1,0 +1,184 @@
+
+  <teleport to="body">
+    <transition name="fade">
+      <div v-if="open" class="overlay" role="presentation" @click.self="onOverlayClick">
+        <section class="dialog" :class="{ 'dialog--observation': isObservationMode }" role="dialog" aria-modal="true" aria-labelledby="composer-title" @click.stop>
+          <header class="head">
+            <button type="button" class="ghost" :disabled="submitting" @click="cancelAndClose">Zrusit</button>
+            <div class="headRight">
+              <template v-if="isObservationMode">
+                <button type="button" class="ghost" :disabled="submitting" @click="switchToPostComposer">
+                  Spat na prispevok
+                </button>
+              </template>
+              <template v-else>
+                <button type="button" class="ghost" :disabled="submitting" @click="onDraftsClick">Koncepty</button>
+                <button type="button" class="primary" :disabled="isSubmitDisabled" @click="submit">
+                  {{ submitting ? 'Odosielam...' : 'Pridat' }}
+                </button>
+              </template>
+            </div>
+          </header>
+
+          <p id="composer-title" class="srOnly">Vytvorenie prispevku</p>
+          <p v-if="isPostMode && errorMessage" class="error">{{ errorMessage }}</p>
+          <p v-else-if="isPostMode && submitBlockReason" class="error">{{ submitBlockReason }}</p>
+
+          <div class="body" :class="{ 'body--observation': isObservationMode }">
+            <ObservationCreateView
+              v-if="isObservationMode"
+              embedded
+              @cancel="switchToPostComposer"
+              @submitted="onObservationSubmitted"
+            />
+
+            <template v-else>
+              <div class="avatar" aria-hidden="true">
+                <UserAvatar class="avatarImg" :user="auth?.user" :alt="auth?.user?.name || 'avatar'" />
+              </div>
+
+              <div class="contentCol">
+                <label class="srOnly" for="composer-textarea">Text prispevku</label>
+                <textarea
+                  id="composer-textarea"
+                  ref="textareaRef"
+                  v-model="content"
+                  class="textarea"
+                  placeholder="Čo je nové na oblohe?"
+                  rows="5"
+                  :disabled="submitting"
+                  @input="onInput"
+                />
+
+                <div v-if="imagePreviewUrl" class="mediaCard">
+                  <img class="mediaImg" :src="imagePreviewUrl" alt="Nahlad" />
+                  <button class="mediaRemove" type="button" :disabled="submitting" @click="removeFile">x</button>
+                </div>
+
+                <PollComposerPanel
+                  v-if="pollEnabled"
+                  :model-value="pollOptions"
+                  :duration-seconds="pollDurationSeconds"
+                  :disabled="submitting"
+                  @update:model-value="onPollOptionsUpdate"
+                  @update:duration-seconds="setPollDurationSeconds"
+                  @remove-poll="disablePoll"
+                />
+
+                <div v-if="selectedGif" class="mediaCard">
+                  <img class="mediaImg" :src="selectedGif.preview_url || selectedGif.original_url" :alt="selectedGif.title || 'GIF'" />
+                  <button class="mediaRemove" type="button" :disabled="submitting" @click="removeGif">x</button>
+                </div>
+
+                <div v-if="selectedEvent" class="eventCard">
+                  <div>
+                    <p class="eventTitle">{{ selectedEvent.title || 'Vybrana udalost' }}</p>
+                    <p class="eventDate">{{ formatEventRange(selectedEvent.start_at, selectedEvent.end_at) }}</p>
+                  </div>
+                  <button class="eventRemove" type="button" :disabled="submitting" @click="removeEvent">Odstranit</button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <footer v-if="isPostMode" class="foot">
+            <div class="actions">
+              <input ref="fileInput" class="hiddenInput" type="file" accept="image/*,.gif" @change="onFileChange" />
+
+              <button type="button" class="iconBtn" :class="{ active: !!file }" :disabled="submitting || pollEnabled" aria-label="Obrazok" @click="pickFile">
+                <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="m7 15 3.2-3.2a1 1 0 0 1 1.4 0L14 14l2-2a1 1 0 0 1 1.4 0L20 14.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/></svg>
+              </button>
+
+              <button type="button" class="iconBtn" :class="{ active: !!selectedGif }" :disabled="submitting || pollEnabled" aria-label="GIF" @click="openGifModal">
+                <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="14" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 10.5h2.8M8 13.5h2.8M12 10.5h4.8M12 13.5h4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+              </button>
+
+              <div class="popWrap">
+                <button type="button" class="iconBtn" :class="{ active: showEmoji }" :disabled="submitting" aria-label="Emoji" @click="toggleEmoji">
+                  <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M9 10.5h.01M15 10.5h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M8.8 14.2a4.2 4.2 0 0 0 6.4 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                </button>
+                <div v-if="showEmoji" class="popMenu">
+                  <button v-for="emoji in EMOJI_SET" :key="emoji" type="button" class="emojiBtn" @click="insertEmoji(emoji)">{{ emoji }}</button>
+                </div>
+              </div>
+
+              <div class="popWrap">
+                <button type="button" class="iconBtn" :class="{ active: showMore || pollEnabled || !!selectedEvent }" :disabled="submitting" aria-label="Viac" @click="toggleMore">
+                  <svg viewBox="0 0 24 24" fill="none"><circle cx="6" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="18" cy="12" r="1.6" fill="currentColor"/></svg>
+                </button>
+                <div v-if="showMore" class="popMenu actionsMenu">
+                  <button type="button" class="menuBtn" :disabled="submitting" @click="openEventModal">
+                    <svg class="menuBtnIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7"/>
+                      <path d="M8 3.5v3M16 3.5v3M3.5 9.5h17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                    </svg>
+                    <span>{{ selectedEvent ? 'Zmenit udalost' : 'Pridat udalost' }}</span>
+                  </button>
+                  <button type="button" class="menuBtn" :disabled="submitting" @click="togglePollFromMenu">
+                    <svg class="menuBtnIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                      <circle cx="8" cy="7" r="1.2" fill="currentColor"/>
+                      <circle cx="16" cy="12" r="1.2" fill="currentColor"/>
+                      <circle cx="11" cy="17" r="1.2" fill="currentColor"/>
+                    </svg>
+                    <span>{{ pollEnabled ? 'Odstranit anketu' : 'Pridat anketu' }}</span>
+                  </button>
+                  <button type="button" class="menuBtn" :disabled="submitting" @click="openObservationCreate">
+                    <svg class="menuBtnIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M7.5 4.75h5l4 4v10.5a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1v-13.5a1 1 0 0 1 1-1z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                      <path d="M12.5 4.75v4h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M9.5 12h5M12 9.5v5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                    </svg>
+                    <span>Pridať pozorovanie</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="counter" :class="{ bad: isOverLimit }">
+              <span>{{ remainingChars }}</span>
+              <span class="ring" :style="counterRingStyle"></span>
+            </div>
+          </footer>
+        </section>
+
+        <div v-if="showGifModal" class="subBackdrop" @click.self="closeGifModal">
+          <section class="subCard" role="dialog" aria-modal="true" aria-labelledby="gif-title">
+            <header class="subHead">
+              <h3 id="gif-title">Vybrat GIF</h3>
+              <button type="button" class="subClose" @click="closeGifModal">x</button>
+            </header>
+            <input ref="gifInputRef" v-model="gifQuery" class="subInput" type="text" placeholder="Hladaj GIF..." @input="onGifQueryChange" />
+            <div v-if="gifLoading" class="gifGrid"><div v-for="i in 6" :key="`gif-${i}`" class="gifSkel"></div></div>
+            <p v-else-if="gifError" class="subError">{{ gifError }}</p>
+            <p v-else-if="gifQuery.trim().length < GIF_MIN_QUERY_LENGTH" class="subHint">Zadaj aspon 2 znaky.</p>
+            <p v-else-if="gifResults.length === 0" class="subHint">Ziadne GIFy.</p>
+            <div v-else class="gifGrid">
+              <button v-for="gif in gifResults" :key="gif.id" type="button" class="gifTile" @click="selectGif(gif)">
+                <img :src="gif.preview_url" :alt="gif.title || 'GIF'" loading="lazy" />
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <div v-if="showEventModal" class="subBackdrop" @click.self="closeEventModal">
+          <section class="subCard" role="dialog" aria-modal="true" aria-labelledby="event-title">
+            <header class="subHead">
+              <h3 id="event-title">Pridat udalost</h3>
+              <button type="button" class="subClose" @click="closeEventModal">x</button>
+            </header>
+            <input v-model="eventQuery" class="subInput" type="text" placeholder="Hladaj udalost..." @input="onEventQueryChange" />
+            <p v-if="eventError" class="subError">{{ eventError }}</p>
+            <p v-else-if="eventLoading" class="subHint">Nacitavam...</p>
+            <p v-else-if="eventResults.length === 0" class="subHint">Nenasli sa ziadne udalosti.</p>
+            <div v-else class="eventList">
+              <button v-for="eventItem in eventResults" :key="eventItem.id" class="eventItem" type="button" @click="selectEvent(eventItem)">
+                <span class="eventItemTitle">{{ eventItem.title }}</span>
+                <span class="eventItemDate">{{ formatEventRange(eventItem.start_at, eventItem.end_at) }}</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </transition>
+  </teleport>

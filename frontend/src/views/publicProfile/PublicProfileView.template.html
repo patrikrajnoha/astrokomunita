@@ -1,0 +1,187 @@
+
+  <div class="page">
+    <header class="topbar">
+      <button class="iconBtn" @click="goHome">&larr;</button>
+      <div class="topmeta">
+        <div class="topname">{{ displayName }}</div>
+        <div class="topsmall">@{{ handle }}</div>
+      </div>
+    </header>
+
+    <AsyncState
+      v-if="loading"
+      mode="loading"
+      title="Nacitavam profil"
+      loading-style="skeleton"
+      :skeleton-rows="4"
+      compact
+    />
+    <InlineStatus
+      v-else-if="err"
+      variant="error"
+      :message="err"
+      action-label="Skusit znova"
+      @action="refreshProfile"
+    />
+
+    <template v-else>
+      <section class="profileShell ui-profile-shell">
+        <div
+          class="cover"
+          data-testid="public-profile-cover"
+          :class="{ 'cover--bot-fallback': coverMedia.isBotFallback }"
+          :style="coverMedia.fallbackStyle"
+        >
+          <img v-if="coverMedia.hasImage" class="coverImg" :src="coverMedia.imageUrl" alt="cover" />
+          <div class="coverGlow"></div>
+        </div>
+
+        <div class="profileHead">
+          <div class="avatar">
+            <UserAvatar class="avatarImg" :user="avatarUser" :alt="displayName" />
+          </div>
+
+          <div class="headActions">
+            <button class="ui-btn ui-btn--ghost" @click="copyProfileLink">{{ copyLabel }}</button>
+          </div>
+        </div>
+
+        <div class="identity ui-profile-header ui-profile-identity">
+          <div class="nameRow">
+            <h1 class="name">{{ displayName }}</h1>
+            <span v-if="user?.is_admin" class="badge">Admin</span>
+            <span v-if="user?.is_bot || String(user?.role || '').toLowerCase() === 'bot'" class="badge badgeBot">
+              BOT
+            </span>
+          </div>
+
+          <div class="handle">@{{ handle }}</div>
+
+          <p v-if="user?.bio" class="bio">{{ user.bio }}</p>
+          <p v-else class="bio muted">Zatial bez popisu.</p>
+
+          <div class="meta">
+            <span v-if="user?.location" class="metaItem">Lokalita: {{ user.location }}</span>
+          </div>
+        </div>
+
+        <div class="statsRow ui-profile-stats">
+          <div class="stat ui-profile-stat">
+            <strong>{{ stats.posts }}</strong>
+            <span>Prispevky</span>
+          </div>
+          <div class="stat ui-profile-stat">
+            <strong>{{ stats.replies }}</strong>
+            <span>Odpovede</span>
+          </div>
+          <div class="stat ui-profile-stat">
+            <strong>{{ stats.media }}</strong>
+            <span>Media</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="feedShell">
+        <div class="tabs">
+          <button
+            v-for="t in tabs"
+            :key="t.key"
+            class="tab"
+            :class="{ active: activeTab === t.key }"
+            @click="setActiveTab(t.key)"
+          >
+            {{ t.label }}
+            <span v-if="tabState[t.key].total !== null" class="tabCount">{{ tabState[t.key].total }}</span>
+          </button>
+        </div>
+
+        <InlineStatus
+          v-if="tabState[activeTab].err"
+          variant="error"
+          :message="tabState[activeTab].err"
+          action-label="Skusit znova"
+          @action="loadTab(activeTab, true)"
+        />
+
+        <AsyncState
+          v-if="tabState[activeTab].loading && tabState[activeTab].items.length === 0"
+          mode="loading"
+          title="Nacitavam obsah"
+          loading-style="skeleton"
+          :skeleton-rows="4"
+          compact
+        />
+
+        <AsyncState
+          v-else-if="!tabState[activeTab].loading && tabState[activeTab].items.length === 0"
+          mode="empty"
+          :title="activeTab === 'observations' ? 'Zatial ziadne pozorovania' : 'Zatial ziadny obsah'"
+          :message="activeTab === 'observations' ? 'Pouzivatel este nepridal pozorovanie.' : 'Tento feed je momentalne prazdny.'"
+          compact
+        />
+
+        <div v-else-if="activeTab === 'observations'" class="observationsList">
+          <ObservationCard
+            v-for="item in tabState.observations.items"
+            :key="item.id"
+            :observation="item"
+            :clickable="true"
+            :show-author="false"
+            @open="openObservation"
+          />
+        </div>
+
+        <div v-else class="postList ui-stream">
+          <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem ui-stream-item">
+            <div class="avatar sm">
+              <UserAvatar class="avatarImg" :user="avatarUser" :alt="displayName" />
+            </div>
+
+            <div class="postBody">
+              <div class="postMeta ui-stream-item__meta">
+                <div class="postName">{{ displayName }}</div>
+                <div class="dot">&middot;</div>
+                <div class="postTime">{{ fmt(p.created_at) }}</div>
+              </div>
+
+              <div v-if="p.parent && activeTab === 'replies'" class="replyContext">
+                Odpoved na: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
+                <span class="replyText">{{ shorten(p.parent.content) }}</span>
+              </div>
+
+              <HashtagText class="postContent ui-stream-item__body" :content="p.content" />
+
+              <div v-if="p.attachment_url" class="attachment">
+                <img
+                  v-if="isImage(p)"
+                  class="attachmentImg"
+                  :src="p.attachment_url"
+                  alt="attachment"
+                />
+                <a v-else class="attachmentFile" :href="p.attachment_url" target="_blank" rel="noreferrer">
+                  {{ p.attachment_original_name || 'Priloha' }}
+                </a>
+              </div>
+
+              <div class="postActions ui-stream-item__actions">
+                <button class="ui-btn ui-btn--secondary" @click="openPost(p)">
+                  Zobrazit vlakno
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="loadMore">
+          <button
+            v-if="tabState[activeTab].next"
+            class="ui-btn ui-btn--secondary"
+            :disabled="tabState[activeTab].loading"
+            @click="loadTab(activeTab, false)"
+          >
+            {{ tabState[activeTab].loading ? 'Nacitavam...' : 'Nacitat viac' }}
+          </button>
+        </div>
+      </section>
+    </template>
+  </div>

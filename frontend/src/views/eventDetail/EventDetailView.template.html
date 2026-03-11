@@ -1,0 +1,266 @@
+  <main class="eventDetailPage">
+    <header class="eventDetailTopbar">
+      <button type="button" class="backButton" @click="goBack">&larr; Spat</button>
+      <p class="topbarTitle">{{ pageHeaderTitle }}</p>
+    </header>
+
+    <section v-if="loading" class="loadingState" aria-label="Nacitavam detail udalosti">
+      <div class="loadingCard">
+        <div class="loadingLine loadingLine--chips"></div>
+        <div class="loadingLine loadingLine--title"></div>
+        <div class="loadingLine loadingLine--meta"></div>
+        <div class="loadingPanel"></div>
+        <div class="loadingLine"></div>
+        <div class="loadingLine"></div>
+        <div class="loadingLine loadingLine--short"></div>
+      </div>
+    </section>
+
+    <section v-else-if="error" class="errorState">
+      <InlineStatus
+        variant="error"
+        :message="error"
+        action-label="Skusit znova"
+        @action="loadEvent"
+      />
+    </section>
+
+    <section v-else-if="event" class="eventDetailShell">
+      <article
+        class="eventCard"
+        :class="{ 'eventCard--swipeReady': canSwipe }"
+        :style="eventCardStyle"
+        @touchstart.passive="onCardTouchStart"
+        @touchmove.passive="onCardTouchMove"
+        @touchend.passive="onCardTouchEnd"
+        @touchcancel.passive="onCardTouchCancel"
+      >
+        <div class="eventCard__glow" aria-hidden="true"></div>
+
+        <div class="eventCard__content">
+          <div class="eventChipRow">
+            <span class="eventChip">{{ typeLabel }}</span>
+            <span v-if="confidenceLabel" class="eventChip">{{ confidenceLabel }}</span>
+            <span class="eventChip eventChip--status">{{ statusLabel }}</span>
+          </div>
+
+          <div class="eventHeading">
+            <h1 class="eventTitle">{{ title }}</h1>
+            <p class="eventMeta">{{ metaLine }}</p>
+          </div>
+
+          <section class="eventSection eventTimeBlock" aria-label="Cas udalosti">
+            <p class="eventSection__label">Kedy</p>
+            <p class="eventTimeBlock__primary">{{ primaryObservationLine }}</p>
+            <p
+              v-if="secondaryEventTimeLabel"
+              class="eventTimeBlock__secondary"
+              :title="secondaryEventTimeAriaLabel"
+              :aria-label="secondaryEventTimeAriaLabel"
+            >
+              {{ secondaryEventTimeLabel }}
+              <span v-if="secondaryEventTimeTimezoneLabel" class="eventTimeBlock__timezone">
+                ({{ secondaryEventTimeTimezoneLabel }})
+              </span>
+            </p>
+            <p v-if="showViewingWindowMicrocopy" class="eventTimeBlock__microcopy">
+              {{ viewingWindowMicrocopy }}
+            </p>
+            <button
+              v-if="viewingForecast.missingLocation"
+              type="button"
+              class="locationButton"
+              @click="goToLocationSettings"
+            >
+              Nastavit polohu
+            </button>
+          </section>
+
+          <section v-if="showViewingWindowMicrocopy" class="eventSection">
+            <p class="eventSection__label">Ako pozorovat</p>
+            <p class="eventSection__text">
+              {{ howToObserveText }}
+            </p>
+          </section>
+
+          <section class="eventSection forecastSection">
+            <p class="eventSection__label">Podmienky</p>
+            <EventViewingWindowForecast
+              :event="event"
+              :user-location="resolvedLocation"
+              @state="handleViewingForecastState"
+            />
+          </section>
+
+          <section class="eventSection eventDescriptionBlock">
+            <p class="eventSection__label">Popis</p>
+            <p
+              class="eventDescription"
+              :class="{
+                'eventDescription--collapsed': shouldCollapseDescription && !descriptionExpanded,
+              }"
+            >
+              {{ description }}
+            </p>
+            <button
+              v-if="shouldCollapseDescription"
+              type="button"
+              class="descriptionToggle"
+              @click="descriptionExpanded = !descriptionExpanded"
+            >
+              {{ descriptionExpanded ? 'Zobrazit menej' : 'Zobrazit viac' }}
+            </button>
+          </section>
+
+          <div class="eventCtaRow">
+            <button
+              type="button"
+              class="planButton planButton--primary"
+              :disabled="planSaving"
+              @click="openPlanModal"
+            >
+              {{ planButtonLabel }}
+            </button>
+
+            <button
+              type="button"
+              class="followButton"
+              :disabled="followLoading"
+              :aria-pressed="auth.isAuthed ? String(isFollowed) : 'false'"
+              @click="handleFollowToggle"
+            >
+              <span v-if="auth.isAuthed" class="followButton__icon" aria-hidden="true">
+                &#10084;
+              </span>
+              <span>{{ followButtonLabel }}</span>
+            </button>
+
+            <button
+              type="button"
+              class="inviteButton"
+              title="Pozvat"
+              aria-label="Pozvat"
+              @click="handleInvite"
+            >
+              Pozvat
+            </button>
+
+            <DropdownMenu
+              class="menuRoot"
+              :items="menuItems"
+              label="Viac moznosti"
+              menu-label="Akcie udalosti"
+              @select="handleMenuSelect"
+            >
+              <template #trigger>
+                <span class="menuTrigger" aria-hidden="true">&#8943;</span>
+              </template>
+            </DropdownMenu>
+          </div>
+
+          <div class="eventSwipeRow">
+            <button
+              type="button"
+              class="swipeNavButton"
+              :disabled="!canGoPrev || swipeNavigating"
+              @click="goToAdjacentEvent('prev')"
+            >
+              &larr; Predosla
+            </button>
+            <p class="swipeHint">
+              {{ swipeHint }}
+            </p>
+            <button
+              type="button"
+              class="swipeNavButton"
+              :disabled="!canGoNext || swipeNavigating"
+              @click="goToAdjacentEvent('next')"
+            >
+              Dalsia &rarr;
+            </button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <InviteTicketModal :open="inviteModalOpen" :event="event" @close="inviteModalOpen = false" />
+
+    <BaseModal
+      v-model:open="planModalOpen"
+      title="Naplanovat udalost"
+      test-id="event-plan-modal"
+      close-test-id="event-plan-modal-close"
+    >
+      <template #description>
+        <p class="planModalHint">Osobny plan ostane pri tejto planovanej udalosti.</p>
+      </template>
+
+      <form class="planForm" @submit.prevent="savePlan">
+        <label class="planField">
+          <span class="planField__label">Poznamka</span>
+          <textarea
+            v-model="planForm.personal_note"
+            class="planField__textarea"
+            rows="3"
+            maxlength="4000"
+            placeholder="Napriklad: vyhliadka, vybava, koho beriem so sebou."
+          />
+        </label>
+
+        <label class="planField">
+          <span class="planField__label">Pripomenut</span>
+          <select v-model="planForm.reminder_mode" class="planField__input">
+            <option value="none">Bez pripomienky</option>
+            <option value="one_hour_before" :disabled="!canUseReminderPresets">1 hodinu pred</option>
+            <option value="same_day_morning" :disabled="!canUseReminderPresets">V den udalosti rano</option>
+            <option value="day_before" :disabled="!canUseReminderPresets">Den vopred</option>
+            <option value="custom">Vlastny cas</option>
+          </select>
+        </label>
+
+        <label v-if="planForm.reminder_mode === 'custom'" class="planField">
+          <span class="planField__label">Cas pripomienky</span>
+          <input
+            v-model="planForm.reminder_custom_at"
+            class="planField__input"
+            type="datetime-local"
+          />
+        </label>
+
+        <label class="planField">
+          <span class="planField__label">Cas pozorovania (volitelne)</span>
+          <input
+            v-model="planForm.planned_time"
+            class="planField__input"
+            type="datetime-local"
+          />
+        </label>
+
+        <label class="planField">
+          <span class="planField__label">Miesto pozorovania (volitelne)</span>
+          <input
+            v-model="planForm.planned_location_label"
+            class="planField__input"
+            type="text"
+            maxlength="160"
+            placeholder="Napriklad: Hradza, observatorium, kopec za mestom"
+          />
+        </label>
+
+        <p v-if="recommendedPlanHint" class="planRecommendation">
+          {{ recommendedPlanHint }}
+        </p>
+
+        <InlineStatus v-if="planError" variant="error" :message="planError" />
+
+        <div class="planActions">
+          <button type="button" class="planGhostButton" :disabled="planSaving" @click="planModalOpen = false">
+            Zrusit
+          </button>
+          <button type="submit" class="planSaveButton" :disabled="planSaving">
+            {{ planSaving ? 'Ukladam...' : 'Ulozit plan' }}
+          </button>
+        </div>
+      </form>
+    </BaseModal>
+  </main>

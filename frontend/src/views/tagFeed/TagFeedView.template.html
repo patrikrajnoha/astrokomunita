@@ -1,0 +1,187 @@
+
+  <div class="wrap">
+    <div class="card">
+      <!-- Header -->
+      <div class="header">
+        <router-link class="back" to="/">&larr; Späť</router-link>
+        <div class="title">#{{ tag }}</div>
+        <div class="sub">Príspevky s hashtagom #{{ tag }}</div>
+      </div>
+
+      <!-- Loading -->
+      <div v-if="loading && items.length === 0" class="loading">
+        Načítavam príspevky...
+      </div>
+
+      <!-- Error -->
+      <div v-else-if="error" class="error">
+        {{ error }}
+      </div>
+
+      <!-- Empty -->
+      <div v-else-if="!loading && items.length === 0" class="empty">
+        <div class="emptyTitle">Žiadne príspevky</div>
+        <div class="emptySub">
+          Nikto ešte nepoužil hashtag #{{ tag }}
+        </div>
+      </div>
+
+      <!-- Feed -->
+      <div v-else class="feed">
+        <article
+          v-for="p in items"
+          :key="p.id"
+          class="postCard clickable"
+          @click="openPost(p)"
+        >
+          <div class="postLeft">
+            <button class="avatar profileLink" type="button" @click.stop="openProfile(p)">
+              <UserAvatar class="avatarImg" :user="p?.user" :alt="p?.user?.name || 'avatar'" />
+            </button>
+          </div>
+
+          <div class="postMain">
+            <!-- top row -->
+            <div class="postHead">
+              <div class="who">
+                <div class="nameRow">
+                  <button class="name linkBtn" type="button" @click.stop="openProfile(p)">
+                    {{ p?.user?.name ?? 'User' }}
+                  </button>
+                  <span v-if="p.source_name === 'astrobot'" class="badge badgeAstrobot">🚀 AstroBot</span>
+                </div>
+                <div class="meta">
+                  <span class="dot">•</span>
+                  <span class="time">{{ fmt(p?.created_at) }}</span>
+                  <span v-if="p?.user?.location" class="dot">•</span>
+                  <span v-if="p?.user?.location" class="loc">📍 {{ p.user.location }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- content -->
+            <div class="postText">
+              <HashtagText :content="p.content" />
+            </div>
+
+            <PollCard
+              v-if="p.poll"
+              :poll="p.poll"
+              :post-id="p.id"
+              :is-authed="auth.isAuthed"
+              @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
+              @login-required="onPollLoginRequired"
+            />
+
+            <!-- attachment -->
+            <div v-if="p.attachment_url" class="mediaWrap">
+              <img
+                v-if="isImage(p)"
+                class="mediaImg"
+                :src="attachmentSrc(p)"
+                alt="Príloha"
+                loading="lazy"
+                @click.stop
+              />
+
+              <a
+                v-else
+                class="fileCard"
+                :href="attachmentSrc(p)"
+                target="_blank"
+                rel="noopener"
+                @click.stop
+              >
+                <div class="fileIcon">📎</div>
+                <div class="fileInfo">
+                  <div class="fileTitle">Príloha</div>
+                  <div class="fileName">
+                    {{ p.attachment_original_name || 'Súbor' }}
+                  </div>
+                </div>
+                <div class="fileArrow">→</div>
+              </a>
+            </div>
+
+            <!-- bottom actions -->
+            <div class="postActions" @click.stop>
+              <button class="actBtn" type="button" title="Nahlasit vo vlakne" @click.stop="openReport(p)">
+                ⚑ Nahlasit
+              </button>
+              <button class="actBtn" type="button" title="Reagovať" disabled>
+                .. <span>{{ p.replies_count ?? 0 }}</span>
+              </button>
+              <button class="actBtn" type="button" title="Zdieľať" disabled>
+                ᯓ➤ <span>0</span>
+              </button>
+              <button
+                class="actBtn likeBtn"
+                type="button"
+                :class="{ liked: p.liked_by_me, bump: likeBumpId === p.id }"
+                :disabled="!auth.isAuthed || isLikeLoading(p)"
+                :title="auth.isAuthed ? (p.liked_by_me ? 'Zrušiť like' : 'Páči sa mi') : 'Prihlás sa pre lajkovanie'"
+                @click.stop="toggleLike(p)"
+              >
+                ♡ <span>{{ p.likes_count ?? 0 }}</span>
+              </button>
+              <div class="spacer"></div>
+              <button class="actBtn" type="button" title="Zobrazit vlakno" @click.stop="openPost(p)">
+                Zobrazit vlakno
+              </button>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- More -->
+      <div class="more">
+        <button
+          v-if="nextPageUrl"
+          class="btn btnGhost"
+          :disabled="loading"
+          @click="load(false)"
+        >
+          {{ loading ? 'Načítavam…' : 'Načítať viac' }}
+        </button>
+      </div>
+      <div v-if="reportTarget" class="reportModal" @click="closeReport()">
+        <div class="reportCard" role="dialog" aria-modal="true" @click.stop>
+          <h3 class="reportTitle">Nahlasit prispevok</h3>
+          <p class="reportHint">Odosle sa moderacii na preverenie.</p>
+
+          <label class="reportLabel" for="tag-feed-report-reason">Dovod</label>
+          <select
+            id="tag-feed-report-reason"
+            v-model="reportReason"
+            class="reportSelect"
+            :disabled="reportLoading"
+          >
+            <option value="spam">Spam</option>
+            <option value="abuse">Zneuzitie</option>
+            <option value="misinfo">Dezinformacie</option>
+            <option value="other">Ine</option>
+          </select>
+
+          <label class="reportLabel" for="tag-feed-report-message">Poznamka (volitelne)</label>
+          <textarea
+            id="tag-feed-report-message"
+            v-model="reportMessage"
+            class="reportTextarea"
+            rows="4"
+            maxlength="500"
+            :disabled="reportLoading"
+            placeholder="Doplnujuce info pre moderatorov..."
+          />
+
+          <div class="reportActions">
+            <button class="btn btnGhost" type="button" :disabled="reportLoading" @click="closeReport()">
+              Zrusit
+            </button>
+            <button class="btn btnDanger" type="button" :disabled="reportLoading" @click="submitReport">
+              {{ reportLoading ? 'Odosielam...' : 'Odoslat report' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

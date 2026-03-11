@@ -1,0 +1,166 @@
+
+  <AdminPageShell title="Popup vyberaných udalostí" subtitle="Správa udalostí pre mesačný popup Mark your calendar.">
+    <div v-if="error" class="alert alert-error">{{ error }}</div>
+    <div v-if="success" class="alert alert-success">{{ success }}</div>
+
+    <section class="card">
+      <div class="monthBar">
+        <div>
+          <p class="muted">Mesiac</p>
+          <select v-model="selectedMonth" :disabled="loading || saving" @change="onMonthChange">
+            <option v-for="option in monthOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+        </div>
+        <span class="modeBadge" :class="selectionMode === 'admin' ? 'modeAdmin' : 'modeFallback'">{{ modeBadgeText }}</span>
+      </div>
+
+      <div class="ctaRow">
+        <button type="button" class="forceBtn" :disabled="refreshingFallback || loading" @click="refreshFallbackPreview">
+          {{ refreshingFallback ? 'Načítavam...' : 'Vygenerovať fallback preview' }}
+        </button>
+        <button type="button" class="forceBtn" :disabled="applyingFallback || loading" @click="useFallbackAsFeatured">
+          {{ applyingFallback ? 'Aplikujem...' : 'Použiť fallback ako admin výber' }}
+        </button>
+      </div>
+
+      <p v-if="calendarBundleUrl" class="muted">
+        Balík ICS:
+        <a :href="calendarBundleUrl" target="_blank" rel="noopener">Stiahnuť balíček .ics</a>
+      </p>
+    </section>
+
+    <section class="card">
+      <div class="cardHead">
+        <h3>Nastavenia popupu</h3>
+        <label class="toggleLabel">
+          <input
+            :checked="Boolean(settings.enabled)"
+            type="checkbox"
+            :disabled="saving"
+            @change="toggleEnabled($event.target.checked)"
+          />
+          <span>{{ settings.enabled ? 'Zapnuté' : 'Vypnuté' }}</span>
+        </label>
+      </div>
+      <p class="muted">Verzia vynútenia: {{ settings.force_version || 0 }}</p>
+      <p class="muted">Naposledy vynútené: {{ formatDateTime(settings.force_at) }}</p>
+      <button type="button" class="forceBtn" :disabled="forcing || loading" @click="forceNow">
+        {{ forcing ? 'Odosielam...' : 'Zobraziť popup všetkým teraz' }}
+      </button>
+    </section>
+
+    <section class="card">
+      <div class="cardHead">
+        <h3>Admin výber</h3>
+        <p class="counter">{{ activeCount }}/{{ maxItems }}</p>
+      </div>
+
+      <div class="addRow">
+        <label for="event-select" class="srOnly">ID udalosti</label>
+        <select id="event-select" v-model="selectedEventId" :disabled="saving || loading">
+          <option value="">Vyber udalosť...</option>
+          <option v-for="event in candidateEvents" :key="event.id" :value="String(event.id)">
+            {{ event.id }} - {{ event.title }}
+          </option>
+        </select>
+        <button type="button" :disabled="!canAdd" @click="addFeaturedEvent">Pridať</button>
+      </div>
+
+      <div v-if="loading" class="muted">Načítavam...</div>
+      <table v-else class="table">
+        <thead>
+          <tr>
+            <th>Pozícia</th>
+            <th>Udalosť</th>
+            <th>Aktívne</th>
+            <th>Akcie</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in featured" :key="item.id">
+            <td>{{ item.position }}</td>
+            <td>{{ item.event?.title || eventLabel(item.event_id) }}</td>
+            <td>
+              <label class="toggleLabel">
+                <input
+                  :checked="item.is_active"
+                  type="checkbox"
+                  :disabled="saving"
+                  @change="toggleActive(item, $event.target.checked)"
+                />
+                <span>{{ item.is_active ? 'zapnuté' : 'vypnuté' }}</span>
+              </label>
+            </td>
+            <td class="actions">
+              <button type="button" :disabled="saving || item.position <= 0" @click="moveItem(item, -1)">Vyššie</button>
+              <button type="button" :disabled="saving" @click="moveItem(item, 1)">Nižšie</button>
+              <button type="button" class="danger" :disabled="saving" @click="removeItem(item)">Odstrániť</button>
+            </td>
+          </tr>
+          <tr v-if="featured.length === 0">
+            <td colspan="4" class="muted">Zatiaľ tu nie sú žiadne vybrané udalosti.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <div class="cardHead">
+        <h3>Fallback preview (automatický výber)</h3>
+        <p class="muted">Iba na čítanie</p>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Udalosť</th>
+            <th>Dátum</th>
+            <th>Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in fallbackPreview" :key="`fallback-${item.id}`">
+            <td>{{ item.title }}</td>
+            <td>{{ formatDateTime(item.start_at) }}</td>
+            <td>{{ item.fallback_score ?? '-' }}</td>
+          </tr>
+          <tr v-if="fallbackPreview.length === 0">
+            <td colspan="3" class="muted">Fallback nenašiel pre tento mesiac žiadne udalosti.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <div class="cardHead">
+        <h3>Čo sa zobrazí v popupe</h3>
+        <p class="muted">{{ selectionMode === 'admin' ? 'Admin výber' : 'Auto fallback' }}</p>
+      </div>
+      <div class="ctaRow">
+        <button type="button" class="forceBtn" :disabled="resolvedEvents.length === 0" @click="previewOpen = true">
+          Zobraziť preview popupu
+        </button>
+      </div>
+
+      <ul class="resolvedList">
+        <li v-for="item in resolvedEvents" :key="`resolved-${item.id}`" class="resolvedItem">
+          <span>
+            <strong>{{ item.title }}</strong>
+            <small class="muted">{{ formatDateTime(item.start_at) }}</small>
+          </span>
+          <span class="resolvedActions">
+            <a v-if="item.google_calendar_url" :href="item.google_calendar_url" target="_blank" rel="noopener">Google</a>
+            <a v-if="item.ics_url" :href="item.ics_url" target="_blank" rel="noopener">ICS</a>
+          </span>
+        </li>
+        <li v-if="resolvedEvents.length === 0" class="muted">Pre tento mesiac nie sú udalosti na zobrazenie.</li>
+      </ul>
+    </section>
+    <MarkYourCalendarModal
+      v-if="previewOpen"
+      :items="resolvedEvents"
+      :bundle-ics-url="calendarBundleUrl"
+      @close="previewOpen = false"
+      @go-calendar="previewOpen = false"
+    />
+  </AdminPageShell>

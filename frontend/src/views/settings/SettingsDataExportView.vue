@@ -43,7 +43,7 @@
 
     <div class="settings-form">
       <label
-        class="export-password-label"
+        class="field-label"
         for="settings-export-password"
       >
         Potvrdte aktualnym heslom
@@ -51,7 +51,7 @@
       <input
         id="settings-export-password"
         v-model="exportForm.currentPassword"
-        class="input"
+        class="field-input"
         type="password"
         autocomplete="current-password"
         :disabled="exportState.loading"
@@ -61,11 +61,17 @@
         id="settings-export-button"
         type="button"
         class="btn btn-primary"
-        :disabled="exportState.loading"
+        :disabled="exportState.loading || exportState.retryAfterSeconds > 0"
         aria-label="Exportovat profilove data"
         @click="downloadProfileExport"
       >
-        {{ exportState.loading ? exportState.phase || 'Pripravujem export...' : 'Exportovat moj profil' }}
+        {{
+          exportState.loading
+            ? exportState.phase || 'Pripravujem export...'
+            : exportState.retryAfterSeconds > 0
+              ? `Skuste znova o ${exportState.retryAfterSeconds}s`
+              : 'Exportovat moj profil'
+        }}
       </button>
       <p class="export-note">
         Obsahuje profil, newsletter, notifikacne nastavenia, aktivitu, prispevky, prijate aj odoslane pozvanky,
@@ -106,11 +112,15 @@ onMounted(() => {
 .export-summary-error {
   margin: 0;
   font-size: 0.92rem;
-  color: #55606f;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
 }
 
 .export-summary-size {
   font-weight: 600;
+}
+
+.export-summary-size strong {
+  color: var(--color-text-primary);
 }
 
 .export-summary-counts {
@@ -118,18 +128,11 @@ onMounted(() => {
 }
 
 .export-summary-error {
-  color: #b13030;
+  color: rgb(var(--color-danger-rgb) / 0.95);
 }
 
 .export-note {
   margin-top: 0.55rem;
-}
-
-.export-password-label {
-  display: block;
-  margin: 0 0 0.35rem;
-  font-size: 0.9rem;
-  color: #55606f;
 }
 
 #settings-export-password {

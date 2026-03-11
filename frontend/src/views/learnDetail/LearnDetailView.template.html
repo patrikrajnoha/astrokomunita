@@ -1,0 +1,143 @@
+
+  <article class="detailPage" :class="{ 'detailPage--reading': isLongRead }">
+    <router-link class="backLink" to="/clanky">Spat na clanky</router-link>
+
+    <div v-if="error" class="state state--error">{{ error }}</div>
+    <div v-else-if="loading" class="state">Nacitavam clanok...</div>
+
+    <template v-else-if="post">
+      <header class="header">
+        <h1>{{ post.title }}</h1>
+
+        <ul class="headerMeta">
+          <li v-for="(part, index) in metaParts" :key="`meta-${index}`">{{ part }}</li>
+        </ul>
+
+        <div class="headerActions">
+          <div v-if="post.tags?.length" class="tags">
+            <span v-for="tag in post.tags" :key="tag.id">{{ tag.name }}</span>
+          </div>
+
+          <button class="shareBtn" type="button" @click="copyLink">
+            {{ copied ? 'Link skopirovany' : 'Kopirovat link' }}
+          </button>
+        </div>
+      </header>
+
+      <section class="articleCard">
+        <figure v-if="post.cover_image_url" class="cover">
+          <img :src="post.cover_image_url" :alt="post.title" loading="lazy" />
+        </figure>
+
+        <div class="articleBody">
+          <section v-if="showToc" class="toc">
+            <p class="toc__title">Obsah clanku</p>
+            <ul>
+              <li v-for="item in tocItems" :key="item.id" :class="item.type">
+                <a :href="`#${item.id}`">{{ item.text }}</a>
+              </li>
+            </ul>
+          </section>
+
+          <section class="content">
+            <template v-for="(block, index) in contentBlocks" :key="index">
+              <h2 v-if="block.type === 'h2'" :id="block.id">{{ block.text }}</h2>
+              <h3 v-else-if="block.type === 'h3'" :id="block.id">{{ block.text }}</h3>
+              <ul v-else-if="block.type === 'ul'">
+                <li v-for="(item, itemIndex) in block.items" :key="itemIndex" v-html="item"></li>
+              </ul>
+              <p v-else v-html="block.html"></p>
+            </template>
+          </section>
+        </div>
+      </section>
+
+      <section class="section comments">
+        <div class="comments__head">
+          <h2>Komentare</h2>
+          <span>{{ commentsData?.total || 0 }} celkom</span>
+        </div>
+
+        <div v-if="commentsError" class="state state--error">{{ commentsError }}</div>
+
+        <div v-if="auth.isAuthed" class="commentForm">
+          <textarea
+            v-model="commentInput"
+            rows="3"
+            placeholder="Napis komentar..."
+          ></textarea>
+          <button
+            type="button"
+            :disabled="commentSubmitting || !commentInput.trim()"
+            @click="submitComment"
+          >
+            {{ commentSubmitting ? 'Odosielam...' : 'Pridat komentar' }}
+          </button>
+        </div>
+        <p v-else class="comments__hint">Pre pridanie komentara sa prihlas.</p>
+
+        <p v-if="commentsLoading" class="comments__hint">Nacitavam komentare...</p>
+
+        <div v-else-if="comments.length" class="commentList">
+          <article
+            v-for="comment in comments"
+            :key="comment.id"
+            class="commentItem"
+            :style="commentThreadStyle(comment)"
+          >
+            <div class="commentItem__card">
+              <p class="commentItem__meta">
+                <strong>{{ comment.user?.name || 'Pouzivatel' }}</strong>
+                <span>{{ formatDate(comment.created_at) }}</span>
+              </p>
+              <p class="commentItem__text">{{ comment.content }}</p>
+              <button
+                v-if="auth.user && (auth.user.id === comment.user_id || auth.user.is_admin)"
+                type="button"
+                class="commentItem__remove"
+                @click="removeComment(comment.id)"
+              >
+                Zmazat
+              </button>
+            </div>
+          </article>
+        </div>
+
+        <p v-else class="comments__hint">Zatial bez komentarov.</p>
+
+        <div v-if="commentsData && commentsData.last_page > 1" class="commentsPager">
+          <button type="button" :disabled="commentsLoading || commentPage <= 1" @click="prevComments">
+            Predosle
+          </button>
+          <p>Strana {{ commentsData.current_page }} z {{ commentsData.last_page }}</p>
+          <button
+            type="button"
+            :disabled="commentsLoading || commentPage >= commentsData.last_page"
+            @click="nextComments"
+          >
+            Dalsie
+          </button>
+        </div>
+      </section>
+
+      <section v-if="relatedLoading || related.length" class="section related">
+        <div class="related__head">
+          <h2>Podobne clanky</h2>
+          <span v-if="relatedLoading">Nacitavam...</span>
+        </div>
+
+        <div v-if="related.length" class="related__list">
+          <router-link
+            v-for="item in related"
+            :key="item.id"
+            :to="postLink(item)"
+            class="related__item"
+          >
+            <strong>{{ item.title }}</strong>
+            <span>{{ formatDate(item.published_at) }}</span>
+          </router-link>
+        </div>
+        <p v-else-if="!relatedLoading" class="related__empty">K tomuto clanku zatial nie su podobne temy.</p>
+      </section>
+    </template>
+  </article>

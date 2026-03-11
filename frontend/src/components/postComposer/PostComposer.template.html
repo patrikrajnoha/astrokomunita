@@ -1,0 +1,263 @@
+
+  <section class="composerCard">
+    <div class="composerRow">
+      <div class="avatar" aria-hidden="true">
+        <UserAvatar class="avatarImg" :user="auth?.user" :alt="auth?.user?.name || 'avatar'" />
+      </div>
+
+      <div class="composerBody">
+        <label for="post-composer-textarea" class="srOnly">Text prispevku</label>
+        <textarea
+          id="post-composer-textarea"
+          ref="textareaRef"
+          v-model="content"
+          class="composerInput"
+          :class="{ expanded: isExpanded }"
+          rows="1"
+          maxlength="2000"
+          :placeholder="composerPlaceholder"
+          @focus="onFocus"
+          @input="onTyping"
+          @keydown="onKeydown"
+          @blur="onBlur"
+        />
+
+        <div
+          v-if="showAutocomplete && suggestions.length > 0"
+          class="autocompletePopover"
+          :style="{ top: autocompletePosition.top + 'px', left: autocompletePosition.left + 'px' }"
+        >
+          <div
+            v-for="(suggestion, index) in suggestions"
+            :key="suggestion.name"
+            class="autocompleteItem"
+            :class="{ active: selectedIndex === index }"
+            @click="selectSuggestion(suggestion)"
+            @mouseenter="selectedIndex = index"
+          >
+            <div class="suggestionName">#{{ suggestion.name }}</div>
+            <div class="suggestionCount">{{ suggestion.count }} posts</div>
+          </div>
+        </div>
+
+        <div v-if="imagePreviewUrl" class="mediaCard">
+          <img class="mediaImg" :src="imagePreviewUrl" alt="Preview" />
+          <button class="removeMedia" type="button" :disabled="posting" aria-label="Odstranit prilohu" @click="removeFile">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div v-else-if="file" class="fileChip">
+          <div class="fileLeft">
+            <svg class="clipIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="m21.4 11-8.5 8.5a5.5 5.5 0 1 1-7.8-7.8l8.9-8.9a3.5 3.5 0 1 1 5 5l-9 9a1.5 1.5 0 0 1-2.1-2.1l8-8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <div class="fileText">
+              <div class="fileName">{{ file.name }}</div>
+              <div class="fileMeta">{{ prettySize(file.size) }}</div>
+            </div>
+          </div>
+
+          <button class="fileRemove" type="button" :disabled="posting" @click="removeFile">
+            Odstranit
+          </button>
+        </div>
+
+        <PollComposerPanel
+          v-if="pollEnabled"
+          :model-value="pollOptions"
+          :duration-seconds="pollDurationSeconds"
+          :disabled="posting"
+          @update:model-value="onPollOptionsUpdate"
+          @update:duration-seconds="setPollDurationSeconds"
+          @remove-poll="disablePoll"
+        />
+
+        <div v-if="selectedGif" class="mediaCard mediaCard--gif">
+          <img class="mediaImg" :src="selectedGif.preview_url || selectedGif.original_url" :alt="selectedGif.title || 'GIF preview'" />
+          <button class="removeMedia" type="button" :disabled="posting" aria-label="Odstranit GIF" @click="removeGif">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div v-if="selectedEvent" class="eventAttachCard">
+          <div>
+            <p class="eventAttachTitle">{{ selectedEvent.title || 'Vybrana udalost' }}</p>
+            <p class="eventAttachDate">{{ formatEventRange(selectedEvent.start_at, selectedEvent.end_at) }}</p>
+          </div>
+          <div class="eventAttachActions">
+            <button
+              class="eventCalendarBtn"
+              type="button"
+              :disabled="posting || eventFollowLoading"
+              @click="markCalendar"
+            >
+              {{ eventFollowed ? 'Sledujes' : (eventFollowLoading ? 'Ukladam...' : 'Mark your calendar') }}
+            </button>
+            <button class="eventRemoveBtn" type="button" :disabled="posting" @click="removeEvent">Odstranit</button>
+          </div>
+        </div>
+
+        <div class="actionsBar">
+          <div class="leftActions">
+            <input
+              ref="fileInput"
+              type="file"
+              class="fileInput"
+              :accept="accept"
+              @change="onFileChange"
+            />
+            <button
+              class="actionIconBtn"
+              :class="{ 'actionIconBtn--active': !!file }"
+              type="button"
+              :disabled="posting || isAttachmentDisabled"
+              :title="isAttachmentDisabled ? pollAttachmentDisabledHint : 'Obrazok'"
+              aria-label="Pridat prilohu"
+              @click="pickFile"
+            >
+              <svg class="actionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7"/>
+                <path d="m7 15 3.2-3.2a1 1 0 0 1 1.4 0L14 14l2-2a1 1 0 0 1 1.4 0L20 14.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                <circle cx="9" cy="9" r="1.2" fill="currentColor"/>
+              </svg>
+            </button>
+
+            <button
+              class="actionIconBtn"
+              :class="{ 'actionIconBtn--active': !!selectedGif }"
+              type="button"
+              :disabled="posting || pollEnabled"
+              aria-label="Vybrat GIF"
+              :title="pollEnabled ? pollAttachmentDisabledHint : 'GIF'"
+              @click="openGifModal"
+            >
+              <svg class="actionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3.5" y="5" width="17" height="14" rx="2.5" stroke="currentColor" stroke-width="1.7"/>
+                <path d="M8 10.5h2.8M8 13.5h2.8M12 10.5h4.8M12 13.5h4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+
+            <button
+              v-if="!pollEnabled"
+              class="actionIconBtn"
+              type="button"
+              :disabled="posting"
+              aria-label="Pridat anketu"
+              @click="enablePoll"
+            >
+              <svg class="actionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 7h14M5 12h14M5 17h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                <circle cx="8" cy="7" r="1.2" fill="currentColor"/>
+                <circle cx="16" cy="12" r="1.2" fill="currentColor"/>
+                <circle cx="11" cy="17" r="1.2" fill="currentColor"/>
+              </svg>
+            </button>
+
+            <button
+              v-else
+              class="actionIconBtn actionIconBtn--active"
+              type="button"
+              :disabled="posting"
+              aria-label="Odstranit anketu"
+              @click="disablePoll"
+            >
+              <svg class="actionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+
+            <button
+              class="actionIconBtn"
+              :class="{ 'actionIconBtn--active': !!selectedEvent }"
+              type="button"
+              :disabled="posting"
+              aria-label="Pridat udalost"
+              @click="openEventModal"
+            >
+              <svg class="actionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7"/>
+                <path d="M8 3.5v3M16 3.5v3M3.5 9.5h17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="rightActions">
+            <div class="counter" :class="{ warn: content.length > 1800 && content.length <= 2000, bad: content.length > 2000 }">
+              {{ content.length }}/2000
+            </div>
+
+            <button class="publishBtn" type="button" :disabled="isSubmitDisabled" aria-label="Publikovat" @click="submit">
+              <span>{{ posting ? 'Publikujem...' : 'Post' }}</span>
+            </button>
+          </div>
+        </div>
+        <div v-if="pollEnabled" class="pollAttachmentHint">{{ pollAttachmentDisabledHint }}</div>
+
+        <div v-if="err" class="err">{{ err }}</div>
+        <div v-else-if="submitBlockReason" class="err">{{ submitBlockReason }}</div>
+      </div>
+    </div>
+
+    <div v-if="showGifModal" class="modalBackdrop" @click.self="closeGifModal">
+      <section class="modalCard" role="dialog" aria-modal="true" aria-labelledby="gif-modal-title">
+        <header class="modalHead">
+          <h3 id="gif-modal-title">Vybrat GIF</h3>
+          <button class="modalClose" type="button" @click="closeGifModal">x</button>
+        </header>
+        <input
+          ref="gifInputRef"
+          v-model="gifQuery"
+          class="modalInput"
+          type="text"
+          placeholder="Hladaj GIF..."
+          @input="onGifQueryChange"
+        />
+        <div v-if="gifLoading" class="gifGrid">
+          <div v-for="i in 6" :key="`gif-sk-${i}`" class="gifSkeleton"></div>
+        </div>
+        <p v-else-if="gifError" class="modalError">{{ gifError }}</p>
+        <p v-else-if="gifQuery.trim().length < GIF_MIN_QUERY_LENGTH" class="modalHint">Zadaj aspon 2 znaky.</p>
+        <p v-else-if="gifResults.length === 0" class="modalHint">Ziadne GIFy.</p>
+        <div v-else class="gifGrid">
+          <button v-for="gif in gifResults" :key="gif.id" type="button" class="gifTile" @click="selectGif(gif)">
+            <img :src="gif.preview_url" :alt="gif.title || 'GIF'" loading="lazy" />
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="showEventModal" class="modalBackdrop" @click.self="closeEventModal">
+      <section class="modalCard" role="dialog" aria-modal="true" aria-labelledby="event-modal-title">
+        <header class="modalHead">
+          <h3 id="event-modal-title">Pridat udalost</h3>
+          <button class="modalClose" type="button" @click="closeEventModal">x</button>
+        </header>
+        <input
+          v-model="eventQuery"
+          class="modalInput"
+          type="text"
+          placeholder="Hladaj udalost..."
+          @input="onEventQueryChange"
+        />
+        <p v-if="eventError" class="modalError">{{ eventError }}</p>
+        <p v-else-if="eventLoading" class="modalHint">Nacitavam...</p>
+        <div v-else class="eventList">
+          <button
+            v-for="eventItem in eventResults"
+            :key="eventItem.id"
+            class="eventItem"
+            type="button"
+            @click="selectEvent(eventItem)"
+          >
+            <span class="eventItemTitle">{{ eventItem.title }}</span>
+            <span class="eventItemDate">{{ formatEventRange(eventItem.start_at, eventItem.end_at) }}</span>
+          </button>
+        </div>
+      </section>
+    </div>
+  </section>

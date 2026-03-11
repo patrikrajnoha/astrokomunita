@@ -1,0 +1,296 @@
+
+  <div class="eventsView">
+    <section class="panel headerPanel">
+      <div>
+        <h1>Udalosti</h1>
+        <p>Kompaktný prehľad publikovaných a manuálnych udalostí.</p>
+      </div>
+      <div class="toolbar">
+        <button class="btn ghost" :disabled="translationActionLoading" @click="toggleTranslationTools">
+          {{ showTranslationTools ? 'Skryť nástroje' : 'Nástroje prekladu' }}
+        </button>
+        <button class="btn primary" @click="openCreate">Nová udalosť</button>
+      </div>
+    </section>
+
+    <section v-if="showTranslationTools" class="panel toolsPanel">
+      <div class="toolsPanel__head">
+        <div>
+          <h2>Preklad kandidátov</h2>
+          <p>Náhľad alebo spustenie hromadného retranslate pre schválené položky.</p>
+        </div>
+        <div class="toolbar">
+          <button class="btn ghost" :disabled="translationActionLoading" @click="previewTranslationBackfill">Náhľad</button>
+          <button class="btn ghost" :disabled="translationActionLoading" @click="runTranslationBackfill">Spustiť</button>
+        </div>
+      </div>
+
+      <div v-if="translationError" class="notice noticeError">{{ translationError }}</div>
+      <div v-else-if="translationSummary" class="notice noticeOk noticeCompact">
+        Kandidáti: {{ translationSummary.summary?.total_candidates ?? 0 }} |
+        Preložené: {{ translationSummary.summary?.translated ?? 0 }} |
+        Zlyhalo: {{ translationSummary.summary?.failed ?? 0 }} |
+        Eventy: {{ translationSummary.summary?.events_updated ?? 0 }} |
+        Dry run: {{ translationSummary.summary?.dry_run ? 'áno' : 'nie' }}
+      </div>
+      <p v-else class="toolsPanel__hint">
+        Retranslate používaj po úpravách slovníka alebo pri zistení prekladových artefaktov.
+      </p>
+    </section>
+
+    <BaseModal
+      v-model:open="isFormModalOpen"
+      :title="formModalTitle"
+      test-id="events-published-form-modal"
+      close-test-id="events-published-form-modal-close"
+      @close="closeForm"
+    >
+      <section class="formPanel">
+        <div class="formHead">
+          <div class="quickBtns quickBtns--right">
+            <button class="btn tiny" type="button" @click="setStartNow">Začiatok teraz</button>
+            <button class="btn tiny" type="button" @click="setEndAfter(1)">Koniec +1h</button>
+            <button class="btn tiny" type="button" @click="setEndAfter(2)">Koniec +2h</button>
+            <button
+              v-if="aiEnabled"
+              class="btn tiny ghost"
+              type="button"
+              @click="showAdvancedAiInForm = !showAdvancedAiInForm"
+            >
+              {{ showAdvancedAiInForm ? 'Skryt AI opis' : 'AI opis' }}
+            </button>
+          </div>
+      </div>
+
+      <AdminAiActionPanel
+        v-if="aiPanelReady"
+        title="AI: Zlepšiť názov (SK)"
+        description="Navrhne prirodzenejsi nazov bez pridavania novych faktov."
+        action-label="Navrhnúť"
+        :enabled="aiTitleEnabled"
+        :status="aiTitleActionStatus"
+        :latency-ms="aiTitleEventLastRun?.latency_ms ?? null"
+        :last-run-at="aiTitleEventLastRun?.updated_at ?? null"
+        :retry-count="aiTitleEventLastRun?.retry_count ?? null"
+        :raw-status-code="aiTitleActionRawStatus"
+        :is-loading="aiTitleActionLoading"
+        :error-message="aiTitleActionError"
+        @run="runAiSuggestTitle"
+      >
+        <p v-if="editingEventId <= 0" class="aiHint">
+          Najprv uloz udalost, potom mozes navrhnut nazov.
+        </p>
+        <template v-else>
+          <div v-if="aiTitleActionNotice" class="aiNoticeRow">
+            <span class="aiNotice">{{ aiTitleActionNotice }}</span>
+            <button
+              v-if="aiTitleUndoSnapshot !== null"
+              type="button"
+              class="aiUndoBtn"
+              @click="undoAiTitleSuggestion"
+            >
+              Undo
+            </button>
+          </div>
+          <span
+            v-if="aiTitleActionStatus === 'fallback' || aiTitleFallbackUsed"
+            class="aiBadge aiBadge--fallback"
+          >
+            Použitý fallback
+          </span>
+          <div v-if="aiTitleSuggestion" class="aiCompareBlock">
+            <p class="aiHint"><strong>Pôvodný:</strong> {{ aiTitleSource || '-' }}</p>
+            <p class="aiHint"><strong>Návrh:</strong> {{ aiTitleSuggestion }}</p>
+            <button
+              type="button"
+              data-testid="events-unified-title-apply-btn"
+              class="btn tiny"
+              @click="applyAiTitleSuggestion"
+            >
+              Použiť
+            </button>
+          </div>
+        </template>
+      </AdminAiActionPanel>
+      <template v-if="showAdvancedAiInForm">
+        <AdminAiActionPanel
+          v-if="aiPanelReady"
+          class="aiPanelSpacer"
+          title="AI pomocnik"
+          description="Vylepsi opis udalosti bez zobrazenia internych detailov."
+          action-label="Vylepšiť opis"
+          :enabled="aiPanelEnabled"
+          :status="aiActionStatus"
+          :latency-ms="aiEventLastRun?.latency_ms ?? null"
+          :last-run-at="aiEventLastRun?.updated_at ?? null"
+          :retry-count="aiEventLastRun?.retry_count ?? null"
+          :raw-status-code="aiActionRawStatus"
+          :is-loading="aiActionLoading"
+          :error-message="aiActionError"
+          @run="runAiGenerateDescription"
+        >
+          <p v-if="editingEventId <= 0" class="aiHint">
+            Najprv uloz udalost, potom mozes vylepsit opis.
+          </p>
+          <template v-else>
+            <div v-if="aiActionNotice" class="aiNoticeRow">
+              <span class="aiNotice">Opis aktualizovany.</span>
+              <button
+                v-if="aiUndoSnapshot"
+                type="button"
+                class="aiUndoBtn"
+                @click="undoAiDescription"
+              >
+                Undo
+              </button>
+            </div>
+            <span v-if="aiActionStatus === 'fallback'" class="aiBadge aiBadge--fallback">Použitý fallback</span>
+            <p class="aiHint"><strong>Kratky opis:</strong> {{ aiShortDraft || '-' }}</p>
+            <p class="aiHint"><strong>Opis:</strong> {{ form.description || aiActionResult?.description || '-' }}</p>
+          </template>
+        </AdminAiActionPanel>
+        <p v-else class="aiHint">
+          Načítavam AI konfiguráciu...
+        </p>
+      </template>
+
+      <div v-if="formError" class="notice noticeError">{{ formError }}</div>
+      <div v-if="formSuccess" class="notice noticeOk">{{ formSuccess }}</div>
+
+      <form class="formGrid" @submit.prevent="submitForm">
+        <label class="field fieldWide">
+          <span>Názov *</span>
+          <input v-model="form.title" type="text" :disabled="formLoading" />
+        </label>
+
+        <label class="field">
+          <span>Typ *</span>
+          <select v-model="form.type" :disabled="formLoading">
+            <option v-for="item in eventTypes" :key="item.value" :value="item.value">{{ item.label }}</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Viditeľnosť</span>
+          <select v-model.number="form.visibility" :disabled="formLoading">
+            <option :value="1">Verejné</option>
+            <option :value="0">Skryté</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Začiatok *</span>
+          <input v-model="form.start_at" type="datetime-local" :disabled="formLoading" />
+        </label>
+
+        <label class="field">
+          <span>Koniec</span>
+          <input v-model="form.end_at" type="datetime-local" :disabled="formLoading" />
+        </label>
+
+        <label class="field fieldWide">
+          <span>Popis</span>
+          <textarea v-model="form.description" rows="3" :disabled="formLoading"></textarea>
+        </label>
+
+        <div v-if="formErrors.length > 0" class="fieldWide notice noticeError">{{ formErrors[0] }}</div>
+
+        <div class="formActions fieldWide">
+          <button type="button" class="btn ghost" :disabled="formLoading" @click="closeForm">Zrušiť</button>
+          <button type="submit" class="btn primary" :disabled="formLoading || formErrors.length > 0">
+            {{ formLoading ? 'Ukladá sa...' : (isEdit ? 'Uložiť zmeny' : 'Vytvoriť') }}
+          </button>
+        </div>
+      </form>
+      </section>
+    </BaseModal>
+
+    <section class="panel listPanel">
+      <div class="listTop">
+        <div class="meta">
+          <strong>Prehľad</strong>
+          <span v-if="pagination">Strana {{ pagination.currentPage }} / {{ pagination.lastPage }} (spolu {{ pagination.total }})</span>
+        </div>
+        <label class="perPage">
+          <span>Na stránku</span>
+          <select :value="perPage" @change="setPerPage(Number($event.target.value))">
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+          </select>
+        </label>
+      </div>
+
+      <div v-if="error" class="notice noticeError">
+        {{ error }}
+        <button class="btn tiny" @click="refresh">Skúsiť znova</button>
+      </div>
+
+      <div v-else-if="loading" class="loading">Načítavam udalosti...</div>
+
+      <div v-else-if="data">
+        <div class="tableWrap eventsTableWrap">
+          <table class="compactTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Názov</th>
+                <th>Typ</th>
+                <th>Začiatok</th>
+                <th>Stav</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="event in data.data" :key="event.id">
+                <td class="mono">{{ event.id }}</td>
+                <td>
+                  <div class="title">{{ event.title }}</div>
+                  <div v-if="event.description" class="sub">{{ event.description }}</div>
+                </td>
+                <td><span class="pill">{{ event.type }}</span></td>
+                <td>{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</td>
+                <td>
+                  <span class="pill" :class="event.visibility === 1 ? 'ok' : 'muted'">
+                    {{ event.visibility === 1 ? 'verejné' : 'skryté' }}
+                  </span>
+                </td>
+                <td class="right">
+                  <button class="btn tiny" @click="openEdit(event)">Upraviť</button>
+                </td>
+              </tr>
+              <tr v-if="data.data.length === 0">
+                <td colspan="6" class="empty">Žiadne udalosti.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="eventsMobileList">
+          <article v-for="event in data.data" :key="`mobile-event-${event.id}`" class="eventMobileCard">
+            <div class="eventMobileCard__head">
+              <span class="mono">#{{ event.id }}</span>
+              <span class="pill" :class="event.visibility === 1 ? 'ok' : 'muted'">
+                {{ event.visibility === 1 ? 'verejné' : 'skryté' }}
+              </span>
+            </div>
+            <div class="title">{{ event.title }}</div>
+            <div v-if="event.description" class="sub">{{ event.description }}</div>
+            <div class="eventMobileCard__meta">
+              <span class="pill">{{ event.type }}</span>
+              <span>{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</span>
+            </div>
+            <div class="eventMobileCard__actions">
+              <button class="btn tiny" @click="openEdit(event)">Upraviť</button>
+            </div>
+          </article>
+          <div v-if="data.data.length === 0" class="empty">Žiadne udalosti.</div>
+        </div>
+      </div>
+
+      <div v-if="pagination" class="pager">
+        <button class="btn ghost" :disabled="!hasPrevPage" @click="prevPage">Pred</button>
+        <button class="btn ghost" :disabled="!hasNextPage" @click="nextPage">Ďalšia</button>
+      </div>
+    </section>
+  </div>

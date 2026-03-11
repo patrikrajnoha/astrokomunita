@@ -1,0 +1,200 @@
+
+  <AdminPageShell class="usersPageShell" title="Pouzivatelia">
+    <div class="usersView">
+      <div v-if="error" class="usersErrorBanner" role="alert">
+        <span>{{ error }}</span>
+        <button type="button" class="errorRetryBtn" :disabled="loading" @click="retryLoad">Skusit znova</button>
+      </div>
+
+      <div v-if="showSkeleton" class="usersSkeleton" aria-hidden="true">
+        <div class="usersSkeletonToolbar">
+          <span class="skeletonBlock is-wide"></span>
+          <span class="skeletonBlock is-short"></span>
+        </div>
+        <div class="usersSkeletonTable">
+          <span v-for="idx in 8" :key="`skeleton-row-${idx}`" class="skeletonRow"></span>
+        </div>
+      </div>
+
+      <template v-else>
+        <section class="usersFilters" aria-label="Filtre pouzivatelov">
+          <label class="usersFiltersLabel" for="users-search">Search users...</label>
+          <div class="usersFiltersRow">
+            <div class="searchInputWrap">
+              <span class="searchIcon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none">
+                  <circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.4" />
+                  <path d="M13 13L17 17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                </svg>
+              </span>
+              <input
+                id="users-search"
+                v-model="searchInput"
+                :disabled="loading"
+                type="search"
+                placeholder="Search users..."
+                class="usersSearchInput"
+              />
+              <button
+                v-if="searchInput"
+                type="button"
+                class="searchClearBtn"
+                aria-label="Vymazat hladanie"
+                :disabled="loading"
+                @click="clearSearch"
+              >
+                <span aria-hidden="true">x</span>
+              </button>
+            </div>
+
+            <select
+              id="users-per-page"
+              v-model.number="perPage"
+              :disabled="loading"
+              class="perPageSelect"
+              @change="page = 1"
+            >
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="50">50</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="usersTableWrap" aria-label="Tabulka pouzivatelov">
+          <div class="usersTableScroll">
+            <table class="usersTable">
+              <thead>
+                <tr>
+                  <th class="col-user">Pouzivatel</th>
+                  <th class="col-email">E-mail</th>
+                  <th class="col-role">Rola</th>
+                  <th class="col-status">Stav</th>
+                  <th class="col-actions">Akcie</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!rows.length">
+                  <td colspan="5" class="usersEmptyState">
+                    <div class="usersEmptyTitle">Nenasli sa ziadni pouzivatelia</div>
+                    <div class="usersEmptyText">Skuste upravit filtre.</div>
+                    <button
+                      v-if="hasActiveFilters"
+                      type="button"
+                      class="emptyClearBtn"
+                      :disabled="loading"
+                      @click="clearFilters"
+                    >
+                      Vycistit hladanie
+                    </button>
+                  </td>
+                </tr>
+
+                <tr
+                  v-for="row in rows"
+                  v-else
+                  :key="row.id"
+                  class="usersRow"
+                  :data-row-id="row.id"
+                  tabindex="0"
+                  role="link"
+                  @click="openUserDetail(row)"
+                  @keydown.enter.prevent="openUserDetail(row)"
+                  @keydown.space.prevent="openUserDetail(row)"
+                >
+                  <td data-label="Pouzivatel" class="col-user">
+                    <div class="userCell">
+                      <RouterLink
+                        :to="{ name: 'admin.users.detail', params: { id: row.id } }"
+                        class="avatarLink"
+                        :aria-label="`Avatar ${userName(row)}`"
+                        @click.stop
+                      >
+                        <div class="avatar">
+                          <UserAvatar class="avatarFallback" :user="row" :alt="`${userName(row)} avatar`" />
+                        </div>
+                      </RouterLink>
+                      <div class="userMeta">
+                        <RouterLink
+                          :to="{ name: 'admin.users.detail', params: { id: row.id } }"
+                          class="userLink"
+                          :title="userName(row)"
+                          @click.stop
+                        >
+                          {{ userName(row) }}
+                        </RouterLink>
+                        <RouterLink
+                          v-if="row.username"
+                          :to="{ name: 'user-profile', params: { username: row.username } }"
+                          class="userSubline userSublineLink"
+                          :title="userHandle(row)"
+                          @click.stop
+                        >
+                          {{ userHandle(row) }}
+                        </RouterLink>
+                        <span v-else class="userSubline" :title="userHandle(row)">
+                          {{ userHandle(row) }}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td data-label="E-mail" class="col-email">
+                    <div class="emailCell">
+                      <span class="truncateText" :title="userEmail(row)">{{ userEmail(row) }}</span>
+                      <span
+                        v-if="isBotAccount(row)"
+                        class="botAccountHint"
+                        :title="botAccountHint()"
+                      >
+                        (bot ucet)
+                      </span>
+                    </div>
+                  </td>
+
+                  <td data-label="Rola" class="col-role">
+                    <span class="badge roleBadge" :class="roleClass(row)">{{ roleLabel(row) }}</span>
+                  </td>
+
+                  <td data-label="Stav" class="col-status">
+                    <div class="statusCell">
+                      <span class="badge statusBadge" :class="statusClass(row)">
+                        {{ statusLabel(row) }}
+                      </span>
+                      <span
+                        v-if="row.is_banned && row.ban_reason"
+                        class="banReasonPreview"
+                        :title="row.ban_reason"
+                      >
+                        {{ banReasonPreview(row) }}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td data-label="Akcie" class="col-actions" @click.stop>
+                    <div class="rowActions">
+                      <DropdownMenu
+                        :items="rowActionItems(row)"
+                        :label="`Akcie pre ${userName(row)}`"
+                        menu-label="Akcie pouzivatela"
+                        @select="onRowActionSelect(row, $event)"
+                      >
+                        <template #trigger>
+                          <span class="rowMenuTrigger" aria-hidden="true">...</span>
+                        </template>
+                      </DropdownMenu>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div v-if="shouldShowPagination" class="usersPaginationFooter">
+          <div class="usersPaginationMeta">Spolu pouzivatelov: {{ totalUsers }}</div>
+          <AdminPagination :meta="data" @page-change="page = $event" />
+        </div>
+      </template>
+    </div>
+  </AdminPageShell>
