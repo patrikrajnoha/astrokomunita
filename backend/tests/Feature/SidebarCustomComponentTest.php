@@ -126,7 +126,7 @@ class SidebarCustomComponentTest extends TestCase
             'type' => SidebarCustomComponent::TYPE_HTML,
             'is_active' => true,
             'config_json' => [
-                'html' => '<p onclick="alert(1)">Read <a href="javascript:alert(2)">more</a></p><script>alert(3)</script>',
+                'html' => '<p onclick="alert(1)">Read <a href="javascript:alert(2)" target="_blank">more</a> and <a href="https://example.com" target="_blank">safe</a></p><img src=x onerror="alert(4)"><script>alert(3)</script>',
             ],
         ]);
 
@@ -137,6 +137,9 @@ class SidebarCustomComponentTest extends TestCase
         $this->assertStringNotContainsString('<script>', $html);
         $this->assertStringNotContainsString('javascript:', $html);
         $this->assertStringNotContainsString('onclick=', strtolower($html));
+        $this->assertStringNotContainsString('<img', strtolower($html));
+        $this->assertStringContainsString('href="https://example.com"', $html);
+        $this->assertStringContainsString('rel="noopener noreferrer"', strtolower($html));
     }
 
     public function test_admin_can_list_custom_components_and_filter_active_only(): void
