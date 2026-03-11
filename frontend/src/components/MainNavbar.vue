@@ -905,11 +905,11 @@ const toggleCreatePicker = () => {
   isCreatePickerOpen.value = !isCreatePickerOpen.value
 }
 
-const selectCreateType = async (type) => {
+const selectCreateType = (type) => {
   closeCreatePicker()
 
   if (type === 'observation') {
-    await router.push('/observations/new')
+    openComposer('observation')
     return
   }
 
@@ -1188,6 +1188,10 @@ watch(
   flex: 1 1 0;
   min-width: 0;
   font-weight: 600;
+  font-size: 0.75rem;
+  padding: 0.5rem 0.5rem;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .guestAuthActions__btn--register {

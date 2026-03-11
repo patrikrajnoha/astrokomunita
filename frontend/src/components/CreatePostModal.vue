@@ -2,70 +2,86 @@
   <teleport to="body">
     <transition name="fade">
       <div v-if="open" class="overlay" role="presentation" @click.self="onOverlayClick">
-        <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="composer-title" @click.stop>
+        <section class="dialog" :class="{ 'dialog--observation': isObservationMode }" role="dialog" aria-modal="true" aria-labelledby="composer-title" @click.stop>
           <header class="head">
             <button type="button" class="ghost" :disabled="submitting" @click="cancelAndClose">Zrusit</button>
             <div class="headRight">
-              <button type="button" class="ghost" :disabled="submitting" @click="onDraftsClick">Koncepty</button>
-              <button type="button" class="primary" :disabled="isSubmitDisabled" @click="submit">
-                {{ submitting ? 'Odosielam...' : 'Pridat' }}
-              </button>
+              <template v-if="isObservationMode">
+                <button type="button" class="ghost" :disabled="submitting" @click="switchToPostComposer">
+                  Spat na prispevok
+                </button>
+              </template>
+              <template v-else>
+                <button type="button" class="ghost" :disabled="submitting" @click="onDraftsClick">Koncepty</button>
+                <button type="button" class="primary" :disabled="isSubmitDisabled" @click="submit">
+                  {{ submitting ? 'Odosielam...' : 'Pridat' }}
+                </button>
+              </template>
             </div>
           </header>
 
           <p id="composer-title" class="srOnly">Vytvorenie prispevku</p>
-          <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-          <p v-else-if="submitBlockReason" class="error">{{ submitBlockReason }}</p>
+          <p v-if="isPostMode && errorMessage" class="error">{{ errorMessage }}</p>
+          <p v-else-if="isPostMode && submitBlockReason" class="error">{{ submitBlockReason }}</p>
 
-          <div class="body">
-            <div class="avatar" aria-hidden="true">
-              <UserAvatar class="avatarImg" :user="auth?.user" :alt="auth?.user?.name || 'avatar'" />
-            </div>
+          <div class="body" :class="{ 'body--observation': isObservationMode }">
+            <ObservationCreateView
+              v-if="isObservationMode"
+              embedded
+              @cancel="switchToPostComposer"
+              @submitted="onObservationSubmitted"
+            />
 
-            <div class="contentCol">
-              <label class="srOnly" for="composer-textarea">Text prispevku</label>
-              <textarea
-                id="composer-textarea"
-                ref="textareaRef"
-                v-model="content"
-                class="textarea"
-                placeholder="Čo je nové na oblohe?"
-                rows="5"
-                :disabled="submitting"
-                @input="onInput"
-              />
-
-              <div v-if="imagePreviewUrl" class="mediaCard">
-                <img class="mediaImg" :src="imagePreviewUrl" alt="Nahlad" />
-                <button class="mediaRemove" type="button" :disabled="submitting" @click="removeFile">x</button>
+            <template v-else>
+              <div class="avatar" aria-hidden="true">
+                <UserAvatar class="avatarImg" :user="auth?.user" :alt="auth?.user?.name || 'avatar'" />
               </div>
 
-              <PollComposerPanel
-                v-if="pollEnabled"
-                :model-value="pollOptions"
-                :duration-seconds="pollDurationSeconds"
-                :disabled="submitting"
-                @update:model-value="onPollOptionsUpdate"
-                @update:duration-seconds="setPollDurationSeconds"
-                @remove-poll="disablePoll"
-              />
+              <div class="contentCol">
+                <label class="srOnly" for="composer-textarea">Text prispevku</label>
+                <textarea
+                  id="composer-textarea"
+                  ref="textareaRef"
+                  v-model="content"
+                  class="textarea"
+                  placeholder="Čo je nové na oblohe?"
+                  rows="5"
+                  :disabled="submitting"
+                  @input="onInput"
+                />
 
-              <div v-if="selectedGif" class="mediaCard">
-                <img class="mediaImg" :src="selectedGif.preview_url || selectedGif.original_url" :alt="selectedGif.title || 'GIF'" />
-                <button class="mediaRemove" type="button" :disabled="submitting" @click="removeGif">x</button>
-              </div>
-
-              <div v-if="selectedEvent" class="eventCard">
-                <div>
-                  <p class="eventTitle">{{ selectedEvent.title || 'Vybrana udalost' }}</p>
-                  <p class="eventDate">{{ formatEventRange(selectedEvent.start_at, selectedEvent.end_at) }}</p>
+                <div v-if="imagePreviewUrl" class="mediaCard">
+                  <img class="mediaImg" :src="imagePreviewUrl" alt="Nahlad" />
+                  <button class="mediaRemove" type="button" :disabled="submitting" @click="removeFile">x</button>
                 </div>
-                <button class="eventRemove" type="button" :disabled="submitting" @click="removeEvent">Odstranit</button>
+
+                <PollComposerPanel
+                  v-if="pollEnabled"
+                  :model-value="pollOptions"
+                  :duration-seconds="pollDurationSeconds"
+                  :disabled="submitting"
+                  @update:model-value="onPollOptionsUpdate"
+                  @update:duration-seconds="setPollDurationSeconds"
+                  @remove-poll="disablePoll"
+                />
+
+                <div v-if="selectedGif" class="mediaCard">
+                  <img class="mediaImg" :src="selectedGif.preview_url || selectedGif.original_url" :alt="selectedGif.title || 'GIF'" />
+                  <button class="mediaRemove" type="button" :disabled="submitting" @click="removeGif">x</button>
+                </div>
+
+                <div v-if="selectedEvent" class="eventCard">
+                  <div>
+                    <p class="eventTitle">{{ selectedEvent.title || 'Vybrana udalost' }}</p>
+                    <p class="eventDate">{{ formatEventRange(selectedEvent.start_at, selectedEvent.end_at) }}</p>
+                  </div>
+                  <button class="eventRemove" type="button" :disabled="submitting" @click="removeEvent">Odstranit</button>
+                </div>
               </div>
-            </div>
+            </template>
           </div>
 
-          <footer class="foot">
+          <footer v-if="isPostMode" class="foot">
             <div class="actions">
               <input ref="fileInput" class="hiddenInput" type="file" accept="image/*,.gif" @change="onFileChange" />
 
@@ -177,6 +193,7 @@ import { createPost } from '@/services/posts'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import PollComposerPanel from '@/components/poll/PollComposerPanel.vue'
+import ObservationCreateView from '@/views/ObservationCreateView.vue'
 
 const MAX_CHARS = 300
 const MAX_BYTES = 20 * 1024 * 1024
@@ -227,9 +244,12 @@ const eventDebounce = ref(null)
 const pollEnabled = ref(false)
 const pollOptions = ref(createInitialPollOptions())
 const pollDurationSeconds = ref(86400)
+const composerMode = ref('post')
 
 let bodyOverflow = ''
 
+const isObservationMode = computed(() => composerMode.value === 'observation')
+const isPostMode = computed(() => !isObservationMode.value)
 const normalizedLength = computed(() => content.value.trimEnd().length)
 const remainingChars = computed(() => MAX_CHARS - normalizedLength.value)
 const isOverLimit = computed(() => remainingChars.value < 0)
@@ -248,6 +268,7 @@ const submitBlockReason = computed(() => {
   return ''
 })
 const isSubmitDisabled = computed(() => {
+  if (!isPostMode.value) return true
   return submitting.value || normalizedLength.value === 0 || isOverLimit.value || !isPollValid.value
 })
 const counterRingStyle = computed(() => {
@@ -261,11 +282,13 @@ watch(() => props.open, async (isOpen) => {
     bodyOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', onKeydown)
-    await nextTick()
-    focusTextarea()
-    autoResize()
     applyInitialAction()
-    applyInitialAttachment()
+    if (isPostMode.value) {
+      await nextTick()
+      focusTextarea()
+      autoResize()
+      applyInitialAttachment()
+    }
     return
   }
   window.removeEventListener('keydown', onKeydown)
@@ -276,7 +299,7 @@ watch(() => props.open, async (isOpen) => {
 watch(
   () => props.initialAttachmentFile,
   (nextFile) => {
-    if (!props.open || !nextFile) return
+    if (!props.open || !nextFile || !isPostMode.value) return
     applyInitialAttachment(nextFile)
   },
 )
@@ -428,6 +451,7 @@ function toggleMore() {
 
 function normalizeInitialAction(value) {
   const normalized = String(value || 'post').toLowerCase()
+  if (normalized === 'observation') return 'observation'
   if (normalized === 'poll') return 'poll'
   if (normalized === 'event') return 'event'
   return 'post'
@@ -435,6 +459,16 @@ function normalizeInitialAction(value) {
 
 function applyInitialAction() {
   const action = normalizeInitialAction(props.initialAction)
+  if (action === 'observation') {
+    composerMode.value = 'observation'
+    showEmoji.value = false
+    showMore.value = false
+    closeGifModal()
+    closeEventModal()
+    return
+  }
+
+  composerMode.value = 'post'
   if (action === 'poll') {
     enablePoll()
     return
@@ -451,8 +485,43 @@ function applyInitialAttachment(nextFile = props.initialAttachmentFile) {
 
 function openObservationCreate() {
   if (submitting.value) return
-  cancelAndClose()
-  void router.push('/observations/new')
+  composerMode.value = 'observation'
+  showMore.value = false
+  showEmoji.value = false
+}
+
+function switchToPostComposer() {
+  if (submitting.value) return
+  composerMode.value = 'post'
+  showMore.value = false
+  showEmoji.value = false
+  nextTick(() => {
+    focusTextarea()
+    autoResize()
+  })
+}
+
+async function onObservationSubmitted(payload) {
+  if (submitting.value) return
+
+  const observationId = Number(payload?.observationId || 0)
+  const feedPostId = Number(payload?.feedPostId || 0)
+  const shouldOpenPost = Boolean(payload?.isPublic) && Boolean(payload?.openPostAfterCreate) && feedPostId > 0
+
+  resetState()
+  emit('close')
+
+  if (shouldOpenPost) {
+    await router.push(`/posts/${feedPostId}`)
+    return
+  }
+
+  if (observationId > 0) {
+    await router.push(`/observations/${observationId}`)
+    return
+  }
+
+  await router.push('/observations')
 }
 
 function openGifModal() {
@@ -698,6 +767,7 @@ function parseEventDate(value) {
 }
 
 function resetState() {
+  composerMode.value = 'post'
   content.value = ''
   errorMessage.value = ''
   showEmoji.value = false
@@ -797,6 +867,12 @@ function firstValidationError(error, fallbackMessage) {
   overflow: hidden;
 }
 
+.dialog--observation {
+  width: min(760px, 90vw);
+  min-height: 360px;
+  max-height: min(86vh, 720px);
+}
+
 .head {
   display: flex;
   align-items: center;
@@ -853,6 +929,11 @@ function firstValidationError(error, fallbackMessage) {
   gap: 0.72rem;
   padding: 0.9rem 1rem 0.75rem;
   overflow: auto;
+}
+
+.body--observation {
+  display: block;
+  padding: 0.45rem 0.7rem 0.6rem;
 }
 
 .avatar {
@@ -1257,8 +1338,18 @@ function firstValidationError(error, fallbackMessage) {
     border-radius: 16px;
   }
 
+  .dialog--observation {
+    min-height: 340px;
+    max-height: min(90vh, 680px);
+  }
+
+  .body--observation {
+    padding: 0.35rem 0.45rem 0.5rem;
+  }
+
   .gifGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>
+

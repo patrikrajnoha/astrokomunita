@@ -1,15 +1,15 @@
 <template>
-  <section class="observation-create-page">
-    <header>
+  <section class="observation-create-page" :class="{ 'observation-create-page--embedded': embedded }">
+    <header v-if="!embedded">
       <h1>Nove pozorovanie</h1>
-      <p>Vytvor zaznam pozorovania a pridaj fotografie.</p>
+      <p>Vytvor zaznam pozorovania, pridaj fotografie a publikuj ho do feedu.</p>
     </header>
 
     <div v-if="!auth.isAuthed" class="state-card">
       <InlineStatus variant="info" message="Prihlas sa pre vytvorenie pozorovania." />
     </div>
 
-    <form v-else class="form-card" @submit.prevent="submit">
+    <form v-else class="form-card" :class="{ 'form-card--embedded': embedded }" @submit.prevent="submit">
       <label class="field">
         <span>Nazov *</span>
         <input v-model="form.title" type="text" maxlength="255" required>
@@ -63,7 +63,15 @@
 
       <label class="field field-check">
         <input v-model="form.isPublic" type="checkbox">
-        <span>Zobrazit vo verejnom feede</span>
+        <span>Publikovat vo verejnom feede</span>
+      </label>
+      <p class="field-help">
+        Verejne pozorovanie sa automaticky vytvori aj ako prispevok vo feede.
+      </p>
+
+      <label v-if="form.isPublic" class="field field-check field-check--nested">
+        <input v-model="openPostAfterCreate" type="checkbox">
+        <span>Po ulozeni otvorit vytvoreny prispevok</span>
       </label>
 
       <label class="field">
@@ -78,11 +86,11 @@
       <InlineStatus v-if="error" variant="error" :message="error" />
 
       <div class="actions">
-        <button type="button" class="ui-pill ui-pill--secondary" :disabled="saving" @click="router.push('/observations')">
-          Spat
+        <button type="button" class="ui-pill ui-pill--secondary" :disabled="saving" @click="onCancelClick">
+          {{ cancelLabel }}
         </button>
         <button type="submit" class="ui-pill ui-pill--primary" :disabled="saving">
-          {{ saving ? 'Ukladam...' : 'Vytvorit pozorovanie' }}
+          {{ submitLabel }}
         </button>
       </div>
     </form>
@@ -90,7 +98,7 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
@@ -99,6 +107,14 @@ import { getEvents } from '@/services/events'
 import { fromDateTimeLocal, toDateTimeLocal } from '@/utils/dateUtils'
 import { extractObservationError } from '@/utils/observationErrors'
 import { useToast } from '@/composables/useToast'
+
+const props = defineProps({
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+})
+const emit = defineEmits(['submitted', 'cancel'])
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -122,6 +138,27 @@ const imagePreviews = ref([])
 const events = ref([])
 const saving = ref(false)
 const error = ref('')
+const openPostAfterCreate = ref(true)
+const submitLabel = computed(() => {
+  if (saving.value) return 'Ukladam...'
+  if (form.isPublic && openPostAfterCreate.value) return 'Vytvorit a otvorit prispevok'
+  return 'Vytvorit pozorovanie'
+})
+const cancelLabel = computed(() => (props.embedded ? 'Spat na prispevok' : 'Spat'))
+
+watch(
+  () => form.isPublic,
+  (isPublic, wasPublic) => {
+    if (!isPublic) {
+      openPostAfterCreate.value = false
+      return
+    }
+
+    if (wasPublic === false) {
+      openPostAfterCreate.value = true
+    }
+  },
+)
 
 async function loadEvents() {
   try {
@@ -176,7 +213,33 @@ async function submit() {
     })
 
     const observationId = Number(response?.data?.id || 0)
+    const feedPostId = Number(response?.data?.feed_post_id || 0)
+
+    if (form.isPublic && openPostAfterCreate.value && feedPostId > 0) {
+      toastSuccess('Pozorovanie bolo vytvorene a publikovane vo feede.')
+      if (props.embedded) {
+        emit('submitted', {
+          observationId,
+          feedPostId,
+          isPublic: form.isPublic,
+          openPostAfterCreate: openPostAfterCreate.value,
+        })
+        return
+      }
+      router.push(`/posts/${feedPostId}`)
+      return
+    }
+
     toastSuccess('Pozorovanie bolo vytvorene.')
+    if (props.embedded) {
+      emit('submitted', {
+        observationId,
+        feedPostId,
+        isPublic: form.isPublic,
+        openPostAfterCreate: openPostAfterCreate.value,
+      })
+      return
+    }
     if (observationId > 0) {
       router.push(`/observations/${observationId}`)
       return
@@ -188,6 +251,15 @@ async function submit() {
   } finally {
     saving.value = false
   }
+}
+
+function onCancelClick() {
+  if (saving.value) return
+  if (props.embedded) {
+    emit('cancel')
+    return
+  }
+  router.push('/observations')
 }
 
 function revokePreviews() {
@@ -218,6 +290,13 @@ onBeforeUnmount(() => {
   gap: 0.9rem;
 }
 
+.observation-create-page--embedded {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 0.45rem;
+}
+
 .observation-create-page h1 {
   margin: 0;
   color: var(--color-surface);
@@ -239,6 +318,51 @@ onBeforeUnmount(() => {
 .form-card {
   display: grid;
   gap: 0.75rem;
+}
+
+.form-card--embedded {
+  border-radius: 0.75rem;
+  padding: 0.6rem;
+  gap: 0.58rem;
+}
+
+.observation-create-page--embedded .field {
+  gap: 0.24rem;
+  font-size: 0.78rem;
+}
+
+.observation-create-page--embedded .field input,
+.observation-create-page--embedded .field textarea,
+.observation-create-page--embedded .field select {
+  padding: 0.42rem 0.5rem;
+  border-radius: 0.55rem;
+}
+
+.observation-create-page--embedded .field textarea {
+  min-height: 84px;
+}
+
+.observation-create-page--embedded .field-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem;
+}
+
+.observation-create-page--embedded .field-help {
+  margin-top: -0.35rem;
+  font-size: 0.74rem;
+}
+
+.observation-create-page--embedded .preview-grid {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 0.38rem;
+}
+
+.observation-create-page--embedded .preview-image {
+  border-radius: 0.55rem;
+}
+
+.observation-create-page--embedded .actions {
+  gap: 0.42rem;
 }
 
 .field {
@@ -272,6 +396,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 0.55rem;
+}
+
+.field-check--nested {
+  margin-top: -0.4rem;
+}
+
+.field-help {
+  margin: -0.45rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
 }
 
 .preview-grid {

@@ -75,6 +75,7 @@ describe('CreatePostModal GIF selection', () => {
         stubs: {
           teleport: true,
           PollComposerPanel: true,
+          ObservationCreateView: { template: '<div data-testid="observation-create-stub"></div>' },
         },
       },
     })
@@ -99,7 +100,7 @@ describe('CreatePostModal GIF selection', () => {
     wrapper.unmount()
   })
 
-  it('contains observation action in more menu and routes to observation create', async () => {
+  it('contains observation action in more menu and switches to embedded observation form', async () => {
     const wrapper = mount(CreatePostModal, {
       props: { open: true },
       attachTo: document.body,
@@ -107,6 +108,7 @@ describe('CreatePostModal GIF selection', () => {
         stubs: {
           teleport: true,
           PollComposerPanel: true,
+          ObservationCreateView: { template: '<div data-testid="observation-create-stub"></div>' },
         },
       },
     })
@@ -123,7 +125,49 @@ describe('CreatePostModal GIF selection', () => {
     await observationButton.trigger('click')
     await flushPromises()
 
-    expect(pushMock).toHaveBeenCalledWith('/observations/new')
+    expect(pushMock).not.toHaveBeenCalled()
+    expect(wrapper.emitted('close')).toBeFalsy()
+    expect(wrapper.find('[data-testid="observation-create-stub"]').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('closes modal and routes to feed post when embedded observation submit requests it', async () => {
+    const wrapper = mount(CreatePostModal, {
+      props: { open: true },
+      attachTo: document.body,
+      global: {
+        stubs: {
+          teleport: true,
+          PollComposerPanel: true,
+          ObservationCreateView: {
+            template: `
+              <button
+                type="button"
+                data-testid="observation-submit-trigger"
+                @click="$emit('submitted', { observationId: 12, feedPostId: 44, isPublic: true, openPostAfterCreate: true })"
+              >
+                submit
+              </button>
+            `,
+          },
+        },
+      },
+    })
+
+    await wrapper.find('button[aria-label="Viac"]').trigger('click')
+    const menuButtons = wrapper.findAll('button.menuBtn')
+    const observationButton = menuButtons.at(-1)
+    if (!observationButton) {
+      throw new Error('Observation action button not found')
+    }
+
+    await observationButton.trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="observation-submit-trigger"]').trigger('click')
+    await flushPromises()
+
+    expect(pushMock).toHaveBeenCalledWith('/posts/44')
     expect(wrapper.emitted('close')).toBeTruthy()
 
     wrapper.unmount()
@@ -141,6 +185,7 @@ describe('CreatePostModal GIF selection', () => {
         stubs: {
           teleport: true,
           PollComposerPanel: true,
+          ObservationCreateView: { template: '<div data-testid="observation-create-stub"></div>' },
         },
       },
     })
