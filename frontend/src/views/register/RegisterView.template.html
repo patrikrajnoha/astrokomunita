@@ -1,0 +1,94 @@
+
+  <div class="registerPage">
+    <div class="registerShell">
+      <header class="registerHeader">
+        <h1 class="registerTitle">Registracia</h1>
+        <p class="registerSubtitle">Vytvor si ucet.</p>
+      </header>
+
+      <form class="card" @submit.prevent="submit">
+        <div v-if="formError" class="alert">
+          {{ formError }}
+        </div>
+
+        <label class="field">
+          <span class="label">Meno</span>
+          <input v-model.trim="name" type="text" class="input" autocomplete="name" />
+        </label>
+
+        <label class="field">
+          <span class="label">Pouzivatelske meno</span>
+          <input v-model="username" type="text" class="input" autocomplete="username" maxlength="20" />
+          <span v-if="usernameHint" class="fieldHint" :class="usernameHintClass">{{ usernameHint }}</span>
+        </label>
+
+        <label class="field">
+          <span class="label">Datum narodenia</span>
+          <div class="dobPicker">
+            <div class="dobPickerGrid">
+              <label class="dobPickerField">
+                <span>Den</span>
+                <select v-model.number="dobDraftDay" class="dobSelect">
+                  <option v-for="d in dayOptions" :key="d" :value="d">{{ d }}</option>
+                </select>
+              </label>
+              <label class="dobPickerField">
+                <span>Mesiac</span>
+                <select v-model.number="dobDraftMonth" class="dobSelect">
+                  <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
+                </select>
+              </label>
+              <label class="dobPickerField">
+                <span>Rok</span>
+                <select v-model.number="dobDraftYear" class="dobSelect">
+                  <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+                </select>
+              </label>
+            </div>
+            <p v-if="dobDraftTooYoung" class="fieldHint isError">Musis mat aspon 13 rokov.</p>
+          </div>
+          <span v-if="dateOfBirthError" class="fieldHint isError">{{ dateOfBirthError }}</span>
+        </label>
+
+        <label class="field">
+          <span class="label">Email</span>
+          <input v-model.trim="email" type="email" class="input" autocomplete="email" />
+        </label>
+
+        <label class="field">
+          <span class="label">Heslo</span>
+          <input v-model="password" type="password" class="input" autocomplete="new-password" />
+        </label>
+
+        <label class="field">
+          <span class="label">Potvrdenie hesla</span>
+          <input v-model="passwordConfirmation" type="password" class="input" autocomplete="new-password" />
+        </label>
+
+        <div v-if="turnstileEnabled" class="field">
+          <span class="label">Overenie proti botom</span>
+          <div class="turnstileShell" :class="{ isError: turnstileState === 'error' || turnstileState === 'expired' }">
+            <div ref="turnstileContainer"></div>
+          </div>
+          <span v-if="turnstileHint" class="fieldHint isError">{{ turnstileHint }}</span>
+        </div>
+
+        <p
+          v-if="submitTurnstileMessage"
+          class="submitHint"
+          :class="{ isError: !turnstileEnabled, isMuted: turnstileEnabled }"
+        >
+          {{ submitTurnstileMessage }}
+        </p>
+
+        <button class="btn ui-pill ui-pill--primary ui-pill--full" type="submit" :disabled="isSubmitDisabled">
+          {{ auth.loading ? 'Registrujem...' : 'Zaregistrovat' }}
+        </button>
+
+        <p class="loginHint">
+          Uz mas ucet?
+          <router-link class="link" :to="loginLink">Prihlas sa</router-link>
+        </p>
+      </form>
+    </div>
+  </div>

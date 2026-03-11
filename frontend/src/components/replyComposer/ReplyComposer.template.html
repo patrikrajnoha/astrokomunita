@@ -1,0 +1,193 @@
+
+  <section class="card" :class="{ compact }">
+    <div class="head">
+      <div>
+        <div class="title">{{ compact ? 'Odpoved' : 'Napis reply' }}</div>
+        <div class="sub">
+          {{ compact ? 'Reaguj na komentar.' : 'Strucna odpoved k prispevku (max 2000 znakov).' }}
+        </div>
+      </div>
+      <div class="limitChip">max 2000</div>
+    </div>
+
+    <div class="row">
+      <div class="avatar" aria-hidden="true">
+        <UserAvatar class="avatarImg" :user="auth?.user" :alt="auth?.user?.name || 'avatar'" />
+      </div>
+
+      <div class="body">
+        <textarea
+          ref="textareaEl"
+          v-model="content"
+          class="input"
+          :rows="compact ? 2 : 3"
+          maxlength="2000"
+          :placeholder="placeholder"
+          @input="onTyping"
+          @keydown="onTextareaKeydown"
+        />
+
+        <div class="helperRow">
+          <div class="shortcut">Ctrl/Cmd + Enter odosle reply</div>
+          <div class="counter" :class="{ warn: remaining <= 200 && remaining >= 0, bad: remaining < 0 }">
+            {{ content.length }}/2000
+          </div>
+        </div>
+
+        <div v-if="!auth.isAuthed" class="authHint">
+          Pre odoslanie reply sa prihlas.
+        </div>
+
+        <div v-if="selectedGif" class="mediaCard mediaCard--gif">
+          <img class="mediaImg" :src="selectedGif.preview_url || selectedGif.original_url" :alt="selectedGif.title || 'GIF'" />
+          <button class="removeMedia" type="button" :disabled="posting" @click="removeGif">
+            x
+          </button>
+        </div>
+
+        <div v-else-if="imagePreviewUrl" class="mediaCard">
+          <img class="mediaImg" :src="imagePreviewUrl" alt="Preview" />
+          <button class="removeMedia" type="button" :disabled="posting" @click="removeFile">
+            x
+          </button>
+        </div>
+
+        <div v-else-if="file" class="fileChip">
+          <div class="fileLeft">
+            <span class="clip">[file]</span>
+            <div class="fileText">
+              <div class="fileName">{{ file.name }}</div>
+              <div class="fileMeta">{{ prettySize(file.size) }}</div>
+            </div>
+          </div>
+
+          <button class="fileRemove" type="button" :disabled="posting" @click="removeFile">
+            Odstranit
+          </button>
+        </div>
+
+        <div class="bar">
+          <div class="left mediaTools">
+            <input
+              ref="fileInput"
+              type="file"
+              class="fileInput"
+              :accept="activePickerAccept"
+              @change="onFileChange"
+            />
+
+            <button
+              class="iconBtn"
+              type="button"
+              :class="{ active: !!file && !isGifFile(file) }"
+              :disabled="posting"
+              aria-label="Obrazok"
+              title="Obrazok"
+              @click="pickImage"
+            >
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7" />
+                <path
+                  d="m7 15 3.2-3.2a1 1 0 0 1 1.4 0L14 14l2-2a1 1 0 0 1 1.4 0L20 14.6"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                />
+                <circle cx="9" cy="9" r="1.2" fill="currentColor" />
+              </svg>
+            </button>
+
+            <button
+              class="iconBtn"
+              type="button"
+              :class="{ active: !!selectedGif || isGifFile(file) }"
+              :disabled="posting"
+              aria-label="GIF"
+              title="GIF"
+              @click="pickGif"
+            >
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="3.5" y="5" width="17" height="14" rx="2.5" stroke="currentColor" stroke-width="1.7" />
+                <path
+                  d="M8 10.5h2.8M8 13.5h2.8M12 10.5h4.8M12 13.5h4.8"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+
+            <div ref="emojiWrapRef" class="popWrap">
+              <button
+                class="iconBtn"
+                type="button"
+                :class="{ active: showEmojiMenu }"
+                :disabled="posting"
+                aria-label="Emoji"
+                title="Emoji"
+                @click="toggleEmojiMenu"
+              >
+                <svg viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7" />
+                  <path d="M9 10.5h.01M15 10.5h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
+                  <path
+                    d="M8.8 14.2a4.2 4.2 0 0 0 6.4 0"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+              <div v-if="showEmojiMenu" class="emojiMenu">
+                <button
+                  v-for="emoji in EMOJI_SET"
+                  :key="emoji"
+                  class="emojiBtn"
+                  type="button"
+                  @click="insertEmoji(emoji)"
+                >
+                  {{ emoji }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button class="actionbtn" type="button" :disabled="isSubmitDisabled" @click="submit">
+            {{ posting ? 'Odosielam...' : 'Odoslat reply' }}
+          </button>
+        </div>
+
+        <div v-if="err" class="err">{{ err }}</div>
+      </div>
+    </div>
+
+    <div v-if="showGifModal" class="modalBackdrop" @click.self="closeGifModal">
+      <section class="modalCard" role="dialog" aria-modal="true" aria-labelledby="reply-gif-modal-title">
+        <header class="modalHead">
+          <h3 id="reply-gif-modal-title">Vybrat GIF</h3>
+          <button class="modalClose" type="button" @click="closeGifModal">x</button>
+        </header>
+
+        <input
+          ref="gifInputRef"
+          v-model="gifQuery"
+          class="modalInput"
+          type="text"
+          placeholder="Hladaj GIF..."
+          @input="onGifQueryChange"
+        />
+
+        <div v-if="gifLoading" class="gifGrid">
+          <div v-for="i in 6" :key="`reply-gif-sk-${i}`" class="gifSkeleton"></div>
+        </div>
+        <p v-else-if="gifError" class="modalError">{{ gifError }}</p>
+        <p v-else-if="gifQuery.trim().length < GIF_MIN_QUERY_LENGTH" class="modalHint">Zadaj aspon 2 znaky.</p>
+        <p v-else-if="gifResults.length === 0" class="modalHint">Ziadne GIFy.</p>
+        <div v-else class="gifGrid">
+          <button v-for="gif in gifResults" :key="gif.id" type="button" class="gifTile" @click="selectGif(gif)">
+            <img :src="gif.preview_url" :alt="gif.title || 'GIF'" loading="lazy" />
+          </button>
+        </div>
+      </section>
+    </div>
+  </section>

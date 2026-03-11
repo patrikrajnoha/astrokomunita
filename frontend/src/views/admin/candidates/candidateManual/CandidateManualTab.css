@@ -1,0 +1,429 @@
+
+.uxOverview {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.uxOverview--manual {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.uxOverview__item {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.95);
+  padding: 5px 8px;
+  display: grid;
+  gap: 2px;
+}
+
+.uxOverview__item span {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.uxOverview__item strong {
+  font-size: 14px;
+}
+
+.toolbarButton,
+.filterInput {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+}
+
+.toolbarButton {
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.toolbarButton--primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+}
+
+.toolbarButton--ghost {
+  background: rgb(var(--color-surface-rgb) / 0.08);
+}
+
+.manualToolbar {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.manualFilterPanel {
+  margin-top: 8px;
+}
+
+.filterPanel {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 12px;
+  padding: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.filterField {
+  grid-column: span 3;
+  display: grid;
+  gap: 4px;
+}
+
+.filterField--wide {
+  grid-column: span 6;
+}
+
+.filterField label {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.filterInput {
+  width: 100%;
+  padding: 8px;
+}
+
+.filterActions {
+  grid-column: span 3;
+  display: flex;
+  align-items: end;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.manualFormPanel {
+  margin-top: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+  display: grid;
+  gap: 10px;
+}
+
+.manualFormHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.manualFormTitle {
+  font-weight: 700;
+}
+
+.manualFormHint {
+  margin-top: 2px;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.manualQuickActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.quickChip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.quickChip--primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.1);
+}
+
+.manualFormGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.manualField {
+  grid-column: span 6;
+  display: grid;
+  gap: 4px;
+}
+
+.manualField--wide {
+  grid-column: span 8;
+}
+
+.manualField--full {
+  grid-column: span 12;
+}
+
+.manualField label {
+  font-size: 12px;
+  opacity: 0.82;
+}
+
+.manualInput {
+  padding: 10px;
+}
+
+.manualTextarea {
+  min-height: 96px;
+  resize: vertical;
+  padding: 10px;
+}
+
+.manualFormError {
+  padding: 8px 10px;
+  border: 1px solid rgb(239 68 68 / 0.35);
+  border-radius: 10px;
+  background: rgb(239 68 68 / 0.08);
+  font-size: 12px;
+}
+
+.manualFormActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.manualTableWrap {
+  margin-top: 12px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 12px;
+  overflow: auto;
+  background: rgb(var(--color-bg-rgb) / 0.98);
+}
+
+.manualTable {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.manualTable thead {
+  background: rgb(var(--color-surface-rgb) / 0.05);
+}
+
+.manualTable th {
+  text-align: left;
+  padding: 7px 6px;
+  font-size: 12px;
+  opacity: 0.85;
+  background: rgb(var(--color-surface-rgb) / 0.04);
+}
+
+.manualTable td {
+  padding: 7px 6px;
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.06);
+  vertical-align: top;
+}
+
+.manualStatusTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: rgb(var(--color-surface-rgb) / 0.08);
+  font-size: 12px;
+}
+
+.manualStatusTag--published {
+  border-color: rgb(var(--color-success-rgb) / 0.28);
+  background: rgb(var(--color-success-rgb) / 0.08);
+}
+
+.manualMobileList {
+  margin-top: 10px;
+  display: none;
+  gap: 8px;
+}
+
+.manualMobileCard {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+  padding: 9px;
+  display: grid;
+  gap: 7px;
+}
+
+.manualMobileCard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.manualMobileCard__title {
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.manualMobileCard__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cellMono {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.typeTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: rgb(var(--color-surface-rgb) / 0.08);
+  font-size: 11px;
+  width: fit-content;
+}
+
+.rowActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rowActions--right {
+  justify-content: flex-end;
+}
+
+.rowActionButton {
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.rowActionButton--primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.24);
+  background: rgb(var(--color-primary-rgb) / 0.06);
+}
+
+.tableEmpty {
+  padding: 20px 10px;
+  opacity: 0.75;
+}
+
+.inlineError {
+  margin-top: 12px;
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.inlineLoading {
+  margin-top: 12px;
+  opacity: 0.85;
+  font-size: 13px;
+}
+
+.pagerRow {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pagerMeta {
+  opacity: 0.85;
+  font-size: 14px;
+}
+
+.pagerActions {
+  display: flex;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .uxOverview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filterField,
+  .filterField--wide,
+  .filterActions {
+    grid-column: span 12;
+  }
+
+  .filterActions {
+    justify-content: flex-start;
+  }
+
+  .manualToolbar .toolbarButton {
+    flex: 1 1 auto;
+  }
+
+  .manualField,
+  .manualField--wide,
+  .manualField--full {
+    grid-column: span 12;
+  }
+
+  .manualQuickActions {
+    width: 100%;
+  }
+
+  .quickChip {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .manualFormActions {
+    width: 100%;
+  }
+
+  .manualFormActions .toolbarButton {
+    flex: 1 1 auto;
+  }
+
+  .manualTableWrap {
+    display: none;
+  }
+
+  .manualMobileList {
+    display: grid;
+  }
+
+  .pagerRow {
+    gap: 8px;
+  }
+
+  .pagerMeta {
+    width: 100%;
+    font-size: 13px;
+  }
+
+  .pagerActions {
+    width: 100%;
+  }
+
+  .pagerActions .toolbarButton {
+    flex: 1 1 auto;
+  }
+}

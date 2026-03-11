@@ -1,0 +1,91 @@
+
+  <aside class="adminSubNav" aria-label="Podnavigácia administrácie">
+    <div class="adminSubNav__head">
+      <div class="adminSubNav__title">{{ isEditorOnly ? 'Editor' : 'Administrácia' }}</div>
+      <div class="adminSubNav__caption">Sekcia: {{ activeLabel }}</div>
+    </div>
+
+    <RouterLink
+      v-if="!isEditorOnly"
+      :to="overviewItem.to"
+      class="adminSubNav__item adminSubNav__item--overview"
+      :class="{ active: isActive(overviewItem) }"
+      :title="`Otvoriť ${overviewItem.label}`"
+    >
+      <span class="adminSubNav__icon" aria-hidden="true">
+        <component :is="resolveItemIcon(overviewItem)" />
+      </span>
+      <span>{{ overviewItem.label }}</span>
+    </RouterLink>
+
+    <div class="adminSubNav__groups">
+      <section v-for="group in visibleGroups" :key="group.title" class="adminSubNav__group">
+        <div class="adminSubNav__groupTitle">{{ group.title }}</div>
+        <nav class="adminSubNav__list" :aria-label="group.title">
+          <template v-for="item in group.items" :key="item.key || item.label">
+            <div
+              v-if="hasChildren(item)"
+              class="adminSubNav__collapsible"
+              :class="{ 'adminSubNav__collapsible--open': isExpanded(item) }"
+            >
+              <div class="adminSubNav__itemRow">
+                <RouterLink
+                  :to="item.to"
+                  class="adminSubNav__item adminSubNav__item--parent"
+                  :class="{ active: isActive(item) }"
+                  :title="`Otvoriť ${item.label}`"
+                >
+                  <span class="adminSubNav__icon" aria-hidden="true">
+                    <component :is="resolveItemIcon(item)" />
+                  </span>
+                  <span>{{ item.label }}</span>
+                </RouterLink>
+
+                <button
+                  type="button"
+                  class="adminSubNav__collapseToggle"
+                  :class="{ active: isExpanded(item) }"
+                  :aria-expanded="isExpanded(item) ? 'true' : 'false'"
+                  :aria-label="`${isExpanded(item) ? 'Skryť' : 'Zobraziť'} podsekcie ${item.label}`"
+                  @click="toggleGroup(item)"
+                >
+                  <span aria-hidden="true">{{ isExpanded(item) ? '−' : '+' }}</span>
+                </button>
+              </div>
+
+              <Transition name="adminSubNavReveal">
+                <div v-if="isExpanded(item)" class="adminSubNav__children">
+                  <RouterLink
+                    v-for="child in item.children"
+                    :key="child.key || child.label"
+                    :to="child.to"
+                    class="adminSubNav__item adminSubNav__item--child"
+                    :class="{ active: isActive(child), 'adminSubNav__item--danger': child.tone === 'danger' }"
+                    :title="`Otvoriť ${child.label}`"
+                  >
+                    <span class="adminSubNav__icon" aria-hidden="true">
+                      <component :is="resolveItemIcon(child)" />
+                    </span>
+                    <span>{{ child.label }}</span>
+                  </RouterLink>
+                </div>
+              </Transition>
+            </div>
+
+            <RouterLink
+              v-else
+              :to="item.to"
+              class="adminSubNav__item"
+              :class="{ active: isActive(item), 'adminSubNav__item--danger': item.tone === 'danger' }"
+              :title="`Otvoriť ${item.label}`"
+            >
+              <span class="adminSubNav__icon" aria-hidden="true">
+                <component :is="resolveItemIcon(item)" />
+              </span>
+              <span>{{ item.label }}</span>
+            </RouterLink>
+          </template>
+        </nav>
+      </section>
+    </div>
+  </aside>

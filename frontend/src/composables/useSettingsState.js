@@ -37,6 +37,7 @@ export function useSettingsState() {
   })
 
   let emailResendCountdownInterval = null
+  let exportRetryCountdownInterval = null
 
   const passwordForm = reactive({
     current: '',
@@ -77,6 +78,7 @@ export function useSettingsState() {
     error: '',
     success: '',
     phase: '',
+    retryAfterSeconds: 0,
   })
 
   const exportForm = reactive({
@@ -123,6 +125,64 @@ export function useSettingsState() {
       clearInterval(emailResendCountdownInterval)
       emailResendCountdownInterval = null
     }
+  }
+
+  const clearExportRetryCountdown = () => {
+    if (exportRetryCountdownInterval !== null) {
+      clearInterval(exportRetryCountdownInterval)
+      exportRetryCountdownInterval = null
+    }
+  }
+
+  const startExportRetryCountdown = (seconds) => {
+    const initialSeconds = Math.max(1, toPositiveInt(seconds, 60))
+    exportState.retryAfterSeconds = initialSeconds
+    clearExportRetryCountdown()
+
+    exportRetryCountdownInterval = setInterval(() => {
+      if (exportState.retryAfterSeconds > 0) {
+        exportState.retryAfterSeconds -= 1
+      }
+
+      if (exportState.retryAfterSeconds <= 0) {
+        clearExportRetryCountdown()
+      }
+    }, 1000)
+  }
+
+  const parseRetryAfterSeconds = (headers) => {
+    const value = headers?.['retry-after'] ?? headers?.['Retry-After']
+    const numeric = Number(value)
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return Math.ceil(numeric)
+    }
+
+    if (typeof value === 'string') {
+      const parsedAt = Date.parse(value)
+      if (Number.isFinite(parsedAt)) {
+        const remainingSeconds = Math.ceil((parsedAt - Date.now()) / 1000)
+        if (remainingSeconds > 0) {
+          return remainingSeconds
+        }
+      }
+    }
+
+    return 60
+  }
+
+  const formatRetryAfterLabel = (seconds) => {
+    const total = Math.max(1, toPositiveInt(seconds, 1))
+    if (total < 60) {
+      return `${total} s`
+    }
+
+    const minutes = Math.floor(total / 60)
+    const remainder = total % 60
+    if (remainder === 0) {
+      return `${minutes} min`
+    }
+
+    return `${minutes} min ${remainder} s`
   }
 
   const startEmailResendCountdown = () => {
@@ -747,6 +807,10 @@ export function useSettingsState() {
 
   const downloadProfileExport = async () => {
     if (exportState.loading) return
+    if (exportState.retryAfterSeconds > 0) {
+      exportState.error = `Prilis vela poziadaviek na export. Skuste to znova o ${formatRetryAfterLabel(exportState.retryAfterSeconds)}.`
+      return
+    }
 
     exportState.error = ''
     exportState.success = ''
@@ -796,13 +860,17 @@ export function useSettingsState() {
         exportSummaryState.counts.invites_received_count + exportSummaryState.counts.invites_sent_count
       exportState.success = `Export bol stiahnuty (${sizeLabel}, ${postsCount} prispevkov, ${invitesTotal} pozvanok).`
       exportForm.currentPassword = ''
+      exportState.retryAfterSeconds = 0
+      clearExportRetryCountdown()
     } catch (error) {
       const status = Number(error?.response?.status || 0)
 
       if (status === 422 && error?.response?.data?.errors?.current_password?.[0]) {
         exportState.error = String(error.response.data.errors.current_password[0])
       } else if (status === 429) {
-        exportState.error = 'Prilis vela poziadaviek na export. Skuste to znova o minutu.'
+        const retryAfterSeconds = parseRetryAfterSeconds(error?.response?.headers)
+        startExportRetryCountdown(retryAfterSeconds)
+        exportState.error = `Prilis vela poziadaviek na export. Skuste to znova o ${formatRetryAfterLabel(retryAfterSeconds)}.`
       } else {
         exportState.error =
           error?.response?.data?.message || error?.userMessage || error?.message || 'Export dat zlyhal.'
@@ -876,6 +944,7 @@ export function useSettingsState() {
 
   onBeforeUnmount(() => {
     clearEmailResendCountdown()
+    clearExportRetryCountdown()
   })
 
   onMounted(async () => {

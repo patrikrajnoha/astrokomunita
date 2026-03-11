@@ -1,0 +1,369 @@
+
+.candidatesPage {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 10px 8px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  margin: 0 0 4px;
+  font-size: clamp(20px, 2.4vw, 25px);
+  line-height: 1.12;
+}
+
+.headerActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.tabSwitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.94);
+}
+
+.uxOverview {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.uxOverview__item {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.95);
+  padding: 5px 8px;
+  display: grid;
+  gap: 2px;
+}
+
+.uxOverview__item span {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.uxOverview__item strong {
+  font-size: 14px;
+}
+
+.timeContextBar {
+  margin-top: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+  padding: 7px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.timeContextBar__item {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  border-radius: 8px;
+  padding: 5px 7px;
+  display: grid;
+  gap: 2px;
+}
+
+.timeContextBar__item span {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.timeContextBar__item strong {
+  font-size: 13px;
+}
+
+.timeContextBar__loading {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  opacity: 0.78;
+}
+
+.contextToggleRow {
+  margin-top: 8px;
+}
+
+.runFilterBar {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.runFilterChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+  font-size: 12px;
+}
+
+.statusPills {
+  margin-top: 10px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.statusPill {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.statusPill--active {
+  border-color: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+}
+
+.uxActionBar {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+  position: static;
+  padding: 6px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+}
+
+.uxActionBar__group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.toolbarSelect,
+.toolbarButton {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+}
+
+.toolbarSelect {
+  padding: 8px 10px;
+}
+
+.toolbarButton {
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.toolbarButton--success {
+  border-color: rgb(var(--color-success-rgb) / 0.35);
+  background: rgb(var(--color-success-rgb) / 0.1);
+}
+
+.toolbarButton--primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+}
+
+.toolbarButton--ghost {
+  background: rgb(var(--color-surface-rgb) / 0.08);
+}
+
+.toolbarButton--active {
+  border-color: rgb(var(--color-surface-rgb) / 0.4);
+  background: rgb(var(--color-surface-rgb) / 0.12);
+}
+
+.toolbarButton--tab {
+  border-color: transparent;
+  background: transparent;
+}
+
+.publishProgress {
+  margin-top: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgb(var(--color-bg-rgb) / 0.96);
+}
+
+.publishProgress__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.publishProgress__track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--color-surface-rgb) / 0.12);
+  overflow: hidden;
+}
+
+.publishProgress__bar {
+  height: 100%;
+  background: linear-gradient(90deg, rgb(var(--color-primary-rgb) / 0.95), rgb(var(--color-success-rgb) / 0.95));
+  transition: width 0.25s ease;
+}
+
+.matchedSourceTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  background: transparent;
+  font-size: 11px;
+}
+
+.cellMuted {
+  opacity: 0.7;
+}
+
+.candidateDetailModalState {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.candidateDetailModalState--error {
+  color: var(--color-danger);
+  opacity: 1;
+}
+
+.candidateDetailModal {
+  display: grid;
+  gap: 10px;
+}
+
+.candidateDetailModalGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.candidateDetailModalItem {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.94);
+}
+
+.candidateDetailModalItem span {
+  font-size: 11px;
+  opacity: 0.76;
+}
+
+.candidateDetailModalItem strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.candidateDetailModalText {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.candidateDetailModalSources {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.candidateDetailModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.inlineError {
+  margin-top: 12px;
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.inlineLoading {
+  margin-top: 12px;
+  opacity: 0.85;
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .candidatesPage {
+    padding: 8px 6px;
+  }
+
+  .pageHeader {
+    align-items: stretch;
+  }
+
+  .headerActions {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .tabSwitch {
+    width: 100%;
+  }
+
+  .tabSwitch .toolbarButton {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .headerActions > .toolbarButton {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .uxOverview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .timeContextBar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .uxActionBar {
+    position: static;
+  }
+
+  .uxActionBar__group {
+    width: 100%;
+  }
+
+  .uxActionBar__group .toolbarButton {
+    flex: 1 1 auto;
+  }
+
+  .candidateDetailModalGrid {
+    grid-template-columns: 1fr;
+  }
+}

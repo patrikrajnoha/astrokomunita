@@ -1,0 +1,82 @@
+
+  <section class="calendar-card">
+    <div class="calendar-layout">
+      <div class="left">
+        <header class="month-header">
+          <div>
+            <div class="month-title">{{ monthLabel }}</div>
+            <div class="month-meta">{{ yearLabel }}</div>
+          </div>
+          <div class="month-actions">
+            <button type="button" class="nav-btn" @click="prevMonth">&lsaquo;</button>
+            <button type="button" class="nav-btn" @click="goToToday">Dnes</button>
+            <button type="button" class="nav-btn" @click="nextMonth">&rsaquo;</button>
+            <button type="button" class="nav-btn" @click="prevYear">&laquo;</button>
+            <button type="button" class="nav-btn" @click="nextYear">&raquo;</button>
+          </div>
+        </header>
+
+        <p v-if="loading" class="month-meta">Nacitavam udalosti...</p>
+        <p v-else-if="error" class="month-meta" style="color: var(--color-danger)">{{ error }}</p>
+
+        <div class="dow-grid">
+          <span class="dow sun">S</span>
+          <span class="dow">M</span>
+          <span class="dow">T</span>
+          <span class="dow">W</span>
+          <span class="dow">T</span>
+          <span class="dow">F</span>
+          <span class="dow sun">S</span>
+        </div>
+
+        <div class="days-grid">
+          <button
+            v-for="(cell, index) in dayCells"
+            :key="index"
+            type="button"
+            class="day-cell"
+            :class="dayCellClass(cell)"
+            :data-tip="cellTooltip(cell)"
+            :disabled="!cell.date"
+            @click="cell.date && selectDate(cell.date)"
+          >
+            <span v-if="cell.date">{{ cell.day }}</span>
+            <span v-if="cell.date && dayEventCount(cell.date)" class="count-badge">
+              {{ dayEventCount(cell.date) }}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div class="divider" aria-hidden="true"></div>
+
+      <aside class="right">
+        <header class="list-header">
+          <div class="list-title">{{ selectedLabel }}</div>
+          <div class="list-subtitle">{{ selectedEvents.length }} udalosti</div>
+        </header>
+
+        <ul class="event-list">
+          <li
+            v-for="event in selectedEvents"
+            :key="event.id"
+            class="event-item"
+            role="button"
+            tabindex="0"
+            @click="openEventDetail(event)"
+            @keydown.enter.prevent="openEventDetail(event)"
+            @keydown.space.prevent="openEventDetail(event)"
+          >
+            <span :class="['dot', typeDot(event.type)]" aria-hidden="true"></span>
+            <div>
+              <div class="event-title">{{ event.title }}</div>
+              <div class="event-time">{{ formatEventTime(event) }}</div>
+            </div>
+          </li>
+          <li v-if="selectedEvents.length === 0" class="event-empty">
+            Ziadne udalosti v tento den.
+          </li>
+        </ul>
+      </aside>
+    </div>
+  </section>

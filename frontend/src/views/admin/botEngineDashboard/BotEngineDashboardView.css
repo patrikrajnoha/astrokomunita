@@ -1,0 +1,266 @@
+
+.botSection {
+  display: grid;
+  gap: 12px;
+}
+
+.embeddedHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.embeddedTitle {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.embeddedSubtitle {
+  margin: 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  font-size: 0.8rem;
+}
+
+.cards {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.card {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.66);
+  padding: 12px;
+}
+
+.metricCard {
+  display: grid;
+  gap: 4px;
+}
+
+.metricLabel {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(var(--color-text-secondary-rgb) / 0.86);
+}
+
+.metricValue {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.quickLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quickLink {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border-radius: 999px;
+  padding: 7px 11px;
+  color: rgb(var(--color-surface-rgb) / 0.95);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.quickLink:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.5);
+}
+
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  padding: 8px 9px;
+  text-align: left;
+  font-size: 0.8rem;
+}
+
+.table th {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+}
+
+.name {
+  font-weight: 700;
+}
+
+.muted {
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  margin: 0;
+}
+
+.rateState {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.rateState.limited {
+  border-color: rgb(var(--color-danger-rgb) / 0.6);
+  color: var(--color-danger);
+}
+
+.activityLink {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.error {
+  color: var(--color-danger);
+  margin: 0;
+}
+
+.retentionCard {
+  display: grid;
+  gap: 8px;
+}
+
+.retentionHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.retentionHead h3 {
+  margin: 0 0 2px;
+  font-size: 0.92rem;
+}
+
+.retentionStatus {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.retentionStatus--on {
+  border-color: rgb(var(--color-success-rgb) / 0.55);
+  color: var(--color-success);
+}
+
+.retentionMainRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, auto) minmax(96px, auto);
+  gap: 8px;
+  align-items: end;
+}
+
+.retentionField {
+  display: grid;
+  gap: 5px;
+}
+
+.retentionField span {
+  font-size: 0.74rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+}
+
+.retentionField select {
+  min-height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.26);
+  background: rgb(var(--color-bg-rgb) / 0.36);
+  color: var(--color-text-primary);
+  padding: 0 9px;
+}
+
+.retentionField--toggle {
+  min-height: 34px;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.retentionField--toggle input {
+  width: 15px;
+  height: 15px;
+}
+
+.retentionHint {
+  margin: 0;
+  font-size: 0.76rem;
+}
+
+.actionBtn {
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
+  border-radius: 8px;
+  background: rgb(var(--color-primary-rgb) / 0.2);
+  color: var(--color-surface);
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dangerBtn,
+.ghostActionBtn {
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dangerBtn {
+  border: 1px solid rgb(var(--color-danger-rgb) / 0.55);
+  background: rgb(var(--color-danger-rgb) / 0.16);
+  color: var(--color-text-primary);
+}
+
+.ghostActionBtn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.26);
+  background: rgb(var(--color-bg-rgb) / 0.3);
+  color: var(--color-text-primary);
+}
+
+.retentionAdvanced {
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  padding-top: 8px;
+}
+
+.retentionAdvanced > summary {
+  cursor: pointer;
+  font-size: 0.76rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.retentionDangerActions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+@media (max-width: 880px) {
+  .retentionMainRow {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}

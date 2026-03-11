@@ -1,0 +1,184 @@
+
+.registerPage {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: transparent;
+}
+
+.registerShell {
+  width: min(100%, 408px);
+  display: grid;
+  gap: 0.7rem;
+}
+
+.registerHeader {
+  text-align: center;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.registerTitle {
+  margin: 0;
+  font-size: clamp(1.35rem, 2vw, 1.7rem);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.registerSubtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}
+
+.card {
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  border-radius: 1rem;
+  padding: 0.95rem;
+  box-shadow: 0 14px 28px rgb(var(--bg-app-rgb) / 0.24);
+  backdrop-filter: blur(6px);
+  display: grid;
+  gap: 0.68rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.72rem;
+  border: 1px solid var(--border);
+  background: rgb(var(--bg-app-rgb) / 0.42);
+  color: var(--text-primary);
+  outline: none;
+  font-size: 0.92rem;
+  transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.input:focus-visible {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / 0.2);
+  background: rgb(var(--bg-app-rgb) / 0.5);
+}
+
+.dobPicker {
+  border: 1px solid var(--border);
+  border-radius: 0.72rem;
+  background: rgb(var(--bg-app-rgb) / 0.52);
+  padding: 0.56rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.dobPickerGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.36rem;
+}
+
+.dobPickerField {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.dobSelect {
+  width: 100%;
+  padding: 0.42rem 0.4rem;
+  border-radius: 0.58rem;
+  border: 1px solid var(--border);
+  background: rgb(var(--bg-app-rgb) / 0.65);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+
+.fieldHint {
+  font-size: 0.75rem;
+}
+
+.fieldHint.isMuted {
+  color: var(--text-secondary);
+}
+
+.fieldHint.isSuccess {
+  color: var(--primary);
+}
+
+.fieldHint.isError {
+  color: var(--primary-active);
+}
+
+.turnstileShell {
+  border: 1px solid var(--border);
+  border-radius: 0.72rem;
+  background: rgb(var(--bg-app-rgb) / 0.52);
+  padding: 0.56rem;
+  overflow-x: auto;
+}
+
+.turnstileShell.isError {
+  border-color: var(--primary-active);
+}
+
+.btn {
+  width: 100%;
+  margin-top: 0.16rem;
+}
+
+.submitHint {
+  margin: 0;
+  font-size: 0.79rem;
+}
+
+.loginHint {
+  margin: 0.05rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.link {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.link:hover {
+  color: var(--text-primary);
+}
+
+.alert {
+  padding: 0.5rem 0.62rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--primary-active);
+  background: rgb(var(--primary-active-rgb) / 0.12);
+  color: var(--primary-active);
+  font-size: 0.79rem;
+}
+
+@media (max-width: 480px) {
+  .registerPage {
+    padding: 0.55rem;
+  }
+
+  .card {
+    padding: 0.82rem;
+    border-radius: 0.8rem;
+  }
+
+  .dobPickerGrid {
+    grid-template-columns: 1fr;
+  }
+}

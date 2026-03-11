@@ -1,0 +1,161 @@
+
+  <component
+    :is="props.embedded ? 'section' : AdminPageShell"
+    v-bind="props.embedded ? {} : { title: 'Bot modul', subtitle: 'Prehlad pipeline za poslednych 24 hodin.' }"
+    class="botSection"
+  >
+    <div v-if="props.embedded" class="embeddedHeader">
+      <div>
+        <h2 class="embeddedTitle">Prehlad</h2>
+        <p class="embeddedSubtitle">{{ dashboardMetaLine }}</p>
+      </div>
+      <button type="button" class="actionBtn" :disabled="loading" @click="load">
+        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+      </button>
+    </div>
+
+    <template v-if="!props.embedded" #right-actions>
+      <button type="button" class="actionBtn" :disabled="loading" @click="load">
+        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+      </button>
+    </template>
+
+    <section class="cards">
+      <article class="card metricCard">
+        <p class="metricLabel">Aktivne zdroje</p>
+        <p class="metricValue">{{ Number(overall.active_sources || 0) }}</p>
+      </article>
+      <article class="card metricCard">
+        <p class="metricLabel">Chybove zdroje</p>
+        <p class="metricValue">{{ Number(overall.failing_sources || 0) }}</p>
+      </article>
+      <article class="card metricCard">
+        <p class="metricLabel">Neaktivne zdroje</p>
+        <p class="metricValue">{{ Number(overall.dead_sources || 0) }}</p>
+      </article>
+      <article class="card metricCard">
+        <p class="metricLabel">Preskocenia cooldownu (24h)</p>
+        <p class="metricValue">{{ Number(overall.cooldown_skips_24h || 0) }}</p>
+      </article>
+    </section>
+
+    <section v-if="!props.embedded" class="card quickLinks">
+      <RouterLink :to="{ name: 'admin.bots.sources' }" class="quickLink">Zdravie zdrojov</RouterLink>
+      <RouterLink :to="{ name: 'admin.bots.schedules' }" class="quickLink">Plany</RouterLink>
+      <RouterLink :to="{ name: 'admin.bots.engine' }" class="quickLink">Ovladanie modulu</RouterLink>
+    </section>
+
+    <section class="card retentionCard">
+      <div class="retentionHead">
+        <div>
+          <h3>Cistenie bot prispevkov</h3>
+          <p class="muted retentionHint">
+            Scheduler bezi {{ retention.scheduled_frequency || 'hourly' }}. Cleanup maze iba prispevky starsie ako zvoleny limit.
+          </p>
+        </div>
+        <span class="retentionStatus" :class="{ 'retentionStatus--on': retentionForm.enabled }">
+          {{ retentionStatusLabel }}
+        </span>
+      </div>
+
+      <div class="retentionMainRow">
+        <label class="retentionField retentionField--toggle">
+          <input
+            v-model="retentionForm.enabled"
+            type="checkbox"
+            :disabled="retentionLoading || retentionSaving"
+          />
+          <span>Zapnut automaticke mazanie</span>
+        </label>
+
+        <label class="retentionField">
+          <span>Odstranit po</span>
+          <select
+            v-model.number="retentionForm.auto_delete_after_hours"
+            :disabled="retentionLoading || retentionSaving || !retentionForm.enabled"
+          >
+            <option v-for="hours in retentionAllowedHours" :key="`retention-${hours}`" :value="Number(hours)">
+              {{ Number(hours) }} h
+            </option>
+          </select>
+        </label>
+
+        <button
+          type="button"
+          class="actionBtn"
+          :disabled="retentionLoading || retentionSaving"
+          @click="saveRetentionSettings"
+        >
+          {{ retentionSaving ? 'Ukladam...' : 'Ulozit' }}
+        </button>
+      </div>
+
+      <details class="retentionAdvanced">
+        <summary>Pokrocile akcie</summary>
+        <div class="retentionDangerActions">
+          <button
+            type="button"
+            class="ghostActionBtn"
+            :disabled="retentionRunning"
+            @click="runCleanupNow"
+          >
+            {{ retentionRunning ? 'Spustam...' : 'Spustit cleanup teraz' }}
+          </button>
+          <button
+            type="button"
+            class="dangerBtn"
+            :disabled="deletingAllPosts"
+            @click="deleteAllPublishedBotPosts"
+          >
+            {{ deletingAllPosts ? 'Mazem...' : 'Vymazat bot prispevky' }}
+          </button>
+        </div>
+      </details>
+    </section>
+
+    <section class="card">
+      <p v-if="error" class="error">{{ error }}</p>
+      <p v-else-if="!loading && bots.length === 0" class="muted">Zatial nie su dostupne bot metriky.</p>
+
+      <div v-else class="tableWrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Bot</th>
+              <th>Last activity</th>
+              <th>Posts (24h)</th>
+              <th>Duplicates (24h)</th>
+              <th>Failures (24h)</th>
+              <th>Rate limit</th>
+              <th>Akcia</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in bots" :key="row.id">
+              <td>
+                <div class="name">{{ row.username || '-' }}</div>
+                <div class="muted">{{ row.role || '-' }}</div>
+              </td>
+              <td>{{ formatDateTime(row.last_activity_at) }}</td>
+              <td>{{ Number(row.posts_24h || 0) }}</td>
+              <td>{{ Number(row.duplicates_24h || 0) }}</td>
+              <td>{{ Number(row.errors_24h || 0) }}</td>
+              <td>
+                <span class="rateState" :class="{ limited: Boolean(row?.rate_limit_state?.limited) }">
+                  {{ rateLimitLabel(row) }}
+                </span>
+              </td>
+              <td>
+                <RouterLink
+                  class="activityLink"
+                  :to="{ name: 'admin.bots.activity', query: { bot_identity: row.bot_identity || undefined } }"
+                >
+                  Zobrazit aktivitu
+                </RouterLink>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </component>

@@ -1,0 +1,582 @@
+  <AdminPageShell
+    title="Detail pouzivatela"
+    :subtitle="profileIdentifier"
+  >
+    <AdminSectionHeader
+      section="community"
+      title="Detail pouzivatela"
+      back-label="Spat na pouzivatelov"
+      :back-to="usersListRoute"
+    />
+
+    <div v-if="userError" class="adminAlert">{{ userError }}</div>
+    <div v-if="!user && userLoading" class="sectionCard loadingCard">Nacitavam detail pouzivatela...</div>
+
+    <template v-else-if="user">
+      <section class="identityHeader sectionCard">
+        <div class="identityMain">
+          <div class="avatar identityAvatar">
+            <UserAvatar class="avatarImg" :user="user" :alt="`${user?.name || 'Pouzivatel'} avatar`" />
+          </div>
+          <div class="identityText">
+            <h2 class="identityName">{{ user?.name || 'Pouzivatel' }}</h2>
+            <p class="identitySubline">{{ profileIdentifier }}</p>
+            <div class="identityBadges">
+              <span class="statusBadge roleBadge" :class="roleClass(user)">{{ roleText }}</span>
+              <span class="statusBadge" :class="statusClass(user)">{{ statusText }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="identityActions">
+          <RouterLink
+            v-if="user?.username"
+            :to="{ name: 'user-profile', params: { username: user.username } }"
+            class="btn subtle"
+          >
+            Zobrazit verejny profil
+          </RouterLink>
+        </div>
+      </section>
+
+      <div class="detailGrid">
+        <section class="sectionCard profileSection">
+          <header class="sectionHeader">
+            <h3>Profil</h3>
+            <p class="sectionSubline">Editovatelne polia pouzivatelskeho profilu.</p>
+          </header>
+
+          <div v-if="canEditProfile" class="formGrid">
+            <label class="fieldLabel" for="profile-name">Meno</label>
+            <input
+              id="profile-name"
+              v-model="profileForm.name"
+              class="fieldInput"
+              :disabled="userLoading"
+              type="text"
+            />
+
+            <label class="fieldLabel" for="profile-bio">Bio</label>
+            <textarea
+              id="profile-bio"
+              v-model="profileForm.bio"
+              class="fieldInput"
+              :disabled="userLoading"
+              rows="3"
+            ></textarea>
+
+            <div class="profileActions">
+              <button
+                class="btn"
+                data-testid="admin-profile-save"
+                :disabled="userLoading"
+                @click="saveProfile"
+              >
+                Ulozit zmeny
+              </button>
+            </div>
+          </div>
+
+          <div v-else class="readonlyHint">
+            Tento profil nie je mozne upravovat cez admin UI.
+          </div>
+
+          <div v-if="isBotTarget" class="botMediaGrid">
+            <section class="botMediaCard profileCardLike">
+              <div class="avatarCardHead">
+                <div>
+                  <h4 class="avatarCardTitle">Profilovy avatar</h4>
+                  <p class="avatarCardSub">Fotka alebo generovany avatar.</p>
+                </div>
+                <button
+                  v-if="canUploadBotMedia"
+                  type="button"
+                  data-testid="admin-bot-avatar-edit"
+                  class="btn outline avatarOpenBtn"
+                  :disabled="mediaActionBusy"
+                  @click="openAvatarEditor"
+                >
+                  Upravit
+                </button>
+              </div>
+
+              <div class="avatarCardMeta">
+                <div class="avatar sm avatarCardPreview">
+                  <UserAvatar
+                    class="avatarImg"
+                    :user="user"
+                    :avatar-url="avatarSrc"
+                    :alt="`${user?.name || 'Bot'} avatar`"
+                  />
+                </div>
+                <div class="avatarCardInfo">
+                  <div class="avatarModePill">{{ persistedAvatarMode === 'generated' ? 'Rezim Avatar' : 'Rezim Fotka' }}</div>
+                  <p class="avatarHint avatarCardHint">Bez fotky sa pouzije fallback avatar.</p>
+                </div>
+              </div>
+
+              <div v-if="!canUploadBotMedia" class="botMediaReadonly">Read-only preview</div>
+              <div v-if="mediaError" class="msg err">{{ mediaError }}</div>
+            </section>
+
+            <section class="botMediaCard profileCardLike">
+              <div class="avatarCardHead">
+                <div>
+                  <h4 class="avatarCardTitle">Titulna fotka</h4>
+                  <p class="avatarCardSub">Nahraj alebo odstran titulnu fotku bota.</p>
+                </div>
+                <button
+                  v-if="canUploadBotMedia"
+                  type="button"
+                  data-testid="admin-bot-cover-edit"
+                  class="btn outline avatarOpenBtn"
+                  :disabled="mediaActionBusy"
+                  @click="openCoverEditor"
+                >
+                  Upravit
+                </button>
+              </div>
+
+              <div
+                class="botMediaPreview cover"
+                :class="{ 'botMediaPreview--fallback': botCoverMedia.isBotFallback }"
+                :style="botCoverMedia.fallbackStyle"
+              >
+                <img v-if="botCoverMedia.hasImage" :src="botCoverMedia.imageUrl" alt="Bot cover" class="botCoverImage" />
+                <div class="coverGlow"></div>
+              </div>
+
+              <div v-if="!canUploadBotMedia" class="botMediaReadonly">Read-only preview</div>
+            </section>
+          </div>
+        </section>
+
+        <aside class="sidePanel">
+          <section class="sectionCard">
+            <header class="sectionHeader">
+              <h3>Informacie o ucte</h3>
+            </header>
+
+            <dl class="accountInfoList">
+              <div v-for="item in accountInfoRows" :key="item.key" class="accountInfoItem">
+                <dt>{{ item.label }}</dt>
+                <dd>{{ item.value }}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="sectionCard">
+            <header class="sectionHeader">
+              <h3>Opravnenia a roly</h3>
+              <p class="sectionSubline">Aktualna rola a moznost spravy roly editor.</p>
+            </header>
+            <div class="accountInfoItem">
+              <dt>Aktualna rola</dt>
+              <dd>
+                <span class="statusBadge roleBadge" :class="roleClass(user)">{{ roleText }}</span>
+              </dd>
+            </div>
+            <div class="accountInfoItem">
+              <dt>Stav editor</dt>
+              <dd>{{ roleText === 'editor' ? 'Pouzivatel je editor' : 'Pouzivatel nie je editor' }}</dd>
+            </div>
+            <div v-if="canToggleEditorRole" class="actionStack">
+              <button
+                v-if="roleText !== 'editor'"
+                class="btn subtle"
+                :disabled="userLoading"
+                @click="updateEditorRole('editor')"
+              >
+                Pridat rolu editor
+              </button>
+              <button
+                v-else
+                class="btn subtle"
+                :disabled="userLoading"
+                @click="updateEditorRole('user')"
+              >
+                Odobrat rolu editor
+              </button>
+            </div>
+          </section>
+
+          <section class="sectionCard moderationCard">
+            <header class="sectionHeader">
+              <h3>Moderacia</h3>
+              <p class="sectionSubline">Reverzibilne akcie pre stav uctu.</p>
+            </header>
+
+            <div v-if="canModerateAccount" class="actionStack">
+              <button
+                v-if="!user?.is_banned"
+                class="btn subtle"
+                :disabled="userLoading"
+                @click="banUser"
+              >
+                Zablokovat ucet
+              </button>
+              <button
+                v-else
+                class="btn subtle"
+                :disabled="userLoading"
+                @click="unbanUser"
+              >
+                Odblokovat ucet
+              </button>
+
+              <button
+                class="btn subtle"
+                :disabled="userLoading || !user?.is_active"
+                @click="deactivateUser"
+              >
+                Deaktivovat ucet
+              </button>
+              <button
+                class="btn subtle"
+                :disabled="userLoading || user?.is_active"
+                @click="reactivateUser"
+              >
+                Reaktivovat ucet
+              </button>
+            </div>
+            <p v-else class="readonlyHint">Pre tento ucet nie su moderacne write akcie povolene.</p>
+          </section>
+
+          <section v-if="canUseDangerActions" class="sectionCard dangerZone" data-testid="danger-zone">
+            <header class="sectionHeader">
+              <h3>Danger zone</h3>
+              <p class="sectionSubline">Nevratne operacie nad profilom.</p>
+            </header>
+            <button class="btn danger" :disabled="userLoading" @click="resetProfile">Resetovat profil</button>
+          </section>
+        </aside>
+      </div>
+
+      <BaseModal
+        v-if="isBotTarget"
+        v-model:open="avatarModalOpen"
+        title="Upravit profilovy avatar"
+        test-id="admin-bot-avatar-modal"
+        close-test-id="admin-bot-avatar-modal-close"
+      >
+        <template #description>
+          <p class="avatarCardSub avatarModalSub">Vyber si fotku alebo personalizovany avatar.</p>
+        </template>
+
+        <div class="avatarEditorBody">
+          <div class="avatarModeSwitch" role="tablist" aria-label="Rezim profiloveho avatara">
+            <button
+              type="button"
+              class="modeBtn"
+              :class="{ active: avatarDraft.mode === 'image' }"
+              :disabled="mediaActionBusy"
+              @click="setAvatarMode('image')"
+            >
+              Fotka
+            </button>
+            <button
+              type="button"
+              class="modeBtn"
+              :class="{ active: avatarDraft.mode === 'generated' }"
+              :disabled="mediaActionBusy"
+              @click="setAvatarMode('generated')"
+            >
+              Avatar
+            </button>
+          </div>
+
+          <div class="avatarPreviewWrap">
+            <div class="avatar avatarPreviewAvatar">
+              <UserAvatar
+                class="avatarImg"
+                :user="user"
+                :size="112"
+                :avatar-url="avatarSrc"
+                :mode="avatarDraft.mode"
+                :prefer-image="avatarDraft.mode === 'image'"
+                :color-index="avatarDraft.color"
+                :icon-index="avatarDraft.icon"
+                :seed="avatarDraft.seed"
+                :alt="`${user?.name || 'Bot'} avatar`"
+              />
+            </div>
+            <p class="avatarHint">Pri mode Fotka bez obrazka ostava fallback avatar.</p>
+          </div>
+
+          <div v-if="avatarErr" class="msg err avatarMsg">{{ avatarErr }}</div>
+
+          <template v-if="avatarDraft.mode === 'image'">
+            <div class="avatarImageActions">
+              <button
+                type="button"
+                class="btn outline"
+                data-testid="admin-bot-avatar-upload"
+                :disabled="mediaActionBusy"
+                @click="openBotMediaPicker('avatar')"
+              >
+                {{ avatarUploading ? 'Nahravam...' : 'Nahrat fotku' }}
+              </button>
+              <button
+                type="button"
+                class="btn ghost"
+                data-testid="admin-bot-avatar-remove"
+                :disabled="mediaActionBusy"
+                @click="markAvatarImageForRemoval"
+              >
+                {{ avatarRemoving ? 'Odstranujem...' : 'Odstranit fotku' }}
+              </button>
+              <input
+                ref="avatarInput"
+                class="fileInput"
+                data-testid="admin-bot-avatar-input"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                :disabled="mediaActionBusy"
+                @change="onBotMediaChange('avatar', $event)"
+              />
+            </div>
+            <p class="avatarHint">Odporucana velkost: aspon 512x512 px, JPG/PNG/WebP, max 3 MB.</p>
+          </template>
+
+          <template v-else>
+            <div class="avatarPicker">
+              <div class="avatarPickerLabel">Symbol</div>
+              <div class="avatarIconGrid">
+                <button
+                  v-for="option in iconOptions"
+                  :key="option.index"
+                  type="button"
+                  class="avatarChoice iconChoice"
+                  :class="{ active: avatarResolved.iconIndex === option.index }"
+                  :disabled="mediaActionBusy"
+                  @click="selectAvatarIcon(option.index)"
+                >
+                  <DefaultAvatar
+                    class="choiceAvatar"
+                    :size="40"
+                    :color-index="avatarResolved.colorIndex"
+                    :icon-index="option.index"
+                  />
+                  <span class="choiceLabel">{{ option.label }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="avatarPicker">
+              <div class="avatarPickerLabel">Farba</div>
+              <div class="avatarColorGrid">
+                <button
+                  v-for="(color, index) in AVATAR_COLORS"
+                  :key="color"
+                  type="button"
+                  class="avatarChoice colorChoice"
+                  :class="{ active: avatarResolved.colorIndex === index }"
+                  :style="{ '--avatar-choice-color': color }"
+                  :disabled="mediaActionBusy"
+                  @click="selectAvatarColor(index)"
+                >
+                  <span class="colorSwatch" aria-hidden="true"></span>
+                  <span class="choiceLabel">Farba {{ index + 1 }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="avatarActionRow">
+              <button type="button" class="btn outline" :disabled="mediaActionBusy" @click="randomizeAvatar">
+                Nahodne
+              </button>
+              <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="resetGeneratedAvatar">
+                Reset
+              </button>
+            </div>
+          </template>
+
+          <div class="avatarActionRow avatarActionRowSave">
+            <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="closeAvatarEditor">
+              Zavriet
+            </button>
+            <button
+              type="button"
+              class="btn"
+              data-testid="admin-bot-avatar-save"
+              :disabled="mediaActionBusy"
+              @click="saveAvatarPreferences"
+            >
+              {{ avatarSaving ? 'Ukladam...' : 'Ulozit' }}
+            </button>
+          </div>
+        </div>
+      </BaseModal>
+
+      <BaseModal
+        v-if="isBotTarget"
+        v-model:open="coverModalOpen"
+        title="Upravit titulnu fotku"
+        test-id="admin-bot-cover-modal"
+        close-test-id="admin-bot-cover-modal-close"
+      >
+        <template #description>
+          <p class="avatarCardSub avatarModalSub">Zmen titulnu fotku alebo pouzi fallback pozadie.</p>
+        </template>
+
+        <div class="coverEditorBody">
+          <div
+            class="botMediaPreview cover coverEditorPreview"
+            :class="{ 'botMediaPreview--fallback': coverEditorMedia.isBotFallback }"
+            :style="coverEditorMedia.fallbackStyle"
+          >
+            <img v-if="coverEditorMedia.hasImage" :src="coverEditorMedia.imageUrl" alt="Bot cover" class="botCoverImage" />
+            <div class="coverGlow"></div>
+          </div>
+
+          <div class="avatarImageActions">
+            <button
+              type="button"
+              class="btn outline"
+              data-testid="admin-bot-cover-upload"
+              :disabled="mediaActionBusy"
+              @click="openBotMediaPicker('cover')"
+            >
+              {{ coverUploading ? 'Nahravam...' : 'Nahrat fotku' }}
+            </button>
+            <button
+              type="button"
+              class="btn ghost"
+              data-testid="admin-bot-cover-remove"
+              :disabled="mediaActionBusy"
+              @click="markCoverForRemoval"
+            >
+              {{ coverRemoving ? 'Odstranujem...' : 'Odstranit fotku' }}
+            </button>
+            <input
+              ref="coverInput"
+              class="fileInput"
+              data-testid="admin-bot-cover-input"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              :disabled="mediaActionBusy"
+              @change="onBotMediaChange('cover', $event)"
+            />
+          </div>
+
+          <div v-if="mediaError" class="msg err">{{ mediaError }}</div>
+
+          <div class="avatarActionRow avatarActionRowSave">
+            <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="closeCoverEditor">
+              Zavriet
+            </button>
+            <button
+              type="button"
+              class="btn"
+              data-testid="admin-bot-cover-save"
+              :disabled="mediaActionBusy"
+              @click="saveCoverEditor"
+            >
+              {{ coverSaving ? 'Ukladam...' : 'Ulozit' }}
+            </button>
+          </div>
+        </div>
+      </BaseModal>
+
+      <section class="sectionCard reportsSection">
+        <header class="sectionHeader">
+          <h3>Reporty</h3>
+          <p class="sectionSubline">Nahlasenia spojene s obsahom tohto pouzivatela.</p>
+        </header>
+        <div v-if="reportsError" class="adminAlert">{{ reportsError }}</div>
+
+      <AdminToolbar :loading="reportsLoading">
+        <template #search>
+          <label class="fieldLabel" for="user-reports-search">Hladat</label>
+          <input
+            id="user-reports-search"
+            v-model="reportsSearchInput"
+            type="search"
+            class="fieldInput"
+            :disabled="reportsLoading"
+            placeholder="Hladat reporty..."
+          />
+        </template>
+
+        <template #filters>
+          <div class="filtersRow">
+            <div>
+              <label class="fieldLabel" for="user-reports-status">Status</label>
+              <select
+                id="user-reports-status"
+                v-model="reportsStatus"
+                class="fieldInput"
+                :disabled="reportsLoading"
+                @change="reportsPage = 1"
+              >
+                <option value="">all</option>
+                <option value="open">open</option>
+                <option value="reviewed">reviewed</option>
+                <option value="dismissed">dismissed</option>
+                <option value="action_taken">action_taken</option>
+              </select>
+            </div>
+            <div>
+              <label class="fieldLabel" for="user-reports-per-page">Na stranu</label>
+              <select
+                id="user-reports-per-page"
+                v-model.number="reportsPerPage"
+                class="fieldInput"
+                :disabled="reportsLoading"
+                @change="reportsPage = 1"
+              >
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+                <option :value="50">50</option>
+              </select>
+            </div>
+          </div>
+        </template>
+
+        <template #actions>
+          <button type="button" class="btn subtle" :disabled="reportsLoading" @click="loadReports">Obnovit</button>
+          <button type="button" class="btn subtle" :disabled="reportsLoading" @click="clearReportFilters">
+            Vycistit filtre
+          </button>
+        </template>
+      </AdminToolbar>
+
+      <AdminDataTable
+        :columns="reportColumns"
+        :rows="reportRows"
+        :loading="reportsLoading"
+        empty-title="Ziadne reporty pre tohto pouzivatela"
+        empty-description="Aktualnym filtrom nezodpoveda ziaden report."
+      >
+        <template #[`cell(type)`]="{ row }">
+          <span class="statusBadge">{{ reportType(row) }}</span>
+        </template>
+
+        <template #[`cell(status)`]="{ row }">
+          <span class="statusBadge">{{ row.status || '-' }}</span>
+        </template>
+
+        <template #[`cell(created_at)`]="{ row }">
+          {{ formatDate(row.created_at) }}
+        </template>
+
+        <template #[`cell(actions)`]="{ row }">
+          <div class="rowActions">
+            <RouterLink
+              v-if="row?.target?.id"
+              :to="{ name: 'post-detail', params: { id: row.target.id } }"
+              class="btn subtle"
+            >
+              Zobrazit
+            </RouterLink>
+            <button class="btn subtle" :disabled="reportsLoading" @click="reportAction(row, 'hide')">Vyriesit</button>
+            <button class="btn subtle" :disabled="reportsLoading" @click="reportAction(row, 'dismiss')">
+              Zamietnut
+            </button>
+          </div>
+        </template>
+      </AdminDataTable>
+
+      <AdminPagination :meta="reportsData" @page-change="reportsPage = $event" />
+      </section>
+    </template>
+  </AdminPageShell>

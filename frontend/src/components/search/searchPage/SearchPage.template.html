@@ -1,0 +1,171 @@
+
+  <section class="searchPage w-full min-w-0 text-[var(--color-surface)]" data-testid="search-page-root">
+    <div class="searchPage__shell w-full min-w-0 px-3 py-4 sm:px-4 sm:py-5 md:py-6" data-testid="search-page-shell">
+      <header class="searchPage__intro" aria-label="Hľadanie">
+        <h1 class="searchPage__title">Hľadanie</h1>
+        <p class="searchPage__subtitle">
+          Zadaj kľúčové slovo a rýchlo nájdi to, čo hľadáš.
+        </p>
+      </header>
+
+      <section class="searchPage__toolbar" data-testid="search-page-toolbar">
+        <SearchBar
+          v-model="query"
+          :loading="showSearchResults && isGlobalLoading"
+          placeholder="Napr. Perzeidy, Mars, ISS"
+          @submit="loadGlobalResults"
+        />
+
+        <nav class="searchPage__tabs" aria-label="Karty hľadania">
+          <button
+            v-for="tab in tabs"
+            :key="tab.key"
+            type="button"
+            class="searchPage__tab"
+            :class="{ 'is-active': activeTab === tab.key }"
+            @click="activeTab = tab.key"
+          >
+            {{ tab.label }}
+          </button>
+        </nav>
+      </section>
+
+      <section v-if="showSearchResults" class="searchPage__content">
+        <SearchSkeleton v-if="isGlobalLoading" :sections="3" :rows="3" />
+
+        <section
+          v-else-if="globalError"
+          class="searchPage__notice searchPage__notice--error"
+          role="status"
+          aria-live="polite"
+        >
+          <p>{{ globalError }}</p>
+          <button type="button" class="searchPage__retry" @click="loadGlobalResults">
+            Skúsiť znova
+          </button>
+        </section>
+
+        <template v-else>
+          <section
+            v-for="section in globalSections"
+            :key="section.key"
+            class="searchSection"
+            :aria-label="section.title"
+          >
+            <header class="searchSection__header">
+              <h2 class="searchSection__title">{{ section.title }}</h2>
+              <span class="searchSection__count">{{ section.items.length }}</span>
+            </header>
+
+            <div class="searchSection__list">
+              <SearchResultCard
+                v-for="item in section.items"
+                :key="item.key"
+                :to="item.to"
+                :kind="item.kind"
+                :title="item.title"
+                :excerpt="item.excerpt"
+                :meta="item.meta"
+                :query="trimmedQuery"
+              />
+            </div>
+          </section>
+
+          <section v-if="globalResults.keywords.length" class="searchSection" aria-label="Kľúčové slová">
+            <header class="searchSection__header">
+              <h2 class="searchSection__title">Kľúčové slová</h2>
+              <span class="searchSection__count">{{ globalResults.keywords.length }}</span>
+            </header>
+            <div class="searchSection__keywords">
+              <button
+                v-for="item in globalResults.keywords"
+                :key="`k-${item.id}`"
+                type="button"
+                class="searchChip"
+                @click="useKeyword(item.value)"
+              >
+                {{ item.value }}
+              </button>
+            </div>
+          </section>
+
+          <SearchEmptyState
+            v-if="!hasAnyGlobalResults"
+            title="Nič sme nenašli"
+            message="Skús iný výraz alebo jednoduchšie kľúčové slovo."
+            hint="Tip: funguje aj názov udalosti, hashtag alebo meno používateľa."
+            type="search"
+          />
+        </template>
+      </section>
+
+      <section v-else class="searchPage__content">
+        <SearchSkeleton v-if="isDiscoveryLoading" :sections="2" :rows="3" />
+
+        <section
+          v-else-if="discoveryError"
+          class="searchPage__notice searchPage__notice--error"
+          role="status"
+          aria-live="polite"
+        >
+          <p>{{ discoveryError }}</p>
+          <button type="button" class="searchPage__retry" @click="loadDiscovery">
+            Skúsiť znova
+          </button>
+        </section>
+
+        <template v-else>
+          <section
+            v-for="section in activeDiscoverySections"
+            :key="section.key"
+            class="searchSection"
+            :aria-label="section.title"
+          >
+            <header class="searchSection__header">
+              <h2 class="searchSection__title">{{ section.title }}</h2>
+              <span class="searchSection__count">{{ section.items.length }}</span>
+            </header>
+
+            <div class="searchSection__list">
+              <SearchResultCard
+                v-for="item in section.items"
+                :key="item.key"
+                :to="item.to"
+                :kind="item.kind"
+                :title="item.title"
+                :excerpt="item.excerpt"
+                :meta="item.meta"
+                :query="trimmedQuery"
+              />
+            </div>
+          </section>
+
+          <section v-if="discovery.keywords.length" class="searchSection" aria-label="Populárne kľúčové slová">
+            <header class="searchSection__header">
+              <h2 class="searchSection__title">Populárne kľúčové slová</h2>
+              <span class="searchSection__count">{{ discovery.keywords.length }}</span>
+            </header>
+            <div class="searchSection__keywords">
+              <button
+                v-for="item in discovery.keywords"
+                :key="`dk-${item.id}`"
+                type="button"
+                class="searchChip"
+                @click="useKeyword(item.value)"
+              >
+                {{ item.value }}
+              </button>
+            </div>
+          </section>
+
+          <SearchEmptyState
+            v-if="!hasAnyDiscoveryResults"
+            title="Zatiaľ tu nič nie je"
+            message="Skús inú kartu alebo zadaj vlastné hľadanie."
+            hint="Obsah sa priebežne aktualizuje."
+            type="discovery"
+          />
+        </template>
+      </section>
+    </div>
+  </section>

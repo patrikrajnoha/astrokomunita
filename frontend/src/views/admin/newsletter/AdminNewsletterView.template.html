@@ -1,0 +1,328 @@
+
+  <AdminPageShell
+    title="Newsletter"
+    subtitle="Vyber top obsah týždňa, skontroluj payload a spusti newsletter run."
+  >
+    <div v-if="error" class="alert alert-error">{{ error }}</div>
+    <div v-if="success" class="alert alert-success">{{ success }}</div>
+
+    <AdminAiActionPanel
+      v-if="!aiConfigLoading && aiConfig"
+      title="AI pomocnik"
+      description="Pripravi AI tip a navrhne predmet s uvodom."
+      action-label="Pripravit AI tip"
+      :enabled="aiEnabled"
+      :status="aiPrimeStatus"
+      :latency-ms="aiPanelLastRun?.latency_ms ?? null"
+      :last-run-at="aiPanelLastRun?.updated_at ?? null"
+      :retry-count="aiPanelLastRun?.retry_count ?? null"
+      :raw-status-code="aiPrimeRawStatus"
+      :is-loading="aiPrimeLoading"
+      :error-message="aiPrimeError"
+      @run="triggerPrimeInsights"
+    >
+      <div class="aiInlineActions">
+        <button
+          type="button"
+          class="aiSecondaryBtn"
+          :disabled="aiDraftLoading || !aiCopyEnabled"
+          @click="triggerDraftCopy"
+        >
+          {{ aiDraftLoading ? 'Pripravujem navrh...' : 'Navrhnut predmet a uvod' }}
+        </button>
+        <span
+          v-if="aiPrimeResult && Number(aiPrimeResult.fallback || 0) > 0"
+          class="aiBadge aiBadge--fallback"
+        >
+          Pouzity fallback
+        </span>
+        <span
+          v-if="aiDraftResult?.fallback_used"
+          class="aiBadge aiBadge--fallback"
+        >
+          Pouzity fallback
+        </span>
+      </div>
+      <p v-if="aiPrimeNotice" class="aiNotice">{{ aiPrimeNotice }}</p>
+      <p v-if="aiDraftNotice" class="aiNotice">{{ aiDraftNotice }}</p>
+      <p v-if="aiDraftError" class="aiError">{{ aiDraftError }}</p>
+
+      <div
+        v-if="aiDraftResult && Array.isArray(aiDraftResult.subjects) && aiDraftResult.subjects.length === 3"
+        class="aiDraftBox"
+      >
+        <label
+          v-for="(subject, index) in aiDraftResult.subjects"
+          :key="`subject-${index}`"
+          class="aiDraftOption"
+        >
+          <input
+            v-model.number="aiDraftSelectedIndex"
+            type="radio"
+            name="ai-subject-choice"
+            :value="index"
+          />
+          <span>{{ subject }}</span>
+        </label>
+        <button type="button" :disabled="aiDraftLoading" @click="applyDraftCopy">Pouzit</button>
+      </div>
+
+      <p v-else-if="!aiPrimeNotice && !aiDraftNotice" class="muted">
+        Klikni na akciu a navrh sa pripravi lokalne.
+      </p>
+      <template #advanced>
+        <div class="aiRow">
+          <label for="ai-prime-limit" class="aiLabel">Limit eventov</label>
+          <input
+            id="ai-prime-limit"
+            v-model.number="aiPrimeLimit"
+            type="number"
+            min="1"
+            :max="aiPrimeMaxLimit"
+            class="aiInput"
+            :disabled="aiPrimeLoading"
+          />
+        </div>
+        <p class="muted">
+          Cache TTL:
+          {{ aiInsightsTtlSeconds > 0 ? `${aiInsightsTtlSeconds}s` : '-' }}
+          <span v-if="aiInsightsTtlDays">(~{{ aiInsightsTtlDays }} dni)</span>
+        </p>
+        <p v-if="aiPrimeResult" class="muted">
+          Spracovane: {{ Number(aiPrimeResult.processed || 0) }},
+          primed: {{ Number(aiPrimeResult.primed || 0) }},
+          fallback: {{ Number(aiPrimeResult.fallback || 0) }},
+          failed: {{ Number(aiPrimeResult.failed || 0) }}.
+        </p>
+        <p class="muted">
+          Draft-copy:
+          {{ aiDraftStatus }}
+          <span v-if="aiDraftLastRun?.updated_at">
+            ({{ formatDateTime(aiDraftLastRun.updated_at) }})
+          </span>
+        </p>
+      </template>
+    </AdminAiActionPanel>
+    <section v-else class="card">
+      <p class="muted">Načítavam AI konfiguráciu...</p>
+    </section>
+
+    <section class="card">
+      <div class="cardHead">
+        <h3>Vybrané udalosti na budúci týždeň</h3>
+        <p class="counter">{{ selectedCount }}/{{ maxFeaturedEvents }}</p>
+      </div>
+      <p class="muted">Vyber max {{ maxFeaturedEvents }} udalosti pre sekciu "Top udalosti budúceho týždňa".</p>
+
+      <div class="eventsGrid">
+        <label
+          v-for="event in candidateEvents"
+          :key="event.id"
+          class="eventOption"
+          :class="{ active: isSelected(event.id) }"
+        >
+          <input
+            type="checkbox"
+            :checked="isSelected(event.id)"
+            :disabled="savingSelection || (!isSelected(event.id) && selectedCount >= maxFeaturedEvents)"
+            @change="toggleSelected(event.id, $event.target.checked)"
+          />
+          <span class="eventTitle">{{ event.title }}</span>
+          <span class="eventDate">{{ formatDateTime(event.start_at) }}</span>
+        </label>
+      </div>
+
+      <div class="actions">
+        <button type="button" :disabled="!canSaveSelection" @click="saveFeaturedEvents">
+          {{ savingSelection ? 'Ukladám...' : 'Uložiť vybrané udalosti' }}
+        </button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Náhľad payloadu</h3>
+      <p v-if="loading" class="muted">Načítavam náhľad...</p>
+      <template v-else>
+        <p class="muted">
+          Týždeň: {{ preview?.week?.start || '-' }} - {{ preview?.week?.end || '-' }}
+        </p>
+
+        <h4>Top udalosti</h4>
+        <ul>
+          <li v-for="event in preview?.top_events || []" :key="event.id">
+            {{ event.title }}
+          </li>
+        </ul>
+
+        <h4>Top články</h4>
+        <ul>
+          <li v-for="article in preview?.top_articles || []" :key="article.id">
+            {{ article.title }} ({{ article.views }})
+          </li>
+        </ul>
+
+        <h4>Astronomický tip</h4>
+        <p class="muted">{{ preview?.astronomical_tip || '-' }}</p>
+      </template>
+    </section>
+
+    <section class="card">
+      <h3>Predmet a uvod (local preview)</h3>
+      <p class="muted">AI navrh sa ulozi az cez existujuci newsletter flow.</p>
+
+      <div class="copyEditor">
+        <label class="copyField">
+          <span>Predmet</span>
+          <input
+            v-model.trim="newsletterSubject"
+            type="text"
+            maxlength="80"
+            class="copyInput"
+            @input="markLocalCopyEdited"
+          />
+        </label>
+
+        <label class="copyField">
+          <span>Uvod</span>
+          <textarea
+            v-model.trim="newsletterIntro"
+            rows="2"
+            maxlength="280"
+            class="copyTextarea"
+            @input="markLocalCopyEdited"
+          />
+        </label>
+
+        <label class="copyField">
+          <span>Tip</span>
+          <textarea
+            v-model.trim="newsletterTipText"
+            rows="3"
+            maxlength="320"
+            class="copyTextarea"
+            @input="markLocalCopyEdited"
+          />
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Náhľad emailu</h3>
+      <p v-if="loading" class="muted">Načítavam náhľad...</p>
+      <article v-else class="emailPreview">
+        <header class="emailHero">
+          <p class="emailEyebrow">Nebeský sprievodca</p>
+          <p class="emailSubjectLine">Predmet: {{ newsletterSubject || '-' }}</p>
+          <h4 class="emailTitle">Top udalosti buduceho tyzdna</h4>
+          <p class="emailIntro">{{ newsletterIntro || '-' }}</p>
+        </header>
+
+        <section class="emailSection">
+          <h5>Top udalosti</h5>
+          <ul>
+            <li v-for="event in preview?.top_events || []" :key="`email-event-${event.id}`">
+              <a :href="event.url || '#'" target="_blank" rel="noopener">{{ event.title || 'Udalosť' }}</a>
+              <span>{{ event.start_at || '-' }}</span>
+            </li>
+            <li v-if="(preview?.top_events || []).length === 0">Tento týždeň zatiaľ nemá vybrané udalosti.</li>
+          </ul>
+        </section>
+
+        <section class="emailSection">
+          <h5>Najčítanejšie články (7 dní)</h5>
+          <ul>
+            <li v-for="article in preview?.top_articles || []" :key="`email-article-${article.id}`">
+              <a :href="article.url || '#'" target="_blank" rel="noopener">{{ article.title || 'Článok' }}</a>
+              <span>Čítania: {{ Number(article.views || 0) }}</span>
+            </li>
+            <li v-if="(preview?.top_articles || []).length === 0">Za posledný týždeň ešte nie sú dostupné články.</li>
+          </ul>
+        </section>
+
+        <section class="emailSection">
+          <h5>Astronomický tip týždňa</h5>
+          <p>{{ newsletterTipText || '-' }}</p>
+        </section>
+
+        <footer class="emailFooter">
+          <a class="emailBtn emailBtnPrimary" :href="preview?.cta?.calendar_url || '#'" target="_blank" rel="noopener">
+            Otvoriť kalendár
+          </a>
+          <a class="emailBtn emailBtnSecondary" :href="preview?.cta?.events_url || '#'" target="_blank" rel="noopener">
+            Prejsť na udalosti
+          </a>
+        </footer>
+      </article>
+    </section>
+
+    <section class="card">
+      <h3>Manuálne odoslanie</h3>
+      <div class="toggles">
+        <label class="toggleLabel">
+          <input v-model="sendOptions.force" type="checkbox" />
+          <span>Vynútiť odoslanie</span>
+        </label>
+        <label class="toggleLabel">
+          <input v-model="sendOptions.dry_run" type="checkbox" />
+          <span>Dry-run</span>
+        </label>
+      </div>
+      <button type="button" :disabled="sending || loading" @click="triggerSend">
+        {{ sending ? 'Odosielam...' : 'Spustiť newsletter run' }}
+      </button>
+    </section>
+
+    <section class="card">
+      <h3>Náhľad</h3>
+      <p class="muted">Odošli preview email na existujúci používateľský účet.</p>
+      <div class="actions">
+        <input
+          v-model.trim="previewEmail"
+          type="email"
+          class="previewInput"
+          placeholder="user@example.com"
+        />
+        <button type="button" :disabled="previewSending || loading" @click="triggerPreviewSend">
+          {{ previewSending ? 'Odosielam...' : 'Odoslať preview' }}
+        </button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Predošlé runy</h3>
+      <div v-if="runs.length === 0" class="muted">Zatiaľ žiadne runy.</div>
+      <table v-else class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Week</th>
+            <th>Status</th>
+            <th>Total</th>
+            <th>Sent</th>
+            <th>Preview</th>
+            <th>Unsubscribe</th>
+            <th>Failed</th>
+            <th>Flags</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="run in runs" :key="run.id">
+            <td>{{ run.id }}</td>
+            <td>{{ run.week_start_date }}</td>
+            <td>{{ run.status }}</td>
+            <td>{{ run.total_recipients }}</td>
+            <td>{{ run.sent_count }}</td>
+            <td>{{ run.preview_count }}</td>
+            <td>{{ run.unsubscribe_count }}</td>
+            <td>{{ run.failed_count }}</td>
+            <td>
+              <span v-if="run.forced">forced </span>
+              <span v-if="run.dry_run">dry-run</span>
+            </td>
+            <td>{{ formatDateTime(run.created_at) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </AdminPageShell>

@@ -1,0 +1,302 @@
+﻿  <section class="feed-container" data-tour="feed">
+    <!-- Header -->
+    <header class="feed-header">
+      <div class="feed-actions">
+        <FeedSwitcher
+          v-if="tabs.length > 1"
+          :tabs="tabs"
+          :model-value="activeTab"
+          @update:modelValue="switchTab"
+        />
+      </div>
+    </header>
+    <div v-if="$slots.composer" class="feed-composer-slot">
+      <slot name="composer" :active-tab="activeTab" />
+    </div>
+
+    <section
+      v-for="tab in tabs"
+      :id="tab.panelId"
+      :key="tab.panelId"
+      role="tabpanel"
+      class="feed-panel"
+      :aria-labelledby="tab.tabId"
+      :hidden="activeTab !== tab.id"
+    >
+      <template v-if="activeTab === tab.id">
+        <!-- Error -->
+        <div v-if="err" class="error-message">
+          <InlineStatus
+            variant="error"
+            :message="err"
+            action-label="Skusit znova"
+            @action="retryCurrentTab"
+          />
+        </div>
+
+        <!-- Loading skeleton -->
+        <div v-if="loading && items.length === 0" class="skeleton-container">
+          <div class="skeleton-post" v-for="i in 3" :key="i">
+            <div class="skeleton-header">
+              <div class="skeleton-avatar ui-skeleton ui-skeleton--avatar"></div>
+              <div class="skeleton-meta">
+                <div class="skeleton-line skeleton-name ui-skeleton ui-skeleton--line"></div>
+                <div class="skeleton-line skeleton-time ui-skeleton ui-skeleton--line"></div>
+              </div>
+            </div>
+            <div class="skeleton-content">
+              <div class="skeleton-line skeleton-text ui-skeleton ui-skeleton--line"></div>
+              <div class="skeleton-line skeleton-text ui-skeleton ui-skeleton--line"></div>
+            </div>
+            <div class="skeleton-media ui-skeleton ui-skeleton--card"></div>
+          </div>
+        </div>
+
+        <AsyncState
+          v-else-if="!loading && items.length === 0"
+          mode="empty"
+          :title="isBookmarksMode ? 'Ziadne ulozene prispevky' : 'Feed je zatial prazdny'"
+          :message="isBookmarksMode ? 'Uloz prispevok a zobrazime ho tu.' : 'Skus obnovit feed alebo sa vratit neskor.'"
+          :action-label="isBookmarksMode ? 'Preskumat' : 'Obnovit feed'"
+          compact
+          @action="handleEmptyAction"
+        />
+
+        <!-- Feed -->
+        <div v-else class="feed-list ui-stream">
+          <article
+            v-for="p in items"
+            :key="p.id"
+            class="post-card ui-stream-item"
+            :class="{
+              'post-card--pinned': p.pinned_at,
+              'post-card--astrobot': isBotPost(p),
+              'post-card--new': highlightedPostId === p.id,
+            }"
+            @click="openPost(p)"
+          >
+            <div class="post-avatar">
+              <button class="avatar-button" type="button" @click.stop="openProfile(p)">
+                <UserAvatar class="avatar-fallback" :user="p?.user" :alt="p?.user?.name || 'avatar'" />
+              </button>
+            </div>
+
+            <div class="post-content">
+              <!-- Header -->
+              <div class="post-header">
+                <div class="post-meta">
+                  <div class="post-author ui-stream-item__meta">
+                    <button class="author-name" type="button" @click.stop="openProfile(p)">
+                      {{ p?.user?.name ?? 'Pouzivatel' }}
+                    </button>
+                    <span v-if="isBotPost(p)" class="author-bot-badge" aria-label="Overeny bot">BOT</span>
+                    <span class="author-username">@{{ p?.user?.username }}</span>
+                    <span class="author-time">{{ fmt(p?.created_at) }}</span>
+                    <span v-if="p.pinned_at" class="pinned-badge">?? Pripnuté</span>
+                  </div>
+                  <div v-if="isBotPost(p)" class="bot-meta-row">
+                    <span class="bot-source-label">{{ botSourceLabel(p) }}</span>
+                  </div>
+                </div>
+              </div>
+              <ObservationCard
+                v-if="observationForPost(p)"
+                class="embedded-observation-card"
+                :observation="observationForPost(p)"
+                :show-author="false"
+                :show-event-link="true"
+                :compact="true"
+              />
+              <!-- Content -->
+              <div v-if="!observationForPost(p)" class="post-text ui-stream-item__body" @click.stop>
+                <template v-if="isEditingPost(p)">
+                  <textarea
+                    v-model="editContentDraft"
+                    class="inline-edit-textarea"
+                    rows="6"
+                    maxlength="5000"
+                  ></textarea>
+                  <div class="inline-edit-actions">
+                    <button
+                      type="button"
+                      class="ui-btn ui-btn--secondary editActionBtn"
+                      :disabled="editSavingId === p.id"
+                      @click.stop="saveInlineEdit(p)"
+                    >
+                      {{ editSavingId === p.id ? 'Ukladam...' : 'Ulozit' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="ui-btn ui-btn--ghost editActionBtn"
+                      :disabled="editSavingId === p.id"
+                      @click.stop="cancelInlineEdit"
+                    >
+                      Zrusit
+                    </button>
+                  </div>
+                </template>
+                <template v-else>
+                  <HashtagText :content="displayPostContent(p)" />
+                  <button
+                    v-if="isBotContentCollapsible(p)"
+                    class="show-more-btn"
+                    type="button"
+                    @click.stop="togglePostContent(p)"
+                  >
+                    {{ isPostContentExpanded(p) ? 'Zobrazit menej' : 'Zobrazit viac' }}
+                  </button>
+                </template>
+              </div>
+
+              <PollCard
+                v-if="!observationForPost(p) && p.poll"
+                :poll="p.poll"
+                :post-id="p.id"
+                :is-authed="auth.isAuthed"
+                @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
+                @login-required="onPollLoginRequired"
+              />
+
+              <div v-if="!observationForPost(p) && attachedEventForPost(p)" class="attached-event-card" @click.stop>
+                <div class="attached-event-copy">
+                  <p class="attached-event-title">{{ attachedEventForPost(p).title || 'Udalost' }}</p>
+                  <p class="attached-event-date">
+                    {{ formatEventRange(attachedEventForPost(p).start_at, attachedEventForPost(p).end_at) }}
+                  </p>
+                </div>
+                <button type="button" class="ui-btn ui-btn--subtle attached-event-btn" @click.stop="openAttachedEvent(p)">
+                  Otvorit udalost
+                </button>
+              </div>
+
+              <div v-if="!observationForPost(p) && isBotPost(p)" class="source-url source-url--bot" @click.stop>
+                <span class="source-attribution">Zdroj: {{ sourceAttributionLabel(p) }}</span>
+                <a
+                  v-if="sourceLink(p)"
+                  :href="sourceLink(p)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="source-link"
+                >
+                  Zdroj
+                </a>
+              </div>
+
+              <div v-if="!observationForPost(p) && stelaPreviewImageSrc(p)" class="post-media post-media--stela">
+                <div v-if="isAttachmentBlocked(p)" class="media-removed">Odstranene</div>
+                <PostMediaImage
+                  v-else
+                  :src="stelaPreviewImageSrc(p)"
+                  alt="Stela APOD nahlad"
+                  :blurred="isAttachmentPending(p)"
+                  :status="p?.status"
+                  fit="cover"
+                  frame-aspect-ratio="2 / 1"
+                  :show-oversize-overlay="false"
+                />
+              </div>
+
+              <div v-if="!observationForPost(p) && postGifUrl(p) && !stelaPreviewImageSrc(p)" class="post-media post-media--gif">
+                <img class="gifEmbed" :src="postGifUrl(p)" :alt="postGifTitle(p)" loading="lazy" />
+              </div>
+
+              <!-- Media attachment -->
+              <div v-if="!observationForPost(p) && p.attachment_url && !stelaPreviewImageSrc(p)" class="post-media">
+                <div v-if="isAttachmentBlocked(p)" class="media-removed">Odstranene</div>
+                <PostMediaImage
+                  v-else-if="isImage(p)"
+                  :src="attachmentSrc(p)"
+                  alt="Priloha prispevku"
+                  :blurred="isAttachmentPending(p)"
+                  :status="p?.status"
+                  fit="cover"
+                  frame-aspect-ratio="2 / 1"
+                  :show-oversize-overlay="false"
+                />
+
+                <PostMediaVideo
+                  v-else-if="isVideo(p) && !isAttachmentPending(p)"
+                  :src="attachmentSrc(p)"
+                  :type="attachmentMime(p) || undefined"
+                />
+
+                <a
+                  v-else-if="!isAttachmentPending(p)"
+                  class="file-attachment"
+                  :href="attachmentSrc(p)"
+                  target="_blank"
+                  rel="noopener"
+                  @click.stop
+                >
+                  <div class="file-icon">??</div>
+                  <div class="file-info">
+                    <div class="file-title">Príloha</div>
+                    <div class="file-name">
+                      {{ p.attachment_original_name || 'Súbor' }}
+                    </div>
+                  </div>
+                  <div class="file-arrow">›</div>
+                </a>
+              </div>
+
+              <!-- Bottom actions -->
+              <PostActionBar
+                :item="p"
+                :reply-count="Number(p.replies_count ?? 0)"
+                :like-count="Number(p.likes_count ?? 0)"
+                :like-loading="isLikeLoading(p)"
+                :bookmark-loading="isBookmarkLoading(p)"
+                :like-bump="likeBumpId === p.id"
+                :is-authed="auth.isAuthed"
+                :menu-items="menuItemsForPost(p)"
+                @reply="openPost(p)"
+                @like="toggleLike(p)"
+                @bookmark="toggleBookmark(p)"
+                @share="openShareModal(p)"
+                @menu-select="(item) => onMenuAction(item, p)"
+              />
+            </div>
+          </article>
+        </div>
+
+        <!-- Load more -->
+        <div class="load-more">
+          <button v-if="nextPageUrl" class="ui-btn ui-btn--secondary load-more-btn" :disabled="loading" @click="load(false)">
+            {{ loading ? 'Nacitavam...' : 'Nacitat dalsie' }}
+          </button>
+        </div>
+      </template>
+    </section>
+    <!-- Report modal -->
+    <div v-if="reportTarget" class="report-modal" @click.stop>
+      <div class="report-content">
+        <h3 class="report-title">Nahlasit prispevok</h3>
+        <div class="report-form">
+          <div class="form-group">
+            <label class="form-label">Dovod</label>
+            <select v-model="reportReason" class="ui-select form-select">
+              <option value="spam">Spam</option>
+              <option value="abuse">Nevhodny obsah</option>
+              <option value="misinfo">Dezinformacie</option>
+              <option value="other">Ine</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sprava (volitelne)</label>
+            <textarea
+              v-model="reportMessage"
+              class="ui-textarea form-textarea"
+              rows="3"
+              placeholder="Popis..."
+            ></textarea>
+          </div>
+          <div class="report-actions">
+            <button class="ui-btn ui-btn--ghost reportBtn" type="button" @click="closeReport">Zrusit</button>
+            <button class="ui-btn ui-btn--primary reportBtn" type="button" @click="submitReport">Odoslat</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ShareModal v-if="shareTarget" :open="true" :post="shareTarget" @close="closeShareModal" />
+  </section>
+
