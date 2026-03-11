@@ -1,10 +1,10 @@
 <template>
   <section
-    class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.22)] bg-[color:rgb(var(--color-bg-rgb)/0.64)] p-5 text-center shadow-sm"
+    class="searchEmptyState"
     role="status"
     aria-live="polite"
   >
-    <span class="mx-auto mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[color:rgb(var(--color-text-secondary-rgb)/0.26)] bg-[color:rgb(var(--color-bg-rgb)/0.84)] text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]" aria-hidden="true">
+    <span class="searchEmptyState__icon" aria-hidden="true">
       <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           v-for="(path, index) in iconPaths"
@@ -17,9 +17,9 @@
       </svg>
     </span>
 
-    <h3 class="text-base font-semibold text-[var(--color-surface)]">{{ title }}</h3>
-    <p class="mt-1 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">{{ message }}</p>
-    <p v-if="hint" class="mt-2 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.82)]">{{ hint }}</p>
+    <h3 class="searchEmptyState__title">{{ title }}</h3>
+    <p class="searchEmptyState__message">{{ message }}</p>
+    <p v-if="hint" class="searchEmptyState__hint">{{ hint }}</p>
   </section>
 </template>
 
@@ -58,3 +58,50 @@ const iconPaths = computed(() => {
   ]
 })
 </script>
+
+<style scoped>
+.searchEmptyState {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(var(--bg-surface-rgb) / 0.64);
+  padding: 1rem 0.9rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.searchEmptyState__icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  background: rgb(var(--bg-app-rgb) / 0.5);
+}
+
+.searchEmptyState__title {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: 650;
+  color: var(--color-text-primary);
+}
+
+.searchEmptyState__message {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  max-width: 52ch;
+}
+
+.searchEmptyState__hint {
+  margin: 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+</style>

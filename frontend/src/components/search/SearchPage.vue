@@ -1,26 +1,28 @@
 <template>
   <section class="searchPage w-full min-w-0 text-[var(--color-surface)]" data-testid="search-page-root">
     <div class="searchPage__shell w-full min-w-0 px-3 py-4 sm:px-4 sm:py-5 md:py-6" data-testid="search-page-shell">
-      <section
-        class="sticky top-2 z-20 rounded-2xl border border-[var(--color-border)] bg-[color:rgb(var(--color-bg-rgb)/0.78)] p-3 shadow-sm backdrop-blur sm:top-3 sm:p-4"
-        data-testid="search-page-toolbar"
-      >
+      <header class="searchPage__intro" aria-label="Hľadanie">
+        <h1 class="searchPage__title">Hľadanie</h1>
+        <p class="searchPage__subtitle">
+          Zadaj kľúčové slovo a rýchlo nájdi to, čo hľadáš.
+        </p>
+      </header>
+
+      <section class="searchPage__toolbar" data-testid="search-page-toolbar">
         <SearchBar
           v-model="query"
           :loading="showSearchResults && isGlobalLoading"
-          placeholder="Prehladavat Astrokomunitu"
+          placeholder="Napr. Perzeidy, Mars, ISS"
           @submit="loadGlobalResults"
         />
 
-        <nav class="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Karty hladania">
+        <nav class="searchPage__tabs" aria-label="Karty hľadania">
           <button
             v-for="tab in tabs"
             :key="tab.key"
             type="button"
-            class="rounded-lg px-3 py-2 text-sm font-semibold transition"
-            :class="activeTab === tab.key
-              ? 'bg-[color:rgb(var(--color-primary-rgb)/0.92)] text-white shadow-sm'
-              : 'bg-[color:rgb(var(--color-bg-rgb)/0.84)] text-[color:rgb(var(--color-text-secondary-rgb)/0.96)] hover:bg-[color:rgb(var(--color-text-secondary-rgb)/0.08)] hover:text-[var(--color-surface)]'"
+            class="searchPage__tab"
+            :class="{ 'is-active': activeTab === tab.key }"
             @click="activeTab = tab.key"
           >
             {{ tab.label }}
@@ -28,22 +30,18 @@
         </nav>
       </section>
 
-      <section v-if="showSearchResults" class="mt-4 space-y-4">
+      <section v-if="showSearchResults" class="searchPage__content">
         <SearchSkeleton v-if="isGlobalLoading" :sections="3" :rows="3" />
 
         <section
           v-else-if="globalError"
-          class="rounded-2xl border border-[color:rgb(var(--color-primary-rgb)/0.32)] bg-[color:rgb(var(--color-primary-rgb)/0.08)] p-4"
+          class="searchPage__notice searchPage__notice--error"
           role="status"
           aria-live="polite"
         >
-          <p class="text-sm text-[var(--color-surface)]">{{ globalError }}</p>
-          <button
-            type="button"
-            class="mt-3 rounded-lg border border-[color:rgb(var(--color-primary-rgb)/0.5)] bg-[color:rgb(var(--color-primary-rgb)/0.16)] px-3 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:bg-[color:rgb(var(--color-primary-rgb)/0.24)]"
-            @click="loadGlobalResults"
-          >
-            Skusit znova
+          <p>{{ globalError }}</p>
+          <button type="button" class="searchPage__retry" @click="loadGlobalResults">
+            Skúsiť znova
           </button>
         </section>
 
@@ -54,10 +52,12 @@
             class="searchSection"
             :aria-label="section.title"
           >
-            <h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:rgb(var(--color-text-secondary-rgb)/0.94)]">
-              {{ section.title }}
-            </h2>
-            <div class="space-y-2">
+            <header class="searchSection__header">
+              <h2 class="searchSection__title">{{ section.title }}</h2>
+              <span class="searchSection__count">{{ section.items.length }}</span>
+            </header>
+
+            <div class="searchSection__list">
               <SearchResultCard
                 v-for="item in section.items"
                 :key="item.key"
@@ -71,16 +71,17 @@
             </div>
           </section>
 
-          <section v-if="globalResults.keywords.length" class="searchSection" aria-label="Klucove slova">
-            <h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:rgb(var(--color-text-secondary-rgb)/0.94)]">
-              Klucove slova
-            </h2>
-            <div class="flex flex-wrap gap-2">
+          <section v-if="globalResults.keywords.length" class="searchSection" aria-label="Kľúčové slová">
+            <header class="searchSection__header">
+              <h2 class="searchSection__title">Kľúčové slová</h2>
+              <span class="searchSection__count">{{ globalResults.keywords.length }}</span>
+            </header>
+            <div class="searchSection__keywords">
               <button
                 v-for="item in globalResults.keywords"
                 :key="`k-${item.id}`"
                 type="button"
-                class="rounded-full border border-[var(--color-border)] bg-[color:rgb(var(--color-bg-rgb)/0.72)] px-3 py-1.5 text-xs font-medium text-[color:rgb(var(--color-text-secondary-rgb)/0.92)] transition hover:border-[color:rgb(var(--color-primary-rgb)/0.58)] hover:text-[var(--color-primary)]"
+                class="searchChip"
                 @click="useKeyword(item.value)"
               >
                 {{ item.value }}
@@ -90,30 +91,26 @@
 
           <SearchEmptyState
             v-if="!hasAnyGlobalResults"
-            title="Nic sme nenasli"
-            message="Skus iny vyraz alebo pridaj dalsie klucove slovo."
-            hint="Tip: pouzi aspon 2 znaky a skus konkretnejsi dotaz."
+            title="Nič sme nenašli"
+            message="Skús iný výraz alebo jednoduchšie kľúčové slovo."
+            hint="Tip: funguje aj názov udalosti, hashtag alebo meno používateľa."
             type="search"
           />
         </template>
       </section>
 
-      <section v-else class="mt-4 space-y-4">
+      <section v-else class="searchPage__content">
         <SearchSkeleton v-if="isDiscoveryLoading" :sections="2" :rows="3" />
 
         <section
           v-else-if="discoveryError"
-          class="rounded-2xl border border-[color:rgb(var(--color-primary-rgb)/0.32)] bg-[color:rgb(var(--color-primary-rgb)/0.08)] p-4"
+          class="searchPage__notice searchPage__notice--error"
           role="status"
           aria-live="polite"
         >
-          <p class="text-sm text-[var(--color-surface)]">{{ discoveryError }}</p>
-          <button
-            type="button"
-            class="mt-3 rounded-lg border border-[color:rgb(var(--color-primary-rgb)/0.5)] bg-[color:rgb(var(--color-primary-rgb)/0.16)] px-3 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:bg-[color:rgb(var(--color-primary-rgb)/0.24)]"
-            @click="loadDiscovery"
-          >
-            Skusit znova
+          <p>{{ discoveryError }}</p>
+          <button type="button" class="searchPage__retry" @click="loadDiscovery">
+            Skúsiť znova
           </button>
         </section>
 
@@ -124,10 +121,12 @@
             class="searchSection"
             :aria-label="section.title"
           >
-            <h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:rgb(var(--color-text-secondary-rgb)/0.94)]">
-              {{ section.title }}
-            </h2>
-            <div class="space-y-2">
+            <header class="searchSection__header">
+              <h2 class="searchSection__title">{{ section.title }}</h2>
+              <span class="searchSection__count">{{ section.items.length }}</span>
+            </header>
+
+            <div class="searchSection__list">
               <SearchResultCard
                 v-for="item in section.items"
                 :key="item.key"
@@ -141,16 +140,17 @@
             </div>
           </section>
 
-          <section v-if="discovery.keywords.length" class="searchSection" aria-label="Popularne klucove slova">
-            <h2 class="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:rgb(var(--color-text-secondary-rgb)/0.94)]">
-              Popularne klucove slova
-            </h2>
-            <div class="flex flex-wrap gap-2">
+          <section v-if="discovery.keywords.length" class="searchSection" aria-label="Populárne kľúčové slová">
+            <header class="searchSection__header">
+              <h2 class="searchSection__title">Populárne kľúčové slová</h2>
+              <span class="searchSection__count">{{ discovery.keywords.length }}</span>
+            </header>
+            <div class="searchSection__keywords">
               <button
                 v-for="item in discovery.keywords"
                 :key="`dk-${item.id}`"
                 type="button"
-                class="rounded-full border border-[var(--color-border)] bg-[color:rgb(var(--color-bg-rgb)/0.72)] px-3 py-1.5 text-xs font-medium text-[color:rgb(var(--color-text-secondary-rgb)/0.92)] transition hover:border-[color:rgb(var(--color-primary-rgb)/0.58)] hover:text-[var(--color-primary)]"
+                class="searchChip"
                 @click="useKeyword(item.value)"
               >
                 {{ item.value }}
@@ -160,9 +160,9 @@
 
           <SearchEmptyState
             v-if="!hasAnyDiscoveryResults"
-            title="Discovery je zatial prazdne"
-            message="Skus prepnut tab alebo spusti hladanie konkretnym vyrazom."
-            hint="Obsah sa priebezne aktualizuje."
+            title="Zatiaľ tu nič nie je"
+            message="Skús inú kartu alebo zadaj vlastné hľadanie."
+            hint="Obsah sa priebežne aktualizuje."
             type="discovery"
           />
         </template>
@@ -185,8 +185,8 @@ const route = useRoute()
 const router = useRouter()
 
 const tabs = [
-  { key: 'trendy', label: 'Trendy' },
-  { key: 'spravy', label: 'Spravy' },
+  { key: 'trendy', label: 'Top' },
+  { key: 'spravy', label: 'Správy' },
   { key: 'udalosti', label: 'Udalosti' },
 ]
 
@@ -237,7 +237,7 @@ const eventSnippet = (event) => {
 
 const formatEventDate = (event) => {
   const raw = event?.start_at || event?.max_at
-  if (!raw) return 'Bez terminu'
+  if (!raw) return 'Bez termínu'
 
   const dateLabel = formatEventDay(raw, EVENT_TIMEZONE, {
     day: '2-digit',
@@ -258,21 +258,21 @@ const toUserItem = (user) => ({
   key: `u-${user.id}`,
   to: { name: 'user-profile', params: { username: user.username } },
   kind: 'user',
-  title: user.name || user.username || 'Pouzivatel',
+  title: user.name || user.username || 'Používateľ',
   excerpt: user.username ? `@${user.username}` : '',
   meta: user.location || '',
 })
 
-const toPostItem = (post, prefix = 'Prispevok') => ({
+const toPostItem = (post, prefix = 'Príspevok') => ({
   key: `p-${post.id}`,
   to: { name: 'post-detail', params: { id: post.id } },
   kind: 'post',
   title: post.user?.name || prefix,
   excerpt: postSnippet(post.content),
   meta: [
-    formatCount(post.likes_count, 'likes'),
-    formatCount(post.replies_count, 'komentarov'),
-    formatCount(post.views, 'zobrazeni'),
+    formatCount(post.likes_count, 'reakcií'),
+    formatCount(post.replies_count, 'komentárov'),
+    formatCount(post.views, 'zobrazení'),
   ].join(' | '),
 })
 
@@ -280,7 +280,7 @@ const toEventItem = (event) => ({
   key: `e-${event.id}`,
   to: { name: 'event-detail', params: { id: event.id } },
   kind: 'event',
-  title: event.title || 'Udalost',
+  title: event.title || 'Udalosť',
   excerpt: eventSnippet(event),
   meta: formatEventDate(event),
 })
@@ -289,9 +289,9 @@ const toArticleItem = (article) => ({
   key: `a-${article.id}`,
   to: `/clanky/${article.slug || article.id}`,
   kind: 'article',
-  title: article.title || 'Clanok',
+  title: article.title || 'Článok',
   excerpt: postSnippet(article.excerpt || article.summary || '', 140),
-  meta: formatCount(article.views, 'zobrazeni'),
+  meta: formatCount(article.views, 'zobrazení'),
 })
 
 const toHashtagItem = (tag) => ({
@@ -300,20 +300,20 @@ const toHashtagItem = (tag) => ({
   kind: 'hashtag',
   title: `#${tag.value || tag.name || ''}`,
   excerpt: 'Hashtag',
-  meta: formatCount(tag.posts_count, 'prispevkov'),
+  meta: formatCount(tag.posts_count, 'príspevkov'),
 })
 
 const globalSections = computed(() => {
   const sections = [
     {
       key: 'users',
-      title: 'Pouzivatelia',
+      title: 'Používatelia',
       items: globalResults.value.users.map(toUserItem),
     },
     {
       key: 'posts',
-      title: 'Prispevky',
-      items: globalResults.value.posts.map((post) => toPostItem(post, 'Prispevok')),
+      title: 'Príspevky',
+      items: globalResults.value.posts.map((post) => toPostItem(post, 'Príspevok')),
     },
     {
       key: 'events',
@@ -322,7 +322,7 @@ const globalSections = computed(() => {
     },
     {
       key: 'articles',
-      title: 'Clanky',
+      title: 'Články',
       items: globalResults.value.articles.map(toArticleItem),
     },
     {
@@ -340,12 +340,12 @@ const activeDiscoverySections = computed(() => {
     return [
       {
         key: 'news-posts',
-        title: 'Spravy (NASA RSS / Kozmobot)',
+        title: 'Správy',
         items: discovery.value.news.posts.map((post) => toPostItem(post, post.user?.name || 'Bot')),
       },
       {
         key: 'news-articles',
-        title: 'Najnovsie clanky',
+        title: 'Nové články',
         items: discovery.value.news.articles.map(toArticleItem),
       },
     ].filter((section) => section.items.length > 0)
@@ -360,8 +360,8 @@ const activeDiscoverySections = computed(() => {
       },
       {
         key: 'events-posts',
-        title: 'Suhvisiace top prispevky',
-        items: discovery.value.events.posts.map((post) => toPostItem(post, 'Prispevok')),
+        title: 'Súvisiace príspevky',
+        items: discovery.value.events.posts.map((post) => toPostItem(post, 'Príspevok')),
       },
     ].filter((section) => section.items.length > 0)
   }
@@ -374,8 +374,8 @@ const activeDiscoverySections = computed(() => {
     },
     {
       key: 'trendy-posts',
-      title: 'Top prispevky (interakcia)',
-      items: discovery.value.trending.posts.map((post) => toPostItem(post, 'Prispevok')),
+      title: 'Top príspevky',
+      items: discovery.value.trending.posts.map((post) => toPostItem(post, 'Príspevok')),
     },
   ].filter((section) => section.items.length > 0)
 })
@@ -440,7 +440,7 @@ const loadGlobalResults = async () => {
     if (token !== globalRequestToken) return
 
     globalResults.value = { users: [], posts: [], events: [], articles: [], hashtags: [], keywords: [] }
-    globalError.value = 'Nepodarilo sa nacitat vysledky. Skus to prosim znova.'
+    globalError.value = 'Nepodarilo sa načítať výsledky. Skús to znova.'
   } finally {
     if (token === globalRequestToken) {
       isGlobalLoading.value = false
@@ -484,7 +484,7 @@ const loadDiscovery = async () => {
       events: { events: [], posts: [] },
       keywords: [],
     }
-    discoveryError.value = 'Nepodarilo sa nacitat discovery obsah. Skus to prosim znova.'
+    discoveryError.value = 'Nepodarilo sa načítať obsah. Skús to znova.'
   } finally {
     if (token === discoveryRequestToken) {
       isDiscoveryLoading.value = false
@@ -524,9 +524,229 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.searchSection + .searchSection {
-  border-top: 1px solid var(--divider-color);
-  margin-top: 1rem;
-  padding-top: 1rem;
+.searchPage__shell {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.searchPage__intro {
+  display: grid;
+  gap: 0.22rem;
+  padding-inline: 0.1rem;
+}
+
+.searchPage__title {
+  margin: 0;
+  font-size: clamp(1.14rem, 1.8vw, 1.45rem);
+  font-weight: 700;
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.searchPage__subtitle {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  max-width: 60ch;
+}
+
+.searchPage__toolbar {
+  position: sticky;
+  top: 0.5rem;
+  z-index: 20;
+  display: grid;
+  gap: 0.72rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: rgb(var(--bg-surface-rgb) / 0.9);
+  padding: 0.72rem;
+  backdrop-filter: blur(8px);
+}
+
+.searchPage__tabs {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.searchPage__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.searchPage__tab {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(var(--bg-app-rgb) / 0.45);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  line-height: 1;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base),
+    color var(--motion-base);
+}
+
+.searchPage__tab:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+  background: rgb(var(--bg-app-rgb) / 0.62);
+}
+
+.searchPage__tab.is-active {
+  border-color: rgb(var(--color-accent-rgb) / 0.52);
+  color: var(--color-text-primary);
+  background: rgb(var(--color-accent-rgb) / 0.18);
+}
+
+.searchPage__tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.searchPage__content {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.searchPage__notice {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(var(--bg-surface-rgb) / 0.74);
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.7rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.searchPage__notice--error {
+  border-color: rgb(var(--color-danger-rgb) / 0.42);
+  background: rgb(var(--color-danger-rgb) / 0.1);
+}
+
+.searchPage__retry {
+  width: fit-content;
+  min-height: 32px;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(var(--bg-app-rgb) / 0.55);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  transition:
+    background-color var(--motion-base),
+    border-color var(--motion-base);
+}
+
+.searchPage__retry:hover {
+  border-color: var(--color-border-strong);
+  background: rgb(var(--bg-app-rgb) / 0.72);
+}
+
+.searchPage__retry:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.searchSection {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(var(--bg-surface-rgb) / 0.65);
+  padding: 0.78rem;
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.searchSection__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.searchSection__title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  min-width: 0;
+}
+
+.searchSection__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.8rem;
+  height: 1.3rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: rgb(var(--bg-app-rgb) / 0.48);
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.searchSection__list {
+  display: grid;
+  gap: 0.48rem;
+}
+
+.searchSection__keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.48rem;
+}
+
+.searchChip {
+  min-height: 30px;
+  padding: 0.25rem 0.68rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: rgb(var(--bg-app-rgb) / 0.34);
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1;
+  transition:
+    border-color var(--motion-base),
+    background-color var(--motion-base),
+    color var(--motion-base);
+}
+
+.searchChip:hover {
+  border-color: rgb(var(--color-accent-rgb) / 0.5);
+  color: var(--color-text-primary);
+  background: rgb(var(--color-accent-rgb) / 0.14);
+}
+
+.searchChip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@media (min-width: 640px) {
+  .searchPage__toolbar {
+    top: 0.72rem;
+    padding: 0.85rem;
+  }
+}
+
+@media (max-width: 639px) {
+  .searchSection {
+    padding: 0.7rem;
+  }
 }
 </style>

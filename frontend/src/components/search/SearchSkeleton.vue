@@ -1,24 +1,24 @@
 <template>
-  <div class="space-y-4" aria-hidden="true">
+  <div class="searchSkeleton" aria-hidden="true">
     <section
       v-for="sectionIndex in sections"
       :key="`s-${sectionIndex}`"
-      class="searchSection"
+      class="searchSkeleton__section"
     >
-      <div class="mb-3 h-3 w-28 animate-pulse rounded bg-[color:rgb(var(--color-text-secondary-rgb)/0.24)]"></div>
+      <div class="searchSkeleton__heading ui-skeleton"></div>
 
-      <div class="space-y-2">
+      <div class="searchSkeleton__list">
         <div
           v-for="rowIndex in rows"
           :key="`row-${sectionIndex}-${rowIndex}`"
-          class="rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.18)] bg-[color:rgb(var(--color-bg-rgb)/0.56)] p-4 shadow-sm"
+          class="searchSkeleton__item"
         >
-          <div class="flex items-start gap-3">
-            <div class="h-9 w-9 animate-pulse rounded-lg bg-[color:rgb(var(--color-text-secondary-rgb)/0.22)]"></div>
-            <div class="flex-1 space-y-2">
-              <div class="h-3.5 w-3/5 animate-pulse rounded bg-[color:rgb(var(--color-text-secondary-rgb)/0.24)]"></div>
-              <div class="h-3 w-full animate-pulse rounded bg-[color:rgb(var(--color-text-secondary-rgb)/0.2)]"></div>
-              <div class="h-2.5 w-2/5 animate-pulse rounded bg-[color:rgb(var(--color-text-secondary-rgb)/0.18)]"></div>
+          <div class="searchSkeleton__row">
+            <div class="searchSkeleton__icon ui-skeleton"></div>
+            <div class="searchSkeleton__content">
+              <div class="searchSkeleton__line searchSkeleton__line--title ui-skeleton"></div>
+              <div class="searchSkeleton__line searchSkeleton__line--body ui-skeleton"></div>
+              <div class="searchSkeleton__line searchSkeleton__line--meta ui-skeleton"></div>
             </div>
           </div>
         </div>
@@ -41,9 +41,65 @@ defineProps({
 </script>
 
 <style scoped>
-.searchSection + .searchSection {
-  border-top: 1px solid var(--divider-color);
-  margin-top: 1rem;
-  padding-top: 1rem;
+.searchSkeleton {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.searchSkeleton__section {
+  display: grid;
+  gap: 0.58rem;
+}
+
+.searchSkeleton__heading {
+  width: 7rem;
+  height: 0.6rem;
+  border-radius: 999px;
+}
+
+.searchSkeleton__list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.searchSkeleton__item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgb(var(--bg-app-rgb) / 0.45);
+  padding: 0.72rem;
+}
+
+.searchSkeleton__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.62rem;
+}
+
+.searchSkeleton__icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-sm);
+}
+
+.searchSkeleton__content {
+  flex: 1;
+  display: grid;
+  gap: 0.34rem;
+}
+
+.searchSkeleton__line {
+  height: 0.56rem;
+}
+
+.searchSkeleton__line--title {
+  width: 62%;
+}
+
+.searchSkeleton__line--body {
+  width: 100%;
+}
+
+.searchSkeleton__line--meta {
+  width: 48%;
 }
 </style>
