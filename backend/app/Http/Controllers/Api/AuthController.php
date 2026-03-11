@@ -98,7 +98,10 @@ class AuthController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            'remember' => ['sometimes', 'boolean'],
         ]);
+        $remember = (bool) ($credentials['remember'] ?? false);
+        unset($credentials['remember']);
 
         $credentials['email'] = mb_strtolower(trim((string) $credentials['email']));
 
@@ -114,13 +117,13 @@ class AuthController extends Controller
         }
 
         try {
-            $attempted = Auth::attempt($credentials, true);
+            $attempted = Auth::attempt($credentials, $remember);
         } catch (RuntimeException $exception) {
             $attempted = false;
         }
 
         if (! $attempted) {
-            if ($this->attemptLegacyPlaintextLogin($credentials['email'], $credentials['password'])) {
+            if ($this->attemptLegacyPlaintextLogin($credentials['email'], $credentials['password'], $remember)) {
                 $request->session()->regenerate();
                 return response()->json($request->user());
             }
@@ -159,7 +162,7 @@ class AuthController extends Controller
         }
     }
 
-    private function attemptLegacyPlaintextLogin(string $email, string $password): bool
+    private function attemptLegacyPlaintextLogin(string $email, string $password, bool $remember): bool
     {
         if (! $this->legacyPlaintextFallbackAllowed()) {
             return false;
@@ -198,7 +201,7 @@ class AuthController extends Controller
             'password' => Hash::make($password),
         ])->save();
 
-        Auth::login($user, true);
+        Auth::login($user, $remember);
 
         return true;
     }

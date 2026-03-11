@@ -140,7 +140,7 @@ const ctaLinkProps = computed(() => {
   return {
     href,
     target: '_blank',
-    rel: 'noreferrer',
+    rel: 'noopener noreferrer',
   }
 })
 
@@ -158,7 +158,7 @@ const resolveLinkProps = (href) => {
   return {
     href: safeHref,
     target: '_blank',
-    rel: 'noreferrer',
+    rel: 'noopener noreferrer',
     class: 'widgetLink',
   }
 }

@@ -111,4 +111,41 @@ class AuthLoginTest extends TestCase
         $this->assertNotSame($argonHash, $user->password);
         $this->assertTrue(password_verify('legacy-hash-secret', $user->password));
     }
+
+    public function test_login_does_not_persist_remember_token_by_default(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'remember-default@example.com',
+            'password' => 'password',
+            'remember_token' => null,
+            'is_active' => true,
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'remember-default@example.com',
+            'password' => 'password',
+        ])->assertOk();
+
+        $user->refresh();
+        $this->assertNull($user->remember_token);
+    }
+
+    public function test_login_persists_remember_token_when_requested(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'remember-enabled@example.com',
+            'password' => 'password',
+            'remember_token' => null,
+            'is_active' => true,
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'remember-enabled@example.com',
+            'password' => 'password',
+            'remember' => true,
+        ])->assertOk();
+
+        $user->refresh();
+        $this->assertNotNull($user->remember_token);
+    }
 }

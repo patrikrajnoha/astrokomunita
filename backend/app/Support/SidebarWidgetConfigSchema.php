@@ -18,6 +18,37 @@ class SidebarWidgetConfigSchema
     public const TYPE_CONTEST = 'contest';
 
     public const LEGACY_TYPE_SPECIAL_EVENT = 'special_event';
+    private const HTML_ALLOWED_TAGS = [
+        'p',
+        'br',
+        'strong',
+        'em',
+        'ul',
+        'ol',
+        'li',
+        'a',
+        'span',
+        'b',
+        'i',
+    ];
+    private const HTML_ALLOWED_ATTRIBUTES = [
+        'a' => ['href', 'target', 'rel'],
+    ];
+    private const HTML_DROP_ENTIRELY = [
+        'script',
+        'style',
+        'iframe',
+        'object',
+        'embed',
+        'svg',
+        'math',
+        'form',
+        'input',
+        'button',
+        'textarea',
+        'select',
+        'option',
+    ];
 
     /**
      * @return array<int, string>
@@ -238,11 +269,11 @@ class SidebarWidgetConfigSchema
             return filter_var($trimmed, FILTER_VALIDATE_URL) ? $trimmed : null;
         }
 
-        if (str_starts_with($trimmed, '/')) {
+        if (str_starts_with($trimmed, '/') && ! str_starts_with($trimmed, '//')) {
             return '/'.ltrim($trimmed, '/');
         }
 
-        return $trimmed;
+        return null;
     }
 
     private static function sanitizeHtml(mixed $value): ?string
@@ -256,14 +287,183 @@ class SidebarWidgetConfigSchema
             return null;
         }
 
-        $allowedTags = '<p><br><strong><em><ul><ol><li><a><span><b><i>';
-        $clean = strip_tags($trimmed, $allowedTags);
-        $clean = preg_replace('/on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean) ?? $clean;
-        $clean = preg_replace('/javascript\s*:/i', '', $clean) ?? $clean;
+        if (! class_exists(\DOMDocument::class)) {
+            $allowedTags = '<p><br><strong><em><ul><ol><li><a><span><b><i>';
+            $fallback = strip_tags($trimmed, $allowedTags);
+            $fallback = preg_replace('/on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $fallback) ?? $fallback;
+            $fallback = preg_replace('/javascript\s*:/i', '', $fallback) ?? $fallback;
+
+            $normalizedFallback = trim($fallback);
+
+            return $normalizedFallback === '' ? null : $normalizedFallback;
+        }
+
+        $document = new \DOMDocument('1.0', 'UTF-8');
+        $wrapperAttribute = 'data-sidebar-root';
+        $wrapped = sprintf('<div %s="1">%s</div>', $wrapperAttribute, $trimmed);
+        $internalErrorsPrevious = libxml_use_internal_errors(true);
+
+        try {
+            $loaded = $document->loadHTML(
+                '<?xml encoding="utf-8" ?>'.$wrapped,
+                LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+            );
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($internalErrorsPrevious);
+        }
+
+        if (! $loaded) {
+            return null;
+        }
+
+        $root = null;
+        foreach ($document->getElementsByTagName('div') as $candidate) {
+            if ($candidate->getAttribute($wrapperAttribute) === '1') {
+                $root = $candidate;
+                break;
+            }
+        }
+
+        if (! $root instanceof \DOMElement) {
+            return null;
+        }
+
+        self::sanitizeDomNode($root);
+        $root->removeAttribute($wrapperAttribute);
+
+        $clean = '';
+        for ($index = 0; $index < $root->childNodes->length; $index++) {
+            $child = $root->childNodes->item($index);
+            if (! $child) {
+                continue;
+            }
+
+            $serialized = $document->saveHTML($child);
+            if (! is_string($serialized)) {
+                continue;
+            }
+
+            $clean .= $serialized;
+        }
 
         $normalized = trim($clean);
 
         return $normalized === '' ? null : $normalized;
+    }
+
+    private static function sanitizeDomNode(\DOMNode $node): void
+    {
+        for ($index = $node->childNodes->length - 1; $index >= 0; $index--) {
+            $child = $node->childNodes->item($index);
+            if (! $child) {
+                continue;
+            }
+
+            if ($child instanceof \DOMComment) {
+                $node->removeChild($child);
+                continue;
+            }
+
+            if (! $child instanceof \DOMElement) {
+                continue;
+            }
+
+            $tag = strtolower($child->tagName);
+
+            if (in_array($tag, self::HTML_DROP_ENTIRELY, true)) {
+                $node->removeChild($child);
+                continue;
+            }
+
+            if (! in_array($tag, self::HTML_ALLOWED_TAGS, true)) {
+                self::unwrapDomNode($child);
+                continue;
+            }
+
+            self::sanitizeElementAttributes($child, $tag);
+            self::sanitizeDomNode($child);
+        }
+    }
+
+    private static function sanitizeElementAttributes(\DOMElement $element, string $tag): void
+    {
+        $allowedAttributes = self::HTML_ALLOWED_ATTRIBUTES[$tag] ?? [];
+
+        for ($index = $element->attributes->length - 1; $index >= 0; $index--) {
+            $attribute = $element->attributes->item($index);
+            if (! $attribute) {
+                continue;
+            }
+
+            $attributeName = strtolower($attribute->name);
+            if (! in_array($attributeName, $allowedAttributes, true)) {
+                $element->removeAttributeNode($attribute);
+            }
+        }
+
+        if ($tag !== 'a') {
+            return;
+        }
+
+        $href = trim((string) $element->getAttribute('href'));
+        if (! self::isSafeHtmlHref($href)) {
+            $element->removeAttribute('href');
+        }
+
+        $target = strtolower(trim((string) $element->getAttribute('target')));
+        if ($target !== '_blank') {
+            $element->removeAttribute('target');
+            $element->removeAttribute('rel');
+            return;
+        }
+
+        $relTokens = preg_split('/\s+/', strtolower(trim((string) $element->getAttribute('rel')))) ?: [];
+        $relTokens = array_values(array_unique(array_filter($relTokens, static fn ($token) => $token !== '')));
+        $requiredTokens = ['noopener', 'noreferrer'];
+
+        foreach ($requiredTokens as $requiredToken) {
+            if (! in_array($requiredToken, $relTokens, true)) {
+                $relTokens[] = $requiredToken;
+            }
+        }
+
+        $element->setAttribute('rel', implode(' ', $relTokens));
+    }
+
+    private static function unwrapDomNode(\DOMElement $element): void
+    {
+        $parent = $element->parentNode;
+        if (! $parent) {
+            return;
+        }
+
+        while ($element->firstChild) {
+            $parent->insertBefore($element->firstChild, $element);
+        }
+
+        $parent->removeChild($element);
+    }
+
+    private static function isSafeHtmlHref(string $href): bool
+    {
+        if ($href === '') {
+            return false;
+        }
+
+        if (str_starts_with($href, '//')) {
+            return false;
+        }
+
+        if (str_starts_with($href, '/')) {
+            return true;
+        }
+
+        if (preg_match('/^https?:\/\//i', $href)) {
+            return filter_var($href, FILTER_VALIDATE_URL) !== false;
+        }
+
+        return false;
     }
 
     private static function normalizeInt(mixed $value): ?int
