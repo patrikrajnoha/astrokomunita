@@ -25,6 +25,7 @@ class PostExportResource extends JsonResource
                 'source_name' => $this->source_name,
                 'source_url' => $this->source_url,
                 'source_published_at' => optional($this->source_published_at)?->toIso8601String(),
+                'author_user_id' => $this->user_id,
             ],
         ];
     }
@@ -40,8 +41,12 @@ class PostExportResource extends JsonResource
 
         return [[
             'type' => $this->resolveAttachmentType((string) $this->attachment_mime),
-            'url' => $this->attachment_url,
+            'url' => $this->toAbsoluteUrl($this->attachment_url),
+            'download_url' => $this->toAbsoluteUrl($this->attachment_download_url),
             'mime' => $this->attachment_mime,
+            'width' => $this->attachment_width,
+            'height' => $this->attachment_height,
+            'size_bytes' => $this->attachment_size_web,
             'created_at' => optional($this->created_at)?->toIso8601String(),
         ]];
     }
@@ -68,5 +73,19 @@ class PostExportResource extends JsonResource
         }
 
         return 'image';
+    }
+
+    private function toAbsoluteUrl(?string $path): ?string
+    {
+        $normalized = trim((string) $path);
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (str_starts_with($normalized, 'http://') || str_starts_with($normalized, 'https://')) {
+            return $normalized;
+        }
+
+        return url($normalized);
     }
 }
