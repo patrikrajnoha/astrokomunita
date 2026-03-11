@@ -236,14 +236,21 @@ class TranslateEventCandidateJob implements ShouldBeUnique, ShouldQueue
                 'template_fallback_forced_by_quality' => $forceTemplateFromQuality,
             ]);
         } catch (\Throwable $exception) {
-            $template = $this->buildDeterministicSkTemplate($candidate, $originalTitle);
+            $fallbackTitle = $this->resolveTitleWithQualityGate(
+                translatedTitle: $originalTitle,
+                originalTitle: $originalTitle,
+                phraseNormalizer: $phraseNormalizer,
+                candidateId: (int) $candidate->id,
+                stage: 'translation_error'
+            );
+            $template = $this->buildDeterministicSkTemplate($candidate, $fallbackTitle);
             $resolvedErrorCode = $this->resolveErrorCode($exception);
             $isTranslationProviderFailure = $exception instanceof BotTranslationException;
 
             $candidate->update([
-                'short' => $this->sanitizeShort($template['short']) ?? $this->buildShort($template['description'], $originalTitle),
+                'short' => $this->sanitizeShort($template['short']) ?? $this->buildShort($template['description'], $fallbackTitle),
                 'description' => $this->sanitizeDescription($template['description']) ?? $template['description'],
-                'translated_title' => $originalTitle,
+                'translated_title' => $fallbackTitle,
                 'translated_description' => $this->sanitizeDescription($template['description']) ?? $template['description'],
                 'translation_status' => $isTranslationProviderFailure ? EventCandidate::TRANSLATION_DONE : EventCandidate::TRANSLATION_FAILED,
                 'translation_error' => $isTranslationProviderFailure ? null : $resolvedErrorCode,
@@ -336,13 +343,14 @@ class TranslateEventCandidateJob implements ShouldBeUnique, ShouldQueue
         $zhr = $this->extractZhrFromRawPayload($candidate->raw_payload);
 
         if ($this->isMeteorShower($candidate)) {
+            $meteorName = $this->resolveMeteorShowerNameForTemplate($title);
             $activitySentence = $zhr !== null
                 ? "Ocakavana aktivita je {$zhr} meteorov za hodinu."
                 : 'Ocakavana aktivita je neznama.';
 
             return [
-                'description' => "Meteoricky roj {$title} ma maximum priblizne {$date}. {$activitySentence} Viditelnost zavisi od pocasia a svetelneho znecistenia.",
-                'short' => "Maximum meteorickeho roja {$title} je priblizne {$date}.",
+                'description' => "Meteoricky roj {$meteorName} ma maximum priblizne {$date}. {$activitySentence} Viditelnost zavisi od pocasia a svetelneho znecistenia.",
+                'short' => "Maximum meteorickeho roja {$meteorName} je priblizne {$date}.",
             ];
         }
 
@@ -361,6 +369,23 @@ class TranslateEventCandidateJob implements ShouldBeUnique, ShouldQueue
         ])));
 
         return str_contains($haystack, 'meteor');
+    }
+
+    private function resolveMeteorShowerNameForTemplate(string $title): string
+    {
+        $name = $title;
+        if (preg_match('/^meteorick(?:\x{00FD}|y)\s+roj\s+(.+)$/iu', $title, $matches) === 1) {
+            $normalized = $this->sanitizeInline((string) ($matches[1] ?? ''));
+            if ($normalized !== '') {
+                $name = $normalized;
+            }
+        }
+
+        $name = preg_replace('/\bJuzne\s+Tauridy\b/u', 'Juznych Taurid', $name) ?? $name;
+        $name = preg_replace('/\bSeverne\s+Tauridy\b/u', 'Severnych Taurid', $name) ?? $name;
+        $name = preg_replace('/\b([\pL][\pL\-]*(?:\s+[\pL][\pL\-]*)?)idy\b/u', '$1id', $name) ?? $name;
+
+        return $this->sanitizeInline($name) ?: $title;
     }
 
     private function formatTemplateDate(mixed $moment): string

@@ -89,9 +89,9 @@ class AstronomyPhraseNormalizerTest extends TestCase
             'sk'
         );
 
-        $this->assertStringContainsString('fáza Mesiaca', $result);
-        $this->assertStringContainsString('viditeľnosť zo Slovenska', $result);
-        $this->assertStringContainsString('závisí od miestneho počasia', $result);
+        $this->assertStringContainsString("f\u{00E1}za Mesiaca", $result);
+        $this->assertStringContainsString("vidite\u{013E}nos\u{0165} zo Slovenska", $result);
+        $this->assertStringContainsString("z\u{00E1}vis\u{00ED} od miestneho po\u{010D}asia", $result);
         $this->assertStringContainsString('meteoricky roj', mb_strtolower($result, 'UTF-8'));
     }
 
@@ -100,12 +100,12 @@ class AstronomyPhraseNormalizerTest extends TestCase
         $normalizer = app(AstronomyPhraseNormalizer::class);
 
         $result = $normalizer->normalize('Geminid Meteor Sprcha', 'sk');
-        $this->assertSame('Meteoricky roj Geminidy', $result);
+        $this->assertSame('Meteoricky roj Geminid', $result);
 
-        $second = $normalizer->normalize('Eta-Aquarid meteorická sprcha', 'sk');
-        $this->assertSame('Meteoricky roj Eta-Akvaridy', $second);
+        $second = $normalizer->normalize("Eta-Aquarid meteorick\u{00E1} sprcha", 'sk');
+        $this->assertSame('Meteoricky roj Eta-Akvarid', $second);
 
         $third = $normalizer->normalize('Leonids (LEO) meteor shower', 'sk');
-        $this->assertSame('Meteoricky roj Leonidy', $third);
+        $this->assertSame('Meteoricky roj Leonid', $third);
     }
 }
