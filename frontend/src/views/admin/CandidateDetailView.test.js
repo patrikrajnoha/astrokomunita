@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import { createPinia } from 'pinia'
 import CandidateDetailView from './CandidateDetailView.vue'
 
 const getCandidateMock = vi.fn()
@@ -65,6 +66,14 @@ function makeRouter() {
   })
 }
 
+function mountCandidateDetail(router) {
+  return mount(CandidateDetailView, {
+    global: {
+      plugins: [createPinia(), router],
+    },
+  })
+}
+
 describe('CandidateDetailView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -108,11 +117,7 @@ describe('CandidateDetailView', () => {
     await router.push('/admin/candidates/44?page=2&search=lyrids')
     await router.isReady()
 
-    const wrapper = mount(CandidateDetailView, {
-      global: {
-        plugins: [router],
-      },
-    })
+    const wrapper = mountCandidateDetail(router)
 
     await flush()
     await flush()
@@ -134,11 +139,7 @@ describe('CandidateDetailView', () => {
     await router.push('/admin/candidates/44')
     await router.isReady()
 
-    const wrapper = mount(CandidateDetailView, {
-      global: {
-        plugins: [router],
-      },
-    })
+    const wrapper = mountCandidateDetail(router)
 
     await flush()
     await flush()
@@ -160,11 +161,7 @@ describe('CandidateDetailView', () => {
     await router.push('/admin/candidates/44')
     await router.isReady()
 
-    const wrapper = mount(CandidateDetailView, {
-      global: {
-        plugins: [router],
-      },
-    })
+    const wrapper = mountCandidateDetail(router)
 
     await flush()
     await flush()
