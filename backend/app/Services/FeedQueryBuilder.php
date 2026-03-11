@@ -121,7 +121,19 @@ class FeedQueryBuilder
             });
         }
 
-        if ($order === 'pinned_desc') {
+        if ($order === 'pinned_then_created') {
+            $query
+                ->orderByRaw('CASE WHEN pinned_at IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('pinned_at', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->orderBy('id', 'desc');
+        } elseif ($order === 'profile_pinned_then_created') {
+            $query
+                ->orderByRaw('CASE WHEN profile_pinned_at IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('profile_pinned_at', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->orderBy('id', 'desc');
+        } elseif ($order === 'pinned_desc') {
             $query->orderBy('pinned_at', 'desc');
         } else {
             $query

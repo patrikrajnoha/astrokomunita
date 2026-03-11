@@ -43,7 +43,7 @@ class FeedController extends Controller
             'with_counts' => $withCounts,
             'include_hidden' => $request->boolean('include_hidden'),
             'feed_key' => PostFeedKey::COMMUNITY->value,
-            'order' => 'created_desc',
+            'order' => 'pinned_then_created',
             'tag' => $tag ? strtolower((string) $tag) : null,
         ], $user);
 

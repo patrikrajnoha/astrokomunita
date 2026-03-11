@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\AccountEmailController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\ProfilePinnedPostController;
 use App\Http\Controllers\Api\ObservationController;
 use App\Http\Controllers\Api\MediaDownloadController;
 use App\Http\Controllers\Api\MediaViewController;
@@ -611,6 +612,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::delete('/posts/{post}/bookmark', [BookmarkController::class, 'destroy'])->middleware('throttle:60,1');
         Route::patch('/posts/{post}', [PostController::class, 'update']);
         Route::delete('/posts/{post}', [PostController::class, 'destroy']);
+        Route::patch('/profile/posts/{post}/pin', [ProfilePinnedPostController::class, 'pin']);
+        Route::patch('/profile/posts/{post}/unpin', [ProfilePinnedPostController::class, 'unpin']);
         Route::post('/observations', [ObservationController::class, 'store'])->middleware('throttle:post-create');
         Route::patch('/observations/{observation}', [ObservationController::class, 'update']);
         Route::put('/observations/{observation}', [ObservationController::class, 'update']);
