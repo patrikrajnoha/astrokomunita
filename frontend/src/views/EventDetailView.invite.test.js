@@ -9,6 +9,7 @@ const followStateMock = vi.hoisted(() => vi.fn())
 const followEventMock = vi.hoisted(() => vi.fn())
 const unfollowEventMock = vi.hoisted(() => vi.fn())
 const updateEventPlanMock = vi.hoisted(() => vi.fn())
+const viewingForecastStateMock = vi.hoisted(() => ({ value: null }))
 const authStore = vi.hoisted(() => ({
   isAuthed: true,
   user: null,
@@ -108,6 +109,12 @@ async function mountView(path = '/events/12') {
         },
         EventViewingWindowForecast: {
           props: ['event', 'userLocation'],
+          emits: ['state'],
+          mounted() {
+            if (viewingForecastStateMock.value) {
+              this.$emit('state', viewingForecastStateMock.value)
+            }
+          },
           template: '<div class="forecast-strip-stub"></div>',
         },
         BaseModal: {
@@ -132,6 +139,7 @@ describe('EventDetailView', () => {
     followEventMock.mockReset()
     unfollowEventMock.mockReset()
     updateEventPlanMock.mockReset()
+    viewingForecastStateMock.value = null
     authStore.isAuthed = true
     authStore.user = null
     authStore.csrf.mockClear()
@@ -189,6 +197,24 @@ describe('EventDetailView', () => {
 
     expect(wrapper.text()).toContain('Pridat do kalendara')
     expect(wrapper.text()).toContain('Zdielat odkaz')
+  })
+
+  it('clarifies daytime maximum when viewing opens after sunset', async () => {
+    viewingForecastStateMock.value = {
+      loading: false,
+      missingLocation: false,
+      viewingWindow: {
+        start_at: '2026-03-14T17:16:00Z',
+        end_at: '2026-03-14T21:16:00Z',
+      },
+    }
+
+    const { wrapper } = await mountView()
+    const rendered = wrapper.text()
+
+    expect(rendered).toContain('Pozorovanie: 18:16 - 22:16')
+    expect(rendered).toContain('Maximum javu (cez den) o 14:00')
+    expect(rendered).toContain('Cas "Maximum" znamena astronomicky vrchol javu')
   })
 
   it('navigates to next event on swipe left', async () => {

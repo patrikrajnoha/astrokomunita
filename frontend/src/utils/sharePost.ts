@@ -1,11 +1,19 @@
 import { createApp, h, nextTick } from 'vue'
-import { toBlob } from 'html-to-image'
 import PostShareCard from '@/components/share/PostShareCard.vue'
 
 type GenericRecord = Record<string, any>
 
 const SHARE_WIDTH = 1080
 const SHARE_HEIGHT = 1350
+let toBlobPromise: Promise<(node: HTMLElement, options?: Record<string, unknown>) => Promise<Blob | null>> | null = null
+
+async function getToBlob() {
+  if (!toBlobPromise) {
+    toBlobPromise = import('html-to-image').then((mod) => mod.toBlob)
+  }
+
+  return toBlobPromise
+}
 
 export function buildPostUrl(post: GenericRecord): string {
   const id = post?.id
@@ -116,6 +124,7 @@ async function renderShareCard(post: GenericRecord, forcePlaceholderAvatar: bool
       throw new Error('Share card element missing.')
     }
 
+    const toBlob = await getToBlob()
     const blob = await toBlob(cardElement, {
       width: SHARE_WIDTH,
       height: SHARE_HEIGHT,

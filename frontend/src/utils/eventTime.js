@@ -143,7 +143,8 @@ export function resolveEventTimeContext(event, timeZone = EVENT_TIMEZONE) {
   }
 
   const approximate = timePrecision === 'approximate' ? ' priblizne' : ''
-  const prefix = resolveTimePrefix(timeType)
+  const localHour = getHourInTimezone(rawValue, timeZone)
+  const prefix = resolveTimePrefix(timeType, localHour)
 
   return {
     timeType,
@@ -205,8 +206,13 @@ function hasUnknownMidnightFallback(event) {
   return values.every((value) => isMidnightValue(value))
 }
 
-function resolveTimePrefix(timeType) {
-  if (timeType === 'peak') return 'Maximum'
+function resolveTimePrefix(timeType, localHour = null) {
+  if (timeType === 'peak') {
+    if (localHour !== null && localHour >= 6 && localHour < 18) {
+      return 'Maximum javu (cez den)'
+    }
+    return 'Maximum'
+  }
   if (timeType === 'window') return 'Okno'
   if (timeType === 'unknown') return 'Cas'
 
