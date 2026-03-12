@@ -305,4 +305,34 @@ describe('EventDetailView', () => {
       planned_location_label: 'Kopec nad mestom',
     }))
   })
+
+  it('shows dedicated missing-event state when API returns 404', async () => {
+    apiGetMock.mockRejectedValue({
+      response: {
+        status: 404,
+        data: { message: 'Event not found.' },
+      },
+    })
+
+    const { wrapper } = await mountView('/events/404')
+
+    expect(wrapper.find('.missingEventCard').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Tato udalost uz neexistuje.')
+    expect(wrapper.text()).toContain('Vsetky udalosti')
+    expect(wrapper.find('[data-testid="inline-status"]').exists()).toBe(false)
+  })
+
+  it('keeps generic inline error for non-404 failures', async () => {
+    apiGetMock.mockRejectedValue({
+      response: {
+        status: 500,
+        data: { message: 'Server timeout.' },
+      },
+    })
+
+    const { wrapper } = await mountView('/events/500')
+
+    expect(wrapper.find('[data-testid="inline-status"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Server timeout.')
+  })
 })
