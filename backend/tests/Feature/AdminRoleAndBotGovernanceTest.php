@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Database\Seeders\DefaultUsersSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Sanctum\Sanctum;
@@ -24,14 +25,19 @@ class AdminRoleAndBotGovernanceTest extends TestCase
         ]);
 
         Sanctum::actingAs($admin);
+        Cache::put('admin:stats:v1', ['stale' => true], now()->addMinute());
 
         $this->patchJson("/api/admin/users/{$target->id}/role", ['role' => User::ROLE_EDITOR])
             ->assertOk()
             ->assertJsonPath('role', User::ROLE_EDITOR);
+        $this->assertNull(Cache::get('admin:stats:v1'));
+
+        Cache::put('admin:stats:v1', ['stale' => true], now()->addMinute());
 
         $this->patchJson("/api/admin/users/{$target->id}/role", ['role' => User::ROLE_USER])
             ->assertOk()
             ->assertJsonPath('role', User::ROLE_USER);
+        $this->assertNull(Cache::get('admin:stats:v1'));
     }
 
     public function test_non_admin_cannot_change_roles(): void

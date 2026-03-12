@@ -51,6 +51,9 @@ class AdminStatsController extends Controller
             foreach ($payload['demographics']['by_region'] as $metric => $value) {
                 fputcsv($handle, ['demographics.by_region', (string) $metric, (int) $value]);
             }
+            foreach (($payload['demographics']['by_region_active_ip_30d'] ?? []) as $metric => $value) {
+                fputcsv($handle, ['demographics.by_region_active_ip_30d', (string) $metric, (int) $value]);
+            }
             foreach (($payload['queues'] ?? []) as $metric => $value) {
                 fputcsv($handle, ['queues', (string) $metric, (int) $value]);
             }
