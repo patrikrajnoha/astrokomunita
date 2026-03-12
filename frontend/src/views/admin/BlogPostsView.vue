@@ -1,4 +1,5 @@
 <script setup>
+import { ref, watch } from "vue";
 import { useAdminBlogPostsEditor } from "./blog/useAdminBlogPostsEditor";
 
 const {
@@ -8,6 +9,7 @@ const {
   aiTagSuggestionsError,
   aiTagSuggestionsLoading,
   applySelectedAiTags,
+  canPublishNow,
   clearQuery,
   computeStatus,
   contentTabIssues,
@@ -40,6 +42,7 @@ const {
   previewToc,
   prevPage,
   publishChecklist,
+  publishDisabledReason,
   publishNow,
   query,
   readTimeFor,
@@ -53,6 +56,7 @@ const {
   selectedStatus,
   selectPost,
   setListDensity,
+  setPublishNow,
   setStatusFilter,
   showPreview,
   startNewPost,
@@ -65,6 +69,26 @@ const {
   titleSlugPreview,
   toggleFocusMode,
 } = useAdminBlogPostsEditor();
+
+const isCreateModalOpen = ref(false);
+
+async function openCreateModal() {
+  const started = await startNewPost(false, false);
+  if (!started) return;
+  isCreateModalOpen.value = true;
+}
+
+async function closeCreateModal() {
+  const closed = await startNewPost(false, false);
+  if (!closed) return;
+  isCreateModalOpen.value = false;
+}
+
+watch(isEditing, (value) => {
+  if (value) {
+    isCreateModalOpen.value = false;
+  }
+});
 </script>
 <template src="./blog/BlogPostsView.template.html"></template>
 

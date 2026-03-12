@@ -16,6 +16,7 @@ import {
 } from "../blogPostsView.utils";
 
 const LIST_DENSITY_STORAGE_KEY = "admin.blog.listDensity";
+const AUTO_SAVE_INTERVAL_MS = 60_000;
 
 export function useAdminBlogPostsEditor() {
   const loading = ref(false);
@@ -56,6 +57,7 @@ export function useAdminBlogPostsEditor() {
 
   let queryDebounceTimer = null;
   let localCoverObjectUrl = "";
+  let autoSaveTimer = null;
 
   const posts = computed(() => data.value?.data || []);
   const hasQuery = computed(() => query.value.trim() !== "");
@@ -116,11 +118,27 @@ export function useAdminBlogPostsEditor() {
   const publishMissing = computed(() =>
     publishChecklist.value.filter((item) => !item.done)
   );
+  const publishMissingRequired = computed(() =>
+    publishChecklist.value.filter((item) => item.required && !item.done)
+  );
+  const canPublishNow = computed(() => publishMissingRequired.value.length === 0);
+  const publishDisabledReason = computed(() => {
+    if (canPublishNow.value) return "";
+    const labels = publishMissingRequired.value.map((item) => item.label.toLowerCase());
+    return `Pred publikovanim dopln: ${labels.join(", ")}.`;
+  });
   const pageRangeLabel = computed(() => {
     const from = data.value?.from || 0;
     const to = data.value?.to || 0;
     const total = data.value?.total || 0;
     return `${from}-${to} / ${total}`;
+  });
+  const canAutoSave = computed(() => {
+    if (loading.value || saving.value || deleting.value) return false;
+    if (!isDirty.value) return false;
+    if (titleLength.value < 3) return false;
+    if (String(form.value.content || "").trim().length < 10) return false;
+    return true;
   });
   const saveStateLabel = computed(() => {
     if (saving.value) return "Ukladam...";
@@ -232,12 +250,11 @@ export function useAdminBlogPostsEditor() {
   async function startNewPost(force = false, shouldEnableFocus = true) {
     if (!force) {
       const ok = await confirmDiscardChanges();
-      if (!ok) return;
+      if (!ok) return false;
     }
     applyEmptyForm();
-    if (shouldEnableFocus) {
-      focusMode.value = true;
-    }
+    focusMode.value = Boolean(shouldEnableFocus);
+    return true;
   }
 
   async function selectPost(post, force = false) {
@@ -257,12 +274,23 @@ export function useAdminBlogPostsEditor() {
   }
 
   async function publishNow() {
-    const missing = publishMissing.value;
-    const missingCopy = missing.map((item) => `- ${item.label}`).join("\n");
+    if (!canPublishNow.value) {
+      toast.error(
+        publishDisabledReason.value || "Pred publikovanim treba doplnit povinne polia."
+      );
+      return;
+    }
+
+    const missingRecommended = publishChecklist.value.filter(
+      (item) => !item.required && !item.done
+    );
+    const missingRecommendedCopy = missingRecommended
+      .map((item) => `- ${item.label}`)
+      .join("\n");
     const ok = await confirm({
       title: "Publikovat clanok",
-      message: missing.length
-        ? `Pred publikovanim odporucame doplnit:\n${missingCopy}\n\nChces pokracovat a publikovat teraz?`
+      message: missingRecommended.length
+        ? `Pred publikovanim odporucame doplnit:\n${missingRecommendedCopy}\n\nChces pokracovat a publikovat teraz?`
         : "Clanok bude publikovany okamzite. Chces pokracovat?",
       confirmText: "Publikovat",
       cancelText: "Spat",
@@ -356,8 +384,11 @@ export function useAdminBlogPostsEditor() {
     }
   }
 
-  async function save() {
-    formError.value = null;
+  async function save(options = {}) {
+    const silent = Boolean(options?.silent);
+    if (!silent) {
+      formError.value = null;
+    }
     saving.value = true;
 
     const wasEditing = isEditing.value;
@@ -395,24 +426,63 @@ export function useAdminBlogPostsEditor() {
       }
 
       lastSavedAt.value = new Date();
-      toast.success(wasEditing ? "Clanok bol ulozeny." : "Clanok bol vytvoreny.");
+      if (!silent) {
+        toast.success(wasEditing ? "Clanok bol ulozeny." : "Clanok bol vytvoreny.");
+      }
     } catch (e) {
       const msg = e?.response?.data?.message || "Nepodarilo sa ulozit clanok.";
       const fieldErrors = e?.response?.data?.errors;
-      if (fieldErrors) {
-        const firstField = Object.keys(fieldErrors)[0];
-        const firstMessage = fieldErrors[firstField]?.[0];
-        formError.value = firstMessage || msg;
-      } else {
-        formError.value = msg;
+      if (!silent) {
+        if (fieldErrors) {
+          const firstField = Object.keys(fieldErrors)[0];
+          const firstMessage = fieldErrors[firstField]?.[0];
+          formError.value = firstMessage || msg;
+        } else {
+          formError.value = msg;
+        }
       }
     } finally {
       saving.value = false;
     }
   }
 
+  function triggerAutoSave() {
+    if (!canAutoSave.value) return;
+    save({ silent: true });
+  }
+
+  async function ensureDraftForAiSuggestions() {
+    if (isEditing.value && selectedId.value) return true;
+
+    const hasMinimumContent =
+      titleLength.value >= 3 && String(form.value.content || "").trim().length >= 10;
+
+    if (!hasMinimumContent) {
+      aiTagSuggestionsError.value =
+        "Pre AI tagy dopln aspon kratky nadpis a obsah (min. 10 znakov).";
+      return false;
+    }
+
+    await save({ silent: true });
+
+    if (!isEditing.value || !selectedId.value) {
+      aiTagSuggestionsError.value =
+        "Nepodarilo sa vytvorit koncept clanku pre AI navrh tagov.";
+      return false;
+    }
+
+    return true;
+  }
+
   async function suggestAiTags() {
-    if (!isEditing.value || !selectedId.value || aiTagSuggestionsLoading.value) return;
+    if (aiTagSuggestionsLoading.value) return;
+
+    if (!isEditing.value || !selectedId.value) {
+      const ready = await ensureDraftForAiSuggestions();
+      if (!ready) return;
+    }
+
+    activeTab.value = "meta";
 
     aiTagSuggestionsLoading.value = true;
     aiTagSuggestionsError.value = "";
@@ -635,6 +705,7 @@ export function useAdminBlogPostsEditor() {
   onMounted(() => {
     window.addEventListener("beforeunload", handleBeforeUnload);
     window.addEventListener("keydown", handleEditorShortcuts);
+    autoSaveTimer = window.setInterval(triggerAutoSave, AUTO_SAVE_INTERVAL_MS);
     applyEmptyForm();
     load();
   });
@@ -645,6 +716,10 @@ export function useAdminBlogPostsEditor() {
     if (queryDebounceTimer) {
       clearTimeout(queryDebounceTimer);
       queryDebounceTimer = null;
+    }
+    if (autoSaveTimer) {
+      clearInterval(autoSaveTimer);
+      autoSaveTimer = null;
     }
     clearLocalCoverPreview();
   });
@@ -690,6 +765,8 @@ export function useAdminBlogPostsEditor() {
     previewToc,
     prevPage,
     publishChecklist,
+    publishDisabledReason,
+    canPublishNow,
     publishNow,
     publishMissing,
     query,
@@ -704,6 +781,7 @@ export function useAdminBlogPostsEditor() {
     selectedStatus,
     selectPost,
     setListDensity,
+    setPublishNow,
     setStatusFilter,
     showPreview,
     startNewPost,

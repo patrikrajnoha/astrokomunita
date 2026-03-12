@@ -120,6 +120,39 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(wrapper.text()).toContain("Planety");
   });
 
+  it("can suggest AI tags from new article flow by auto-creating draft", async () => {
+    const wrapper = mount(BlogPostsView);
+    await flush();
+    await flush();
+
+    const openButton = wrapper.find(".command-right .primary");
+    await openButton.trigger("click");
+    await flush();
+
+    await wrapper.find(".title-input").setValue("Novy clanok pre AI tagy");
+    await wrapper
+      .find(".content-textarea--minimal")
+      .setValue("Toto je dostatocne dlhy obsah na vytvorenie konceptu clanku.");
+
+    await wrapper.find(".minimal-more summary").trigger("click");
+    await flush();
+
+    const suggestButton = wrapper
+      .findAll("button")
+      .find((button) => button.text().toLowerCase().includes("navrhnut tagy"));
+    expect(suggestButton).toBeTruthy();
+
+    await suggestButton.trigger("click");
+    await flush();
+    await flush();
+    await flush();
+
+    expect(adminCreateMock).toHaveBeenCalledTimes(1);
+    expect(adminSuggestTagsMock).toHaveBeenCalledWith(7);
+    expect(wrapper.text()).toContain("Mars");
+    expect(wrapper.text()).toContain("Planety");
+  });
+
   it('click on "Pridat vybrane" calls existing attach flow via adminUpdate', async () => {
     const wrapper = mount(BlogPostsView);
     await flush();
@@ -154,5 +187,45 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(adminUpdateMock).toHaveBeenCalledWith(7, {
       tag_ids: [1, 11, 12],
     });
+  });
+
+  it("opens article creation as popup modal", async () => {
+    const wrapper = mount(BlogPostsView);
+    await flush();
+    await flush();
+
+    const openButton = wrapper.find(".command-right .primary");
+    expect(openButton.exists()).toBe(true);
+    await openButton.trigger("click");
+    await flush();
+
+    expect(wrapper.find(".editor-shell.create-modal-open").exists()).toBe(true);
+
+    const closeButton = wrapper
+      .findAll("button")
+      .find((button) => button.text().toLowerCase() === "zavriet");
+    expect(closeButton).toBeTruthy();
+    await closeButton.trigger("click");
+    await flush();
+
+    expect(wrapper.find(".editor-shell.create-modal-open").exists()).toBe(false);
+  });
+
+  it("prevents publish for incomplete draft and shows clear reason", async () => {
+    const wrapper = mount(BlogPostsView);
+    await flush();
+    await flush();
+
+    const openButton = wrapper.find(".command-right .primary");
+    await openButton.trigger("click");
+    await flush();
+
+    const publishButton = wrapper
+      .findAll("button")
+      .find((button) => button.text().toLowerCase().includes("publikovat teraz"));
+
+    expect(publishButton).toBeTruthy();
+    expect(publishButton.attributes("disabled")).toBeDefined();
+    expect(wrapper.text().toLowerCase()).toContain("pred publikovanim dopln");
   });
 });
