@@ -36,8 +36,9 @@ const statsPayload = {
     posts_moderated_total: 77,
   },
   demographics: {
-    by_role: { user: 120, admin: 2, bot: 1 },
+    by_role: { user: 119, admin: 2, editor: 1, bot: 1 },
     by_region: { unknown: 80, sk: 30, cz: 10, other: 3 },
+    by_region_active_ip_30d: { unknown: 12, sk: 24, cz: 6, other: 3 },
   },
   trend: {
     range_days: 30,
@@ -106,6 +107,8 @@ describe('AdminDashboardView', () => {
     await flush()
 
     expect(wrapper.text()).toContain('Používatelia')
+    expect(wrapper.text()).toContain('Editori')
+    expect(wrapper.text()).toContain('Aktívni 30 dní podľa IP')
     expect(wrapper.text()).toContain('123')
     expect(wrapper.text()).toContain('Aktívni (30 dní)')
     expect(wrapper.text()).toContain('45')

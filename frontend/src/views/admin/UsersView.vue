@@ -9,6 +9,7 @@ import UserAvatar from '@/components/UserAvatar.vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { clearStatsCache } from '@/services/api/admin/stats'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -325,6 +326,7 @@ async function updateEditorRole(user, nextRole) {
   try {
     const res = await api.patch(`/admin/users/${user.id}/role`, { role: nextRole })
     updateRow(res.data)
+    clearStatsCache()
     toast.success(nextRole === 'editor' ? 'Rola editora pridana.' : 'Rola editora odobrata.')
   } catch (e) {
     const status = Number(e?.response?.status || 0)

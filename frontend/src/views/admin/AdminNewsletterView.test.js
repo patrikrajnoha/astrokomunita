@@ -112,6 +112,23 @@ describe('AdminNewsletterView', () => {
     expect(wrapper.text()).toContain('preview')
   })
 
+  it('keeps newsletter page usable when AI config endpoint is forbidden', async () => {
+    getAdminAiConfigMock.mockRejectedValue({
+      response: {
+        status: 403,
+      },
+    })
+
+    const wrapper = mount(AdminNewsletterView)
+    await flush()
+    await flush()
+
+    expect(getNewsletterPreviewMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.alert-error').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Lunar eclipse')
+    expect(wrapper.findAll('.aiPanel')).toHaveLength(1)
+  })
+
   it('sends preview email via admin endpoint', async () => {
     const wrapper = mount(AdminNewsletterView)
     await flush()

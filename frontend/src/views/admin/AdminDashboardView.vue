@@ -82,12 +82,23 @@ const byRoleList = computed(() => {
   return [
     { key: 'user', label: 'Používatelia', value: Number(byRole.user || 0) },
     { key: 'admin', label: 'Administrátori', value: Number(byRole.admin || 0) },
+    { key: 'editor', label: 'Editori', value: Number(byRole.editor || 0) },
     { key: 'bot', label: 'Boti', value: Number(byRole.bot || 0) },
   ]
 })
 
-const byRegionList = computed(() => {
+const byRegionProfileList = computed(() => {
   const byRegion = stats.value?.demographics?.by_region || {}
+  return [
+    { key: 'unknown', label: 'Nezadané', value: Number(byRegion.unknown || 0) },
+    { key: 'sk', label: 'Slovensko', value: Number(byRegion.sk || 0) },
+    { key: 'cz', label: 'Česko', value: Number(byRegion.cz || 0) },
+    { key: 'other', label: 'Ostatné', value: Number(byRegion.other || 0) },
+  ]
+})
+
+const byRegionActiveIpList = computed(() => {
+  const byRegion = stats.value?.demographics?.by_region_active_ip_30d || {}
   return [
     { key: 'unknown', label: 'Nezadané', value: Number(byRegion.unknown || 0) },
     { key: 'sk', label: 'Slovensko', value: Number(byRegion.sk || 0) },

@@ -13,6 +13,7 @@ import DefaultAvatar from '@/components/DefaultAvatar.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
+import { clearStatsCache } from '@/services/api/admin/stats'
 import { AVATAR_COLORS } from '@/constants/avatar'
 import {
   formatDate,
@@ -331,6 +332,7 @@ async function updateEditorRole(nextRole) {
   try {
     const res = await api.patch(`/admin/users/${user.value.id}/role`, { role: nextRole })
     updateUser(res.data)
+    clearStatsCache()
     toast.success(nextRole === 'editor' ? 'Rola editor bola pridana.' : 'Rola editor bola odobrata.')
   } catch (e) {
     const status = Number(e?.response?.status || 0)

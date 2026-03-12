@@ -90,6 +90,24 @@ function normalizeAiStatus(value, fallback = 'idle') {
     : 'idle'
 }
 
+function createFallbackAiConfig() {
+  return {
+    events_ai_humanized_enabled: false,
+    insights_cache_ttl_seconds: 0,
+    prime_insights_max_limit: 10,
+    features: {
+      newsletter_prime_insights: {
+        enabled: false,
+        last_run: null,
+      },
+      newsletter_copy_draft: {
+        enabled: false,
+        last_run: null,
+      },
+    },
+  }
+}
+
 function defaultNewsletterSubject() {
   return 'Nebesky sprievodca: Tyzdenny newsletter'
 }
@@ -121,12 +139,26 @@ async function load() {
   error.value = ''
 
   try {
-    const [previewRes, runsRes, eventsRes, aiConfigRes] = await Promise.all([
+    const [previewResult, runsResult, eventsResult, aiConfigResult] = await Promise.allSettled([
       getNewsletterPreview(),
       getNewsletterRuns({ per_page: 20 }),
       getEvents({ per_page: 100 }),
       getAdminAiConfig(),
     ])
+
+    if (previewResult.status !== 'fulfilled') {
+      throw previewResult.reason
+    }
+    if (runsResult.status !== 'fulfilled') {
+      throw runsResult.reason
+    }
+    if (eventsResult.status !== 'fulfilled') {
+      throw eventsResult.reason
+    }
+
+    const previewRes = previewResult.value
+    const runsRes = runsResult.value
+    const eventsRes = eventsResult.value
 
     preview.value = previewRes?.data?.data || null
     maxFeaturedEvents.value = Number(previewRes?.data?.meta?.max_featured_events || 10)
@@ -146,16 +178,15 @@ async function load() {
         }))
       : []
 
-    aiConfig.value = aiConfigRes?.data?.data || null
+    aiConfig.value = aiConfigResult.status === 'fulfilled'
+      ? (aiConfigResult.value?.data?.data || createFallbackAiConfig())
+      : createFallbackAiConfig()
+
     aiPrimeLimit.value = Math.max(1, Math.min(Number(aiPrimeLimit.value || 5), aiPrimeMaxLimit.value))
-    if (aiConfig.value?.features?.newsletter_prime_insights?.last_run) {
-      aiPrimeLastRun.value = aiConfig.value.features.newsletter_prime_insights.last_run
-      aiPrimeStatus.value = normalizeAiStatus(aiPrimeLastRun.value?.status)
-    }
-    if (aiConfig.value?.features?.newsletter_copy_draft?.last_run) {
-      aiDraftLastRun.value = aiConfig.value.features.newsletter_copy_draft.last_run
-      aiDraftStatus.value = normalizeAiStatus(aiDraftLastRun.value?.status)
-    }
+    aiPrimeLastRun.value = aiConfig.value?.features?.newsletter_prime_insights?.last_run || null
+    aiPrimeStatus.value = normalizeAiStatus(aiPrimeLastRun.value?.status, 'idle')
+    aiDraftLastRun.value = aiConfig.value?.features?.newsletter_copy_draft?.last_run || null
+    aiDraftStatus.value = normalizeAiStatus(aiDraftLastRun.value?.status, 'idle')
     syncLocalCopyFieldsFromPreview()
   } catch (e) {
     error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa načítať dáta newslettera.'
