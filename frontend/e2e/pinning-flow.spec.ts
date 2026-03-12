@@ -148,7 +148,8 @@ async function pinFeedPostAsAdmin(page: Page, marker: string): Promise<void> {
 async function pinProfilePost(page: Page, marker: string): Promise<void> {
   const card = page.locator('.postList article.postItem').filter({ hasText: marker }).first()
   await expect(card).toBeVisible()
-  await card.getByRole('button', { name: 'Pripnut' }).click()
+  await card.locator('.dropdownTrigger').click()
+  await page.getByRole('menuitem', { name: 'Pripnut' }).click()
 }
 
 test.describe.configure({ retries: 1 })
@@ -304,4 +305,3 @@ test('admin profile pin appears first on /profile but does not affect global fee
     await safeDeletePost(page, olderPostId)
   }
 })
-

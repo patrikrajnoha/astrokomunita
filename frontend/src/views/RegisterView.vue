@@ -1,8 +1,9 @@
 <template src="./register/RegisterView.template.html"></template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AuthSplitLayout from '@/components/auth/AuthSplitLayout.vue'
 import http from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
@@ -36,6 +37,13 @@ let usernameCheckRequestId = 0
 const dobDraftDay = ref(1)
 const dobDraftMonth = ref(1)
 const dobDraftYear = ref(2000)
+const stepItems = [
+  { id: 1, label: 'Profil', subtitle: 'Zakladne informacie' },
+  { id: 2, label: 'Konto', subtitle: 'Prihlasovacie udaje' },
+  { id: 3, label: 'Overenie', subtitle: 'Finalne potvrdenie' },
+]
+const currentStep = ref(1)
+const stars = createStars(80)
 
 const redirect = computed(() => {
   const r = route.query.redirect
@@ -46,6 +54,9 @@ const loginLink = computed(() => ({
   name: 'login',
   query: { redirect: redirect.value },
 }))
+const currentStepMeta = computed(() => stepItems[currentStep.value - 1] || stepItems[0])
+const isLastStep = computed(() => currentStep.value === stepItems.length)
+const stepProgress = computed(() => (currentStep.value / stepItems.length) * 100)
 const turnstileEnabled = computed(() => turnstileSiteKey !== '')
 const turnstileHint = computed(() => {
   if (turnstileState.value === 'error') return 'Overenie proti botom sa nepodarilo nacitat. Obnov stranku a skus to znova.'
@@ -176,12 +187,24 @@ onBeforeUnmount(() => {
 })
 
 onMounted(() => {
-  if (!turnstileEnabled.value) {
+  if (!turnstileEnabled.value || currentStep.value !== stepItems.length) {
     return
   }
 
   void mountTurnstileWidget()
 })
+
+watch(
+  () => currentStep.value,
+  async (nextStep) => {
+    formError.value = null
+
+    if (nextStep === stepItems.length && turnstileEnabled.value) {
+      await nextTick()
+      void mountTurnstileWidget()
+    }
+  }
+)
 
 watch(
   () => [dobDraftYear.value, dobDraftMonth.value],
@@ -201,40 +224,118 @@ watch(
   { immediate: true }
 )
 
-const submit = async () => {
+function goToPreviousStep() {
+  if (currentStep.value <= 1) {
+    return
+  }
+
+  currentStep.value -= 1
+}
+
+function goToNextStep() {
   formError.value = null
+
+  const currentStepError = validateCurrentStep(currentStep.value)
+  if (currentStepError) {
+    formError.value = currentStepError
+    return
+  }
+
+  if (currentStep.value >= stepItems.length) {
+    return
+  }
+
+  currentStep.value += 1
+}
+
+function validateCurrentStep(step) {
+  if (step === 1) return validateStepOne()
+  if (step === 2) return validateStepTwo()
+  if (step === 3) return validateStepThree()
+  return ''
+}
+
+function validateStepOne() {
+  if (!name.value.trim()) {
+    return 'Meno je povinne.'
+  }
 
   const usernameError = validateUsername(username.value)
   if (usernameError) {
-    formError.value = usernameError
-    return
+    return usernameError
   }
 
   const dobError = validateDateOfBirth(dateOfBirth.value)
   if (dobError) {
-    formError.value = dobError
-    return
+    return dobError
+  }
+
+  if (usernameCheckState.value === 'checking') {
+    return 'Pockaj, kontrolujem dostupnost pouzivatelskeho mena.'
   }
 
   if (usernameReason.value === 'taken' || usernameReason.value === 'reserved' || usernameReason.value === 'invalid') {
-    formError.value = usernameCheckReasonToMessage(usernameReason.value)
-    return
+    return usernameCheckReasonToMessage(usernameReason.value)
   }
 
+  return ''
+}
+
+function validateStepTwo() {
+  const emailError = validateEmail(email.value)
+  if (emailError) {
+    return emailError
+  }
+
+  if (!password.value) {
+    return 'Heslo je povinne.'
+  }
+
+  if (password.value.length < 8) {
+    return 'Heslo musi mat aspon 8 znakov.'
+  }
+
+  if (!passwordConfirmation.value) {
+    return 'Potvrdenie hesla je povinne.'
+  }
+
+  if (password.value !== passwordConfirmation.value) {
+    return 'Hesla sa nezhoduju.'
+  }
+
+  return ''
+}
+
+function validateStepThree() {
   if (!turnstileEnabled.value) {
-    formError.value = 'Bezpecnostne overenie nie je nastavene. Skus to prosim neskor.'
-    return
+    return 'Bezpecnostne overenie nie je nastavene. Skus to prosim neskor.'
   }
 
   if (turnstileEnabled.value && !turnstileToken.value) {
-    formError.value = turnstileHint.value || 'Nacitavam overenie...'
+    return turnstileHint.value || 'Nacitavam overenie...'
+  }
+
+  return ''
+}
+
+const submit = async () => {
+  formError.value = null
+
+  if (!isLastStep.value) {
+    goToNextStep()
+    return
+  }
+
+  const registerError = validateStepOne() || validateStepTwo() || validateStepThree()
+  if (registerError) {
+    formError.value = registerError
     return
   }
 
   try {
     await auth.register({
-      name: name.value,
-      email: email.value,
+      name: name.value.trim(),
+      email: email.value.trim(),
       username: normalizeUsername(username.value),
       date_of_birth: dateOfBirth.value,
       password: password.value,
@@ -398,6 +499,13 @@ function validateDateOfBirth(value) {
   return ''
 }
 
+function validateEmail(value) {
+  const normalized = String(value || '').trim()
+  if (!normalized) return 'E-mail je povinny.'
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return 'E-mail ma neplatny format.'
+  return ''
+}
+
 function usernameCheckReasonToMessage(reason) {
   if (reason === 'ok') return 'Pouzivatelske meno je volne.'
   if (reason === 'taken') return 'Toto pouzivatelske meno je uz obsadene.'
@@ -415,6 +523,34 @@ function formatDateForInput(date) {
 
 function daysInMonth(year, month) {
   return new Date(year, month, 0).getDate()
+}
+
+function seededRandom(seed) {
+  const value = Math.sin(seed * 9999.91) * 10000
+  return value - Math.floor(value)
+}
+
+function createStars(count) {
+  const generatedStars = []
+
+  for (let i = 1; i <= count; i += 1) {
+    const x = seededRandom(i * 1.37)
+    const y = seededRandom(i * 2.17)
+    const size = [1, 2, 3, 4][Math.floor(seededRandom(i * 3.31) * 4)]
+    const delay = -(seededRandom(i * 4.13) * 4)
+
+    generatedStars.push({
+      id: i,
+      style: {
+        left: `${(x * 100).toFixed(2)}%`,
+        top: `${(y * 100).toFixed(2)}%`,
+        '--star-size': `${size}px`,
+        '--blink-delay': `${delay.toFixed(2)}s`,
+      },
+    })
+  }
+
+  return generatedStars
 }
 </script>
 

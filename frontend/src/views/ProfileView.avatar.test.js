@@ -94,6 +94,7 @@ async function mountProfile() {
       plugins: [router],
       stubs: {
         ProfileEventCard: { template: '<div></div>' },
+        ProfileEdit: { template: '<div data-testid="profile-edit-stub"></div>' },
         teleport: true,
       },
     },
@@ -212,17 +213,20 @@ describe('ProfileView avatar panel', () => {
     wrapper.unmount()
   })
 
-  it('navigates to profile edit route for profile edit CTA', async () => {
+  it('opens profile edit modal for profile edit CTA', async () => {
     const { wrapper, router } = await mountProfile()
 
     expect(wrapper.find('input[maxlength="60"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="profile-edit-modal"]').exists()).toBe(false)
 
     const editButton = wrapper.find('.headActions .ui-btn.ui-btn--secondary')
     expect(editButton.exists()).toBe(true)
     await editButton.trigger('click')
     await flush()
 
-    expect(router.currentRoute.value.name).toBe('profile.edit')
+    expect(wrapper.find('[data-testid="profile-edit-modal"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="profile-edit-stub"]').exists()).toBe(true)
+    expect(router.currentRoute.value.name).toBe('profile')
 
     wrapper.unmount()
   })

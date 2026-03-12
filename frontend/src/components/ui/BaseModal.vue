@@ -13,6 +13,7 @@
             v-if="open"
             ref="dialogRef"
             class="modalCard"
+            :class="{ 'modalCard--compact': compact }"
             role="dialog"
             aria-modal="true"
             :aria-labelledby="titleId"
@@ -73,6 +74,10 @@ const props = defineProps({
   closeOnEsc: {
     type: Boolean,
     default: true,
+  },
+  compact: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -210,6 +215,20 @@ function getFocusableElements(root) {
   background: var(--color-card);
   color: var(--color-text-primary);
   box-shadow: var(--shadow-medium);
+}
+
+.modalCard.modalCard--compact {
+  width: min(36rem, 100%);
+  max-height: min(88vh, 42rem);
+}
+
+.modalCard.modalCard--compact .modalHead {
+  padding: var(--space-4) var(--space-4) 0;
+  padding-bottom: var(--space-3);
+}
+
+.modalCard.modalCard--compact .modalBody {
+  padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
 .modalHead {

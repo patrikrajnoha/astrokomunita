@@ -48,6 +48,10 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 function mountRegisterView() {
   return mount(RegisterView, {
     global: {
@@ -56,6 +60,34 @@ function mountRegisterView() {
       },
     },
   })
+}
+
+async function completeRegisterWizard(wrapper, {
+  name = 'Tester',
+  username = 'valid_user',
+  email = 'verify-me@example.com',
+  password = 'password123',
+} = {}) {
+  await wrapper.find('input[autocomplete="name"]').setValue(name)
+  await wrapper.find('input[autocomplete="username"]').setValue(username)
+  await wait(450)
+  await flush()
+
+  const stepOneNext = wrapper.findAll('button').find((button) => button.text() === 'Pokracovat')
+  await stepOneNext.trigger('click')
+  await flush()
+
+  await wrapper.find('input[autocomplete="email"]').setValue(email)
+  const passwordInputs = wrapper.findAll('input[autocomplete="new-password"]')
+  await passwordInputs[0].setValue(password)
+  await passwordInputs[1].setValue(password)
+
+  const stepTwoNext = wrapper.findAll('button').find((button) => button.text() === 'Pokracovat')
+  await stepTwoNext.trigger('click')
+  await flush()
+
+  await wrapper.find('form').trigger('submit.prevent')
+  await flush()
 }
 
 describe('RegisterView', () => {
@@ -83,15 +115,7 @@ describe('RegisterView', () => {
     const wrapper = mountRegisterView()
     await flush()
 
-    const inputs = wrapper.findAll('input')
-    await inputs[0].setValue('Tester')
-    await inputs[1].setValue('valid_user')
-    await inputs[2].setValue('verify-me@example.com')
-    await inputs[3].setValue('password123')
-    await inputs[4].setValue('password123')
-
-    await wrapper.find('form').trigger('submit.prevent')
-    await flush()
+    await completeRegisterWizard(wrapper)
 
     expect(authMock.register).toHaveBeenCalled()
     expect(httpMock.post).toHaveBeenCalledWith(
@@ -117,15 +141,10 @@ describe('RegisterView', () => {
     const wrapper = mountRegisterView()
     await flush()
 
-    const inputs = wrapper.findAll('input')
-    await inputs[0].setValue('Tester')
-    await inputs[1].setValue('valid_user_two')
-    await inputs[2].setValue('verify-me-2@example.com')
-    await inputs[3].setValue('password123')
-    await inputs[4].setValue('password123')
-
-    await wrapper.find('form').trigger('submit.prevent')
-    await flush()
+    await completeRegisterWizard(wrapper, {
+      username: 'valid_user_two',
+      email: 'verify-me-2@example.com',
+    })
 
     expect(pushMock).toHaveBeenCalledWith({
       name: 'settings.email',
