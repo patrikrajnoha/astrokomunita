@@ -54,14 +54,14 @@ describe('ProfileEdit', () => {
       name: 'Tester',
       email: 'tester@example.com',
       bio: '',
-      location: 'Bratislava',
-      location_label: 'Bratislava',
+      location: 'Moje miesto',
+      location_label: 'Moje miesto',
       location_source: 'manual',
       location_data: {
-        latitude: 48.1486,
-        longitude: 17.1077,
-        timezone: 'Europe/Bratislava',
-        label: 'Bratislava',
+        latitude: 0,
+        longitude: 0,
+        timezone: 'UTC',
+        label: 'Moje miesto',
         source: 'manual',
       },
     }
@@ -112,17 +112,27 @@ describe('ProfileEdit', () => {
     expect(wrapper.find('input[maxlength="60"]').exists()).toBe(false)
   })
 
+  it('offers only major slovak cities in city select', async () => {
+    const wrapper = mount(ProfileEdit)
+    await flush()
+
+    const options = wrapper.findAll('select option').map((option) => option.text())
+    expect(options).toEqual(expect.arrayContaining(['Bratislava', 'Kosice', 'Presov', 'Zilina', 'Nitra']))
+    expect(options).not.toEqual(expect.arrayContaining(['Ivanka pri Nitre', 'Cesko', 'Europa', 'Mimo Europy']))
+  })
+
   it('preset selection fills coordinates/timezone/label and saves with source preset', async () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
     await wrapper.find('select').setValue('nitra')
 
-    const numberInputs = wrapper.findAll('input[type="number"]')
-    expect(numberInputs[0].element.value).toBe('48.3064000')
-    expect(numberInputs[1].element.value).toBe('18.0764000')
-    expect(wrapper.find('input[placeholder="Napriklad Bratislava"]').element.value).toBe('Nitra')
-    expect(wrapper.find('input[placeholder="Europe/Bratislava"]').element.value).toBe('Europe/Bratislava')
+    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').exists()).toBe(true)
+    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').element.value).toBe('Nitra')
+    expect(wrapper.text()).toContain('Nazov polohy sa prebera z vybraneho mesta.')
+    expect(wrapper.find('input[type="number"]').exists()).toBe(false)
+    expect(wrapper.find('input[placeholder="Europe/Bratislava"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Suradnice sa pouzivaju interne pre pocasie a nocnu oblohu.')
 
     await saveButton(wrapper).trigger('click')
     await flush()
@@ -138,6 +148,29 @@ describe('ProfileEdit', () => {
         location_source: 'preset',
       }),
     )
+  })
+
+  it('normalizes known slovak city labels to city mode', async () => {
+    authMock.user = {
+      ...authMock.user,
+      location_label: 'Kosice',
+      location_source: 'manual',
+      location_data: {
+        latitude: 48.7164,
+        longitude: 21.2611,
+        timezone: 'Europe/Bratislava',
+        label: 'Kosice',
+        source: 'manual',
+      },
+    }
+
+    const wrapper = mount(ProfileEdit)
+    await flush()
+
+    expect(wrapper.find('select').element.value).toBe('kosice')
+    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').exists()).toBe(true)
+    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').element.value).toBe('Kosice')
+    expect(wrapper.text()).toContain('Nazov polohy sa prebera z vybraneho mesta.')
   })
 
   it('gps action uses geolocation and timezone from Intl with source gps', async () => {
@@ -205,7 +238,8 @@ describe('ProfileEdit', () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
-    await wrapper.find('input[placeholder="Napriklad Bratislava"]').setValue('Nove mesto')
+    await wrapper.find('input[placeholder="Napr. Bratislava"]').setValue('Nitra')
+    await wrapper.find('.fillLocationBtn').trigger('click')
     await saveButton(wrapper).trigger('click')
     await flush()
 
@@ -217,10 +251,50 @@ describe('ProfileEdit', () => {
     await flush()
 
     await wrapper.find('textarea').setValue('Nova bio')
-    await wrapper.find('input[placeholder="Napriklad Bratislava"]').setValue('Nove mesto')
+    await wrapper.find('input[placeholder="Napr. Bratislava"]').setValue('Nitra')
+    await wrapper.find('.fillLocationBtn').trigger('click')
     await saveButton(wrapper).trigger('click')
     await flush()
 
     expect(httpMock.patch.mock.calls.map(([url]) => url)).toEqual(['/me/location', '/profile'])
+  })
+
+  it('fills coordinates and timezone from typed location label', async () => {
+    const wrapper = mount(ProfileEdit)
+    await flush()
+
+    await wrapper.find('input[placeholder="Napr. Bratislava"]').setValue('trencin')
+    await wrapper.find('.fillLocationBtn').trigger('click')
+    await flush()
+
+    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').exists()).toBe(true)
+    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').element.value).toBe('Trencin')
+    expect(wrapper.text()).toContain('Mesto bolo nastavene.')
+
+    await saveButton(wrapper).trigger('click')
+    await flush()
+
+    expect(httpMock.patch).toHaveBeenCalledWith(
+      '/me/location',
+      expect.objectContaining({
+        latitude: 48.8945,
+        longitude: 18.0444,
+        timezone: 'Europe/Bratislava',
+        location_label: 'Trencin',
+        location_source: 'preset',
+      }),
+    )
+  })
+
+  it('clears stale coordinates when city is unknown', async () => {
+    const wrapper = mount(ProfileEdit)
+    await flush()
+
+    await wrapper.find('input[placeholder="Napr. Bratislava"]').setValue('Ivanka pri Nitre')
+    await wrapper.find('.fillLocationBtn').trigger('click')
+    await flush()
+
+    expect(wrapper.find('input[type="number"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Vyber velke slovenske mesto zo zoznamu.')
   })
 })

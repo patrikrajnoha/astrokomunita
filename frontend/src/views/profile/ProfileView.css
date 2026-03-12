@@ -698,6 +698,49 @@
   margin-top: var(--space-1);
 }
 
+.postActionsMore {
+  display: inline-flex;
+  align-items: center;
+}
+
+.postActionsMore :deep(.dropdownRoot) {
+  display: inline-flex;
+  align-items: center;
+}
+
+.postActionsMore :deep(.dropdownTrigger) {
+  min-height: var(--control-height-sm);
+  min-width: var(--control-height-sm);
+  padding: 0.3rem 0.56rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: rgb(var(--bg-app-rgb) / 0.42);
+  color: var(--text-secondary);
+  transition: background-color var(--motion-fast), color var(--motion-fast), transform var(--motion-fast), border-color var(--motion-fast);
+}
+
+.postActionsMore :deep(.dropdownTrigger:hover:not(:disabled)),
+.postActionsMore :deep(.dropdownTrigger[aria-expanded='true']) {
+  background: var(--interactive-hover);
+  border-color: var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.postActionsMore :deep(.dropdownTrigger:active:not(:disabled)) {
+  transform: scale(0.96);
+}
+
+.postActionsMore :deep(.dropdownTrigger:focus-visible) {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.postActionDotsIcon {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+
 .postActionIconBtn {
   min-height: var(--control-height-sm);
   min-width: var(--control-height-sm);

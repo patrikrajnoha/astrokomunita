@@ -17,6 +17,8 @@ import InlineStatus from '@/components/ui/InlineStatus.vue'
 import DefaultAvatar from '@/components/DefaultAvatar.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import HashtagText from '@/components/HashtagText.vue'
+import DropdownMenu from '@/components/shared/DropdownMenu.vue'
+import ProfileEdit from './ProfileEdit.vue'
 import { EVENT_TIMEZONE, formatEventDate, formatEventDateKey } from '@/utils/eventTime'
 import { formatDateTimeCompact } from '@/utils/dateUtils'
 import { useProfileAvatarEditor } from './profile/useProfileAvatarEditor'
@@ -41,6 +43,7 @@ const { confirm } = useConfirm()
 const toast = useToast()
 
 const copyLabel = ref('Kopirovat link')
+const profileEditModalOpen = ref(false)
 const {
   AVATAR_COLORS,
   avatarDraft,
@@ -139,12 +142,53 @@ function goLogin() {
 }
 
 function goToProfileEdit() {
-  router.push({ name: 'profile.edit' })
+  profileEditModalOpen.value = true
 }
 
 function openPost(post) {
   if (!post?.id) return
   router.push(`/posts/${post.id}`)
+}
+
+function profilePostMenuItems(post) {
+  const items = []
+  if (!post?.id) return items
+
+  if (canPinProfilePost(post)) {
+    items.push({
+      key: 'pin',
+      label:
+        pinLoadingId.value === post.id
+          ? 'Ukladam...'
+          : isPinnedOnProfile(post)
+            ? 'Odopnut'
+            : 'Pripnut',
+      danger: false,
+    })
+  }
+
+  items.push({
+    key: 'delete',
+    label: deleteLoadingId.value === post.id ? 'Mazem...' : 'Vymazat',
+    danger: true,
+  })
+
+  return items
+}
+
+function onProfilePostMenuSelect(item, post) {
+  if (!item?.key || !post?.id) return
+
+  if (item.key === 'pin') {
+    if (pinLoadingId.value === post.id) return
+    void togglePin(post)
+    return
+  }
+
+  if (item.key === 'delete') {
+    if (deleteLoadingId.value === post.id) return
+    void deletePost(post)
+  }
 }
 
 function onGlobalEmptyAction() {

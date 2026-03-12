@@ -1,24 +1,79 @@
 
-  <div class="registerPage">
-    <div class="registerShell">
-      <header class="registerHeader">
-        <h1 class="registerTitle">Registracia</h1>
-        <p class="registerSubtitle">Vytvor si ucet.</p>
-      </header>
+<div class="registerView">
+  <div class="registerStars" aria-hidden="true">
+    <span
+      v-for="star in stars"
+      :key="star.id"
+      class="registerStar"
+      :style="star.style"
+    ></span>
+  </div>
 
-      <form class="card" @submit.prevent="submit">
-        <div v-if="formError" class="alert">
-          {{ formError }}
-        </div>
+  <AuthSplitLayout class="registerSplit">
+    <template #hero>
+      <div class="registerHero">
+        <img src="/logo.png" alt="Astrokomunita" class="registerHeroLogo" />
+        <h1 class="registerHeroTitle">
+          Vitaj vo
+          <span class="registerHeroTitleAccent">vesmírnej</span>
+          komunite
+        </h1>
+        <p class="registerHeroSubtitle">
+          Sleduj udalosti, zapisuj pozorovania a buduj profil medzi nadsencami astronomie.
+        </p>
+      </div>
+    </template>
 
+    <div class="registerPage">
+      <div class="registerGlow" aria-hidden="true"></div>
+
+      <section class="registerModal" role="dialog" aria-modal="true" aria-labelledby="registerTitle">
+        <header class="registerHeader">
+          <p class="registerEyebrow">Vytvorenie uctu</p>
+          <h2 id="registerTitle" class="registerTitle">Registracia</h2>
+          <p class="registerSubtitle">
+            Krok {{ currentStep }} z {{ stepItems.length }}:
+            {{ currentStepMeta.subtitle }}
+          </p>
+
+          <ol class="stepList" aria-label="Priebeh registracie">
+            <li
+              v-for="step in stepItems"
+              :key="step.id"
+              class="stepItem"
+              :class="{ isActive: currentStep === step.id, isDone: currentStep > step.id }"
+            >
+              <span class="stepBullet">{{ step.id }}</span>
+              <span class="stepLabel">{{ step.label }}</span>
+            </li>
+          </ol>
+
+          <div class="stepTrack" aria-hidden="true">
+            <span class="stepTrackFill" :style="{ width: `${stepProgress}%` }"></span>
+          </div>
+        </header>
+
+        <form class="card" @submit.prevent="submit" novalidate>
+          <div v-if="formError" class="alert">
+            {{ formError }}
+          </div>
+
+      <section v-if="currentStep === 1" class="stepPanel" aria-label="Profil">
         <label class="field">
           <span class="label">Meno</span>
-          <input v-model.trim="name" type="text" class="input" autocomplete="name" />
+          <input v-model.trim="name" type="text" class="input" autocomplete="name" placeholder="Ako ta mame volat?" />
         </label>
 
         <label class="field">
           <span class="label">Pouzivatelske meno</span>
-          <input v-model="username" type="text" class="input" autocomplete="username" maxlength="20" />
+          <input
+            v-model="username"
+            type="text"
+            class="input"
+            autocomplete="username"
+            maxlength="20"
+            placeholder="napr. astro_nickname"
+          />
           <span v-if="usernameHint" class="fieldHint" :class="usernameHintClass">{{ usernameHint }}</span>
         </label>
 
@@ -49,21 +104,50 @@
           </div>
           <span v-if="dateOfBirthError" class="fieldHint isError">{{ dateOfBirthError }}</span>
         </label>
+      </section>
 
+      <section v-else-if="currentStep === 2" class="stepPanel" aria-label="Konto">
         <label class="field">
           <span class="label">Email</span>
-          <input v-model.trim="email" type="email" class="input" autocomplete="email" />
+          <input
+            v-model.trim="email"
+            type="email"
+            class="input"
+            autocomplete="email"
+            placeholder="you@example.com"
+          />
         </label>
 
         <label class="field">
           <span class="label">Heslo</span>
-          <input v-model="password" type="password" class="input" autocomplete="new-password" />
+          <input
+            v-model="password"
+            type="password"
+            class="input"
+            autocomplete="new-password"
+            placeholder="Min. 8 znakov"
+          />
         </label>
 
         <label class="field">
           <span class="label">Potvrdenie hesla</span>
-          <input v-model="passwordConfirmation" type="password" class="input" autocomplete="new-password" />
+          <input
+            v-model="passwordConfirmation"
+            type="password"
+            class="input"
+            autocomplete="new-password"
+            placeholder="Zopakuj heslo"
+          />
         </label>
+      </section>
+
+      <section v-else class="stepPanel" aria-label="Overenie">
+        <div class="summaryBox">
+          <p class="summaryTitle">Skontroluj udaje</p>
+          <p class="summaryLine"><span>Meno:</span> {{ name || '-' }}</p>
+          <p class="summaryLine"><span>Pouzivatel:</span> {{ username || '-' }}</p>
+          <p class="summaryLine"><span>Email:</span> {{ email || '-' }}</p>
+        </div>
 
         <div v-if="turnstileEnabled" class="field">
           <span class="label">Overenie proti botom</span>
@@ -80,15 +164,41 @@
         >
           {{ submitTurnstileMessage }}
         </p>
+      </section>
 
-        <button class="btn ui-pill ui-pill--primary ui-pill--full" type="submit" :disabled="isSubmitDisabled">
-          {{ auth.loading ? 'Registrujem...' : 'Zaregistrovat' }}
-        </button>
+          <div class="actionRow">
+            <button
+              v-if="currentStep > 1"
+              type="button"
+              class="btnSecondary"
+              @click="goToPreviousStep"
+            >
+              Spat
+            </button>
+            <router-link v-else class="btnSecondary btnSecondaryLink" :to="loginLink">
+              Mam ucet
+            </router-link>
 
-        <p class="loginHint">
-          Uz mas ucet?
-          <router-link class="link" :to="loginLink">Prihlas sa</router-link>
-        </p>
-      </form>
+            <button
+              v-if="!isLastStep"
+              type="button"
+              class="btn ui-pill ui-pill--primary"
+              :disabled="auth.loading || usernameCheckState === 'checking'"
+              @click="goToNextStep"
+            >
+              Pokracovat
+            </button>
+            <button
+              v-else
+              class="btn ui-pill ui-pill--primary"
+              type="submit"
+              :disabled="isSubmitDisabled"
+            >
+              {{ auth.loading ? 'Registrujem...' : 'Dokoncit registraciu' }}
+            </button>
+          </div>
+        </form>
+      </section>
     </div>
-  </div>
+  </AuthSplitLayout>
+</div>

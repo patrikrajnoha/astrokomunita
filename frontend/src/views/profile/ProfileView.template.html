@@ -139,6 +139,17 @@
 
       <BaseModal
         v-if="auth.user"
+        v-model:open="profileEditModalOpen"
+        title="Upravit profil"
+        test-id="profile-edit-modal"
+        close-test-id="close-profile-edit-modal"
+        compact
+      >
+        <ProfileEdit embedded />
+      </BaseModal>
+
+      <BaseModal
+        v-if="auth.user"
         v-model:open="avatarModalOpen"
         title="Upravit profilovy avatar"
         test-id="profile-avatar-modal"
@@ -464,39 +475,22 @@
                     </svg>
                     <span class="postActionLabel">Zobrazit vlakno</span>
                   </button>
-                  <button
-                    v-if="canPinProfilePost(p)"
-                    class="postActionIconBtn"
-                    :class="{ active: isPinnedOnProfile(p) }"
-                    type="button"
-                    :title="isPinnedOnProfile(p) ? 'Odopnut' : 'Pripnut'"
-                    :aria-label="isPinnedOnProfile(p) ? 'Odopnut' : 'Pripnut'"
-                    :disabled="pinLoadingId === p.id"
-                    @click.stop="togglePin(p)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M14 3v5.2l4 3V13h-5v7l-2-1.9V13H6v-1.8l4-3V3z" />
-                    </svg>
-                    <span class="postActionLabel">
-                      {{ pinLoadingId === p.id ? 'Ukladam...' : (isPinnedOnProfile(p) ? 'Odopnut' : 'Pripnut') }}
-                    </span>
-                  </button>
-                  <button
-                    class="postActionIconBtn danger"
-                    type="button"
-                    title="Vymazat"
-                    aria-label="Vymazat"
-                    :disabled="deleteLoadingId === p.id"
-                    @click.stop="deletePost(p)"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M4 7h16" />
-                      <path d="M9 7V5h6v2" />
-                      <path d="M7 7l1 12h8l1-12" />
-                      <path d="M10 11v5M14 11v5" />
-                    </svg>
-                    <span class="postActionLabel">{{ deleteLoadingId === p.id ? 'Mazem...' : 'Vymazat' }}</span>
-                  </button>
+                  <div class="postActionsMore" @click.stop>
+                    <DropdownMenu
+                      :items="profilePostMenuItems(p)"
+                      label="Dalsie akcie"
+                      menu-label="Akcie prispevku"
+                      @select="(item) => onProfilePostMenuSelect(item, p)"
+                    >
+                      <template #trigger>
+                        <svg class="postActionDotsIcon" viewBox="0 0 24 24" aria-hidden="true">
+                          <circle cx="6.5" cy="12" r="1.6" />
+                          <circle cx="12" cy="12" r="1.6" />
+                          <circle cx="17.5" cy="12" r="1.6" />
+                        </svg>
+                      </template>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </div>
             </article>

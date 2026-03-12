@@ -27,6 +27,7 @@ import {
   formatEventRange,
   isAttachmentBlocked,
   isAttachmentPending,
+  isBotPost as resolveIsBotPost,
   isImage,
   postGifTitle,
   postGifUrl as resolvePostGifUrl,
@@ -65,6 +66,7 @@ const apiBaseUrl = api?.defaults?.baseURL || ''
 const attachmentSrc = (item) => resolveAttachmentSrc(item, apiBaseUrl)
 const attachmentDownloadSrc = (item) => resolveAttachmentDownloadSrc(item, apiBaseUrl)
 const postGifUrl = (item) => resolvePostGifUrl(item, apiBaseUrl)
+const isBotPost = (item) => resolveIsBotPost(item)
 const canAdminEditBotPost = (item) => resolveCanAdminEditBotPost(item, auth.user)
 
 function openProfile(user) {
