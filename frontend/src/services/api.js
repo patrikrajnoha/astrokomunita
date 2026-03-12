@@ -194,11 +194,13 @@ api.interceptors.response.use(
               }
             : undefined,
         })
-      } else if (status === 401 || status === 419) {
+      } else if (status === 401) {
         if (shouldRedirectToLogin(error)) {
           toast.warn(error?.response?.data?.message || 'Relacia vyprsala. Prihlas sa znova.')
           redirectToLoginIfNeeded()
         }
+      } else if (status === 419) {
+        toast.warn(error?.response?.data?.message || 'Bezpecnostny token vyprsal. Obnov stranku a skus to znova.')
       } else if (status >= 500 || isTimeoutOrNetwork) {
         if (shouldShowErrorToast(normalizedMessage, status)) {
           toast.error(normalizedMessage)

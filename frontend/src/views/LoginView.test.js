@@ -40,6 +40,46 @@ describe('LoginView', () => {
     pushMock.mockReset()
   })
 
+  it('shows short success animation before redirect after login', async () => {
+    vi.useFakeTimers()
+
+    try {
+      mockAuth.login.mockResolvedValueOnce({ id: 1 })
+
+      const router = makeRouter()
+      await router.push('/login?redirect=%2Fevents')
+      await router.isReady()
+      router.push = pushMock
+
+      const wrapper = mount(LoginView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('you@example.com')
+      await wrapper.find('input[type="password"]').setValue('my-password')
+
+      const submitPromise = wrapper.find('form').trigger('submit.prevent')
+      await Promise.resolve()
+
+      expect(mockAuth.login).toHaveBeenCalledWith({
+        email: 'you@example.com',
+        password: 'my-password',
+      })
+      expect(pushMock).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(2799)
+      expect(pushMock).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(1)
+      await submitPromise
+      expect(pushMock).toHaveBeenCalledWith('/events')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('renders banned state details when auth error indicates banned user', async () => {
     mockAuth.error = {
       type: 'banned',

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import http from '@/services/api'
 import axios from 'axios'
+import { clearHomeFeedPrefetch } from '@/services/feedPrefetch'
 
 const AUTH_TIMEOUTS_MS = [5000, 8000]
 const configuredApiBaseUrl = import.meta.env.DEV
@@ -91,6 +92,7 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     reset() {
+      clearHomeFeedPrefetch()
       this.user = null
       this.loading = false
       this.initialized = true
@@ -131,6 +133,7 @@ export const useAuthStore = defineStore('auth', {
       const source = String(options.source || 'manual')
       const shouldRetry = options.retry !== false
       const markBootstrap = options.markBootstrap !== false
+      const preserveStateOnError = options.preserveStateOnError === true
       const maxAttempts = shouldRetry ? 2 : 1
 
       this.loading = true
@@ -191,11 +194,26 @@ export const useAuthStore = defineStore('auth', {
               continue
             }
 
+            const isTransientFailure =
+              classified.type === 'timeout' || classified.type === 'network' || classified.type === 'server'
+
+            if (this.user && (preserveStateOnError || isTransientFailure)) {
+              this.status = 'authenticated'
+              this.error = null
+              if (import.meta.env.DEV) {
+                console.info('[AUTH] fetchUser failure ignored (preserve state)', {
+                  source,
+                  type: classified.type,
+                  status: classified.status,
+                  code: classified.code,
+                })
+              }
+              return this.user
+            }
+
             this.user = null
 
             if (
-              classified.type === 'timeout' ||
-              classified.type === 'network' ||
               classified.type === 'unauthorized' ||
               classified.type === 'banned' ||
               classified.type === 'inactive'
@@ -260,6 +278,7 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async login(payload) {
+      clearHomeFeedPrefetch()
       this.loading = true
       try {
         const response = await this.postWithCsrfRetry('/auth/login', payload)
@@ -280,7 +299,12 @@ export const useAuthStore = defineStore('auth', {
         this.loginSequence += 1
 
         // Non-blocking refresh for enriched payload (/auth/me adds activity fields).
-        this.fetchUser({ source: 'login-bg-refresh', retry: false, markBootstrap: false }).catch(() => {})
+        this.fetchUser({
+          source: 'login-bg-refresh',
+          retry: false,
+          markBootstrap: false,
+          preserveStateOnError: true,
+        }).catch(() => {})
         return loginUser
       } finally {
         this.loading = false
@@ -288,6 +312,7 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async register(payload) {
+      clearHomeFeedPrefetch()
       this.loading = true
       try {
         const response = await this.postWithCsrfRetry('/auth/register', payload)
@@ -300,7 +325,12 @@ export const useAuthStore = defineStore('auth', {
           this.bootstrapDone = true
           this.initialized = true
           this.loginSequence += 1
-          this.fetchUser({ source: 'register-bg-refresh', retry: false, markBootstrap: false }).catch(() => {})
+          this.fetchUser({
+            source: 'register-bg-refresh',
+            retry: false,
+            markBootstrap: false,
+            preserveStateOnError: true,
+          }).catch(() => {})
           return
         }
 
@@ -318,6 +348,7 @@ export const useAuthStore = defineStore('auth', {
       } catch {
         // 401/419 is fine, local cleanup still runs
       } finally {
+        clearHomeFeedPrefetch()
         this.user = null
         this.loading = false
         this.initialized = true

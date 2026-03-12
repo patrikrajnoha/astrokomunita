@@ -635,10 +635,15 @@ export function applyAuthGuards(routerInstance) {
     const redirectTarget = to.fullPath
     const requiresAuth = Boolean(to.meta?.requiresAuth ?? to.meta?.auth ?? false)
 
+    const hasResolvedGuestState =
+      (auth.bootstrapDone || auth.initialized) &&
+      auth.status !== 'loading' &&
+      auth.status !== 'error'
+
     const shouldRedirectGuest =
       requiresAuth &&
       !auth.isAuthed &&
-      (auth.bootstrapDone || auth.initialized || auth.status === 'guest' || auth.status === 'error')
+      (auth.status === 'guest' || hasResolvedGuestState)
 
     if (shouldRedirectGuest) {
       return {
