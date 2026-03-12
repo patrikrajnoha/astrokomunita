@@ -20,7 +20,7 @@ trait InteractsWithRunBotSourceFixtures
         config()->set('bots.sources.nasa_apod_daily.rss_fallback_url', 'https://apod.nasa.gov/apod.rss');
     }
 
-    private function createSource(): BotSource
+    protected function createSource(): BotSource
     {
         return BotSource::query()->create([
             'key' => 'nasa_rss_breaking',
@@ -32,7 +32,7 @@ trait InteractsWithRunBotSourceFixtures
         ]);
     }
 
-    private function createApodSource(): BotSource
+    protected function createApodSource(): BotSource
     {
         return BotSource::query()->create([
             'key' => 'nasa_apod_daily',
@@ -44,7 +44,7 @@ trait InteractsWithRunBotSourceFixtures
         ]);
     }
 
-    private function createWikipediaSource(): BotSource
+    protected function createWikipediaSource(): BotSource
     {
         return BotSource::query()->create([
             'key' => 'wiki_onthisday_astronomy',
@@ -56,7 +56,7 @@ trait InteractsWithRunBotSourceFixtures
         ]);
     }
 
-    private function fixtureRss(): string
+    protected function fixtureRss(): string
     {
         return (string) file_get_contents(base_path('tests/Fixtures/nasa_rss.xml'));
     }
@@ -64,7 +64,7 @@ trait InteractsWithRunBotSourceFixtures
     /**
      * @return array<string,mixed>
      */
-    private function wikiFixturePayload(): array
+    protected function wikiFixturePayload(): array
     {
         $decoded = json_decode(
             (string) file_get_contents(base_path('tests/Fixtures/wiki_onthisday.json')),
@@ -77,7 +77,7 @@ trait InteractsWithRunBotSourceFixtures
     /**
      * @return array<string,mixed>
      */
-    private function wikiNoRelevantPayload(): array
+    protected function wikiNoRelevantPayload(): array
     {
         return [
             'events' => [
@@ -112,7 +112,7 @@ trait InteractsWithRunBotSourceFixtures
         ];
     }
 
-    private function wikiEndpointForDate(string $baseUrl, Carbon $date): string
+    protected function wikiEndpointForDate(string $baseUrl, Carbon $date): string
     {
         return sprintf('%s/%02d/%02d', rtrim($baseUrl, '/'), $date->month, $date->day);
     }
@@ -121,7 +121,7 @@ trait InteractsWithRunBotSourceFixtures
      * @param array<string,mixed> $overrides
      * @return array<string,mixed>
      */
-    private function apodPayload(array $overrides = []): array
+    protected function apodPayload(array $overrides = []): array
     {
         return array_replace([
             'date' => '2026-02-20',
@@ -134,7 +134,7 @@ trait InteractsWithRunBotSourceFixtures
         ], $overrides);
     }
 
-    private function apodRssPayload(): string
+    protected function apodRssPayload(): string
     {
         return <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -157,7 +157,7 @@ trait InteractsWithRunBotSourceFixtures
 XML;
     }
 
-    private function apodRssArticleHtml(): string
+    protected function apodRssArticleHtml(): string
     {
         return <<<'HTML'
 <!doctype html>
@@ -172,12 +172,12 @@ XML;
 HTML;
     }
 
-    private function imageFixtureBinary(): string
+    protected function imageFixtureBinary(): string
     {
         return (string) file_get_contents(base_path('tests/Fixtures/images/large-sample.jpg'));
     }
 
-    private function rssWithMissingTitleAndLink(): string
+    protected function rssWithMissingTitleAndLink(): string
     {
         return <<<'XML'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -194,7 +194,7 @@ HTML;
 XML;
     }
 
-    private function rssForGuid(string $guid): string
+    protected function rssForGuid(string $guid): string
     {
         return sprintf(
             <<<'XML'
@@ -216,7 +216,7 @@ XML,
         );
     }
 
-    private function rssSingleItem(string $guid, string $title, string $link, string $description): string
+    protected function rssSingleItem(string $guid, string $title, string $link, string $description): string
     {
         return sprintf(
             <<<'XML'
@@ -241,7 +241,7 @@ XML,
         );
     }
 
-    private function createExistingBotPost(): Post
+    protected function createExistingBotPost(): Post
     {
         $user = User::factory()->create([
             'is_bot' => true,
