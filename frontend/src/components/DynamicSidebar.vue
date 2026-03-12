@@ -84,6 +84,7 @@ const propsForSection = (section) => {
     sectionKey === 'observing_conditions'
     || sectionKey === 'observing_weather'
     || sectionKey === 'night_sky'
+    || sectionKey === 'moon_phases'
   ) {
     return {
       lat: props.observingLat,

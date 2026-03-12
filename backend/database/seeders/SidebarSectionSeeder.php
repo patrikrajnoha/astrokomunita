@@ -61,6 +61,12 @@ class SidebarSectionSeeder extends Seeder
                 'is_visible' => true,
                 'sort_order' => 7,
             ],
+            [
+                'key' => 'moon_phases',
+                'title' => 'Fazy mesiaca',
+                'is_visible' => true,
+                'sort_order' => 8,
+            ],
         ];
 
         foreach ($sections as $section) {

@@ -94,6 +94,12 @@ class SidebarSectionRegistry
                 'default_enabled' => true,
                 'default_order' => 7,
             ],
+            [
+                'section_key' => 'moon_phases',
+                'title' => 'Fazy mesiaca',
+                'default_enabled' => true,
+                'default_order' => 8,
+            ],
         ];
     }
 
