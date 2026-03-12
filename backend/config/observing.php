@@ -12,7 +12,12 @@ return [
     'sky' => [
         'weather_cache_ttl_minutes' => env('SKY_WEATHER_CACHE_TTL_MINUTES', 10),
         'viewing_forecast_cache_ttl_minutes' => env('SKY_VIEWING_FORECAST_CACHE_TTL_MINUTES', 30),
+        'astronomy_cache_ttl_minutes' => env('SKY_ASTRONOMY_CACHE_TTL_MINUTES', 5),
         'astronomy_cache_ttl_hours' => env('SKY_ASTRONOMY_CACHE_TTL_HOURS', 6),
+        'astronomy_precision_bucket_minutes' => env('SKY_ASTRONOMY_PRECISION_BUCKET_MINUTES', 1),
+        'moon_phases_cache_ttl_minutes' => env('SKY_MOON_PHASES_CACHE_TTL_MINUTES', 5),
+        'moon_phases_cache_ttl_hours' => env('SKY_MOON_PHASES_CACHE_TTL_HOURS', 12),
+        'moon_phases_precision_bucket_minutes' => env('SKY_MOON_PHASES_PRECISION_BUCKET_MINUTES', 1),
         'visible_planets_cache_ttl_minutes' => env('SKY_VISIBLE_PLANETS_CACHE_TTL_MINUTES', 10),
         'iss_preview_cache_ttl_minutes' => env('SKY_ISS_PREVIEW_CACHE_TTL_MINUTES', 15),
         'light_pollution_cache_ttl_hours' => env('SKY_LIGHT_POLLUTION_CACHE_TTL_HOURS', 24),

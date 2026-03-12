@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Sky\SkyAstronomyRequest;
 use App\Http\Requests\Sky\SkyIssPreviewRequest;
 use App\Http\Requests\Sky\SkyLightPollutionRequest;
+use App\Http\Requests\Sky\SkyMoonPhasesRequest;
 use App\Http\Requests\Sky\SkyVisiblePlanetsRequest;
 use App\Http\Requests\Sky\SkyWeatherRequest;
 use App\Services\Sky\SkyAstronomyService;
 use App\Services\Sky\SkyIssPreviewService;
 use App\Services\Sky\SkyLightPollutionService;
+use App\Services\Sky\SkyMoonPhasesService;
 use App\Services\Sky\SkyVisiblePlanetsService;
 use App\Services\Sky\SkyWeatherService;
 use App\Support\ApiResponse;
@@ -27,7 +29,8 @@ class SkyController extends Controller
         private readonly SkyAstronomyService $skyAstronomyService,
         private readonly SkyVisiblePlanetsService $skyVisiblePlanetsService,
         private readonly SkyIssPreviewService $skyIssPreviewService,
-        private readonly SkyLightPollutionService $skyLightPollutionService
+        private readonly SkyLightPollutionService $skyLightPollutionService,
+        private readonly SkyMoonPhasesService $skyMoonPhasesService
     ) {
     }
 
@@ -59,18 +62,81 @@ class SkyController extends Controller
     public function astronomy(SkyAstronomyRequest $request): JsonResponse
     {
         $context = $this->contextResolver->resolve($request, $request->validated());
-        $dateKey = CarbonImmutable::now($context['tz'])->format('Y-m-d');
-        $cacheKey = $this->buildCacheKey('sky_astronomy', $context['lat'], $context['lon'], $context['tz'], $dateKey);
-        $ttlHours = max(1, (int) config('observing.sky.astronomy_cache_ttl_hours', 6));
+        $nowLocal = CarbonImmutable::now($context['tz']);
+        $dateKey = $nowLocal->format('Y-m-d');
+        $bucketSuffix = $this->resolveTimeBucketSuffix(
+            $nowLocal,
+            (int) config('observing.sky.astronomy_precision_bucket_minutes', 1)
+        );
+        $cacheSuffix = $bucketSuffix !== null ? "{$dateKey}:{$bucketSuffix}" : $dateKey;
+        $cacheKey = $this->buildCacheKey('sky_astronomy', $context['lat'], $context['lon'], $context['tz'], $cacheSuffix);
+        $ttlMinutes = max(
+            1,
+            (int) config(
+                'observing.sky.astronomy_cache_ttl_minutes',
+                max(1, ((int) config('observing.sky.astronomy_cache_ttl_hours', 6)) * 60)
+            )
+        );
 
         try {
             $payload = Cache::remember(
                 $cacheKey,
-                now()->addHours($ttlHours),
+                now()->addMinutes($ttlMinutes),
                 fn (): array => $this->skyAstronomyService->fetch($context['lat'], $context['lon'], $context['tz'])
             );
         } catch (\Throwable) {
             return ApiResponse::error('Sky astronomy data is temporarily unavailable.', null, 503);
+        }
+
+        return response()->json($payload);
+    }
+
+    public function moonPhases(SkyMoonPhasesRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+        $context = $this->contextResolver->resolve($request, $validated);
+        $referenceDate = is_string($validated['date'] ?? null) ? trim((string) $validated['date']) : '';
+        $nowLocal = CarbonImmutable::now($context['tz']);
+        $resolvedReferenceDate = $referenceDate !== ''
+            ? $referenceDate
+            : $nowLocal->format('Y-m-d');
+        $isCurrentDay = $resolvedReferenceDate === $nowLocal->format('Y-m-d');
+        $bucketSuffix = $isCurrentDay
+            ? $this->resolveTimeBucketSuffix(
+                $nowLocal,
+                (int) config('observing.sky.moon_phases_precision_bucket_minutes', 1)
+            )
+            : null;
+        $cacheSuffix = $bucketSuffix !== null ? "{$resolvedReferenceDate}:{$bucketSuffix}" : $resolvedReferenceDate;
+
+        $cacheKey = $this->buildCacheKey(
+            'sky_moon_phases',
+            $context['lat'],
+            $context['lon'],
+            $context['tz'],
+            $cacheSuffix
+        );
+        $ttlMinutes = max(
+            1,
+            (int) config(
+                'observing.sky.moon_phases_cache_ttl_minutes',
+                max(1, ((int) config('observing.sky.moon_phases_cache_ttl_hours', 12)) * 60)
+            )
+        );
+
+        try {
+            $payload = Cache::remember(
+                $cacheKey,
+                now()->addMinutes($ttlMinutes),
+                fn (): array => $this->skyMoonPhasesService->fetch(
+                    $context['lat'],
+                    $context['lon'],
+                    $context['tz'],
+                    $referenceDate !== '' ? $referenceDate : null
+                )
+            );
+        } catch (\Throwable) {
+            return ApiResponse::error('Moon phase data is temporarily unavailable.', null, 503);
         }
 
         return response()->json($payload);
@@ -201,5 +267,18 @@ class SkyController extends Controller
         }
 
         return true;
+    }
+
+    private function resolveTimeBucketSuffix(CarbonImmutable $moment, int $bucketMinutes): ?string
+    {
+        if ($bucketMinutes < 1) {
+            return null;
+        }
+
+        $minute = (int) $moment->minute;
+        $bucketStartMinute = (int) (floor($minute / $bucketMinutes) * $bucketMinutes);
+        $bucketMoment = $moment->setTime((int) $moment->hour, $bucketStartMinute, 0);
+
+        return $bucketMoment->format('Hi');
     }
 }

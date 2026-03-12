@@ -233,6 +233,7 @@ Route::get('/observing/sky-summary', ObservingSkySummaryController::class);
 Route::prefix('sky')->group(function () {
     Route::get('/weather', [SkyController::class, 'weather'])->middleware('sky.throttle:cheap');
     Route::get('/astronomy', [SkyController::class, 'astronomy'])->middleware('sky.throttle:cheap');
+    Route::get('/moon-phases', [SkyController::class, 'moonPhases'])->middleware('sky.throttle:cheap');
     Route::get('/visible-planets', [SkyController::class, 'visiblePlanets'])->middleware('sky.throttle:expensive');
     Route::get('/iss-preview', [SkyController::class, 'issPreview'])->middleware('sky.throttle:expensive');
     Route::get('/light-pollution', [SkyController::class, 'lightPollution'])->middleware('sky.throttle:expensive');
@@ -462,7 +463,6 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         | Events (admin)
         |----------------------------------------------------------------------
         */
-        Route::get('/events', [AdminEventController::class, 'index']);
         Route::post('/events/{event}/ai/generate-description', [AdminAiController::class, 'generateEventDescription'])
             ->middleware('throttle:admin-ai');
         Route::post('/events/{event}/ai/postedit-title', [AdminAiController::class, 'postEditEventTitle'])
@@ -555,6 +555,8 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
 Route::middleware(['auth:sanctum', 'active', 'verified', 'admin.content'])
     ->prefix('admin')
     ->group(function () {
+        Route::get('/events', [AdminEventController::class, 'index']);
+
         // Newsletter (admin + editor)
         Route::get('/newsletter/preview', [AdminNewsletterController::class, 'preview']);
         Route::post('/newsletter/preview', [AdminNewsletterController::class, 'sendPreview'])->middleware('throttle:newsletter-preview');
@@ -662,7 +664,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/me/location/auto', [MeLocationController::class, 'auto']);
         Route::get('/me/notifications/preferences', [UserNotificationPreferenceController::class, 'show']);
         Route::post('/me/notifications/preferences', [UserNotificationPreferenceController::class, 'update']);
-        Route::post('/me/export/jobs', [MeDataExportJobController::class, 'store'])->middleware('throttle:me-export');
+        Route::post('/me/export/jobs', [MeDataExportJobController::class, 'store'])->middleware('throttle:me-export-jobs');
         Route::get('/me/export/jobs/{job}', [MeDataExportJobController::class, 'show'])->middleware('throttle:30,1');
         Route::get('/me/export/jobs/{job}/download', MeDataExportJobDownloadController::class)
             ->name('me.export.jobs.download')

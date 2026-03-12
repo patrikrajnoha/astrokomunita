@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -31,6 +32,32 @@ class MeDataExportJobTest extends TestCase
         ])
             ->assertStatus(422)
             ->assertJsonPath('errors.current_password.0', 'Aktualne heslo nie je spravne.');
+    }
+
+    public function test_export_job_allows_retry_without_immediate_rate_limit(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create([
+            'password' => bcrypt('secret-password'),
+        ]);
+        Sanctum::actingAs($user);
+
+        $ip = '10.0.1.12';
+
+        $this->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->postJson('/api/me/export/jobs', [
+                'current_password' => 'secret-password',
+            ])
+            ->assertStatus(202)
+            ->assertJsonPath('status', 'pending');
+
+        $this->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->postJson('/api/me/export/jobs', [
+                'current_password' => 'secret-password',
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', 'pending');
     }
 
     public function test_export_job_can_be_created_polled_and_downloaded(): void

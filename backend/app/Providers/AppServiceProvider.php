@@ -150,6 +150,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(1)->by('me-export|' . $userId . '|' . $request->ip());
         });
 
+        RateLimiter::for('me-export-jobs', function (Request $request) {
+            $userId = (string) ($request->user()?->id ?? 'guest');
+
+            return Limit::perMinute(5)->by('me-export-jobs|' . $userId);
+        });
+
         RateLimiter::for('report-submissions', function (Request $request) {
             $userId = $request->user('sanctum')?->id ?? $request->user()?->id;
             if ($userId !== null) {
