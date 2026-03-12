@@ -1,4 +1,5 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { consumeHomeFeedPrefetch } from '@/services/feedPrefetch'
 
 const HOME_TABS = [
   { id: 'for_you', label: 'Komunita', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
@@ -113,6 +114,31 @@ export function useFeedListTabs({
     state.err = ''
 
     try {
+      if (reset && tab === 'for_you') {
+        const prefetched = consumeHomeFeedPrefetch()
+        if (prefetched) {
+          const rows = prefetched.data || []
+          avatarDebug('FeedList:load-prefetched', {
+            tab,
+            count: rows.length,
+            sampleUsers: rows.slice(0, 5).map((post) => ({
+              postId: post?.id ?? null,
+              userId: post?.user?.id ?? null,
+              username: post?.user?.username ?? null,
+              avatar_mode: post?.user?.avatar_mode ?? null,
+              avatar_path: post?.user?.avatar_path ?? null,
+              avatar_url: post?.user?.avatar_url ?? null,
+            })),
+          })
+
+          bookmarks.hydrateFromPosts(rows)
+          state.items = rows
+          state.nextPageUrl = prefetched.next_page_url || null
+          state.loaded = true
+          return
+        }
+      }
+
       let url
 
       if (reset) {
