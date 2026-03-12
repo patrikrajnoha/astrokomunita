@@ -82,4 +82,21 @@ class AdminRouteContractTest extends TestCase
             ->getJson('/api/admin/dashboard')
             ->assertStatus(403);
     }
+
+    public function test_editor_can_access_content_admin_newsletter_and_events_index(): void
+    {
+        $editor = User::factory()->create([
+            'is_admin' => false,
+            'role' => 'editor',
+            'email_verified_at' => now(),
+        ]);
+
+        $this->actingAs($editor, 'sanctum')
+            ->getJson('/api/admin/newsletter/preview')
+            ->assertOk();
+
+        $this->actingAs($editor, 'sanctum')
+            ->getJson('/api/admin/events')
+            ->assertOk();
+    }
 }
