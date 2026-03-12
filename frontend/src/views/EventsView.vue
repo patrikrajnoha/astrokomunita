@@ -26,7 +26,6 @@ import { eventDisplayTitle } from '@/utils/translatedFields'
 import {
   eventCardSummary,
   eventCardTimeAriaLabel,
-  eventCardTimeContext,
   eventCardTimeMessage,
   eventCardTimeTimezoneLabel,
   formatCardDate,
@@ -72,10 +71,36 @@ let suppressLocalFilterWatch = false
 const freshTimeouts = new Map()
 
 const scopeOptions = [
-  { value: 'future', label: 'Buduce' },
+  { value: 'future', label: 'Nadchadzajuce' },
   { value: 'past', label: 'Minule' },
   { value: 'all', label: 'Vsetky' },
 ]
+
+const typeFilterOptions = [
+  { value: 'all', label: 'Vsetky' },
+  { value: 'meteors', label: 'Meteoricke roje' },
+  { value: 'eclipses', label: 'Zatmenia' },
+  { value: 'conjunctions', label: 'Konjunkcie' },
+  { value: 'comets', label: 'Komety' },
+]
+
+const regionOptions = [
+  { value: 'all', label: 'Vsetky regiony' },
+  { value: 'sk', label: 'Slovensko' },
+  { value: 'eu', label: 'Europa' },
+  { value: 'global', label: 'Globalne' },
+]
+
+const quickPeriodPresetDefinitions = [
+  { key: 'this-week', label: 'Tento tyzden', period: 'week' },
+  { key: 'this-month', label: 'Tento mesiac', period: 'month' },
+  { key: 'this-year', label: 'Tento rok', period: 'year' },
+]
+
+const typeLabelByValue = Object.fromEntries(
+  typeFilterOptions.map((option) => [option.value, option.label]),
+)
+const regionLabelByValue = Object.fromEntries(regionOptions.map((option) => [option.value, option.label]))
 
 const monthOptions = [
   { value: 1, label: 'Januar' },
@@ -125,6 +150,72 @@ const realtimeBannerLabel = computed(() => {
   return `${noun} (${count})`
 })
 const weekOptions = computed(() => Array.from({ length: 53 }, (_, idx) => idx + 1))
+const periodSummaryLabel = computed(() =>
+  formatPeriodSummaryLabel({
+    period: selectedPeriod.value,
+    year: selectedYear.value,
+    month: selectedMonth.value,
+    week: selectedWeek.value,
+  }),
+)
+const resultContextLabel = computed(
+  () => `${scopeDisplayLabel(selectedScope.value)} | ${periodSummaryLabel.value}`,
+)
+const totalEventsLabel = computed(() => (totalEvents.value === 1 ? 'udalost' : 'udalosti'))
+const quickPeriodPresets = computed(() => {
+  const defaults = currentPeriodDefaults()
+  return quickPeriodPresetDefinitions.map((preset) => ({
+    ...preset,
+    year: defaults.year,
+    month: defaults.month,
+    week: defaults.week,
+  }))
+})
+const activeFilterChips = computed(() => {
+  const chips = []
+
+  if (selectedScope.value !== 'future') {
+    chips.push({
+      key: 'scope',
+      label: `Rozsah: ${scopeDisplayLabel(selectedScope.value)}`,
+    })
+  }
+
+  const defaults = currentPeriodDefaults()
+  const hasDefaultPeriod =
+    selectedPeriod.value === 'month' &&
+    selectedYear.value === defaults.year &&
+    selectedMonth.value === defaults.month
+  if (!hasDefaultPeriod) {
+    chips.push({
+      key: 'period',
+      label: `Obdobie: ${periodSummaryLabel.value}`,
+    })
+  }
+
+  if (selectedType.value !== 'all') {
+    chips.push({
+      key: 'type',
+      label: `Typ: ${typeLabelByValue[selectedType.value] || selectedType.value}`,
+    })
+  }
+
+  if (selectedRegion.value !== 'all') {
+    chips.push({
+      key: 'region',
+      label: `Region: ${regionLabelByValue[selectedRegion.value] || selectedRegion.value}`,
+    })
+  }
+
+  if (searchQuery.value) {
+    chips.push({
+      key: 'search',
+      label: `Hladat: ${searchQuery.value}`,
+    })
+  }
+
+  return chips
+})
 
 function currentPeriodDefaults() {
   return getEventNowPeriodDefaults(EVENT_TIMEZONE)
@@ -132,6 +223,25 @@ function currentPeriodDefaults() {
 
 function normalizePeriod(value) {
   return ['month', 'week', 'year'].includes(value) ? value : 'month'
+}
+
+function scopeDisplayLabel(scope) {
+  return scopeOptions.find((option) => option.value === scope)?.label || 'Nadchadzajuce'
+}
+
+function monthDisplayLabel(month) {
+  return monthOptions.find((option) => option.value === Number(month))?.label || `Mesiac ${month}`
+}
+
+function formatPeriodSummaryLabel({ period, year, month, week }) {
+  if (period === 'week') return `Tyzden ${week}/${year}`
+  if (period === 'year') return `Rok ${year}`
+  return `${monthDisplayLabel(month)} ${year}`
+}
+
+function ensureYearOption(year) {
+  if (!Number.isInteger(year) || year <= 0 || yearOptions.value.includes(year)) return
+  yearOptions.value = [...yearOptions.value, year].sort((a, b) => a - b)
 }
 
 function currentEventItems() {
@@ -391,6 +501,36 @@ function setView(view) {
   router.replace({ name: 'events', query: nextQuery })
 }
 
+function toggleFiltersPanel() {
+  filtersOpen.value = !filtersOpen.value
+}
+
+function clearSearchQuery() {
+  if (!searchQuery.value) return
+  searchQuery.value = ''
+}
+
+function quickPeriodIsActive(preset) {
+  if (!preset) return false
+  if (selectedPeriod.value !== preset.period) return false
+  if (selectedYear.value !== preset.year) return false
+  if (preset.period === 'month') return selectedMonth.value === preset.month
+  if (preset.period === 'week') return selectedWeek.value === preset.week
+  return true
+}
+
+async function applyQuickPeriod(preset) {
+  if (!preset) return
+
+  ensureYearOption(preset.year)
+  selectedYear.value = preset.year
+  selectedPeriod.value = preset.period
+  if (preset.period === 'month') selectedMonth.value = preset.month
+  if (preset.period === 'week') selectedWeek.value = preset.week
+
+  await onPeriodSelectionChanged()
+}
+
 async function setScope(scope) {
   const normalized = normalizeScope(scope)
   if (selectedScope.value === normalized && page.value === 1) return
@@ -448,6 +588,30 @@ async function resetFilters() {
   if (!routeChanged && !isCalendarView.value) await fetchEvents()
 }
 
+async function removeActiveFilter(key) {
+  if (!key) return
+
+  if (key === 'scope') {
+    await setScope('future')
+    return
+  }
+
+  if (key === 'period') {
+    const defaults = currentPeriodDefaults()
+    ensureYearOption(defaults.year)
+    selectedPeriod.value = 'month'
+    selectedYear.value = defaults.year
+    selectedMonth.value = defaults.month
+    selectedWeek.value = defaults.week
+    await onPeriodSelectionChanged()
+    return
+  }
+
+  if (key === 'type') selectedType.value = 'all'
+  if (key === 'region') selectedRegion.value = 'all'
+  if (key === 'search') searchQuery.value = ''
+}
+
 async function showAllEvents() {
   await setScope('all')
 }
@@ -486,6 +650,10 @@ watch(
 )
 
 onMounted(async () => {
+  if (typeof window !== 'undefined') {
+    filtersOpen.value = window.matchMedia('(min-width: 960px)').matches
+  }
+
   try {
     const yearsRes = await getEventYears()
     const meta = yearsRes?.data || {}

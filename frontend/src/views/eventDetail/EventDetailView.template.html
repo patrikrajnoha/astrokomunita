@@ -16,6 +16,34 @@
       </div>
     </section>
 
+    <section v-else-if="missingEvent" class="missingEventState" aria-live="polite">
+      <article class="missingEventCard">
+        <div class="missingEventStarfield" aria-hidden="true">
+          <span class="missingEventStar"></span>
+          <span class="missingEventStar"></span>
+          <span class="missingEventStar"></span>
+        </div>
+
+        <div class="missingEventBadge">Event nenajdeny</div>
+        <h1 class="missingEventTitle">Tato udalost uz neexistuje.</h1>
+        <p class="missingEventText">
+          Odkaz je neplatny alebo bol event odstraneny. Skus otvorit aktualny zoznam udalosti.
+        </p>
+
+        <div class="missingEventActions">
+          <button type="button" class="missingEventButton missingEventButton--ghost" @click="goBack">
+            Spat
+          </button>
+          <button type="button" class="missingEventButton missingEventButton--primary" @click="goToEvents">
+            Vsetky udalosti
+          </button>
+          <button type="button" class="missingEventButton" @click="loadEvent">
+            Skusit znova
+          </button>
+        </div>
+      </article>
+    </section>
+
     <section v-else-if="error" class="errorState">
       <InlineStatus
         variant="error"

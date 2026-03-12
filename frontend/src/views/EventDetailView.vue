@@ -52,6 +52,7 @@ const toast = useToast()
 const event = ref(null)
 const loading = ref(true)
 const error = ref('')
+const missingEvent = ref(false)
 const descriptionExpanded = ref(false)
 const inviteModalOpen = ref(false)
 const planModalOpen = ref(false)
@@ -272,15 +273,22 @@ function goBack() {
   router.push({ name: 'events' })
 }
 
+function goToEvents() {
+  router.push({ name: 'events' })
+}
+
 async function loadEvent() {
   if (!Number.isFinite(eventId.value)) {
     error.value = 'Neplatny identifikator udalosti.'
+    missingEvent.value = false
     loading.value = false
     return
   }
 
   loading.value = true
   error.value = ''
+  missingEvent.value = false
+  event.value = null
   descriptionExpanded.value = false
   viewingForecast.value = createInitialViewingState()
   resetSwipeGesture()
@@ -295,6 +303,14 @@ async function loadEvent() {
       await eventFollows.syncFollowState(eventId.value)
     }
   } catch (requestError) {
+    const statusCode = Number(requestError?.response?.status)
+    if (statusCode === 404) {
+      missingEvent.value = true
+      error.value = ''
+      adjacentEventIds.value = { prev: null, next: null }
+      return
+    }
+
     error.value =
       requestError?.response?.data?.message ||
       requestError?.userMessage ||
