@@ -1,7 +1,7 @@
 <template>
   <SettingsDetailShell
-    title="Onboarding tour"
-    subtitle="Replay quick guide for feed, calendar, and observing conditions."
+    title="Onboarding sprievodca"
+    subtitle="Interaktivna prehliadka feedu, kalendara a pozorovacich podmienok."
   >
     <div class="settings-form">
       <button
@@ -10,7 +10,7 @@
         aria-label="Start onboarding tour"
         @click="startOnboardingTour"
       >
-        Spustit onboarding
+        Spustit sprievodcu
       </button>
     </div>
   </SettingsDetailShell>

@@ -12,9 +12,37 @@
       tabindex="-1"
       @click.stop
     >
+      <button
+        type="button"
+        class="tourClose"
+        aria-label="Zavriet onboarding tour"
+        @click="skipTour"
+      >
+        x
+      </button>
+
       <p class="tourProgress">Krok {{ currentStepIndex + 1 }} z {{ steps.length }}</p>
+      <div class="tourProgressBar" role="progressbar" :aria-valuenow="progressPercent" aria-valuemin="0" aria-valuemax="100">
+        <span class="tourProgressBarFill" :style="{ width: `${progressPercent}%` }"></span>
+      </div>
+
       <h2 :id="titleId" class="tourTitle">{{ currentStep.title }}</h2>
       <p class="tourBody">{{ currentStep.body }}</p>
+      <p class="tourTip">{{ currentStep.tip }}</p>
+      <p v-if="!isTargetAvailable" class="tourMissing">{{ currentStep.missingHint }}</p>
+
+      <div class="tourStepDots" role="tablist" aria-label="Kroky tour">
+        <button
+          v-for="(step, index) in steps"
+          :key="step.id"
+          type="button"
+          class="tourStepDot"
+          :class="{ active: index === currentStepIndex }"
+          :aria-label="`Prejst na krok ${index + 1}: ${step.title}`"
+          :aria-current="index === currentStepIndex ? 'step' : undefined"
+          @click="jumpToStep(index)"
+        ></button>
+      </div>
 
       <div class="tourActions">
         <button type="button" class="tourBtn ghost" @click="skipTour">Preskocit</button>
@@ -34,7 +62,7 @@
             class="tourBtn primary"
             @click="goNext"
           >
-            Dalej
+            {{ nextButtonLabel }}
           </button>
           <button
             v-else
@@ -64,22 +92,30 @@ const steps = [
   {
     id: 'feed',
     selector: '[data-tour="feed"]',
-    title: 'Toto je feed',
-    body: 'Tu vidis najnovsie prispevky a udalosti.',
+    title: 'Komunitny feed',
+    body: 'Tu najdes nove prispevky, diskusie a pozorovania od komunity.',
+    tip: 'Skus prepnut kartu alebo otvorit detail prispevku.',
+    missingHint: 'Feed sa teraz nenasiel. Skus prejst na domovsku stranku a pokracovat.',
+    nextLabel: 'Na kalendar',
     route: { name: 'home' },
   },
   {
     id: 'calendar',
     selector: '[data-tour="calendar"]',
-    title: 'Toto je kalendar',
-    body: 'Tu najdes udalosti v kalendarovom zobrazeni.',
+    title: 'Kalendar udalosti',
+    body: 'V kalendari vidis astronomicke ukazy podla datumu a vyhladavania.',
+    tip: 'Otvor detail udalosti a pridaj ju do svojho kalendara.',
+    missingHint: 'Kalendar sa teraz nenasiel. Skontroluj, ci je zapnute zobrazenie Kalendar.',
+    nextLabel: 'Na podmienky',
     route: { name: 'calendar' },
   },
   {
     id: 'conditions',
     selector: '[data-tour="conditions"]',
-    title: 'Toto su astronomicke podmienky',
-    body: 'Tu vidis oblacnost, seeing a dalsie podmienky.',
+    title: 'Pozorovacie podmienky',
+    body: 'Na jednom mieste mas pocasie, seeing a dalsie uzitocne widgety.',
+    tip: 'Na mobile otvoris widgety tlacidlom vpravo dole, na desktope ich najdes v pravom paneli.',
+    missingHint: 'Panel podmienok sa teraz nenasiel. Pokracuj na dalsi krok alebo skus obnovit stranku.',
     route: { name: 'home' },
   },
 ]
@@ -96,6 +132,7 @@ const currentStepIndex = ref(0)
 const tooltipRef = ref(null)
 const targetElement = ref(null)
 const targetRect = ref(null)
+const isTargetAvailable = ref(true)
 const tooltipStyle = ref({
   top: `${VIEWPORT_MARGIN}px`,
   left: `${VIEWPORT_MARGIN}px`,
@@ -109,6 +146,11 @@ let rafHandle = 0
 
 const currentStep = computed(() => steps[currentStepIndex.value] || steps[0])
 const isLastStep = computed(() => currentStepIndex.value >= steps.length - 1)
+const progressPercent = computed(() => {
+  if (steps.length === 0) return 0
+  return Math.round(((currentStepIndex.value + 1) / steps.length) * 100)
+})
+const nextButtonLabel = computed(() => currentStep.value?.nextLabel || 'Dalej')
 const computedTooltipStyle = computed(() => {
   if (targetRect.value) {
     return tooltipStyle.value
@@ -196,6 +238,28 @@ const scheduleRectUpdate = () => {
   })
 }
 
+const ensureElementInViewport = async (element) => {
+  if (!isElementVisible(element)) return
+
+  const rect = element.getBoundingClientRect()
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
+  const isOutsideViewport = rect.top < VIEWPORT_MARGIN || rect.bottom > viewportHeight - VIEWPORT_MARGIN
+
+  if (!isOutsideViewport) return
+
+  try {
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+      inline: 'nearest',
+    })
+  } catch {
+    element.scrollIntoView()
+  }
+
+  await wait(220)
+}
+
 const waitForElement = async (selector) => {
   for (let attempt = 0; attempt < RESOLVE_ATTEMPTS; attempt += 1) {
     await nextTick()
@@ -244,6 +308,7 @@ const resolveTarget = async () => {
 
   clearTargetHighlight()
   targetRect.value = null
+  isTargetAvailable.value = true
 
   await ensureOnRoute(step)
   if (currentSequence !== resolveSequence || !tourStore.isOpen) return
@@ -253,15 +318,15 @@ const resolveTarget = async () => {
 
   if (!element) {
     console.warn(`[OnboardingTour] selector not found: ${step.selector}`)
-    if (isLastStep.value) {
-      finishTour()
-      return
-    }
-    currentStepIndex.value += 1
+    isTargetAvailable.value = false
+    targetRect.value = null
+    await focusTooltip()
     return
   }
 
+  isTargetAvailable.value = true
   targetElement.value = element
+  await ensureElementInViewport(targetElement.value)
   targetElement.value.classList.add(HIGHLIGHT_CLASS)
   updateTargetRect()
   await focusTooltip()
@@ -281,6 +346,12 @@ const goPrev = () => {
   currentStepIndex.value -= 1
 }
 
+const jumpToStep = (index) => {
+  const nextIndex = clamp(Math.floor(Number(index) || 0), 0, steps.length - 1)
+  if (nextIndex === currentStepIndex.value) return
+  currentStepIndex.value = nextIndex
+}
+
 const finishTour = () => {
   clearTargetHighlight()
   tourStore.markDone()
@@ -292,9 +363,22 @@ const skipTour = () => {
 }
 
 const handleKeydown = (event) => {
-  if (event.key !== 'Escape') return
-  event.preventDefault()
-  skipTour()
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    skipTour()
+    return
+  }
+
+  if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    goNext()
+    return
+  }
+
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    goPrev()
+  }
 }
 
 watch(
@@ -365,6 +449,24 @@ onBeforeUnmount(() => {
   gap: 0.65rem;
 }
 
+.tourClose {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  border: 0;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  background: rgb(var(--color-text-secondary-rgb) / 0.18);
+  color: var(--color-surface);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.tourClose:hover {
+  background: rgb(var(--color-text-secondary-rgb) / 0.28);
+}
+
 .tourProgress {
   margin: 0;
   font-size: 0.72rem;
@@ -372,6 +474,21 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
   font-weight: 700;
+}
+
+.tourProgressBar {
+  width: 100%;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: rgb(var(--color-text-secondary-rgb) / 0.2);
+  overflow: hidden;
+}
+
+.tourProgressBarFill {
+  display: block;
+  height: 100%;
+  background: rgb(var(--color-primary-rgb) / 0.9);
+  transition: width 180ms ease;
 }
 
 .tourTitle {
@@ -384,6 +501,44 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 0.86rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.98);
+}
+
+.tourTip {
+  margin: 0;
+  font-size: 0.79rem;
+  color: rgb(var(--color-primary-rgb) / 0.9);
+  border-left: 2px solid rgb(var(--color-primary-rgb) / 0.58);
+  padding-left: 0.48rem;
+}
+
+.tourMissing {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgb(var(--color-warning-rgb) / 0.95);
+  background: rgb(var(--color-warning-rgb) / 0.12);
+  border: 1px solid rgb(var(--color-warning-rgb) / 0.4);
+  border-radius: 0.56rem;
+  padding: 0.42rem 0.5rem;
+}
+
+.tourStepDots {
+  display: flex;
+  align-items: center;
+  gap: 0.36rem;
+}
+
+.tourStepDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  border: 0;
+  background: rgb(var(--color-text-secondary-rgb) / 0.35);
+  padding: 0;
+  cursor: pointer;
+}
+
+.tourStepDot.active {
+  background: rgb(var(--color-primary-rgb) / 0.95);
 }
 
 .tourActions {
