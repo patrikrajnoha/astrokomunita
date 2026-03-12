@@ -38,7 +38,8 @@ export function buildWidgetProps(sectionKey, title, observingContext) {
   if (
     sectionKey === 'observing_conditions' ||
     sectionKey === 'observing_weather' ||
-    sectionKey === 'night_sky'
+    sectionKey === 'night_sky' ||
+    sectionKey === 'moon_phases'
   ) {
     return {
       lat: observingContext.lat,

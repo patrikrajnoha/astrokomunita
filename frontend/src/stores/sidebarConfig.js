@@ -15,6 +15,7 @@ const DEFAULT_ITEMS = [
   { kind: 'builtin', section_key: 'next_event', title: 'Najblizsia udalost', order: 5, is_enabled: true },
   { kind: 'builtin', section_key: 'latest_articles', title: 'Najnovsie clanky', order: 6, is_enabled: true },
   { kind: 'builtin', section_key: 'upcoming_events', title: 'Co sa deje', order: 7, is_enabled: true },
+  { kind: 'builtin', section_key: 'moon_phases', title: 'Fazy mesiaca', order: 8, is_enabled: true },
 ]
 
 const cloneAndSort = (items) => {

@@ -24,6 +24,7 @@ const LatestArticlesWidget = defineAsyncComponent(() => import('@/components/wid
 const NasaHighlightsWidget = defineAsyncComponent(() => import('@/components/widgets/NasaHighlightsWidget.vue'))
 const NextEventWidget = defineAsyncComponent(() => import('@/components/widgets/NextEventWidget.vue'))
 const UpcomingEventsWidget = defineAsyncComponent(() => import('@/components/widgets/UpcomingEventsWidget.vue'))
+const MoonPhasesWidget = defineAsyncComponent(() => import('@/components/widgets/MoonPhasesWidget.vue'))
 const SidebarWidgetRenderer = defineAsyncComponent(() => import('@/components/widgets/SidebarWidgetRenderer.vue'))
 
 export const sidebarComponentMap = {
@@ -36,6 +37,7 @@ export const sidebarComponentMap = {
   next_event: NextEventWidget,
   latest_articles: LatestArticlesWidget,
   upcoming_events: UpcomingEventsWidget,
+  moon_phases: MoonPhasesWidget,
 }
 
 export const customSidebarComponentMap = {
@@ -99,6 +101,10 @@ const sidebarIconMap = {
       'M8 13h5',
       'M8 17h6',
     ],
+  },
+  moon_phases: {
+    viewBox: '0 0 24 24',
+    paths: ['M12 2a10 10 0 1 0 8.6 15.1A8.3 8.3 0 0 1 12 2Z'],
   },
   custom_component: {
     viewBox: '0 0 24 24',

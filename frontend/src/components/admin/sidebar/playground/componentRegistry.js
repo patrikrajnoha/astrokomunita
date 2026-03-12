@@ -7,6 +7,7 @@ import NasaHighlightsWidget from '@/components/widgets/NasaHighlightsWidget.vue'
 import NextEventWidget from '@/components/widgets/NextEventWidget.vue'
 import LatestArticlesWidget from '@/components/widgets/LatestArticlesWidget.vue'
 import UpcomingEventsWidget from '@/components/widgets/UpcomingEventsWidget.vue'
+import MoonPhasesWidget from '@/components/widgets/MoonPhasesWidget.vue'
 
 const CATEGORY_ORDER = [
   'Sidebar widgety',
@@ -79,6 +80,26 @@ export const sidebarComponentPlaygroundRegistry = [
       tz: 'Europe/Bratislava',
     },
     editableProps: [
+      { key: 'lat', label: 'Zemepisna sirka', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
+      { key: 'lon', label: 'Zemepisna dlzka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
+      { key: 'tz', label: 'Casove pasmo', type: 'text', defaultValue: 'Europe/Bratislava' },
+    ],
+  },
+  {
+    id: 'sidebar-moon-phases',
+    label: 'Fazy mesiaca',
+    category: 'Sidebar widgety',
+    sourcePath: 'frontend/src/components/widgets/MoonPhasesWidget.vue',
+    description: 'Vsetky fazy mesiaca so start/end intervalom a aktualnym highlightom.',
+    component: MoonPhasesWidget,
+    initialProps: {
+      title: 'Fazy mesiaca',
+      lat: 48.1486,
+      lon: 17.1077,
+      tz: 'Europe/Bratislava',
+    },
+    editableProps: [
+      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Fazy mesiaca' },
       { key: 'lat', label: 'Zemepisna sirka', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
       { key: 'lon', label: 'Zemepisna dlzka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
       { key: 'tz', label: 'Casove pasmo', type: 'text', defaultValue: 'Europe/Bratislava' },
