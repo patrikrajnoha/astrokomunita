@@ -10,13 +10,15 @@ use App\Services\NotificationService;
 use App\Services\Storage\MediaStorageService;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AdminUserController extends Controller
 {
     private const PROFILE_MEDIA_UPLOAD_MAX_KB = 20480;
+    private const ADMIN_STATS_CACHE_KEY = 'admin:stats:v1';
 
     public function __construct(
         private readonly NotificationService $notifications,
@@ -153,6 +155,7 @@ class AdminUserController extends Controller
         $user->banned_at = now();
         $user->ban_reason = trim((string) $validated['reason']);
         $user->save();
+        $this->forgetAdminStatsCache();
 
         $this->notifications->createAccountRestricted(
             (int) $user->id,
@@ -171,6 +174,7 @@ class AdminUserController extends Controller
         $user->banned_at = null;
         $user->ban_reason = null;
         $user->save();
+        $this->forgetAdminStatsCache();
 
         return response()->json($this->mapUser($user));
     }
@@ -182,6 +186,7 @@ class AdminUserController extends Controller
 
         $user->is_active = false;
         $user->save();
+        $this->forgetAdminStatsCache();
 
         return response()->json($this->mapUser($user));
     }
@@ -193,6 +198,7 @@ class AdminUserController extends Controller
 
         $user->is_active = true;
         $user->save();
+        $this->forgetAdminStatsCache();
 
         return response()->json($this->mapUser($user));
     }
@@ -211,6 +217,7 @@ class AdminUserController extends Controller
         $user->avatar_seed = null;
         $user->cover_path = null;
         $user->save();
+        $this->forgetAdminStatsCache();
 
         return response()->json($this->mapUser($user));
     }
@@ -238,6 +245,7 @@ class AdminUserController extends Controller
             'role' => $nextRole,
             'is_admin' => false,
         ])->save();
+        $this->forgetAdminStatsCache();
 
         return response()->json($this->mapUser($user));
     }
@@ -491,6 +499,11 @@ class AdminUserController extends Controller
         throw ValidationException::withMessages([
             'avatar_icon' => 'The selected avatar icon is invalid.',
         ]);
+    }
+
+    private function forgetAdminStatsCache(): void
+    {
+        Cache::forget(self::ADMIN_STATS_CACHE_KEY);
     }
 }
 

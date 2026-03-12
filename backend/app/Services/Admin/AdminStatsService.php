@@ -2,16 +2,28 @@
 
 namespace App\Services\Admin;
 
+use App\Services\Location\IpLocationService;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class AdminStatsService
 {
+    public function __construct(
+        private readonly IpLocationService $ipLocationService,
+    ) {
+    }
+
     /**
      * @return array{
      *     kpi: array<string,int>,
-     *     demographics: array{by_role: array<string,int>, by_region: array<string,int>},
+     *     demographics: array{
+     *         by_role: array<string,int>,
+     *         by_region: array<string,int>,
+     *         by_region_active_ip_30d: array<string,int>
+     *     },
      *     queues: array{event_candidates_pending:int, moderation_pending:int, moderation_flagged:int},
      *     trend: array{range_days:int, points: array<int,array{date:string,new_users:int,new_posts:int,new_events:int}>},
      *     generated_at: string
@@ -55,8 +67,9 @@ class AdminStatsService
         $roleRows = DB::table('users')
             ->selectRaw(
                 "CASE
-                    WHEN is_bot = 1 THEN 'bot'
+                    WHEN is_bot = 1 OR role = 'bot' THEN 'bot'
                     WHEN role = 'admin' OR is_admin = 1 THEN 'admin'
+                    WHEN role = 'editor' THEN 'editor'
                     ELSE 'user'
                 END as role_bucket"
             )
@@ -66,6 +79,7 @@ class AdminStatsService
         $byRole = [
             'user' => 0,
             'admin' => 0,
+            'editor' => 0,
             'bot' => 0,
         ];
         foreach ($roleRows as $row) {
@@ -99,6 +113,7 @@ class AdminStatsService
                 $byRegion[$bucket] = (int) $row->total;
             }
         }
+        $byRegionActiveIp30d = $this->buildActiveIpRegionBreakdown($activityField, $usersActiveThreshold);
 
         $usersTrend = DB::table('users')
             ->selectRaw('DATE(created_at) as date_key, COUNT(*) as total')
@@ -140,6 +155,7 @@ class AdminStatsService
             'demographics' => [
                 'by_role' => $byRole,
                 'by_region' => $byRegion,
+                'by_region_active_ip_30d' => $byRegionActiveIp30d,
             ],
             'queues' => [
                 'event_candidates_pending' => $eventCandidatesPending,
@@ -152,5 +168,157 @@ class AdminStatsService
             ],
             'generated_at' => now()->toIso8601String(),
         ];
+    }
+
+    /**
+     * @return array{unknown:int,sk:int,cz:int,other:int}
+     */
+    private function buildActiveIpRegionBreakdown(string $activityField, Carbon $usersActiveThreshold): array
+    {
+        $buckets = [
+            'unknown' => 0,
+            'sk' => 0,
+            'cz' => 0,
+            'other' => 0,
+        ];
+
+        $activeUserIds = DB::table('users')
+            ->whereNotNull($activityField)
+            ->where($activityField, '>=', $usersActiveThreshold)
+            ->pluck('id')
+            ->map(static fn ($value): int => (int) $value)
+            ->all();
+
+        if ($activeUserIds === []) {
+            return $buckets;
+        }
+
+        if (! (bool) config('admin.stats_ip_region_enabled', true)) {
+            $buckets['unknown'] = count($activeUserIds);
+            return $buckets;
+        }
+
+        if (
+            ! Schema::hasTable('sessions')
+            || ! Schema::hasColumn('sessions', 'user_id')
+            || ! Schema::hasColumn('sessions', 'ip_address')
+            || ! Schema::hasColumn('sessions', 'last_activity')
+        ) {
+            $buckets['unknown'] = count($activeUserIds);
+            return $buckets;
+        }
+
+        $activeSinceUnix = $usersActiveThreshold->getTimestamp();
+        $sessionRows = DB::table('sessions')
+            ->select(['user_id', 'ip_address', 'last_activity'])
+            ->whereIn('user_id', $activeUserIds)
+            ->whereNotNull('ip_address')
+            ->where('ip_address', '<>', '')
+            ->where('last_activity', '>=', $activeSinceUnix)
+            ->orderByDesc('last_activity')
+            ->get();
+
+        $latestIpByUserId = [];
+        foreach ($sessionRows as $row) {
+            $userId = (int) ($row->user_id ?? 0);
+            if ($userId <= 0 || array_key_exists($userId, $latestIpByUserId)) {
+                continue;
+            }
+
+            $latestIpByUserId[$userId] = (string) $row->ip_address;
+        }
+
+        $remainingLookups = max(0, (int) config('admin.stats_ip_region_lookup_max_per_build', 64));
+
+        foreach ($activeUserIds as $userId) {
+            $ip = $latestIpByUserId[$userId] ?? null;
+            $bucket = $this->resolveIpRegionBucket($ip, $remainingLookups);
+            $buckets[$bucket] = (int) ($buckets[$bucket] ?? 0) + 1;
+        }
+
+        return $buckets;
+    }
+
+    private function resolveIpRegionBucket(?string $ip, int &$remainingLookups): string
+    {
+        $normalizedIp = trim((string) $ip);
+        if ($normalizedIp === '') {
+            return 'unknown';
+        }
+
+        $isPublicIp = filter_var(
+            $normalizedIp,
+            FILTER_VALIDATE_IP,
+            FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+        ) !== false;
+        if (! $isPublicIp) {
+            return 'unknown';
+        }
+
+        $cacheKey = $this->ipRegionCacheKey($normalizedIp);
+        $cachedBucket = $this->normalizeIpRegionBucket(Cache::get($cacheKey));
+        if ($cachedBucket !== null) {
+            return $cachedBucket;
+        }
+
+        if ($remainingLookups <= 0) {
+            return 'unknown';
+        }
+        $remainingLookups--;
+
+        $ttlSeconds = max(300, (int) config('admin.stats_ip_region_cache_ttl_seconds', 86_400));
+        $payload = $this->ipLocationService->lookup($normalizedIp);
+        $bucket = $this->resolveCountryBucket(is_array($payload) ? $payload : []);
+        Cache::put($cacheKey, $bucket, now()->addSeconds($ttlSeconds));
+
+        return $bucket;
+    }
+
+    private function ipRegionCacheKey(string $normalizedIp): string
+    {
+        return 'admin:stats:ip-region:' . hash('sha256', $normalizedIp);
+    }
+
+    private function normalizeIpRegionBucket(mixed $value): ?string
+    {
+        $normalized = strtolower(trim((string) $value));
+
+        return in_array($normalized, ['unknown', 'sk', 'cz', 'other'], true)
+            ? $normalized
+            : null;
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function resolveCountryBucket(array $payload): string
+    {
+        $countryCode = strtolower(trim((string) ($payload['country_code'] ?? '')));
+        if ($countryCode === 'sk') {
+            return 'sk';
+        }
+        if (in_array($countryCode, ['cz', 'cs'], true)) {
+            return 'cz';
+        }
+
+        $country = strtolower(trim((string) ($payload['country'] ?? '')));
+        if ($country === '' || $country === 'unknown') {
+            return 'unknown';
+        }
+
+        $countryAscii = strtolower((string) Str::of($country)->ascii());
+        $isSlovakia = preg_match('/\b(slovakia|slovensko)\b/u', $country) === 1
+            || preg_match('/\b(slovakia|slovensko)\b/u', $countryAscii) === 1;
+        if ($isSlovakia) {
+            return 'sk';
+        }
+
+        $isCzech = preg_match('/\b(czechia|czech republic|cesko)\b/u', $country) === 1
+            || preg_match('/\b(czechia|czech republic|cesko)\b/u', $countryAscii) === 1;
+        if ($isCzech) {
+            return 'cz';
+        }
+
+        return 'other';
     }
 }
