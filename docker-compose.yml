@@ -17,9 +17,14 @@ x-backend-common-env: &backend-common-env
   DB_HOST: mysql
   MODERATION_BASE_URL: http://moderation:8090
   LIBRETRANSLATE_BASE_URL: http://libretranslate:5000
+  OLLAMA_BASE_URL: http://ollama:11434
+  AI_OLLAMA_BASE_URL: http://ollama:11434
   TRANSLATION_SERVICE_URL: http://sky:8010
   TRANSLATION_PROVIDER: libretranslate
   TRANSLATION_FALLBACK_PROVIDER: none
+  MAIL_MAILER: smtp
+  MAIL_HOST: mailpit
+  MAIL_PORT: "1025"
 
 x-backend-service: &backend-service
   build:
@@ -85,10 +90,14 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      mailpit:
+        condition: service_started
       moderation:
         condition: service_started
       libretranslate:
         condition: service_started
+      ollama:
+        condition: service_healthy
       sky:
         condition: service_started
 
@@ -103,6 +112,8 @@ services:
         condition: service_healthy
       libretranslate:
         condition: service_started
+      ollama:
+        condition: service_healthy
       sky:
         condition: service_started
 
@@ -117,6 +128,8 @@ services:
         condition: service_healthy
       libretranslate:
         condition: service_started
+      ollama:
+        condition: service_healthy
       sky:
         condition: service_started
 
@@ -187,7 +200,20 @@ services:
     container_name: astrokomunita-libretranslate
     restart: unless-stopped
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: astrokomunita-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+    restart: unless-stopped
+
 volumes:
   backend_vendor:
   frontend_node_modules:
   mysql_data:
+  ollama_data:
