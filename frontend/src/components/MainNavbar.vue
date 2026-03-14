@@ -467,7 +467,6 @@ const selectCreateType = (type) => {
 onMounted(() => {
   document.addEventListener('mousedown', handleClickOutside)
   window.addEventListener('keydown', handleKeydown)
-  if (auth.isAuthed) notifications.fetchUnreadCount()
 })
 
 onBeforeUnmount(() => {
@@ -478,12 +477,7 @@ onBeforeUnmount(() => {
 watch(
   () => auth.isAuthed,
   (isAuthed) => {
-    if (isAuthed) {
-      notifications.fetchUnreadCount()
-      return
-    }
-
-    closeNotifications()
+    if (!isAuthed) closeNotifications()
   }
 )
 

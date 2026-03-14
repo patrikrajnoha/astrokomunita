@@ -151,4 +151,13 @@ describe('NotificationsView', () => {
 
     wrapper.unmount()
   })
+
+  it('loads the notifications list without an extra unread-count fetch on mount', async () => {
+    const { wrapper } = await mountView()
+
+    expect(notificationsStoreMock.fetchList).toHaveBeenCalledWith(1)
+    expect(notificationsStoreMock.fetchUnreadCount).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
 })

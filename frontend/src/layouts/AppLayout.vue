@@ -444,8 +444,10 @@ watch(
   () => auth.user?.id,
   async (nextUserId) => {
     if (nextUserId) {
-      await notifications.startRealtime()
-      await notifications.fetchUnreadCount()
+      await Promise.allSettled([
+        notifications.startRealtime(),
+        notifications.fetchUnreadCount(),
+      ])
       return
     }
 

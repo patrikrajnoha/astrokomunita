@@ -72,6 +72,10 @@ export default defineConfig(({ mode }) => {
           target: effectiveBackendProxyTarget,
           changeOrigin: true,
         },
+        '/broadcasting': {
+          target: effectiveBackendProxyTarget,
+          changeOrigin: true,
+        },
         '/storage': {
           target: effectiveBackendProxyTarget,
           changeOrigin: true,

@@ -231,7 +231,6 @@ watch(isSettingsModalOpen, (isOpen) => {
 
 onMounted(() => {
   store.fetchList(1)
-  store.fetchUnreadCount()
   fetchPreferences()
 })
 

@@ -6,6 +6,7 @@ import { disconnectEcho, getEcho, initEcho } from '@/realtime/echo'
 
 let activePrivateChannel = ''
 let restrictionFlowActive = false
+const UNREAD_COUNT_FRESH_MS = 30 * 1000
 
 function normalizeNotificationId(value) {
   const id = Number(value || 0)
@@ -145,6 +146,7 @@ export const useNotificationsStore = defineStore('notifications', {
     latestError: '',
     latestLoaded: false,
     unreadCountLoading: false,
+    unreadCountFetchedAt: 0,
     unreadCountFetchSeq: 0,
     markAllReading: false,
     fetchingPages: [],
@@ -175,6 +177,7 @@ export const useNotificationsStore = defineStore('notifications', {
       this.latestError = ''
       this.latestLoaded = false
       this.unreadCountLoading = false
+      this.unreadCountFetchedAt = 0
       this.unreadCountFetchSeq = 0
       this.markAllReading = false
       this.fetchingPages = []
@@ -299,8 +302,18 @@ export const useNotificationsStore = defineStore('notifications', {
         this.unreadCountFetchSeq += 1
         this.unreadCount = 0
         this.unreadCountLoading = false
+        this.unreadCountFetchedAt = 0
         this.unreadCountHydrated = true
         return
+      }
+
+      const hasFreshUnreadCount =
+        this.unreadCountHydrated &&
+        this.unreadCountFetchedAt > 0 &&
+        Date.now() - this.unreadCountFetchedAt < UNREAD_COUNT_FRESH_MS
+
+      if (hasFreshUnreadCount && options?.force !== true) {
+        return this.unreadCount
       }
 
       if (this.unreadCountLoading && options?.force !== true) return
@@ -315,6 +328,8 @@ export const useNotificationsStore = defineStore('notifications', {
         })
         if (fetchSeq !== this.unreadCountFetchSeq) return
         this.unreadCount = res?.data?.count ?? 0
+        this.unreadCountFetchedAt = Date.now()
+        return this.unreadCount
       } catch (err) {
         if (fetchSeq !== this.unreadCountFetchSeq) return
         const status = err?.response?.status
@@ -348,6 +363,9 @@ export const useNotificationsStore = defineStore('notifications', {
       } else if (wasUnread && !isUnread) {
         this.unreadCount = Math.max(0, this.unreadCount - 1)
       }
+
+      this.unreadCountHydrated = true
+      this.unreadCountFetchedAt = Date.now()
 
       if (options.toast !== false) {
         const { info } = useToast()
@@ -461,6 +479,8 @@ export const useNotificationsStore = defineStore('notifications', {
         this.items = applyReadState(this.items, normalizedId, nowIso)
         this.latestItems = applyReadState(this.latestItems, normalizedId, nowIso)
         this.unreadCount = Math.max(0, this.unreadCount - 1)
+        this.unreadCountHydrated = true
+        this.unreadCountFetchedAt = Date.now()
       }
 
       try {
@@ -490,6 +510,8 @@ export const useNotificationsStore = defineStore('notifications', {
       this.items = this.items.map((item) => (item.read_at ? item : { ...item, read_at: nowIso }))
       this.latestItems = this.latestItems.map((item) => (item.read_at ? item : { ...item, read_at: nowIso }))
       this.unreadCount = 0
+      this.unreadCountHydrated = true
+      this.unreadCountFetchedAt = Date.now()
 
       try {
         await auth.csrf()
