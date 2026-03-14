@@ -76,7 +76,9 @@ export function buildWidgetProps(sectionKey, title, observingContext, options = 
     sectionKey === 'nasa_apod' ||
     sectionKey === 'next_event' ||
     sectionKey === 'next_eclipse' ||
-    sectionKey === 'latest_articles'
+    sectionKey === 'next_meteor_shower' ||
+    sectionKey === 'latest_articles' ||
+    sectionKey === 'upcoming_events'
   ) {
     return title ? { title } : {}
   }

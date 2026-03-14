@@ -29,6 +29,7 @@ const LatestArticlesWidget = defineAsyncComponent(() => import('@/components/wid
 const NasaHighlightsWidget = defineAsyncComponent(() => import('@/components/widgets/NasaHighlightsWidget.vue'))
 const NextEventWidget = defineAsyncComponent(() => import('@/components/widgets/NextEventWidget.vue'))
 const NextEclipseWidget = defineAsyncComponent(() => import('@/components/widgets/NextEclipseWidget.vue'))
+const NextMeteorWidget = defineAsyncComponent(() => import('@/components/widgets/NextMeteorWidget.vue'))
 const UpcomingEventsWidget = defineAsyncComponent(() => import('@/components/widgets/UpcomingEventsWidget.vue'))
 const MoonPhasesWidget = defineAsyncComponent(() => import('@/components/widgets/MoonPhasesWidget.vue'))
 const MoonOverviewWidget = defineAsyncComponent(() => import('@/components/widgets/MoonOverviewWidget.vue'))
@@ -45,6 +46,7 @@ export const sidebarComponentMap = {
   nasa_apod: NasaHighlightsWidget,
   next_event: NextEventWidget,
   next_eclipse: NextEclipseWidget,
+  next_meteor_shower: NextMeteorWidget,
   latest_articles: LatestArticlesWidget,
   upcoming_events: UpcomingEventsWidget,
   moon_phases: MoonPhasesWidget,
@@ -111,6 +113,17 @@ const sidebarIconMap = {
       'M12 3a9 9 0 1 0 0 18',
       'M12 3a9 9 0 0 1 0 18',
       'M16 8.5a6 6 0 0 0 0 7',
+    ],
+  },
+  next_meteor_shower: {
+    viewBox: '0 0 24 24',
+    paths: [
+      'M4 18 13 9',
+      'M13 9h6',
+      'M13 9V3',
+      'm8 11 2 2',
+      'm5 8 1.5 1.5',
+      'm11 15 1.5 1.5',
     ],
   },
   latest_articles: {

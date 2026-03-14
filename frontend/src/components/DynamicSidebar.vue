@@ -144,6 +144,7 @@ const propsForSection = (section) => {
     sectionKey === 'nasa_apod'
     || sectionKey === 'next_event'
     || sectionKey === 'next_eclipse'
+    || sectionKey === 'next_meteor_shower'
     || sectionKey === 'latest_articles'
     || sectionKey === 'upcoming_events'
   ) {

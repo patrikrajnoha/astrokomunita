@@ -27,4 +27,13 @@ describe('buildWidgetProps', () => {
     expect(props.showOverview).toBe(true)
     expect(props.showSpecialEvents).toBe(true)
   })
+
+  it('passes the configured title to title-based sidebar widgets', () => {
+    expect(buildWidgetProps('next_meteor_shower', 'Najblizsi meteoricky roj', observingContext)).toEqual({
+      title: 'Najblizsi meteoricky roj',
+    })
+    expect(buildWidgetProps('upcoming_events', 'Co sa deje dnes', observingContext)).toEqual({
+      title: 'Co sa deje dnes',
+    })
+  })
 })

@@ -10,4 +10,7 @@ return [
     'next_eclipse' => [
         'cache_ttl_seconds' => (int) env('NEXT_ECLIPSE_WIDGET_CACHE_TTL_SECONDS', 300),
     ],
+    'next_meteor_shower' => [
+        'cache_ttl_seconds' => (int) env('NEXT_METEOR_SHOWER_WIDGET_CACHE_TTL_SECONDS', 300),
+    ],
 ];
