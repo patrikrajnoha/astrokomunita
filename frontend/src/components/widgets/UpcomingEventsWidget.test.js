@@ -56,4 +56,34 @@ describe('UpcomingEventsWidget', () => {
     expect(wrapper.text()).toContain('Zdroj: Databaza udalosti')
     expect(wrapper.text()).toMatch(/21\.\s?2\.\s?2026/)
   })
+
+  it('uses bundled payload and skips standalone widget fetch', async () => {
+    const wrapper = mount(UpcomingEventsWidget, {
+      props: {
+        initialPayload: {
+          items: [
+            { id: 21, title: 'Bundled event', slug: null, start_at: '2026-02-24T18:00:00Z' },
+          ],
+          source: {
+            label: 'Databaza udalosti',
+          },
+          generated_at: '2026-02-16T12:00:00Z',
+        },
+      },
+      global: {
+        stubs: {
+          RouterLink: {
+            props: ['to'],
+            template: '<a :href="String(to)"><slot /></a>',
+          },
+        },
+      },
+    })
+
+    await flushPromises()
+    await nextTick()
+
+    expect(mockGetUpcomingEventsWidget).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Bundled event')
+  })
 })

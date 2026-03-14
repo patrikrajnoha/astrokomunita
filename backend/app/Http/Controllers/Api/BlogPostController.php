@@ -4,9 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\BlogPost;
-use App\Services\Storage\MediaStorageService;
+use App\Services\Widgets\ArticlesWidgetService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 
 class BlogPostController extends Controller
 {
@@ -90,35 +89,9 @@ class BlogPostController extends Controller
         return response()->json($items);
     }
 
-    public function widget(MediaStorageService $mediaStorageService)
+    public function widget(ArticlesWidgetService $articlesWidgetService)
     {
-        $ttlSeconds = max((int) config('widgets.articles_widget.cache_ttl_seconds', 60), 1);
-        $cacheKey = 'articles_widget_v1';
-
-        $payload = Cache::remember($cacheKey, now()->addSeconds($ttlSeconds), function () use ($mediaStorageService) {
-            $latest = BlogPost::query()
-                ->published()
-                ->select(['id', 'title', 'slug', 'cover_image_path', 'views', 'created_at'])
-                ->orderByDesc('created_at')
-                ->limit(3)
-                ->get();
-
-            $mostRead = BlogPost::query()
-                ->published()
-                ->select(['id', 'title', 'slug', 'cover_image_path', 'views', 'created_at'])
-                ->orderByDesc('views')
-                ->orderByDesc('created_at')
-                ->limit(3)
-                ->get();
-
-            return [
-                'most_read' => $this->mapWidgetItems($mostRead, $mediaStorageService),
-                'latest' => $this->mapWidgetItems($latest, $mediaStorageService),
-                'generated_at' => now()->toIso8601String(),
-            ];
-        });
-
-        return response()->json($payload);
+        return response()->json($articlesWidgetService->payload());
     }
 
     private function resolvePublished(string $slug): ?BlogPost
@@ -143,21 +116,6 @@ class BlogPostController extends Controller
         }
 
         return $query->where('slug', $slug)->first();
-    }
-
-    private function mapWidgetItems($items, MediaStorageService $mediaStorageService): array
-    {
-        return $items
-            ->map(fn (BlogPost $post) => [
-                'id' => $post->id,
-                'title' => $post->title,
-                'slug' => $post->slug,
-                'thumbnail_url' => $mediaStorageService->absoluteUrl($post->cover_image_path),
-                'views' => (int) $post->views,
-                'created_at' => optional($post->created_at)?->toIso8601String(),
-            ])
-            ->values()
-            ->all();
     }
 }
 

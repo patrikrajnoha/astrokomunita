@@ -92,4 +92,35 @@ describe('LatestArticlesWidget', () => {
     expect(wrapper.text()).toContain('Latest A')
     expect(mockBlogPosts.widget).toHaveBeenCalledTimes(1)
   })
+
+  it('uses bundled payload and skips initial widget fetch', async () => {
+    const wrapper = mount(LatestArticlesWidget, {
+      props: {
+        initialPayload: {
+          most_read: [
+            { id: 9, title: 'Bundled most read', slug: 'bundled-most-read', thumbnail_url: null, views: 20, created_at: '2026-02-16T10:00:00Z' },
+          ],
+          latest: [
+            { id: 10, title: 'Bundled latest', slug: 'bundled-latest', thumbnail_url: null, views: 2, created_at: '2026-02-16T11:00:00Z' },
+          ],
+        },
+        switchIntervalMs: 1000,
+        refetchIntervalMs: 300000,
+      },
+      global: {
+        stubs: {
+          RouterLink: {
+            props: ['to'],
+            template: '<a :href="String(to)"><slot /></a>',
+          },
+        },
+      },
+    })
+
+    await flushPromises()
+    await nextTick()
+
+    expect(mockBlogPosts.widget).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Bundled most read')
+  })
 })

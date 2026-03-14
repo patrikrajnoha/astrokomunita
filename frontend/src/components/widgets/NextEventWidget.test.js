@@ -64,4 +64,38 @@ describe('NextEventWidget', () => {
     expect(wrapper.text()).toContain('Zdroj: IMO')
     expect(wrapper.find('a[href="/events/42"]').exists()).toBe(true)
   })
+
+  it('uses bundled payload and skips standalone API fetch', async () => {
+    const wrapper = mount(NextEventWidget, {
+      props: {
+        initialPayload: {
+          data: {
+            id: 7,
+            title: 'Zatmenie',
+            type: 'eclipse_solar',
+            start_at: '2026-03-01T10:00:00Z',
+            updated_at: '2026-02-16T11:40:00Z',
+            source: {
+              name: 'nasa',
+            },
+          },
+        },
+      },
+      global: {
+        stubs: {
+          RouterLink: {
+            props: ['to'],
+            template: '<a :href="String(to)"><slot /></a>',
+          },
+        },
+      },
+    })
+
+    await flushPromises()
+    await nextTick()
+
+    expect(getMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Zatmenie')
+    expect(wrapper.text()).toContain('Zatmenie Slnka')
+  })
 })

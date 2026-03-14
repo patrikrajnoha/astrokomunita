@@ -50,7 +50,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import api from '@/services/api'
 
 export default {
@@ -60,11 +60,20 @@ export default {
       type: String,
       default: 'NASA Novinky',
     },
+    initialPayload: {
+      type: Object,
+      default: undefined,
+    },
+    bundlePending: {
+      type: Boolean,
+      default: false,
+    },
   },
-  setup() {
+  setup(props) {
     const nasaItem = ref(null)
     const loading = ref(false)
     const error = ref(null)
+    const hydratedFromBundle = ref(false)
 
     const nasaEnabled = computed(() => {
       return (
@@ -89,20 +98,25 @@ export default {
       return parts.join(' | ')
     })
 
+    const applyPayload = (payload) => {
+      if (payload && payload.available) {
+        nasaItem.value = payload
+      } else {
+        nasaItem.value = null
+      }
+
+      error.value = null
+      loading.value = false
+      hydratedFromBundle.value = true
+    }
+
     const fetchNasaIotd = async () => {
       loading.value = true
       error.value = null
       nasaItem.value = null
 
       try {
-        const res = await api.get('/nasa/iotd')
-        const payload = res?.data
-
-        if (payload && payload.available) {
-          nasaItem.value = payload
-        } else {
-          nasaItem.value = null
-        }
+        applyPayload((await api.get('/nasa/iotd'))?.data)
       } catch (err) {
         error.value =
           err?.response?.data?.message ||
@@ -114,10 +128,37 @@ export default {
       }
     }
 
-    onMounted(() => {
-      if (nasaEnabled.value) {
+    watch(
+      () => props.initialPayload,
+      (payload) => {
+        if (payload !== undefined) {
+          applyPayload(payload)
+        }
+      },
+      { immediate: true },
+    )
+
+    watch(
+      () => props.bundlePending,
+      (pending, wasPending) => {
+        if (pending || !wasPending || hydratedFromBundle.value || !nasaEnabled.value) return
         fetchNasaIotd()
+      },
+    )
+
+    onMounted(() => {
+      if (!nasaEnabled.value) {
+        return
       }
+
+      if (props.initialPayload !== undefined || props.bundlePending) {
+        if (props.bundlePending && props.initialPayload === undefined) {
+          loading.value = true
+        }
+        return
+      }
+
+      fetchNasaIotd()
     })
 
     return {

@@ -61,6 +61,7 @@ use App\Http\Controllers\Api\Admin\AdminStatsController;
 use App\Http\Controllers\Api\Admin\AdminBotController;
 use App\Http\Controllers\Api\Admin\PerformanceMetricsController;
 use App\Http\Controllers\Api\SidebarConfigController;
+use App\Http\Controllers\Api\SidebarDataController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\FeedController;
 use App\Http\Controllers\Api\HashtagController;
@@ -249,6 +250,7 @@ Route::get('/meta/locations', [MetaController::class, 'locations']);
 |--------------------------------------------------------------------------
 */
 Route::get('/sidebar-config', [SidebarConfigController::class, 'index']);
+Route::get('/sidebar-data', [SidebarDataController::class, 'show']);
 
 /*
 |--------------------------------------------------------------------------

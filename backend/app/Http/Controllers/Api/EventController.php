@@ -7,8 +7,8 @@ use App\Http\Requests\EventIndexRequest;
 use App\Http\Resources\EventResource;
 use App\Services\Events\EventFilter;
 use App\Services\Events\PublishedEventQuery;
+use App\Services\Widgets\EventWidgetService;
 use App\Support\EventFollowTable;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -17,6 +17,7 @@ class EventController extends Controller
     public function __construct(
         private readonly PublishedEventQuery $publishedEventQuery,
         private readonly EventFilter $eventFilter,
+        private readonly EventWidgetService $eventWidgetService,
     ) {
     }
 
@@ -83,36 +84,7 @@ class EventController extends Controller
      */
     public function next(Request $request)
     {
-        $now = CarbonImmutable::now();
-        $base = $this->basePublishedQuery();
-
-        // 1) Nearest upcoming event.
-        $event = (clone $base)
-            ->where(function ($q) use ($now) {
-                $q->where('start_at', '>=', $now)
-                  ->orWhere(function ($q2) use ($now) {
-                      $q2->whereNull('start_at')
-                         ->where('max_at', '>=', $now);
-                  });
-            })
-            ->orderByRaw('COALESCE(start_at, max_at) ASC')
-            ->first();
-
-        // 2) Fallback: nearest past event.
-        if (!$event) {
-            $event = (clone $base)
-                ->orderByRaw('COALESCE(start_at, max_at) DESC')
-                ->first();
-        }
-
-        if (!$event) {
-            return response()->json([
-                'data' => null,
-                'message' => 'Nenasli sa ziadne udalosti.',
-            ]);
-        }
-
-        return new EventResource($event);
+        return response()->json($this->eventWidgetService->nextEvent());
     }
 
     /**
