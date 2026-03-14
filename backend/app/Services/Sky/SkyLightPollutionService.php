@@ -12,58 +12,181 @@ class SkyLightPollutionService
     }
 
     /**
-     * @return array{
-     *   bortle_class:int,
-     *   brightness_value:float,
-     *   confidence:string
-     * }
+     * @return array<string,mixed>
      */
     public function fetch(float $lat, float $lon): array
     {
-        $providerUrl = trim((string) config('observing.providers.light_pollution_url', ''));
-        if ($providerUrl !== '') {
-            try {
-                $response = $this->http
-                    ->timeout(6)
-                    ->acceptJson()
-                    ->get($providerUrl, [
-                        'lat' => round($lat, 6),
-                        'lon' => round($lon, 6),
-                    ]);
+        $providers = $this->configuredProviders();
 
-                if ($response->successful()) {
-                    $payload = $response->json();
-                    if (is_array($payload)) {
-                        $normalized = $this->normalizeProviderPayload($payload);
-                        if ($normalized !== null) {
-                            return $normalized;
-                        }
-                    }
-                }
-            } catch (\Throwable) {
-                // Keep fallback payload when provider fails.
+        foreach ($providers as $source => $providerUrl) {
+            $normalized = $this->fetchFromProvider($providerUrl, $lat, $lon);
+            if ($normalized === null) {
+                continue;
             }
+
+            return $this->attachProviderProvenance($normalized, $source, $providerUrl, $lat, $lon);
         }
 
-        return $this->fallbackPayload($lat, $lon);
+        $viirsPayload = $this->fetchFromViirs($lat, $lon);
+        if ($viirsPayload !== null) {
+            return $this->attachViirsProvenance($viirsPayload, $lat, $lon);
+        }
+
+        if ($providers === [] && !$this->hasViirsProviderConfigured()) {
+            return $this->unavailablePayload('light_pollution_provider_not_configured');
+        }
+
+        return $this->unavailablePayload('light_pollution_provider_unavailable');
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private function configuredProviders(): array
+    {
+        $providers = [
+            'light_pollution_provider' => trim((string) config('observing.providers.light_pollution_url', '')),
+            'light_pollution_provider_secondary' => trim((string) config('observing.providers.light_pollution_secondary_url', '')),
+        ];
+
+        return array_filter($providers, static fn (string $url): bool => $url !== '');
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function fetchFromProvider(string $providerUrl, float $lat, float $lon): ?array
+    {
+        try {
+            $response = $this->http
+                ->timeout(6)
+                ->acceptJson()
+                ->get($providerUrl, [
+                    'lat' => round($lat, 6),
+                    'lon' => round($lon, 6),
+                ]);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (!$response->successful()) {
+            return null;
+        }
+
+        $payload = $response->json();
+        if (!is_array($payload)) {
+            return null;
+        }
+
+        return $this->normalizeProviderPayload($payload);
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function fetchFromViirs(float $lat, float $lon): ?array
+    {
+        $viirsUrl = trim((string) config('observing.providers.light_pollution_viirs_url', ''));
+        if ($viirsUrl === '') {
+            return null;
+        }
+
+        try {
+            $response = $this->http
+                ->timeout(6)
+                ->acceptJson()
+                ->get($viirsUrl, [
+                    'geometry' => number_format($lon, 6, '.', '').','.number_format($lat, 6, '.', ''),
+                    'geometryType' => 'esriGeometryPoint',
+                    'returnFirstValueOnly' => 'true',
+                    'interpolation' => 'RSP_NearestNeighbor',
+                    'f' => 'pjson',
+                ]);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (!$response->successful()) {
+            return null;
+        }
+
+        $payload = $response->json();
+        if (!is_array($payload)) {
+            return null;
+        }
+
+        return $this->normalizeViirsPayload($payload);
     }
 
     /**
      * @param array<string,mixed> $payload
-     * @return array{bortle_class:int,brightness_value:float,confidence:string}|null
+     * @return array<string,mixed>|null
+     */
+    private function normalizeViirsPayload(array $payload): ?array
+    {
+        $samples = $payload['samples'] ?? null;
+        if (!is_array($samples) || $samples === []) {
+            return null;
+        }
+
+        $firstSample = $samples[0] ?? null;
+        if (!is_array($firstSample)) {
+            return null;
+        }
+
+        $radiance = $this->toFloat(
+            $firstSample['value']
+                ?? (is_array($firstSample['attributes'] ?? null)
+                    ? ($firstSample['attributes']['value'] ?? $firstSample['attributes']['Value'] ?? null)
+                    : null)
+        );
+
+        if ($radiance === null || $radiance < 0 || $radiance > 10000) {
+            return null;
+        }
+
+        $resolution = $this->toFloat($firstSample['resolution'] ?? null);
+        $rasterId = $this->toInt($firstSample['rasterId'] ?? $firstSample['raster_id'] ?? null);
+        $bortle = $this->radianceToBortle($radiance);
+
+        return [
+            'bortle_class' => $bortle,
+            'brightness_value' => round($this->bortleToBrightness($bortle), 3),
+            'confidence' => $this->resolveViirsConfidence(
+                $radiance,
+                $resolution
+            ),
+            'measurement' => [
+                'kind' => 'viirs_radiance',
+                'viirs_radiance_nw_cm2_sr' => round($radiance, 3),
+                'viirs_resolution_deg' => $resolution !== null ? round($resolution, 6) : null,
+                'viirs_raster_id' => $rasterId,
+                'bortle_mapping_version' => 'viirs_radiance_to_bortle_v1',
+            ],
+        ];
+    }
+
+    private function hasViirsProviderConfigured(): bool
+    {
+        return trim((string) config('observing.providers.light_pollution_viirs_url', '')) !== '';
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>|null
      */
     private function normalizeProviderPayload(array $payload): ?array
     {
         $container = is_array($payload['data'] ?? null) ? $payload['data'] : $payload;
 
-        $brightness = $this->normalizeBrightness(
-            $container['brightness_value']
-                ?? $container['brightness']
-                ?? $container['value']
-                ?? null
-        );
+        $rawBrightness = $container['brightness_value']
+            ?? $container['brightness']
+            ?? $container['value']
+            ?? null;
+        $brightness = $this->normalizeBrightness($rawBrightness);
 
-        $bortle = $this->toInt($container['bortle_class'] ?? $container['bortle'] ?? null);
+        $rawBortle = $container['bortle_class'] ?? $container['bortle'] ?? null;
+        $bortle = $this->toInt($rawBortle);
         if ($bortle === null && $brightness !== null) {
             $bortle = $this->brightnessToBortle($brightness);
         }
@@ -72,31 +195,114 @@ class SkyLightPollutionService
             return null;
         }
 
-        $safeBrightness = $brightness ?? $this->bortleToBrightness($bortle ?? 6);
-        $safeBortle = max(1, min(9, $bortle ?? $this->brightnessToBortle($safeBrightness)));
+        $safeBrightness = $brightness !== null ? round($brightness, 3) : null;
+        $safeBortle = $bortle !== null ? max(1, min(9, $bortle)) : null;
+
+        if ($safeBrightness === null && $safeBortle !== null) {
+            $safeBrightness = round($this->bortleToBrightness($safeBortle), 3);
+        }
+
+        if ($safeBortle === null && $safeBrightness !== null) {
+            $safeBortle = $this->brightnessToBortle($safeBrightness);
+        }
 
         return [
             'bortle_class' => $safeBortle,
-            'brightness_value' => round($safeBrightness, 3),
+            'brightness_value' => $safeBrightness,
             'confidence' => $this->normalizeConfidence($container['confidence'] ?? null) ?? 'high',
+            'measurement' => [
+                'kind' => 'provider_normalized',
+                'raw_bortle_class' => $this->toInt($rawBortle),
+                'raw_brightness_value' => $this->toFloat($rawBrightness),
+                'normalization' => 'provider_value_to_bortle_v1',
+            ],
         ];
     }
 
     /**
-     * @return array{bortle_class:int,brightness_value:float,confidence:string}
+     * @return array<string,mixed>
      */
-    private function fallbackPayload(float $lat, float $lon): array
+    private function unavailablePayload(string $reason): array
     {
-        // Deterministic fallback keeps stable values for same coordinates.
-        $variation = (sin(deg2rad($lat * 3.0)) + cos(deg2rad($lon * 2.0))) * 0.03;
-        $brightness = max(0.02, min(0.35, 0.123 + $variation));
-        $bortle = $this->brightnessToBortle($brightness);
+        return [
+            'bortle_class' => null,
+            'brightness_value' => null,
+            'confidence' => 'low',
+            'source' => 'light_pollution_provider',
+            'reason' => $reason,
+            'measurement' => null,
+            'provenance' => [
+                'method' => 'unavailable',
+                'provider_chain' => ['light_pollution_provider', 'light_pollution_provider_secondary', 'light_pollution_viirs'],
+            ],
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>
+     */
+    private function attachProviderProvenance(
+        array $payload,
+        string $source,
+        string $providerUrl,
+        float $lat,
+        float $lon
+    ): array {
+        return [
+            ...$payload,
+            'source' => $source,
+            'reason' => null,
+            'provenance' => [
+                'method' => 'provider_http_get',
+                'provider_key' => $source,
+                'provider_url' => $this->providerUrlWithoutQuery($providerUrl),
+                'query_lat' => round($lat, 6),
+                'query_lon' => round($lon, 6),
+            ],
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>
+     */
+    private function attachViirsProvenance(array $payload, float $lat, float $lon): array
+    {
+        $viirsUrl = trim((string) config('observing.providers.light_pollution_viirs_url', ''));
 
         return [
-            'bortle_class' => $bortle,
-            'brightness_value' => round($brightness, 3),
-            'confidence' => 'low',
+            ...$payload,
+            'source' => 'light_pollution_viirs',
+            'reason' => null,
+            'provenance' => [
+                'method' => 'viirs_get_samples_nearest_neighbor',
+                'provider_key' => 'light_pollution_viirs',
+                'provider_url' => $this->providerUrlWithoutQuery($viirsUrl),
+                'query_lat' => round($lat, 6),
+                'query_lon' => round($lon, 6),
+            ],
         ];
+    }
+
+    private function providerUrlWithoutQuery(string $url): string
+    {
+        $trimmed = trim($url);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        $parts = parse_url($trimmed);
+        if (!is_array($parts)) {
+            return $trimmed;
+        }
+
+        $scheme = isset($parts['scheme']) ? strtolower((string) $parts['scheme']).'://' : '';
+        $host = isset($parts['host']) ? strtolower((string) $parts['host']) : '';
+        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+        $path = isset($parts['path']) ? (string) $parts['path'] : '';
+
+        return $scheme.$host.$port.$path;
     }
 
     private function normalizeBrightness(mixed $value): ?float
@@ -130,8 +336,39 @@ class SkyLightPollutionService
         return in_array($candidate, ['low', 'med', 'high'], true) ? $candidate : null;
     }
 
+    private function resolveViirsConfidence(float $radiance, ?float $resolution): string
+    {
+        if ($radiance <= 120.0 && $resolution !== null && $resolution <= 0.01) {
+            return 'med';
+        }
+
+        return 'low';
+    }
+
+    private function radianceToBortle(float $radiance): int
+    {
+        $safeRadiance = max(0.0, $radiance);
+
+        return match (true) {
+            $safeRadiance < 0.05 => 1,
+            $safeRadiance < 0.15 => 2,
+            $safeRadiance < 0.35 => 3,
+            $safeRadiance < 0.80 => 4,
+            $safeRadiance < 2.00 => 5,
+            $safeRadiance < 6.00 => 6,
+            $safeRadiance < 20.00 => 7,
+            $safeRadiance < 45.00 => 8,
+            default => 9,
+        };
+    }
+
     private function toInt(mixed $value): ?int
     {
         return is_numeric($value) ? (int) round((float) $value) : null;
+    }
+
+    private function toFloat(mixed $value): ?float
+    {
+        return is_numeric($value) ? (float) $value : null;
     }
 }

@@ -74,4 +74,36 @@ class ProfileLocationUpdateTest extends TestCase
         $this->assertNull($user->timezone);
         $this->assertNull($user->location_source);
     }
+
+    public function test_profile_update_rejects_name_with_blocked_word(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Clean Name',
+        ]);
+
+        $this->actingAs($user)
+            ->patchJson('/api/profile', [
+                'name' => 'Kurva Name',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['name']);
+
+        $this->assertSame('Clean Name', (string) $user->fresh()->name);
+    }
+
+    public function test_profile_update_rejects_name_containing_astrokomunita_keyword(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Clean Name',
+        ]);
+
+        $this->actingAs($user)
+            ->patchJson('/api/profile', [
+                'name' => 'Astrokomunita Support',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['name']);
+
+        $this->assertSame('Clean Name', (string) $user->fresh()->name);
+    }
 }

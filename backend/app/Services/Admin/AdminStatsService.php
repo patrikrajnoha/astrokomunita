@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use App\Services\Location\IpLocationService;
 use Carbon\Carbon;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -89,30 +90,7 @@ class AdminStatsService
             }
         }
 
-        $regionRows = DB::table('users')
-            ->selectRaw(
-                "CASE
-                    WHEN location IS NULL OR TRIM(location) = '' THEN 'unknown'
-                    WHEN LOWER(location) LIKE '%sk' OR LOWER(location) LIKE '%slovakia%' OR LOWER(location) LIKE '%slovensko%' THEN 'sk'
-                    WHEN LOWER(location) LIKE '%cz' OR LOWER(location) LIKE '%czechia%' OR LOWER(location) LIKE '%czech republic%' THEN 'cz'
-                    ELSE 'other'
-                END as region_bucket"
-            )
-            ->selectRaw('COUNT(*) as total')
-            ->groupBy('region_bucket')
-            ->get();
-        $byRegion = [
-            'unknown' => 0,
-            'sk' => 0,
-            'cz' => 0,
-            'other' => 0,
-        ];
-        foreach ($regionRows as $row) {
-            $bucket = (string) $row->region_bucket;
-            if (array_key_exists($bucket, $byRegion)) {
-                $byRegion[$bucket] = (int) $row->total;
-            }
-        }
+        $byRegion = $this->buildProfileRegionBreakdown();
         $byRegionActiveIp30d = $this->buildActiveIpRegionBreakdown($activityField, $usersActiveThreshold);
 
         $usersTrend = DB::table('users')
@@ -173,6 +151,147 @@ class AdminStatsService
     /**
      * @return array{unknown:int,sk:int,cz:int,other:int}
      */
+    private function buildProfileRegionBreakdown(): array
+    {
+        $buckets = [
+            'unknown' => 0,
+            'sk' => 0,
+            'cz' => 0,
+            'other' => 0,
+        ];
+
+        $columns = ['location'];
+        if (Schema::hasColumn('users', 'location_label')) {
+            $columns[] = 'location_label';
+        }
+        if (Schema::hasColumn('users', 'timezone')) {
+            $columns[] = 'timezone';
+        }
+        if (Schema::hasColumn('users', 'latitude')) {
+            $columns[] = 'latitude';
+        }
+        if (Schema::hasColumn('users', 'longitude')) {
+            $columns[] = 'longitude';
+        }
+
+        $rows = $this->applyHumanUsersOnly(DB::table('users'))
+            ->select($columns)
+            ->get();
+        foreach ($rows as $row) {
+            $bucket = $this->resolveProfileRegionBucket($row);
+            $buckets[$bucket] = (int) ($buckets[$bucket] ?? 0) + 1;
+        }
+
+        return $buckets;
+    }
+
+    private function resolveProfileRegionBucket(object $row): string
+    {
+        $locationLabel = trim((string) ($row->location_label ?? ''));
+        $location = trim((string) ($row->location ?? ''));
+        $timezone = trim((string) ($row->timezone ?? ''));
+        $hasAnySignal = $locationLabel !== '' || $location !== '' || $timezone !== '';
+
+        $bucket = $this->resolveCountryBucketFromText($locationLabel);
+        if ($bucket !== null) {
+            return $bucket;
+        }
+
+        $bucket = $this->resolveCountryBucketFromText($location);
+        if ($bucket !== null) {
+            return $bucket;
+        }
+
+        $bucket = $this->resolveTimezoneBucket($timezone);
+        if ($bucket !== null) {
+            return $bucket;
+        }
+
+        $bucket = $this->resolveCoordinatesBucket($row->latitude ?? null, $row->longitude ?? null);
+        if ($bucket !== null) {
+            return $bucket;
+        }
+
+        return $hasAnySignal ? 'other' : 'unknown';
+    }
+
+    private function resolveCountryBucketFromText(?string $value): ?string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return null;
+        }
+
+        $ascii = strtolower((string) Str::of($raw)->ascii());
+        $normalized = preg_replace('/[^a-z0-9]+/', ' ', $ascii);
+        $normalized = is_string($normalized) ? trim(preg_replace('/\s+/', ' ', $normalized) ?? '') : '';
+        if ($normalized === '') {
+            return null;
+        }
+        $haystack = ' ' . $normalized . ' ';
+
+        $isSlovakia = preg_match('/(?:^|\s)(sk|svk)(?:\s|$)/', $haystack) === 1
+            || str_contains($haystack, ' slovakia ')
+            || str_contains($haystack, ' slovensko ')
+            || str_contains($haystack, ' slovenska republika ')
+            || str_contains($haystack, ' slovak republic ');
+        if ($isSlovakia) {
+            return 'sk';
+        }
+
+        $isCzech = preg_match('/(?:^|\s)(cz|cze|cs)(?:\s|$)/', $haystack) === 1
+            || str_contains($haystack, ' czechia ')
+            || str_contains($haystack, ' czech republic ')
+            || str_contains($haystack, ' cesko ')
+            || str_contains($haystack, ' ceska republika ');
+        if ($isCzech) {
+            return 'cz';
+        }
+
+        return null;
+    }
+
+    private function resolveTimezoneBucket(?string $timezone): ?string
+    {
+        $normalized = strtolower(trim((string) $timezone));
+        if ($normalized === '') {
+            return null;
+        }
+        if ($normalized === 'europe/bratislava') {
+            return 'sk';
+        }
+        if ($normalized === 'europe/prague') {
+            return 'cz';
+        }
+
+        return null;
+    }
+
+    private function resolveCoordinatesBucket(mixed $latitude, mixed $longitude): ?string
+    {
+        if (! is_numeric($latitude) || ! is_numeric($longitude)) {
+            return null;
+        }
+
+        $lat = (float) $latitude;
+        $lon = (float) $longitude;
+
+        $inSk = $lat >= 47.65 && $lat <= 49.70 && $lon >= 16.75 && $lon <= 22.70;
+        $inCz = $lat >= 48.50 && $lat <= 51.20 && $lon >= 12.00 && $lon <= 18.90;
+
+        if ($inSk && ! $inCz) {
+            return 'sk';
+        }
+        if ($inCz && ! $inSk) {
+            return 'cz';
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{unknown:int,sk:int,cz:int,other:int}
+     */
     private function buildActiveIpRegionBreakdown(string $activityField, Carbon $usersActiveThreshold): array
     {
         $buckets = [
@@ -182,7 +301,7 @@ class AdminStatsService
             'other' => 0,
         ];
 
-        $activeUserIds = DB::table('users')
+        $activeUserIds = $this->applyHumanUsersOnly(DB::table('users'))
             ->whereNotNull($activityField)
             ->where($activityField, '>=', $usersActiveThreshold)
             ->pluck('id')
@@ -320,5 +439,22 @@ class AdminStatsService
         }
 
         return 'other';
+    }
+
+    private function applyHumanUsersOnly(Builder $query): Builder
+    {
+        if (Schema::hasColumn('users', 'is_bot')) {
+            $query->where(function (Builder $inner): void {
+                $inner->whereNull('is_bot')->orWhere('is_bot', false);
+            });
+        }
+
+        if (Schema::hasColumn('users', 'role')) {
+            $query->where(function (Builder $inner): void {
+                $inner->whereNull('role')->orWhere('role', '!=', 'bot');
+            });
+        }
+
+        return $query;
     }
 }

@@ -65,12 +65,6 @@ class AdminRouteContractTest extends TestCase
             ->assertStatus(401);
     }
 
-    public function test_admin_event_ai_postedit_title_route_exists_and_is_protected(): void
-    {
-        $this->postJson('/api/admin/events/1/ai/postedit-title')
-            ->assertStatus(401);
-    }
-
     public function test_non_admin_user_cannot_access_admin_dashboard(): void
     {
         $user = User::factory()->create([

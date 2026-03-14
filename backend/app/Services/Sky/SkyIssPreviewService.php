@@ -31,6 +31,8 @@ class SkyIssPreviewService
         $providerUrl = $microserviceBase !== '' ? $microserviceBase . $endpointPath : '';
         $timeoutSeconds = max(1, (int) config('observing.sky_summary.timeout_seconds', 12));
         $localDate = CarbonImmutable::now($tz)->format('Y-m-d');
+        $dataSources = [];
+        $basePayload = ['available' => false, 'reason' => 'sky_service_unavailable'];
 
         try {
             $response = $this->http
@@ -51,8 +53,8 @@ class SkyIssPreviewService
                 'exception_class' => $exception::class,
                 'exception_message' => $exception->getMessage(),
             ]);
-
-            return ['available' => false, 'reason' => 'sky_service_unavailable'];
+            $basePayload = ['available' => false, 'reason' => 'sky_service_unavailable'];
+            return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
         }
 
         if (!$response->successful()) {
@@ -65,36 +67,41 @@ class SkyIssPreviewService
                 'status' => $response->status(),
                 'body' => mb_substr((string) $response->body(), 0, 300),
             ]);
-
-            return ['available' => false, 'reason' => 'sky_service_unavailable'];
+            $basePayload = ['available' => false, 'reason' => 'sky_service_unavailable'];
+            return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
         }
+
+        $dataSources[] = 'sky_microservice';
 
         $payload = $response->json();
         if (!is_array($payload)) {
-            return ['available' => false];
+            $basePayload = ['available' => false];
+            return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
         }
 
         $direct = $this->normalizeDirectPayload($payload, $tz);
         if ($direct !== null) {
-            return $direct;
+            return $this->attachEnrichedMetadata($direct, $dataSources, $tz);
         }
 
         $rows = is_array($payload['response'] ?? null) ? $payload['response'] : [];
         $first = is_array($rows[0] ?? null) ? $rows[0] : null;
         if ($first === null) {
-            return ['available' => false];
+            $basePayload = ['available' => false];
+            return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
         }
 
         $riseTimestamp = $this->toInt($first['risetime'] ?? $first['rise_time'] ?? null);
         if ($riseTimestamp === null || $riseTimestamp <= 0) {
-            return ['available' => false];
+            $basePayload = ['available' => false];
+            return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
         }
 
         $duration = max(0, $this->toInt($first['duration'] ?? null) ?? 0);
         $maxAltitude = $this->estimateAltitude($duration);
         [$startDirection, $endDirection] = $this->estimateDirections($lat);
 
-        return [
+        $basePayload = [
             'available' => true,
             'next_pass_at' => CarbonImmutable::createFromTimestampUTC($riseTimestamp)->setTimezone($tz)->toIso8601String(),
             'duration_sec' => $duration,
@@ -102,6 +109,172 @@ class SkyIssPreviewService
             'direction_start' => $startDirection,
             'direction_end' => $endDirection,
         ];
+
+        return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @param array<int,string> $dataSources
+     * @return array<string,mixed>
+     */
+    private function attachEnrichedMetadata(array $payload, array $dataSources, string $tz): array
+    {
+        $satellite = $this->fetchCelesTrakSatellite($tz);
+        if ($satellite !== null) {
+            $payload['satellite'] = $satellite;
+            $dataSources[] = 'celestrak_gp';
+        }
+
+        $tracker = $this->fetchTrackerPosition($tz);
+        if ($tracker !== null) {
+            $payload['tracker'] = $tracker;
+            $dataSources[] = 'iss_tracker';
+        }
+
+        if ($dataSources !== []) {
+            $payload['data_sources'] = array_values(array_unique($dataSources));
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function fetchCelesTrakSatellite(string $tz): ?array
+    {
+        $providerUrl = trim((string) config('observing.providers.celestrak_gp_url', ''));
+        if ($providerUrl === '') {
+            return null;
+        }
+        $timeoutSeconds = max(1, (int) config('observing.sky.iss_aux_timeout_seconds', 6));
+
+        $catnr = (int) config('observing.providers.celestrak_iss_catnr', 25544);
+        if ($catnr <= 0) {
+            $catnr = 25544;
+        }
+
+        try {
+            $response = $this->http
+                ->timeout($timeoutSeconds)
+                ->acceptJson()
+                ->get($providerUrl, [
+                    'CATNR' => $catnr,
+                    'FORMAT' => 'json',
+                ]);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (!$response->successful()) {
+            return null;
+        }
+
+        $payload = $response->json();
+        $row = is_array($payload[0] ?? null) ? $payload[0] : null;
+        if ($row === null) {
+            return null;
+        }
+
+        $name = trim((string) ($row['OBJECT_NAME'] ?? ''));
+        $noradId = $this->toInt($row['NORAD_CAT_ID'] ?? null);
+        $epoch = $this->toIso8601((string) ($row['EPOCH'] ?? ''), $tz);
+        $meanMotion = $this->toFloat($row['MEAN_MOTION'] ?? null);
+        $eccentricity = $this->toFloat($row['ECCENTRICITY'] ?? null);
+        $inclination = $this->toFloat($row['INCLINATION'] ?? null);
+        $revAtEpoch = $this->toInt($row['REV_AT_EPOCH'] ?? null);
+
+        if ($name === '' || $noradId === null || $epoch === null) {
+            return null;
+        }
+
+        $result = [
+            'source' => 'celestrak_gp',
+            'name' => $name,
+            'norad_id' => $noradId,
+            'epoch' => $epoch,
+        ];
+
+        if ($meanMotion !== null) {
+            $result['mean_motion'] = round($meanMotion, 8);
+        }
+        if ($eccentricity !== null) {
+            $result['eccentricity'] = round($eccentricity, 8);
+        }
+        if ($inclination !== null) {
+            $result['inclination_deg'] = round($inclination, 4);
+        }
+        if ($revAtEpoch !== null) {
+            $result['rev_at_epoch'] = $revAtEpoch;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function fetchTrackerPosition(string $tz): ?array
+    {
+        $providerUrl = trim((string) config('observing.providers.iss_tracker_url', ''));
+        if ($providerUrl === '') {
+            return null;
+        }
+        $timeoutSeconds = max(1, (int) config('observing.sky.iss_tracker_timeout_seconds', 10));
+
+        try {
+            $response = $this->http
+                ->timeout($timeoutSeconds)
+                ->acceptJson()
+                ->get($providerUrl);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (!$response->successful()) {
+            return null;
+        }
+
+        $payload = $response->json();
+        if (!is_array($payload)) {
+            return null;
+        }
+
+        $lat = $this->toFloat($payload['latitude'] ?? null);
+        $lon = $this->toFloat($payload['longitude'] ?? null);
+        if ($lat === null || $lon === null) {
+            return null;
+        }
+
+        $altitude = $this->toFloat($payload['altitude'] ?? null);
+        $velocity = $this->toFloat($payload['velocity'] ?? null);
+        $timestamp = $this->toInt($payload['timestamp'] ?? null);
+        $sampleAt = $timestamp !== null && $timestamp > 0
+            ? CarbonImmutable::createFromTimestampUTC($timestamp)->setTimezone($tz)->toIso8601String()
+            : CarbonImmutable::now($tz)->toIso8601String();
+
+        $result = [
+            'source' => 'iss_tracker',
+            'lat' => round($lat, 6),
+            'lon' => round($lon, 6),
+            'sample_at' => $sampleAt,
+        ];
+
+        if ($altitude !== null) {
+            $result['altitude_km'] = round($altitude, 3);
+        }
+
+        if ($velocity !== null) {
+            $result['velocity_kmh'] = round($velocity, 3);
+        }
+
+        $visibility = trim((string) ($payload['visibility'] ?? ''));
+        if ($visibility !== '') {
+            $result['visibility'] = $visibility;
+        }
+
+        return $result;
     }
 
     /**

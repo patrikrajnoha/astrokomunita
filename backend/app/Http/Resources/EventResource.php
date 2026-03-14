@@ -19,6 +19,7 @@ class EventResource extends JsonResource
             'id' => $this->id,
             'title' => $this->title,
             'type' => $this->type,
+            'icon_emoji' => $this->icon_emoji,
             'region_scope' => $this->region_scope,
 
             'start_at' => EventTime::serializeUtc($this->start_at),

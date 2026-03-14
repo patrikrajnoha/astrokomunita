@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Jobs\GenerateEventDescriptionJob;
 use App\Models\BlogPost;
-use App\Models\DescriptionGenerationRun;
 use App\Models\Event;
 use App\Models\Tag;
 use App\Models\User;
@@ -34,9 +33,7 @@ class AdminAiEndpointsTest extends TestCase
     {
         $routes = [
             ['GET', '/api/admin/ai/config'],
-            ['GET', '/api/admin/ai/jobs/1'],
             ['POST', '/api/admin/events/1/ai/generate-description'],
-            ['POST', '/api/admin/events/1/ai/postedit-title'],
             ['POST', '/api/admin/newsletter/ai/prime-insights'],
             ['POST', '/api/admin/newsletter/ai/draft-copy'],
             ['POST', '/api/admin/blog-posts/1/ai/suggest-tags'],
@@ -267,61 +264,6 @@ class AdminAiEndpointsTest extends TestCase
         $this->assertTrue(Cache::has('ai:prime_insights:lock'));
     }
 
-    public function test_job_status_endpoint_returns_minimal_schema_without_sensitive_fields(): void
-    {
-        $admin = User::factory()->create([
-            'is_admin' => true,
-            'role' => 'admin',
-            'is_active' => true,
-        ]);
-        Sanctum::actingAs($admin);
-
-        $startedAt = CarbonImmutable::parse('2026-03-02 10:00:00', 'UTC');
-        $finishedAt = CarbonImmutable::parse('2026-03-02 10:00:05', 'UTC');
-
-        $run = DescriptionGenerationRun::query()->create([
-            'started_at' => $startedAt,
-            'finished_at' => $finishedAt,
-            'status' => 'completed',
-            'requested_mode' => 'ollama',
-            'effective_mode' => 'ollama',
-            'fallback_mode' => 'base',
-            'resume_enabled' => false,
-            'force_enabled' => true,
-            'dry_run' => false,
-            'from_id' => 1,
-            'limit' => 1,
-            'last_event_id' => 1,
-            'processed' => 1,
-            'generated' => 1,
-            'failed' => 0,
-            'skipped' => 0,
-            'meta' => [
-                'prompt' => 'secret prompt',
-                'raw_text' => 'secret raw output',
-                'last_event_status' => 'generated',
-            ],
-        ]);
-
-        $response = $this->getJson('/api/admin/ai/jobs/' . $run->id)
-            ->assertOk();
-
-        $payload = $response->json();
-        $this->assertSame([
-            'status',
-            'feature_name',
-            'started_at',
-            'finished_at',
-            'latency_ms',
-        ], array_keys($payload));
-        $this->assertSame('event_description_generate', (string) ($payload['feature_name'] ?? ''));
-        $this->assertSame(5000, (int) ($payload['latency_ms'] ?? -1));
-        $this->assertArrayNotHasKey('prompt', $payload);
-        $this->assertArrayNotHasKey('raw_text', $payload);
-        $this->assertArrayNotHasKey('run', $payload);
-        $this->assertArrayNotHasKey('last_run', $payload);
-    }
-
     public function test_newsletter_draft_copy_success_returns_valid_payload(): void
     {
         config()->set('events.ai.newsletter_copy_draft_admin_enabled', true);
@@ -491,6 +433,120 @@ class AdminAiEndpointsTest extends TestCase
         $this->assertSame('Mars', (string) data_get($tags, '0.name'));
         $this->assertSame($moon->id, (int) data_get($tags, '1.id'));
         $this->assertSame('Mesiac', (string) data_get($tags, '1.name'));
+    }
+
+    public function test_blog_tag_suggestions_without_existing_tags_returns_ai_generated_candidates(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $post = $this->createTaggableBlogPost('blog-tag-ai-open');
+        $this->assertSame(0, Tag::query()->count());
+
+        $this->mock(OllamaClient::class, function ($mock): void {
+            $mock->shouldReceive('generate')
+                ->once()
+                ->andReturn([
+                    'text' => json_encode([
+                        'tags' => [
+                            ['name' => 'Mars', 'reason' => 'Clanok sa zameriava na planetu Mars.'],
+                            ['name' => 'Planety', 'reason' => 'Obsah porovnava viditelnost planet.'],
+                        ],
+                    ], JSON_UNESCAPED_UNICODE),
+                    'model' => 'mistral',
+                    'duration_ms' => 48,
+                    'retry_count' => 0,
+                    'raw' => [],
+                ]);
+        });
+
+        $response = $this->postJson('/api/admin/blog-posts/' . $post->id . '/ai/suggest-tags', [
+            'mode' => 'allow_new',
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('fallback_used', false);
+
+        $tags = (array) $response->json('tags');
+        $this->assertCount(2, $tags);
+        $this->assertSame(0, (int) data_get($tags, '0.id'));
+        $this->assertSame('Mars', (string) data_get($tags, '0.name'));
+        $this->assertSame(0, (int) data_get($tags, '1.id'));
+        $this->assertSame('Planety', (string) data_get($tags, '1.name'));
+    }
+
+    public function test_blog_tag_suggestions_existing_only_mode_without_existing_tags_returns_reason(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $post = $this->createTaggableBlogPost('blog-tag-ai-existing-only-empty');
+        $this->assertSame(0, Tag::query()->count());
+
+        $this->mock(OllamaClient::class, function ($mock): void {
+            $mock->shouldReceive('generate')->never();
+        });
+
+        $this->postJson('/api/admin/blog-posts/' . $post->id . '/ai/suggest-tags', [
+            'mode' => 'existing_only',
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'fallback')
+            ->assertJsonPath('fallback_used', true)
+            ->assertJsonPath('reason', 'no_existing_tags')
+            ->assertJsonCount(0, 'tags');
+    }
+
+    public function test_blog_tag_suggestions_allow_new_mode_maps_similar_name_to_existing_tag(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $post = $this->createTaggableBlogPost('blog-tag-ai-smart-map');
+        $mars = Tag::query()->create(['name' => 'Mars']);
+
+        $this->mock(OllamaClient::class, function ($mock): void {
+            $mock->shouldReceive('generate')
+                ->once()
+                ->andReturn([
+                    'text' => json_encode([
+                        'tags' => [
+                            ['name' => 'Marss', 'reason' => 'Nazov je podobny existujucemu tagu Mars.'],
+                            ['name' => 'Planety', 'reason' => 'Doplnujuci novy tag k teme clanku.'],
+                        ],
+                    ], JSON_UNESCAPED_UNICODE),
+                    'model' => 'mistral',
+                    'duration_ms' => 27,
+                    'retry_count' => 0,
+                    'raw' => [],
+                ]);
+        });
+
+        $response = $this->postJson('/api/admin/blog-posts/' . $post->id . '/ai/suggest-tags', [
+            'mode' => 'allow_new',
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'success')
+            ->assertJsonPath('fallback_used', false);
+
+        $tags = (array) $response->json('tags');
+        $this->assertCount(2, $tags);
+        $this->assertSame((int) $mars->id, (int) data_get($tags, '0.id'));
+        $this->assertSame('Mars', (string) data_get($tags, '0.name'));
+        $this->assertSame(0, (int) data_get($tags, '1.id'));
+        $this->assertSame('Planety', (string) data_get($tags, '1.name'));
     }
 
     public function test_blog_tag_suggestions_match_existing_tag_with_different_casing_and_spacing(): void
@@ -799,7 +855,7 @@ class AdminAiEndpointsTest extends TestCase
         Sanctum::actingAs($admin);
 
         $post = $this->createTaggableBlogPost('blog-tag-ai-3');
-        Tag::query()->create(['name' => 'Mars']);
+        $mars = Tag::query()->create(['name' => 'Mars']);
 
         $this->mock(OllamaClient::class, function ($mock): void {
             $mock->shouldReceive('generate')
@@ -813,12 +869,45 @@ class AdminAiEndpointsTest extends TestCase
                 ]);
         });
 
-        $this->postJson('/api/admin/blog-posts/' . $post->id . '/ai/suggest-tags')
+        $response = $this->postJson('/api/admin/blog-posts/' . $post->id . '/ai/suggest-tags')
             ->assertOk()
             ->assertJsonPath('status', 'fallback')
             ->assertJsonPath('fallback_used', true)
-            ->assertJsonPath('tags', [])
             ->assertJsonPath('last_run.status', 'fallback');
+
+        $response
+            ->assertJsonCount(1, 'tags')
+            ->assertJsonPath('tags.0.id', (int) $mars->id)
+            ->assertJsonPath('tags.0.name', 'Mars');
+    }
+
+    public function test_admin_blog_post_update_tags_deduplicates_case_and_diacritics(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $post = $this->createTaggableBlogPost('blog-tag-sync-dedupe');
+        $existing = Tag::query()->create(['name' => "\u{0160}kvrny"]);
+
+        $this->assertSame(1, Tag::query()->count());
+
+        $response = $this->putJson('/api/admin/blog-posts/' . $post->id, [
+            'tags' => ['Skvrny', '  Škvrny  ', 'SKVRNY'],
+        ])
+            ->assertOk()
+            ->assertJsonPath('tag_sync.created_new', 0)
+            ->assertJsonPath('tag_sync.attached_existing', 1)
+            ->assertJsonPath('tag_sync.added_total', 1)
+            ->assertJsonPath('tag_sync.selected_total', 1);
+
+        $this->assertSame(1, Tag::query()->count());
+        $this->assertSame(1, $post->tags()->count());
+        $this->assertSame((int) $existing->id, (int) data_get($response->json('tags'), '0.id'));
+        $this->assertSame((string) $existing->name, (string) data_get($response->json('tags'), '0.name'));
     }
 
     public function test_blog_tag_suggestions_endpoint_is_runtime_rate_limited(): void
@@ -916,4 +1005,3 @@ class AdminAiEndpointsTest extends TestCase
         ]);
     }
 }
-

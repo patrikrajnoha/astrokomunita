@@ -53,13 +53,20 @@ class AdminBlogPostController extends Controller
             'tag_ids.*' => ['integer', 'distinct', Rule::exists('tags', 'id')],
         ]);
 
+        $tagSync = null;
         $blogPost = $this->blogPosts->create(
             $validated,
             $user->id,
-            $request->file('cover_image')
+            $request->file('cover_image'),
+            $tagSync
         );
 
-        return response()->json($blogPost, 201);
+        $payload = $blogPost->toArray();
+        if (is_array($tagSync)) {
+            $payload['tag_sync'] = $tagSync;
+        }
+
+        return response()->json($payload, 201);
     }
 
     public function update(Request $request, BlogPost $blogPost)
@@ -75,13 +82,20 @@ class AdminBlogPostController extends Controller
             'tag_ids.*' => ['integer', 'distinct', Rule::exists('tags', 'id')],
         ]);
 
+        $tagSync = null;
         $blogPost = $this->blogPosts->update(
             $blogPost,
             $validated,
-            $request->file('cover_image')
+            $request->file('cover_image'),
+            $tagSync
         );
 
-        return response()->json($blogPost);
+        $payload = $blogPost->toArray();
+        if (is_array($tagSync)) {
+            $payload['tag_sync'] = $tagSync;
+        }
+
+        return response()->json($payload);
     }
 
     public function destroy(BlogPost $blogPost)
@@ -93,14 +107,25 @@ class AdminBlogPostController extends Controller
         ]);
     }
 
-    public function suggestTags(BlogPost $blogPost): JsonResponse
+    public function suggestTags(Request $request, BlogPost $blogPost): JsonResponse
     {
-        $result = $this->blogTagSuggestionService->suggestForPost($blogPost);
+        $validated = $request->validate([
+            'mode' => ['nullable', 'string', Rule::in([
+                BlogTagSuggestionService::MODE_EXISTING_ONLY,
+                BlogTagSuggestionService::MODE_ALLOW_NEW,
+            ])],
+        ]);
+
+        $result = $this->blogTagSuggestionService->suggestForPost(
+            $blogPost,
+            (string) ($validated['mode'] ?? BlogTagSuggestionService::MODE_EXISTING_ONLY)
+        );
 
         return response()->json([
             'status' => (string) ($result['status'] ?? 'error'),
             'tags' => array_values((array) ($result['tags'] ?? [])),
             'fallback_used' => (bool) ($result['fallback_used'] ?? true),
+            'reason' => $result['reason'] ?? null,
             'last_run' => (array) ($result['last_run'] ?? []),
         ]);
     }

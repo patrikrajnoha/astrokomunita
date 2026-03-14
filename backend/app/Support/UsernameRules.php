@@ -89,13 +89,6 @@ class UsernameRules
             return true;
         }
 
-        foreach ((array) config('auth.username.blocked_words', []) as $blockedWord) {
-            $blocked = self::normalize((string) $blockedWord);
-            if ($blocked !== '' && str_contains($normalized, $blocked)) {
-                return true;
-            }
-        }
-
-        return false;
+        return ProfanityFilter::containsBlockedWord($normalized);
     }
 }

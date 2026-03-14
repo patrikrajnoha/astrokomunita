@@ -119,7 +119,7 @@ class TranslationServiceTest extends TestCase
 
         $result = app(TranslationService::class)->translate('First Quarter Moon', 'en', 'sk');
 
-        $this->assertSame('Prvy stvrt Mesiac', $result->translatedText);
+        $this->assertSame("Prv\u{00E1} stvrt Mesiaca", $result->translatedText);
     }
     public function test_it_fails_open_when_grammar_check_service_is_unavailable(): void
     {
@@ -142,7 +142,7 @@ class TranslationServiceTest extends TestCase
 
         $result = app(TranslationService::class)->translate('First Quarter Moon', 'en', 'sk');
 
-        $this->assertSame('Prvy STVRT Mesiac', $result->translatedText);
+        $this->assertSame("Prv\u{00E1} \u{0161}tvr\u{0165} Mesiaca", $result->translatedText);
     }
     public function test_it_uses_word_boundaries_for_overrides_to_avoid_inside_word_replacements(): void
     {

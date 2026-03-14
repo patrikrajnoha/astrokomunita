@@ -22,15 +22,35 @@ use RuntimeException;
 class AuthController extends Controller
 {
     public function __construct(
-        private readonly EmailVerificationSettingService $emailVerificationSettingService,
         private readonly UserActivityService $activityService,
         private readonly TurnstileService $turnstileService,
+        private readonly EmailVerificationSettingService $emailVerificationSettingService,
     ) {
     }
 
     public function me(Request $request)
     {
         $user = $request->user();
+
+        if (! $user) {
+            return response()->json(null);
+        }
+
+        if ($user->isBanned()) {
+            return response()->json([
+                'message' => 'Your account has been banned.',
+                'code' => 'ACCOUNT_BANNED',
+                'reason' => $user->ban_reason,
+                'banned_at' => optional($user->banned_at)->toIso8601String(),
+            ], 403);
+        }
+
+        if (! $user->is_active) {
+            return response()->json([
+                'message' => 'Your account is inactive.',
+                'code' => 'ACCOUNT_INACTIVE',
+            ], 403);
+        }
 
         return response()->json([
             ...$user->toArray(),
@@ -41,7 +61,8 @@ class AuthController extends Controller
     public function register(RegisterRequest $request)
     {
         $validated = $request->validated();
-        $requiresEmailVerification = $this->emailVerificationSettingService->requiresEmailVerificationForNewUsers();
+        $requiresEmailVerification = $this->emailVerificationSettingService
+            ->requiresEmailVerificationForNewUsers();
 
         if ($this->turnstileService->isEnabled() && ! $this->turnstileService->hasSecretKey()) {
             $this->turnstileService->logMissingSecretWarningOnce();

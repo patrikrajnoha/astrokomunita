@@ -6,11 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Jobs\GenerateEventDescriptionJob;
 use App\Models\DescriptionGenerationRun;
 use App\Models\Event;
-use App\Models\EventCandidate;
 use App\Services\Admin\AiLastRunStore;
 use App\Services\Events\EventDescriptionGeneratorService;
 use App\Services\Events\EventInsightsCacheService;
-use App\Services\Events\EventTitlePostEditService;
 use App\Services\Newsletter\NewsletterAiDraftService;
 use App\Services\Newsletter\NewsletterSelectionService;
 use Illuminate\Http\JsonResponse;
@@ -28,7 +26,6 @@ class AdminAiController extends Controller
         private readonly AiLastRunStore $lastRunStore,
         private readonly EventInsightsCacheService $insightsCache,
         private readonly EventDescriptionGeneratorService $generatorService,
-        private readonly EventTitlePostEditService $titlePostEditService,
         private readonly NewsletterSelectionService $newsletterSelectionService,
         private readonly NewsletterAiDraftService $newsletterAiDraftService,
     ) {
@@ -42,13 +39,11 @@ class AdminAiController extends Controller
 
         $eventId = isset($validated['event_id']) ? (int) $validated['event_id'] : null;
         $humanizedPilotEnabled = (bool) config('events.ai.humanized_pilot_enabled', false);
-        $titlePostEditEnabled = (bool) config('events.ai.title_postedit_admin_enabled', false);
         $newsletterCopyDraftEnabled = (bool) config('events.ai.newsletter_copy_draft_admin_enabled', false);
 
         return response()->json([
             'data' => [
                 'events_ai_humanized_enabled' => $humanizedPilotEnabled,
-                'events_ai_title_postedit_enabled' => $titlePostEditEnabled,
                 'insights_cache_ttl_seconds' => $this->insightsCache->ttlSeconds(),
                 'prime_insights_max_limit' => $this->resolvePrimeInsightsMaxLimit(),
                 'app_timezone' => (string) config('app.timezone', 'Europe/Bratislava'),
@@ -62,11 +57,6 @@ class AdminAiController extends Controller
                         'enabled' => $humanizedPilotEnabled,
                         'pilot_label' => 'pilot',
                         'last_run' => $this->lastRunStore->get('newsletter_prime_insights'),
-                    ],
-                    'event_title_postedit' => [
-                        'enabled' => $titlePostEditEnabled,
-                        'pilot_label' => 'pilot',
-                        'last_run' => $this->lastRunStore->get('event_title_postedit', $eventId),
                     ],
                     'newsletter_copy_draft' => [
                         'enabled' => $newsletterCopyDraftEnabled,
@@ -95,60 +85,6 @@ class AdminAiController extends Controller
             'tip_text' => (string) ($result['tip_text'] ?? ''),
             'fallback_used' => (bool) ($result['fallback_used'] ?? true),
             'last_run' => (array) ($result['last_run'] ?? []),
-        ]);
-    }
-
-    public function postEditEventTitle(Request $request, Event $event): JsonResponse
-    {
-        if (! (bool) config('events.ai.title_postedit_admin_enabled', false)) {
-            return response()->json([
-                'message' => 'AI post-edit nadpisu je vypnuty.',
-            ], 403);
-        }
-
-        $validated = $request->validate([
-            'mode' => ['nullable', 'string', 'in:preview,apply'],
-        ]);
-        $mode = strtolower(trim((string) ($validated['mode'] ?? 'preview')));
-        if (! in_array($mode, ['preview', 'apply'], true)) {
-            $mode = 'preview';
-        }
-
-        $originalEnTitle = $this->resolveOriginalEventTitle($event);
-        $literalSkTitle = trim((string) $event->title);
-        $result = $this->titlePostEditService->postEditTitle(
-            originalEn: $originalEnTitle,
-            literalSk: $literalSkTitle,
-            eventId: (int) $event->id,
-            context: [
-                'type' => (string) ($event->type ?? ''),
-            ],
-            fallbackTitle: $literalSkTitle
-        );
-
-        $suggestedTitle = trim((string) ($result['title_sk'] ?? $literalSkTitle));
-
-        if ($mode === 'apply' && (string) ($result['status'] ?? '') === 'success') {
-            if ($suggestedTitle !== '' && $suggestedTitle !== trim((string) $event->title)) {
-                $event->title = $suggestedTitle;
-                $event->save();
-            }
-        }
-
-        $lastRun = $this->lastRunStore->get('event_title_postedit', (int) $event->id) ?? $this->lastRunStore->put(
-            featureName: 'event_title_postedit',
-            status: (string) ($result['status'] ?? 'error'),
-            latencyMs: max(0, (int) ($result['latency_ms'] ?? 0)),
-            entityId: (int) $event->id,
-            retryCount: max(0, (int) ($result['retry_count'] ?? 0))
-        );
-
-        return response()->json([
-            'status' => (string) ($result['status'] ?? 'error'),
-            'mode' => $mode,
-            'suggested_title_sk' => $suggestedTitle !== '' ? $suggestedTitle : $literalSkTitle,
-            'fallback_used' => (bool) ($result['fallback_used'] ?? true),
-            'last_run' => $lastRun,
         ]);
     }
 
@@ -354,32 +290,6 @@ class AdminAiController extends Controller
         ]);
     }
 
-    public function jobStatus(int $runId): JsonResponse
-    {
-        $run = DescriptionGenerationRun::query()->find($runId);
-        if (! $run) {
-            return response()->json([
-                'message' => 'Uloha sa nenasla.',
-            ], 404);
-        }
-
-        $startedAt = $run->started_at;
-        $finishedAt = $run->finished_at;
-        $latencyMs = null;
-
-        if ($startedAt !== null) {
-            $latencyMs = (int) $startedAt->diffInMilliseconds($finishedAt ?? now(), true);
-        }
-
-        return response()->json([
-            'status' => (string) $run->status,
-            'feature_name' => 'event_description_generate',
-            'started_at' => optional($startedAt)->toIso8601String(),
-            'finished_at' => optional($finishedAt)->toIso8601String(),
-            'latency_ms' => $latencyMs,
-        ]);
-    }
-
     private function createSingleEventRun(
         int $eventId,
         string $requestedMode,
@@ -494,23 +404,6 @@ class AdminAiController extends Controller
 
         return $normalized !== ''
             && (str_contains($normalized, 'fallback') || str_starts_with($normalized, 'template'));
-    }
-
-    private function resolveOriginalEventTitle(Event $event): ?string
-    {
-        $candidate = EventCandidate::query()
-            ->where('published_event_id', (int) $event->id)
-            ->orderByDesc('reviewed_at')
-            ->orderByDesc('id')
-            ->first();
-
-        if (! $candidate) {
-            return null;
-        }
-
-        $originalTitle = trim((string) ($candidate->original_title ?: $candidate->title));
-
-        return $originalTitle !== '' ? $originalTitle : null;
     }
 }
 

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
+use Throwable;
 
 class AdminBlogPostService
 {
@@ -54,8 +55,14 @@ class AdminBlogPostService
         return $query->paginate($safePerPage);
     }
 
-    public function create(array $validated, int $userId, ?UploadedFile $coverImage): BlogPost
+    public function create(
+        array $validated,
+        int $userId,
+        ?UploadedFile $coverImage,
+        ?array &$tagSync = null
+    ): BlogPost
     {
+        $tagSync = null;
         $data = [
             'user_id' => $userId,
             'title' => $validated['title'],
@@ -75,16 +82,22 @@ class AdminBlogPostService
         $blogPost = BlogPost::create($data);
 
         if (array_key_exists('tag_ids', $validated)) {
-            $this->syncTagIds($blogPost, $validated['tag_ids'] ?? []);
+            $tagSync = $this->syncTagIds($blogPost, $validated['tag_ids'] ?? []);
         } elseif (array_key_exists('tags', $validated)) {
-            $this->syncTags($blogPost, $validated['tags'] ?? []);
+            $tagSync = $this->syncTags($blogPost, $validated['tags'] ?? []);
         }
 
         return $blogPost->load(['user:id,name,email,is_admin', 'tags:id,name,slug']);
     }
 
-    public function update(BlogPost $blogPost, array $validated, ?UploadedFile $coverImage): BlogPost
+    public function update(
+        BlogPost $blogPost,
+        array $validated,
+        ?UploadedFile $coverImage,
+        ?array &$tagSync = null
+    ): BlogPost
     {
+        $tagSync = null;
         $data = [];
         if (array_key_exists('title', $validated)) {
             $data['title'] = $validated['title'];
@@ -116,9 +129,9 @@ class AdminBlogPostService
         }
 
         if (array_key_exists('tag_ids', $validated)) {
-            $this->syncTagIds($blogPost, $validated['tag_ids'] ?? []);
+            $tagSync = $this->syncTagIds($blogPost, $validated['tag_ids'] ?? []);
         } elseif (array_key_exists('tags', $validated)) {
-            $this->syncTags($blogPost, $validated['tags'] ?? []);
+            $tagSync = $this->syncTags($blogPost, $validated['tags'] ?? []);
         }
 
         return $blogPost->load(['user:id,name,email,is_admin', 'tags:id,name,slug']);
@@ -148,28 +161,89 @@ class AdminBlogPostService
         return $slug;
     }
 
-    private function syncTags(BlogPost $blogPost, array $tags): void
+    /**
+     * @param array<int,mixed> $tags
+     * @return array{attached_existing:int,created_new:int,added_total:int,selected_total:int}
+     */
+    private function syncTags(BlogPost $blogPost, array $tags): array
     {
-        $ids = [];
+        $currentTagIds = $blogPost->tags()
+            ->pluck('tags.id')
+            ->map(static fn ($id): int => (int) $id)
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->values()
+            ->all();
+
+        $existingTagsByKey = $this->loadExistingTagsByNormalizedKey();
+        $normalizedNameToDisplay = [];
         foreach ($tags as $tagName) {
             $name = $this->normalizeTagName($tagName);
             if ($name === '') {
                 continue;
             }
 
-            $tag = Tag::firstOrCreate(
-                ['name' => $name],
-                ['slug' => Str::slug($name)]
-            );
+            $key = $this->normalizeTagKey($name);
+            if ($key === '' || isset($normalizedNameToDisplay[$key])) {
+                continue;
+            }
 
-            $ids[] = $tag->id;
+            $normalizedNameToDisplay[$key] = $name;
         }
 
-        $blogPost->tags()->sync(array_values(array_unique($ids)));
+        $ids = [];
+        $createdTagIds = [];
+
+        foreach ($normalizedNameToDisplay as $key => $name) {
+            if (isset($existingTagsByKey[$key])) {
+                $ids[] = (int) ($existingTagsByKey[$key]->id ?? 0);
+                continue;
+            }
+
+            $tag = Tag::query()->create([
+                'name' => $name,
+                'slug' => Str::slug($name),
+            ]);
+
+            $existingTagsByKey[$key] = $tag;
+            $ids[] = (int) $tag->id;
+            $createdTagIds[(int) $tag->id] = true;
+        }
+
+        $targetIds = array_values(array_unique(array_filter(array_map(
+            static fn (mixed $id): int => (int) $id,
+            $ids
+        ), static fn (int $id): bool => $id > 0)));
+        $blogPost->tags()->sync($targetIds);
+
+        $attachedIds = array_values(array_diff($targetIds, $currentTagIds));
+        $createdNew = 0;
+        foreach ($attachedIds as $tagId) {
+            if (isset($createdTagIds[(int) $tagId])) {
+                $createdNew++;
+            }
+        }
+
+        return [
+            'attached_existing' => max(0, count($attachedIds) - $createdNew),
+            'created_new' => max(0, $createdNew),
+            'added_total' => count($attachedIds),
+            'selected_total' => count($targetIds),
+        ];
     }
 
-    private function syncTagIds(BlogPost $blogPost, array $tagIds): void
+    /**
+     * @param array<int,mixed> $tagIds
+     * @return array{attached_existing:int,created_new:int,added_total:int,selected_total:int}
+     */
+    private function syncTagIds(BlogPost $blogPost, array $tagIds): array
     {
+        $currentTagIds = $blogPost->tags()
+            ->pluck('tags.id')
+            ->map(static fn ($id): int => (int) $id)
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->values()
+            ->all();
+
         $ids = collect($tagIds)
             ->map(static fn (mixed $value): int => (int) $value)
             ->filter(static fn (int $id): bool => $id > 0)
@@ -178,6 +252,16 @@ class AdminBlogPostService
             ->all();
 
         $blogPost->tags()->sync($ids);
+
+        $attachedIds = array_values(array_diff($ids, $currentTagIds));
+        $attachedCount = count($attachedIds);
+
+        return [
+            'attached_existing' => $attachedCount,
+            'created_new' => 0,
+            'added_total' => $attachedCount,
+            'selected_total' => count($ids),
+        ];
     }
 
     private function normalizeTagName(mixed $name): string
@@ -188,5 +272,65 @@ class AdminBlogPostService
         }
 
         return strlen($normalized) > 255 ? '' : $normalized;
+    }
+
+    /**
+     * @return array<string,Tag>
+     */
+    private function loadExistingTagsByNormalizedKey(): array
+    {
+        $result = [];
+        foreach (Tag::query()->orderBy('id')->get(['id', 'name', 'slug']) as $tag) {
+            $key = $this->normalizeTagKey((string) $tag->name);
+            if ($key === '' || isset($result[$key])) {
+                continue;
+            }
+
+            $result[$key] = $tag;
+        }
+
+        return $result;
+    }
+
+    private function normalizeTagKey(string $name): string
+    {
+        $trimmed = trim($name);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        $collapsed = preg_replace('/\s+/u', ' ', $trimmed) ?? $trimmed;
+        $withoutDiacritics = $this->removeDiacritics($collapsed);
+
+        return function_exists('mb_strtolower')
+            ? mb_strtolower($withoutDiacritics, 'UTF-8')
+            : strtolower($withoutDiacritics);
+    }
+
+    private function removeDiacritics(string $value): string
+    {
+        if (class_exists(\Normalizer::class)) {
+            try {
+                $normalized = \Normalizer::normalize($value, \Normalizer::FORM_D);
+            } catch (Throwable) {
+                $normalized = false;
+            }
+
+            if (is_string($normalized) && $normalized !== '') {
+                $stripped = preg_replace('/\p{Mn}+/u', '', $normalized);
+                if (is_string($stripped) && $stripped !== '') {
+                    return $stripped;
+                }
+            }
+        }
+
+        if (function_exists('iconv')) {
+            $transliterated = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+            if (is_string($transliterated) && $transliterated !== '') {
+                return $transliterated;
+            }
+        }
+
+        return $value;
     }
 }

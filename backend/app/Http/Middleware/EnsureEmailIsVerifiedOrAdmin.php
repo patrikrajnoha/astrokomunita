@@ -22,10 +22,6 @@ class EnsureEmailIsVerifiedOrAdmin
             return $next($request);
         }
 
-        if (! (bool) ($user->requires_email_verification ?? false)) {
-            return $next($request);
-        }
-
         if ($user->hasVerifiedEmail()) {
             return $next($request);
         }

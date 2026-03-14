@@ -40,7 +40,7 @@ class EventImportCanonicalMatchingTest extends TestCase
         );
 
         $candidate = EventCandidate::query()->firstOrFail();
-        $this->assertSame('meteor shower|2026-04-22|lyrids lyr', $candidate->canonical_key);
+        $this->assertSame('meteor shower|2026-04-22|lyrids', $candidate->canonical_key);
         $this->assertSame('0.70', (string) $candidate->confidence_score);
         $this->assertSame(['astropixels'], $candidate->matched_sources);
     }
@@ -128,6 +128,55 @@ class EventImportCanonicalMatchingTest extends TestCase
         $candidate = EventCandidate::query()->firstOrFail();
         $this->assertSame('observation_window', $candidate->type);
         $this->assertSame(['astropixels', 'nasa_wts'], $candidate->matched_sources);
+        $this->assertSame('1.00', (string) $candidate->confidence_score);
+    }
+
+    public function test_import_deduplicates_meteor_shower_candidates_with_different_title_variants(): void
+    {
+        /** @var EventImportService $service */
+        $service = app(EventImportService::class);
+
+        $astropixels = new CandidateItem(
+            title: 'Meteorický roj Geminid',
+            startsAtUtc: CarbonImmutable::parse('2026-12-14 14:00:00', 'UTC'),
+            endsAtUtc: null,
+            description: 'AstroPixels row.',
+            sourceUrl: 'https://astropixels.test/almanac',
+            externalId: 'ap-geminids-2026',
+            rawPayload: ['source' => 'astropixels'],
+            eventType: 'meteor_shower'
+        );
+
+        $imo = new CandidateItem(
+            title: 'Geminidy (GEM)',
+            startsAtUtc: CarbonImmutable::parse('2026-12-14 01:00:00', 'UTC'),
+            endsAtUtc: null,
+            description: 'IMO row.',
+            sourceUrl: 'https://imo.test/calendar',
+            externalId: 'imo-gem-2026',
+            rawPayload: ['source' => 'imo'],
+            eventType: 'meteor_shower'
+        );
+
+        $service->importFromCandidateItems(
+            sourceName: 'astropixels',
+            sourceUrl: 'https://astropixels.test',
+            items: [$astropixels]
+        );
+        $secondResult = $service->importFromCandidateItems(
+            sourceName: 'imo',
+            sourceUrl: 'https://imo.test',
+            items: [$imo]
+        );
+
+        $this->assertSame(0, $secondResult->imported);
+        $this->assertSame(0, $secondResult->updated);
+        $this->assertSame(1, $secondResult->duplicates);
+        $this->assertSame(1, EventCandidate::query()->count());
+
+        $candidate = EventCandidate::query()->firstOrFail();
+        $this->assertSame('meteor shower|2026-12-14|geminids', $candidate->canonical_key);
+        $this->assertSame(['astropixels', 'imo'], $candidate->matched_sources);
         $this->assertSame('1.00', (string) $candidate->confidence_score);
     }
 

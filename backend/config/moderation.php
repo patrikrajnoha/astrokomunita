@@ -3,6 +3,9 @@
 return [
     'enabled' => env('MODERATION_ENABLED', true),
 
+    // Extra hardening for non-post image uploads (avatar/cover, observations, poll options).
+    'enforce_upload_image_scan' => (bool) env('MODERATION_ENFORCE_UPLOAD_IMAGE_SCAN', true),
+
     'base_url' => rtrim((string) env('MODERATION_BASE_URL', 'http://127.0.0.1:8090'), '/'),
 
     'internal_token' => (string) env('MODERATION_INTERNAL_TOKEN', ''),

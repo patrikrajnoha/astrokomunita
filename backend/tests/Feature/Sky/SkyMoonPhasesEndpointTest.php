@@ -47,6 +47,8 @@ class SkyMoonPhasesEndpointTest extends TestCase
                     ['year' => 2026, 'month' => 3, 'day' => 3, 'phase' => 'Full Moon', 'time' => '14:00'],
                     ['year' => 2026, 'month' => 3, 'day' => 10, 'phase' => 'Last Quarter', 'time' => '16:00'],
                     ['year' => 2026, 'month' => 3, 'day' => 17, 'phase' => 'New Moon', 'time' => '18:00'],
+                    ['year' => 2026, 'month' => 3, 'day' => 25, 'phase' => 'First Quarter', 'time' => '20:00'],
+                    ['year' => 2026, 'month' => 4, 'day' => 2, 'phase' => 'Full Moon', 'time' => '04:00'],
                 ],
             ], 200);
         });
@@ -70,6 +72,11 @@ class SkyMoonPhasesEndpointTest extends TestCase
             ->assertJsonPath('phases.5.key', 'waning_gibbous')
             ->assertJsonPath('phases.6.key', 'last_quarter')
             ->assertJsonPath('phases.7.key', 'waning_crescent')
+            ->assertJsonCount(4, 'major_events')
+            ->assertJsonPath('major_events.0.key', 'last_quarter')
+            ->assertJsonPath('major_events.1.key', 'new_moon')
+            ->assertJsonPath('major_events.2.key', 'first_quarter')
+            ->assertJsonPath('major_events.3.key', 'full_moon')
             ->assertJsonPath('phases.7.is_current', true);
 
         $this->assertSame($first->json('current_phase'), $second->json('current_phase'));

@@ -175,6 +175,10 @@ class PostImageVariantsTest extends TestCase
 
         $owner = User::factory()->create();
         $stranger = User::factory()->create();
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+        ]);
         $post = Post::factory()->for($owner)->create([
             'content' => 'Private image post',
             'is_hidden' => true,
@@ -201,6 +205,9 @@ class PostImageVariantsTest extends TestCase
         $this->get("/api/media/{$post->id}/download")->assertForbidden();
 
         Sanctum::actingAs($owner);
+        $this->get("/api/media/{$post->id}/download")->assertForbidden();
+
+        Sanctum::actingAs($admin);
         $download = $this->get("/api/media/{$post->id}/download");
         $download->assertOk();
         $this->assertStringContainsString(

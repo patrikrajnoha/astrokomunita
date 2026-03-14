@@ -63,7 +63,6 @@ return [
         'humanized_pilot_enabled' => filter_var(env('EVENTS_AI_HUMANIZED_PILOT_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
         'humanized_temperature' => (float) env('EVENTS_AI_HUMANIZED_TEMPERATURE', 0.3),
         'humanized_num_predict' => (int) env('EVENTS_AI_HUMANIZED_NUM_PREDICT', 520),
-        'title_postedit_admin_enabled' => filter_var(env('EVENTS_AI_TITLE_POSTEDIT_ADMIN_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
         'title_postedit_enabled' => filter_var(env('EVENTS_AI_TITLE_POSTEDIT_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
         'title_postedit_max_length' => (int) env('EVENTS_AI_TITLE_POSTEDIT_MAX_LENGTH', 120),
         'title_postedit_temperature' => (float) env('EVENTS_AI_TITLE_POSTEDIT_TEMPERATURE', 0.25),

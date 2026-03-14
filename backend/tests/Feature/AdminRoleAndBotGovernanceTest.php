@@ -103,11 +103,41 @@ class AdminRoleAndBotGovernanceTest extends TestCase
 
         Sanctum::actingAs($admin);
         $this->patchJson("/api/admin/users/{$bot->id}/profile", [
-            'name' => 'Edited by admin',
+            'name' => 'Edited by staff',
             'bio' => 'admin update',
         ])->assertOk()
-            ->assertJsonPath('name', 'Edited by admin')
+            ->assertJsonPath('name', 'Edited by staff')
             ->assertJsonPath('bio', 'admin update');
+    }
+
+    public function test_admin_bot_profile_update_rejects_blocked_name(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $bot = User::factory()->bot()->create([
+            'name' => 'Kozmo',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/admin/users/{$bot->id}/profile", [
+            'name' => 'Pica bot',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['name']);
+    }
+
+    public function test_admin_bot_profile_update_rejects_name_containing_astrokomunita_keyword(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $bot = User::factory()->bot()->create([
+            'name' => 'Kozmo',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->patchJson("/api/admin/users/{$bot->id}/profile", [
+            'name' => 'Astrokomunita oficial',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['name']);
     }
 
     public function test_bot_profile_rejects_raw_avatar_and_cover_path_updates(): void

@@ -133,6 +133,31 @@ class SkyAstronomyEndpointTest extends TestCase
             ->assertJsonPath('moon_altitude_deg', 12.4);
     }
 
+    public function test_it_returns_degraded_payload_instead_of_503_when_upstream_is_unavailable(): void
+    {
+        Cache::flush();
+        config()->set('observing.sky_summary.microservice_base', 'http://sky.test');
+
+        Http::fake([
+            'https://aa.usno.navy.mil/*' => Http::response(['message' => 'offline'], 503),
+            'http://sky.test/sky-summary*' => Http::response(['message' => 'offline'], 503),
+        ]);
+
+        $response = $this->getJson('/api/sky/astronomy?lat=48.1486&lon=17.1077&tz=Europe/Bratislava');
+
+        $response->assertOk()
+            ->assertJsonPath('moon_phase', 'unknown')
+            ->assertJsonPath('moon_illumination_percent', null)
+            ->assertJsonPath('sunrise_at', null)
+            ->assertJsonPath('sunset_at', null)
+            ->assertJsonPath('civil_twilight_end_at', null)
+            ->assertJsonPath('sun_altitude_deg', null)
+            ->assertJsonPath('moon_altitude_deg', null)
+            ->assertJsonPath('sample_at', null)
+            ->assertJsonPath('moonrise_at', null)
+            ->assertJsonPath('moonset_at', null);
+    }
+
     private function assertNullableIso8601(mixed $value): void
     {
         if ($value === null) {

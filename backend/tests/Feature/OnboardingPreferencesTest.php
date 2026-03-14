@@ -46,7 +46,7 @@ class OnboardingPreferencesTest extends TestCase
             ->assertJsonPath('data.onboarding_completed_at', $completedAt->toIso8601String());
     }
 
-    public function test_admin_user_preferences_are_disabled(): void
+    public function test_admin_user_preferences_can_be_saved_and_read(): void
     {
         $admin = User::factory()->create([
             'is_admin' => true,
@@ -61,16 +61,17 @@ class OnboardingPreferencesTest extends TestCase
             'interests' => ['meteory'],
             'onboarding_completed_at' => $completedAt->toIso8601String(),
         ])->assertOk()
-            ->assertJsonPath('data.has_preferences', false)
-            ->assertJsonPath('data.onboarding_completed_at', null);
+            ->assertJsonPath('data.has_preferences', true)
+            ->assertJsonPath('data.interests', ['meteory'])
+            ->assertJsonPath('data.onboarding_completed_at', $completedAt->toIso8601String());
 
         $this->getJson('/api/me/preferences')
             ->assertOk()
-            ->assertJsonPath('data.has_preferences', false)
-            ->assertJsonPath('data.onboarding_completed_at', null)
-            ->assertJsonPath('data.interests', []);
+            ->assertJsonPath('data.has_preferences', true)
+            ->assertJsonPath('data.onboarding_completed_at', $completedAt->toIso8601String())
+            ->assertJsonPath('data.interests', ['meteory']);
 
-        $this->assertDatabaseMissing('user_preferences', [
+        $this->assertDatabaseHas('user_preferences', [
             'user_id' => $admin->id,
         ]);
     }

@@ -3,11 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Location\OpenMeteoGeocodingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class MetaController extends Controller
 {
+    public function __construct(
+        private readonly OpenMeteoGeocodingService $geocodingService
+    ) {
+    }
+
     public function interests()
     {
         return response()->json([
@@ -24,8 +30,34 @@ class MetaController extends Controller
             return response()->json(['data' => []]);
         }
 
+        $rows = collect($this->geocodingService->search($query, $limit))
+            ->take($limit)
+            ->values();
+
+        if ($rows->isEmpty()) {
+            $rows = $this->fallbackLocations($query, $limit);
+        }
+
+        return response()->json([
+            'data' => $rows,
+        ]);
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int,array{
+     *   label:string,
+     *   place_id:string,
+     *   lat:float,
+     *   lon:float,
+     *   timezone:?string,
+     *   country:?string
+     * }>
+     */
+    private function fallbackLocations(string $query, int $limit)
+    {
         $needle = $this->normalizeLookup($query);
-        $rows = collect(config('onboarding.locations', []))
+
+        return collect(config('onboarding.locations', []))
             ->filter(function ($item) {
                 return is_array($item)
                     && is_string($item['label'] ?? null)
@@ -44,15 +76,19 @@ class MetaController extends Controller
                     $score = 2;
                 }
 
-                return $score === null
-                    ? null
-                    : [
-                        'score' => $score,
-                        'label' => $item['label'],
-                        'place_id' => $item['place_id'],
-                        'lat' => (float) $item['lat'],
-                        'lon' => (float) $item['lon'],
-                    ];
+                if ($score === null) {
+                    return null;
+                }
+
+                return [
+                    'score' => $score,
+                    'label' => $item['label'],
+                    'place_id' => $item['place_id'],
+                    'lat' => (float) $item['lat'],
+                    'lon' => (float) $item['lon'],
+                    'timezone' => null,
+                    'country' => null,
+                ];
             })
             ->filter()
             ->sortBy([
@@ -66,12 +102,10 @@ class MetaController extends Controller
                 'place_id' => $item['place_id'],
                 'lat' => $item['lat'],
                 'lon' => $item['lon'],
+                'timezone' => $item['timezone'],
+                'country' => $item['country'],
             ])
             ->values();
-
-        return response()->json([
-            'data' => $rows,
-        ]);
     }
 
     private function normalizeLookup(string $value): string

@@ -187,13 +187,13 @@ class AstroFeedFoundationTest extends TestCase
 
     public function test_long_kozmo_content_passes_validation_and_is_stored_fully(): void
     {
-        $kozmo = User::factory()->create([
-            'username' => 'kozmo',
-            'email' => 'kozmo@astrokomunita.local',
-            'is_bot' => true,
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'email_verified_at' => now(),
         ]);
 
-        Sanctum::actingAs($kozmo);
+        Sanctum::actingAs($admin);
 
         $longContent = implode("\n", array_fill(
             0,

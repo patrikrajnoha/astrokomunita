@@ -50,6 +50,7 @@ class AdminEventController extends Controller
         $event->title = $validated['title'];
         $event->description = $validated['description'] ?? null;
         $event->type = $validated['type'];
+        $event->icon_emoji = $this->normalizeIconEmoji($validated['icon_emoji'] ?? null);
         $event->region_scope = $validated['region_scope'] ?? RegionScope::Global->value;
         $event->start_at = $validated['start_at'];
         $event->end_at = $validated['end_at'] ?? null;
@@ -72,6 +73,7 @@ class AdminEventController extends Controller
         $event->title = $validated['title'];
         $event->description = $validated['description'] ?? null;
         $event->type = $validated['type'];
+        $event->icon_emoji = $this->normalizeIconEmoji($validated['icon_emoji'] ?? null);
         $event->region_scope = $validated['region_scope'] ?? $event->region_scope ?? RegionScope::Global->value;
         $event->start_at = $validated['start_at'];
         $event->end_at = $validated['end_at'] ?? null;
@@ -90,10 +92,22 @@ class AdminEventController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'type' => ['required', 'string', Rule::in(EventType::values())],
+            'icon_emoji' => ['nullable', 'string', 'max:32'],
             'region_scope' => ['nullable', 'string', Rule::in(RegionScope::values())],
             'start_at' => ['required', 'date'],
             'end_at' => ['nullable', 'date'],
             'visibility' => ['required', Rule::in([0, 1])],
         ]);
+    }
+
+    private function normalizeIconEmoji(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }

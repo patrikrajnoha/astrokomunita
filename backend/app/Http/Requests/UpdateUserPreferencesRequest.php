@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\EventType;
 use App\Enums\RegionScope;
+use App\Support\SidebarSectionRegistry;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -21,6 +22,11 @@ class UpdateUserPreferencesRequest extends FormRequest
             ->filter(static fn ($value) => is_string($value) && $value !== '')
             ->values()
             ->all();
+        $sidebarWidgetKeys = collect(SidebarSectionRegistry::sections())
+            ->pluck('section_key')
+            ->filter(static fn ($value) => is_string($value) && $value !== '')
+            ->values()
+            ->all();
 
         return [
             'event_types' => ['nullable', 'array'],
@@ -34,6 +40,34 @@ class UpdateUserPreferencesRequest extends FormRequest
             'location_lon' => ['nullable', 'numeric', 'between:-180,180'],
             'onboarding_completed_at' => ['nullable', 'date'],
             'bortle_class' => ['nullable', 'integer', 'between:1,9'],
+            'sidebar_widget_keys' => ['nullable', 'array', 'max:3'],
+            'sidebar_widget_keys.*' => ['string', Rule::in($sidebarWidgetKeys)],
+            'sidebar_widget_overrides' => ['nullable', 'array'],
+            'sidebar_widget_overrides.*' => ['array', 'max:3'],
+            'sidebar_widget_overrides.*.*' => ['string', Rule::in($sidebarWidgetKeys)],
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $rawOverrides = $this->input('sidebar_widget_overrides');
+            if (!is_array($rawOverrides)) {
+                return;
+            }
+
+            $validScopes = SidebarSectionRegistry::scopes();
+            foreach (array_keys($rawOverrides) as $scope) {
+                if (is_string($scope) && in_array($scope, $validScopes, true)) {
+                    continue;
+                }
+
+                $validator->errors()->add(
+                    'sidebar_widget_overrides',
+                    'Konfiguracia obsahuje neplatny sidebar scope.'
+                );
+                break;
+            }
+        });
     }
 }

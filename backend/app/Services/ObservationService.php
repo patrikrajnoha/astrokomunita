@@ -8,6 +8,7 @@ use App\Models\Observation;
 use App\Models\ObservationMedia;
 use App\Models\Post;
 use App\Models\User;
+use App\Services\Moderation\UploadImageModerationGuard;
 use App\Services\Storage\MediaStorageService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
@@ -19,6 +20,7 @@ class ObservationService
 {
     public function __construct(
         private readonly MediaStorageService $mediaStorage,
+        private readonly UploadImageModerationGuard $uploadImageModeration,
     ) {
     }
 
@@ -127,10 +129,16 @@ class ObservationService
      */
     private function storeImages(Observation $observation, array $images): void
     {
-        foreach ($images as $image) {
+        foreach ($images as $index => $image) {
             if (!$image instanceof UploadedFile) {
                 continue;
             }
+
+            $this->uploadImageModeration->assertUploadedFileAllowed(
+                $image,
+                'images.' . (int) $index,
+                'observation_image'
+            );
 
             $path = $this->mediaStorage->storeObservationImage($image, (int) $observation->id);
             [$width, $height] = $this->resolveDimensions($image);

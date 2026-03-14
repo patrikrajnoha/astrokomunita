@@ -255,6 +255,76 @@ class AdminStatsEndpointTest extends TestCase
             ->assertJsonPath('demographics.by_region_active_ip_30d.unknown', 1);
     }
 
+    public function test_profile_region_breakdown_maps_slovak_village_to_sk_using_timezone(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+            'is_active' => true,
+            'location' => null,
+            'location_label' => null,
+            'timezone' => null,
+        ]);
+
+        User::factory()->create([
+            'role' => 'user',
+            'is_admin' => false,
+            'is_active' => true,
+            'location' => 'Liptovska Luzna',
+            'location_label' => 'Liptovska Luzna',
+            'timezone' => 'Europe/Bratislava',
+        ]);
+
+        Sanctum::actingAs($admin);
+        Cache::flush();
+
+        $this->getJson('/api/admin/stats')
+            ->assertOk()
+            ->assertJsonPath('demographics.by_region.sk', 1)
+            ->assertJsonPath('demographics.by_region.unknown', 1);
+    }
+
+    public function test_profile_region_breakdown_excludes_bot_accounts(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+            'is_active' => true,
+            'is_bot' => false,
+            'location' => null,
+            'location_label' => null,
+            'timezone' => null,
+        ]);
+
+        User::factory()->create([
+            'role' => 'user',
+            'is_admin' => false,
+            'is_active' => true,
+            'is_bot' => false,
+            'location' => 'Praha, CZ',
+            'location_label' => 'Praha, CZ',
+            'timezone' => 'Europe/Prague',
+        ]);
+
+        User::factory()->create([
+            'role' => 'bot',
+            'is_admin' => false,
+            'is_active' => true,
+            'is_bot' => true,
+            'location' => 'Kosice, SK',
+            'location_label' => 'Kosice, SK',
+            'timezone' => 'Europe/Bratislava',
+        ]);
+
+        Sanctum::actingAs($admin);
+        Cache::flush();
+
+        $this->getJson('/api/admin/stats')
+            ->assertOk()
+            ->assertJsonPath('demographics.by_region.cz', 1)
+            ->assertJsonPath('demographics.by_region.sk', 0);
+    }
+
     public function test_export_returns_csv_with_headers(): void
     {
         $admin = User::factory()->create([

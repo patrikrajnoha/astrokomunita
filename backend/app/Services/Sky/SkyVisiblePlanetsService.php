@@ -5,11 +5,13 @@ namespace App\Services\Sky;
 use App\Services\Observing\SkyMicroserviceClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class SkyVisiblePlanetsService
 {
     public function __construct(
-        private readonly SkyMicroserviceClient $skyMicroserviceClient
+        private readonly SkyMicroserviceClient $skyMicroserviceClient,
+        private readonly SkyEphemerisService $skyEphemerisService
     ) {
     }
 
@@ -24,6 +26,30 @@ class SkyVisiblePlanetsService
     public function fetch(float $lat, float $lon, string $tz): array
     {
         $localDate = CarbonImmutable::now($tz)->format('Y-m-d');
+
+        try {
+            $jplPayload = $this->skyEphemerisService->fetchPlanets($lat, $lon, $tz);
+            $normalizedJpl = $this->normalizeJplPayload($jplPayload);
+            if ($normalizedJpl !== null) {
+                return $this->enrichJplPayloadWithBestWindows(
+                    payload: $normalizedJpl,
+                    lat: $lat,
+                    lon: $lon,
+                    localDate: $localDate,
+                    tz: $tz
+                );
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Sky visible planets JPL Horizons provider failed.', [
+                'lat' => $lat,
+                'lon' => $lon,
+                'tz' => $tz,
+                'date' => $localDate,
+                'provider_url' => config('observing.providers.jpl_horizons_url'),
+                'exception_class' => $exception::class,
+                'exception_message' => $exception->getMessage(),
+            ]);
+        }
 
         try {
             $payload = $this->skyMicroserviceClient->fetch($lat, $lon, $localDate, $tz);
@@ -113,7 +139,134 @@ class SkyVisiblePlanetsService
             'planets' => array_values($normalized),
             'sample_at' => $sampleAt,
             'sun_altitude_deg' => round($sunAltitude, 1),
+            'source' => 'sky_microservice',
         ];
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>|null
+     */
+    private function normalizeJplPayload(array $payload): ?array
+    {
+        $sampleAt = $this->toIso8601($payload['sample_at'] ?? null);
+        $sunAltitude = $this->toFloat($payload['sun_altitude_deg'] ?? null);
+        $planets = is_array($payload['planets'] ?? null) ? $payload['planets'] : null;
+
+        if ($sampleAt === null || $sunAltitude === null || $planets === null || $planets === []) {
+            return null;
+        }
+
+        $normalized = [];
+
+        foreach ($planets as $planet) {
+            if (!is_array($planet)) {
+                continue;
+            }
+
+            $name = trim((string) ($planet['name'] ?? ''));
+            $altitude = $this->toFloat($planet['altitude_deg'] ?? null);
+            $azimuth = $this->toFloat($planet['azimuth_deg'] ?? null);
+            $elongation = $this->toFloat($planet['elongation_deg'] ?? null);
+            $quality = trim((string) ($planet['quality'] ?? ''));
+            $direction = trim((string) ($planet['direction'] ?? ''));
+            $magnitude = $this->toFloat($planet['magnitude'] ?? null);
+
+            if ($name === '' || $altitude === null || $azimuth === null || $elongation === null) {
+                continue;
+            }
+
+            if ($quality === '') {
+                $quality = $this->qualityForAltitude($altitude);
+            }
+
+            if ($direction === '') {
+                $direction = $this->normalizeDirection(null, $azimuth);
+            }
+
+            $item = [
+                'name' => $name,
+                'altitude_deg' => round($altitude, 1),
+                'azimuth_deg' => round($azimuth, 1),
+                'elongation_deg' => round($elongation, 1),
+                'direction' => $direction,
+                'quality' => $quality,
+            ];
+
+            if ($magnitude !== null) {
+                $item['magnitude'] = round($magnitude, 1);
+            }
+
+            $normalized[] = $item;
+        }
+
+        if ($normalized === []) {
+            return null;
+        }
+
+        usort($normalized, static function (array $a, array $b): int {
+            return ($b['altitude_deg'] <=> $a['altitude_deg']) ?: strcmp((string) $a['name'], (string) $b['name']);
+        });
+
+        return [
+            'planets' => array_values($normalized),
+            'sample_at' => $sampleAt,
+            'sun_altitude_deg' => round($sunAltitude, 1),
+            'source' => 'jpl_horizons',
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>
+     */
+    private function enrichJplPayloadWithBestWindows(
+        array $payload,
+        float $lat,
+        float $lon,
+        string $localDate,
+        string $tz
+    ): array {
+        $planets = is_array($payload['planets'] ?? null) ? $payload['planets'] : [];
+        if ($planets === []) {
+            return $payload;
+        }
+
+        try {
+            $microPayload = $this->skyMicroserviceClient->fetch($lat, $lon, $localDate, $tz);
+        } catch (\Throwable) {
+            return $payload;
+        }
+
+        $bestWindowMap = $this->extractBestWindowMap($microPayload);
+        if ($bestWindowMap === []) {
+            return $payload;
+        }
+
+        $enriched = [];
+
+        foreach ($planets as $planet) {
+            if (!is_array($planet)) {
+                continue;
+            }
+
+            $name = trim((string) ($planet['name'] ?? ''));
+            $normalizedName = $this->normalizePlanetNameKey($name);
+
+            if (
+                $normalizedName !== ''
+                && !isset($planet['best_time_window'])
+                && isset($bestWindowMap[$normalizedName])
+            ) {
+                $planet['best_time_window'] = $bestWindowMap[$normalizedName];
+            }
+
+            $enriched[] = $planet;
+        }
+
+        $payload['planets'] = array_values($enriched);
+
+        return $payload;
     }
 
     private function toFloat(mixed $value): ?float
@@ -147,6 +300,42 @@ class SkyVisiblePlanetsService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,string>
+     */
+    private function extractBestWindowMap(array $payload): array
+    {
+        $planets = is_array($payload['planets'] ?? null) ? $payload['planets'] : [];
+        if ($planets === []) {
+            return [];
+        }
+
+        $map = [];
+
+        foreach ($planets as $planet) {
+            if (!is_array($planet)) {
+                continue;
+            }
+
+            $name = trim((string) ($planet['name'] ?? ''));
+            $bestFrom = $this->toClock($planet['best_from'] ?? null);
+            $bestTo = $this->toClock($planet['best_to'] ?? null);
+            if ($name === '' || $bestFrom === null || $bestTo === null) {
+                continue;
+            }
+
+            $key = $this->normalizePlanetNameKey($name);
+            if ($key === '' || isset($map[$key])) {
+                continue;
+            }
+
+            $map[$key] = "{$bestFrom}-{$bestTo}";
+        }
+
+        return $map;
     }
 
     /**
@@ -191,5 +380,18 @@ class SkyVisiblePlanetsService
         }
 
         return 'low';
+    }
+
+    private function normalizePlanetNameKey(string $name): string
+    {
+        $normalized = Str::of($name)->ascii()->lower()->value();
+        $normalized = preg_replace('/[^a-z0-9]+/', '', $normalized) ?? $normalized;
+        $normalized = trim($normalized);
+
+        return match ($normalized) {
+            'merkur', 'mercury' => 'mercury',
+            'venusa', 'venus' => 'venus',
+            default => $normalized,
+        };
     }
 }

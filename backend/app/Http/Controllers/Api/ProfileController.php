@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateAvatarPreferencesRequest;
 use App\Models\User;
 use App\Services\Location\UserLocationService;
+use App\Services\Moderation\UploadImageModerationGuard;
 use App\Services\Storage\MediaStorageService;
+use App\Support\ProfanityFilter;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
@@ -24,6 +27,7 @@ class ProfileController extends Controller
     public function __construct(
         private readonly MediaStorageService $mediaStorage,
         private readonly UserLocationService $userLocationService,
+        private readonly UploadImageModerationGuard $uploadImageModeration,
     ) {
     }
 
@@ -41,7 +45,17 @@ class ProfileController extends Controller
         }
 
         $validated = $request->validate([
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'name' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (ProfanityFilter::containsBlockedWord((string) $value)) {
+                        $fail('Meno obsahuje nepovoleny vyraz.');
+                    }
+                },
+            ],
             'email' => [
                 'sometimes',
                 'required',
@@ -159,6 +173,13 @@ class ProfileController extends Controller
 
         $type = $validated['type'];
         $file = $request->file('file');
+        if (!$file instanceof UploadedFile) {
+            throw ValidationException::withMessages([
+                'file' => 'Invalid uploaded file.',
+            ]);
+        }
+
+        $this->uploadImageModeration->assertUploadedFileAllowed($file, 'file', 'profile_' . $type);
         $freshUser = $this->replaceUserMedia($user, $type, $file);
 
         return response()->json($freshUser);
@@ -173,7 +194,15 @@ class ProfileController extends Controller
             'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.$maxKb],
         ]);
 
-        $freshUser = $this->replaceUserMedia($user, 'avatar', $request->file('file'));
+        $file = $request->file('file');
+        if (!$file instanceof UploadedFile) {
+            throw ValidationException::withMessages([
+                'file' => 'Invalid uploaded file.',
+            ]);
+        }
+
+        $this->uploadImageModeration->assertUploadedFileAllowed($file, 'file', 'profile_avatar');
+        $freshUser = $this->replaceUserMedia($user, 'avatar', $file);
 
         return response()->json($freshUser);
     }
@@ -227,7 +256,7 @@ class ProfileController extends Controller
         return response()->json($user->fresh());
     }
 
-    private function replaceUserMedia(User $user, string $type, mixed $file): User
+    private function replaceUserMedia(User $user, string $type, UploadedFile $file): User
     {
         $path = $type === 'avatar'
             ? $this->mediaStorage->storeAvatar($file, (int) $user->id)
