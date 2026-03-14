@@ -20,7 +20,7 @@ import { useRoute } from 'vue-router'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 import { useAuthStore } from '@/stores/auth'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
-import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
+import { DEFAULT_SIDEBAR_SCOPE, resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import {
   getEnabledSidebarSections,
   resolveSidebarComponent,
@@ -71,16 +71,10 @@ const hasObservingLocation = computed(() => {
 })
 const preferredSidebarWidgetKeys = computed(() => {
   if (!auth.isAuthed || !preferences.loaded) return null
-  const scope = String(activeScope.value || 'home')
-  if (
-    typeof preferences.sidebarWidgetKeysForScope === 'function'
-    && typeof preferences.hasSidebarWidgetOverrideForScope === 'function'
-    && preferences.hasSidebarWidgetOverrideForScope(scope)
-  ) {
-    return preferences.sidebarWidgetKeysForScope(scope)
-  }
-
-  return null
+  const scope = String(activeScope.value || DEFAULT_SIDEBAR_SCOPE)
+  if (typeof preferences.sidebarWidgetKeysForScope !== 'function') return null
+  const selected = preferences.sidebarWidgetKeysForScope(scope)
+  return Array.isArray(selected) && selected.length > 0 ? selected : null
 })
 
 const renderedSections = computed(() => {
@@ -149,6 +143,7 @@ const propsForSection = (section) => {
   if (
     sectionKey === 'nasa_apod'
     || sectionKey === 'next_event'
+    || sectionKey === 'next_eclipse'
     || sectionKey === 'latest_articles'
     || sectionKey === 'upcoming_events'
   ) {

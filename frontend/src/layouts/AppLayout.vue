@@ -11,7 +11,7 @@ import MobileFab from '@/components/MobileFab.vue'
 import MobileBottomNav from '@/components/nav/MobileBottomNav.vue'
 import AdminSubNav from '@/components/admin/AdminSubNav.vue'
 import { useToast } from '@/composables/useToast'
-import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
+import { DEFAULT_SIDEBAR_SCOPE, resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 import { useOnboardingTourStore } from '@/stores/onboardingTour'
 import {
@@ -94,16 +94,10 @@ const centerShellStyle = computed(() => {
 const mainContentClass = computed(() => 'mx-auto w-full max-w-[640px]')
 const preferredSidebarWidgetKeys = computed(() => {
   if (!auth.isAuthed || !preferences.loaded) return null
-  const scope = String(currentSidebarScope.value || 'home')
-  if (
-    typeof preferences.sidebarWidgetKeysForScope === 'function'
-    && typeof preferences.hasSidebarWidgetOverrideForScope === 'function'
-    && preferences.hasSidebarWidgetOverrideForScope(scope)
-  ) {
-    return preferences.sidebarWidgetKeysForScope(scope)
-  }
-
-  return null
+  const scope = String(currentSidebarScope.value || DEFAULT_SIDEBAR_SCOPE)
+  if (typeof preferences.sidebarWidgetKeysForScope !== 'function') return null
+  const selected = preferences.sidebarWidgetKeysForScope(scope)
+  return Array.isArray(selected) && selected.length > 0 ? selected : null
 })
 const enabledMobileSections = computed(() => (
   getEnabledSidebarSections(mobileSidebarSections.value, {

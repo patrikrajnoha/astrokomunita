@@ -18,6 +18,7 @@
         :href="nasaItem.link"
         target="_blank"
         rel="noopener noreferrer"
+        :aria-label="`Otvorit NASA detail: ${nasaItem.title}`"
       >
         <div class="nasaImageWrap">
           <img
@@ -30,6 +31,7 @@
 
       <div class="nasaTitle">{{ nasaItem.title }}</div>
       <div v-if="nasaItem.excerpt" class="nasaExcerpt">{{ nasaItem.excerpt }}</div>
+      <p v-if="metaLine" class="metaLine">{{ metaLine }}</p>
 
       <div class="panelActions">
         <a
@@ -37,6 +39,7 @@
           :href="nasaItem.link"
           target="_blank"
           rel="noopener noreferrer"
+          :aria-label="`Otvorit NASA.gov clanok: ${nasaItem.title}`"
           style="border-radius:0;display:block;width:100%;max-width:100%;box-sizing:border-box"
         >
           Zobrazit na NASA.gov
@@ -68,6 +71,22 @@ export default {
         import.meta.env.VITE_FEATURE_NASA_IOTD !== 'false' &&
         import.meta.env.VITE_FEATURE_NASA_IOTD !== '0'
       )
+    })
+
+    const metaLine = computed(() => {
+      const sourceLabel = String(nasaItem.value?.source?.label || 'NASA').trim()
+      const updatedLabel = formatTime(nasaItem.value?.updated_at)
+      const parts = []
+
+      if (sourceLabel) {
+        parts.push(`Zdroj: ${sourceLabel}`)
+      }
+
+      if (updatedLabel !== '-') {
+        parts.push(`Aktualizovane: ${updatedLabel}`)
+      }
+
+      return parts.join(' | ')
     })
 
     const fetchNasaIotd = async () => {
@@ -106,9 +125,28 @@ export default {
       loading,
       error,
       nasaEnabled,
+      metaLine,
       fetchNasaIotd,
     }
   },
+}
+
+function formatTime(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return '-'
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return '-'
+
+  try {
+    return new Intl.DateTimeFormat('sk-SK', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(parsed)
+  } catch {
+    return '-'
+  }
 }
 </script>
 
@@ -197,6 +235,13 @@ export default {
   overflow: hidden;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.metaLine {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.25;
 }
 
 .panelActions {

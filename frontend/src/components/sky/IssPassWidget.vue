@@ -20,7 +20,7 @@
         :observer-lon="lon"
       />
 
-      <p v-if="satelliteSourceLine" class="sourceLine">{{ satelliteSourceLine }}</p>
+      <p v-if="metaLine" class="sourceLine">{{ metaLine }}</p>
     </div>
   </section>
 </template>
@@ -42,6 +42,7 @@ const {
   issLoading,
   hasLocationCoords,
   effectiveTz,
+  issUpdatedLabel,
 } = useSkyWidget({
   lat: toRef(props, 'lat'),
   lon: toRef(props, 'lon'),
@@ -114,6 +115,20 @@ const satelliteSourceLine = computed(() => {
   const parts = []
   if (satelliteSource === 'celestrak_gp') parts.push('orbita: CelesTrak GP')
   if (trackerSource === 'iss_tracker') parts.push('tracker: WhereTheISS')
+
+  return parts.join(' | ')
+})
+
+const metaLine = computed(() => {
+  const parts = []
+
+  if (satelliteSourceLine.value) {
+    parts.push(`Zdroj: ${satelliteSourceLine.value}`)
+  }
+
+  if (issUpdatedLabel.value && issUpdatedLabel.value !== '-') {
+    parts.push(`Aktualizovane: ${issUpdatedLabel.value}`)
+  }
 
   return parts.join(' | ')
 })

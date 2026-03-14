@@ -33,4 +33,13 @@ class EventTypeClassifierTest extends TestCase
 
         $this->assertSame('meteor_shower', $type);
     }
+
+    public function test_it_normalizes_single_meteor_events_to_supported_taxonomy(): void
+    {
+        $classifier = app(EventTypeClassifier::class);
+
+        $type = $classifier->classify('fireball', 'Bright fireball over Europe');
+
+        $this->assertSame('meteors', $type);
+    }
 }

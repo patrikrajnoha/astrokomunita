@@ -204,6 +204,7 @@ Route::get('/events/years', [EventController::class, 'years']);
 Route::get('/events/next', [EventController::class, 'next']);
 Route::get('/events/lookup', [EventController::class, 'lookup']);
 Route::get('/events/widget/upcoming', [EventWidgetController::class, 'upcoming']);
+Route::get('/events/widget/next-eclipse', [EventWidgetController::class, 'nextEclipse']);
 Route::get('/events/{id}', [EventController::class, 'show']);
 Route::get('/events/{id}/viewing-forecast', [EventViewingForecastController::class, 'show']);
 Route::get('/events/{event}/ics', [EventCalendarController::class, 'show']);

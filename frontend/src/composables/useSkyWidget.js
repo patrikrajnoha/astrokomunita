@@ -612,6 +612,10 @@ export function useSkyWidget(options = {}) {
   ))
   const weatherUpdatedLabel = computed(() => formatTimeOrDash(weatherUpdatedAt.value, effectiveTz.value))
   const weatherSourceLabel = computed(() => normalizeSourceLabel(weather.value?.source))
+  const issUpdatedAt = computed(() => (
+    resolvePayloadTimestamp(issPreview.value?.tracker, ['sample_at']) || issFetchedAt.value
+  ))
+  const issUpdatedLabel = computed(() => formatTimeOrDash(issUpdatedAt.value, effectiveTz.value))
 
   const weatherFreshness = computed(() => formatFreshness(weatherFetchedAt.value, nowTick.value))
   const astronomyFreshness = computed(() => formatFreshness(astronomyFetchedAt.value, nowTick.value))
@@ -1084,6 +1088,7 @@ export function useSkyWidget(options = {}) {
     isLightPollutionEstimate,
     weatherUpdatedLabel,
     weatherSourceLabel,
+    issUpdatedLabel,
     planetCandidates,
     planetsDisplayList: planetsDisplayListV15,
     planetsMessage: planetsMessageV15,

@@ -28,6 +28,7 @@ const GuestObservingPromptWidget = defineAsyncComponent(() => import('@/componen
 const LatestArticlesWidget = defineAsyncComponent(() => import('@/components/widgets/LatestArticlesWidget.vue'))
 const NasaHighlightsWidget = defineAsyncComponent(() => import('@/components/widgets/NasaHighlightsWidget.vue'))
 const NextEventWidget = defineAsyncComponent(() => import('@/components/widgets/NextEventWidget.vue'))
+const NextEclipseWidget = defineAsyncComponent(() => import('@/components/widgets/NextEclipseWidget.vue'))
 const UpcomingEventsWidget = defineAsyncComponent(() => import('@/components/widgets/UpcomingEventsWidget.vue'))
 const MoonPhasesWidget = defineAsyncComponent(() => import('@/components/widgets/MoonPhasesWidget.vue'))
 const MoonOverviewWidget = defineAsyncComponent(() => import('@/components/widgets/MoonOverviewWidget.vue'))
@@ -43,6 +44,7 @@ export const sidebarComponentMap = {
   [GUEST_OBSERVING_PROMPT_SECTION_KEY]: GuestObservingPromptWidget,
   nasa_apod: NasaHighlightsWidget,
   next_event: NextEventWidget,
+  next_eclipse: NextEclipseWidget,
   latest_articles: LatestArticlesWidget,
   upcoming_events: UpcomingEventsWidget,
   moon_phases: MoonPhasesWidget,
@@ -101,6 +103,14 @@ const sidebarIconMap = {
       'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z',
       'M12 12v4',
       'm12 12 2.5-2.5',
+    ],
+  },
+  next_eclipse: {
+    viewBox: '0 0 24 24',
+    paths: [
+      'M12 3a9 9 0 1 0 0 18',
+      'M12 3a9 9 0 0 1 0 18',
+      'M16 8.5a6 6 0 0 0 0 7',
     ],
   },
   latest_articles: {

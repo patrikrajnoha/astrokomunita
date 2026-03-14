@@ -39,7 +39,7 @@ class EventTypeClassifier
         }
 
         if ($this->hasAny($raw.' '.$t, ['meteor', 'fireball', 'bolid']) && ! $this->hasAny($raw.' '.$t, ['shower', 'roj'])) {
-            return 'meteor';
+            return 'meteors';
         }
 
         // 3) Lunar phases.

@@ -11,20 +11,23 @@
     <div v-else-if="error" class="state stateError">
       <div class="stateTitle">Nepodarilo sa nacitat</div>
       <div class="stateText">{{ error }}</div>
-      <button class="eventGhostBtn" @click="fetchNextEvent">Skusit znova</button>
+      <button type="button" class="eventGhostBtn" @click="fetchNextEvent">Skusit znova</button>
     </div>
 
     <div v-else-if="!nextEvent" class="state">
-      <div class="stateTitle">Zatial ziadna udalost</div>
-      <div class="stateText">Pozri kalendar alebo udalosti.</div>
+      <div class="stateTitle">{{ emptyTitle }}</div>
+      <div class="stateText">{{ emptyText }}</div>
       <div class="panelActions">
-        <router-link class="eventGhostBtn" to="/events">Vsetky udalosti</router-link>
+        <router-link class="eventGhostBtn" :to="browseTo">{{ browseLabel }}</router-link>
       </div>
     </div>
 
     <div v-else class="eventCard">
       <div class="eventTitle">{{ nextEvent.title }}</div>
-      <div class="eventMeta">{{ formatDateTime(nextEvent) }}</div>
+      <div v-if="typeLabel" class="eventType">{{ typeLabel }}</div>
+      <time class="eventMeta" :datetime="eventDateTimeValue">{{ formatDateTime(nextEvent) }}</time>
+      <div v-if="countdownLabel" class="eventCountdown">{{ countdownLabel }}</div>
+      <p v-if="metaLine" class="eventSource">{{ metaLine }}</p>
       <router-link class="eventActionBtn" :to="`/events/${nextEvent.id}`">
         Detail
       </router-link>
@@ -33,7 +36,7 @@
 </template>
 
 <script>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import api from '@/services/api'
 import { EVENT_TIMEZONE, formatEventDate, resolveEventTimeContext } from '@/utils/eventTime'
 
@@ -44,11 +47,51 @@ export default {
       type: String,
       default: 'Najblizsia udalost',
     },
+    endpoint: {
+      type: String,
+      default: '/events/next',
+    },
+    emptyTitle: {
+      type: String,
+      default: 'Zatial ziadna udalost',
+    },
+    emptyText: {
+      type: String,
+      default: 'Pozri kalendar alebo udalosti.',
+    },
+    browseLabel: {
+      type: String,
+      default: 'Vsetky udalosti',
+    },
+    browseTo: {
+      type: String,
+      default: '/events',
+    },
   },
-  setup() {
+  setup(props) {
     const nextEvent = ref(null)
     const loading = ref(true)
     const error = ref(null)
+    const eventDateTimeValue = computed(() => (
+      String(nextEvent.value?.start_at || nextEvent.value?.max_at || nextEvent.value?.end_at || '').trim()
+    ))
+    const typeLabel = computed(() => mapEventType(nextEvent.value?.type))
+    const countdownLabel = computed(() => formatCountdown(eventDateTimeValue.value))
+    const metaLine = computed(() => {
+      const sourceLabel = formatEventSource(nextEvent.value?.source?.name)
+      const updatedLabel = formatTime(nextEvent.value?.updated_at)
+      const parts = []
+
+      if (sourceLabel) {
+        parts.push(`Zdroj: ${sourceLabel}`)
+      }
+
+      if (updatedLabel !== '-') {
+        parts.push(`Aktualizovane: ${updatedLabel}`)
+      }
+
+      return parts.join(' | ')
+    })
 
     const fetchNextEvent = async () => {
       loading.value = true
@@ -56,7 +99,7 @@ export default {
       nextEvent.value = null
 
       try {
-        const res = await api.get('/events/next')
+        const res = await api.get(props.endpoint)
         const payload = res?.data
 
         const ev = payload?.data ?? payload?.event ?? payload
@@ -113,8 +156,85 @@ export default {
       error,
       fetchNextEvent,
       formatDateTime,
+      eventDateTimeValue,
+      typeLabel,
+      countdownLabel,
+      metaLine,
     }
   },
+}
+
+function mapEventType(value) {
+  const type = String(value || '').trim().toLowerCase()
+
+  if (type === 'meteor_shower' || type === 'meteors') return 'Meteory'
+  if (type === 'eclipse_solar') return 'Zatmenie Slnka'
+  if (type === 'eclipse_lunar') return 'Zatmenie Mesiaca'
+  if (type === 'planetary_event' || type === 'conjunction') return 'Planetarny ukaz'
+  if (type === 'observation_window') return 'Pozorovacie okno'
+  if (type === 'space_event' || type === 'mission') return 'Vesmirna udalost'
+  if (type === 'aurora') return 'Polarna ziara'
+  if (type === 'asteroid') return 'Asteroid'
+  if (type === 'comet') return 'Kometa'
+  return ''
+}
+
+function formatEventSource(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+
+  if (normalized === 'imo') return 'IMO'
+  if (normalized === 'astropixels') return 'Astropixels'
+  if (normalized === 'nasa') return 'USNO eclipse feed'
+  if (normalized === 'nasa_wts' || normalized === 'nasa_watch_the_skies') return 'USNO moon phases'
+  if (normalized === 'manual') return 'Databaza udalosti'
+
+  return normalized || 'Databaza udalosti'
+}
+
+function formatCountdown(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+
+  const target = new Date(raw)
+  if (Number.isNaN(target.getTime())) return ''
+
+  const diffMs = target.getTime() - Date.now()
+  if (diffMs <= 0) return 'Prebieha alebo uz prebehla'
+
+  const dayMs = 24 * 60 * 60 * 1000
+  const hourMs = 60 * 60 * 1000
+  const minuteMs = 60 * 1000
+  const days = Math.floor(diffMs / dayMs)
+
+  if (days >= 1) {
+    return days === 1 ? 'Za 1 den' : `Za ${days} dni`
+  }
+
+  const hours = Math.floor(diffMs / hourMs)
+  if (hours >= 1) {
+    return hours === 1 ? 'Za 1 hodinu' : `Za ${hours} hodin`
+  }
+
+  const minutes = Math.max(1, Math.floor(diffMs / minuteMs))
+  return minutes === 1 ? 'Za 1 minutu' : `Za ${minutes} minut`
+}
+
+function formatTime(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return '-'
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return '-'
+
+  try {
+    return new Intl.DateTimeFormat('sk-SK', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(parsed)
+  } catch {
+    return '-'
+  }
 }
 </script>
 
@@ -172,6 +292,34 @@ export default {
   line-height: 1.24;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.eventType,
+.eventCountdown,
+.eventSource {
+  margin: 0;
+}
+
+.eventType {
+  color: rgb(var(--color-primary-rgb) / 0.92);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.eventCountdown {
+  color: var(--color-surface);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.eventSource {
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.25;
 }
 
 .panelActions {
