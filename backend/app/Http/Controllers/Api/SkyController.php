@@ -10,6 +10,7 @@ use App\Http\Requests\Sky\SkyLightPollutionRequest;
 use App\Http\Requests\Sky\SkyMoonEventsRequest;
 use App\Http\Requests\Sky\SkyMoonOverviewRequest;
 use App\Http\Requests\Sky\SkyMoonPhasesRequest;
+use App\Http\Requests\Sky\SkySpaceWeatherRequest;
 use App\Http\Requests\Sky\SkyVisiblePlanetsRequest;
 use App\Http\Requests\Sky\SkyWeatherRequest;
 use App\Services\Sky\SkyAstronomyService;
@@ -19,6 +20,7 @@ use App\Services\Sky\SkyLightPollutionService;
 use App\Services\Sky\SkyMoonEventsService;
 use App\Services\Sky\SkyMoonOverviewService;
 use App\Services\Sky\SkyMoonPhasesService;
+use App\Services\Sky\SkySpaceWeatherService;
 use App\Services\Sky\SkyVisiblePlanetsService;
 use App\Services\Sky\SkyWeatherService;
 use App\Support\ApiResponse;
@@ -39,7 +41,8 @@ class SkyController extends Controller
         private readonly SkyMoonPhasesService $skyMoonPhasesService,
         private readonly SkyMoonEventsService $skyMoonEventsService,
         private readonly SkyMoonOverviewService $skyMoonOverviewService,
-        private readonly SkyEphemerisService $skyEphemerisService
+        private readonly SkyEphemerisService $skyEphemerisService,
+        private readonly SkySpaceWeatherService $skySpaceWeatherService
     ) {
     }
 
@@ -96,6 +99,21 @@ class SkyController extends Controller
         } catch (\Throwable) {
             return ApiResponse::error('Sky astronomy data is temporarily unavailable.', null, 503);
         }
+
+        return response()->json($payload);
+    }
+
+    public function spaceWeather(SkySpaceWeatherRequest $request): JsonResponse
+    {
+        $context = $this->contextResolver->resolve($request, $request->validated());
+        $cacheKey = $this->buildCacheKey('sky_space_weather', $context['lat'], $context['lon'], $context['tz']);
+        $ttlMinutes = max(1, (int) config('observing.sky.space_weather_cache_ttl_minutes', 10));
+
+        $payload = Cache::remember(
+            $cacheKey,
+            now()->addMinutes($ttlMinutes),
+            fn (): array => $this->skySpaceWeatherService->fetch($context['lat'], $context['lon'], $context['tz'])
+        );
 
         return response()->json($payload);
     }

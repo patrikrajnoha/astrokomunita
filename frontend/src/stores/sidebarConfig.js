@@ -21,6 +21,7 @@ const DEFAULT_ITEMS = [
   { kind: 'builtin', section_key: 'moon_events', title: 'Lunarne udalosti', order: 11, is_enabled: false },
   { kind: 'builtin', section_key: 'next_eclipse', title: 'Najblizsie zatmenie', order: 12, is_enabled: false },
   { kind: 'builtin', section_key: 'next_meteor_shower', title: 'Najblizsi meteoricky roj', order: 13, is_enabled: false },
+  { kind: 'builtin', section_key: 'space_weather', title: 'Vesmirne pocasie', order: 14, is_enabled: false },
 ]
 
 const cloneAndSort = (items) => {
