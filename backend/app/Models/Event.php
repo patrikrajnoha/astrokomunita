@@ -12,10 +12,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Cache;
 
 class Event extends Model
 {
     private static ?bool $hasRegionScopeColumn = null;
+    private const SIDEBAR_WIDGET_CACHE_KEYS = [
+        'widget:upcoming-events:v1',
+        'widget:next-eclipse:v1',
+        'widget:next-meteor-shower:v1',
+    ];
 
     protected $fillable = [
         'title',
@@ -85,8 +91,13 @@ class Event extends Model
             }
         });
 
+        static::saved(function (): void {
+            self::flushSidebarWidgetCaches();
+        });
+
         static::deleted(function (self $event): void {
             app(EventInsightsCacheService::class)->invalidate($event);
+            self::flushSidebarWidgetCaches();
         });
     }
 
@@ -176,5 +187,12 @@ class Event extends Model
     private function resolveEventDate(): CarbonInterface|string|null
     {
         return $this->start_at ?? $this->max_at;
+    }
+
+    private static function flushSidebarWidgetCaches(): void
+    {
+        foreach (self::SIDEBAR_WIDGET_CACHE_KEYS as $cacheKey) {
+            Cache::forget($cacheKey);
+        }
     }
 }

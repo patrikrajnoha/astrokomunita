@@ -57,7 +57,7 @@ class UpcomingEventsWidgetEndpointTest extends TestCase
         $this->assertSame(['id', 'slug', 'start_at', 'title'], $itemKeys);
     }
 
-    public function test_endpoint_response_is_cached(): void
+    public function test_endpoint_response_is_cached_until_events_change(): void
     {
         Carbon::setTestNow(Carbon::parse('2026-02-16 12:00:00', config('app.timezone')));
         Cache::flush();
@@ -66,17 +66,18 @@ class UpcomingEventsWidgetEndpointTest extends TestCase
         $cacheKey = 'widget:upcoming-events:v1';
 
         $first = $this->getJson('/api/events/widget/upcoming')->assertOk();
-        $generatedAt = $first->json('generated_at');
+        $second = $this->getJson('/api/events/widget/upcoming')->assertOk();
+
+        $this->assertSame('Original title', $second->json('items.0.title'));
 
         $event->update([
             'title' => 'Changed title',
         ]);
 
-        $second = $this->getJson('/api/events/widget/upcoming')->assertOk();
+        $third = $this->getJson('/api/events/widget/upcoming')->assertOk();
 
         $this->assertTrue(Cache::has($cacheKey));
-        $this->assertSame($generatedAt, $second->json('generated_at'));
-        $this->assertSame('Original title', $second->json('items.0.title'));
+        $this->assertSame('Changed title', $third->json('items.0.title'));
     }
 
     private function createManualEvent(string $title, string $sourceUid, Carbon $startAt, int $visibility = 1): Event

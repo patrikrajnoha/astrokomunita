@@ -84,16 +84,20 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
     isOnboardingCompleted: (state) => Boolean(state.onboardingCompletedAt),
     sidebarWidgetKeysForScope: (state) => (scope) => {
       const normalizedScope = typeof scope === 'string' ? scope.trim() : ''
-      if (normalizedScope) {
+      const hasExplicitScopedOverride = normalizedScope !== ''
+        && Object.prototype.hasOwnProperty.call(state.sidebarWidgetOverrides || {}, normalizedScope)
+
+      if (hasExplicitScopedOverride) {
         const scoped = state.sidebarWidgetOverrides?.[normalizedScope]
         if (Array.isArray(scoped)) return scoped
       }
 
-      if (normalizedScope === 'home') {
-        return Array.isArray(state.sidebarWidgetKeys) ? state.sidebarWidgetKeys : []
+      const globalHomeKeys = state.sidebarWidgetOverrides?.home
+      if (Array.isArray(globalHomeKeys) && globalHomeKeys.length > 0) {
+        return globalHomeKeys
       }
 
-      return []
+      return Array.isArray(state.sidebarWidgetKeys) ? state.sidebarWidgetKeys : []
     },
     hasSidebarWidgetOverrideForScope: (state) => (scope) => {
       const normalizedScope = typeof scope === 'string' ? scope.trim() : ''

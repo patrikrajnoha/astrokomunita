@@ -212,6 +212,7 @@ export const useNotificationsStore = defineStore('notifications', {
       try {
         const res = await http.get('/notifications', {
           params: { page: normalizedPage, per_page: perPage },
+          meta: { skipErrorToast: true },
         })
         const payload = res?.data || {}
         const rows = Array.isArray(payload.data) ? payload.data : []
@@ -265,6 +266,7 @@ export const useNotificationsStore = defineStore('notifications', {
       try {
         const res = await http.get('/notifications', {
           params: { page: 1, per_page: normalizedLimit },
+          meta: { skipErrorToast: true },
         })
         const payload = res?.data || {}
         const rows = Array.isArray(payload.data) ? payload.data : []
@@ -308,7 +310,9 @@ export const useNotificationsStore = defineStore('notifications', {
       this.unreadCountLoading = true
 
       try {
-        const res = await http.get('/notifications/unread-count')
+        const res = await http.get('/notifications/unread-count', {
+          meta: { skipErrorToast: true },
+        })
         if (fetchSeq !== this.unreadCountFetchSeq) return
         this.unreadCount = res?.data?.count ?? 0
       } catch (err) {
@@ -461,7 +465,9 @@ export const useNotificationsStore = defineStore('notifications', {
 
       try {
         await auth.csrf()
-        await http.post(`/notifications/${normalizedId}/read`)
+        await http.post(`/notifications/${normalizedId}/read`, null, {
+          meta: { skipErrorToast: true },
+        })
       } catch (err) {
         console.warn('Mark read failed:', err?.message || err)
         if (target && !previousReadAt) {
@@ -487,7 +493,9 @@ export const useNotificationsStore = defineStore('notifications', {
 
       try {
         await auth.csrf()
-        await http.post('/notifications/read-all')
+        await http.post('/notifications/read-all', null, {
+          meta: { skipErrorToast: true },
+        })
         await this.fetchUnreadCount({ force: true })
       } catch (err) {
         console.warn('Mark all read failed:', err?.message || err)
