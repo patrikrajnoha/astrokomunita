@@ -26,6 +26,19 @@ export function getEventYears() {
   return api.get('/events/years')
 }
 
+export function getEventLiveHighlights(params = {}) {
+  const query = {}
+
+  if (Number.isFinite(Number(params.lat))) query.lat = Number(params.lat)
+  if (Number.isFinite(Number(params.lon))) query.lon = Number(params.lon)
+  if (params.tz) query.tz = params.tz
+
+  return api.get('/events/live-highlights', {
+    params: query,
+    meta: { skipErrorToast: true },
+  })
+}
+
 export function lookupEventsByIds(ids = []) {
   const normalized = Array.from(
     new Set(

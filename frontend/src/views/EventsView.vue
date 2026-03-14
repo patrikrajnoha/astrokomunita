@@ -3,11 +3,14 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import CalendarView from './CalendarView.vue'
 import FutureEventsEmptyState from '@/components/events/FutureEventsEmptyState.vue'
+import LiveSkySignalCard from '@/components/events/LiveSkySignalCard.vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
-import { getEvents, getEventYears, lookupEventsByIds } from '@/services/events'
+import { getEventLiveHighlights, getEvents, getEventYears, lookupEventsByIds } from '@/services/events'
 import {
   buildPeriodQuery,
   normalizeScope,
@@ -21,6 +24,7 @@ import {
 } from '@/utils/eventTime'
 import { getEcho, initEcho } from '@/realtime/echo'
 import { eventDisplayTitle } from '@/utils/translatedFields'
+import { resolveObservingContext } from '@/utils/observingContext'
 import {
   eventCardSummary,
   eventCardTimeAriaLabel,
@@ -36,6 +40,8 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
+const preferences = useEventPreferencesStore()
 
 const initialPeriod = getEventNowPeriodDefaults(EVENT_TIMEZONE)
 
@@ -54,6 +60,7 @@ const isApplyingRoute = ref(false)
 const isReady = ref(false)
 
 const eventResponse = ref({ data: [] })
+const liveHighlights = ref([])
 const loading = ref(false)
 const error = ref('')
 const pendingRealtimeIds = ref([])
@@ -64,6 +71,7 @@ const realtimeBannerDismissed = ref(false)
 const MAX_PENDING_REALTIME_IDS = 20
 let activeRealtimeChannel = ''
 let suppressLocalFilterWatch = false
+let liveHighlightsRequestToken = 0
 const freshTimeouts = new Map()
 
 const scopeOptions = [
@@ -121,9 +129,23 @@ const allFeedTypeGroups = {
 }
 
 const isCalendarView = computed(() => route.query?.view === 'calendar')
+const observingContext = computed(() => resolveObservingContext({
+  user: auth.user,
+  preferences,
+}))
 const events = computed(() =>
   Array.isArray(eventResponse.value?.data) ? eventResponse.value.data : [],
 )
+const hasLiveHighlightLocation = computed(() => (
+  Number.isFinite(observingContext.value.lat)
+  && Number.isFinite(observingContext.value.lon)
+))
+const effectiveLiveHighlightTimezone = computed(() => (
+  String(observingContext.value.tz || EVENT_TIMEZONE).trim() || EVENT_TIMEZONE
+))
+const visibleLiveHighlights = computed(() => (
+  Array.isArray(liveHighlights.value) ? liveHighlights.value : []
+))
 const pagination = computed(() => eventResponse.value?.meta || null)
 const totalEvents = computed(() => pagination.value?.total ?? events.value.length)
 const currentPage = computed(() => pagination.value?.current_page ?? page.value)
@@ -368,6 +390,29 @@ async function fetchEvents() {
     eventResponse.value = { data: [] }
   } finally {
     loading.value = false
+  }
+}
+
+async function fetchLiveHighlights() {
+  const requestToken = ++liveHighlightsRequestToken
+
+  if (isCalendarView.value || !hasLiveHighlightLocation.value) {
+    liveHighlights.value = []
+    return
+  }
+
+  try {
+    const response = await getEventLiveHighlights({
+      lat: observingContext.value.lat,
+      lon: observingContext.value.lon,
+      tz: effectiveLiveHighlightTimezone.value,
+    })
+
+    if (requestToken !== liveHighlightsRequestToken) return
+    liveHighlights.value = Array.isArray(response?.data?.data) ? response.data.data : []
+  } catch {
+    if (requestToken !== liveHighlightsRequestToken) return
+    liveHighlights.value = []
   }
 }
 
@@ -636,6 +681,19 @@ watch(
   { deep: true },
 )
 
+watch(
+  () => [
+    isCalendarView.value,
+    observingContext.value.lat,
+    observingContext.value.lon,
+    effectiveLiveHighlightTimezone.value,
+  ],
+  () => {
+    if (!isReady.value) return
+    void fetchLiveHighlights()
+  },
+)
+
 onMounted(async () => {
   if (typeof window !== 'undefined') {
     filtersOpen.value = window.matchMedia('(min-width: 960px)').matches
@@ -665,7 +723,12 @@ onMounted(async () => {
   isReady.value = true
 
   const routeChanged = await syncManagedRouteQuery()
-  if (!routeChanged && !isCalendarView.value) await fetchEvents()
+  if (!routeChanged && !isCalendarView.value) {
+    await Promise.all([
+      fetchEvents(),
+      fetchLiveHighlights(),
+    ])
+  }
 
   void startRealtimeFeed()
 })
@@ -673,9 +736,11 @@ onMounted(async () => {
 watch(isCalendarView, (calendarView) => {
   if (calendarView) {
     stopRealtimeFeed()
+    liveHighlights.value = []
     return
   }
   void startRealtimeFeed()
+  void fetchLiveHighlights()
 })
 
 onBeforeUnmount(() => {

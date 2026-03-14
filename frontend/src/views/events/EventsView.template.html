@@ -8,6 +8,19 @@
         <p class="hero-stat"><strong>{{ totalEvents }}</strong> {{ totalEventsLabel }}</p>
         <p class="hero-stat hero-stat-muted">{{ resultContextLabel }}</p>
       </div>
+
+      <section
+        v-if="!isCalendarView && visibleLiveHighlights.length > 0"
+        class="hero-live-grid"
+        aria-label="Zive signaly oblohy"
+      >
+        <LiveSkySignalCard
+          v-for="signal in visibleLiveHighlights"
+          :key="signal.key"
+          :signal="signal"
+          :time-zone="effectiveLiveHighlightTimezone"
+        />
+      </section>
     </div>
   </section>
 
