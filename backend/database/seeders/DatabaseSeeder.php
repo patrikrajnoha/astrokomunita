@@ -16,7 +16,6 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(BotSourceSeeder::class);
-        $this->call(SidebarSectionSeeder::class);
         $this->call(EventSourceSeeder::class);
 
         if (app()->environment(['local', 'testing'])) {
