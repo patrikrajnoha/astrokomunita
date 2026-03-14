@@ -83,8 +83,31 @@ export type UpcomingEventsWidgetPayload = {
   generated_at: string
 }
 
+export type SidebarWidgetBundlePayload = {
+  requested_sections: string[]
+  data: Record<string, unknown>
+}
+
 export async function getUpcomingEventsWidget(): Promise<UpcomingEventsWidgetPayload> {
   const response = await api.get<UpcomingEventsWidgetPayload>('/events/widget/upcoming')
+  return response.data
+}
+
+export async function getSidebarWidgetBundle(sections: string[]): Promise<SidebarWidgetBundlePayload> {
+  if (!Array.isArray(sections) || sections.length === 0) {
+    return {
+      requested_sections: [],
+      data: {},
+    }
+  }
+
+  const response = await api.get<SidebarWidgetBundlePayload>('/sidebar-data', {
+    params: { sections },
+    meta: {
+      skipErrorToast: true,
+    },
+  })
+
   return response.data
 }
 

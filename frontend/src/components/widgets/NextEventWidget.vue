@@ -36,7 +36,7 @@
 </template>
 
 <script>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
 import { EVENT_TIMEZONE, formatEventDate, resolveEventTimeContext } from '@/utils/eventTime'
 
@@ -67,11 +67,20 @@ export default {
       type: String,
       default: '/events',
     },
+    initialPayload: {
+      type: Object,
+      default: undefined,
+    },
+    bundlePending: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props) {
     const nextEvent = ref(null)
     const loading = ref(true)
     const error = ref(null)
+    const hydratedFromBundle = ref(false)
     const eventDateTimeValue = computed(() => (
       String(nextEvent.value?.start_at || nextEvent.value?.max_at || nextEvent.value?.end_at || '').trim()
     ))
@@ -93,6 +102,29 @@ export default {
       return parts.join(' | ')
     })
 
+    const applyPayload = (payload) => {
+      const ev = payload?.data ?? payload?.event ?? payload
+
+      const isEmptyObject =
+        ev && typeof ev === 'object' && !Array.isArray(ev) && Object.keys(ev).length === 0
+
+      const isEmptyArray = Array.isArray(ev) && ev.length === 0
+
+      if (!ev || isEmptyObject || isEmptyArray) {
+        nextEvent.value = null
+      } else if (Array.isArray(ev)) {
+        nextEvent.value = ev[0] ?? null
+      } else if (!ev.title || !ev.id) {
+        nextEvent.value = null
+      } else {
+        nextEvent.value = ev
+      }
+
+      error.value = null
+      loading.value = false
+      hydratedFromBundle.value = true
+    }
+
     const fetchNextEvent = async () => {
       loading.value = true
       error.value = null
@@ -100,24 +132,7 @@ export default {
 
       try {
         const res = await api.get(props.endpoint)
-        const payload = res?.data
-
-        const ev = payload?.data ?? payload?.event ?? payload
-
-        const isEmptyObject =
-          ev && typeof ev === 'object' && !Array.isArray(ev) && Object.keys(ev).length === 0
-
-        const isEmptyArray = Array.isArray(ev) && ev.length === 0
-
-        if (!ev || isEmptyObject || isEmptyArray) {
-          nextEvent.value = null
-        } else if (Array.isArray(ev)) {
-          nextEvent.value = ev[0] ?? null
-        } else if (!ev.title || !ev.id) {
-          nextEvent.value = null
-        } else {
-          nextEvent.value = ev
-        }
+        applyPayload(res?.data)
       } catch (err) {
         error.value =
           err?.response?.data?.message ||
@@ -146,7 +161,32 @@ export default {
       return `${dateLabel} - ${context.timeString} (${context.timezoneLabelShort})`
     }
 
+    watch(
+      () => props.initialPayload,
+      (payload) => {
+        if (payload !== undefined) {
+          applyPayload(payload)
+        }
+      },
+      { immediate: true },
+    )
+
+    watch(
+      () => props.bundlePending,
+      (pending, wasPending) => {
+        if (pending || !wasPending || hydratedFromBundle.value) return
+        fetchNextEvent()
+      },
+    )
+
     onMounted(() => {
+      if (props.initialPayload !== undefined || props.bundlePending) {
+        if (props.bundlePending && props.initialPayload === undefined) {
+          loading.value = true
+        }
+        return
+      }
+
       fetchNextEvent()
     })
 

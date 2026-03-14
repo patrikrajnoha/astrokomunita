@@ -58,6 +58,14 @@ export default {
       type: String,
       default: 'Nepodarilo sa nacitat',
     },
+    initialPayload: {
+      type: Object,
+      default: undefined,
+    },
+    bundlePending: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props) {
     const mostReadArticles = ref([])
@@ -66,6 +74,7 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const typedTitle = ref('')
+    const hydratedFromBundle = ref(false)
 
     let modeSwitchIntervalId = null
     let refetchIntervalId = null
@@ -122,16 +131,21 @@ export default {
       mode.value = nextMode
     }
 
+    const applyPayload = (payload) => {
+      mostReadArticles.value = Array.isArray(payload?.most_read) ? payload.most_read.slice(0, 3) : []
+      latestArticles.value = Array.isArray(payload?.latest) ? payload.latest.slice(0, 3) : []
+      error.value = null
+      loading.value = false
+      hydratedFromBundle.value = true
+    }
+
     const fetchWidgetData = async ({ showLoader = false } = {}) => {
       if (showLoader) {
         loading.value = true
       }
 
       try {
-        const payload = await blogPosts.widget()
-        mostReadArticles.value = Array.isArray(payload?.most_read) ? payload.most_read.slice(0, 3) : []
-        latestArticles.value = Array.isArray(payload?.latest) ? payload.latest.slice(0, 3) : []
-        error.value = null
+        applyPayload(await blogPosts.widget())
       } catch (err) {
         if (!hasLoadedAnyData.value) {
           error.value = err?.response?.data?.message || err?.message || 'Nepodarilo sa načítať články.'
@@ -157,8 +171,30 @@ export default {
       runHeaderTyping(nextTitle)
     })
 
+    watch(
+      () => props.initialPayload,
+      (payload) => {
+        if (payload !== undefined) {
+          applyPayload(payload)
+        }
+      },
+      { immediate: true },
+    )
+
+    watch(
+      () => props.bundlePending,
+      (pending, wasPending) => {
+        if (pending || !wasPending || hydratedFromBundle.value) return
+        fetchWidgetData({ showLoader: true })
+      },
+    )
+
     onMounted(() => {
-      fetchWidgetData({ showLoader: true })
+      if (props.initialPayload === undefined && props.bundlePending) {
+        loading.value = true
+      } else if (props.initialPayload === undefined) {
+        fetchWidgetData({ showLoader: true })
+      }
       runHeaderTyping(modeTitle.value)
       startModeSwitching()
       startRefetching()

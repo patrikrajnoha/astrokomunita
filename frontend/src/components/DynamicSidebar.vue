@@ -17,6 +17,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { getSidebarWidgetBundle } from '@/services/widgets'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 import { useAuthStore } from '@/stores/auth'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
@@ -25,6 +26,15 @@ import {
   getEnabledSidebarSections,
   resolveSidebarComponent,
 } from '@/sidebar/engine'
+
+const PRELOADABLE_BUNDLE_SECTION_KEYS = new Set([
+  'nasa_apod',
+  'next_event',
+  'next_eclipse',
+  'next_meteor_shower',
+  'latest_articles',
+  'upcoming_events',
+])
 
 const props = defineProps({
   observingLat: {
@@ -55,6 +65,9 @@ const auth = useAuthStore()
 const preferences = useEventPreferencesStore()
 const isDesktop = ref(typeof window === 'undefined' ? true : window.matchMedia('(min-width: 1280px)').matches)
 const currentItems = ref([])
+const bundledSectionPayloads = ref({})
+const sidebarBundlePending = ref(false)
+let sidebarBundleRequestId = 0
 
 const activeScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const isGuest = computed(() => !auth.isAuthed)
@@ -92,6 +105,13 @@ const renderedBuiltinSectionKeySet = computed(() => {
       .filter((key) => key !== ''),
   )
 })
+const preloadableSectionKeys = computed(() => (
+  renderedSections.value
+    .filter((section) => section?.kind !== 'custom_component')
+    .map((section) => String(section?.section_key || ''))
+    .filter((sectionKey) => PRELOADABLE_BUNDLE_SECTION_KEYS.has(sectionKey))
+))
+const preloadableSectionKeySignature = computed(() => preloadableSectionKeys.value.join('|'))
 
 const resolveItemKey = (section) => {
   if (section.kind === 'custom_component') {
@@ -150,7 +170,11 @@ const propsForSection = (section) => {
     || sectionKey === 'latest_articles'
     || sectionKey === 'upcoming_events'
   ) {
-    return section?.title ? { title: section.title } : {}
+    return {
+      ...(section?.title ? { title: section.title } : {}),
+      initialPayload: bundledSectionPayloads.value?.[sectionKey],
+      bundlePending: sidebarBundlePending.value,
+    }
   }
 
   return {}
@@ -159,11 +183,50 @@ const propsForSection = (section) => {
 const syncScope = async (scope) => {
   if (!scope || !isDesktop.value) {
     currentItems.value = []
+    bundledSectionPayloads.value = {}
+    sidebarBundlePending.value = false
     return
   }
 
   const items = await sidebarConfigStore.fetchScope(scope)
   currentItems.value = items
+}
+
+const syncSidebarBundle = async (sectionKeys) => {
+  const normalizedSectionKeys = Array.from(new Set(
+    (Array.isArray(sectionKeys) ? sectionKeys : [])
+      .map((entry) => String(entry || '').trim())
+      .filter((entry) => entry !== ''),
+  ))
+
+  sidebarBundleRequestId += 1
+  const requestId = sidebarBundleRequestId
+
+  if (!isDesktop.value || normalizedSectionKeys.length === 0) {
+    bundledSectionPayloads.value = {}
+    sidebarBundlePending.value = false
+    return
+  }
+
+  sidebarBundlePending.value = true
+  bundledSectionPayloads.value = {}
+
+  try {
+    const payload = await getSidebarWidgetBundle(normalizedSectionKeys)
+    if (requestId !== sidebarBundleRequestId) return
+
+    bundledSectionPayloads.value =
+      payload?.data && typeof payload.data === 'object'
+        ? payload.data
+        : {}
+  } catch {
+    if (requestId !== sidebarBundleRequestId) return
+    bundledSectionPayloads.value = {}
+  } finally {
+    if (requestId === sidebarBundleRequestId) {
+      sidebarBundlePending.value = false
+    }
+  }
 }
 
 const updateDesktopState = () => {
@@ -184,11 +247,21 @@ watch(
   async (value) => {
     if (!value) {
       currentItems.value = []
+      bundledSectionPayloads.value = {}
+      sidebarBundlePending.value = false
       return
     }
 
     await syncScope(activeScope.value)
   },
+)
+
+watch(
+  () => preloadableSectionKeySignature.value,
+  async () => {
+    await syncSidebarBundle(preloadableSectionKeys.value)
+  },
+  { immediate: true },
 )
 
 onMounted(() => {

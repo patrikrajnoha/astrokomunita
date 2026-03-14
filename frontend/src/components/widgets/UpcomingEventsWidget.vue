@@ -49,7 +49,7 @@
 </template>
 
 <script>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
 import { getUpcomingEventsWidget } from '@/services/widgets'
 import { EVENT_TIMEZONE, formatEventDate } from '@/utils/eventTime'
@@ -76,25 +76,40 @@ export default {
       type: String,
       default: 'Nepodarilo sa nacitat',
     },
+    initialPayload: {
+      type: Object,
+      default: undefined,
+    },
+    bundlePending: {
+      type: Boolean,
+      default: false,
+    },
   },
-  setup() {
+  setup(props) {
     const items = ref([])
     const loading = ref(true)
     const error = ref('')
     const sourceLabel = ref('')
     const updatedAt = ref('')
     const metaLine = ref('')
+    const hydratedFromBundle = ref(false)
+
+    const applyPayload = (payload) => {
+      items.value = Array.isArray(payload?.items) ? payload.items.slice(0, 4) : []
+      sourceLabel.value = String(payload?.source?.label || 'Databaza udalosti').trim()
+      updatedAt.value = String(payload?.generated_at || '').trim()
+      metaLine.value = buildMetaLine(sourceLabel.value, updatedAt.value)
+      error.value = ''
+      loading.value = false
+      hydratedFromBundle.value = true
+    }
 
     const fetchItems = async () => {
       loading.value = true
       error.value = ''
 
       try {
-        const payload = await getUpcomingEventsWidget()
-        items.value = Array.isArray(payload?.items) ? payload.items.slice(0, 4) : []
-        sourceLabel.value = String(payload?.source?.label || 'Databaza udalosti').trim()
-        updatedAt.value = String(payload?.generated_at || '').trim()
-        metaLine.value = buildMetaLine(sourceLabel.value, updatedAt.value)
+        applyPayload(await getUpcomingEventsWidget())
       } catch (err) {
         error.value = err?.response?.data?.message || err?.message || 'Skus to neskor.'
         metaLine.value = ''
@@ -111,7 +126,32 @@ export default {
       })
     }
 
+    watch(
+      () => props.initialPayload,
+      (payload) => {
+        if (payload !== undefined) {
+          applyPayload(payload)
+        }
+      },
+      { immediate: true },
+    )
+
+    watch(
+      () => props.bundlePending,
+      (pending, wasPending) => {
+        if (pending || !wasPending || hydratedFromBundle.value) return
+        fetchItems()
+      },
+    )
+
     onMounted(() => {
+      if (props.initialPayload !== undefined || props.bundlePending) {
+        if (props.bundlePending && props.initialPayload === undefined) {
+          loading.value = true
+        }
+        return
+      }
+
       fetchItems()
     })
 
