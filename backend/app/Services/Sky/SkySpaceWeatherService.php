@@ -33,7 +33,7 @@ class SkySpaceWeatherService
         $aurora = $this->fetchAuroraWatch($lat, $lon, $tz);
 
         if ($kp === null && $aurora === null) {
-            return $this->basePayload(false) + [
+            return $this->spaceWeatherBasePayload(false) + [
                 'kp_index' => null,
                 'estimated_kp' => null,
                 'geomagnetic_level' => 'Nezname',
@@ -55,7 +55,7 @@ class SkySpaceWeatherService
         ) ?? ($aurora['forecast_for'] ?? null);
         $kpValue = $kp['kp_index'] ?? $kp['estimated_kp'] ?? null;
 
-        return $this->basePayload(true) + [
+        return $this->spaceWeatherBasePayload(true) + [
             'kp_index' => $kp['kp_index'] ?? null,
             'estimated_kp' => $kp['estimated_kp'] ?? null,
             'geomagnetic_level' => $this->geomagneticLevel($kpValue),
@@ -66,6 +66,72 @@ class SkySpaceWeatherService
                 'available' => false,
                 'reason' => 'aurora_forecast_unavailable',
             ],
+        ];
+    }
+
+    /**
+     * @return array{
+     *   available:bool,
+     *   watch_score:int|null,
+     *   watch_label:string,
+     *   corridor_peak_score:int|null,
+     *   nearest_score:int|null,
+     *   forecast_for:string|null,
+     *   observed_at:string|null,
+     *   updated_at:string|null,
+     *   data_format:string|null,
+     *   inference:string|null,
+     *   source:array<string,mixed>,
+     *   sources:array<string,string>,
+     *   reason?:string
+     * }
+     */
+    public function fetchAurora(float $lat, float $lon, string $tz): array
+    {
+        $aurora = $this->fetchAuroraWatch($lat, $lon, $tz);
+
+        if ($aurora === null) {
+            return $this->auroraBasePayload(false) + [
+                'watch_score' => null,
+                'watch_label' => 'Bez dat',
+                'corridor_peak_score' => null,
+                'nearest_score' => null,
+                'forecast_for' => null,
+                'observed_at' => null,
+                'updated_at' => null,
+                'data_format' => null,
+                'inference' => null,
+                'reason' => 'aurora_forecast_unavailable',
+            ];
+        }
+
+        return $this->auroraBasePayload(true) + [
+            'watch_score' => is_numeric($aurora['watch_score'] ?? null)
+                ? (int) round((float) $aurora['watch_score'])
+                : null,
+            'watch_label' => is_string($aurora['watch_label'] ?? null)
+                ? trim((string) $aurora['watch_label'])
+                : 'Bez dat',
+            'corridor_peak_score' => is_numeric($aurora['corridor_peak_score'] ?? null)
+                ? (int) round((float) $aurora['corridor_peak_score'])
+                : null,
+            'nearest_score' => is_numeric($aurora['nearest_score'] ?? null)
+                ? (int) round((float) $aurora['nearest_score'])
+                : null,
+            'forecast_for' => is_string($aurora['forecast_for'] ?? null)
+                ? trim((string) $aurora['forecast_for'])
+                : null,
+            'observed_at' => is_string($aurora['observed_at'] ?? null)
+                ? trim((string) $aurora['observed_at'])
+                : null,
+            'updated_at' => $this->latestTimestamp($aurora['observed_at'] ?? null)
+                ?? (is_string($aurora['forecast_for'] ?? null) ? trim((string) $aurora['forecast_for']) : null),
+            'data_format' => is_string($aurora['data_format'] ?? null)
+                ? trim((string) $aurora['data_format'])
+                : null,
+            'inference' => is_string($aurora['inference'] ?? null)
+                ? trim((string) $aurora['inference'])
+                : null,
         ];
     }
 
@@ -354,7 +420,7 @@ class SkySpaceWeatherService
     /**
      * @return array<string,mixed>
      */
-    private function basePayload(bool $available): array
+    private function spaceWeatherBasePayload(bool $available): array
     {
         return [
             'available' => $available,
@@ -365,6 +431,24 @@ class SkySpaceWeatherService
             ],
             'sources' => [
                 'kp' => 'https://services.swpc.noaa.gov/json/planetary_k_index_1m.json',
+                'aurora' => 'https://services.swpc.noaa.gov/json/ovation_aurora_latest.json',
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function auroraBasePayload(bool $available): array
+    {
+        return [
+            'available' => $available,
+            'source' => [
+                'provider' => 'noaa_swpc',
+                'label' => 'NOAA SWPC OVATION',
+                'url' => 'https://www.swpc.noaa.gov/products/aurora-30-minute-forecast',
+            ],
+            'sources' => [
                 'aurora' => 'https://services.swpc.noaa.gov/json/ovation_aurora_latest.json',
             ],
         ];

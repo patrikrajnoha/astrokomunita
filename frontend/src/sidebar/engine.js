@@ -12,6 +12,7 @@ export const OBSERVING_SECTION_KEYS = Object.freeze([
   'observing_conditions',
   'observing_weather',
   'space_weather',
+  'aurora_watch',
   'night_sky',
   'iss_pass',
   'moon_phases',
@@ -24,6 +25,7 @@ const SearchBar = defineAsyncComponent(() => import('@/components/SearchBar.vue'
 const RightObservingSidebar = defineAsyncComponent(() => import('@/components/RightObservingSidebar.vue'))
 const ObservingWeatherWidget = defineAsyncComponent(() => import('@/components/sky/ObservingWeatherWidget.vue'))
 const SpaceWeatherWidget = defineAsyncComponent(() => import('@/components/sky/SpaceWeatherWidget.vue'))
+const AuroraWatchWidget = defineAsyncComponent(() => import('@/components/sky/AuroraWatchWidget.vue'))
 const NightSkyWidget = defineAsyncComponent(() => import('@/components/sky/NightSkyWidget.vue'))
 const IssPassWidget = defineAsyncComponent(() => import('@/components/sky/IssPassWidget.vue'))
 const GuestObservingPromptWidget = defineAsyncComponent(() => import('@/components/sky/GuestObservingPromptWidget.vue'))
@@ -43,6 +45,7 @@ export const sidebarComponentMap = {
   observing_conditions: RightObservingSidebar,
   observing_weather: ObservingWeatherWidget,
   space_weather: SpaceWeatherWidget,
+  aurora_watch: AuroraWatchWidget,
   night_sky: NightSkyWidget,
   iss_pass: IssPassWidget,
   [GUEST_OBSERVING_PROMPT_SECTION_KEY]: GuestObservingPromptWidget,
@@ -82,6 +85,16 @@ const sidebarIconMap = {
   space_weather: {
     viewBox: '0 0 24 24',
     paths: ['M12 2v5', 'M12 17v5', 'M4.9 4.9l3.5 3.5', 'm15.6 15.6 3.5 3.5', 'M2 12h5', 'M17 12h5', 'm4.9 19.1 3.5-3.5', 'm15.6-10.7 3.5-3.5', 'M12 8a4 4 0 1 0 0 8'],
+  },
+  aurora_watch: {
+    viewBox: '0 0 24 24',
+    paths: [
+      'M3 16c2.2-3.6 4.7-5.4 7.5-5.4 2.6 0 4.5 1.2 5.9 2.2 1.3.9 2.3 1.6 3.6 1.6',
+      'M4 20c2-2.4 4.2-3.6 6.6-3.6 2.3 0 4.2.8 5.8 1.5 1.3.6 2.5 1.1 3.6 1.1',
+      'M7 6h.01',
+      'M12 4h.01',
+      'M17 7h.01',
+    ],
   },
   night_sky: {
     viewBox: '0 0 24 24',

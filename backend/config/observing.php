@@ -25,6 +25,7 @@ return [
         'moon_events_cache_ttl_hours' => env('SKY_MOON_EVENTS_CACHE_TTL_HOURS', 24),
         'visible_planets_cache_ttl_minutes' => env('SKY_VISIBLE_PLANETS_CACHE_TTL_MINUTES', 10),
         'space_weather_cache_ttl_minutes' => env('SKY_SPACE_WEATHER_CACHE_TTL_MINUTES', 10),
+        'aurora_cache_ttl_minutes' => env('SKY_AURORA_CACHE_TTL_MINUTES', 10),
         'space_weather_timeout_seconds' => env('SKY_SPACE_WEATHER_TIMEOUT_SECONDS', 8),
         'ephemeris_cache_ttl_minutes' => env('SKY_EPHEMERIS_CACHE_TTL_MINUTES', 30),
         'ephemeris_precision_bucket_minutes' => env('SKY_EPHEMERIS_PRECISION_BUCKET_MINUTES', 10),

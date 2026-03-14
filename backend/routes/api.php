@@ -234,6 +234,7 @@ Route::prefix('sky')->group(function () {
     Route::get('/moon-overview', [SkyController::class, 'moonOverview'])->middleware('sky.throttle:cheap');
     Route::get('/moon-events', [SkyController::class, 'moonEvents'])->middleware('sky.throttle:cheap');
     Route::get('/space-weather', [SkyController::class, 'spaceWeather'])->middleware('sky.throttle:expensive');
+    Route::get('/aurora', [SkyController::class, 'aurora'])->middleware('sky.throttle:expensive');
     Route::get('/visible-planets', [SkyController::class, 'visiblePlanets'])->middleware('sky.throttle:expensive');
     Route::get('/ephemeris', [SkyController::class, 'ephemeris'])->middleware('sky.throttle:expensive');
     Route::get('/iss-preview', [SkyController::class, 'issPreview'])->middleware('sky.throttle:expensive');

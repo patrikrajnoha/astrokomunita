@@ -36,4 +36,14 @@ describe('buildWidgetProps', () => {
       title: 'Co sa deje dnes',
     })
   })
+
+  it('passes observing context to aurora_watch', () => {
+    expect(buildWidgetProps('aurora_watch', 'Aurora watch', observingContext)).toEqual({
+      lat: 48.1486,
+      lon: 17.1077,
+      date: '2026-03-13',
+      tz: 'Europe/Bratislava',
+      locationName: 'Bratislava',
+    })
+  })
 })

@@ -113,6 +113,12 @@ class SidebarSectionRegistry
                 'default_order' => 14,
             ],
             [
+                'section_key' => 'aurora_watch',
+                'title' => 'Aurora watch',
+                'default_enabled' => false,
+                'default_order' => 15,
+            ],
+            [
                 'section_key' => 'next_eclipse',
                 'title' => 'Najblizsie zatmenie',
                 'default_enabled' => false,
