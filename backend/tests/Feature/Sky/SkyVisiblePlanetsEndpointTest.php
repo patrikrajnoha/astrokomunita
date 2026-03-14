@@ -12,6 +12,12 @@ class SkyVisiblePlanetsEndpointTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config()->set('observing.providers.jpl_horizons_url', '');
+    }
+
     public function test_it_returns_filtered_visible_planets_from_microservice(): void
     {
         Cache::flush();
@@ -366,5 +372,142 @@ class SkyVisiblePlanetsEndpointTest extends TestCase
 
         $this->assertSame($first->json('planets.0.name'), $second->json('planets.0.name'));
         Http::assertSentCount(1);
+    }
+
+    public function test_it_prefers_jpl_horizons_payload_when_available(): void
+    {
+        Cache::flush();
+        config()->set('observing.providers.jpl_horizons_url', 'https://horizons.test/api');
+
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            $url = $request->url();
+            if (!str_starts_with($url, 'https://horizons.test/api')) {
+                return Http::response(['message' => 'unexpected'], 500);
+            }
+
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+            $command = (string) ($query['COMMAND'] ?? '');
+
+            if ($command === "'10'") {
+                return Http::response([
+                    'result' => $this->horizonsResultLine(180.0, -18.2, -26.7, 0.99, 0.0, 0.0),
+                ], 200);
+            }
+
+            $fixtures = [
+                "'199'" => [95.2, 12.1, -0.5, 0.88, 10.1, 28.3],
+                "'299'" => [112.4, 26.4, -3.9, 1.63, -4.3, 15.7],
+                "'499'" => [140.0, 41.2, 1.2, 0.74, 5.4, 63.0],
+                "'599'" => [172.1, 33.5, -2.1, 4.82, -12.3, 90.5],
+                "'699'" => [205.7, 18.7, 0.8, 9.55, -2.2, 54.4],
+            ];
+
+            $line = $fixtures[$command] ?? null;
+            if ($line === null) {
+                return Http::response(['result' => ''], 200);
+            }
+
+            return Http::response([
+                'result' => $this->horizonsResultLine($line[0], $line[1], $line[2], $line[3], $line[4], $line[5]),
+            ], 200);
+        });
+
+        $response = $this->getJson('/api/sky/visible-planets?lat=48.1486&lon=17.1077&tz=Europe/Bratislava');
+
+        $response->assertOk()
+            ->assertJsonPath('source', 'jpl_horizons')
+            ->assertJsonPath('sun_altitude_deg', -18.2)
+            ->assertJsonCount(5, 'planets')
+            ->assertJsonPath('planets.0.name', 'Mars');
+    }
+
+    public function test_it_enriches_jpl_payload_with_best_time_windows_from_microservice_when_available(): void
+    {
+        Cache::flush();
+        config()->set('observing.providers.jpl_horizons_url', 'https://horizons.test/api');
+
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            $url = $request->url();
+
+            if (str_contains($url, 'sky-summary')) {
+                return Http::response([
+                    'sample_at' => '2026-03-12T20:15:00+01:00',
+                    'sun_altitude_deg' => -18.2,
+                    'planets' => [
+                        ['name' => 'Mercury', 'best_from' => '18:10', 'best_to' => '18:45', 'elongation_deg' => 28.3],
+                        ['name' => 'Venus', 'best_from' => '18:20', 'best_to' => '19:10', 'elongation_deg' => 15.7],
+                        ['name' => 'Mars', 'best_from' => '20:15', 'best_to' => '01:10', 'elongation_deg' => 63.0],
+                        ['name' => 'Jupiter', 'best_from' => '19:40', 'best_to' => '23:10', 'elongation_deg' => 90.5],
+                        ['name' => 'Saturn', 'best_from' => '18:30', 'best_to' => '21:00', 'elongation_deg' => 54.4],
+                    ],
+                ], 200);
+            }
+
+            if (!str_starts_with($url, 'https://horizons.test/api')) {
+                return Http::response(['message' => 'unexpected'], 500);
+            }
+
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+            $command = (string) ($query['COMMAND'] ?? '');
+
+            if ($command === "'10'") {
+                return Http::response([
+                    'result' => $this->horizonsResultLine(180.0, -18.2, -26.7, 0.99, 0.0, 0.0),
+                ], 200);
+            }
+
+            $fixtures = [
+                "'199'" => [95.2, 12.1, -0.5, 0.88, 10.1, 28.3],
+                "'299'" => [112.4, 26.4, -3.9, 1.63, -4.3, 15.7],
+                "'499'" => [140.0, 41.2, 1.2, 0.74, 5.4, 63.0],
+                "'599'" => [172.1, 33.5, -2.1, 4.82, -12.3, 90.5],
+                "'699'" => [205.7, 18.7, 0.8, 9.55, -2.2, 54.4],
+            ];
+
+            $line = $fixtures[$command] ?? null;
+            if ($line === null) {
+                return Http::response(['result' => ''], 200);
+            }
+
+            return Http::response([
+                'result' => $this->horizonsResultLine($line[0], $line[1], $line[2], $line[3], $line[4], $line[5]),
+            ], 200);
+        });
+
+        $response = $this->getJson('/api/sky/visible-planets?lat=48.1486&lon=17.1077&tz=Europe/Bratislava');
+
+        $response->assertOk()
+            ->assertJsonPath('source', 'jpl_horizons')
+            ->assertJsonCount(5, 'planets');
+
+        $rowsByName = collect($response->json('planets'))
+            ->filter(fn ($row): bool => is_array($row) && isset($row['name']))
+            ->keyBy(fn (array $row): string => strtolower((string) $row['name']));
+
+        $this->assertSame('20:15-01:10', $rowsByName->get('mars')['best_time_window'] ?? null);
+        $this->assertSame('19:40-23:10', $rowsByName->get('jupiter')['best_time_window'] ?? null);
+        $this->assertSame('18:20-19:10', $rowsByName->get('venusa')['best_time_window'] ?? null);
+        $this->assertSame('18:10-18:45', $rowsByName->get('merkur')['best_time_window'] ?? null);
+    }
+
+    private function horizonsResultLine(
+        float $azimuth,
+        float $altitude,
+        float $magnitude,
+        float $distanceAu,
+        float $radialVelocity,
+        float $elongation
+    ): string {
+        $line = sprintf(
+            ' 2026-Mar-12 21:00:00.000 00 29 45.51 +02 00 26.0 %9.6f %9.6f %7.3f 0.852 %1.14f %10.7f %8.4f /T',
+            $azimuth,
+            $altitude,
+            $magnitude,
+            $distanceAu,
+            $radialVelocity,
+            $elongation
+        );
+
+        return '$$SOE' . PHP_EOL . $line . PHP_EOL . '$$EOE';
     }
 }

@@ -7,6 +7,7 @@ use App\Enums\RegionScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateUserPreferencesRequest;
 use App\Models\UserPreference;
+use App\Support\SidebarSectionRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
@@ -17,10 +18,6 @@ class UserPreferenceController extends Controller
     {
         $user = $request->user();
         abort_unless($user !== null, 401);
-
-        if ($user->isAdmin()) {
-            return response()->json($this->disabledPayload());
-        }
 
         $preferences = $user->eventPreference;
 
@@ -35,6 +32,8 @@ class UserPreferenceController extends Controller
                 'location_lon' => $preferences?->location_lon,
                 'onboarding_completed_at' => $preferences?->onboardingCompletedAtIso(),
                 'bortle_class' => $preferences?->resolvedBortleClass() ?? UserPreference::DEFAULT_BORTLE_CLASS,
+                'sidebar_widget_keys' => $preferences?->normalizedSidebarWidgetKeys() ?? [],
+                'sidebar_widget_overrides' => $preferences?->normalizedSidebarWidgetOverrides() ?? [],
                 'has_preferences' => (bool) $preferences,
                 'updated_at' => optional($preferences?->updated_at)?->toIso8601String(),
             ],
@@ -42,6 +41,8 @@ class UserPreferenceController extends Controller
                 'supported_event_types' => EventType::values(),
                 'supported_regions' => RegionScope::values(),
                 'supported_interests' => config('onboarding.interests', []),
+                'supported_sidebar_widgets' => $this->supportedSidebarWidgetsPayload(),
+                'supported_sidebar_scopes' => SidebarSectionRegistry::scopes(),
             ],
         ]);
     }
@@ -50,10 +51,6 @@ class UserPreferenceController extends Controller
     {
         $user = $request->user();
         abort_unless($user !== null, 401);
-
-        if ($user->isAdmin()) {
-            return response()->json($this->disabledPayload());
-        }
 
         $validated = $request->validated();
 
@@ -67,6 +64,30 @@ class UserPreferenceController extends Controller
             ->filter(static fn ($value) => is_string($value) && $value !== '')
             ->unique()
             ->values()
+            ->all();
+        $sidebarWidgetKeys = collect($validated['sidebar_widget_keys'] ?? [])
+            ->filter(static fn ($value) => is_string($value) && trim($value) !== '')
+            ->map(static fn (string $value) => trim($value))
+            ->unique()
+            ->take(3)
+            ->values()
+            ->all();
+        $sidebarWidgetOverrides = collect($validated['sidebar_widget_overrides'] ?? [])
+            ->mapWithKeys(function ($value, $scope) {
+                if (!is_string($scope) || !is_array($value) || !SidebarSectionRegistry::isValidScope($scope)) {
+                    return [];
+                }
+
+                $keys = collect($value)
+                    ->filter(static fn ($item) => is_string($item) && trim($item) !== '')
+                    ->map(static fn (string $item) => trim($item))
+                    ->unique()
+                    ->take(3)
+                    ->values()
+                    ->all();
+
+                return [$scope => $keys];
+            })
             ->all();
 
         /** @var UserPreference $preferences */
@@ -114,6 +135,12 @@ class UserPreferenceController extends Controller
             $preferences->bortle_class = UserPreference::DEFAULT_BORTLE_CLASS;
         }
 
+        if (array_key_exists('sidebar_widget_overrides', $validated)) {
+            $preferences->sidebar_widget_keys = $sidebarWidgetOverrides;
+        } elseif (array_key_exists('sidebar_widget_keys', $validated)) {
+            $preferences->sidebar_widget_keys = $sidebarWidgetKeys;
+        }
+
         $preferences->save();
 
         return response()->json([
@@ -127,6 +154,8 @@ class UserPreferenceController extends Controller
                 'location_lon' => $preferences->location_lon,
                 'onboarding_completed_at' => $preferences->onboardingCompletedAtIso(),
                 'bortle_class' => $preferences->resolvedBortleClass(),
+                'sidebar_widget_keys' => $preferences->normalizedSidebarWidgetKeys(),
+                'sidebar_widget_overrides' => $preferences->normalizedSidebarWidgetOverrides(),
                 'has_preferences' => true,
                 'updated_at' => optional($preferences->updated_at)?->toIso8601String(),
             ],
@@ -134,34 +163,23 @@ class UserPreferenceController extends Controller
                 'supported_event_types' => EventType::values(),
                 'supported_regions' => RegionScope::values(),
                 'supported_interests' => config('onboarding.interests', []),
+                'supported_sidebar_widgets' => $this->supportedSidebarWidgetsPayload(),
+                'supported_sidebar_scopes' => SidebarSectionRegistry::scopes(),
             ],
         ]);
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<int, array{section_key:string,title:string}>
      */
-    private function disabledPayload(): array
+    private function supportedSidebarWidgetsPayload(): array
     {
-        return [
-            'data' => [
-                'event_types' => [],
-                'interests' => [],
-                'region' => RegionScope::Global->value,
-                'location_label' => null,
-                'location_place_id' => null,
-                'location_lat' => null,
-                'location_lon' => null,
-                'onboarding_completed_at' => null,
-                'bortle_class' => UserPreference::DEFAULT_BORTLE_CLASS,
-                'has_preferences' => false,
-                'updated_at' => null,
+        return array_values(array_map(
+            static fn (array $section): array => [
+                'section_key' => (string) ($section['section_key'] ?? ''),
+                'title' => (string) ($section['title'] ?? ''),
             ],
-            'meta' => [
-                'supported_event_types' => EventType::values(),
-                'supported_regions' => RegionScope::values(),
-                'supported_interests' => config('onboarding.interests', []),
-            ],
-        ];
+            SidebarSectionRegistry::sections(),
+        ));
     }
 }

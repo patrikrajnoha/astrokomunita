@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateAvatarPreferencesRequest;
 use App\Models\Report;
 use App\Models\User;
+use App\Services\Moderation\UploadImageModerationGuard;
 use App\Services\NotificationService;
 use App\Services\Storage\MediaStorageService;
+use App\Support\ProfanityFilter;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -23,6 +26,7 @@ class AdminUserController extends Controller
     public function __construct(
         private readonly NotificationService $notifications,
         private readonly MediaStorageService $mediaStorage,
+        private readonly UploadImageModerationGuard $uploadImageModeration,
     )
     {
     }
@@ -255,7 +259,17 @@ class AdminUserController extends Controller
         $this->ensureAllowed($request, 'updateProfile', $user);
 
         $rules = [
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'name' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (ProfanityFilter::containsBlockedWord((string) $value)) {
+                        $fail('Meno obsahuje nepovoleny vyraz.');
+                    }
+                },
+            ],
             'bio' => ['nullable', 'string', 'max:160'],
             // Media paths are managed through dedicated bot media endpoints only.
             'avatar_path' => ['prohibited'],
@@ -397,12 +411,20 @@ class AdminUserController extends Controller
             'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.$maxKb],
         ]);
 
-        $freshUser = $this->replaceUserMedia($user, $type, $request->file('file'));
+        $file = $request->file('file');
+        if (!$file instanceof UploadedFile) {
+            throw ValidationException::withMessages([
+                'file' => 'Invalid uploaded file.',
+            ]);
+        }
+
+        $this->uploadImageModeration->assertUploadedFileAllowed($file, 'file', 'admin_profile_' . $type);
+        $freshUser = $this->replaceUserMedia($user, $type, $file);
 
         return response()->json($this->mapUser($freshUser));
     }
 
-    private function replaceUserMedia(User $user, string $type, mixed $file): User
+    private function replaceUserMedia(User $user, string $type, UploadedFile $file): User
     {
         $path = $type === 'avatar'
             ? $this->mediaStorage->storeAvatar($file, (int) $user->id)

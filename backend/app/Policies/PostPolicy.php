@@ -24,10 +24,21 @@ class PostPolicy
 
     public function downloadOriginal(User $user, Post $post): bool
     {
-        if ((int) $post->user_id === (int) $user->id || $user->isAdmin()) {
+        if ($user->isAdmin()) {
             return true;
         }
 
-        return !$post->is_hidden && $post->hidden_at === null && $post->moderation_status !== 'blocked';
+        return !$post->is_hidden
+            && $post->hidden_at === null
+            && $post->moderation_status !== 'blocked'
+            && !$this->isAttachmentRestricted($post);
+    }
+
+    private function isAttachmentRestricted(Post $post): bool
+    {
+        $status = strtolower(trim((string) ($post->attachment_moderation_status ?? '')));
+
+        return $post->attachment_hidden_at !== null
+            || in_array($status, ['pending', 'flagged', 'blocked'], true);
     }
 }

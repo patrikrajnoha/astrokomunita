@@ -87,6 +87,86 @@ class AuthRegistrationTest extends TestCase
             ->assertJsonValidationErrors(['username']);
     }
 
+    public function test_registration_fails_for_username_with_blocked_word(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Tester',
+            'email' => 'blocked-username@example.com',
+            'username' => 'super_kokot_name',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['username']);
+    }
+
+    public function test_registration_fails_for_username_containing_admin_keyword(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Tester',
+            'email' => 'blocked-admin-username@example.com',
+            'username' => 'moj_admin_ucet',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['username']);
+    }
+
+    public function test_registration_fails_for_username_containing_astrokomunita_keyword(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Tester',
+            'email' => 'blocked-astrokomunita-username@example.com',
+            'username' => 'astrokomunita_fan',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['username']);
+    }
+
+    public function test_registration_fails_for_name_with_blocked_word(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Kokot Tester',
+            'email' => 'blocked-name@example.com',
+            'username' => 'clean_name',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['name']);
+    }
+
+    public function test_registration_fails_for_name_containing_astrokomunita_keyword(): void
+    {
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Astrokomunita Oficial',
+            'email' => 'blocked-astrokomunita-name@example.com',
+            'username' => 'clean_name',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['name']);
+    }
+
     public function test_registration_fails_for_invalid_username_format(): void
     {
         $response = $this->postJson('/api/auth/register', [
@@ -190,6 +270,32 @@ class AuthRegistrationTest extends TestCase
             ->assertOk()
             ->assertJson([
                 'normalized' => 'admin',
+                'available' => false,
+                'reason' => 'reserved',
+            ]);
+    }
+
+    public function test_username_availability_endpoint_reports_reserved_for_blocked_word(): void
+    {
+        $response = $this->getJson('/api/auth/username-available?username=astro_kokot');
+
+        $response
+            ->assertOk()
+            ->assertJson([
+                'normalized' => 'astro_kokot',
+                'available' => false,
+                'reason' => 'reserved',
+            ]);
+    }
+
+    public function test_username_availability_endpoint_reports_reserved_for_astrokomunita_keyword(): void
+    {
+        $response = $this->getJson('/api/auth/username-available?username=astrokomunita_news');
+
+        $response
+            ->assertOk()
+            ->assertJson([
+                'normalized' => 'astrokomunita_news',
                 'available' => false,
                 'reason' => 'reserved',
             ]);

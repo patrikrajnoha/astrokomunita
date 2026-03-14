@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Poll;
 use App\Models\PollOption;
 use App\Models\Post;
+use App\Services\Moderation\UploadImageModerationGuard;
 use App\Services\Storage\MediaStorageService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
@@ -26,6 +27,7 @@ class PollService
 
     public function __construct(
         private readonly MediaStorageService $mediaStorage,
+        private readonly UploadImageModerationGuard $uploadImageModeration,
     ) {
     }
 
@@ -59,6 +61,12 @@ class PollService
             ]);
 
             if ($optionInput['image'] instanceof UploadedFile) {
+                $this->uploadImageModeration->assertUploadedFileAllowed(
+                    $optionInput['image'],
+                    sprintf('poll.options.%d.image', $index),
+                    'poll_option_image'
+                );
+
                 $path = $this->mediaStorage->storePollOptionImage($optionInput['image'], (int) $poll->id, (int) $option->id);
                 $option->image_path = $path;
                 $option->save();
@@ -167,4 +175,3 @@ class PollService
         return array_values($normalized);
     }
 }
-

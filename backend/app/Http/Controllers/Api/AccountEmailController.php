@@ -613,7 +613,7 @@ class AccountEmailController extends Controller
             'email' => $email !== '' ? $email : null,
             'verified' => (bool) $user->hasVerifiedEmail(),
             'email_verified_at' => optional($user->email_verified_at)?->toIso8601String(),
-            'requires_email_verification' => (bool) $user->requires_email_verification,
+            'requires_email_verification' => $email !== '' && ! $user->isBot(),
             'seconds_to_resend' => $email === ''
                 ? 0
                 : $this->secondsToResend(

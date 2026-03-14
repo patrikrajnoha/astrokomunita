@@ -60,10 +60,7 @@ use App\Http\Controllers\Api\Admin\ContestController as AdminContestController;
 use App\Http\Controllers\Api\Admin\AdminStatsController;
 use App\Http\Controllers\Api\Admin\AdminBotController;
 use App\Http\Controllers\Api\Admin\PerformanceMetricsController;
-use App\Http\Controllers\Api\Admin\SidebarSectionController as AdminSidebarSectionController;
 use App\Http\Controllers\Api\SidebarSectionController;
-use App\Http\Controllers\Api\Admin\SidebarConfigController as AdminSidebarConfigController;
-use App\Http\Controllers\Api\Admin\SidebarCustomComponentController as AdminSidebarCustomComponentController;
 use App\Http\Controllers\Api\SidebarConfigController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\FeedController;
@@ -180,8 +177,7 @@ Route::middleware('web')->prefix('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])
         ->middleware(['auth:sanctum']);
 
-    Route::get('/me', [AuthController::class, 'me'])
-        ->middleware(['auth:sanctum', 'active']);
+    Route::get('/me', [AuthController::class, 'me']);
     Route::post('/email/verification-notification', [AuthController::class, 'resendVerificationEmail'])
         ->middleware(['throttle:6,1']);
     Route::get('/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
@@ -234,7 +230,10 @@ Route::prefix('sky')->group(function () {
     Route::get('/weather', [SkyController::class, 'weather'])->middleware('sky.throttle:cheap');
     Route::get('/astronomy', [SkyController::class, 'astronomy'])->middleware('sky.throttle:cheap');
     Route::get('/moon-phases', [SkyController::class, 'moonPhases'])->middleware('sky.throttle:cheap');
+    Route::get('/moon-overview', [SkyController::class, 'moonOverview'])->middleware('sky.throttle:cheap');
+    Route::get('/moon-events', [SkyController::class, 'moonEvents'])->middleware('sky.throttle:cheap');
     Route::get('/visible-planets', [SkyController::class, 'visiblePlanets'])->middleware('sky.throttle:expensive');
+    Route::get('/ephemeris', [SkyController::class, 'ephemeris'])->middleware('sky.throttle:expensive');
     Route::get('/iss-preview', [SkyController::class, 'issPreview'])->middleware('sky.throttle:expensive');
     Route::get('/light-pollution', [SkyController::class, 'lightPollution'])->middleware('sky.throttle:expensive');
 });
@@ -407,23 +406,6 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::get('/event-translation-health', EventTranslationHealthController::class);
         Route::get('/contests/hashtags-preview', [AdminContestController::class, 'hashtagsPreview']);
 
-        /*
-        |----------------------------------------------------------------------
-        | Sidebar Sections (Admin)
-        |----------------------------------------------------------------------
-        */
-        Route::get('/sidebar-sections', [AdminSidebarSectionController::class, 'index']);
-        Route::put('/sidebar-sections', [AdminSidebarSectionController::class, 'update']);
-        Route::get('/sidebar-config', [AdminSidebarConfigController::class, 'index']);
-        Route::put('/sidebar-config', [AdminSidebarConfigController::class, 'update']);
-        Route::get('/sidebar/custom-components', [AdminSidebarCustomComponentController::class, 'index']);
-        Route::post('/sidebar/custom-components', [AdminSidebarCustomComponentController::class, 'store']);
-        Route::post('/sidebar/custom-components/upload-image', [AdminSidebarCustomComponentController::class, 'uploadImage']);
-        Route::get('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'show']);
-        Route::put('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'update']);
-        Route::patch('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'update']);
-        Route::delete('/sidebar/custom-components/{component}', [AdminSidebarCustomComponentController::class, 'destroy']);
-
         // Mark your calendar popup (admin)
         Route::get('/featured-events', [FeaturedEventController::class, 'index']);
         Route::post('/featured-events', [FeaturedEventController::class, 'store']);
@@ -464,8 +446,6 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         |----------------------------------------------------------------------
         */
         Route::post('/events/{event}/ai/generate-description', [AdminAiController::class, 'generateEventDescription'])
-            ->middleware('throttle:admin-ai');
-        Route::post('/events/{event}/ai/postedit-title', [AdminAiController::class, 'postEditEventTitle'])
             ->middleware('throttle:admin-ai');
         Route::get('/events/{event}', [AdminEventController::class, 'show']);
         Route::post('/events', [AdminEventController::class, 'store']);
@@ -568,8 +548,6 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin.content'])
         Route::post('/newsletter/send', [AdminNewsletterController::class, 'send'])->middleware('throttle:newsletter-send');
         Route::get('/newsletter/runs', [AdminNewsletterController::class, 'runs']);
         Route::get('/ai/config', [AdminAiController::class, 'config'])
-            ->middleware(['admin', 'throttle:admin-ai']);
-        Route::get('/ai/jobs/{runId}', [AdminAiController::class, 'jobStatus'])
             ->middleware(['admin', 'throttle:admin-ai']);
 
         /*

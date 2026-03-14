@@ -4,14 +4,20 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sky\SkyAstronomyRequest;
+use App\Http\Requests\Sky\SkyEphemerisRequest;
 use App\Http\Requests\Sky\SkyIssPreviewRequest;
 use App\Http\Requests\Sky\SkyLightPollutionRequest;
+use App\Http\Requests\Sky\SkyMoonEventsRequest;
+use App\Http\Requests\Sky\SkyMoonOverviewRequest;
 use App\Http\Requests\Sky\SkyMoonPhasesRequest;
 use App\Http\Requests\Sky\SkyVisiblePlanetsRequest;
 use App\Http\Requests\Sky\SkyWeatherRequest;
 use App\Services\Sky\SkyAstronomyService;
+use App\Services\Sky\SkyEphemerisService;
 use App\Services\Sky\SkyIssPreviewService;
 use App\Services\Sky\SkyLightPollutionService;
+use App\Services\Sky\SkyMoonEventsService;
+use App\Services\Sky\SkyMoonOverviewService;
 use App\Services\Sky\SkyMoonPhasesService;
 use App\Services\Sky\SkyVisiblePlanetsService;
 use App\Services\Sky\SkyWeatherService;
@@ -30,7 +36,10 @@ class SkyController extends Controller
         private readonly SkyVisiblePlanetsService $skyVisiblePlanetsService,
         private readonly SkyIssPreviewService $skyIssPreviewService,
         private readonly SkyLightPollutionService $skyLightPollutionService,
-        private readonly SkyMoonPhasesService $skyMoonPhasesService
+        private readonly SkyMoonPhasesService $skyMoonPhasesService,
+        private readonly SkyMoonEventsService $skyMoonEventsService,
+        private readonly SkyMoonOverviewService $skyMoonOverviewService,
+        private readonly SkyEphemerisService $skyEphemerisService
     ) {
     }
 
@@ -142,6 +151,91 @@ class SkyController extends Controller
         return response()->json($payload);
     }
 
+    public function moonEvents(SkyMoonEventsRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+        $context = $this->contextResolver->resolve($request, $validated);
+        $year = is_numeric($validated['year'] ?? null)
+            ? (int) round((float) $validated['year'])
+            : (int) CarbonImmutable::now($context['tz'])->year;
+        $cacheKey = $this->buildCacheKey(
+            'sky_moon_events',
+            $context['lat'],
+            $context['lon'],
+            $context['tz'],
+            (string) $year
+        );
+        $ttlMinutes = max(
+            1,
+            (int) config(
+                'observing.sky.moon_events_cache_ttl_minutes',
+                max(1, ((int) config('observing.sky.moon_events_cache_ttl_hours', 24)) * 60)
+            )
+        );
+
+        try {
+            $payload = Cache::remember(
+                $cacheKey,
+                now()->addMinutes($ttlMinutes),
+                fn (): array => $this->skyMoonEventsService->fetch($year, $context['tz'])
+            );
+        } catch (\Throwable) {
+            return ApiResponse::error('Moon events data is temporarily unavailable.', null, 503);
+        }
+
+        return response()->json($payload);
+    }
+
+    public function moonOverview(SkyMoonOverviewRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+        $context = $this->contextResolver->resolve($request, $validated);
+        $referenceDate = is_string($validated['date'] ?? null) ? trim((string) $validated['date']) : '';
+        $nowLocal = CarbonImmutable::now($context['tz']);
+        $resolvedReferenceDate = $referenceDate !== ''
+            ? $referenceDate
+            : $nowLocal->format('Y-m-d');
+        $isCurrentDay = $resolvedReferenceDate === $nowLocal->format('Y-m-d');
+        $bucketSuffix = $isCurrentDay
+            ? $this->resolveTimeBucketSuffix(
+                $nowLocal,
+                (int) config('observing.sky.moon_overview_precision_bucket_minutes', 5)
+            )
+            : null;
+        $cacheSuffix = $bucketSuffix !== null ? "{$resolvedReferenceDate}:{$bucketSuffix}" : $resolvedReferenceDate;
+        $cacheKey = $this->buildCacheKey(
+            'sky_moon_overview',
+            $context['lat'],
+            $context['lon'],
+            $context['tz'],
+            $cacheSuffix
+        );
+        $ttlMinutes = max(
+            1,
+            (int) config(
+                'observing.sky.moon_overview_cache_ttl_minutes',
+                max(1, ((int) config('observing.sky.moon_overview_cache_ttl_hours', 1)) * 60)
+            )
+        );
+
+        try {
+            $payload = Cache::remember(
+                $cacheKey,
+                now()->addMinutes($ttlMinutes),
+                fn (): array => $this->skyMoonOverviewService->fetch(
+                    $context['lat'],
+                    $context['lon'],
+                    $context['tz'],
+                    $referenceDate !== '' ? $referenceDate : null
+                )
+            );
+        } catch (\Throwable) {
+            return ApiResponse::error('Moon overview data is temporarily unavailable.', null, 503);
+        }
+
+        return response()->json($payload);
+    }
+
     public function visiblePlanets(SkyVisiblePlanetsRequest $request): JsonResponse
     {
         $context = $this->contextResolver->resolve($request, $request->validated());
@@ -161,6 +255,27 @@ class SkyController extends Controller
         } else {
             Cache::forget($cacheKey);
         }
+
+        return response()->json($payload);
+    }
+
+    public function ephemeris(SkyEphemerisRequest $request): JsonResponse
+    {
+        $context = $this->contextResolver->resolve($request, $request->validated());
+        $dateKey = CarbonImmutable::now($context['tz'])->format('Y-m-d');
+        $bucketSuffix = $this->resolveTimeBucketSuffix(
+            CarbonImmutable::now($context['tz']),
+            (int) config('observing.sky.ephemeris_precision_bucket_minutes', 10)
+        );
+        $cacheSuffix = $bucketSuffix !== null ? "{$dateKey}:{$bucketSuffix}" : $dateKey;
+        $cacheKey = $this->buildCacheKey('sky_ephemeris', $context['lat'], $context['lon'], $context['tz'], $cacheSuffix);
+        $ttlMinutes = max(1, (int) config('observing.sky.ephemeris_cache_ttl_minutes', 30));
+
+        $payload = Cache::remember(
+            $cacheKey,
+            now()->addMinutes($ttlMinutes),
+            fn (): array => $this->skyEphemerisService->fetch($context['lat'], $context['lon'], $context['tz'])
+        );
 
         return response()->json($payload);
     }
@@ -191,14 +306,62 @@ class SkyController extends Controller
     {
         $context = $this->contextResolver->resolve($request, $request->validated());
         $cacheKey = $this->buildCacheKey('sky_light_pollution', $context['lat'], $context['lon'], $context['tz']);
+        $lastKnownCacheKey = $cacheKey.':last_known';
         $ttlHours = max(1, (int) config('observing.sky.light_pollution_cache_ttl_hours', 24));
+        $lastKnownTtlHours = max($ttlHours, (int) config('observing.sky.light_pollution_last_known_ttl_hours', 168));
 
-        $payload = Cache::remember(
-            $cacheKey,
-            now()->addHours($ttlHours),
-            fn (): array => $this->skyLightPollutionService->fetch($context['lat'], $context['lon'])
-        );
+        $cachedPayload = Cache::get($cacheKey);
+        if (is_array($cachedPayload) && !$this->isUnavailableSkyPayload($cachedPayload)) {
+            return response()->json($cachedPayload);
+        }
 
+        $payload = $this->skyLightPollutionService->fetch($context['lat'], $context['lon']);
+
+        if (!$this->isUnavailableSkyPayload($payload)) {
+            $freshPayload = [
+                ...$payload,
+                'sample_at' => CarbonImmutable::now('UTC')->toIso8601String(),
+            ];
+
+            Cache::put($cacheKey, $freshPayload, now()->addHours($ttlHours));
+            Cache::put($lastKnownCacheKey, $freshPayload, now()->addHours($lastKnownTtlHours));
+
+            return response()->json($freshPayload);
+        }
+
+        $lastKnownPayload = Cache::get($lastKnownCacheKey);
+        if (
+            is_array($lastKnownPayload)
+            && !$this->isUnavailableSkyPayload($lastKnownPayload)
+            && (
+                is_numeric($lastKnownPayload['bortle_class'] ?? null)
+                || is_numeric($lastKnownPayload['brightness_value'] ?? null)
+            )
+        ) {
+            return response()->json([
+                'bortle_class' => is_numeric($lastKnownPayload['bortle_class'] ?? null)
+                    ? (int) round((float) $lastKnownPayload['bortle_class'])
+                    : null,
+                'brightness_value' => is_numeric($lastKnownPayload['brightness_value'] ?? null)
+                    ? round((float) $lastKnownPayload['brightness_value'], 3)
+                    : null,
+                'confidence' => 'med',
+                'source' => 'light_pollution_cached',
+                'reason' => 'using_cached_data',
+                'measurement' => is_array($lastKnownPayload['measurement'] ?? null)
+                    ? $lastKnownPayload['measurement']
+                    : null,
+                'provenance' => [
+                    ...(is_array($lastKnownPayload['provenance'] ?? null) ? $lastKnownPayload['provenance'] : []),
+                    'cache_mode' => 'last_known',
+                ],
+                'sample_at' => is_string($lastKnownPayload['sample_at'] ?? null)
+                    ? trim((string) $lastKnownPayload['sample_at'])
+                    : null,
+            ]);
+        }
+
+        Cache::forget($cacheKey);
         return response()->json($payload);
     }
 

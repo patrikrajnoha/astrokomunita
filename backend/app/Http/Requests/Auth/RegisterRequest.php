@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Services\Security\TurnstileService;
+use App\Support\ProfanityFilter;
 use App\Support\UsernameRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -37,7 +38,16 @@ class RegisterRequest extends FormRequest
         $minDate = now()->subYears(13)->endOfDay();
 
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (ProfanityFilter::containsBlockedWord((string) $value)) {
+                        $fail('Meno obsahuje nepovoleny vyraz.');
+                    }
+                },
+            ],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)],
             'username' => UsernameRules::validationRules(),

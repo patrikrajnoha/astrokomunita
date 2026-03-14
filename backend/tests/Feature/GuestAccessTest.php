@@ -87,4 +87,11 @@ class GuestAccessTest extends TestCase
         $this->getJson('/api/notifications')->assertStatus(401);
         $this->postJson('/api/posts', ['content' => 'Unauthorized'])->assertStatus(401);
     }
+
+    public function test_guest_auth_me_returns_empty_payload_with_ok_status(): void
+    {
+        $response = $this->getJson('/api/auth/me')->assertOk();
+
+        $this->assertSame('{}', trim((string) $response->getContent()));
+    }
 }

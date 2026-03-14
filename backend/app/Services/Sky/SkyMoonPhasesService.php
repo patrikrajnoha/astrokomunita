@@ -90,12 +90,15 @@ class SkyMoonPhasesService
             $currentPhase = 'new_moon';
         }
 
+        $majorEvents = $this->buildMajorTimeline($events, $referenceUtc, $resolvedTz, $currentPhase);
+
         return [
             'reference_at' => $referenceAt->toIso8601String(),
             'reference_date' => $referenceAt->format('Y-m-d'),
             'timezone' => $resolvedTz,
             'current_phase' => $currentPhase,
             'phases' => $phaseRows,
+            'major_events' => $majorEvents,
             'source' => [
                 'provider' => 'USNO',
                 'label' => 'USNO Moon Phases API (free, bez API kluca)',
@@ -311,6 +314,67 @@ class SkyMoonPhasesService
             ['key' => 'last_quarter', 'start_at' => $lastQuarter, 'end_at' => $lastQuarter],
             ['key' => 'waning_crescent', 'start_at' => $lastQuarter, 'end_at' => $nextNewMoon],
         ];
+    }
+
+    /**
+     * @param array<int,array{phase:string,at_utc:CarbonImmutable}> $events
+     * @return array<int,array{key:string,label:string,at:string,date:string,time:string,is_current:bool}>
+     */
+    private function buildMajorTimeline(
+        array $events,
+        CarbonImmutable $referenceUtc,
+        string $tz,
+        string $currentPhase
+    ): array {
+        $majorEvents = array_values(array_filter(
+            $events,
+            static fn (array $event): bool => in_array($event['phase'], [
+                'new_moon',
+                'first_quarter',
+                'full_moon',
+                'last_quarter',
+            ], true)
+        ));
+
+        if ($majorEvents === []) {
+            return [];
+        }
+
+        $firstFutureIndex = null;
+
+        foreach ($majorEvents as $index => $event) {
+            if ($event['at_utc']->greaterThan($referenceUtc)) {
+                $firstFutureIndex = $index;
+                break;
+            }
+        }
+
+        $startIndex = $firstFutureIndex === null
+            ? max(0, count($majorEvents) - 1)
+            : max(0, $firstFutureIndex - 1);
+
+        $timeline = [];
+
+        for ($offset = 0; $offset < 4; $offset++) {
+            $entry = $majorEvents[$startIndex + $offset] ?? null;
+            if (!is_array($entry)) {
+                break;
+            }
+
+            $atLocal = $entry['at_utc']->setTimezone($tz);
+            $key = $entry['phase'];
+
+            $timeline[] = [
+                'key' => $key,
+                'label' => self::PHASE_LABELS[$key] ?? $key,
+                'at' => $atLocal->toIso8601String(),
+                'date' => $atLocal->format('Y-m-d'),
+                'time' => $atLocal->format('H:i'),
+                'is_current' => $key === $currentPhase,
+            ];
+        }
+
+        return $timeline;
     }
 
     /**

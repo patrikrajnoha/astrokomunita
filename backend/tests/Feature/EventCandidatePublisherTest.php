@@ -22,8 +22,8 @@ class EventCandidatePublisherTest extends TestCase
             'source_uid' => 'imo:lyrids:2026',
             'external_id' => 'imo:lyrids:2026',
             'stable_key' => 'imo:lyrids:2026',
-            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'),
-            'canonical_key' => 'meteor shower|2026-04-22|lyrids lyr',
+            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids'),
+            'canonical_key' => 'meteor shower|2026-04-22|lyrids',
             'confidence_score' => 1.0,
             'matched_sources' => ['astropixels', 'imo'],
         ]);
@@ -32,7 +32,7 @@ class EventCandidatePublisherTest extends TestCase
         $publisher = app(EventCandidatePublisher::class);
         $event = $publisher->approve($candidate, $reviewer->id);
 
-        $this->assertSame('meteor shower|2026-04-22|lyrids lyr', $event->canonical_key);
+        $this->assertSame('meteor shower|2026-04-22|lyrids', $event->canonical_key);
         $this->assertSame('1.00', (string) $event->confidence_score);
         $this->assertSame(['astropixels', 'imo'], $event->matched_sources);
     }
@@ -53,8 +53,8 @@ class EventCandidatePublisherTest extends TestCase
             'source_name' => 'astropixels',
             'source_uid' => 'astropixels:lyrids:2026',
             'source_hash' => hash('sha256', 'existing-event'),
-            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'),
-            'canonical_key' => 'meteor shower|2026-04-22|lyrids lyr',
+            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids'),
+            'canonical_key' => 'meteor shower|2026-04-22|lyrids',
             'confidence_score' => 0.7,
             'matched_sources' => ['astropixels'],
         ]);
@@ -64,8 +64,8 @@ class EventCandidatePublisherTest extends TestCase
             'source_uid' => 'astropixels:lyrids:2026',
             'external_id' => 'astropixels:lyrids:2026',
             'stable_key' => 'astropixels:lyrids:2026',
-            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'),
-            'canonical_key' => 'meteor shower|2026-04-22|lyrids lyr',
+            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids'),
+            'canonical_key' => 'meteor shower|2026-04-22|lyrids',
             'confidence_score' => 1.0,
             'matched_sources' => ['astropixels', 'imo'],
         ]);
@@ -78,7 +78,7 @@ class EventCandidatePublisherTest extends TestCase
         $published->refresh();
         $this->assertSame(['astropixels', 'imo'], $published->matched_sources);
         $this->assertSame('1.00', (string) $published->confidence_score);
-        $this->assertSame('meteor shower|2026-04-22|lyrids lyr', $published->canonical_key);
+        $this->assertSame('meteor shower|2026-04-22|lyrids', $published->canonical_key);
 
         $candidate->refresh();
         $this->assertSame(EventCandidate::STATUS_APPROVED, $candidate->status);
@@ -101,8 +101,8 @@ class EventCandidatePublisherTest extends TestCase
             'source_name' => 'astropixels',
             'source_uid' => 'astropixels:lyrids:2026',
             'source_hash' => hash('sha256', 'existing-astropixels-event'),
-            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'),
-            'canonical_key' => 'meteor shower|2026-04-22|lyrids lyr',
+            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids'),
+            'canonical_key' => 'meteor shower|2026-04-22|lyrids',
             'confidence_score' => 0.7,
             'matched_sources' => ['astropixels'],
         ]);
@@ -113,8 +113,8 @@ class EventCandidatePublisherTest extends TestCase
             'external_id' => 'imo:lyrids:2026',
             'stable_key' => 'imo:lyrids:2026',
             'source_hash' => hash('sha256', 'imo:lyrids:2026'),
-            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'),
-            'canonical_key' => 'meteor shower|2026-04-22|lyrids lyr',
+            'fingerprint_v2' => hash('sha256', 'meteor shower|2026-04-22|lyrids'),
+            'canonical_key' => 'meteor shower|2026-04-22|lyrids',
             'confidence_score' => 1.0,
             'matched_sources' => ['astropixels', 'imo'],
         ]);
@@ -129,8 +129,8 @@ class EventCandidatePublisherTest extends TestCase
         $published->refresh();
         $this->assertSame(['astropixels', 'imo'], $published->matched_sources);
         $this->assertSame('1.00', (string) $published->confidence_score);
-        $this->assertSame('meteor shower|2026-04-22|lyrids lyr', $published->canonical_key);
-        $this->assertSame(hash('sha256', 'meteor shower|2026-04-22|lyrids lyr'), $published->fingerprint_v2);
+        $this->assertSame('meteor shower|2026-04-22|lyrids', $published->canonical_key);
+        $this->assertSame(hash('sha256', 'meteor shower|2026-04-22|lyrids'), $published->fingerprint_v2);
 
         $candidate->refresh();
         $this->assertSame(EventCandidate::STATUS_APPROVED, $candidate->status);

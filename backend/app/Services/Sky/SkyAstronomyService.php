@@ -31,7 +31,13 @@ class SkyAstronomyService
     public function fetch(float $lat, float $lon, string $tz): array
     {
         $localDate = CarbonImmutable::now($tz)->format('Y-m-d');
-        $sunMoon = $this->sunMoonProvider->get($lat, $lon, $localDate, $tz);
+        $sunMoon = [];
+
+        try {
+            $sunMoon = $this->sunMoonProvider->get($lat, $lon, $localDate, $tz);
+        } catch (\Throwable) {
+            // Degraded mode: keep unknown/null astronomy fields when sun/moon provider is unavailable.
+        }
 
         $moonrise = null;
         $moonset = null;
@@ -62,10 +68,6 @@ class SkyAstronomyService
         );
         $moonPhase = $this->normalizeMoonPhase($sunMoon['phase_name'] ?? null);
         $illumination = $this->normalizeIllumination($sunMoon['fracillum'] ?? null);
-
-        if ($sunrise === null && $sunset === null && $moonPhase === 'unknown') {
-            throw new \RuntimeException('Astronomy provider returned no usable data.');
-        }
 
         return [
             'moon_phase' => $moonPhase,

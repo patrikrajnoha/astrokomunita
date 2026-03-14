@@ -34,14 +34,14 @@ class EventDescriptionTemplateBuilder
 
         if ($this->containsAny($normalized, ['prva stvrt mesiaca', 'first quarter moon'])) {
             return $this->finalize(
-                description: "Mesiac dosahuje prvú štvrť {$when}. Večerné pozorovanie terminátora je vhodné aj pre menšie ďalekohľady.",
+                description: "Mesiac dosahuje prvú štvrť {$when}. Pri večernom pozorovaní hranice medzi osvetlenou a tmavou časťou Mesiaca vyniknú detaily reliéfu aj v menších ďalekohľadoch.",
                 short: "Prvá štvrť Mesiaca {$when}.",
             );
         }
 
         if ($this->containsAny($normalized, ['posledna stvrt mesiaca', 'last quarter moon'])) {
             return $this->finalize(
-                description: "Mesiac dosahuje poslednú štvrť {$when}. Ranné pozorovanie terminátora umožňuje sledovať plastické detaily povrchu.",
+                description: "Mesiac dosahuje poslednú štvrť {$when}. Pri rannom pozorovaní hranice medzi osvetlenou a tmavou časťou Mesiaca vyniknú plastické detaily povrchu.",
                 short: "Posledná štvrť Mesiaca {$when}.",
             );
         }
@@ -290,4 +290,3 @@ class EventDescriptionTemplateBuilder
         return (string) ($match[1] ?? null);
     }
 }
-

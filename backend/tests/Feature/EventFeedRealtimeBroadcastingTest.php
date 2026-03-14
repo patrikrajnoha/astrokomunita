@@ -27,12 +27,14 @@ class EventFeedRealtimeBroadcastingTest extends TestCase
                 'title' => 'Realtime Test Event',
                 'description' => 'Realtime feed should receive this.',
                 'type' => 'other',
+                'icon_emoji' => "\u{1F319}",
                 'start_at' => now()->addDay()->toIso8601String(),
                 'end_at' => null,
                 'visibility' => 1,
             ]);
 
-        $response->assertCreated();
+        $response->assertCreated()
+            ->assertJsonPath('data.icon_emoji', "\u{1F319}");
 
         EventFacade::assertDispatched(EventPublished::class, function (EventPublished $event) {
             $channels = $event->broadcastOn();
@@ -71,12 +73,14 @@ class EventFeedRealtimeBroadcastingTest extends TestCase
                 'title' => 'Updated title',
                 'description' => 'Updated description',
                 'type' => 'other',
+                'icon_emoji' => "\u{1F680}",
                 'start_at' => now()->addDays(3)->toIso8601String(),
                 'end_at' => null,
                 'visibility' => 1,
             ]);
 
-        $response->assertOk();
+        $response->assertOk()
+            ->assertJsonPath('data.icon_emoji', "\u{1F680}");
 
         EventFacade::assertNotDispatched(EventPublished::class);
     }

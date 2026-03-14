@@ -70,13 +70,24 @@ class MediaDownloadController extends Controller
             return Gate::forUser($viewer)->allows('downloadOriginal', $post);
         }
 
-        return !$post->is_hidden && $post->hidden_at === null && $post->moderation_status !== 'blocked';
+        return !$post->is_hidden
+            && $post->hidden_at === null
+            && $post->moderation_status !== 'blocked'
+            && !$this->isAttachmentRestricted($post);
     }
 
     private function isImageAttachment(Post $post): bool
     {
         $mime = strtolower(trim((string) ($post->attachment_original_mime ?: $post->attachment_mime)));
         return str_starts_with($mime, 'image/');
+    }
+
+    private function isAttachmentRestricted(Post $post): bool
+    {
+        $status = strtolower(trim((string) ($post->attachment_moderation_status ?? '')));
+
+        return $post->attachment_hidden_at !== null
+            || in_array($status, ['pending', 'flagged', 'blocked'], true);
     }
 
     private function buildDownloadFilename(Post $post, string $extension): string

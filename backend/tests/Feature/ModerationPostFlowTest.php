@@ -49,12 +49,12 @@ class ModerationPostFlowTest extends TestCase
     {
         config()->set('moderation.enabled', true);
 
-        $botUser = User::factory()->create([
-            'is_bot' => true,
-            'username' => 'kozmo',
-            'email' => 'kozmo.bot@example.test',
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'email_verified_at' => now(),
         ]);
-        Sanctum::actingAs($botUser);
+        Sanctum::actingAs($admin);
         Queue::fake();
 
         $response = $this->postJson('/api/posts', [

@@ -20,6 +20,7 @@ class Event extends Model
     protected $fillable = [
         'title',
         'type',
+        'icon_emoji',
         'region_scope',
         'start_at',
         'end_at',

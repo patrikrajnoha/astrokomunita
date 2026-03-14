@@ -50,19 +50,23 @@ class MediaViewController extends Controller
 
     private function canViewMedia(?User $viewer, Post $post): bool
     {
+        $attachmentStatus = strtolower(trim((string) ($post->attachment_moderation_status ?? '')));
+        $attachmentRestricted = $post->attachment_hidden_at !== null
+            || in_array($attachmentStatus, ['pending', 'flagged', 'blocked'], true);
+
         if ($viewer) {
             return Gate::forUser($viewer)->allows('viewRestricted', $post) || (
                 !$post->is_hidden
                 && $post->hidden_at === null
                 && $post->moderation_status !== 'blocked'
-                && $post->attachment_hidden_at === null
+                && !$attachmentRestricted
             );
         }
 
         return !$post->is_hidden
             && $post->hidden_at === null
             && $post->moderation_status !== 'blocked'
-            && $post->attachment_hidden_at === null;
+            && !$attachmentRestricted;
     }
 }
 

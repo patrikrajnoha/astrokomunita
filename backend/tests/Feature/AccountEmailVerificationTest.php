@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Mail\EmailVerificationMail;
+use App\Models\BlogPost;
 use App\Models\EmailChangeRequest;
 use App\Models\EmailVerification;
+use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -215,7 +217,7 @@ class AccountEmailVerificationTest extends TestCase
             ->assertJsonPath('action', 'GO_TO_SETTINGS_EMAIL');
     }
 
-    public function test_user_without_requires_email_verification_flag_is_not_blocked(): void
+    public function test_user_without_requires_email_verification_flag_is_still_blocked(): void
     {
         $user = User::factory()->create([
             'requires_email_verification' => false,
@@ -224,7 +226,62 @@ class AccountEmailVerificationTest extends TestCase
         Sanctum::actingAs($user);
 
         $this->postJson('/api/posts', [
-            'content' => 'Legacy unverified user can post.',
-        ])->assertCreated();
+            'content' => 'Legacy unverified user should be blocked.',
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('error_code', 'EMAIL_NOT_VERIFIED')
+            ->assertJsonPath('action', 'GO_TO_SETTINGS_EMAIL');
+    }
+
+    public function test_unverified_user_cannot_reply_to_post(): void
+    {
+        $author = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        $post = Post::factory()->for($author)->create([
+            'content' => 'Original post',
+        ]);
+
+        $user = User::factory()->create([
+            'requires_email_verification' => false,
+            'email_verified_at' => null,
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/posts/{$post->id}/reply", [
+            'content' => 'Unverified reply should be blocked.',
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('error_code', 'EMAIL_NOT_VERIFIED')
+            ->assertJsonPath('action', 'GO_TO_SETTINGS_EMAIL');
+    }
+
+    public function test_unverified_user_cannot_comment_blog_post(): void
+    {
+        $author = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        $blogPost = BlogPost::query()->create([
+            'user_id' => $author->id,
+            'title' => 'Overeny clanok',
+            'slug' => 'overeny-clanok',
+            'content' => 'Obsah clanku',
+            'published_at' => now()->subMinute(),
+        ]);
+
+        $user = User::factory()->create([
+            'requires_email_verification' => false,
+            'email_verified_at' => null,
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->postJson("/api/blog-posts/{$blogPost->slug}/comments", [
+            'content' => 'Unverified blog comment should be blocked.',
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('error_code', 'EMAIL_NOT_VERIFIED')
+            ->assertJsonPath('action', 'GO_TO_SETTINGS_EMAIL');
     }
 }
