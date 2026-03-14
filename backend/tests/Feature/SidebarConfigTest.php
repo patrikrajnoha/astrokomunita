@@ -43,4 +43,9 @@ class SidebarConfigTest extends TestCase
             ->assertJsonPath('scope', 'home')
             ->assertJsonCount(count(SidebarSectionRegistry::sections()), 'data');
     }
+
+    public function test_legacy_sidebar_sections_endpoint_is_removed(): void
+    {
+        $this->getJson('/api/sidebar-sections')->assertStatus(404);
+    }
 }

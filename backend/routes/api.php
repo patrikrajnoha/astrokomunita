@@ -60,7 +60,6 @@ use App\Http\Controllers\Api\Admin\ContestController as AdminContestController;
 use App\Http\Controllers\Api\Admin\AdminStatsController;
 use App\Http\Controllers\Api\Admin\AdminBotController;
 use App\Http\Controllers\Api\Admin\PerformanceMetricsController;
-use App\Http\Controllers\Api\SidebarSectionController;
 use App\Http\Controllers\Api\SidebarConfigController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\FeedController;
@@ -248,7 +247,6 @@ Route::get('/meta/locations', [MetaController::class, 'locations']);
 | Sidebar Sections (Public)
 |--------------------------------------------------------------------------
 */
-Route::get('/sidebar-sections', [SidebarSectionController::class, 'index']);
 Route::get('/sidebar-config', [SidebarConfigController::class, 'index']);
 
 /*
