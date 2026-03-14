@@ -107,6 +107,12 @@ class SidebarSectionRegistry
                 'default_order' => 9,
             ],
             [
+                'section_key' => 'space_weather',
+                'title' => 'Vesmirne pocasie',
+                'default_enabled' => false,
+                'default_order' => 14,
+            ],
+            [
                 'section_key' => 'next_eclipse',
                 'title' => 'Najblizsie zatmenie',
                 'default_enabled' => false,

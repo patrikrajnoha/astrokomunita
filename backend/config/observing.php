@@ -24,6 +24,8 @@ return [
         'moon_events_cache_ttl_minutes' => env('SKY_MOON_EVENTS_CACHE_TTL_MINUTES', 60),
         'moon_events_cache_ttl_hours' => env('SKY_MOON_EVENTS_CACHE_TTL_HOURS', 24),
         'visible_planets_cache_ttl_minutes' => env('SKY_VISIBLE_PLANETS_CACHE_TTL_MINUTES', 10),
+        'space_weather_cache_ttl_minutes' => env('SKY_SPACE_WEATHER_CACHE_TTL_MINUTES', 10),
+        'space_weather_timeout_seconds' => env('SKY_SPACE_WEATHER_TIMEOUT_SECONDS', 8),
         'ephemeris_cache_ttl_minutes' => env('SKY_EPHEMERIS_CACHE_TTL_MINUTES', 30),
         'ephemeris_precision_bucket_minutes' => env('SKY_EPHEMERIS_PRECISION_BUCKET_MINUTES', 10),
         'iss_preview_cache_ttl_minutes' => env('SKY_ISS_PREVIEW_CACHE_TTL_MINUTES', 15),
@@ -65,6 +67,14 @@ return [
         'celestrak_iss_catnr' => env('CELESTRAK_ISS_CATNR', 25544),
         'jpl_horizons_url' => env('JPL_HORIZONS_URL', 'https://ssd.jpl.nasa.gov/api/horizons.api'),
         'jpl_sbdd_url' => env('JPL_SBDDB_URL', 'https://ssd-api.jpl.nasa.gov/sbdb_query.api'),
+        'swpc_planetary_k_index_url' => env(
+            'SWPC_PLANETARY_K_INDEX_URL',
+            'https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'
+        ),
+        'swpc_aurora_latest_url' => env(
+            'SWPC_AURORA_LATEST_URL',
+            'https://services.swpc.noaa.gov/json/ovation_aurora_latest.json'
+        ),
         'light_pollution_url' => env('LIGHT_POLLUTION_PROVIDER_URL', ''),
         'light_pollution_secondary_url' => env('LIGHT_POLLUTION_SECONDARY_PROVIDER_URL', ''),
         'light_pollution_viirs_url' => env(
