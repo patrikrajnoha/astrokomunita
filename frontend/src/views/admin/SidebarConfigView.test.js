@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import SidebarConfigView from '@/views/admin/SidebarConfigView.vue'
@@ -104,6 +104,10 @@ function mountView(payload = createPayload()) {
 }
 
 describe('SidebarConfigView', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     store.byScope = {}
@@ -180,7 +184,8 @@ describe('SidebarConfigView', () => {
     expect(titles[0]).toBe('Najnovsie clanky')
   })
 
-  it('shows unsaved state and saves layout', async () => {
+  it('auto-saves layout after change', async () => {
+    vi.useFakeTimers()
     const wrapper = mountView()
     await flush()
     await flush()
@@ -189,18 +194,16 @@ describe('SidebarConfigView', () => {
     await firstToggle.setValue(false)
     await flush()
 
-    expect(wrapper.find('.saveState').text()).toContain('Neulozene zmeny')
+    expect(wrapper.find('.saveState').text()).toContain('Caka na ulozenie')
+    expect(updateMock).toHaveBeenCalledTimes(0)
 
-    const saveButton = wrapper
-      .findAll('button.btn')
-      .find((node) => node.text().includes('Ulozit rozlozenie'))
-
-    await saveButton.trigger('click')
+    await vi.advanceTimersByTimeAsync(750)
     await flush()
     await flush()
 
-    expect(updateMock).toHaveBeenCalledTimes(1)
-    expect(wrapper.find('.saveState').text()).toContain('Ulozene prave teraz')
+    expect(updateMock.mock.calls.length).toBeGreaterThanOrEqual(1)
+    expect(wrapper.find('.saveState').text()).toContain('Ulozene automaticky')
+    vi.useRealTimers()
   })
 
   it('does not render right panel when no details and no custom components', async () => {

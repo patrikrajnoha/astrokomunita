@@ -17,10 +17,7 @@ import {
   moonPhaseLabel,
   normalizeSources,
   normalizeTranslationStatus,
-  sourceBadgeStyle,
   sourceLabel,
-  statusBadgeStyle,
-  translationStatusStyle,
 } from './candidatesListView.utils'
 
 const route = useRoute()
@@ -115,6 +112,18 @@ const {
   router,
   toast,
 })
+
+function candidateTypeLabel(value) {
+  const key = String(value || '').trim().toLowerCase()
+  if (key === 'observation_window') return 'Pozorovacie okno'
+  if (key === 'meteor_shower') return 'Meteorický roj'
+  if (key === 'eclipse_lunar') return 'Zatmenie Mesiaca'
+  if (key === 'eclipse_solar') return 'Zatmenie Slnka'
+  if (key === 'planetary_event') return 'Planetárny úkaz'
+  if (key === 'other') return 'Iná udalosť'
+  if (key === '') return '-'
+  return key.replaceAll('_', ' ')
+}
 
 const {
   buildManualBatchPayload,

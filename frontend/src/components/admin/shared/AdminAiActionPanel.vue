@@ -330,7 +330,7 @@ function triggerRun() {
 }
 
 .aiPanel__advanced {
-  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-top: 1px solid var(--divider-color);
   padding-top: 8px;
 }
 

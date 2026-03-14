@@ -220,12 +220,9 @@
         :candidate-preview-short="candidatePreviewShort"
         :format-date="formatDate"
         :format-confidence="formatConfidence"
-        :translation-status-style="translationStatusStyle"
         :normalize-translation-status="normalizeTranslationStatus"
-        :source-badge-style="sourceBadgeStyle"
         :source-label="sourceLabel"
         :normalize-sources="normalizeSources"
-        :status-badge-style="statusBadgeStyle"
         @publish-candidate="publishCandidateQuick"
         @retranslate-candidate="retranslateCandidateQuick"
         @open-candidate="openCandidate"
@@ -268,7 +265,7 @@
             </div>
             <div class="candidateDetailModalItem">
               <span>Typ</span>
-              <strong>{{ candidateDetail.type || "-" }}</strong>
+              <strong>{{ candidateTypeLabel(candidateDetail.type) }}</strong>
             </div>
             <div v-if="showConfidenceColumn" class="candidateDetailModalItem">
               <span>Skore zdrojov</span>

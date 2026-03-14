@@ -116,7 +116,7 @@
   text-align: left;
   vertical-align: middle;
   padding: 9px 10px;
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  border-bottom: 1px solid var(--divider-color);
   font-size: 0.86rem;
 }
 
@@ -231,7 +231,7 @@
 }
 
 .advancedTools {
-  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  border-top: 1px solid var(--divider-color);
   padding-top: 8px;
 }
 

@@ -1,28 +1,21 @@
 
   <AdminPageShell :title="t('page.title')" :subtitle="t('page.subtitle')">
-    <section class="warningCard">
-      <strong>{{ t('cards.warningTitle') }}</strong>
-      <span>{{ t('cards.warningText') }}</span>
-    </section>
-
     <section class="runCard">
       <header class="cardHeader">
         <h2>{{ t('cards.runTitle') }}</h2>
-        <p>{{ t('cards.runDescription') }}</p>
       </header>
 
       <div class="runGrid">
-        <label class="field">
+        <label class="field field--half">
           <span class="fieldLabel">{{ t('form.runType.label') }}</span>
           <select v-model="form.run" data-testid="run-type">
             <option v-for="option in runOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
-          <span class="fieldHint">{{ t('form.runType.help') }}</span>
         </label>
 
-        <label class="field">
+        <label class="field field--half">
           <span class="fieldLabel">{{ t('form.sampleSize.label') }}</span>
           <input
             v-model.number="form.sample_size"
@@ -32,46 +25,46 @@
             :placeholder="t('form.sampleSize.placeholder')"
             data-testid="sample-size"
           />
-          <span class="fieldHint">{{ t('form.sampleSize.help') }}</span>
           <span v-if="fieldErrors.sample_size" class="fieldError">{{ fieldErrors.sample_size }}</span>
         </label>
 
-        <label class="field">
+        <label class="field field--half">
           <span class="fieldLabel">{{ t('form.mode.label') }}</span>
           <select v-model="form.mode" data-testid="mode-select">
             <option v-for="option in modeOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
-          <span class="fieldHint">{{ t('form.mode.help') }}</span>
         </label>
 
-        <label v-if="showBotSource" class="field">
+        <label v-if="showBotSource" class="field field--half">
           <span class="fieldLabel">{{ t('form.botSource.label') }}</span>
           <select v-model="form.bot_source" data-testid="bot-source">
             <option v-for="source in botSources" :key="source.value" :value="source.value">
               {{ source.label }}
             </option>
           </select>
-          <span class="fieldHint">{{ t('form.botSource.help') }}</span>
           <span v-if="fieldErrors.bot_source" class="fieldError">{{ fieldErrors.bot_source }}</span>
         </label>
+      </div>
 
+      <div class="runFooter">
         <label class="field field--checkbox">
           <span class="checkboxRow">
             <input v-model="confirmLoadImpact" type="checkbox" data-testid="confirm-load-checkbox" />
             <span>{{ t('form.confirmLoad.label') }}</span>
           </span>
-          <span class="fieldHint">{{ t('form.confirmLoad.help') }}</span>
         </label>
-      </div>
 
-      <button class="runBtn" :disabled="runButtonDisabled" data-testid="run-benchmark-btn" @click="runBenchmark">
-        <span class="btnContent">
-          <span v-if="running" class="inlineSpinner" aria-hidden="true"></span>
-          <span>{{ runButtonLabel }}</span>
-        </span>
-      </button>
+        <div class="runActions">
+          <button class="runBtn" :disabled="runButtonDisabled" data-testid="run-benchmark-btn" @click="runBenchmark">
+            <span class="btnContent">
+              <span v-if="running" class="inlineSpinner" aria-hidden="true"></span>
+              <span>{{ runButtonLabel }}</span>
+            </span>
+          </button>
+        </div>
+      </div>
 
       <p v-if="running" class="progressText" data-testid="run-progress">{{ t('form.progress') }}</p>
 
@@ -90,85 +83,66 @@
     </section>
 
     <section class="tableCard">
-      <header class="cardHeader cardHeader--withToolbar">
+      <header class="cardHeader">
         <div>
           <h2>{{ t('cards.resultsTitle') }}</h2>
-          <p>{{ t('cards.resultsDescription') }}</p>
-        </div>
-        <div class="tableToolbar">
-          <label class="toolbarField">
-            <span>{{ t('form.limit.label') }}</span>
-            <select v-model.number="tableLimit" data-testid="results-limit">
-              <option v-for="option in limitOptions" :key="option" :value="option">{{ option }}</option>
-            </select>
-          </label>
-
-          <label class="toolbarField">
-            <span>{{ t('form.sortBy.label') }}</span>
-            <select v-model="sortBy" data-testid="results-sort-by">
-              <option v-for="option in sortByOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
-          </label>
-
-          <label class="toolbarField">
-            <span>{{ t('form.sortDirection.label') }}</span>
-            <select v-model="sortDirection" data-testid="results-sort-direction">
-              <option v-for="option in sortDirectionOptions" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
-          </label>
+          <p class="resultsMeta">{{ resultsSummary }}</p>
         </div>
       </header>
 
-      <p class="tableHint">{{ t('table.rowHint') }}</p>
+      <div class="tableToolbar">
+        <label class="toolbarField">
+          <span>{{ t('form.limit.label') }}</span>
+          <select v-model.number="tableLimit" data-testid="results-limit">
+            <option v-for="option in limitOptions" :key="option" :value="option">{{ option }}</option>
+          </select>
+        </label>
+
+        <label class="toolbarField">
+          <span>{{ t('form.sortBy.label') }}</span>
+          <select v-model="sortBy" data-testid="results-sort-by">
+            <option v-for="option in sortByOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+
+        <label class="toolbarField">
+          <span>{{ t('form.sortDirection.label') }}</span>
+          <select v-model="sortDirection" data-testid="results-sort-direction">
+            <option v-for="option in sortDirectionOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+      </div>
 
       <div v-if="loading" class="muted">{{ t('messages.loading') }}</div>
-      <table v-else class="resultsTable">
-        <thead>
-          <tr>
-            <th>{{ t('table.columns.key') }}</th>
-            <th>{{ t('table.columns.created') }}</th>
-            <th class="metricCol">{{ t('table.columns.avg_ms') }}</th>
-            <th class="metricCol">
-              <span class="headerWithHint">
-                <span>{{ t('table.columns.p95_ms') }}</span>
-                <span class="hint" :title="t('table.tooltips.p95_ms')" :aria-label="t('table.tooltips.p95_ms')">i</span>
-              </span>
-            </th>
-            <th class="metricCol">
-              <span class="headerWithHint">
-                <span>{{ t('table.columns.db_queries_avg') }}</span>
-                <span class="hint" :title="t('table.tooltips.db_queries_avg')" :aria-label="t('table.tooltips.db_queries_avg')">i</span>
-              </span>
-            </th>
-            <th>{{ t('table.columns.trend') }}</th>
-          </tr>
-        </thead>
-        <tbody v-if="visibleLogs.length">
-          <tr
-            v-for="row in visibleLogs"
-            :key="row.id"
-            class="clickable"
-            @click="openDetail(row)"
-          >
-            <td>{{ row.key }}</td>
-            <td>{{ formatDate(row.created_at) }}</td>
-            <td class="metricCol">{{ formatMilliseconds(row.avg_ms) }}</td>
-            <td class="metricCol">{{ formatMilliseconds(row.p95_ms) }}</td>
-            <td class="metricCol">{{ formatDecimal(row.db_queries_avg) }}</td>
-            <td>
-              <div class="trendCell">
-                <div class="miniChart">
-                  <span
-                    v-for="(bar, idx) in miniBars(trendPointsByKey.get(row.key))"
-                    :key="`${row.key}-${idx}`"
-                    class="miniBar"
-                    :style="{ height: `${bar.height}px` }"
-                  ></span>
-                </div>
+      <div v-else class="resultsTableWrap">
+        <table class="resultsTable resultsTable--dense">
+          <thead>
+            <tr>
+              <th>{{ t('table.columns.key') }}</th>
+              <th>{{ t('table.columns.created') }}</th>
+              <th class="metricCol">{{ t('table.columns.avg_ms') }}</th>
+              <th class="metricCol">{{ t('table.columns.p95_ms') }}</th>
+              <th class="metricCol">{{ t('table.columns.db_queries_avg') }}</th>
+              <th>{{ t('table.columns.trend') }}</th>
+            </tr>
+          </thead>
+          <tbody v-if="visibleLogs.length">
+            <tr
+              v-for="row in visibleLogs"
+              :key="row.id"
+              class="clickable"
+              @click="openDetail(row)"
+            >
+              <td>{{ row.key }}</td>
+              <td>{{ formatDate(row.created_at) }}</td>
+              <td class="metricCol">{{ formatMilliseconds(row.avg_ms) }}</td>
+              <td class="metricCol">{{ formatMilliseconds(row.p95_ms) }}</td>
+              <td class="metricCol">{{ formatDecimal(row.db_queries_avg) }}</td>
+              <td>
                 <span
                   class="trendBadge"
                   :class="`trendBadge--${trendForRow(row).tone}`"
@@ -176,19 +150,19 @@
                 >
                   {{ trendForRow(row).symbol }}
                 </span>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-        <tbody v-else>
-          <tr>
-            <td colspan="6" class="emptyState" data-testid="empty-state">
-              <strong>{{ t('table.empty.title') }}</strong>
-              <span>{{ t('table.empty.description') }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+              </td>
+            </tr>
+          </tbody>
+          <tbody v-else>
+            <tr>
+              <td colspan="6" class="emptyState" data-testid="empty-state">
+                <strong>{{ t('table.empty.title') }}</strong>
+                <span>{{ t('table.empty.description') }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <BaseModal

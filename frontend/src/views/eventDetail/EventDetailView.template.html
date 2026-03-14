@@ -68,7 +68,6 @@
         <div class="eventCard__content">
           <div class="eventChipRow">
             <span class="eventChip">{{ typeLabel }}</span>
-            <span v-if="confidenceLabel" class="eventChip">{{ confidenceLabel }}</span>
             <span class="eventChip eventChip--status">{{ statusLabel }}</span>
           </div>
 
@@ -91,9 +90,6 @@
                 ({{ secondaryEventTimeTimezoneLabel }})
               </span>
             </p>
-            <p v-if="showViewingWindowMicrocopy" class="eventTimeBlock__microcopy">
-              {{ viewingWindowMicrocopy }}
-            </p>
             <button
               v-if="viewingForecast.missingLocation"
               type="button"
@@ -102,13 +98,6 @@
             >
               Nastavit polohu
             </button>
-          </section>
-
-          <section v-if="showViewingWindowMicrocopy" class="eventSection">
-            <p class="eventSection__label">Ako pozorovat</p>
-            <p class="eventSection__text">
-              {{ howToObserveText }}
-            </p>
           </section>
 
           <section class="eventSection forecastSection">
@@ -150,38 +139,18 @@
               {{ planButtonLabel }}
             </button>
 
-            <button
-              type="button"
-              class="followButton"
-              :disabled="followLoading"
-              :aria-pressed="auth.isAuthed ? String(isFollowed) : 'false'"
-              @click="handleFollowToggle"
-            >
-              <span v-if="auth.isAuthed" class="followButton__icon" aria-hidden="true">
-                &#10084;
-              </span>
-              <span>{{ followButtonLabel }}</span>
-            </button>
-
-            <button
-              type="button"
-              class="inviteButton"
-              title="Pozvat"
-              aria-label="Pozvat"
-              @click="handleInvite"
-            >
-              Pozvat
-            </button>
-
             <DropdownMenu
               class="menuRoot"
               :items="menuItems"
-              label="Viac moznosti"
+              label="Akcie udalosti"
               menu-label="Akcie udalosti"
               @select="handleMenuSelect"
             >
               <template #trigger>
-                <span class="menuTrigger" aria-hidden="true">&#8943;</span>
+                <span class="menuTrigger">
+                  <span class="menuTrigger__label">Akcie</span>
+                  <span class="menuTrigger__caret" aria-hidden="true">v</span>
+                </span>
               </template>
             </DropdownMenu>
           </div>

@@ -104,6 +104,7 @@ describe('router auth guard', () => {
   it('redirects authenticated unverified users to settings email route', async () => {
     authState.isAuthed = true
     authState.user = {
+      email: 'unverified@example.com',
       email_verified_at: null,
       requires_email_verification: true,
     }

@@ -7,7 +7,7 @@
 :deep(.usersPageShell .adminPageShell__header) {
   margin-bottom: 14px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgb(var(--color-bg-light-rgb) / 0.45);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 :deep(.usersPageShell .adminPageShell__content) {
@@ -92,8 +92,15 @@
 }
 
 .usersFiltersLabel {
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+  clip-path: inset(50%);
+  overflow: hidden;
 }
 
 .usersFiltersRow {
@@ -107,15 +114,19 @@
   display: flex;
   align-items: center;
   flex: 1 1 auto;
+  min-width: 0;
 }
 
 .searchIcon {
   position: absolute;
-  left: 11px;
-  width: 15px;
-  height: 15px;
+  left: 14px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-50%);
   color: rgb(var(--color-text-secondary-rgb) / 0.84);
   pointer-events: none;
+  z-index: 1;
 }
 
 .searchIcon svg {
@@ -135,7 +146,26 @@
 
 .usersSearchInput {
   width: 100%;
-  padding: 0 36px 0 34px;
+  padding: 0 36px 0 46px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+.usersSearchInput::placeholder {
+  color: rgb(var(--color-text-secondary-rgb) / 0.78);
+}
+
+.usersSearchInput::-webkit-search-decoration,
+.usersSearchInput::-webkit-search-cancel-button,
+.usersSearchInput::-webkit-search-results-button,
+.usersSearchInput::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.searchInputWrap .usersSearchInput {
+  padding-left: 42px;
 }
 
 .perPageSelect {
@@ -201,7 +231,7 @@
 .usersTable th,
 .usersTable td {
   padding: 9px 10px;
-  border-bottom: 1px solid rgb(var(--color-bg-light-rgb) / 0.34);
+  border-bottom: 1px solid var(--divider-color);
   vertical-align: middle;
   text-align: left;
 }
@@ -489,6 +519,197 @@
   color: rgb(var(--color-text-secondary-rgb) / 0.86);
 }
 
+.manageModalDescription {
+  margin: 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.manageModalHandle {
+  color: rgb(var(--color-text-secondary-rgb) / 0.78);
+}
+
+.manageModalContent {
+  display: grid;
+  gap: 10px;
+}
+
+.manageIdentityCard {
+  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.45);
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.manageIdentityMain {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.manageIdentityAvatar {
+  width: 44px;
+  height: 44px;
+}
+
+.manageIdentityText {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.manageIdentityName {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.manageIdentityHandle {
+  margin: 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.88);
+}
+
+.manageIdentityBadges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.manageIdentityActions {
+  display: grid;
+  gap: 8px;
+}
+
+.manageDetailGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.manageDetailCard {
+  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.45);
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.manageDangerCard {
+  border-color: rgb(var(--color-danger-rgb) / 0.34);
+  background: rgb(var(--color-danger-rgb) / 0.08);
+}
+
+.manageCardTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.manageInfoList {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.manageInfoItem {
+  display: grid;
+  grid-template-columns: minmax(120px, 44%) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--divider-color);
+}
+
+.manageInfoItem:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.manageInfoItem dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.76);
+}
+
+.manageInfoItem dd {
+  margin: 0;
+  font-size: 13px;
+  text-align: right;
+}
+
+.manageRoleRows {
+  display: grid;
+  gap: 6px;
+}
+
+.manageRoleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.manageReadonlyHint {
+  margin: 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.86);
+}
+
+.manageModalActions {
+  display: grid;
+  gap: 8px;
+}
+
+.manageActionBtn {
+  min-height: 34px;
+  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.62);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: rgb(var(--color-bg-surface-rgb) / 0.74);
+  color: var(--color-text-primary);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.manageActionBtn:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.45);
+}
+
+.manageActionBtn.is-danger {
+  color: rgb(var(--color-danger-rgb) / 0.96);
+  border-color: rgb(var(--color-danger-rgb) / 0.34);
+  background: rgb(var(--color-danger-rgb) / 0.1);
+}
+
+.manageModalError {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 12px;
+}
+
+.manageModalLoading {
+  margin: 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+@media (max-width: 640px) {
+  .manageInfoItem {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .manageInfoItem dd {
+    text-align: left;
+  }
+}
+
 @media (max-width: 980px) {
   .usersTable,
   .usersTable thead,
@@ -521,7 +742,7 @@
   }
 
   .usersTable td {
-    border-bottom: 1px solid rgb(var(--color-bg-light-rgb) / 0.34);
+    border-bottom: 1px solid var(--divider-color);
     padding: 10px 12px;
     display: grid;
     grid-template-columns: minmax(86px, 110px) minmax(0, 1fr);

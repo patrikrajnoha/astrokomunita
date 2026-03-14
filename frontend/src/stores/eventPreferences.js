@@ -4,6 +4,55 @@ import { getMyPreferences, updateMyPreferences, getOnboardingInterests } from '@
 const DEFAULT_REGION = 'global'
 const DEFAULT_INTERESTS = []
 const DEFAULT_BORTLE_CLASS = 6
+const MAX_SIDEBAR_WIDGETS = 3
+
+const normalizeSidebarWidgetKeys = (value) => {
+  if (!Array.isArray(value)) return []
+
+  return Array.from(
+    new Set(
+      value
+        .map((entry) => String(entry || '').trim())
+        .filter(Boolean),
+    ),
+  ).slice(0, MAX_SIDEBAR_WIDGETS)
+}
+
+const normalizeSupportedSidebarWidgets = (value) => {
+  if (!Array.isArray(value)) return []
+
+  return value
+    .map((entry) => ({
+      section_key: String(entry?.section_key || '').trim(),
+      title: String(entry?.title || '').trim(),
+    }))
+    .filter((entry) => entry.section_key !== '')
+}
+
+const normalizeSidebarWidgetOverrides = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+
+  const normalized = {}
+  Object.entries(value).forEach(([scope, keys]) => {
+    const normalizedScope = String(scope || '').trim()
+    if (!normalizedScope) return
+
+    const normalizedKeys = normalizeSidebarWidgetKeys(keys)
+    normalized[normalizedScope] = normalizedKeys
+  })
+
+  return normalized
+}
+
+const normalizeSupportedSidebarScopes = (value) => {
+  if (!Array.isArray(value)) return []
+
+  return Array.from(new Set(
+    value
+      .map((entry) => String(entry || '').trim())
+      .filter(Boolean),
+  ))
+}
 
 export const useEventPreferencesStore = defineStore('eventPreferences', {
   state: () => ({
@@ -19,16 +68,38 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
     locationLat: null,
     locationLon: null,
     bortleClass: DEFAULT_BORTLE_CLASS,
+    sidebarWidgetKeys: [],
+    sidebarWidgetOverrides: {},
     onboardingCompletedAt: null,
     supportedEventTypes: [],
     supportedRegions: ['sk', 'eu', 'global'],
     supportedInterests: [],
+    supportedSidebarWidgets: [],
+    supportedSidebarScopes: [],
     error: null,
   }),
 
   getters: {
     hasSelectedTypes: (state) => Array.isArray(state.eventTypes) && state.eventTypes.length > 0,
     isOnboardingCompleted: (state) => Boolean(state.onboardingCompletedAt),
+    sidebarWidgetKeysForScope: (state) => (scope) => {
+      const normalizedScope = typeof scope === 'string' ? scope.trim() : ''
+      if (normalizedScope) {
+        const scoped = state.sidebarWidgetOverrides?.[normalizedScope]
+        if (Array.isArray(scoped)) return scoped
+      }
+
+      if (normalizedScope === 'home') {
+        return Array.isArray(state.sidebarWidgetKeys) ? state.sidebarWidgetKeys : []
+      }
+
+      return []
+    },
+    hasSidebarWidgetOverrideForScope: (state) => (scope) => {
+      const normalizedScope = typeof scope === 'string' ? scope.trim() : ''
+      if (!normalizedScope) return false
+      return Object.prototype.hasOwnProperty.call(state.sidebarWidgetOverrides || {}, normalizedScope)
+    },
   },
 
   actions: {
@@ -45,10 +116,14 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
       this.locationLat = null
       this.locationLon = null
       this.bortleClass = DEFAULT_BORTLE_CLASS
+      this.sidebarWidgetKeys = []
+      this.sidebarWidgetOverrides = {}
       this.onboardingCompletedAt = null
       this.supportedEventTypes = []
       this.supportedRegions = ['sk', 'eu', 'global']
       this.supportedInterests = []
+      this.supportedSidebarWidgets = []
+      this.supportedSidebarScopes = []
       this.error = null
     },
 
@@ -74,6 +149,14 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
         this.bortleClass = Number.isInteger(Number(data.bortle_class))
           ? Math.min(9, Math.max(1, Number(data.bortle_class)))
           : DEFAULT_BORTLE_CLASS
+        const overrides = normalizeSidebarWidgetOverrides(data.sidebar_widget_overrides)
+        const legacyHomeKeys = normalizeSidebarWidgetKeys(data.sidebar_widget_keys)
+        this.sidebarWidgetOverrides = Object.keys(overrides).length > 0
+          ? overrides
+          : (legacyHomeKeys.length > 0 ? { home: legacyHomeKeys } : {})
+        this.sidebarWidgetKeys = normalizeSidebarWidgetKeys(
+          this.sidebarWidgetOverrides.home ?? legacyHomeKeys,
+        )
         this.onboardingCompletedAt = typeof data.onboarding_completed_at === 'string' && data.onboarding_completed_at
           ? data.onboarding_completed_at
           : null
@@ -83,6 +166,8 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
           ? meta.supported_regions
           : ['sk', 'eu', 'global']
         this.supportedInterests = Array.isArray(meta.supported_interests) ? meta.supported_interests : []
+        this.supportedSidebarWidgets = normalizeSupportedSidebarWidgets(meta.supported_sidebar_widgets)
+        this.supportedSidebarScopes = normalizeSupportedSidebarScopes(meta.supported_sidebar_scopes)
 
         this.loaded = true
       } catch (error) {
@@ -114,6 +199,15 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
         this.bortleClass = Number.isInteger(Number(data.bortle_class))
           ? Math.min(9, Math.max(1, Number(data.bortle_class)))
           : this.bortleClass
+        const nextOverrides = normalizeSidebarWidgetOverrides(data.sidebar_widget_overrides)
+        const hasOverridesPayload = Object.prototype.hasOwnProperty.call(data, 'sidebar_widget_overrides')
+        this.sidebarWidgetOverrides = hasOverridesPayload
+          ? nextOverrides
+          : this.sidebarWidgetOverrides
+        this.sidebarWidgetKeys = normalizeSidebarWidgetKeys(
+          this.sidebarWidgetOverrides.home
+            ?? (Array.isArray(data.sidebar_widget_keys) ? data.sidebar_widget_keys : this.sidebarWidgetKeys),
+        )
         this.onboardingCompletedAt = typeof data.onboarding_completed_at === 'string' && data.onboarding_completed_at
           ? data.onboarding_completed_at
           : this.onboardingCompletedAt
@@ -123,6 +217,12 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
           ? meta.supported_regions
           : this.supportedRegions
         this.supportedInterests = Array.isArray(meta.supported_interests) ? meta.supported_interests : this.supportedInterests
+        this.supportedSidebarWidgets = Array.isArray(meta.supported_sidebar_widgets)
+          ? normalizeSupportedSidebarWidgets(meta.supported_sidebar_widgets)
+          : this.supportedSidebarWidgets
+        this.supportedSidebarScopes = Array.isArray(meta.supported_sidebar_scopes)
+          ? normalizeSupportedSidebarScopes(meta.supported_sidebar_scopes)
+          : this.supportedSidebarScopes
         this.loaded = true
 
         return response

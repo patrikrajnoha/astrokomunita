@@ -16,6 +16,7 @@ const httpMock = vi.hoisted(() => ({
   patch: vi.fn(),
   get: vi.fn(),
 }))
+const searchOnboardingLocationsMock = vi.hoisted(() => vi.fn())
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({
@@ -32,10 +33,16 @@ vi.mock('@/services/api', () => ({
   default: httpMock,
 }))
 
+vi.mock('@/services/events', () => ({
+  searchOnboardingLocations: (...args) => searchOnboardingLocationsMock(...args),
+}))
+
 async function flush() {
   await Promise.resolve()
   await Promise.resolve()
 }
+
+const locationInputSelector = 'input[placeholder="Napr. Nitra"]'
 
 function saveButton(wrapper) {
   return wrapper
@@ -68,6 +75,7 @@ describe('ProfileEdit', () => {
 
     httpMock.patch.mockResolvedValue({ data: authMock.user })
     httpMock.get.mockResolvedValue({ data: authMock.user })
+    searchOnboardingLocationsMock.mockResolvedValue({ data: { data: [] } })
   })
 
   it('scrolls to #location and toggles highlight state temporarily', async () => {
@@ -112,24 +120,24 @@ describe('ProfileEdit', () => {
     expect(wrapper.find('input[maxlength="60"]').exists()).toBe(false)
   })
 
-  it('offers only major slovak cities in city select', async () => {
+  it('uses manual city input without preset city select', async () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
-    const options = wrapper.findAll('select option').map((option) => option.text())
-    expect(options).toEqual(expect.arrayContaining(['Bratislava', 'Kosice', 'Presov', 'Zilina', 'Nitra']))
-    expect(options).not.toEqual(expect.arrayContaining(['Ivanka pri Nitre', 'Cesko', 'Europa', 'Mimo Europy']))
+    expect(wrapper.find('select').exists()).toBe(false)
+    expect(wrapper.find('datalist').exists()).toBe(false)
+    expect(wrapper.find(locationInputSelector).exists()).toBe(true)
   })
 
-  it('preset selection fills coordinates/timezone/label and saves with source preset', async () => {
+  it('typed city fills coordinates/timezone/label and saves with source manual', async () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
-    await wrapper.find('select').setValue('nitra')
+    await wrapper.find(locationInputSelector).setValue('Nitra')
+    await wrapper.find('.fillLocationBtn').trigger('click')
 
-    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').exists()).toBe(true)
-    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').element.value).toBe('Nitra')
-    expect(wrapper.text()).toContain('Nazov polohy sa prebera z vybraneho mesta.')
+    expect(wrapper.find(locationInputSelector).exists()).toBe(true)
+    expect(wrapper.find(locationInputSelector).element.value).toBe('Nitra')
     expect(wrapper.find('input[type="number"]').exists()).toBe(false)
     expect(wrapper.find('input[placeholder="Europe/Bratislava"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Suradnice sa pouzivaju interne pre pocasie a nocnu oblohu.')
@@ -145,12 +153,90 @@ describe('ProfileEdit', () => {
         longitude: 18.0764,
         timezone: 'Europe/Bratislava',
         location_label: 'Nitra',
-        location_source: 'preset',
+        location_source: 'manual',
       }),
     )
   })
 
-  it('normalizes known slovak city labels to city mode', async () => {
+  it('resolves arbitrary village via locations API and uses returned timezone', async () => {
+    searchOnboardingLocationsMock.mockResolvedValue({
+      data: {
+        data: [
+          {
+            label: 'Ivanka pri Nitre, Nitriansky kraj, Slovakia',
+            place_id: 'open_meteo:987654',
+            lat: 48.293,
+            lon: 18.1889,
+            timezone: 'Europe/Bratislava',
+            country: 'SK',
+          },
+        ],
+      },
+    })
+
+    const wrapper = mount(ProfileEdit)
+    await flush()
+
+    await wrapper.find(locationInputSelector).setValue('Ivanka pri Nitre')
+    await wrapper.find('.fillLocationBtn').trigger('click')
+    await flush()
+
+    expect(searchOnboardingLocationsMock).toHaveBeenCalledWith('Ivanka pri Nitre', 8)
+    expect(wrapper.find(locationInputSelector).element.value).toBe('Ivanka pri Nitre, Nitriansky kraj, Slovakia')
+    expect(wrapper.text()).toContain('Poloha nastavena: Ivanka pri Nitre, Nitriansky kraj, Slovakia.')
+
+    await saveButton(wrapper).trigger('click')
+    await flush()
+
+    expect(httpMock.patch).toHaveBeenCalledWith(
+      '/me/location',
+      expect.objectContaining({
+        latitude: 48.293,
+        longitude: 18.1889,
+        timezone: 'Europe/Bratislava',
+        location_label: 'Ivanka pri Nitre, Nitriansky kraj, Slovakia',
+        location_source: 'manual',
+      }),
+    )
+  })
+
+  it('resolves coordinates on save even when Doplnit was not clicked', async () => {
+    searchOnboardingLocationsMock.mockResolvedValue({
+      data: {
+        data: [
+          {
+            label: 'Cierny Balog, Banskobystricky kraj, Slovakia',
+            place_id: 'open_meteo:555',
+            lat: 48.7473,
+            lon: 19.6515,
+            timezone: 'Europe/Bratislava',
+            country: 'SK',
+          },
+        ],
+      },
+    })
+
+    const wrapper = mount(ProfileEdit)
+    await flush()
+
+    await wrapper.find(locationInputSelector).setValue('Cierny Balog')
+    await saveButton(wrapper).trigger('click')
+    await flush()
+
+    expect(searchOnboardingLocationsMock).toHaveBeenCalledWith('Cierny Balog', 8)
+    expect(httpMock.patch).toHaveBeenCalledWith(
+      '/me/location',
+      expect.objectContaining({
+        latitude: 48.7473,
+        longitude: 19.6515,
+        timezone: 'Europe/Bratislava',
+        location_label: 'Cierny Balog, Banskobystricky kraj, Slovakia',
+        location_source: 'manual',
+      }),
+    )
+  })
+
+  it('normalizes known slovak city labels in manual input', async () => {
     authMock.user = {
       ...authMock.user,
       location_label: 'Kosice',
@@ -167,10 +253,9 @@ describe('ProfileEdit', () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
-    expect(wrapper.find('select').element.value).toBe('kosice')
-    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').exists()).toBe(true)
-    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').element.value).toBe('Kosice')
-    expect(wrapper.text()).toContain('Nazov polohy sa prebera z vybraneho mesta.')
+    expect(wrapper.find('select').exists()).toBe(false)
+    expect(wrapper.find(locationInputSelector).exists()).toBe(true)
+    expect(wrapper.find(locationInputSelector).element.value).toBe('Kosice')
   })
 
   it('gps action uses geolocation and timezone from Intl with source gps', async () => {
@@ -238,7 +323,7 @@ describe('ProfileEdit', () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
-    await wrapper.find('input[placeholder="Napr. Bratislava"]').setValue('Nitra')
+    await wrapper.find(locationInputSelector).setValue('Nitra')
     await wrapper.find('.fillLocationBtn').trigger('click')
     await saveButton(wrapper).trigger('click')
     await flush()
@@ -251,7 +336,7 @@ describe('ProfileEdit', () => {
     await flush()
 
     await wrapper.find('textarea').setValue('Nova bio')
-    await wrapper.find('input[placeholder="Napr. Bratislava"]').setValue('Nitra')
+    await wrapper.find(locationInputSelector).setValue('Nitra')
     await wrapper.find('.fillLocationBtn').trigger('click')
     await saveButton(wrapper).trigger('click')
     await flush()
@@ -263,13 +348,13 @@ describe('ProfileEdit', () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
-    await wrapper.find('input[placeholder="Napr. Bratislava"]').setValue('trencin')
+    await wrapper.find(locationInputSelector).setValue('trencin')
     await wrapper.find('.fillLocationBtn').trigger('click')
     await flush()
 
-    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').exists()).toBe(true)
-    expect(wrapper.find('input[placeholder="Napr. Bratislava"]').element.value).toBe('Trencin')
-    expect(wrapper.text()).toContain('Mesto bolo nastavene.')
+    expect(wrapper.find(locationInputSelector).exists()).toBe(true)
+    expect(wrapper.find(locationInputSelector).element.value).toBe('Trencin')
+    expect(wrapper.text()).toContain('Poloha nastavena: Trencin.')
 
     await saveButton(wrapper).trigger('click')
     await flush()
@@ -281,7 +366,7 @@ describe('ProfileEdit', () => {
         longitude: 18.0444,
         timezone: 'Europe/Bratislava',
         location_label: 'Trencin',
-        location_source: 'preset',
+        location_source: 'manual',
       }),
     )
   })
@@ -290,11 +375,11 @@ describe('ProfileEdit', () => {
     const wrapper = mount(ProfileEdit)
     await flush()
 
-    await wrapper.find('input[placeholder="Napr. Bratislava"]').setValue('Ivanka pri Nitre')
+    await wrapper.find(locationInputSelector).setValue('Neznama test lokalita')
     await wrapper.find('.fillLocationBtn').trigger('click')
     await flush()
 
     expect(wrapper.find('input[type="number"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Vyber velke slovenske mesto zo zoznamu.')
+    expect(wrapper.text()).toContain('Nepodarilo sa doplnit suradnice pre zadane mesto.')
   })
 })

@@ -18,7 +18,7 @@
     <section v-else-if="showError" class="state stateError">
       <InlineStatus
         variant="error"
-        message="Nepodarilo sa nacitat pocasie."
+        :message="errorMessage"
         action-label="Skusit znova"
         @action="refreshBlock('weather')"
       />
@@ -69,6 +69,10 @@ const {
 
 const showLoading = computed(() => weatherLoading.value && !weather.value)
 const showError = computed(() => Boolean(weatherError.value) && !weather.value)
+const errorMessage = computed(() => {
+  const value = String(weatherError.value || '').trim()
+  return value || 'Nepodarilo sa nacitat pocasie.'
+})
 
 const metrics = computed(() => ([
   { key: 'cloud', label: 'Oblacnost', value: formattedMetrics.value.cloud },

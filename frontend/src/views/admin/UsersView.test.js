@@ -99,6 +99,21 @@ describe('UsersView', () => {
         }
       }
 
+      if (url === '/admin/users/9') {
+        return {
+          data: {
+            id: 9,
+            name: 'Regular',
+            username: 'regular',
+            role: 'user',
+            email: 'regular@example.test',
+            is_bot: false,
+            is_active: true,
+            is_banned: false,
+          },
+        }
+      }
+
       throw new Error(`Unexpected GET ${url}`)
     })
   })
@@ -203,5 +218,41 @@ describe('UsersView', () => {
 
     expect(router.currentRoute.value.name).toBe('admin.users.detail')
     expect(router.currentRoute.value.params.id).toBe('4')
+  })
+
+  it('opens manage account as popup from row actions', async () => {
+    const router = makeRouter()
+    await router.push('/admin/community/users')
+    await router.isReady()
+
+    const wrapper = mount(UsersView, {
+      global: {
+        plugins: [router],
+      },
+      attachTo: document.body,
+    })
+
+    await flush()
+    await flush()
+
+    const regularRow = wrapper.get('[data-row-id="9"]')
+    await regularRow.find('.dropdownTrigger').trigger('click')
+    await flush()
+
+    const manageItem = [...document.body.querySelectorAll('[role="menuitem"]')]
+      .find((node) => (node.textContent || '').includes('Sprava uctu'))
+
+    expect(manageItem).toBeTruthy()
+    manageItem?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flush()
+    await flush()
+
+    const modal = document.body.querySelector('[data-testid="manage-account-modal"]')
+    expect(modal).toBeTruthy()
+    expect(modal?.textContent || '').toContain('Sprava uctu')
+    expect(modal?.textContent || '').toContain('Regular')
+    expect(apiGetMock).toHaveBeenCalledWith('/admin/users/9')
+
+    wrapper.unmount()
   })
 })

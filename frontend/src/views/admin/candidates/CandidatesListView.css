@@ -1,8 +1,12 @@
 
 .candidatesPage {
-  max-width: 980px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 10px 8px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 
 .pageHeader {
@@ -317,7 +321,7 @@
 
 @media (max-width: 900px) {
   .candidatesPage {
-    padding: 8px 6px;
+    gap: 10px;
   }
 
   .pageHeader {

@@ -31,6 +31,24 @@ export function useAdminTable(fetchFunction, options = {}) {
   // Filters
   const filters = ref({ ...defaultFilters });
   const search = ref('');
+
+  const resolvePaginationPayload = () => {
+    if (!data.value || typeof data.value !== 'object') return null;
+
+    const nestedMeta = data.value.meta;
+    if (nestedMeta && typeof nestedMeta === 'object') {
+      const hasNestedPaginationKeys =
+        nestedMeta.current_page !== undefined ||
+        nestedMeta.last_page !== undefined ||
+        nestedMeta.total !== undefined;
+
+      if (hasNestedPaginationKeys) {
+        return nestedMeta;
+      }
+    }
+
+    return data.value;
+  };
   
   // Computed
   const loadingState = computed(() => {
@@ -42,14 +60,17 @@ export function useAdminTable(fetchFunction, options = {}) {
   
   const pagination = computed(() => {
     if (!data.value?.data) return null;
-    
+
+    const payload = resolvePaginationPayload();
+    if (!payload) return null;
+
     return {
-      currentPage: data.value.current_page || 1,
-      lastPage: data.value.last_page || 1,
-      perPage: data.value.per_page || defaultPerPage,
-      total: data.value.total || 0,
-      from: data.value.from || 0,
-      to: data.value.to || 0
+      currentPage: Number(payload.current_page || 1),
+      lastPage: Number(payload.last_page || 1),
+      perPage: Number(payload.per_page || defaultPerPage),
+      total: Number(payload.total || 0),
+      from: Number(payload.from || 0),
+      to: Number(payload.to || 0)
     };
   });
   

@@ -142,7 +142,7 @@
 
 .table th,
 .table td {
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-bottom: 1px solid var(--divider-color);
   padding: 8px 9px;
   text-align: left;
   vertical-align: top;

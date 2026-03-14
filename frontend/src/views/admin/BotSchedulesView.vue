@@ -314,6 +314,8 @@ onMounted(async () => {
 .botSection {
   display: grid;
   gap: 12px;
+  min-width: 0;
+  container-type: inline-size;
 }
 
 .embeddedHeader {
@@ -358,6 +360,7 @@ onMounted(async () => {
   margin-top: 10px;
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 
 .formGrid {
@@ -434,17 +437,18 @@ onMounted(async () => {
 .tableWrap {
   width: 100%;
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .table {
   width: 100%;
-  min-width: 980px;
+  min-width: 920px;
   border-collapse: collapse;
 }
 
 .table th,
 .table td {
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-bottom: 1px solid var(--divider-color);
   padding: 8px 9px;
   text-align: left;
   font-size: 0.78rem;
@@ -537,9 +541,52 @@ onMounted(async () => {
   margin: 0;
 }
 
-@media (max-width: 980px) {
+@container (max-width: 920px) {
+  .embeddedHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .embeddedHeader .actionBtn {
+    width: 100%;
+    text-align: center;
+  }
+
   .formGrid {
     grid-template-columns: 1fr;
+  }
+
+  .field--compact {
+    max-width: 100%;
+  }
+
+  .createActions {
+    width: 100%;
+  }
+
+  .createActions .actionBtn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@container (max-width: 760px) {
+  .table {
+    min-width: 760px;
+  }
+
+  .rowActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .pager {
+    justify-content: stretch;
+  }
+
+  .pager .ghostBtn {
+    flex: 1 1 auto;
+    text-align: center;
   }
 }
 </style>

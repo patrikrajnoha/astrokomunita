@@ -87,18 +87,62 @@
   border-collapse: collapse;
 }
 
+.tableWrap--botsOverview {
+  overflow-x: hidden;
+}
+
+.botsOverviewTable {
+  min-width: 0;
+  table-layout: fixed;
+}
+
 .table th,
 .table td {
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-bottom: 1px solid var(--divider-color);
   padding: 8px 9px;
   text-align: left;
   font-size: 0.8rem;
+  overflow-wrap: anywhere;
 }
 
 .table th {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: 0.72rem;
+}
+
+.botsOverviewTable th:nth-child(1),
+.botsOverviewTable td:nth-child(1) {
+  width: 15%;
+}
+
+.botsOverviewTable th:nth-child(2),
+.botsOverviewTable td:nth-child(2) {
+  width: 17%;
+}
+
+.botsOverviewTable th:nth-child(3),
+.botsOverviewTable td:nth-child(3),
+.botsOverviewTable th:nth-child(4),
+.botsOverviewTable td:nth-child(4),
+.botsOverviewTable th:nth-child(5),
+.botsOverviewTable td:nth-child(5) {
+  width: 13%;
+}
+
+.botsOverviewTable th:nth-child(6),
+.botsOverviewTable td:nth-child(6) {
+  width: 13%;
+}
+
+.botsOverviewTable th:nth-child(7),
+.botsOverviewTable td:nth-child(7) {
+  width: 16%;
+}
+
+.botsOverviewTable .activityLink {
+  display: inline-block;
+  line-height: 1.25;
 }
 
 .name {
@@ -241,7 +285,7 @@
 }
 
 .retentionAdvanced {
-  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-top: 1px solid var(--divider-color);
   padding-top: 8px;
 }
 

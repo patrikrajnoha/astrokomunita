@@ -4,7 +4,6 @@ export function createQuickRunHandlers({
   sourceCountLabel,
   quickRunResultChips,
   runStatusHint,
-  runStatusLabel,
   toErrorMessage,
   validBotIdentities,
   enabledSourcesByIdentity,

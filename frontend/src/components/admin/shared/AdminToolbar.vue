@@ -27,13 +27,13 @@ defineProps({
 <style scoped>
 .adminToolbar {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-3);
-  background: rgb(var(--bg-app-rgb) / 0.32);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  background: rgb(var(--bg-app-rgb) / 0.28);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: 10px;
   flex-wrap: wrap;
   box-shadow: var(--shadow-soft);
 }
@@ -44,8 +44,8 @@ defineProps({
 
 .adminToolbar__left {
   display: flex;
-  align-items: flex-end;
-  gap: var(--space-3);
+  align-items: center;
+  gap: 10px;
   flex-wrap: wrap;
   flex: 1 1 auto;
 }
@@ -53,11 +53,12 @@ defineProps({
 .adminToolbar__right {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .adminToolbar__slot {
-  min-width: 180px;
+  min-width: 160px;
 }
 
 @media (max-width: 768px) {
@@ -67,6 +68,11 @@ defineProps({
 
   .adminToolbar__left,
   .adminToolbar__right {
+    width: 100%;
+  }
+
+  .adminToolbar__slot {
+    min-width: 0;
     width: 100%;
   }
 }

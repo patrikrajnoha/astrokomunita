@@ -3,12 +3,12 @@
   --surface: rgb(var(--color-surface-rgb) / 0.98);
   --muted: rgb(var(--color-text-secondary-rgb) / 0.92);
   --border: rgb(var(--color-text-secondary-rgb) / 0.35);
-  --soft-border: rgb(var(--color-text-secondary-rgb) / 0.24);
+  --soft-border: var(--divider-color);
   --panel: rgb(var(--color-bg-rgb) / 0.58);
   --panel-strong: rgb(var(--color-bg-rgb) / 0.72);
   --primary: rgb(var(--color-primary-rgb) / 0.9);
 
-  border-bottom: 1px solid var(--soft-border);
+  border-bottom: 1px solid var(--divider-color);
   background: rgb(var(--color-bg-rgb) / 0.48);
   padding: 0.65rem 0.7rem 0.55rem;
 }
@@ -65,7 +65,7 @@
   padding: 0.58rem 0.25rem;
   border-radius: 0;
   border: 0;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.15);
+  border-bottom: 1px solid var(--divider-color);
   background: transparent;
   color: var(--surface);
   outline: none;

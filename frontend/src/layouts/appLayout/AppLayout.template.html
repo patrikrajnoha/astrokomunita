@@ -84,9 +84,14 @@
 
           <main
             :class="[
-              'min-w-0',
-              isProfileRoute ? 'px-0 py-0 md:px-0 md:py-0' : 'px-4 py-6 md:px-8',
-              isAdminRoute ? 'xl:px-6' : isProfileRoute ? 'xl:px-4 2xl:px-6' : 'xl:px-2 2xl:px-4',
+              'min-w-0 overflow-x-hidden',
+              isProfileRoute
+                ? 'px-0 py-0 md:px-0 md:py-0 xl:px-4 2xl:px-6'
+                : isAdminRoute
+                  ? 'px-2 py-4 md:px-3 lg:px-4 xl:px-2 2xl:px-3'
+                  : isHomeFeedRoute
+                    ? 'px-4 pt-2 pb-6 md:px-8 md:pt-2 md:pb-6 xl:px-2 xl:pt-1 xl:pb-4 2xl:px-4 2xl:pt-1 2xl:pb-4'
+                    : 'px-4 py-6 md:px-8 xl:px-2 2xl:px-4',
             ]"
             data-testid="layout-center"
           >
@@ -98,7 +103,7 @@
 
         <aside
           v-if="showRightSidebar"
-          class="hidden xl:col-start-2 xl:block xl:justify-self-end xl:self-start xl:pr-3 2xl:pr-4"
+          class="hidden xl:col-start-2 xl:block xl:justify-self-end xl:self-start xl:pr-2 2xl:pr-2"
           data-testid="layout-right"
           aria-label="Pravy panel"
         >
@@ -106,13 +111,19 @@
             data-testid="right-rail"
             data-tour="conditions"
             :class="[
-              'rightRail h-screen w-[20.5rem] overflow-y-auto overflow-x-hidden bg-[var(--bg-app)] px-3.5 pb-3.5 pt-6 xl:sticky xl:top-0',
+              'rightRail h-screen overflow-y-auto overflow-x-hidden bg-[var(--bg-app)] xl:sticky xl:top-0',
+              'w-[20.5rem] px-3.5 pb-3.5 pt-6',
               isHomeFeedRoute ? '' : 'border-l border-[var(--divider-color)]',
             ]"
           >
             <div class="rightRail__inner">
-              <div class="rightRail__content sidebar-dense sidebar-ultra">
+              <div
+                class="rightRail__content"
+                :class="isAdminRoute ? '' : 'sidebar-dense sidebar-ultra'"
+              >
+                <AdminSubNav v-if="isAdminRoute" />
                 <DynamicSidebar
+                  v-else
                   :observing-lat="observingLat"
                   :observing-lon="observingLon"
                   :observing-date="observingDate"
@@ -141,9 +152,15 @@
 
     <MobileFab
       v-if="
-        auth.isAuthed && !isDrawerOpen && !isComposerOpen && !isWidgetMenuOpen && !isWidgetSheetOpen
+        auth.isAuthed
+          && !isSettingsRoute
+          && !isDrawerOpen
+          && !isComposerOpen
+          && !isWidgetMenuOpen
+          && !isWidgetSheetOpen
       "
       :is-authenticated="auth.isAuthed"
+      :label="mobileFabLabel"
       :bottom-offset="fabBottomOffset"
       @widgets="openWidgetsMenu"
     />
@@ -257,18 +274,18 @@
         <button
           type="button"
           class="sheetHandle"
-          aria-label="Zavrieť menu widgetov"
+          :aria-label="mobileFabMenuCloseLabel"
           @touchstart="onSheetTouchStart($event, 'menu')"
           @touchmove="onSheetTouchMove($event, 'menu')"
           @touchend="onSheetTouchEnd('menu')"
           @click="closeWidgetMenu"
         ></button>
         <div class="sheetHead">
-          <h2 id="mobile-widgets-menu-title" class="sheetTitle">Widgety</h2>
+          <h2 id="mobile-widgets-menu-title" class="sheetTitle">{{ mobileFabMenuTitle }}</h2>
           <button
             type="button"
             class="sheetClose ui-pill ui-pill--secondary ui-pill--icon"
-            aria-label="Zavrieť menu widgetov"
+            :aria-label="mobileFabMenuCloseLabel"
             @click="closeWidgetMenu"
           >
             &#10005;
@@ -276,85 +293,92 @@
         </div>
 
         <div class="sheetList">
-          <button
-            type="button"
-            class="sheetAction ui-pill ui-pill--primary createAction"
-            @click="openComposerFromWidgets"
-          >
-            <span class="sheetActionIconWrap">
-              <svg class="sheetActionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 5v14" />
-                <path d="M5 12h14" />
-              </svg>
-            </span>
-            <span class="sheetActionText">Vytvorit prispevok</span>
-          </button>
-
-          <button
-            v-if="enabledMobileSections.length > 1"
-            type="button"
-            class="sheetAction ui-pill ui-pill--secondary"
-            @click="openAllWidgetsSheet"
-          >
-            <span class="sheetActionIconWrap">
-              <svg class="sheetActionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M4 7h16" />
-                <path d="M4 12h16" />
-                <path d="M4 17h16" />
-              </svg>
-            </span>
-            <span class="sheetActionText">Zobrazit vsetky</span>
-          </button>
-
-          <button
-            v-if="lastOpenedWidget"
-            type="button"
-            class="sheetAction ui-pill ui-pill--secondary"
-            @click="openWidgetSheet(lastOpenedWidget)"
-          >
-            <span class="sheetActionIconWrap">
-              <svg
-                class="sheetActionIcon"
-                :viewBox="resolveSidebarIcon(lastOpenedWidget.section_key).viewBox"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  v-for="(path, index) in resolveSidebarIcon(lastOpenedWidget.section_key).paths"
-                  :key="`last-${index}`"
-                  :d="path"
-                />
-              </svg>
-            </span>
-            <span class="sheetActionText">Naposledy: {{ lastOpenedWidget.title }}</span>
-          </button>
-
-          <template v-if="enabledMobileSections.length > 0">
+          <template v-if="isAdminRoute">
+            <div class="sheetAdminNavWrap">
+              <AdminSubNav @navigate="closeWidgetMenu" />
+            </div>
+          </template>
+          <template v-else>
             <button
-              v-for="section in enabledMobileSections"
-              :key="section.section_key"
+              type="button"
+              class="sheetAction ui-pill ui-pill--primary createAction"
+              @click="openComposerFromWidgets"
+            >
+              <span class="sheetActionIconWrap">
+                <svg class="sheetActionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 5v14" />
+                  <path d="M5 12h14" />
+                </svg>
+              </span>
+              <span class="sheetActionText">Vytvorit prispevok</span>
+            </button>
+
+            <button
+              v-if="enabledMobileSections.length > 1"
               type="button"
               class="sheetAction ui-pill ui-pill--secondary"
-              @click="openWidgetSheet(section)"
+              @click="openAllWidgetsSheet"
+            >
+              <span class="sheetActionIconWrap">
+                <svg class="sheetActionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 7h16" />
+                  <path d="M4 12h16" />
+                  <path d="M4 17h16" />
+                </svg>
+              </span>
+              <span class="sheetActionText">Zobrazit vsetky</span>
+            </button>
+
+            <button
+              v-if="lastOpenedWidget"
+              type="button"
+              class="sheetAction ui-pill ui-pill--secondary"
+              @click="openWidgetSheet(lastOpenedWidget)"
             >
               <span class="sheetActionIconWrap">
                 <svg
                   class="sheetActionIcon"
-                  :viewBox="resolveSidebarIcon(section.section_key).viewBox"
+                  :viewBox="resolveSidebarIcon(lastOpenedWidget.section_key).viewBox"
                   fill="none"
                   aria-hidden="true"
                 >
                   <path
-                    v-for="(path, index) in resolveSidebarIcon(section.section_key).paths"
-                    :key="`${section.section_key}-${index}`"
+                    v-for="(path, index) in resolveSidebarIcon(lastOpenedWidget.section_key).paths"
+                    :key="`last-${index}`"
                     :d="path"
                   />
                 </svg>
               </span>
-              <span class="sheetActionText">{{ section.title }}</span>
+              <span class="sheetActionText">Naposledy: {{ lastOpenedWidget.title }}</span>
             </button>
+
+            <template v-if="enabledMobileSections.length > 0">
+              <button
+                v-for="section in enabledMobileSections"
+                :key="section.section_key"
+                type="button"
+                class="sheetAction ui-pill ui-pill--secondary"
+                @click="openWidgetSheet(section)"
+              >
+                <span class="sheetActionIconWrap">
+                  <svg
+                    class="sheetActionIcon"
+                    :viewBox="resolveSidebarIcon(section.section_key).viewBox"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      v-for="(path, index) in resolveSidebarIcon(section.section_key).paths"
+                      :key="`${section.section_key}-${index}`"
+                      :d="path"
+                    />
+                  </svg>
+                </span>
+                <span class="sheetActionText">{{ section.title }}</span>
+              </button>
+            </template>
+            <div v-else class="sheetEmpty">Ziadne widgety</div>
           </template>
-          <div v-else class="sheetEmpty">Ziadne widgety</div>
         </div>
       </section>
     </transition>

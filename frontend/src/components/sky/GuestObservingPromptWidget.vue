@@ -1,26 +1,47 @@
 <template>
-  <section class="card panel guestObservingPrompt">
+  <section class="card panel guestObservingPrompt" aria-labelledby="observing-promo-title">
     <h3 class="panelTitle sidebarSection__header">Astronomicke podmienky</h3>
 
-    <AsyncState
-      mode="info"
-      title="Prihlaste sa pre presne podmienky"
-      message="Nastavte polohu a zobrazime lokalne pocasie, nocnu oblohu a hodnotenie podmienok."
-      action-label="Nastavit polohu"
-      compact
-      @action="goToProfileLocation"
-    />
+    <div class="promoCard">
+      <p id="observing-promo-title" class="promoTitle">{{ promptTitle }}</p>
+      <p class="promoText">{{ promptMessage }}</p>
+      <button type="button" class="promoBtn" @click="handleAction">{{ actionLabel }}</button>
+    </div>
   </section>
 </template>
 
 <script setup>
-import { useRouter } from 'vue-router'
-import AsyncState from '@/components/ui/AsyncState.vue'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const route = useRoute()
+const auth = useAuthStore()
 
-function goToProfileLocation() {
-  router.push({ name: 'profile.edit', hash: '#location' })
+const isAuthed = computed(() => auth.isAuthed)
+
+const promptTitle = computed(() => (
+  isAuthed.value ? 'Pridaj si lokalitu' : 'Prihlas sa'
+))
+
+const promptMessage = computed(() => (
+  isAuthed.value
+    ? 'Pridaj si lokalitu, aby si videl astronomicke podmienky pre tvoje mesto.'
+    : 'Prihlas sa, nastav polohu a zobrazime lokalne podmienky.'
+))
+
+const actionLabel = computed(() => (
+  isAuthed.value ? 'Nastavit polohu' : 'Prihlasit sa'
+))
+
+function handleAction() {
+  if (isAuthed.value) {
+    router.push({ name: 'profile.edit', hash: '#location' })
+    return
+  }
+
+  router.push({ name: 'login', query: { redirect: route.fullPath || '/' } })
 }
 </script>
 
@@ -48,15 +69,43 @@ function goToProfileLocation() {
   margin: 0;
 }
 
-.guestObservingPrompt :deep(.asyncState) {
-  margin-top: 0;
-  border-radius: 0.56rem;
-  border-color: var(--divider-color);
-  background: rgb(var(--color-bg-rgb) / 0.22);
-  box-shadow: none;
+.promoCard {
+  border: 1px solid var(--divider-color);
+  border-radius: 0.64rem;
+  background: rgb(var(--color-bg-rgb) / 0.2);
+  padding: 0.56rem 0.62rem;
+  display: grid;
+  gap: 0.36rem;
 }
 
-.guestObservingPrompt :deep(.asyncState__message) {
-  max-width: none;
+.promoTitle {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--color-surface);
+}
+
+.promoText {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.3;
+  color: var(--color-text-secondary);
+}
+
+.promoBtn {
+  justify-self: start;
+  min-height: 1.68rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.44);
+  background: rgb(var(--color-primary-rgb) / 0.14);
+  color: var(--color-surface);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.24rem 0.62rem;
+}
+
+.promoBtn:hover {
+  background: rgb(var(--color-primary-rgb) / 0.22);
 }
 </style>

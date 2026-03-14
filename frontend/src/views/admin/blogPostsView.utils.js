@@ -1,3 +1,5 @@
+import { stripHtml } from '@/utils/articleContent'
+
 export function formatDate(value) {
   if (!value) return '-'
   const date = new Date(value)
@@ -168,8 +170,7 @@ export function parseContentBlocks(text) {
 }
 
 export function readTimeFor(text) {
-  const words = String(text || '')
-    .trim()
+  const words = stripHtml(text || '')
     .split(/\s+/)
     .filter(Boolean).length
   const minutes = Math.max(1, Math.round(words / 220))

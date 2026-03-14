@@ -46,33 +46,47 @@ function setPage(page) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .adminPagination__info {
   opacity: 0.9;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
 
 .adminPagination__controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .adminPagination__btn {
-  padding: 8px 14px;
-  border-radius: var(--radius-pill);
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: rgb(var(--bg-surface-rgb) / 0.84);
   color: var(--color-text-primary);
   cursor: pointer;
+  font-size: var(--font-size-xs);
 }
 
 .adminPagination__btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (max-width: 767px) {
+  .adminPagination {
+    align-items: stretch;
+  }
+
+  .adminPagination__controls {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
 }
 </style>

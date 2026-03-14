@@ -25,11 +25,11 @@ defineProps({
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
-  min-height: 60px;
-  padding: 10px 12px;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 10px;
   border: 1px solid transparent;
-  border-radius: 16px;
+  border-radius: 10px;
   background: transparent;
   color: inherit;
   text-decoration: none;
@@ -42,8 +42,8 @@ defineProps({
 
 .quickActionTile:hover {
   border-color: var(--dashboard-border-strong, var(--color-border-strong));
-  background: rgb(var(--color-bg-rgb) / 0.42);
-  transform: translateY(-1px);
+  background: rgb(var(--color-bg-rgb) / 0.56);
+  transform: translateY(-0.5px);
 }
 
 .quickActionTile:focus-visible {
@@ -61,14 +61,14 @@ defineProps({
 
 .quickActionTitle {
   color: var(--color-surface);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .quickActionSubtitle {
   color: var(--dashboard-muted, rgb(var(--color-text-secondary-rgb) / 0.88));
-  font-size: 12px;
+  font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -78,14 +78,14 @@ defineProps({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 32px;
-  height: 28px;
-  padding: 0 10px;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 8px;
   border-radius: 999px;
   border: 1px solid var(--dashboard-border-strong, var(--color-border-strong));
   background: rgb(var(--color-bg-rgb) / 0.56);
   color: var(--color-surface);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }

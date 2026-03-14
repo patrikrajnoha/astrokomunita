@@ -1,5 +1,71 @@
 import api from './api'
 
+const MOON_WIDGET_CACHE_TTL_MS = 2 * 60 * 1000
+const moonWidgetResponseCache = new Map<string, { expiresAt: number, payload: unknown }>()
+const moonWidgetPendingRequests = new Map<string, Promise<unknown>>()
+
+function normalizeMoonQuery(query: MoonPhasesWidgetQuery = {}): Record<string, string | number> {
+  const normalized: Record<string, string | number> = {}
+
+  if (Number.isFinite(Number(query.lat))) normalized.lat = Number(query.lat)
+  if (Number.isFinite(Number(query.lon))) normalized.lon = Number(query.lon)
+
+  const tz = String(query.tz || '').trim()
+  if (tz) normalized.tz = tz
+
+  const date = String(query.date || '').trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) normalized.date = date
+
+  if (Number.isFinite(Number(query.year))) normalized.year = Number(query.year)
+
+  return normalized
+}
+
+function buildMoonWidgetCacheKey(endpoint: string, query: MoonPhasesWidgetQuery = {}): string {
+  const normalized = normalizeMoonQuery(query)
+  const entries = Object.entries(normalized).sort(([a], [b]) => a.localeCompare(b))
+  const search = new URLSearchParams(entries.map(([key, value]) => [key, String(value)]))
+  return `${endpoint}?${search.toString()}`
+}
+
+async function fetchMoonWidget<T>(endpoint: string, query: MoonPhasesWidgetQuery = {}): Promise<T> {
+  const normalizedQuery = normalizeMoonQuery(query)
+  const cacheKey = buildMoonWidgetCacheKey(endpoint, normalizedQuery)
+  const now = Date.now()
+  const cached = moonWidgetResponseCache.get(cacheKey)
+
+  if (cached && cached.expiresAt > now) {
+    return cached.payload as T
+  }
+
+  const pending = moonWidgetPendingRequests.get(cacheKey)
+  if (pending) {
+    return pending as Promise<T>
+  }
+
+  const requestPromise = api.get<T>(endpoint, {
+    params: normalizedQuery,
+    meta: {
+      skipErrorToast: true,
+    },
+  })
+    .then((response) => {
+      moonWidgetResponseCache.set(cacheKey, {
+        payload: response.data,
+        expiresAt: Date.now() + MOON_WIDGET_CACHE_TTL_MS,
+      })
+      return response.data
+    })
+    .finally(() => {
+      if (moonWidgetPendingRequests.get(cacheKey) === requestPromise) {
+        moonWidgetPendingRequests.delete(cacheKey)
+      }
+    })
+
+  moonWidgetPendingRequests.set(cacheKey, requestPromise)
+  return requestPromise
+}
+
 export type UpcomingEventWidgetItem = {
   id: number
   title: string
@@ -27,12 +93,31 @@ export type MoonPhaseWidgetItem = {
   is_current: boolean
 }
 
+export type MoonPhaseMajorEventItem = {
+  key: string
+  label: string
+  at: string
+  date: string
+  time: string
+  is_current: boolean
+}
+
+export type MoonSpecialEventWidgetItem = {
+  key: string
+  label: string
+  at: string | null
+  date: string | null
+  time: string | null
+  note: string | null
+}
+
 export type MoonPhasesWidgetPayload = {
   reference_at: string
   reference_date: string
   timezone: string
   current_phase: string
   phases: MoonPhaseWidgetItem[]
+  major_events?: MoonPhaseMajorEventItem[]
   source: {
     provider: string
     label: string
@@ -41,17 +126,76 @@ export type MoonPhasesWidgetPayload = {
   }
 }
 
+export type MoonEventsWidgetPayload = {
+  year: number
+  timezone: string
+  events: MoonSpecialEventWidgetItem[]
+  source: {
+    moon_phases: {
+      provider: string
+      label: string
+      url: string
+      api_key_required: boolean
+    }
+    distance: {
+      provider: string
+      label: string
+      url: string
+      api_key_required: boolean
+    }
+  }
+}
+
+export type MoonOverviewWidgetPayload = {
+  reference_at: string
+  timezone: string
+  moon_phase: string
+  moon_illumination_percent: number | null
+  moon_altitude_deg: number | null
+  moon_azimuth_deg: number | null
+  moon_direction: string | null
+  moon_distance_km: number | null
+  next_new_moon_at: string | null
+  next_full_moon_at: string | null
+  next_moonrise_at: string | null
+  source: {
+    phase: {
+      provider: string
+      label: string
+      url: string
+      api_key_required: boolean
+    }
+    position: {
+      provider: string
+      label: string
+      url: string
+      api_key_required: boolean
+    }
+    next_phases: {
+      provider: string
+      label: string
+      url: string
+      api_key_required: boolean
+    }
+  }
+}
+
 export type MoonPhasesWidgetQuery = {
   lat?: number
   lon?: number
   tz?: string
   date?: string
+  year?: number
 }
 
 export async function getMoonPhasesWidget(query: MoonPhasesWidgetQuery = {}): Promise<MoonPhasesWidgetPayload> {
-  const response = await api.get<MoonPhasesWidgetPayload>('/sky/moon-phases', {
-    params: query,
-  })
+  return fetchMoonWidget<MoonPhasesWidgetPayload>('/sky/moon-phases', query)
+}
 
-  return response.data
+export async function getMoonEventsWidget(query: MoonPhasesWidgetQuery = {}): Promise<MoonEventsWidgetPayload> {
+  return fetchMoonWidget<MoonEventsWidgetPayload>('/sky/moon-events', query)
+}
+
+export async function getMoonOverviewWidget(query: MoonPhasesWidgetQuery = {}): Promise<MoonOverviewWidgetPayload> {
+  return fetchMoonWidget<MoonOverviewWidgetPayload>('/sky/moon-overview', query)
 }

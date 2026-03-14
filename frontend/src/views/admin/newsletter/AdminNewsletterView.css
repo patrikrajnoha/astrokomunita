@@ -95,7 +95,7 @@ button:disabled {
 
 .table th,
 .table td {
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-bottom: 1px solid var(--divider-color);
   padding: 8px 6px;
   text-align: left;
   font-size: 13px;

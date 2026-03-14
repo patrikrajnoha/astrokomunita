@@ -1,7 +1,7 @@
 <template src="./sidebarConfig/SidebarConfigView.template.html"></template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import draggable from 'vuedraggable'
 import { useToast } from '@/composables/useToast'
@@ -17,6 +17,7 @@ import { createScopeTabs, MODE_TABS } from './sidebarConfig/sidebarConfigView.co
 
 const modeTabs = MODE_TABS
 const scopeTabs = createScopeTabs(SIDEBAR_SCOPE)
+const LAYOUT_AUTOSAVE_DELAY_MS = 700
 
 const activeMode = ref('layout')
 const activeScope = ref(DEFAULT_SIDEBAR_SCOPE)
@@ -36,6 +37,8 @@ const customViewRef = ref(null)
 const lastSavedAt = ref(null)
 const saveError = ref('')
 const selectedSectionKey = ref('')
+let autoSaveTimerId = null
+let autoSaveQueued = false
 
 const { showToast } = useToast()
 const { confirm } = useConfirm()
@@ -155,10 +158,22 @@ const hasBuilderChanges = computed(() => {
   return current !== initial
 })
 
+const layoutAutosaveSignature = computed(() => {
+  return JSON.stringify(
+    sections.value.map((item, index) => ({
+      kind: item.kind,
+      section_key: item.section_key,
+      custom_component_id: item.custom_component_id,
+      order: index,
+      is_enabled: item.is_enabled,
+    })),
+  )
+})
+
 const syncStateLabel = computed(() => {
   if (savingLayout.value) return 'Uklada sa'
-  if (saveError.value) return 'Chyba pri ukladani'
-  if (hasBuilderChanges.value) return 'Neulozene zmeny'
+  if (saveError.value) return 'Chyba pri automatickom ukladani'
+  if (hasBuilderChanges.value) return 'Caka na automaticke ulozenie'
   return 'Synchronizovane'
 })
 
@@ -174,9 +189,9 @@ const headerMetaLine = computed(() => {
 
 const saveStateLabel = computed(() => {
   if (savingLayout.value) return 'Ukladam...'
-  if (saveError.value) return 'Chyba pri ukladani'
-  if (hasBuilderChanges.value) return 'Neulozene zmeny'
-  if (lastSavedAt.value) return 'Ulozene prave teraz'
+  if (saveError.value) return 'Chyba pri automatickom ukladani'
+  if (hasBuilderChanges.value) return 'Caka na ulozenie...'
+  if (lastSavedAt.value) return 'Ulozene automaticky'
   return 'Pripravene'
 })
 
@@ -296,18 +311,102 @@ const retrySidebarLoad = async () => {
   }
 }
 
+const clearAutoSaveTimer = () => {
+  if (autoSaveTimerId !== null) {
+    window.clearTimeout(autoSaveTimerId)
+    autoSaveTimerId = null
+  }
+}
+
+const saveLayoutChanges = async ({ silent = true } = {}) => {
+  if (!hasBuilderChanges.value || loadingScope.value) return true
+
+  if (savingLayout.value) {
+    autoSaveQueued = true
+    return false
+  }
+
+  savingLayout.value = true
+  saveError.value = ''
+  error.value = ''
+
+  try {
+    const payloadItems = sections.value.map((item, index) => ({
+      kind: item.kind,
+      section_key: item.kind === 'builtin' ? item.section_key : 'custom_component',
+      custom_component_id: item.kind === 'custom_component' ? item.custom_component_id : null,
+      order: index,
+      is_enabled: Boolean(item.is_enabled),
+    }))
+
+    const response = await sidebarConfigAdminApi.update(activeScope.value, payloadItems)
+    const savedItems = normalizeLayoutItems(response?.data || payloadItems)
+
+    setScopeData(savedItems)
+    sidebarConfigStore.byScope[activeScope.value] = savedItems
+    lastSavedAt.value = new Date().toISOString()
+    if (!silent) {
+      showToast('Rozlozenie sidebaru bolo ulozene.', 'success')
+    }
+    return true
+  } catch (err) {
+    const message = err?.response?.data?.message || 'Nepodarilo sa ulozit konfiguraciu sidebaru.'
+    saveError.value = message
+    error.value = message
+    notifyErrorOnce(message)
+    return false
+  } finally {
+    savingLayout.value = false
+
+    if (autoSaveQueued) {
+      autoSaveQueued = false
+      if (hasBuilderChanges.value) {
+        void scheduleAutoSave({ immediate: true })
+      }
+    }
+  }
+}
+
+const scheduleAutoSave = async ({ immediate = false } = {}) => {
+  clearAutoSaveTimer()
+
+  if (!hasBuilderChanges.value || loadingScope.value) return
+  if (savingLayout.value) {
+    autoSaveQueued = true
+    return
+  }
+
+  saveError.value = ''
+  const delay = immediate ? 0 : LAYOUT_AUTOSAVE_DELAY_MS
+  autoSaveTimerId = window.setTimeout(() => {
+    autoSaveTimerId = null
+    void saveLayoutChanges()
+  }, delay)
+}
+
+const flushAutoSave = async () => {
+  clearAutoSaveTimer()
+  if (!hasBuilderChanges.value) return true
+  return saveLayoutChanges()
+}
+
 const onScopeClick = async (nextScope) => {
   if (nextScope === activeScope.value) return
 
-  if (hasBuilderChanges.value) {
+  if (hasBuilderChanges.value || savingLayout.value) {
+    const persisted = await flushAutoSave()
+    if (persisted && !hasBuilderChanges.value) {
+      // Saved successfully, no confirmation needed.
+    } else {
     const confirmed = await confirm({
       title: 'Neulozene zmeny',
-      message: 'Mas neulozene zmeny rozlozenia. Pokracovat a zahodit ich?',
-      confirmText: 'Zahodit zmeny',
+      message: 'Automaticke ulozenie zlyhalo. Pokracovat bez ulozenia?',
+      confirmText: 'Pokracovat bez ulozenia',
       cancelText: 'Zostat tu',
       variant: 'danger',
     })
     if (!confirmed) return
+    }
   }
 
   activeScope.value = nextScope
@@ -412,7 +511,7 @@ const addCustomComponentToLayout = (component) => {
   selectSection(nextSection)
 
   toggleSectionEnabled(nextSection, true)
-  showToast('Komponent bol pridany do rozlozenia. Nezabudni ulozit.', 'success')
+  showToast('Komponent bol pridany do rozlozenia.', 'success')
 }
 
 const openCreateCustomComponent = async () => {
@@ -456,57 +555,7 @@ const removeCustomComponentFromLayout = async (section) => {
     selectedSectionKey.value = ''
   }
 
-  showToast('Komponent bol odobrany z rozlozenia. Uloz rozlozenie pre potvrdenie zmien.', 'success')
-}
-
-const resetLayoutChanges = async () => {
-  if (!hasBuilderChanges.value) return
-
-  const confirmed = await confirm({
-    title: 'Reset neulozenych zmien',
-    message: 'Naozaj chces vratit rozlozenie do posledneho ulozeneho stavu?',
-    confirmText: 'Resetovat',
-    cancelText: 'Zrusit',
-    variant: 'danger',
-  })
-  if (!confirmed) return
-
-  setScopeData(originalSections.value)
-  saveError.value = ''
-  showToast('Neulozene zmeny boli zahodene.', 'success')
-}
-
-const saveLayoutChanges = async () => {
-  if (!hasBuilderChanges.value) return
-
-  savingLayout.value = true
-  saveError.value = ''
-  error.value = ''
-
-  try {
-    const payloadItems = sections.value.map((item, index) => ({
-      kind: item.kind,
-      section_key: item.kind === 'builtin' ? item.section_key : 'custom_component',
-      custom_component_id: item.kind === 'custom_component' ? item.custom_component_id : null,
-      order: index,
-      is_enabled: Boolean(item.is_enabled),
-    }))
-
-    const response = await sidebarConfigAdminApi.update(activeScope.value, payloadItems)
-    const savedItems = normalizeLayoutItems(response?.data || payloadItems)
-
-    setScopeData(savedItems)
-    sidebarConfigStore.byScope[activeScope.value] = savedItems
-    lastSavedAt.value = new Date().toISOString()
-    showToast('Rozlozenie sidebaru bolo ulozene.', 'success')
-  } catch (err) {
-    const message = err?.response?.data?.message || 'Nepodarilo sa ulozit konfiguraciu sidebaru.'
-    saveError.value = message
-    error.value = message
-    notifyErrorOnce(message)
-  } finally {
-    savingLayout.value = false
-  }
+  showToast('Komponent bol odobrany z rozlozenia.', 'success')
 }
 
 const refreshAvailableCustomComponents = async () => {
@@ -547,7 +596,7 @@ const refreshAvailableCustomComponents = async () => {
 const onCustomComponentsChanged = async () => {
   if (hasBuilderChanges.value) {
     await refreshAvailableCustomComponents()
-    showToast('Custom komponenty sa obnovili, neulozene zmeny rozlozenia ostali zachovane.', 'success')
+    showToast('Custom komponenty sa obnovili, lokalne zmeny rozlozenia ostali zachovane.', 'success')
     return
   }
 
@@ -567,10 +616,19 @@ const sectionIdentifier = (section) => {
 }
 
 const beforeUnloadListener = (event) => {
-  if (!hasBuilderChanges.value && !customFormDirty.value) return
+  if (!hasBuilderChanges.value && !savingLayout.value && !customFormDirty.value) return
   event.preventDefault()
   event.returnValue = ''
 }
+
+watch(layoutAutosaveSignature, async () => {
+  if (!hasBuilderChanges.value) {
+    clearAutoSaveTimer()
+    return
+  }
+
+  await scheduleAutoSave()
+})
 
 onMounted(async () => {
   window.addEventListener('beforeunload', beforeUnloadListener)
@@ -578,11 +636,25 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  clearAutoSaveTimer()
   window.removeEventListener('beforeunload', beforeUnloadListener)
 })
 
 onBeforeRouteLeave(async () => {
-  if (!hasBuilderChanges.value && !customFormDirty.value) return true
+  if (hasBuilderChanges.value || savingLayout.value) {
+    const persisted = await flushAutoSave()
+    if (!persisted && hasBuilderChanges.value) {
+      return confirm({
+        title: 'Neulozene zmeny',
+        message: 'Automaticke ulozenie zlyhalo. Naozaj chces opustit tuto stranku?',
+        confirmText: 'Opustit stranku',
+        cancelText: 'Zostat tu',
+        variant: 'danger',
+      })
+    }
+  }
+
+  if (!customFormDirty.value) return true
 
   return confirm({
     title: 'Neulozene zmeny',

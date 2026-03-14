@@ -18,7 +18,7 @@
 
       <template v-else>
         <section class="usersFilters" aria-label="Filtre pouzivatelov">
-          <label class="usersFiltersLabel" for="users-search">Search users...</label>
+          <label class="usersFiltersLabel" for="users-search">Hladaj pouzivatelov</label>
           <div class="usersFiltersRow">
             <div class="searchInputWrap">
               <span class="searchIcon" aria-hidden="true">
@@ -31,8 +31,9 @@
                 id="users-search"
                 v-model="searchInput"
                 :disabled="loading"
-                type="search"
-                placeholder="Search users..."
+                type="text"
+                placeholder="Hladaj pouzivatelov..."
+                autocomplete="off"
                 class="usersSearchInput"
               />
               <button
@@ -196,5 +197,164 @@
           <AdminPagination :meta="data" @page-change="page = $event" />
         </div>
       </template>
+
+      <BaseModal
+        :open="manageModalOpen"
+        title="Sprava uctu"
+        compact
+        test-id="manage-account-modal"
+        close-test-id="manage-account-modal-close"
+        @update:open="closeManageUserModal"
+      >
+        <template #description>
+          <p v-if="manageUser" class="manageModalDescription">
+            {{ userName(manageUser) }} <span class="manageModalHandle">{{ userHandle(manageUser) }}</span>
+          </p>
+        </template>
+
+        <div class="manageModalContent">
+          <p v-if="manageModalError" class="manageModalError">{{ manageModalError }}</p>
+          <p v-else-if="manageModalLoading" class="manageModalLoading">Nacitavam detail pouzivatela...</p>
+
+          <template v-else-if="manageUser">
+            <section class="manageIdentityCard">
+              <div class="manageIdentityMain">
+                <div class="avatar manageIdentityAvatar">
+                  <UserAvatar class="avatarFallback" :user="manageUser" :alt="`${userName(manageUser)} avatar`" />
+                </div>
+                <div class="manageIdentityText">
+                  <h3 class="manageIdentityName">{{ userName(manageUser) }}</h3>
+                  <p class="manageIdentityHandle">{{ userHandle(manageUser) }}</p>
+                  <div class="manageIdentityBadges">
+                    <span class="badge roleBadge" :class="roleClass(manageUser)">{{ roleLabel(manageUser) }}</span>
+                    <span class="badge statusBadge" :class="statusClass(manageUser)">{{ statusLabel(manageUser) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="manageIdentityActions">
+                <button
+                  v-if="manageUser.username"
+                  type="button"
+                  class="manageActionBtn"
+                  @click="openPublicProfile(manageUser); closeManageUserModal(false)"
+                >
+                  Zobrazit profil
+                </button>
+
+                <button
+                  type="button"
+                  class="manageActionBtn"
+                  @click="openUserDetail(manageUser); closeManageUserModal(false)"
+                >
+                  Otvorit detail
+                </button>
+              </div>
+            </section>
+
+            <div class="manageDetailGrid">
+              <section class="manageDetailCard">
+                <h4 class="manageCardTitle">Informacie o ucte</h4>
+                <dl class="manageInfoList">
+                  <div v-for="item in manageAccountInfoRows" :key="item.key" class="manageInfoItem">
+                    <dt>{{ item.label }}</dt>
+                    <dd>{{ item.value }}</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section class="manageDetailCard">
+                <h4 class="manageCardTitle">Opravnenia a roly</h4>
+                <div class="manageRoleRows">
+                  <div class="manageRoleRow">
+                    <span>Aktualna rola</span>
+                    <span class="badge roleBadge" :class="roleClass(manageUser)">{{ roleLabel(manageUser) }}</span>
+                  </div>
+                  <div class="manageRoleRow">
+                    <span>Stav editor</span>
+                    <span>{{ roleLabel(manageUser) === 'editor' ? 'Pouzivatel je editor' : 'Pouzivatel nie je editor' }}</span>
+                  </div>
+                </div>
+
+                <div v-if="canToggleEditorRole(manageUser)" class="manageModalActions">
+                  <button
+                    v-if="String(manageUser.role || '').toLowerCase() === 'user'"
+                    type="button"
+                    class="manageActionBtn"
+                    @click="updateEditorRole(manageUser, 'editor')"
+                  >
+                    Pridat rolu editor
+                  </button>
+
+                  <button
+                    v-if="String(manageUser.role || '').toLowerCase() === 'editor'"
+                    type="button"
+                    class="manageActionBtn"
+                    @click="updateEditorRole(manageUser, 'user')"
+                  >
+                    Odobrat rolu editor
+                  </button>
+                </div>
+              </section>
+
+              <section class="manageDetailCard">
+                <h4 class="manageCardTitle">Moderacia</h4>
+                <div v-if="canManageAccount(manageUser)" class="manageModalActions">
+                  <button
+                    v-if="!manageUser.is_banned"
+                    type="button"
+                    class="manageActionBtn is-danger"
+                    @click="banUser(manageUser)"
+                  >
+                    Zablokovat ucet
+                  </button>
+
+                  <button
+                    v-if="manageUser.is_banned"
+                    type="button"
+                    class="manageActionBtn"
+                    @click="unbanUser(manageUser)"
+                  >
+                    Odblokovat ucet
+                  </button>
+
+                  <button
+                    v-if="manageUser.is_active"
+                    type="button"
+                    class="manageActionBtn is-danger"
+                    @click="deactivateUser(manageUser)"
+                  >
+                    Deaktivovat ucet
+                  </button>
+
+                  <button
+                    v-if="!manageUser.is_active"
+                    type="button"
+                    class="manageActionBtn"
+                    @click="reactivateUser(manageUser)"
+                  >
+                    Reaktivovat ucet
+                  </button>
+                </div>
+
+                <p v-else class="manageReadonlyHint">Pre tento ucet nie su moderacne write akcie povolene.</p>
+              </section>
+
+              <section v-if="canManageAccount(manageUser)" class="manageDetailCard manageDangerCard">
+                <h4 class="manageCardTitle">Danger zone</h4>
+                <div class="manageModalActions">
+                  <button
+                    type="button"
+                    class="manageActionBtn is-danger"
+                    @click="resetProfile(manageUser)"
+                  >
+                    Resetovat profil
+                  </button>
+                </div>
+              </section>
+            </div>
+          </template>
+        </div>
+      </BaseModal>
     </div>
   </AdminPageShell>

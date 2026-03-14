@@ -50,4 +50,47 @@ describe('sidebar engine constraints', () => {
       'nasa_apod',
     ])
   })
+
+  it('shows only one observing widget when location is missing for signed-in user', () => {
+    const enabled = getEnabledSidebarSections([
+      { kind: 'builtin', section_key: 'observing_conditions', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'observing_weather', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'night_sky', order: 2, is_enabled: true },
+    ], { isGuest: false, collapseObservingForMissingLocation: true })
+
+    expect(enabled).toHaveLength(1)
+    expect(enabled.map((item) => item.section_key)).toEqual([GUEST_OBSERVING_PROMPT_SECTION_KEY])
+  })
+
+  it('filters enabled widgets by preferred section keys', () => {
+    const enabled = getEnabledSidebarSections([
+      { kind: 'builtin', section_key: 'search', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'nasa_apod', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'next_event', order: 2, is_enabled: true },
+      { kind: 'builtin', section_key: 'latest_articles', order: 3, is_enabled: true },
+    ], { preferredSectionKeys: ['latest_articles', 'search'] })
+
+    expect(enabled).toHaveLength(2)
+    expect(enabled.map((item) => item.section_key)).toEqual(['latest_articles', 'search'])
+  })
+
+  it('returns no widgets when preferred keys are explicitly empty', () => {
+    const enabled = getEnabledSidebarSections([
+      { kind: 'builtin', section_key: 'search', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'nasa_apod', order: 1, is_enabled: true },
+    ], { preferredSectionKeys: [] })
+
+    expect(enabled).toHaveLength(0)
+  })
+
+  it('uses preferred keys even when those sections are globally disabled', () => {
+    const enabled = getEnabledSidebarSections([
+      { kind: 'builtin', section_key: 'search', order: 0, is_enabled: false },
+      { kind: 'builtin', section_key: 'nasa_apod', order: 1, is_enabled: false },
+      { kind: 'builtin', section_key: 'moon_phases', order: 2, is_enabled: true },
+    ], { preferredSectionKeys: ['search', 'nasa_apod'] })
+
+    expect(enabled).toHaveLength(2)
+    expect(enabled.map((item) => item.section_key)).toEqual(['search', 'nasa_apod'])
+  })
 })

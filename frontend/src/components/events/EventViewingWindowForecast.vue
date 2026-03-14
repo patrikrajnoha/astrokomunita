@@ -241,8 +241,8 @@ function formatMeasure(value, unit) {
   display: grid;
   gap: 0.5rem;
   padding: 0.8rem 0;
-  border-top: 1px solid var(--color-divider);
-  border-bottom: 1px solid var(--color-divider);
+  border-top: 1px solid var(--divider-color);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .forecastStrip__top {

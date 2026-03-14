@@ -32,22 +32,6 @@
       </div>
     </section>
 
-    <section
-      v-if="translationHealthLoading || translationIsActive"
-      class="progressPanel"
-      data-testid="translation-progress-panel"
-    >
-      <div class="progressPanel__label">{{ translationProgressLabel }}</div>
-      <div class="progressBar progressBar--translation">
-        <div class="progressBar__fill progressBar__fill--translation" :style="{ width: `${translationProgressPercent}%` }"></div>
-      </div>
-      <div class="progressPanel__meta">
-        <span>{{ t('progress.done') }}: {{ Number(translationCounts.done || 0) }}</span>
-        <span>{{ t('progress.failed') }}: {{ Number(translationCounts.failed || 0) }}</span>
-        <span>{{ t('progress.pending') }}: {{ Number(translationCounts.pending || 0) }}</span>
-      </div>
-    </section>
-
     <section class="topGrid">
       <section class="card runPanel">
         <div class="cardHead">
@@ -55,8 +39,8 @@
           <span class="muted">{{ t('runPanel.selectedSupported', { count: supportedSelectedKeys.length }) }}</span>
         </div>
 
-        <div class="runPanel__actions">
-          <label class="field" for="run-year">
+        <div class="runPanel__primary">
+          <label class="field field--grow" for="run-year">
             <span>{{ t('runPanel.year') }}</span>
             <input
               id="run-year"
@@ -72,29 +56,34 @@
 
           <button
             type="button"
-            class="primaryBtn"
+            class="primaryBtn runPanel__runBtn"
             data-testid="run-selected-btn"
             :disabled="!canRunSelected"
             @click="runSelected"
           >
             {{ runningSelected ? t('runPanel.runSelectedLoading') : t('runPanel.runSelectedIdle') }}
           </button>
-
-          <label class="switchLabel" for="purge-dry-run">
-            <input id="purge-dry-run" v-model="purgeDryRun" type="checkbox" :disabled="purging" />
-            <span>{{ t('runPanel.purgeDryRun') }}</span>
-          </label>
-
-          <button
-            type="button"
-            class="btn-danger"
-            data-testid="purge-crawled-btn"
-            :disabled="purging"
-            @click="startPurgeFlow"
-          >
-            {{ purging ? t('runPanel.purgeLoading') : t('runPanel.purgeIdle') }}
-          </button>
         </div>
+
+        <details class="runPanel__maintenance">
+          <summary class="compactSummary">Udrzba a cistenie</summary>
+          <div class="runPanel__maintenanceBody">
+            <label class="switchLabel" for="purge-dry-run">
+              <input id="purge-dry-run" v-model="purgeDryRun" type="checkbox" :disabled="purging" />
+              <span>{{ t('runPanel.purgeDryRun') }}</span>
+            </label>
+
+            <button
+              type="button"
+              class="btn-danger"
+              data-testid="purge-crawled-btn"
+              :disabled="purging"
+              @click="startPurgeFlow"
+            >
+              {{ purging ? t('runPanel.purgeLoading') : t('runPanel.purgeIdle') }}
+            </button>
+          </div>
+        </details>
 
         <p class="muted">{{ t('runPanel.hint') }}</p>
       </section>
@@ -102,7 +91,16 @@
       <section class="card qualityPanel" data-testid="translation-quality-panel">
         <div class="cardHead">
           <h2>{{ t('quality.title') }}</h2>
-          <span class="muted">{{ t('quality.subtitle') }}</span>
+          <div class="qualityPanel__headMeta">
+            <span
+              class="statusDot"
+              :class="`statusDot--${translationHealthTone}`"
+              data-testid="translation-health-indicator"
+              :title="translationHealthTitle"
+              :aria-label="translationHealthTitle"
+            ></span>
+            <span class="muted">{{ t('quality.subtitle') }}</span>
+          </div>
         </div>
 
         <div class="qualityPanel__summary">
@@ -112,88 +110,94 @@
           <span class="muted">{{ t('quality.checkedAt', { value: artifactsCheckedAtLabel }) }}</span>
         </div>
 
-        <div class="qualityPanel__actions">
-          <label class="field" for="artifacts-sample-limit">
-            <span>{{ t('quality.sample') }}</span>
-            <input
-              id="artifacts-sample-limit"
-              v-model.number="artifactsSampleLimit"
-              type="number"
-              min="1"
-              max="100"
-              :disabled="artifactsLoading || artifactsRepairing"
-            />
-          </label>
+        <details class="qualityPanel__tools">
+          <summary class="compactSummary">Nastroje kvality</summary>
 
-          <label class="field" for="artifacts-repair-limit">
-            <span>{{ t('quality.repairLimit') }}</span>
-            <input
-              id="artifacts-repair-limit"
-              v-model.number="artifactsRepairLimit"
-              type="number"
-              min="1"
-              max="1000"
-              :disabled="artifactsLoading || artifactsRepairing"
-            />
-          </label>
+          <div class="qualityPanel__toolsBody">
+            <div class="qualityPanel__actions">
+              <label class="field" for="artifacts-sample-limit">
+                <span>{{ t('quality.sample') }}</span>
+                <input
+                  id="artifacts-sample-limit"
+                  v-model.number="artifactsSampleLimit"
+                  type="number"
+                  min="1"
+                  max="100"
+                  :disabled="artifactsLoading || artifactsRepairing"
+                />
+              </label>
 
-          <button
-            type="button"
-            class="ghostBtn"
-            data-testid="translation-artifacts-report-btn"
-            :disabled="artifactsLoading || artifactsRepairing"
-            @click="loadTranslationArtifactsReport(true)"
-          >
-            {{ artifactsLoading ? t('quality.checkLoading') : t('quality.checkIdle') }}
-          </button>
+              <label class="field" for="artifacts-repair-limit">
+                <span>{{ t('quality.repairLimit') }}</span>
+                <input
+                  id="artifacts-repair-limit"
+                  v-model.number="artifactsRepairLimit"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  :disabled="artifactsLoading || artifactsRepairing"
+                />
+              </label>
 
-          <button
-            type="button"
-            class="btn-danger"
-            data-testid="translation-artifacts-repair-btn"
-            :disabled="!canRepairArtifacts"
-            @click="runTranslationArtifactsRepair"
-          >
-            {{ artifactsRepairing ? t('quality.repairLoading') : t('quality.repairIdle') }}
-          </button>
-        </div>
+              <button
+                type="button"
+                class="ghostBtn"
+                data-testid="translation-artifacts-report-btn"
+                :disabled="artifactsLoading || artifactsRepairing"
+                @click="loadTranslationArtifactsReport(true)"
+              >
+                {{ artifactsLoading ? t('quality.checkLoading') : t('quality.checkIdle') }}
+              </button>
 
-        <p class="muted">{{ t('quality.hint') }}</p>
+              <button
+                type="button"
+                class="btn-danger"
+                data-testid="translation-artifacts-repair-btn"
+                :disabled="!canRepairArtifacts"
+                @click="runTranslationArtifactsRepair"
+              >
+                {{ artifactsRepairing ? t('quality.repairLoading') : t('quality.repairIdle') }}
+              </button>
+            </div>
 
-        <div v-if="artifactsSamples.length > 0" class="tableWrap qualityPanel__tableWrap">
-          <table class="table compact">
-            <thead>
-              <tr>
-                <th>{{ t('quality.columns.candidate') }}</th>
-                <th>{{ t('quality.columns.event') }}</th>
-                <th>{{ t('quality.columns.sourceTitle') }}</th>
-                <th>{{ t('quality.columns.translatedTitle') }}</th>
-                <th>{{ t('quality.columns.eventTitle') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="sample in artifactsSamples" :key="sample.candidate_id">
-                <td>
-                  <button
-                    type="button"
-                    class="inlineLinkBtn"
-                    :data-testid="`translation-artifacts-candidate-link-${sample.candidate_id}`"
-                    @click="openCandidateDetail(sample.candidate_id)"
-                  >
-                    {{ sample.candidate_id }}
-                  </button>
-                </td>
-                <td>{{ sample.event_id || t('common.na') }}</td>
-                <td>{{ sample.source_title || t('common.na') }}</td>
-                <td>{{ sample.translated_title || t('common.na') }}</td>
-                <td>{{ sample.event_title || t('common.na') }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div v-else class="muted qualityPanel__empty">
-          {{ t('quality.empty') }}
-        </div>
+            <p class="muted">{{ t('quality.hint') }}</p>
+
+            <div v-if="artifactsSamples.length > 0" class="tableWrap qualityPanel__tableWrap">
+              <table class="table compact">
+                <thead>
+                  <tr>
+                    <th>{{ t('quality.columns.candidate') }}</th>
+                    <th>{{ t('quality.columns.event') }}</th>
+                    <th>{{ t('quality.columns.sourceTitle') }}</th>
+                    <th>{{ t('quality.columns.translatedTitle') }}</th>
+                    <th>{{ t('quality.columns.eventTitle') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="sample in artifactsSamples" :key="sample.candidate_id">
+                    <td>
+                      <button
+                        type="button"
+                        class="inlineLinkBtn"
+                        :data-testid="`translation-artifacts-candidate-link-${sample.candidate_id}`"
+                        @click="openCandidateDetail(sample.candidate_id)"
+                      >
+                        {{ sample.candidate_id }}
+                      </button>
+                    </td>
+                    <td>{{ sample.event_id || t('common.na') }}</td>
+                    <td>{{ sample.source_title || t('common.na') }}</td>
+                    <td>{{ sample.translated_title || t('common.na') }}</td>
+                    <td>{{ sample.event_title || t('common.na') }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="muted qualityPanel__empty">
+              {{ t('quality.empty') }}
+            </div>
+          </div>
+        </details>
       </section>
     </section>
 

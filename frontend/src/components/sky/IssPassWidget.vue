@@ -7,7 +7,20 @@
     </div>
 
     <div v-else class="passBody">
-      <p class="passTime">{{ passTimeLabel }}</p>
+      <p class="passTime">{{ passHeadline }}</p>
+      <p v-if="passDetailLine" class="passDetail">{{ passDetailLine }}</p>
+
+      <SkyIssTrackerMap
+        v-if="hasTracker"
+        class="passMap"
+        :tracker-lat="trackerLat"
+        :tracker-lon="trackerLon"
+        :tracker-sample-at="trackerSampleAt"
+        :observer-lat="lat"
+        :observer-lon="lon"
+      />
+
+      <p v-if="satelliteSourceLine" class="sourceLine">{{ satelliteSourceLine }}</p>
     </div>
   </section>
 </template>
@@ -15,6 +28,7 @@
 <script setup>
 import { computed, toRef } from 'vue'
 import { useSkyWidget } from '@/composables/useSkyWidget'
+import SkyIssTrackerMap from '@/components/sky/SkyIssTrackerMap.vue'
 
 const props = defineProps({
   lat: { type: [Number, String], default: null },
@@ -49,15 +63,60 @@ const hasVisiblePass = computed(() => {
   return Boolean(issPreview.value?.available) && passDate.value instanceof Date
 })
 
-const shouldRender = computed(() => hasLocationCoords.value && hasVisiblePass.value)
+const trackerLat = computed(() => toFiniteNumber(issPreview.value?.tracker?.lat))
+const trackerLon = computed(() => toFiniteNumber(issPreview.value?.tracker?.lon))
+const trackerSampleAt = computed(() => String(issPreview.value?.tracker?.sample_at || '').trim())
+const hasTracker = computed(() => trackerLat.value !== null && trackerLon.value !== null)
+
+const shouldRender = computed(() => hasLocationCoords.value)
 
 const showLoading = computed(() => {
   if (!hasLocationCoords.value) return false
-  if (hasVisiblePass.value) return false
+  if (hasVisiblePass.value || hasTracker.value) return false
   return issLoading.value
 })
 
 const passTimeLabel = computed(() => formatTime(passDate.value, effectiveTz.value))
+const passHeadline = computed(() => {
+  if (hasVisiblePass.value) {
+    return `Najblizsi prelet: ${passTimeLabel.value}`
+  }
+
+  if (hasTracker.value) {
+    return 'ISS tracker je aktivny'
+  }
+
+  if (issPreview.value?.available === false) {
+    return 'Dnes bez viditelneho ISS preletu'
+  }
+
+  return 'ISS data docasne nedostupne'
+})
+
+const passDetailLine = computed(() => {
+  const duration = toFiniteNumber(issPreview.value?.duration_sec)
+  const maxAltitude = toFiniteNumber(issPreview.value?.max_altitude_deg)
+  const directionStart = sanitizeDirection(issPreview.value?.direction_start)
+  const directionEnd = sanitizeDirection(issPreview.value?.direction_end)
+
+  const parts = []
+  if (duration !== null) parts.push(`${Math.max(1, Math.round(duration / 60))} min`)
+  if (maxAltitude !== null) parts.push(`max ${Math.round(maxAltitude)} deg`)
+  if (directionStart && directionEnd) parts.push(`${directionStart} -> ${directionEnd}`)
+
+  return parts.join(' | ')
+})
+
+const satelliteSourceLine = computed(() => {
+  const satelliteSource = String(issPreview.value?.satellite?.source || '').trim().toLowerCase()
+  const trackerSource = String(issPreview.value?.tracker?.source || '').trim().toLowerCase()
+
+  const parts = []
+  if (satelliteSource === 'celestrak_gp') parts.push('orbita: CelesTrak GP')
+  if (trackerSource === 'iss_tracker') parts.push('tracker: WhereTheISS')
+
+  return parts.join(' | ')
+})
 
 function formatTime(value, timeZone) {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) return '-'
@@ -76,6 +135,20 @@ function formatTime(value, timeZone) {
       hour12: false,
     }).format(value)
   }
+}
+
+function toFiniteNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function sanitizeDirection(value) {
+  const candidate = String(value || '').trim().toUpperCase()
+  return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'].includes(candidate) ? candidate : ''
 }
 </script>
 
@@ -105,15 +178,32 @@ function formatTime(value, timeZone) {
 
 .passBody {
   display: grid;
-  gap: 0.18rem;
+  gap: 0.22rem;
 }
 
 .passTime {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 800;
   line-height: 1.15;
   color: var(--color-surface);
+}
+
+.passDetail {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: var(--color-text-secondary);
+}
+
+.passMap {
+  margin-top: 0.05rem;
+}
+
+.sourceLine {
+  margin: 0;
+  font-size: 0.66rem;
+  color: var(--color-text-secondary);
 }
 
 .panelLoading {

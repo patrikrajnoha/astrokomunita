@@ -96,7 +96,26 @@ function attachGlobalDiagnostics() {
   }
 }
 
+function enforceDevCanonicalHost() {
+  if (!import.meta.env.DEV || import.meta.env.VITEST || typeof window === 'undefined') {
+    return false
+  }
+
+  const currentUrl = new URL(window.location.href)
+  if (currentUrl.hostname !== 'localhost') {
+    return false
+  }
+
+  currentUrl.hostname = '127.0.0.1'
+  window.location.replace(currentUrl.toString())
+  return true
+}
+
 async function bootstrap() {
+  if (enforceDevCanonicalHost()) {
+    return
+  }
+
   console.info('[APP INIT] start')
   console.info('[APP INIT] mode=', import.meta.env.MODE, 'base=', import.meta.env.BASE_URL)
 

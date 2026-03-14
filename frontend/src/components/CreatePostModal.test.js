@@ -100,6 +100,48 @@ describe('CreatePostModal GIF selection', () => {
     wrapper.unmount()
   })
 
+  it('shows grouped emoji picker and inserts selected emoji into composer', async () => {
+    const wrapper = mount(CreatePostModal, {
+      props: { open: true },
+      attachTo: document.body,
+      global: {
+        stubs: {
+          teleport: true,
+          PollComposerPanel: true,
+          ObservationCreateView: { template: '<div data-testid="observation-create-stub"></div>' },
+        },
+      },
+    })
+
+    await wrapper.find('button[aria-label="Emoji"]').trigger('click')
+
+    const categoryButtons = wrapper.findAll('button.emojiGroupBtn')
+    expect(categoryButtons.length).toBeGreaterThanOrEqual(4)
+
+    const spaceCategory = categoryButtons.find((button) => button.text().includes('Vesmir'))
+    expect(Boolean(spaceCategory)).toBe(true)
+    if (!spaceCategory) {
+      throw new Error('Vesmir category button not found in emoji picker')
+    }
+
+    await spaceCategory.trigger('click')
+    await flushPromises()
+
+    const emojiButtons = wrapper.findAll('.emojiGrid .emojiBtn')
+    expect(emojiButtons.length).toBeGreaterThan(10)
+
+    const textarea = wrapper.get('#composer-textarea')
+    expect(textarea.element.value).toBe('')
+
+    await emojiButtons[0].trigger('click')
+    await flushPromises()
+
+    expect(textarea.element.value.length).toBeGreaterThan(0)
+    expect(wrapper.find('.emojiMenu').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
   it('contains observation action in more menu and switches to embedded observation form', async () => {
     const wrapper = mount(CreatePostModal, {
       props: { open: true },

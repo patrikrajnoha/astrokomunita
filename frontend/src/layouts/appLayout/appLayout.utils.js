@@ -7,6 +7,7 @@ export function parseStringValue(value) {
 export function parseNumericValue(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value !== 'string') return null
+  if (value.trim() === '') return null
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
 }
@@ -34,12 +35,20 @@ export function normalizeComposerAttachmentFile(value) {
   return value instanceof File ? value : null
 }
 
-export function buildWidgetProps(sectionKey, title, observingContext) {
+const toSectionKeySet = (value) => {
+  if (value instanceof Set) return value
+  if (Array.isArray(value)) return new Set(value.map((item) => String(item || '')))
+  return new Set()
+}
+
+export function buildWidgetProps(sectionKey, title, observingContext, options = {}) {
   if (
     sectionKey === 'observing_conditions' ||
     sectionKey === 'observing_weather' ||
     sectionKey === 'night_sky' ||
-    sectionKey === 'moon_phases'
+    sectionKey === 'iss_pass' ||
+    sectionKey === 'moon_overview' ||
+    sectionKey === 'moon_events'
   ) {
     return {
       lat: observingContext.lat,
@@ -47,6 +56,19 @@ export function buildWidgetProps(sectionKey, title, observingContext) {
       date: observingContext.date,
       tz: observingContext.tz,
       locationName: observingContext.locationName,
+    }
+  }
+
+  if (sectionKey === 'moon_phases') {
+    const enabledSectionKeys = toSectionKeySet(options.enabledSectionKeys)
+    return {
+      lat: observingContext.lat,
+      lon: observingContext.lon,
+      date: observingContext.date,
+      tz: observingContext.tz,
+      locationName: observingContext.locationName,
+      showOverview: !enabledSectionKeys.has('moon_overview'),
+      showSpecialEvents: !enabledSectionKeys.has('moon_events'),
     }
   }
 

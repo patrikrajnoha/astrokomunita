@@ -1,266 +1,194 @@
 <template>
   <section class="adminHub">
-    <div class="adminHub__bg" aria-hidden="true"></div>
-
     <div class="adminHub__subNav adminHub__subNav--mobile">
       <AdminSubNav />
     </div>
 
-    <div class="adminHub__center">
-      <div class="adminHub__statusWrap">
-        <RouterLink
-          v-if="aiLastRunAt"
-          :to="{ name: 'admin.newsletter' }"
-          class="adminHub__aiStatus adminHub__aiStatus--link"
-        >
-          <span>AI: {{ aiStatusLabel }}</span>
-          <span class="adminHub__aiStatusTime">{{ aiRelativeTime }}</span>
-        </RouterLink>
-        <span v-else class="adminHub__aiStatus">
-          <span>AI: {{ aiStatusLabel }}</span>
-          <span class="adminHub__aiStatusTime">{{ aiRelativeTime }}</span>
-        </span>
-      </div>
-      <div class="adminHub__contentCard">
-        <RouterView />
-      </div>
-    </div>
-
-    <div class="adminHub__subNav adminHub__subNav--desktop">
-      <div class="adminHub__sticky">
-        <AdminSubNav />
-      </div>
-    </div>
+    <RouterView />
   </section>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterView } from 'vue-router'
 import AdminSubNav from '@/components/admin/AdminSubNav.vue'
-import { getAdminAiConfig } from '@/services/api/admin/ai'
-
-const aiStatus = ref('idle')
-const aiLastRunAt = ref(null)
-const aiClock = ref(Date.now())
-let aiClockTimer = null
-
-function normalizeStatus(value) {
-  const normalized = String(value || '').trim().toLowerCase()
-  return ['idle', 'success', 'fallback', 'error'].includes(normalized) ? normalized : 'idle'
-}
-
-function parseTime(value) {
-  if (!value) return null
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
-
-function selectLatestRun(features) {
-  const candidates = [
-    features?.newsletter_prime_insights?.last_run || null,
-    features?.event_description_generate?.last_run || null,
-  ]
-    .filter((item) => item && typeof item === 'object')
-    .map((item) => ({
-      run: item,
-      time: parseTime(item.updated_at),
-    }))
-    .filter((item) => item.time !== null)
-    .sort((a, b) => b.time.getTime() - a.time.getTime())
-
-  return candidates[0]?.run || null
-}
-
-const aiStatusLabel = computed(() => {
-  const status = normalizeStatus(aiStatus.value)
-  if (status === 'success') return 'Hotovo'
-  if (status === 'fallback') return 'Fallback'
-  if (status === 'error') return 'Chyba'
-  return 'Pripravené'
-})
-
-const aiRelativeTime = computed(() => {
-  aiClock.value
-
-  const parsed = parseTime(aiLastRunAt.value)
-  if (!parsed) return 'bez behu'
-
-  const diffMs = Math.max(0, Date.now() - parsed.getTime())
-  const diffMinutes = Math.floor(diffMs / 60000)
-
-  if (diffMinutes <= 0) return 'práve teraz'
-  if (diffMinutes < 60) return `pred ${diffMinutes} min`
-
-  const diffHours = Math.floor(diffMinutes / 60)
-  if (diffHours < 24) return `pred ${diffHours} h`
-
-  const diffDays = Math.floor(diffHours / 24)
-  return `pred ${diffDays} d`
-})
-
-async function loadAiStatus() {
-  try {
-    const response = await getAdminAiConfig()
-    const data = response?.data?.data || {}
-    const latestRun = selectLatestRun(data.features || {})
-
-    if (latestRun) {
-      aiStatus.value = normalizeStatus(latestRun.status)
-      aiLastRunAt.value = latestRun.updated_at || null
-      return
-    }
-
-    aiStatus.value = 'idle'
-    aiLastRunAt.value = null
-  } catch {
-    aiStatus.value = 'error'
-    aiLastRunAt.value = null
-  }
-}
-
-onMounted(() => {
-  loadAiStatus()
-  aiClockTimer = window.setInterval(() => {
-    aiClock.value = Date.now()
-  }, 60_000)
-})
-
-onBeforeUnmount(() => {
-  if (aiClockTimer) {
-    clearInterval(aiClockTimer)
-    aiClockTimer = null
-  }
-})
 </script>
 
 <style scoped>
 .adminHub {
-  --admin-rail-width: clamp(14rem, 19vw, 18.5rem);
-  --admin-sub-nav-width: clamp(13.5rem, 16vw, 15.5rem);
-  --admin-center-max: 1200px;
-  position: relative;
   display: grid;
-  gap: var(--space-4);
-  isolation: isolate;
-}
-
-.adminHub__bg {
-  position: absolute;
-  inset: -10px -12px;
-  z-index: -1;
-  border-radius: var(--radius-xl);
-  background:
-    radial-gradient(110% 80% at 0% 0%, rgb(var(--color-accent-rgb) / 0.09), transparent 58%),
-    radial-gradient(90% 70% at 100% 10%, rgb(var(--color-text-secondary-rgb) / 0.05), transparent 64%);
-  pointer-events: none;
-}
-
-.adminHub__center {
+  gap: 10px;
   min-width: 0;
-  width: 100%;
-  max-width: var(--admin-center-max);
-  margin-inline: auto;
+  container-type: inline-size;
 }
 
-.adminHub__statusWrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--space-2);
-}
-
-.adminHub__aiStatus {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  background: rgb(var(--bg-app-rgb) / 0.5);
-}
-
-.adminHub__aiStatus--link {
-  text-decoration: none;
-}
-
-.adminHub__aiStatusTime {
-  color: rgb(var(--color-text-secondary-rgb) / 0.82);
-}
-
-.adminHub__contentCard {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-card);
-  box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(6px);
-  min-width: 0;
-  overflow: hidden;
-}
-
-.adminHub__subNav {
-  min-width: 0;
-}
-
-.adminHub__subNav--desktop {
+.adminHub__subNav--mobile {
   display: none;
 }
 
-.adminHub__sticky {
-  position: sticky;
-  top: calc(var(--navbar-height) + var(--space-6));
+
+
+
+
+:deep(.adminPageShell :is(input:not([type='checkbox']):not([type='radio']), select, textarea)) {
+  min-height: 34px;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 13px;
 }
 
-@media (min-width: 901px) {
-  .adminHub {
-    grid-template-columns:
-      minmax(0, 1fr)
-      minmax(var(--admin-sub-nav-width), var(--admin-rail-width));
-    align-items: start;
+:deep(.adminPageShell textarea) {
+  min-height: 80px;
+  line-height: 1.35;
+}
+
+:deep(.adminPageShell button) {
+  min-height: 34px;
+  font-size: 12px;
+}
+
+:deep(.adminPageShell .card),
+:deep(.adminPageShell .panel) {
+  border-radius: var(--radius-md);
+}
+
+:deep(.adminPageShell),
+:deep(.adminPageShell__content),
+:deep(.adminPageShell__content > *) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+:deep(.tableWrap),
+:deep(.tableContainer),
+:deep(.adminTableWrap) {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+:deep(.table),
+:deep(.activityTable),
+:deep(.adminTable) {
+  width: 100%;
+}
+
+:deep(.table th),
+:deep(.table td),
+:deep(.activityTable th),
+:deep(.activityTable td),
+:deep(.adminTable th),
+:deep(.adminTable td) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adminHub > * {
+  min-width: 0;
+}
+
+@container (max-width: 760px) {
+  :deep(.filterRow),
+  :deep(.formGrid),
+  :deep(.advancedFiltersBody),
+  :deep(.filtersAdvancedBody),
+  :deep(.retentionMainRow),
+  :deep(.toolbar) {
+    grid-template-columns: 1fr !important;
+    align-items: stretch;
   }
 
-  .adminHub__subNav--mobile {
-    display: none;
+  :deep(.filterActions),
+  :deep(.formActions),
+  :deep(.createActions),
+  :deep(.advancedActions),
+  :deep(.paginationActions) {
+    width: 100%;
+    justify-content: stretch;
   }
 
-  .adminHub__subNav--desktop {
-    display: block;
+  :deep(.filterActions .actionBtn),
+  :deep(.filterActions .ghostBtn),
+  :deep(.formActions .actionBtn),
+  :deep(.formActions .ghostBtn),
+  :deep(.createActions .actionBtn),
+  :deep(.advancedActions .actionBtn),
+  :deep(.advancedActions .runBtn),
+  :deep(.advancedActions .ghostBtn),
+  :deep(.advancedActions .dangerBtn),
+  :deep(.paginationActions .ghostBtn) {
+    flex: 1 1 auto;
+    width: 100%;
+    text-align: center;
   }
 
-  .adminHub__center {
-    max-width: var(--admin-center-max);
+  :deep(.table) {
+    min-width: 620px;
+  }
+
+  :deep(.activityTable) {
+    min-width: 680px;
   }
 }
 
 @media (max-width: 900px) {
   .adminHub {
-    gap: var(--space-3);
-  }
-
-  .adminHub__contentCard {
-    border-radius: var(--radius-lg);
+    gap: 10px;
   }
 }
 
-@media (max-width: 767px) {
-  .adminHub {
-    gap: 10px;
-  }
-
-  .adminHub__bg {
-    inset: -4px -6px;
-    border-radius: 14px;
-  }
-
-.adminHub__subNav--mobile {
+@media (min-width: 768px) and (max-width: 1279px) {
+  .adminHub__subNav--mobile {
+    display: block;
     position: sticky;
     top: calc(var(--navbar-height) + 2px);
     z-index: 8;
   }
 
-  .adminHub__statusWrap {
-    justify-content: flex-start;
+  :deep(.adminSubNav) {
+    padding: 10px;
+    border-radius: var(--radius-md);
+  }
+
+  :deep(.adminSubNav__head) {
+    display: none;
+  }
+
+  :deep(.adminSubNav__groups) {
+    margin-top: 0;
+    gap: 8px;
+  }
+
+  :deep(.adminSubNav__groupTitle) {
+    display: none;
+  }
+
+  :deep(.adminSubNav__list) {
+    gap: 6px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :deep(.adminSubNav__item) {
+    min-height: 36px;
+    padding: 7px 9px;
+    font-size: 13px;
+  }
+
+  :deep(.adminSubNav__itemRow) {
+    gap: 6px;
+  }
+
+  :deep(.adminSubNav__collapseToggle) {
+    width: 30px;
+  }
+
+  :deep(.adminSubNav__item--child) {
+    margin-left: 0;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 767px) {
+  .adminHub__subNav--mobile {
+    display: none !important;
   }
 
   :deep(.adminPageShell) {
@@ -320,3 +248,5 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
+

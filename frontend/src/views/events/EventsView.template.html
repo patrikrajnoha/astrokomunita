@@ -266,32 +266,18 @@
                 <h3 class="card-title" :title="eventDisplayTitle(eventItem)">{{ eventDisplayTitle(eventItem) }}</h3>
               </div>
 
-              <button
-                class="favorite-switch"
-                :class="{ active: favorites.isFavorite(eventItem.id) }"
-                type="button"
-                :disabled="favorites.loading || !auth.isAuthed"
-                :aria-pressed="favorites.isFavorite(eventItem.id)"
-                :aria-label="favoriteToggleLabel(eventItem.id)"
-                @click.prevent.stop="toggleFavorite(eventItem.id)"
+              <span
+                class="event-type-icon"
+                role="img"
+                :title="eventTypeIconLabel(eventItem)"
+                :aria-label="eventTypeIconLabel(eventItem)"
               >
-                <span class="favorite-switch-track" aria-hidden="true">
-                  <span class="favorite-switch-thumb"></span>
-                </span>
-                <span class="sr-only">{{ favoriteToggleLabel(eventItem.id) }}</span>
-              </button>
+                {{ eventTypeIcon(eventItem) }}
+              </span>
             </div>
 
             <div class="meta-row">
               <span class="type-badge">{{ typeLabel(eventItem.type) }}</span>
-              <span
-                v-if="publicConfidenceBadgeLabel(eventItem)"
-                class="confidence-badge"
-                :class="`confidence-${eventItem?.public_confidence?.level || 'unknown'}`"
-                :title="publicConfidenceTooltip(eventItem)"
-              >
-                {{ publicConfidenceBadgeLabel(eventItem) }}
-              </span>
               <span class="card-meta-text">{{ formatCardDate(eventItem.max_at || eventItem.start_at) }}</span>
               <span class="card-meta-separator" aria-hidden="true">&middot;</span>
               <span

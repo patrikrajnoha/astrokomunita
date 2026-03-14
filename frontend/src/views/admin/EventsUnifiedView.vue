@@ -8,7 +8,6 @@ import http from '@/services/api'
 import {
   generateAdminEventDescription,
   getAdminAiConfig,
-  postEditAdminEventTitle,
 } from '@/services/api/admin/ai'
 
 const mode = ref('list')
@@ -32,16 +31,6 @@ const aiActionRawStatus = ref(null)
 const aiUndoSnapshot = ref(null)
 const aiShortDraft = ref('')
 const showAdvancedAiInForm = ref(false)
-const aiTitleActionLoading = ref(false)
-const aiTitleActionError = ref('')
-const aiTitleActionStatus = ref('idle')
-const aiTitleActionRawStatus = ref(null)
-const aiTitleActionNotice = ref('')
-const aiTitleFallbackUsed = ref(false)
-const aiTitleSuggestion = ref('')
-const aiTitleSource = ref('')
-const aiTitleUndoSnapshot = ref(null)
-const aiTitleLastRunByEvent = ref({})
 const { confirm } = useConfirm()
 
 const eventTypes = [
@@ -52,10 +41,36 @@ const eventTypes = [
   { value: 'other', label: 'Iná udalosť' },
 ]
 
+const eventIconOptions = [
+  { value: '\u{1F319}', label: '\u{1F319} Mesiac' },
+  { value: '\u2604\uFE0F', label: '\u2604\uFE0F Kometa' },
+  { value: '\u{1F320}', label: '\u{1F320} Meteory' },
+  { value: '\u{1F52D}', label: '\u{1F52D} Teleskop' },
+  { value: '\u{1FA90}', label: '\u{1FA90} Planeta' },
+  { value: '\u{1F6F0}\uFE0F', label: '\u{1F6F0}\uFE0F Satelit' },
+  { value: '\u{1F680}', label: '\u{1F680} Misia' },
+  { value: '\u2728', label: '\u2728 Vseobecna' },
+]
+
+const defaultEventTypeIcons = {
+  meteors: '\u2604\uFE0F',
+  meteor_shower: '\u2604\uFE0F',
+  eclipse: '\u{1F318}',
+  eclipse_lunar: '\u{1F318}',
+  eclipse_solar: '\u{1F30E}',
+  conjunction: '\u{1FA90}',
+  planetary_event: '\u{1FA90}',
+  comet: '\u2604\uFE0F',
+  asteroid: '\u{1F6F0}\uFE0F',
+  mission: '\u{1F680}',
+  other: '\u2728',
+}
+
 const form = ref({
   title: '',
   description: '',
   type: 'meteor_shower',
+  icon_emoji: '',
   start_at: '',
   end_at: '',
   visibility: 1,
@@ -92,10 +107,12 @@ const formModalTitle = computed(() => (isEdit.value ? 'Upravit udalost' : 'Nova 
 const editingEventId = computed(() => Number(editingEvent.value?.id || 0))
 const aiEnabled = computed(() => Boolean(aiConfig.value?.events_ai_humanized_enabled))
 const aiPanelEnabled = computed(() => aiEnabled.value && editingEventId.value > 0)
-const aiTitleEnabled = computed(
-  () => Boolean(aiConfig.value?.events_ai_title_postedit_enabled) && editingEventId.value > 0,
-)
 const aiPanelReady = computed(() => !aiConfigLoading.value && aiConfig.value !== null)
+const selectedIconPreview = computed(() => {
+  const explicit = normalizeIconValue(form.value.icon_emoji)
+  if (explicit) return explicit
+  return defaultEventTypeIcons[String(form.value.type || '').trim()] || '\u2728'
+})
 const aiEventLastRun = computed(() => {
   const eventId = editingEventId.value
   if (eventId > 0 && aiLastRunByEvent.value[eventId]) {
@@ -103,14 +120,6 @@ const aiEventLastRun = computed(() => {
   }
 
   return aiConfig.value?.features?.event_description_generate?.last_run || null
-})
-const aiTitleEventLastRun = computed(() => {
-  const eventId = editingEventId.value
-  if (eventId > 0 && aiTitleLastRunByEvent.value[eventId]) {
-    return aiTitleLastRunByEvent.value[eventId]
-  }
-
-  return aiConfig.value?.features?.event_title_postedit?.last_run || null
 })
 
 const formErrors = computed(() => {
@@ -145,6 +154,17 @@ function normalizeAiStatus(value, fallback = 'idle') {
     : 'idle'
 }
 
+function normalizeIconValue(value) {
+  if (typeof value !== 'string') return ''
+  return value.trim()
+}
+
+function eventDisplayIcon(event) {
+  const explicit = normalizeIconValue(event?.icon_emoji)
+  if (explicit) return explicit
+  return defaultEventTypeIcons[String(event?.type || '').trim()] || '\u2728'
+}
+
 async function loadAiConfig(eventId = null) {
   aiConfigLoading.value = true
 
@@ -159,24 +179,14 @@ async function loadAiConfig(eventId = null) {
     aiConfig.value = response?.data?.data || null
 
     const run = aiConfig.value?.features?.event_description_generate?.last_run
-    const titleRun = aiConfig.value?.features?.event_title_postedit?.last_run
     if (normalizedEventId > 0 && run) {
       aiLastRunByEvent.value = {
         ...aiLastRunByEvent.value,
         [normalizedEventId]: run,
       }
     }
-    if (normalizedEventId > 0 && titleRun) {
-      aiTitleLastRunByEvent.value = {
-        ...aiTitleLastRunByEvent.value,
-        [normalizedEventId]: titleRun,
-      }
-    }
     if (run?.status) {
       aiActionStatus.value = normalizeAiStatus(run.status)
-    }
-    if (titleRun?.status) {
-      aiTitleActionStatus.value = normalizeAiStatus(titleRun.status)
     }
   } catch {
     aiConfig.value = null
@@ -191,6 +201,7 @@ function openCreate() {
     title: '',
     description: '',
     type: 'meteor_shower',
+    icon_emoji: '',
     start_at: '',
     end_at: '',
     visibility: 1,
@@ -204,15 +215,6 @@ function openCreate() {
   aiActionRawStatus.value = null
   aiUndoSnapshot.value = null
   aiShortDraft.value = ''
-  aiTitleActionLoading.value = false
-  aiTitleActionError.value = ''
-  aiTitleActionStatus.value = 'idle'
-  aiTitleActionRawStatus.value = null
-  aiTitleActionNotice.value = ''
-  aiTitleFallbackUsed.value = false
-  aiTitleSuggestion.value = ''
-  aiTitleSource.value = ''
-  aiTitleUndoSnapshot.value = null
   showAdvancedAiInForm.value = false
   mode.value = 'create'
   showTranslationTools.value = false
@@ -225,6 +227,7 @@ function openEdit(event) {
     title: event.title || '',
     description: event.description || '',
     type: event.type || 'meteor_shower',
+    icon_emoji: normalizeIconValue(event.icon_emoji),
     start_at: toLocalInput(event.start_at || event.starts_at || event.max_at),
     end_at: toLocalInput(event.end_at || event.ends_at),
     visibility: typeof event.visibility === 'number' ? event.visibility : 1,
@@ -238,15 +241,6 @@ function openEdit(event) {
   aiActionRawStatus.value = null
   aiUndoSnapshot.value = null
   aiShortDraft.value = String(event.short || '')
-  aiTitleActionLoading.value = false
-  aiTitleActionError.value = ''
-  aiTitleActionStatus.value = 'idle'
-  aiTitleActionRawStatus.value = null
-  aiTitleActionNotice.value = ''
-  aiTitleFallbackUsed.value = false
-  aiTitleSuggestion.value = ''
-  aiTitleSource.value = String(event.title || '')
-  aiTitleUndoSnapshot.value = null
   showAdvancedAiInForm.value = false
   mode.value = 'edit'
   showTranslationTools.value = false
@@ -264,15 +258,6 @@ function closeForm() {
   aiActionRawStatus.value = null
   aiUndoSnapshot.value = null
   aiShortDraft.value = ''
-  aiTitleActionLoading.value = false
-  aiTitleActionError.value = ''
-  aiTitleActionStatus.value = 'idle'
-  aiTitleActionRawStatus.value = null
-  aiTitleActionNotice.value = ''
-  aiTitleFallbackUsed.value = false
-  aiTitleSuggestion.value = ''
-  aiTitleSource.value = ''
-  aiTitleUndoSnapshot.value = null
   showAdvancedAiInForm.value = false
   showTranslationTools.value = false
 }
@@ -281,7 +266,13 @@ function formatDate(value) {
   if (!value) return '-'
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return String(value)
-  return d.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
+  return d.toLocaleString('sk-SK', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 function toLocalInput(value) {
@@ -317,6 +308,7 @@ async function submitForm() {
     title: String(form.value.title || '').trim(),
     description: String(form.value.description || '').trim() || null,
     type: form.value.type,
+    icon_emoji: normalizeIconValue(form.value.icon_emoji) || null,
     start_at: form.value.start_at,
     end_at: form.value.end_at || null,
     visibility: form.value.visibility,
@@ -379,71 +371,6 @@ async function runTranslationBackfill() {
 
 function toggleTranslationTools() {
   showTranslationTools.value = !showTranslationTools.value
-}
-
-async function runAiSuggestTitle() {
-  const eventId = editingEventId.value
-  if (aiTitleActionLoading.value || eventId <= 0 || !aiTitleEnabled.value) return
-
-  const sourceTitle = String(form.value.title || '').trim()
-  if (!sourceTitle) return
-
-  aiTitleActionLoading.value = true
-  aiTitleActionError.value = ''
-  aiTitleActionNotice.value = ''
-  aiTitleActionRawStatus.value = null
-  aiTitleActionStatus.value = 'idle'
-  aiTitleFallbackUsed.value = false
-
-  try {
-    const response = await postEditAdminEventTitle(eventId, { mode: 'preview' })
-    const payload = response?.data || {}
-    const status = String(payload.status || '').trim().toLowerCase()
-    const suggestion = String(payload.suggested_title_sk || '').trim()
-    const lastRun = payload.last_run || null
-
-    if (lastRun) {
-      aiTitleLastRunByEvent.value = {
-        ...aiTitleLastRunByEvent.value,
-        [eventId]: lastRun,
-      }
-    }
-
-    aiTitleSource.value = sourceTitle
-    aiTitleSuggestion.value = suggestion
-    aiTitleFallbackUsed.value = Boolean(payload.fallback_used)
-    aiTitleActionStatus.value = normalizeAiStatus(
-      status,
-      payload.fallback_used ? 'fallback' : 'success',
-    )
-  } catch (err) {
-    aiTitleActionStatus.value = 'error'
-    aiTitleActionError.value = 'Nepodarilo sa navrhnut nazov.'
-    aiTitleActionRawStatus.value = Number(err?.response?.status || 0) || null
-  } finally {
-    aiTitleActionLoading.value = false
-    await loadAiConfig(eventId)
-  }
-}
-
-function applyAiTitleSuggestion() {
-  const suggestion = String(aiTitleSuggestion.value || '').trim()
-  if (!suggestion) return
-
-  if (aiTitleUndoSnapshot.value === null) {
-    aiTitleUndoSnapshot.value = String(form.value.title || '')
-  }
-
-  form.value.title = suggestion
-  aiTitleActionNotice.value = 'Nazov aktualizovany.'
-}
-
-function undoAiTitleSuggestion() {
-  if (aiTitleUndoSnapshot.value === null) return
-
-  form.value.title = aiTitleUndoSnapshot.value
-  aiTitleUndoSnapshot.value = null
-  aiTitleActionNotice.value = ''
 }
 
 async function runAiGenerateDescription() {

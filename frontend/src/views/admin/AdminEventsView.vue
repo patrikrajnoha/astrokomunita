@@ -206,12 +206,12 @@ onMounted(load)
   letter-spacing: 0.03em;
   color: var(--color-text-secondary);
   padding: var(--space-3);
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .adminEvents__table td {
   padding: var(--space-3);
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--divider-color);
   vertical-align: middle;
 }
 

@@ -40,14 +40,7 @@
           </section>
 
           <section class="content">
-            <template v-for="(block, index) in contentBlocks" :key="index">
-              <h2 v-if="block.type === 'h2'" :id="block.id">{{ block.text }}</h2>
-              <h3 v-else-if="block.type === 'h3'" :id="block.id">{{ block.text }}</h3>
-              <ul v-else-if="block.type === 'ul'">
-                <li v-for="(item, itemIndex) in block.items" :key="itemIndex" v-html="item"></li>
-              </ul>
-              <p v-else v-html="block.html"></p>
-            </template>
+            <div v-html="contentHtml"></div>
           </section>
         </div>
       </section>

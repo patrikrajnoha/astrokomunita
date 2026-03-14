@@ -47,71 +47,24 @@
     >
       <section class="formPanel">
         <div class="formHead">
-          <div class="quickBtns quickBtns--right">
-            <button class="btn tiny" type="button" @click="setStartNow">Začiatok teraz</button>
-            <button class="btn tiny" type="button" @click="setEndAfter(1)">Koniec +1h</button>
-            <button class="btn tiny" type="button" @click="setEndAfter(2)">Koniec +2h</button>
-            <button
-              v-if="aiEnabled"
-              class="btn tiny ghost"
-              type="button"
-              @click="showAdvancedAiInForm = !showAdvancedAiInForm"
-            >
-              {{ showAdvancedAiInForm ? 'Skryt AI opis' : 'AI opis' }}
-            </button>
-          </div>
-      </div>
+          <details class="quickActions" open>
+            <summary class="quickActionsSummary">Rychle akcie</summary>
+            <div class="quickBtns">
+              <button class="btn tiny" type="button" @click="setStartNow">Začiatok teraz</button>
+              <button class="btn tiny" type="button" @click="setEndAfter(1)">Koniec +1h</button>
+              <button class="btn tiny" type="button" @click="setEndAfter(2)">Koniec +2h</button>
+              <button
+                v-if="aiEnabled"
+                class="btn tiny ghost"
+                type="button"
+                @click="showAdvancedAiInForm = !showAdvancedAiInForm"
+              >
+                {{ showAdvancedAiInForm ? 'Skryt AI opis' : 'AI opis' }}
+              </button>
+            </div>
+          </details>
+        </div>
 
-      <AdminAiActionPanel
-        v-if="aiPanelReady"
-        title="AI: Zlepšiť názov (SK)"
-        description="Navrhne prirodzenejsi nazov bez pridavania novych faktov."
-        action-label="Navrhnúť"
-        :enabled="aiTitleEnabled"
-        :status="aiTitleActionStatus"
-        :latency-ms="aiTitleEventLastRun?.latency_ms ?? null"
-        :last-run-at="aiTitleEventLastRun?.updated_at ?? null"
-        :retry-count="aiTitleEventLastRun?.retry_count ?? null"
-        :raw-status-code="aiTitleActionRawStatus"
-        :is-loading="aiTitleActionLoading"
-        :error-message="aiTitleActionError"
-        @run="runAiSuggestTitle"
-      >
-        <p v-if="editingEventId <= 0" class="aiHint">
-          Najprv uloz udalost, potom mozes navrhnut nazov.
-        </p>
-        <template v-else>
-          <div v-if="aiTitleActionNotice" class="aiNoticeRow">
-            <span class="aiNotice">{{ aiTitleActionNotice }}</span>
-            <button
-              v-if="aiTitleUndoSnapshot !== null"
-              type="button"
-              class="aiUndoBtn"
-              @click="undoAiTitleSuggestion"
-            >
-              Undo
-            </button>
-          </div>
-          <span
-            v-if="aiTitleActionStatus === 'fallback' || aiTitleFallbackUsed"
-            class="aiBadge aiBadge--fallback"
-          >
-            Použitý fallback
-          </span>
-          <div v-if="aiTitleSuggestion" class="aiCompareBlock">
-            <p class="aiHint"><strong>Pôvodný:</strong> {{ aiTitleSource || '-' }}</p>
-            <p class="aiHint"><strong>Návrh:</strong> {{ aiTitleSuggestion }}</p>
-            <button
-              type="button"
-              data-testid="events-unified-title-apply-btn"
-              class="btn tiny"
-              @click="applyAiTitleSuggestion"
-            >
-              Použiť
-            </button>
-          </div>
-        </template>
-      </AdminAiActionPanel>
       <template v-if="showAdvancedAiInForm">
         <AdminAiActionPanel
           v-if="aiPanelReady"
@@ -176,6 +129,16 @@
             <option :value="1">Verejné</option>
             <option :value="0">Skryté</option>
           </select>
+        </label>
+        <label class="field fieldWide">
+          <span>Ikona</span>
+          <div class="iconPickerRow">
+            <select v-model="form.icon_emoji" :disabled="formLoading">
+              <option value="">Automaticky podla typu</option>
+              <option v-for="item in eventIconOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+            </select>
+            <span class="iconPickerPreview" :title="`Nahlad ikony: ${selectedIconPreview}`">{{ selectedIconPreview }}</span>
+          </div>
         </label>
 
         <label class="field">
@@ -248,8 +211,10 @@
                   <div class="title">{{ event.title }}</div>
                   <div v-if="event.description" class="sub">{{ event.description }}</div>
                 </td>
-                <td><span class="pill">{{ event.type }}</span></td>
-                <td>{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</td>
+                <td class="typeCell">
+                  <span class="pill pillType">{{ eventDisplayIcon(event) }} {{ event.type }}</span>
+                </td>
+                <td class="dateCell">{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</td>
                 <td>
                   <span class="pill" :class="event.visibility === 1 ? 'ok' : 'muted'">
                     {{ event.visibility === 1 ? 'verejné' : 'skryté' }}
@@ -277,7 +242,7 @@
             <div class="title">{{ event.title }}</div>
             <div v-if="event.description" class="sub">{{ event.description }}</div>
             <div class="eventMobileCard__meta">
-              <span class="pill">{{ event.type }}</span>
+              <span class="pill">{{ eventDisplayIcon(event) }} {{ event.type }}</span>
               <span>{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</span>
             </div>
             <div class="eventMobileCard__actions">
@@ -289,8 +254,8 @@
       </div>
 
       <div v-if="pagination" class="pager">
-        <button class="btn ghost" :disabled="!hasPrevPage" @click="prevPage">Pred</button>
-        <button class="btn ghost" :disabled="!hasNextPage" @click="nextPage">Ďalšia</button>
+        <button type="button" class="btn ghost" :disabled="!hasPrevPage" @click="prevPage">Pred</button>
+        <button type="button" class="btn ghost" :disabled="!hasNextPage" @click="nextPage">Ďalšia</button>
       </div>
     </section>
   </div>

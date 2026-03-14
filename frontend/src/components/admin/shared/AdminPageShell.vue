@@ -33,47 +33,84 @@ defineProps({
 .adminPageShell {
   width: 100%;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-5);
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  container-type: inline-size;
 }
 
 .adminPageShell__header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-4);
-  padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--color-divider);
+  gap: 10px;
+  flex-wrap: wrap;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 11px;
+  background: rgb(var(--color-bg-rgb) / 0.84);
+  padding: 10px;
+}
+
+.adminPageShell__header > div {
+  min-width: 0;
 }
 
 .adminPageShell__title {
-  margin: 0 0 4px;
-  font-size: clamp(1.2rem, 1.75vw, 1.5rem);
+  margin: 0;
+  font-size: 1.15rem;
   line-height: 1.2;
   color: var(--color-text-primary);
 }
 
 .adminPageShell__subtitle {
-  margin: 0;
+  margin: 3px 0 0;
   color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: 12px;
+  opacity: 0.82;
 }
 
 .adminPageShell__actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .adminPageShell__content {
   display: grid;
-  gap: var(--space-4);
+  gap: 10px;
+  min-width: 0;
+}
+
+.adminPageShell__actions :deep(button),
+.adminPageShell__actions :deep(a) {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 9px;
 }
 
 @media (max-width: 768px) {
+  .adminPageShell__actions {
+    width: 100%;
+  }
+}
+
+@container (max-width: 760px) {
   .adminPageShell__header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .adminPageShell__actions {
+    width: 100%;
+  }
+
+  .adminPageShell__actions > * {
+    flex: 1 1 auto;
+    text-align: center;
   }
 }
 </style>

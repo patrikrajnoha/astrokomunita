@@ -19,32 +19,6 @@
         />
       </div>
 
-      <section class="settingsRow sectionFade" aria-label="Overenie e-mailu">
-        <div class="settingsCopy">
-          <div class="settingsTitleRow">
-            <h2 class="settingsLabel">Overenie e-mailu pre nových používateľov</h2>
-            <span class="settingsInfo" :title="emailVerificationHint">i</span>
-          </div>
-          <InlineStatus v-if="authSettingsError" variant="error" :message="authSettingsError" />
-        </div>
-
-        <label class="switchField">
-          <span class="switchState">{{ emailVerificationStateLabel }}</span>
-          <span class="switchControl">
-            <input
-              :checked="emailVerificationEnabled"
-              class="switchInput"
-              type="checkbox"
-              role="switch"
-              :disabled="authSettingsLoading || authSettingsSaving"
-              aria-label="Prepnúť overenie e-mailu pre nových používateľov"
-              @change="toggleEmailVerification($event.target.checked)"
-            />
-            <span class="switchTrack"></span>
-          </span>
-        </label>
-      </section>
-
       <section class="kpiGrid sectionFade" aria-label="Kľúčové ukazovatele">
         <template v-if="loading && !stats">
           <div v-for="idx in 5" :key="`kpi-skeleton-${idx}`" class="skeletonCard"></div>
@@ -112,6 +86,7 @@
           <p class="summaryLabel">Podľa regiónu (profil)</p>
           <div class="summaryItems">
             <div v-for="item in byRegionProfileList" :key="item.key" class="summaryItem">
+              <span class="summaryFlag" aria-hidden="true">{{ item.icon }}</span>
               <strong>{{ formatNumber(item.value) }}</strong>
               <span>{{ item.label }}</span>
             </div>
@@ -119,9 +94,9 @@
         </div>
 
         <div class="summaryGroup">
-          <p class="summaryLabel">Aktívni 30 dní podľa IP</p>
+          <p class="summaryLabel">Aktivita (30 dní)</p>
           <div class="summaryItems">
-            <div v-for="item in byRegionActiveIpList" :key="item.key" class="summaryItem">
+            <div v-for="item in activityHighlights" :key="item.key" class="summaryItem">
               <strong>{{ formatNumber(item.value) }}</strong>
               <span>{{ item.label }}</span>
             </div>

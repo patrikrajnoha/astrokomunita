@@ -231,12 +231,12 @@ function triggerSearch() {
           <label>Typ</label>
           <select v-model="typeModel" :disabled="loading" class="filterInput">
             <option value="">vsetky</option>
-            <option value="eclipse_lunar">eclipse_lunar</option>
-            <option value="eclipse_solar">eclipse_solar</option>
-            <option value="meteor_shower">meteor_shower</option>
-            <option value="planetary_event">planetary_event</option>
-            <option value="observation_window">observation_window</option>
-            <option value="other">other</option>
+            <option value="eclipse_lunar">Zatmenie Mesiaca</option>
+            <option value="eclipse_solar">Zatmenie Slnka</option>
+            <option value="meteor_shower">Meteoricky roj</option>
+            <option value="planetary_event">Planetarny ukaz</option>
+            <option value="observation_window">Pozorovacie okno</option>
+            <option value="other">Ina udalost</option>
           </select>
         </div>
 

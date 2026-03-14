@@ -15,19 +15,18 @@ import AdminSectionTabs from '@/components/admin/AdminSectionTabs.vue'
 <style scoped>
 .adminSectionView {
   display: grid;
-  gap: 0;
+  gap: 10px;
   min-width: 0;
 }
 
 .adminSectionView__body {
   min-width: 0;
-  padding-top: 8px;
-  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  padding-top: 0;
 }
 
 @media (max-width: 767px) {
   .adminSectionView__body {
-    padding-top: 6px;
+    padding-top: 0;
   }
 }
 </style>

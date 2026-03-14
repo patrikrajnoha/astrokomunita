@@ -5,19 +5,12 @@ import AdminDashboardView from '@/views/admin/AdminDashboardView.vue'
 
 const getStatsMock = vi.fn()
 const downloadStatsCsvMock = vi.fn()
-const getAuthSettingsMock = vi.fn()
-const updateAuthSettingsMock = vi.fn()
 const toastSuccessMock = vi.fn()
 const toastErrorMock = vi.fn()
 
 vi.mock('@/services/api/admin/stats', () => ({
   getStats: (...args) => getStatsMock(...args),
   downloadStatsCsv: (...args) => downloadStatsCsvMock(...args),
-}))
-
-vi.mock('@/services/api/admin/authSettings', () => ({
-  getAuthSettings: (...args) => getAuthSettingsMock(...args),
-  updateAuthSettings: (...args) => updateAuthSettingsMock(...args),
 }))
 
 vi.mock('@/composables/useToast', () => ({
@@ -74,20 +67,6 @@ describe('AdminDashboardView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     getStatsMock.mockResolvedValue(statsPayload)
-    getAuthSettingsMock.mockResolvedValue({
-      data: {
-        data: {
-          require_email_verification_for_new_users: true,
-        },
-      },
-    })
-    updateAuthSettingsMock.mockResolvedValue({
-      data: {
-        data: {
-          require_email_verification_for_new_users: false,
-        },
-      },
-    })
     downloadStatsCsvMock.mockResolvedValue({
       blob: new Blob(['section,metric,value']),
       filename: 'admin_stats.csv',
@@ -108,7 +87,7 @@ describe('AdminDashboardView', () => {
 
     expect(wrapper.text()).toContain('Používatelia')
     expect(wrapper.text()).toContain('Editori')
-    expect(wrapper.text()).toContain('Aktívni 30 dní podľa IP')
+    expect(wrapper.text()).toContain('Aktivita (30 dní)')
     expect(wrapper.text()).toContain('123')
     expect(wrapper.text()).toContain('Aktívni (30 dní)')
     expect(wrapper.text()).toContain('45')
@@ -167,29 +146,5 @@ describe('AdminDashboardView', () => {
     await flush()
 
     expect(wrapper.find('[aria-label="Graf trendu"]').exists()).toBe(true)
-  })
-
-  it('toggles email verification setting from dashboard', async () => {
-    const router = makeRouter()
-    await router.push('/admin/dashboard')
-    await router.isReady()
-
-    const wrapper = mount(AdminDashboardView, {
-      global: { plugins: [router] },
-    })
-
-    await flush()
-    await flush()
-
-    const checkbox = wrapper.find('section[aria-label="Overenie e-mailu"] input[type="checkbox"]')
-    expect(checkbox.exists()).toBe(true)
-    expect(checkbox.element.checked).toBe(true)
-
-    await checkbox.setValue(false)
-    await flush()
-
-    expect(updateAuthSettingsMock).toHaveBeenCalledWith({
-      require_email_verification_for_new_users: false,
-    })
   })
 })

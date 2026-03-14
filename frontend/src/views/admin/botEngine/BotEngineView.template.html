@@ -228,7 +228,7 @@
       </div>
     </section>
 
-    <details class="panel panel--collapsible panel--translations" open>
+    <details class="panel panel--collapsible panel--translations">
       <summary class="collapsibleSummary">
         <p class="sectionLabel">Preklady</p>
         <div class="collapsibleMeta">
@@ -368,16 +368,6 @@
         </label>
 
         <label class="filterField filterField--compact">
-          <span>Od</span>
-          <input v-model="filterForm.date_from" type="date" />
-        </label>
-
-        <label class="filterField filterField--compact">
-          <span>Do</span>
-          <input v-model="filterForm.date_to" type="date" />
-        </label>
-
-        <label class="filterField filterField--compact">
           <span>Na stranu</span>
           <select v-model.number="filterForm.per_page">
             <option :value="10">10</option>
@@ -386,6 +376,21 @@
             <option :value="50">50</option>
           </select>
         </label>
+
+        <details class="filtersAdvanced">
+          <summary class="advancedSummary">Pokročilé filtre</summary>
+          <div class="filtersAdvancedBody">
+            <label class="filterField filterField--compact">
+              <span>Od</span>
+              <input v-model="filterForm.date_from" type="date" />
+            </label>
+
+            <label class="filterField filterField--compact">
+              <span>Do</span>
+              <input v-model="filterForm.date_to" type="date" />
+            </label>
+          </div>
+        </details>
 
         <div class="filterActions">
           <button type="submit" class="runBtn" :disabled="loadingRuns">Filtrovať</button>

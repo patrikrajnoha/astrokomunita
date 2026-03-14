@@ -7,7 +7,7 @@
   --events-muted: var(--color-text-muted);
   --events-border: var(--color-border);
   --events-border-strong: var(--color-border-strong);
-  --events-divider: var(--color-divider);
+  --events-divider: var(--divider-color);
   --events-pill: rgb(255 255 255 / 0.04);
   --events-pill-hover: rgb(255 255 255 / 0.07);
   --events-pill-active: rgb(255 255 255 / 0.1);
@@ -421,60 +421,28 @@
   color: var(--events-text);
 }
 
-.favorite-switch {
+.event-type-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.7rem;
-  min-width: 2.7rem;
-  height: 1.65rem;
-  padding: 0.12rem;
-  border: 1px solid var(--events-border);
+  width: 2.1rem;
+  min-width: 2.1rem;
+  height: 2.1rem;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.24);
   border-radius: 999px;
-  background: var(--events-surface);
-  cursor: pointer;
+  background: radial-gradient(circle at 30% 20%, rgb(var(--color-primary-rgb) / 0.28), rgb(var(--color-bg-main-rgb) / 0.92));
+  font-size: 1.05rem;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
   transition:
     border-color 140ms ease,
-    background-color 140ms ease;
+    background-color 140ms ease,
+    transform 140ms ease;
 }
 
-.favorite-switch.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.25);
-  background: rgb(var(--color-primary-rgb) / 0.12);
-}
-
-.favorite-switch:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.favorite-switch-track {
-  position: relative;
-  display: inline-flex;
-  width: 100%;
-  height: 100%;
-  padding: 0.1rem;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.06);
-}
-
-.favorite-switch.active .favorite-switch-track {
-  background: rgb(var(--color-primary-rgb) / 0.24);
-}
-
-.favorite-switch-thumb {
-  width: 1.12rem;
-  height: 1.12rem;
-  border-radius: 999px;
-  background: rgb(226 232 240);
-  transition:
-    transform 140ms ease,
-    background-color 140ms ease;
-}
-
-.favorite-switch.active .favorite-switch-thumb {
-  transform: translateX(1rem);
-  background: var(--color-white);
+.event-card:hover .event-type-icon {
+  border-color: rgb(var(--color-primary-rgb) / 0.38);
+  transform: translateY(-1px);
 }
 
 .meta-row {

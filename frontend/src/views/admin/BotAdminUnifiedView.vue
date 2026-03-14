@@ -167,46 +167,59 @@ onMounted(() => {
 
     <p v-if="error" class="error">{{ error }}</p>
 
-    <nav class="tabNav" aria-label="Sekcie botov">
-      <RouterLink
-        v-for="tab in tabs"
-        :key="tab.key"
-        :to="{ name: tab.routeNames[0] }"
-        class="tabLink"
-        :class="{ active: tab.key === activeTab.key }"
-        :aria-current="tab.key === activeTab.key ? 'page' : undefined"
-      >
-        {{ tab.label }}
-      </RouterLink>
-    </nav>
+    <section class="tabHeader">
+      <nav class="tabNav" aria-label="Sekcie botov">
+        <RouterLink
+          v-for="tab in tabs"
+          :key="tab.key"
+          :to="{ name: tab.routeNames[0] }"
+          class="tabLink"
+          :class="{ active: tab.key === activeTab.key }"
+          :aria-current="tab.key === activeTab.key ? 'page' : undefined"
+        >
+          {{ tab.label }}
+        </RouterLink>
+      </nav>
 
-    <p class="activeModeHint">{{ activeTab.subtitle }}</p>
+      <p class="activeModeHint">{{ activeTab.subtitle }}</p>
+    </section>
 
-    <component :is="activeTab.component" embedded />
+    <div class="botWorkspace">
+      <component :is="activeTab.component" embedded />
+    </div>
   </AdminPageShell>
 </template>
 
 <style scoped>
+.botWorkspace {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 12px;
+  background: rgb(var(--color-bg-rgb) / 0.38);
+  padding: 10px;
+  min-width: 0;
+  container-type: inline-size;
+}
+
 .metaBar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .summaryWrap {
   display: grid;
-  gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
 }
 
 .summaryCard {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 10px;
+  border-radius: 9px;
   background: rgb(var(--color-bg-rgb) / 0.62);
-  padding: 10px;
+  padding: 8px 9px;
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .summaryLabel {
@@ -219,7 +232,7 @@ onMounted(() => {
 
 .summaryValue {
   margin: 0;
-  font-size: 1.22rem;
+  font-size: 1.12rem;
   font-weight: 800;
 }
 
@@ -248,26 +261,34 @@ onMounted(() => {
 
 .metaLine {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  overflow-wrap: anywhere;
+}
+
+.tabHeader {
+  display: grid;
+  gap: 5px;
 }
 
 .tabNav {
-  display: inline-flex;
+  display: flex;
   gap: 4px;
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  padding-bottom: 6px;
+  padding: 4px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.42);
   overflow-x: auto;
 }
 
 .tabLink {
-  border: 1px solid transparent;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
   border-radius: 8px;
-  padding: 7px 10px;
+  padding: 6px 9px;
   text-decoration: none;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
   white-space: nowrap;
-  font-size: 0.8rem;
+  font-size: 0.77rem;
   font-weight: 700;
 }
 
@@ -284,15 +305,15 @@ onMounted(() => {
 
 .activeModeHint {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
 }
 
 .actionBtn,
 .ghostBtn {
   border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.78rem;
+  padding: 5px 9px;
+  font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -315,11 +336,159 @@ onMounted(() => {
   color: var(--color-danger);
 }
 
+.botWorkspace :deep(.botSection),
+.botWorkspace :deep(.botEngineShell) {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.botWorkspace :deep(.embeddedHeader) {
+  align-items: center;
+  gap: 8px;
+}
+
+.botWorkspace :deep(.embeddedTitle) {
+  margin-bottom: 2px;
+  font-size: 0.92rem;
+}
+
+.botWorkspace :deep(.embeddedSubtitle) {
+  font-size: 0.74rem;
+}
+
+.botWorkspace :deep(.card),
+.botWorkspace :deep(.panel) {
+  border-radius: 10px;
+  padding: 10px;
+  min-width: 0;
+}
+
+.botWorkspace :deep(.tableWrap) {
+  max-width: 100%;
+}
+
+.botWorkspace :deep(.filterRow),
+.botWorkspace :deep(.filters),
+.botWorkspace :deep(.formGrid),
+.botWorkspace :deep(.advancedFiltersBody),
+.botWorkspace :deep(.filtersAdvancedBody),
+.botWorkspace :deep(.retentionMainRow) {
+  min-width: 0;
+}
+
+.botWorkspace :deep(.table th),
+.botWorkspace :deep(.table td),
+.botWorkspace :deep(.activityTable th),
+.botWorkspace :deep(.activityTable td) {
+  padding: 7px 8px;
+  font-size: 0.76rem;
+}
+
+.botWorkspace :deep(.table th),
+.botWorkspace :deep(.activityTable th) {
+  font-size: 0.66rem;
+}
+
+.botWorkspace :deep(.field input),
+.botWorkspace :deep(.field select),
+.botWorkspace :deep(.field textarea),
+.botWorkspace :deep(.filterField input),
+.botWorkspace :deep(.filterField select),
+.botWorkspace :deep(.filterField textarea) {
+  min-height: 32px;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.botWorkspace :deep(.actionBtn),
+.botWorkspace :deep(.ghostBtn),
+.botWorkspace :deep(.dangerBtn),
+.botWorkspace :deep(.runBtn) {
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: 0.74rem;
+}
+
+@container (max-width: 860px) {
+  .botWorkspace :deep(.embeddedHeader) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .botWorkspace :deep(.embeddedHeaderActions),
+  .botWorkspace :deep(.filterActions),
+  .botWorkspace :deep(.createActions),
+  .botWorkspace :deep(.advancedActions),
+  .botWorkspace :deep(.paginationActions) {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .botWorkspace :deep(.filterRow),
+  .botWorkspace :deep(.formGrid),
+  .botWorkspace :deep(.advancedFiltersBody),
+  .botWorkspace :deep(.filtersAdvancedBody),
+  .botWorkspace :deep(.retentionMainRow) {
+    grid-template-columns: 1fr !important;
+    align-items: stretch;
+  }
+
+  .botWorkspace :deep(.field--compact),
+  .botWorkspace :deep(.filterField),
+  .botWorkspace :deep(.filterField--compact),
+  .botWorkspace :deep(.filtersAdvanced) {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .botWorkspace :deep(.embeddedHeaderActions .actionBtn),
+  .botWorkspace :deep(.embeddedHeaderActions .ghostBtn),
+  .botWorkspace :deep(.filterActions .actionBtn),
+  .botWorkspace :deep(.filterActions .ghostBtn),
+  .botWorkspace :deep(.createActions .actionBtn),
+  .botWorkspace :deep(.advancedActions .runBtn),
+  .botWorkspace :deep(.advancedActions .ghostBtn),
+  .botWorkspace :deep(.advancedActions .dangerBtn),
+  .botWorkspace :deep(.paginationActions .ghostBtn) {
+    flex: 1 1 auto;
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@container (max-width: 740px) {
+  .botWorkspace {
+    padding: 8px;
+  }
+
+  .botWorkspace :deep(.table) {
+    min-width: 620px;
+  }
+
+  .botWorkspace :deep(.botsOverviewTable) {
+    min-width: 0 !important;
+  }
+
+  .botWorkspace :deep(.activityTable) {
+    min-width: 680px;
+  }
+
+  .botWorkspace :deep(.pager),
+  .botWorkspace :deep(.pagination) {
+    justify-content: stretch;
+  }
+}
+
 @media (max-width: 767px) {
   .metaBar {
     align-items: flex-start;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .botWorkspace {
+    padding: 8px;
   }
 }
 </style>

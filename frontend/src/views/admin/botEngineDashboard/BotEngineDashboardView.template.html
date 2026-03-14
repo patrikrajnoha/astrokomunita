@@ -117,8 +117,8 @@
       <p v-if="error" class="error">{{ error }}</p>
       <p v-else-if="!loading && bots.length === 0" class="muted">Zatial nie su dostupne bot metriky.</p>
 
-      <div v-else class="tableWrap">
-        <table class="table">
+      <div v-else class="tableWrap tableWrap--botsOverview">
+        <table class="table botsOverviewTable">
           <thead>
             <tr>
               <th>Bot</th>

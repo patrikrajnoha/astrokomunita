@@ -89,6 +89,7 @@ async function mountView(path = '/events/12') {
       stubs: {
         DropdownMenu: {
           props: ['items'],
+          emits: ['select'],
           template: `
             <div class="dropdown-menu-stub">
               <slot name="trigger" />
@@ -97,6 +98,8 @@ async function mountView(path = '/events/12') {
                 :key="item.key"
                 type="button"
                 class="dropdown-item-stub"
+                :data-key="item.key"
+                @click="$emit('select', item)"
               >
                 {{ item.label }}
               </button>
@@ -178,11 +181,9 @@ describe('EventDetailView', () => {
 
     expect(wrapper.text()).toContain('Sledovat')
 
-    const followButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Sledovat'))
+    const followButton = wrapper.find('.dropdown-item-stub[data-key="follow"]')
 
-    expect(followButton).toBeTruthy()
+    expect(followButton.exists()).toBe(true)
 
     await followButton.trigger('click')
     await flush()
@@ -212,9 +213,9 @@ describe('EventDetailView', () => {
     const { wrapper } = await mountView()
     const rendered = wrapper.text()
 
-    expect(rendered).toContain('Pozorovanie: 18:16 - 22:16')
-    expect(rendered).toContain('Maximum javu (cez den) o 14:00')
-    expect(rendered).toContain('Cas "Maximum" znamena astronomicky vrchol javu')
+    expect(rendered).toContain('Odporucany cas: 18:16 - 22:16')
+    expect(rendered).not.toContain('Maximum javu je cez den.')
+    expect(rendered).not.toContain('Cas "Maximum" znamena astronomicky vrchol javu')
   })
 
   it('navigates to next event on swipe left', async () => {

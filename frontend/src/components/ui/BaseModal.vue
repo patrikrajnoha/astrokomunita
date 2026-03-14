@@ -237,7 +237,7 @@ function getFocusableElements(root) {
   justify-content: space-between;
   gap: 1rem;
   padding: var(--space-5) var(--space-5) 0;
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--divider-color);
   padding-bottom: var(--space-4);
 }
 

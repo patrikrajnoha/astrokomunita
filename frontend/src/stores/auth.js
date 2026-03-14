@@ -8,6 +8,8 @@ const configuredApiBaseUrl = import.meta.env.DEV
   ? ''
   : (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '')
 const csrfBaseUrl = String(configuredApiBaseUrl).replace(/\/api\/?$/i, '').replace(/\/+$/, '')
+const authDebugEnabled =
+  import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_AUTH || '').trim() === '1'
 
 // Separate axios instance for CSRF (no baseURL)
 const csrfHttp = axios.create({
@@ -120,7 +122,7 @@ export const useAuthStore = defineStore('auth', {
           throw error
         }
 
-        if (import.meta.env.DEV) {
+        if (authDebugEnabled) {
           console.warn(`[AUTH] CSRF retry for ${url}`)
         }
 
@@ -145,7 +147,7 @@ export const useAuthStore = defineStore('auth', {
         for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
           const timeout = AUTH_TIMEOUTS_MS[Math.min(attempt - 1, AUTH_TIMEOUTS_MS.length - 1)]
 
-          if (import.meta.env.DEV) {
+          if (authDebugEnabled) {
             console.info(
               `[AUTH] fetchUser start source=${source} attempt=${attempt}/${maxAttempts} url=${endpointDebug.url} baseURL=${endpointDebug.baseURL} timeout=${timeout}`,
             )
@@ -158,7 +160,23 @@ export const useAuthStore = defineStore('auth', {
               meta: { skipErrorToast: true },
             })
 
-            this.user = data
+            const payload = data && typeof data === 'object' ? data : null
+            const hasAuthenticatedUser = Number(payload?.id || 0) > 0
+
+            if (!hasAuthenticatedUser) {
+              this.user = null
+              this.status = 'guest'
+              this.error = null
+
+              if (markBootstrap) {
+                this.bootstrapDone = true
+                this.initialized = true
+              }
+
+              return null
+            }
+
+            this.user = payload
             this.status = 'authenticated'
             this.error = null
 
@@ -167,22 +185,36 @@ export const useAuthStore = defineStore('auth', {
               this.initialized = true
             }
 
-            return data
+            return payload
           } catch (error) {
             const classified = classifyFetchUserError(error)
 
-            if (import.meta.env.DEV) {
-              console.warn('[AUTH] fetchUser failed', {
-                source,
-                attempt,
-                ...endpointDebug,
-                timeout,
-                type: classified.type,
-                status: classified.status,
-                code: classified.code,
-                message: classified.message,
-                response: error?.response?.data || null,
-              })
+            if (authDebugEnabled) {
+              if (classified.type === 'unauthorized') {
+                console.info('[AUTH] fetchUser failed', {
+                  source,
+                  attempt,
+                  ...endpointDebug,
+                  timeout,
+                  type: classified.type,
+                  status: classified.status,
+                  code: classified.code,
+                  message: classified.message,
+                  response: error?.response?.data || null,
+                })
+              } else {
+                console.warn('[AUTH] fetchUser failed', {
+                  source,
+                  attempt,
+                  ...endpointDebug,
+                  timeout,
+                  type: classified.type,
+                  status: classified.status,
+                  code: classified.code,
+                  message: classified.message,
+                  response: error?.response?.data || null,
+                })
+              }
             }
 
             const canRetry =
@@ -200,7 +232,7 @@ export const useAuthStore = defineStore('auth', {
             if (this.user && (preserveStateOnError || isTransientFailure)) {
               this.status = 'authenticated'
               this.error = null
-              if (import.meta.env.DEV) {
+              if (authDebugEnabled) {
                 console.info('[AUTH] fetchUser failure ignored (preserve state)', {
                   source,
                   type: classified.type,
@@ -281,7 +313,10 @@ export const useAuthStore = defineStore('auth', {
       clearHomeFeedPrefetch()
       this.loading = true
       try {
-        const response = await this.postWithCsrfRetry('/auth/login', payload)
+        const requestPayload = payload && typeof payload === 'object'
+          ? { ...payload, remember: payload.remember ?? true }
+          : { remember: true }
+        const response = await this.postWithCsrfRetry('/auth/login', requestPayload)
         const loginUser = response?.data || null
 
         if (!loginUser) {

@@ -29,7 +29,6 @@ function makeRouter() {
       { path: '/admin/content/newsletter', name: 'admin.newsletter', meta: { adminSection: 'content', adminTab: 'newsletter' }, component: { template: '<div>newsletter</div>' } },
       { path: '/admin/featured-events', name: 'admin.featured-events', component: { template: '<div>featured</div>' } },
       { path: '/admin/contests', name: 'admin.contests', component: { template: '<div>contests</div>' } },
-      { path: '/admin/sidebar', name: 'admin.sidebar', component: { template: '<div>sidebar</div>' } },
       { path: '/admin/bots', name: 'admin.bots', component: { template: '<div>bots</div>' } },
       { path: '/admin/bots/engine', name: 'admin.bots.engine', component: { template: '<div>bots-engine</div>' } },
       { path: '/admin/bots/sources', name: 'admin.bots.sources', component: { template: '<div>bot-sources</div>' } },
@@ -121,5 +120,13 @@ describe('AdminSubNav', () => {
     const active = activeItems(wrapper)
     expect(active).toHaveLength(1)
     expect(active[0].text()).toContain(expectedLabel)
+  })
+
+  it('emits navigate when a navigation item is clicked', async () => {
+    const { wrapper } = await mountAt('/admin/dashboard')
+
+    await wrapper.get('.adminSubNav__item--overview').trigger('click')
+
+    expect(wrapper.emitted('navigate')).toBeTruthy()
   })
 })

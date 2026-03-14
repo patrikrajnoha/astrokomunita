@@ -18,7 +18,7 @@
     <section v-else-if="showAstronomyError" class="state stateError">
       <InlineStatus
         variant="error"
-        message="Nepodarilo sa nacitat nocnu oblohu."
+        :message="astronomyErrorMessage"
         action-label="Skusit znova"
         @action="refreshBlock('astronomy')"
       />
@@ -35,15 +35,24 @@
         <strong>{{ bortleLine }}</strong>
       </div>
 
-      <div v-if="showPlanets" class="statRow">
+      <div class="statRow">
         <span>Viditelne planety</span>
         <strong>{{ planetsLine }}</strong>
       </div>
 
-      <div v-if="showIssPass" class="statRow">
-        <span>ISS prelet</span>
-        <strong>{{ issPassTime }}</strong>
+      <div v-if="showComets" class="statRow">
+        <span>Komety (JPL)</span>
+        <strong>{{ cometsLine }}</strong>
       </div>
+
+      <div v-if="showAsteroids" class="statRow">
+        <span>Asteroidy (JPL)</span>
+        <strong>{{ asteroidsLine }}</strong>
+      </div>
+
+      <p v-if="ephemerisSourceLine" class="sourceLine" :title="ephemerisSourceHint">
+        Zdroj: {{ ephemerisSourceLine }}
+      </p>
     </div>
   </section>
 </template>
@@ -65,65 +74,219 @@ const {
   astronomy,
   astronomyLoading,
   astronomyError,
+  lightPollution,
   lightPollutionLine,
   lightPollutionMetaLine,
+  lightPollutionEstimateLine,
+  planetCandidates,
   planetsDisplayList,
-  issPreview,
+  ephemeris,
+  ephemerisError,
+  ephemerisLoading,
   hasLocationCoords,
-  effectiveTz,
   refreshBlock,
 } = useSkyWidget({
   lat: toRef(props, 'lat'),
   lon: toRef(props, 'lon'),
   tz: toRef(props, 'tz'),
   includeWeather: false,
-  includeIss: true,
+  includeIss: false,
+  includeEphemeris: true,
 })
 
 const showLoading = computed(() => astronomyLoading.value && !astronomy.value)
 const showAstronomyError = computed(() => Boolean(astronomyError.value) && !astronomy.value)
+const astronomyErrorMessage = computed(() => {
+  const value = String(astronomyError.value || '').trim()
+  return value || 'Nepodarilo sa nacitat nocnu oblohu.'
+})
 
 const moonLine = computed(() => {
   const phase = translateMoonPhase(astronomy.value?.moon_phase)
-  const illumination = Number(astronomy.value?.moon_illumination_percent)
-  if (!Number.isFinite(illumination)) return phase
-  return `${phase} • ${Math.round(illumination)}%`
+  const illumination = toFiniteNumber(astronomy.value?.moon_illumination_percent)
+
+  if (illumination === null) {
+    if (phase === 'Neznama faza') {
+      return 'docasne nedostupne'
+    }
+
+    return phase
+  }
+
+  return `${phase} | ${Math.round(illumination)}%`
 })
 
 const showBortle = computed(() => {
+  if (lightPollutionUnavailable.value) return true
   return String(lightPollutionLine.value || '').trim() !== '' || String(lightPollutionMetaLine.value || '').trim() !== ''
 })
 
-const bortleLine = computed(() => {
-  const base = String(lightPollutionLine.value || '').trim()
-  const meta = String(lightPollutionMetaLine.value || '').trim()
-
-  if (base && meta) return `${base} • ${meta}`
-  return base || meta || '-'
+const lightPollutionUnavailable = computed(() => {
+  const reason = String(lightPollution.value?.reason || '').trim().toLowerCase()
+  return reason.includes('light_pollution_provider_')
 })
 
-const visiblePlanetNames = computed(() => {
+const lightPollutionUsingCached = computed(() => {
+  const source = String(lightPollution.value?.source || '').trim().toLowerCase()
+  const reason = String(lightPollution.value?.reason || '').trim().toLowerCase()
+  return source === 'light_pollution_cached' || reason === 'using_cached_data'
+})
+
+const bortleLine = computed(() => {
+  if (lightPollutionUnavailable.value) {
+    return 'realne data docasne nedostupne'
+  }
+
+  const base = String(lightPollutionLine.value || '').trim()
+  const meta = String(lightPollutionMetaLine.value || '').trim()
+  const isEstimate = String(lightPollutionEstimateLine.value || '').trim() !== ''
+
+  if (lightPollutionUsingCached.value) {
+    const snapshot = base && meta ? `${base} | ${meta}` : (base || meta || '')
+    return snapshot ? `${snapshot} | posledne dostupne` : 'posledne dostupne'
+  }
+
+  if (base && meta) return isEstimate ? `${base} | ${meta} | odhad` : `${base} | ${meta}`
+  const fallback = base || meta
+  if (!fallback) return isEstimate ? 'odhad podla lokality' : '-'
+  return isEstimate ? `${fallback} | odhad` : fallback
+})
+
+const visiblePlanetLabels = computed(() => {
   const list = Array.isArray(planetsDisplayList.value) ? planetsDisplayList.value : []
   return list
     .filter((planet) => planet?.isVisible)
-    .map((planet) => String(planet?.name || '').trim())
-    .filter((name) => name)
+    .map((planet) => {
+      const name = String(planet?.name || '').trim()
+      const bestTimeWindow = String(planet?.bestTimeWindow || '').trim()
+      return formatPlanetWithWindow(name, bestTimeWindow)
+    })
+    .filter((label) => label)
     .slice(0, 4)
 })
 
-const showPlanets = computed(() => visiblePlanetNames.value.length > 0)
-const planetsLine = computed(() => visiblePlanetNames.value.join(', '))
+const MIN_TODAY_ELONGATION_DEG = 20
 
-const issPassDate = computed(() => {
-  const value = String(issPreview.value?.next_pass_at || '').trim()
-  if (!value) return null
+function collectTodayPlanets(rows, strategy = 'confirmed', limit = 4) {
+  const sourceRows = Array.isArray(rows) ? rows : []
+  const planets = []
+  const seen = new Set()
 
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
+  for (const planet of sourceRows) {
+    const name = String(planet?.name || '').trim()
+    if (!name) continue
+
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+
+    const bestTimeWindow = String(planet?.best_time_window || '').trim()
+    const elongation = toFiniteNumber(planet?.elongation_deg)
+    const hasBestWindow = bestTimeWindow !== ''
+    const hasUsefulElongation = elongation !== null && elongation >= MIN_TODAY_ELONGATION_DEG
+
+    if (strategy === 'confirmed' && !hasBestWindow) continue
+    if (strategy === 'estimated' && (hasBestWindow || !hasUsefulElongation)) continue
+
+    seen.add(key)
+    planets.push({
+      name,
+      bestTimeWindow,
+    })
+
+    if (planets.length >= limit) break
+  }
+
+  return planets
+}
+
+function formatPlanetWithWindow(name, bestTimeWindow) {
+  const normalizedName = String(name || '').trim()
+  const normalizedWindow = String(bestTimeWindow || '').trim()
+  if (!normalizedName) return ''
+  if (!normalizedWindow) return normalizedName
+  return `${normalizedName} (${normalizedWindow})`
+}
+
+const todayPlanets = computed(() => {
+  return collectTodayPlanets(planetCandidates.value, 'confirmed', 4)
 })
 
-const showIssPass = computed(() => Boolean(issPreview.value?.available) && issPassDate.value instanceof Date)
-const issPassTime = computed(() => formatTime(issPassDate.value, effectiveTz.value))
+const todayPlanetLabels = computed(() => {
+  return todayPlanets.value
+    .map((planet) => formatPlanetWithWindow(planet?.name, planet?.bestTimeWindow))
+    .filter((label) => label)
+})
+
+const todayEstimatedPlanetLabels = computed(() => {
+  return collectTodayPlanets(planetCandidates.value, 'estimated', 4)
+    .map((planet) => String(planet?.name || '').trim())
+    .filter((name) => name)
+})
+
+const planetsLine = computed(() => {
+  if (visiblePlanetLabels.value.length > 0) {
+    return visiblePlanetLabels.value.join(', ')
+  }
+
+  if (todayPlanetLabels.value.length > 0) {
+    return `dnes: ${todayPlanetLabels.value.join(', ')}`
+  }
+
+  if (todayEstimatedPlanetLabels.value.length > 0) {
+    return `dnes (odhad): ${todayEstimatedPlanetLabels.value.join(', ')}`
+  }
+
+  return 'teraz ziadne'
+})
+
+const cometNames = computed(() => {
+  const rows = Array.isArray(ephemeris.value?.comets) ? ephemeris.value.comets : []
+  return rows
+    .map((row) => String(row?.name || '').trim())
+    .filter((name) => name)
+    .slice(0, 2)
+})
+
+const asteroidNames = computed(() => {
+  const rows = Array.isArray(ephemeris.value?.asteroids) ? ephemeris.value.asteroids : []
+  return rows
+    .map((row) => String(row?.name || '').trim())
+    .filter((name) => name)
+    .slice(0, 2)
+})
+
+const showComets = computed(() => cometNames.value.length > 0)
+const showAsteroids = computed(() => asteroidNames.value.length > 0)
+const cometsLine = computed(() => cometNames.value.join(', '))
+const asteroidsLine = computed(() => asteroidNames.value.join(', '))
+
+const ephemerisSourceLine = computed(() => {
+  if (ephemerisLoading.value && !showComets.value && !showAsteroids.value) {
+    return ''
+  }
+
+  if (ephemerisError.value) {
+    return ''
+  }
+
+  const source = ephemeris.value?.source
+  const planets = String(source?.planets || '').trim()
+  const smallBodies = String(source?.small_bodies || '').trim()
+  if (planets === 'jpl_horizons' && smallBodies === 'jpl_sbddb') return 'NASA JPL'
+  if (planets === 'jpl_horizons') return 'JPL Horizons'
+  if (smallBodies === 'jpl_sbddb') return 'JPL SBDDB'
+  return ''
+})
+
+const ephemerisSourceHint = computed(() => {
+  const source = ephemeris.value?.source
+  const planets = String(source?.planets || '').trim()
+  const smallBodies = String(source?.small_bodies || '').trim()
+  const parts = []
+  if (planets === 'jpl_horizons') parts.push('Planety: JPL Horizons')
+  if (smallBodies === 'jpl_sbddb') parts.push('Male telesa: JPL SBDDB')
+  return parts.join(' | ')
+})
 
 function translateMoonPhase(value) {
   const map = {
@@ -141,24 +304,15 @@ function translateMoonPhase(value) {
   return map[key] || 'Neznama faza'
 }
 
-function formatTime(value, timeZone) {
-  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return '-'
-
-  try {
-    return new Intl.DateTimeFormat('sk-SK', {
-      timeZone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(value)
-  } catch {
-    return new Intl.DateTimeFormat('sk-SK', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(value)
+function toFiniteNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
   }
+  return null
 }
+
 </script>
 
 <style scoped>
@@ -217,6 +371,12 @@ function formatTime(value, timeZone) {
   font-weight: 700;
   max-width: 72%;
   overflow-wrap: anywhere;
+}
+
+.sourceLine {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--color-text-secondary);
 }
 
 .panelLoading {
