@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\Translation\TranslationServiceException;
 use App\Services\TranslationService;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Cache;
@@ -40,11 +41,21 @@ class NasaIotdController extends Controller
 
     private function buildPayload(): array
     {
+        $fetchedAt = CarbonImmutable::now('UTC')->toIso8601String();
+
         try {
             $xml = $this->fetchFeed();
             $item = $this->extractLatestItem($xml);
             if ($item) {
-                $rssPayload = $this->mapRssItem($item);
+                $rssPayload = $this->decoratePayload(
+                    $this->mapRssItem($item),
+                    [
+                        'provider' => 'nasa',
+                        'label' => 'NASA IOTD RSS',
+                        'url' => self::FEED_URL,
+                    ],
+                    $fetchedAt,
+                );
                 if (!empty($rssPayload['available'])) {
                     return $rssPayload;
                 }
@@ -54,10 +65,40 @@ class NasaIotdController extends Controller
         }
 
         try {
-            return $this->fetchApodApiPayload();
+            return $this->decoratePayload(
+                $this->fetchApodApiPayload(),
+                [
+                    'provider' => 'nasa',
+                    'label' => 'NASA APOD',
+                    'url' => self::APOD_API_URL,
+                ],
+                $fetchedAt,
+            );
         } catch (\Throwable) {
-            return ['available' => false];
+            return $this->decoratePayload(
+                ['available' => false],
+                [
+                    'provider' => 'nasa',
+                    'label' => 'NASA',
+                    'url' => self::FEED_URL,
+                ],
+                $fetchedAt,
+            );
         }
+    }
+
+    /**
+     * @param  array<string,mixed>  $payload
+     * @param  array<string,string>  $source
+     * @return array<string,mixed>
+     */
+    private function decoratePayload(array $payload, array $source, string $fetchedAt): array
+    {
+        return [
+            ...$payload,
+            'source' => $source,
+            'updated_at' => $fetchedAt,
+        ];
     }
 
     private function fetchFeed(): SimpleXMLElement

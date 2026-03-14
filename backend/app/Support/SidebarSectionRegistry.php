@@ -107,6 +107,12 @@ class SidebarSectionRegistry
                 'default_order' => 9,
             ],
             [
+                'section_key' => 'next_eclipse',
+                'title' => 'Najblizsie zatmenie',
+                'default_enabled' => false,
+                'default_order' => 12,
+            ],
+            [
                 'section_key' => 'moon_overview',
                 'title' => 'Mesiac teraz',
                 'default_enabled' => false,

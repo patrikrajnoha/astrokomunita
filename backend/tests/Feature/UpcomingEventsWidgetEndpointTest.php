@@ -35,6 +35,7 @@ class UpcomingEventsWidgetEndpointTest extends TestCase
             ->assertOk()
             ->assertJsonStructure([
                 'items',
+                'source',
                 'generated_at',
             ]);
 
@@ -48,7 +49,8 @@ class UpcomingEventsWidgetEndpointTest extends TestCase
 
         $topLevelKeys = array_keys($response->json());
         sort($topLevelKeys);
-        $this->assertSame(['generated_at', 'items'], $topLevelKeys);
+        $this->assertSame(['generated_at', 'items', 'source'], $topLevelKeys);
+        $this->assertSame('Databaza udalosti', $response->json('source.label'));
 
         $itemKeys = array_keys($items[0]);
         sort($itemKeys);

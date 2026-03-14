@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Cache;
 
 class EventWidgetController extends Controller
 {
+    private const ECLIPSE_TYPES = ['eclipse', 'eclipse_lunar', 'eclipse_solar'];
+
     public function __construct(
         private readonly PublishedEventQuery $publishedEventQuery,
     ) {
@@ -37,6 +39,53 @@ class EventWidgetController extends Controller
                     'slug' => null,
                     'start_at' => optional($event->start_at)?->toIso8601String(),
                 ])->values()->all(),
+                'source' => [
+                    'provider' => 'astrokomunita_events',
+                    'label' => 'Databaza udalosti',
+                    'url' => '/events',
+                ],
+                'generated_at' => now()->toIso8601String(),
+            ];
+        });
+
+        return response()->json($payload);
+    }
+
+    public function nextEclipse(): JsonResponse
+    {
+        $ttlSeconds = max((int) config('widgets.next_eclipse.cache_ttl_seconds', 300), 1);
+        $cacheKey = 'widget:next-eclipse:v1';
+
+        $payload = Cache::remember($cacheKey, now()->addSeconds($ttlSeconds), function (): array {
+            $event = $this->basePublishedQuery()
+                ->whereIn('type', self::ECLIPSE_TYPES)
+                ->where(function ($query) {
+                    $query->where('start_at', '>=', now())
+                        ->orWhere(function ($fallback) {
+                            $fallback->whereNull('start_at')
+                                ->where('max_at', '>=', now());
+                        });
+                })
+                ->orderByRaw('COALESCE(start_at, max_at) ASC')
+                ->orderBy('id')
+                ->first([
+                    'id',
+                    'title',
+                    'type',
+                    'start_at',
+                    'max_at',
+                    'end_at',
+                    'source_name',
+                    'updated_at',
+                ]);
+
+            return [
+                'data' => $event ? $this->mapSpotlightEvent($event) : null,
+                'source' => [
+                    'provider' => 'astrokomunita_events',
+                    'label' => 'Databaza udalosti',
+                    'url' => '/events',
+                ],
                 'generated_at' => now()->toIso8601String(),
             ];
         });
@@ -47,5 +96,24 @@ class EventWidgetController extends Controller
     private function basePublishedQuery()
     {
         return $this->publishedEventQuery->base();
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function mapSpotlightEvent(Event $event): array
+    {
+        return [
+            'id' => (int) $event->id,
+            'title' => (string) $event->title,
+            'type' => (string) $event->type,
+            'start_at' => optional($event->start_at)?->toIso8601String(),
+            'max_at' => optional($event->max_at)?->toIso8601String(),
+            'end_at' => optional($event->end_at)?->toIso8601String(),
+            'updated_at' => optional($event->updated_at)?->toIso8601String(),
+            'source' => [
+                'name' => (string) $event->source_name,
+            ],
+        ];
     }
 }

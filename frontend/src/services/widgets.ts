@@ -75,6 +75,11 @@ export type UpcomingEventWidgetItem = {
 
 export type UpcomingEventsWidgetPayload = {
   items: UpcomingEventWidgetItem[]
+  source?: {
+    provider?: string
+    label?: string
+    url?: string
+  }
   generated_at: string
 }
 

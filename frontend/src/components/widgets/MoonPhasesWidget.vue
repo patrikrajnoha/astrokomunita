@@ -107,6 +107,8 @@
         {{ specialEventsError || 'Specialne lunarne udalosti su docasne nedostupne.' }}
       </p>
     </section>
+
+    <p v-if="metaLine" class="metaLine">{{ metaLine }}</p>
   </section>
 </template>
 
@@ -197,6 +199,10 @@ export default {
     const moonOverview = ref(null)
     const specialEvents = ref([])
     const moonOverviewError = ref('')
+    const phasesSource = ref(null)
+    const overviewSource = ref(null)
+    const moonEventsSource = ref(null)
+    const phasesReferenceAt = ref('')
     const specialEventsYear = ref(new Date().getFullYear())
     const specialEventsError = ref('')
     const loading = ref(true)
@@ -352,13 +358,18 @@ export default {
 
         const payload = phasesResult.value
         majorEvents.value = normalizeMajorEvents(payload)
+        phasesSource.value = payload?.source || null
+        phasesReferenceAt.value = String(payload?.reference_at || '').trim()
 
         if (!props.showOverview) {
           moonOverview.value = null
+          overviewSource.value = null
         } else if (overviewResult.status === 'fulfilled') {
           moonOverview.value = normalizeMoonOverview(overviewResult.value)
+          overviewSource.value = overviewResult.value?.source || null
         } else {
           moonOverview.value = null
+          overviewSource.value = null
           moonOverviewError.value =
             overviewResult.reason?.response?.data?.message
             || overviewResult.reason?.message
@@ -375,11 +386,13 @@ export default {
           try {
             const moonEventsPayload = await getMoonEventsWidget(buildMoonEventsQuery(query, referenceYear))
             specialEvents.value = normalizeSpecialEvents(moonEventsPayload?.events)
+            moonEventsSource.value = moonEventsPayload?.source || null
             specialEventsYear.value = Number.isFinite(Number(moonEventsPayload?.year))
               ? Number(moonEventsPayload.year)
               : referenceYear
           } catch (eventsErr) {
             specialEvents.value = []
+            moonEventsSource.value = null
             specialEventsError.value =
               eventsErr?.response?.data?.message
               || eventsErr?.message
@@ -390,6 +403,10 @@ export default {
         majorEvents.value = []
         moonOverview.value = null
         specialEvents.value = []
+        phasesSource.value = null
+        overviewSource.value = null
+        moonEventsSource.value = null
+        phasesReferenceAt.value = ''
         error.value =
           err?.response?.data?.message
           || err?.message
@@ -429,6 +446,35 @@ export default {
         : new Date().getFullYear()
     })
 
+    const metaLine = computed(() => {
+      const labels = new Set()
+
+      const phaseLabel = String(phasesSource.value?.label || phasesSource.value?.provider || '').trim()
+      const overviewPhaseLabel = String(overviewSource.value?.phase?.label || overviewSource.value?.phase?.provider || '').trim()
+      const overviewPositionLabel = String(overviewSource.value?.position?.label || overviewSource.value?.position?.provider || '').trim()
+      const eventsDistanceLabel = String(
+        moonEventsSource.value?.distance?.label || moonEventsSource.value?.distance?.provider || '',
+      ).trim()
+
+      ;[phaseLabel, overviewPhaseLabel, overviewPositionLabel, eventsDistanceLabel]
+        .filter(Boolean)
+        .forEach((label) => labels.add(label))
+
+      const updatedAt = String(moonOverview.value?.reference_at || phasesReferenceAt.value || '').trim()
+      const updatedLabel = formatDateTimeLabel(updatedAt)
+      const parts = []
+
+      if (labels.size > 0) {
+        parts.push(`Zdroj: ${Array.from(labels).join(', ')}`)
+      }
+
+      if (updatedLabel !== '-') {
+        parts.push(`Aktualizovane: ${updatedLabel}`)
+      }
+
+      return parts.join(' | ')
+    })
+
     onMounted(() => {
       fetchPhases()
     })
@@ -442,6 +488,7 @@ export default {
       specialEventsError,
       loading,
       error,
+      metaLine,
       fetchPhases,
       formatDateLabel,
       formatTimeLabel,
@@ -849,6 +896,13 @@ function formatRelativeDateTimeLabel(value) {
   margin: 0;
   color: var(--color-text-secondary);
   font-size: 0.71rem;
+  line-height: 1.25;
+}
+
+.metaLine {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
   line-height: 1.25;
 }
 

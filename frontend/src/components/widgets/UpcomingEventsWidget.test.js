@@ -24,11 +24,14 @@ describe('UpcomingEventsWidget', () => {
         { id: 13, title: 'Event C', slug: null, start_at: '2026-02-22T18:00:00Z' },
         { id: 14, title: 'Event D', slug: null, start_at: '2026-02-23T18:00:00Z' },
       ],
+      source: {
+        label: 'Databaza udalosti',
+      },
       generated_at: '2026-02-16T12:00:00Z',
     })
   })
 
-  it('calls API once on mount and renders four items with Show more link to /events', async () => {
+  it('calls API once on mount and renders event links with source metadata', async () => {
     const wrapper = mount(UpcomingEventsWidget, {
       global: {
         stubs: {
@@ -48,7 +51,9 @@ describe('UpcomingEventsWidget', () => {
 
     const showMoreLink = wrapper.find('a[href="/events"]')
     expect(showMoreLink.exists()).toBe(true)
-    expect(showMoreLink.text()).toContain('Show more')
+    expect(showMoreLink.text()).toContain('Vsetky udalosti')
+    expect(wrapper.find('a[href="/events/11"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Zdroj: Databaza udalosti')
     expect(wrapper.text()).toMatch(/21\.\s?2\.\s?2026/)
   })
 })

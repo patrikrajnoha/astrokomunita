@@ -90,6 +90,7 @@ function makeRouter() {
     history: createMemoryHistory(),
     routes: [
       { path: '/', component: AppLayout },
+      { path: '/events', component: AppLayout },
       { path: '/login', component: AppLayout },
       { path: '/profile', component: AppLayout },
       { path: '/profile/edit', component: AppLayout },
@@ -463,5 +464,33 @@ describe('AppLayout mark-your-calendar popup', () => {
     await flush()
 
     expect(wrapper.find('mobile-bottom-nav-stub').exists()).toBe(false)
+  })
+
+  it('warms mobile sidebar config for the active route scope', async () => {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === '(max-width: 767px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    const router = makeRouter()
+    await router.push('/events')
+    await router.isReady()
+
+    shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(sidebarConfigStore.fetchScope).toHaveBeenCalledWith('events')
   })
 })

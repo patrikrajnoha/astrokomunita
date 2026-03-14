@@ -19,6 +19,7 @@ const DEFAULT_ITEMS = [
   { kind: 'builtin', section_key: 'moon_phases', title: 'Fazy mesiaca', order: 9, is_enabled: true },
   { kind: 'builtin', section_key: 'moon_overview', title: 'Mesiac teraz', order: 10, is_enabled: false },
   { kind: 'builtin', section_key: 'moon_events', title: 'Lunarne udalosti', order: 11, is_enabled: false },
+  { kind: 'builtin', section_key: 'next_eclipse', title: 'Najblizsie zatmenie', order: 12, is_enabled: false },
 ]
 
 const cloneAndSort = (items) => {

@@ -75,6 +75,7 @@ export function buildWidgetProps(sectionKey, title, observingContext, options = 
   if (
     sectionKey === 'nasa_apod' ||
     sectionKey === 'next_event' ||
+    sectionKey === 'next_eclipse' ||
     sectionKey === 'latest_articles'
   ) {
     return title ? { title } : {}

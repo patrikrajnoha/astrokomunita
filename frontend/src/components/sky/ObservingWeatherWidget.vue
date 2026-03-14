@@ -31,7 +31,7 @@
           <p class="metricValue">{{ metric.value }}</p>
         </article>
       </div>
-      <p class="sourceLine">Zdroj: {{ weatherSourceLabel }}</p>
+      <p class="sourceLine">Zdroj: {{ weatherSourceLabel }} | Aktualizovane: {{ weatherUpdatedLabel }}</p>
     </div>
   </section>
 </template>
@@ -56,6 +56,7 @@ const {
   formattedMetrics,
   hasLocationCoords,
   weatherSourceLabel,
+  weatherUpdatedLabel,
   refreshBlock,
 } = useSkyWidget({
   lat: toRef(props, 'lat'),

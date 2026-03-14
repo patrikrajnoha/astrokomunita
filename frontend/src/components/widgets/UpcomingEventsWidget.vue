@@ -32,11 +32,15 @@
     <div v-else class="eventsViewport">
       <transition-group tag="ul" name="fade" class="eventsList">
         <li v-for="event in items" :key="event.id" class="eventItem">
-          <div class="eventDate">{{ formatDate(event.start_at) }}</div>
-          <div class="eventTitle">{{ event.title }}</div>
+          <router-link class="eventLink" :to="`/events/${event.id}`">
+            <time class="eventDate" :datetime="event.start_at || undefined">{{ formatDate(event.start_at) }}</time>
+            <div class="eventTitle">{{ event.title }}</div>
+          </router-link>
         </li>
       </transition-group>
     </div>
+
+    <p v-if="metaLine" class="metaLine">{{ metaLine }}</p>
 
     <div class="panelActions">
       <router-link class="upcomingMoreLink" :to="showMoreTo">{{ showMoreLabel }}</router-link>
@@ -62,7 +66,7 @@ export default {
     },
     showMoreLabel: {
       type: String,
-      default: 'Show more',
+      default: 'Vsetky udalosti',
     },
     showMoreTo: {
       type: String,
@@ -77,6 +81,9 @@ export default {
     const items = ref([])
     const loading = ref(true)
     const error = ref('')
+    const sourceLabel = ref('')
+    const updatedAt = ref('')
+    const metaLine = ref('')
 
     const fetchItems = async () => {
       loading.value = true
@@ -85,8 +92,12 @@ export default {
       try {
         const payload = await getUpcomingEventsWidget()
         items.value = Array.isArray(payload?.items) ? payload.items.slice(0, 4) : []
+        sourceLabel.value = String(payload?.source?.label || 'Databaza udalosti').trim()
+        updatedAt.value = String(payload?.generated_at || '').trim()
+        metaLine.value = buildMetaLine(sourceLabel.value, updatedAt.value)
       } catch (err) {
         error.value = err?.response?.data?.message || err?.message || 'Skus to neskor.'
+        metaLine.value = ''
       } finally {
         loading.value = false
       }
@@ -110,8 +121,43 @@ export default {
       error,
       fetchItems,
       formatDate,
+      metaLine,
     }
   },
+}
+
+function buildMetaLine(sourceLabel, updatedAt) {
+  const parts = []
+  const normalizedSource = String(sourceLabel || '').trim()
+  const updatedLabel = formatTime(updatedAt)
+
+  if (normalizedSource) {
+    parts.push(`Zdroj: ${normalizedSource}`)
+  }
+
+  if (updatedLabel !== '-') {
+    parts.push(`Aktualizovane: ${updatedLabel}`)
+  }
+
+  return parts.join(' | ')
+}
+
+function formatTime(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return '-'
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return '-'
+
+  try {
+    return new Intl.DateTimeFormat('sk-SK', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(parsed)
+  } catch {
+    return '-'
+  }
 }
 </script>
 
@@ -152,13 +198,9 @@ export default {
 }
 
 .eventItem {
-  display: grid;
-  grid-template-columns: 4.2rem minmax(0, 1fr);
-  align-items: start;
-  column-gap: 0.36rem;
-  row-gap: 0;
+  display: block;
   border-bottom: 1px solid var(--divider-color);
-  padding: 0.3rem 0;
+  padding: 0;
   border-radius: 0;
 }
 
@@ -166,8 +208,20 @@ export default {
   border-bottom: none;
 }
 
-.eventItem:hover {
-  background: transparent;
+.eventLink {
+  display: grid;
+  grid-template-columns: 4.2rem minmax(0, 1fr);
+  align-items: start;
+  column-gap: 0.36rem;
+  row-gap: 0;
+  padding: 0.3rem 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.eventLink:hover,
+.eventLink:focus-visible {
+  color: inherit;
 }
 
 .eventDate {
@@ -189,6 +243,13 @@ export default {
   overflow: hidden;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.metaLine {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.25;
 }
 
 .panelActions {
@@ -239,6 +300,7 @@ export default {
 .eventsViewport,
 .eventsList,
 .eventItem,
+.eventLink,
 .upcomingMoreLink {
   border-radius: 0 !important;
 }

@@ -48,9 +48,11 @@ XML;
             ->assertJsonPath('available', true)
             ->assertJsonPath('title', 'SK Test RSS APOD')
             ->assertJsonPath('image_url', 'https://www.nasa.gov/wp-content/uploads/test.jpg')
-            ->assertJsonPath('link', 'https://www.nasa.gov/image-detail/test-rss/');
+            ->assertJsonPath('link', 'https://www.nasa.gov/image-detail/test-rss/')
+            ->assertJsonPath('source.label', 'NASA IOTD RSS');
 
         $this->assertSame('SK RSS description', (string) $response->json('excerpt'));
+        $this->assertNotEmpty($response->json('updated_at'));
     }
 
     public function test_it_falls_back_to_apod_api_when_rss_feed_fails(): void
@@ -80,7 +82,8 @@ XML;
             ->assertJsonPath('title', 'SK APOD fallback title')
             ->assertJsonPath('excerpt', 'SK Fallback explanation')
             ->assertJsonPath('image_url', 'https://apod.nasa.gov/apod/image/test.jpg')
-            ->assertJsonPath('link', 'https://apod.nasa.gov/apod/image/test-hd.jpg');
+            ->assertJsonPath('link', 'https://apod.nasa.gov/apod/image/test-hd.jpg')
+            ->assertJsonPath('source.label', 'NASA APOD');
     }
 
     public function test_it_falls_back_to_original_text_when_translation_service_fails(): void
@@ -115,6 +118,7 @@ XML;
             ->assertOk()
             ->assertJsonPath('available', true)
             ->assertJsonPath('title', 'Original RSS Title')
-            ->assertJsonPath('excerpt', 'Original RSS description');
+            ->assertJsonPath('excerpt', 'Original RSS description')
+            ->assertJsonPath('source.label', 'NASA IOTD RSS');
     }
 }
