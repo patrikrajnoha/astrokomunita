@@ -312,4 +312,19 @@ describe('notifications store realtime handler', () => {
     expect(store.items.every((item) => Boolean(item.read_at))).toBe(true)
     expect(store.latestItems.every((item) => Boolean(item.read_at))).toBe(true)
   })
+
+  it('reuses a fresh unread count without issuing another request', async () => {
+    const store = useNotificationsStore()
+
+    http.get.mockResolvedValueOnce({ data: { count: 4 } })
+
+    const first = await store.fetchUnreadCount()
+    const second = await store.fetchUnreadCount()
+
+    expect(first).toBe(4)
+    expect(second).toBe(4)
+    expect(http.get).toHaveBeenCalledTimes(1)
+    expect(store.unreadCount).toBe(4)
+    expect(store.unreadCountHydrated).toBe(true)
+  })
 })

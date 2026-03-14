@@ -161,6 +161,15 @@ describe('MainNavbar active route state', () => {
     expect(wrapper.find('.navScroll a[aria-label="Nastavenia"]').exists()).toBe(true)
   })
 
+  it('does not refetch unread count on navbar mount', async () => {
+    authStore.isAuthed = true
+    authStore.user = { id: 1, name: 'Test User' }
+
+    await mountNavbarAt('/')
+
+    expect(notificationsStore.fetchUnreadCount).not.toHaveBeenCalled()
+  })
+
   it('hides guest auth actions for authenticated users', async () => {
     authStore.isAuthed = true
     authStore.user = { id: 1, name: 'Test User' }

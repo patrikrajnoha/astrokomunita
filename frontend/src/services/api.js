@@ -188,6 +188,32 @@ function normalizeHttpErrorMessage(error) {
   return String(error?.response?.data?.message || message || 'Poziadavka zlyhala.')
 }
 
+function logDevAuthDiagnostic(error, status) {
+  if (!import.meta.env.DEV) return
+  if (status !== 401 && status !== 419) return
+
+  const config = error?.config || {}
+  const method = String(config?.method || 'get').toUpperCase()
+  const requestUrl = String(config?.url || '')
+  const baseURL = String(config?.baseURL || api.defaults.baseURL || '')
+  const pathname = typeof window !== 'undefined' ? String(window.location.pathname || '') : ''
+  const hasXsrfCookie = typeof document !== 'undefined'
+    ? document.cookie.includes('XSRF-TOKEN=')
+    : false
+
+  console.warn('[auth-flow] request failed', {
+    status,
+    method,
+    requestUrl,
+    baseURL,
+    pathname,
+    requiresAuth: config?.meta?.requiresAuth === true,
+    withCredentials: config?.withCredentials !== false,
+    hasXsrfCookie,
+    response: error?.response?.data || null,
+  })
+}
+
 api.interceptors.request.use((config) => {
   if (isLongRunningPath(config?.url)) {
     const url = String(config?.url || '').toLowerCase()
@@ -234,6 +260,8 @@ api.interceptors.response.use(
     if (isTimeoutOrNetwork) {
       error.message = normalizedMessage
     }
+
+    logDevAuthDiagnostic(error, status)
 
     if (!suppressToast) {
       if (status === 422) {

@@ -4,8 +4,10 @@ let echoInstance = null
 let echoCtorPromise = null
 let pusherCtorPromise = null
 
-const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || window.location.origin
-const apiOrigin = rawApiBaseUrl.replace(/\/api\/?$/i, '').replace(/\/+$/, '')
+const configuredApiBaseUrl = import.meta.env.DEV
+  ? ''
+  : (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || window.location.origin)
+const apiOrigin = String(configuredApiBaseUrl || '').replace(/\/api\/?$/i, '').replace(/\/+$/, '')
 
 function toNumber(value, fallback) {
   const next = Number(value)
@@ -102,7 +104,7 @@ export async function initEcho() {
     return null
   }
 
-  const authEndpoint = `${apiOrigin}/broadcasting/auth`
+  const authEndpoint = apiOrigin ? `${apiOrigin}/broadcasting/auth` : '/broadcasting/auth'
 
   try {
     const { EchoCtor, PusherCtor } = await loadRealtimeConstructors()
