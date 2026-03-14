@@ -115,6 +115,7 @@ const propsForSection = (section) => {
     sectionKey === 'observing_conditions'
     || sectionKey === 'observing_weather'
     || sectionKey === 'space_weather'
+    || sectionKey === 'aurora_watch'
     || sectionKey === 'night_sky'
     || sectionKey === 'iss_pass'
     || sectionKey === 'moon_overview'

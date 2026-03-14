@@ -118,6 +118,27 @@ class SkyController extends Controller
         return response()->json($payload);
     }
 
+    public function aurora(SkySpaceWeatherRequest $request): JsonResponse
+    {
+        $context = $this->contextResolver->resolve($request, $request->validated());
+        $cacheKey = $this->buildCacheKey('sky_aurora', $context['lat'], $context['lon'], $context['tz']);
+        $ttlMinutes = max(
+            1,
+            (int) config(
+                'observing.sky.aurora_cache_ttl_minutes',
+                (int) config('observing.sky.space_weather_cache_ttl_minutes', 10)
+            )
+        );
+
+        $payload = Cache::remember(
+            $cacheKey,
+            now()->addMinutes($ttlMinutes),
+            fn (): array => $this->skySpaceWeatherService->fetchAurora($context['lat'], $context['lon'], $context['tz'])
+        );
+
+        return response()->json($payload);
+    }
+
     public function moonPhases(SkyMoonPhasesRequest $request): JsonResponse
     {
         $validated = $request->validated();

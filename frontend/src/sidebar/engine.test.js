@@ -62,6 +62,20 @@ describe('sidebar engine constraints', () => {
     expect(enabled.map((item) => item.section_key)).toEqual([GUEST_OBSERVING_PROMPT_SECTION_KEY])
   })
 
+  it('treats aurora_watch as an observing widget for guest collapse', () => {
+    const enabled = getEnabledSidebarSections([
+      { kind: 'builtin', section_key: 'aurora_watch', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'space_weather', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'search', order: 2, is_enabled: true },
+    ], { isGuest: true })
+
+    expect(enabled).toHaveLength(2)
+    expect(enabled.map((item) => item.section_key)).toEqual([
+      GUEST_OBSERVING_PROMPT_SECTION_KEY,
+      'search',
+    ])
+  })
+
   it('filters enabled widgets by preferred section keys', () => {
     const enabled = getEnabledSidebarSections([
       { kind: 'builtin', section_key: 'search', order: 0, is_enabled: true },
