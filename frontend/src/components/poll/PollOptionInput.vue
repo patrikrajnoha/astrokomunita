@@ -92,7 +92,7 @@ function onFileChange(event) {
   align-items: center;
   gap: 0.5rem;
   padding: 0.38rem 0;
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
+  border-top: 1px solid var(--divider-color);
 }
 
 .pollOptionRow:first-child {

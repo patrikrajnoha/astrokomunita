@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="share-canvas" role="img" aria-label="Nahlad zdielacej karty prispevku">
     <div class="share-card">
       <header class="share-head">
@@ -19,14 +19,18 @@
 
       <main class="share-body">
         <h2 v-if="headline" class="headline">{{ headline }}</h2>
-        <p class="snippet">{{ bodySnippet }}</p>
+        <p v-if="bodySnippet" class="snippet" :class="{ 'snippet--with-media': hasMedia }">{{ bodySnippet }}</p>
       </main>
+
+      <figure v-if="hasMedia" class="share-media">
+        <img :src="mediaUrl" alt="Fotografia prispevku" loading="eager" />
+      </figure>
 
       <footer class="share-foot">
         <div class="tags">
           <span v-for="tag in visibleTags" :key="tag" class="tag-pill">{{ tag }}</span>
         </div>
-        <div class="brand">Nebesky sprievodca</div>
+        <div class="brand">{{ brandLabel }}</div>
       </footer>
 
       <div class="watermark">{{ watermarkText }}</div>
@@ -41,12 +45,15 @@ import UserAvatar from '@/components/UserAvatar.vue'
 const props = defineProps({
   post: { type: Object, required: true },
   author: { type: Object, default: null },
-  brandDomain: { type: String, default: 'nebesky-sprievodca.sk' },
+  brandDomain: { type: String, default: 'astrokomunita.sk' },
   forcePlaceholderAvatar: { type: Boolean, default: false },
+  mediaUrl: { type: String, default: '' },
 })
 
 const resolvedAuthor = computed(() => props.author || props.post?.user || {})
 const authorName = computed(() => resolvedAuthor.value?.name || 'Astrokomunita')
+const hasMedia = computed(() => String(props.mediaUrl || '').trim() !== '')
+const brandLabel = computed(() => 'Astrokomunita')
 
 const avatarToUse = computed(() => {
   if (props.forcePlaceholderAvatar) return ''
@@ -71,16 +78,38 @@ const rawContent = computed(() => String(props.post?.content || '').trim())
 const firstLine = computed(() => rawContent.value.split(/\r?\n/).map((line) => line.trim()).find(Boolean) || '')
 const headline = computed(() => String(props.post?.title || '').trim() || firstLine.value)
 
+function normalizeComparable(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+}
+
 const bodySnippet = computed(() => {
   const baseContent = rawContent.value
   if (!baseContent) return ''
 
   if (props.post?.title) {
-    return baseContent
+    const normalizedTitle = normalizeComparable(props.post.title)
+    const normalizedFirstLine = normalizeComparable(firstLine.value)
+    const withoutFirstLine = normalizedTitle !== '' && normalizedTitle === normalizedFirstLine
+      ? baseContent.replace(firstLine.value, '').trim()
+      : baseContent
+
+    if (normalizeComparable(withoutFirstLine) === normalizeComparable(headline.value)) {
+      return ''
+    }
+
+    return withoutFirstLine
   }
 
   const withoutFirstLine = baseContent.replace(firstLine.value, '').trim()
-  return withoutFirstLine || baseContent
+  const fallback = withoutFirstLine || baseContent
+  if (normalizeComparable(fallback) === normalizeComparable(headline.value)) {
+    return ''
+  }
+
+  return fallback
 })
 
 const visibleTags = computed(() => {
@@ -99,8 +128,7 @@ const visibleTags = computed(() => {
   return tags.slice(0, 3)
 })
 
-const watermarkText = computed(() => `${props.brandDomain}  •  #${props.post?.id ?? 'post'}`)
-
+const watermarkText = computed(() => props.brandDomain)
 </script>
 
 <style scoped>
@@ -200,6 +228,27 @@ const watermarkText = computed(() => `${props.brandDomain}  •  #${props.post?.
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 8;
   overflow: hidden;
+}
+
+.snippet--with-media {
+  -webkit-line-clamp: 5;
+}
+
+.share-media {
+  margin: 0;
+  border-radius: 26px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.44);
+  max-height: 460px;
+}
+
+.share-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 460px;
+  object-fit: cover;
 }
 
 .share-foot {

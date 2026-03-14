@@ -20,6 +20,8 @@ export const performanceMetricsMessages = {
       runDescription: 'Nastav parametre merania a spusti benchmark.',
       resultsTitle: 'Najnovsie vysledky',
       resultsDescription: 'Porovnaj posledne behy podla klucovych metrik.',
+      resultsMeta: '{{count}} zaznamov, posledny beh: {{latest}}',
+      resultsMetaEmpty: 'Zatial nie su ulozene ziadne zaznamy benchmarku.',
       detailTitle: 'Detail behu',
       resultTitle: 'Posledne spustenie',
     },
@@ -67,9 +69,14 @@ export const performanceMetricsMessages = {
         asc: 'Vzostupne',
         desc: 'Zostupne',
       },
+      dense: {
+        label: 'Hustota tabulky',
+        help: 'Kompaktne riadky',
+      },
       confirmLoad: {
         label: 'Rozumiem, ze benchmark moze docasne zvysit zataz servera.',
         help: 'Pred spustenim potvrdis, ze benchmark bezat moze.',
+        actionHint: 'Pred spustenim benchmarku potvrd suhlas so zatazou servera.',
       },
       progress: 'Benchmark prave bezi. Tento krok moze trvat niekolko sekund.',
     },

@@ -58,24 +58,26 @@ const resolvedActiveKey = computed(() => {
 .adminSectionTabs {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--color-divider);
-  background: rgb(var(--bg-app-rgb) / 0.35);
+  padding: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 11px;
+  background: rgb(var(--color-bg-rgb) / 0.84);
 }
 
 .adminSectionTabs__tab {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 8px 14px;
+  min-height: 34px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
+  border-radius: 9px;
+  padding: 6px 10px;
   text-decoration: none;
   color: var(--color-text-secondary);
-  font-size: 14px;
-  font-weight: 500;
-  background: rgb(var(--bg-app-rgb) / 0.4);
+  font-size: 12px;
+  font-weight: 600;
+  background: transparent;
   transition:
     border-color var(--motion-fast),
     background-color var(--motion-fast),
@@ -84,15 +86,15 @@ const resolvedActiveKey = computed(() => {
 }
 
 .adminSectionTabs__tab:hover {
-  border-color: var(--color-border-strong);
-  background: var(--interactive-hover);
+  border-color: rgb(var(--color-surface-rgb) / 0.35);
+  background: rgb(var(--color-surface-rgb) / 0.08);
   color: var(--color-text-primary);
   transform: translateY(-1px);
 }
 
 .adminSectionTabs__tab.active {
-  border-color: rgb(var(--color-accent-rgb) / 0.46);
-  background: rgb(var(--color-accent-rgb) / 0.16);
+  border-color: rgb(var(--color-accent-rgb) / 0.42);
+  background: rgb(var(--color-accent-rgb) / 0.14);
   color: var(--color-text-primary);
 }
 
@@ -104,7 +106,7 @@ const resolvedActiveKey = computed(() => {
 
 @media (max-width: 767px) {
   .adminSectionTabs {
-    padding: 8px 10px;
+    padding: 7px 8px;
     overflow-x: auto;
     flex-wrap: nowrap;
   }

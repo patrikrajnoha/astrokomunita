@@ -1,384 +1,315 @@
-  <div class="admin-blog">
-    <div class="command-bar">
-      <div class="command-left">
-        <div class="search-field">
-          <input
-            v-model="query"
-            type="search"
-            placeholder="Hladat podla nazvu, tagov, autora"
-          />
-          <button v-if="hasQuery" type="button" class="clear-search" @click="clearQuery">
-            Vycistit
-          </button>
-        </div>
-        <div class="segmented" role="group" aria-label="Stav clanku">
-          <button
-            type="button"
-            :class="{ active: status === '' }"
-            @click="setStatusFilter('')"
-            :disabled="loading"
-          >
-            Vsetky
-          </button>
-          <button
-            type="button"
-            :class="{ active: status === 'draft' }"
-            @click="setStatusFilter('draft')"
-            :disabled="loading"
-          >
-            Koncepty
-          </button>
-          <button
-            type="button"
-            :class="{ active: status === 'scheduled' }"
-            @click="setStatusFilter('scheduled')"
-            :disabled="loading"
-          >
-            Naplanovane
-          </button>
-          <button
-            type="button"
-            :class="{ active: status === 'published' }"
-            @click="setStatusFilter('published')"
-            :disabled="loading"
-          >
-            Publikovane
-          </button>
+<div class="admin-blog admin-blog--simple">
+  <header class="simple-header">
+    <div class="simple-header__copy">
+      <h1>Clanky</h1>
+      <p>Pisanie bez rusenia: nadpis, obsah, ulozit.</p>
+    </div>
+
+    <div class="command-right">
+      <div class="search-field">
+        <input
+          v-model="query"
+          type="search"
+          placeholder="Hladat clanok"
+        />
+        <button v-if="hasQuery" type="button" class="ghost clear-search" @click="clearQuery">
+          Vycistit
+        </button>
+      </div>
+
+      <label class="select-field">
+        <span>Stav</span>
+        <select :value="status" :disabled="loading" @change="setStatusFilter($event.target.value)">
+          <option value="">Vsetky</option>
+          <option value="draft">Koncepty</option>
+          <option value="scheduled">Naplanovane</option>
+          <option value="published">Publikovane</option>
+        </select>
+      </label>
+
+      <button class="ghost" type="button" :disabled="loading" @click="load">Obnovit</button>
+      <button class="primary" type="button" :disabled="saving || deleting" @click="openCreateModal">
+        Novy clanok
+      </button>
+    </div>
+  </header>
+
+  <div class="system-status" aria-live="polite">
+    <span v-if="loading" class="status-chip is-loading">Nacitavam...</span>
+    <span v-else-if="saving" class="status-chip is-saving">Ukladam...</span>
+    <span v-else-if="deleting" class="status-chip is-danger">Mazem...</span>
+    <span v-else-if="isDirty" class="status-chip is-warning">Mas neulozene zmeny</span>
+    <span v-else class="status-chip is-success">Vsetko ulozene</span>
+  </div>
+
+  <div v-if="error" class="error">{{ error }}</div>
+
+  <div class="simple-layout" :class="{ 'focus-grid': isFocusActive && !isEditorModalOpen }">
+    <aside class="panel list">
+      <div class="panel-head">
+        <div>
+          <h2>Zoznam clankov</h2>
+          <p class="muted">{{ pageRangeLabel }}</p>
         </div>
       </div>
 
-      <div class="command-right">
-        <div class="density-switch" role="group" aria-label="Hustota zoznamu">
-          <button
-            type="button"
-            :class="{ active: listDensity === 'comfortable' }"
-            @click="setListDensity('comfortable')"
-            :disabled="loading"
-          >
-            Komfort
-          </button>
-          <button
-            type="button"
-            :class="{ active: listDensity === 'dense' }"
-            @click="setListDensity('dense')"
-            :disabled="loading"
-          >
-            Huste
-          </button>
-        </div>
+      <div class="list-body">
+        <div v-if="loading" class="pad muted">Nacitavam...</div>
 
-        <label class="select-field">
-          <span>Na stranu</span>
-          <select
-            v-model.number="per_page"
-            @change="onPerPageChange"
-            :disabled="loading"
+        <div v-else class="card-list">
+          <button
+            v-for="post in posts"
+            :key="post.id"
+            type="button"
+            class="post-card"
+            :class="{ active: post.id === selectedId }"
+            @click="openPostModal(post)"
           >
-            <option :value="5">5</option>
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-          </select>
-        </label>
-        <button class="ghost" @click="load" :disabled="loading">
-          Obnovit
-        </button>
-        <button class="primary" @click="openCreateModal" :disabled="saving || deleting">
-          Novy clanok
-        </button>
+            <div class="card-title">{{ post.title || '(Bez nazvu)' }}</div>
+            <div class="card-meta card-meta--top">
+              <span>{{ formatDate(post.published_at || post.created_at) }}</span>
+              <span class="card-status">{{ statusLabel(computeStatus(post)) }}</span>
+            </div>
+            <div class="card-stats">
+              <span class="card-stat" :title="`Precitania: ${formatMetricCount(postReadCount(post))}`">
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path
+                    d="M2 10C3.6 6.9 6.6 5 10 5C13.4 5 16.4 6.9 18 10C16.4 13.1 13.4 15 10 15C6.6 15 3.6 13.1 2 10Z"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+                <span>{{ formatMetricCount(postReadCount(post)) }}</span>
+              </span>
+
+              <span class="card-stat" :title="`Kliky: ${formatMetricCount(postClickCount(post))}`">
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path
+                    d="M10 3V17"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                  />
+                  <path
+                    d="M5 7L10 3L15 7"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M5 13L10 17L15 13"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <span>{{ formatMetricCount(postClickCount(post)) }}</span>
+              </span>
+            </div>
+          </button>
+
+          <div v-if="posts.length === 0" class="empty">Nenasli sa ziadne clanky.</div>
+        </div>
       </div>
-    </div>
 
-    <div class="command-meta">
-      <span class="meta-text">{{ pageRangeLabel }}</span>
-      <span class="meta-sep">|</span>
-      <span class="meta-text">{{ status ? statusLabel(status) : "Vsetky stavy" }}</span>
-      <template v-if="hasQuery">
-        <span class="meta-sep">|</span>
-        <span class="meta-text">Filter: "{{ query }}"</span>
-      </template>
-    </div>
-
-    <div class="system-status" aria-live="polite">
-      <span v-if="loading" class="status-chip is-loading">Nacitavam zoznam clankov...</span>
-      <span v-else-if="saving" class="status-chip is-saving">Ukladam zmeny...</span>
-      <span v-else-if="deleting" class="status-chip is-danger">Mazem clanok...</span>
-      <span v-else-if="isDirty" class="status-chip is-warning">Mas neulozene zmeny</span>
-      <span v-else class="status-chip is-success">Vsetko ulozene</span>
-    </div>
-
-    <div v-if="error" class="error">
-      {{ error }}
-    </div>
-
-    <div class="grid" :class="{ 'focus-grid': isFocusActive && !isCreateModalOpen }">
-      <section class="panel list">
-        <div class="panel-head">
-          <div>
-            <h2>Clanky</h2>
-            <div class="muted">
-              {{ data?.total || 0 }} spolu
-            </div>
-          </div>
-          <div class="page-meta">
-            <span>Strana</span>
-            <strong>{{ data?.current_page || 1 }}</strong>
-            <span>/ {{ data?.last_page || 1 }}</span>
-          </div>
-        </div>
-
-        <div class="list-body">
-          <div v-if="loading" class="muted pad">Nacitavam...</div>
-
-          <div v-else :class="['card-list', `density-${listDensity}`]">
-            <button
-              v-for="post in posts"
-              :key="post.id"
-              type="button"
-              class="post-card"
-              :class="{ active: post.id === selectedId }"
-              @click="selectPost(post)"
-            >
-              <div class="card-main compact">
-                <div class="card-topline">
-                  <div class="card-title">{{ post.title || "(Bez nazvu)" }}</div>
-                  <span :class="['pill', computeStatus(post)]">
-                    {{ statusLabel(computeStatus(post)) }}
-                  </span>
-                </div>
-                <div class="card-meta compact">
-                  <span>{{ formatDate(post.published_at || post.created_at) }}</span>
-                  <span v-if="post.user?.name">{{ post.user.name }}</span>
-                  <span>{{ post.tags?.length || 0 }} tagov</span>
-                </div>
-              </div>
-            </button>
-
-            <div v-if="posts.length === 0" class="empty">
-              Nenasli sa ziadne clanky.
-            </div>
-          </div>
-        </div>
-
-        <div class="pager">
-          <button class="ghost" @click="prevPage" :disabled="loading || page <= 1">
-            Predchadzajuca
-          </button>
-          <button
-            class="ghost"
-            @click="nextPage"
-            :disabled="loading || (data && page >= data.last_page)"
-          >
-            Dalsia
-          </button>
-        </div>
-      </section>
-
-      <div
-        class="editor-shell"
-        :class="{ 'create-modal-open': isCreateModalOpen }"
-        @click.self="isCreateModalOpen && closeCreateModal()"
-      >
-        <section
-          class="panel editor"
-          :class="{ 'focus-mode': isFocusActive, 'editor-modal': isCreateModalOpen }"
-          :role="isCreateModalOpen ? 'dialog' : undefined"
-          :aria-modal="isCreateModalOpen ? 'true' : undefined"
+      <div class="pager">
+        <button class="ghost" type="button" :disabled="loading || page <= 1" @click="prevPage">
+          Predchadzajuca
+        </button>
+        <button
+          class="ghost"
+          type="button"
+          :disabled="loading || (data && page >= data.last_page)"
+          @click="nextPage"
         >
-          <div v-if="!isEditing && !isCreateModalOpen" class="editor-empty">
-            <h2>Vyber clanok na upravu</h2>
-            <p>Pre novy clanok klikni na tlacidlo "Novy clanok".</p>
-            <button class="primary" type="button" :disabled="saving || deleting" @click="openCreateModal">
-              Novy clanok
+          Dalsia
+        </button>
+      </div>
+    </aside>
+
+    <div
+      class="editor-shell"
+      :class="{ 'create-modal-open': isEditorModalOpen }"
+      @click.self="isEditorModalOpen && closeEditorModal()"
+    >
+      <section
+        class="panel editor"
+        :class="{ 'focus-mode': isFocusActive, 'editor-modal': isEditorModalOpen }"
+        :role="isEditorModalOpen ? 'dialog' : undefined"
+        :aria-modal="isEditorModalOpen ? 'true' : undefined"
+      >
+        <div v-if="!isEditing && !isEditorModalOpen" class="editor-empty" aria-hidden="true"></div>
+
+        <template v-else>
+          <div class="editor-topbar" :class="{ 'with-modal-close': isEditorModalOpen }">
+            <div class="editor-meta">
+              <span class="save-state">{{ saveStateLabel }}</span>
+              <span
+                v-if="selectedPost?.updated_at || selectedPost?.published_at"
+                class="muted editor-date"
+              >
+                {{ formatDate(selectedPost?.updated_at || selectedPost?.published_at) }}
+              </span>
+            </div>
+
+            <button
+              v-if="isEditorModalOpen"
+              class="ghost editor-topbar-close"
+              type="button"
+              aria-label="Zavriet popup tvorby clanku"
+              :disabled="saving || deleting"
+              @click="closeEditorModal"
+            >
+              <span aria-hidden="true">x</span>
             </button>
+
+            <div class="editor-actions">
+              <button
+                class="ghost settings-toggle"
+                type="button"
+                :class="{ active: isSettingsModalOpen }"
+                :disabled="saving || deleting"
+                @click="toggleSettingsModal"
+              >
+                {{ isSettingsModalOpen ? 'Zavriet nastavenia' : 'Viac nastaveni' }}
+              </button>
+              <button
+                class="ghost"
+                type="button"
+                :disabled="saving || deleting"
+                @click="save"
+              >
+                {{ saving ? 'Ukladam...' : 'Ulozit' }}
+              </button>
+              <button
+                class="primary"
+                type="button"
+                :disabled="saving || deleting || (selectedStatus === 'draft' && !canPublishNow)"
+                :title="selectedStatus === 'draft' && !canPublishNow ? publishDisabledReason : ''"
+                @click="selectedStatus === 'draft' ? publishNow : save"
+              >
+                {{ selectedStatus === 'draft' ? 'Publikovat teraz' : 'Ulozit zmeny' }}
+              </button>
+              <button
+                v-if="isEditing"
+                class="ghost"
+                type="button"
+                :disabled="saving || deleting"
+                @click="showPreview = !showPreview"
+              >
+                {{ showPreview ? 'Upravit' : 'Nahlad' }}
+              </button>
+              <button
+                v-if="isEditing"
+                class="ghost focus-toggle"
+                type="button"
+                :class="{ active: isFocusActive }"
+                @click="toggleFocusMode"
+              >
+                {{ isFocusActive ? 'Koniec focusu' : 'Focus' }}
+              </button>
+              <button
+                v-if="isEditorModalOpen"
+                class="ghost"
+                type="button"
+                :disabled="saving || deleting"
+                @click="closeEditorModal"
+              >
+                Zavriet
+              </button>
+            </div>
+
+            <p v-if="selectedStatus === 'draft' && !canPublishNow" class="publish-hint">
+              {{ publishDisabledReason }}
+            </p>
           </div>
 
-          <template v-else>
-            <div class="editor-topbar">
-              <div class="editor-title">
-                <div>
-                  <h2>{{ isEditing ? "Uprava clanku" : "Novy clanok" }}</h2>
-                  <div class="muted">
-                    {{ isEditing ? `ID #${selectedId}` : "Koncept" }}
-                  </div>
-                </div>
-                <div class="editor-badges">
-                  <span :class="['pill', selectedStatus]">
-                    {{ statusLabel(selectedStatus) }}
-                  </span>
-                  <span v-if="isFocusActive" class="focus-badge">Focus rezim</span>
-                  <span v-if="isDirty" class="dirty-badge">Neulozene zmeny</span>
-                  <span class="save-state">
-                    {{ saveStateLabel }}
-                  </span>
-                  <span class="muted">
-                    {{ formatDate(selectedPost?.updated_at || selectedPost?.published_at) }}
-                  </span>
-                </div>
-              </div>
+          <div v-if="formError" class="error">{{ formError }}</div>
 
-              <div class="editor-actions">
-                <button
-                  v-if="selectedStatus === 'draft'"
-                  class="ghost"
-                  @click="save"
-                  :disabled="saving || deleting"
-                >
-                  {{ saving ? "Ukladam..." : "Ulozit" }}
-                </button>
-                <button
-                  class="primary"
-                  @click="selectedStatus === 'draft' ? publishNow : save"
-                  :disabled="saving || deleting || (selectedStatus === 'draft' && !canPublishNow)"
-                  :title="selectedStatus === 'draft' && !canPublishNow ? publishDisabledReason : ''"
-                >
-                  {{
-                    saving
-                      ? "Ukladam..."
-                      : selectedStatus === "draft"
-                        ? "Publikovat teraz"
-                        : "Ulozit zmeny"
-                  }}
-                </button>
-                <button
-                  v-if="isEditing"
-                  class="ghost"
-                  @click="showPreview = !showPreview"
-                  :disabled="saving || deleting"
-                >
-                  {{ showPreview ? "Upravit" : "Nahlad" }}
-                </button>
-                <button
-                  v-if="isEditing"
-                  type="button"
-                  class="ghost focus-toggle"
-                  :class="{ active: isFocusActive }"
-                  @click="toggleFocusMode"
-                >
-                  {{ isFocusActive ? "Ukoncit focus" : "Focus pisanie" }}
-                </button>
-                <button
-                  v-if="isCreateModalOpen"
-                  type="button"
-                  class="ghost"
-                  :disabled="saving || deleting"
-                  @click="closeCreateModal"
-                >
-                  Zavriet
-                </button>
-                <details v-if="isEditing" class="more-menu">
-                  <summary>Viac</summary>
-                  <div class="menu">
-                    <button
-                      class="danger"
-                      type="button"
-                      @click="remove"
-                      :disabled="saving || deleting"
-                    >
-                      {{ deleting ? "Mazem..." : "Vymazat" }}
-                    </button>
-                  </div>
-                </details>
+          <div class="editor-body">
+            <div class="title-row">
+              <label class="field-block field-block--title">
+                <span>Nadpis clanku</span>
+                <input
+                  v-model="form.title"
+                  type="text"
+                  class="title-input"
+                  placeholder="Napis jasny nadpis"
+                />
+              </label>
+              <div class="title-metrics">
+                <span :class="['title-counter', { warn: titleLength > 70 }]">{{ titleLength }}/70</span>
+                <span class="muted">{{ contentWordCount }} slov</span>
+                <code class="title-slug">/clanky/{{ titleSlugPreview }}</code>
               </div>
-
-              <p
-                v-if="selectedStatus === 'draft' && !canPublishNow"
-                class="publish-hint"
-              >
-                {{ publishDisabledReason }}
-              </p>
             </div>
 
-            <div v-if="formError" class="error">
-              {{ formError }}
-            </div>
+            <div v-if="showPreview" class="preview">
+              <div class="preview-header">
+                <div class="preview-kicker">Nahlad</div>
+                <div class="preview-meta">{{ readTimeFor(form.content) }}</div>
+              </div>
+              <h2 class="preview-title">{{ form.title || 'Bez nazvu' }}</h2>
 
-            <div class="editor-body">
-              <div v-if="showPreview" class="preview">
-                <div class="preview-header">
-                  <div class="preview-kicker">Nahlad</div>
-                  <div class="preview-meta">
-                    {{ readTimeFor(form.content) }}
-                  </div>
-                </div>
-                <h2 class="preview-title">{{ form.title || "Bez nazvu" }}</h2>
-                <div v-if="tagsInput" class="taglist">
-                  <span
-                    v-for="tag in tagsInput.split(',').map((t) => t.trim()).filter(Boolean)"
-                    :key="tag"
-                    class="tag-chip"
-                  >
-                    {{ tag }}
-                  </span>
-                </div>
-
-                <div v-if="coverPreview" class="preview-cover">
-                  <img :src="coverPreview" alt="Cover preview" />
-                </div>
-
-                <div class="preview-layout">
-                  <aside v-if="previewToc.length" class="preview-toc">
-                    <div class="preview-toc-title">Obsah</div>
-                    <ul>
-                      <li v-for="item in previewToc" :key="item.id" :class="item.type">
-                        <span>{{ item.text }}</span>
-                      </li>
-                    </ul>
-                  </aside>
-
-                  <div class="preview-content">
-                    <template v-for="block in previewBlocks">
-                      <h3 v-if="block.type === 'h2'" :key="`${block.key}-h2`">{{ block.text }}</h3>
-                      <h4 v-else-if="block.type === 'h3'" :key="`${block.key}-h3`">{{ block.text }}</h4>
-                      <ul v-else-if="block.type === 'ul'" :key="`${block.key}-ul`">
-                        <li v-for="(item, idx) in block.items" :key="idx" v-html="item"></li>
-                      </ul>
-                      <p v-else :key="`${block.key}-p`" v-html="block.html"></p>
-                    </template>
-                  </div>
-                </div>
+              <div v-if="coverPreview" class="preview-cover">
+                <img :src="coverPreview" alt="Cover preview" />
               </div>
 
-              <div v-else class="editor-form">
-                <div class="title-row">
-                  <label class="field-block field-block--title">
-                    <span>Nadpis clanku</span>
-                    <input
-                      v-model="form.title"
-                      type="text"
-                      class="title-input"
-                      placeholder="Napis jasny a kratky nadpis"
-                    />
-                  </label>
-                  <div class="title-metrics">
-                    <span :class="['title-counter', { warn: titleLength > 70 }]">
-                      {{ titleLength }}/70
-                    </span>
-                    <span class="muted">{{ contentWordCount }} slov</span>
-                    <code class="title-slug">/clanky/{{ titleSlugPreview }}</code>
-                  </div>
+              <aside v-if="previewToc.length" class="preview-toc">
+                <div class="preview-toc-title">Obsah</div>
+                <ul>
+                  <li v-for="item in previewToc" :key="item.id" :class="item.type">
+                    <span>{{ item.text }}</span>
+                  </li>
+                </ul>
+              </aside>
+
+              <div class="preview-content preview-content--article" v-html="previewHtml"></div>
+            </div>
+
+            <template v-else>
+              <section class="tab-card document-card">
+                <label class="field-block">
+                  <span>Obsah clanku</span>
+                  <ArticleRichEditor
+                    v-model="form.content"
+                    class="content-rich-editor content-rich-editor--minimal"
+                    :min-height="520"
+                    placeholder="Napis obsah clanku..."
+                  />
+                  <textarea
+                    v-model="form.content"
+                    rows="20"
+                    class="content-textarea content-textarea--minimal content-textarea--hidden"
+                    placeholder="Napis obsah clanku..."
+                    aria-hidden="true"
+                    tabindex="-1"
+                  />
+                </label>
+                <div class="hint-row">
+                  <span>{{ readTimeFor(form.content) }}</span>
+                  <span>{{ contentWordCount }} slov</span>
                 </div>
 
-                <div v-if="!isEditing" class="minimal-editor">
-                  <p class="minimal-principle">3 kliky: Novy clanok -> nadpis a obsah -> Publikovat teraz.</p>
-                  <section class="minimal-surface">
-                    <label class="field-block">
-                      <span>Obsah clanku</span>
-                      <textarea
-                        v-model="form.content"
-                        rows="20"
-                        class="content-textarea content-textarea--minimal"
-                        placeholder="Napis cely obsah clanku..."
-                      />
-                    </label>
-                    <div class="hint-row">
-                      <span>{{ readTimeFor(form.content) }}</span>
-                      <span>{{ contentWordCount }} slov</span>
-                    </div>
-                  </section>
+                <div
+                  v-if="isSettingsModalOpen"
+                  class="settings-modal-overlay"
+                  role="dialog"
+                  aria-modal="true"
+                  @click.self="closeSettingsModal"
+                >
+                  <section class="settings-modal">
+                    <header class="settings-modal-head">
+                      <h3>Viac nastaveni</h3>
+                      <button class="ghost" type="button" @click="closeSettingsModal">Zavriet</button>
+                    </header>
 
-                  <details class="minimal-more">
-                    <summary>Viac nastaveni</summary>
-                    <div class="minimal-more-body">
+                    <div class="settings-modal-body minimal-more-body">
                       <label class="field-block">
                         <span>Tagy (oddelene ciarkou)</span>
                         <input
@@ -393,7 +324,28 @@
                           <h4>AI: Navrhnut tagy</h4>
                           <span v-if="aiTagFallbackUsed" class="ai-tags-fallback">Fallback</span>
                         </div>
-                        <p class="muted">Ak este nemas ulozeny koncept, vytvori sa automaticky.</p>
+                        <p class="muted">AI cita nadpis a obsah clanku.</p>
+
+                        <div class="ai-mode-toggle" role="group" aria-label="Rezim navrhov tagov">
+                          <button
+                            type="button"
+                            class="ghost ai-mode-btn"
+                            :class="{ active: aiTagSuggestionMode === 'existing_only' }"
+                            :disabled="aiTagSuggestionsLoading || saving || deleting"
+                            @click="setAiTagSuggestionMode('existing_only')"
+                          >
+                            Len existujuce
+                          </button>
+                          <button
+                            type="button"
+                            class="ghost ai-mode-btn"
+                            :class="{ active: aiTagSuggestionMode === 'allow_new' }"
+                            :disabled="aiTagSuggestionsLoading || saving || deleting"
+                            @click="setAiTagSuggestionMode('allow_new')"
+                          >
+                            Aj nove
+                          </button>
+                        </div>
 
                         <div class="ai-tags-actions">
                           <button
@@ -402,7 +354,7 @@
                             :disabled="aiTagSuggestionsLoading || saving || deleting"
                             @click="suggestAiTags"
                           >
-                            {{ aiTagSuggestionsLoading ? "Navrhujem..." : "Navrhnut tagy" }}
+                            {{ aiSuggestActionLabel }}
                           </button>
                           <button
                             type="button"
@@ -418,13 +370,16 @@
 
                         <div v-if="aiTagSuggestions.length" class="ai-tags-list">
                           <label
-                            v-for="item in aiTagSuggestions"
-                            :key="`ai-minimal-tag-${item.id}`"
+                            v-for="(item, index) in aiTagSuggestions"
+                            :key="`ai-minimal-tag-${item.id}-${item.name}-${index}`"
                             class="ai-tag-option"
                           >
                             <input v-model="item.checked" type="checkbox" />
                             <div class="ai-tag-copy">
-                              <strong>{{ item.name }}</strong>
+                              <div class="ai-tag-line">
+                                <strong>{{ item.name }}</strong>
+                                <span v-if="item.id === 0" class="ai-tag-badge">Novy tag</span>
+                              </div>
                               <p>{{ item.reason }}</p>
                             </div>
                           </label>
@@ -437,19 +392,14 @@
                       </label>
 
                       <div class="meta-actions">
-                        <button
-                          class="ghost"
-                          type="button"
-                          @click="setPublishNow"
-                          :disabled="saving || deleting"
-                        >
+                        <button class="ghost" type="button" :disabled="saving || deleting" @click="setPublishNow">
                           Nastavit na teraz
                         </button>
                         <button
                           class="ghost"
                           type="button"
-                          @click="form.published_at = ''"
                           :disabled="saving || deleting || !form.published_at"
+                          @click="form.published_at = ''"
                         >
                           Ponechat ako koncept
                         </button>
@@ -463,231 +413,35 @@
                       <div v-if="coverPreview" class="cover-preview">
                         <img :src="coverPreview" alt="Cover preview" />
                       </div>
-                    </div>
-                  </details>
 
-                  <div class="minimal-checks">
-                    <span
-                      v-for="item in publishChecklist"
-                      :key="`minimal-check-${item.key}`"
-                      class="minimal-chip"
-                      :class="{ done: item.done, required: item.required && !item.done }"
-                    >
-                      {{ item.done ? "OK" : "-" }} {{ item.label }}
-                    </span>
-                  </div>
-                </div>
-
-                <div v-else class="editor-layout" :class="{ 'is-focus': isFocusActive }">
-                  <div class="editor-main">
-                    <div class="tabs">
-                      <button
-                        type="button"
-                        :class="{ active: activeTab === 'content' }"
-                        @click="activeTab = 'content'"
-                      >
-                        Obsah
-                        <span v-if="contentTabIssues" class="tab-count">{{ contentTabIssues }}</span>
-                      </button>
-                      <button
-                        type="button"
-                        :class="{ active: activeTab === 'meta' }"
-                        @click="activeTab = 'meta'"
-                      >
-                        Meta
-                        <span v-if="metaTabIssues" class="tab-count">{{ metaTabIssues }}</span>
-                      </button>
-                      <button
-                        type="button"
-                        :class="{ active: activeTab === 'media' }"
-                        @click="activeTab = 'media'"
-                      >
-                        Media
-                        <span v-if="mediaTabIssues" class="tab-count">{{ mediaTabIssues }}</span>
-                      </button>
-                    </div>
-
-                    <div class="tab-body">
-                      <div v-show="activeTab === 'content'" class="tab-panel">
-                        <section class="tab-card">
-                          <label class="field-block">
-                            <span>Obsah</span>
-                            <textarea
-                              v-model="form.content"
-                              rows="16"
-                              class="content-textarea"
-                              placeholder="Cely obsah clanku..."
-                            />
-                          </label>
-                          <div class="hint-row">
-                            <span>{{ readTimeFor(form.content) }}</span>
-                            <span>{{ contentWordCount }} slov</span>
-                          </div>
-                        </section>
-                      </div>
-
-                      <div v-show="activeTab === 'meta'" class="tab-panel">
-                        <section class="tab-card">
-                          <label class="field-block">
-                            <span>Tagy (oddelene ciarkou)</span>
-                            <input
-                              v-model="tagsInput"
-                              type="text"
-                              placeholder="napr. planety, komety, pozorovanie"
-                            />
-                          </label>
-
-                          <section class="ai-tags-panel">
-                            <div class="ai-tags-head">
-                              <h4>AI: Navrhnut tagy</h4>
-                              <span v-if="aiTagFallbackUsed" class="ai-tags-fallback">Fallback</span>
-                            </div>
-                            <p class="muted">Vyberieme max 5 existujucich tagov pre tento clanok.</p>
-
-                            <div class="ai-tags-actions">
-                              <button
-                                type="button"
-                                class="ghost"
-                                :disabled="!isEditing || aiTagSuggestionsLoading || saving || deleting"
-                                @click="suggestAiTags"
-                              >
-                                {{ aiTagSuggestionsLoading ? "Navrhujem..." : "Navrhnut tagy" }}
-                              </button>
-                              <button
-                                type="button"
-                                class="primary"
-                                :disabled="!isEditing || !hasSelectedAiTagSuggestions || saving || deleting"
-                                @click="applySelectedAiTags"
-                              >
-                                Pridat vybrane
-                              </button>
-                            </div>
-
-                            <p v-if="aiTagSuggestionsError" class="ai-tags-error">{{ aiTagSuggestionsError }}</p>
-
-                            <div v-if="aiTagSuggestions.length" class="ai-tags-list">
-                              <label
-                                v-for="item in aiTagSuggestions"
-                                :key="`ai-tag-${item.id}`"
-                                class="ai-tag-option"
-                              >
-                                <input v-model="item.checked" type="checkbox" />
-                                <div class="ai-tag-copy">
-                                  <strong>{{ item.name }}</strong>
-                                  <p>{{ item.reason }}</p>
-                                </div>
-                              </label>
-                            </div>
-                          </section>
-                        </section>
-
-                        <section class="tab-card">
-                          <label class="field-block">
-                            <span>Publikovat od</span>
-                            <input v-model="form.published_at" type="datetime-local" />
-                          </label>
-
-                          <div class="meta-actions">
-                            <button
-                              class="ghost"
-                              type="button"
-                              @click="setPublishNow"
-                              :disabled="saving || deleting"
-                            >
-                              Nastavit na teraz
-                            </button>
-                            <button
-                              class="ghost"
-                              type="button"
-                              @click="form.published_at = ''"
-                              :disabled="saving || deleting || !form.published_at"
-                            >
-                              Ponechat ako koncept
-                            </button>
-                          </div>
-                        </section>
-                      </div>
-
-                      <div v-show="activeTab === 'media'" class="tab-panel">
-                        <section class="tab-card">
-                          <label class="field-block">
-                            <span>Titulny obrazok</span>
-                            <input type="file" accept="image/*" @change="onCoverChange" />
-                          </label>
-
-                          <div v-if="coverPreview" class="cover-preview">
-                            <img :src="coverPreview" alt="Cover preview" />
-                          </div>
-
-                          <button
-                            v-if="isEditing"
-                            class="ghost"
-                            type="button"
-                            @click="saveCoverOnly"
-                            :disabled="saving || deleting"
-                          >
-                            Ulozit iba titulny obrazok
-                          </button>
-                        </section>
-                      </div>
-                    </div>
-                  </div>
-
-                  <aside v-if="!isFocusActive" class="editor-sidebar">
-                    <section class="sidebar-card sidebar-card--minimal">
-                      <div class="sidebar-headline">
-                        <h3>Rychly prehlad</h3>
-                        <span class="muted">
-                          {{
-                            publishChecklist.filter((item) => item.done).length
-                          }}/{{ publishChecklist.length }}
+                      <div class="minimal-checks">
+                        <span
+                          v-for="item in publishChecklist"
+                          :key="`minimal-check-${item.key}`"
+                          class="minimal-chip"
+                          :class="{ done: item.done, required: item.required && !item.done }"
+                        >
+                          {{ item.done ? 'OK' : '-' }} {{ item.label }}
                         </span>
                       </div>
 
-                      <div class="status-stack">
-                        <div class="status-row">
-                          <span>Slug</span>
-                          <code>/clanky/{{ titleSlugPreview }}</code>
-                        </div>
-                        <div class="status-row">
-                          <span>Citanie</span>
-                          <strong>{{ readTimeFor(form.content) }}</strong>
-                        </div>
-                        <div class="status-row">
-                          <span>Tagy</span>
-                          <strong>{{ tagCount }}</strong>
-                        </div>
-                        <div class="status-row">
-                          <span>Ulozenie</span>
-                          <strong>{{ saveStateLabel }}</strong>
-                        </div>
-                      </div>
-
-                      <ul class="checklist checklist-compact">
-                        <li
-                          v-for="item in publishChecklist"
-                          :key="item.key"
-                          :class="{ done: item.done }"
-                        >
-                          <span class="check-dot">{{ item.done ? "OK" : "-" }}</span>
-                          <span>
-                            {{ item.label }}
-                            <small v-if="!item.required">(odporucane)</small>
-                          </span>
-                        </li>
-                      </ul>
-
-                      <div class="shortcut-inline">
-                        <span><kbd>Ctrl</kbd> + <kbd>S</kbd> ulozit</span>
-                        <span><kbd>Ctrl</kbd> + <kbd>Enter</kbd> publikovat</span>
-                      </div>
-                    </section>
-                  </aside>
+                      <button
+                        v-if="isEditing"
+                        class="danger"
+                        type="button"
+                        :disabled="saving || deleting"
+                        @click="remove"
+                      >
+                        {{ deleting ? 'Mazem...' : 'Vymazat clanok' }}
+                      </button>
+                    </div>
+                  </section>
                 </div>
-              </div>
-            </div>
-          </template>
-        </section>
-      </div>
+              </section>
+            </template>
+          </div>
+        </template>
+      </section>
     </div>
   </div>
+</div>

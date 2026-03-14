@@ -113,20 +113,20 @@ export default {
   width: 100%;
   max-width: var(--content-max-width);
   min-width: 0;
-  border: 1px solid var(--color-border);
-  border-left: 0;
-  border-radius: var(--radius-xl);
+  border: 0;
+  border-right: 1px solid var(--divider-color);
+  border-radius: 0;
   overflow: hidden;
   background: var(--color-card);
-  box-shadow: var(--shadow-soft);
+  box-shadow: none;
 }
 
 .composerTrigger {
   width: 100%;
   border: 0;
   min-height: 58px;
-  border-bottom: 1px solid var(--color-divider);
-  background: rgb(var(--bg-app-rgb) / 0.34);
+  border-bottom: 1px solid var(--divider-color);
+  background: transparent;
   color: var(--color-text-primary);
   display: grid;
   grid-template-columns: 40px 1fr auto;
@@ -180,7 +180,7 @@ export default {
   color: rgb(var(--color-accent-rgb) / 1);
   display: grid;
   place-items: center;
-  transition: background-color var(--motion-fast), transform var(--motion-fast), box-shadow var(--motion-fast);
+  transition: background-color var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast);
 }
 
 .triggerCta svg {
@@ -189,8 +189,8 @@ export default {
 }
 
 .composerTrigger:hover .triggerCta {
-  background: rgb(var(--color-accent-rgb) / 0.24);
-  transform: translateY(-1px);
+  background: rgb(var(--color-accent-rgb) / 0.2);
+  border-color: rgb(var(--color-accent-rgb) / 0.8);
 }
 
 .composerTrigger:focus-visible .triggerCta {

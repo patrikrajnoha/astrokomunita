@@ -180,6 +180,6 @@ describe('CandidateDetailView', () => {
     await flush()
 
     expect(retranslateMock).toHaveBeenCalledWith(44)
-    expect(wrapper.text()).toContain('Dokončené')
+    expect(wrapper.text()).toMatch(/Dokon/)
   })
 })

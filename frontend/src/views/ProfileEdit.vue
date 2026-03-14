@@ -5,6 +5,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import http from '@/services/api'
+import { searchOnboardingLocations } from '@/services/events'
 
 const props = defineProps({
   embedded: {
@@ -23,11 +24,11 @@ const locationPresets = [
   { key: 'presov', label: 'Presov', latitude: 48.9984, longitude: 21.2339, timezone: 'Europe/Bratislava' },
   { key: 'zilina', label: 'Zilina', latitude: 49.2231, longitude: 18.7394, timezone: 'Europe/Bratislava' },
   { key: 'nitra', label: 'Nitra', latitude: 48.3064, longitude: 18.0764, timezone: 'Europe/Bratislava' },
+  { key: 'ivanka-pri-nitre', label: 'Ivanka pri Nitre', latitude: 48.2930, longitude: 18.1889, timezone: 'Europe/Bratislava' },
   { key: 'banska-bystrica', label: 'Banska Bystrica', latitude: 48.7363, longitude: 19.1462, timezone: 'Europe/Bratislava' },
   { key: 'trnava', label: 'Trnava', latitude: 48.3774, longitude: 17.5872, timezone: 'Europe/Bratislava' },
   { key: 'trencin', label: 'Trencin', latitude: 48.8945, longitude: 18.0444, timezone: 'Europe/Bratislava' },
 ]
-const GPS_NEAREST_CITY_MAX_DISTANCE_KM = 80
 
 const form = reactive({
   name: '',
@@ -43,6 +44,7 @@ const form = reactive({
 
 const saving = ref(false)
 const geolocating = ref(false)
+const resolvingLocation = ref(false)
 const msg = ref('')
 const err = ref('')
 const savedState = ref(null)
@@ -68,7 +70,6 @@ const fieldErr = reactive({
 })
 
 const locationModeLabel = computed(() => {
-  if (form.locationMode === 'preset') return 'Mesto'
   if (form.locationMode === 'gps') return 'GPS'
   return 'Rucne'
 })
@@ -115,23 +116,11 @@ function formatCoordinate(value) {
   return Number(value).toFixed(7)
 }
 
-function toRadians(value) {
-  return (value * Math.PI) / 180
-}
-
-function haversineDistanceKm(latA, lonA, latB, lonB) {
-  const earthRadiusKm = 6371
-  const dLat = toRadians(latB - latA)
-  const dLon = toRadians(lonB - lonA)
-  const latARad = toRadians(latA)
-  const latBRad = toRadians(latB)
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(latARad) * Math.cos(latBRad) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
-
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-  return earthRadiusKm * c
+function toFiniteNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value !== 'string' || value.trim() === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 function normalizeText(value) {
@@ -147,6 +136,18 @@ function normalizeText(value) {
 function normalizeSource(value) {
   const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
   return ['preset', 'gps', 'manual'].includes(raw) ? raw : null
+}
+
+function sanitizeTimezone(value, fallback = browserTimezone()) {
+  const candidate = String(value || '').trim()
+  if (!candidate) return fallback
+
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: candidate }).format(new Date())
+    return candidate
+  } catch {
+    return fallback
+  }
 }
 
 function resolveLocationData(user) {
@@ -235,22 +236,6 @@ function findPresetByCoordinates(latitude, longitude) {
   )
 }
 
-function findNearestPresetByCoordinates(latitude, longitude, maxDistanceKm = Number.POSITIVE_INFINITY) {
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
-
-  let nearest = null
-
-  for (const preset of locationPresets) {
-    const distanceKm = haversineDistanceKm(latitude, longitude, preset.latitude, preset.longitude)
-    if (distanceKm > maxDistanceKm) continue
-    if (!nearest || distanceKm < nearest.distanceKm) {
-      nearest = { preset, distanceKm }
-    }
-  }
-
-  return nearest
-}
-
 function buildStateFromUser(user) {
   const location = resolveLocationData(user)
   const latitude = Number(location?.latitude)
@@ -259,25 +244,13 @@ function buildStateFromUser(user) {
   const label = String(location?.label || user?.location_label || user?.location || '').trim()
   const timezone = String(location?.timezone || browserTimezone()).trim() || browserTimezone()
   const presetByLabel = findPresetByLabel(label)
-  const presetByCoordinates = hasCoordinates
-    ? (findPresetByCoordinates(latitude, longitude) ||
-      findNearestPresetByCoordinates(latitude, longitude, GPS_NEAREST_CITY_MAX_DISTANCE_KM)?.preset ||
-      null)
-    : null
+  const presetByCoordinates = hasCoordinates ? findPresetByCoordinates(latitude, longitude) : null
   const preset = presetByLabel || presetByCoordinates
 
   let source = normalizeSource(location?.source || user?.location_source)
-  if (!source) {
-    source = preset ? 'preset' : 'manual'
-  }
-  if (source === 'manual' && presetByLabel) {
-    source = 'preset'
-  }
-  if (source === 'preset' && !preset) {
-    source = 'manual'
-  }
-
-  const normalizedLabel = source === 'preset' && preset ? preset.label : label
+  if (source === 'gps' && !hasCoordinates) source = 'manual'
+  if (source !== 'gps') source = 'manual'
+  const normalizedLabel = presetByLabel ? presetByLabel.label : label
 
   return {
     name: String(user?.name || ''),
@@ -312,16 +285,13 @@ function syncFromUser(user) {
 }
 
 function setLocationMode(mode) {
-  form.locationMode = mode
+  form.locationMode = mode === 'gps' ? 'gps' : 'manual'
   fieldErr.locationSource = ''
-  if (mode === 'manual') {
+  if (form.locationMode === 'manual') {
     form.presetKey = ''
     if (!form.timezone) {
       form.timezone = browserTimezone()
     }
-  }
-  if (mode === 'preset' && form.presetKey) {
-    applyPreset(form.presetKey)
   }
 }
 
@@ -329,19 +299,83 @@ function applyPreset(presetKey) {
   const preset = findPresetByKey(presetKey)
   if (!preset) return
   form.presetKey = preset.key
-  form.locationMode = 'preset'
+  form.locationMode = 'manual'
   form.latitude = formatCoordinate(preset.latitude)
   form.longitude = formatCoordinate(preset.longitude)
   form.timezone = preset.timezone
   form.locationLabel = preset.label
 }
 
-function onPresetChanged() {
-  if (!form.presetKey) {
-    setLocationMode('manual')
-    return
+function applyManualResolvedLocation(location) {
+  setLocationMode('manual')
+  form.presetKey = ''
+  form.locationLabel = String(location?.label || form.locationLabel || '').trim()
+  form.latitude = formatCoordinate(Number(location?.latitude))
+  form.longitude = formatCoordinate(Number(location?.longitude))
+  form.timezone = sanitizeTimezone(location?.timezone, form.timezone || browserTimezone())
+}
+
+function selectBestGeoCandidate(rows, query) {
+  const normalizedQuery = normalizeText(query)
+  if (!normalizedQuery) return null
+
+  let best = null
+  let bestScore = -1
+
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue
+
+    const latitude = toFiniteNumber(row.lat ?? row.latitude)
+    const longitude = toFiniteNumber(row.lon ?? row.longitude)
+    if (latitude === null || longitude === null) continue
+
+    const label = String(row.label || '').trim()
+    const normalizedLabel = normalizeText(label)
+    if (!normalizedLabel) continue
+
+    let score = 0
+    if (normalizedLabel === normalizedQuery) score = 1000
+    else if (normalizedLabel.startsWith(`${normalizedQuery} `) || normalizedLabel.startsWith(`${normalizedQuery},`)) score = 900
+    else if (normalizedLabel.startsWith(normalizedQuery)) score = 800
+    else if (normalizedLabel.includes(` ${normalizedQuery} `) || normalizedLabel.includes(` ${normalizedQuery},`)) score = 700
+    else if (normalizedLabel.includes(normalizedQuery)) score = 600 - normalizedLabel.indexOf(normalizedQuery)
+
+    if (score > bestScore) {
+      best = {
+        label: label || String(query || '').trim(),
+        latitude,
+        longitude,
+        timezone: sanitizeTimezone(row.timezone, form.timezone || browserTimezone()),
+      }
+      bestScore = score
+    }
   }
-  applyPreset(form.presetKey)
+
+  return best
+}
+
+async function resolveManualLocation(query) {
+  const normalizedQuery = String(query || '').trim()
+  if (!normalizedQuery) return null
+
+  try {
+    const response = await searchOnboardingLocations(normalizedQuery, 8)
+    const rows = Array.isArray(response?.data?.data) ? response.data.data : []
+    const resolved = selectBestGeoCandidate(rows, normalizedQuery)
+    if (resolved) return resolved
+  } catch {
+    // Fallback to local preset map below.
+  }
+
+  const preset = findPresetByQuery(normalizedQuery)
+  if (!preset) return null
+
+  return {
+    label: preset.label,
+    latitude: preset.latitude,
+    longitude: preset.longitude,
+    timezone: preset.timezone,
+  }
 }
 
 function clearManualCoordinates() {
@@ -356,11 +390,12 @@ function clearManualCoordinates() {
 function onLocationLabelInput() {
   const label = String(form.locationLabel || '').trim()
   fieldErr.locationLabel = ''
+  fieldErr.locationSource = ''
   msg.value = ''
   err.value = ''
 
   if (!label) {
-    form.locationMode = 'manual'
+    setLocationMode('manual')
     form.presetKey = ''
     clearManualCoordinates()
     return
@@ -372,12 +407,12 @@ function onLocationLabelInput() {
     return
   }
 
-  form.locationMode = 'manual'
+  setLocationMode('manual')
   form.presetKey = ''
   clearManualCoordinates()
 }
 
-function fillLocationFromLabel() {
+async function fillLocationFromLabel() {
   fieldErr.locationLabel = ''
   fieldErr.latitude = ''
   fieldErr.longitude = ''
@@ -391,15 +426,18 @@ function fillLocationFromLabel() {
     return
   }
 
-  const preset = findPresetByQuery(label)
-  if (!preset) {
+  resolvingLocation.value = true
+  const resolved = await resolveManualLocation(label)
+  resolvingLocation.value = false
+
+  if (!resolved) {
     clearManualCoordinates()
-    fieldErr.locationLabel = 'Vyber velke slovenske mesto zo zoznamu.'
+    fieldErr.locationLabel = 'Nepodarilo sa doplnit suradnice pre zadane mesto. Skus presnejsi nazov alebo GPS.'
     return
   }
 
-  applyPreset(preset.key)
-  msg.value = 'Mesto bolo nastavene.'
+  applyManualResolvedLocation(resolved)
+  msg.value = `Poloha nastavena: ${resolved.label}.`
 }
 
 function buildProfilePayload(state) {
@@ -414,12 +452,8 @@ function buildProfilePayload(state) {
 }
 
 function buildLocationPayload(state) {
-  const locationSource = normalizeSource(state?.locationMode) || 'manual'
-  const preset = locationSource === 'preset' ? findPresetByKey(String(state?.presetKey || '')) : null
-  const locationLabel =
-    locationSource === 'preset'
-      ? String(preset?.label || state?.locationLabel || '').trim() || null
-      : String(state?.locationLabel || '').trim() || null
+  const locationSource = normalizeSource(state?.locationMode) === 'gps' ? 'gps' : 'manual'
+  const locationLabel = String(state?.locationLabel || '').trim() || null
 
   return {
     latitude: parseCoordinate(state?.latitude),
@@ -452,25 +486,33 @@ function resetForm() {
   msg.value = 'Zmeny zrusene.'
 }
 
-function validateLocationPayload() {
+async function validateLocationPayload() {
   if (form.locationMode === 'manual') {
-    const resolvedPreset = findPresetByQuery(form.locationLabel)
-    if (resolvedPreset) {
-      applyPreset(resolvedPreset.key)
-    } else {
-      fieldErr.locationLabel = 'Vyber velke slovenske mesto alebo pouzi GPS.'
+    const locationLabel = String(form.locationLabel || '').trim()
+    if (!locationLabel) {
+      fieldErr.locationLabel = 'Zadaj nazov mesta.'
       return null
+    }
+
+    const hasCoordinates = parseCoordinate(form.latitude) !== null && parseCoordinate(form.longitude) !== null
+    if (!hasCoordinates) {
+      resolvingLocation.value = true
+      const resolved = await resolveManualLocation(locationLabel)
+      resolvingLocation.value = false
+
+      if (!resolved) {
+        clearManualCoordinates()
+        fieldErr.locationLabel = 'Nepodarilo sa doplnit suradnice pre zadane mesto. Skus presnejsi nazov alebo pouzi GPS.'
+        return null
+      }
+
+      applyManualResolvedLocation(resolved)
     }
   }
 
   const payload = buildLocationPayload(form)
 
   let valid = true
-
-  if (form.locationMode === 'preset' && !form.presetKey) {
-    fieldErr.locationSource = 'Vyber mesto.'
-    valid = false
-  }
 
   if (payload.latitude === null || payload.latitude < -90 || payload.latitude > 90) {
     fieldErr.latitude = 'Latitude musi byt v rozsahu -90 az 90.'
@@ -492,7 +534,7 @@ function validateLocationPayload() {
     valid = false
   }
 
-  if (!['preset', 'gps', 'manual'].includes(payload.location_source)) {
+  if (!['gps', 'manual'].includes(payload.location_source)) {
     fieldErr.locationSource = 'Vyber validny sposob polohy.'
     valid = false
   }
@@ -607,15 +649,8 @@ async function save() {
 
   let locationPayload = currentLocationPayload
   if (locationDirty) {
-    locationPayload = validateLocationPayload()
+    locationPayload = await validateLocationPayload()
     if (!locationPayload) {
-      err.value =
-        fieldErr.locationSource ||
-        fieldErr.locationLabel ||
-        fieldErr.latitude ||
-        fieldErr.longitude ||
-        fieldErr.timezone ||
-        'Skontroluj oznacene polia.'
       return
     }
   }
@@ -683,7 +718,7 @@ async function useMyLocation() {
   clearErrors()
 
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
-    err.value = 'Geolokacia nie je podporovana. Vyber mesto zo zoznamu.'
+    err.value = 'Geolokacia nie je podporovana. Zadaj mesto rucne.'
     return
   }
 
@@ -700,7 +735,7 @@ async function useMyLocation() {
     const lat = Number(position?.coords?.latitude)
     const lon = Number(position?.coords?.longitude)
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-      err.value = 'Nepodarilo sa ziskat GPS suradnice. Vyber mesto zo zoznamu.'
+      err.value = 'Nepodarilo sa ziskat GPS suradnice.'
       return
     }
 
@@ -708,21 +743,13 @@ async function useMyLocation() {
     form.latitude = formatCoordinate(lat)
     form.longitude = formatCoordinate(lon)
     form.timezone = browserTimezone()
-
-    const nearest = findNearestPresetByCoordinates(lat, lon, GPS_NEAREST_CITY_MAX_DISTANCE_KM)
-    if (nearest?.preset) {
-      form.presetKey = nearest.preset.key
-      form.locationLabel = nearest.preset.label
-      msg.value = `GPS nastavene. Najblizsie mesto: ${nearest.preset.label}.`
-    } else {
-      form.presetKey = ''
-      if (!form.locationLabel.trim() || normalizeSource(savedState.value?.locationMode) === 'gps') {
-        form.locationLabel = 'Moja poloha'
-      }
-      msg.value = 'GPS suradnice nastavene.'
+    form.presetKey = ''
+    if (!form.locationLabel.trim() || normalizeSource(savedState.value?.locationMode) === 'gps') {
+      form.locationLabel = 'Moja poloha'
     }
+    msg.value = 'GPS suradnice nastavene.'
   } catch {
-    err.value = 'GPS zlyhalo. Skus to znovu alebo vyber mesto zo zoznamu.'
+    err.value = 'GPS zlyhalo. Skus to znovu alebo zadaj mesto rucne.'
   } finally {
     geolocating.value = false
   }

@@ -113,6 +113,35 @@
   gap: 0.5rem;
 }
 
+.sheetAdminNavWrap {
+  min-width: 0;
+}
+
+.sheetAdminNavWrap :deep(.adminSubNav) {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sheetAdminNavWrap :deep(.adminSubNav__head) {
+  display: none;
+}
+
+.sheetAdminNavWrap :deep(.adminSubNav__groups) {
+  margin-top: 0;
+  gap: 0.5rem;
+}
+
+.sheetAdminNavWrap :deep(.adminSubNav__groupTitle) {
+  display: none;
+}
+
+.sheetAdminNavWrap :deep(.adminSubNav__list) {
+  gap: 0.5rem;
+}
+
 .sheetAction {
   display: flex;
   align-items: center;
@@ -305,13 +334,14 @@
 }
 
 .rightSidebarFooterLinks {
-  margin-top: auto;
+  margin-top: var(--space-2);
   padding-top: var(--space-4);
-  border-top: 1px solid var(--color-divider);
+  border-top: 1px solid var(--divider-color);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.625rem;
+  column-gap: 0.4rem;
+  row-gap: 0.3rem;
 }
 
 .rightSidebarFooterLinks__item {
@@ -323,12 +353,13 @@
   line-height: 1.2;
   color: var(--color-text-secondary);
   text-decoration: none;
+  white-space: nowrap;
   transition: color 0.18s ease, background-color 0.18s ease;
 }
 
-.rightSidebarFooterLinks__item + .rightSidebarFooterLinks__item::before {
+.rightSidebarFooterLinks__item:not(:last-child)::after {
   content: '\00B7';
-  margin-right: 0.625rem;
+  margin-left: 0.4rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.62);
 }
 
@@ -336,6 +367,11 @@
 .rightSidebarFooterLinks__item.router-link-active {
   color: var(--color-text-primary);
   background: var(--interactive-hover);
+}
+
+.desktopFrame,
+.centerShellGrid {
+  min-width: 0;
 }
 
 @media (max-width: 640px) {
@@ -358,30 +394,21 @@
   }
 }
 
-@media (min-width: 901px) {
-  .adminDesktopFrame {
-    margin-left: auto !important;
-    margin-right: auto !important;
-  }
-
-  .adminCenterShell,
-  .adminMainContent {
-    width: 100%;
-    margin-inline: auto;
-  }
-}
-
 @media (min-width: 1280px) {
   .desktopFrame {
     align-items: start;
     justify-content: center;
     column-gap: 0.75rem;
-    grid-template-columns: auto auto;
+    grid-template-columns: minmax(0, auto) auto;
     margin-left: auto !important;
     margin-right: auto !important;
   }
 
   .centerShellGrid {
     grid-template-columns: var(--center-shell-cols);
+  }
+
+  .desktopFrame--admin {
+    column-gap: 0.5rem;
   }
 }

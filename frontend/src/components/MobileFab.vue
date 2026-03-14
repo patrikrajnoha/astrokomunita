@@ -5,8 +5,8 @@
     class="mobileFab"
     data-tour="conditions"
     :style="fabStyle"
-    aria-label="Widgets"
-    title="Widgets"
+    :aria-label="label"
+    :title="label"
     @click="$emit('widgets')"
   >
     <svg
@@ -38,6 +38,7 @@ import { computed } from 'vue'
 const props = defineProps({
   isAuthenticated: { type: Boolean, default: false },
   bottomOffset: { type: Number, default: 16 },
+  label: { type: String, default: 'Widgety' },
 })
 
 defineEmits(['widgets'])

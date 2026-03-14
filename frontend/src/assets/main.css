@@ -74,7 +74,7 @@
 }
 
 .ui-feed-list > * + * {
-  border-top: 1px solid var(--color-divider);
+  border-top: 1px solid var(--divider-color);
 }
 
 .ui-stream {
@@ -83,7 +83,7 @@
 }
 
 .ui-stream > * + * {
-  border-top: 1px solid var(--color-divider);
+  border-top: 1px solid var(--divider-color);
 }
 
 .ui-stream-item {
@@ -135,7 +135,7 @@
   padding: var(--space-4);
   display: grid;
   gap: var(--space-3);
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .ui-profile-identity {
@@ -146,8 +146,8 @@
 .ui-profile-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border-top: 1px solid var(--color-divider);
-  border-bottom: 1px solid var(--color-divider);
+  border-top: 1px solid var(--divider-color);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .ui-profile-stat {
@@ -702,6 +702,51 @@
   outline: none;
   border-color: rgb(var(--color-accent-rgb) / 0.9);
   box-shadow: var(--focus-ring);
+}
+
+:where(
+  select,
+  .ui-select,
+  .filterSelect,
+  .form-select,
+  .pollDurationSelect,
+  .formSelect
+) {
+  color-scheme: dark;
+  background-color: rgb(var(--bg-app-rgb) / 0.78);
+  color: var(--color-text-primary);
+}
+
+:where(
+  select,
+  .ui-select,
+  .filterSelect,
+  .form-select,
+  .pollDurationSelect,
+  .formSelect
+) option,
+:where(
+  select,
+  .ui-select,
+  .filterSelect,
+  .form-select,
+  .pollDurationSelect,
+  .formSelect
+) optgroup {
+  background-color: rgb(var(--bg-surface-rgb) / 1);
+  color: var(--color-text-primary);
+}
+
+:where(
+  select,
+  .ui-select,
+  .filterSelect,
+  .form-select,
+  .pollDurationSelect,
+  .formSelect
+) option:checked {
+  background-color: rgb(var(--color-primary-rgb) / 0.34);
+  color: var(--color-text-primary);
 }
 
 :where(.ui-input--error, .ui-select--error, .ui-textarea--error, .field-input-danger) {

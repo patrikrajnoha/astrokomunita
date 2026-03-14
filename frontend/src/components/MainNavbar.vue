@@ -64,20 +64,85 @@ const createNavIconComponent = (paths, filled = false) =>
     },
   })
 
-const homeSaturnOutlinePaths = [
-  'M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z',
-  'M3.25 12.05c0-1.9 3.92-3.45 8.75-3.45s8.75 1.55 8.75 3.45-3.92 3.45-8.75 3.45-8.75-1.55-8.75-3.45Z',
-]
+const homeGlobeOutlineIcon = defineComponent({
+  name: 'HomeGlobeOutlineIcon',
+  render() {
+    return h(
+      'svg',
+      {
+        class: ['navIcon', 'navIcon--outline'],
+        width: '20',
+        height: '20',
+        viewBox: '0 0 24 24',
+        fill: 'none',
+        stroke: 'currentColor',
+        'stroke-width': '1.9',
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round',
+        'aria-hidden': 'true',
+      },
+      [
+        h('circle', { cx: '12', cy: '12', r: '8.25' }),
+        h('path', {
+          d: 'M8.1 8.2 9.35 8.95 9.05 10.1 9.95 11 9.45 12.3 8.45 12.8 7.95 14.2 6.95 13.4 7.25 11.9 6.55 10.8 7.1 9.4Z',
+          fill: 'currentColor',
+          stroke: 'none',
+        }),
+        h('path', {
+          d: 'M12.2 7.2 14 7.6 15.1 8.4 16.25 8.3 17.05 9.35 16.35 10.55 15.2 10.65 14.6 11.75 15.2 12.9 14.5 14.05 13.1 13.9 12.45 12.85 11.55 12.2 11.8 10.75 12.85 9.9 12.65 8.75Z',
+          fill: 'currentColor',
+          stroke: 'none',
+        }),
+      ],
+    )
+  },
+})
 
-const homeSaturnFilledPaths = [
-  'M12 7.35a4.65 4.65 0 1 0 0 9.3 4.65 4.65 0 0 0 0-9.3Z',
-  'M12 8.2c-4.95 0-9 1.57-9 3.5s4.05 3.5 9 3.5 9-1.57 9-3.5-4.05-3.5-9-3.5Zm0 1.55c4.22 0 7.45 1.24 7.45 1.95s-3.23 1.95-7.45 1.95-7.45-1.24-7.45-1.95 3.23-1.95 7.45-1.95Z',
-]
+const homeGlobeFilledIcon = defineComponent({
+  name: 'HomeGlobeFilledIcon',
+  render() {
+    return h(
+      'svg',
+      {
+        class: ['navIcon', 'navIcon--filled'],
+        width: '20',
+        height: '20',
+        viewBox: '0 0 24 24',
+        fill: 'none',
+        stroke: 'currentColor',
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round',
+        'aria-hidden': 'true',
+      },
+      [
+        h('circle', {
+          cx: '12',
+          cy: '12',
+          r: '8.25',
+          fill: 'currentColor',
+          'fill-opacity': '0.18',
+          stroke: 'currentColor',
+          'stroke-width': '1.7',
+        }),
+        h('path', {
+          d: 'M8.1 8.2 9.35 8.95 9.05 10.1 9.95 11 9.45 12.3 8.45 12.8 7.95 14.2 6.95 13.4 7.25 11.9 6.55 10.8 7.1 9.4Z',
+          fill: 'currentColor',
+          stroke: 'none',
+        }),
+        h('path', {
+          d: 'M12.2 7.2 14 7.6 15.1 8.4 16.25 8.3 17.05 9.35 16.35 10.55 15.2 10.65 14.6 11.75 15.2 12.9 14.5 14.05 13.1 13.9 12.45 12.85 11.55 12.2 11.8 10.75 12.85 9.9 12.65 8.75Z',
+          fill: 'currentColor',
+          stroke: 'none',
+        }),
+      ],
+    )
+  },
+})
 
 const navIcons = {
   home: {
-    outline: createNavIconComponent(homeSaturnOutlinePaths),
-    filled: createNavIconComponent(homeSaturnFilledPaths, true),
+    outline: homeGlobeOutlineIcon,
+    filled: homeGlobeFilledIcon,
   },
   search: {
     outline: createNavIconComponent(['M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z', 'm20 20-3.5-3.5']),
@@ -118,13 +183,17 @@ const navIcons = {
   },
   learn: {
     outline: createNavIconComponent([
-      'M6 5.75h12A1.25 1.25 0 0 1 19.25 7v10A1.25 1.25 0 0 1 18 18.25H6A1.25 1.25 0 0 1 4.75 17V7A1.25 1.25 0 0 1 6 5.75Z',
-      'M8 9h8',
-      'M8 12h8',
-      'M8 15h5',
+      'M6 4.75h12A1.25 1.25 0 0 1 19.25 6v12A1.25 1.25 0 0 1 18 19.25H6A1.25 1.25 0 0 1 4.75 18V6A1.25 1.25 0 0 1 6 4.75Z',
+      'M8 8h2.75v3.5H8Z',
+      'M12.25 8h3.75',
+      'M12.25 10.25h3.75',
+      'M8 13.5h8',
+      'M8 16h8',
     ]),
     filled: createNavIconComponent(
-      ['M6.75 4.75A2.25 2.25 0 0 0 4.5 7v10A2.25 2.25 0 0 0 6.75 19.25h10.5A2.25 2.25 0 0 0 19.5 17V7a2.25 2.25 0 0 0-2.25-2.25H6.75Z'],
+      [
+        'M6 4.5h12A1.5 1.5 0 0 1 19.5 6v12a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 18V6A1.5 1.5 0 0 1 6 4.5Zm2 3v4h3v-4H8Zm4.25 0V9h3.75V7.5h-3.75Zm0 2.75v1.5h3.75v-1.5h-3.75ZM8 13.5V15h8v-1.5H8Zm0 2.5v1h8v-1H8Z',
+      ],
       true,
     ),
   },

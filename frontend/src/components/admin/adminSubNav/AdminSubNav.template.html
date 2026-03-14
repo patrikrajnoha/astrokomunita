@@ -10,6 +10,7 @@
       :to="overviewItem.to"
       class="adminSubNav__item adminSubNav__item--overview"
       :class="{ active: isActive(overviewItem) }"
+      @click="$emit('navigate')"
       :title="`Otvoriť ${overviewItem.label}`"
     >
       <span class="adminSubNav__icon" aria-hidden="true">
@@ -33,6 +34,7 @@
                   :to="item.to"
                   class="adminSubNav__item adminSubNav__item--parent"
                   :class="{ active: isActive(item) }"
+                  @click="$emit('navigate')"
                   :title="`Otvoriť ${item.label}`"
                 >
                   <span class="adminSubNav__icon" aria-hidden="true">
@@ -61,6 +63,7 @@
                     :to="child.to"
                     class="adminSubNav__item adminSubNav__item--child"
                     :class="{ active: isActive(child), 'adminSubNav__item--danger': child.tone === 'danger' }"
+                    @click="$emit('navigate')"
                     :title="`Otvoriť ${child.label}`"
                   >
                     <span class="adminSubNav__icon" aria-hidden="true">
@@ -77,6 +80,7 @@
               :to="item.to"
               class="adminSubNav__item"
               :class="{ active: isActive(item), 'adminSubNav__item--danger': item.tone === 'danger' }"
+              @click="$emit('navigate')"
               :title="`Otvoriť ${item.label}`"
             >
               <span class="adminSubNav__icon" aria-hidden="true">

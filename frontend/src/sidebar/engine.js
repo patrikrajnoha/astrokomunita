@@ -12,6 +12,10 @@ export const OBSERVING_SECTION_KEYS = Object.freeze([
   'observing_conditions',
   'observing_weather',
   'night_sky',
+  'iss_pass',
+  'moon_phases',
+  'moon_overview',
+  'moon_events',
 ])
 export const GUEST_OBSERVING_PROMPT_SECTION_KEY = 'guest_observing_prompt'
 
@@ -19,12 +23,15 @@ const SearchBar = defineAsyncComponent(() => import('@/components/SearchBar.vue'
 const RightObservingSidebar = defineAsyncComponent(() => import('@/components/RightObservingSidebar.vue'))
 const ObservingWeatherWidget = defineAsyncComponent(() => import('@/components/sky/ObservingWeatherWidget.vue'))
 const NightSkyWidget = defineAsyncComponent(() => import('@/components/sky/NightSkyWidget.vue'))
+const IssPassWidget = defineAsyncComponent(() => import('@/components/sky/IssPassWidget.vue'))
 const GuestObservingPromptWidget = defineAsyncComponent(() => import('@/components/sky/GuestObservingPromptWidget.vue'))
 const LatestArticlesWidget = defineAsyncComponent(() => import('@/components/widgets/LatestArticlesWidget.vue'))
 const NasaHighlightsWidget = defineAsyncComponent(() => import('@/components/widgets/NasaHighlightsWidget.vue'))
 const NextEventWidget = defineAsyncComponent(() => import('@/components/widgets/NextEventWidget.vue'))
 const UpcomingEventsWidget = defineAsyncComponent(() => import('@/components/widgets/UpcomingEventsWidget.vue'))
 const MoonPhasesWidget = defineAsyncComponent(() => import('@/components/widgets/MoonPhasesWidget.vue'))
+const MoonOverviewWidget = defineAsyncComponent(() => import('@/components/widgets/MoonOverviewWidget.vue'))
+const MoonEventsWidget = defineAsyncComponent(() => import('@/components/widgets/MoonEventsWidget.vue'))
 const SidebarWidgetRenderer = defineAsyncComponent(() => import('@/components/widgets/SidebarWidgetRenderer.vue'))
 
 export const sidebarComponentMap = {
@@ -32,12 +39,15 @@ export const sidebarComponentMap = {
   observing_conditions: RightObservingSidebar,
   observing_weather: ObservingWeatherWidget,
   night_sky: NightSkyWidget,
+  iss_pass: IssPassWidget,
   [GUEST_OBSERVING_PROMPT_SECTION_KEY]: GuestObservingPromptWidget,
   nasa_apod: NasaHighlightsWidget,
   next_event: NextEventWidget,
   latest_articles: LatestArticlesWidget,
   upcoming_events: UpcomingEventsWidget,
   moon_phases: MoonPhasesWidget,
+  moon_overview: MoonOverviewWidget,
+  moon_events: MoonEventsWidget,
 }
 
 export const customSidebarComponentMap = {
@@ -65,6 +75,10 @@ const sidebarIconMap = {
   night_sky: {
     viewBox: '0 0 24 24',
     paths: ['M17.2 4.8a7.5 7.5 0 1 0 2 10.4 6.2 6.2 0 0 1-2-10.4Z', 'M5 4h.01', 'M8 2h.01', 'M12 6h.01'],
+  },
+  iss_pass: {
+    viewBox: '0 0 24 24',
+    paths: ['M12 3v4', 'm9 9-4-1-2 2-2-2-1-4-3 3 1 2-2 2-2-2-4 1 4 1 2-2 2 2 1 4 3-3-1-2 2-2 2 2 4-1Z'],
   },
   [GUEST_OBSERVING_PROMPT_SECTION_KEY]: {
     viewBox: '0 0 24 24',
@@ -106,6 +120,14 @@ const sidebarIconMap = {
     viewBox: '0 0 24 24',
     paths: ['M12 2a10 10 0 1 0 8.6 15.1A8.3 8.3 0 0 1 12 2Z'],
   },
+  moon_overview: {
+    viewBox: '0 0 24 24',
+    paths: ['M12 3a9 9 0 1 0 7.8 13.6A7.4 7.4 0 0 1 12 3Z', 'M7 20h10', 'M7 17h7'],
+  },
+  moon_events: {
+    viewBox: '0 0 24 24',
+    paths: ['M5 4h14v16H5z', 'M8 8h8', 'M8 12h6', 'M8 16h4', 'M16 4v3', 'M8 4v3'],
+  },
   custom_component: {
     viewBox: '0 0 24 24',
     paths: ['M6 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z', 'M8 10h8', 'M8 14h5'],
@@ -115,6 +137,16 @@ const sidebarIconMap = {
 const toSafeNumber = (value, fallback = 0) => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const normalizePreferredSectionKeys = (value) => {
+  if (!Array.isArray(value)) return []
+
+  return Array.from(new Set(
+    value
+      .map((entry) => String(entry || '').trim())
+      .filter(Boolean),
+  ))
 }
 
 const observingSectionKeySet = new Set(OBSERVING_SECTION_KEYS)
@@ -149,6 +181,30 @@ const collapseObservingSectionsForGuest = (sections, options = {}) => {
     if (!guestPromptInserted) {
       acc.push(toGuestObservingPromptSection(section))
       guestPromptInserted = true
+    }
+
+    return acc
+  }, [])
+}
+
+const collapseObservingSectionsForMissingLocation = (sections, options = {}) => {
+  if (!options?.collapseObservingForMissingLocation || options?.isGuest) {
+    return sections
+  }
+
+  const source = Array.isArray(sections) ? sections : []
+  let inserted = false
+
+  return source.reduce((acc, section) => {
+    const sectionKey = String(section?.section_key || '')
+    if (!observingSectionKeySet.has(sectionKey)) {
+      acc.push(section)
+      return acc
+    }
+
+    if (!inserted) {
+      acc.push(toGuestObservingPromptSection(section))
+      inserted = true
     }
 
     return acc
@@ -208,9 +264,25 @@ export const normalizeSidebarSections = (items) => {
 
 export const getEnabledSidebarSections = (items, options = {}) => {
   const normalized = normalizeSidebarSections(items)
-  const enabled = collapseObservingSectionsForGuest(
-    normalized.filter((item) => item.is_enabled),
+  const hasPreferredSectionKeys = Array.isArray(options?.preferredSectionKeys)
+  const preferredSectionKeys = normalizePreferredSectionKeys(options?.preferredSectionKeys)
+  const enabledSource = normalized.filter((item) => item.is_enabled)
+  const sectionByKey = new Map(normalized.map((item) => [String(item?.section_key || ''), item]))
+  const enabledItems = hasPreferredSectionKeys
+    ? preferredSectionKeys
+      .map((key) => sectionByKey.get(key))
+      .filter(Boolean)
+    : enabledSource
+  const guestCollapsed = collapseObservingSectionsForGuest(
+    enabledItems,
     { isGuest: Boolean(options?.isGuest) },
+  )
+  const enabled = collapseObservingSectionsForMissingLocation(
+    guestCollapsed,
+    {
+      isGuest: Boolean(options?.isGuest),
+      collapseObservingForMissingLocation: Boolean(options?.collapseObservingForMissingLocation),
+    },
   )
   const exclusiveKeySet = new Set(EXCLUSIVE_SIDEBAR_SECTION_KEYS)
   const exclusiveSection = enabled.find((item) => exclusiveKeySet.has(item.section_key))

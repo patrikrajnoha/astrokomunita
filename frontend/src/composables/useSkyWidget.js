@@ -24,6 +24,61 @@ const CHEAP_REFRESH_MS = 10 * 60 * 1000
 const ASTRONOMY_REFRESH_MS = 60 * 60 * 1000
 const FRESHNESS_TICK_MS = 60 * 1000
 const SKY_ALTITUDE_STALE_MINUTES = 120
+const DEFERRED_SKY_FETCH_MS = 250
+
+const SHARED_SKY_CACHE_TTL_MS = Object.freeze({
+  weather: 2 * 60 * 1000,
+  astronomy: 2 * 60 * 1000,
+  planets: 2 * 60 * 1000,
+  iss: 2 * 60 * 1000,
+  light: 5 * 60 * 1000,
+  ephemeris: 5 * 60 * 1000,
+})
+
+const sharedSkyPayloadCache = new Map()
+const sharedSkyPendingRequests = new Map()
+
+function getFreshSharedSkyPayload(cacheKey, ttlMs) {
+  const entry = sharedSkyPayloadCache.get(cacheKey)
+  if (!entry) return undefined
+  if (Date.now() - entry.fetchedAt > ttlMs) {
+    sharedSkyPayloadCache.delete(cacheKey)
+    return undefined
+  }
+  return entry.payload
+}
+
+async function fetchWithSharedSkyCache(cacheKey, ttlMs, fetcher) {
+  const cachedPayload = getFreshSharedSkyPayload(cacheKey, ttlMs)
+  if (cachedPayload !== undefined) {
+    return cachedPayload
+  }
+
+  const pending = sharedSkyPendingRequests.get(cacheKey)
+  if (pending) {
+    return pending
+  }
+
+  const requestPromise = Promise.resolve()
+    .then(fetcher)
+    .then((payload) => {
+      sharedSkyPayloadCache.set(cacheKey, {
+        payload,
+        fetchedAt: Date.now(),
+      })
+      return payload
+    })
+
+  sharedSkyPendingRequests.set(cacheKey, requestPromise)
+
+  try {
+    return await requestPromise
+  } finally {
+    if (sharedSkyPendingRequests.get(cacheKey) === requestPromise) {
+      sharedSkyPendingRequests.delete(cacheKey)
+    }
+  }
+}
 
 export function useSkyWidget(options = {}) {
   const lat = options.lat
@@ -34,29 +89,34 @@ export function useSkyWidget(options = {}) {
   const includePlanets = options.includePlanets !== false
   const includeIss = options.includeIss !== false
   const includeLightPollution = options.includeLightPollution !== false
+  const includeEphemeris = options.includeEphemeris === true
 
   const weather = ref(null)
   const astronomy = ref(null)
   const planetsPayload = ref({ planets: [], sample_at: null, sun_altitude_deg: null })
   const issPreview = ref({ available: false })
   const lightPollution = ref(null)
+  const ephemeris = ref({ planets: [], comets: [], asteroids: [], source: null, sample_at: null })
 
   const weatherLoading = ref(false)
   const astronomyLoading = ref(false)
   const planetsLoading = ref(false)
   const issLoading = ref(false)
   const lightPollutionLoading = ref(false)
+  const ephemerisLoading = ref(false)
 
   const weatherError = ref('')
   const astronomyError = ref('')
   const planetsError = ref('')
   const issError = ref('')
   const lightPollutionError = ref('')
+  const ephemerisError = ref('')
   const weatherFetchedAt = ref(null)
   const astronomyFetchedAt = ref(null)
   const planetsFetchedAt = ref(null)
   const issFetchedAt = ref(null)
   const lightPollutionFetchedAt = ref(null)
+  const ephemerisFetchedAt = ref(null)
 
   const isMounted = ref(false)
   const nowTick = ref(Date.now())
@@ -72,6 +132,7 @@ export function useSkyWidget(options = {}) {
     planets: 0,
     iss: 0,
     light: 0,
+    ephemeris: 0,
   }
 
   const numericLat = computed(() => toFiniteNumber(lat?.value))
@@ -88,7 +149,14 @@ export function useSkyWidget(options = {}) {
     }
   })
 
-  const hasLocationCoords = computed(() => Number.isFinite(numericLat.value) && Number.isFinite(numericLon.value))
+  const hasLocationCoords = computed(() => (
+    Number.isFinite(numericLat.value)
+    && Number.isFinite(numericLon.value)
+    && numericLat.value >= -90
+    && numericLat.value <= 90
+    && numericLon.value >= -180
+    && numericLon.value <= 180
+  ))
   const sunAltitudeDeg = computed(() => {
     // Astronomy is more reliable around midnight transitions, so it has priority.
     const fromAstronomy = toFiniteNumber(astronomy.value?.sun_altitude_deg)
@@ -235,8 +303,8 @@ export function useSkyWidget(options = {}) {
     return {
       window: `${formatTime(start, effectiveTz.value)} - ${formatTime(end, effectiveTz.value)}`,
       note: (observingScore.value ?? 0) >= 65
-        ? 'Najtmavšie okno po súmraku.'
-        : 'Najlepšie okno v rámci dneška.',
+        ? 'Najtmavsie okno po sumraku.'
+        : 'Najlepsie okno v ramci dneska.',
     }
   })
 
@@ -255,10 +323,10 @@ export function useSkyWidget(options = {}) {
 
     if (isDaylight.value) {
       const nightStart = nightStartsAt.value ? formatTime(nightStartsAt.value, effectiveTz.value) : ''
-      return nightStart ? `Noc začne: ${nightStart}` : 'Najlepšie dnes: po zotmení'
+      return nightStart ? `Noc zacne: ${nightStart}` : 'Najlepsie dnes: po zotmeni'
     }
 
-    if (!bestTimeToday.value?.window) return 'Najlepšie dnes nie je dostupné.'
+    if (!bestTimeToday.value?.window) return 'Najlepsie dnes nie je dostupne.'
     return bestTimeToday.value.window
   })
 
@@ -278,7 +346,7 @@ export function useSkyWidget(options = {}) {
     }
   })
 
-  const heroTitle = computed(() => (isDaylight.value ? 'Denné podmienky' : 'Astronomické podmienky'))
+  const heroTitle = computed(() => (isDaylight.value ? 'Denne podmienky' : 'Astronomicke podmienky'))
   const heroSubtitle = computed(() => {
     if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED) {
       return 'Poloha nie je nastavena. Nastav ju pre presny vypocet oblohy.'
@@ -289,16 +357,16 @@ export function useSkyWidget(options = {}) {
     }
 
     if (isDaylight.value) {
-      return 'Momentálne je deň. Astronomické pozorovanie nie je možné.'
+      return 'Momentalne je den. Astronomicke pozorovanie nie je mozne.'
     }
 
     if (!isAstronomicalNight.value) {
-      return 'Obloha ešte nie je v plnej astronomickej tme.'
+      return 'Obloha este nie je v plnej astronomickej tme.'
     }
 
-    if (!bestTimeToday.value?.window) return 'Najlepšie pozorovanie dnes nie je dostupné.'
+    if (!bestTimeToday.value?.window) return 'Najlepsie pozorovanie dnes nie je dostupne.'
     const note = sanitizeLabel(bestTimeToday.value?.note)
-    return note ? `${bestTimeToday.value.window} · ${note}` : bestTimeToday.value.window
+    return note ? `${bestTimeToday.value.window} | ${note}` : bestTimeToday.value.window
   })
 
   const countdownToNightLabel = computed(() => {
@@ -461,10 +529,9 @@ export function useSkyWidget(options = {}) {
 
   const bortlePresentation = computed(() => getBortlePresentation(lightPollution.value?.bortle_class))
   const isLightPollutionEstimate = computed(() => {
-    const confidence = sanitizeLabel(lightPollution.value?.confidence).toLowerCase()
     const reason = sanitizeLabel(lightPollution.value?.reason).toLowerCase()
-    const fallbackReason = sanitizeLabel(lightPollution.value?.fallback_reason)
-    return confidence === 'low' || reason === 'fallback' || fallbackReason !== ''
+    const source = sanitizeLabel(lightPollution.value?.source).toLowerCase()
+    return reason.includes('estimated_from_location') || source === 'light_pollution_fallback'
   })
 
   const lightPollutionLine = computed(() => {
@@ -481,7 +548,7 @@ export function useSkyWidget(options = {}) {
   })
 
   const lightPollutionEstimateLine = computed(() => (
-    isLightPollutionEstimate.value ? 'Odhad podľa polohy' : ''
+    isLightPollutionEstimate.value ? 'Pouzivame odhad svetelneho znecistenia podla lokality' : ''
   ))
   const lightPollutionImpactLine = computed(() => (
     sanitizeLabel(bortlePresentation.value?.impactText)
@@ -490,12 +557,20 @@ export function useSkyWidget(options = {}) {
   const planetCandidates = computed(() => (
     Array.isArray(planetsPayload.value?.planets) ? planetsPayload.value.planets : []
   ))
-  const planetsSourceLine = computed(() => 'Zdroj: výpočet polohy planét')
+  const planetsSourceLine = computed(() => {
+    const source = String(planetsPayload.value?.source || '').trim().toLowerCase()
+    if (source === 'jpl_horizons') return 'Zdroj: JPL Horizons'
+    if (source === 'sky_microservice') return 'Zdroj: sky microservice'
+    return 'Zdroj: vypocet polohy planet'
+  })
 
   const planetsNightV15 = computed(() => (
     hasLocationCoords.value && isPlanetNight(sunAltitudeDeg.value)
   ))
-  const planetsDisplayListV15 = computed(() => getVisiblePlanets(planetsPayload.value))
+  const planetsDisplayListV15 = computed(() => getVisiblePlanets({
+    ...planetsPayload.value,
+    sun_altitude_deg: sunAltitudeDeg.value ?? planetsPayload.value?.sun_altitude_deg ?? null,
+  }))
   const shouldShowPlanetsListV15 = computed(() => planetsDisplayListV15.value.length > 0)
   const planetsContextLineV15 = computed(() => {
     if (!hasLocationCoords.value) return ''
@@ -543,16 +618,17 @@ export function useSkyWidget(options = {}) {
   const planetsFreshness = computed(() => formatFreshness(planetsFetchedAt.value, nowTick.value))
   const issFreshness = computed(() => formatFreshness(issFetchedAt.value, nowTick.value))
   const lightPollutionFreshness = computed(() => formatFreshness(lightPollutionFetchedAt.value, nowTick.value))
+  const ephemerisFreshness = computed(() => formatFreshness(ephemerisFetchedAt.value, nowTick.value))
 
   const contextKey = computed(() => {
-    const latKey = Number.isFinite(numericLat.value) ? numericLat.value.toFixed(4) : 'auto'
-    const lonKey = Number.isFinite(numericLon.value) ? numericLon.value.toFixed(4) : 'auto'
+    const latKey = hasLocationCoords.value ? numericLat.value.toFixed(4) : 'auto'
+    const lonKey = hasLocationCoords.value ? numericLon.value.toFixed(4) : 'auto'
     return `${latKey}:${lonKey}:${effectiveTz.value}`
   })
 
   function buildRequestParams(includeTz = true) {
     const params = {}
-    if (Number.isFinite(numericLat.value) && Number.isFinite(numericLon.value)) {
+    if (hasLocationCoords.value) {
       params.lat = numericLat.value
       params.lon = numericLon.value
     }
@@ -583,17 +659,24 @@ export function useSkyWidget(options = {}) {
     }
 
     try {
-      const response = await api.get('/sky/weather', {
-        params: buildRequestParams(true),
-        meta: { skipErrorToast: true },
-      })
+      const cacheKey = `weather:${contextKey.value}`
+      const payload = await fetchWithSharedSkyCache(
+        cacheKey,
+        SHARED_SKY_CACHE_TTL_MS.weather,
+        async () => {
+          const response = await api.get('/sky/weather', {
+            params: buildRequestParams(true),
+            meta: { skipErrorToast: true },
+          })
+          return response?.data || null
+        },
+      )
       if (token !== requestTokens.weather) return
-      const payload = response?.data || null
       weather.value = payload
       weatherFetchedAt.value = resolvePayloadTimestamp(payload, ['updated_at', 'as_of']) || new Date()
     } catch (error) {
       if (token !== requestTokens.weather) return
-      weatherError.value = toFriendlyError(error, 'Nepodarilo sa načítať počasie.')
+      weatherError.value = toFriendlyError(error, 'Nepodarilo sa nacitat pocasie.')
     } finally {
       if (token === requestTokens.weather && !options.silent) {
         weatherLoading.value = false
@@ -622,17 +705,24 @@ export function useSkyWidget(options = {}) {
     }
 
     try {
-      const response = await api.get('/sky/astronomy', {
-        params: buildRequestParams(true),
-        meta: { skipErrorToast: true },
-      })
+      const cacheKey = `astronomy:${contextKey.value}`
+      const payload = await fetchWithSharedSkyCache(
+        cacheKey,
+        SHARED_SKY_CACHE_TTL_MS.astronomy,
+        async () => {
+          const response = await api.get('/sky/astronomy', {
+            params: buildRequestParams(true),
+            meta: { skipErrorToast: true },
+          })
+          return response?.data || null
+        },
+      )
       if (token !== requestTokens.astronomy) return
-      const payload = response?.data || null
       astronomy.value = payload
       astronomyFetchedAt.value = resolvePayloadTimestamp(payload, ['sample_at']) || new Date()
     } catch (error) {
       if (token !== requestTokens.astronomy) return
-      astronomyError.value = toFriendlyError(error, 'Nepodarilo sa načítať astronómiu.')
+      astronomyError.value = toFriendlyError(error, 'Nepodarilo sa nacitat astronomiu.')
     } finally {
       if (token === requestTokens.astronomy && !options.silent) {
         astronomyLoading.value = false
@@ -661,18 +751,25 @@ export function useSkyWidget(options = {}) {
     }
 
     try {
-      const response = await api.get('/sky/visible-planets', {
-        params: buildRequestParams(true),
-        meta: { skipErrorToast: true },
-      })
+      const cacheKey = `planets:${contextKey.value}`
+      const payload = await fetchWithSharedSkyCache(
+        cacheKey,
+        SHARED_SKY_CACHE_TTL_MS.planets,
+        async () => {
+          const response = await api.get('/sky/visible-planets', {
+            params: buildRequestParams(true),
+            meta: { skipErrorToast: true },
+          })
+          return response?.data || { planets: [] }
+        },
+      )
       if (token !== requestTokens.planets) return
-      const payload = response?.data || { planets: [] }
       planetsPayload.value = payload
       planetsFetchedAt.value = resolvePayloadTimestamp(payload, ['sample_at']) || new Date()
     } catch (error) {
       if (token !== requestTokens.planets) return
       planetsPayload.value = { planets: [], sample_at: null, sun_altitude_deg: null }
-      planetsError.value = toFriendlyError(error, 'Nepodarilo sa načítať planéty.')
+      planetsError.value = toFriendlyError(error, 'Nepodarilo sa nacitat planety.')
     } finally {
       if (token === requestTokens.planets && !options.silent) {
         planetsLoading.value = false
@@ -701,16 +798,24 @@ export function useSkyWidget(options = {}) {
     }
 
     try {
-      const response = await api.get('/sky/iss-preview', {
-        params: buildRequestParams(true),
-        meta: { skipErrorToast: true },
-      })
+      const cacheKey = `iss:${contextKey.value}`
+      const payload = await fetchWithSharedSkyCache(
+        cacheKey,
+        SHARED_SKY_CACHE_TTL_MS.iss,
+        async () => {
+          const response = await api.get('/sky/iss-preview', {
+            params: buildRequestParams(true),
+            meta: { skipErrorToast: true },
+          })
+          return response?.data || { available: false }
+        },
+      )
       if (token !== requestTokens.iss) return
-      issPreview.value = response?.data || { available: false }
+      issPreview.value = payload
       issFetchedAt.value = new Date()
     } catch {
       if (token !== requestTokens.iss) return
-      issError.value = 'Údaje o ISS sú dočasne nedostupné.'
+      issError.value = 'Udaje o ISS su docasne nedostupne.'
     } finally {
       if (token === requestTokens.iss && !options.silent) {
         issLoading.value = false
@@ -739,25 +844,81 @@ export function useSkyWidget(options = {}) {
     }
 
     try {
-      const response = await api.get('/sky/light-pollution', {
-        params: buildRequestParams(false),
-        meta: { skipErrorToast: true },
-      })
+      const cacheKey = `light:${contextKey.value}`
+      const payload = await fetchWithSharedSkyCache(
+        cacheKey,
+        SHARED_SKY_CACHE_TTL_MS.light,
+        async () => {
+          const response = await api.get('/sky/light-pollution', {
+            params: buildRequestParams(false),
+            meta: { skipErrorToast: true },
+          })
+          return response?.data || null
+        },
+      )
       if (token !== requestTokens.light) return
-      lightPollution.value = response?.data || null
-      lightPollutionFetchedAt.value = new Date()
-    } catch {
+      lightPollution.value = payload
+      lightPollutionFetchedAt.value = resolvePayloadTimestamp(lightPollution.value, ['sample_at']) || new Date()
+    } catch (error) {
       if (token !== requestTokens.light) return
-      lightPollutionError.value = 'Svetelné znečistenie je dočasne nedostupné.'
+      lightPollution.value = null
+      lightPollutionFetchedAt.value = null
+      lightPollutionError.value = toFriendlyError(error, 'Svetelne znecistenie je docasne nedostupne.')
     } finally {
       if (token === requestTokens.light && !options.silent) {
         lightPollutionLoading.value = false
       }
     }
   }
+  async function fetchEphemeris(options = {}) {
+    if (!includeEphemeris) {
+      ephemerisLoading.value = false
+      ephemerisError.value = ''
+      ephemeris.value = { planets: [], comets: [], asteroids: [], source: null, sample_at: null }
+      ephemerisFetchedAt.value = null
+      return
+    }
+
+    const token = nextToken('ephemeris')
+    if (!options.silent) ephemerisLoading.value = true
+    ephemerisError.value = ''
+
+    if (!hasLocationCoords.value) {
+      ephemeris.value = { planets: [], comets: [], asteroids: [], source: null, sample_at: null }
+      ephemerisFetchedAt.value = null
+      ephemerisLoading.value = false
+      return
+    }
+
+    try {
+      const cacheKey = `ephemeris:${contextKey.value}`
+      const payload = await fetchWithSharedSkyCache(
+        cacheKey,
+        SHARED_SKY_CACHE_TTL_MS.ephemeris,
+        async () => {
+          const response = await api.get('/sky/ephemeris', {
+            params: buildRequestParams(true),
+            meta: { skipErrorToast: true },
+          })
+          return response?.data || { planets: [], comets: [], asteroids: [], source: null, sample_at: null }
+        },
+      )
+      if (token !== requestTokens.ephemeris) return
+      ephemeris.value = payload
+      ephemerisFetchedAt.value = resolvePayloadTimestamp(ephemeris.value, ['sample_at']) || new Date()
+    } catch {
+      if (token !== requestTokens.ephemeris) return
+      ephemeris.value = { planets: [], comets: [], asteroids: [], source: null, sample_at: null }
+      ephemerisError.value = 'Efemeridy su docasne nedostupne.'
+    } finally {
+      if (token === requestTokens.ephemeris && !options.silent) {
+        ephemerisLoading.value = false
+      }
+    }
+  }
 
   function queueDeferredFetches(options = {}) {
-    if (!includePlanets && !includeIss) return
+    if (!includePlanets && !includeIss && !includeEphemeris) return
 
     if (deferredTimer) {
       clearTimeout(deferredTimer)
@@ -767,7 +928,8 @@ export function useSkyWidget(options = {}) {
     deferredTimer = setTimeout(() => {
       if (includePlanets) fetchPlanets(options)
       if (includeIss) fetchIssPreview(options)
-    }, 25)
+      if (includeEphemeris) fetchEphemeris(options)
+    }, DEFERRED_SKY_FETCH_MS)
   }
 
   async function fetchEssentialBlocks(options = {}) {
@@ -792,6 +954,7 @@ export function useSkyWidget(options = {}) {
     if (includeWeather) fetchWeather(options)
     if (includePlanets) fetchPlanets(options)
     if (includeIss) fetchIssPreview(options)
+    if (includeEphemeris) fetchEphemeris(options)
   }
 
   function refreshAstronomyBlock(options = { silent: true }) {
@@ -808,6 +971,7 @@ export function useSkyWidget(options = {}) {
     if (blockName === 'planets') return fetchPlanets()
     if (blockName === 'iss') return fetchIssPreview()
     if (blockName === 'lightPollution') return fetchLightPollution()
+    if (blockName === 'ephemeris') return fetchEphemeris()
     return Promise.resolve()
   }
 
@@ -870,24 +1034,28 @@ export function useSkyWidget(options = {}) {
     planetsPayload,
     issPreview,
     lightPollution,
+    ephemeris,
 
     weatherLoading,
     astronomyLoading,
     planetsLoading,
     issLoading,
     lightPollutionLoading,
+    ephemerisLoading,
 
     weatherError,
     astronomyError,
     planetsError,
     issError,
     lightPollutionError,
+    ephemerisError,
 
     weatherFreshness,
     astronomyFreshness,
     planetsFreshness,
     issFreshness,
     lightPollutionFreshness,
+    ephemerisFreshness,
 
     hasLocationCoords,
     skyPhase,
@@ -934,6 +1102,7 @@ export function useSkyWidget(options = {}) {
     fetchPlanets,
     fetchIssPreview,
     fetchLightPollution,
+    fetchEphemeris,
     refreshAll,
     refreshBlock,
   }
@@ -1015,7 +1184,7 @@ function formatPercent(value) {
 
 function formatTemperature(value) {
   const numeric = toFiniteNumber(value)
-  return numeric === null ? '-' : `${numeric.toFixed(1)} °C`
+  return numeric === null ? '-' : `${numeric.toFixed(1)} \u00B0C`
 }
 
 function formatWind(speed, unit) {
@@ -1039,10 +1208,26 @@ function sanitizeLabel(value) {
 function formatFreshness(value, tick) {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) return ''
   const minutes = Math.max(0, Math.round((tick - value.getTime()) / 60000))
-  if (minutes <= 0) return 'Aktualizované práve teraz'
-  return `Aktualizované pred ${minutes} min`
+  if (minutes <= 0) return 'Aktualizovane prave teraz'
+  return `Aktualizovane pred ${minutes} min`
 }
 
 function toFriendlyError(_error, fallback) {
+  const fromUserMessage = sanitizeLabel(_error?.userMessage)
+  if (fromUserMessage) return fromUserMessage
+
+  const fromBackendMessage = sanitizeLabel(_error?.response?.data?.message)
+  if (fromBackendMessage) return fromBackendMessage
+
+  const status = Number(_error?.response?.status || 0)
+
+  if (status === 422) return 'Poloha je neplatna. Skontroluj ju v profile.'
+  if (status === 429) return 'Prilis vela poziadaviek. Skus to znova o chvilu.'
+  if (status === 401) return 'Prihlas sa a skus to znova.'
+  if (status >= 500) return 'Server je docasne nedostupny. Skus to neskor.'
+
+  const message = sanitizeLabel(_error?.message)
+  if (message) return message
+
   return fallback
 }

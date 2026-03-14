@@ -22,6 +22,12 @@ export type BlogPost = {
     email: string;
     is_admin: boolean;
   };
+  tag_sync?: {
+    attached_existing: number;
+    created_new: number;
+    added_total: number;
+    selected_total: number;
+  };
 };
 
 export type LaravelPaginator<T> = {
@@ -67,6 +73,7 @@ export type AdminBlogTagSuggestionResponse = {
   status: string;
   tags: AdminBlogTagSuggestion[];
   fallback_used: boolean;
+  reason?: string | null;
   last_run?: Record<string, unknown>;
 };
 
@@ -159,9 +166,15 @@ export const blogPosts = {
     return res.data;
   },
 
-  async adminSuggestTags(id: number) {
+  async adminSuggestTags(
+    id: number,
+    payload?: {
+      mode?: "existing_only" | "allow_new";
+    }
+  ) {
     const res = await api.post<AdminBlogTagSuggestionResponse>(
-      `/admin/blog-posts/${id}/ai/suggest-tags`
+      `/admin/blog-posts/${id}/ai/suggest-tags`,
+      payload || {}
     );
     return res.data;
   },

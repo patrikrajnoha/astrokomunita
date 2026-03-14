@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { blogPosts } from '@/services/blogPosts'
 import { blogComments } from '@/services/blogComments'
 import { useAuthStore } from '@/stores/auth'
+import { renderArticleContent, stripHtml } from '@/utils/articleContent'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -56,10 +57,6 @@ function formatDate(value) {
   return date.toLocaleDateString('sk-SK', { dateStyle: 'long' })
 }
 
-function stripHtml(text) {
-  return String(text || '').replace(/<[^>]*>/g, ' ')
-}
-
 function excerpt(text, limit = 180) {
   const clean = stripHtml(text).replace(/\s+/g, ' ').trim()
   if (!clean) return ''
@@ -67,8 +64,11 @@ function excerpt(text, limit = 180) {
   return `${clean.slice(0, limit).trim()}...`
 }
 
+const renderedArticle = computed(() => renderArticleContent(post.value?.content || ''))
+const contentHtml = computed(() => renderedArticle.value.html)
+
 const articleWordCount = computed(() => {
-  const clean = stripHtml(post.value?.content || '').trim()
+  const clean = String(renderedArticle.value.plainText || '').trim()
   if (!clean) return 0
   return clean.split(/\s+/).filter(Boolean).length
 })
@@ -139,102 +139,7 @@ function commentThreadStyle(comment) {
   }
 }
 
-function slugifyHeading(text) {
-  return String(text || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .slice(0, 80)
-}
-
-function escapeHtml(text) {
-  return String(text || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
-function inlineMarkdown(text) {
-  let html = escapeHtml(text)
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
-  html = html.replace(
-    /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
-  )
-  return html
-}
-
-const contentBlocks = computed(() => {
-  const raw = post.value?.content || ''
-  if (!raw.trim()) return []
-
-  const lines = raw.split(/\r?\n/)
-  const blocks = []
-  let paragraph = []
-  let list = []
-
-  const flushParagraph = () => {
-    const text = paragraph.join(' ').trim()
-    if (text) {
-      blocks.push({ type: 'p', html: inlineMarkdown(text) })
-    }
-    paragraph = []
-  }
-
-  const flushList = () => {
-    if (!list.length) return
-    blocks.push({ type: 'ul', items: list.map((item) => inlineMarkdown(item)) })
-    list = []
-  }
-
-  lines.forEach((line) => {
-    const trimmed = line.trim()
-    const h2 = trimmed.startsWith('## ')
-    const h3 = trimmed.startsWith('### ')
-    const isList = trimmed.startsWith('- ') || trimmed.startsWith('* ')
-
-    if (h2 || h3) {
-      flushList()
-      flushParagraph()
-      const title = trimmed.replace(/^###?\s+/, '')
-      blocks.push({
-        type: h3 ? 'h3' : 'h2',
-        text: title,
-        id: slugifyHeading(title),
-      })
-      return
-    }
-
-    if (!trimmed) {
-      flushList()
-      flushParagraph()
-      return
-    }
-
-    if (isList) {
-      flushParagraph()
-      list.push(trimmed.replace(/^[-*]\s+/, ''))
-      return
-    }
-
-    paragraph.push(trimmed)
-  })
-
-  flushList()
-  flushParagraph()
-  return blocks
-})
-
-const tocItems = computed(() => {
-  return contentBlocks.value.filter((item) => item.type === 'h2' || item.type === 'h3')
-})
+const tocItems = computed(() => renderedArticle.value.toc)
 
 const showToc = computed(() => {
   if (tocItems.value.length === 0) return false

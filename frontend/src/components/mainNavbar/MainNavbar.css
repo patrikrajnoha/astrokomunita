@@ -1,6 +1,6 @@
 
 .mainNavbar {
-  border-right: 1px solid var(--color-divider);
+  border-right: 1px solid var(--divider-color);
   background: linear-gradient(180deg, rgb(var(--bg-app-rgb) / 0.98), rgb(var(--bg-app-rgb) / 0.94));
 }
 
@@ -51,8 +51,8 @@
 }
 
 .navItem.active {
-  background: rgb(var(--color-accent-rgb) / 0.18);
-  color: var(--color-text-primary);
+  background: transparent;
+  color: var(--color-surface);
 }
 
 .navItem:focus-visible {
@@ -76,7 +76,7 @@
 }
 
 .navItem.active .navIconChip {
-  color: inherit;
+  color: rgb(var(--color-accent-rgb));
 }
 
 .navLabel {

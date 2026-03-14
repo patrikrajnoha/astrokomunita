@@ -9,6 +9,8 @@ export const legacySettingsSectionToRouteName = {
   onboarding: 'settings.onboarding',
   password: 'settings.password',
   security: 'settings.password',
+  sidebar: 'settings.sidebar-widgets',
+  widgets: 'settings.sidebar-widgets',
 }
 
 export const settingsGroups = [
@@ -50,6 +52,18 @@ export const settingsGroups = [
           'm14.5 14.5 2.8 2.8',
           'm17.3 6.7-2.8 2.8',
           'm9.5 14.5-2.8 2.8',
+        ],
+      },
+      {
+        key: 'sidebar-widgets',
+        routeName: 'settings.sidebar-widgets',
+        title: 'Sidebar widgety',
+        description: 'Vyberte si vlastne widgety pre pravy panel a mobilne menu widgetov.',
+        iconPaths: [
+          'M4.5 6.5h7v5h-7z',
+          'M12.5 6.5h7v8h-7z',
+          'M4.5 12.5h7v7h-7z',
+          'M12.5 15.5h7v4h-7z',
         ],
       },
     ],

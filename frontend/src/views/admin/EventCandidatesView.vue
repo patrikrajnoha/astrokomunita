@@ -408,7 +408,7 @@ watch(publishedFilters, (newFilters) => {
 
 .tabNavigation {
   display: flex;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--divider-color);
   margin-bottom: 2rem;
 }
 

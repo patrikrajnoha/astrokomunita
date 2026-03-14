@@ -123,7 +123,7 @@
   display: grid;
   gap: 0.45rem;
   padding: 0.95rem 0;
-  border-top: 1px solid var(--color-divider);
+  border-top: 1px solid var(--divider-color);
 }
 
 .eventSection__label {
@@ -217,16 +217,14 @@
 }
 
 .eventCtaRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  flex-wrap: wrap;
   gap: 0.7rem;
   padding-top: 0.2rem;
 }
 
 .planButton,
-.followButton,
-.inviteButton,
 .swipeNavButton {
   display: inline-flex;
   align-items: center;
@@ -239,8 +237,8 @@
 }
 
 .planButton--primary {
-  flex: 1 1 14rem;
   gap: 0.5rem;
+  width: 100%;
   border: 1px solid rgb(var(--color-primary-rgb) / 0.34);
   background: linear-gradient(
     180deg,
@@ -252,28 +250,7 @@
   box-shadow: 0 12px 24px rgb(var(--color-primary-rgb) / 0.12);
 }
 
-.followButton {
-  flex: 1 1 10rem;
-  gap: 0.5rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
-  background: rgb(255 255 255 / 0.06);
-  color: rgb(247 250 255 / 0.95);
-}
-
-.inviteButton {
-  flex: 0 0 auto;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(255 255 255 / 0.04);
-  color: rgb(255 255 255 / 0.9);
-}
-
-.followButton__icon {
-  line-height: 1;
-}
-
-.followButton:disabled,
 .planButton:disabled,
-.inviteButton:disabled,
 .swipeNavButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -283,7 +260,7 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  border-top: 1px solid var(--color-divider);
+  border-top: 1px solid var(--divider-color);
   padding-top: 0.9rem;
 }
 
@@ -307,27 +284,38 @@
 }
 
 .menuRoot {
-  flex: 0 0 auto;
+  justify-self: end;
 }
 
 .menuTrigger {
-  display: inline-grid;
-  place-items: center;
-  width: 1.1rem;
-  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  font-size: 0.9rem;
+  font-weight: 650;
   line-height: 1;
 }
 
+.menuTrigger__label {
+  letter-spacing: -0.006em;
+}
+
+.menuTrigger__caret {
+  font-size: 0.72rem;
+  opacity: 0.82;
+}
+
 .menuRoot :deep(.dropdownTrigger) {
-  display: inline-grid;
-  place-items: center;
-  width: 3rem;
-  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 7.25rem;
+  min-height: 3rem;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
-  background: rgb(255 255 255 / 0.04);
+  background: rgb(255 255 255 / 0.06);
   color: rgb(255 255 255 / 0.92);
-  padding: 0;
+  padding: 0 0.95rem;
 }
 
 .menuRoot :deep(.dropdownTrigger:hover) {
@@ -629,20 +617,25 @@
   }
 
   .eventCtaRow {
+    grid-template-columns: 1fr;
     gap: 0.55rem;
   }
 
-  .planButton--primary {
-    flex: 1 1 100%;
+  .menuRoot {
+    width: 100%;
+    justify-self: stretch;
   }
 
-  .followButton,
   .planButton,
-  .inviteButton,
   .swipeNavButton,
   .menuRoot :deep(.dropdownTrigger) {
     min-height: 2.9rem;
     height: 2.9rem;
+  }
+
+  .menuRoot :deep(.dropdownTrigger) {
+    width: 100%;
+    min-width: 0;
   }
 
   .eventSwipeRow {

@@ -31,11 +31,11 @@ const rootProps = computed(() => (props.viewTo ? { to: props.viewTo } : {}))
 <style scoped>
 .kpiCard {
   display: grid;
-  gap: 8px;
-  min-height: 96px;
-  padding: 13px 14px;
+  gap: 6px;
+  min-height: 82px;
+  padding: 10px;
   border: 1px solid var(--dashboard-border, var(--color-border));
-  border-radius: var(--dashboard-radius, 18px);
+  border-radius: var(--dashboard-radius, 11px);
   background: var(--dashboard-panel, rgb(var(--color-bg-rgb) / 0.34));
   color: inherit;
   text-decoration: none;
@@ -49,7 +49,7 @@ const rootProps = computed(() => (props.viewTo ? { to: props.viewTo } : {}))
 .kpiCard.linked:hover {
   border-color: rgb(var(--color-primary-rgb) / 0.26);
   background: var(--dashboard-panel-strong, rgb(var(--color-bg-rgb) / 0.48));
-  transform: translateY(-1px);
+  transform: translateY(-0.5px);
   box-shadow: var(--shadow-soft);
 }
 
@@ -64,16 +64,16 @@ const rootProps = computed(() => (props.viewTo ? { to: props.viewTo } : {}))
   color: var(--dashboard-muted, rgb(var(--color-text-secondary-rgb) / 0.88));
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .kpiValue {
   color: var(--color-surface);
-  font-size: clamp(1.55rem, 2.5vw, 2.3rem);
+  font-size: clamp(1.5rem, 2.2vw, 2rem);
   font-weight: 700;
   line-height: 1;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
 

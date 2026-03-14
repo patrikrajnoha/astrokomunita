@@ -333,7 +333,7 @@ watch(
 }
 
 .advancedPane {
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
+  border-top: 1px solid var(--divider-color);
   padding-top: 0.42rem;
   display: grid;
   gap: 0.42rem;

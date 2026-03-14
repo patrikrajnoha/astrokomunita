@@ -24,6 +24,14 @@ export function typeLabel(type) {
   return map[type] || type
 }
 
+export function eventTypeIcon(eventItem) {
+  return resolveEventTypePresentation(eventItem).icon
+}
+
+export function eventTypeIconLabel(eventItem) {
+  return resolveEventTypePresentation(eventItem).label
+}
+
 export function publicConfidenceBadgeLabel(eventItem) {
   const level = eventItem?.public_confidence?.level
   if (!level || level === 'unknown') return ''
@@ -92,6 +100,94 @@ export function shouldShowRegion(region) {
   return Boolean(region && region !== 'global')
 }
 
+function resolveEventTypePresentation(eventItem) {
+  const customIcon = resolveCustomEventIcon(eventItem)
+  if (customIcon) {
+    return {
+      icon: customIcon,
+      label: 'Vlastna ikona udalosti',
+    }
+  }
+
+  const type = normalizeText(eventItem?.type)
+  const title = normalizeText(eventDisplayTitle(eventItem))
+
+  if (looksLikeMoonEvent(type, title)) {
+    return {
+      icon: '🌙',
+      label: 'Udalost suvisiaca s Mesiacom',
+    }
+  }
+
+  if (type === 'comet' || title.includes('komet')) {
+    return {
+      icon: '☄️',
+      label: 'Kometa',
+    }
+  }
+
+  if (type === 'meteors' || type === 'meteor_shower' || title.includes('meteor')) {
+    return {
+      icon: '☄️',
+      label: 'Meteoricky roj',
+    }
+  }
+
+  if (
+    type === 'eclipse'
+    || type === 'eclipse_lunar'
+    || type === 'eclipse_solar'
+    || title.includes('zatmen')
+  ) {
+    return {
+      icon: '🌘',
+      label: 'Zatmenie',
+    }
+  }
+
+  if (type === 'asteroid' || title.includes('asteroid')) {
+    return {
+      icon: '🛰️',
+      label: 'Asteroid',
+    }
+  }
+
+  if (type === 'mission' || title.includes('misia') || title.includes('launch')) {
+    return {
+      icon: '🚀',
+      label: 'Misia',
+    }
+  }
+
+  if (looksLikePlanetEvent(type, title)) {
+    return {
+      icon: '🪐',
+      label: 'Planetarny ukaz',
+    }
+  }
+
+  return {
+    icon: '✨',
+    label: 'Astronomicka udalost',
+  }
+}
+
+function resolveCustomEventIcon(eventItem) {
+  const candidates = [
+    eventItem?.icon_emoji,
+    eventItem?.icon,
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') continue
+    const trimmed = candidate.trim()
+    if (!trimmed) continue
+    return Array.from(trimmed).slice(0, 4).join('')
+  }
+
+  return ''
+}
+
 function normalizeText(value) {
   if (typeof value !== 'string') return ''
   return value
@@ -109,4 +205,31 @@ function isRedundantEventSummary(summary) {
   return /^(priblizne|orientacne|okolo|cca)?\s*\d{1,2}\.\s*\d{1,2}\.\s*\d{2,4}(\s+\d{1,2}:\d{2})?$/.test(
     normalized,
   )
+}
+
+function looksLikeMoonEvent(type, title) {
+  if (type === 'eclipse_lunar') return true
+  if (title.includes('mesiac')) return true
+  if (title.includes('moon')) return true
+  if (title.includes('nov') || title.includes('spln') || title.includes('stvrt')) return true
+  return false
+}
+
+function looksLikePlanetEvent(type, title) {
+  if (type === 'conjunction' || type === 'planetary_event') return true
+
+  const planetKeywords = [
+    'mars',
+    'jupiter',
+    'saturn',
+    'venus',
+    'venusa',
+    'venera',
+    'merkur',
+    'uran',
+    'neptun',
+    'pluto',
+  ]
+
+  return planetKeywords.some((keyword) => title.includes(keyword))
 }

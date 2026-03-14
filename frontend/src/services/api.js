@@ -21,6 +21,45 @@ const api = axios.create({
   },
 })
 
+const authProbeClient = axios.create({
+  baseURL: apiBaseUrl,
+  timeout: 6000,
+  withCredentials: true,
+  headers: {
+    Accept: 'application/json',
+  },
+})
+
+let authProbePromise = null
+
+async function probeActiveSession() {
+  if (authProbePromise) {
+    return authProbePromise
+  }
+
+  authProbePromise = authProbeClient
+    .get('/auth/me', {
+      withCredentials: true,
+    })
+    .then(({ data }) => {
+      const payload = data && typeof data === 'object' ? data : null
+      return Number(payload?.id || 0) > 0
+    })
+    .catch((probeError) => {
+      const status = Number(probeError?.response?.status || 0)
+      if (status === 401 || status === 419) {
+        return false
+      }
+
+      return null
+    })
+    .finally(() => {
+      authProbePromise = null
+    })
+
+  return authProbePromise
+}
+
 function isLongRunningPath(url) {
   const normalized = String(url || '').toLowerCase()
   if (normalized === '') {
@@ -36,6 +75,17 @@ function isLongRunningPath(url) {
     normalized.includes('/admin/event-candidates/approve-batch') ||
     normalized.includes('/admin/manual-events/publish-batch') ||
     normalized.includes('/admin/performance-metrics/run')
+  )
+}
+
+function isSlowSkyWidgetPath(url) {
+  const normalized = String(url || '').toLowerCase()
+  if (normalized === '') return false
+
+  return (
+    normalized.includes('/sky/moon-phases') ||
+    normalized.includes('/sky/moon-overview') ||
+    normalized.includes('/sky/moon-events')
   )
 }
 
@@ -152,14 +202,26 @@ api.interceptors.request.use((config) => {
     }
   }
 
+  if (isSlowSkyWidgetPath(config?.url)) {
+    return {
+      ...config,
+      timeout: 45000,
+    }
+  }
+
   return config
 })
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const status = error?.response?.status
-    const suppressToast = Boolean(error?.config?.meta?.skipErrorToast || error?.config?.skipErrorToast)
+    const requestUrl = String(error?.config?.url || '')
+    const suppressToast = Boolean(
+      error?.config?.meta?.skipErrorToast ||
+      error?.config?.skipErrorToast ||
+      isSlowSkyWidgetPath(requestUrl),
+    )
 
     const normalizedMessage = normalizeHttpErrorMessage(error)
     error.userMessage = normalizedMessage
@@ -196,8 +258,21 @@ api.interceptors.response.use(
         })
       } else if (status === 401) {
         if (shouldRedirectToLogin(error)) {
-          toast.warn(error?.response?.data?.message || 'Relacia vyprsala. Prihlas sa znova.')
-          redirectToLoginIfNeeded()
+          const requestUrl = String(error?.config?.url || '').toLowerCase()
+          const shouldProbeSession = requestUrl !== '' && !requestUrl.includes('/auth/me')
+          let shouldRedirect = true
+
+          if (shouldProbeSession) {
+            const probeResult = await probeActiveSession()
+            if (probeResult === true || probeResult === null) {
+              shouldRedirect = false
+            }
+          }
+
+          if (shouldRedirect) {
+            toast.warn(error?.response?.data?.message || 'Relacia vyprsala. Prihlas sa znova.')
+            redirectToLoginIfNeeded()
+          }
         }
       } else if (status === 419) {
         toast.warn(error?.response?.data?.message || 'Bezpecnostny token vyprsal. Obnov stranku a skus to znova.')

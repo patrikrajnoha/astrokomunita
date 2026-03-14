@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section class="widgetRoot panel" :class="[`widget-${widgetType}`, { inactive: !isActive }]">
     <header class="widgetHead">
       <span class="widgetTypeLabel">{{ widgetTypeLabel }}</span>
@@ -252,7 +252,7 @@ const resolveLinkProps = (href) => {
   color: var(--color-surface);
   text-decoration: none;
   font-size: 0.8rem;
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-bottom: 1px solid var(--divider-color);
   padding-bottom: 0.1rem;
 }
 

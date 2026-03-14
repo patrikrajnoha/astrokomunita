@@ -302,6 +302,8 @@ watch(
 .botSection {
   display: grid;
   gap: 12px;
+  min-width: 0;
+  container-type: inline-size;
 }
 
 .embeddedHeader {
@@ -335,6 +337,7 @@ watch(
   display: grid;
   gap: 8px;
   padding: 10px;
+  min-width: 0;
 }
 
 .filterRow {
@@ -376,7 +379,7 @@ watch(
 }
 
 .advancedFilters {
-  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-top: 1px solid var(--divider-color);
   padding-top: 8px;
 }
 
@@ -428,17 +431,18 @@ watch(
 .tableWrap {
   width: 100%;
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .activityTable {
   width: 100%;
   border-collapse: collapse;
-  min-width: 840px;
+  min-width: 780px;
 }
 
 .activityTable th,
 .activityTable td {
-  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-bottom: 1px solid var(--divider-color);
   padding: 8px 9px;
   text-align: left;
   vertical-align: top;
@@ -506,7 +510,17 @@ watch(
   margin: 0;
 }
 
-@media (max-width: 1024px) {
+@container (max-width: 860px) {
+  .embeddedHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .embeddedHeader .actionBtn {
+    width: 100%;
+    text-align: center;
+  }
+
   .filterRow {
     grid-template-columns: 1fr;
     align-items: stretch;
@@ -514,6 +528,31 @@ watch(
 
   .advancedFiltersBody {
     grid-template-columns: 1fr;
+  }
+
+  .filterActions {
+    width: 100%;
+  }
+
+  .filterActions .actionBtn,
+  .filterActions .ghostBtn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}
+
+@container (max-width: 720px) {
+  .activityTable {
+    min-width: 680px;
+  }
+
+  .pager {
+    justify-content: stretch;
+  }
+
+  .pager .ghostBtn {
+    flex: 1 1 auto;
+    text-align: center;
   }
 }
 </style>

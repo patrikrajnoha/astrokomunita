@@ -79,7 +79,7 @@ describe('RightObservingSidebar', () => {
 
   it('renders compact summary content', async () => {
     const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
+      props: { lat: 48.24, lon: 17.2, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
     })
 
     await wait()
@@ -90,29 +90,17 @@ describe('RightObservingSidebar', () => {
     expect(wrapper.text()).toContain('Jasno')
     expect(wrapper.text()).toContain('Mesiac 77%')
     expect(wrapper.text()).toContain('Najlepsie okno')
-    expect(wrapper.text()).toContain('Zobrazit detail')
   })
 
   it('routes to profile location editor from location action', async () => {
     const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
+      props: { lat: 48.34, lon: 17.3, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
     })
 
     await wait()
 
     await wrapper.get('.locationBtn').trigger('click')
     expect(pushMock).toHaveBeenCalledWith('/profile/edit#location')
-  })
-
-  it('routes to observations detail page from CTA', async () => {
-    const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
-    })
-
-    await wait()
-
-    await wrapper.get('.detailBtn').trigger('click')
-    expect(pushMock).toHaveBeenCalledWith('/observations')
   })
 
   it('shows missing-location state and avoids API calls', async () => {
@@ -124,5 +112,39 @@ describe('RightObservingSidebar', () => {
 
     expect(getMock).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Poloha nie je nastavena')
+  })
+
+  it('treats out-of-range coordinates as missing location and avoids API calls', async () => {
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 120.5, lon: 220.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+    })
+
+    await wait()
+
+    expect(getMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Poloha nie je nastavena')
+  })
+
+  it('renders moon dash when illumination is null', async () => {
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/weather') return weatherPayload()
+      if (url === '/sky/astronomy') {
+        return {
+          data: {
+            ...astronomyPayload().data,
+            moon_illumination_percent: null,
+          },
+        }
+      }
+      return { data: {} }
+    })
+
+    const wrapper = mount(RightObservingSidebar, {
+      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Mesiac -')
   })
 })

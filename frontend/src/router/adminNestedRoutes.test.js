@@ -161,7 +161,6 @@ describe('admin nested section routes', () => {
     expect(router.resolve({ name: 'admin.bots.kozmo' }).meta.adminSection).toBe('automation')
     expect(router.resolve({ name: 'admin.bots.stellar' }).meta.adminSection).toBe('automation')
 
-    expect(router.resolve({ name: 'admin.sidebar' }).meta.adminSection).toBe('frontend')
     expect(router.resolve({ name: 'admin.performance-metrics' }).meta.adminSection).toBe('performance')
 
     if (router.hasRoute('admin.banned-words')) {

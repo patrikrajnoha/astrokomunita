@@ -120,11 +120,17 @@ export function isAttachmentPending(post) {
 }
 
 export function isAttachmentBlocked(post) {
-  return post?.attachment_moderation_status === 'blocked' || !!post?.attachment_hidden_at
+  return (
+    post?.attachment_moderation_status === 'blocked'
+    || post?.attachment_moderation_status === 'flagged'
+    || !!post?.attachment_hidden_at
+  )
 }
 
 export function hasOriginalDownload(post) {
-  return isImage(post) && Boolean(post?.attachment_download_url)
+  if (!isImage(post)) return false
+  if (isAttachmentPending(post) || isAttachmentBlocked(post)) return false
+  return Boolean(post?.attachment_download_url)
 }
 
 export function normalizeFeedError(error) {

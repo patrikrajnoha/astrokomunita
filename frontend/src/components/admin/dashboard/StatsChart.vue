@@ -25,7 +25,7 @@ const normalized = computed(() => {
 
 const displayed = computed(() => {
   const safe = normalized.value
-  const maxBars = 20
+  const maxBars = 12
   if (safe.length <= maxBars) return safe
 
   const step = Math.ceil(safe.length / maxBars)
@@ -36,6 +36,12 @@ const displayed = computed(() => {
   }
 
   return sampled
+})
+
+const labelStep = computed(() => {
+  const count = displayed.value.length
+  if (count <= 4) return 1
+  return Math.ceil(count / 4)
 })
 
 const maxValue = computed(() => {
@@ -73,6 +79,12 @@ function formatShortDate(value) {
 function formatTooltip(point) {
   return `${formatShortDate(point.date)}: ${formatValue(point.value)}`
 }
+
+function shouldShowLabel(index) {
+  if (!Number.isFinite(index)) return false
+  if (index === 0 || index === displayed.value.length - 1) return true
+  return index % labelStep.value === 0
+}
 </script>
 
 <template>
@@ -88,13 +100,13 @@ function formatTooltip(point) {
         class="bars"
         :style="{ gridTemplateColumns: `repeat(${displayed.length}, minmax(0, 1fr))` }"
       >
-        <div v-for="point in displayed" :key="point.date" class="barWrap">
+        <div v-for="(point, index) in displayed" :key="point.date" class="barWrap">
           <div
             class="bar"
             :style="{ height: `${Math.max(6, (point.value / maxValue) * 100)}%` }"
             :title="formatTooltip(point)"
           ></div>
-          <div class="xLabel">{{ formatShortDate(point.date) }}</div>
+          <div class="xLabel">{{ shouldShowLabel(index) ? formatShortDate(point.date) : '' }}</div>
         </div>
       </div>
     </div>
@@ -104,23 +116,25 @@ function formatTooltip(point) {
 <style scoped>
 .chartRoot {
   display: grid;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
 }
 
 .chartEmpty {
   color: var(--dashboard-muted, rgb(var(--color-text-secondary-rgb) / 0.88));
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .chartGrid {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 5px;
   align-items: stretch;
+  min-width: 0;
 }
 
 .yAxis {
-  min-height: 174px;
+  min-height: 108px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -134,36 +148,37 @@ function formatTooltip(point) {
 }
 
 .bars {
-  min-height: 174px;
+  min-height: 108px;
   display: grid;
   gap: 5px;
   align-items: end;
-  padding-top: 8px;
+  padding-top: 4px;
   background-image: linear-gradient(
     to top,
-    var(--color-divider) 1px,
+    var(--divider-color) 1px,
     transparent 1px
   );
   background-size: 100% 33.33%;
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .barWrap {
   display: grid;
-  gap: 6px;
+  gap: 3px;
   align-items: end;
 }
 
 .bar {
   width: 100%;
-  border-radius: 999px 999px 4px 4px;
+  border-radius: 999px 999px 2px 2px;
   background: rgb(var(--color-primary-rgb) / 0.78);
 }
 
 .xLabel {
   color: rgb(var(--color-text-secondary-rgb) / 0.82);
-  font-size: 10px;
+  font-size: 9px;
   text-align: center;
   white-space: nowrap;
+  min-height: 12px;
 }
 </style>

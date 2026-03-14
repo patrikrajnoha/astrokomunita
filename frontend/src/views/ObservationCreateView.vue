@@ -10,63 +10,65 @@
     </div>
 
     <form v-else class="form-card" :class="{ 'form-card--embedded': embedded }" @submit.prevent="submit">
-      <label class="field">
-        <span>Nazov *</span>
-        <input v-model="form.title" type="text" maxlength="255" required>
-      </label>
+      <div class="field-grid field-grid--main" :class="{ 'field-grid--main-embedded': embedded }">
+        <label class="field field--span-full">
+          <span>Nazov *</span>
+          <input v-model="form.title" type="text" maxlength="255" required>
+        </label>
 
-      <label class="field">
+        <label class="field">
+          <span>Pozorovane *</span>
+          <input v-model="form.observedAt" type="datetime-local" required>
+        </label>
+
+        <label class="field">
+          <span>Prepojena udalost</span>
+          <select v-model="form.eventId">
+            <option value="">Bez udalosti</option>
+            <option v-for="eventItem in events" :key="eventItem.id" :value="String(eventItem.id)">
+              {{ eventItem.title }}
+            </option>
+          </select>
+        </label>
+      </div>
+
+      <label v-if="!embedded" class="field">
         <span>Popis</span>
         <textarea v-model="form.description" rows="4" maxlength="5000"></textarea>
       </label>
 
-      <label class="field">
-        <span>Pozorovane *</span>
-        <input v-model="form.observedAt" type="datetime-local" required>
-      </label>
+      <details class="optional-section">
+        <summary class="optional-section__summary">Volitelne detaily</summary>
+        <div class="optional-section__body">
+          <label v-if="embedded" class="field">
+            <span>Popis</span>
+            <textarea v-model="form.description" rows="3" maxlength="5000"></textarea>
+          </label>
 
-      <label class="field">
-        <span>Prepojena udalost</span>
-        <select v-model="form.eventId">
-          <option value="">Bez udalosti</option>
-          <option v-for="eventItem in events" :key="eventItem.id" :value="String(eventItem.id)">
-            {{ eventItem.title }}
-          </option>
-        </select>
-      </label>
+          <div class="field-grid field-grid--compact">
+            <label class="field">
+              <span>Lokalita</span>
+              <input v-model="form.locationName" type="text" maxlength="255">
+            </label>
+            <label class="field">
+              <span>Seeing (1-5)</span>
+              <input v-model="form.visibilityRating" type="number" min="1" max="5">
+            </label>
+          </div>
 
-      <div class="field-grid">
-        <label class="field">
-          <span>Lokalita</span>
-          <input v-model="form.locationName" type="text" maxlength="255">
-        </label>
-        <label class="field">
-          <span>Zemepisna sirka</span>
-          <input v-model="form.locationLat" type="number" step="0.0000001" min="-90" max="90">
-        </label>
-        <label class="field">
-          <span>Zemepisna dlzka</span>
-          <input v-model="form.locationLng" type="number" step="0.0000001" min="-180" max="180">
-        </label>
-      </div>
-
-      <div class="field-grid">
-        <label class="field">
-          <span>Seeing (1-5)</span>
-          <input v-model="form.visibilityRating" type="number" min="1" max="5">
-        </label>
-        <label class="field">
-          <span>Vybavenie</span>
-          <input v-model="form.equipment" type="text" maxlength="2000">
-        </label>
-      </div>
+          <label class="field">
+            <span>Vybavenie</span>
+            <input v-model="form.equipment" type="text" maxlength="2000">
+          </label>
+        </div>
+      </details>
 
       <label class="field field-check">
         <input v-model="form.isPublic" type="checkbox">
         <span>Publikovat vo verejnom feede</span>
       </label>
-      <p class="field-help">
-        Verejne pozorovanie sa automaticky vytvori aj ako prispevok vo feede.
+      <p v-if="form.isPublic" class="field-help">
+        {{ embedded ? 'Verejne pozorovanie sa vytvori aj vo feede.' : 'Verejne pozorovanie sa automaticky vytvori aj ako prispevok vo feede.' }}
       </p>
 
       <label v-if="form.isPublic" class="field field-check field-check--nested">
@@ -126,8 +128,6 @@ const form = reactive({
   observedAt: toDateTimeLocal(new Date()),
   eventId: '',
   locationName: '',
-  locationLat: '',
-  locationLng: '',
   visibilityRating: '',
   equipment: '',
   isPublic: true,
@@ -204,8 +204,6 @@ async function submit() {
       observed_at: observedAtIso,
       event_id: form.eventId,
       location_name: form.locationName,
-      location_lat: form.locationLat,
-      location_lng: form.locationLng,
       visibility_rating: form.visibilityRating,
       equipment: form.equipment,
       is_public: form.isPublic,
@@ -322,34 +320,56 @@ onBeforeUnmount(() => {
 
 .form-card--embedded {
   border-radius: 0.75rem;
-  padding: 0.6rem;
-  gap: 0.58rem;
+  padding: 0.5rem;
+  gap: 0.5rem;
 }
 
 .observation-create-page--embedded .field {
-  gap: 0.24rem;
-  font-size: 0.78rem;
+  gap: 0.2rem;
+  font-size: 0.75rem;
 }
 
 .observation-create-page--embedded .field input,
 .observation-create-page--embedded .field textarea,
 .observation-create-page--embedded .field select {
-  padding: 0.42rem 0.5rem;
-  border-radius: 0.55rem;
+  padding: 0.36rem 0.46rem;
+  border-radius: 0.5rem;
 }
 
 .observation-create-page--embedded .field textarea {
-  min-height: 84px;
+  min-height: 70px;
 }
 
 .observation-create-page--embedded .field-grid {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.5rem;
+  gap: 0.42rem;
+}
+
+.observation-create-page--embedded .field-grid--main-embedded {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.observation-create-page--embedded .field-grid--main-embedded .field--span-full {
+  grid-column: 1 / -1;
+}
+
+.observation-create-page--embedded .optional-section {
+  border-radius: 0.62rem;
+}
+
+.observation-create-page--embedded .optional-section__summary {
+  font-size: 0.71rem;
+  padding: 0.4rem 0.46rem;
+}
+
+.observation-create-page--embedded .optional-section__body {
+  padding: 0.4rem 0.46rem 0.46rem;
+  gap: 0.42rem;
 }
 
 .observation-create-page--embedded .field-help {
-  margin-top: -0.35rem;
-  font-size: 0.74rem;
+  margin-top: -0.24rem;
+  font-size: 0.71rem;
 }
 
 .observation-create-page--embedded .preview-grid {
@@ -392,6 +412,46 @@ onBeforeUnmount(() => {
   gap: 0.65rem;
 }
 
+.field-grid--main {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.field--span-full {
+  grid-column: 1 / -1;
+}
+
+.field-grid--compact {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.optional-section {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
+  border-radius: 0.75rem;
+  background: rgb(var(--color-bg-rgb) / 0.26);
+}
+
+.optional-section__summary {
+  cursor: pointer;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 0.58rem 0.62rem;
+  user-select: none;
+}
+
+.optional-section__summary::marker,
+.optional-section__summary::-webkit-details-marker {
+  color: rgb(var(--color-primary-rgb) / 0.82);
+}
+
+.optional-section__body {
+  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  padding: 0.56rem 0.62rem 0.62rem;
+  display: grid;
+  gap: 0.62rem;
+}
+
 .field-check {
   display: flex;
   align-items: center;
@@ -428,6 +488,10 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 720px) {
+  .observation-create-page--embedded .field-grid--main-embedded {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .actions {
     justify-content: stretch;
   }

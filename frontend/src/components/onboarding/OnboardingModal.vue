@@ -42,7 +42,10 @@
             <ul v-if="openSuggestions && suggestions.length > 0" class="suggestions" role="listbox">
               <li v-for="option in suggestions" :key="option.place_id">
                 <button type="button" class="suggestionItem" @click="selectLocation(option)">
-                  {{ option.label }}
+                  <span class="suggestionTitle">{{ option.label }}</span>
+                  <span v-if="option.country || option.timezone" class="suggestionMeta">
+                    {{ [option.country, option.timezone].filter(Boolean).join(' • ') }}
+                  </span>
                 </button>
               </li>
             </ul>
@@ -106,6 +109,7 @@ const locationLat = ref(props.initialLocation?.location_lat ?? null)
 const locationLon = ref(props.initialLocation?.location_lon ?? null)
 const suggestions = ref([])
 const openSuggestions = ref(false)
+const suppressLocationFieldWatch = ref(false)
 let debounceTimer = null
 let locationRequestId = 0
 
@@ -125,12 +129,16 @@ function toggleInterest(key) {
 }
 
 function selectLocation(option) {
+  suppressLocationFieldWatch.value = true
   locationLabel.value = option.label
   locationPlaceId.value = option.place_id
   locationLat.value = option.lat
   locationLon.value = option.lon
   suggestions.value = []
   openSuggestions.value = false
+  Promise.resolve().then(() => {
+    suppressLocationFieldWatch.value = false
+  })
 }
 
 function emitFinish() {
@@ -174,6 +182,8 @@ function handleKeydown(event) {
 }
 
 watch(locationLabel, (nextValue) => {
+  if (suppressLocationFieldWatch.value) return
+
   locationPlaceId.value = null
   locationLat.value = null
   locationLon.value = null
@@ -339,12 +349,23 @@ onBeforeUnmount(() => {
 .suggestionItem {
   width: 100%;
   text-align: left;
+  display: grid;
+  gap: 0.12rem;
   border: 0;
   background: transparent;
   color: inherit;
   border-radius: 0.45rem;
   padding: 0.48rem 0.55rem;
   cursor: pointer;
+}
+
+.suggestionTitle {
+  font-size: 0.88rem;
+}
+
+.suggestionMeta {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
 }
 
 .suggestionItem:hover {

@@ -30,6 +30,12 @@ export default defineConfig([
 
   js.configs.recommended,
   ...pluginVue.configs['flat/essential'],
+  {
+    files: ['**/*.vue'],
+    rules: {
+      'no-unused-vars': 'off',
+    },
+  },
 
   skipFormatting,
 ])

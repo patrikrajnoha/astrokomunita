@@ -26,15 +26,7 @@ const props = defineProps({
     type: Function,
     required: true,
   },
-  translationStatusStyle: {
-    type: Function,
-    required: true,
-  },
   normalizeTranslationStatus: {
-    type: Function,
-    required: true,
-  },
-  sourceBadgeStyle: {
     type: Function,
     required: true,
   },
@@ -43,10 +35,6 @@ const props = defineProps({
     required: true,
   },
   normalizeSources: {
-    type: Function,
-    required: true,
-  },
-  statusBadgeStyle: {
     type: Function,
     required: true,
   },
@@ -59,12 +47,73 @@ const emit = defineEmits([
   'prev-page',
   'next-page',
 ])
+
+function sourceToneClass(source) {
+  const key = String(source || '').trim().toLowerCase()
+  if (key === 'astropixels') return 'chip--source-astropixels'
+  if (key === 'imo') return 'chip--source-imo'
+  if (key === 'nasa' || key === 'nasa_wts' || key === 'nasa_watch_the_skies') return 'chip--source-nasa'
+  return 'chip--source-default'
+}
+
+function statusToneClass(value) {
+  const status = String(value || '').trim().toLowerCase()
+  if (status === 'approved') return 'statusBadge--approved'
+  if (status === 'rejected') return 'statusBadge--rejected'
+  if (status === 'pending') return 'statusBadge--pending'
+  return 'statusBadge--neutral'
+}
+
+function translationToneClass(value) {
+  const label = String(props.normalizeTranslationStatus(value) || '').trim().toLowerCase()
+  if (label === 'prelozene') return 'translationBadge--success'
+  if (label === 'zlyhalo') return 'translationBadge--error'
+  return 'translationBadge--pending'
+}
+
+function matchedSources(candidate) {
+  return props.normalizeSources(candidate?.matched_sources)
+}
+
+function candidateTypeLabel(value) {
+  const key = String(value || '').trim().toLowerCase()
+  if (key === 'observation_window') return 'Pozorovacie okno'
+  if (key === 'meteor_shower') return 'Meteorický roj'
+  if (key === 'eclipse_lunar') return 'Zatmenie Mesiaca'
+  if (key === 'eclipse_solar') return 'Zatmenie Slnka'
+  if (key === 'planetary_event') return 'Planetárny úkaz'
+  if (key === 'other') return 'Iná udalosť'
+  if (key === '') return '-'
+  return key.replaceAll('_', ' ')
+}
+
+function matchedSourcesWithoutPrimary(candidate) {
+  const primary = String(candidate?.source_name || '').trim().toLowerCase()
+  const unique = [...new Set(matchedSources(candidate))]
+  return unique.filter((source) => source !== primary)
+}
+
+function visibleMatchedSources(candidate, max = 2) {
+  return matchedSourcesWithoutPrimary(candidate).slice(0, max)
+}
+
+function hiddenMatchedSourcesCount(candidate, max = 2) {
+  return Math.max(0, matchedSourcesWithoutPrimary(candidate).length - max)
+}
 </script>
 
 <template>
   <template v-if="data && !loading">
     <div class="candidatesTableWrap">
       <table class="candidatesTable">
+        <colgroup>
+          <col class="colId" />
+          <col class="colTitle" />
+          <col class="colSourceType" />
+          <col class="colState" />
+          <col v-if="showConfidenceColumn" class="colScore" />
+          <col class="colActions" />
+        </colgroup>
         <thead>
           <tr>
             <th>ID</th>
@@ -72,7 +121,6 @@ const emit = defineEmits([
             <th>Zdroj / typ</th>
             <th>Zaciatok / stav</th>
             <th v-if="showConfidenceColumn">Skore zdrojov</th>
-            <th>Preklad</th>
             <th>Akcie</th>
           </tr>
         </thead>
@@ -90,32 +138,37 @@ const emit = defineEmits([
             </td>
             <td>
               <div class="cellStack">
-                <span :style="sourceBadgeStyle(candidate.source_name)">{{ sourceLabel(candidate.source_name) }}</span>
-                <span class="typeTag">{{ candidate.type || '-' }}</span>
+                <span class="chip" :class="sourceToneClass(candidate.source_name)" :title="sourceLabel(candidate.source_name)">
+                  {{ sourceLabel(candidate.source_name) }}
+                </span>
+                <span class="typeTag" :title="`Typ: ${candidateTypeLabel(candidate.type)}`">{{ candidateTypeLabel(candidate.type) }}</span>
               </div>
-              <div class="matchedSources">
+              <div v-if="matchedSourcesWithoutPrimary(candidate).length > 0" class="matchedSources">
                 <span
-                  v-for="src in normalizeSources(candidate.matched_sources)"
+                  v-for="src in visibleMatchedSources(candidate)"
                   :key="`matched-${candidate.id}-${src}`"
                   class="matchedSourceTag"
+                  :class="sourceToneClass(src)"
                 >
                   {{ sourceLabel(src) }}
                 </span>
-                <span v-if="normalizeSources(candidate.matched_sources).length === 0" class="cellMuted">-</span>
+                <span v-if="hiddenMatchedSourcesCount(candidate) > 0" class="cellMuted">
+                  +{{ hiddenMatchedSourcesCount(candidate) }}
+                </span>
               </div>
             </td>
             <td>
               <div class="cellStack">
-                <span>{{ formatDate(candidate.start_at) }}</span>
-                <span :style="statusBadgeStyle(candidate.status)">{{ candidate.status }}</span>
+                <span class="cellDate">{{ formatDate(candidate.start_at) }}</span>
+                <div class="cellInlineBadges">
+                  <span class="statusBadge" :class="statusToneClass(candidate.status)">{{ candidate.status || '-' }}</span>
+                  <span class="translationBadge" :class="translationToneClass(candidate.translation_status)">
+                    {{ normalizeTranslationStatus(candidate.translation_status) }}
+                  </span>
+                </div>
               </div>
             </td>
             <td v-if="showConfidenceColumn" class="cellMono">{{ formatConfidence(candidate.confidence_score) }}</td>
-            <td>
-              <span :style="translationStatusStyle(candidate.translation_status)">
-                {{ normalizeTranslationStatus(candidate.translation_status) }}
-              </span>
-            </td>
             <td>
               <div class="rowActions">
                 <button
@@ -131,6 +184,7 @@ const emit = defineEmits([
                   type="button"
                   :disabled="loading"
                   class="rowActionButton rowActionButton--primary"
+                  title="Retranslate"
                   @click="emit('retranslate-candidate', candidate)"
                 >
                   Retr.
@@ -147,7 +201,7 @@ const emit = defineEmits([
           </tr>
 
           <tr v-if="data.data.length === 0">
-            <td :colspan="showConfidenceColumn ? 7 : 6" class="tableEmpty">
+            <td :colspan="showConfidenceColumn ? 6 : 5" class="tableEmpty">
               Ziadne kandidaty pre aktualny filter.
             </td>
           </tr>
@@ -159,9 +213,12 @@ const emit = defineEmits([
       <article v-for="candidate in data.data" :key="`mobile-${candidate.id}`" class="candidateMobileCard">
         <div class="candidateMobileCard__head">
           <span class="candidateMobileCard__id">#{{ candidate.id }}</span>
-          <span :style="translationStatusStyle(candidate.translation_status)">
-            {{ normalizeTranslationStatus(candidate.translation_status) }}
-          </span>
+          <div class="candidateMobileCard__headBadges">
+            <span class="statusBadge" :class="statusToneClass(candidate.status)">{{ candidate.status || '-' }}</span>
+            <span class="translationBadge" :class="translationToneClass(candidate.translation_status)">
+              {{ normalizeTranslationStatus(candidate.translation_status) }}
+            </span>
+          </div>
         </div>
         <div class="candidateMobileCard__title">{{ candidateDisplayTitle(candidate) }}</div>
         <div
@@ -171,20 +228,23 @@ const emit = defineEmits([
           {{ candidatePreviewShort(candidate) }}
         </div>
         <div class="candidateMobileCard__meta">
-          <span :style="sourceBadgeStyle(candidate.source_name)">{{ sourceLabel(candidate.source_name) }}</span>
-          <span class="typeTag">{{ candidate.type || '-' }}</span>
+          <span class="chip" :class="sourceToneClass(candidate.source_name)">{{ sourceLabel(candidate.source_name) }}</span>
+          <span class="typeTag">{{ candidateTypeLabel(candidate.type) }}</span>
           <span class="cellMuted">{{ formatDate(candidate.start_at) }}</span>
           <span v-if="showConfidenceColumn" class="cellMono">Skore {{ formatConfidence(candidate.confidence_score) }}</span>
         </div>
-        <div class="matchedSources">
+        <div v-if="matchedSourcesWithoutPrimary(candidate).length > 0" class="matchedSources">
           <span
-            v-for="src in normalizeSources(candidate.matched_sources)"
+            v-for="src in visibleMatchedSources(candidate)"
             :key="`matched-mobile-${candidate.id}-${src}`"
             class="matchedSourceTag"
+            :class="sourceToneClass(src)"
           >
             {{ sourceLabel(src) }}
           </span>
-          <span v-if="normalizeSources(candidate.matched_sources).length === 0" class="cellMuted">-</span>
+          <span v-if="hiddenMatchedSourcesCount(candidate) > 0" class="cellMuted">
+            +{{ hiddenMatchedSourcesCount(candidate) }}
+          </span>
         </div>
         <div class="rowActions">
           <button
@@ -247,39 +307,67 @@ const emit = defineEmits([
 
 <style scoped>
 .candidatesTableWrap {
-  margin-top: 12px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
-  border-radius: 12px;
+  margin-top: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 11px;
   overflow: auto;
   background: rgb(var(--color-bg-rgb) / 0.98);
 }
 
 .candidatesTable {
   width: 100%;
-  min-width: 860px;
+  min-width: 640px;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
-.candidatesTable thead {
-  background: rgb(var(--color-surface-rgb) / 0.05);
-}
-
-.candidatesTable th {
+.candidatesTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   text-align: left;
-  padding: 7px 6px;
-  font-size: 12px;
-  opacity: 0.85;
-  background: rgb(var(--color-surface-rgb) / 0.04);
+  padding: 7px 5px;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  background: rgb(var(--color-surface-rgb) / 0.06);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .candidatesTable td {
-  padding: 7px 6px;
-  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.06);
+  padding: 5px;
+  border-top: 1px solid var(--divider-color);
   vertical-align: top;
+  font-size: 12px;
+}
+
+.colId {
+  width: 48px;
+}
+
+.colTitle {
+  width: 36%;
+}
+
+.colSourceType {
+  width: 23%;
+}
+
+.colState {
+  width: 20%;
+}
+
+.colScore {
+  width: 10%;
+}
+
+.colActions {
+  width: 125px;
 }
 
 .candidatesRow:hover {
-  background: rgb(var(--color-surface-rgb) / 0.02);
+  background: rgb(var(--color-surface-rgb) / 0.025);
 }
 
 .candidatesMobileList {
@@ -289,12 +377,12 @@ const emit = defineEmits([
 }
 
 .candidateMobileCard {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
   border-radius: 10px;
   background: rgb(var(--color-bg-rgb) / 0.96);
-  padding: 9px;
+  padding: 8px;
   display: grid;
-  gap: 7px;
+  gap: 6px;
 }
 
 .candidateMobileCard__head {
@@ -304,14 +392,46 @@ const emit = defineEmits([
   gap: 8px;
 }
 
-.candidateMobileCard__id {
-  font-size: 12px;
-  opacity: 0.8;
+.candidateMobileCard__headBadges {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.candidateMobileCard__title {
+.candidateMobileCard__id {
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.86);
+}
+
+.candidateMobileCard__title,
+.candidateTitle {
   font-weight: 700;
   line-height: 1.25;
+  word-break: break-word;
+}
+
+.candidateTitle {
+  max-width: min(450px, 100%);
+}
+
+.candidateShort {
+  color: rgb(var(--color-text-secondary-rgb) / 0.85);
+  font-size: 11px;
+  margin-top: 3px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cellInlineBadges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
 .candidateMobileCard__meta {
@@ -319,17 +439,6 @@ const emit = defineEmits([
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-}
-
-.candidateTitle {
-  font-weight: 600;
-}
-
-.candidateShort {
-  opacity: 0.75;
-  font-size: 12px;
-  margin-top: 4px;
-  line-height: 1.3;
 }
 
 .cellMono {
@@ -342,62 +451,151 @@ const emit = defineEmits([
   gap: 4px;
 }
 
-.typeTag {
+.cellDate {
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+}
+
+.chip,
+.typeTag,
+.matchedSourceTag,
+.statusBadge,
+.translationBadge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
   border-radius: 999px;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.chip,
+.typeTag {
+  padding: 1px 6px;
+}
+
+.matchedSourceTag {
+  padding: 1px 5px;
+}
+
+.chip {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
   background: rgb(var(--color-surface-rgb) / 0.08);
-  font-size: 11px;
-  width: fit-content;
+}
+
+.chip--source-astropixels {
+  border-color: rgb(30 64 175 / 0.3);
+  background: rgb(30 64 175 / 0.1);
+}
+
+.chip--source-imo {
+  border-color: rgb(6 95 70 / 0.3);
+  background: rgb(6 95 70 / 0.1);
+}
+
+.chip--source-nasa {
+  border-color: rgb(107 33 168 / 0.3);
+  background: rgb(107 33 168 / 0.1);
+}
+
+.chip--source-default {
+  border-color: rgb(var(--color-surface-rgb) / 0.2);
+}
+
+.typeTag,
+.matchedSourceTag {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  background: transparent;
+}
+
+.statusBadge,
+.translationBadge {
+  padding: 1px 7px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: rgb(var(--color-surface-rgb) / 0.08);
+}
+
+.statusBadge--pending {
+  border-color: rgb(245 158 11 / 0.4);
+  background: rgb(245 158 11 / 0.12);
+}
+
+.statusBadge--approved {
+  border-color: rgb(22 163 74 / 0.36);
+  background: rgb(22 163 74 / 0.12);
+}
+
+.statusBadge--rejected {
+  border-color: rgb(239 68 68 / 0.36);
+  background: rgb(239 68 68 / 0.12);
+}
+
+.statusBadge--neutral {
+  border-color: rgb(var(--color-surface-rgb) / 0.2);
+}
+
+.translationBadge--success {
+  border-color: rgb(22 163 74 / 0.36);
+  background: rgb(22 163 74 / 0.12);
+}
+
+.translationBadge--error {
+  border-color: rgb(239 68 68 / 0.36);
+  background: rgb(239 68 68 / 0.12);
+}
+
+.translationBadge--pending {
+  border-color: rgb(245 158 11 / 0.4);
+  background: rgb(245 158 11 / 0.12);
 }
 
 .matchedSources {
-  margin-top: 6px;
+  margin-top: 4px;
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
 }
 
-.matchedSourceTag {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 7px;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  background: transparent;
-  font-size: 11px;
-}
-
 .cellMuted {
-  opacity: 0.7;
+  color: rgb(var(--color-text-secondary-rgb) / 0.8);
 }
 
 .rowActions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .rowActionButton {
-  padding: 5px 8px;
-  border-radius: 8px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  min-height: 24px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
   background: transparent;
   color: inherit;
-  font-size: 12px;
+  font-size: 10px;
   cursor: pointer;
+  transition: border-color var(--motion-fast), background-color var(--motion-fast), transform var(--motion-fast);
+}
+
+.rowActionButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.rowActionButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .rowActionButton--success {
-  border-color: rgb(var(--color-success-rgb) / 0.24);
-  background: rgb(var(--color-success-rgb) / 0.05);
+  border-color: rgb(var(--color-success-rgb) / 0.35);
+  background: rgb(var(--color-success-rgb) / 0.1);
 }
 
 .rowActionButton--primary {
-  border-color: rgb(var(--color-primary-rgb) / 0.24);
-  background: rgb(var(--color-primary-rgb) / 0.06);
+  border-color: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.12);
 }
 
 .rowActionButton--ghost {
@@ -405,27 +603,28 @@ const emit = defineEmits([
 }
 
 .tableEmpty {
-  padding: 20px 10px;
-  opacity: 0.75;
+  padding: 18px 10px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+  font-size: 13px;
 }
 
 .pagerRow {
-  margin-top: 14px;
+  margin-top: 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .pagerMeta {
-  opacity: 0.85;
-  font-size: 14px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  font-size: 12px;
 }
 
 .pagerActions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .toolbarButton {
@@ -434,8 +633,13 @@ const emit = defineEmits([
   background: transparent;
   color: inherit;
   font-size: 12px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   cursor: pointer;
+}
+
+.toolbarButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .toolbarButton--ghost {
@@ -451,13 +655,8 @@ const emit = defineEmits([
     display: grid;
   }
 
-  .pagerRow {
-    gap: 8px;
-  }
-
   .pagerMeta {
     width: 100%;
-    font-size: 13px;
   }
 
   .pagerActions {

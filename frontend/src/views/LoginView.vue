@@ -666,13 +666,14 @@ async function submit() {
     await auth.login({
       email: email.value.trim(),
       password: password.value,
+      remember: true,
     })
 
     let destination = redirect.value
 
     if (
       !auth.isAdmin &&
-      auth.user?.requires_email_verification &&
+      auth.user?.email &&
       !auth.user?.email_verified_at
     ) {
       destination = { name: 'settings.email', query: { redirect: redirect.value } }

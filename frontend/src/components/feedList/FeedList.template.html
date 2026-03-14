@@ -1,6 +1,6 @@
-ï»¿  <section class="feed-container" data-tour="feed">
+  <section class="feed-container">
     <!-- Header -->
-    <header class="feed-header">
+    <header class="feed-header" data-tour="feed">
       <div class="feed-actions">
         <FeedSwitcher
           v-if="tabs.length > 1"
@@ -54,6 +54,7 @@
 
         <AsyncState
           v-else-if="!loading && items.length === 0"
+          class="feed-empty-state"
           mode="empty"
           :title="isBookmarksMode ? 'Ziadne ulozene prispevky' : 'Feed je zatial prazdny'"
           :message="isBookmarksMode ? 'Uloz prispevok a zobrazime ho tu.' : 'Skus obnovit feed alebo sa vratit neskor.'"
@@ -92,7 +93,10 @@
                     <span v-if="isBotPost(p)" class="author-bot-badge" aria-label="Overeny bot">BOT</span>
                     <span class="author-username">@{{ p?.user?.username }}</span>
                     <span class="author-time">{{ fmt(p?.created_at) }}</span>
-                    <span v-if="p.pinned_at" class="pinned-badge">?? PripnutÃ©</span>
+                    <span v-if="p.pinned_at" class="pinned-badge">
+                      <span aria-hidden="true">&#128204;</span>
+                      Pripnute
+                    </span>
                   </div>
                   <div v-if="isBotPost(p)" class="bot-meta-row">
                     <span class="bot-source-label">{{ botSourceLabel(p) }}</span>
@@ -228,14 +232,14 @@
                   rel="noopener"
                   @click.stop
                 >
-                  <div class="file-icon">??</div>
+                  <div class="file-icon" aria-hidden="true">&#128206;</div>
                   <div class="file-info">
-                    <div class="file-title">PrÃ­loha</div>
+                    <div class="file-title">Príloha</div>
                     <div class="file-name">
-                      {{ p.attachment_original_name || 'SÃºbor' }}
+                      {{ p.attachment_original_name || 'Súbor' }}
                     </div>
                   </div>
-                  <div class="file-arrow">â€º</div>
+                  <div class="file-arrow">›</div>
                 </a>
               </div>
 

@@ -98,6 +98,15 @@ const visibleLogs = computed(() => {
   return sortedLogs.value.slice(0, limit)
 })
 
+const resultsSummary = computed(() => {
+  const total = allLogs.value.length
+  if (total <= 0) return t('cards.resultsMetaEmpty')
+
+  const newest = sortedLogs.value[0]
+  const latest = newest?.created_at ? formatDate(newest.created_at) : t('common.na')
+  return t('cards.resultsMeta', { count: total, latest })
+})
+
 const showBotSource = computed(() => form.value.run === 'bot' || form.value.run === 'all')
 
 const safeSampleSize = computed(() => {
@@ -169,16 +178,6 @@ function formatMilliseconds(value) {
   const formatted = formatDecimal(value)
   if (formatted === t('common.na')) return formatted
   return `${formatted} ${t('units.ms')}`
-}
-
-function miniBars(points) {
-  if (!Array.isArray(points) || points.length === 0) return []
-  const values = points.map((point) => {
-    const numeric = Number(point.avg_ms)
-    return Number.isFinite(numeric) ? numeric : 0
-  })
-  const max = Math.max(...values, 1)
-  return values.map((value) => ({ value, height: Math.max(8, Math.round((value / max) * 40)) }))
 }
 
 function normalizeSortValue(row, field) {

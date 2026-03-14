@@ -39,7 +39,9 @@ const tabState = reactive({
 
 const copyLabel = ref('Kopirovat link')
 
-const username = computed(() => String(route.params.username || ''))
+const username = computed(() => String(route.params.username || '').trim())
+const encodedUsername = computed(() => encodeURIComponent(username.value))
+const hasUsername = computed(() => username.value.length > 0)
 const displayName = computed(() => {
   const name = toNonEmptyText(user.value?.name)
   if (name && !looksLikeEmail(name)) return name
@@ -124,7 +126,8 @@ function parentHandle(post) {
 }
 
 async function copyProfileLink() {
-  const url = `${window.location.origin}/u/${username.value}`
+  if (!hasUsername.value) return
+  const url = `${window.location.origin}/u/${encodedUsername.value}`
   try {
     await navigator.clipboard.writeText(url)
     copyLabel.value = 'Skopirovane'
@@ -141,8 +144,14 @@ async function loadUser() {
   err.value = ''
   user.value = null
 
+  if (!hasUsername.value) {
+    err.value = 'Profil neexistuje.'
+    loading.value = false
+    return
+  }
+
   try {
-    const { data } = await http.get(`/users/${username.value}`)
+    const { data } = await http.get(`/users/${encodedUsername.value}`)
     user.value = data
   } catch (e) {
     const status = e?.response?.status
@@ -154,6 +163,17 @@ async function loadUser() {
 }
 
 async function loadCounts() {
+  if (!hasUsername.value) {
+    stats.posts = '--'
+    stats.replies = '--'
+    stats.media = '--'
+    tabState.posts.total = '--'
+    tabState.replies.total = '--'
+    tabState.media.total = '--'
+    tabState.observations.total = '--'
+    return
+  }
+
   const kinds = [
     { key: 'posts', kind: 'roots' },
     { key: 'replies', kind: 'replies' },
@@ -162,7 +182,7 @@ async function loadCounts() {
 
   for (const k of kinds) {
     try {
-      const { data } = await http.get(`/users/${username.value}/posts`, {
+      const { data } = await http.get(`/users/${encodedUsername.value}/posts`, {
         params: { kind: k.kind, per_page: 1 },
       })
 
@@ -227,7 +247,7 @@ async function loadTab(key, reset = true) {
       return
     }
 
-    const url = reset ? `/users/${username.value}/posts` : state.next
+    const url = reset ? `/users/${encodedUsername.value}/posts` : state.next
     if (!url) return
 
     const { data } = await http.get(url, {

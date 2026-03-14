@@ -93,6 +93,7 @@ function makeRouter() {
       { path: '/login', component: AppLayout },
       { path: '/profile', component: AppLayout },
       { path: '/profile/edit', component: AppLayout },
+      { path: '/settings', component: AppLayout },
       { path: '/u/:username', component: AppLayout },
       { path: '/privacy', component: AppLayout },
     ],
@@ -234,7 +235,7 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
   })
 
-  it('renders the right rail for settings routes', async () => {
+  it('hides the right rail for settings routes', async () => {
     const router = makeRouter()
     await router.push('/settings')
     await router.isReady()
@@ -247,8 +248,8 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     await flush()
 
-    expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(false)
   })
 
   it('keeps profile layout landmarks for profile subroutes', async () => {
@@ -344,13 +345,14 @@ describe('AppLayout mark-your-calendar popup', () => {
     await flush()
     await flush()
 
-    expect(wrapper.find('[data-testid="desktop-frame"]').classes()).toContain('adminDesktopFrame')
+    expect(wrapper.find('[data-testid="desktop-frame"]').classes()).toContain('desktopFrame')
     expect(wrapper.find('[data-testid="center-shell"]').classes()).toContain('centerShellGrid')
     expect(wrapper.find('[data-testid="layout-left"]').exists()).toBe(true)
-    expect(wrapper.find('main > div').classes()).toContain('adminMainContent')
+    expect(wrapper.find('main > div').classes()).toContain('max-w-[640px]')
     expect(wrapper.find('.adminHub').exists()).toBe(true)
-    expect(wrapper.find('.adminHub__contentCard .admin-dashboard-stub').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(false)
+    expect(wrapper.find('.adminHub .admin-dashboard-stub').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
   })
 
   it('calls seen endpoint once when modal closes', async () => {

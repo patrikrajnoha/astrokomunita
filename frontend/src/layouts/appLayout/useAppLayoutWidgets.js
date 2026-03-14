@@ -125,7 +125,10 @@ export function useAppLayoutWidgets({
   }
 
   const propsForWidget = (sectionKey, title) => {
-    return buildWidgetProps(sectionKey, title, observingContext.value || {})
+    const enabledSectionKeys = enabledMobileSections.value.map((section) => String(section?.section_key || ''))
+    return buildWidgetProps(sectionKey, title, observingContext.value || {}, {
+      enabledSectionKeys,
+    })
   }
 
   const hydrateLastWidgetFromStorage = () => {

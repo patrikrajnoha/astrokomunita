@@ -131,7 +131,7 @@ function resolveRowClass(row) {
 <style scoped>
 .adminTableWrap {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: rgb(var(--bg-app-rgb) / 0.28);
   overflow: auto;
 }
@@ -139,23 +139,23 @@ function resolveRowClass(row) {
 .adminTable {
   width: 100%;
   border-collapse: collapse;
-  min-width: 760px;
+  min-width: 700px;
 }
 
 .adminTable__head {
   text-align: left;
-  padding: 12px;
+  padding: 10px;
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   background: rgb(var(--bg-app-rgb) / 0.58);
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--divider-color);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
 .adminTable__row {
-  border-bottom: 1px solid var(--color-divider);
-  transition: background-color var(--motion-fast), transform 120ms ease;
+  border-bottom: 1px solid var(--divider-color);
+  transition: background-color var(--motion-fast);
 }
 
 .adminTable__row:hover {
@@ -167,12 +167,13 @@ function resolveRowClass(row) {
 }
 
 .adminTable__cell {
-  padding: 12px;
+  padding: 10px;
   vertical-align: middle;
+  font-size: var(--font-size-sm);
 }
 
 .adminTable__state {
-  padding: 18px;
+  padding: 14px;
   text-align: center;
   color: var(--color-text-secondary);
 }
@@ -194,5 +195,16 @@ function resolveRowClass(row) {
 
 .is-right {
   text-align: right;
+}
+
+@media (max-width: 900px) {
+  .adminTable {
+    min-width: 640px;
+  }
+
+  .adminTable__head,
+  .adminTable__cell {
+    padding: 9px;
+  }
 }
 </style>

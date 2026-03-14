@@ -266,7 +266,7 @@ async function handleSubmit() {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .modalHeader h2 {
@@ -343,7 +343,7 @@ async function handleSubmit() {
 .formTabs {
   display: flex;
   margin-bottom: 1rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .tabBtn {
@@ -422,7 +422,7 @@ async function handleSubmit() {
   justify-content: flex-end;
   gap: 0.75rem;
   padding: 1.5rem;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--divider-color);
   background: var(--color-background-secondary);
 }
 

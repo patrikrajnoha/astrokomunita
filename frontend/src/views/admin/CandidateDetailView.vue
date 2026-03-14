@@ -2,7 +2,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminSectionHeader from '@/components/admin/AdminSectionHeader.vue'
-import AdminAiActionPanel from '@/components/admin/shared/AdminAiActionPanel.vue'
 import { eventCandidates } from '@/services/eventCandidates'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
@@ -26,7 +25,6 @@ const loading = ref(false)
 const error = ref(null)
 const candidate = ref(null)
 const retranslateLoading = ref(false)
-const retranslateStatus = ref('idle')
 const retranslateMessage = ref('')
 const retranslateError = ref('')
 const retranslateRawStatus = ref(null)
@@ -36,22 +34,9 @@ const translationForm = ref({
   translated_title: '',
   translated_description: '',
 })
-const aiTranslationStatus = computed(() => {
-  const normalized = String(candidate.value?.translation_status || '').trim().toLowerCase()
-  if (normalized === 'done' || normalized === 'translated') return 'success'
-  if (normalized === 'failed' || normalized === 'error') return 'error'
-  if (normalized === 'pending') return 'idle'
-  return 'idle'
-})
-const aiPanelStatus = computed(() => {
-  if (retranslateStatus.value !== 'idle') {
-    return retranslateStatus.value
-  }
-
-  return aiTranslationStatus.value
-})
 const preferredTimezone = computed(() => resolveUserPreferredTimezone(auth.user))
 const timezoneInfoLabel = computed(() => `${resolveUserLocationLabel(auth.user)} (${preferredTimezone.value})`)
+const matchedSources = computed(() => normalizeSources(candidate.value?.matched_sources))
 
 function formatDate(value) {
   if (!value) return '-'
@@ -87,36 +72,33 @@ function sourceLabel(source) {
   return key || '-'
 }
 
-function sourceBadgeStyle(source) {
+function sourceToneClass(source) {
   const key = String(source || '').toLowerCase()
-  if (key === 'astropixels') {
-    return 'display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(30,64,175,.35); background:rgba(30,64,175,.12); font-size:12px;'
-  }
-  if (key === 'imo') {
-    return 'display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(6,95,70,.35); background:rgba(6,95,70,.12); font-size:12px;'
-  }
-  if (key === 'nasa' || key === 'nasa_wts' || key === 'nasa_watch_the_skies') {
-    return 'display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(107,33,168,.35); background:rgba(107,33,168,.12); font-size:12px;'
-  }
-  return 'display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgb(var(--color-surface-rgb) / .2); background:rgb(var(--color-surface-rgb) / .08); font-size:12px;'
+  if (key === 'astropixels') return 'chip--source-astropixels'
+  if (key === 'imo') return 'chip--source-imo'
+  if (key === 'nasa' || key === 'nasa_wts' || key === 'nasa_watch_the_skies') return 'chip--source-nasa'
+  return 'chip--source-default'
+}
+
+function translationStatusKey(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'done' || normalized === 'translated') return 'success'
+  if (normalized === 'failed' || normalized === 'error') return 'error'
+  return 'pending'
 }
 
 function translationStatusLabel(value) {
-  const normalized = String(value || '').trim().toLowerCase()
-  if (normalized === 'done' || normalized === 'translated') return 'Preložené'
-  if (normalized === 'failed' || normalized === 'error') return 'Zlyhalo'
-  return 'Čaká'
+  const status = translationStatusKey(value)
+  if (status === 'success') return 'PreloĹľenĂ©'
+  if (status === 'error') return 'Zlyhalo'
+  return 'ÄŚakĂˇ'
 }
 
-function translationStatusStyle(value) {
-  const label = translationStatusLabel(value)
-  if (label === 'Preložené') {
-    return 'display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(22,163,74,.35); background:rgba(22,163,74,.12); font-size:12px;'
-  }
-  if (label === 'Zlyhalo') {
-    return 'display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(239,68,68,.35); background:rgba(239,68,68,.12); font-size:12px;'
-  }
-  return 'display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; border:1px solid rgba(245,158,11,.35); background:rgba(245,158,11,.12); font-size:12px;'
+function translationStatusClass(value) {
+  const status = translationStatusKey(value)
+  if (status === 'success') return 'statusBadge--success'
+  if (status === 'error') return 'statusBadge--error'
+  return 'statusBadge--pending'
 }
 
 function canReview() {
@@ -134,7 +116,7 @@ async function load() {
       translated_description: candidateDisplayDescription(candidate.value) || '',
     }
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || 'Chyba pri načítaní detailu'
+    error.value = fetchError?.response?.data?.message || 'Chyba pri naÄŤĂ­tanĂ­ detailu'
   } finally {
     loading.value = false
   }
@@ -144,10 +126,10 @@ async function approve() {
   if (!candidate.value) return
 
   const ok = await confirm({
-    title: 'Schváliť kandidáta',
-    message: 'Naozaj chceš schváliť tohto kandidáta?',
-    confirmText: 'Schváliť',
-    cancelText: 'Zrušiť',
+    title: 'SchvĂˇliĹĄ kandidĂˇta',
+    message: 'Naozaj chceĹˇ schvĂˇliĹĄ tohto kandidĂˇta?',
+    confirmText: 'SchvĂˇliĹĄ',
+    cancelText: 'ZruĹˇiĹĄ',
   })
   if (!ok) return
 
@@ -155,10 +137,10 @@ async function approve() {
   error.value = null
   try {
     await eventCandidates.approve(candidate.value.id)
-    toast.success('Kandidát bol schválený.')
+    toast.success('KandidĂˇt bol schvĂˇlenĂ˝.')
     router.push(candidateListRoute.value)
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || 'Schválenie zlyhalo'
+    error.value = fetchError?.response?.data?.message || 'SchvĂˇlenie zlyhalo'
     toast.error(error.value)
   } finally {
     loading.value = false
@@ -169,10 +151,10 @@ async function reject() {
   if (!candidate.value) return
 
   const ok = await confirm({
-    title: 'Zamietnuť kandidáta',
-    message: 'Naozaj chceš zamietnuť tohto kandidáta?',
-    confirmText: 'Zamietnuť',
-    cancelText: 'Zrušiť',
+    title: 'ZamietnuĹĄ kandidĂˇta',
+    message: 'Naozaj chceĹˇ zamietnuĹĄ tohto kandidĂˇta?',
+    confirmText: 'ZamietnuĹĄ',
+    cancelText: 'ZruĹˇiĹĄ',
     variant: 'danger',
   })
   if (!ok) return
@@ -181,7 +163,7 @@ async function reject() {
   error.value = null
   try {
     await eventCandidates.reject(candidate.value.id)
-    toast.success('Kandidát bol zamietnutý.')
+    toast.success('KandidĂˇt bol zamietnutĂ˝.')
     router.push(candidateListRoute.value)
   } catch (fetchError) {
     error.value = fetchError?.response?.data?.message || 'Zamietnutie zlyhalo'
@@ -195,7 +177,6 @@ async function retranslate() {
   if (!candidate.value || retranslateLoading.value) return
 
   retranslateLoading.value = true
-  retranslateStatus.value = 'idle'
   retranslateMessage.value = ''
   retranslateError.value = ''
   retranslateRawStatus.value = null
@@ -209,13 +190,11 @@ async function retranslate() {
       || response?.candidate?.translation_fallback_used,
     )
 
-    retranslateStatus.value = fallbackUsed ? 'fallback' : 'success'
-    retranslateMessage.value = fallbackUsed ? 'Použitý fallback' : 'Dokončené'
-    toast.success('Preklad bol znovu spustený.')
+    retranslateMessage.value = fallbackUsed ? 'PouĹľitĂ˝ fallback' : 'DokonÄŤenĂ©'
+    toast.success('Preklad bol znovu spustenĂ˝.')
     await load()
   } catch (fetchError) {
-    retranslateStatus.value = 'error'
-    retranslateError.value = 'Nepodarilo sa preložiť znova.'
+    retranslateError.value = 'Nepodarilo sa preloĹľiĹĄ znova.'
     retranslateRawStatus.value = Number(fetchError?.response?.status || 0) || null
     error.value = fetchError?.response?.data?.message || 'Retranslate zlyhal'
     toast.error(retranslateError.value)
@@ -238,7 +217,7 @@ async function saveTranslationEdit() {
 
   const title = String(translationForm.value.translated_title || '').trim()
   if (!title) {
-    toast.error('Preložený názov je povinný.')
+    toast.error('PreloĹľenĂ˝ nĂˇzov je povinnĂ˝.')
     return
   }
 
@@ -249,11 +228,11 @@ async function saveTranslationEdit() {
       translated_title: title,
       translated_description: String(translationForm.value.translated_description || '').trim() || null,
     })
-    toast.success('Preklad bol uložený.')
+    toast.success('Preklad bol uloĹľenĂ˝.')
     showTranslationEditor.value = false
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || 'Uloženie prekladu zlyhalo'
+    error.value = fetchError?.response?.data?.message || 'UloĹľenie prekladu zlyhalo'
     toast.error(error.value)
   } finally {
     loading.value = false
@@ -264,242 +243,565 @@ onMounted(load)
 </script>
 
 <template>
-  <div style="max-width: 940px; margin: 0 auto; padding: 24px 16px;">
+  <div class="candidateDetailView">
     <AdminSectionHeader
       section="events"
-      :title="`Detail kandidáta #${id}`"
-      back-label="Späť na kandidátov"
-      :back-to="{ name: 'admin.event-candidates' }"
+      :title="`Detail kandidĂˇta #${id}`"
+      back-label="SpĂ¤ĹĄ na kandidĂˇtov"
+      :back-to="candidateListRoute"
     />
 
-    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px;">
-      <div>
-        <h1 style="margin:0 0 6px;">Kandidát #{{ id }}</h1>
-        <div v-if="candidate" style="opacity:.8; font-size: 14px;">
+    <header class="candidateDetailView__hero">
+      <div class="candidateDetailView__heroMain">
+        <h1 class="candidateDetailView__title">KandidĂˇt #{{ id }}</h1>
+        <p v-if="candidate" class="candidateDetailView__subtitle">
           {{ candidateDisplayTitle(candidate) }}
-        </div>
+        </p>
       </div>
 
-      <div v-if="candidate" style="text-align:right; opacity:.85; font-size: 14px;">
+      <div v-if="candidate" class="candidateDetailView__heroMeta">
         <div><b>Status:</b> {{ candidate.status }}</div>
         <div><b>Typ:</b> {{ candidate.type }}</div>
       </div>
-    </div>
+    </header>
 
-    <div v-if="error" style="margin-top: 12px; color: var(--color-danger);">
+    <p v-if="error" class="candidateDetailView__alert candidateDetailView__alert--error">
       {{ error }}
-    </div>
-    <div v-if="loading" style="margin-top: 12px; opacity: .85;">
-      Načítavam...
-    </div>
+    </p>
+    <p v-if="loading" class="candidateDetailView__alert candidateDetailView__alert--loading">
+      NaÄŤĂ­tavam...
+    </p>
 
-    <div v-if="candidate && !loading" style="margin-top: 16px; display:grid; gap: 12px;">
-      <section style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;">
-        <h3 style="margin:0 0 10px;">Meta</h3>
+    <div v-if="candidate && !loading" class="candidateDetailView__sections">
+      <section class="card card--wide">
+        <h3 class="card__title">Meta</h3>
 
-        <div style="display:grid; grid-template-columns: 180px 1fr; gap:8px 12px; font-size: 14px;">
-          <div style="opacity:.75;">ID</div><div>{{ candidate.id }}</div>
+        <div class="detailGrid">
+          <div class="detailLabel">ID</div><div class="detailValue">{{ candidate.id }}</div>
 
-          <div style="opacity:.75;">Typ</div>
-          <div>{{ candidate.type }} <span style="opacity:.7;">(raw: {{ candidate.raw_type || '-' }})</span></div>
+          <div class="detailLabel">Typ</div>
+          <div class="detailValue">
+            {{ candidate.type }}
+            <span class="detailValueMuted">(raw: {{ candidate.raw_type || '-' }})</span>
+          </div>
 
-          <div style="opacity:.75;">Skrátený popis</div><div>{{ candidateDisplayShort(candidate) }}</div>
+          <div class="detailLabel">SkrĂˇtenĂ˝ popis</div><div class="detailValue">{{ candidateDisplayShort(candidate) }}</div>
 
-          <div style="opacity:.75;">Kanonický kľúč</div>
-          <div style="word-break:break-all;">{{ candidate.canonical_key || '-' }}</div>
+          <div class="detailLabel">KanonickĂ˝ kÄľĂşÄŤ</div>
+          <div class="detailValue detailValue--break">{{ candidate.canonical_key || '-' }}</div>
 
-          <div style="opacity:.75;">Dôveryhodnosť</div>
-          <div>{{ formatConfidence(candidate.confidence_score) }}</div>
+          <div class="detailLabel">DĂ´veryhodnosĹĄ</div>
+          <div class="detailValue">{{ formatConfidence(candidate.confidence_score) }}</div>
 
-          <div style="opacity:.75;">Spárované zdroje</div>
-          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          <div class="detailLabel">SpĂˇrovanĂ© zdroje</div>
+          <div class="detailValue badgesRow">
             <span
-              v-for="src in normalizeSources(candidate.matched_sources)"
+              v-for="src in matchedSources"
               :key="`detail-matched-${src}`"
-              :style="sourceBadgeStyle(src)"
+              class="chip"
+              :class="sourceToneClass(src)"
             >
               {{ sourceLabel(src) }}
             </span>
-            <span v-if="normalizeSources(candidate.matched_sources).length === 0">-</span>
+            <span v-if="matchedSources.length === 0" class="detailValueMuted">-</span>
           </div>
 
-          <div style="opacity:.75;">Vytvorené</div><div>{{ formatDate(candidate.created_at) }}</div>
-          <div style="opacity:.75;">Aktualizované</div><div>{{ formatDate(candidate.updated_at) }}</div>
+          <div class="detailLabel">VytvorenĂ©</div><div class="detailValue">{{ formatDate(candidate.created_at) }}</div>
+          <div class="detailLabel">AktualizovanĂ©</div><div class="detailValue">{{ formatDate(candidate.updated_at) }}</div>
         </div>
       </section>
 
-      <section style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;">
-        <h3 style="margin:0 0 10px;">Preklad</h3>
+      <section class="card card--wide">
+        <h3 class="card__title">Preklad</h3>
 
-        <AdminAiActionPanel
-          title="AI pomocník"
-          description="Spusti preklad znova pre tohto kandidáta."
-          action-label="Preložiť znova"
-          :enabled="Boolean(candidate)"
-          :status="aiPanelStatus"
-          :latency-ms="null"
-          :last-run-at="candidate?.translated_at || candidate?.updated_at || null"
-          :raw-status-code="retranslateRawStatus"
-          :is-loading="retranslateLoading"
-          :error-message="retranslateError"
-          @run="retranslate"
-        >
-          <p v-if="retranslateMessage" style="margin:0; font-size:12px; opacity:.9;">{{ retranslateMessage }}</p>
-          <span
-            v-if="retranslateStatus === 'fallback'"
-            style="display:inline-flex; border-radius:999px; border:1px solid rgb(245 158 11 / .45); background:rgb(245 158 11 / .12); padding:2px 8px; font-size:11px;"
+        <div class="actionsRow">
+          <button
+            type="button"
+            class="btn btn--ghost"
+            :disabled="!candidate || retranslateLoading"
+            @click="retranslate"
           >
-            Použitý fallback
-          </span>
-          <template #advanced>
-            <p style="margin:0; font-size:12px; opacity:.85;">
-              Posledná chyba: {{ candidate.translation_error || '-' }}
-            </p>
-          </template>
-        </AdminAiActionPanel>
-
-        <div style="display:grid; grid-template-columns: 180px 1fr; gap:8px 12px; font-size: 14px;">
-          <div style="opacity:.75;">Stav</div>
-          <div>
-            <span :style="translationStatusStyle(candidate.translation_status)">
+            {{ retranslateLoading ? 'Pracujem na tom...' : 'Preložit znova' }}
+          </button>
+        </div>
+        <p v-if="retranslateMessage" class="translationPanel__note">{{ retranslateMessage }}</p>
+        <p v-if="retranslateError" class="translationPanel__note">{{ retranslateError }}</p>
+        <p v-if="retranslateRawStatus" class="translationPanel__advanced">
+          HTTP status: {{ retranslateRawStatus }}
+        </p>
+        <div class="detailGrid">
+          <div class="detailLabel">Stav</div>
+          <div class="detailValue">
+            <span class="statusBadge" :class="translationStatusClass(candidate.translation_status)">
               {{ translationStatusLabel(candidate.translation_status) }}
             </span>
           </div>
 
-          <div style="opacity:.75;">Posledná chyba</div>
-          <div>{{ candidate.translation_error || '-' }}</div>
+          <div class="detailLabel">PoslednĂˇ chyba</div>
+          <div class="detailValue">{{ candidate.translation_error || '-' }}</div>
 
-          <div style="opacity:.75;">Preložené o</div>
-          <div>{{ formatDate(candidate.translated_at) }}</div>
+          <div class="detailLabel">PreloĹľenĂ© o</div>
+          <div class="detailValue">{{ formatDate(candidate.translated_at) }}</div>
 
-          <div style="opacity:.75;">Finálny názov (SK)</div>
-          <div>{{ candidateDisplayTitle(candidate) }}</div>
+          <div class="detailLabel">FinĂˇlny nĂˇzov (SK)</div>
+          <div class="detailValue">{{ candidateDisplayTitle(candidate) }}</div>
 
-          <div style="opacity:.75;">Finálny popis (SK)</div>
-          <div>{{ candidateDisplayDescription(candidate) }}</div>
+          <div class="detailLabel">FinĂˇlny popis (SK)</div>
+          <div class="detailValue">{{ candidateDisplayDescription(candidate) }}</div>
         </div>
 
-        <div style="margin-top:12px;">
+        <div class="actionsRow">
           <button
             type="button"
+            class="btn btn--ghost"
             :disabled="loading"
             @click="openTranslationEditor"
-            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit; margin-right:8px;"
           >
-            Upraviť preklad
+            UpraviĹĄ preklad
           </button>
         </div>
 
-        <div
-          v-if="showTranslationEditor"
-          style="margin-top:12px; padding:12px; border:1px solid rgb(var(--color-surface-rgb) / .12); border-radius:12px; display:grid; gap:8px;"
-        >
-          <div style="font-weight:600;">Ručná úprava prekladu</div>
+        <div v-if="showTranslationEditor" class="editorCard">
+          <div class="editorCard__title">RuÄŤnĂˇ Ăşprava prekladu</div>
           <input
             v-model="translationForm.translated_title"
             type="text"
+            class="input"
             :disabled="loading"
-            placeholder="Preložený názov"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            placeholder="PreloĹľenĂ˝ nĂˇzov"
           />
           <textarea
             v-model="translationForm.translated_description"
             rows="5"
+            class="input textarea"
             :disabled="loading"
-            placeholder="Preložený popis"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
+            placeholder="PreloĹľenĂ˝ popis"
           ></textarea>
-          <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <div class="editorCard__actions">
             <button
               type="button"
+              class="btn btn--ghost"
               :disabled="loading"
               @click="showTranslationEditor = false"
-              style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:transparent; color:inherit;"
             >
-              Zrušiť
+              ZruĹˇiĹĄ
             </button>
             <button
               type="button"
+              class="btn btn--primary"
               :disabled="loading"
               @click="saveTranslationEdit"
-              style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-primary-rgb) / .35); background:rgb(var(--color-primary-rgb) / .12); color:inherit;"
             >
-              Uložiť preklad
+              UloĹľiĹĄ preklad
             </button>
           </div>
         </div>
       </section>
 
-      <section style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;">
-        <h3 style="margin:0 0 10px;">Čas</h3>
+      <section class="card">
+        <h3 class="card__title">ÄŚas</h3>
 
-        <div style="display:grid; grid-template-columns: 180px 1fr; gap:8px 12px; font-size: 14px;">
-          <div style="grid-column: 1 / -1; font-size:12px; opacity:.78; margin-bottom:4px;">
+        <div class="detailGrid">
+          <div class="timezoneInfo">
             Casove pasmo: {{ timezoneInfoLabel }}
           </div>
-          <div style="opacity:.75;">Start</div><div>{{ formatDate(candidate.start_at) }}</div>
-          <div style="opacity:.75;">End</div><div>{{ formatDate(candidate.end_at) }}</div>
-          <div style="opacity:.75;">Max</div><div>{{ formatDate(candidate.max_at) }}</div>
+          <div class="detailLabel">Start</div><div class="detailValue">{{ formatDate(candidate.start_at) }}</div>
+          <div class="detailLabel">End</div><div class="detailValue">{{ formatDate(candidate.end_at) }}</div>
+          <div class="detailLabel">Max</div><div class="detailValue">{{ formatDate(candidate.max_at) }}</div>
         </div>
       </section>
 
-      <section style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;">
-        <h3 style="margin:0 0 10px;">Zdroj</h3>
+      <section class="card">
+        <h3 class="card__title">Zdroj</h3>
 
-        <div style="display:grid; grid-template-columns: 180px 1fr; gap:8px 12px; font-size: 14px;">
-          <div style="opacity:.75;">Názov zdroja</div>
-          <div>
-            <span :style="sourceBadgeStyle(candidate.source_name)">{{ sourceLabel(candidate.source_name) }}</span>
+        <div class="detailGrid">
+          <div class="detailLabel">NĂˇzov zdroja</div>
+          <div class="detailValue">
+            <span class="chip" :class="sourceToneClass(candidate.source_name)">{{ sourceLabel(candidate.source_name) }}</span>
           </div>
 
-          <div style="opacity:.75;">URL zdroja</div>
-          <div>
-            <a :href="candidate.source_url" target="_blank" rel="noreferrer">otvoriť zdroj</a>
+          <div class="detailLabel">URL zdroja</div>
+          <div class="detailValue">
+            <a class="sourceLink" :href="candidate.source_url" target="_blank" rel="noreferrer">otvoriĹĄ zdroj</a>
           </div>
 
-          <div style="opacity:.75;">UID zdroja</div><div style="word-break:break-all;">{{ candidate.source_uid }}</div>
+          <div class="detailLabel">UID zdroja</div><div class="detailValue detailValue--break">{{ candidate.source_uid }}</div>
         </div>
       </section>
 
-      <section style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;">
-        <h3 style="margin:0 0 10px;">Moderácia</h3>
+      <section class="card">
+        <h3 class="card__title">ModerĂˇcia</h3>
 
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <div class="actionsRow">
           <button
+            class="btn btn--success"
             @click="approve"
             :disabled="!canReview()"
-            style="padding:10px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-success-rgb) / .10); color:inherit;"
           >
-            Publikovať
+            PublikovaĹĄ
           </button>
 
           <button
+            class="btn btn--danger"
             @click="reject"
             :disabled="!canReview()"
-            style="padding:10px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-danger-rgb) / .10); color:inherit;"
           >
-            Zamietnuť
+            ZamietnuĹĄ
           </button>
         </div>
       </section>
 
-      <section style="padding: 12px; border: 1px solid rgb(var(--color-surface-rgb) / .12); border-radius: 12px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-          <h3 style="margin:0;">Raw payload</h3>
+      <section class="card card--wide">
+        <div class="rawHeader">
+          <h3 class="card__title">Raw payload</h3>
 
           <button
+            class="btn btn--ghost"
             @click="showRaw = !showRaw"
-            style="padding:8px 12px; border-radius:10px; border:1px solid rgb(var(--color-surface-rgb) / .18); background:rgb(var(--color-surface-rgb) / .08); color:inherit;"
           >
-            {{ showRaw ? 'Skryť' : 'Zobraziť' }}
+            {{ showRaw ? 'SkryĹĄ' : 'ZobraziĹĄ' }}
           </button>
         </div>
 
-        <pre
-          v-if="showRaw"
-          style="margin-top:10px; white-space:pre-wrap; max-height:320px; overflow:auto; border:1px solid rgb(var(--color-surface-rgb) / .18); border-radius:10px; padding:10px;"
-        >{{ candidate.raw_payload ?? '' }}</pre>
+        <pre v-if="showRaw" class="rawPayload">{{ candidate.raw_payload ?? '' }}</pre>
       </section>
     </div>
   </div>
 </template>
+
+<style scoped>
+.candidateDetailView {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.candidateDetailView__hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.candidateDetailView__heroMain {
+  min-width: 0;
+}
+
+.candidateDetailView__title {
+  margin: 0;
+  font-size: clamp(1.2rem, 1.8vw, 1.55rem);
+  line-height: 1.18;
+}
+
+.candidateDetailView__subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  max-width: 680px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidateDetailView__heroMeta {
+  text-align: right;
+  display: grid;
+  gap: 3px;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.candidateDetailView__alert {
+  margin: 0;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  padding: 9px 10px;
+  font-size: 13px;
+}
+
+.candidateDetailView__alert--error {
+  border-color: rgb(var(--color-danger-rgb, 239 68 68) / 0.35);
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.08);
+  color: var(--color-danger);
+}
+
+.candidateDetailView__alert--loading {
+  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  background: rgb(var(--color-bg-rgb) / 0.35);
+}
+
+.candidateDetailView__sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.card {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 12px;
+  padding: 11px;
+  background: rgb(var(--color-bg-rgb) / 0.32);
+  display: grid;
+  gap: 10px;
+}
+
+.card--wide {
+  grid-column: 1 / -1;
+}
+
+.card__title {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: start;
+  font-size: 13px;
+}
+
+.detailLabel {
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.detailValue {
+  min-width: 0;
+}
+
+.detailValue--break {
+  word-break: break-all;
+}
+
+.detailValueMuted {
+  color: rgb(var(--color-text-secondary-rgb) / 0.86);
+}
+
+.badgesRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip,
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  background: rgb(var(--color-surface-rgb) / 0.08);
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 2px 8px;
+}
+
+.chip--source-astropixels {
+  border-color: rgb(30 64 175 / 0.35);
+  background: rgb(30 64 175 / 0.12);
+}
+
+.chip--source-imo {
+  border-color: rgb(6 95 70 / 0.35);
+  background: rgb(6 95 70 / 0.12);
+}
+
+.chip--source-nasa {
+  border-color: rgb(107 33 168 / 0.35);
+  background: rgb(107 33 168 / 0.12);
+}
+
+.statusBadge--success {
+  border-color: rgb(22 163 74 / 0.35);
+  background: rgb(22 163 74 / 0.12);
+}
+
+.statusBadge--error {
+  border-color: rgb(239 68 68 / 0.35);
+  background: rgb(239 68 68 / 0.12);
+}
+
+.statusBadge--pending,
+.statusBadge--fallback {
+  border-color: rgb(245 158 11 / 0.4);
+  background: rgb(245 158 11 / 0.12);
+}
+
+.translationPanel__note,
+.translationPanel__advanced {
+  margin: 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.actionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.editorCard {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.45);
+}
+
+.editorCard__title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.editorCard__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn,
+.input,
+.textarea {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 9px;
+  background: rgb(var(--color-bg-rgb) / 0.5);
+  color: inherit;
+  font: inherit;
+}
+
+.btn {
+  min-height: 34px;
+  padding: 6px 11px;
+  cursor: pointer;
+  transition: border-color var(--motion-fast), background-color var(--motion-fast), transform var(--motion-fast);
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgb(var(--color-surface-rgb) / 0.35);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn--ghost {
+  background: rgb(var(--color-surface-rgb) / 0.08);
+}
+
+.btn--primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.42);
+  background: rgb(var(--color-primary-rgb) / 0.16);
+}
+
+.btn--success {
+  border-color: rgb(var(--color-success-rgb, 22 163 74) / 0.35);
+  background: rgb(var(--color-success-rgb, 22 163 74) / 0.11);
+}
+
+.btn--danger {
+  border-color: rgb(var(--color-danger-rgb, 239 68 68) / 0.35);
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.11);
+}
+
+.input,
+.textarea {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+}
+
+.textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.timezoneInfo {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.87);
+}
+
+.sourceLink {
+  color: rgb(var(--color-primary-rgb) / 0.94);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rawHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.rawPayload {
+  margin: 0;
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.6);
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.36;
+}
+
+@media (max-width: 940px) {
+  .candidateDetailView__sections {
+    grid-template-columns: 1fr;
+  }
+
+  .card--wide {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .candidateDetailView {
+    padding: 0;
+  }
+
+  .candidateDetailView__heroMeta {
+    width: 100%;
+    text-align: left;
+  }
+
+  .candidateDetailView__subtitle {
+    white-space: normal;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+
+  .detailLabel {
+    margin-top: 5px;
+  }
+
+  .editorCard__actions {
+    justify-content: stretch;
+    flex-wrap: wrap;
+  }
+
+  .editorCard__actions .btn {
+    flex: 1 1 150px;
+  }
+}
+</style>
+

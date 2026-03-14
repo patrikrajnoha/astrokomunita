@@ -7,8 +7,6 @@ import CalendarView from './CalendarView.vue'
 import FutureEventsEmptyState from '@/components/events/FutureEventsEmptyState.vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
-import { useFavoritesStore } from '@/stores/favorites'
-import { useAuthStore } from '@/stores/auth'
 import { getEvents, getEventYears, lookupEventsByIds } from '@/services/events'
 import {
   buildPeriodQuery,
@@ -28,9 +26,9 @@ import {
   eventCardTimeAriaLabel,
   eventCardTimeMessage,
   eventCardTimeTimezoneLabel,
+  eventTypeIcon,
+  eventTypeIconLabel,
   formatCardDate,
-  publicConfidenceBadgeLabel,
-  publicConfidenceTooltip,
   regionLabel,
   shouldShowRegion,
   typeLabel,
@@ -39,8 +37,6 @@ import {
 const route = useRoute()
 const router = useRouter()
 
-const favorites = useFavoritesStore()
-const auth = useAuthStore()
 const initialPeriod = getEventNowPeriodDefaults(EVENT_TIMEZONE)
 
 const selectedType = ref('all')
@@ -616,15 +612,6 @@ async function showAllEvents() {
   await setScope('all')
 }
 
-async function toggleFavorite(eventId) {
-  await favorites.toggle(eventId)
-}
-
-function favoriteToggleLabel(eventId) {
-  if (!auth.isAuthed) return 'Prihlaste sa pre sledovanie udalosti'
-  return favorites.isFavorite(eventId) ? 'Odobrat zo sledovanych' : 'Pridat do sledovanych'
-}
-
 watch([selectedType, selectedRegion, searchQuery], async () => {
   if (!isReady.value || isApplyingRoute.value || suppressLocalFilterWatch || isCalendarView.value)
     return
@@ -679,10 +666,6 @@ onMounted(async () => {
 
   const routeChanged = await syncManagedRouteQuery()
   if (!routeChanged && !isCalendarView.value) await fetchEvents()
-
-  if (!isCalendarView.value && auth.isAuthed && favorites.ids.size === 0 && !favorites.loading) {
-    await favorites.fetch()
-  }
 
   void startRealtimeFeed()
 })

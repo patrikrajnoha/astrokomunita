@@ -78,8 +78,8 @@ const moonPhaseLabel = computed(() => {
 })
 
 const illuminationLabel = computed(() => {
-  const value = Number(astronomy.value?.moon_illumination_percent)
-  return Number.isFinite(value) ? `${Math.round(value)}%` : '-'
+  const value = toNumber(astronomy.value?.moon_illumination_percent)
+  return value === null ? '-' : `${Math.round(value)}%`
 })
 
 const toNumber = (value) => {

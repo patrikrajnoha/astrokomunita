@@ -1,16 +1,13 @@
 <template src="./postDetail/PostDetailView.template.html"></template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import HashtagText from '@/components/HashtagText.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
-import PollCard from '@/components/PollCard.vue'
 import PostActionBar from '@/components/PostActionBar.vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
-import ShareModal from '@/components/share/ShareModal.vue'
 import api from '@/services/api'
-import ReplyComposer from '@/components/ReplyComposer.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
@@ -32,6 +29,10 @@ import {
   postGifTitle,
   postGifUrl as resolvePostGifUrl,
 } from './postDetail/postDetailView.utils'
+
+const PollCard = defineAsyncComponent(() => import('@/components/PollCard.vue'))
+const ShareModal = defineAsyncComponent(() => import('@/components/share/ShareModal.vue'))
+const ReplyComposer = defineAsyncComponent(() => import('@/components/ReplyComposer.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -363,7 +364,9 @@ async function saveInlineEdit(post) {
 }
 
 function hasOriginalDownload(post) {
-  return isImage(post) && Boolean(post?.attachment_download_url)
+  if (!isImage(post)) return false
+  if (isAttachmentPending(post) || isAttachmentBlocked(post)) return false
+  return Boolean(post?.attachment_download_url)
 }
 
 function downloadOriginalAttachment(post) {

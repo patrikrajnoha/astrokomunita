@@ -293,7 +293,7 @@ onBeforeUnmount(() => {
   top: var(--feed-tabs-offset);
   z-index: 20;
   background: rgb(var(--bg-app-rgb) / 0.92);
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--divider-color);
   backdrop-filter: blur(8px);
   transition: background-color var(--motion-base), border-color var(--motion-base);
 }

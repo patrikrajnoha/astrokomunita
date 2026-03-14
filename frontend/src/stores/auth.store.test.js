@@ -76,6 +76,7 @@ describe('auth store login resilience', () => {
     expect(http.post).toHaveBeenCalledWith('/auth/login', {
       email: 'admin@example.com',
       password: 'secret',
+      remember: true,
     })
     expect(http.get).toHaveBeenCalledWith('/auth/me', expect.any(Object))
   })
@@ -99,6 +100,22 @@ describe('auth store login resilience', () => {
     expect(store.user).toBeNull()
     expect(store.status).toBe('guest')
     expect(store.error?.type).toBe('unauthorized')
+  })
+
+  it('treats empty auth/me payload as guest', async () => {
+    const store = useAuthStore()
+
+    http.get.mockResolvedValueOnce({
+      data: null,
+    })
+
+    const data = await store.fetchUser({ source: 'manual', retry: false, markBootstrap: true })
+
+    expect(data).toBeNull()
+    expect(store.isAuthed).toBe(false)
+    expect(store.user).toBeNull()
+    expect(store.status).toBe('guest')
+    expect(store.error).toBeNull()
   })
 
   it('keeps authenticated state for transient fetchUser server failures', async () => {

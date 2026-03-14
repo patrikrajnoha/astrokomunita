@@ -694,13 +694,17 @@
 }
 
 .postActions {
+  display: flex;
+  align-items: center;
   gap: var(--space-1);
   margin-top: var(--space-1);
+  width: 100%;
 }
 
 .postActionsMore {
   display: inline-flex;
   align-items: center;
+  margin-left: auto;
 }
 
 .postActionsMore :deep(.dropdownRoot) {

@@ -66,6 +66,7 @@ describe('LoginView', () => {
       expect(mockAuth.login).toHaveBeenCalledWith({
         email: 'you@example.com',
         password: 'my-password',
+        remember: true,
       })
       expect(pushMock).not.toHaveBeenCalled()
 

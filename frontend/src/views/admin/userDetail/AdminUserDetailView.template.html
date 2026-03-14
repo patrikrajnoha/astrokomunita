@@ -151,103 +151,117 @@
         </section>
 
         <aside class="sidePanel">
-          <section class="sectionCard">
-            <header class="sectionHeader">
-              <h3>Informacie o ucte</h3>
-            </header>
+          <details class="sectionCard sideCard" open>
+            <summary class="sideSummary">
+              <span>Informacie o ucte</span>
+              <small>{{ statusText }}</small>
+            </summary>
+            <div class="sideBody">
+              <dl class="accountInfoList">
+                <div v-for="item in accountInfoRows" :key="item.key" class="accountInfoItem">
+                  <dt>{{ item.label }}</dt>
+                  <dd>{{ item.value }}</dd>
+                </div>
+              </dl>
+            </div>
+          </details>
 
-            <dl class="accountInfoList">
-              <div v-for="item in accountInfoRows" :key="item.key" class="accountInfoItem">
-                <dt>{{ item.label }}</dt>
-                <dd>{{ item.value }}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section class="sectionCard">
-            <header class="sectionHeader">
-              <h3>Opravnenia a roly</h3>
+          <details class="sectionCard sideCard">
+            <summary class="sideSummary">
+              <span>Opravnenia a roly</span>
+              <small>{{ roleText }}</small>
+            </summary>
+            <div class="sideBody">
               <p class="sectionSubline">Aktualna rola a moznost spravy roly editor.</p>
-            </header>
-            <div class="accountInfoItem">
-              <dt>Aktualna rola</dt>
-              <dd>
-                <span class="statusBadge roleBadge" :class="roleClass(user)">{{ roleText }}</span>
-              </dd>
+              <div class="accountInfoItem">
+                <dt>Aktualna rola</dt>
+                <dd>
+                  <span class="statusBadge roleBadge" :class="roleClass(user)">{{ roleText }}</span>
+                </dd>
+              </div>
+              <div class="accountInfoItem">
+                <dt>Stav editor</dt>
+                <dd>{{ roleText === 'editor' ? 'Pouzivatel je editor' : 'Pouzivatel nie je editor' }}</dd>
+              </div>
+              <div v-if="canToggleEditorRole" class="actionStack">
+                <button
+                  v-if="roleText !== 'editor'"
+                  class="btn subtle"
+                  :disabled="userLoading"
+                  @click="updateEditorRole('editor')"
+                >
+                  Pridat rolu editor
+                </button>
+                <button
+                  v-else
+                  class="btn subtle"
+                  :disabled="userLoading"
+                  @click="updateEditorRole('user')"
+                >
+                  Odobrat rolu editor
+                </button>
+              </div>
             </div>
-            <div class="accountInfoItem">
-              <dt>Stav editor</dt>
-              <dd>{{ roleText === 'editor' ? 'Pouzivatel je editor' : 'Pouzivatel nie je editor' }}</dd>
-            </div>
-            <div v-if="canToggleEditorRole" class="actionStack">
-              <button
-                v-if="roleText !== 'editor'"
-                class="btn subtle"
-                :disabled="userLoading"
-                @click="updateEditorRole('editor')"
-              >
-                Pridat rolu editor
-              </button>
-              <button
-                v-else
-                class="btn subtle"
-                :disabled="userLoading"
-                @click="updateEditorRole('user')"
-              >
-                Odobrat rolu editor
-              </button>
-            </div>
-          </section>
+          </details>
 
-          <section class="sectionCard moderationCard">
-            <header class="sectionHeader">
-              <h3>Moderacia</h3>
+          <details class="sectionCard sideCard moderationCard" open>
+            <summary class="sideSummary">
+              <span>Moderacia</span>
+              <small>{{ user?.is_banned ? 'Blokovany' : 'Bez blokacie' }}</small>
+            </summary>
+            <div class="sideBody">
               <p class="sectionSubline">Reverzibilne akcie pre stav uctu.</p>
-            </header>
+              <div v-if="canModerateAccount" class="actionStack">
+                <button
+                  v-if="!user?.is_banned"
+                  class="btn subtle"
+                  :disabled="userLoading"
+                  @click="banUser"
+                >
+                  Zablokovat ucet
+                </button>
+                <button
+                  v-else
+                  class="btn subtle"
+                  :disabled="userLoading"
+                  @click="unbanUser"
+                >
+                  Odblokovat ucet
+                </button>
 
-            <div v-if="canModerateAccount" class="actionStack">
-              <button
-                v-if="!user?.is_banned"
-                class="btn subtle"
-                :disabled="userLoading"
-                @click="banUser"
-              >
-                Zablokovat ucet
-              </button>
-              <button
-                v-else
-                class="btn subtle"
-                :disabled="userLoading"
-                @click="unbanUser"
-              >
-                Odblokovat ucet
-              </button>
-
-              <button
-                class="btn subtle"
-                :disabled="userLoading || !user?.is_active"
-                @click="deactivateUser"
-              >
-                Deaktivovat ucet
-              </button>
-              <button
-                class="btn subtle"
-                :disabled="userLoading || user?.is_active"
-                @click="reactivateUser"
-              >
-                Reaktivovat ucet
-              </button>
+                <button
+                  class="btn subtle"
+                  :disabled="userLoading || !user?.is_active"
+                  @click="deactivateUser"
+                >
+                  Deaktivovat ucet
+                </button>
+                <button
+                  class="btn subtle"
+                  :disabled="userLoading || user?.is_active"
+                  @click="reactivateUser"
+                >
+                  Reaktivovat ucet
+                </button>
+              </div>
+              <p v-else class="readonlyHint">Pre tento ucet nie su moderacne write akcie povolene.</p>
             </div>
-            <p v-else class="readonlyHint">Pre tento ucet nie su moderacne write akcie povolene.</p>
-          </section>
+          </details>
 
-          <section v-if="canUseDangerActions" class="sectionCard dangerZone" data-testid="danger-zone">
-            <header class="sectionHeader">
-              <h3>Danger zone</h3>
+          <details
+            v-if="canUseDangerActions"
+            class="sectionCard sideCard dangerZone"
+            data-testid="danger-zone"
+          >
+            <summary class="sideSummary">
+              <span>Danger zone</span>
+              <small>Nevratne akcie</small>
+            </summary>
+            <div class="sideBody">
               <p class="sectionSubline">Nevratne operacie nad profilom.</p>
-            </header>
-            <button class="btn danger" :disabled="userLoading" @click="resetProfile">Resetovat profil</button>
-          </section>
+              <button class="btn danger" :disabled="userLoading" @click="resetProfile">Resetovat profil</button>
+            </div>
+          </details>
         </aside>
       </div>
 
@@ -484,99 +498,107 @@
         </header>
         <div v-if="reportsError" class="adminAlert">{{ reportsError }}</div>
 
-      <AdminToolbar :loading="reportsLoading">
-        <template #search>
-          <label class="fieldLabel" for="user-reports-search">Hladat</label>
-          <input
-            id="user-reports-search"
-            v-model="reportsSearchInput"
-            type="search"
-            class="fieldInput"
-            :disabled="reportsLoading"
-            placeholder="Hladat reporty..."
-          />
-        </template>
+        <details
+          class="reportsFilters"
+          :open="Boolean(reportsSearchInput || reportsStatus || reportsPerPage !== 20)"
+        >
+          <summary class="reportsSummary">Filtre a akcie reportov</summary>
+          <div class="reportsFiltersBody">
+            <AdminToolbar :loading="reportsLoading">
+              <template #search>
+                <label class="fieldLabel" for="user-reports-search">Hladat</label>
+                <input
+                  id="user-reports-search"
+                  v-model="reportsSearchInput"
+                  type="search"
+                  class="fieldInput"
+                  :disabled="reportsLoading"
+                  placeholder="Hladat reporty..."
+                />
+              </template>
 
-        <template #filters>
-          <div class="filtersRow">
-            <div>
-              <label class="fieldLabel" for="user-reports-status">Status</label>
-              <select
-                id="user-reports-status"
-                v-model="reportsStatus"
-                class="fieldInput"
-                :disabled="reportsLoading"
-                @change="reportsPage = 1"
-              >
-                <option value="">all</option>
-                <option value="open">open</option>
-                <option value="reviewed">reviewed</option>
-                <option value="dismissed">dismissed</option>
-                <option value="action_taken">action_taken</option>
-              </select>
-            </div>
-            <div>
-              <label class="fieldLabel" for="user-reports-per-page">Na stranu</label>
-              <select
-                id="user-reports-per-page"
-                v-model.number="reportsPerPage"
-                class="fieldInput"
-                :disabled="reportsLoading"
-                @change="reportsPage = 1"
-              >
-                <option :value="10">10</option>
-                <option :value="20">20</option>
-                <option :value="50">50</option>
-              </select>
-            </div>
+              <template #filters>
+                <div class="filtersRow">
+                  <div>
+                    <label class="fieldLabel" for="user-reports-status">Status</label>
+                    <select
+                      id="user-reports-status"
+                      v-model="reportsStatus"
+                      class="fieldInput"
+                      :disabled="reportsLoading"
+                      @change="reportsPage = 1"
+                    >
+                      <option value="">all</option>
+                      <option value="open">open</option>
+                      <option value="reviewed">reviewed</option>
+                      <option value="dismissed">dismissed</option>
+                      <option value="action_taken">action_taken</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="fieldLabel" for="user-reports-per-page">Na stranu</label>
+                    <select
+                      id="user-reports-per-page"
+                      v-model.number="reportsPerPage"
+                      class="fieldInput"
+                      :disabled="reportsLoading"
+                      @change="reportsPage = 1"
+                    >
+                      <option :value="10">10</option>
+                      <option :value="20">20</option>
+                      <option :value="50">50</option>
+                    </select>
+                  </div>
+                </div>
+              </template>
+
+              <template #actions>
+                <button type="button" class="btn subtle" :disabled="reportsLoading" @click="loadReports">Obnovit</button>
+                <button type="button" class="btn subtle" :disabled="reportsLoading" @click="clearReportFilters">
+                  Vycistit filtre
+                </button>
+              </template>
+            </AdminToolbar>
           </div>
-        </template>
+        </details>
 
-        <template #actions>
-          <button type="button" class="btn subtle" :disabled="reportsLoading" @click="loadReports">Obnovit</button>
-          <button type="button" class="btn subtle" :disabled="reportsLoading" @click="clearReportFilters">
-            Vycistit filtre
-          </button>
-        </template>
-      </AdminToolbar>
+        <AdminDataTable
+          :columns="reportColumns"
+          :rows="reportRows"
+          :loading="reportsLoading"
+          empty-title="Ziadne reporty pre tohto pouzivatela"
+          empty-description="Aktualnym filtrom nezodpoveda ziaden report."
+        >
+          <template #[`cell(type)`]="{ row }">
+            <span class="statusBadge">{{ reportType(row) }}</span>
+          </template>
 
-      <AdminDataTable
-        :columns="reportColumns"
-        :rows="reportRows"
-        :loading="reportsLoading"
-        empty-title="Ziadne reporty pre tohto pouzivatela"
-        empty-description="Aktualnym filtrom nezodpoveda ziaden report."
-      >
-        <template #[`cell(type)`]="{ row }">
-          <span class="statusBadge">{{ reportType(row) }}</span>
-        </template>
+          <template #[`cell(status)`]="{ row }">
+            <span class="statusBadge">{{ row.status || '-' }}</span>
+          </template>
 
-        <template #[`cell(status)`]="{ row }">
-          <span class="statusBadge">{{ row.status || '-' }}</span>
-        </template>
+          <template #[`cell(created_at)`]="{ row }">
+            {{ formatDate(row.created_at) }}
+          </template>
 
-        <template #[`cell(created_at)`]="{ row }">
-          {{ formatDate(row.created_at) }}
-        </template>
+          <template #[`cell(actions)`]="{ row }">
+            <div class="rowActions">
+              <RouterLink
+                v-if="row?.target?.id"
+                :to="{ name: 'post-detail', params: { id: row.target.id } }"
+                class="btn subtle"
+              >
+                Zobrazit
+              </RouterLink>
+              <button class="btn subtle" :disabled="reportsLoading" @click="reportAction(row, 'hide')">Vyriesit</button>
+              <button class="btn subtle" :disabled="reportsLoading" @click="reportAction(row, 'dismiss')">
+                Zamietnut
+              </button>
+            </div>
+          </template>
+        </AdminDataTable>
 
-        <template #[`cell(actions)`]="{ row }">
-          <div class="rowActions">
-            <RouterLink
-              v-if="row?.target?.id"
-              :to="{ name: 'post-detail', params: { id: row.target.id } }"
-              class="btn subtle"
-            >
-              Zobrazit
-            </RouterLink>
-            <button class="btn subtle" :disabled="reportsLoading" @click="reportAction(row, 'hide')">Vyriesit</button>
-            <button class="btn subtle" :disabled="reportsLoading" @click="reportAction(row, 'dismiss')">
-              Zamietnut
-            </button>
-          </div>
-        </template>
-      </AdminDataTable>
-
-      <AdminPagination :meta="reportsData" @page-change="reportsPage = $event" />
+        <AdminPagination :meta="reportsData" @page-change="reportsPage = $event" />
       </section>
     </template>
   </AdminPageShell>

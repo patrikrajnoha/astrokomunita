@@ -12,6 +12,8 @@ import AdminSectionTabs from '@/components/admin/AdminSectionTabs.vue'
 
 <style scoped>
 .adminSectionView {
+  display: grid;
+  gap: 10px;
   min-width: 0;
 }
 </style>

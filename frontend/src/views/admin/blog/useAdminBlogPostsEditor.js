@@ -7,13 +7,17 @@ import {
   formatDate,
   fromDateTimeLocal,
   getInitialListDensity,
-  parseContentBlocks,
   persistListDensity,
   readTimeFor,
   slugifyHeading,
   statusLabel,
   toDateTimeLocal,
 } from "../blogPostsView.utils";
+import {
+  hasHtmlMarkup,
+  renderArticleContent,
+  sanitizeArticleHtml,
+} from "@/utils/articleContent";
 
 const LIST_DENSITY_STORAGE_KEY = "admin.blog.listDensity";
 const AUTO_SAVE_INTERVAL_MS = 60_000;
@@ -49,6 +53,7 @@ export function useAdminBlogPostsEditor() {
   const aiTagSuggestionsError = ref("");
   const aiTagSuggestions = ref([]);
   const aiTagFallbackUsed = ref(false);
+  const aiTagSuggestionMode = ref("existing_only");
   const formSnapshot = ref("");
   const lastSavedAt = ref(null);
   const loadToken = ref(0);
@@ -74,10 +79,22 @@ export function useAdminBlogPostsEditor() {
   const hasSelectedAiTagSuggestions = computed(() =>
     aiTagSuggestions.value.some((item) => item.checked)
   );
+  const hasAiSuggestionResult = computed(
+    () => aiTagSuggestions.value.length > 0 || aiTagSuggestionsError.value !== ""
+  );
+  const aiSuggestActionLabel = computed(() =>
+    aiTagSuggestionsLoading.value
+      ? "Navrhujem..."
+      : hasAiSuggestionResult.value
+      ? "Navrhnut znova"
+      : "Navrhnut tagy"
+  );
   const isDirty = computed(() => makeFormSnapshot() !== formSnapshot.value);
   const titleLength = computed(() => String(form.value.title || "").trim().length);
+  const renderedContent = computed(() => renderArticleContent(form.value.content));
+  const contentPlainText = computed(() => renderedContent.value.plainText);
   const contentWordCount = computed(
-    () => String(form.value.content || "").trim().split(/\s+/).filter(Boolean).length
+    () => String(contentPlainText.value || "").trim().split(/\s+/).filter(Boolean).length
   );
   const hasCover = computed(() => Boolean(coverPreview.value));
   const tagCount = computed(() => parseTagsInput().length);
@@ -137,7 +154,7 @@ export function useAdminBlogPostsEditor() {
     if (loading.value || saving.value || deleting.value) return false;
     if (!isDirty.value) return false;
     if (titleLength.value < 3) return false;
-    if (String(form.value.content || "").trim().length < 10) return false;
+    if (String(contentPlainText.value || "").trim().length < 10) return false;
     return true;
   });
   const saveStateLabel = computed(() => {
@@ -153,6 +170,34 @@ export function useAdminBlogPostsEditor() {
     return "Bez zmien";
   });
 
+  function toMetricCount(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return Math.floor(parsed);
+  }
+
+  function postReadCount(post) {
+    const readMetric =
+      toMetricCount(post?.read_count) ??
+      toMetricCount(post?.reads_count) ??
+      toMetricCount(post?.reads);
+    if (readMetric !== null) return readMetric;
+    return toMetricCount(post?.views_count) ?? toMetricCount(post?.views) ?? 0;
+  }
+
+  function postClickCount(post) {
+    const clickMetric =
+      toMetricCount(post?.click_count) ??
+      toMetricCount(post?.clicks_count) ??
+      toMetricCount(post?.clicks);
+    if (clickMetric !== null) return clickMetric;
+    return postReadCount(post);
+  }
+
+  function formatMetricCount(value) {
+    return Number(value || 0).toLocaleString("sk-SK");
+  }
+
   function resetAiTagSuggestions() {
     aiTagSuggestionsLoading.value = false;
     aiTagSuggestionsError.value = "";
@@ -160,11 +205,25 @@ export function useAdminBlogPostsEditor() {
     aiTagFallbackUsed.value = false;
   }
 
+  function setAiTagSuggestionMode(mode) {
+    if (mode !== "existing_only" && mode !== "allow_new") return;
+    if (aiTagSuggestionMode.value === mode) return;
+    aiTagSuggestionMode.value = mode;
+    resetAiTagSuggestions();
+  }
+
   function parseTagsInput() {
     return tagsInput.value
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
+  }
+
+  function normalizeContentForStorage(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    if (!hasHtmlMarkup(raw)) return raw;
+    return sanitizeArticleHtml(raw);
   }
 
   function makeFormSnapshot() {
@@ -175,7 +234,7 @@ export function useAdminBlogPostsEditor() {
     return JSON.stringify({
       selected_id: selectedId.value || 0,
       title: String(form.value.title || "").trim(),
-      content: String(form.value.content || "").trim(),
+      content: normalizeContentForStorage(form.value.content),
       published_at: form.value.published_at || "",
       tags: normalizedTags,
       cover_file: coverFile.value ? `${coverFile.value.name}:${coverFile.value.size}` : "",
@@ -332,10 +391,8 @@ export function useAdminBlogPostsEditor() {
     }, 260);
   }
 
-  const previewBlocks = computed(() => parseContentBlocks(form.value.content));
-  const previewToc = computed(() =>
-    previewBlocks.value.filter((b) => b.type === "h2" || b.type === "h3")
-  );
+  const previewHtml = computed(() => renderedContent.value.html);
+  const previewToc = computed(() => renderedContent.value.toc);
 
   function onCoverChange(event) {
     const file = event.target.files?.[0] || null;
@@ -398,7 +455,7 @@ export function useAdminBlogPostsEditor() {
 
       const payload = {
         title: form.value.title?.trim(),
-        content: form.value.content?.trim(),
+        content: normalizeContentForStorage(form.value.content),
         published_at: fromDateTimeLocal(form.value.published_at),
         cover_image: coverFile.value || undefined,
         tags,
@@ -455,7 +512,7 @@ export function useAdminBlogPostsEditor() {
     if (isEditing.value && selectedId.value) return true;
 
     const hasMinimumContent =
-      titleLength.value >= 3 && String(form.value.content || "").trim().length >= 10;
+      titleLength.value >= 3 && String(contentPlainText.value || "").trim().length >= 10;
 
     if (!hasMinimumContent) {
       aiTagSuggestionsError.value =
@@ -482,15 +539,15 @@ export function useAdminBlogPostsEditor() {
       if (!ready) return;
     }
 
-    activeTab.value = "meta";
-
     aiTagSuggestionsLoading.value = true;
     aiTagSuggestionsError.value = "";
     aiTagSuggestions.value = [];
     aiTagFallbackUsed.value = false;
 
     try {
-      const response = await blogPosts.adminSuggestTags(selectedId.value);
+      const response = await blogPosts.adminSuggestTags(selectedId.value, {
+        mode: aiTagSuggestionMode.value,
+      });
       const items = Array.isArray(response?.tags) ? response.tags : [];
 
       aiTagSuggestions.value = items
@@ -501,8 +558,21 @@ export function useAdminBlogPostsEditor() {
           reason: String(item?.reason || "").trim(),
           checked: true,
         }))
-        .filter((item) => item.id > 0 && item.name && item.reason);
+        .filter((item) => item.id >= 0 && item.name && item.reason);
       aiTagFallbackUsed.value = Boolean(response?.fallback_used);
+
+      if (aiTagSuggestions.value.length === 0) {
+        if (response?.reason === "provider_error") {
+          aiTagSuggestionsError.value = "AI je docasne nedostupne.";
+        } else if (response?.reason === "no_existing_tags") {
+          aiTagSuggestionsError.value =
+            "Zatial nemas ziadne existujuce tagy. Prepni na 'Aj nove'.";
+        } else {
+          aiTagSuggestionsError.value = response?.fallback_used
+            ? "Nenasli sa vhodne fallback tagy."
+            : "Nenasli sa vhodne AI tagy.";
+        }
+      }
     } catch (e) {
       aiTagSuggestionsError.value =
         e?.response?.data?.message || "Nepodarilo sa navrhnut tagy.";
@@ -518,9 +588,11 @@ export function useAdminBlogPostsEditor() {
         id: Number(item?.id || 0),
         name: String(item?.name || "").trim(),
       }))
-      .filter((item) => item.id > 0 && item.name);
+      .filter((item) => item.id >= 0 && item.name);
 
     if (selected.length === 0) return;
+    const selectedExisting = selected.filter((item) => item.id > 0);
+    const hasNewTagNames = selected.some((item) => item.id === 0);
 
     const existingTagIds = Array.isArray(selectedPost.value?.tags)
       ? selectedPost.value.tags
@@ -528,7 +600,7 @@ export function useAdminBlogPostsEditor() {
           .filter((id) => id > 0)
       : [];
     const mergedTagIds = Array.from(
-      new Set([...existingTagIds, ...selected.map((item) => item.id)])
+      new Set([...existingTagIds, ...selectedExisting.map((item) => item.id)])
     );
 
     const existingTags = parseTagsInput();
@@ -554,12 +626,21 @@ export function useAdminBlogPostsEditor() {
     formError.value = null;
 
     try {
-      const saved = await blogPosts.adminUpdate(selectedId.value, {
-        tag_ids: mergedTagIds,
-      });
+      const attachedBeforeIds = Array.isArray(selectedPost.value?.tags)
+        ? selectedPost.value.tags
+            .map((tag) => Number(tag?.id || 0))
+            .filter((id) => id > 0)
+        : [];
+
+      const payload = hasNewTagNames
+        ? { tags: mergedNames }
+        : { tag_ids: mergedTagIds };
+      const saved = await blogPosts.adminUpdate(selectedId.value, payload);
       if (saved?.id) {
         selectedPostRecord.value = saved;
       }
+
+      const tagSync = saved?.tag_sync || null;
       await load();
       if (saved?.id) {
         const found = posts.value.find((p) => p.id === saved.id);
@@ -572,7 +653,31 @@ export function useAdminBlogPostsEditor() {
         syncFormSnapshot();
       }
       lastSavedAt.value = new Date();
-      toast.success("Tagy boli pridane.");
+      if (tagSync && typeof tagSync === "object") {
+        const createdNew = Number(tagSync.created_new || 0);
+        const attachedExisting = Number(tagSync.attached_existing || 0);
+        const addedTotal = Number(tagSync.added_total || 0);
+        if (addedTotal <= 0) {
+          toast.success("Tagy uz boli priradene.");
+        } else {
+          const parts = [];
+          if (attachedExisting > 0) parts.push(`existujuce: ${attachedExisting}`);
+          if (createdNew > 0) parts.push(`nove: ${createdNew}`);
+          const suffix = parts.length ? ` (${parts.join(", ")})` : "";
+          toast.success(`Tagy boli pridane${suffix}.`);
+        }
+      } else {
+        const attachedAfterIds = Array.isArray(saved?.tags)
+          ? saved.tags
+              .map((tag) => Number(tag?.id || 0))
+              .filter((id) => id > 0)
+          : attachedBeforeIds;
+        const addedCount = Math.max(
+          0,
+          attachedAfterIds.filter((id) => !attachedBeforeIds.includes(id)).length
+        );
+        toast.success(addedCount > 0 ? `Tagy boli pridane (${addedCount}).` : "Tagy uz boli priradene.");
+      }
     } catch (e) {
       formError.value = e?.response?.data?.message || "Nepodarilo sa pridat tagy.";
       toast.error(formError.value);
@@ -727,6 +832,8 @@ export function useAdminBlogPostsEditor() {
   return {
     activeTab,
     aiTagFallbackUsed,
+    aiSuggestActionLabel,
+    aiTagSuggestionMode,
     aiTagSuggestions,
     aiTagSuggestionsError,
     aiTagSuggestionsLoading,
@@ -742,6 +849,7 @@ export function useAdminBlogPostsEditor() {
     error,
     focusMode,
     form,
+    formatMetricCount,
     formError,
     formatDate,
     hasCover,
@@ -761,7 +869,7 @@ export function useAdminBlogPostsEditor() {
     pageRangeLabel,
     per_page,
     posts,
-    previewBlocks,
+    previewHtml,
     previewToc,
     prevPage,
     publishChecklist,
@@ -769,6 +877,8 @@ export function useAdminBlogPostsEditor() {
     canPublishNow,
     publishNow,
     publishMissing,
+    postClickCount,
+    postReadCount,
     query,
     readTimeFor,
     remove,
@@ -780,6 +890,7 @@ export function useAdminBlogPostsEditor() {
     selectedPost,
     selectedStatus,
     selectPost,
+    setAiTagSuggestionMode,
     setListDensity,
     setPublishNow,
     setStatusFilter,

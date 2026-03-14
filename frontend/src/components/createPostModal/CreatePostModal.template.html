@@ -97,8 +97,41 @@
                 <button type="button" class="iconBtn" :class="{ active: showEmoji }" :disabled="submitting" aria-label="Emoji" @click="toggleEmoji">
                   <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M9 10.5h.01M15 10.5h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M8.8 14.2a4.2 4.2 0 0 0 6.4 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
                 </button>
-                <div v-if="showEmoji" class="popMenu">
-                  <button v-for="emoji in EMOJI_SET" :key="emoji" type="button" class="emojiBtn" @click="insertEmoji(emoji)">{{ emoji }}</button>
+                <div v-if="showEmoji" class="popMenu emojiMenu" role="dialog" aria-label="Vyber emoji">
+                  <div class="emojiMenuHead">
+                    <p class="emojiMenuTitle">{{ activeEmojiGroup.label }}</p>
+                    <span class="emojiMenuHint">{{ activeEmojiOptions.length }} emoji</span>
+                  </div>
+
+                  <div class="emojiGroupRow" role="tablist" aria-label="Kategorie emoji">
+                    <button
+                      v-for="group in EMOJI_GROUPS"
+                      :key="group.key"
+                      type="button"
+                      class="emojiGroupBtn"
+                      :class="{ active: activeEmojiGroupKey === group.key }"
+                      :aria-selected="activeEmojiGroupKey === group.key ? 'true' : 'false'"
+                      :title="group.label"
+                      @click="selectEmojiGroup(group.key)"
+                    >
+                      <span class="emojiGroupBtn__icon">{{ group.icon }}</span>
+                      <span class="emojiGroupBtn__label">{{ group.label }}</span>
+                    </button>
+                  </div>
+
+                  <div class="emojiGrid" role="listbox" :aria-label="`Emoji skupina ${activeEmojiGroup.label}`">
+                    <button
+                      v-for="emoji in activeEmojiOptions"
+                      :key="`${activeEmojiGroup.key}-${emoji.char}`"
+                      type="button"
+                      class="emojiBtn"
+                      :title="emoji.label"
+                      :aria-label="emoji.label"
+                      @click="insertEmoji(emoji.char)"
+                    >
+                      {{ emoji.char }}
+                    </button>
+                  </div>
                 </div>
               </div>
 

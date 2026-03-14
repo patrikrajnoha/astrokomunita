@@ -19,6 +19,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 import { useAuthStore } from '@/stores/auth'
+import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import {
   getEnabledSidebarSections,
@@ -51,16 +52,51 @@ const props = defineProps({
 const route = useRoute()
 const sidebarConfigStore = useSidebarConfigStore()
 const auth = useAuthStore()
+const preferences = useEventPreferencesStore()
 const isDesktop = ref(typeof window === 'undefined' ? true : window.matchMedia('(min-width: 1280px)').matches)
 const currentItems = ref([])
 
 const activeScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const isGuest = computed(() => !auth.isAuthed)
+const toFiniteCoordinate = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  if (!normalized) return null
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
+}
+const hasObservingLocation = computed(() => {
+  return toFiniteCoordinate(props.observingLat) !== null && toFiniteCoordinate(props.observingLon) !== null
+})
+const preferredSidebarWidgetKeys = computed(() => {
+  if (!auth.isAuthed || !preferences.loaded) return null
+  const scope = String(activeScope.value || 'home')
+  if (
+    typeof preferences.sidebarWidgetKeysForScope === 'function'
+    && typeof preferences.hasSidebarWidgetOverrideForScope === 'function'
+    && preferences.hasSidebarWidgetOverrideForScope(scope)
+  ) {
+    return preferences.sidebarWidgetKeysForScope(scope)
+  }
+
+  return null
+})
 
 const renderedSections = computed(() => {
-  return getEnabledSidebarSections(currentItems.value, { isGuest: isGuest.value }).filter((section) => {
-    return Boolean(resolveSidebarComponent(section))
-  })
+  return getEnabledSidebarSections(currentItems.value, {
+    isGuest: isGuest.value,
+    collapseObservingForMissingLocation: !isGuest.value && !hasObservingLocation.value,
+    preferredSectionKeys: preferredSidebarWidgetKeys.value,
+  }).filter((section) => Boolean(resolveSidebarComponent(section)))
+})
+const renderedBuiltinSectionKeySet = computed(() => {
+  return new Set(
+    renderedSections.value
+      .filter((section) => section?.kind !== 'custom_component')
+      .map((section) => String(section?.section_key || ''))
+      .filter((key) => key !== ''),
+  )
 })
 
 const resolveItemKey = (section) => {
@@ -73,6 +109,7 @@ const resolveItemKey = (section) => {
 
 const propsForSection = (section) => {
   const sectionKey = section.section_key
+  const builtins = renderedBuiltinSectionKeySet.value
 
   if (section.kind === 'custom_component') {
     return {
@@ -84,7 +121,9 @@ const propsForSection = (section) => {
     sectionKey === 'observing_conditions'
     || sectionKey === 'observing_weather'
     || sectionKey === 'night_sky'
-    || sectionKey === 'moon_phases'
+    || sectionKey === 'iss_pass'
+    || sectionKey === 'moon_overview'
+    || sectionKey === 'moon_events'
   ) {
     return {
       lat: props.observingLat,
@@ -92,6 +131,18 @@ const propsForSection = (section) => {
       date: props.observingDate,
       tz: props.observingTz,
       locationName: props.observingLocationName,
+    }
+  }
+
+  if (sectionKey === 'moon_phases') {
+    return {
+      lat: props.observingLat,
+      lon: props.observingLon,
+      date: props.observingDate,
+      tz: props.observingTz,
+      locationName: props.observingLocationName,
+      showOverview: !builtins.has('moon_overview'),
+      showSpecialEvents: !builtins.has('moon_events'),
     }
   }
 

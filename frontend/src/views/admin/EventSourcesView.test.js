@@ -201,6 +201,21 @@ describe('EventSourcesView', () => {
     expect(wrapper.text()).toContain('Forma: title+popis')
   })
 
+  it('shows translation health indicator without periodic polling', async () => {
+    const { wrapper } = await mountView()
+
+    const indicator = wrapper.find('[data-testid="translation-health-indicator"]')
+    expect(indicator.exists()).toBe(true)
+    expect(indicator.classes()).toContain('statusDot--success')
+    expect(wrapper.find('[data-testid="translation-progress-panel"]').exists()).toBe(false)
+    expect(getEventTranslationHealthMock).toHaveBeenCalledTimes(1)
+
+    await new Promise((resolve) => setTimeout(resolve, 3800))
+    await flush()
+
+    expect(getEventTranslationHealthMock).toHaveBeenCalledTimes(1)
+  })
+
   it('disables unsupported source run button with deferred tooltip', async () => {
     const { wrapper } = await mountView()
 

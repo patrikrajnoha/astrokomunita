@@ -2,16 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick, ref } from 'vue'
 import EventsUnifiedView from '@/views/admin/EventsUnifiedView.vue'
+import api from '@/services/api'
 
 const refreshMock = vi.hoisted(() => vi.fn())
 const getAdminAiConfigMock = vi.hoisted(() => vi.fn())
 const generateAdminEventDescriptionMock = vi.hoisted(() => vi.fn())
-const postEditAdminEventTitleMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/services/api/admin/ai', () => ({
   getAdminAiConfig: (...args) => getAdminAiConfigMock(...args),
   generateAdminEventDescription: (...args) => generateAdminEventDescriptionMock(...args),
-  postEditAdminEventTitle: (...args) => postEditAdminEventTitleMock(...args),
 }))
 
 vi.mock('@/services/api', () => ({
@@ -68,12 +67,8 @@ describe('EventsUnifiedView', () => {
       data: {
         data: {
           events_ai_humanized_enabled: true,
-          events_ai_title_postedit_enabled: true,
           features: {
             event_description_generate: {
-              last_run: null,
-            },
-            event_title_postedit: {
               last_run: null,
             },
           },
@@ -94,26 +89,13 @@ describe('EventsUnifiedView', () => {
         },
       },
     })
-
-    postEditAdminEventTitleMock.mockResolvedValue({
-      data: {
-        status: 'success',
-        mode: 'preview',
-        suggested_title_sk: 'Mars v opozicii',
-        fallback_used: false,
-        last_run: {
-          status: 'success',
-          updated_at: '2026-02-24T10:00:00Z',
-        },
-      },
-    })
   })
 
   afterEach(() => {
     document.body.innerHTML = ''
   })
 
-  it('renders title panel and Navrhnut action in edit mode', async () => {
+  it('does not render title AI panel in edit mode', async () => {
     const wrapper = mount(EventsUnifiedView)
     await flush()
     await flush()
@@ -124,13 +106,12 @@ describe('EventsUnifiedView', () => {
       .trigger('click')
     await flush()
 
-    const suggestButton = findBodyButton('Navrhn')
-
-    expect(document.body.textContent || '').toContain('AI: Zlep')
-    expect(suggestButton).toBeTruthy()
+    expect(document.body.textContent || '').not.toContain('AI: Zlep')
+    expect(findBodyButton('Navrhn')).toBeFalsy()
+    expect(document.body.querySelector('[data-testid="events-unified-title-apply-btn"]')).toBeFalsy()
   })
 
-  it('preview success shows proposal and apply button', async () => {
+  it('still allows description AI panel via advanced toggle', async () => {
     const wrapper = mount(EventsUnifiedView)
     await flush()
     await flush()
@@ -141,88 +122,54 @@ describe('EventsUnifiedView', () => {
       .trigger('click')
     await flush()
 
-    const suggestButton = findBodyButton('Navrhn')
-    expect(suggestButton).toBeTruthy()
-    suggestButton.click()
+    const toggleButton = findBodyButton('AI opis')
+    expect(toggleButton).toBeTruthy()
+    toggleButton.click()
     await flush()
-    await flush()
-
-    expect(postEditAdminEventTitleMock).toHaveBeenCalledWith(7, { mode: 'preview' })
-    expect(document.body.textContent || '').toContain('Mars Opposition')
-    expect(document.body.textContent || '').toContain('Mars v opozicii')
-    expect(document.body.querySelector('[data-testid="events-unified-title-apply-btn"]')).toBeTruthy()
+    expect(document.body.textContent || '').toContain('AI pomoc')
   })
 
-  it('apply updates title input and undo restores original value', async () => {
+  it('submits selected icon_emoji when creating a manual event', async () => {
+    api.post.mockResolvedValue({ data: { data: { id: 55 } } })
+
     const wrapper = mount(EventsUnifiedView)
     await flush()
     await flush()
 
     await wrapper
       .findAll('button')
-      .find((button) => button.text().includes('Upravi'))
+      .find((button) => /Nova|Nová/.test(button.text()))
       .trigger('click')
     await flush()
 
-    const titleInput = document.body.querySelector('input[type="text"]')
+    const bodyInputs = Array.from(document.body.querySelectorAll('input'))
+    const titleInput = bodyInputs.find((node) => node.type === 'text')
+    const startInput = bodyInputs.find((node) => node.type === 'datetime-local')
     expect(titleInput).toBeTruthy()
-    expect(titleInput.value).toBe('Mars Opposition')
+    expect(startInput).toBeTruthy()
 
-    const suggestButton = findBodyButton('Navrhn')
-    expect(suggestButton).toBeTruthy()
-    suggestButton.click()
-    await flush()
-    await flush()
-
-    const applyButton = document.body.querySelector('[data-testid="events-unified-title-apply-btn"]')
-    expect(applyButton).toBeTruthy()
-    applyButton.click()
+    titleInput.value = 'Test event with icon'
+    titleInput.dispatchEvent(new Event('input'))
+    startInput.value = '2026-04-01T20:30'
+    startInput.dispatchEvent(new Event('input'))
     await flush()
 
-    const updatedTitleInput = document.body.querySelector('input[type="text"]')
-    expect(updatedTitleInput).toBeTruthy()
-    expect(updatedTitleInput.value).toBe('Mars v opozicii')
+    const iconSelect = Array.from(document.body.querySelectorAll('select'))
+      .find((select) => Array.from(select.options).some((option) => option.textContent?.includes('Automaticky')))
+    expect(iconSelect).toBeTruthy()
 
-    const undoButton = findBodyButton('Undo')
-    expect(undoButton).toBeTruthy()
-    undoButton.click()
+    iconSelect.value = '\u{1F319}'
+    iconSelect.dispatchEvent(new Event('change'))
     await flush()
 
-    const restoredTitleInput = document.body.querySelector('input[type="text"]')
-    expect(restoredTitleInput).toBeTruthy()
-    expect(restoredTitleInput.value).toBe('Mars Opposition')
-  })
-
-  it('shows fallback badge when preview uses fallback', async () => {
-    postEditAdminEventTitleMock.mockResolvedValueOnce({
-      data: {
-        status: 'fallback',
-        mode: 'preview',
-        suggested_title_sk: 'Mars Opposition',
-        fallback_used: true,
-        last_run: {
-          status: 'fallback',
-          updated_at: '2026-02-24T10:00:00Z',
-        },
-      },
-    })
-
-    const wrapper = mount(EventsUnifiedView)
-    await flush()
+    const submit = Array.from(document.body.querySelectorAll('button'))
+      .find((button) => button.getAttribute('type') === 'submit')
+    expect(submit).toBeTruthy()
+    submit.click()
     await flush()
 
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('Upravi'))
-      .trigger('click')
-    await flush()
-
-    const suggestButton = findBodyButton('Navrhn')
-    expect(suggestButton).toBeTruthy()
-    suggestButton.click()
-    await flush()
-    await flush()
-
-    expect((document.body.textContent || '').toLowerCase()).toContain('fallback')
+    expect(api.post).toHaveBeenCalledWith('/admin/events', expect.objectContaining({
+      icon_emoji: '\u{1F319}',
+    }))
   })
 })

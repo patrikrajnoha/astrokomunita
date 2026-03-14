@@ -1,4 +1,4 @@
-﻿/* Modern Feed Styles */
+/* Modern Feed Styles */
 .feed-container {
   max-width: 100%;
   margin: 0;
@@ -111,7 +111,7 @@
 
 .skeleton-post {
   background: transparent;
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--divider-color);
   border-radius: 0;
   padding: 0.46rem 0.54rem 0.54rem;
   overflow: hidden;
@@ -166,6 +166,97 @@
   width: 70%;
 }
 
+/* Feed empty state (scoped to FeedList only) */
+.feed-empty-state {
+  position: relative;
+  margin-top: 0.36rem;
+  border-radius: calc(var(--radius-lg) + 2px);
+  border: 1px solid rgb(var(--primary-rgb) / 0.26);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgb(var(--primary-rgb) / 0.2) 0%, rgb(var(--primary-rgb) / 0.06) 44%, transparent 74%),
+    linear-gradient(168deg, rgb(var(--bg-surface-rgb) / 0.9) 0%, rgb(var(--bg-app-rgb) / 0.95) 100%);
+  padding: 0.95rem 1.02rem 1.04rem;
+  gap: 0.44rem;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0 rgb(var(--color-text-primary-rgb) / 0.08),
+    0 14px 28px rgb(3 9 16 / 0.32);
+}
+
+.feed-empty-state::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(var(--primary-rgb) / 0.62) 0%, rgb(var(--primary-rgb) / 0.22) 50%, transparent 100%);
+  pointer-events: none;
+}
+
+.feed-empty-state :deep(.asyncState__icon) {
+  width: 2rem;
+  height: 2rem;
+  border-color: rgb(var(--primary-rgb) / 0.52);
+  background: linear-gradient(180deg, rgb(var(--primary-rgb) / 0.24), rgb(var(--primary-rgb) / 0.1));
+  color: rgb(var(--primary-rgb) / 1);
+  font-size: 1rem;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgb(var(--primary-rgb) / 0.2);
+}
+
+.feed-empty-state :deep(.asyncState__title) {
+  margin-top: 0.12rem;
+  color: var(--color-text-primary);
+  font-size: clamp(1.04rem, 2.2vw, 1.28rem);
+  font-weight: 760;
+  line-height: 1.22;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+
+.feed-empty-state :deep(.asyncState__message) {
+  color: rgb(var(--color-text-secondary-rgb) / 0.97);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  max-width: 44ch;
+}
+
+.feed-empty-state :deep(.asyncState__action) {
+  margin-top: 0.22rem;
+  min-height: 40px;
+  padding-inline: 1rem;
+  border-color: rgb(var(--primary-rgb) / 0.34);
+  background: linear-gradient(180deg, rgb(var(--bg-surface-rgb) / 0.92), rgb(var(--bg-app-rgb) / 0.92));
+  color: var(--color-text-primary);
+  box-shadow: inset 0 1px 0 rgb(var(--color-text-primary-rgb) / 0.14);
+}
+
+.feed-empty-state :deep(.asyncState__action:hover:not(:disabled)) {
+  border-color: rgb(var(--primary-rgb) / 0.58);
+  background: linear-gradient(180deg, rgb(var(--primary-rgb) / 0.22), rgb(var(--primary-rgb) / 0.12));
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 480px) {
+  .feed-empty-state {
+    padding: 0.86rem 0.84rem 0.92rem;
+  }
+
+  .feed-empty-state :deep(.asyncState__title) {
+    font-size: 1rem;
+  }
+
+  .feed-empty-state :deep(.asyncState__message) {
+    font-size: 0.86rem;
+  }
+
+  .feed-empty-state :deep(.asyncState__action) {
+    min-height: 38px;
+    font-size: 0.82rem;
+  }
+}
+
 /* Modern Post Cards */
 .feed-list {
   display: flex;
@@ -173,13 +264,12 @@
   gap: 0;
   padding: 0;
   min-width: 0;
-  border-top: 1px solid var(--color-divider);
 }
 
 .post-card {
   background: #151d28;
   border: 0;
-  border-bottom: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--divider-color);
   border-radius: 0;
   padding: 0.68rem 0.78rem 0.72rem;
   transition: background-color var(--motion-fast);
@@ -369,6 +459,7 @@
 .pinned-badge {
   display: inline-flex;
   align-items: center;
+  gap: 0.25rem;
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 10px;

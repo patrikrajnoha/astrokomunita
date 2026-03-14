@@ -9,6 +9,7 @@ import { useNotificationsStore } from '@/stores/notifications'
 import MainNavbar from '@/components/MainNavbar.vue'
 import MobileFab from '@/components/MobileFab.vue'
 import MobileBottomNav from '@/components/nav/MobileBottomNav.vue'
+import AdminSubNav from '@/components/admin/AdminSubNav.vue'
 import { useToast } from '@/composables/useToast'
 import { resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
@@ -61,31 +62,27 @@ const legalLinks = [
   { to: '/cookies', label: 'Cookies' },
 ]
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
-const isLearnDetailRoute = computed(() => route.name === 'learn-detail')
-const showRightSidebar = computed(() => Boolean(currentSidebarScope.value))
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
+const isSettingsRoute = computed(() => String(route.path || '').startsWith('/settings'))
+const showRightSidebar = computed(() => (
+  isAdminRoute.value || (!isSettingsRoute.value && Boolean(currentSidebarScope.value))
+))
+const mobileFabLabel = computed(() => (isAdminRoute.value ? 'Admin sekcie' : 'Widgety'))
+const mobileFabMenuTitle = computed(() => (isAdminRoute.value ? 'Admin sekcie' : 'Widgety'))
+const mobileFabMenuCloseLabel = computed(() => (
+  isAdminRoute.value ? 'Zavriet menu admin sekcii' : 'Zavriet menu widgetov'
+))
 const isProfileRoute = computed(() => String(route.path || '').startsWith('/profile'))
 const isHomeFeedRoute = computed(() => route.name === 'home')
 const showDesktopMainSidebar = computed(() => true)
 const isLayoutDebugEnabled = computed(() => {
   return import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_LAYOUT || '') === 'true'
 })
-const desktopFrameClass = computed(() => {
-  if (isAdminRoute.value) {
-    return 'adminDesktopFrame mx-auto w-full max-w-[1500px]'
-  }
-
-  return 'desktopFrame mx-auto w-full max-w-[1500px] xl:grid'
-})
-const centerShellClass = computed(() => {
-  return 'centerShellGrid w-full xl:col-start-1 xl:grid xl:gap-1 2xl:gap-2'
-})
-const centerShellColumns = computed(() => {
-  if (isAdminRoute.value) return '16rem minmax(0, 1fr)'
-  if (isLearnDetailRoute.value) return '16rem minmax(640px, 760px)'
-
-  return '16rem minmax(600px, 640px)'
-})
+const desktopFrameClass = computed(() => 'desktopFrame mx-auto w-full max-w-[1500px] xl:grid')
+const centerShellClass = computed(
+  () => 'centerShellGrid min-w-0 xl:col-start-1 xl:grid xl:gap-1 2xl:gap-2',
+)
+const centerShellColumns = computed(() => '16rem minmax(600px, 640px)')
 const centerShellStyle = computed(() => {
   return {
     '--center-shell-cols': centerShellColumns.value,
@@ -94,42 +91,70 @@ const centerShellStyle = computed(() => {
       : undefined,
   }
 })
-const mainContentClass = computed(() => {
-  if (isAdminRoute.value) {
-    return 'adminMainContent mx-auto w-full'
+const mainContentClass = computed(() => 'mx-auto w-full max-w-[640px]')
+const preferredSidebarWidgetKeys = computed(() => {
+  if (!auth.isAuthed || !preferences.loaded) return null
+  const scope = String(currentSidebarScope.value || 'home')
+  if (
+    typeof preferences.sidebarWidgetKeysForScope === 'function'
+    && typeof preferences.hasSidebarWidgetOverrideForScope === 'function'
+    && preferences.hasSidebarWidgetOverrideForScope(scope)
+  ) {
+    return preferences.sidebarWidgetKeysForScope(scope)
   }
 
-  if (isProfileRoute.value) {
-    return 'mx-auto w-full max-w-[620px]'
-  }
-
-  if (isLearnDetailRoute.value) {
-    return 'mx-auto w-full max-w-[760px]'
-  }
-
-  return 'mx-auto w-full max-w-[640px]'
+  return null
 })
 const enabledMobileSections = computed(() => (
-  getEnabledSidebarSections(mobileSidebarSections.value, { isGuest: !auth.isAuthed })
+  getEnabledSidebarSections(mobileSidebarSections.value, {
+    isGuest: !auth.isAuthed,
+    collapseObservingForMissingLocation: auth.isAuthed && !hasObservingLocation.value,
+    preferredSectionKeys: preferredSidebarWidgetKeys.value,
+  })
 ))
 const observingLocationData = computed(() => {
   const value = auth.user?.location_data
   if (!value || typeof value !== 'object') return null
   return value
 })
+const observingLocationMeta = computed(() => {
+  const value = auth.user?.location_meta
+  if (!value || typeof value !== 'object') return null
+  return value
+})
 const observingLat = computed(() => {
   const fromCanonical = parseNumericValue(observingLocationData.value?.latitude)
   if (fromCanonical !== null) return fromCanonical
+  const fromMeta = parseNumericValue(
+    observingLocationMeta.value?.lat ?? observingLocationMeta.value?.latitude,
+  )
+  if (fromMeta !== null) return fromMeta
+  const fromPreferences = parseNumericValue(preferences.locationLat)
+  if (fromPreferences !== null) return fromPreferences
   return parseNumericValue(auth.user?.latitude)
 })
 const observingLon = computed(() => {
   const fromCanonical = parseNumericValue(observingLocationData.value?.longitude)
   if (fromCanonical !== null) return fromCanonical
+  const fromMeta = parseNumericValue(
+    observingLocationMeta.value?.lon ?? observingLocationMeta.value?.longitude,
+  )
+  if (fromMeta !== null) return fromMeta
+  const fromPreferences = parseNumericValue(preferences.locationLon)
+  if (fromPreferences !== null) return fromPreferences
   return parseNumericValue(auth.user?.longitude)
+})
+const hasObservingLocation = computed(() => {
+  return observingLat.value !== null && observingLon.value !== null
 })
 const observingLocationName = computed(() => {
   const fromCanonical = parseStringValue(observingLocationData.value?.label)
   if (fromCanonical) return fromCanonical
+  const fromMeta = parseStringValue(observingLocationMeta.value?.label)
+    || parseStringValue(observingLocationMeta.value?.name)
+  if (fromMeta) return fromMeta
+  const fromPreferences = parseStringValue(preferences.locationLabel)
+  if (fromPreferences) return fromPreferences
   const fromStored = parseStringValue(auth.user?.location_label)
   if (fromStored) return fromStored
   return parseStringValue(auth.user?.location)
@@ -138,6 +163,9 @@ const observingDate = computed(() => parseDateQuery(route.query.date) ?? localIs
 const observingTz = computed(() => {
   const canonicalTz = parseStringValue(observingLocationData.value?.timezone)
   if (canonicalTz) return canonicalTz
+  const metaTz = parseStringValue(observingLocationMeta.value?.tz)
+    || parseStringValue(observingLocationMeta.value?.timezone)
+  if (metaTz) return metaTz
   const storedTz = parseStringValue(auth.user?.timezone)
   if (storedTz) return storedTz
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Bratislava'
@@ -220,6 +248,11 @@ const maybeAutoOpenOnboardingTour = () => {
 
 async function warmSidebarConfig() {
   if (!isMobileViewport.value) {
+    mobileSidebarSections.value = []
+    return
+  }
+
+  if (isSettingsRoute.value) {
     mobileSidebarSections.value = []
     return
   }
@@ -441,8 +474,7 @@ watch(
   async () => {
     if (
       auth.isAuthed &&
-      !auth.isAdmin &&
-      Boolean(auth.user?.email_verified_at) &&
+      (auth.isAdmin || Boolean(auth.user?.email_verified_at)) &&
       !preferences.loaded &&
       !preferences.loading
     ) {

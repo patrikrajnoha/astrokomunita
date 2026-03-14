@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 import { ADMIN_SECTION_KEYS, getAdminSectionLabel } from '@/components/admin/adminSections'
 import { useAuthStore } from '@/stores/auth'
 
+defineEmits(['navigate'])
+
 const route = useRoute()
 const auth = useAuthStore()
 const wipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCase() === 'true'
@@ -59,11 +61,6 @@ const adminIcons = {
   community: createAdminIcon([
     'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
     'M4.75 20a7.25 7.25 0 0 1 14.5 0',
-  ]),
-  sidebar: createAdminIcon([
-    'M4.75 5.75h5.5v12.5h-5.5z',
-    'M11.75 5.75h7.5v4h-7.5z',
-    'M11.75 11.25h7.5v7h-7.5z',
   ]),
   bots: createAdminIcon([
     'M8 9h8v7H8z',
@@ -157,13 +154,6 @@ const navGroups = computed(() => {
     {
       title: 'SYSTÉM',
       items: [
-        {
-          key: 'sidebar',
-          label: 'Bočný panel',
-          to: { name: 'admin.sidebar' },
-          iconKey: 'sidebar',
-          routeNames: ['admin.sidebar'],
-        },
         {
           key: 'bots',
           label: 'Boti',

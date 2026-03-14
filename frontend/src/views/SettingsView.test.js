@@ -9,9 +9,11 @@ import SettingsEmailView from './settings/SettingsEmailView.vue'
 import SettingsNavigationView from './settings/SettingsNavigationView.vue'
 import SettingsNewsletterView from './settings/SettingsNewsletterView.vue'
 import SettingsOnboardingView from './settings/SettingsOnboardingView.vue'
+import SettingsSidebarWidgetsView from './settings/SettingsSidebarWidgetsView.vue'
 import SettingsPasswordView from './settings/SettingsPasswordView.vue'
 import SettingsDeactivateView from './settings/SettingsDeactivateView.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import { createPinia } from 'pinia'
 
 const authMock = vi.hoisted(() => ({
   user: {
@@ -28,6 +30,7 @@ const authMock = vi.hoisted(() => ({
 
 const httpMock = vi.hoisted(() => ({
   patch: vi.fn(),
+  put: vi.fn(),
   delete: vi.fn(),
   get: vi.fn(),
   post: vi.fn(),
@@ -66,6 +69,7 @@ function makeRouter() {
         children: [
           { path: '', name: 'settings', component: SettingsNavigationView },
           { path: 'onboarding', name: 'settings.onboarding', component: SettingsOnboardingView },
+          { path: 'sidebar-widgets', name: 'settings.sidebar-widgets', component: SettingsSidebarWidgetsView },
           { path: 'email', name: 'settings.email', component: SettingsEmailView },
           { path: 'newsletter', name: 'settings.newsletter', component: SettingsNewsletterView },
           { path: 'data-export', name: 'settings.data-export', component: SettingsDataExportView },
@@ -92,7 +96,7 @@ async function mountAt(path, options = {}) {
     {
       attachTo: options.attachTo,
       global: {
-        plugins: [router],
+        plugins: [createPinia(), router],
       },
     },
   )
@@ -121,8 +125,50 @@ describe('SettingsView', () => {
         },
       },
     })
+    httpMock.put.mockResolvedValue({
+      data: {
+        data: {},
+        meta: {},
+      },
+    })
 
     httpMock.get.mockImplementation((url) => {
+      if (url === '/me/preferences') {
+        return Promise.resolve({
+          data: {
+            data: {
+              sidebar_widget_keys: ['search', 'nasa_apod'],
+              sidebar_widget_overrides: {
+                home: ['search', 'nasa_apod'],
+              },
+              has_preferences: true,
+            },
+            meta: {
+              supported_sidebar_widgets: [
+                { section_key: 'search', title: 'Hladat' },
+                { section_key: 'nasa_apod', title: 'NASA Novinky' },
+                { section_key: 'next_event', title: 'Najblizsia udalost' },
+                { section_key: 'latest_articles', title: 'Najnovsie clanky' },
+              ],
+              supported_sidebar_scopes: ['home', 'events', 'search'],
+            },
+          },
+        })
+      }
+
+      if (url === '/sidebar-config') {
+        return Promise.resolve({
+          data: {
+            data: [
+              { kind: 'builtin', section_key: 'search', title: 'Hladat', order: 0, is_enabled: true },
+              { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA Novinky', order: 1, is_enabled: true },
+              { kind: 'builtin', section_key: 'next_event', title: 'Najblizsia udalost', order: 2, is_enabled: true },
+              { kind: 'builtin', section_key: 'latest_articles', title: 'Najnovsie clanky', order: 3, is_enabled: true },
+            ],
+          },
+        })
+      }
+
       if (url === '/account/email') {
         return Promise.resolve({
           data: {
@@ -459,6 +505,148 @@ describe('SettingsView', () => {
       meta: { skipErrorToast: true },
     })
     expect(wrapper.find('[data-testid="activity-values"]').exists()).toBe(true)
+  })
+
+  it('saves selected sidebar widgets and keeps max three selected', async () => {
+    httpMock.put.mockImplementation((url, payload) => {
+      if (url === '/me/preferences') {
+        return Promise.resolve({
+          data: {
+            data: {
+              sidebar_widget_keys: payload.sidebar_widget_overrides?.home ?? [],
+              sidebar_widget_overrides: payload.sidebar_widget_overrides ?? {},
+              has_preferences: true,
+            },
+            meta: {
+              supported_sidebar_widgets: [
+                { section_key: 'search', title: 'Hladat' },
+                { section_key: 'nasa_apod', title: 'NASA Novinky' },
+                { section_key: 'next_event', title: 'Najblizsia udalost' },
+                { section_key: 'latest_articles', title: 'Najnovsie clanky' },
+              ],
+              supported_sidebar_scopes: ['home', 'events', 'search'],
+            },
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: {
+          data: {},
+          meta: {},
+        },
+      })
+    })
+
+    const { wrapper } = await mountAt('/settings/sidebar-widgets')
+
+    await wrapper.get('#settings-widget-next_event').setValue(true)
+    await flush()
+    await flush()
+
+    expect(httpMock.put).toHaveBeenCalledWith(
+      '/me/preferences',
+      {
+        sidebar_widget_overrides: {
+          home: ['search', 'nasa_apod', 'next_event'],
+        },
+        sidebar_widget_keys: ['search', 'nasa_apod', 'next_event'],
+      },
+      {
+        meta: { requiresAuth: true },
+      },
+    )
+
+    const fourthOption = wrapper.get('#settings-widget-latest_articles')
+    expect(fourthOption.attributes('disabled')).toBeDefined()
+  })
+
+  it('allows reordering enabled sidebar widgets', async () => {
+    httpMock.put.mockImplementation((url, payload) => {
+      if (url === '/me/preferences') {
+        return Promise.resolve({
+          data: {
+            data: {
+              sidebar_widget_keys: payload.sidebar_widget_overrides?.home ?? [],
+              sidebar_widget_overrides: payload.sidebar_widget_overrides ?? {},
+              has_preferences: true,
+            },
+            meta: {
+              supported_sidebar_widgets: [
+                { section_key: 'search', title: 'Hladat' },
+                { section_key: 'nasa_apod', title: 'NASA Novinky' },
+                { section_key: 'next_event', title: 'Najblizsia udalost' },
+                { section_key: 'latest_articles', title: 'Najnovsie clanky' },
+              ],
+              supported_sidebar_scopes: ['home', 'events', 'search'],
+            },
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: {
+          data: {},
+          meta: {},
+        },
+      })
+    })
+
+    const { wrapper } = await mountAt('/settings/sidebar-widgets')
+
+    await wrapper.get('#settings-widget-move-down-search').trigger('click')
+    await flush()
+    await flush()
+
+    expect(httpMock.put).toHaveBeenCalledWith(
+      '/me/preferences',
+      {
+        sidebar_widget_overrides: {
+          home: ['nasa_apod', 'search'],
+        },
+        sidebar_widget_keys: ['nasa_apod', 'search'],
+      },
+      {
+        meta: { requiresAuth: true },
+      },
+    )
+
+    const rowMeta = wrapper.findAll('.settings-sidebar-builder__row-meta').map((node) => node.text())
+    expect(rowMeta.slice(0, 2)).toEqual(['nasa_apod', 'search'])
+  })
+
+  it('keeps sidebar widget settings usable when preferences request times out', async () => {
+    httpMock.get.mockImplementation((url) => {
+      if (url === '/me/preferences') {
+        return Promise.reject({
+          code: 'ECONNABORTED',
+          message: 'timeout of 15000ms exceeded',
+          userMessage: 'Server neodpoveda. Skus to znova neskor.',
+        })
+      }
+
+      if (url === '/sidebar-config') {
+        return Promise.resolve({
+          data: {
+            data: [
+              { kind: 'builtin', section_key: 'search', title: 'Hladat', order: 0, is_enabled: true },
+              { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA Novinky', order: 1, is_enabled: true },
+              { kind: 'builtin', section_key: 'next_event', title: 'Najblizsia udalost', order: 2, is_enabled: true },
+            ],
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: {},
+        headers: {},
+      })
+    })
+
+    const { wrapper } = await mountAt('/settings/sidebar-widgets')
+
+    expect(wrapper.text()).toContain('Server neodpoveda. Skus to znova neskor.')
+    expect(wrapper.find('#settings-widget-search').exists()).toBe(true)
   })
 
   it('logs out from settings navigation session section', async () => {

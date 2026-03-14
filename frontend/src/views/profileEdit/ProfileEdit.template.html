@@ -39,19 +39,8 @@
           <span class="modeBadge">{{ locationModeLabel }}</span>
         </div>
 
-        <div class="field">
-          <label>Mesto</label>
-          <select class="input" v-model="form.presetKey" @change="onPresetChanged">
-            <option value="">Vyber mesto</option>
-            <option v-for="preset in locationPresets" :key="preset.key" :value="preset.key">
-              {{ preset.label }}
-            </option>
-          </select>
-          <p v-if="fieldErr.locationSource" class="fieldErr">{{ fieldErr.locationSource }}</p>
-        </div>
-
         <div class="quickActions">
-          <button class="btn ghost" type="button" @click="useMyLocation" :disabled="saving || geolocating">
+          <button class="btn ghost" type="button" @click="useMyLocation" :disabled="saving || geolocating || resolvingLocation">
             {{ geolocating ? 'Ziskavam GPS...' : 'Pouzit GPS' }}
           </button>
         </div>
@@ -64,27 +53,23 @@
               v-model.trim="form.locationLabel"
               type="text"
               maxlength="80"
-              list="locationSuggestions"
-              placeholder="Napr. Bratislava"
+              placeholder="Napr. Nitra"
               @input="onLocationLabelInput"
               @keyup.enter="fillLocationFromLabel"
             />
-            <button class="btn ghost fillLocationBtn" type="button" @click="fillLocationFromLabel" :disabled="saving || geolocating">
-              Doplnit
+            <button class="btn ghost fillLocationBtn" type="button" @click="fillLocationFromLabel" :disabled="saving || geolocating || resolvingLocation">
+              {{ resolvingLocation ? 'Doplnam...' : 'Doplnit' }}
             </button>
           </div>
-          <datalist id="locationSuggestions">
-            <option v-for="preset in locationPresets" :key="`suggestion-${preset.key}`" :value="preset.label"></option>
-          </datalist>
-          <p class="hint">Tip: Vyber velke slovenske mesto. Suradnice doplnime automaticky na pozadi.</p>
+          <p class="hint">Tip: Zadaj nazov mesta a klikni Doplnit. Suradnice doplnime automaticky na pozadi.</p>
           <p v-if="fieldErr.locationLabel" class="fieldErr">{{ fieldErr.locationLabel }}</p>
+          <p v-if="fieldErr.locationSource" class="fieldErr">{{ fieldErr.locationSource }}</p>
         </div>
 
-        <p v-if="form.locationMode === 'preset'" class="hint">Nazov polohy sa prebera z vybraneho mesta.</p>
-        <p v-else-if="form.locationMode === 'gps'" class="hint">Nazov polohy sa prebera z GPS.</p>
+        <p v-if="form.locationMode === 'gps'" class="hint">Nazov polohy sa prebera z GPS.</p>
         <p class="hint">Suradnice sa pouzivaju interne pre pocasie a nocnu oblohu.</p>
         <p v-if="fieldErr.latitude || fieldErr.longitude || fieldErr.timezone" class="fieldErr">
-          Skontroluj mesto alebo pouzi GPS.
+          Skontroluj zadanu polohu alebo pouzi GPS.
         </p>
       </section>
 
@@ -94,7 +79,7 @@
           <button class="btn ghost" type="button" @click="resetForm" :disabled="saving || !hasChanges">
             Obnovit
           </button>
-          <button class="btn" type="button" @click="save" :disabled="saving || !hasChanges">
+          <button class="btn" type="button" @click="save" :disabled="saving || resolvingLocation || !hasChanges">
             {{ saving ? 'Ukladam...' : 'Ulozit' }}
           </button>
         </div>

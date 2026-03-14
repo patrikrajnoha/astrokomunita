@@ -162,6 +162,11 @@ const appShellChildren = [
         component: () => import('../views/settings/SettingsOnboardingView.vue'),
       },
       {
+        path: 'sidebar-widgets',
+        name: 'settings.sidebar-widgets',
+        component: () => import('../views/settings/SettingsSidebarWidgetsView.vue'),
+      },
+      {
         path: 'email',
         name: 'settings.email',
         component: () => import('../views/settings/SettingsEmailView.vue'),
@@ -541,12 +546,6 @@ const appShellChildren = [
         redirect: { name: 'admin.bots' },
       },
       {
-        path: 'sidebar',
-        name: 'admin.sidebar',
-        meta: { adminSection: 'frontend' },
-        component: () => import('@/views/admin/SidebarConfigView.vue'),
-      },
-      {
         path: 'performance-metrics',
         name: 'admin.performance-metrics',
         meta: { adminSection: 'performance' },
@@ -656,14 +655,14 @@ export function applyAuthGuards(routerInstance) {
     const isOnboardingRoute = to.name === 'onboarding'
     const isVerifiedUser = Boolean(auth.isAuthed && auth.user?.email_verified_at)
     const isAdminUser = Boolean(auth.isAdmin)
-    const requiresEmailVerification = Boolean(auth.user?.requires_email_verification)
+    const hasVerifiableEmail = Boolean(auth.user?.email)
     const routeName = typeof to.name === 'string' ? to.name : ''
     const isSettingsRoute = routeName === 'settings' || routeName.startsWith('settings.')
 
     if (
       auth.isAuthed &&
       !isAdminUser &&
-      requiresEmailVerification &&
+      hasVerifiableEmail &&
       !auth.user?.email_verified_at &&
       !isVerifyEmailRoute &&
       !isSettingsRoute

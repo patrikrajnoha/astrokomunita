@@ -81,30 +81,32 @@ const onPerPageChange = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-top: 1px solid var(--color-divider);
-  margin-top: 1rem;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--divider-color);
+  margin-top: 0.75rem;
 }
 
 .paginationInfo {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--color-text-secondary);
 }
 
 .paginationControls {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.6rem;
 }
 
 .paginationBtn {
-  padding: 8px 14px;
+  min-height: 34px;
+  padding: 6px 12px;
   border: 1px solid var(--color-border);
   background: rgb(var(--bg-surface-rgb) / 0.84);
   color: var(--color-text-primary);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   cursor: pointer;
+  font-size: 0.8rem;
   transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
 }
 
@@ -118,20 +120,21 @@ const onPerPageChange = () => {
 }
 
 .paginationPages {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--color-text-secondary);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .paginationPerPage {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
 }
 
 .paginationPerPage select {
-  padding: 8px 12px;
+  min-height: 34px;
+  padding: 6px 10px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: rgb(var(--bg-app-rgb) / 0.45);

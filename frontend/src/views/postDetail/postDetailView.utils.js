@@ -17,7 +17,11 @@ export function isAttachmentPending(item) {
 }
 
 export function isAttachmentBlocked(item) {
-  return item?.attachment_moderation_status === 'blocked' || !!item?.attachment_hidden_at
+  return (
+    item?.attachment_moderation_status === 'blocked'
+    || item?.attachment_moderation_status === 'flagged'
+    || !!item?.attachment_hidden_at
+  )
 }
 
 export function attachmentSrc(item, apiBaseUrl) {

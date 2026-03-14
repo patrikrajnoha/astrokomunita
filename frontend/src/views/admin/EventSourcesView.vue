@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import {
@@ -177,19 +177,12 @@ const {
   artifactsSampleLimit,
   artifactsSamples,
   artifactsSuspiciousCount,
-  attachVisibilityListener,
   canRepairArtifacts,
-  detachVisibilityListener,
   loadTranslationArtifactsReport,
   loadTranslationHealth,
   runTranslationArtifactsRepair,
-  startTranslationPoll,
-  stopTranslationPoll,
-  translationCounts,
+  translationHealth,
   translationHealthLoading,
-  translationIsActive,
-  translationProgressLabel,
-  translationProgressPercent,
   translationQueueTotal,
 } = useEventSourcesTranslationQuality({
   t,
@@ -201,6 +194,20 @@ const {
     error.value = value
   },
   onRefreshAfterRepair: () => load(),
+})
+
+const translationHealthTone = computed(() => {
+  if (translationHealthLoading.value) return 'warning'
+  if (!translationHealth.value) return 'danger'
+  if (translationHealth.value?.translation?.events_enabled === false) return 'danger'
+  return 'success'
+})
+
+const translationHealthTitle = computed(() => {
+  if (translationHealthLoading.value) return 'Kontrolujem stav prekladu...'
+  if (!translationHealth.value) return 'Preklad je momentalne nedostupny.'
+  if (translationHealth.value?.translation?.events_enabled === false) return 'Preklad je vypnuty v konfiguracii.'
+  return 'Preklad je funkcny.'
 })
 
 function findLatestRunForSource(sourceKey) {
@@ -457,13 +464,6 @@ function openCandidateDetail(candidateId) {
 
 onMounted(async () => {
   await Promise.all([load(), loadTranslationHealth(), loadTranslationArtifactsReport(false)])
-  attachVisibilityListener()
-  startTranslationPoll()
-})
-
-onUnmounted(() => {
-  stopTranslationPoll()
-  detachVisibilityListener()
 })
 </script>
 

@@ -1,5 +1,14 @@
 import { createApp, h, nextTick } from 'vue'
 import PostShareCard from '@/components/share/PostShareCard.vue'
+import api from '@/services/api'
+import {
+  attachmentEntryUrl as attachmentEntryUrlUtil,
+  buildAbsoluteUrl,
+  isAttachmentBlocked,
+  isAttachmentEntryImage,
+  isAttachmentPending,
+  isImage,
+} from '@/components/feedList/feedListMedia.utils'
 
 type GenericRecord = Record<string, any>
 
@@ -88,6 +97,7 @@ async function renderShareCard(post: GenericRecord, forcePlaceholderAvatar: bool
     throw new Error('Image generation is only available in browser context.')
   }
 
+  const mediaUrl = await resolveShareMediaDataUrl(post)
   const container = document.createElement('div')
   container.style.position = 'fixed'
   container.style.left = '-10000px'
@@ -103,8 +113,9 @@ async function renderShareCard(post: GenericRecord, forcePlaceholderAvatar: bool
       return h(PostShareCard, {
         post,
         author: post?.user || null,
-        brandDomain: 'nebesky-sprievodca.sk',
+        brandDomain: 'astrokomunita.sk',
         forcePlaceholderAvatar,
+        mediaUrl,
       })
     },
   })
@@ -141,6 +152,49 @@ async function renderShareCard(post: GenericRecord, forcePlaceholderAvatar: bool
   } finally {
     app.unmount()
     container.remove()
+  }
+}
+
+function resolveApiBaseUrl(): string {
+  return String(api?.defaults?.baseURL || '')
+}
+
+function resolveShareMediaUrl(post: GenericRecord): string {
+  if (!post || typeof post !== 'object') return ''
+  if (isAttachmentBlocked(post) || isAttachmentPending(post)) return ''
+
+  const baseUrl = resolveApiBaseUrl()
+  const attachments = Array.isArray(post?.attachments) ? post.attachments : []
+  const firstImageAttachment = attachments.find((entry: GenericRecord) => {
+    return isAttachmentEntryImage(entry) && attachmentEntryUrlUtil(entry, baseUrl)
+  })
+  if (firstImageAttachment) {
+    return attachmentEntryUrlUtil(firstImageAttachment, baseUrl)
+  }
+
+  if (post?.attachment_url && isImage(post)) {
+    return buildAbsoluteUrl(post.attachment_url, baseUrl)
+  }
+
+  return ''
+}
+
+async function resolveShareMediaDataUrl(post: GenericRecord): Promise<string> {
+  const source = resolveShareMediaUrl(post)
+  if (!source) return ''
+  if (source.startsWith('data:')) return source
+
+  try {
+    const response = await fetch(source, {
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    if (!response.ok) return ''
+    const blob = await response.blob()
+    if (!String(blob.type || '').toLowerCase().startsWith('image/')) return ''
+    return await blobToDataUrl(blob)
+  } catch {
+    return ''
   }
 }
 

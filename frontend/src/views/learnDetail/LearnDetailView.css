@@ -26,7 +26,7 @@
   display: grid;
   gap: 0.72rem;
   padding-bottom: 0.95rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .header h1 {
@@ -118,7 +118,7 @@
 
 .cover {
   margin: 0;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--divider-color);
 }
 
 .cover img {
@@ -164,8 +164,12 @@
   gap: 0.34rem;
 }
 
+.toc li.h2 {
+  padding-left: 0.4rem;
+}
+
 .toc li.h3 {
-  padding-left: 0.65rem;
+  padding-left: 0.75rem;
 }
 
 .toc a {
@@ -204,7 +208,7 @@
 }
 
 .content h3 {
-  font-size: 1rem;
+  font-size: 1.04rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
 }
 

@@ -7,7 +7,6 @@ import QuickActionTile from '@/components/admin/dashboard/QuickActionTile.vue'
 import StatsChart from '@/components/admin/dashboard/StatsChart.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { getStats, downloadStatsCsv } from '@/services/api/admin/stats'
-import { getAuthSettings, updateAuthSettings } from '@/services/api/admin/authSettings'
 import { useToast } from '@/composables/useToast'
 
 const toast = useToast()
@@ -17,27 +16,12 @@ const exporting = ref(false)
 const error = ref('')
 const stats = ref(null)
 const trendMetric = ref('new_posts')
-const authSettings = ref({ require_email_verification_for_new_users: true })
-const authSettingsLoading = ref(false)
-const authSettingsSaving = ref(false)
-const authSettingsError = ref('')
 
 const trendMetricOptions = [
   { key: 'new_posts', label: 'Príspevky' },
   { key: 'new_users', label: 'Používatelia' },
   { key: 'new_events', label: 'Udalosti' },
 ]
-
-const emailVerificationHint =
-  'Platí len pre nových používateľov. Pri vypnutí sa nové účty overia automaticky.'
-
-const emailVerificationEnabled = computed(() =>
-  Boolean(authSettings.value.require_email_verification_for_new_users),
-)
-
-const emailVerificationStateLabel = computed(() =>
-  emailVerificationEnabled.value ? 'Zapnuté' : 'Vypnuté',
-)
 
 const kpiCards = computed(() => {
   const kpi = stats.value?.kpi || {}
@@ -90,26 +74,43 @@ const byRoleList = computed(() => {
 const byRegionProfileList = computed(() => {
   const byRegion = stats.value?.demographics?.by_region || {}
   return [
-    { key: 'unknown', label: 'Nezadané', value: Number(byRegion.unknown || 0) },
-    { key: 'sk', label: 'Slovensko', value: Number(byRegion.sk || 0) },
-    { key: 'cz', label: 'Česko', value: Number(byRegion.cz || 0) },
-    { key: 'other', label: 'Ostatné', value: Number(byRegion.other || 0) },
-  ]
-})
-
-const byRegionActiveIpList = computed(() => {
-  const byRegion = stats.value?.demographics?.by_region_active_ip_30d || {}
-  return [
-    { key: 'unknown', label: 'Nezadané', value: Number(byRegion.unknown || 0) },
-    { key: 'sk', label: 'Slovensko', value: Number(byRegion.sk || 0) },
-    { key: 'cz', label: 'Česko', value: Number(byRegion.cz || 0) },
-    { key: 'other', label: 'Ostatné', value: Number(byRegion.other || 0) },
+    { key: 'unknown', label: 'Nezadané', value: Number(byRegion.unknown || 0), icon: '\u{2754}' },
+    { key: 'sk', label: 'Slovensko', value: Number(byRegion.sk || 0), icon: '\u{1F1F8}\u{1F1F0}' },
+    { key: 'cz', label: 'Česko', value: Number(byRegion.cz || 0), icon: '\u{1F1E8}\u{1F1FF}' },
+    { key: 'other', label: 'Ostatné', value: Number(byRegion.other || 0), icon: '\u{1F30D}' },
   ]
 })
 
 const trendPoints = computed(() => {
   const points = stats.value?.trend?.points
   return Array.isArray(points) ? points : []
+})
+
+const activityHighlights = computed(() => {
+  const points = trendPoints.value
+  if (!points.length) {
+    return [
+      { key: 'posts_30d', label: 'Príspevky (30 dní)', value: 0 },
+      { key: 'users_30d', label: 'Používatelia (30 dní)', value: 0 },
+      { key: 'events_30d', label: 'Udalosti (30 dní)', value: 0 },
+    ]
+  }
+
+  const totals = points.reduce(
+    (acc, point) => {
+      acc.posts += Number(point?.new_posts || 0)
+      acc.users += Number(point?.new_users || 0)
+      acc.events += Number(point?.new_events || 0)
+      return acc
+    },
+    { posts: 0, users: 0, events: 0 },
+  )
+
+  return [
+    { key: 'posts_30d', label: 'Príspevky (30 dní)', value: totals.posts },
+    { key: 'users_30d', label: 'Používatelia (30 dní)', value: totals.users },
+    { key: 'events_30d', label: 'Udalosti (30 dní)', value: totals.events },
+  ]
 })
 
 const quickActions = computed(() => {
@@ -188,69 +189,8 @@ async function exportCsv() {
   }
 }
 
-async function loadAuthSettings() {
-  authSettingsLoading.value = true
-  authSettingsError.value = ''
-
-  try {
-    const response = await getAuthSettings()
-    const payload = response?.data?.data
-    const required =
-      typeof payload?.require_email_verification_for_new_users === 'boolean'
-        ? payload.require_email_verification_for_new_users
-        : payload?.require_email_verification
-
-    if (typeof required === 'boolean') {
-      authSettings.value = { require_email_verification_for_new_users: required }
-    }
-  } catch (e) {
-    authSettingsError.value =
-      e?.response?.data?.message || 'Nepodarilo sa načítať nastavenie overenia.'
-  } finally {
-    authSettingsLoading.value = false
-  }
-}
-
-async function toggleEmailVerification(required) {
-  if (authSettingsSaving.value) return
-
-  authSettingsSaving.value = true
-  authSettingsError.value = ''
-
-  try {
-    const response = await updateAuthSettings({
-      require_email_verification_for_new_users: required,
-    })
-
-    const payload = response?.data?.data
-    const resolved =
-      typeof payload?.require_email_verification_for_new_users === 'boolean'
-        ? payload.require_email_verification_for_new_users
-        : payload?.require_email_verification
-
-    if (typeof resolved === 'boolean') {
-      authSettings.value = { require_email_verification_for_new_users: resolved }
-    } else {
-      authSettings.value = { require_email_verification_for_new_users: required }
-    }
-
-    toast.success(
-      required
-        ? 'Overenie e-mailu bolo zapnuté.'
-        : 'Overenie e-mailu pre nových používateľov bolo vypnuté.',
-    )
-  } catch (e) {
-    authSettingsError.value =
-      e?.response?.data?.message || 'Nepodarilo sa uložiť nastavenie overenia.'
-    toast.error(authSettingsError.value)
-  } finally {
-    authSettingsSaving.value = false
-  }
-}
-
 onMounted(() => {
   loadDashboard(false)
-  loadAuthSettings()
 })
 </script>
 

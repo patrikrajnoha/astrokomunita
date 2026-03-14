@@ -40,19 +40,21 @@ const emit = defineEmits(['action'])
 <style scoped>
 .sectionCard {
   display: grid;
-  gap: 12px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid var(--dashboard-border, var(--color-border));
-  border-radius: var(--dashboard-radius, 18px);
+  border-radius: var(--dashboard-radius, 11px);
   background: var(--dashboard-panel, rgb(var(--color-bg-rgb) / 0.34));
   transition: border-color 160ms ease, background-color 160ms ease;
+  min-width: 0;
 }
 
 .sectionHead {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .sectionCopy {
@@ -61,25 +63,15 @@ const emit = defineEmits(['action'])
 
 .sectionTitle {
   margin: 0;
-  font-family:
-    'InterVariable',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    'Liberation Sans',
-    Helvetica,
-    Arial,
-    sans-serif;
-  font-size: 15px;
+  font-size: 0.98rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: var(--color-surface);
 }
 
 .sectionSubtitle {
   margin: 3px 0 0;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--dashboard-muted, rgb(var(--color-text-secondary-rgb) / 0.88));
 }
 
@@ -87,19 +79,20 @@ const emit = defineEmits(['action'])
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .sectionAction {
-  min-height: 32px;
-  padding-inline: 12px;
-  font-size: 12px;
+  min-height: 30px;
+  padding-inline: 10px;
+  font-size: 11px;
   font-weight: 600;
 }
 
 .sectionBody {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 

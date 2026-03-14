@@ -7,7 +7,7 @@ export const MODE_TABS = [
 export function createScopeTabs(SIDEBAR_SCOPE) {
   return [
     { value: SIDEBAR_SCOPE.HOME, label: 'Domov' },
-    { value: SIDEBAR_SCOPE.EVENTS, label: 'Udalosti + kalendar' },
+    { value: SIDEBAR_SCOPE.EVENTS, label: 'Udalosti' },
     { value: SIDEBAR_SCOPE.LEARNING, label: 'Vzdelavanie' },
     { value: SIDEBAR_SCOPE.SEARCH, label: 'Vyhladavanie' },
     { value: SIDEBAR_SCOPE.NOTIFICATIONS, label: 'Notifikacie' },

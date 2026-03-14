@@ -26,7 +26,7 @@
     <section v-else-if="hasPrimaryFetchError" class="state stateError">
       <InlineStatus
         variant="error"
-        message="Nepodarilo sa nacitat astronomicke podmienky."
+        :message="primaryErrorMessage"
         action-label="Skusit znova"
         @action="refreshAll"
       />
@@ -40,7 +40,6 @@
       <p class="verdictLine">{{ verdictLine }}</p>
       <p class="metaLine">{{ summaryMetaLine }}</p>
       <p class="windowLine">Najlepsie okno: {{ bestTimeLabel }}</p>
-      <button type="button" class="detailBtn" @click="goToDetail">Zobrazit detail</button>
     </div>
   </section>
 </template>
@@ -97,6 +96,15 @@ const hasPrimaryFetchError = computed(() => (
   && !astronomy.value
   && Boolean(weatherError.value || astronomyError.value)
 ))
+const primaryErrorMessage = computed(() => {
+  const astronomyMessage = String(astronomyError.value || '').trim()
+  if (astronomyMessage) return astronomyMessage
+
+  const weatherMessage = String(weatherError.value || '').trim()
+  if (weatherMessage) return weatherMessage
+
+  return 'Nepodarilo sa nacitat astronomicke podmienky.'
+})
 
 const hasScore = computed(() => Number.isFinite(observingScore.value))
 const scoreLine = computed(() => (hasScore.value ? String(Math.round(observingScore.value)) : 'N/A'))
@@ -107,8 +115,8 @@ const verdictLine = computed(() => {
 })
 
 const moonPercentLabel = computed(() => {
-  const value = Number(astronomy.value?.moon_illumination_percent)
-  return Number.isFinite(value) ? `${Math.round(value)}%` : '-'
+  const value = toFiniteNumber(astronomy.value?.moon_illumination_percent)
+  return value === null ? '-' : `${Math.round(value)}%`
 })
 
 const summaryMetaLine = computed(() => {
@@ -127,8 +135,13 @@ function goToProfileLocation() {
   router.push('/profile/edit#location')
 }
 
-function goToDetail() {
-  router.push('/observations')
+function toFiniteNumber(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
 }
 </script>
 
@@ -149,10 +162,8 @@ function goToDetail() {
 }
 
 .summaryHead {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
-  align-items: flex-start;
+  display: grid;
+  gap: 0.16rem;
 }
 
 .panelTitle {
@@ -168,14 +179,16 @@ function goToDetail() {
   background: transparent;
   color: var(--color-text-secondary);
   font-size: 0.7rem;
-  line-height: 1.2;
+  line-height: 1.26;
   text-decoration: underline;
   text-underline-offset: 0.16rem;
-  max-width: 11rem;
-  text-align: right;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: left;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  justify-self: start;
 }
 
 .locationBtn:hover {
@@ -214,23 +227,6 @@ function goToDetail() {
   font-size: 0.72rem;
   line-height: 1.26;
   color: var(--color-text-secondary);
-}
-
-.detailBtn {
-  margin-top: 0.14rem;
-  justify-self: start;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.48);
-  background: rgb(var(--color-primary-rgb) / 0.14);
-  color: var(--color-surface);
-  border-radius: 0.52rem;
-  min-height: 1.66rem;
-  padding: 0.28rem 0.58rem;
-  font-size: 0.7rem;
-  font-weight: 700;
-}
-
-.detailBtn:hover {
-  background: rgb(var(--color-primary-rgb) / 0.22);
 }
 
 .panelLoading {

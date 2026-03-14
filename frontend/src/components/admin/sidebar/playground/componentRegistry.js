@@ -8,6 +8,8 @@ import NextEventWidget from '@/components/widgets/NextEventWidget.vue'
 import LatestArticlesWidget from '@/components/widgets/LatestArticlesWidget.vue'
 import UpcomingEventsWidget from '@/components/widgets/UpcomingEventsWidget.vue'
 import MoonPhasesWidget from '@/components/widgets/MoonPhasesWidget.vue'
+import MoonOverviewWidget from '@/components/widgets/MoonOverviewWidget.vue'
+import MoonEventsWidget from '@/components/widgets/MoonEventsWidget.vue'
 
 const CATEGORY_ORDER = [
   'Sidebar widgety',
@@ -106,11 +108,55 @@ export const sidebarComponentPlaygroundRegistry = [
     ],
   },
   {
+    id: 'sidebar-moon-overview',
+    label: 'Mesiac teraz',
+    category: 'Sidebar widgety',
+    sourcePath: 'frontend/src/components/widgets/MoonOverviewWidget.vue',
+    description: 'Aktualna poloha a stav Mesiaca s najblizsim Novom, Splnom a vychodom.',
+    component: MoonOverviewWidget,
+    initialProps: {
+      title: 'Mesiac teraz',
+      lat: 48.1486,
+      lon: 17.1077,
+      tz: 'Europe/Bratislava',
+      date: '',
+    },
+    editableProps: [
+      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Mesiac teraz' },
+      { key: 'lat', label: 'Zemepisna sirka', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
+      { key: 'lon', label: 'Zemepisna dlzka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
+      { key: 'tz', label: 'Casove pasmo', type: 'text', defaultValue: 'Europe/Bratislava' },
+      { key: 'date', label: 'Datum (YYYY-MM-DD)', type: 'text', defaultValue: '' },
+    ],
+  },
+  {
+    id: 'sidebar-moon-events',
+    label: 'Lunarne udalosti',
+    category: 'Sidebar widgety',
+    sourcePath: 'frontend/src/components/widgets/MoonEventsWidget.vue',
+    description: 'Specialne lunarne udalosti pre aktualny rok a lokalitu.',
+    component: MoonEventsWidget,
+    initialProps: {
+      title: 'Lunarne udalosti',
+      lat: 48.1486,
+      lon: 17.1077,
+      tz: 'Europe/Bratislava',
+      date: '',
+    },
+    editableProps: [
+      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Lunarne udalosti' },
+      { key: 'lat', label: 'Zemepisna sirka', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
+      { key: 'lon', label: 'Zemepisna dlzka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
+      { key: 'tz', label: 'Casove pasmo', type: 'text', defaultValue: 'Europe/Bratislava' },
+      { key: 'date', label: 'Datum (YYYY-MM-DD)', type: 'text', defaultValue: '' },
+    ],
+  },
+  {
     id: 'sidebar-iss-pass',
     label: 'ISS prelet',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/sky/IssPassWidget.vue',
-    description: 'Zobrazi sa iba pri viditelnom ISS prelete.',
+    description: 'ISS prelet a tracker; pri neviditelnom prelete ukaze fallback stav.',
     component: IssPassWidget,
     initialProps: {
       lat: 48.1486,

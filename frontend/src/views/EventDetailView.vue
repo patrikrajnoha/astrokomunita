@@ -24,7 +24,6 @@ import {
   formatDateKey,
   formatEventMetaDate,
   formatTime,
-  mapConfidence,
   mapStatus,
   mapType,
   mapVisibility,
@@ -93,23 +92,39 @@ const metaDateLabel = computed(() => formatEventMetaDate(event.value, EVENT_TIME
 const typeLabel = computed(() => mapType(event.value?.type))
 const statusLabel = computed(() => mapStatus(event.value))
 const visibilityLabel = computed(() => mapVisibility(event.value?.visibility))
-const confidenceLabel = computed(() => mapConfidence(event.value?.public_confidence?.level))
 const metaLine = computed(() =>
   [metaDateLabel.value, visibilityLabel.value].filter((value) => value !== '').join(' - '),
 )
 const isFollowed = computed(() => eventFollows.isFollowed(eventId.value))
-const followLoading = computed(() => eventFollows.isLoading(eventId.value))
 const followButtonLabel = computed(() => {
   if (!auth.isAuthed) return 'Prihlasit sa pre sledovanie'
   return isFollowed.value ? 'Sledujes' : 'Sledovat'
 })
+const followActionLabel = computed(() => {
+  if (!auth.isAuthed) return followButtonLabel.value
+  if (eventFollows.isLoading(eventId.value)) return 'Ukladam...'
+  return followButtonLabel.value
+})
 const hasSavedPlan = computed(() => Boolean(event.value?.plan?.has_data))
 const planButtonLabel = computed(() => (hasSavedPlan.value ? 'Upravit plan' : 'Naplanovat pozorovanie'))
 const pageHeaderTitle = computed(() => (event.value ? typeLabel.value : 'Detail udalosti'))
-const menuItems = computed(() => [
-  { key: 'calendar', label: 'Pridat do kalendara' },
-  { key: 'share', label: 'Zdielat odkaz' },
-])
+const menuItems = computed(() => {
+  if (auth.isAuthed) {
+    return [
+      { key: 'follow', label: followActionLabel.value },
+      { key: 'invite', label: 'Pozvat' },
+      { key: 'calendar', label: 'Pridat do kalendara' },
+      { key: 'share', label: 'Zdielat odkaz' },
+    ]
+  }
+
+  return [
+    { key: 'login-follow', label: followButtonLabel.value },
+    { key: 'login-invite', label: 'Prihlasit sa pre pozvanie' },
+    { key: 'calendar', label: 'Pridat do kalendara' },
+    { key: 'share', label: 'Zdielat odkaz' },
+  ]
+})
 const viewingWindowStart = computed(() => parseDate(viewingForecast.value.viewingWindow?.start_at))
 const viewingWindowEnd = computed(() => parseDate(viewingForecast.value.viewingWindow?.end_at))
 const viewingWindowLabel = computed(() => {
@@ -137,37 +152,33 @@ const recommendedPlanHint = computed(() => {
 const eventTimeContext = computed(() => resolveEventTimeContext(event.value, EVENT_TIMEZONE))
 const primaryObservationLine = computed(() => {
   if (viewingForecast.value.loading && !viewingWindowLabel.value) {
-    return 'Pozorovanie: nacitavam'
+    return 'Odporucany cas: nacitavam'
   }
 
   if (viewingForecast.value.missingLocation) {
-    return 'Pozorovanie: nastav polohu'
+    return 'Odporucany cas: nastav polohu'
   }
 
   if (viewingWindowLabel.value) {
-    return `Pozorovanie: ${viewingWindowLabel.value}`
+    return `Odporucany cas: ${viewingWindowLabel.value}`
   }
 
-  return 'Pozorovanie: upresnime'
+  return 'Odporucany cas: upresnime'
 })
 const secondaryEventTimeLabel = computed(() => {
   const context = eventTimeContext.value
-  if (
-    showViewingWindowMicrocopy.value &&
-    context.timeType === 'peak' &&
-    context.timeString
-  ) {
-    const labelPrefix =
-      context.timePrecision === 'approximate'
-        ? 'Priblizne maximum javu (cez den)'
-        : 'Maximum javu (cez den)'
-    return `${labelPrefix} o ${context.timeString}`
+  if (showViewingWindowMicrocopy.value && context.timeType === 'peak') {
+    return ''
   }
 
   return context.message
 })
 const secondaryEventTimeTimezoneLabel = computed(() =>
-  eventTimeContext.value.showTimezoneLabel ? eventTimeContext.value.timezoneLabelShort : '',
+  showViewingWindowMicrocopy.value
+    ? ''
+    : eventTimeContext.value.showTimezoneLabel
+      ? eventTimeContext.value.timezoneLabelShort
+      : '',
 )
 const secondaryEventTimeAriaLabel = computed(() => {
   if (!secondaryEventTimeLabel.value) {
@@ -192,20 +203,6 @@ const showViewingWindowMicrocopy = computed(() => {
 
   const localHour = getHourInTimezone(phenomenonAt, viewingTimezone.value)
   return localHour !== null && localHour >= 6 && localHour < 18
-})
-const viewingWindowMicrocopy = computed(() => {
-  if (!showViewingWindowMicrocopy.value) return ''
-
-  if (viewingWindowLabel.value) {
-    return `Maximum je cez den; prakticke pozorovanie je az po zotmeni, v okne ${viewingWindowLabel.value}.`
-  }
-
-  return 'Maximum je cez den; prakticke pozorovanie je az po zotmeni.'
-})
-const howToObserveText = computed(() => {
-  if (!showViewingWindowMicrocopy.value) return ''
-
-  return 'Cas "Maximum" znamena astronomicky vrchol javu, nie vzdy najlepsi cas na pozorovanie. Ked je cez den, riad sa riadkom "Pozorovanie".'
 })
 const canGoPrev = computed(() => Number.isInteger(adjacentEventIds.value.prev))
 const canGoNext = computed(() => Number.isInteger(adjacentEventIds.value.next))
@@ -462,6 +459,22 @@ function handleInvite() {
 
 async function handleMenuSelect(item) {
   if (!item?.key) return
+
+  if (item.key === 'follow') {
+    if (eventFollows.isLoading(eventId.value)) return
+    await handleFollowToggle()
+    return
+  }
+
+  if (item.key === 'invite') {
+    handleInvite()
+    return
+  }
+
+  if (item.key === 'login-follow' || item.key === 'login-invite') {
+    redirectToLogin()
+    return
+  }
 
   if (item.key === 'calendar') {
     await downloadCalendarIcs()

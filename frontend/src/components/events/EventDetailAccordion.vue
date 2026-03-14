@@ -95,7 +95,7 @@ defineEmits(['toggle'])
 
 .accordion__panel {
   padding: 0 1rem 1rem;
-  border-top: 1px solid rgb(var(--color-text-secondary-rgb) / 0.1);
+  border-top: 1px solid var(--divider-color);
 }
 
 .accordionFade-enter-active,

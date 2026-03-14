@@ -1,6 +1,12 @@
 <template>
   <div class="tourRoot" aria-hidden="false">
-    <div class="tourOverlay" @click.stop @mousedown.stop @touchstart.stop></div>
+    <div class="tourOverlay" aria-hidden="true"></div>
+    <div
+      v-if="targetRect"
+      class="tourSpotlight"
+      :style="spotlightStyle"
+      aria-hidden="true"
+    ></div>
 
     <section
       ref="tooltipRef"
@@ -114,7 +120,7 @@ const steps = [
     selector: '[data-tour="conditions"]',
     title: 'Pozorovacie podmienky',
     body: 'Na jednom mieste mas pocasie, seeing a dalsie uzitocne widgety.',
-    tip: 'Na mobile otvoris widgety tlacidlom vpravo dole, na desktope ich najdes v pravom paneli.',
+    tip: 'Na mobile otvoris widgety tlacidlom vpravo dole, na desktope ich najdes v pravom paneli. Vzhlad a poradie widgetov si vies upravit v Nastaveniach > Sidebar widgety.',
     missingHint: 'Panel podmienok sa teraz nenasiel. Pokracuj na dalsi krok alebo skus obnovit stranku.',
     route: { name: 'home' },
   },
@@ -123,6 +129,9 @@ const steps = [
 const TOOLTIP_MARGIN = 12
 const VIEWPORT_MARGIN = 12
 const MAX_TOOLTIP_WIDTH = 360
+const MAX_TARGET_GUIDE_HEIGHT_PX = 220
+const MAX_TARGET_GUIDE_HEIGHT_RATIO = 0.42
+const SPOTLIGHT_PADDING = 6
 const RESOLVE_ATTEMPTS = 10
 const RESOLVE_DELAY_MS = 150
 const HIGHLIGHT_CLASS = 'onboarding-tour-target'
@@ -151,6 +160,28 @@ const progressPercent = computed(() => {
   return Math.round(((currentStepIndex.value + 1) / steps.length) * 100)
 })
 const nextButtonLabel = computed(() => currentStep.value?.nextLabel || 'Dalej')
+const spotlightStyle = computed(() => {
+  if (!targetRect.value) return {}
+
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
+  const baseLeft = targetRect.value.left - SPOTLIGHT_PADDING
+  const baseTop = targetRect.value.top - SPOTLIGHT_PADDING
+  const baseWidth = targetRect.value.width + SPOTLIGHT_PADDING * 2
+  const baseHeight = targetRect.value.height + SPOTLIGHT_PADDING * 2
+
+  const left = clamp(baseLeft, VIEWPORT_MARGIN / 2, viewportWidth - VIEWPORT_MARGIN / 2)
+  const top = clamp(baseTop, VIEWPORT_MARGIN / 2, viewportHeight - VIEWPORT_MARGIN / 2)
+  const width = Math.max(24, Math.min(baseWidth, viewportWidth - left - VIEWPORT_MARGIN / 2))
+  const height = Math.max(24, Math.min(baseHeight, viewportHeight - top - VIEWPORT_MARGIN / 2))
+
+  return {
+    left: `${Math.round(left)}px`,
+    top: `${Math.round(top)}px`,
+    width: `${Math.round(width)}px`,
+    height: `${Math.round(height)}px`,
+  }
+})
 const computedTooltipStyle = computed(() => {
   if (targetRect.value) {
     return tooltipStyle.value
@@ -170,6 +201,29 @@ const clamp = (value, min, max) => {
 }
 
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms))
+
+const normalizeTargetRect = (rect) => {
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0
+  const maxGuideHeight = Math.min(
+    MAX_TARGET_GUIDE_HEIGHT_PX,
+    Math.max(120, Math.round(viewportHeight * MAX_TARGET_GUIDE_HEIGHT_RATIO)),
+  )
+  const maxGuideWidth = Math.max(120, viewportWidth - VIEWPORT_MARGIN * 2)
+  const width = Math.min(rect.width, maxGuideWidth)
+  const height = Math.min(rect.height, maxGuideHeight)
+  const left = clamp(rect.left, VIEWPORT_MARGIN, viewportWidth - width - VIEWPORT_MARGIN)
+  const top = clamp(rect.top, VIEWPORT_MARGIN, viewportHeight - height - VIEWPORT_MARGIN)
+
+  return {
+    top,
+    left,
+    width,
+    height,
+    right: left + width,
+    bottom: top + height,
+  }
+}
 
 const isElementVisible = (element) => {
   if (!(element instanceof HTMLElement)) return false
@@ -226,7 +280,7 @@ const updateTargetRect = () => {
     return
   }
 
-  targetRect.value = targetElement.value.getBoundingClientRect()
+  targetRect.value = normalizeTargetRect(targetElement.value.getBoundingClientRect())
   updateTooltipPosition()
 }
 
@@ -426,19 +480,32 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 2100;
+  pointer-events: none;
 }
 
 .tourOverlay {
   position: absolute;
   inset: 0;
   background: rgb(3 7 18 / 0.62);
-  pointer-events: auto;
+  pointer-events: none;
+}
+
+.tourSpotlight {
+  position: fixed;
+  z-index: 2101;
+  border: 2px solid rgb(var(--color-primary-rgb) / 0.95);
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px rgb(var(--color-bg-rgb) / 0.6);
+  pointer-events: none;
 }
 
 .tourTooltip {
   position: fixed;
   z-index: 2102;
+  pointer-events: auto;
   width: min(360px, calc(100vw - 24px));
+  max-height: min(78vh, 520px);
+  overflow: auto;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.4);
   border-radius: 12px;
   background: rgb(var(--color-bg-rgb) / 0.96);
@@ -582,14 +649,22 @@ onBeforeUnmount(() => {
 
 @media (max-width: 640px) {
   .tourTooltip {
+    width: calc(100vw - 16px);
     padding: 0.75rem;
+  }
+
+  .tourActions {
+    flex-wrap: wrap;
+  }
+
+  .tourActionsRight {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 
 :global(.onboarding-tour-target) {
   position: relative;
-  z-index: 2101;
-  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.95);
-  border-radius: 12px;
+  z-index: auto;
 }
 </style>

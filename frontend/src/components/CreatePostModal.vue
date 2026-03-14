@@ -30,7 +30,97 @@ const MAX_HEIGHT = 220
 const GIF_MIN_QUERY_LENGTH = 2
 const POLL_MIN_OPTIONS = 2
 const POLL_MAX_OPTIONS = 4
-const EMOJI_SET = ['😀', '😂', '😍', '😎', '🤔', '👍', '🙏', '✨', '🚀', '🎉', '☄️', '🌌', '🔭', '⭐️']
+const EMOJI_GROUPS = [
+  {
+    key: 'moon',
+    label: 'Mesiac',
+    icon: '\u{1F319}',
+    emojis: [
+      { char: '\u{1F311}', label: 'Nov' },
+      { char: '\u{1F312}', label: 'Dorastajuci kosacik' },
+      { char: '\u{1F313}', label: 'Prva stvrt' },
+      { char: '\u{1F314}', label: 'Dorastajuci mesiac' },
+      { char: '\u{1F315}', label: 'Spln' },
+      { char: '\u{1F316}', label: 'Ubudajuci mesiac' },
+      { char: '\u{1F317}', label: 'Posledna stvrt' },
+      { char: '\u{1F318}', label: 'Ubudajuci kosacik' },
+      { char: '\u{1F319}', label: 'Polmesiac' },
+      { char: '\u{1F31A}', label: 'Tmavy mesiac' },
+      { char: '\u{1F31B}', label: 'Mesiacova stvrt' },
+      { char: '\u{1F31C}', label: 'Mesiacova stvrt 2' },
+      { char: '\u{1F31D}', label: 'Mesiacova tvar' },
+    ],
+  },
+  {
+    key: 'sky',
+    label: 'Obloha',
+    icon: '\u2728',
+    emojis: [
+      { char: '\u2600\uFE0F', label: 'Slnko' },
+      { char: '\u{1F31E}', label: 'Slnko s tvarou' },
+      { char: '\u{1F324}\uFE0F', label: 'Slnko za mrakom' },
+      { char: '\u26C5', label: 'Polooblacno' },
+      { char: '\u{1F325}\uFE0F', label: 'Oblacno' },
+      { char: '\u2601\uFE0F', label: 'Mrak' },
+      { char: '\u{1F326}\uFE0F', label: 'Prehanky' },
+      { char: '\u{1F327}\uFE0F', label: 'Dazd' },
+      { char: '\u26C8\uFE0F', label: 'Burka' },
+      { char: '\u{1F329}\uFE0F', label: 'Blesk' },
+      { char: '\u{1F328}\uFE0F', label: 'Snezenie' },
+      { char: '\u2744\uFE0F', label: 'Snehova vlocka' },
+      { char: '\u2614\uFE0F', label: 'Dazdnik' },
+      { char: '\u{1F32A}\uFE0F', label: 'Vichor' },
+      { char: '\u{1F32B}\uFE0F', label: 'Hmla' },
+      { char: '\u{1F308}', label: 'Duha' },
+    ],
+  },
+  {
+    key: 'space',
+    label: 'Vesmir',
+    icon: '\u{1F680}',
+    emojis: [
+      { char: '\u{1F680}', label: 'Raketa' },
+      { char: '\u{1F6F8}', label: 'Lietajuci tanier' },
+      { char: '\u{1F6F0}\uFE0F', label: 'Satelit' },
+      { char: '\u{1F4E1}', label: 'Antena' },
+      { char: '\u{1F52D}', label: 'Teleskop' },
+      { char: '\u{1FA90}', label: 'Planeta' },
+      { char: '\u{1F30D}', label: 'Zemegula Amerika' },
+      { char: '\u{1F30E}', label: 'Zemegula Afrika' },
+      { char: '\u{1F30F}', label: 'Zemegula Azia' },
+      { char: '\u2604\uFE0F', label: 'Kometa' },
+      { char: '\u{1F30C}', label: 'Mliecna draha' },
+      { char: '\u{1F9D1}\u200D\u{1F680}', label: 'Astronaut' },
+      { char: '\u{1F468}\u200D\u{1F680}', label: 'Astronaut muz' },
+      { char: '\u{1F469}\u200D\u{1F680}', label: 'Astronaut zena' },
+      { char: '\u{1F9ED}', label: 'Kompas' },
+      { char: '\u{1F5FA}\uFE0F', label: 'Mapa oblohy' },
+    ],
+  },
+  {
+    key: 'react',
+    label: 'Reakcie',
+    icon: '\u{1F389}',
+    emojis: [
+      { char: '\u{1F600}', label: 'Usmev' },
+      { char: '\u{1F601}', label: 'Radost' },
+      { char: '\u{1F604}', label: 'Siroky usmev' },
+      { char: '\u{1F60A}', label: 'Prijemny usmev' },
+      { char: '\u{1F60D}', label: 'Laska' },
+      { char: '\u{1F929}', label: 'Nadsenie' },
+      { char: '\u{1F60E}', label: 'Cool' },
+      { char: '\u{1F914}', label: 'Premyslanie' },
+      { char: '\u{1F62E}', label: 'Prekvapenie' },
+      { char: '\u{1F92F}', label: 'Ohromenie' },
+      { char: '\u{1F44D}', label: 'Palec hore' },
+      { char: '\u{1F44E}', label: 'Palec dole' },
+      { char: '\u{1F64F}', label: 'Dakujem' },
+      { char: '\u{1F44F}', label: 'Potlesk' },
+      { char: '\u{1F64C}', label: 'Oslava' },
+      { char: '\u{1F389}', label: 'Konfety' },
+    ],
+  },
+]
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -71,11 +161,18 @@ const pollEnabled = ref(false)
 const pollOptions = ref(createInitialPollOptions())
 const pollDurationSeconds = ref(86400)
 const composerMode = ref('post')
+const activeEmojiGroupKey = ref(EMOJI_GROUPS[0].key)
 
 let bodyOverflow = ''
 
 const isObservationMode = computed(() => composerMode.value === 'observation')
 const isPostMode = computed(() => !isObservationMode.value)
+const activeEmojiGroup = computed(() => (
+  EMOJI_GROUPS.find((group) => group.key === activeEmojiGroupKey.value) || EMOJI_GROUPS[0]
+))
+const activeEmojiOptions = computed(() => (
+  Array.isArray(activeEmojiGroup.value?.emojis) ? activeEmojiGroup.value.emojis : []
+))
 const normalizedLength = computed(() => content.value.trimEnd().length)
 const remainingChars = computed(() => MAX_CHARS - normalizedLength.value)
 const isOverLimit = computed(() => remainingChars.value < 0)
@@ -233,6 +330,11 @@ function setSelectedImageFile(pickedFile) {
 function toggleEmoji() {
   showMore.value = false
   showEmoji.value = !showEmoji.value
+}
+
+function selectEmojiGroup(groupKey) {
+  if (!EMOJI_GROUPS.some((group) => group.key === groupKey)) return
+  activeEmojiGroupKey.value = groupKey
 }
 
 function insertEmoji(emoji) {
@@ -496,6 +598,7 @@ function resetState() {
   content.value = ''
   errorMessage.value = ''
   showEmoji.value = false
+  activeEmojiGroupKey.value = EMOJI_GROUPS[0].key
   showMore.value = false
   closeGifModal()
   closeEventModal()
@@ -534,7 +637,6 @@ async function submit() {
         : null,
     })
 
-    toast.success?.('Prispevok bol publikovany.')
     emit('created', response?.data)
     resetState()
     emit('close')
