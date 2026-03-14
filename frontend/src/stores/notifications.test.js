@@ -301,8 +301,12 @@ describe('notifications store realtime handler', () => {
     await store.fetchUnreadCount()
 
     expect(authState.csrf).toHaveBeenCalled()
-    expect(http.post).toHaveBeenCalledWith('/notifications/read-all')
-    expect(http.get).toHaveBeenCalledWith('/notifications/unread-count')
+    expect(http.post).toHaveBeenCalledWith('/notifications/read-all', null, {
+      meta: { skipErrorToast: true },
+    })
+    expect(http.get).toHaveBeenCalledWith('/notifications/unread-count', {
+      meta: { skipErrorToast: true },
+    })
     expect(store.unreadCount).toBe(0)
     expect(store.unreadBadge).toBe('')
     expect(store.items.every((item) => Boolean(item.read_at))).toBe(true)

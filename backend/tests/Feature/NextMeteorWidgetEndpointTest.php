@@ -47,6 +47,23 @@ class NextMeteorWidgetEndpointTest extends TestCase
             ->assertJsonPath('source.label', 'Databaza udalosti');
     }
 
+    public function test_endpoint_cache_is_invalidated_when_future_meteor_event_is_created(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-02-16 12:00:00', config('app.timezone')));
+        Cache::flush();
+
+        $this->getJson('/api/events/widget/next-meteor-shower')
+            ->assertOk()
+            ->assertJsonPath('data', null);
+
+        $meteor = $this->createManualEvent('Lyridy', 'meteor-future', 'meteor_shower', now()->addDays(5));
+
+        $this->getJson('/api/events/widget/next-meteor-shower')
+            ->assertOk()
+            ->assertJsonPath('data.id', $meteor->id)
+            ->assertJsonPath('data.title', 'Lyridy');
+    }
+
     private function createManualEvent(string $title, string $sourceUid, string $type, Carbon $startAt, int $visibility = 1): Event
     {
         return Event::query()->create([
