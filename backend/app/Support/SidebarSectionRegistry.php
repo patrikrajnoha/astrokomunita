@@ -113,6 +113,12 @@ class SidebarSectionRegistry
                 'default_order' => 12,
             ],
             [
+                'section_key' => 'next_meteor_shower',
+                'title' => 'Najblizsi meteoricky roj',
+                'default_enabled' => false,
+                'default_order' => 13,
+            ],
+            [
                 'section_key' => 'moon_overview',
                 'title' => 'Mesiac teraz',
                 'default_enabled' => false,

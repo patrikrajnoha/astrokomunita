@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 class EventWidgetController extends Controller
 {
     private const ECLIPSE_TYPES = ['eclipse', 'eclipse_lunar', 'eclipse_solar'];
+    private const METEOR_TYPES = ['meteors', 'meteor_shower'];
 
     public function __construct(
         private readonly PublishedEventQuery $publishedEventQuery,
@@ -54,30 +55,27 @@ class EventWidgetController extends Controller
     public function nextEclipse(): JsonResponse
     {
         $ttlSeconds = max((int) config('widgets.next_eclipse.cache_ttl_seconds', 300), 1);
-        $cacheKey = 'widget:next-eclipse:v1';
+        return $this->spotlightResponse('widget:next-eclipse:v1', $ttlSeconds, self::ECLIPSE_TYPES);
+    }
 
-        $payload = Cache::remember($cacheKey, now()->addSeconds($ttlSeconds), function (): array {
-            $event = $this->basePublishedQuery()
-                ->whereIn('type', self::ECLIPSE_TYPES)
-                ->where(function ($query) {
-                    $query->where('start_at', '>=', now())
-                        ->orWhere(function ($fallback) {
-                            $fallback->whereNull('start_at')
-                                ->where('max_at', '>=', now());
-                        });
-                })
-                ->orderByRaw('COALESCE(start_at, max_at) ASC')
-                ->orderBy('id')
-                ->first([
-                    'id',
-                    'title',
-                    'type',
-                    'start_at',
-                    'max_at',
-                    'end_at',
-                    'source_name',
-                    'updated_at',
-                ]);
+    public function nextMeteorShower(): JsonResponse
+    {
+        $ttlSeconds = max((int) config('widgets.next_meteor_shower.cache_ttl_seconds', 300), 1);
+        return $this->spotlightResponse('widget:next-meteor-shower:v1', $ttlSeconds, self::METEOR_TYPES);
+    }
+
+    private function basePublishedQuery()
+    {
+        return $this->publishedEventQuery->base();
+    }
+
+    /**
+     * @param  list<string>  $types
+     */
+    private function spotlightResponse(string $cacheKey, int $ttlSeconds, array $types): JsonResponse
+    {
+        $payload = Cache::remember($cacheKey, now()->addSeconds($ttlSeconds), function () use ($types): array {
+            $event = $this->resolveUpcomingSpotlightEvent($types);
 
             return [
                 'data' => $event ? $this->mapSpotlightEvent($event) : null,
@@ -93,9 +91,32 @@ class EventWidgetController extends Controller
         return response()->json($payload);
     }
 
-    private function basePublishedQuery()
+    /**
+     * @param  list<string>  $types
+     */
+    private function resolveUpcomingSpotlightEvent(array $types): ?Event
     {
-        return $this->publishedEventQuery->base();
+        return $this->basePublishedQuery()
+            ->whereIn('type', $types)
+            ->where(function ($query) {
+                $query->where('start_at', '>=', now())
+                    ->orWhere(function ($fallback) {
+                        $fallback->whereNull('start_at')
+                            ->where('max_at', '>=', now());
+                    });
+            })
+            ->orderByRaw('COALESCE(start_at, max_at) ASC')
+            ->orderBy('id')
+            ->first([
+                'id',
+                'title',
+                'type',
+                'start_at',
+                'max_at',
+                'end_at',
+                'source_name',
+                'updated_at',
+            ]);
     }
 
     /**

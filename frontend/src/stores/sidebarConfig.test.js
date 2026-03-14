@@ -25,7 +25,7 @@ describe('sidebarConfig store', () => {
     const items = await store.fetchScope(undefined)
 
     expect(api.get).not.toHaveBeenCalled()
-    expect(items).toHaveLength(13)
+    expect(items).toHaveLength(14)
     expect(items[0].section_key).toBe('observing_conditions')
   })
 
