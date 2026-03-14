@@ -21,11 +21,9 @@ import {
 import { useMarkYourCalendarPopup } from './appLayout/useMarkYourCalendarPopup'
 import {
   dispatchPostCreated,
-  localIsoDate,
-  parseDateQuery,
-  parseNumericValue,
   parseStringValue,
 } from './appLayout/appLayout.utils'
+import { resolveObservingContext } from '@/utils/observingContext'
 import {
   getEnabledSidebarSections,
   normalizeSidebarSections,
@@ -106,71 +104,19 @@ const enabledMobileSections = computed(() => (
     preferredSectionKeys: preferredSidebarWidgetKeys.value,
   })
 ))
-const observingLocationData = computed(() => {
-  const value = auth.user?.location_data
-  if (!value || typeof value !== 'object') return null
-  return value
-})
-const observingLocationMeta = computed(() => {
-  const value = auth.user?.location_meta
-  if (!value || typeof value !== 'object') return null
-  return value
-})
-const observingLat = computed(() => {
-  const fromCanonical = parseNumericValue(observingLocationData.value?.latitude)
-  if (fromCanonical !== null) return fromCanonical
-  const fromMeta = parseNumericValue(
-    observingLocationMeta.value?.lat ?? observingLocationMeta.value?.latitude,
-  )
-  if (fromMeta !== null) return fromMeta
-  const fromPreferences = parseNumericValue(preferences.locationLat)
-  if (fromPreferences !== null) return fromPreferences
-  return parseNumericValue(auth.user?.latitude)
-})
-const observingLon = computed(() => {
-  const fromCanonical = parseNumericValue(observingLocationData.value?.longitude)
-  if (fromCanonical !== null) return fromCanonical
-  const fromMeta = parseNumericValue(
-    observingLocationMeta.value?.lon ?? observingLocationMeta.value?.longitude,
-  )
-  if (fromMeta !== null) return fromMeta
-  const fromPreferences = parseNumericValue(preferences.locationLon)
-  if (fromPreferences !== null) return fromPreferences
-  return parseNumericValue(auth.user?.longitude)
-})
+const observingContext = computed(() => resolveObservingContext({
+  user: auth.user,
+  preferences,
+  dateQuery: route.query.date,
+}))
+const observingLat = computed(() => observingContext.value.lat)
+const observingLon = computed(() => observingContext.value.lon)
 const hasObservingLocation = computed(() => {
   return observingLat.value !== null && observingLon.value !== null
 })
-const observingLocationName = computed(() => {
-  const fromCanonical = parseStringValue(observingLocationData.value?.label)
-  if (fromCanonical) return fromCanonical
-  const fromMeta = parseStringValue(observingLocationMeta.value?.label)
-    || parseStringValue(observingLocationMeta.value?.name)
-  if (fromMeta) return fromMeta
-  const fromPreferences = parseStringValue(preferences.locationLabel)
-  if (fromPreferences) return fromPreferences
-  const fromStored = parseStringValue(auth.user?.location_label)
-  if (fromStored) return fromStored
-  return parseStringValue(auth.user?.location)
-})
-const observingDate = computed(() => parseDateQuery(route.query.date) ?? localIsoDate(new Date()))
-const observingTz = computed(() => {
-  const canonicalTz = parseStringValue(observingLocationData.value?.timezone)
-  if (canonicalTz) return canonicalTz
-  const metaTz = parseStringValue(observingLocationMeta.value?.tz)
-    || parseStringValue(observingLocationMeta.value?.timezone)
-  if (metaTz) return metaTz
-  const storedTz = parseStringValue(auth.user?.timezone)
-  if (storedTz) return storedTz
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Bratislava'
-})
-const observingContext = computed(() => ({
-  lat: observingLat.value,
-  lon: observingLon.value,
-  date: observingDate.value,
-  tz: observingTz.value,
-  locationName: observingLocationName.value,
-}))
+const observingLocationName = computed(() => observingContext.value.locationName)
+const observingDate = computed(() => observingContext.value.date)
+const observingTz = computed(() => observingContext.value.tz)
 const showAuthFallbackBanner = computed(() => {
   return (
     auth.bootstrapDone &&

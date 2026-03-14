@@ -202,6 +202,7 @@ Route::get('/user', function (Request $request) {
 Route::get('/events',      [EventController::class, 'index']);
 Route::get('/events/years', [EventController::class, 'years']);
 Route::get('/events/next', [EventController::class, 'next']);
+Route::get('/events/live-highlights', [EventController::class, 'liveHighlights']);
 Route::get('/events/lookup', [EventController::class, 'lookup']);
 Route::get('/events/widget/upcoming', [EventWidgetController::class, 'upcoming']);
 Route::get('/events/widget/next-eclipse', [EventWidgetController::class, 'nextEclipse']);

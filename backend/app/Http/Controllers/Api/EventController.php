@@ -3,14 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\EventLiveHighlightsRequest;
 use App\Http\Requests\EventIndexRequest;
 use App\Http\Resources\EventResource;
 use App\Services\Events\EventFilter;
+use App\Services\Events\EventLiveHighlightsService;
 use App\Services\Events\PublishedEventQuery;
 use App\Services\Widgets\EventWidgetService;
 use App\Support\EventFollowTable;
+use App\Support\Sky\SkyContextResolver;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class EventController extends Controller
 {
@@ -18,6 +23,8 @@ class EventController extends Controller
         private readonly PublishedEventQuery $publishedEventQuery,
         private readonly EventFilter $eventFilter,
         private readonly EventWidgetService $eventWidgetService,
+        private readonly SkyContextResolver $skyContextResolver,
+        private readonly EventLiveHighlightsService $eventLiveHighlightsService,
     ) {
     }
 
@@ -85,6 +92,55 @@ class EventController extends Controller
     public function next(Request $request)
     {
         return response()->json($this->eventWidgetService->nextEvent());
+    }
+
+    /**
+     * GET /api/events/live-highlights
+     */
+    public function liveHighlights(EventLiveHighlightsRequest $request): JsonResponse
+    {
+        $context = $this->skyContextResolver->resolve($request, $request->validated());
+        $contextSource = (string) ($context['coordinate_source'] ?? 'fallback_config');
+
+        if ($contextSource === 'fallback_config') {
+            return response()->json([
+                'data' => [],
+                'meta' => [
+                    'location_required' => true,
+                    'context_source' => $contextSource,
+                    'reason' => 'location_required',
+                    'requested_at' => now()->toIso8601String(),
+                ],
+            ]);
+        }
+
+        $ttlMinutes = max(
+            1,
+            (int) config(
+                'observing.sky.aurora_cache_ttl_minutes',
+                (int) config('observing.sky.space_weather_cache_ttl_minutes', 10)
+            )
+        );
+
+        $data = Cache::remember(
+            $this->liveHighlightsCacheKey($context['lat'], $context['lon'], $context['tz']),
+            now()->addMinutes($ttlMinutes),
+            fn (): array => $this->eventLiveHighlightsService->build(
+                $context['lat'],
+                $context['lon'],
+                $context['tz']
+            )
+        );
+
+        return response()->json([
+            'data' => $data,
+            'meta' => [
+                'location_required' => false,
+                'context_source' => $contextSource,
+                'reason' => $data === [] ? 'no_live_highlights' : null,
+                'requested_at' => now()->toIso8601String(),
+            ],
+        ]);
     }
 
     /**
@@ -162,6 +218,16 @@ class EventController extends Controller
                 $alias.'.planned_location_label as planned_location_label',
             ]);
         }
+    }
+
+    private function liveHighlightsCacheKey(float $lat, float $lon, string $tz): string
+    {
+        return sprintf(
+            'event_live_highlights:%s:%s:%s',
+            number_format($lat, 4, '.', ''),
+            number_format($lon, 4, '.', ''),
+            $tz
+        );
     }
 }
 
