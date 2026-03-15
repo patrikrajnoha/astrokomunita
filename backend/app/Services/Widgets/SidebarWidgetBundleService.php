@@ -3,8 +3,6 @@
 namespace App\Services\Widgets;
 
 use App\Services\Sky\SkyAstronomyService;
-use App\Services\Sky\SkyIssPreviewService;
-use App\Services\Sky\SkyLightPollutionService;
 use App\Services\Sky\SkyVisiblePlanetsService;
 use App\Services\Sky\SkyWeatherService;
 use App\Services\Sky\SkySpaceWeatherService;
@@ -42,8 +40,6 @@ class SidebarWidgetBundleService
         private readonly SkyWeatherService $skyWeatherService,
         private readonly SkyAstronomyService $skyAstronomyService,
         private readonly SkyVisiblePlanetsService $skyVisiblePlanetsService,
-        private readonly SkyIssPreviewService $skyIssPreviewService,
-        private readonly SkyLightPollutionService $skyLightPollutionService,
         private readonly \App\Services\Sky\SkyNeoWatchlistService $skyNeoWatchlistService,
         private readonly SkyUpcomingLaunchesService $skyUpcomingLaunchesService,
         private readonly SkySpaceWeatherService $skySpaceWeatherService,
@@ -271,26 +267,13 @@ class SidebarWidgetBundleService
         }
 
         $cacheKey = $this->buildSkyCacheKey('sky_iss_preview', $skyContext);
-        $ttlMinutes = max(1, (int) config('observing.sky.iss_preview_cache_ttl_minutes', 15));
         $cachedPayload = Cache::get($cacheKey);
 
         if (is_array($cachedPayload) && ! $this->isUnavailableSkyPayload($cachedPayload)) {
             return $cachedPayload;
         }
 
-        $payload = $this->skyIssPreviewService->fetch(
-            $skyContext['lat'],
-            $skyContext['lon'],
-            $skyContext['tz']
-        );
-
-        if (! $this->isUnavailableSkyPayload($payload)) {
-            Cache::put($cacheKey, $payload, now()->addMinutes($ttlMinutes));
-        } else {
-            Cache::forget($cacheKey);
-        }
-
-        return $payload;
+        return null;
     }
 
     /**
@@ -306,25 +289,10 @@ class SidebarWidgetBundleService
 
         $cacheKey = $this->buildSkyCacheKey('sky_light_pollution', $skyContext);
         $lastKnownCacheKey = $cacheKey.':last_known';
-        $ttlHours = max(1, (int) config('observing.sky.light_pollution_cache_ttl_hours', 24));
-        $lastKnownTtlHours = max($ttlHours, (int) config('observing.sky.light_pollution_last_known_ttl_hours', 168));
         $cachedPayload = Cache::get($cacheKey);
 
         if (is_array($cachedPayload) && ! $this->isUnavailableSkyPayload($cachedPayload)) {
             return $cachedPayload;
-        }
-
-        $payload = $this->skyLightPollutionService->fetch($skyContext['lat'], $skyContext['lon']);
-        if (! $this->isUnavailableSkyPayload($payload)) {
-            $freshPayload = [
-                ...$payload,
-                'sample_at' => CarbonImmutable::now('UTC')->toIso8601String(),
-            ];
-
-            Cache::put($cacheKey, $freshPayload, now()->addHours($ttlHours));
-            Cache::put($lastKnownCacheKey, $freshPayload, now()->addHours($lastKnownTtlHours));
-
-            return $freshPayload;
         }
 
         $lastKnownPayload = Cache::get($lastKnownCacheKey);
@@ -359,9 +327,7 @@ class SidebarWidgetBundleService
             ];
         }
 
-        Cache::forget($cacheKey);
-
-        return $payload;
+        return null;
     }
 
     /**

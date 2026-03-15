@@ -4,6 +4,8 @@ namespace App\Services\Sky;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Log;
 
 class SkyIssPreviewService
@@ -30,12 +32,35 @@ class SkyIssPreviewService
         $endpointPath = '/' . ltrim((string) config('observing.sky_summary.iss_preview_endpoint_path', '/iss-preview'), '/');
         $providerUrl = $microserviceBase !== '' ? $microserviceBase . $endpointPath : '';
         $timeoutSeconds = max(1, (int) config('observing.sky_summary.timeout_seconds', 12));
+        $celestrakUrl = trim((string) config('observing.providers.celestrak_gp_url', ''));
+        $celestrakTimeoutSeconds = max(1, (int) config('observing.sky.iss_aux_timeout_seconds', 6));
+        $trackerUrl = trim((string) config('observing.providers.iss_tracker_url', ''));
+        $trackerTimeoutSeconds = max(1, (int) config('observing.sky.iss_tracker_timeout_seconds', 10));
         $localDate = CarbonImmutable::now($tz)->format('Y-m-d');
         $dataSources = [];
         $basePayload = ['available' => false, 'reason' => 'sky_service_unavailable'];
+        $catnr = (int) config('observing.providers.celestrak_iss_catnr', 25544);
+        if ($catnr <= 0) {
+            $catnr = 25544;
+        }
 
-        try {
-            $response = $this->http
+        if ($providerUrl === '') {
+            return $this->attachEnrichedMetadata($basePayload, $dataSources, null, null);
+        }
+
+        $responses = $this->http->pool(function (Pool $pool) use (
+            $providerUrl,
+            $timeoutSeconds,
+            $lat,
+            $lon,
+            $tz,
+            $celestrakUrl,
+            $celestrakTimeoutSeconds,
+            $catnr,
+            $trackerUrl,
+            $trackerTimeoutSeconds
+        ): void {
+            $pool->as('microservice')
                 ->timeout($timeoutSeconds)
                 ->acceptJson()
                 ->get($providerUrl, [
@@ -43,58 +68,78 @@ class SkyIssPreviewService
                     'lon' => round($lon, 6),
                     'tz' => $tz,
                 ]);
-        } catch (\Throwable $exception) {
+
+            if ($celestrakUrl !== '') {
+                $pool->as('celestrak')
+                    ->timeout($celestrakTimeoutSeconds)
+                    ->acceptJson()
+                    ->get($celestrakUrl, [
+                        'CATNR' => $catnr,
+                        'FORMAT' => 'json',
+                    ]);
+            }
+
+            if ($trackerUrl !== '') {
+                $pool->as('tracker')
+                    ->timeout($trackerTimeoutSeconds)
+                    ->acceptJson()
+                    ->get($trackerUrl);
+            }
+        });
+
+        $response = $responses['microservice'] ?? null;
+        if ($response instanceof \Throwable) {
             Log::warning('Sky ISS preview microservice request failed.', [
                 'lat' => $lat,
                 'lon' => $lon,
                 'tz' => $tz,
                 'date' => $localDate,
                 'microservice_url' => $providerUrl,
-                'exception_class' => $exception::class,
-                'exception_message' => $exception->getMessage(),
+                'exception_class' => $response::class,
+                'exception_message' => $response->getMessage(),
             ]);
-            $basePayload = ['available' => false, 'reason' => 'sky_service_unavailable'];
-            return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
+            return $this->attachEnrichedMetadata($basePayload, $dataSources, null, null);
         }
 
-        if (!$response->successful()) {
+        if (!$response instanceof Response || !$response->successful()) {
             Log::warning('Sky ISS preview microservice returned non-success status.', [
                 'lat' => $lat,
                 'lon' => $lon,
                 'tz' => $tz,
                 'date' => $localDate,
                 'microservice_url' => $providerUrl,
-                'status' => $response->status(),
-                'body' => mb_substr((string) $response->body(), 0, 300),
+                'status' => $response instanceof Response ? $response->status() : null,
+                'body' => $response instanceof Response ? mb_substr((string) $response->body(), 0, 300) : null,
             ]);
-            $basePayload = ['available' => false, 'reason' => 'sky_service_unavailable'];
-            return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
+            return $this->attachEnrichedMetadata($basePayload, $dataSources, null, null);
         }
 
         $dataSources[] = 'sky_microservice';
+        $satellite = $this->normalizeCelesTrakResponse($responses['celestrak'] ?? null, $tz);
+        $tracker = $this->normalizeTrackerResponse($responses['tracker'] ?? null, $tz);
 
         $payload = $response->json();
         if (!is_array($payload)) {
             $basePayload = ['available' => false];
-            return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
+            return $this->attachEnrichedMetadata($basePayload, $dataSources, $satellite, $tracker);
         }
 
         $direct = $this->normalizeDirectPayload($payload, $tz);
         if ($direct !== null) {
-            return $this->attachEnrichedMetadata($direct, $dataSources, $tz);
+            return $this->attachEnrichedMetadata($direct, $dataSources, $satellite, $tracker);
         }
 
         $rows = is_array($payload['response'] ?? null) ? $payload['response'] : [];
         $first = is_array($rows[0] ?? null) ? $rows[0] : null;
         if ($first === null) {
             $basePayload = ['available' => false];
-            return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
+            return $this->attachEnrichedMetadata($basePayload, $dataSources, $satellite, $tracker);
         }
 
         $riseTimestamp = $this->toInt($first['risetime'] ?? $first['rise_time'] ?? null);
         if ($riseTimestamp === null || $riseTimestamp <= 0) {
             $basePayload = ['available' => false];
-            return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
+            return $this->attachEnrichedMetadata($basePayload, $dataSources, $satellite, $tracker);
         }
 
         $duration = max(0, $this->toInt($first['duration'] ?? null) ?? 0);
@@ -110,7 +155,7 @@ class SkyIssPreviewService
             'direction_end' => $endDirection,
         ];
 
-        return $this->attachEnrichedMetadata($basePayload, $dataSources, $tz);
+        return $this->attachEnrichedMetadata($basePayload, $dataSources, $satellite, $tracker);
     }
 
     /**
@@ -118,15 +163,18 @@ class SkyIssPreviewService
      * @param array<int,string> $dataSources
      * @return array<string,mixed>
      */
-    private function attachEnrichedMetadata(array $payload, array $dataSources, string $tz): array
+    private function attachEnrichedMetadata(
+        array $payload,
+        array $dataSources,
+        ?array $satellite,
+        ?array $tracker
+    ): array
     {
-        $satellite = $this->fetchCelesTrakSatellite($tz);
         if ($satellite !== null) {
             $payload['satellite'] = $satellite;
             $dataSources[] = 'celestrak_gp';
         }
 
-        $tracker = $this->fetchTrackerPosition($tz);
         if ($tracker !== null) {
             $payload['tracker'] = $tracker;
             $dataSources[] = 'iss_tracker';
@@ -142,32 +190,9 @@ class SkyIssPreviewService
     /**
      * @return array<string,mixed>|null
      */
-    private function fetchCelesTrakSatellite(string $tz): ?array
+    private function normalizeCelesTrakResponse(mixed $response, string $tz): ?array
     {
-        $providerUrl = trim((string) config('observing.providers.celestrak_gp_url', ''));
-        if ($providerUrl === '') {
-            return null;
-        }
-        $timeoutSeconds = max(1, (int) config('observing.sky.iss_aux_timeout_seconds', 6));
-
-        $catnr = (int) config('observing.providers.celestrak_iss_catnr', 25544);
-        if ($catnr <= 0) {
-            $catnr = 25544;
-        }
-
-        try {
-            $response = $this->http
-                ->timeout($timeoutSeconds)
-                ->acceptJson()
-                ->get($providerUrl, [
-                    'CATNR' => $catnr,
-                    'FORMAT' => 'json',
-                ]);
-        } catch (\Throwable) {
-            return null;
-        }
-
-        if (!$response->successful()) {
+        if ($response instanceof \Throwable || !$response instanceof Response || !$response->successful()) {
             return null;
         }
 
@@ -215,24 +240,9 @@ class SkyIssPreviewService
     /**
      * @return array<string,mixed>|null
      */
-    private function fetchTrackerPosition(string $tz): ?array
+    private function normalizeTrackerResponse(mixed $response, string $tz): ?array
     {
-        $providerUrl = trim((string) config('observing.providers.iss_tracker_url', ''));
-        if ($providerUrl === '') {
-            return null;
-        }
-        $timeoutSeconds = max(1, (int) config('observing.sky.iss_tracker_timeout_seconds', 10));
-
-        try {
-            $response = $this->http
-                ->timeout($timeoutSeconds)
-                ->acceptJson()
-                ->get($providerUrl);
-        } catch (\Throwable) {
-            return null;
-        }
-
-        if (!$response->successful()) {
+        if ($response instanceof \Throwable || !$response instanceof Response || !$response->successful()) {
             return null;
         }
 
