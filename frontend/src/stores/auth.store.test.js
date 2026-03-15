@@ -138,4 +138,27 @@ describe('auth store login resilience', () => {
     expect(store.status).toBe('authenticated')
     expect(store.error).toBeNull()
   })
+
+  it('dedupes concurrent bootstrapAuth requests onto a single auth/me call', async () => {
+    const store = useAuthStore()
+    let resolveRequest
+
+    http.get.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRequest = resolve
+    }))
+
+    const first = store.bootstrapAuth()
+    const second = store.bootstrapAuth()
+
+    expect(http.get).toHaveBeenCalledTimes(1)
+
+    resolveRequest({
+      data: { id: 42, name: 'Sky User' },
+    })
+
+    await expect(first).resolves.toEqual(expect.objectContaining({ id: 42 }))
+    await expect(second).resolves.toEqual(expect.objectContaining({ id: 42 }))
+    expect(store.isAuthed).toBe(true)
+    expect(store.user).toEqual(expect.objectContaining({ id: 42 }))
+  })
 })

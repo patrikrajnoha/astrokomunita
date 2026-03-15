@@ -10,6 +10,8 @@ const configuredApiBaseUrl = import.meta.env.DEV
 const csrfBaseUrl = String(configuredApiBaseUrl).replace(/\/api\/?$/i, '').replace(/\/+$/, '')
 const authDebugEnabled =
   import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_AUTH || '').trim() === '1'
+let activeFetchUserPromise = null
+let activeFetchUserKey = ''
 
 // Separate axios instance for CSRF (no baseURL)
 const csrfHttp = axios.create({
@@ -137,36 +139,143 @@ export const useAuthStore = defineStore('auth', {
       const markBootstrap = options.markBootstrap !== false
       const preserveStateOnError = options.preserveStateOnError === true
       const maxAttempts = shouldRetry ? 2 : 1
+      const requestKey = JSON.stringify({
+        shouldRetry,
+        markBootstrap,
+        preserveStateOnError,
+      })
 
-      this.loading = true
-      this.status = 'loading'
-      this.error = null
+      if (activeFetchUserPromise && activeFetchUserKey === requestKey) {
+        return activeFetchUserPromise
+      }
 
-      const endpointDebug = getAuthEndpointDebug()
-      try {
-        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-          const timeout = AUTH_TIMEOUTS_MS[Math.min(attempt - 1, AUTH_TIMEOUTS_MS.length - 1)]
+      const requestPromise = (async () => {
+        this.loading = true
+        this.status = 'loading'
+        this.error = null
 
-          if (authDebugEnabled) {
-            console.info(
-              `[AUTH] fetchUser start source=${source} attempt=${attempt}/${maxAttempts} url=${endpointDebug.url} baseURL=${endpointDebug.baseURL} timeout=${timeout}`,
-            )
-          }
+        const endpointDebug = getAuthEndpointDebug()
+        try {
+          for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+            const timeout = AUTH_TIMEOUTS_MS[Math.min(attempt - 1, AUTH_TIMEOUTS_MS.length - 1)]
 
-          try {
-            const { data } = await http.get('/auth/me', {
-              timeout,
-              withCredentials: true,
-              meta: { skipErrorToast: true },
-            })
+            if (authDebugEnabled) {
+              console.info(
+                `[AUTH] fetchUser start source=${source} attempt=${attempt}/${maxAttempts} url=${endpointDebug.url} baseURL=${endpointDebug.baseURL} timeout=${timeout}`,
+              )
+            }
 
-            const payload = data && typeof data === 'object' ? data : null
-            const hasAuthenticatedUser = Number(payload?.id || 0) > 0
+            try {
+              const { data } = await http.get('/auth/me', {
+                timeout,
+                withCredentials: true,
+                meta: { skipErrorToast: true },
+              })
 
-            if (!hasAuthenticatedUser) {
-              this.user = null
-              this.status = 'guest'
+              const payload = data && typeof data === 'object' ? data : null
+              const hasAuthenticatedUser = Number(payload?.id || 0) > 0
+
+              if (!hasAuthenticatedUser) {
+                this.user = null
+                this.status = 'guest'
+                this.error = null
+
+                if (markBootstrap) {
+                  this.bootstrapDone = true
+                  this.initialized = true
+                }
+
+                return null
+              }
+
+              this.user = payload
+              this.status = 'authenticated'
               this.error = null
+
+              if (markBootstrap) {
+                this.bootstrapDone = true
+                this.initialized = true
+              }
+
+              return payload
+            } catch (error) {
+              const classified = classifyFetchUserError(error)
+
+              if (authDebugEnabled) {
+                if (classified.type === 'unauthorized') {
+                  console.info('[AUTH] fetchUser failed', {
+                    source,
+                    attempt,
+                    ...endpointDebug,
+                    timeout,
+                    type: classified.type,
+                    status: classified.status,
+                    code: classified.code,
+                    message: classified.message,
+                    response: error?.response?.data || null,
+                  })
+                } else {
+                  console.warn('[AUTH] fetchUser failed', {
+                    source,
+                    attempt,
+                    ...endpointDebug,
+                    timeout,
+                    type: classified.type,
+                    status: classified.status,
+                    code: classified.code,
+                    message: classified.message,
+                    response: error?.response?.data || null,
+                  })
+                }
+              }
+
+              const canRetry =
+                shouldRetry &&
+                attempt < maxAttempts &&
+                (classified.type === 'timeout' || classified.type === 'network')
+
+              if (canRetry) {
+                continue
+              }
+
+              const isTransientFailure =
+                classified.type === 'timeout' || classified.type === 'network' || classified.type === 'server'
+
+              if (this.user && (preserveStateOnError || isTransientFailure)) {
+                this.status = 'authenticated'
+                this.error = null
+                if (authDebugEnabled) {
+                  console.info('[AUTH] fetchUser failure ignored (preserve state)', {
+                    source,
+                    type: classified.type,
+                    status: classified.status,
+                    code: classified.code,
+                  })
+                }
+                return this.user
+              }
+
+              this.user = null
+
+              if (
+                classified.type === 'unauthorized' ||
+                classified.type === 'banned' ||
+                classified.type === 'inactive'
+              ) {
+                this.status = 'guest'
+              } else {
+                this.status = 'error'
+              }
+
+              this.error = {
+                type: classified.type,
+                message: classified.message,
+                status: classified.status || null,
+                code: classified.code || null,
+                backendCode: classified.backendCode || null,
+                reason: classified.reason || null,
+                bannedAt: classified.bannedAt || null,
+              }
 
               if (markBootstrap) {
                 this.bootstrapDone = true
@@ -175,134 +284,46 @@ export const useAuthStore = defineStore('auth', {
 
               return null
             }
-
-            this.user = payload
-            this.status = 'authenticated'
-            this.error = null
-
-            if (markBootstrap) {
-              this.bootstrapDone = true
-              this.initialized = true
-            }
-
-            return payload
-          } catch (error) {
-            const classified = classifyFetchUserError(error)
-
-            if (authDebugEnabled) {
-              if (classified.type === 'unauthorized') {
-                console.info('[AUTH] fetchUser failed', {
-                  source,
-                  attempt,
-                  ...endpointDebug,
-                  timeout,
-                  type: classified.type,
-                  status: classified.status,
-                  code: classified.code,
-                  message: classified.message,
-                  response: error?.response?.data || null,
-                })
-              } else {
-                console.warn('[AUTH] fetchUser failed', {
-                  source,
-                  attempt,
-                  ...endpointDebug,
-                  timeout,
-                  type: classified.type,
-                  status: classified.status,
-                  code: classified.code,
-                  message: classified.message,
-                  response: error?.response?.data || null,
-                })
-              }
-            }
-
-            const canRetry =
-              shouldRetry &&
-              attempt < maxAttempts &&
-              (classified.type === 'timeout' || classified.type === 'network')
-
-            if (canRetry) {
-              continue
-            }
-
-            const isTransientFailure =
-              classified.type === 'timeout' || classified.type === 'network' || classified.type === 'server'
-
-            if (this.user && (preserveStateOnError || isTransientFailure)) {
-              this.status = 'authenticated'
-              this.error = null
-              if (authDebugEnabled) {
-                console.info('[AUTH] fetchUser failure ignored (preserve state)', {
-                  source,
-                  type: classified.type,
-                  status: classified.status,
-                  code: classified.code,
-                })
-              }
-              return this.user
-            }
-
-            this.user = null
-
-            if (
-              classified.type === 'unauthorized' ||
-              classified.type === 'banned' ||
-              classified.type === 'inactive'
-            ) {
-              this.status = 'guest'
-            } else {
-              this.status = 'error'
-            }
-
-            this.error = {
-              type: classified.type,
-              message: classified.message,
-              status: classified.status || null,
-              code: classified.code || null,
-              backendCode: classified.backendCode || null,
-              reason: classified.reason || null,
-              bannedAt: classified.bannedAt || null,
-            }
-
-            if (markBootstrap) {
-              this.bootstrapDone = true
-              this.initialized = true
-            }
-
-            return null
           }
-        }
 
-        this.user = null
-        this.status = 'guest'
-        this.error = {
-          type: 'unknown',
-          message: 'fetchUser failed',
-          status: null,
-          code: null,
-          backendCode: null,
-          reason: null,
-          bannedAt: null,
-        }
+          this.user = null
+          this.status = 'guest'
+          this.error = {
+            type: 'unknown',
+            message: 'fetchUser failed',
+            status: null,
+            code: null,
+            backendCode: null,
+            reason: null,
+            bannedAt: null,
+          }
 
-        if (markBootstrap) {
-          this.bootstrapDone = true
-          this.initialized = true
-        }
+          if (markBootstrap) {
+            this.bootstrapDone = true
+            this.initialized = true
+          }
 
-        return null
-      } finally {
-        this.loading = false
-      }
+          return null
+        } finally {
+          this.loading = false
+        }
+      })()
+
+      activeFetchUserKey = requestKey
+      const trackedPromise = requestPromise.finally(() => {
+        if (activeFetchUserPromise === trackedPromise) {
+          activeFetchUserPromise = null
+          activeFetchUserKey = ''
+        }
+      })
+      activeFetchUserPromise = trackedPromise
+
+      return trackedPromise
     },
 
     async bootstrapAuth() {
-      if (this.loading || this.bootstrapDone) {
-        return
-      }
-
-      await this.fetchUser({ source: 'bootstrap', retry: true, markBootstrap: true })
+      if (this.bootstrapDone) return this.user
+      return this.fetchUser({ source: 'bootstrap', retry: true, markBootstrap: true })
     },
 
     async retryFetchUser() {
