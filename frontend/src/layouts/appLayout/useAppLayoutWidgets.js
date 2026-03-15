@@ -19,13 +19,15 @@ export function useAppLayoutWidgets({
   mobileWidgetBundlePending,
   observingContext,
   warmSidebarConfig,
+  widgetMenuOpenRef = null,
+  widgetSheetOpenRef = null,
 }) {
   const isDrawerOpen = ref(false)
   const isComposerOpen = ref(false)
   const composerInitialAction = ref('post')
   const composerInitialAttachmentFile = ref(null)
-  const isWidgetMenuOpen = ref(false)
-  const isWidgetSheetOpen = ref(false)
+  const isWidgetMenuOpen = widgetMenuOpenRef || ref(false)
+  const isWidgetSheetOpen = widgetSheetOpenRef || ref(false)
   const showAllWidgets = ref(false)
   const activeWidgetKey = ref('')
   const activeWidgetTitle = ref(DEFAULT_WIDGET_TITLE)

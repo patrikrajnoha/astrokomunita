@@ -3,6 +3,9 @@ import api from './api'
 const MOON_WIDGET_CACHE_TTL_MS = 2 * 60 * 1000
 const moonWidgetResponseCache = new Map<string, { expiresAt: number, payload: unknown }>()
 const moonWidgetPendingRequests = new Map<string, Promise<unknown>>()
+const SIDEBAR_WIDGET_BUNDLE_CACHE_TTL_MS = 60 * 1000
+const sidebarWidgetBundleResponseCache = new Map<string, { expiresAt: number, payload: SidebarWidgetBundlePayload }>()
+const sidebarWidgetBundlePendingRequests = new Map<string, Promise<SidebarWidgetBundlePayload>>()
 
 function normalizeMoonQuery(query: MoonPhasesWidgetQuery = {}): Record<string, string | number> {
   const normalized: Record<string, string | number> = {}
@@ -95,6 +98,34 @@ export type SidebarWidgetBundleQuery = {
   date?: string | null
 }
 
+function normalizeSidebarWidgetBundleSections(sections: string[] = []): string[] {
+  return Array.from(new Set(
+    (Array.isArray(sections) ? sections : [])
+      .map((entry) => String(entry || '').trim())
+      .filter(Boolean),
+  ))
+}
+
+function normalizeSidebarWidgetBundleQuery(
+  query: SidebarWidgetBundleQuery = {},
+): Record<string, string | number> {
+  return normalizeMoonQuery(query)
+}
+
+function buildSidebarWidgetBundleCacheKey(
+  sections: string[],
+  query: SidebarWidgetBundleQuery = {},
+): string {
+  const normalizedSections = [...normalizeSidebarWidgetBundleSections(sections)].sort((left, right) => (
+    left.localeCompare(right)
+  ))
+  const normalizedQuery = normalizeSidebarWidgetBundleQuery(query)
+  const queryEntries = Object.entries(normalizedQuery).sort(([left], [right]) => left.localeCompare(right))
+  const search = new URLSearchParams(queryEntries.map(([key, value]) => [key, String(value)]))
+
+  return `${normalizedSections.join(',')}?${search.toString()}`
+}
+
 export async function getUpcomingEventsWidget(): Promise<UpcomingEventsWidgetPayload> {
   const response = await api.get<UpcomingEventsWidgetPayload>('/events/widget/upcoming')
   return response.data
@@ -104,22 +135,50 @@ export async function getSidebarWidgetBundle(
   sections: string[],
   query: SidebarWidgetBundleQuery = {},
 ): Promise<SidebarWidgetBundlePayload> {
-  if (!Array.isArray(sections) || sections.length === 0) {
+  const normalizedSections = normalizeSidebarWidgetBundleSections(sections)
+
+  if (normalizedSections.length === 0) {
     return {
       requested_sections: [],
       data: {},
     }
   }
 
-  const normalizedQuery = normalizeMoonQuery(query)
-  const response = await api.get<SidebarWidgetBundlePayload>('/sidebar-data', {
-    params: { sections, ...normalizedQuery },
+  const normalizedQuery = normalizeSidebarWidgetBundleQuery(query)
+  const cacheKey = buildSidebarWidgetBundleCacheKey(normalizedSections, normalizedQuery)
+  const now = Date.now()
+  const cached = sidebarWidgetBundleResponseCache.get(cacheKey)
+  if (cached && cached.expiresAt > now) {
+    return cached.payload
+  }
+
+  const pending = sidebarWidgetBundlePendingRequests.get(cacheKey)
+  if (pending) {
+    return pending
+  }
+
+  const requestPromise = api.get<SidebarWidgetBundlePayload>('/sidebar-data', {
+    params: { sections: normalizedSections, ...normalizedQuery },
     meta: {
       skipErrorToast: true,
     },
   })
+    .then((response) => {
+      const payload = response.data
+      sidebarWidgetBundleResponseCache.set(cacheKey, {
+        payload,
+        expiresAt: Date.now() + SIDEBAR_WIDGET_BUNDLE_CACHE_TTL_MS,
+      })
+      return payload
+    })
+    .finally(() => {
+      if (sidebarWidgetBundlePendingRequests.get(cacheKey) === requestPromise) {
+        sidebarWidgetBundlePendingRequests.delete(cacheKey)
+      }
+    })
 
-  return response.data
+  sidebarWidgetBundlePendingRequests.set(cacheKey, requestPromise)
+  return requestPromise
 }
 
 export type MoonPhaseWidgetItem = {
