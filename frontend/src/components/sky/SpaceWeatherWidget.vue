@@ -68,11 +68,14 @@ const props = defineProps({
   lat: { type: [Number, String], default: null },
   lon: { type: [Number, String], default: null },
   tz: { type: String, default: 'Europe/Bratislava' },
+  initialPayload: { type: Object, default: undefined },
+  bundlePending: { type: Boolean, default: false },
 })
 
 const payload = ref(null)
 const loading = ref(true)
 const error = ref('')
+const hydratedFromBundle = ref(false)
 
 const numericLat = computed(() => toFiniteCoordinate(props.lat, -90, 90))
 const numericLon = computed(() => toFiniteCoordinate(props.lon, -180, 180))
@@ -141,9 +144,41 @@ async function fetchPayload() {
   }
 }
 
+function applyPayload(nextPayload) {
+  payload.value = nextPayload && typeof nextPayload === 'object' ? nextPayload : null
+  error.value = ''
+  loading.value = false
+  hydratedFromBundle.value = true
+}
+
+watch(
+  () => props.initialPayload,
+  (nextPayload) => {
+    if (nextPayload !== undefined) {
+      applyPayload(nextPayload)
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.bundlePending,
+  (pending, wasPending) => {
+    if (pending || !wasPending || hydratedFromBundle.value) return
+    fetchPayload()
+  },
+)
+
 watch(
   () => [numericLat.value, numericLon.value, effectiveTz.value],
   () => {
+    if (props.initialPayload !== undefined || props.bundlePending) {
+      if (props.bundlePending && props.initialPayload === undefined) {
+        loading.value = true
+      }
+      return
+    }
+
     fetchPayload()
   },
   { immediate: true },

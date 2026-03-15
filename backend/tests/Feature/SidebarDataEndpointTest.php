@@ -118,4 +118,37 @@ XML;
             ->assertJsonPath('data.neo_watchlist.items.0.name', '99942 Apophis')
             ->assertJsonPath('data.neo_watchlist.source.label', 'NASA JPL SBDB');
     }
+
+    public function test_it_bundles_space_weather_and_aurora_with_one_shared_noaa_fetch_cycle(): void
+    {
+        Cache::flush();
+        config()->set('observing.providers.swpc_planetary_k_index_url', 'https://swpc.test/planetary_k_index_1m.json');
+        config()->set('observing.providers.swpc_aurora_latest_url', 'https://swpc.test/ovation_aurora_latest.json');
+
+        Http::fake([
+            'https://swpc.test/planetary_k_index_1m.json' => Http::response([
+                ['time_tag' => '2026-03-14T21:16:00', 'kp_index' => 6, 'estimated_kp' => 6.33],
+            ], 200),
+            'https://swpc.test/ovation_aurora_latest.json' => Http::response([
+                'Observation Time' => '2026-03-14T21:12:00Z',
+                'Forecast Time' => '2026-03-14T21:52:00Z',
+                'Data Format' => '[Longitude, Latitude, Aurora]',
+                'coordinates' => [
+                    [17, 48, 4],
+                    [17, 54, 38],
+                    [18, 60, 72],
+                ],
+            ], 200),
+        ]);
+
+        $this->getJson('/api/sidebar-data?sections[]=space_weather&sections[]=aurora_watch&lat=48.1486&lon=17.1077&tz=Europe/Bratislava')
+            ->assertOk()
+            ->assertJsonPath('requested_sections.0', 'space_weather')
+            ->assertJsonPath('requested_sections.1', 'aurora_watch')
+            ->assertJsonPath('data.space_weather.kp_index', 6)
+            ->assertJsonPath('data.aurora_watch.watch_label', 'Vysoka sanca')
+            ->assertJsonPath('data.aurora_watch.source.label', 'NOAA SWPC OVATION');
+
+        Http::assertSentCount(2);
+    }
 }

@@ -88,12 +88,22 @@ export type SidebarWidgetBundlePayload = {
   data: Record<string, unknown>
 }
 
+export type SidebarWidgetBundleQuery = {
+  lat?: number | string | null
+  lon?: number | string | null
+  tz?: string | null
+  date?: string | null
+}
+
 export async function getUpcomingEventsWidget(): Promise<UpcomingEventsWidgetPayload> {
   const response = await api.get<UpcomingEventsWidgetPayload>('/events/widget/upcoming')
   return response.data
 }
 
-export async function getSidebarWidgetBundle(sections: string[]): Promise<SidebarWidgetBundlePayload> {
+export async function getSidebarWidgetBundle(
+  sections: string[],
+  query: SidebarWidgetBundleQuery = {},
+): Promise<SidebarWidgetBundlePayload> {
   if (!Array.isArray(sections) || sections.length === 0) {
     return {
       requested_sections: [],
@@ -101,8 +111,9 @@ export async function getSidebarWidgetBundle(sections: string[]): Promise<Sideba
     }
   }
 
+  const normalizedQuery = normalizeMoonQuery(query)
   const response = await api.get<SidebarWidgetBundlePayload>('/sidebar-data', {
-    params: { sections },
+    params: { sections, ...normalizedQuery },
     meta: {
       skipErrorToast: true,
     },

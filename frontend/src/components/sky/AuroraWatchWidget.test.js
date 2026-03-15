@@ -70,6 +70,36 @@ describe('AuroraWatchWidget', () => {
     expect(wrapper.text()).toContain('Koridor severne od teba: 72/100')
   })
 
+  it('uses bundled aurora payload and skips the standalone request', async () => {
+    const wrapper = mount(AuroraWatchWidget, {
+      props: {
+        lat: 48.1486,
+        lon: 17.1077,
+        tz: 'Europe/Bratislava',
+        initialPayload: {
+          available: true,
+          watch_score: 38,
+          watch_label: 'Slaba sanca',
+          corridor_peak_score: 38,
+          nearest_score: 12,
+          forecast_for: '2026-03-14T21:52:00Z',
+          updated_at: '2026-03-14T21:12:00Z',
+          inference: 'poleward_corridor_peak',
+          source: {
+            label: 'NOAA SWPC OVATION',
+          },
+        },
+      },
+    })
+
+    await flushPromises()
+    await nextTick()
+
+    expect(getMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Slaba sanca')
+    expect(wrapper.text()).toContain('38/100')
+  })
+
   it('shows a missing-location state and skips the request without coordinates', async () => {
     const wrapper = mount(AuroraWatchWidget, {
       props: {
