@@ -3,6 +3,7 @@
 namespace App\Services\Widgets;
 
 use App\Services\Sky\SkySpaceWeatherService;
+use App\Services\Sky\SkyUpcomingLaunchesService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -17,6 +18,7 @@ class SidebarWidgetBundleService
         'next_eclipse' => true,
         'next_meteor_shower' => true,
         'neo_watchlist' => true,
+        'upcoming_launches' => true,
         'space_weather' => true,
         'aurora_watch' => true,
         'latest_articles' => true,
@@ -28,6 +30,7 @@ class SidebarWidgetBundleService
         private readonly EventWidgetService $eventWidgetService,
         private readonly NasaIotdWidgetService $nasaIotdWidgetService,
         private readonly \App\Services\Sky\SkyNeoWatchlistService $skyNeoWatchlistService,
+        private readonly SkyUpcomingLaunchesService $skyUpcomingLaunchesService,
         private readonly SkySpaceWeatherService $skySpaceWeatherService,
     ) {
     }
@@ -52,6 +55,7 @@ class SidebarWidgetBundleService
                     'next_eclipse' => $this->eventWidgetService->nextEclipse(),
                     'next_meteor_shower' => $this->eventWidgetService->nextMeteorShower(),
                     'neo_watchlist' => $this->skyNeoWatchlistService->fetch(),
+                    'upcoming_launches' => $this->skyUpcomingLaunchesService->fetch(),
                     'space_weather' => $spaceWeatherPayload,
                     'aurora_watch' => $auroraPayload,
                     'latest_articles' => $this->articlesWidgetService->payload(),

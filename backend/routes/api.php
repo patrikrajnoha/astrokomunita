@@ -240,6 +240,7 @@ Route::prefix('sky')->group(function () {
     Route::get('/visible-planets', [SkyController::class, 'visiblePlanets'])->middleware('sky.throttle:expensive');
     Route::get('/ephemeris', [SkyController::class, 'ephemeris'])->middleware('sky.throttle:expensive');
     Route::get('/neo-watchlist', [SkyController::class, 'neoWatchlist'])->middleware('sky.throttle:expensive');
+    Route::get('/upcoming-launches', [SkyController::class, 'upcomingLaunches'])->middleware('sky.throttle:expensive');
     Route::get('/iss-preview', [SkyController::class, 'issPreview'])->middleware('sky.throttle:expensive');
     Route::get('/light-pollution', [SkyController::class, 'lightPollution'])->middleware('sky.throttle:expensive');
 });

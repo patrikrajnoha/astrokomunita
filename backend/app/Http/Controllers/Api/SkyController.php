@@ -21,6 +21,7 @@ use App\Services\Sky\SkyMoonEventsService;
 use App\Services\Sky\SkyMoonOverviewService;
 use App\Services\Sky\SkyMoonPhasesService;
 use App\Services\Sky\SkyNeoWatchlistService;
+use App\Services\Sky\SkyUpcomingLaunchesService;
 use App\Services\Sky\SkySpaceWeatherService;
 use App\Services\Sky\SkyVisiblePlanetsService;
 use App\Services\Sky\SkyWeatherService;
@@ -45,6 +46,7 @@ class SkyController extends Controller
         private readonly SkyEphemerisService $skyEphemerisService,
         private readonly SkySpaceWeatherService $skySpaceWeatherService,
         private readonly SkyNeoWatchlistService $skyNeoWatchlistService,
+        private readonly SkyUpcomingLaunchesService $skyUpcomingLaunchesService,
     ) {
     }
 
@@ -324,6 +326,11 @@ class SkyController extends Controller
     public function neoWatchlist(): JsonResponse
     {
         return response()->json($this->skyNeoWatchlistService->fetch());
+    }
+
+    public function upcomingLaunches(): JsonResponse
+    {
+        return response()->json($this->skyUpcomingLaunchesService->fetch());
     }
 
     public function issPreview(SkyIssPreviewRequest $request): JsonResponse

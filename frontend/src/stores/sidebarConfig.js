@@ -24,6 +24,7 @@ const DEFAULT_ITEMS = [
   { kind: 'builtin', section_key: 'space_weather', title: 'Vesmirne pocasie', order: 14, is_enabled: false },
   { kind: 'builtin', section_key: 'aurora_watch', title: 'Aurora watch', order: 15, is_enabled: false },
   { kind: 'builtin', section_key: 'neo_watchlist', title: 'NEO watchlist', order: 16, is_enabled: false },
+  { kind: 'builtin', section_key: 'upcoming_launches', title: 'Bliziace sa starty', order: 17, is_enabled: false },
 ]
 
 const cloneAndSort = (items) => {
