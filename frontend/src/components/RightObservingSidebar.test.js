@@ -92,6 +92,29 @@ describe('RightObservingSidebar', () => {
     expect(wrapper.text()).toContain('Najlepsie okno')
   })
 
+  it('renders bundled summary payload without extra sky requests', async () => {
+    const wrapper = mount(RightObservingSidebar, {
+      props: {
+        lat: 48.24,
+        lon: 17.2,
+        tz: 'Europe/Bratislava',
+        locationName: 'Bratislava',
+        initialPayload: {
+          weather: weatherPayload().data,
+          astronomy: astronomyPayload().data,
+        },
+        bundlePending: false,
+      },
+    })
+
+    await wait()
+
+    expect(getMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('/100')
+    expect(wrapper.text()).toContain('Jasno')
+    expect(wrapper.text()).toContain('Mesiac 77%')
+  })
+
   it('routes to profile location editor from location action', async () => {
     const wrapper = mount(RightObservingSidebar, {
       props: { lat: 48.34, lon: 17.3, tz: 'Europe/Bratislava', locationName: 'Bratislava' },

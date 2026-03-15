@@ -34,6 +34,9 @@ const SHARED_SKY_CACHE_TTL_MS = Object.freeze({
   light: 5 * 60 * 1000,
   ephemeris: 5 * 60 * 1000,
 })
+const EMPTY_PLANETS_PAYLOAD = Object.freeze({ planets: [], sample_at: null, sun_altitude_deg: null })
+const EMPTY_ISS_PREVIEW = Object.freeze({ available: false })
+const EMPTY_EPHEMERIS_PAYLOAD = Object.freeze({ planets: [], comets: [], asteroids: [], source: null, sample_at: null })
 
 const sharedSkyPayloadCache = new Map()
 const sharedSkyPendingRequests = new Map()
@@ -84,6 +87,8 @@ export function useSkyWidget(options = {}) {
   const lat = options.lat
   const lon = options.lon
   const tz = options.tz
+  const initialPayloadRef = options.initialPayload
+  const bundlePendingRef = options.bundlePending
   const includeWeather = options.includeWeather !== false
   const includeAstronomy = options.includeAstronomy !== false
   const includePlanets = options.includePlanets !== false
@@ -93,10 +98,10 @@ export function useSkyWidget(options = {}) {
 
   const weather = ref(null)
   const astronomy = ref(null)
-  const planetsPayload = ref({ planets: [], sample_at: null, sun_altitude_deg: null })
-  const issPreview = ref({ available: false })
+  const planetsPayload = ref({ ...EMPTY_PLANETS_PAYLOAD })
+  const issPreview = ref({ ...EMPTY_ISS_PREVIEW })
   const lightPollution = ref(null)
-  const ephemeris = ref({ planets: [], comets: [], asteroids: [], source: null, sample_at: null })
+  const ephemeris = ref({ ...EMPTY_EPHEMERIS_PAYLOAD })
 
   const weatherLoading = ref(false)
   const astronomyLoading = ref(false)
@@ -125,6 +130,7 @@ export function useSkyWidget(options = {}) {
   let astronomyRefreshTimer = null
   let freshnessTimer = null
   let deferredTimer = null
+  let hydratedBundleBlocks = new Set()
 
   const requestTokens = {
     weather: 0,
@@ -630,6 +636,179 @@ export function useSkyWidget(options = {}) {
     return `${latKey}:${lonKey}:${effectiveTz.value}`
   })
 
+  function readOptionValue(source) {
+    if (source && typeof source === 'object' && 'value' in source) {
+      return source.value
+    }
+
+    return source
+  }
+
+  function readInitialPayload() {
+    const payload = readOptionValue(initialPayloadRef)
+    return payload && typeof payload === 'object' ? payload : undefined
+  }
+
+  function isBundlePending() {
+    return Boolean(readOptionValue(bundlePendingRef))
+  }
+
+  function resetPlanetsPayload() {
+    planetsPayload.value = { ...EMPTY_PLANETS_PAYLOAD }
+  }
+
+  function resetIssPreview() {
+    issPreview.value = { ...EMPTY_ISS_PREVIEW }
+  }
+
+  function resetEphemerisPayload() {
+    ephemeris.value = { ...EMPTY_EPHEMERIS_PAYLOAD }
+  }
+
+  function hydrateBundleBlock(blockName, payload) {
+    if (!payload || typeof payload !== 'object') {
+      return
+    }
+
+    if (blockName === 'weather' && includeWeather) {
+      weather.value = payload
+      weatherError.value = ''
+      weatherLoading.value = false
+      weatherFetchedAt.value = resolvePayloadTimestamp(payload, ['updated_at', 'as_of']) || new Date()
+      hydratedBundleBlocks.add('weather')
+      return
+    }
+
+    if (blockName === 'astronomy' && includeAstronomy) {
+      astronomy.value = payload
+      astronomyError.value = ''
+      astronomyLoading.value = false
+      astronomyFetchedAt.value = resolvePayloadTimestamp(payload, ['sample_at']) || new Date()
+      hydratedBundleBlocks.add('astronomy')
+      return
+    }
+
+    if (blockName === 'visible_planets' && includePlanets) {
+      planetsPayload.value = payload
+      planetsError.value = ''
+      planetsLoading.value = false
+      planetsFetchedAt.value = resolvePayloadTimestamp(payload, ['sample_at']) || new Date()
+      hydratedBundleBlocks.add('visible_planets')
+      return
+    }
+
+    if (blockName === 'iss_preview' && includeIss) {
+      issPreview.value = payload
+      issError.value = ''
+      issLoading.value = false
+      issFetchedAt.value = resolvePayloadTimestamp(payload?.tracker, ['sample_at']) || new Date()
+      hydratedBundleBlocks.add('iss_preview')
+      return
+    }
+
+    if (blockName === 'light_pollution' && includeLightPollution) {
+      lightPollution.value = payload
+      lightPollutionError.value = ''
+      lightPollutionLoading.value = false
+      lightPollutionFetchedAt.value = resolvePayloadTimestamp(payload, ['sample_at']) || new Date()
+      hydratedBundleBlocks.add('light_pollution')
+      return
+    }
+
+    if (blockName === 'ephemeris' && includeEphemeris) {
+      ephemeris.value = payload
+      ephemerisError.value = ''
+      ephemerisLoading.value = false
+      ephemerisFetchedAt.value = resolvePayloadTimestamp(payload, ['sample_at']) || new Date()
+      hydratedBundleBlocks.add('ephemeris')
+    }
+  }
+
+  function applyInitialPayload(payload) {
+    if (!payload || typeof payload !== 'object') {
+      return
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'weather')) {
+      hydrateBundleBlock('weather', payload.weather)
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'astronomy')) {
+      hydrateBundleBlock('astronomy', payload.astronomy)
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'visible_planets')) {
+      hydrateBundleBlock('visible_planets', payload.visible_planets)
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'iss_preview')) {
+      hydrateBundleBlock('iss_preview', payload.iss_preview)
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'light_pollution')) {
+      hydrateBundleBlock('light_pollution', payload.light_pollution)
+    }
+    if (Object.prototype.hasOwnProperty.call(payload, 'ephemeris')) {
+      hydrateBundleBlock('ephemeris', payload.ephemeris)
+    }
+  }
+
+  function prepareForPendingBundle() {
+    if (includeWeather) {
+      weather.value = null
+      weatherError.value = ''
+      weatherLoading.value = true
+      weatherFetchedAt.value = null
+    }
+
+    if (includeAstronomy) {
+      astronomy.value = null
+      astronomyError.value = ''
+      astronomyLoading.value = true
+      astronomyFetchedAt.value = null
+    }
+
+    if (includePlanets) {
+      resetPlanetsPayload()
+      planetsError.value = ''
+      planetsLoading.value = true
+      planetsFetchedAt.value = null
+    }
+
+    if (includeIss) {
+      resetIssPreview()
+      issError.value = ''
+      issLoading.value = true
+      issFetchedAt.value = null
+    }
+
+    if (includeLightPollution) {
+      lightPollution.value = null
+      lightPollutionError.value = ''
+      lightPollutionLoading.value = true
+      lightPollutionFetchedAt.value = null
+    }
+
+    if (includeEphemeris) {
+      resetEphemerisPayload()
+      ephemerisError.value = ''
+      ephemerisLoading.value = true
+      ephemerisFetchedAt.value = null
+    }
+  }
+
+  function shouldFetchEssentialBlock(blockName, options = {}) {
+    if (!options.onlyMissingBundleBlocks) {
+      return true
+    }
+
+    return !hydratedBundleBlocks.has(blockName)
+  }
+
+  function shouldFetchDeferredBlock(blockName, options = {}) {
+    if (!options.onlyMissingBundleBlocks) {
+      return true
+    }
+
+    return !hydratedBundleBlocks.has(blockName)
+  }
+
   function buildRequestParams(includeTz = true) {
     const params = {}
     if (hasLocationCoords.value) {
@@ -738,7 +917,7 @@ export function useSkyWidget(options = {}) {
     if (!includePlanets) {
       planetsLoading.value = false
       planetsError.value = ''
-      planetsPayload.value = { planets: [], sample_at: null, sun_altitude_deg: null }
+      resetPlanetsPayload()
       planetsFetchedAt.value = null
       return
     }
@@ -748,7 +927,7 @@ export function useSkyWidget(options = {}) {
     planetsError.value = ''
 
     if (!hasLocationCoords.value) {
-      planetsPayload.value = { planets: [], sample_at: null, sun_altitude_deg: null }
+      resetPlanetsPayload()
       planetsFetchedAt.value = null
       planetsLoading.value = false
       return
@@ -764,7 +943,7 @@ export function useSkyWidget(options = {}) {
             params: buildRequestParams(true),
             meta: { skipErrorToast: true },
           })
-          return response?.data || { planets: [] }
+          return response?.data || { ...EMPTY_PLANETS_PAYLOAD }
         },
       )
       if (token !== requestTokens.planets) return
@@ -772,7 +951,7 @@ export function useSkyWidget(options = {}) {
       planetsFetchedAt.value = resolvePayloadTimestamp(payload, ['sample_at']) || new Date()
     } catch (error) {
       if (token !== requestTokens.planets) return
-      planetsPayload.value = { planets: [], sample_at: null, sun_altitude_deg: null }
+      resetPlanetsPayload()
       planetsError.value = toFriendlyError(error, 'Nepodarilo sa nacitat planety.')
     } finally {
       if (token === requestTokens.planets && !options.silent) {
@@ -785,7 +964,7 @@ export function useSkyWidget(options = {}) {
     if (!includeIss) {
       issLoading.value = false
       issError.value = ''
-      issPreview.value = { available: false }
+      resetIssPreview()
       issFetchedAt.value = null
       return
     }
@@ -795,7 +974,7 @@ export function useSkyWidget(options = {}) {
     issError.value = ''
 
     if (!hasLocationCoords.value) {
-      issPreview.value = { available: false }
+      resetIssPreview()
       issFetchedAt.value = null
       issLoading.value = false
       return
@@ -811,7 +990,7 @@ export function useSkyWidget(options = {}) {
             params: buildRequestParams(true),
             meta: { skipErrorToast: true },
           })
-          return response?.data || { available: false }
+          return response?.data || { ...EMPTY_ISS_PREVIEW }
         },
       )
       if (token !== requestTokens.iss) return
@@ -878,7 +1057,7 @@ export function useSkyWidget(options = {}) {
     if (!includeEphemeris) {
       ephemerisLoading.value = false
       ephemerisError.value = ''
-      ephemeris.value = { planets: [], comets: [], asteroids: [], source: null, sample_at: null }
+      resetEphemerisPayload()
       ephemerisFetchedAt.value = null
       return
     }
@@ -888,7 +1067,7 @@ export function useSkyWidget(options = {}) {
     ephemerisError.value = ''
 
     if (!hasLocationCoords.value) {
-      ephemeris.value = { planets: [], comets: [], asteroids: [], source: null, sample_at: null }
+      resetEphemerisPayload()
       ephemerisFetchedAt.value = null
       ephemerisLoading.value = false
       return
@@ -904,7 +1083,7 @@ export function useSkyWidget(options = {}) {
             params: buildRequestParams(true),
             meta: { skipErrorToast: true },
           })
-          return response?.data || { planets: [], comets: [], asteroids: [], source: null, sample_at: null }
+          return response?.data || { ...EMPTY_EPHEMERIS_PAYLOAD }
         },
       )
       if (token !== requestTokens.ephemeris) return
@@ -912,7 +1091,7 @@ export function useSkyWidget(options = {}) {
       ephemerisFetchedAt.value = resolvePayloadTimestamp(ephemeris.value, ['sample_at']) || new Date()
     } catch {
       if (token !== requestTokens.ephemeris) return
-      ephemeris.value = { planets: [], comets: [], asteroids: [], source: null, sample_at: null }
+      resetEphemerisPayload()
       ephemerisError.value = 'Efemeridy su docasne nedostupne.'
     } finally {
       if (token === requestTokens.ephemeris && !options.silent) {
@@ -923,6 +1102,7 @@ export function useSkyWidget(options = {}) {
 
   function queueDeferredFetches(options = {}) {
     if (!includePlanets && !includeIss && !includeEphemeris) return
+    if (isBundlePending()) return
 
     if (deferredTimer) {
       clearTimeout(deferredTimer)
@@ -930,31 +1110,57 @@ export function useSkyWidget(options = {}) {
     }
 
     deferredTimer = setTimeout(() => {
-      if (includePlanets) fetchPlanets(options)
-      if (includeIss) fetchIssPreview(options)
-      if (includeEphemeris) fetchEphemeris(options)
+      if (includePlanets && shouldFetchDeferredBlock('visible_planets', options)) fetchPlanets(options)
+      if (includeIss && shouldFetchDeferredBlock('iss_preview', options)) fetchIssPreview(options)
+      if (includeEphemeris && shouldFetchDeferredBlock('ephemeris', options)) fetchEphemeris(options)
     }, DEFERRED_SKY_FETCH_MS)
   }
 
   async function fetchEssentialBlocks(options = {}) {
     const requests = []
 
-    if (includeWeather) requests.push(fetchWeather(options))
-    if (includeAstronomy) requests.push(fetchAstronomy(options))
-    if (includeLightPollution) requests.push(fetchLightPollution(options))
+    if (includeWeather && shouldFetchEssentialBlock('weather', options)) requests.push(fetchWeather(options))
+    if (includeAstronomy && shouldFetchEssentialBlock('astronomy', options)) requests.push(fetchAstronomy(options))
+    if (includeLightPollution && shouldFetchEssentialBlock('light_pollution', options)) requests.push(fetchLightPollution(options))
 
     if (requests.length === 0) return
     await Promise.all(requests)
   }
 
   async function initialize(options = {}) {
+    const bundlePayload = readInitialPayload()
+    if (bundlePayload) {
+      applyInitialPayload(bundlePayload)
+    }
+
     await fetchEssentialBlocks(options)
     if (isMounted.value) {
       queueDeferredFetches(options)
     }
   }
 
+  async function syncFromBundleState(options = {}) {
+    hydratedBundleBlocks = new Set()
+
+    if (isBundlePending()) {
+      prepareForPendingBundle()
+      return
+    }
+
+    const bundlePayload = readInitialPayload()
+    if (bundlePayload) {
+      await initialize({
+        ...options,
+        onlyMissingBundleBlocks: true,
+      })
+      return
+    }
+
+    await initialize(options)
+  }
+
   function refreshCheapBlocks(options = { silent: true }) {
+    if (isBundlePending()) return
     if (includeWeather) fetchWeather(options)
     if (includePlanets) fetchPlanets(options)
     if (includeIss) fetchIssPreview(options)
@@ -962,6 +1168,7 @@ export function useSkyWidget(options = {}) {
   }
 
   function refreshAstronomyBlock(options = { silent: true }) {
+    if (isBundlePending()) return
     if (includeAstronomy) fetchAstronomy(options)
   }
 
@@ -1015,16 +1222,32 @@ export function useSkyWidget(options = {}) {
   }
 
   watch(
-    () => contextKey.value,
-    () => {
-      initialize({ silent: false })
+    [
+      () => contextKey.value,
+      () => isBundlePending(),
+      () => readInitialPayload(),
+    ],
+    async () => {
+      await syncFromBundleState({ silent: false })
     },
     { immediate: true },
   )
 
   onMounted(() => {
     isMounted.value = true
-    queueDeferredFetches({ silent: false })
+
+    if (isBundlePending()) {
+      prepareForPendingBundle()
+    } else if (readInitialPayload()) {
+      applyInitialPayload(readInitialPayload())
+      queueDeferredFetches({
+        silent: false,
+        onlyMissingBundleBlocks: true,
+      })
+    } else {
+      queueDeferredFetches({ silent: false })
+    }
+
     startAutoRefresh()
   })
 

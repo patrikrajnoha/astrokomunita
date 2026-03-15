@@ -4,6 +4,8 @@
     :lon="lon"
     :tz="tz"
     :location-name="locationName"
+    :initial-payload="initialPayload"
+    :bundle-pending="bundlePending"
   />
 </template>
 
@@ -16,5 +18,7 @@ defineProps({
   date: { type: String, default: '' },
   tz: { type: String, default: 'Europe/Bratislava' },
   locationName: { type: String, default: '' },
+  initialPayload: { type: Object, default: undefined },
+  bundlePending: { type: Boolean, default: false },
 })
 </script>

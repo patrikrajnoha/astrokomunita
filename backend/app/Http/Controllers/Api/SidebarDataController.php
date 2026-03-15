@@ -60,6 +60,11 @@ class SidebarDataController extends Controller
     {
         $needsObservingContext = in_array('space_weather', $sections, true)
             || in_array('aurora_watch', $sections, true);
+        $needsObservingContext = $needsObservingContext
+            || in_array('observing_conditions', $sections, true)
+            || in_array('observing_weather', $sections, true)
+            || in_array('night_sky', $sections, true)
+            || in_array('iss_pass', $sections, true);
 
         if (! $needsObservingContext) {
             return null;
@@ -78,6 +83,10 @@ class SidebarDataController extends Controller
         }
         if ($tz !== null) {
             $validated['tz'] = $tz;
+        }
+
+        if (! array_key_exists('lat', $validated) || ! array_key_exists('lon', $validated)) {
+            return null;
         }
 
         $context = $this->skyContextResolver->resolve($request, $validated);

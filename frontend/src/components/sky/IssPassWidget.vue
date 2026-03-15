@@ -35,6 +35,8 @@ const props = defineProps({
   lon: { type: [Number, String], default: null },
   date: { type: String, default: '' },
   tz: { type: String, default: '' },
+  initialPayload: { type: Object, default: undefined },
+  bundlePending: { type: Boolean, default: false },
 })
 
 const {
@@ -47,6 +49,8 @@ const {
   lat: toRef(props, 'lat'),
   lon: toRef(props, 'lon'),
   tz: toRef(props, 'tz'),
+  initialPayload: toRef(props, 'initialPayload'),
+  bundlePending: toRef(props, 'bundlePending'),
   includeWeather: false,
   includeAstronomy: false,
   includePlanets: false,

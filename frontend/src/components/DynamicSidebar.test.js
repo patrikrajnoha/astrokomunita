@@ -156,6 +156,48 @@ describe('DynamicSidebar', () => {
     )
   })
 
+  it('bundles observing sidebar widgets through the shared sidebar-data endpoint', async () => {
+    fetchScopeMock.mockResolvedValue([
+      { kind: 'builtin', section_key: 'observing_conditions', title: 'Astronomicke podmienky', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'observing_weather', title: 'Pocasie pre pozorovanie', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'night_sky', title: 'Nocna obloha', order: 2, is_enabled: true },
+      { kind: 'builtin', section_key: 'iss_pass', title: 'ISS prelet', order: 3, is_enabled: true },
+    ])
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/settings', component: DynamicSidebar },
+      ],
+    })
+
+    await router.push('/settings')
+    await router.isReady()
+
+    mount(DynamicSidebar, {
+      props: {
+        observingLat: 48.1486,
+        observingLon: 17.1077,
+        observingTz: 'Europe/Bratislava',
+      },
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(getSidebarWidgetBundleMock).toHaveBeenCalledWith(
+      ['observing_conditions', 'observing_weather', 'night_sky', 'iss_pass'],
+      {
+        lat: 48.1486,
+        lon: 17.1077,
+        tz: 'Europe/Bratislava',
+      },
+    )
+  })
+
   it('preserves an explicit empty widget override instead of falling back to defaults', async () => {
     authStore.isAuthed = true
     preferencesStore.loaded = true
