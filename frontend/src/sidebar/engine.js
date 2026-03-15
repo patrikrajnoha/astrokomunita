@@ -35,6 +35,7 @@ const NextEventWidget = defineAsyncComponent(() => import('@/components/widgets/
 const NextEclipseWidget = defineAsyncComponent(() => import('@/components/widgets/NextEclipseWidget.vue'))
 const NextMeteorWidget = defineAsyncComponent(() => import('@/components/widgets/NextMeteorWidget.vue'))
 const NeoWatchlistWidget = defineAsyncComponent(() => import('@/components/widgets/NeoWatchlistWidget.vue'))
+const UpcomingLaunchesWidget = defineAsyncComponent(() => import('@/components/widgets/UpcomingLaunchesWidget.vue'))
 const UpcomingEventsWidget = defineAsyncComponent(() => import('@/components/widgets/UpcomingEventsWidget.vue'))
 const MoonPhasesWidget = defineAsyncComponent(() => import('@/components/widgets/MoonPhasesWidget.vue'))
 const MoonOverviewWidget = defineAsyncComponent(() => import('@/components/widgets/MoonOverviewWidget.vue'))
@@ -55,6 +56,7 @@ export const sidebarComponentMap = {
   next_eclipse: NextEclipseWidget,
   next_meteor_shower: NextMeteorWidget,
   neo_watchlist: NeoWatchlistWidget,
+  upcoming_launches: UpcomingLaunchesWidget,
   latest_articles: LatestArticlesWidget,
   upcoming_events: UpcomingEventsWidget,
   moon_phases: MoonPhasesWidget,
@@ -156,6 +158,14 @@ const sidebarIconMap = {
       'M18.6 12H21',
       'm8 8.5 1.8-1.8',
       'm14.2 17.3 1.8 1.8',
+    ],
+  },
+  upcoming_launches: {
+    viewBox: '0 0 24 24',
+    paths: [
+      'M5 19h14',
+      'm12 4 3.5 7.5-2 1.2 1.2 3.8L12 15l-2.7 1.5 1.2-3.8-2-1.2Z',
+      'M12 15v4',
     ],
   },
   latest_articles: {

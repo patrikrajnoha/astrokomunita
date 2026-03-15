@@ -69,6 +69,10 @@ return [
         'celestrak_iss_catnr' => env('CELESTRAK_ISS_CATNR', 25544),
         'jpl_horizons_url' => env('JPL_HORIZONS_URL', 'https://ssd.jpl.nasa.gov/api/horizons.api'),
         'jpl_sbdd_url' => env('JPL_SBDDB_URL', 'https://ssd-api.jpl.nasa.gov/sbdb_query.api'),
+        'launch_library_upcoming_url' => env(
+            'LAUNCH_LIBRARY_UPCOMING_URL',
+            'https://ll.thespacedevs.com/2.2.0/launch/upcoming/'
+        ),
         'swpc_planetary_k_index_url' => env(
             'SWPC_PLANETARY_K_INDEX_URL',
             'https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'

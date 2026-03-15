@@ -119,6 +119,38 @@ XML;
             ->assertJsonPath('data.neo_watchlist.source.label', 'NASA JPL SBDB');
     }
 
+    public function test_it_can_bundle_upcoming_launches_payload(): void
+    {
+        Cache::flush();
+        config()->set('observing.providers.launch_library_upcoming_url', 'https://launches.test/upcoming/');
+
+        Http::fake([
+            'https://launches.test/upcoming/*' => Http::response([
+                'results' => [
+                    [
+                        'id' => 'launch-1',
+                        'name' => 'Falcon 9 Block 5 | Starlink Group 17-24',
+                        'status' => [
+                            'name' => 'Go for Launch',
+                            'abbrev' => 'Go',
+                        ],
+                        'net' => '2026-03-16T19:00:00Z',
+                        'lsp_name' => 'SpaceX',
+                        'pad' => 'SLC-40',
+                        'location' => 'Cape Canaveral, FL, USA',
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $this->getJson('/api/sidebar-data?sections=upcoming_launches')
+            ->assertOk()
+            ->assertJsonPath('requested_sections.0', 'upcoming_launches')
+            ->assertJsonPath('data.upcoming_launches.available', true)
+            ->assertJsonPath('data.upcoming_launches.items.0.name', 'Falcon 9 Block 5 | Starlink Group 17-24')
+            ->assertJsonPath('data.upcoming_launches.source.label', 'The Space Devs Launch Library 2');
+    }
+
     public function test_it_bundles_space_weather_and_aurora_with_one_shared_noaa_fetch_cycle(): void
     {
         Cache::flush();

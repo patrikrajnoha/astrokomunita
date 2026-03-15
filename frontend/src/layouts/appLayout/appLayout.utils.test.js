@@ -38,6 +38,9 @@ describe('buildWidgetProps', () => {
     expect(buildWidgetProps('neo_watchlist', 'NEO watchlist', observingContext)).toEqual({
       title: 'NEO watchlist',
     })
+    expect(buildWidgetProps('upcoming_launches', 'Bliziace sa starty', observingContext)).toEqual({
+      title: 'Bliziace sa starty',
+    })
   })
 
   it('passes observing context to aurora_watch', () => {

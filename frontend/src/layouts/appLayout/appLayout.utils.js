@@ -80,6 +80,7 @@ export function buildWidgetProps(sectionKey, title, observingContext, options = 
     sectionKey === 'next_eclipse' ||
     sectionKey === 'next_meteor_shower' ||
     sectionKey === 'neo_watchlist' ||
+    sectionKey === 'upcoming_launches' ||
     sectionKey === 'latest_articles' ||
     sectionKey === 'upcoming_events'
   ) {

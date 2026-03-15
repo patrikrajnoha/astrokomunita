@@ -125,6 +125,12 @@ class SidebarSectionRegistry
                 'default_order' => 16,
             ],
             [
+                'section_key' => 'upcoming_launches',
+                'title' => 'Bliziace sa starty',
+                'default_enabled' => false,
+                'default_order' => 17,
+            ],
+            [
                 'section_key' => 'next_eclipse',
                 'title' => 'Najblizsie zatmenie',
                 'default_enabled' => false,
