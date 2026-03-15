@@ -7,6 +7,7 @@ import AdminHubLayout from '@/layouts/AdminHubLayout.vue'
 const popupResponse = vi.hoisted(() => ({ value: { should_show: false, items: [] } }))
 const getPopupMock = vi.hoisted(() => vi.fn())
 const seenPopupMock = vi.hoisted(() => vi.fn())
+const getEnabledSidebarSectionsMock = vi.hoisted(() => vi.fn(() => []))
 
 const authStore = vi.hoisted(() => ({
   bootstrapDone: true,
@@ -23,6 +24,8 @@ const preferencesStore = vi.hoisted(() => ({
   loading: false,
   isOnboardingCompleted: true,
   fetchPreferences: vi.fn(),
+  sidebarWidgetKeysForScope: vi.fn(() => []),
+  hasSidebarWidgetOverrideForScope: vi.fn(() => false),
 }))
 
 const sidebarConfigStore = vi.hoisted(() => ({
@@ -75,7 +78,7 @@ vi.mock('@/composables/useToast', () => ({
 }))
 
 vi.mock('@/sidebar/engine', () => ({
-  getEnabledSidebarSections: () => [],
+  getEnabledSidebarSections: getEnabledSidebarSectionsMock,
   normalizeSidebarSections: () => [],
   resolveSidebarComponent: () => null,
   resolveSidebarIcon: () => ({ viewBox: '0 0 24 24', paths: [] }),
@@ -141,6 +144,9 @@ describe('AppLayout mark-your-calendar popup', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     authStore.isAdmin = false
+    getEnabledSidebarSectionsMock.mockImplementation(() => [])
+    preferencesStore.sidebarWidgetKeysForScope.mockReturnValue([])
+    preferencesStore.hasSidebarWidgetOverrideForScope.mockReturnValue(false)
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: vi.fn().mockImplementation(() => ({
@@ -521,5 +527,48 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     expect(sidebarConfigStore.fetchScope).toHaveBeenCalledWith('settings')
     expect(wrapper.find('mobile-fab-stub').exists()).toBe(true)
+  })
+
+  it('passes an explicit empty sidebar override through on settings routes', async () => {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === '(max-width: 767px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+    preferencesStore.sidebarWidgetKeysForScope.mockReturnValue([])
+    preferencesStore.hasSidebarWidgetOverrideForScope.mockImplementation((scope) => scope === 'home')
+
+    const router = makeRouter()
+    await router.push('/settings')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+        stubs: {
+          MobileFab: {
+            template: '<button class="mobile-fab-trigger" @click="$emit(\'widgets\')">fab</button>',
+          },
+        },
+      },
+    })
+
+    await flush()
+    await flush()
+    await wrapper.get('.mobile-fab-trigger').trigger('click')
+    await flush()
+    await flush()
+
+    expect(getEnabledSidebarSectionsMock).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        preferredSectionKeys: [],
+      }),
+    )
   })
 })

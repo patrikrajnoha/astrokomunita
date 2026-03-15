@@ -7,6 +7,14 @@ const fetchScopeMock = vi.hoisted(() => vi.fn(async () => []))
 const getSidebarWidgetBundleMock = vi.hoisted(() => vi.fn(async () => ({ requested_sections: [], data: {} })))
 const getEnabledSidebarSectionsMock = vi.hoisted(() => vi.fn((items) => items))
 const resolveSidebarComponentMock = vi.hoisted(() => vi.fn(() => ({ template: '<div class="widget-stub" />' })))
+const authStore = vi.hoisted(() => ({
+  isAuthed: false,
+}))
+const preferencesStore = vi.hoisted(() => ({
+  loaded: false,
+  sidebarWidgetKeysForScope: vi.fn(() => []),
+  hasSidebarWidgetOverrideForScope: vi.fn(() => false),
+}))
 
 vi.mock('@/stores/sidebarConfig', () => ({
   useSidebarConfigStore: () => ({
@@ -19,15 +27,11 @@ vi.mock('@/services/widgets', () => ({
 }))
 
 vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({
-    isAuthed: false,
-  }),
+  useAuthStore: () => authStore,
 }))
 
 vi.mock('@/stores/eventPreferences', () => ({
-  useEventPreferencesStore: () => ({
-    loaded: false,
-  }),
+  useEventPreferencesStore: () => preferencesStore,
 }))
 
 vi.mock('@/sidebar/engine', () => ({
@@ -42,6 +46,10 @@ function flush() {
 describe('DynamicSidebar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authStore.isAuthed = false
+    preferencesStore.loaded = false
+    preferencesStore.sidebarWidgetKeysForScope.mockReturnValue([])
+    preferencesStore.hasSidebarWidgetOverrideForScope.mockReturnValue(false)
     fetchScopeMock.mockResolvedValue([])
     getSidebarWidgetBundleMock.mockResolvedValue({ requested_sections: [], data: {} })
     window.matchMedia = vi.fn().mockImplementation(() => ({
@@ -146,5 +154,50 @@ describe('DynamicSidebar', () => {
         tz: 'Europe/Bratislava',
       },
     )
+  })
+
+  it('preserves an explicit empty widget override instead of falling back to defaults', async () => {
+    authStore.isAuthed = true
+    preferencesStore.loaded = true
+    preferencesStore.sidebarWidgetKeysForScope.mockReturnValue([])
+    preferencesStore.hasSidebarWidgetOverrideForScope.mockImplementation((scope) => scope === 'home')
+    getEnabledSidebarSectionsMock.mockImplementation((items, options = {}) => {
+      if (Array.isArray(options?.preferredSectionKeys) && options.preferredSectionKeys.length === 0) {
+        return []
+      }
+
+      return items
+    })
+    fetchScopeMock.mockResolvedValue([
+      { kind: 'builtin', section_key: 'observing_conditions', title: 'Astronomicke podmienky', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'observing_weather', title: 'Pocasie pre pozorovanie', order: 1, is_enabled: true },
+    ])
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/settings', component: DynamicSidebar },
+      ],
+    })
+
+    await router.push('/settings')
+    await router.isReady()
+
+    mount(DynamicSidebar, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(getEnabledSidebarSectionsMock).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        preferredSectionKeys: [],
+      }),
+    )
+    expect(getSidebarWidgetBundleMock).not.toHaveBeenCalled()
   })
 })
