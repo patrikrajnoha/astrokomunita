@@ -1,7 +1,7 @@
 <template>
   <section class="timelineWrap">
     <div class="timelineColumn">
-      <FeedList ref="feed" :key="$route.fullPath">
+      <FeedList ref="feed">
         <template #composer="{ activeTab }">
           <button
             v-if="auth?.isAuthed && activeTab === 'for_you'"
