@@ -26,22 +26,54 @@ function setHomeFeedPayload(payload) {
   return normalized
 }
 
-export function clearHomeFeedPrefetch() {
+function clearHomeFeedPayload() {
   state.homeFeedPayload = null
   state.homeFeedFetchedAt = 0
+}
+
+function consumeFreshHomeFeedPayload() {
+  if (!state.homeFeedPayload) {
+    return null
+  }
+
+  if (!isFresh(state.homeFeedFetchedAt)) {
+    clearHomeFeedPayload()
+    return null
+  }
+
+  const payload = state.homeFeedPayload
+  clearHomeFeedPayload()
+  return payload
+}
+
+export function clearHomeFeedPrefetch() {
+  clearHomeFeedPayload()
   state.homeFeedPromise = null
   state.homeFeedEpoch += 1
 }
 
 export function consumeHomeFeedPrefetch() {
-  if (!state.homeFeedPayload || !isFresh(state.homeFeedFetchedAt)) {
-    clearHomeFeedPrefetch()
+  return consumeFreshHomeFeedPayload()
+}
+
+export async function consumePendingHomeFeedPrefetch() {
+  if (!state.homeFeedPromise) {
     return null
   }
 
-  const payload = state.homeFeedPayload
-  clearHomeFeedPrefetch()
-  return payload
+  const requestEpoch = state.homeFeedEpoch
+
+  try {
+    await state.homeFeedPromise
+  } catch {
+    return null
+  }
+
+  if (requestEpoch !== state.homeFeedEpoch) {
+    return null
+  }
+
+  return consumeFreshHomeFeedPayload()
 }
 
 export function prefetchHomeFeed(api, options = {}) {

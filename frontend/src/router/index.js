@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
+import api from '@/services/api'
+import { prefetchHomeFeed } from '@/services/feedPrefetch'
 import { useAuthStore } from '@/stores/auth'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { legacySettingsSectionToRouteName } from '@/views/settings/settingsSections'
@@ -626,6 +628,10 @@ export function applyAuthGuards(routerInstance) {
 
     const auth = useAuthStore()
     const preferences = useEventPreferencesStore()
+
+    if (to.name === 'home') {
+      void prefetchHomeFeed(api)
+    }
 
     if (!auth.bootstrapDone && auth.status === 'idle' && !auth.loading) {
       auth.bootstrapAuth()
