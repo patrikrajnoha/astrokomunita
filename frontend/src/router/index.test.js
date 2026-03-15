@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { applyAuthGuards } from './index'
+const prefetchHomeFeedMock = vi.hoisted(() => vi.fn())
 
 const authState = {
   initialized: true,
@@ -26,6 +27,16 @@ vi.mock('@/stores/auth', () => ({
 
 vi.mock('@/stores/eventPreferences', () => ({
   useEventPreferencesStore: () => preferencesState,
+}))
+
+vi.mock('@/services/api', () => ({
+  default: {
+    get: vi.fn(),
+  },
+}))
+
+vi.mock('@/services/feedPrefetch', () => ({
+  prefetchHomeFeed: (...args) => prefetchHomeFeedMock(...args),
 }))
 
 function makeRouter() {
@@ -68,6 +79,7 @@ describe('router auth guard', () => {
     preferencesState.loaded = true
     preferencesState.isOnboardingCompleted = true
     preferencesState.fetchPreferences.mockClear()
+    prefetchHomeFeedMock.mockClear()
   })
 
   it('allows guest access to public pages without redirection', async () => {
@@ -76,6 +88,16 @@ describe('router auth guard', () => {
     await router.isReady()
 
     expect(router.currentRoute.value.name).toBe('events')
+    expect(prefetchHomeFeedMock).not.toHaveBeenCalled()
+  })
+
+  it('starts home feed prefetch when navigating to home', async () => {
+    const router = makeRouter()
+    await router.push('/')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('home')
+    expect(prefetchHomeFeedMock).toHaveBeenCalledTimes(1)
   })
 
   it('keeps legal pages public', async () => {

@@ -1,5 +1,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { consumeHomeFeedPrefetch } from '@/services/feedPrefetch'
+import {
+  consumeHomeFeedPrefetch,
+  consumePendingHomeFeedPrefetch,
+} from '@/services/feedPrefetch'
 
 const HOME_TABS = [
   { id: 'for_you', label: 'Komunita', tabId: 'feed-tab-for-you', panelId: 'feed-panel-for-you' },
@@ -115,7 +118,10 @@ export function useFeedListTabs({
 
     try {
       if (reset && tab === 'for_you') {
-        const prefetched = consumeHomeFeedPrefetch()
+        let prefetched = consumeHomeFeedPrefetch()
+        if (!prefetched) {
+          prefetched = await consumePendingHomeFeedPrefetch()
+        }
         if (prefetched) {
           const rows = prefetched.data || []
           avatarDebug('FeedList:load-prefetched', {

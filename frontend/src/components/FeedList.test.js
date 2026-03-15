@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import FeedList from '@/components/FeedList.vue'
 import api from '@/services/api'
+import { clearHomeFeedPrefetch, prefetchHomeFeed } from '@/services/feedPrefetch'
 
 const STORAGE_KEY = 'astrokomunita.feed.activeTab'
 
@@ -71,6 +72,7 @@ function mountFeed(stubs = {}) {
 
 describe('FeedList tabs', () => {
   beforeEach(() => {
+    clearHomeFeedPrefetch()
     api.get.mockReset()
     api.post.mockReset()
     api.patch.mockReset()
@@ -164,6 +166,33 @@ describe('FeedList tabs', () => {
     await flushPromises()
 
     expect(wrapper.find('.action-btn--bookmark').classes()).toContain('action-btn--bookmarked')
+  })
+
+  it('reuses an in-flight home feed prefetch instead of issuing a second request', async () => {
+    const payload = {
+      data: [
+        { id: 410, content: 'Prefetched home post', user: { username: 'prefetch', name: 'Prefetch User' } },
+      ],
+      next_page_url: null,
+    }
+
+    let resolveRequest
+    api.get.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRequest = resolve
+    }))
+
+    const prefetchPromise = prefetchHomeFeed(api)
+    const wrapper = mountFeed()
+
+    expect(api.get).toHaveBeenCalledTimes(1)
+
+    resolveRequest({ data: payload })
+
+    await prefetchPromise
+    await flushPromises()
+
+    expect(api.get).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).toContain('Prefetched home post')
   })
 
   it('renders mp4 attachments as inline video players', async () => {
