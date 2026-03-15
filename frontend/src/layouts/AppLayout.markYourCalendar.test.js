@@ -154,6 +154,7 @@ describe('AppLayout mark-your-calendar popup', () => {
     vi.clearAllMocks()
     authStore.isAdmin = false
     authStore.user = { email_verified_at: '2026-02-17T10:00:00Z', location_meta: null, location: null }
+    preferencesStore.isOnboardingCompleted = false
     getEnabledSidebarSectionsMock.mockImplementation(() => [])
     getSidebarWidgetBundleMock.mockResolvedValue({ requested_sections: [], data: {} })
     sidebarConfigStore.fetchScope.mockResolvedValue([])
@@ -178,6 +179,8 @@ describe('AppLayout mark-your-calendar popup', () => {
   })
 
   it('opens modal when popup endpoint returns should_show=true', async () => {
+    vi.useFakeTimers()
+    preferencesStore.isOnboardingCompleted = true
     popupResponse.value = {
       should_show: true,
       force_version: 3,
@@ -195,8 +198,12 @@ describe('AppLayout mark-your-calendar popup', () => {
       },
     })
 
-    await flush()
-    await flush()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(getPopupMock).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1400)
+    await Promise.resolve()
 
     expect(getPopupMock).toHaveBeenCalledTimes(1)
     expect(wrapper.find('mark-your-calendar-modal-stub').exists()).toBe(true)
@@ -405,6 +412,8 @@ describe('AppLayout mark-your-calendar popup', () => {
   })
 
   it('calls seen endpoint once when modal closes', async () => {
+    vi.useFakeTimers()
+    preferencesStore.isOnboardingCompleted = true
     popupResponse.value = {
       should_show: true,
       force_version: 5,
@@ -422,13 +431,16 @@ describe('AppLayout mark-your-calendar popup', () => {
       },
     })
 
-    await flush()
-    await flush()
+    await Promise.resolve()
+    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(1400)
+    await Promise.resolve()
 
     const modal = wrapper.findComponent({ name: 'MarkYourCalendarModal' })
     expect(modal.exists()).toBe(true)
     modal.vm.$emit('close')
-    await flush()
+    await Promise.resolve()
+    await Promise.resolve()
 
     expect(seenPopupMock).toHaveBeenCalledTimes(1)
     expect(seenPopupMock).toHaveBeenCalledWith({
@@ -439,6 +451,7 @@ describe('AppLayout mark-your-calendar popup', () => {
 
   it('does not call popup endpoint for admin users', async () => {
     authStore.isAdmin = true
+    preferencesStore.isOnboardingCompleted = true
     popupResponse.value = { should_show: true, items: [] }
 
     const router = makeRouter()

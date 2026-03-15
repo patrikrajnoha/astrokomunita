@@ -1,6 +1,8 @@
 import { computed, ref } from 'vue'
 import { getMarkYourCalendarPopup, markYourCalendarPopupSeen } from '@/services/popup'
 
+const CALENDAR_POPUP_CHECK_DELAY_MS = 1400
+
 export function useMarkYourCalendarPopup({
   auth,
   isOnboardingFlowActive,
@@ -12,6 +14,8 @@ export function useMarkYourCalendarPopup({
   const isCalendarPopupVisible = ref(false)
   const calendarPopupPayload = ref(null)
   const calendarPopupAckInFlight = ref(false)
+  let activePopupCheckPromise = null
+  let scheduledPopupCheckTimer = null
 
   const canCheckCalendarPopup = computed(() => {
     return (
@@ -26,24 +30,66 @@ export function useMarkYourCalendarPopup({
     )
   })
 
-  const maybeCheckCalendarPopup = async () => {
-    if (!canCheckCalendarPopup.value) return
-
-    calendarPopupSessionChecked.value = true
-    try {
-      const response = await getMarkYourCalendarPopup()
-      const payload = response?.data || null
-
-      if (payload?.should_show) {
-        if (onboardingTour.isOpen) {
-          onboardingTour.closeTour()
-        }
-        calendarPopupPayload.value = payload
-        isCalendarPopupVisible.value = true
-      }
-    } catch {
-      // Session check is best effort.
+  const cancelScheduledCalendarPopupCheck = () => {
+    if (scheduledPopupCheckTimer === null || typeof window === 'undefined') {
+      scheduledPopupCheckTimer = null
+      return
     }
+
+    window.clearTimeout(scheduledPopupCheckTimer)
+    scheduledPopupCheckTimer = null
+  }
+
+  const runCalendarPopupCheck = async () => {
+    if (!canCheckCalendarPopup.value || calendarPopupSessionChecked.value) return
+    if (activePopupCheckPromise) return activePopupCheckPromise
+
+    activePopupCheckPromise = (async () => {
+      calendarPopupSessionChecked.value = true
+      try {
+        const response = await getMarkYourCalendarPopup()
+        const payload = response?.data || null
+
+        if (payload?.should_show) {
+          if (onboardingTour.isOpen) {
+            onboardingTour.closeTour()
+          }
+          calendarPopupPayload.value = payload
+          isCalendarPopupVisible.value = true
+        }
+      } catch {
+        // Session check is best effort.
+      } finally {
+        activePopupCheckPromise = null
+      }
+    })()
+
+    return activePopupCheckPromise
+  }
+
+  const maybeCheckCalendarPopup = async (options = {}) => {
+    if (!canCheckCalendarPopup.value) {
+      cancelScheduledCalendarPopupCheck()
+      return
+    }
+
+    if (calendarPopupSessionChecked.value) {
+      return activePopupCheckPromise
+    }
+
+    if (options.immediate === true || typeof window === 'undefined') {
+      await runCalendarPopupCheck()
+      return
+    }
+
+    if (scheduledPopupCheckTimer !== null) {
+      return
+    }
+
+    scheduledPopupCheckTimer = window.setTimeout(() => {
+      scheduledPopupCheckTimer = null
+      void runCalendarPopupCheck()
+    }, CALENDAR_POPUP_CHECK_DELAY_MS)
   }
 
   const closeCalendarPopup = async () => {
@@ -72,6 +118,7 @@ export function useMarkYourCalendarPopup({
   }
 
   const resetCalendarPopupState = () => {
+    cancelScheduledCalendarPopupCheck()
     calendarPopupSessionChecked.value = false
     isCalendarPopupVisible.value = false
     calendarPopupPayload.value = null
@@ -81,6 +128,7 @@ export function useMarkYourCalendarPopup({
   return {
     calendarPopupPayload,
     closeCalendarPopup,
+    cancelScheduledCalendarPopupCheck,
     goToCalendarFromPopup,
     isCalendarPopupVisible,
     maybeCheckCalendarPopup,
