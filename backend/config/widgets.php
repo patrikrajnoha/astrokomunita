@@ -15,5 +15,6 @@ return [
     ],
     'neo_watchlist' => [
         'cache_ttl_minutes' => (int) env('NEO_WATCHLIST_WIDGET_CACHE_TTL_MINUTES', 30),
+        'last_known_ttl_minutes' => (int) env('NEO_WATCHLIST_LAST_KNOWN_TTL_MINUTES', 720),
     ],
 ];
