@@ -6,6 +6,7 @@ use App\Models\BlogPost;
 use App\Models\Event;
 use App\Models\User;
 use App\Services\TranslationService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -188,13 +189,52 @@ XML;
     {
         Cache::flush();
         config()->set('observing.providers.jpl_horizons_url', '');
-        config()->set('observing.sky_summary.microservice_base', 'http://sky.test');
-        config()->set('observing.providers.light_pollution_url', 'https://light.test/provider');
-        config()->set('observing.providers.light_pollution_secondary_url', '');
-        config()->set('observing.providers.light_pollution_viirs_url', '');
-        config()->set('observing.providers.celestrak_gp_url', 'https://celestrak.test/gp.php');
-        config()->set('observing.providers.iss_tracker_url', 'https://tracker.test/iss');
+        $nowLocal = CarbonImmutable::now('Europe/Bratislava');
+        $bucketMinutes = max(1, (int) config('observing.sky.astronomy_precision_bucket_minutes', 1));
+        $bucketStartMinute = (int) (floor(((int) $nowLocal->minute) / $bucketMinutes) * $bucketMinutes);
+        $bucketSuffix = $nowLocal->setTime((int) $nowLocal->hour, $bucketStartMinute, 0)->format('Hi');
+        $astronomyCacheKey = sprintf(
+            'sky_astronomy:48.148600:17.107700:Europe/Bratislava:%s:%s',
+            $nowLocal->format('Y-m-d'),
+            $bucketSuffix
+        );
 
+        Cache::put(
+            $astronomyCacheKey,
+            [
+                'moon_phase' => 'waning_crescent',
+                'moon_illumination_percent' => 14,
+                'sunrise_at' => '2026-03-15T06:09:00+01:00',
+                'sunset_at' => '2026-03-15T18:06:00+01:00',
+                'civil_twilight_end_at' => '2026-03-15T18:40:00+01:00',
+                'sun_altitude_deg' => -22.4,
+                'moon_altitude_deg' => 18.1,
+                'sample_at' => '2026-03-15T20:10:00+01:00',
+                'moonrise_at' => '2026-03-15T18:12:00+01:00',
+                'moonset_at' => '2026-03-16T05:48:00+01:00',
+            ],
+            now()->addMinutes(5)
+        );
+        Cache::put(
+            'sky_visible_planets:48.148600:17.107700:Europe/Bratislava:2026-03-15',
+            [
+                'planets' => [
+                    [
+                        'name' => 'Jupiter',
+                        'altitude_deg' => 41.3,
+                        'azimuth_deg' => 197.1,
+                        'elongation_deg' => 132.1,
+                        'direction' => 'S',
+                        'quality' => 'excellent',
+                        'best_time_window' => '19:40-23:10',
+                    ],
+                ],
+                'sample_at' => '2026-03-15T20:10:00+01:00',
+                'sun_altitude_deg' => -22.4,
+                'source' => 'sky_microservice',
+            ],
+            now()->addMinutes(10)
+        );
         Cache::put(
             'sky_light_pollution:48.148600:17.107700:Europe/Bratislava',
             [
@@ -231,31 +271,6 @@ XML;
 
         Http::fake([
             'https://api.open-meteo.com/*' => Http::response($this->openMeteoPayload(), 200),
-            'https://aa.usno.navy.mil/*' => Http::response($this->usnoPayload(), 200),
-            'http://sky.test/sky-summary*' => Http::response([
-                'moon' => [
-                    'rise_local' => '18:12',
-                    'set_local' => '05:48',
-                    'altitude_hourly' => [
-                        ['local_time' => '19:00', 'altitude_deg' => 12.4],
-                        ['local_time' => '20:00', 'altitude_deg' => 18.1],
-                    ],
-                ],
-                'sample_at' => '2026-03-15T20:10:00+01:00',
-                'sun_altitude_deg' => -22.4,
-                'planets' => [
-                    [
-                        'name' => 'Jupiter',
-                        'alt_max_deg' => 41.3,
-                        'az_at_best_deg' => 197.1,
-                        'elongation_deg' => 132.1,
-                        'direction' => 'S',
-                        'best_from' => '19:40',
-                        'best_to' => '23:10',
-                        'magnitude' => -2.3,
-                    ],
-                ],
-            ], 200),
         ]);
 
         $response = $this->getJson('/api/sidebar-data?sections[]=observing_conditions&sections[]=observing_weather&sections[]=night_sky&sections[]=iss_pass&lat=48.1486&lon=17.1077&tz=Europe/Bratislava')
@@ -273,8 +288,7 @@ XML;
             ->assertJsonPath('data.iss_pass.iss_preview.tracker.source', 'iss_tracker');
 
         $this->assertSame('2026-03-15T20:10:00+01:00', $response->json('data.night_sky.astronomy.sample_at'));
-        Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'https://light.test/provider'));
-        Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'http://sky.test/iss-preview'));
+        Http::assertSentCount(1);
     }
 
     public function test_it_skips_uncached_optional_observing_bundle_blocks_that_widgets_can_fetch_later(): void
@@ -290,31 +304,6 @@ XML;
 
         Http::fake([
             'https://api.open-meteo.com/*' => Http::response($this->openMeteoPayload(), 200),
-            'https://aa.usno.navy.mil/*' => Http::response($this->usnoPayload(), 200),
-            'http://sky.test/sky-summary*' => Http::response([
-                'moon' => [
-                    'rise_local' => '18:12',
-                    'set_local' => '05:48',
-                    'altitude_hourly' => [
-                        ['local_time' => '19:00', 'altitude_deg' => 12.4],
-                        ['local_time' => '20:00', 'altitude_deg' => 18.1],
-                    ],
-                ],
-                'sample_at' => '2026-03-15T20:10:00+01:00',
-                'sun_altitude_deg' => -22.4,
-                'planets' => [
-                    [
-                        'name' => 'Jupiter',
-                        'alt_max_deg' => 41.3,
-                        'az_at_best_deg' => 197.1,
-                        'elongation_deg' => 132.1,
-                        'direction' => 'S',
-                        'best_from' => '19:40',
-                        'best_to' => '23:10',
-                        'magnitude' => -2.3,
-                    ],
-                ],
-            ], 200),
             'https://light.test/provider*' => Http::response([
                 'bortle_class' => 5,
                 'brightness_value' => 0.32,
@@ -345,13 +334,16 @@ XML;
         $this->getJson('/api/sidebar-data?sections[]=observing_conditions&sections[]=observing_weather&sections[]=night_sky&sections[]=iss_pass&lat=48.1486&lon=17.1077&tz=Europe/Bratislava')
             ->assertOk()
             ->assertJsonPath('data.observing_conditions.weather.cloud_percent', 32)
-            ->assertJsonPath('data.observing_conditions.astronomy.moon_phase', 'waning_crescent')
-            ->assertJsonPath('data.night_sky.visible_planets.planets.0.name', 'Jupiter')
+            ->assertJsonMissingPath('data.observing_conditions.astronomy')
+            ->assertJsonMissingPath('data.night_sky')
             ->assertJsonMissingPath('data.night_sky.light_pollution')
             ->assertJsonMissingPath('data.iss_pass');
 
+        Http::assertSentCount(1);
         Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'https://light.test/provider'));
         Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'http://sky.test/iss-preview'));
+        Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'https://aa.usno.navy.mil'));
+        Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'http://sky.test/sky-summary'));
     }
 
     private function openMeteoPayload(): array
