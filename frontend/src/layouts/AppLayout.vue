@@ -93,7 +93,17 @@ const preferredSidebarWidgetKeys = computed(() => {
   const scope = String(currentSidebarScope.value || DEFAULT_SIDEBAR_SCOPE)
   if (typeof preferences.sidebarWidgetKeysForScope !== 'function') return null
   const selected = preferences.sidebarWidgetKeysForScope(scope)
-  return Array.isArray(selected) && selected.length > 0 ? selected : null
+  if (!Array.isArray(selected)) return null
+  if (selected.length > 0) return selected
+
+  const hasExplicitScopeOverride = typeof preferences.hasSidebarWidgetOverrideForScope === 'function'
+    ? preferences.hasSidebarWidgetOverrideForScope(scope)
+    : false
+  const hasExplicitGlobalOverride = typeof preferences.hasSidebarWidgetOverrideForScope === 'function'
+    ? preferences.hasSidebarWidgetOverrideForScope(DEFAULT_SIDEBAR_SCOPE)
+    : false
+
+  return hasExplicitScopeOverride || hasExplicitGlobalOverride ? [] : null
 })
 const enabledMobileSections = computed(() => (
   getEnabledSidebarSections(mobileSidebarSections.value, {
