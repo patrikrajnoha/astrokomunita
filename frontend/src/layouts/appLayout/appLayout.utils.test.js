@@ -35,6 +35,9 @@ describe('buildWidgetProps', () => {
     expect(buildWidgetProps('upcoming_events', 'Co sa deje dnes', observingContext)).toEqual({
       title: 'Co sa deje dnes',
     })
+    expect(buildWidgetProps('neo_watchlist', 'NEO watchlist', observingContext)).toEqual({
+      title: 'NEO watchlist',
+    })
   })
 
   it('passes observing context to aurora_watch', () => {

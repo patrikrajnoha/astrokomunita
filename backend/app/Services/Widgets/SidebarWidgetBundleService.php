@@ -14,6 +14,7 @@ class SidebarWidgetBundleService
         'next_event' => true,
         'next_eclipse' => true,
         'next_meteor_shower' => true,
+        'neo_watchlist' => true,
         'latest_articles' => true,
         'upcoming_events' => true,
     ];
@@ -22,6 +23,7 @@ class SidebarWidgetBundleService
         private readonly ArticlesWidgetService $articlesWidgetService,
         private readonly EventWidgetService $eventWidgetService,
         private readonly NasaIotdWidgetService $nasaIotdWidgetService,
+        private readonly \App\Services\Sky\SkyNeoWatchlistService $skyNeoWatchlistService,
     ) {
     }
 
@@ -40,6 +42,7 @@ class SidebarWidgetBundleService
                     'next_event' => $this->eventWidgetService->nextEvent(),
                     'next_eclipse' => $this->eventWidgetService->nextEclipse(),
                     'next_meteor_shower' => $this->eventWidgetService->nextMeteorShower(),
+                    'neo_watchlist' => $this->skyNeoWatchlistService->fetch(),
                     'latest_articles' => $this->articlesWidgetService->payload(),
                     'upcoming_events' => $this->eventWidgetService->upcoming(),
                     default => null,

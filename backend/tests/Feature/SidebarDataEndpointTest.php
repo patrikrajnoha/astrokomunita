@@ -95,4 +95,27 @@ XML;
             ->assertJsonPath('data.nasa_apod.title', 'SK Bundled NASA')
             ->assertJsonPath('data.nasa_apod.source.label', 'NASA IOTD RSS');
     }
+
+    public function test_it_can_bundle_neo_watchlist_payload(): void
+    {
+        Cache::flush();
+        config()->set('observing.providers.jpl_sbdd_url', 'https://sbddb.test/query');
+
+        Http::fake([
+            'https://sbddb.test/query*' => Http::response([
+                'fields' => ['full_name', 'pdes', 'class', 'neo', 'pha', 'moid', 'diameter', 'H'],
+                'data' => [
+                    ['99942 Apophis', '99942', 'APO', 'Y', 'Y', '0.00026', '0.37', '19.7'],
+                    ['2001 FO32', '2001 FO32', 'APO', 'Y', 'N', '0.0035', '0.97', '17.8'],
+                ],
+            ], 200),
+        ]);
+
+        $this->getJson('/api/sidebar-data?sections=neo_watchlist')
+            ->assertOk()
+            ->assertJsonPath('requested_sections.0', 'neo_watchlist')
+            ->assertJsonPath('data.neo_watchlist.available', true)
+            ->assertJsonPath('data.neo_watchlist.items.0.name', '99942 Apophis')
+            ->assertJsonPath('data.neo_watchlist.source.label', 'NASA JPL SBDB');
+    }
 }

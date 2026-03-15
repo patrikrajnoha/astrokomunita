@@ -82,7 +82,8 @@ describe('DynamicSidebar', () => {
   it('requests bundled sidebar data for preloadable builtin widgets', async () => {
     fetchScopeMock.mockResolvedValue([
       { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA', order: 0, is_enabled: true },
-      { kind: 'builtin', section_key: 'search', title: 'Search', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'neo_watchlist', title: 'NEO watchlist', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'search', title: 'Search', order: 2, is_enabled: true },
     ])
 
     const router = createRouter({
@@ -104,6 +105,6 @@ describe('DynamicSidebar', () => {
     await flush()
     await flush()
 
-    expect(getSidebarWidgetBundleMock).toHaveBeenCalledWith(['nasa_apod'])
+    expect(getSidebarWidgetBundleMock).toHaveBeenCalledWith(['nasa_apod', 'neo_watchlist'])
   })
 })
