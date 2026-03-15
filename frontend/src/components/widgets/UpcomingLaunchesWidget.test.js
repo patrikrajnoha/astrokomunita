@@ -52,7 +52,8 @@ describe('UpcomingLaunchesWidget', () => {
     await nextTick()
 
     expect(getMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Falcon 9 Block 5 | Starlink Group 17-24')
+    expect(wrapper.text()).toContain('Falcon 9 Block 5')
+    expect(wrapper.text()).toContain('Starlink Group 17-24')
     expect(wrapper.text()).toContain('SpaceX')
     expect(wrapper.text()).toContain('Go')
     expect(wrapper.text()).toContain('Zdroj: The Space Devs Launch Library 2')
@@ -89,7 +90,8 @@ describe('UpcomingLaunchesWidget', () => {
     expect(getMock).toHaveBeenCalledWith('/sky/upcoming-launches', {
       meta: { skipErrorToast: true },
     })
-    expect(wrapper.text()).toContain('Long March 6A | Unknown Payload')
+    expect(wrapper.text()).toContain('Long March 6A')
+    expect(wrapper.text()).not.toContain('Unknown Payload')
     expect(wrapper.text()).toContain('CASC')
   })
 })
