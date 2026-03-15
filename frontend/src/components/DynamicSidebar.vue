@@ -28,6 +28,10 @@ import {
 } from '@/sidebar/engine'
 
 const PRELOADABLE_BUNDLE_SECTION_KEYS = new Set([
+  'observing_conditions',
+  'observing_weather',
+  'night_sky',
+  'iss_pass',
   'nasa_apod',
   'next_event',
   'next_eclipse',
@@ -179,6 +183,8 @@ const propsForSection = (section) => {
       date: props.observingDate,
       tz: props.observingTz,
       locationName: props.observingLocationName,
+      initialPayload: bundledSectionPayloads.value?.[sectionKey],
+      bundlePending: sidebarBundlePending.value,
     }
   }
 

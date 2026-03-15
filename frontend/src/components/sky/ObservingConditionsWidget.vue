@@ -57,6 +57,8 @@ const props = defineProps({
   date: { type: String, default: '' },
   tz: { type: String, default: '' },
   locationName: { type: String, default: '' },
+  initialPayload: { type: Object, default: undefined },
+  bundlePending: { type: Boolean, default: false },
 })
 
 const router = useRouter()
@@ -78,6 +80,8 @@ const {
   lat: toRef(props, 'lat'),
   lon: toRef(props, 'lon'),
   tz: toRef(props, 'tz'),
+  initialPayload: toRef(props, 'initialPayload'),
+  bundlePending: toRef(props, 'bundlePending'),
   includePlanets: false,
   includeIss: false,
   includeLightPollution: false,

@@ -183,4 +183,128 @@ XML;
 
         Http::assertSentCount(2);
     }
+
+    public function test_it_bundles_observing_widgets_with_shared_payload_contracts(): void
+    {
+        Cache::flush();
+        config()->set('observing.providers.jpl_horizons_url', '');
+        config()->set('observing.sky_summary.microservice_base', 'http://sky.test');
+        config()->set('observing.providers.light_pollution_url', 'https://light.test/provider');
+        config()->set('observing.providers.light_pollution_secondary_url', '');
+        config()->set('observing.providers.light_pollution_viirs_url', '');
+        config()->set('observing.providers.celestrak_gp_url', 'https://celestrak.test/gp.php');
+        config()->set('observing.providers.iss_tracker_url', 'https://tracker.test/iss');
+
+        Http::fake([
+            'https://api.open-meteo.com/*' => Http::response($this->openMeteoPayload(), 200),
+            'https://aa.usno.navy.mil/*' => Http::response($this->usnoPayload(), 200),
+            'http://sky.test/sky-summary*' => Http::response([
+                'moon' => [
+                    'rise_local' => '18:12',
+                    'set_local' => '05:48',
+                    'altitude_hourly' => [
+                        ['local_time' => '19:00', 'altitude_deg' => 12.4],
+                        ['local_time' => '20:00', 'altitude_deg' => 18.1],
+                    ],
+                ],
+                'sample_at' => '2026-03-15T20:10:00+01:00',
+                'sun_altitude_deg' => -22.4,
+                'planets' => [
+                    [
+                        'name' => 'Jupiter',
+                        'alt_max_deg' => 41.3,
+                        'az_at_best_deg' => 197.1,
+                        'elongation_deg' => 132.1,
+                        'direction' => 'S',
+                        'best_from' => '19:40',
+                        'best_to' => '23:10',
+                        'magnitude' => -2.3,
+                    ],
+                ],
+            ], 200),
+            'https://light.test/provider*' => Http::response([
+                'bortle_class' => 5,
+                'brightness_value' => 0.32,
+                'confidence' => 'med',
+            ], 200),
+            'http://sky.test/iss-preview*' => Http::response([
+                'available' => true,
+                'next_pass_at' => '2026-03-15T21:18:00+01:00',
+                'duration_sec' => 420,
+                'max_altitude_deg' => 41.3,
+                'direction_start' => 'W',
+                'direction_end' => 'E',
+            ], 200),
+            'https://celestrak.test/gp.php*' => Http::response([
+                [
+                    'OBJECT_NAME' => 'ISS (ZARYA)',
+                    'NORAD_CAT_ID' => 25544,
+                    'EPOCH' => '2026-03-15T19:40:00Z',
+                ],
+            ], 200),
+            'https://tracker.test/iss' => Http::response([
+                'latitude' => 12.34,
+                'longitude' => 56.78,
+                'timestamp' => 1773600000,
+            ], 200),
+        ]);
+
+        $response = $this->getJson('/api/sidebar-data?sections[]=observing_conditions&sections[]=observing_weather&sections[]=night_sky&sections[]=iss_pass&lat=48.1486&lon=17.1077&tz=Europe/Bratislava')
+            ->assertOk()
+            ->assertJsonPath('requested_sections.0', 'observing_conditions')
+            ->assertJsonPath('requested_sections.1', 'observing_weather')
+            ->assertJsonPath('requested_sections.2', 'night_sky')
+            ->assertJsonPath('requested_sections.3', 'iss_pass')
+            ->assertJsonPath('data.observing_conditions.weather.cloud_percent', 32)
+            ->assertJsonPath('data.observing_conditions.astronomy.moon_phase', 'waning_crescent')
+            ->assertJsonPath('data.observing_weather.weather.source', 'open_meteo')
+            ->assertJsonPath('data.night_sky.visible_planets.planets.0.name', 'Jupiter')
+            ->assertJsonPath('data.night_sky.light_pollution.source', 'light_pollution_provider')
+            ->assertJsonPath('data.iss_pass.iss_preview.available', true)
+            ->assertJsonPath('data.iss_pass.iss_preview.tracker.source', 'iss_tracker');
+
+        $this->assertSame('2026-03-15T20:10:00+01:00', $response->json('data.night_sky.astronomy.sample_at'));
+    }
+
+    private function openMeteoPayload(): array
+    {
+        return [
+            'current' => [
+                'time' => '2026-03-15T20:00',
+                'relative_humidity_2m' => 56,
+                'cloud_cover' => 32,
+                'wind_speed_10m' => 13.0,
+                'temperature_2m' => 9.8,
+                'apparent_temperature' => 8.9,
+                'weather_code' => 1,
+            ],
+            'hourly' => [
+                'time' => [
+                    '2026-03-15T19:00',
+                    '2026-03-15T20:00',
+                ],
+                'relative_humidity_2m' => [56, 56],
+                'cloud_cover' => [32, 32],
+                'wind_speed_10m' => [13.0, 13.0],
+                'temperature_2m' => [9.8, 9.8],
+            ],
+        ];
+    }
+
+    private function usnoPayload(): array
+    {
+        return [
+            'properties' => [
+                'data' => [
+                    'curphase' => 'Waning Crescent',
+                    'fracillum' => '14%',
+                    'sundata' => [
+                        ['phen' => 'Rise', 'time' => '06:09'],
+                        ['phen' => 'Set', 'time' => '18:06'],
+                        ['phen' => 'End Civil Twilight', 'time' => '18:40'],
+                    ],
+                ],
+            ],
+        ];
+    }
 }

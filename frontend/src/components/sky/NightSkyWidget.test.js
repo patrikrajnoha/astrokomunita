@@ -225,6 +225,52 @@ describe('NightSkyWidget light pollution sources', () => {
     expect(wrapper.text()).toContain('Mars (20:15-01:10)')
   })
 
+  it('uses bundled night-sky payload without refetching bundled blocks', async () => {
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/ephemeris') return ephemerisPayload()
+      return { data: {} }
+    })
+
+    const wrapper = mount(NightSkyWidget, {
+      props: {
+        lat: 48.1489,
+        lon: 17.1077,
+        tz: 'Europe/Bratislava',
+        initialPayload: {
+          astronomy: astronomyPayload().data,
+          visible_planets: {
+            planets: [
+              { name: 'Jupiter', altitude_deg: 64.7, elongation_deg: 132.1, best_time_window: '19:40-23:10' },
+            ],
+            sample_at: '2026-03-08T20:10:00+01:00',
+            sun_altitude_deg: -22.4,
+            source: 'jpl_horizons',
+          },
+          light_pollution: {
+            bortle_class: 5,
+            brightness_value: 0.32,
+            confidence: 'med',
+            source: 'light_pollution_viirs',
+            reason: null,
+            sample_at: '2026-03-08T20:10:00+01:00',
+          },
+        },
+        bundlePending: false,
+      },
+    })
+
+    await wrapper.vm.$nextTick()
+    await wait()
+
+    const requestedUrls = getMock.mock.calls.map(([url]) => url)
+    expect(requestedUrls).not.toContain('/sky/astronomy')
+    expect(requestedUrls).not.toContain('/sky/visible-planets')
+    expect(requestedUrls).not.toContain('/sky/light-pollution')
+    expect(requestedUrls.every((url) => url === '/sky/ephemeris')).toBe(true)
+    expect(wrapper.text()).toContain('Bortle')
+    expect(wrapper.text()).toContain('Jupiter (19:40-23:10)')
+  })
+
   it('marks fallback as estimate when only elongation-based candidates are available', async () => {
     getMock.mockImplementation(async (url) => {
       if (url === '/sky/astronomy') return dayAstronomyPayload()
