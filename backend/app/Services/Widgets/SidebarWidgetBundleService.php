@@ -201,23 +201,10 @@ class SidebarWidgetBundleService
             (int) config('observing.sky.astronomy_precision_bucket_minutes', 1)
         );
         $cacheSuffix = $bucketSuffix !== null ? "{$dateKey}:{$bucketSuffix}" : $dateKey;
-        $ttlMinutes = max(
-            1,
-            (int) config(
-                'observing.sky.astronomy_cache_ttl_minutes',
-                max(1, ((int) config('observing.sky.astronomy_cache_ttl_hours', 6)) * 60)
-            )
-        );
+        $cacheKey = $this->buildSkyCacheKey('sky_astronomy', $skyContext, $cacheSuffix);
+        $cachedPayload = Cache::get($cacheKey);
 
-        return Cache::remember(
-            $this->buildSkyCacheKey('sky_astronomy', $skyContext, $cacheSuffix),
-            now()->addMinutes($ttlMinutes),
-            fn (): array => $this->skyAstronomyService->fetch(
-                $skyContext['lat'],
-                $skyContext['lon'],
-                $skyContext['tz']
-            )
-        );
+        return is_array($cachedPayload) ? $cachedPayload : null;
     }
 
     /**
@@ -233,26 +220,13 @@ class SidebarWidgetBundleService
 
         $dateKey = CarbonImmutable::now($skyContext['tz'])->format('Y-m-d');
         $cacheKey = $this->buildSkyCacheKey('sky_visible_planets', $skyContext, $dateKey);
-        $ttlMinutes = max(1, (int) config('observing.sky.visible_planets_cache_ttl_minutes', 10));
 
         $cachedPayload = Cache::get($cacheKey);
         if ($this->isCacheableVisiblePlanetsPayload($cachedPayload)) {
             return $cachedPayload;
         }
 
-        $payload = $this->skyVisiblePlanetsService->fetch(
-            $skyContext['lat'],
-            $skyContext['lon'],
-            $skyContext['tz']
-        );
-
-        if ($this->isCacheableVisiblePlanetsPayload($payload)) {
-            Cache::put($cacheKey, $payload, now()->addMinutes($ttlMinutes));
-        } else {
-            Cache::forget($cacheKey);
-        }
-
-        return $payload;
+        return null;
     }
 
     /**
