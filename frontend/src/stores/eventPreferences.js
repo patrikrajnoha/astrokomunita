@@ -5,6 +5,7 @@ const DEFAULT_REGION = 'global'
 const DEFAULT_INTERESTS = []
 const DEFAULT_BORTLE_CLASS = 6
 const MAX_SIDEBAR_WIDGETS = 3
+let activePreferencesFetchPromise = null
 
 const normalizeSidebarWidgetKeys = (value) => {
   if (!Array.isArray(value)) return []
@@ -132,54 +133,66 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
     },
 
     async fetchPreferences(force = false) {
-      if (this.loading) return
-      if (this.loaded && !force) return
+      if (this.loaded && !force) return this
+      if (this.loading && activePreferencesFetchPromise) return activePreferencesFetchPromise
 
-      this.loading = true
-      this.error = null
+      const requestPromise = (async () => {
+        this.loading = true
+        this.error = null
 
-      try {
-        const response = await getMyPreferences()
-        const data = response?.data?.data || {}
-        const meta = response?.data?.meta || {}
+        try {
+          const response = await getMyPreferences()
+          const data = response?.data?.data || {}
+          const meta = response?.data?.meta || {}
 
-        this.eventTypes = Array.isArray(data.event_types) ? data.event_types : []
-        this.interests = Array.isArray(data.interests) ? data.interests : [...DEFAULT_INTERESTS]
-        this.region = typeof data.region === 'string' ? data.region : DEFAULT_REGION
-        this.locationLabel = typeof data.location_label === 'string' ? data.location_label : ''
-        this.locationPlaceId = typeof data.location_place_id === 'string' ? data.location_place_id : ''
-        this.locationLat = Number.isFinite(Number(data.location_lat)) ? Number(data.location_lat) : null
-        this.locationLon = Number.isFinite(Number(data.location_lon)) ? Number(data.location_lon) : null
-        this.bortleClass = Number.isInteger(Number(data.bortle_class))
-          ? Math.min(9, Math.max(1, Number(data.bortle_class)))
-          : DEFAULT_BORTLE_CLASS
-        const overrides = normalizeSidebarWidgetOverrides(data.sidebar_widget_overrides)
-        const legacyHomeKeys = normalizeSidebarWidgetKeys(data.sidebar_widget_keys)
-        this.sidebarWidgetOverrides = Object.keys(overrides).length > 0
-          ? overrides
-          : (legacyHomeKeys.length > 0 ? { home: legacyHomeKeys } : {})
-        this.sidebarWidgetKeys = normalizeSidebarWidgetKeys(
-          this.sidebarWidgetOverrides.home ?? legacyHomeKeys,
-        )
-        this.onboardingCompletedAt = typeof data.onboarding_completed_at === 'string' && data.onboarding_completed_at
-          ? data.onboarding_completed_at
-          : null
-        this.hasPreferences = Boolean(data.has_preferences)
-        this.supportedEventTypes = Array.isArray(meta.supported_event_types) ? meta.supported_event_types : []
-        this.supportedRegions = Array.isArray(meta.supported_regions) && meta.supported_regions.length > 0
-          ? meta.supported_regions
-          : ['sk', 'eu', 'global']
-        this.supportedInterests = Array.isArray(meta.supported_interests) ? meta.supported_interests : []
-        this.supportedSidebarWidgets = normalizeSupportedSidebarWidgets(meta.supported_sidebar_widgets)
-        this.supportedSidebarScopes = normalizeSupportedSidebarScopes(meta.supported_sidebar_scopes)
+          this.eventTypes = Array.isArray(data.event_types) ? data.event_types : []
+          this.interests = Array.isArray(data.interests) ? data.interests : [...DEFAULT_INTERESTS]
+          this.region = typeof data.region === 'string' ? data.region : DEFAULT_REGION
+          this.locationLabel = typeof data.location_label === 'string' ? data.location_label : ''
+          this.locationPlaceId = typeof data.location_place_id === 'string' ? data.location_place_id : ''
+          this.locationLat = Number.isFinite(Number(data.location_lat)) ? Number(data.location_lat) : null
+          this.locationLon = Number.isFinite(Number(data.location_lon)) ? Number(data.location_lon) : null
+          this.bortleClass = Number.isInteger(Number(data.bortle_class))
+            ? Math.min(9, Math.max(1, Number(data.bortle_class)))
+            : DEFAULT_BORTLE_CLASS
+          const overrides = normalizeSidebarWidgetOverrides(data.sidebar_widget_overrides)
+          const legacyHomeKeys = normalizeSidebarWidgetKeys(data.sidebar_widget_keys)
+          this.sidebarWidgetOverrides = Object.keys(overrides).length > 0
+            ? overrides
+            : (legacyHomeKeys.length > 0 ? { home: legacyHomeKeys } : {})
+          this.sidebarWidgetKeys = normalizeSidebarWidgetKeys(
+            this.sidebarWidgetOverrides.home ?? legacyHomeKeys,
+          )
+          this.onboardingCompletedAt = typeof data.onboarding_completed_at === 'string' && data.onboarding_completed_at
+            ? data.onboarding_completed_at
+            : null
+          this.hasPreferences = Boolean(data.has_preferences)
+          this.supportedEventTypes = Array.isArray(meta.supported_event_types) ? meta.supported_event_types : []
+          this.supportedRegions = Array.isArray(meta.supported_regions) && meta.supported_regions.length > 0
+            ? meta.supported_regions
+            : ['sk', 'eu', 'global']
+          this.supportedInterests = Array.isArray(meta.supported_interests) ? meta.supported_interests : []
+          this.supportedSidebarWidgets = normalizeSupportedSidebarWidgets(meta.supported_sidebar_widgets)
+          this.supportedSidebarScopes = normalizeSupportedSidebarScopes(meta.supported_sidebar_scopes)
 
-        this.loaded = true
-      } catch (error) {
-        this.error = error?.response?.data?.message || 'Nepodarilo sa nacitat preferencie.'
-        throw error
-      } finally {
-        this.loading = false
-      }
+          this.loaded = true
+          return this
+        } catch (error) {
+          this.error = error?.response?.data?.message || 'Nepodarilo sa nacitat preferencie.'
+          throw error
+        } finally {
+          this.loading = false
+        }
+      })()
+
+      const trackedPromise = requestPromise.finally(() => {
+        if (activePreferencesFetchPromise === trackedPromise) {
+          activePreferencesFetchPromise = null
+        }
+      })
+      activePreferencesFetchPromise = trackedPromise
+
+      return trackedPromise
     },
 
     async savePreferences(payload) {
