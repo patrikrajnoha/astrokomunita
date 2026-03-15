@@ -236,7 +236,7 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
   })
 
-  it('hides the right rail for settings routes', async () => {
+  it('renders the right rail for settings routes', async () => {
     const router = makeRouter()
     await router.push('/settings')
     await router.isReady()
@@ -249,8 +249,8 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     await flush()
 
-    expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
   })
 
   it('keeps profile layout landmarks for profile subroutes', async () => {

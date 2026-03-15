@@ -62,9 +62,7 @@ const legalLinks = [
 const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
 const isSettingsRoute = computed(() => String(route.path || '').startsWith('/settings'))
-const showRightSidebar = computed(() => (
-  isAdminRoute.value || (!isSettingsRoute.value && Boolean(currentSidebarScope.value))
-))
+const showRightSidebar = computed(() => isAdminRoute.value || Boolean(currentSidebarScope.value))
 const mobileFabLabel = computed(() => (isAdminRoute.value ? 'Admin sekcie' : 'Widgety'))
 const mobileFabMenuTitle = computed(() => (isAdminRoute.value ? 'Admin sekcie' : 'Widgety'))
 const mobileFabMenuCloseLabel = computed(() => (
