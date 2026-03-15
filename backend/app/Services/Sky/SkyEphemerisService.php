@@ -2,8 +2,11 @@
 
 namespace App\Services\Sky;
 
+use App\Support\Http\SslVerificationPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Support\Facades\Log;
 
 class SkyEphemerisService
 {
@@ -16,7 +19,8 @@ class SkyEphemerisService
     ];
 
     public function __construct(
-        private readonly HttpFactory $http
+        private readonly HttpFactory $http,
+        private readonly SslVerificationPolicy $sslVerificationPolicy,
     ) {
     }
 
@@ -85,16 +89,15 @@ class SkyEphemerisService
         }
 
         try {
-            $response = $this->http
-                ->timeout(8)
-                ->acceptJson()
+            $response = $this->jsonRequest()
                 ->get($providerUrl, [
                     'fields' => 'full_name,pdes,class,neo,pha,moid,diameter,H',
                     'sb-group' => 'neo',
                     'sort' => '-pha,moid',
                     'limit' => max(1, $limit),
                 ]);
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            $this->logProviderFailure('jpl_sbddb', $providerUrl, $exception);
             return [];
         }
 
@@ -125,7 +128,11 @@ class SkyEphemerisService
                 $assoc[$fieldName] = $row[$index] ?? null;
             }
 
-            $name = trim((string) ($assoc['full_name'] ?? ''));
+            $designation = $this->sanitizeText($assoc['pdes'] ?? null);
+            $name = $this->normalizeWatchlistName(
+                $this->sanitizeText($assoc['full_name'] ?? null),
+                $designation
+            );
             if ($name === '') {
                 continue;
             }
@@ -133,7 +140,7 @@ class SkyEphemerisService
             $orbitClassCode = $this->normalizeOrbitClassCode($assoc['class'] ?? null);
             $normalized[] = [
                 'name' => $name,
-                'designation' => $this->sanitizeText($assoc['pdes'] ?? null),
+                'designation' => $designation,
                 'orbit_class_code' => $orbitClassCode,
                 'orbit_class_label' => $this->orbitClassLabel($orbitClassCode),
                 'neo' => $this->normalizeBooleanLike($assoc['neo'] ?? null),
@@ -175,9 +182,7 @@ class SkyEphemerisService
 
         foreach (self::PLANET_TARGETS as $target) {
             try {
-                $response = $this->http
-                    ->timeout(8)
-                    ->acceptJson()
+                $response = $this->jsonRequest()
                     ->get($providerUrl, [
                         'format' => 'json',
                         'COMMAND' => "'" . $target['command'] . "'",
@@ -189,7 +194,10 @@ class SkyEphemerisService
                         'TLIST' => "'" . $timeLabel . "'",
                         'QUANTITIES' => "'1,4,9,20,23'",
                     ]);
-            } catch (\Throwable) {
+            } catch (\Throwable $exception) {
+                $this->logProviderFailure('jpl_horizons', $providerUrl, $exception, [
+                    'target' => $target['command'],
+                ]);
                 continue;
             }
 
@@ -256,9 +264,7 @@ class SkyEphemerisService
         }
 
         try {
-            $response = $this->http
-                ->timeout(8)
-                ->acceptJson()
+            $response = $this->jsonRequest()
                 ->get($providerUrl, [
                     'format' => 'json',
                     'COMMAND' => "'10'",
@@ -270,7 +276,10 @@ class SkyEphemerisService
                     'TLIST' => "'" . $timeLabel . "'",
                     'QUANTITIES' => "'1,4,9,20,23'",
                 ]);
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            $this->logProviderFailure('jpl_horizons', $providerUrl, $exception, [
+                'target' => '10',
+            ]);
             return null;
         }
 
@@ -350,15 +359,16 @@ class SkyEphemerisService
         }
 
         try {
-            $response = $this->http
-                ->timeout(8)
-                ->acceptJson()
+            $response = $this->jsonRequest()
                 ->get($providerUrl, [
                     'fields' => 'full_name,pdes,kind,neo,pha,e,a,q,i,om,w,tp,moid',
                     'limit' => 5,
                     'sb-kind' => $kind,
                 ]);
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            $this->logProviderFailure('jpl_sbddb', $providerUrl, $exception, [
+                'small_body_kind' => $kind,
+            ]);
             return [];
         }
 
@@ -445,6 +455,20 @@ class SkyEphemerisService
         return $trimmed !== '' ? $trimmed : null;
     }
 
+    private function normalizeWatchlistName(?string $fullName, ?string $designation): string
+    {
+        $candidate = trim((string) $fullName);
+        if ($candidate === '') {
+            return trim((string) $designation);
+        }
+
+        if (preg_match('/^\(([^)]+)\)$/', $candidate) === 1) {
+            return trim((string) ($designation ?: trim($candidate, '()')));
+        }
+
+        return $candidate;
+    }
+
     private function normalizeOrbitClassCode(mixed $value): ?string
     {
         $candidate = strtoupper(trim((string) $value));
@@ -489,5 +513,46 @@ class SkyEphemerisService
     private function toFloat(mixed $value): ?float
     {
         return is_numeric($value) ? (float) $value : null;
+    }
+
+    private function jsonRequest(): PendingRequest
+    {
+        $request = $this->http
+            ->timeout((int) config('observing.http.timeout_seconds', 8))
+            ->retry(
+                (int) config('observing.http.retry_times', 2),
+                (int) config('observing.http.retry_sleep_ms', 200)
+            )
+            ->acceptJson();
+
+        $verifyOption = $this->resolveSslVerifyOption();
+
+        return $request
+            ->withOptions(['verify' => $verifyOption])
+            ->withAttributes(['ssl_verify' => $verifyOption]);
+    }
+
+    private function resolveSslVerifyOption(): bool|string
+    {
+        $caBundlePath = trim((string) config('observing.http.local_ca_bundle_path', ''));
+        if (app()->environment('local') && $caBundlePath !== '' && is_file($caBundlePath)) {
+            return $caBundlePath;
+        }
+
+        return $this->sslVerificationPolicy->resolveVerifyOption();
+    }
+
+    /**
+     * @param  array<string,mixed>  $context
+     */
+    private function logProviderFailure(string $provider, string $url, \Throwable $exception, array $context = []): void
+    {
+        Log::warning('Sky ephemeris provider request failed.', [
+            'provider' => $provider,
+            'url' => $url,
+            'exception_class' => $exception::class,
+            'exception_message' => $exception->getMessage(),
+            ...$context,
+        ]);
     }
 }
