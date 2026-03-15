@@ -93,7 +93,7 @@ class SkyEphemerisService
         }
 
         try {
-            $response = $this->jsonRequest()
+            $response = $this->sbdbJsonRequest()
                 ->get($providerUrl, [
                     'fields' => 'full_name,pdes,class,neo,pha,moid,diameter,H',
                     'sb-group' => 'neo',
@@ -368,7 +368,7 @@ class SkyEphemerisService
             return ['c' => [], 'a' => []];
         }
 
-        $responses = $this->jsonRequest()->pool(function (Pool $pool) use ($providerUrl): void {
+        $responses = $this->sbdbJsonRequest()->pool(function (Pool $pool) use ($providerUrl): void {
             foreach (['c', 'a'] as $kind) {
                 $this->configureJsonRequest($pool->as('small_body_'.$kind))
                     ->get($providerUrl, [
@@ -584,15 +584,27 @@ class SkyEphemerisService
         return $this->parseHorizonsBody($resultBody);
     }
 
-    private function jsonRequest(): PendingRequest
+    private function jsonRequest(?int $timeoutSeconds = null): PendingRequest
     {
+        $resolvedTimeoutSeconds = max(1, (int) ($timeoutSeconds ?? config('observing.http.timeout_seconds', 8)));
+
         return $this->configureJsonRequest($this->http
-            ->timeout((int) config('observing.http.timeout_seconds', 8))
+            ->timeout($resolvedTimeoutSeconds)
             ->retry(
                 (int) config('observing.http.retry_times', 2),
                 (int) config('observing.http.retry_sleep_ms', 200)
             )
             ->acceptJson());
+    }
+
+    private function sbdbJsonRequest(): PendingRequest
+    {
+        $timeoutSeconds = max(
+            (int) config('observing.http.timeout_seconds', 8),
+            (int) config('observing.sky.sbdb_timeout_seconds', 12)
+        );
+
+        return $this->jsonRequest($timeoutSeconds);
     }
 
     private function configureJsonRequest(PendingRequest $request): PendingRequest

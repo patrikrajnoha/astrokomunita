@@ -28,6 +28,7 @@ return [
         'aurora_cache_ttl_minutes' => env('SKY_AURORA_CACHE_TTL_MINUTES', 10),
         'aurora_event_surface_min_score' => env('SKY_AURORA_EVENT_SURFACE_MIN_SCORE', 15),
         'space_weather_timeout_seconds' => env('SKY_SPACE_WEATHER_TIMEOUT_SECONDS', 8),
+        'sbdb_timeout_seconds' => env('SKY_SBDB_TIMEOUT_SECONDS', 12),
         'ephemeris_cache_ttl_minutes' => env('SKY_EPHEMERIS_CACHE_TTL_MINUTES', 30),
         'ephemeris_precision_bucket_minutes' => env('SKY_EPHEMERIS_PRECISION_BUCKET_MINUTES', 10),
         'iss_preview_cache_ttl_minutes' => env('SKY_ISS_PREVIEW_CACHE_TTL_MINUTES', 15),

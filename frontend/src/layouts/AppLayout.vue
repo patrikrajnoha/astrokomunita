@@ -80,6 +80,7 @@ const showDesktopMainSidebar = computed(() => true)
 const isLayoutDebugEnabled = computed(() => {
   return import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_LAYOUT || '') === 'true'
 })
+const REALTIME_BOOTSTRAP_DELAY_MS = 1200
 const desktopFrameClass = computed(() => 'desktopFrame mx-auto w-full max-w-[1500px] xl:grid')
 const centerShellClass = computed(
   () => 'centerShellGrid min-w-0 xl:col-start-1 xl:grid xl:gap-1 2xl:gap-2',
@@ -290,6 +291,31 @@ const {
   widgetSheetOpenRef: mobileWidgetSheetOpenState,
 })
 const activeWidgetComponent = computed(() => resolveSidebarComponent(activeWidgetKey.value))
+let notificationsRealtimeBootstrapTimer = null
+
+const cancelNotificationsRealtimeBootstrap = () => {
+  if (notificationsRealtimeBootstrapTimer === null || typeof window === 'undefined') {
+    notificationsRealtimeBootstrapTimer = null
+    return
+  }
+
+  window.clearTimeout(notificationsRealtimeBootstrapTimer)
+  notificationsRealtimeBootstrapTimer = null
+}
+
+const scheduleNotificationsRealtimeBootstrap = () => {
+  cancelNotificationsRealtimeBootstrap()
+
+  if (typeof window === 'undefined') {
+    void notifications.startRealtime()
+    return
+  }
+
+  notificationsRealtimeBootstrapTimer = window.setTimeout(() => {
+    notificationsRealtimeBootstrapTimer = null
+    void notifications.startRealtime()
+  }, REALTIME_BOOTSTRAP_DELAY_MS)
+}
 
 const onPostCreated = async (createdPost) => {
   closeComposerModal()
@@ -433,15 +459,14 @@ watch(
 
 watch(
   () => auth.user?.id,
-  async (nextUserId) => {
+  (nextUserId) => {
     if (nextUserId) {
-      await Promise.allSettled([
-        notifications.startRealtime(),
-        notifications.fetchUnreadCount(),
-      ])
+      void notifications.fetchUnreadCount()
+      scheduleNotificationsRealtimeBootstrap()
       return
     }
 
+    cancelNotificationsRealtimeBootstrap()
     notifications.stopRealtime({
       disconnect: true,
       clearState: true,
@@ -489,6 +514,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  cancelNotificationsRealtimeBootstrap()
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener(APP_LAYOUT_COMPOSER_OPEN_EVENT, handleComposerOpenEvent)
   window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)

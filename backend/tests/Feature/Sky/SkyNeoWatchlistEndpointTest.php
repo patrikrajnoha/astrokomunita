@@ -128,13 +128,51 @@ class SkyNeoWatchlistEndpointTest extends TestCase
             ->assertJsonPath('available', true)
             ->assertJsonPath('items.0.name', '99942 Apophis');
 
-        Cache::forget('sky_neo_watchlist:v2');
+        Cache::forget('sky_neo_watchlist:v3');
 
         $this->getJson('/api/sky/neo-watchlist')
             ->assertOk()
             ->assertJsonPath('available', true)
             ->assertJsonPath('items.0.name', '99942 Apophis')
             ->assertJsonPath('stale', true);
+
+        Http::assertSentCount(2);
+    }
+
+    public function test_it_only_keeps_provider_unavailable_payloads_for_a_short_ttl(): void
+    {
+        Cache::flush();
+        config()->set('observing.providers.jpl_sbdd_url', 'https://sbddb.test/query');
+        config()->set('observing.http.retry_times', 0);
+        config()->set('widgets.neo_watchlist.provider_failure_ttl_seconds', 30);
+
+        Http::fake([
+            'https://sbddb.test/query*' => Http::sequence()
+                ->pushStatus(503)
+                ->push([
+                    'fields' => ['full_name', 'pdes', 'class', 'neo', 'pha', 'moid', 'diameter', 'H'],
+                    'data' => [
+                        ['99942 Apophis', '99942', 'APO', 'Y', 'Y', '0.00026', '0.37', '19.7'],
+                    ],
+                ], 200),
+        ]);
+
+        $this->getJson('/api/sky/neo-watchlist')
+            ->assertOk()
+            ->assertJsonPath('available', false)
+            ->assertJsonPath('reason', 'provider_unavailable');
+
+        $this->getJson('/api/sky/neo-watchlist')
+            ->assertOk()
+            ->assertJsonPath('available', false)
+            ->assertJsonPath('reason', 'provider_unavailable');
+
+        $this->travel(31)->seconds();
+
+        $this->getJson('/api/sky/neo-watchlist')
+            ->assertOk()
+            ->assertJsonPath('available', true)
+            ->assertJsonPath('items.0.name', '99942 Apophis');
 
         Http::assertSentCount(2);
     }

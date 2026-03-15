@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Cache;
 
 class SkyNeoWatchlistService
 {
-    private const CACHE_KEY = 'sky_neo_watchlist:v2';
-    private const LAST_KNOWN_CACHE_KEY = 'sky_neo_watchlist:last_known:v2';
+    private const CACHE_KEY = 'sky_neo_watchlist:v3';
+    private const LAST_KNOWN_CACHE_KEY = 'sky_neo_watchlist:last_known:v3';
     private const SOURCE_URL = 'https://ssd-api.jpl.nasa.gov/doc/sbdb_query.html';
 
     public function __construct(
@@ -57,12 +57,20 @@ class SkyNeoWatchlistService
                 'stale' => true,
                 'refresh_attempted_at' => $payload['updated_at'] ?? CarbonImmutable::now('UTC')->toIso8601String(),
             ];
-            Cache::put(self::CACHE_KEY, $fallbackPayload, now()->addMinutes(5));
+            Cache::put(
+                self::CACHE_KEY,
+                $fallbackPayload,
+                now()->addMinutes(max(1, (int) config('widgets.neo_watchlist.stale_ttl_minutes', 5)))
+            );
 
             return $fallbackPayload;
         }
 
-        Cache::put(self::CACHE_KEY, $payload, now()->addMinutes(5));
+        Cache::put(
+            self::CACHE_KEY,
+            $payload,
+            now()->addSeconds(max(15, (int) config('widgets.neo_watchlist.provider_failure_ttl_seconds', 60)))
+        );
 
         return $payload;
     }
