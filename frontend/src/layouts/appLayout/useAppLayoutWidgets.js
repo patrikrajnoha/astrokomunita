@@ -15,6 +15,8 @@ export function useAppLayoutWidgets({
   auth,
   enabledMobileSections,
   isMobileViewport,
+  mobileWidgetInitialPayloads,
+  mobileWidgetBundlePending,
   observingContext,
   warmSidebarConfig,
 }) {
@@ -128,6 +130,8 @@ export function useAppLayoutWidgets({
     const enabledSectionKeys = enabledMobileSections.value.map((section) => String(section?.section_key || ''))
     return buildWidgetProps(sectionKey, title, observingContext.value || {}, {
       enabledSectionKeys,
+      initialPayloads: mobileWidgetInitialPayloads?.value || {},
+      bundlePending: Boolean(mobileWidgetBundlePending?.value),
     })
   }
 

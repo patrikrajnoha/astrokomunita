@@ -42,6 +42,14 @@ const toSectionKeySet = (value) => {
 }
 
 export function buildWidgetProps(sectionKey, title, observingContext, options = {}) {
+  const bundledPayload = options?.initialPayloads && typeof options.initialPayloads === 'object'
+    ? options.initialPayloads[sectionKey]
+    : undefined
+  const bundleState = {
+    initialPayload: bundledPayload,
+    bundlePending: Boolean(options?.bundlePending),
+  }
+
   if (
     sectionKey === 'observing_conditions' ||
     sectionKey === 'observing_weather' ||
@@ -58,6 +66,7 @@ export function buildWidgetProps(sectionKey, title, observingContext, options = 
       date: observingContext.date,
       tz: observingContext.tz,
       locationName: observingContext.locationName,
+      ...bundleState,
     }
   }
 
@@ -84,7 +93,10 @@ export function buildWidgetProps(sectionKey, title, observingContext, options = 
     sectionKey === 'latest_articles' ||
     sectionKey === 'upcoming_events'
   ) {
-    return title ? { title } : {}
+    return {
+      ...(title ? { title } : {}),
+      ...bundleState,
+    }
   }
 
   return {}
