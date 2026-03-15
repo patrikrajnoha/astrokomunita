@@ -6,6 +6,8 @@ use App\Support\Http\SslVerificationPolicy;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Log;
 
 class SkyEphemerisService
@@ -39,11 +41,12 @@ class SkyEphemerisService
         $providerUrl = trim((string) config('observing.providers.jpl_horizons_url', ''));
         $siteCoord = sprintf('%0.6f,%0.6f,0', $lon, $lat);
         $timeLabel = $sampleMoment->format('Y-m-d H:i');
+        $observerRows = $this->fetchHorizonsObserverRows($providerUrl, $siteCoord, $timeLabel);
 
         return [
             'sample_at' => $sampleAt,
-            'planets' => $this->fetchPlanetEphemerides($providerUrl, $siteCoord, $timeLabel, $sampleAt),
-            'sun_altitude_deg' => $this->fetchSunAltitude($providerUrl, $siteCoord, $timeLabel),
+            'planets' => $this->buildPlanetEphemerides($observerRows, $sampleAt),
+            'sun_altitude_deg' => $this->extractSunAltitude($observerRows['sun'] ?? null),
             'source' => 'jpl_horizons',
         ];
     }
@@ -64,13 +67,14 @@ class SkyEphemerisService
     public function fetch(float $lat, float $lon, string $tz): array
     {
         $planetsPayload = $this->fetchPlanets($lat, $lon, $tz);
+        $smallBodies = $this->fetchSmallBodiesBatch();
 
         return [
             'sample_at' => $planetsPayload['sample_at'],
             'planets' => $planetsPayload['planets'],
             'sun_altitude_deg' => $planetsPayload['sun_altitude_deg'],
-            'comets' => $this->fetchSmallBodies('c'),
-            'asteroids' => $this->fetchSmallBodies('a'),
+            'comets' => $smallBodies['c'] ?? [],
+            'asteroids' => $smallBodies['a'] ?? [],
             'source' => [
                 'planets' => 'jpl_horizons',
                 'small_bodies' => 'jpl_sbddb',
@@ -173,45 +177,51 @@ class SkyEphemerisService
     /**
      * @return array<int,array<string,mixed>>
      */
-    private function fetchPlanetEphemerides(string $providerUrl, string $siteCoord, string $timeLabel, string $sampleAt): array
+    /**
+     * @return array<string,array<string,string>|null>
+     */
+    private function fetchHorizonsObserverRows(string $providerUrl, string $siteCoord, string $timeLabel): array
     {
         if ($providerUrl === '') {
-            return [];
+            return ['sun' => null];
         }
+
+        $targets = ['sun' => '10'];
+
+        foreach (self::PLANET_TARGETS as $target) {
+            $targets['planet_'.$target['command']] = $target['command'];
+        }
+
+        $responses = $this->jsonRequest()->pool(function (Pool $pool) use ($providerUrl, $siteCoord, $timeLabel, $targets): void {
+            foreach ($targets as $key => $command) {
+                $this->configureJsonRequest($pool->as((string) $key))
+                    ->get($providerUrl, $this->buildHorizonsObserverQuery($command, $siteCoord, $timeLabel));
+            }
+        }, max(1, count($targets)));
+
+        $rows = [];
+
+        foreach ($targets as $key => $command) {
+            $rows[(string) $key] = $this->parseHorizonsObserverResponse(
+                $responses[(string) $key] ?? null,
+                $providerUrl,
+                $command
+            );
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<string,array<string,string>|null>  $observerRows
+     * @return array<int,array<string,mixed>>
+     */
+    private function buildPlanetEphemerides(array $observerRows, string $sampleAt): array
+    {
         $rows = [];
 
         foreach (self::PLANET_TARGETS as $target) {
-            try {
-                $response = $this->jsonRequest()
-                    ->get($providerUrl, [
-                        'format' => 'json',
-                        'COMMAND' => "'" . $target['command'] . "'",
-                        'MAKE_EPHEM' => "'YES'",
-                        'EPHEM_TYPE' => "'OBSERVER'",
-                        'CENTER' => "'coord@399'",
-                        'COORD_TYPE' => "'GEODETIC'",
-                        'SITE_COORD' => "'" . $siteCoord . "'",
-                        'TLIST' => "'" . $timeLabel . "'",
-                        'QUANTITIES' => "'1,4,9,20,23'",
-                    ]);
-            } catch (\Throwable $exception) {
-                $this->logProviderFailure('jpl_horizons', $providerUrl, $exception, [
-                    'target' => $target['command'],
-                ]);
-                continue;
-            }
-
-            if (!$response->successful()) {
-                continue;
-            }
-
-            $payload = $response->json();
-            $resultBody = is_array($payload) ? (string) ($payload['result'] ?? '') : '';
-            if ($resultBody === '') {
-                continue;
-            }
-
-            $parsed = $this->parseHorizonsBody($resultBody);
+            $parsed = $observerRows['planet_'.$target['command']] ?? null;
             if ($parsed === null) {
                 continue;
             }
@@ -261,43 +271,11 @@ class SkyEphemerisService
         return array_values($rows);
     }
 
-    private function fetchSunAltitude(string $providerUrl, string $siteCoord, string $timeLabel): ?float
+    /**
+     * @param  array<string,string>|null  $parsed
+     */
+    private function extractSunAltitude(?array $parsed): ?float
     {
-        if ($providerUrl === '') {
-            return null;
-        }
-
-        try {
-            $response = $this->jsonRequest()
-                ->get($providerUrl, [
-                    'format' => 'json',
-                    'COMMAND' => "'10'",
-                    'MAKE_EPHEM' => "'YES'",
-                    'EPHEM_TYPE' => "'OBSERVER'",
-                    'CENTER' => "'coord@399'",
-                    'COORD_TYPE' => "'GEODETIC'",
-                    'SITE_COORD' => "'" . $siteCoord . "'",
-                    'TLIST' => "'" . $timeLabel . "'",
-                    'QUANTITIES' => "'1,4,9,20,23'",
-                ]);
-        } catch (\Throwable $exception) {
-            $this->logProviderFailure('jpl_horizons', $providerUrl, $exception, [
-                'target' => '10',
-            ]);
-            return null;
-        }
-
-        if (!$response->successful()) {
-            return null;
-        }
-
-        $payload = $response->json();
-        $resultBody = is_array($payload) ? (string) ($payload['result'] ?? '') : '';
-        if ($resultBody === '') {
-            return null;
-        }
-
-        $parsed = $this->parseHorizonsBody($resultBody);
         if ($parsed === null) {
             return null;
         }
@@ -377,26 +355,49 @@ class SkyEphemerisService
      */
     private function fetchSmallBodies(string $kind): array
     {
+        return $this->fetchSmallBodiesBatch()[$kind] ?? [];
+    }
+
+    /**
+     * @return array{c:array<int,array<string,mixed>>,a:array<int,array<string,mixed>>}
+     */
+    private function fetchSmallBodiesBatch(): array
+    {
         $providerUrl = trim((string) config('observing.providers.jpl_sbdd_url', ''));
         if ($providerUrl === '') {
-            return [];
+            return ['c' => [], 'a' => []];
         }
 
-        try {
-            $response = $this->jsonRequest()
-                ->get($providerUrl, [
-                    'fields' => 'full_name,pdes,kind,neo,pha,e,a,q,i,om,w,tp,moid',
-                    'limit' => 5,
-                    'sb-kind' => $kind,
-                ]);
-        } catch (\Throwable $exception) {
-            $this->logProviderFailure('jpl_sbddb', $providerUrl, $exception, [
+        $responses = $this->jsonRequest()->pool(function (Pool $pool) use ($providerUrl): void {
+            foreach (['c', 'a'] as $kind) {
+                $this->configureJsonRequest($pool->as('small_body_'.$kind))
+                    ->get($providerUrl, [
+                        'fields' => 'full_name,pdes,kind,neo,pha,e,a,q,i,om,w,tp,moid',
+                        'limit' => 5,
+                        'sb-kind' => $kind,
+                    ]);
+            }
+        }, 2);
+
+        return [
+            'c' => $this->parseSmallBodyResponse($responses['small_body_c'] ?? null, $providerUrl, 'c'),
+            'a' => $this->parseSmallBodyResponse($responses['small_body_a'] ?? null, $providerUrl, 'a'),
+        ];
+    }
+
+    /**
+     * @return array<int,array<string,mixed>>
+     */
+    private function parseSmallBodyResponse(mixed $response, string $providerUrl, string $kind): array
+    {
+        if ($response instanceof \Throwable) {
+            $this->logProviderFailure('jpl_sbddb', $providerUrl, $response, [
                 'small_body_kind' => $kind,
             ]);
             return [];
         }
 
-        if (!$response->successful()) {
+        if (! $response instanceof Response || ! $response->successful()) {
             return [];
         }
 
@@ -539,15 +540,63 @@ class SkyEphemerisService
         return is_numeric($value) ? (float) $value : null;
     }
 
+    /**
+     * @return array<string,string>
+     */
+    private function buildHorizonsObserverQuery(string $command, string $siteCoord, string $timeLabel): array
+    {
+        return [
+            'format' => 'json',
+            'COMMAND' => "'" . $command . "'",
+            'MAKE_EPHEM' => "'YES'",
+            'EPHEM_TYPE' => "'OBSERVER'",
+            'CENTER' => "'coord@399'",
+            'COORD_TYPE' => "'GEODETIC'",
+            'SITE_COORD' => "'" . $siteCoord . "'",
+            'TLIST' => "'" . $timeLabel . "'",
+            'QUANTITIES' => "'1,4,9,20,23'",
+        ];
+    }
+
+    /**
+     * @return array<string,string>|null
+     */
+    private function parseHorizonsObserverResponse(mixed $response, string $providerUrl, string $command): ?array
+    {
+        if ($response instanceof \Throwable) {
+            $this->logProviderFailure('jpl_horizons', $providerUrl, $response, [
+                'target' => $command,
+            ]);
+
+            return null;
+        }
+
+        if (! $response instanceof Response || ! $response->successful()) {
+            return null;
+        }
+
+        $payload = $response->json();
+        $resultBody = is_array($payload) ? (string) ($payload['result'] ?? '') : '';
+        if ($resultBody === '') {
+            return null;
+        }
+
+        return $this->parseHorizonsBody($resultBody);
+    }
+
     private function jsonRequest(): PendingRequest
     {
-        $request = $this->http
+        return $this->configureJsonRequest($this->http
             ->timeout((int) config('observing.http.timeout_seconds', 8))
             ->retry(
                 (int) config('observing.http.retry_times', 2),
                 (int) config('observing.http.retry_sleep_ms', 200)
             )
-            ->acceptJson();
+            ->acceptJson());
+    }
+
+    private function configureJsonRequest(PendingRequest $request): PendingRequest
+    {
 
         $verifyOption = $this->resolveSslVerifyOption();
 
