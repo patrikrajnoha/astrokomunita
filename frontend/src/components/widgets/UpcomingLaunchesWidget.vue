@@ -33,7 +33,7 @@
         class="launchRow"
       >
         <div class="rowHeader">
-          <div class="rowTitle">{{ item.name }}</div>
+          <div class="rowTitle" :title="item.name">{{ displayLaunchTitle(item) }}</div>
           <span
             v-if="statusLabel(item)"
             class="flagBadge"
@@ -48,9 +48,9 @@
           <time :datetime="item.net || item.window_start || ''">{{ formatNet(item) }}</time>
           <span v-if="formatCountdown(item)"> | {{ formatCountdown(item) }}</span>
         </p>
+        <p v-if="formatMissionDetail(item)" class="rowDetail rowMission">{{ formatMissionDetail(item) }}</p>
         <p v-if="formatProviderMeta(item)" class="rowDetail">{{ formatProviderMeta(item) }}</p>
         <p v-if="item.location" class="rowDetail">{{ item.location }}</p>
-        <p v-if="item.mission_name" class="rowDetail">{{ item.mission_name }}</p>
       </article>
 
       <p v-if="metaLine" class="metaLine">{{ metaLine }}</p>
@@ -171,7 +171,9 @@ export default {
       payload,
       itemKey,
       formatCountdown,
+      displayLaunchTitle,
       formatNet,
+      formatMissionDetail,
       formatProviderMeta,
       statusLabel,
       statusToneClass,
@@ -184,6 +186,31 @@ function itemKey(item) {
   const slug = String(item?.slug || '').trim()
   const name = String(item?.name || '').trim()
   return id || slug || name
+}
+
+function parseLaunchHeadline(item) {
+  const rawName = String(item?.name || '').trim()
+  if (!rawName) {
+    return { title: '', mission: null }
+  }
+
+  const segments = rawName
+    .split('|')
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+
+  if (segments.length <= 1) {
+    return { title: rawName, mission: null }
+  }
+
+  const title = segments[0] || rawName
+  const mission = segments.slice(1).join(' | ')
+
+  if (mission.toLowerCase() === 'unknown payload') {
+    return { title, mission: null }
+  }
+
+  return { title, mission }
 }
 
 function statusLabel(item) {
@@ -258,6 +285,24 @@ function formatProviderMeta(item) {
   }
 
   return parts.join(' | ')
+}
+
+function displayLaunchTitle(item) {
+  return parseLaunchHeadline(item).title || String(item?.name || '').trim()
+}
+
+function formatMissionDetail(item) {
+  const parsedMission = parseLaunchHeadline(item).mission
+  if (parsedMission) {
+    return parsedMission
+  }
+
+  const missionName = String(item?.mission_name || '').trim()
+  if (!missionName || missionName.toLowerCase() === 'unknown payload') {
+    return ''
+  }
+
+  return missionName
 }
 
 function formatTime(value) {
@@ -371,6 +416,10 @@ function formatTime(value) {
   font-size: 0.7rem;
   line-height: 1.28;
   margin: 0;
+}
+
+.rowMission {
+  color: var(--color-surface);
 }
 
 .staleNotice {
