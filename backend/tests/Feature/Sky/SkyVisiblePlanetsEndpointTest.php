@@ -490,16 +490,68 @@ class SkyVisiblePlanetsEndpointTest extends TestCase
         $this->assertSame('18:10-18:45', $rowsByName->get('merkur')['best_time_window'] ?? null);
     }
 
+    public function test_it_parses_jpl_horizons_rows_with_solar_and_lunar_presence_flags(): void
+    {
+        Cache::flush();
+        config()->set('observing.providers.jpl_horizons_url', 'https://horizons.test/api');
+
+        Http::fake(function (\Illuminate\Http\Client\Request $request) {
+            $url = $request->url();
+            if (!str_starts_with($url, 'https://horizons.test/api')) {
+                return Http::response(['message' => 'unexpected'], 500);
+            }
+
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+            $command = (string) ($query['COMMAND'] ?? '');
+
+            if ($command === "'10'") {
+                return Http::response([
+                    'result' => $this->horizonsResultLine(180.0, -18.2, -26.7, 0.99, 0.0, 0.0, '*m'),
+                ], 200);
+            }
+
+            $fixtures = [
+                "'199'" => [95.2, 12.1, -0.5, 0.88, 10.1, 28.3],
+                "'299'" => [112.4, 26.4, -3.9, 1.63, -4.3, 15.7],
+                "'499'" => [140.0, 41.2, 1.2, 0.74, 5.4, 63.0],
+                "'599'" => [172.1, 33.5, -2.1, 4.82, -12.3, 90.5],
+                "'699'" => [205.7, 18.7, 0.8, 9.55, -2.2, 54.4],
+            ];
+
+            $line = $fixtures[$command] ?? null;
+            if ($line === null) {
+                return Http::response(['result' => ''], 200);
+            }
+
+            return Http::response([
+                'result' => $this->horizonsResultLine($line[0], $line[1], $line[2], $line[3], $line[4], $line[5], '*m'),
+            ], 200);
+        });
+
+        $response = $this->getJson('/api/sky/visible-planets?lat=48.1486&lon=17.1077&tz=Europe/Bratislava');
+
+        $response->assertOk()
+            ->assertJsonPath('source', 'jpl_horizons')
+            ->assertJsonPath('sun_altitude_deg', -18.2)
+            ->assertJsonPath('planets.0.name', 'Mars')
+            ->assertJsonPath('planets.0.altitude_deg', 41.2)
+            ->assertJsonPath('planets.1.name', 'Jupiter')
+            ->assertJsonPath('planets.1.altitude_deg', 33.5);
+    }
+
     private function horizonsResultLine(
         float $azimuth,
         float $altitude,
         float $magnitude,
         float $distanceAu,
         float $radialVelocity,
-        float $elongation
+        float $elongation,
+        string $flags = ''
     ): string {
+        $flagsSegment = trim($flags) !== '' ? ' ' . trim($flags) : '';
         $line = sprintf(
-            ' 2026-Mar-12 21:00:00.000 00 29 45.51 +02 00 26.0 %9.6f %9.6f %7.3f 0.852 %1.14f %10.7f %8.4f /T',
+            ' 2026-Mar-12 21:00:00.000%s 00 29 45.51 +02 00 26.0 %9.6f %9.6f %7.3f 0.852 %1.14f %10.7f %8.4f /T',
+            $flagsSegment,
             $azimuth,
             $altitude,
             $magnitude,

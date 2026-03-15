@@ -227,6 +227,10 @@ class SkyEphemerisService
                 continue;
             }
 
+            if ($azimuth < 0.0 || $azimuth > 360.0 || $altitude < -90.0 || $altitude > 90.0) {
+                continue;
+            }
+
             $row = [
                 'name' => $target['name'],
                 'azimuth_deg' => round($azimuth, 4),
@@ -299,7 +303,7 @@ class SkyEphemerisService
         }
 
         $altitude = $this->toFloat($parsed['altitude'] ?? null);
-        if ($altitude === null) {
+        if ($altitude === null || $altitude < -90.0 || $altitude > 90.0) {
             return null;
         }
 
@@ -334,17 +338,37 @@ class SkyEphemerisService
         }
 
         $tokens = preg_split('/\s+/', $line) ?: [];
-        if (count($tokens) < 15) {
+        $count = count($tokens);
+        $hasTrailingSkyRelationCode = $count > 0
+            && preg_match('/^\/\S+$/', (string) ($tokens[$count - 1] ?? '')) === 1;
+
+        if ($hasTrailingSkyRelationCode) {
+            $azimuthIndex = $count - 8;
+            $altitudeIndex = $count - 7;
+            $magnitudeIndex = $count - 6;
+            $distanceIndex = $count - 4;
+            $radialVelocityIndex = $count - 3;
+            $elongationIndex = $count - 2;
+        } else {
+            $azimuthIndex = $count - 7;
+            $altitudeIndex = $count - 6;
+            $magnitudeIndex = $count - 5;
+            $distanceIndex = $count - 3;
+            $radialVelocityIndex = $count - 2;
+            $elongationIndex = $count - 1;
+        }
+
+        if ($azimuthIndex < 0 || $elongationIndex < 0) {
             return null;
         }
 
         return [
-            'azimuth' => (string) ($tokens[8] ?? ''),
-            'altitude' => (string) ($tokens[9] ?? ''),
-            'magnitude' => (string) ($tokens[10] ?? ''),
-            'distance_au' => (string) ($tokens[12] ?? ''),
-            'radial_velocity_kms' => (string) ($tokens[13] ?? ''),
-            'elongation' => (string) ($tokens[14] ?? ''),
+            'azimuth' => (string) ($tokens[$azimuthIndex] ?? ''),
+            'altitude' => (string) ($tokens[$altitudeIndex] ?? ''),
+            'magnitude' => (string) ($tokens[$magnitudeIndex] ?? ''),
+            'distance_au' => (string) ($tokens[$distanceIndex] ?? ''),
+            'radial_velocity_kms' => (string) ($tokens[$radialVelocityIndex] ?? ''),
+            'elongation' => (string) ($tokens[$elongationIndex] ?? ''),
         ];
     }
 
