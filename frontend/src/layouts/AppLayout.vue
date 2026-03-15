@@ -190,11 +190,6 @@ async function warmSidebarConfig() {
     return
   }
 
-  if (isSettingsRoute.value) {
-    mobileSidebarSections.value = []
-    return
-  }
-
   const scope = currentSidebarScope.value
   if (!scope) {
     mobileSidebarSections.value = []

@@ -493,4 +493,33 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     expect(sidebarConfigStore.fetchScope).toHaveBeenCalledWith('events')
   })
+
+  it('renders mobile widget access on settings routes and warms settings scope', async () => {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === '(max-width: 767px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    const router = makeRouter()
+    await router.push('/settings')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(sidebarConfigStore.fetchScope).toHaveBeenCalledWith('settings')
+    expect(wrapper.find('mobile-fab-stub').exists()).toBe(true)
+  })
 })
