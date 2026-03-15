@@ -3,7 +3,6 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount, watch, defineAsyncComponent } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { getSidebarWidgetBundle } from '@/services/widgets'
 import { useAuthStore } from '@/stores/auth'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { useNotificationsStore } from '@/stores/notifications'
@@ -21,6 +20,10 @@ import {
 } from './appLayout/useAppLayoutWidgets'
 import { useMarkYourCalendarPopup } from './appLayout/useMarkYourCalendarPopup'
 import {
+  SIDEBAR_WIDGET_BUNDLE_SECTION_KEYS,
+  useSidebarWidgetBundle,
+} from '@/composables/useSidebarWidgetBundle'
+import {
   dispatchPostCreated,
   parseStringValue,
 } from './appLayout/appLayout.utils'
@@ -37,23 +40,6 @@ const CreatePostModal = defineAsyncComponent(() => import('@/components/CreatePo
 const MarkYourCalendarModal = defineAsyncComponent(() => import('@/components/MarkYourCalendarModal.vue'))
 const OnboardingTour = defineAsyncComponent(() => import('@/components/onboarding/OnboardingTour.vue'))
 
-const MOBILE_PRELOADABLE_BUNDLE_SECTION_KEYS = new Set([
-  'observing_conditions',
-  'observing_weather',
-  'night_sky',
-  'iss_pass',
-  'nasa_apod',
-  'next_event',
-  'next_eclipse',
-  'next_meteor_shower',
-  'space_weather',
-  'aurora_watch',
-  'neo_watchlist',
-  'upcoming_launches',
-  'latest_articles',
-  'upcoming_events',
-])
-
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
@@ -63,8 +49,8 @@ const sidebarConfigStore = useSidebarConfigStore()
 const onboardingTour = useOnboardingTourStore()
 const { showToast } = useToast()
 const mobileSidebarSections = ref([])
-const mobileBundledSectionPayloads = ref({})
-const mobileSidebarBundlePending = ref(false)
+const mobileWidgetMenuOpenState = ref(false)
+const mobileWidgetSheetOpenState = ref(false)
 const deferredInstallPrompt = ref(null)
 const canInstall = ref(false)
 const isMobileViewport = ref(false)
@@ -136,9 +122,8 @@ const mobilePreloadableSectionKeys = computed(() => (
   enabledMobileSections.value
     .filter((section) => section?.kind !== 'custom_component')
     .map((section) => String(section?.section_key || ''))
-    .filter((sectionKey) => MOBILE_PRELOADABLE_BUNDLE_SECTION_KEYS.has(sectionKey))
+    .filter((sectionKey) => SIDEBAR_WIDGET_BUNDLE_SECTION_KEYS.has(sectionKey))
 ))
-const mobilePreloadableSectionKeySignature = computed(() => mobilePreloadableSectionKeys.value.join('|'))
 const observingContext = computed(() => resolveObservingContext({
   user: auth.user,
   preferences,
@@ -165,7 +150,19 @@ const mobileSidebarBundleQuery = computed(() => {
 
   return query
 })
-const mobileSidebarBundleQuerySignature = computed(() => JSON.stringify(mobileSidebarBundleQuery.value))
+const shouldLoadMobileSidebarBundle = computed(() => (
+  isMobileViewport.value
+  && !isAdminRoute.value
+  && (mobileWidgetMenuOpenState.value || mobileWidgetSheetOpenState.value)
+))
+const {
+  bundledSectionPayloads: mobileBundledSectionPayloads,
+  bundlePending: mobileSidebarBundlePending,
+} = useSidebarWidgetBundle({
+  enabled: shouldLoadMobileSidebarBundle,
+  query: mobileSidebarBundleQuery,
+  sectionKeys: mobilePreloadableSectionKeys,
+})
 const showAuthFallbackBanner = computed(() => {
   return (
     auth.bootstrapDone &&
@@ -251,62 +248,6 @@ async function warmSidebarConfig() {
   mobileSidebarSections.value = normalizeSidebarSections(items)
 }
 
-let mobileSidebarBundleRequestId = 0
-let mobileLoadedBundleSignature = ''
-let mobilePendingBundleSignature = ''
-
-function resetMobileSidebarBundle() {
-  mobileSidebarBundleRequestId += 1
-  mobileBundledSectionPayloads.value = {}
-  mobileSidebarBundlePending.value = false
-  mobileLoadedBundleSignature = ''
-  mobilePendingBundleSignature = ''
-}
-
-async function syncMobileSidebarBundle(sectionKeys = mobilePreloadableSectionKeys.value) {
-  const normalizedSectionKeys = Array.from(new Set(
-    (Array.isArray(sectionKeys) ? sectionKeys : [])
-      .map((entry) => String(entry || '').trim())
-      .filter((entry) => entry !== ''),
-  ))
-
-  if (!isMobileViewport.value || normalizedSectionKeys.length === 0) {
-    resetMobileSidebarBundle()
-    return
-  }
-
-  const signature = `${normalizedSectionKeys.join('|')}::${mobileSidebarBundleQuerySignature.value}`
-  if (signature === mobileLoadedBundleSignature || signature === mobilePendingBundleSignature) {
-    return
-  }
-
-  mobileSidebarBundleRequestId += 1
-  const requestId = mobileSidebarBundleRequestId
-  mobilePendingBundleSignature = signature
-  mobileSidebarBundlePending.value = true
-  mobileBundledSectionPayloads.value = {}
-
-  try {
-    const payload = await getSidebarWidgetBundle(normalizedSectionKeys, mobileSidebarBundleQuery.value)
-    if (requestId !== mobileSidebarBundleRequestId) return
-
-    mobileBundledSectionPayloads.value =
-      payload?.data && typeof payload.data === 'object'
-        ? payload.data
-        : {}
-    mobileLoadedBundleSignature = signature
-  } catch {
-    if (requestId !== mobileSidebarBundleRequestId) return
-    mobileBundledSectionPayloads.value = {}
-    mobileLoadedBundleSignature = ''
-  } finally {
-    if (requestId === mobileSidebarBundleRequestId) {
-      mobilePendingBundleSignature = ''
-      mobileSidebarBundlePending.value = false
-    }
-  }
-}
-
 const {
   activeWidgetKey,
   activeWidgetTitle,
@@ -345,13 +286,10 @@ const {
   mobileWidgetBundlePending: mobileSidebarBundlePending,
   observingContext,
   warmSidebarConfig,
+  widgetMenuOpenRef: mobileWidgetMenuOpenState,
+  widgetSheetOpenRef: mobileWidgetSheetOpenState,
 })
 const activeWidgetComponent = computed(() => resolveSidebarComponent(activeWidgetKey.value))
-const shouldLoadMobileSidebarBundle = computed(() => (
-  isMobileViewport.value
-  && !isAdminRoute.value
-  && (isWidgetMenuOpen.value || isWidgetSheetOpen.value)
-))
 
 const onPostCreated = async (createdPost) => {
   closeComposerModal()
@@ -432,7 +370,6 @@ const updateViewportState = () => {
 watch(
   () => currentSidebarScope.value,
   async () => {
-    resetMobileSidebarBundle()
     await warmSidebarConfig()
   },
   { immediate: true },
@@ -443,7 +380,6 @@ watch(
   async () => {
     if (!isMobileViewport.value) return
     closeWidgetLayers()
-    resetMobileSidebarBundle()
     await warmSidebarConfig()
   },
 )
@@ -451,38 +387,12 @@ watch(
 watch(
   () => isMobileViewport.value,
   async (isMobile) => {
-    resetMobileSidebarBundle()
     if (!isMobile) {
       closeWidgetLayers()
       return
     }
 
     await warmSidebarConfig()
-  },
-)
-
-watch(
-  () => [
-    shouldLoadMobileSidebarBundle.value,
-    mobilePreloadableSectionKeySignature.value,
-    mobileSidebarBundleQuerySignature.value,
-  ],
-  async ([shouldLoad, sectionSignature, querySignature], previous = []) => {
-    const previousSectionSignature = Array.isArray(previous) ? previous[1] : undefined
-    const previousQuerySignature = Array.isArray(previous) ? previous[2] : undefined
-    const signatureChanged = (
-      sectionSignature !== previousSectionSignature
-      || querySignature !== previousQuerySignature
-    )
-
-    if (signatureChanged) {
-      mobileBundledSectionPayloads.value = {}
-      mobileLoadedBundleSignature = ''
-      mobilePendingBundleSignature = ''
-    }
-
-    if (!shouldLoad) return
-    await syncMobileSidebarBundle(mobilePreloadableSectionKeys.value)
   },
 )
 
