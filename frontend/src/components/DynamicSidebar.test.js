@@ -105,6 +105,46 @@ describe('DynamicSidebar', () => {
     await flush()
     await flush()
 
-    expect(getSidebarWidgetBundleMock).toHaveBeenCalledWith(['nasa_apod', 'neo_watchlist'])
+    expect(getSidebarWidgetBundleMock).toHaveBeenCalledWith(['nasa_apod', 'neo_watchlist'], {})
+  })
+
+  it('passes observing context when bundling space weather widgets', async () => {
+    fetchScopeMock.mockResolvedValue([
+      { kind: 'builtin', section_key: 'space_weather', title: 'Vesmirne pocasie', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'aurora_watch', title: 'Aurora watch', order: 1, is_enabled: true },
+    ])
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/events', component: DynamicSidebar },
+      ],
+    })
+
+    await router.push('/events')
+    await router.isReady()
+
+    mount(DynamicSidebar, {
+      props: {
+        observingLat: 48.1486,
+        observingLon: 17.1077,
+        observingTz: 'Europe/Bratislava',
+      },
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(getSidebarWidgetBundleMock).toHaveBeenCalledWith(
+      ['space_weather', 'aurora_watch'],
+      {
+        lat: 48.1486,
+        lon: 17.1077,
+        tz: 'Europe/Bratislava',
+      },
+    )
   })
 })

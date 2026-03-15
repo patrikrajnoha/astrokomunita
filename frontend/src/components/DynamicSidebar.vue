@@ -32,6 +32,8 @@ const PRELOADABLE_BUNDLE_SECTION_KEYS = new Set([
   'next_event',
   'next_eclipse',
   'next_meteor_shower',
+  'space_weather',
+  'aurora_watch',
   'neo_watchlist',
   'latest_articles',
   'upcoming_events',
@@ -113,6 +115,24 @@ const preloadableSectionKeys = computed(() => (
     .filter((sectionKey) => PRELOADABLE_BUNDLE_SECTION_KEYS.has(sectionKey))
 ))
 const preloadableSectionKeySignature = computed(() => preloadableSectionKeys.value.join('|'))
+const sidebarBundleQuery = computed(() => {
+  const query = {}
+
+  const lat = toFiniteCoordinate(props.observingLat)
+  const lon = toFiniteCoordinate(props.observingLon)
+  const tz = String(props.observingTz || '').trim()
+
+  if (lat !== null && lon !== null) {
+    query.lat = lat
+    query.lon = lon
+    if (tz) {
+      query.tz = tz
+    }
+  }
+
+  return query
+})
+const sidebarBundleQuerySignature = computed(() => JSON.stringify(sidebarBundleQuery.value))
 
 const resolveItemKey = (section) => {
   if (section.kind === 'custom_component') {
@@ -214,7 +234,7 @@ const syncSidebarBundle = async (sectionKeys) => {
   bundledSectionPayloads.value = {}
 
   try {
-    const payload = await getSidebarWidgetBundle(normalizedSectionKeys)
+    const payload = await getSidebarWidgetBundle(normalizedSectionKeys, sidebarBundleQuery.value)
     if (requestId !== sidebarBundleRequestId) return
 
     bundledSectionPayloads.value =
@@ -259,7 +279,7 @@ watch(
 )
 
 watch(
-  () => preloadableSectionKeySignature.value,
+  () => `${preloadableSectionKeySignature.value}::${sidebarBundleQuerySignature.value}`,
   async () => {
     await syncSidebarBundle(preloadableSectionKeys.value)
   },
