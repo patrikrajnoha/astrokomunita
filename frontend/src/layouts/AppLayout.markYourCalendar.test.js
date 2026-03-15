@@ -8,6 +8,7 @@ const popupResponse = vi.hoisted(() => ({ value: { should_show: false, items: []
 const getPopupMock = vi.hoisted(() => vi.fn())
 const seenPopupMock = vi.hoisted(() => vi.fn())
 const getEnabledSidebarSectionsMock = vi.hoisted(() => vi.fn(() => []))
+const getSidebarWidgetBundleMock = vi.hoisted(() => vi.fn(async () => ({ requested_sections: [], data: {} })))
 
 const authStore = vi.hoisted(() => ({
   bootstrapDone: true,
@@ -77,9 +78,13 @@ vi.mock('@/composables/useToast', () => ({
   }),
 }))
 
+vi.mock('@/services/widgets', () => ({
+  getSidebarWidgetBundle: (...args) => getSidebarWidgetBundleMock(...args),
+}))
+
 vi.mock('@/sidebar/engine', () => ({
   getEnabledSidebarSections: getEnabledSidebarSectionsMock,
-  normalizeSidebarSections: () => [],
+  normalizeSidebarSections: (items) => (Array.isArray(items) ? items : []),
   resolveSidebarComponent: () => null,
   resolveSidebarIcon: () => ({ viewBox: '0 0 24 24', paths: [] }),
 }))
@@ -144,7 +149,10 @@ describe('AppLayout mark-your-calendar popup', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     authStore.isAdmin = false
+    authStore.user = { email_verified_at: '2026-02-17T10:00:00Z', location_meta: null, location: null }
     getEnabledSidebarSectionsMock.mockImplementation(() => [])
+    getSidebarWidgetBundleMock.mockResolvedValue({ requested_sections: [], data: {} })
+    sidebarConfigStore.fetchScope.mockResolvedValue([])
     preferencesStore.sidebarWidgetKeysForScope.mockReturnValue([])
     preferencesStore.hasSidebarWidgetOverrideForScope.mockReturnValue(false)
     Object.defineProperty(window, 'matchMedia', {
@@ -527,6 +535,66 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     expect(sidebarConfigStore.fetchScope).toHaveBeenCalledWith('settings')
     expect(wrapper.find('mobile-fab-stub').exists()).toBe(true)
+  })
+
+  it('preloads mobile widget bundle when opening the widget menu', async () => {
+    window.matchMedia = vi.fn().mockImplementation((query) => ({
+      matches: query === '(max-width: 767px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+    authStore.user = {
+      email_verified_at: '2026-02-17T10:00:00Z',
+      location_meta: {
+        lat: 48.1486,
+        lon: 17.1077,
+        tz: 'Europe/Bratislava',
+        name: 'Bratislava',
+      },
+      location: 'Bratislava',
+    }
+    sidebarConfigStore.fetchScope.mockResolvedValue([
+      { kind: 'builtin', section_key: 'observing_conditions', title: 'Astronomicke podmienky', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'space_weather', title: 'Vesmirne pocasie', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'moon_phases', title: 'Fazy mesiaca', order: 2, is_enabled: true },
+      { kind: 'builtin', section_key: 'neo_watchlist', title: 'NEO watchlist', order: 3, is_enabled: true },
+    ])
+    getEnabledSidebarSectionsMock.mockImplementation((items) => items)
+
+    const router = makeRouter()
+    await router.push('/events')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+        stubs: {
+          MobileFab: {
+            template: '<button class="mobile-fab-trigger" @click="$emit(\'widgets\')">fab</button>',
+          },
+        },
+      },
+    })
+
+    await flush()
+    await flush()
+    await wrapper.get('.mobile-fab-trigger').trigger('click')
+    await flush()
+    await flush()
+
+    expect(getSidebarWidgetBundleMock).toHaveBeenCalledWith(
+      ['observing_conditions', 'space_weather', 'neo_watchlist'],
+      {
+        lat: 48.1486,
+        lon: 17.1077,
+        tz: 'Europe/Bratislava',
+      },
+    )
   })
 
   it('passes an explicit empty sidebar override through on settings routes', async () => {

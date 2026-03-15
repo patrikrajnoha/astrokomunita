@@ -31,15 +31,23 @@ describe('buildWidgetProps', () => {
   it('passes the configured title to title-based sidebar widgets', () => {
     expect(buildWidgetProps('next_meteor_shower', 'Najblizsi meteoricky roj', observingContext)).toEqual({
       title: 'Najblizsi meteoricky roj',
+      initialPayload: undefined,
+      bundlePending: false,
     })
     expect(buildWidgetProps('upcoming_events', 'Co sa deje dnes', observingContext)).toEqual({
       title: 'Co sa deje dnes',
+      initialPayload: undefined,
+      bundlePending: false,
     })
     expect(buildWidgetProps('neo_watchlist', 'NEO watchlist', observingContext)).toEqual({
       title: 'NEO watchlist',
+      initialPayload: undefined,
+      bundlePending: false,
     })
     expect(buildWidgetProps('upcoming_launches', 'Bliziace sa starty', observingContext)).toEqual({
       title: 'Bliziace sa starty',
+      initialPayload: undefined,
+      bundlePending: false,
     })
   })
 
@@ -50,6 +58,29 @@ describe('buildWidgetProps', () => {
       date: '2026-03-13',
       tz: 'Europe/Bratislava',
       locationName: 'Bratislava',
+      initialPayload: undefined,
+      bundlePending: false,
+    })
+  })
+
+  it('passes mobile bundle payloads to bundle-aware widgets', () => {
+    const props = buildWidgetProps('neo_watchlist', 'NEO watchlist', observingContext, {
+      initialPayloads: {
+        neo_watchlist: {
+          available: true,
+          items: [{ name: 'Apophis' }],
+        },
+      },
+      bundlePending: true,
+    })
+
+    expect(props).toEqual({
+      title: 'NEO watchlist',
+      initialPayload: {
+        available: true,
+        items: [{ name: 'Apophis' }],
+      },
+      bundlePending: true,
     })
   })
 })
