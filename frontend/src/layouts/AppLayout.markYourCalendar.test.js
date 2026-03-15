@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, shallowMount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import AppLayout from '@/layouts/AppLayout.vue'
@@ -146,6 +146,10 @@ function makeAdminRouter() {
 }
 
 describe('AppLayout mark-your-calendar popup', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     authStore.isAdmin = false
@@ -265,6 +269,36 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
+  })
+
+  it('fetches unread count immediately and defers realtime bootstrap', async () => {
+    vi.useFakeTimers()
+    authStore.user = {
+      id: 7,
+      email_verified_at: '2026-02-17T10:00:00Z',
+      location_meta: null,
+      location: null,
+    }
+
+    const router = makeRouter()
+    await router.push('/')
+    await router.isReady()
+
+    shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(notificationsStore.fetchUnreadCount).toHaveBeenCalledTimes(1)
+    expect(notificationsStore.startRealtime).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1200)
+
+    expect(notificationsStore.startRealtime).toHaveBeenCalledTimes(1)
   })
 
   it('keeps profile layout landmarks for profile subroutes', async () => {
