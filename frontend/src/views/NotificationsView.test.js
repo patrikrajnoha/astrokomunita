@@ -103,11 +103,16 @@ describe('NotificationsView', () => {
   it('click on settings button opens modal', async () => {
     const { wrapper, replaceSpy } = await mountView()
 
+    expect(getMock).not.toHaveBeenCalled()
+
     await wrapper.get('[data-testid="open-notification-settings"]').trigger('click')
     await flush()
 
     expect(document.body.querySelector('[data-testid="notification-settings-modal"]')).not.toBeNull()
     expect(document.body.textContent).toContain('Nastavenia notifikacii')
+    expect(getMock).toHaveBeenCalledWith('/me/notifications/preferences', {
+      meta: { requiresAuth: true, skipErrorToast: true },
+    })
     expect(replaceSpy).toHaveBeenCalledWith({
       path: '/notifications',
       query: {},
@@ -140,9 +145,13 @@ describe('NotificationsView', () => {
 
   it('opens modal when route hash is present on load', async () => {
     const { wrapper, replaceSpy } = await mountView('/notifications#notification-settings')
+    await flush()
 
     expect(document.body.querySelector('[data-testid="notification-settings-modal"]')).not.toBeNull()
     expect(document.body.textContent).toContain('Nastavenia notifikacii')
+    expect(getMock).toHaveBeenCalledWith('/me/notifications/preferences', {
+      meta: { requiresAuth: true, skipErrorToast: true },
+    })
     expect(replaceSpy).not.toHaveBeenCalledWith({
       path: '/notifications',
       query: {},
@@ -157,6 +166,7 @@ describe('NotificationsView', () => {
 
     expect(notificationsStoreMock.fetchList).toHaveBeenCalledWith(1)
     expect(notificationsStoreMock.fetchUnreadCount).not.toHaveBeenCalled()
+    expect(getMock).not.toHaveBeenCalled()
 
     wrapper.unmount()
   })

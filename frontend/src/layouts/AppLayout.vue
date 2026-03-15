@@ -208,6 +208,7 @@ const isOnboardingFlowActive = computed(() => {
 })
 const {
   calendarPopupPayload,
+  cancelScheduledCalendarPopupCheck,
   closeCalendarPopup,
   goToCalendarFromPopup,
   isCalendarPopupVisible,
@@ -515,6 +516,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cancelNotificationsRealtimeBootstrap()
+  cancelScheduledCalendarPopupCheck()
   window.removeEventListener('keydown', handleKeydown)
   window.removeEventListener(APP_LAYOUT_COMPOSER_OPEN_EVENT, handleComposerOpenEvent)
   window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)

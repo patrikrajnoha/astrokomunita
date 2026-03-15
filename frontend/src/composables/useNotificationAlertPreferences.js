@@ -14,6 +14,8 @@ export function useNotificationAlertPreferences(options = {}) {
   const preferences = ref(defaultPreferences())
   const loading = ref(false)
   const error = ref(false)
+  const loaded = ref(false)
+  let activeFetchPromise = null
 
   const canLoadPreferences = computed(() => {
     if (!isAuthenticated) return true
@@ -25,32 +27,57 @@ export function useNotificationAlertPreferences(options = {}) {
       preferences.value = defaultPreferences()
       error.value = false
       loading.value = false
+      loaded.value = false
       return
     }
 
-    if (!fetchOptions.silent) loading.value = true
-    error.value = false
-
-    try {
-      const response = await api.get('/me/notifications/preferences', {
-        meta: { requiresAuth: true, skipErrorToast: true },
-      })
-
-      const payload = response?.data || {}
-      preferences.value = {
-        iss_alerts: Boolean(payload.iss_alerts),
-        good_conditions_alerts: Boolean(payload.good_conditions_alerts),
-      }
-      error.value = String(payload.reason || '') === 'unavailable'
-      if (error.value) {
-        preferences.value = defaultPreferences()
-      }
-    } catch {
-      preferences.value = defaultPreferences()
-      error.value = true
-    } finally {
-      if (!fetchOptions.silent) loading.value = false
+    const force = fetchOptions.force === true
+    if (loaded.value && !force) {
+      return preferences.value
     }
+
+    if (loading.value && activeFetchPromise) {
+      return activeFetchPromise
+    }
+
+    const requestPromise = (async () => {
+      if (!fetchOptions.silent) loading.value = true
+      error.value = false
+
+      try {
+        const response = await api.get('/me/notifications/preferences', {
+          meta: { requiresAuth: true, skipErrorToast: true },
+        })
+
+        const payload = response?.data || {}
+        preferences.value = defaultPreferences()
+        preferences.value = {
+          iss_alerts: Boolean(payload.iss_alerts),
+          good_conditions_alerts: Boolean(payload.good_conditions_alerts),
+        }
+        error.value = String(payload.reason || '') === 'unavailable'
+        if (error.value) {
+          preferences.value = defaultPreferences()
+        }
+        loaded.value = true
+        return preferences.value
+      } catch {
+        preferences.value = defaultPreferences()
+        error.value = true
+        loaded.value = false
+        return preferences.value
+      } finally {
+        if (!fetchOptions.silent) loading.value = false
+      }
+    })()
+
+    activeFetchPromise = requestPromise.finally(() => {
+      if (activeFetchPromise === requestPromise) {
+        activeFetchPromise = null
+      }
+    })
+
+    return activeFetchPromise
   }
 
   async function updatePreferences(nextValues = {}) {
@@ -76,10 +103,12 @@ export function useNotificationAlertPreferences(options = {}) {
       if (error.value) {
         preferences.value = defaultPreferences()
       }
+      loaded.value = true
       return !error.value
     } catch {
       preferences.value = defaultPreferences()
       error.value = true
+      loaded.value = false
       return false
     } finally {
       loading.value = false

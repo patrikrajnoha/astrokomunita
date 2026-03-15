@@ -221,17 +221,20 @@ watch(
 watch(isSettingsModalOpen, (isOpen) => {
   if (isOpen && route.hash !== SETTINGS_HASH) {
     void router.replace({ path: route.path, query: route.query, hash: SETTINGS_HASH })
-    return
   }
 
-  if (!isOpen && route.hash === SETTINGS_HASH) {
+  if (isOpen) {
+    void fetchPreferences()
+  } else if (route.hash === SETTINGS_HASH) {
     void router.replace({ path: route.path, query: route.query, hash: '' })
   }
 })
 
 onMounted(() => {
   store.fetchList(1)
-  fetchPreferences()
+  if (route.hash === SETTINGS_HASH) {
+    void fetchPreferences()
+  }
 })
 
 const loadMore = () => store.fetchList(store.page + 1)
