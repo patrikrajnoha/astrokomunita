@@ -77,6 +77,95 @@ class SkyEphemerisService
     /**
      * @return array<int,array<string,mixed>>
      */
+    public function fetchNeoWatchlist(int $limit = 5): array
+    {
+        $providerUrl = trim((string) config('observing.providers.jpl_sbdd_url', ''));
+        if ($providerUrl === '') {
+            return [];
+        }
+
+        try {
+            $response = $this->http
+                ->timeout(8)
+                ->acceptJson()
+                ->get($providerUrl, [
+                    'fields' => 'full_name,pdes,class,neo,pha,moid,diameter,H',
+                    'sb-group' => 'neo',
+                    'sort' => '-pha,moid',
+                    'limit' => max(1, $limit),
+                ]);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        if (!$response->successful()) {
+            return [];
+        }
+
+        $payload = $response->json();
+        $fields = is_array($payload['fields'] ?? null) ? $payload['fields'] : [];
+        $dataRows = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+        if ($fields === [] || $dataRows === []) {
+            return [];
+        }
+
+        $normalized = [];
+
+        foreach ($dataRows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $assoc = [];
+            foreach ($fields as $index => $fieldName) {
+                if (!is_string($fieldName) || $fieldName === '') {
+                    continue;
+                }
+
+                $assoc[$fieldName] = $row[$index] ?? null;
+            }
+
+            $name = trim((string) ($assoc['full_name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            $orbitClassCode = $this->normalizeOrbitClassCode($assoc['class'] ?? null);
+            $normalized[] = [
+                'name' => $name,
+                'designation' => $this->sanitizeText($assoc['pdes'] ?? null),
+                'orbit_class_code' => $orbitClassCode,
+                'orbit_class_label' => $this->orbitClassLabel($orbitClassCode),
+                'neo' => $this->normalizeBooleanLike($assoc['neo'] ?? null),
+                'pha' => $this->normalizeBooleanLike($assoc['pha'] ?? null),
+                'moid_au' => $this->toRoundedFloat($assoc['moid'] ?? null, 6),
+                'diameter_km' => $this->toRoundedFloat($assoc['diameter'] ?? null, 3),
+                'absolute_magnitude' => $this->toRoundedFloat($assoc['H'] ?? null, 2),
+            ];
+        }
+
+        usort($normalized, static function (array $left, array $right): int {
+            $leftPha = $left['pha'] === true ? 1 : 0;
+            $rightPha = $right['pha'] === true ? 1 : 0;
+            if ($leftPha !== $rightPha) {
+                return $rightPha <=> $leftPha;
+            }
+
+            $leftMoid = is_numeric($left['moid_au'] ?? null) ? (float) $left['moid_au'] : INF;
+            $rightMoid = is_numeric($right['moid_au'] ?? null) ? (float) $right['moid_au'] : INF;
+            if ($leftMoid !== $rightMoid) {
+                return $leftMoid <=> $rightMoid;
+            }
+
+            return strcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? ''));
+        });
+
+        return array_values(array_slice($normalized, 0, max(1, $limit)));
+    }
+
+    /**
+     * @return array<int,array<string,mixed>>
+     */
     private function fetchPlanetEphemerides(string $providerUrl, string $siteCoord, string $timeLabel, string $sampleAt): array
     {
         if ($providerUrl === '') {
@@ -354,6 +443,24 @@ class SkyEphemerisService
 
         $trimmed = trim($value);
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    private function normalizeOrbitClassCode(mixed $value): ?string
+    {
+        $candidate = strtoupper(trim((string) $value));
+        return $candidate !== '' ? $candidate : null;
+    }
+
+    private function orbitClassLabel(?string $code): ?string
+    {
+        return match (strtoupper(trim((string) $code))) {
+            'IEO' => 'Atira',
+            'ATE' => 'Aten',
+            'APO' => 'Apollo',
+            'AMO' => 'Amor',
+            'VAT' => 'Vatira',
+            default => $code,
+        };
     }
 
     private function normalizeBooleanLike(mixed $value): ?bool

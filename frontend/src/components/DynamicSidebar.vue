@@ -32,6 +32,7 @@ const PRELOADABLE_BUNDLE_SECTION_KEYS = new Set([
   'next_event',
   'next_eclipse',
   'next_meteor_shower',
+  'neo_watchlist',
   'latest_articles',
   'upcoming_events',
 ])
@@ -167,6 +168,7 @@ const propsForSection = (section) => {
     || sectionKey === 'next_event'
     || sectionKey === 'next_eclipse'
     || sectionKey === 'next_meteor_shower'
+    || sectionKey === 'neo_watchlist'
     || sectionKey === 'latest_articles'
     || sectionKey === 'upcoming_events'
   ) {

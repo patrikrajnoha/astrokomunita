@@ -20,6 +20,7 @@ use App\Services\Sky\SkyLightPollutionService;
 use App\Services\Sky\SkyMoonEventsService;
 use App\Services\Sky\SkyMoonOverviewService;
 use App\Services\Sky\SkyMoonPhasesService;
+use App\Services\Sky\SkyNeoWatchlistService;
 use App\Services\Sky\SkySpaceWeatherService;
 use App\Services\Sky\SkyVisiblePlanetsService;
 use App\Services\Sky\SkyWeatherService;
@@ -42,7 +43,8 @@ class SkyController extends Controller
         private readonly SkyMoonEventsService $skyMoonEventsService,
         private readonly SkyMoonOverviewService $skyMoonOverviewService,
         private readonly SkyEphemerisService $skyEphemerisService,
-        private readonly SkySpaceWeatherService $skySpaceWeatherService
+        private readonly SkySpaceWeatherService $skySpaceWeatherService,
+        private readonly SkyNeoWatchlistService $skyNeoWatchlistService,
     ) {
     }
 
@@ -317,6 +319,11 @@ class SkyController extends Controller
         );
 
         return response()->json($payload);
+    }
+
+    public function neoWatchlist(): JsonResponse
+    {
+        return response()->json($this->skyNeoWatchlistService->fetch());
     }
 
     public function issPreview(SkyIssPreviewRequest $request): JsonResponse

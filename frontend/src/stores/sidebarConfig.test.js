@@ -25,8 +25,9 @@ describe('sidebarConfig store', () => {
     const items = await store.fetchScope(undefined)
 
     expect(api.get).not.toHaveBeenCalled()
-    expect(items).toHaveLength(16)
+    expect(items).toHaveLength(17)
     expect(items[0].section_key).toBe('observing_conditions')
+    expect(items.at(-1)?.section_key).toBe('neo_watchlist')
   })
 
   it('uses local fallback and does not request API for null-like scopes', async () => {

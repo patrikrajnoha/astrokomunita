@@ -13,4 +13,7 @@ return [
     'next_meteor_shower' => [
         'cache_ttl_seconds' => (int) env('NEXT_METEOR_SHOWER_WIDGET_CACHE_TTL_SECONDS', 300),
     ],
+    'neo_watchlist' => [
+        'cache_ttl_minutes' => (int) env('NEO_WATCHLIST_WIDGET_CACHE_TTL_MINUTES', 30),
+    ],
 ];

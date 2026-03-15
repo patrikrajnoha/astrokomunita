@@ -23,6 +23,7 @@ const DEFAULT_ITEMS = [
   { kind: 'builtin', section_key: 'next_meteor_shower', title: 'Najblizsi meteoricky roj', order: 13, is_enabled: false },
   { kind: 'builtin', section_key: 'space_weather', title: 'Vesmirne pocasie', order: 14, is_enabled: false },
   { kind: 'builtin', section_key: 'aurora_watch', title: 'Aurora watch', order: 15, is_enabled: false },
+  { kind: 'builtin', section_key: 'neo_watchlist', title: 'NEO watchlist', order: 16, is_enabled: false },
 ]
 
 const cloneAndSort = (items) => {

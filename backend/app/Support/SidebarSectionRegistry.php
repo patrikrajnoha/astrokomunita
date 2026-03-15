@@ -119,6 +119,12 @@ class SidebarSectionRegistry
                 'default_order' => 15,
             ],
             [
+                'section_key' => 'neo_watchlist',
+                'title' => 'NEO watchlist',
+                'default_enabled' => false,
+                'default_order' => 16,
+            ],
+            [
                 'section_key' => 'next_eclipse',
                 'title' => 'Najblizsie zatmenie',
                 'default_enabled' => false,
