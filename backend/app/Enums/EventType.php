@@ -11,6 +11,7 @@ enum EventType: string
     case EclipseSolar = 'eclipse_solar';
     case Conjunction = 'conjunction';
     case PlanetaryEvent = 'planetary_event';
+    case Aurora = 'aurora';
     case Comet = 'comet';
     case Asteroid = 'asteroid';
     case SpaceEvent = 'space_event';

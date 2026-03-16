@@ -33,6 +33,32 @@ if ($nextYear !== null) {
         ->withoutOverlapping();
 }
 
+Schedule::command("events:crawl-imo --year={$boundedCurrentYear}")
+    ->dailyAt('02:20')
+    ->withoutOverlapping();
+
+Schedule::command("events:crawl-nasa --year={$boundedCurrentYear}")
+    ->dailyAt('02:30')
+    ->withoutOverlapping();
+
+Schedule::command("events:crawl-nasa-wts --year={$boundedCurrentYear}")
+    ->dailyAt('02:40')
+    ->withoutOverlapping();
+
+if ($nextYear !== null) {
+    Schedule::command("events:crawl-imo --year={$nextYear}")
+        ->weeklyOn(1, '03:35')
+        ->withoutOverlapping();
+
+    Schedule::command("events:crawl-nasa --year={$nextYear}")
+        ->weeklyOn(1, '03:40')
+        ->withoutOverlapping();
+
+    Schedule::command("events:crawl-nasa-wts --year={$nextYear}")
+        ->weeklyOn(1, '03:45')
+        ->withoutOverlapping();
+}
+
 $weeklyYears = [$boundedCurrentYear];
 if ($nextYear !== null) {
     $weeklyYears[] = $nextYear;

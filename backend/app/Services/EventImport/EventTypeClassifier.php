@@ -76,7 +76,21 @@ class EventTypeClassifier
             return 'planetary_event';
         }
 
-        // 5) Comets / asteroids.
+        // 5) Auroras.
+        if (
+            $this->hasAny($raw.' '.$t, [
+                'aurora',
+                'aurora borealis',
+                'aurora australis',
+                'northern lights',
+                'southern lights',
+                'polarna ziara',
+            ])
+        ) {
+            return 'aurora';
+        }
+
+        // 6) Comets / asteroids.
         if ($this->hasAny($raw.' '.$t, ['comet', 'kometa', 'komet'])) {
             return 'comet';
         }

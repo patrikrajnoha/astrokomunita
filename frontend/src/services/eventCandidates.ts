@@ -6,6 +6,7 @@ export type CandidateType =
   | "eclipse_solar"
   | "meteor_shower"
   | "planetary_event"
+  | "aurora"
   | "other";
 
 export type CandidateListItem = {

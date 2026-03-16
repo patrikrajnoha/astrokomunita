@@ -34,7 +34,7 @@ class EventSourceSeeder extends Seeder
                 'key' => EventSource::IMO->value,
                 'name' => EventSource::IMO->label(),
                 'base_url' => 'https://www.imo.net/resources/calendar/',
-                'is_enabled' => false,
+                'is_enabled' => true,
             ],
         ];
 
