@@ -122,7 +122,7 @@ export function useFeedListInteractions({
       await auth.csrf()
       await api.delete(`/posts/${post.id}`)
       currentFeed.value.items = currentFeed.value.items.filter((x) => x.id !== post.id)
-      toastSuccess('Prispevok bol zmazany.')
+      toastSuccess('Príspevok bol zmazaný.')
     } catch (e) {
       const status = e?.response?.status
       if (status === 401) currentFeed.value.err = 'Prihlas sa.'
@@ -137,10 +137,10 @@ export function useFeedListInteractions({
     if (!post?.id || !canDelete(post) || deleteLoadingId.value) return
 
     const approved = await confirm({
-      title: 'Zmazat prispevok?',
-      message: 'Tuto akciu uz nie je mozne vratit.',
-      confirmText: 'Zmazat',
-      cancelText: 'Zrusit',
+      title: 'Zmazať príspevok?',
+      message: 'Túto akciu už nie je možné vrátiť.',
+      confirmText: 'Zmazať',
+      cancelText: 'Zrušiť',
       variant: 'danger',
     })
 
@@ -187,7 +187,7 @@ export function useFeedListInteractions({
 
       loadFeed(true)
       currentFeed.value.err = ''
-      toastSuccess(wasPinned ? 'Prispevok bol odopnuty.' : 'Prispevok bol pripnuty.')
+      toastSuccess(wasPinned ? 'Príspevok bol odopnutý.' : 'Príspevok bol pripnutý.')
     } catch (e) {
       const status = e?.response?.status
       if (status === 401) currentFeed.value.err = 'Prihlas sa.'

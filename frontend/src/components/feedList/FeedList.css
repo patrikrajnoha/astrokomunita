@@ -1030,44 +1030,179 @@
 /* Report Modal */
 .report-modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-overlay);
+  inset: 0;
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: var(--space-5);
+  animation: reportOverlayIn 180ms ease both;
+}
+
+@keyframes reportOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .report-content {
   background: var(--color-card);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-  max-width: 400px;
+  border-radius: var(--radius-xl, 16px);
+  padding: 24px;
+  max-width: 420px;
   width: 100%;
-  max-height: 80vh;
+  max-height: 88vh;
   overflow-y: auto;
-  box-shadow: var(--shadow-medium);
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.35), 0 4px 16px rgb(0 0 0 / 0.2);
+  animation: reportContentIn 220ms cubic-bezier(0.34, 1.3, 0.64, 1) both;
+}
+
+@keyframes reportContentIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+/* Header */
+.report-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.report-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.12);
+  color: var(--color-danger);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.report-header-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .report-title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--color-text-primary);
-  margin-bottom: 16px;
+  margin: 0 0 2px;
   font-family: inherit;
+  line-height: 1.3;
 }
 
+.report-subtitle {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.report-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--motion-fast), color var(--motion-fast);
+  padding: 0;
+}
+
+.report-close:hover {
+  background: var(--interactive-hover);
+  color: var(--color-text-primary);
+}
+
+.report-close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Form */
 .report-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
+/* Reason radio cards */
+.report-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.report-reason-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color var(--motion-fast), background var(--motion-fast);
+  user-select: none;
+}
+
+.report-reason-option:hover {
+  background: var(--interactive-hover);
+  border-color: var(--color-border-strong, var(--color-border));
+}
+
+.report-reason-option.is-selected {
+  border-color: var(--color-accent);
+  background: rgb(var(--color-accent-rgb) / 0.07);
+}
+
+.report-reason-radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+.report-reason-icon {
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.report-reason-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.report-reason-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+/* Message field */
 .form-group {
   display: flex;
   flex-direction: column;
@@ -1075,33 +1210,34 @@
 }
 
 .form-label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--color-text-secondary);
 }
 
-.form-select,
-.form-textarea {
-  font-size: var(--font-size-md);
+.form-label-optional {
+  font-weight: 400;
+  opacity: 0.7;
 }
 
-.form-select:focus-visible,
+.form-textarea {
+  font-size: var(--font-size-sm);
+  resize: vertical;
+  min-height: 76px;
+  font-family: inherit;
+}
+
 .form-textarea:focus-visible {
   outline: none;
   border-color: rgb(var(--color-accent-rgb) / 0.8);
 }
 
-.form-textarea {
-  resize: vertical;
-  min-height: 80px;
-  font-family: inherit;
-}
-
+/* Actions */
 .report-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   justify-content: flex-end;
-  margin-top: 8px;
+  padding-top: 4px;
 }
 
 .reportBtn {
