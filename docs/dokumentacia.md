@@ -13,7 +13,13 @@ frontend zobrazuje feed, eventy, profil a dalsie casti aplikacie. backend poskyt
 3. po prvom starte stiahni ai model prikazom `docker compose exec ollama ollama pull mistral:latest`.
 4. otvor aplikaciu na `http://127.0.0.1` a api na `http://127.0.0.1:8001`.
 5. testovacie emaily najdes v mailpit ui na `http://127.0.0.1:8025` (smtp `mailpit:1025` v docker sieti).
-6. zastavenie prostredia: `docker compose down`.
+6. databazu si mozes pozriet cez adminer na `http://127.0.0.1:8086` (server `mysql`, user `astro`, heslo `astro`, databaza `astrokomunita`).
+7. zastavenie prostredia: `docker compose down`.
+
+poznamka k bezpecnosti:
+- compose porty su viazane len na `127.0.0.1`, aby sa dev stack omylom nevystavil do siete.
+- interne sluzby `sky` a `moderation` nie su mapovane na host port; backend ich vola iba cez docker network.
+- ak chces stack spustat mimo lokalneho developmentu, zmen vsetky defaultne hesla a tokeny (`astro`, `root`, `change-me`) este pred prvym startom.
 
 ## lokalne emaily (mailpit)
 
