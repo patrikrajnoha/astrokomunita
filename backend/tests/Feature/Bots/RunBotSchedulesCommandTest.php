@@ -5,6 +5,7 @@ namespace Tests\Feature\Bots;
 use App\Enums\BotSourceType;
 use App\Models\BotSchedule;
 use App\Models\BotSource;
+use App\Models\BotRun;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
@@ -48,10 +49,11 @@ class RunBotSchedulesCommandTest extends TestCase
             $source->url => Http::response($this->singleItemRss(), 200, ['Content-Type' => 'application/rss+xml']),
         ]);
 
+        $initialRunCount = BotRun::query()->count();
         $exitCode = Artisan::call('bots:schedules:run', ['--limit' => 20]);
 
         $this->assertSame(0, $exitCode);
-        $this->assertDatabaseCount('bot_runs', 1);
+        $this->assertSame($initialRunCount + 1, BotRun::query()->count());
 
         $dueSchedule->refresh();
         $futureSchedule->refresh();
@@ -79,10 +81,11 @@ class RunBotSchedulesCommandTest extends TestCase
             'next_run_at' => now()->subMinute(),
         ]);
 
+        $initialRunCount = BotRun::query()->count();
         $exitCode = Artisan::call('bots:schedules:run', ['--limit' => 20]);
 
         $this->assertSame(0, $exitCode);
-        $this->assertDatabaseCount('bot_runs', 0);
+        $this->assertSame($initialRunCount, BotRun::query()->count());
 
         $disabledSchedule->refresh();
         $this->assertNull($disabledSchedule->last_run_at);
@@ -91,12 +94,22 @@ class RunBotSchedulesCommandTest extends TestCase
 
     private function createBotUser(string $username): User
     {
-        return User::factory()->create([
+        $user = User::query()->firstOrNew([
+            'username' => $username,
+        ]);
+
+        $user->forceFill([
+            'name' => (string) ($user->name ?: ucfirst(str_replace('bot', '', $username))),
+            'email' => null,
+            'password' => $user->password ?: 'secret',
             'is_bot' => true,
             'role' => User::ROLE_BOT,
-            'username' => $username,
-            'email' => null,
-        ]);
+            'is_active' => true,
+            'is_admin' => false,
+            'requires_email_verification' => false,
+        ])->save();
+
+        return $user->fresh() ?? $user;
     }
 
     private function createSource(string $key, string $identity = 'kozmo'): BotSource
@@ -130,4 +143,3 @@ class RunBotSchedulesCommandTest extends TestCase
 XML;
     }
 }
-
