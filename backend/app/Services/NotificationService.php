@@ -70,18 +70,21 @@ class NotificationService
 
     public function createEventReminder(int $recipientId, int $eventId, string $remindAtWindowKey): ?Notification
     {
-        if (!$this->shouldDeliverInApp($recipientId, 'event_reminder')) {
+        $event = Event::query()->select(['id', 'title', 'type', 'start_at', 'max_at'])->find($eventId);
+        if (!$event) {
+            return null;
+        }
+
+        if (!NotificationPreference::allowsEventReminderInAppForType(
+            $this->inAppPreferencesForUser($recipientId),
+            $event->type,
+        )) {
             return null;
         }
 
         $hash = sha1('event_reminder|' . $recipientId . '|' . $eventId . '|' . $remindAtWindowKey);
 
         if (NotificationEvent::query()->where('hash', $hash)->exists()) {
-            return null;
-        }
-
-        $event = Event::query()->select(['id', 'title', 'start_at', 'max_at'])->find($eventId);
-        if (!$event) {
             return null;
         }
 
@@ -353,12 +356,20 @@ class NotificationService
 
     private function shouldDeliverInApp(int $userId, string $preferenceKey): bool
     {
+        return (bool) ($this->inAppPreferencesForUser($userId)[$preferenceKey] ?? true);
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    private function inAppPreferencesForUser(int $userId): array
+    {
         if (!isset($this->inAppPreferenceCache[$userId])) {
             $preferences = NotificationPreference::ensureForUser($userId);
             $this->inAppPreferenceCache[$userId] = $preferences->inApp();
         }
 
-        return (bool) ($this->inAppPreferenceCache[$userId][$preferenceKey] ?? true);
+        return $this->inAppPreferenceCache[$userId];
     }
 
     private function broadcastNotification(Notification $notification): void

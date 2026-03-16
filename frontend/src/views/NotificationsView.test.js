@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import { buildNotificationPreferenceMap } from '@/constants/notificationPreferences'
 import NotificationsView from './NotificationsView.vue'
 
 const getMock = vi.hoisted(() => vi.fn())
 const postMock = vi.hoisted(() => vi.fn())
+const putMock = vi.hoisted(() => vi.fn())
 
 const notificationsStoreMock = vi.hoisted(() => ({
   items: [],
@@ -35,6 +37,7 @@ vi.mock('@/services/api', () => ({
   default: {
     get: getMock,
     post: postMock,
+    put: putMock,
   },
 }))
 
@@ -92,10 +95,23 @@ describe('NotificationsView', () => {
         }
       }
 
+      if (url === '/notification-preferences') {
+        return {
+          data: {
+            in_app: buildNotificationPreferenceMap(true),
+            email_enabled: false,
+            email: buildNotificationPreferenceMap(false),
+          },
+        }
+      }
+
       return { data: {} }
     })
 
     postMock.mockImplementation(async (_url, payload) => ({
+      data: payload,
+    }))
+    putMock.mockImplementation(async (_url, payload) => ({
       data: payload,
     }))
   })
@@ -112,6 +128,9 @@ describe('NotificationsView', () => {
     expect(document.body.textContent).toContain('Nastavenia notifikacii')
     expect(getMock).toHaveBeenCalledWith('/me/notifications/preferences', {
       meta: { requiresAuth: true, skipErrorToast: true },
+    })
+    expect(getMock).toHaveBeenCalledWith('/notification-preferences', {
+      meta: { requiresAuth: true },
     })
     expect(replaceSpy).toHaveBeenCalledWith({
       path: '/notifications',
@@ -152,6 +171,9 @@ describe('NotificationsView', () => {
     expect(getMock).toHaveBeenCalledWith('/me/notifications/preferences', {
       meta: { requiresAuth: true, skipErrorToast: true },
     })
+    expect(getMock).toHaveBeenCalledWith('/notification-preferences', {
+      meta: { requiresAuth: true },
+    })
     expect(replaceSpy).not.toHaveBeenCalledWith({
       path: '/notifications',
       query: {},
@@ -167,6 +189,35 @@ describe('NotificationsView', () => {
     expect(notificationsStoreMock.fetchList).toHaveBeenCalledWith(1)
     expect(notificationsStoreMock.fetchUnreadCount).not.toHaveBeenCalled()
     expect(getMock).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('shows event reminder categories and saves email toggles for them', async () => {
+    const { wrapper } = await mountView()
+
+    await wrapper.get('[data-testid="open-notification-settings"]').trigger('click')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Pripomienky udalosti')
+    expect(document.body.textContent).toContain('Meteory a roje')
+    expect(document.body.textContent).toContain('Zatmenia')
+
+    await document.body.querySelector('[data-testid="delivery-email-event_reminder_meteors"]').click()
+    await flush()
+
+    expect(putMock).toHaveBeenCalledWith('/notification-preferences', expect.objectContaining({
+      email_enabled: true,
+      email: expect.objectContaining({
+        event_reminder_meteors: true,
+      }),
+      in_app: expect.objectContaining({
+        event_reminder: true,
+      }),
+    }), {
+      meta: { requiresAuth: true },
+    })
 
     wrapper.unmount()
   })

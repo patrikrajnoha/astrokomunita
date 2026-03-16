@@ -70,6 +70,11 @@
 import { reactive, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import {
+  ALL_NOTIFICATION_PREFERENCE_KEYS,
+  buildNotificationPreferenceMap,
+  normalizeNotificationPreferenceMap,
+} from '@/constants/notificationPreferences'
 import { getNotificationPreferences, updateNotificationPreferences } from '@/services/notificationPreferences'
 
 const props = defineProps({
@@ -84,19 +89,12 @@ const emit = defineEmits(['close', 'saved'])
 const auth = useAuthStore()
 const toast = useToast()
 
-const notificationTypes = [
-  { key: 'post_like', label: 'Niekto lajkol vas prispevok' },
-  { key: 'post_comment', label: 'Niekto okomentoval vas prispevok' },
-  { key: 'reply', label: 'Niekto odpovedal na vas komentar' },
-  { key: 'event_reminder', label: 'Pripomienka udalosti (aby ste ju nezmeskali)' },
-  { key: 'system', label: 'Systemove oznamenia' },
-]
+const notificationTypes = ALL_NOTIFICATION_PREFERENCE_KEYS.map((key) => ({
+  key,
+  label: key,
+}))
 
-const defaultInApp = () =>
-  notificationTypes.reduce((acc, item) => {
-    acc[item.key] = true
-    return acc
-  }, {})
+const defaultInApp = () => buildNotificationPreferenceMap(true)
 
 const form = reactive({
   in_app: defaultInApp(),
@@ -112,13 +110,7 @@ const state = reactive({
 const close = () => emit('close')
 
 const normalizeInApp = (raw) => {
-  const fallback = defaultInApp()
-  if (!raw || typeof raw !== 'object') return fallback
-
-  return notificationTypes.reduce((acc, item) => {
-    acc[item.key] = typeof raw[item.key] === 'boolean' ? raw[item.key] : true
-    return acc
-  }, {})
+  return normalizeNotificationPreferenceMap(raw, true)
 }
 
 const load = async () => {

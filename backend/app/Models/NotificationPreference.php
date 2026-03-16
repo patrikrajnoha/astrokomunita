@@ -7,11 +7,39 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class NotificationPreference extends Model
 {
+    public const EVENT_REMINDER_TYPE_KEYS = [
+        'event_reminder_meteors',
+        'event_reminder_eclipses',
+        'event_reminder_planetary',
+        'event_reminder_small_bodies',
+        'event_reminder_aurora',
+        'event_reminder_space',
+        'event_reminder_observing',
+    ];
+
+    public const EVENT_REMINDER_TYPE_MAP = [
+        'meteors' => 'event_reminder_meteors',
+        'meteor_shower' => 'event_reminder_meteors',
+        'eclipse' => 'event_reminder_eclipses',
+        'eclipse_lunar' => 'event_reminder_eclipses',
+        'eclipse_solar' => 'event_reminder_eclipses',
+        'conjunction' => 'event_reminder_planetary',
+        'planetary_event' => 'event_reminder_planetary',
+        'planet' => 'event_reminder_planetary',
+        'comet' => 'event_reminder_small_bodies',
+        'asteroid' => 'event_reminder_small_bodies',
+        'aurora' => 'event_reminder_aurora',
+        'space_event' => 'event_reminder_space',
+        'mission' => 'event_reminder_space',
+        'observation_window' => 'event_reminder_observing',
+    ];
+
     public const TYPE_KEYS = [
         'post_like',
         'post_comment',
         'reply',
         'event_reminder',
+        ...self::EVENT_REMINDER_TYPE_KEYS,
         'system',
     ];
 
@@ -65,6 +93,55 @@ class NotificationPreference extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public static function eventReminderTypeKey(?string $eventType): ?string
+    {
+        $normalized = strtolower(trim((string) $eventType));
+        if ($normalized === '') {
+            return null;
+        }
+
+        return self::EVENT_REMINDER_TYPE_MAP[$normalized] ?? null;
+    }
+
+    /**
+     * @param  array<string, bool>  $map
+     */
+    public static function allowsEventReminderInAppForType(array $map, ?string $eventType): bool
+    {
+        if (! (bool) ($map['event_reminder'] ?? true)) {
+            return false;
+        }
+
+        $typeKey = self::eventReminderTypeKey($eventType);
+
+        return $typeKey === null
+            ? true
+            : (bool) ($map[$typeKey] ?? true);
+    }
+
+    /**
+     * @param  array<string, bool>  $map
+     */
+    public static function allowsEventReminderEmailForType(
+        bool $emailEnabled,
+        array $map,
+        ?string $eventType,
+    ): bool {
+        if (! $emailEnabled) {
+            return false;
+        }
+
+        if (! (bool) ($map['event_reminder'] ?? false)) {
+            return false;
+        }
+
+        $typeKey = self::eventReminderTypeKey($eventType);
+
+        return $typeKey === null
+            ? true
+            : (bool) ($map[$typeKey] ?? false);
     }
 
     private function normalizeMap(mixed $value, bool $default): array
