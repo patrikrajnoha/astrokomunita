@@ -8,19 +8,19 @@
             <div class="headRight">
               <template v-if="isObservationMode">
                 <button type="button" class="ghost" :disabled="submitting" @click="switchToPostComposer">
-                  Spat na prispevok
+                  Späť na príspevok
                 </button>
               </template>
               <template v-else>
                 <button type="button" class="ghost" :disabled="submitting" @click="onDraftsClick">Koncepty</button>
                 <button type="button" class="primary" :disabled="isSubmitDisabled" @click="submit">
-                  {{ submitting ? 'Odosielam...' : 'Pridat' }}
+                  {{ submitting ? 'Odosielam...' : 'Pridať' }}
                 </button>
               </template>
             </div>
           </header>
 
-          <p id="composer-title" class="srOnly">Vytvorenie prispevku</p>
+          <p id="composer-title" class="srOnly">Vytvorenie príspevku</p>
           <p v-if="isPostMode && errorMessage" class="error">{{ errorMessage }}</p>
           <p v-else-if="isPostMode && submitBlockReason" class="error">{{ submitBlockReason }}</p>
 

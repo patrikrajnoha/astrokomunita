@@ -56,9 +56,9 @@
           v-else-if="!loading && items.length === 0"
           class="feed-empty-state"
           mode="empty"
-          :title="isBookmarksMode ? 'Ziadne ulozene prispevky' : 'Feed je zatial prazdny'"
-          :message="isBookmarksMode ? 'Uloz prispevok a zobrazime ho tu.' : 'Skus obnovit feed alebo sa vratit neskor.'"
-          :action-label="isBookmarksMode ? 'Preskumat' : 'Obnovit feed'"
+          :title="isBookmarksMode ? 'Žiadne uložené príspevky' : 'Feed je zatiaľ prázdny'"
+          :message="isBookmarksMode ? 'Uložiť príspevok a zobrazíme ho tu.' : 'Skús obnoviť feed alebo sa vrátiť neskôr.'"
+          :action-label="isBookmarksMode ? 'Preskúmať' : 'Obnoviť feed'"
           compact
           @action="handleEmptyAction"
         />
@@ -266,7 +266,7 @@
         <!-- Load more -->
         <div class="load-more">
           <button v-if="nextPageUrl" class="ui-btn ui-btn--secondary load-more-btn" :disabled="loading" @click="load(false)">
-            {{ loading ? 'Nacitavam...' : 'Nacitat dalsie' }}
+            {{ loading ? 'Načítavam...' : 'Načítať ďalšie' }}
           </button>
         </div>
       </template>
