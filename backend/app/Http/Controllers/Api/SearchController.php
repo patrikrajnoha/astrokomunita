@@ -10,6 +10,8 @@ use App\Models\Hashtag;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
+use App\Services\PostPayloadService;
+use App\Support\PublicUserPayload;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +19,12 @@ use Illuminate\Support\Carbon;
 
 class SearchController extends Controller
 {
+    public function __construct(
+        private readonly PublicUserPayload $publicUsers,
+        private readonly PostPayloadService $postPayloads,
+    ) {
+    }
+
     private function isKozmoOrStelaQuery(string $query): bool
     {
         $normalized = mb_strtolower(trim($query));
@@ -141,7 +149,10 @@ class SearchController extends Controller
             ->get();
 
         return response()->json([
-            'data' => $users,
+            'data' => $users
+                ->map(fn (User $user): ?array => $this->publicUsers->fromUser($user))
+                ->filter()
+                ->values(),
             'total' => $users->count(),
         ]);
     }
@@ -171,7 +182,10 @@ class SearchController extends Controller
             ->get();
 
         return response()->json([
-            'data' => $posts,
+            'data' => $this->postPayloads->serializeCollection(
+                $posts,
+                $this->resolveViewer($request)
+            )->values(),
             'total' => $posts->count(),
         ]);
     }
@@ -309,6 +323,7 @@ class SearchController extends Controller
             'limit' => 'nullable|integer|min:1|max:20',
         ]);
 
+        $viewer = $this->resolveViewer($request);
         $query = trim((string) $request->get('q', ''));
         $limit = max(1, min((int) $request->get('limit', 6), 20));
         $allowCommunityBots = $this->isKozmoOrStelaQuery($query);
@@ -390,8 +405,11 @@ class SearchController extends Controller
 
         return response()->json([
             'data' => [
-                'users' => $users,
-                'posts' => $posts,
+                'users' => $users
+                    ->map(fn (User $user): ?array => $this->publicUsers->fromUser($user))
+                    ->filter()
+                    ->values(),
+                'posts' => $this->postPayloads->serializeCollection($posts, $viewer)->values(),
                 'events' => EventResource::collection($events)->resolve(),
                 'articles' => $articles,
                 'hashtags' => $hashtags,
@@ -407,6 +425,7 @@ class SearchController extends Controller
             'limit_posts' => 'nullable|integer|min:1|max:12',
         ]);
 
+        $viewer = $this->resolveViewer($request);
         $eventsLimit = max(1, min((int) $request->get('limit_events', 9), 12));
         $postsLimit = max(1, min((int) $request->get('limit_posts', 3), 12));
         $last24h = Carbon::now()->subDay();
@@ -490,18 +509,26 @@ class SearchController extends Controller
             'data' => [
                 'trending' => [
                     'events' => EventResource::collection($topEvents->take(3))->resolve(),
-                    'posts' => $hotPosts->take(3)->values(),
+                    'posts' => $this->postPayloads->serializeCollection(
+                        $hotPosts->take(3)->values(),
+                        $viewer
+                    )->values(),
                 ],
                 'news' => [
-                    'posts' => $newsPosts,
+                    'posts' => $this->postPayloads->serializeCollection($newsPosts, $viewer)->values(),
                     'articles' => $newsArticles,
                 ],
                 'events' => [
                     'events' => EventResource::collection($topEvents)->resolve(),
-                    'posts' => $hotPosts,
+                    'posts' => $this->postPayloads->serializeCollection($hotPosts, $viewer)->values(),
                 ],
                 'keywords' => $keywords,
             ],
         ]);
+    }
+
+    private function resolveViewer(Request $request): ?User
+    {
+        return $request->user() ?? $request->user('sanctum');
     }
 }

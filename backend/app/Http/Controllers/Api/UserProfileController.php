@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\PollService;
 use App\Services\PostPayloadService;
+use App\Support\PublicUserPayload;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -13,6 +14,7 @@ class UserProfileController extends Controller
     public function __construct(
         private readonly PollService $polls,
         private readonly PostPayloadService $payloads,
+        private readonly PublicUserPayload $publicUsers,
     ) {
     }
 
@@ -42,7 +44,7 @@ class UserProfileController extends Controller
             return response()->json(['message' => 'Pouzivatel sa nenasiel.'], 404);
         }
 
-        return response()->json($user);
+        return response()->json($this->publicUsers->fromUser($user));
     }
 
     public function posts(Request $request, string $username)

@@ -7,12 +7,31 @@ use App\Models\Observation;
 use App\Models\Post;
 use App\Models\User;
 use App\Services\Storage\MediaStorageService;
+use App\Support\PublicUserPayload;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 class PostPayloadService
 {
+    /**
+     * @var list<string>
+     */
+    private const STRIPPED_POST_KEYS = [
+        'attachment_original_path',
+        'attachment_web_path',
+        'attachment_original_mime',
+        'attachment_web_mime',
+        'attachment_original_size',
+        'attachment_variants_json',
+        'attachment_moderation_summary',
+        'moderation_summary',
+        'source_uid',
+        'bot_item_id',
+        'hidden_reason',
+        'hidden_at',
+    ];
+
     /** @var array<int, array<string, mixed>|null> */
     private array $attachedEventCache = [];
 
@@ -23,13 +42,14 @@ class PostPayloadService
         private readonly PollService $polls,
         private readonly MediaStorageService $mediaStorage,
         private readonly ObservationPayloadService $observationPayloads,
+        private readonly PublicUserPayload $publicUsers,
     ) {
     }
 
     public function serializePost(Post $post, ?User $viewer = null): array
     {
         $data = $post->toArray();
-        $data = $this->ensurePostUserMediaUrls($data);
+        $data = $this->sanitizePostPayload($data);
         $data['poll'] = $this->polls->toPayload(
             $post->relationLoaded('poll') ? $post->getRelation('poll') : null,
             $viewer?->id
@@ -199,19 +219,20 @@ class PostPayloadService
      * @param array<string, mixed> $postData
      * @return array<string, mixed>
      */
-    private function ensurePostUserMediaUrls(array $postData): array
+    private function sanitizePostPayload(array $postData): array
     {
-        if (isset($postData['user']) && is_array($postData['user'])) {
-            $postData['user'] = $this->ensureUserMediaUrls($postData['user']);
+        foreach (self::STRIPPED_POST_KEYS as $key) {
+            unset($postData[$key]);
         }
 
-        if (
-            isset($postData['parent'])
-            && is_array($postData['parent'])
-            && isset($postData['parent']['user'])
-            && is_array($postData['parent']['user'])
-        ) {
-            $postData['parent']['user'] = $this->ensureUserMediaUrls($postData['parent']['user']);
+        if (isset($postData['user']) && is_array($postData['user'])) {
+            $postData['user'] = $this->publicUsers->fromArray($postData['user']);
+        }
+
+        foreach (['parent', 'root'] as $relationKey) {
+            if (isset($postData[$relationKey]) && is_array($postData[$relationKey])) {
+                $postData[$relationKey] = $this->sanitizePostPayload($postData[$relationKey]);
+            }
         }
 
         if (isset($postData['replies']) && is_array($postData['replies'])) {
@@ -220,37 +241,10 @@ class PostPayloadService
                     return $reply;
                 }
 
-                return $this->ensurePostUserMediaUrls($reply);
+                return $this->sanitizePostPayload($reply);
             }, $postData['replies']);
         }
 
         return $postData;
-    }
-
-    /**
-     * @param array<string, mixed> $userData
-     * @return array<string, mixed>
-     */
-    private function ensureUserMediaUrls(array $userData): array
-    {
-        $avatarUrl = trim((string) ($userData['avatar_url'] ?? ''));
-        $avatarPath = trim((string) ($userData['avatar_path'] ?? ''));
-        if ($avatarUrl === '' && $avatarPath !== '') {
-            $resolvedAvatar = $this->mediaStorage->absoluteUrl($avatarPath);
-            if (is_string($resolvedAvatar) && trim($resolvedAvatar) !== '') {
-                $userData['avatar_url'] = $resolvedAvatar;
-            }
-        }
-
-        $coverUrl = trim((string) ($userData['cover_url'] ?? ''));
-        $coverPath = trim((string) ($userData['cover_path'] ?? ''));
-        if ($coverUrl === '' && $coverPath !== '') {
-            $resolvedCover = $this->mediaStorage->absoluteUrl($coverPath);
-            if (is_string($resolvedCover) && trim($resolvedCover) !== '') {
-                $userData['cover_url'] = $resolvedCover;
-            }
-        }
-
-        return $userData;
     }
 }
