@@ -213,9 +213,7 @@ class BlogTagSuggestionService
         array $existingTagsByName,
         array $alreadyAttachedTagIds
     ): array {
-        $keys = array_keys($data);
-        sort($keys);
-        if ($keys !== ['tags']) {
+        if (! array_key_exists('tags', $data)) {
             return [
                 'valid' => false,
                 'tags' => [],
@@ -235,12 +233,6 @@ class BlogTagSuggestionService
 
         foreach (array_slice($tagsRaw, 0, self::MAX_TAG_SUGGESTIONS) as $row) {
             if (! is_array($row) || array_is_list($row)) {
-                continue;
-            }
-
-            $rowKeys = array_keys($row);
-            sort($rowKeys);
-            if ($rowKeys !== ['name', 'reason']) {
                 continue;
             }
 
@@ -297,9 +289,7 @@ class BlogTagSuggestionService
         array $alreadyAttachedTagNames = []
     ): array
     {
-        $keys = array_keys($data);
-        sort($keys);
-        if ($keys !== ['tags']) {
+        if (! array_key_exists('tags', $data)) {
             return [
                 'valid' => false,
                 'tags' => [],
@@ -327,12 +317,6 @@ class BlogTagSuggestionService
 
         foreach (array_slice($tagsRaw, 0, self::MAX_TAG_SUGGESTIONS) as $row) {
             if (! is_array($row) || array_is_list($row)) {
-                continue;
-            }
-
-            $rowKeys = array_keys($row);
-            sort($rowKeys);
-            if ($rowKeys !== ['name', 'reason']) {
                 continue;
             }
 
@@ -684,20 +668,20 @@ class BlogTagSuggestionService
         }
 
         return <<<PROMPT
-Uloha:
-- Vyber najrelevantnejsie EXISTUJUCE tagy pre Learn/Blog clanok.
-- Pouzi iba nazvy z pola existing_tags.
-- Nenavrhuj uz pripojene tagy z already_attached_tags.
-- Maximalne 5 tagov.
+Úloha:
+- Vyber najrelevantnejšie EXISTUJÚCE tagy pre Learn/Blog článok.
+- Použi iba názvy z poľa existing_tags.
+- Nenavrhuj už pripojené tagy z already_attached_tags.
+- Maximálne 5 tagov.
 
-Vrat STRICT JSON objekt presne v tvare:
+Vráť STRICT JSON objekt presne v tvare:
 {"tags":[{"name":"...","reason":"..."}]}
 
-Pravidla:
-- tags: pole 0 az 5 poloziek
-- name: presna zhoda s nazvom z existing_tags
-- reason: kratke zdovodnenie, max 120 znakov
-- bez markdownu, bez komentarov, bez dalsich klucov
+Pravidlá:
+- tags: pole 0 až 5 položiek
+- name: presná zhoda s názvom z existing_tags
+- reason: krátke zdôvodnenie, max 120 znakov
+- bez markdownu, bez komentárov, bez ďalších kľúčov
 
 Input JSON:
 {$inputJson}
@@ -735,20 +719,20 @@ PROMPT;
         }
 
         return <<<PROMPT
-Uloha:
-- Navrhni najrelevantnejsie tagy pre Learn/Blog clanok.
-- Mozes vybrat existujuci tag z existing_tags ALEBO navrhnut novy.
-- Nenavrhuj uz pripojene tagy z already_attached_tags.
-- Maximalne 5 tagov.
+Úloha:
+- Navrhni najrelevantnejšie tagy pre Learn/Blog článok.
+- Môžeš vybrať existujúci tag z existing_tags ALEBO navrhnúť nový.
+- Nenavrhuj už pripojené tagy z already_attached_tags.
+- Maximálne 5 tagov.
 
-Vrat STRICT JSON objekt presne v tvare:
+Vráť STRICT JSON objekt presne v tvare:
 {"tags":[{"name":"...","reason":"..."}]}
 
-Pravidla:
-- tags: pole 0 az 5 poloziek
-- name: kratky nazov tagu, max 40 znakov
-- reason: kratke zdovodnenie, max 120 znakov
-- bez markdownu, bez komentarov, bez dalsich klucov
+Pravidlá:
+- tags: pole 0 až 5 položiek
+- name: krátky názov tagu, max 40 znakov
+- reason: krátke zdôvodnenie, max 120 znakov
+- bez markdownu, bez komentárov, bez ďalších kľúčov
 
 Input JSON:
 {$inputJson}
@@ -772,20 +756,20 @@ PROMPT;
         }
 
         return <<<PROMPT
-Uloha:
-- Navrhni najrelevantnejsie tagy pre Learn/Blog clanok podla textu.
-- Tag ma byt kratky (1 az 3 slova), konkretny, bez znaku #.
-- Maximalne 5 tagov.
-- Nenavrhuj prilis vseobecne slova ako "clanok" alebo "obsah".
+Úloha:
+- Navrhni najrelevantnejšie tagy pre Learn/Blog článok podľa textu.
+- Tag má byť krátky (1 až 3 slová), konkrétny, bez znaku #.
+- Maximálne 5 tagov.
+- Nenavrhuj príliš všeobecné slová ako "článok" alebo "obsah".
 
-Vrat STRICT JSON objekt presne v tvare:
+Vráť STRICT JSON objekt presne v tvare:
 {"tags":[{"name":"...","reason":"..."}]}
 
-Pravidla:
-- tags: pole 0 az 5 poloziek
+Pravidlá:
+- tags: pole 0 až 5 položiek
 - name: max 40 znakov
-- reason: kratke zdovodnenie, max 120 znakov
-- bez markdownu, bez komentarov, bez dalsich klucov
+- reason: krátke zdôvodnenie, max 120 znakov
+- bez markdownu, bez komentárov, bez ďalších kľúčov
 
 Input JSON:
 {$inputJson}
@@ -794,17 +778,17 @@ PROMPT;
 
     private function systemPromptForExistingTags(): string
     {
-        return 'Si editor blogu. Vyberas len existujuce tagy, bez vymyslania novych.';
+        return 'Si editor blogu. Vyberáš len existujúce tagy, bez vymýšľania nových.';
     }
 
     private function systemPromptForOpenTags(): string
     {
-        return 'Si editor blogu. Navrhuj konkretne tagy podla textu clanku.';
+        return 'Si editor blogu. Navrhuj konkrétne tagy podľa textu článku.';
     }
 
     private function systemPromptForFlexibleTags(): string
     {
-        return 'Si editor blogu. Preferuj existujuce tagy, no mozes navrhnut aj nove.';
+        return 'Si editor blogu. Preferuj existujúce tagy, no môžeš navrhnúť aj nové.';
     }
 
     /**
@@ -875,8 +859,8 @@ PROMPT;
             }
 
             $reason = $matchedToken !== ''
-                ? sprintf('Tematicka zhoda so slovom "%s" v clanku.', $matchedToken)
-                : 'Tag sa priamo spomina v clanku.';
+                ? sprintf('Tematická zhoda so slovom "%s" v článku.', $matchedToken)
+                : 'Tag sa priamo spomína v článku.';
 
             $scored[] = [
                 'id' => $tagId,
@@ -891,7 +875,7 @@ PROMPT;
                 fn (array $row): array => [
                     'id' => (int) ($row['id'] ?? 0),
                     'name' => (string) ($row['name'] ?? ''),
-                    'reason' => 'Fallback navrh podla dostupnych tagov.',
+                    'reason' => 'Fallback návrh podľa dostupných tagov.',
                 ],
                 array_slice($availableTags, 0, self::MAX_TAG_SUGGESTIONS)
             ));
