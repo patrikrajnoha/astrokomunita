@@ -2,7 +2,34 @@ export const AVATAR_MODES = ['image', 'generated']
 
 export const AVATAR_COLORS = ['#fe8311', '#fed811', '#73df84', '#1185fe', '#ef75ea', '#f55454']
 
-export const AVATAR_ICONS = ['planet', 'star', 'comet', 'constellation', 'moon']
+export const AVATAR_ICONS = [
+  'planet',
+  'star',
+  'comet',
+  'constellation',
+  'moon',
+  'sun',
+  'galaxy',
+  'rocket',
+  'satellite',
+  'meteor',
+]
+
+export const AVATAR_ICON_LABELS = {
+  planet: 'Planeta',
+  star: 'Hviezda',
+  comet: 'Kometa',
+  constellation: 'Suhvezdie',
+  moon: 'Mesiac',
+  sun: 'Slnko',
+  galaxy: 'Galaxia',
+  rocket: 'Raketa',
+  satellite: 'Druzica',
+  meteor: 'Meteor',
+}
+
+// Keep the original deterministic icon pool stable for users without an explicit symbol choice.
+export const LEGACY_AVATAR_ICON_COUNT = 5
 
 export function hashAvatarString(value) {
   const text = String(value || '')

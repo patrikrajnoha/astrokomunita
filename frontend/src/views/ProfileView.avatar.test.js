@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import { AVATAR_ICONS } from '@/constants/avatar'
 import ProfileView from './ProfileView.vue'
 
 const authMock = vi.hoisted(() => ({
@@ -193,6 +194,9 @@ describe('ProfileView avatar panel', () => {
 
     const iconChoices = wrapper.findAll('.avatarIconGrid .avatarChoice')
     const colorChoices = wrapper.findAll('.avatarColorGrid .avatarChoice')
+
+    expect(iconChoices).toHaveLength(AVATAR_ICONS.length)
+
     await iconChoices[2].trigger('click')
     await colorChoices[4].trigger('click')
 
