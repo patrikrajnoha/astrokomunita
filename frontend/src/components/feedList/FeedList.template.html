@@ -234,12 +234,12 @@
                 >
                   <div class="file-icon" aria-hidden="true">&#128206;</div>
                   <div class="file-info">
-                    <div class="file-title">Pr�loha</div>
+                    <div class="file-title">Pr�loha</div>
                     <div class="file-name">
-                      {{ p.attachment_original_name || 'S�bor' }}
+                      {{ p.attachment_original_name || 'S�bor' }}
                     </div>
                   </div>
-                  <div class="file-arrow">�</div>
+                  <div class="file-arrow">�</div>
                 </a>
               </div>
 
@@ -272,31 +272,60 @@
       </template>
     </section>
     <!-- Report modal -->
-    <div v-if="reportTarget" class="report-modal" @click.stop>
-      <div class="report-content">
-        <h3 class="report-title">Nahlasit prispevok</h3>
-        <div class="report-form">
-          <div class="form-group">
-            <label class="form-label">Dovod</label>
-            <select v-model="reportReason" class="ui-select form-select">
-              <option value="spam">Spam</option>
-              <option value="abuse">Nevhodny obsah</option>
-              <option value="misinfo">Dezinformacie</option>
-              <option value="other">Ine</option>
-            </select>
+    <div v-if="reportTarget" class="report-modal" @click.self="closeReport">
+      <div class="report-content" role="dialog" aria-modal="true" aria-labelledby="report-dialog-title">
+        <div class="report-header">
+          <div class="report-header-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+            </svg>
           </div>
+          <div class="report-header-text">
+            <h3 class="report-title" id="report-dialog-title">Nahlásiť príspevok</h3>
+            <p class="report-subtitle">Pomôžeš nám udržiavať komunitu bezpečnou.</p>
+          </div>
+          <button class="report-close" type="button" aria-label="Zavrieť" @click="closeReport">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="report-form">
+          <div class="report-reasons" role="radiogroup" aria-label="Dôvod nahlásiia">
+            <label
+              v-for="opt in reportOptions"
+              :key="opt.value"
+              class="report-reason-option"
+              :class="{ 'is-selected': reportReason === opt.value }"
+            >
+              <input type="radio" :value="opt.value" v-model="reportReason" class="report-reason-radio" />
+              <span class="report-reason-icon" aria-hidden="true">{{ opt.icon }}</span>
+              <span class="report-reason-label">{{ opt.label }}</span>
+              <span v-if="reportReason === opt.value" class="report-reason-check" aria-hidden="true">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </span>
+            </label>
+          </div>
+
           <div class="form-group">
-            <label class="form-label">Sprava (volitelne)</label>
+            <label class="form-label" for="report-message">
+              Správa <span class="form-label-optional">(voliteľné)</span>
+            </label>
             <textarea
+              id="report-message"
               v-model="reportMessage"
               class="ui-textarea form-textarea"
               rows="3"
-              placeholder="Popis..."
+              placeholder="Opíš problém podrobnejšie..."
             ></textarea>
           </div>
+
           <div class="report-actions">
-            <button class="ui-btn ui-btn--ghost reportBtn" type="button" @click="closeReport">Zrusit</button>
-            <button class="ui-btn ui-btn--primary reportBtn" type="button" @click="submitReport">Odoslat</button>
+            <button class="ui-btn ui-btn--ghost reportBtn" type="button" @click="closeReport">Zrušiť</button>
+            <button class="ui-btn ui-btn--primary reportBtn" type="button" @click="submitReport">Nahlásiť</button>
           </div>
         </div>
       </div>

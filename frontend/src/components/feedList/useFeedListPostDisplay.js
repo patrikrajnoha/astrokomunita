@@ -135,7 +135,7 @@ export function useFeedListPostDisplay({
 
     return {
       id: fallbackId,
-      title: `Udalost #${fallbackId}`,
+      title: `Udalosť #${fallbackId}`,
       start_at: null,
       end_at: null,
     }
@@ -166,17 +166,17 @@ export function useFeedListPostDisplay({
     }
 
     if (canDelete(post)) {
-      items.push({ key: 'delete', label: 'Zmazat', danger: true })
+      items.push({ key: 'delete', label: 'Zmazať', danger: true })
     }
 
     if (canEditTranslatedVariant(post)) {
-      items.push({ key: 'edit', label: 'Upravit', danger: false })
+      items.push({ key: 'edit', label: 'Upraviť', danger: false })
     }
 
     if (auth.user?.is_admin && !isBotPost(post)) {
       items.push({
         key: 'pin',
-        label: post?.pinned_at ? 'Odopnut' : 'Pripnut',
+        label: post?.pinned_at ? 'Odopnúť' : 'Pripnúť',
         danger: false,
       })
     }
