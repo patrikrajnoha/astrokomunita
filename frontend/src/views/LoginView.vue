@@ -57,7 +57,7 @@
               </svg>
             </template>
             <template #labelAction>
-              <RouterLink :to="forgotPasswordLink" class="authInlineLink">Zabudnute?</RouterLink>
+              <RouterLink :to="forgotPasswordLink" class="authInlineLink">Zabudli ste heslo?</RouterLink>
             </template>
           </AuthField>
 

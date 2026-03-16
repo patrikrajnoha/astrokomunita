@@ -10,7 +10,7 @@
     <AsyncState
       v-if="!auth.initialized"
       mode="loading"
-      title="Nacitavam profil"
+      title="Načítavam profil"
       loading-style="skeleton"
       :skeleton-rows="4"
       compact
@@ -20,9 +20,9 @@
       <AsyncState
         v-if="!auth.user"
         mode="empty"
-        title="Profil je dostupny po prihlaseni"
-        message="Prihlas sa a uvidis svoje prispevky, pozorovania, media a zalozky."
-        action-label="Prihlasit sa"
+        title="Profil je dostupný po prihlásení"
+        message="Prihlas sa a uvidíš svoje príspevky, pozorovania, médiá a záložky."
+        action-label="Prihlásiť sa"
         compact
         @action="goLogin"
       />
@@ -44,7 +44,7 @@
             :disabled="coverUploading"
             @click="openPicker('cover')"
           >
-            {{ coverUploading ? 'Nahravam...' : 'Zmenit titulnu fotku' }}
+            {{ coverUploading ? 'Nahrávam...' : 'Zmeniť titulnú fotku' }}
           </button>
           <input
             ref="coverInput"
@@ -72,7 +72,7 @@
               type="button"
               class="mediaBtn avatarBtn avatarEditTrigger"
               :disabled="avatarUploading || avatarRemoving"
-              aria-label="Upravit profilovy avatar"
+              aria-label="Upraviť profilový avatar"
               @click.stop="openAvatarEditor"
             >
               <svg class="avatarBtnIcon" viewBox="0 0 24 24" aria-hidden="true">
@@ -90,7 +90,7 @@
               class="ui-btn ui-btn--secondary"
               @click="goToProfileEdit"
             >
-              Upravit profil
+              Upraviť profil
             </button>
             <button class="ui-btn ui-btn--ghost copyBtn" @click="copyProfileLink">{{ copyLabel }}</button>
           </div>
@@ -117,13 +117,13 @@
           <div class="handle">@{{ handle }}</div>
 
           <p v-if="auth.user?.bio" class="bio">{{ auth.user.bio }}</p>
-          <p v-else class="bio muted">Zatial bez popisu.</p>
+          <p v-else class="bio muted">Zatiaľ bez popisu.</p>
         </div>
 
         <div class="statsRow ui-profile-stats" aria-label="Profilove statistiky">
           <div class="stat ui-profile-stat">
             <strong>{{ stats.posts }}</strong>
-            <span>Prispevky</span>
+            <span>Príspevky</span>
           </div>
           <div class="stat ui-profile-stat">
             <strong>{{ tabState.observations.total || '--' }}</strong>
@@ -131,7 +131,7 @@
           </div>
           <div class="stat ui-profile-stat">
             <strong>{{ tabState.events.total || '--' }}</strong>
-            <span>Sledovane udalosti</span>
+            <span>Sledované udalosti</span>
           </div>
         </div>
 
@@ -140,7 +140,7 @@
       <BaseModal
         v-if="auth.user"
         v-model:open="profileEditModalOpen"
-        title="Upravit profil"
+        title="Upraviť profil"
         test-id="profile-edit-modal"
         close-test-id="close-profile-edit-modal"
         compact
@@ -151,16 +151,16 @@
       <BaseModal
         v-if="auth.user"
         v-model:open="avatarModalOpen"
-        title="Upravit profilovy avatar"
+        title="Upraviť profilový avatar"
         test-id="profile-avatar-modal"
         close-test-id="close-profile-avatar-modal"
       >
         <template #description>
-          <p class="avatarCardSub avatarModalSub">Vyber si fotku alebo personalizovany avatar.</p>
+          <p class="avatarCardSub avatarModalSub">Vyber si fotku alebo personalizovaný avatar.</p>
         </template>
 
         <div class="avatarEditorBody">
-          <div class="avatarModeSwitch" role="tablist" aria-label="Rezim profiloveho avatara">
+          <div class="avatarModeSwitch" role="tablist" aria-label="Režim profilového avatara">
             <button
               type="button"
               class="modeBtn"
@@ -194,7 +194,7 @@
                 :alt="`${displayName} avatar`"
               />
             </div>
-            <p class="avatarHint">Pri mode Fotka bez obrazka ostava fallback avatar.</p>
+            <p class="avatarHint">Pri móde Fotka bez obrázka ostáva fallback avatar.</p>
           </div>
 
           <InlineStatus v-if="avatarErr" variant="error" :message="avatarErr" class="avatarMsg" />
@@ -207,7 +207,7 @@
                 :disabled="avatarUploading || avatarRemoving"
                 @click="openPicker('avatar')"
               >
-                {{ avatarUploading ? 'Nahravam...' : 'Nahrat fotku' }}
+                {{ avatarUploading ? 'Nahrávam...' : 'Nahrať fotku' }}
               </button>
               <button
                 type="button"
@@ -215,7 +215,7 @@
                 :disabled="avatarUploading || avatarRemoving"
                 @click="removeAvatarImage"
               >
-                {{ avatarRemoving ? 'Odstranujem...' : 'Odstranit fotku' }}
+                {{ avatarRemoving ? 'Odstraňujem...' : 'Odstrániť fotku' }}
               </button>
               <input
                 ref="avatarInput"
@@ -225,7 +225,7 @@
                 @change="onMediaChange('avatar', $event)"
               />
             </div>
-            <p class="avatarHint">Odporucana velkost: aspon 512x512 px, JPG/PNG/WebP, max 3 MB.</p>
+            <p class="avatarHint">Odporúčaná veľkosť: aspoň 512×512 px, JPG/PNG/WebP, max 3 MB.</p>
           </template>
 
           <template v-else>
@@ -271,20 +271,20 @@
 
             <div class="avatarActionRow">
               <button type="button" class="ui-btn ui-btn--secondary" :disabled="avatarSaving" @click="randomizeAvatar">
-                Nahodne
+                Náhodne
               </button>
               <button type="button" class="ui-btn ui-btn--ghost" :disabled="avatarSaving" @click="resetGeneratedAvatar">
-                Reset
+                Resetovať
               </button>
             </div>
           </template>
 
           <div class="avatarActionRow avatarActionRowSave">
             <button type="button" class="ui-btn ui-btn--ghost" :disabled="avatarSaving" @click="avatarModalOpen = false">
-              Zavriet
+              Zavrieť
             </button>
             <button type="button" class="ui-btn ui-btn--primary" :disabled="avatarSaving" @click="saveAvatarPreferences">
-              {{ avatarSaving ? 'Ukladam...' : 'Ulozit' }}
+              {{ avatarSaving ? 'Ukladám...' : 'Uložiť' }}
             </button>
           </div>
         </div>
@@ -292,13 +292,13 @@
 
       <section v-if="pinnedPost" class="card pinCard">
         <div class="pinHeader">
-          <div class="pinTitle">Pripnuty prispevok</div>
+          <div class="pinTitle">Pripnutý príspevok</div>
           <button
             class="ui-btn ui-btn--ghost"
             :disabled="pinLoadingId === pinnedPost.id"
             @click="togglePin(pinnedPost)"
           >
-            {{ pinLoadingId === pinnedPost.id ? 'Odopinam...' : 'Odopnut' }}
+            {{ pinLoadingId === pinnedPost.id ? 'Odopínam...' : 'Odopnúť' }}
           </button>
         </div>
         <div class="pinBody">
@@ -341,14 +341,14 @@
           v-if="tabState[activeTab].err"
           variant="error"
           :message="tabState[activeTab].err"
-          action-label="Skusit znova"
+          action-label="Skúsiť znova"
           @action="loadTab(activeTab, true)"
         />
 
         <AsyncState
           v-if="shouldShowLoadingState"
           mode="loading"
-          title="Nacitavam obsah"
+          title="Načítavam obsah"
           loading-style="skeleton"
           :skeleton-rows="4"
           compact
@@ -428,7 +428,7 @@
                 </div>
 
                 <div v-if="p.parent && activeTab === 'replies'" class="replyContext">
-                  Odpoved na: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
+                  Odpoveď na: <span class="replyAuthor">@{{ parentHandle(p) }}</span>
                   <span class="replyText">{{ shorten(p.parent.content) }}</span>
                 </div>
 
@@ -466,20 +466,20 @@
                   <button
                     class="postActionIconBtn"
                     type="button"
-                    title="Zobrazit vlakno"
-                    aria-label="Zobrazit vlakno"
+                    title="Zobraziť vlákno"
+                    aria-label="Zobraziť vlákno"
                     @click.stop="openPost(p)"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 8.3 8.3 0 0 1-3.6-.8L3 21l1.8-5.8a8.3 8.3 0 0 1-.8-3.7A8.5 8.5 0 0 1 12.5 3h.5A8.5 8.5 0 0 1 21 11.5z" />
                     </svg>
-                    <span class="postActionLabel">Zobrazit vlakno</span>
+                    <span class="postActionLabel">Zobraziť vlákno</span>
                   </button>
                   <div class="postActionsMore" @click.stop>
                     <DropdownMenu
                       :items="profilePostMenuItems(p)"
-                      label="Dalsie akcie"
-                      menu-label="Akcie prispevku"
+                      label="Ďalšie akcie"
+                      menu-label="Akcie príspevku"
                       @select="(item) => onProfilePostMenuSelect(item, p)"
                     >
                       <template #trigger>
@@ -503,7 +503,7 @@
             :disabled="tabState[activeTab].loading"
             @click="loadTab(activeTab, false)"
           >
-            {{ tabState[activeTab].loading ? 'Nacitavam...' : 'Nacitat viac' }}
+            {{ tabState[activeTab].loading ? 'Načítavam...' : 'Načítať viac' }}
           </button>
         </div>
       </section>

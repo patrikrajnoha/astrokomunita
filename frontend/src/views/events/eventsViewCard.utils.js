@@ -1,6 +1,27 @@
 import { EVENT_TIMEZONE, formatEventDate, resolveEventTimeContext } from '@/utils/eventTime'
 import { eventDisplayShort, eventDisplayTitle } from '@/utils/translatedFields'
 
+const STAR_NAMES = new Set([
+  'Regulus', 'Pollux', 'Castor', 'Spica', 'Antares', 'Aldebaran',
+  'Arcturus', 'Sirius', 'Vega', 'Deneb', 'Altair', 'Betelgeuse',
+  'Rigel', 'Capella', 'Procyon', 'Canopus', 'Fomalhaut', 'Achernar',
+  'Algol', 'Mira', 'Elnath', 'Mimosa', 'Hadar', 'Acrux', 'Gacrux',
+  'Alnilam', 'Alnitak', 'Mintaka', 'Bellatrix', 'Saiph', 'Nunki',
+  'Zubenelgenubi', 'Zubeneschamali', 'Alpheratz', 'Mirfak', 'Algenib',
+  'Menkar', 'Menkib', 'Sheratan', 'Hamal', 'Almach', 'Mirach',
+])
+
+export function prependStarLabel(title) {
+  if (!title || title === '-') return title
+  const firstWord = title.split(/[\s,°]/)[0]
+  if (STAR_NAMES.has(firstWord)) return `Hviezda ${title}`
+  return title
+}
+
+export function formatEventCardTitle(eventItem) {
+  return prependStarLabel(eventDisplayTitle(eventItem))
+}
+
 export function regionLabel(region) {
   const map = { sk: 'Slovensko', eu: 'Europa', global: 'Globalne' }
   return map[region] || region || '-'
@@ -9,16 +30,17 @@ export function regionLabel(region) {
 export function typeLabel(type) {
   const map = {
     meteors: 'Meteory',
-    meteor_shower: 'Meteoricky roj',
+    meteor_shower: 'Meteorický roj',
     eclipse: 'Zatmenie',
     eclipse_lunar: 'Zatmenie (L)',
     eclipse_solar: 'Zatmenie (S)',
     conjunction: 'Konjunkcia',
-    planetary_event: 'Planetarny ukaz',
-    comet: 'Kometa',
+    planetary_event: 'Planetárny úkaz',
+    aurora: 'Polárna žiara',
+    comet: 'Kométa',
     asteroid: 'Asteroid',
     mission: 'Misia',
-    other: 'Ine',
+    other: 'Iné',
   }
 
   return map[type] || type
@@ -149,6 +171,13 @@ function resolveEventTypePresentation(eventItem) {
     return {
       icon: '🛰️',
       label: 'Asteroid',
+    }
+  }
+
+  if (type === 'aurora' || title.includes('aurora') || title.includes('polarna ziara')) {
+    return {
+      icon: '🌌',
+      label: 'Polarna ziara',
     }
   }
 

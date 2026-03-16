@@ -1,10 +1,10 @@
 <div class="wrap">
   <section class="card">
     <header class="top">
-      <router-link class="back" to="/">
+      <button class="back" type="button" @click="goBack">
         <span aria-hidden="true">&larr;</span>
-        <span>Spat na feed</span>
-      </router-link>
+        <span>Spat</span>
+      </button>
     </header>
 
     <AsyncState
@@ -36,10 +36,10 @@
         <div class="postMain">
           <div class="postHead">
             <div class="postIdentity">
-              <button class="name linkBtn" type="button" @click="openProfile(root?.user)">
-                {{ root?.user?.name ?? 'Pouzivatel' }}
-              </button>
-              <div class="meta">
+              <div class="nameRow">
+                <button class="name linkBtn" type="button" @click="openProfile(root?.user)">
+                  {{ root?.user?.name ?? 'Pouzivatel' }}
+                </button>
                 <span v-if="root?.user?.username" class="userHandle">@{{ root.user.username }}</span>
                 <span class="nameTime">{{ fmt(root?.created_at) }}</span>
                 <span v-if="isBotPost(root)" class="botVerifiedBadge">BOT</span>
@@ -47,7 +47,7 @@
             </div>
           </div>
 
-          <div class="postText">
+          <div class="postText postTextRoot">
             <template v-if="isEditingPost(root)">
               <textarea
                 v-model="editContentDraft"
@@ -119,16 +119,18 @@
               target="_blank"
               rel="noopener"
             >
-              <div class="fileIcon">[file]</div>
+              <div class="fileIcon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
               <div class="fileInfo">
                 <div class="fileTitle">Priloha</div>
                 <div class="fileName">
                   {{ root?.attachment_original_name || 'Subor' }}
                 </div>
               </div>
-              <div class="fileArrow">-></div>
+              <div class="fileArrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
             </a>
           </div>
+
+          <div v-if="reportNotice" class="reportNoticeInline">{{ reportNotice }}</div>
 
           <PostActionBar
             v-if="root"
@@ -186,10 +188,10 @@
             <div class="replyMain">
               <div class="replyHead">
                 <div class="replyHeadMain">
-                  <button class="name linkBtn" type="button" @click="openProfile(r?.user)">
-                    {{ r?.user?.name ?? 'Pouzivatel' }}
-                  </button>
-                  <div class="meta">
+                  <div class="nameRow">
+                    <button class="name linkBtn" type="button" @click="openProfile(r?.user)">
+                      {{ r?.user?.name ?? 'Pouzivatel' }}
+                    </button>
                     <span v-if="r?.user?.username" class="userHandle">@{{ r.user.username }}</span>
                     <span class="nameTime">{{ fmt(r?.created_at) }}</span>
                   </div>
@@ -256,14 +258,14 @@
                   target="_blank"
                   rel="noopener"
                 >
-                  <div class="fileIcon">[file]</div>
+                  <div class="fileIcon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
                   <div class="fileInfo">
                     <div class="fileTitle">Priloha</div>
                     <div class="fileName">
                       {{ r.attachment_original_name || 'Subor' }}
                     </div>
                   </div>
-                  <div class="fileArrow">-></div>
+                  <div class="fileArrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
                 </a>
               </div>
 
@@ -299,10 +301,10 @@
                   <div class="replyMain">
                     <div class="replyHead">
                       <div class="replyHeadMain">
-                        <button class="name linkBtn" type="button" @click="openProfile(c?.user)">
-                          {{ c?.user?.name ?? 'Pouzivatel' }}
-                        </button>
-                        <div class="meta">
+                        <div class="nameRow">
+                          <button class="name linkBtn" type="button" @click="openProfile(c?.user)">
+                            {{ c?.user?.name ?? 'Pouzivatel' }}
+                          </button>
                           <span v-if="c?.user?.username" class="userHandle">@{{ c.user.username }}</span>
                           <span class="nameTime">{{ fmt(c?.created_at) }}</span>
                         </div>
@@ -369,14 +371,14 @@
                         target="_blank"
                         rel="noopener"
                       >
-                        <div class="fileIcon">[file]</div>
+                        <div class="fileIcon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
                         <div class="fileInfo">
                           <div class="fileTitle">Priloha</div>
                           <div class="fileName">
                             {{ c.attachment_original_name || 'Subor' }}
                           </div>
                         </div>
-                        <div class="fileArrow">-></div>
+                        <div class="fileArrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
                       </a>
                     </div>
                   </div>
@@ -386,10 +388,6 @@
           </article>
         </div>
       </section>
-    </div>
-
-    <div v-if="reportNotice" class="reportNotice">
-      {{ reportNotice }}
     </div>
 
     <div v-if="reportTarget" class="reportBox">

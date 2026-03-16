@@ -33,6 +33,7 @@
   font-size: 0.84rem;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .back:hover {
@@ -135,6 +136,14 @@
   overflow-wrap: anywhere;
 }
 
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .meta {
   margin-top: 0.18rem;
   display: flex;
@@ -152,6 +161,19 @@
 
 .nameTime {
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.viewCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.8);
+  font-size: 0.78rem;
+}
+
+.viewCount svg {
+  flex-shrink: 0;
+  opacity: 0.75;
 }
 
 .botVerifiedBadge {
@@ -177,6 +199,11 @@
   overflow-wrap: anywhere;
   line-height: 1.56;
   font-size: 0.98rem;
+}
+
+.postTextRoot {
+  font-size: 1.08rem;
+  line-height: 1.6;
 }
 
 .inlineEditTextarea {
@@ -307,8 +334,7 @@
 }
 
 .replies {
-  border-top: 1px solid rgb(var(--color-bg-light-rgb) / 0.5);
-  padding-top: 0.85rem;
+  padding-top: 0.1rem;
 }
 
 .repliesHead {
@@ -437,9 +463,15 @@
   background: rgb(var(--color-primary-rgb) / 0.14);
 }
 
-.reportNotice {
-  color: rgb(var(--color-text-secondary-rgb) / 0.96);
-  font-size: 0.84rem;
+.reportNoticeInline {
+  margin-top: 0.5rem;
+  padding: 0.46rem 0.65rem;
+  border-radius: 0.6rem;
+  background: rgb(var(--color-warning-rgb, 245 158 11) / 0.12);
+  border: 1px solid rgb(var(--color-warning-rgb, 245 158 11) / 0.32);
+  color: var(--color-surface);
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .reportBox {

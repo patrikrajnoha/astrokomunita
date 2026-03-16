@@ -148,6 +148,10 @@
   color: var(--sun);
 }
 
+.day-cell--sat {
+  color: rgb(var(--color-primary-rgb) / 0.7);
+}
+
 .day-cell--has-events::after {
   content: '';
   width: 5px;
@@ -285,15 +289,15 @@
 }
 
 .dot-blue {
-  background: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(59 130 246 / 0.7);
 }
 
 .dot-amber {
-  background: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(245 158 11 / 0.75);
 }
 
 .dot-violet {
-  background: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(139 92 246 / 0.7);
 }
 
 .event-title {

@@ -4,6 +4,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
+import { prependStarLabel } from './events/eventsViewCard.utils'
 import {
   EVENT_TIMEZONE,
   formatEventDateKey,
@@ -45,10 +46,11 @@ const dayCells = computed(() => {
   const year = currentMonth.value.getUTCFullYear()
   const month = currentMonth.value.getUTCMonth()
   const firstDay = new Date(Date.UTC(year, month, 1)).getUTCDay()
+  const mondayOffset = (firstDay + 6) % 7
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
   const cells = []
 
-  for (let index = 0; index < firstDay; index += 1) {
+  for (let index = 0; index < mondayOffset; index += 1) {
     cells.push({ date: null, day: null, muted: true, blank: true })
   }
 
@@ -60,6 +62,7 @@ const dayCells = computed(() => {
       muted: false,
       blank: false,
       isSunday: date.getUTCDay() === 0,
+      isSaturday: date.getUTCDay() === 6,
     })
   }
 
@@ -92,6 +95,14 @@ const selectedEvents = computed(() => {
   return key ? eventsByDay.value[key] || [] : []
 })
 
+const selectedEventsCountLabel = computed(() => {
+  const count = selectedEvents.value.length
+  if (count === 0) return 'žiadne udalosti'
+  if (count === 1) return '1 udalosť'
+  if (count <= 4) return `${count} udalosti`
+  return `${count} udalostí`
+})
+
 function selectDate(date) {
   selectedDate.value = buildUtcDate(
     date.getUTCFullYear(),
@@ -111,6 +122,7 @@ function dayCellClass(cell) {
     'day-cell--selected': isSelected,
     'day-cell--today': !isSelected && isToday,
     'day-cell--sun': cell.isSunday,
+    'day-cell--sat': cell.isSaturday,
     'day-cell--has-events': hasEvents,
   }
 }
@@ -126,10 +138,9 @@ function cellTooltip(cell) {
   const items = eventsByDay.value[toYMD(cell.date)] || []
   if (!items.length) return ''
 
-  return items
-    .slice(0, 2)
-    .map((event) => event.title)
-    .join(' · ')
+  const shown = items.slice(0, 2).map((event) => prependStarLabel(event.title)).join(' · ')
+  if (items.length > 2) return `${shown} · a ${items.length - 2} ďalších`
+  return shown
 }
 
 function typeDot(type) {
@@ -138,6 +149,7 @@ function typeDot(type) {
     eclipse_lunar: 'dot-amber',
     eclipse_solar: 'dot-amber',
     planetary_event: 'dot-violet',
+    aurora: 'dot-violet',
     other: 'dot-blue',
   }
 
@@ -145,7 +157,7 @@ function typeDot(type) {
 }
 
 function formatEventTime(event) {
-  if (event.all_day) return 'Cely den'
+  if (event.all_day) return 'Celý deň'
 
   const context = resolveEventTimeContext(event, EVENT_TIMEZONE)
   if (!context.showTimezoneLabel) {
@@ -201,7 +213,7 @@ async function fetchMonthEvents() {
     const rows = Array.isArray(response.data?.data) ? response.data.data : response.data
     events.value = Array.isArray(rows) ? rows : []
   } catch (err) {
-    error.value = err?.response?.data?.message || 'Nepodarilo sa nacitat udalosti.'
+    error.value = err?.response?.data?.message || 'Nepodarilo sa načítať udalosti.'
     events.value = []
   } finally {
     loading.value = false

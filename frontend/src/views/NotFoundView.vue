@@ -103,7 +103,6 @@
           </div>
         </div>
 
-        <RouterLink class="button" to="/">DOMOV</RouterLink>
       </div>
 
       <div class="sorry">Ups! Stránka sa nenašla.</div>
@@ -475,44 +474,6 @@ export default {
 .hand--right {
   transform: scaleX(-1);
   right: -3px;
-}
-
-.button {
-  position: absolute;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  border-radius: 999px;
-  background: linear-gradient(135deg, #ffffff 0%, #dfeaff 100%);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35), 0 0 18px rgba(141, 185, 255, 0.3);
-  cursor: pointer;
-  z-index: 999;
-  color: #102038;
-  font-weight: 700;
-  letter-spacing: 0.6px;
-  text-decoration: none;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
-}
-
-.button:hover {
-  transform: translateX(-50%) translateY(-2px);
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.42), 0 0 22px rgba(141, 185, 255, 0.4);
-  filter: brightness(1.04);
-}
-
-.button:focus-visible {
-  outline: 2px solid #9cc4ff;
-  outline-offset: 3px;
-}
-
-.button:active {
-  transform: translateX(-50%) scale(0.96);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35), 0 0 10px rgba(141, 185, 255, 0.35);
 }
 
 .sorry {
