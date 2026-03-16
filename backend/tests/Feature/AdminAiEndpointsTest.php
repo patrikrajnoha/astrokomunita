@@ -9,11 +9,9 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Services\Admin\AiLastRunStore;
 use App\Services\AI\OllamaClient;
-use App\Services\Events\EventDescriptionGeneratorService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Sanctum\Sanctum;
@@ -34,8 +32,6 @@ class AdminAiEndpointsTest extends TestCase
         $routes = [
             ['GET', '/api/admin/ai/config'],
             ['POST', '/api/admin/events/1/ai/generate-description'],
-            ['POST', '/api/admin/newsletter/ai/prime-insights'],
-            ['POST', '/api/admin/newsletter/ai/draft-copy'],
             ['POST', '/api/admin/blog-posts/1/ai/suggest-tags'],
         ];
 
@@ -176,217 +172,6 @@ class AdminAiEndpointsTest extends TestCase
         $this->assertArrayNotHasKey('prompt', $lastRun);
         $this->assertArrayNotHasKey('raw_text', $lastRun);
         $this->assertArrayNotHasKey('meta', $lastRun);
-    }
-
-    public function test_second_prime_call_during_lock_returns_conflict(): void
-    {
-        config()->set('events.ai.prime_insights_lock_ttl_seconds', 60);
-        config()->set('events.ai.prime_insights_max_limit', 5);
-        Cache::forget('ai:prime_insights:lock');
-
-        $admin = User::factory()->create([
-            'is_admin' => true,
-            'role' => 'admin',
-            'is_active' => true,
-        ]);
-        Sanctum::actingAs($admin);
-
-        $this->createUpcomingPublishedEvent('evt-prime-lock-1');
-
-        $this->mock(EventDescriptionGeneratorService::class, function ($mock): void {
-            $mock->shouldReceive('generateForEvent')
-                ->once()
-                ->andReturn([
-                    'description' => 'Generated description.',
-                    'short' => 'Generated short.',
-                    'insights' => [
-                        'why_interesting' => 'Ukaz je zaujimavy pre bezne pozorovanie.',
-                        'how_to_observe' => 'Vyberte tmavsie miesto.',
-                    ],
-                ]);
-        });
-
-        $this->postJson('/api/admin/newsletter/ai/prime-insights', [
-            'limit' => 1,
-        ])
-            ->assertOk()
-            ->assertJsonPath('status', 'done')
-            ->assertJsonPath('data.primed', 1);
-
-        $locked = $this->postJson('/api/admin/newsletter/ai/prime-insights', [
-            'limit' => 1,
-        ])
-            ->assertStatus(409)
-            ->assertJsonPath('status', 'locked')
-            ->assertJsonPath('message', 'Priprava insights uz prebieha. Skuste to o chvilu znova.');
-
-        $retryAfterSeconds = $locked->json('retry_after_seconds');
-        $this->assertIsInt($retryAfterSeconds);
-        $this->assertGreaterThan(0, $retryAfterSeconds);
-    }
-
-    public function test_prime_call_without_lock_runs_successfully(): void
-    {
-        config()->set('events.ai.prime_insights_lock_ttl_seconds', 60);
-        config()->set('events.ai.prime_insights_max_limit', 5);
-        Cache::forget('ai:prime_insights:lock');
-
-        $admin = User::factory()->create([
-            'is_admin' => true,
-            'role' => 'admin',
-            'is_active' => true,
-        ]);
-        Sanctum::actingAs($admin);
-
-        $this->createUpcomingPublishedEvent('evt-prime-lock-2');
-
-        $this->mock(EventDescriptionGeneratorService::class, function ($mock): void {
-            $mock->shouldReceive('generateForEvent')
-                ->once()
-                ->andReturn([
-                    'description' => 'Generated description.',
-                    'short' => 'Generated short.',
-                    'insights' => [
-                        'why_interesting' => 'Ukaz je zaujimavy pre bezne pozorovanie.',
-                        'how_to_observe' => 'Vyberte tmavsie miesto.',
-                    ],
-                ]);
-        });
-
-        $this->postJson('/api/admin/newsletter/ai/prime-insights', [
-            'limit' => 1,
-        ])
-            ->assertOk()
-            ->assertJsonPath('status', 'done')
-            ->assertJsonPath('data.processed', 1)
-            ->assertJsonPath('data.primed', 1);
-
-        $this->assertTrue(Cache::has('ai:prime_insights:lock'));
-    }
-
-    public function test_newsletter_draft_copy_success_returns_valid_payload(): void
-    {
-        config()->set('events.ai.newsletter_copy_draft_admin_enabled', true);
-
-        $admin = User::factory()->create([
-            'is_admin' => true,
-            'role' => 'admin',
-            'is_active' => true,
-        ]);
-        Sanctum::actingAs($admin);
-
-        $this->createUpcomingPublishedEvent('evt-newsletter-copy-1');
-        $this->createRecentBlogPost('newsletter-copy-1');
-
-        $this->mock(OllamaClient::class, function ($mock): void {
-            $mock->shouldReceive('generate')
-                ->once()
-                ->andReturn([
-                    'text' => json_encode([
-                        'subjects' => [
-                            'Tyzden pod hviezdami',
-                            'Co sledovat na oblohe',
-                            'Nocny prehlad pre pozorovatelov',
-                        ],
-                        'intro' => 'Vybrali sme pre teba prehlad udalosti a clankov na najblizsie dni.',
-                        'tip_text' => 'Vyber si tmavsie miesto a pred pozorovanim nechaj oci adaptovat na tmu.',
-                    ], JSON_UNESCAPED_UNICODE),
-                    'model' => 'mistral',
-                    'duration_ms' => 42,
-                    'retry_count' => 1,
-                    'raw' => [],
-                ]);
-        });
-
-        $response = $this->postJson('/api/admin/newsletter/ai/draft-copy')
-            ->assertOk()
-            ->assertJsonPath('status', 'success')
-            ->assertJsonPath('fallback_used', false)
-            ->assertJsonPath('last_run.feature_name', 'newsletter_copy_draft')
-            ->assertJsonPath('last_run.entity_id', 'newsletter')
-            ->assertJsonPath('last_run.status', 'success');
-
-        $subjects = (array) $response->json('subjects');
-        $this->assertCount(3, $subjects);
-    }
-
-    public function test_newsletter_draft_copy_invalid_json_uses_fallback(): void
-    {
-        config()->set('events.ai.newsletter_copy_draft_admin_enabled', true);
-
-        $admin = User::factory()->create([
-            'is_admin' => true,
-            'role' => 'admin',
-            'is_active' => true,
-        ]);
-        Sanctum::actingAs($admin);
-
-        $this->createUpcomingPublishedEvent('evt-newsletter-copy-2');
-        $this->createRecentBlogPost('newsletter-copy-2');
-
-        $this->mock(OllamaClient::class, function ($mock): void {
-            $mock->shouldReceive('generate')
-                ->once()
-                ->andReturn([
-                    'text' => 'not-json',
-                    'model' => 'mistral',
-                    'duration_ms' => 33,
-                    'retry_count' => 0,
-                    'raw' => [],
-                ]);
-        });
-
-        $response = $this->postJson('/api/admin/newsletter/ai/draft-copy')
-            ->assertOk()
-            ->assertJsonPath('status', 'fallback')
-            ->assertJsonPath('fallback_used', true)
-            ->assertJsonPath('last_run.status', 'fallback');
-
-        $subjects = (array) $response->json('subjects');
-        $this->assertCount(3, $subjects);
-    }
-
-    public function test_newsletter_draft_copy_invalid_subject_count_uses_fallback(): void
-    {
-        config()->set('events.ai.newsletter_copy_draft_admin_enabled', true);
-
-        $admin = User::factory()->create([
-            'is_admin' => true,
-            'role' => 'admin',
-            'is_active' => true,
-        ]);
-        Sanctum::actingAs($admin);
-
-        $this->createUpcomingPublishedEvent('evt-newsletter-copy-3');
-        $this->createRecentBlogPost('newsletter-copy-3');
-
-        $this->mock(OllamaClient::class, function ($mock): void {
-            $mock->shouldReceive('generate')
-                ->once()
-                ->andReturn([
-                    'text' => json_encode([
-                        'subjects' => [
-                            'Tyzden pod hviezdami',
-                            'Co sledovat na oblohe',
-                        ],
-                        'intro' => 'Vybrali sme prehlad udalosti na dalsie dni.',
-                        'tip_text' => 'Vyber si pokojne miesto mimo mestskych svetiel.',
-                    ], JSON_UNESCAPED_UNICODE),
-                    'model' => 'mistral',
-                    'duration_ms' => 29,
-                    'retry_count' => 0,
-                    'raw' => [],
-                ]);
-        });
-
-        $response = $this->postJson('/api/admin/newsletter/ai/draft-copy')
-            ->assertOk()
-            ->assertJsonPath('status', 'fallback')
-            ->assertJsonPath('fallback_used', true)
-            ->assertJsonPath('last_run.status', 'fallback');
-
-        $subjects = (array) $response->json('subjects');
-        $this->assertCount(3, $subjects);
     }
 
     public function test_blog_tag_suggestions_valid_response_returns_existing_tags(): void
@@ -954,41 +739,6 @@ class AdminAiEndpointsTest extends TestCase
         $this->withServerVariables(['REMOTE_ADDR' => $ip])
             ->postJson('/api/admin/blog-posts/' . $post->id . '/ai/suggest-tags')
             ->assertStatus(429);
-    }
-
-    private function createUpcomingPublishedEvent(string $sourceUid): Event
-    {
-        $start = CarbonImmutable::now('UTC')
-            ->startOfWeek(CarbonImmutable::MONDAY)
-            ->addWeek()
-            ->addDay()
-            ->setTime(20, 0, 0);
-
-        return Event::query()->create([
-            'title' => 'Prime insights event',
-            'type' => 'other',
-            'start_at' => $start,
-            'end_at' => $start->addHour(),
-            'max_at' => $start->addMinutes(15),
-            'visibility' => 1,
-            'source_name' => 'manual',
-            'source_uid' => $sourceUid,
-            'source_hash' => hash('sha256', $sourceUid),
-        ]);
-    }
-
-    private function createRecentBlogPost(string $slug): BlogPost
-    {
-        $author = User::factory()->create();
-
-        return BlogPost::query()->create([
-            'user_id' => $author->id,
-            'title' => 'Tyzdenny astro prehlad',
-            'slug' => $slug,
-            'content' => 'Obsah clanku.',
-            'published_at' => CarbonImmutable::now('UTC')->subDays(1),
-            'views' => 42,
-        ]);
     }
 
     private function createTaggableBlogPost(string $slug): BlogPost
