@@ -2,9 +2,10 @@
 
 namespace App\Services\Translation;
 
+use App\Services\Bots\Contracts\BotTranslationServiceInterface;
+use App\Services\Bots\Exceptions\BotTranslationException;
 use App\Models\Event;
 use App\Models\EventCandidate;
-use App\Services\TranslationService;
 use App\Services\Events\EventTitlePostEditService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class EventTranslationBackfillService
 {
     public function __construct(
-        private readonly TranslationService $translationService,
+        private readonly BotTranslationServiceInterface $translationService,
         private readonly AstronomyPhraseNormalizer $phraseNormalizer,
         private readonly EventTitlePostEditService $titlePostEditService,
     ) {
@@ -88,12 +89,29 @@ class EventTranslationBackfillService
             $errorCode = null;
 
             try {
-                if ($force || $translatedTitle === '') {
-                    $translatedTitle = $this->translationService->translateEnToSk($originalTitle, 'astronomy');
-                }
+                $needsTitleTranslation = $force || $translatedTitle === '';
+                $needsDescriptionTranslation = $originalDescription !== null && ($force || blank($translatedDescription));
 
-                if ($originalDescription !== null && ($force || blank($translatedDescription))) {
-                    $translatedDescription = $this->translationService->translateEnToSk((string) $originalDescription, 'astronomy');
+                if ($needsTitleTranslation || $needsDescriptionTranslation) {
+                    $result = $this->translationService->translate(
+                        $needsTitleTranslation ? $originalTitle : null,
+                        $needsDescriptionTranslation ? (string) $originalDescription : null,
+                        'sk'
+                    );
+
+                    if ($needsTitleTranslation) {
+                        $translatedTitle = trim((string) ($result['translated_title'] ?? $result['title_translated'] ?? ''));
+                    }
+
+                    if ($needsDescriptionTranslation) {
+                        $translatedDescription = $result['translated_content'] ?? $result['content_translated'] ?? null;
+                        if (is_string($translatedDescription)) {
+                            $translatedDescription = trim($translatedDescription);
+                            if ($translatedDescription !== '') {
+                                $translatedDescription = $this->phraseNormalizer->normalize($translatedDescription, 'sk');
+                            }
+                        }
+                    }
                 }
 
                 $titleResolution = $this->phraseNormalizer->normalizeTitleWithFallback($translatedTitle, $originalTitle, 'sk');
@@ -120,8 +138,17 @@ class EventTranslationBackfillService
                         $translatedTitle = trim((string) ($postEditResult['title_sk'] ?? $translatedTitle));
                     }
                 }
-            } catch (TranslationServiceException $exception) {
-                $errorCode = $exception->errorCode();
+            } catch (BotTranslationException $exception) {
+                $errorCode = 'bot_translation_error';
+                $summary['failed']++;
+                if (count($summary['failures']) < 50) {
+                    $summary['failures'][] = [
+                        'candidate_id' => (int) $candidate->id,
+                        'error_code' => $errorCode,
+                    ];
+                }
+            } catch (\Throwable $exception) {
+                $errorCode = 'translation_error';
                 $summary['failed']++;
                 if (count($summary['failures']) < 50) {
                     $summary['failures'][] = [

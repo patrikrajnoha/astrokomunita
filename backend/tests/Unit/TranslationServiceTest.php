@@ -277,6 +277,32 @@ class TranslationServiceTest extends TestCase
         $this->assertSame('Merkur v dolnej konjunkcii', $third->translatedText);
     }
 
+    public function test_it_normalizes_directional_planet_titles_after_translation(): void
+    {
+        config()->set('translation.default_provider', 'libretranslate');
+        config()->set('translation.fallback_provider', '');
+        config()->set('translation.cache_enabled', false);
+        config()->set('translation.libretranslate.base_url', 'http://libre.test');
+        config()->set('translation.grammar.enabled', false);
+
+        Http::fake([
+            'http://libre.test/*' => function ($request) {
+                $text = (string) data_get($request->data(), 'q');
+
+                return Http::response([
+                    'translatedText' => match ($text) {
+                        'Mercury 3.4 N of Mars' => "Ortu\u{0165} 3,4\u{00B0} s. \u{0161}. Marsu",
+                        default => $text,
+                    },
+                ], 200);
+            },
+        ]);
+
+        $result = app(TranslationService::class)->translate('Mercury 3.4 N of Mars', 'en', 'sk');
+
+        $this->assertSame("Merk\u{00FA}r 3,4\u{00B0} severne od Marsu", $result->translatedText);
+    }
+
     public function test_it_applies_phrase_fixes_even_when_translation_is_loaded_from_cache(): void
     {
         config()->set('translation.default_provider', 'libretranslate');
