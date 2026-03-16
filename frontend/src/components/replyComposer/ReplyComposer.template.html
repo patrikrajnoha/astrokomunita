@@ -1,15 +1,5 @@
 
   <section class="card" :class="{ compact }">
-    <div class="head">
-      <div>
-        <div class="title">{{ compact ? 'Odpoved' : 'Napis reply' }}</div>
-        <div class="sub">
-          {{ compact ? 'Reaguj na komentar.' : 'Strucna odpoved k prispevku (max 2000 znakov).' }}
-        </div>
-      </div>
-      <div class="limitChip">max 2000</div>
-    </div>
-
     <div class="row">
       <div class="avatar" aria-hidden="true">
         <UserAvatar class="avatarImg" :user="auth?.user" :alt="auth?.user?.name || 'avatar'" />
@@ -28,7 +18,6 @@
         />
 
         <div class="helperRow">
-          <div class="shortcut">Ctrl/Cmd + Enter odosle reply</div>
           <div class="counter" :class="{ warn: remaining <= 200 && remaining >= 0, bad: remaining < 0 }">
             {{ content.length }}/2000
           </div>

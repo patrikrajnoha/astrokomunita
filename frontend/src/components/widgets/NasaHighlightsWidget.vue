@@ -9,7 +9,7 @@
     </div>
 
     <div v-else-if="!nasaItem || !nasaItem.available" class="state">
-      <div class="stateText">NASA novinky su momentalne nedostupne.</div>
+      <div class="stateText">NASA novinky sú momentálne nedostupné.</div>
     </div>
 
     <div v-else class="nasaCard">
@@ -18,7 +18,7 @@
         :href="nasaItem.link"
         target="_blank"
         rel="noopener noreferrer"
-        :aria-label="`Otvorit NASA detail: ${nasaItem.title}`"
+        :aria-label="`Otvoriť NASA detail: ${nasaItem.title}`"
       >
         <div class="nasaImageWrap">
           <img
@@ -29,22 +29,32 @@
         </div>
       </a>
 
-      <div class="nasaTitle">{{ nasaItem.title }}</div>
-      <div v-if="nasaItem.excerpt" class="nasaExcerpt">{{ nasaItem.excerpt }}</div>
-      <p v-if="metaLine" class="metaLine">{{ metaLine }}</p>
-
-      <div class="panelActions">
-        <a
-          class="nasaActionBtn"
-          :href="nasaItem.link"
-          target="_blank"
-          rel="noopener noreferrer"
-          :aria-label="`Otvorit NASA.gov clanok: ${nasaItem.title}`"
-          style="border-radius:0;display:block;width:100%;max-width:100%;box-sizing:border-box"
-        >
-          Zobrazit na NASA.gov
-        </a>
+      <a
+        class="nasaTitleLink"
+        :href="nasaItem.link"
+        target="_blank"
+        rel="noopener noreferrer"
+        :aria-label="`Otvoriť NASA detail: ${nasaItem.title}`"
+      >
+        <div class="nasaTitle">{{ nasaItem.title }}</div>
+      </a>
+      <div
+        v-if="nasaItem.excerpt"
+        class="nasaExcerpt"
+        :class="{ 'nasaExcerpt--expanded': isExcerptExpanded }"
+      >
+        {{ nasaItem.excerpt }}
       </div>
+      <button
+        v-if="hasExpandableExcerpt"
+        type="button"
+        class="nasaExcerptToggle"
+        :aria-expanded="isExcerptExpanded ? 'true' : 'false'"
+        @click="toggleExcerpt"
+      >
+        {{ isExcerptExpanded ? '↑ Skryť text' : '↓ Zobraziť celý text' }}
+      </button>
+      <p v-if="metaLine" class="metaLine">{{ metaLine }}</p>
     </div>
   </section>
 </template>
@@ -52,6 +62,8 @@
 <script>
 import { ref, onMounted, computed, watch } from 'vue'
 import api from '@/services/api'
+
+const EXCERPT_TOGGLE_THRESHOLD = 140
 
 export default {
   name: 'NasaHighlightsWidget',
@@ -74,6 +86,7 @@ export default {
     const loading = ref(false)
     const error = ref(null)
     const hydratedFromBundle = ref(false)
+    const isExcerptExpanded = ref(false)
 
     const nasaEnabled = computed(() => {
       return (
@@ -81,6 +94,9 @@ export default {
         import.meta.env.VITE_FEATURE_NASA_IOTD !== '0'
       )
     })
+    const hasExpandableExcerpt = computed(() => (
+      String(nasaItem.value?.excerpt || '').trim().length > EXCERPT_TOGGLE_THRESHOLD
+    ))
 
     const metaLine = computed(() => {
       const sourceLabel = String(nasaItem.value?.source?.label || 'NASA').trim()
@@ -92,7 +108,7 @@ export default {
       }
 
       if (updatedLabel !== '-') {
-        parts.push(`Aktualizovane: ${updatedLabel}`)
+        parts.push(`Aktualizované: ${updatedLabel}`)
       }
 
       return parts.join(' | ')
@@ -105,9 +121,14 @@ export default {
         nasaItem.value = null
       }
 
+      isExcerptExpanded.value = false
       error.value = null
       loading.value = false
       hydratedFromBundle.value = true
+    }
+
+    const toggleExcerpt = () => {
+      isExcerptExpanded.value = !isExcerptExpanded.value
     }
 
     const fetchNasaIotd = async () => {
@@ -121,7 +142,7 @@ export default {
         error.value =
           err?.response?.data?.message ||
           err?.message ||
-          'Nepodarilo sa nacitat NASA novinky.'
+          'Nepodarilo sa načítať NASA novinky.'
         nasaItem.value = null
       } finally {
         loading.value = false
@@ -167,6 +188,9 @@ export default {
       error,
       nasaEnabled,
       metaLine,
+      hasExpandableExcerpt,
+      isExcerptExpanded,
+      toggleExcerpt,
       fetchNasaIotd,
     }
   },
@@ -221,7 +245,7 @@ function formatTime(value) {
 
 .nasaCard {
   display: grid;
-  gap: 0.24rem;
+  gap: 0.18rem;
   min-width: 0;
 }
 
@@ -234,7 +258,7 @@ function formatTime(value) {
 .nasaImageWrap {
   width: 100%;
   aspect-ratio: 16 / 9.6;
-  max-height: 104px;
+  max-height: 150px;
   border-radius: 0;
   overflow: hidden;
   border: 1px solid var(--divider-color);
@@ -242,6 +266,17 @@ function formatTime(value) {
 
 .nasaImageLink {
   display: block;
+}
+
+.nasaTitleLink {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.nasaTitleLink:hover .nasaTitle,
+.nasaTitleLink:focus-visible .nasaTitle {
+  color: rgb(var(--color-primary-rgb) / 0.96);
 }
 
 .nasaImageWrap img {
@@ -267,15 +302,42 @@ function formatTime(value) {
 
 .nasaExcerpt {
   color: var(--color-text-secondary);
-  font-size: 0.74rem;
-  line-height: 1.25;
+  font-size: 0.7rem;
+  line-height: 1.2;
   display: -webkit-box;
-  line-clamp: 1;
-  -webkit-line-clamp: 1;
+  line-clamp: 3;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+.nasaExcerpt--expanded {
+  display: block;
+  line-clamp: unset;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+  overflow: visible;
+}
+
+.nasaExcerptToggle {
+  justify-self: start;
+  padding: 0.1rem 0;
+  border: 0;
+  background: transparent;
+  color: rgb(var(--color-primary-rgb) / 0.85);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+}
+
+.nasaExcerptToggle:hover,
+.nasaExcerptToggle:focus-visible {
+  color: rgb(var(--color-primary-rgb) / 0.96);
 }
 
 .metaLine {
@@ -285,70 +347,10 @@ function formatTime(value) {
   line-height: 1.25;
 }
 
-.panelActions {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  padding-top: 0;
-  margin-bottom: 0.16rem;
-}
-
-.nasaActionBtn {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  min-height: 1.68rem;
-  padding: 0.24rem 0.48rem;
-  border-radius: 0 !important;
-  border-top-left-radius: 0 !important;
-  border-top-right-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
-  border: 0;
-  box-shadow: inset 0 0 0 1px var(--color-text-secondary);
-  color: var(--color-surface);
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  font-size: 0.72rem;
-  line-height: 1.2;
-  box-sizing: border-box;
-  text-align: center;
-  white-space: normal;
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-
-.nasaCard .ghostbtn {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  min-height: 1.68rem;
-  padding: 0.24rem 0.48rem;
-  box-sizing: border-box;
-  border: 0 !important;
-  box-shadow: inset 0 0 0 1px var(--color-text-secondary) !important;
-  border-radius: 0 !important;
-  text-align: center;
-  text-decoration: none;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.nasaActionBtn:hover {
-  box-shadow: inset 0 0 0 1px var(--color-primary);
-  color: var(--color-surface);
-  background: rgb(var(--color-primary-rgb) / 0.08);
-  transform: none;
-}
-
-.nasaCard .ghostbtn:hover {
-  box-shadow: inset 0 0 0 1px var(--color-primary) !important;
-  transform: none !important;
-}
-
 .stateText {
   color: var(--color-text-secondary);
-  font-size: 0.82rem;
-  line-height: 1.32;
+  font-size: 0.78rem;
+  line-height: 1.28;
 }
 
 .skeleton {
@@ -385,12 +387,7 @@ function formatTime(value) {
 
 @media (max-width: 420px) {
   .nasaImageWrap {
-    max-height: 96px;
-  }
-
-  .nasaExcerpt {
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    max-height: 130px;
   }
 }
 </style>

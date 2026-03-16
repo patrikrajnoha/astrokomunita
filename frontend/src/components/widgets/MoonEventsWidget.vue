@@ -5,7 +5,7 @@
     <AsyncState
       v-if="loading"
       mode="loading"
-      title="Nacitavam lunarne udalosti"
+      title="Načítavam lunárne udalosti"
       loading-style="skeleton"
       :skeleton-rows="4"
       compact
@@ -14,9 +14,9 @@
     <AsyncState
       v-else-if="error"
       mode="error"
-      title="Nepodarilo sa nacitat"
+      title="Nepodarilo sa načítať"
       :message="error"
-      action-label="Skusit znova"
+      action-label="Skúsiť znova"
       compact
       @action="fetchEvents"
     />
@@ -24,15 +24,15 @@
     <AsyncState
       v-else-if="!events.length"
       mode="empty"
-      title="Ziadne lunarne udalosti"
-      message="Pre tento rok nie su dostupne specialne lunarne udalosti."
+      title="Žiadne lunárne udalosti"
+      message="Pre tento rok nie sú dostupné špeciálne lunárne udalosti."
       compact
     />
 
     <section v-else class="eventsPanel">
-      <div class="eventsTitle">Specialne lunarne udalosti v {{ yearLabel }}</div>
+      <div class="eventsTitle">Špeciálne lunárne udalosti v {{ yearLabel }}</div>
 
-      <ul class="eventsList" role="list" aria-label="Specialne lunarne udalosti">
+      <ul class="eventsList" role="list" aria-label="Špeciálne lunárne udalosti">
         <li
           v-for="event in events"
           :key="`${event.key}-${event.at || event.label}`"
@@ -68,7 +68,7 @@ export default {
   props: {
     title: {
       type: String,
-      default: 'Lunarne udalosti',
+      default: 'Lunárne udalosti',
     },
     lat: {
       type: [Number, String],
@@ -134,7 +134,7 @@ export default {
         error.value =
           err?.response?.data?.message
           || err?.message
-          || 'Skus obnovit widget neskor.'
+          || 'Skús obnoviť widget neskôr.'
       } finally {
         loading.value = false
       }

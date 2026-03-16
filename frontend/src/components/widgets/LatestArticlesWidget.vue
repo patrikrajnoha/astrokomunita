@@ -1,6 +1,6 @@
 <template>
   <section class="card panel">
-    <div class="panelTitle sidebarSection__header" aria-live="polite">{{ typedTitle || '\u00A0' }}</div>
+    <div class="panelTitle sidebarSection__header" :class="{ 'panelTitle--fading': titleFading }" aria-live="polite">{{ typedTitle || '\u00A0' }}</div>
 
     <div v-if="loading" class="panelLoading">
       <div class="skeleton h-4 w-4/5"></div>
@@ -52,11 +52,11 @@ export default {
     },
     emptyStateTitle: {
       type: String,
-      default: 'Zatial ziadne clanky',
+      default: 'Zatiaľ žiadne články',
     },
     loadErrorTitle: {
       type: String,
-      default: 'Nepodarilo sa nacitat',
+      default: 'Nepodarilo sa načítať',
     },
     initialPayload: {
       type: Object,
@@ -74,12 +74,12 @@ export default {
     const loading = ref(true)
     const error = ref(null)
     const typedTitle = ref('')
+    const titleFading = ref(false)
     const hydratedFromBundle = ref(false)
 
     let modeSwitchIntervalId = null
     let refetchIntervalId = null
-    let titleAnimationToken = 0
-    const timeoutIds = new Set()
+    let titleFadeTimer = null
 
     const activeArticles = computed(() =>
       mode.value === 'most_read' ? mostReadArticles.value : latestArticles.value,
@@ -93,38 +93,17 @@ export default {
       mode.value === 'most_read' ? props.mostReadTitle : props.latestTitle,
     )
 
-    const clearTrackedTimeouts = () => {
-      for (const id of timeoutIds) {
-        clearTimeout(id)
+    const runHeaderTyping = (nextTitle) => {
+      if (!typedTitle.value) {
+        typedTitle.value = nextTitle
+        return
       }
-      timeoutIds.clear()
-    }
-
-    const wait = (ms) =>
-      new Promise((resolve) => {
-        const id = setTimeout(() => {
-          timeoutIds.delete(id)
-          resolve()
-        }, ms)
-        timeoutIds.add(id)
-      })
-
-    const runHeaderTyping = async (nextTitle) => {
-      const token = ++titleAnimationToken
-
-      while (typedTitle.value.length > 0) {
-        if (token !== titleAnimationToken) return
-        typedTitle.value = typedTitle.value.slice(0, -1)
-        await wait(14)
-      }
-
-      await wait(80)
-
-      for (let i = 1; i <= nextTitle.length; i += 1) {
-        if (token !== titleAnimationToken) return
-        typedTitle.value = nextTitle.slice(0, i)
-        await wait(28)
-      }
+      titleFading.value = true
+      clearTimeout(titleFadeTimer)
+      titleFadeTimer = setTimeout(() => {
+        typedTitle.value = nextTitle
+        titleFading.value = false
+      }, 180)
     }
 
     const setMode = (nextMode) => {
@@ -203,8 +182,7 @@ export default {
     onBeforeUnmount(() => {
       if (modeSwitchIntervalId) clearInterval(modeSwitchIntervalId)
       if (refetchIntervalId) clearInterval(refetchIntervalId)
-      titleAnimationToken += 1
-      clearTrackedTimeouts()
+      clearTimeout(titleFadeTimer)
     })
 
     return {
@@ -213,6 +191,7 @@ export default {
       loading,
       error,
       typedTitle,
+      titleFading,
     }
   },
 }
@@ -241,6 +220,11 @@ export default {
   font-size: 0.84rem;
   line-height: 1.2;
   letter-spacing: 0.01em;
+  transition: opacity 180ms ease;
+}
+
+.panelTitle--fading {
+  opacity: 0;
 }
 
 .panelLoading {

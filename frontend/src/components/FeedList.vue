@@ -175,7 +175,7 @@ function openPost(post) {
   }
 
   if (!post?.id) return
-  router.push(`/posts/${post.id}`)
+  router.push({ path: `/posts/${post.id}`, state: { seedPost: JSON.parse(JSON.stringify(post)) } })
 }
 
 function openProfile(post) {

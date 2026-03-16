@@ -1,9 +1,7 @@
 
 .card {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.4);
-  background:
-    radial-gradient(circle at 100% 0%, rgb(var(--color-primary-rgb) / 0.14), transparent 50%),
-    rgb(var(--color-bg-rgb) / 0.5);
+  background: rgb(var(--color-bg-rgb) / 0.5);
   border-radius: 1.1rem;
   padding: 0.8rem;
 }
@@ -11,9 +9,7 @@
 .card.compact {
   border-radius: 0.95rem;
   padding: 0.68rem;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(var(--color-primary-rgb) / 0.09), transparent 50%),
-    rgb(var(--color-bg-rgb) / 0.44);
+  background: rgb(var(--color-bg-rgb) / 0.44);
 }
 
 .head {

@@ -5,7 +5,7 @@
     <AsyncState
       v-if="loading"
       mode="loading"
-      title="Nacitavam fazy mesiaca"
+      title="Načítavam fázy mesiaca"
       loading-style="skeleton"
       :skeleton-rows="2"
       compact
@@ -14,9 +14,9 @@
     <AsyncState
       v-else-if="error"
       mode="error"
-      title="Nepodarilo sa nacitat"
+      title="Nepodarilo sa načítať"
       :message="error"
-      action-label="Skusit znova"
+      action-label="Skúsiť znova"
       compact
       @action="fetchPhases"
     />
@@ -24,8 +24,8 @@
     <AsyncState
       v-else-if="!majorEvents.length"
       mode="empty"
-      title="Hlavne fazy mesiaca su nedostupne"
-      message="Skus to neskor."
+      title="Hlavné fázy mesiaca sú nedostupné"
+      message="Skús to neskôr."
       compact
     />
 
@@ -38,7 +38,7 @@
 
       <dl class="overviewStats">
         <div class="overviewRow">
-          <dt>Aktualny cas:</dt>
+          <dt>Aktuálny čas:</dt>
           <dd>{{ formatDateTime(moonOverview.reference_at) }}</dd>
         </div>
         <div class="overviewRow">
@@ -46,23 +46,23 @@
           <dd>{{ moonOverview.direction_line }}</dd>
         </div>
         <div class="overviewRow">
-          <dt>Vyska Mesiaca:</dt>
+          <dt>Výška Mesiaca:</dt>
           <dd>{{ moonOverview.altitude_line }}</dd>
         </div>
         <div class="overviewRow">
-          <dt>Vzdialenost Mesiaca:</dt>
+          <dt>Vzdialenosť Mesiaca:</dt>
           <dd>{{ moonOverview.distance_line }}</dd>
         </div>
         <div class="overviewRow">
-          <dt>Dalsi Nov:</dt>
+          <dt>Ďalší Nov:</dt>
           <dd>{{ formatDateTime(moonOverview.next_new_moon_at) }}</dd>
         </div>
         <div class="overviewRow">
-          <dt>Dalsi Spln:</dt>
+          <dt>Ďalší Spln:</dt>
           <dd>{{ formatDateTime(moonOverview.next_full_moon_at) }}</dd>
         </div>
         <div class="overviewRow">
-          <dt>Dalsi vychod Mesiaca:</dt>
+          <dt>Ďalší východ Mesiaca:</dt>
           <dd>{{ formatMoonriseLine(moonOverview.next_moonrise_at) }}</dd>
         </div>
       </dl>
@@ -72,7 +72,7 @@
       {{ moonOverviewError }}
     </section>
 
-    <ul v-if="!loading && !error" class="phaseTimeline" role="list" aria-label="Hlavne fazy mesiaca">
+    <ul v-if="!loading && !error" class="phaseTimeline" role="list" aria-label="Hlavné fázy mesiaca">
       <li
         v-for="event in majorEvents"
         :key="`${event.key}-${event.at || event.date}`"
@@ -87,9 +87,9 @@
     </ul>
 
     <section v-if="showSpecialEvents && !loading && !error" class="specialEvents">
-      <div class="specialEventsTitle">Specialne lunarne udalosti v {{ specialEventsYearLabel }}</div>
+      <div class="specialEventsTitle">Špeciálne lunárne udalosti v {{ specialEventsYearLabel }}</div>
 
-      <ul v-if="specialEvents.length" class="specialEventsList" role="list" aria-label="Specialne lunarne udalosti">
+      <ul v-if="specialEvents.length" class="specialEventsList" role="list" aria-label="Špeciálne lunárne udalosti">
         <li
           v-for="event in specialEvents"
           :key="`${event.key}-${event.at || event.label}`"
@@ -104,7 +104,7 @@
       </ul>
 
       <p v-else class="specialEventsHint">
-        {{ specialEventsError || 'Specialne lunarne udalosti su docasne nedostupne.' }}
+        {{ specialEventsError || 'Špeciálne lunárne udalosti sú dočasne nedostupné.' }}
       </p>
     </section>
 
@@ -120,14 +120,14 @@ import { getMoonEventsWidget, getMoonOverviewWidget, getMoonPhasesWidget } from 
 const MAJOR_PHASE_KEYS = ['last_quarter', 'new_moon', 'first_quarter', 'full_moon']
 const PHASE_LABEL_MAP = {
   new_moon: 'Nov',
-  waxing_crescent: 'Dorastajuci kosacik',
-  first_quarter: 'Prva stvrt',
-  waxing_gibbous: 'Dorastajuci mesiac',
+  waxing_crescent: 'Dorastajúci kosáčik',
+  first_quarter: 'Prvá štvrt',
+  waxing_gibbous: 'Dorastajúci mesiac',
   full_moon: 'Spln',
-  waning_gibbous: 'Ubudajuci mesiac',
-  last_quarter: 'Posledna stvrt',
-  waning_crescent: 'Ubudajuci kosacik',
-  unknown: 'Neznama faza',
+  waning_gibbous: 'Ubúdajúci mesiac',
+  last_quarter: 'Posledná štvrt',
+  waning_crescent: 'Ubúdajúci kosáčik',
+  unknown: 'Neznáma fáza',
 }
 const DATE_FORMATTER = new Intl.DateTimeFormat('sk-SK', {
   day: 'numeric',
@@ -167,7 +167,7 @@ export default {
   props: {
     title: {
       type: String,
-      default: 'Fazy mesiaca',
+      default: 'Fázy mesiaca',
     },
     lat: {
       type: [Number, String],
@@ -373,7 +373,7 @@ export default {
           moonOverviewError.value =
             overviewResult.reason?.response?.data?.message
             || overviewResult.reason?.message
-            || 'Aktualny prehlad Mesiaca je docasne nedostupny.'
+            || 'Aktuálny prehľad Mesiaca je dočasne nedostupný.'
         }
 
         const fallbackYear = new Date().getFullYear()
@@ -396,7 +396,7 @@ export default {
             specialEventsError.value =
               eventsErr?.response?.data?.message
               || eventsErr?.message
-              || 'Specialne lunarne udalosti su docasne nedostupne.'
+              || 'Špeciálne lunárne udalosti sú dočasne nedostupné.'
           }
         }
       } catch (err) {
@@ -410,7 +410,7 @@ export default {
         error.value =
           err?.response?.data?.message
           || err?.message
-          || 'Skus obnovit widget neskor.'
+          || 'Skús obnoviť widget neskôr.'
       } finally {
         loading.value = false
       }
@@ -469,7 +469,7 @@ export default {
       }
 
       if (updatedLabel !== '-') {
-        parts.push(`Aktualizovane: ${updatedLabel}`)
+        parts.push(`Aktualizované: ${updatedLabel}`)
       }
 
       return parts.join(' | ')
@@ -642,6 +642,10 @@ function formatRelativeDateTimeLabel(value) {
   overflow: visible;
 }
 
+.moonPhasesCard {
+  container-type: inline-size;
+}
+
 .panel {
   display: grid;
   gap: 0.24rem;
@@ -658,11 +662,17 @@ function formatRelativeDateTimeLabel(value) {
 
 .overviewPanel {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: 1fr;
   gap: 0.48rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
   background: linear-gradient(180deg, rgb(var(--color-bg-rgb) / 0.18), rgb(var(--color-bg-rgb) / 0.1));
   padding: 0.42rem;
+}
+
+@container (min-width: 380px) {
+  .overviewPanel {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  }
 }
 
 .overviewVisual {
@@ -778,7 +788,7 @@ function formatRelativeDateTimeLabel(value) {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
   background: rgb(var(--color-bg-rgb) / 0.15);
 }
@@ -790,11 +800,43 @@ function formatRelativeDateTimeLabel(value) {
   text-align: center;
   min-width: 0;
   padding: 0.44rem 0.26rem 0.5rem;
+  border-right: 0;
+  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+}
+
+.phaseEvent:nth-child(odd) {
   border-right: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+}
+
+.phaseEvent:nth-last-child(-n+2) {
+  border-bottom: 0;
 }
 
 .phaseEvent:last-child {
   border-right: 0;
+}
+
+@container (min-width: 460px) {
+  .phaseTimeline {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .phaseEvent {
+    border-right: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+    border-bottom: 0;
+  }
+
+  .phaseEvent:nth-child(odd) {
+    border-right: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
+  }
+
+  .phaseEvent:last-child {
+    border-right: 0;
+  }
+
+  .phaseEvent:nth-last-child(-n+2) {
+    border-bottom: 0;
+  }
 }
 
 .phaseEvent.isCurrent {
@@ -906,40 +948,4 @@ function formatRelativeDateTimeLabel(value) {
   line-height: 1.25;
 }
 
-@media (max-width: 860px) {
-  .overviewPanel {
-    grid-template-columns: 1fr;
-  }
-
-  .phaseTimeline {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .phaseEvent {
-    border-right: 0;
-    border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
-  }
-
-  .phaseEvent:nth-child(odd) {
-    border-right: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
-  }
-
-  .phaseEvent:nth-last-child(-n+2) {
-    border-bottom: 0;
-  }
-}
-
-@media (max-width: 420px) {
-  .phaseTimeline {
-    grid-template-columns: 1fr;
-  }
-
-  .phaseEvent {
-    border-right: 0 !important;
-  }
-
-  .phaseEvent:last-child {
-    border-bottom: 0;
-  }
-}
 </style>

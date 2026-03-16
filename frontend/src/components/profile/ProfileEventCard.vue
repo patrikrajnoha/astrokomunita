@@ -117,6 +117,7 @@ function mapType(type) {
     eclipse_solar: 'Zatmenie Slnka',
     planetary_event: 'Planetarny ukaz',
     conjunction: 'Konjunkcia',
+    aurora: 'Polarna ziara',
     comet: 'Kometa',
     other: 'Udalost',
   }

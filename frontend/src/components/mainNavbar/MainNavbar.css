@@ -15,6 +15,10 @@
 }
 
 .navIcon {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex-shrink: 0;
+  display: block;
   filter: none;
 }
 
@@ -76,7 +80,7 @@
 }
 
 .navItem.active .navIconChip {
-  color: rgb(var(--color-accent-rgb));
+  color: white;
 }
 
 .navLabel {

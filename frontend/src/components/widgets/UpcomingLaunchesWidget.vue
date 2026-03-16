@@ -9,23 +9,23 @@
     </div>
 
     <div v-else-if="error" class="state stateError">
-      <div class="stateTitle">Nepodarilo sa nacitat starty</div>
+      <div class="stateTitle">Nepodarilo sa načítať štarty</div>
       <div class="stateText">{{ error }}</div>
-      <button type="button" class="ghostBtn" @click="fetchPayload">Skusit znova</button>
+      <button type="button" class="ghostBtn" @click="fetchPayload">Skúsiť znova</button>
     </div>
 
     <div v-else-if="!payload?.available" class="state">
-      <div class="stateTitle">Launch data su nedostupne</div>
-      <div class="stateText">Launch Library 2 teraz nevracia pouzitelny prehlad startov.</div>
+      <div class="stateTitle">Launch dáta sú nedostupné</div>
+      <div class="stateText">Launch Library 2 teraz nevracia použiteľný prehľad štartov.</div>
     </div>
 
     <div v-else-if="items.length === 0" class="state">
-      <div class="stateTitle">Ziadny blizky start</div>
-      <div class="stateText">V aktualnom prehlade nie je ziaden potvrdeny nadchadzajuci start.</div>
+      <div class="stateTitle">Žiadny blízky štart</div>
+      <div class="stateText">V aktuálnom prehľade nie je žiadny potvrdený nadchádzajúci štart.</div>
     </div>
 
     <div v-else class="content">
-      <p v-if="payload?.stale" class="staleNotice">Zobrazeny je posledny potvrdeny prehlad startov.</p>
+      <p v-if="payload?.stale" class="staleNotice">Zobrazený je posledný potvrdený prehľad štartov.</p>
 
       <article
         v-for="item in items"
@@ -67,7 +67,7 @@ export default {
   props: {
     title: {
       type: String,
-      default: 'Bliziace sa starty',
+      default: 'Blížiace sa štarty',
     },
     initialPayload: {
       type: Object,
@@ -99,7 +99,7 @@ export default {
       }
 
       if (updatedLabel !== '-') {
-        parts.push(`Aktualizovane: ${updatedLabel}`)
+        parts.push(`Aktualizované: ${updatedLabel}`)
       }
 
       return parts.join(' | ')
@@ -126,7 +126,7 @@ export default {
         error.value = (
           requestError?.response?.data?.message
           || requestError?.message
-          || 'Nepodarilo sa nacitat prehlad startov.'
+          || 'Nepodarilo sa načítať prehľad štartov.'
         )
       } finally {
         loading.value = false
@@ -228,10 +228,10 @@ function statusToneClass(item) {
 
 function formatNet(item) {
   const raw = String(item?.net || item?.window_start || '').trim()
-  if (!raw) return 'Cas startu sa upresnuje'
+  if (!raw) return 'Čas štartu sa upresňuje'
 
   const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return 'Cas startu sa upresnuje'
+  if (Number.isNaN(parsed.getTime())) return 'Čas štartu sa upresňuje'
 
   try {
     return new Intl.DateTimeFormat('sk-SK', {
@@ -242,7 +242,7 @@ function formatNet(item) {
       hour12: false,
     }).format(parsed)
   } catch {
-    return 'Cas startu sa upresnuje'
+    return 'Čas štartu sa upresňuje'
   }
 }
 
@@ -255,7 +255,7 @@ function formatCountdown(item) {
 
   const diffMs = parsed.getTime() - Date.now()
   if (diffMs <= -30 * 60 * 1000) return ''
-  if (diffMs < 0) return 'Prave prebieha'
+  if (diffMs < 0) return 'Práve prebieha'
 
   const diffMinutes = Math.round(diffMs / (60 * 1000))
   if (diffMinutes < 60) {

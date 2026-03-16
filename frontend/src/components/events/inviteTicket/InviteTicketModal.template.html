@@ -3,10 +3,10 @@
     <section class="inviteModalCard" role="dialog" aria-modal="true" aria-labelledby="invite-ticket-title">
       <header class="modalHead">
         <div>
-          <h2 id="invite-ticket-title">Pozvanka / Vstupenka</h2>
-          <p>Posli personalizovanu pozvanku na astronomicke podujatie.</p>
+          <h2 id="invite-ticket-title">Pozvánka / Vstupenka</h2>
+          <p>Pošli personalizovanú pozvánku na astronomické podujatie.</p>
         </div>
-        <button type="button" class="ghostBtn" @click="close">Zavriet</button>
+        <button type="button" class="closeBtn" aria-label="Zavrieť" @click="close">×</button>
       </header>
 
       <div class="modalBody">
@@ -17,7 +17,7 @@
               v-model.trim="attendeeName"
               type="text"
               maxlength="80"
-              placeholder="Napr. Jan Novak"
+              placeholder="Napr. Zdenka Stellar"
               data-testid="attendee-name-input"
               @blur="attendeeNameTouched = true"
             />
@@ -30,23 +30,27 @@
             :aria-expanded="String(showOptionalFields)"
             @click="showOptionalFields = !showOptionalFields"
           >
-            {{ showOptionalFields ? 'Skryt volitelne polia' : 'Pridat email a spravu' }}
+            {{ showOptionalFields ? 'Skryť voliteľné polia' : 'Pridať e-mail a správu' }}
           </button>
 
           <div v-if="showOptionalFields" class="optionalFields">
             <label class="field">
-              <span>Email pozvaneho (volitelne)</span>
+              <span>E-mail pozvaného (voliteľne)</span>
               <input v-model.trim="inviteeEmail" type="email" placeholder="meno@email.com" />
             </label>
 
             <label class="field">
-              <span>Sprava (volitelne)</span>
-              <textarea v-model.trim="message" rows="3" maxlength="240" placeholder="Kratky odkaz k pozvanke" />
+              <span>Správa (voliteľne)</span>
+              <textarea v-model.trim="message" rows="3" maxlength="240" placeholder="Krátky odkaz k pozvánke" />
             </label>
           </div>
 
           <p v-if="submitError" class="fieldError">{{ submitError }}</p>
-          <p v-if="submitSuccess" class="fieldSuccess">{{ submitSuccess }}</p>
+
+          <div v-if="submitSuccess" class="successBanner" role="status">
+            <span class="successBanner__icon" aria-hidden="true">✓</span>
+            <span>{{ submitSuccess }}</span>
+          </div>
 
           <div class="actionsPrimary">
             <button
@@ -56,45 +60,42 @@
               data-testid="send-invite-btn"
               @click="submitInvite"
             >
-              {{ sending ? 'Odosielam...' : 'Odoslat pozvanku' }}
-            </button>
-            <button
-              type="button"
-              class="menuBtn"
-              :aria-expanded="String(showSecondaryActions)"
-              @click="showSecondaryActions = !showSecondaryActions"
-            >
-              Viac
+              {{ sending ? 'Odosielam...' : 'Odoslať pozvánku' }}
             </button>
           </div>
 
-          <div v-if="showSecondaryActions" class="actionsSecondary">
+          <div class="actionsSecondary">
             <button type="button" class="tertiaryBtn" data-testid="share-ticket-btn" @click="shareTicket">
-              Zdielat
+              Zdieľať
             </button>
             <button type="button" class="tertiaryBtn" data-testid="print-ticket-btn" @click="printTicket">
-              Vytlacit vstupenku
+              Vytlačiť vstupenku
             </button>
           </div>
         </section>
 
         <div class="ticketPrintRoot">
           <article class="ticketPreview">
-            <div class="watermarkLayer" aria-hidden="true">
-              <span v-for="idx in 5" :key="`wm-${idx}`">Astrokomunita * Astrokomunita * Astrokomunita</span>
+            <div class="ticketHeader" aria-hidden="true">
+              <span class="ticketBrand">✦ Astrokomunita</span>
+              <span class="ticketHeaderIcon">🌙</span>
             </div>
 
-            <p class="ticketKicker">Darcekova vstupenka</p>
-            <h3>{{ eventTitle }}</h3>
-            <p class="ticketMeta">{{ eventDateTime }}</p>
-            <p v-if="eventPlace" class="ticketMeta">{{ eventPlace }}</p>
-
-            <div class="nameRow">
-              <span>Meno navstevnika</span>
-              <strong>{{ attendeeNamePreview }}</strong>
+            <div class="ticketBody">
+              <p class="ticketKicker">Vstupenka do nebeského divadla</p>
+              <h3 class="ticketTitle">{{ eventTitle }}</h3>
+              <p class="ticketMeta">{{ eventDateTime }}</p>
+              <p v-if="eventPlace" class="ticketMeta ticketMeta--place">{{ eventPlace }}</p>
             </div>
 
-            <p class="ticketHint">Ukaz tuto vstupenku pri vstupe na podujatie.</p>
+            <div class="ticketPerforated" aria-hidden="true"></div>
+
+            <div class="ticketFooter">
+              <div class="nameRow">
+                <span class="nameRow__label">Meno návštevníka</span>
+                <strong class="nameRow__value">{{ attendeeNamePreview }}</strong>
+              </div>
+            </div>
           </article>
         </div>
       </div>

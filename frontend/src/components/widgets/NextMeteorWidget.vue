@@ -1,10 +1,10 @@
 <template>
   <NextEventWidget
-    title="Najblizsi meteoricky roj"
+    title="Najbližší meteorický roj"
     endpoint="/events/widget/next-meteor-shower"
-    empty-title="Ziadny blizky meteoricky roj"
-    empty-text="V event databaze zatial nie je ziadny publikovany meteoricky roj."
-    browse-label="Vsetky meteory"
+    empty-title="Žiadny blízky meteorický roj"
+    empty-text="V event databáze zatiaľ nie je žiadny publikovaný meteorický roj."
+    browse-label="Všetky meteory"
     browse-to="/events?types=meteors,meteor_shower"
   />
 </template>

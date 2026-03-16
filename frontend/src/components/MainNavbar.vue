@@ -101,6 +101,12 @@ const homeGlobeOutlineIcon = defineComponent({
 const homeGlobeFilledIcon = defineComponent({
   name: 'HomeGlobeFilledIcon',
   render() {
+    // Compound path with evenodd fill: circle = filled background,
+    // continent subpaths = transparent cutouts (not a solid disc).
+    const circlePath = 'M 12 3.75 A 8.25 8.25 0 0 1 12 20.25 A 8.25 8.25 0 0 1 12 3.75 Z'
+    const continent1 = 'M 8.1 8.2 L 9.35 8.95 L 9.05 10.1 L 9.95 11 L 9.45 12.3 L 8.45 12.8 L 7.95 14.2 L 6.95 13.4 L 7.25 11.9 L 6.55 10.8 L 7.1 9.4 Z'
+    const continent2 = 'M 12.2 7.2 L 14 7.6 L 15.1 8.4 L 16.25 8.3 L 17.05 9.35 L 16.35 10.55 L 15.2 10.65 L 14.6 11.75 L 15.2 12.9 L 14.5 14.05 L 13.1 13.9 L 12.45 12.85 L 11.55 12.2 L 11.8 10.75 L 12.85 9.9 L 12.65 8.75 Z'
+
     return h(
       'svg',
       {
@@ -109,30 +115,14 @@ const homeGlobeFilledIcon = defineComponent({
         height: '20',
         viewBox: '0 0 24 24',
         fill: 'none',
-        stroke: 'currentColor',
-        'stroke-linecap': 'round',
-        'stroke-linejoin': 'round',
         'aria-hidden': 'true',
       },
       [
-        h('circle', {
-          cx: '12',
-          cy: '12',
-          r: '8.25',
-          fill: 'currentColor',
-          'fill-opacity': '0.18',
-          stroke: 'currentColor',
-          'stroke-width': '1.7',
-        }),
         h('path', {
-          d: 'M8.1 8.2 9.35 8.95 9.05 10.1 9.95 11 9.45 12.3 8.45 12.8 7.95 14.2 6.95 13.4 7.25 11.9 6.55 10.8 7.1 9.4Z',
+          d: `${circlePath} ${continent1} ${continent2}`,
           fill: 'currentColor',
-          stroke: 'none',
-        }),
-        h('path', {
-          d: 'M12.2 7.2 14 7.6 15.1 8.4 16.25 8.3 17.05 9.35 16.35 10.55 15.2 10.65 14.6 11.75 15.2 12.9 14.5 14.05 13.1 13.9 12.45 12.85 11.55 12.2 11.8 10.75 12.85 9.9 12.65 8.75Z',
-          fill: 'currentColor',
-          stroke: 'none',
+          'fill-rule': 'evenodd',
+          'clip-rule': 'evenodd',
         }),
       ],
     )

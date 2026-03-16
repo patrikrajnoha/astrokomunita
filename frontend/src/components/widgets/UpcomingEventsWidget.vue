@@ -5,7 +5,7 @@
     <AsyncState
       v-if="loading"
       mode="loading"
-      title="Nacitavam udalosti"
+      title="Načítavam udalosti"
       loading-style="skeleton"
       :skeleton-rows="4"
       compact
@@ -16,7 +16,7 @@
       mode="error"
       :title="loadErrorTitle"
       :message="error"
-      action-label="Skusit znova"
+      action-label="Skúsiť znova"
       compact
       @action="fetchItems"
     />
@@ -24,8 +24,8 @@
     <AsyncState
       v-else-if="!items.length"
       mode="empty"
-      title="Ziadne blizke udalosti"
-      message="Skus pozriet kalendar alebo obnovit data neskor."
+      title="Žiadne blízke udalosti"
+      message="Skús pozrieť kalendár alebo obnoviť dáta neskôr."
       compact
     />
 
@@ -62,11 +62,11 @@ export default {
   props: {
     title: {
       type: String,
-      default: 'Co sa deje',
+      default: 'Čo sa deje',
     },
     showMoreLabel: {
       type: String,
-      default: 'Vsetky udalosti',
+      default: 'Všetky udalosti',
     },
     showMoreTo: {
       type: String,
@@ -74,7 +74,7 @@ export default {
     },
     loadErrorTitle: {
       type: String,
-      default: 'Nepodarilo sa nacitat',
+      default: 'Nepodarilo sa načítať',
     },
     initialPayload: {
       type: Object,
@@ -96,7 +96,7 @@ export default {
 
     const applyPayload = (payload) => {
       items.value = Array.isArray(payload?.items) ? payload.items.slice(0, 4) : []
-      sourceLabel.value = String(payload?.source?.label || 'Databaza udalosti').trim()
+      sourceLabel.value = String(payload?.source?.label || 'Databáza udalostí').trim()
       updatedAt.value = String(payload?.generated_at || '').trim()
       metaLine.value = buildMetaLine(sourceLabel.value, updatedAt.value)
       error.value = ''
@@ -176,7 +176,7 @@ function buildMetaLine(sourceLabel, updatedAt) {
   }
 
   if (updatedLabel !== '-') {
-    parts.push(`Aktualizovane: ${updatedLabel}`)
+    parts.push(`Aktualizované: ${updatedLabel}`)
   }
 
   return parts.join(' | ')

@@ -9,9 +9,9 @@
     </div>
 
     <div v-else-if="error" class="state stateError">
-      <div class="stateTitle">Nepodarilo sa nacitat</div>
+      <div class="stateTitle">Nepodarilo sa načítať</div>
       <div class="stateText">{{ error }}</div>
-      <button type="button" class="eventGhostBtn" @click="fetchNextEvent">Skusit znova</button>
+      <button type="button" class="eventGhostBtn" @click="fetchNextEvent">Skúsiť znova</button>
     </div>
 
     <div v-else-if="!nextEvent" class="state">
@@ -45,7 +45,7 @@ export default {
   props: {
     title: {
       type: String,
-      default: 'Najblizsia udalost',
+      default: 'Najbližšia udalosť',
     },
     endpoint: {
       type: String,
@@ -53,15 +53,15 @@ export default {
     },
     emptyTitle: {
       type: String,
-      default: 'Zatial ziadna udalost',
+      default: 'Zatiaľ žiadna udalosť',
     },
     emptyText: {
       type: String,
-      default: 'Pozri kalendar alebo udalosti.',
+      default: 'Pozri kalendár alebo udalosti.',
     },
     browseLabel: {
       type: String,
-      default: 'Vsetky udalosti',
+      default: 'Všetky udalosti',
     },
     browseTo: {
       type: String,
@@ -96,7 +96,7 @@ export default {
       }
 
       if (updatedLabel !== '-') {
-        parts.push(`Aktualizovane: ${updatedLabel}`)
+        parts.push(`Aktualizované: ${updatedLabel}`)
       }
 
       return parts.join(' | ')
@@ -137,7 +137,7 @@ export default {
         error.value =
           err?.response?.data?.message ||
           err?.message ||
-          'Nepodarilo sa nacitat najblizsiu udalost.'
+          'Nepodarilo sa načítať najbližšiu udalosť.'
       } finally {
         loading.value = false
       }
@@ -145,7 +145,7 @@ export default {
 
     const formatDateTime = (event) => {
       const raw = event?.start_at || event?.max_at || event?.end_at
-      if (!raw) return 'Termin bude upresneny'
+      if (!raw) return 'Termín bude upresnený'
 
       const dateLabel = formatEventDate(raw, EVENT_TIMEZONE, {
         day: 'numeric',
@@ -210,10 +210,10 @@ function mapEventType(value) {
   if (type === 'meteor_shower' || type === 'meteors') return 'Meteory'
   if (type === 'eclipse_solar') return 'Zatmenie Slnka'
   if (type === 'eclipse_lunar') return 'Zatmenie Mesiaca'
-  if (type === 'planetary_event' || type === 'conjunction') return 'Planetarny ukaz'
+  if (type === 'planetary_event' || type === 'conjunction') return 'Planetárny úkaz'
   if (type === 'observation_window') return 'Pozorovacie okno'
-  if (type === 'space_event' || type === 'mission') return 'Vesmirna udalost'
-  if (type === 'aurora') return 'Polarna ziara'
+  if (type === 'space_event' || type === 'mission') return 'Vesmírna udalosť'
+  if (type === 'aurora') return 'Polárna žiara'
   if (type === 'asteroid') return 'Asteroid'
   if (type === 'comet') return 'Kometa'
   return ''
@@ -226,9 +226,9 @@ function formatEventSource(value) {
   if (normalized === 'astropixels') return 'Astropixels'
   if (normalized === 'nasa') return 'USNO eclipse feed'
   if (normalized === 'nasa_wts' || normalized === 'nasa_watch_the_skies') return 'USNO moon phases'
-  if (normalized === 'manual') return 'Databaza udalosti'
+  if (normalized === 'manual') return 'Databáza udalostí'
 
-  return normalized || 'Databaza udalosti'
+  return normalized || 'Databáza udalostí'
 }
 
 function formatCountdown(value) {
@@ -239,7 +239,7 @@ function formatCountdown(value) {
   if (Number.isNaN(target.getTime())) return ''
 
   const diffMs = target.getTime() - Date.now()
-  if (diffMs <= 0) return 'Prebieha alebo uz prebehla'
+  if (diffMs <= 0) return 'Prebieha alebo už prebehla'
 
   const dayMs = 24 * 60 * 60 * 1000
   const hourMs = 60 * 60 * 1000
@@ -247,16 +247,16 @@ function formatCountdown(value) {
   const days = Math.floor(diffMs / dayMs)
 
   if (days >= 1) {
-    return days === 1 ? 'Za 1 den' : `Za ${days} dni`
+    return days === 1 ? 'Za 1 deň' : days <= 4 ? `Za ${days} dni` : `Za ${days} dní`
   }
 
   const hours = Math.floor(diffMs / hourMs)
   if (hours >= 1) {
-    return hours === 1 ? 'Za 1 hodinu' : `Za ${hours} hodin`
+    return hours === 1 ? 'Za 1 hodinu' : hours <= 4 ? `Za ${hours} hodiny` : `Za ${hours} hodín`
   }
 
   const minutes = Math.max(1, Math.floor(diffMs / minuteMs))
-  return minutes === 1 ? 'Za 1 minutu' : `Za ${minutes} minut`
+  return minutes === 1 ? 'Za 1 minútu' : minutes <= 4 ? `Za ${minutes} minúty` : `Za ${minutes} minút`
 }
 
 function formatTime(value) {
@@ -315,7 +315,7 @@ function formatTime(value) {
 .eventTitle {
   font-size: 0.86rem;
   font-weight: 800;
-  color: var(--color-surface);
+  color: #0f73ff;
   line-height: 1.18;
   display: -webkit-box;
   line-clamp: 2;
