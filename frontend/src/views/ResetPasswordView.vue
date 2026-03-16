@@ -4,14 +4,14 @@
       <AuthHeroPanel
         eyebrow="Obnova hesla"
         title="Reset hesla"
-        subtitle="Zadajte obnovovaci kod z emailu a nastavte nove heslo na dokoncnie obnovy uctu."
+        subtitle="Zadajte obnovovací kód z e-mailu a nastavte nové heslo na dokončenie obnovy účtu."
       />
     </template>
 
     <AuthFormSection
       kicker="Obnova"
-      title="Zadajte kod a nove heslo"
-      description="Skontrolujte emailovu schranku pre obnovovaci kod a odošlite ho spolu s novym heslom."
+      title="Zadajte kód a nové heslo"
+      description="Skontrolujte e-mailovú schránku pre obnovovací kód a odošlite ho spolu s novým heslom."
     >
       <form class="authForm" @submit.prevent="submit" novalidate>
         <p v-if="prefilledEmailLabel" class="authPrefill">
@@ -73,13 +73,13 @@
 
         <AuthAlert
           v-if="invalidCodeMessage"
-          title="Neplatny obnovovaci kod"
+          title="Neplatný obnovovací kód"
           :message="invalidCodeMessage"
         />
 
         <AuthAlert
           v-if="error && !invalidCodeMessage"
-          title="Heslo sa nepodarilo resetovat"
+          title="Heslo sa nepodarilo resetovať"
           :message="error"
         />
 
@@ -87,8 +87,8 @@
 
         <AuthActions
           :back-to="{ name: 'forgot-password', query: emailQuery }"
-          back-label="Spat"
-          submit-label="Dalej"
+          back-label="Späť"
+          submit-label="Ďalej"
           loading-label="Aktualizujem..."
           :loading="loading"
         />
@@ -125,23 +125,23 @@ const invalidCodeMessage = ref('')
 const needsEmailField = computed(() => !initialEmail)
 const prefilledEmailLabel = computed(() => (needsEmailField.value ? '' : email.value.trim()))
 const sentMessage = computed(() => (
-  route.query.sent === '1' ? 'Poslali sme obnovovaci kod na vas e-mail. Zadajte ho nizsie.' : ''
+  route.query.sent === '1' ? 'Poslali sme obnovovací kód na váš e-mail. Zadajte ho nižšie.' : ''
 ))
 
 const emailQuery = computed(() => (email.value.trim() ? { email: email.value.trim() } : undefined))
-const emailError = computed(() => (attempted.value && !email.value.trim() ? 'E-mail je povinny.' : ''))
+const emailError = computed(() => (attempted.value && !email.value.trim() ? 'E-mail je povinný.' : ''))
 const codeError = computed(() => {
   if (!attempted.value) return ''
-  if (!code.value.trim()) return 'Obnovovaci kod je povinny.'
+  if (!code.value.trim()) return 'Obnovovací kód je povinný.'
   if (!looksLikeCodeFormat(code.value)) {
-    return 'Format kodu musi byt XXXXX-XXXXX.'
+    return 'Formát kódu musí byť XXXXX-XXXXX.'
   }
   return ''
 })
 const passwordError = computed(() => {
   if (!attempted.value) return ''
-  if (!password.value) return 'Nove heslo je povinne.'
-  if (password.value.length < 8) return 'Heslo musi mat aspon 8 znakov.'
+  if (!password.value) return 'Nové heslo je povinné.'
+  if (password.value.length < 8) return 'Heslo musí mať aspoň 8 znakov.'
   return ''
 })
 
@@ -156,7 +156,7 @@ async function submit() {
 
   if (emailError.value || codeError.value || passwordError.value) {
     if (codeError.value.toLowerCase().includes('format')) {
-      invalidCodeMessage.value = 'Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.'
+      invalidCodeMessage.value = 'Zadali ste neplatný kód. Mal by mať tvar XXXXX-XXXXX.'
     }
     return
   }
@@ -186,10 +186,10 @@ async function submit() {
   } catch (e) {
     const backendCode = String(e?.response?.data?.error_code || '')
     const backendMessage = String(e?.response?.data?.message || '')
-    const fallback = 'Heslo sa nepodarilo resetovat. Skuste to znova.'
+    const fallback = 'Heslo sa nepodarilo resetovať. Skúste to znova.'
 
     if (backendCode === 'PASSWORD_RESET_CODE_INVALID' || backendMessage.includes('invalid code')) {
-      invalidCodeMessage.value = backendMessage || 'Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.'
+      invalidCodeMessage.value = backendMessage || 'Zadali ste neplatný kód. Mal by mať tvar XXXXX-XXXXX.'
       return
     }
 

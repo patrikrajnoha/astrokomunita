@@ -3,15 +3,15 @@
     <template #hero>
       <AuthHeroPanel
         eyebrow="Obnova hesla"
-        title="Zabudnute heslo"
-        subtitle="Zadajte e-mail k uctu a posleme vam obnovovaci kod na nastavenie noveho hesla."
+        title="Zabudnuté heslo"
+        subtitle="Zadajte e-mail k účtu a pošleme vám obnovovací kód na nastavenie nového hesla."
       />
     </template>
 
     <AuthFormSection
       kicker="Obnova"
-      title="Vyziadat obnovovaci kod"
-      description="Zadajte e-mail uctu. Kod pride e-mailom a plati obmedzeny cas."
+      title="Vyžiadať obnovovací kód"
+      description="Zadajte e-mail účtu. Kód príde e-mailom a platí obmedzený čas."
     >
       <form class="authForm" @submit.prevent="submit" novalidate>
         <AuthField
@@ -20,7 +20,7 @@
           type="email"
           autocomplete="email"
           placeholder="you@example.com"
-          helper="Obnovovaci kod dostanete e-mailom."
+          helper="Obnovovací kód dostanete e-mailom."
           :error="emailError"
           required
         >
@@ -36,8 +36,8 @@
 
         <AuthActions
           :back-to="{ name: 'login' }"
-          back-label="Spat"
-          submit-label="Dalej"
+          back-label="Späť"
+          submit-label="Ďalej"
           loading-label="Odosielam..."
           :loading="loading"
         />
@@ -45,8 +45,8 @@
         <AuthDivider text="alebo" />
 
         <p class="authFootnote">
-          Uz mate kod?
-          <RouterLink class="authInlineLink" :to="resetLink">Pokracovat na reset</RouterLink>
+          Už máte kód?
+          <RouterLink class="authInlineLink" :to="resetLink">Pokračovať na reset</RouterLink>
         </p>
       </form>
     </AuthFormSection>
@@ -75,7 +75,7 @@ const loading = ref(false)
 const attempted = ref(false)
 const error = ref('')
 
-const emailError = computed(() => (attempted.value && !email.value.trim() ? 'E-mail je povinny.' : ''))
+const emailError = computed(() => (attempted.value && !email.value.trim() ? 'E-mail je povinný.' : ''))
 const resetLink = computed(() => ({
   name: 'reset-password',
   query: email.value.trim() ? { email: email.value.trim() } : undefined,
@@ -109,7 +109,7 @@ async function submit() {
       },
     })
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.message || 'Nepodarilo sa odoslat obnovovaci kod.'
+    error.value = e?.response?.data?.message || e?.message || 'Nepodarilo sa odoslať obnovovací kód.'
   } finally {
     loading.value = false
   }
