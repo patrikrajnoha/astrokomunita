@@ -106,7 +106,7 @@ const equipmentLabel = computed(() => String(props.observation?.equipment || '')
 const eventId = computed(() => Number(props.observation?.event?.id || props.observation?.event_id || 0))
 const eventLabel = computed(() => {
   const title = String(props.observation?.event?.title || '').trim()
-  return title ? `Udalost: ${title}` : 'Otvorit udalost'
+  return title ? `Udalosť: ${title}` : 'Otvoriť udalosť'
 })
 
 function onOpen() {

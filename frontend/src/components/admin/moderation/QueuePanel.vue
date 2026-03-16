@@ -94,7 +94,7 @@ async function loadQueue() {
     await loadDetail(selectedId.value)
     await focusSelectedQueue()
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat frontu.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať frontu.'
   } finally {
     loading.value = false
   }
@@ -107,7 +107,7 @@ async function loadDetail(id) {
     const res = await api.get(`/admin/moderation/${id}`)
     detail.value = res.data
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat detail.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať detail.'
   }
 }
 
@@ -149,7 +149,7 @@ async function act(action) {
     emit('changed')
     await loadQueue()
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa ulozit zmenu.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa uložiť zmenu.'
   } finally {
     actionLoading.value = false
   }
@@ -223,8 +223,8 @@ loadQueue()
 
     <div class="layout">
       <section ref="queueRef" class="queue">
-        <div v-if="loading" class="hint">Nacitavam frontu...</div>
-        <div v-else-if="!items.length" class="hint">Ziadne polozky.</div>
+        <div v-if="loading" class="hint">Načítavam frontu...</div>
+        <div v-else-if="!items.length" class="hint">Žiadne položky.</div>
         <button
           v-for="item in items"
           :key="item.id"
@@ -274,7 +274,7 @@ loadQueue()
           </div>
 
           <h4>Logy</h4>
-          <div v-if="!detail.logs?.length" class="hint">Zatial bez logov.</div>
+          <div v-if="!detail.logs?.length" class="hint">Zatiaľ bez logov.</div>
           <div v-for="log in detail.logs" :key="log.id" class="logItem">
             <div class="row">
               <span>{{ log.entity_type }}</span>

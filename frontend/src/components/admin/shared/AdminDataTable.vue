@@ -20,11 +20,11 @@ const props = defineProps({
   },
   emptyTitle: {
     type: String,
-    default: 'Ziadne vysledky',
+    default: 'Žiadne výsledky',
   },
   emptyDescription: {
     type: String,
-    default: 'V tabulke nie su ziadne riadky.',
+    default: 'V tabuľke nie sú žiadne riadky.',
   },
   canClearFilters: {
     type: Boolean,

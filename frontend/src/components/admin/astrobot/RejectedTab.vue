@@ -2,11 +2,11 @@
   <div class="rejectedTab">
     <div class="tabActions">
       <button class="actionbtn" @click="loadItems" :disabled="loading">
-        {{ loading ? 'Nacitavam...' : 'Obnovit zoznam' }}
+        {{ loading ? 'Načítavam...' : 'Obnoviť zoznam' }}
       </button>
     </div>
 
-    <div class="tabHint">Polozky oznacene ako rejected. V pripade potreby ich mozes publikovat spat.</div>
+    <div class="tabHint">Položky označené ako rejected. V prípade potreby ich môžeš publikovať späť.</div>
 
     <div v-if="loading" class="panelLoading">
       <div class="skeleton h-4 w-3/4"></div>
@@ -17,11 +17,11 @@
     <div v-else-if="error" class="state stateError">
       <div class="stateTitle">Chyba</div>
       <div class="stateText">{{ error }}</div>
-      <button class="ghostbtn" @click="loadItems">Skusit znova</button>
+      <button class="ghostbtn" @click="loadItems">Skúsiť znova</button>
     </div>
 
     <div v-else-if="items.length === 0" class="state">
-      <div class="stateTitle">Ziadne rejected polozky</div>
+      <div class="stateTitle">Žiadne rejected položky</div>
     </div>
 
     <ul v-else class="itemsList">
@@ -31,7 +31,7 @@
           <span class="itemMeta">{{ formatDateTime(item.reviewed_at) }}</span>
         </div>
         <div class="itemTitle">{{ item.title }}</div>
-        <div v-if="item.review_note" class="itemNote">Poznamka: {{ item.review_note }}</div>
+        <div v-if="item.review_note" class="itemNote">Poznámka: {{ item.review_note }}</div>
         <div class="itemActions">
           <button class="actionbtn" @click="publishItem(item)">Publikovat</button>
           <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="ghostbtn">Zdroj</a>
@@ -67,7 +67,7 @@ export default {
         })
         this.items = res.data.data || []
       } catch (err) {
-        this.error = err?.response?.data?.message || err?.message || 'Nepodarilo sa nacitat rejected polozky.'
+        this.error = err?.response?.data?.message || err?.message || 'Nepodarilo sa načítať rejected položky.'
       } finally {
         this.loading = false
       }
@@ -75,16 +75,16 @@ export default {
 
     async publishItem(item) {
       const ok = await confirm({
-        title: 'Publikovat rejected polozku',
-        message: 'Publikovat rejected polozku?',
-        confirmText: 'Publikovat polozku',
-        cancelText: 'Zrusit',
+        title: 'Publikovať rejected položku',
+        message: 'Publikovať rejected položku?',
+        confirmText: 'Publikovať položku',
+        cancelText: 'Zrušiť',
       })
       if (!ok) return
       try {
         await api.post(`/admin/astrobot/items/${item.id}/publish`)
         await this.loadItems()
-        toast.success('Polozka bola publikovana.')
+        toast.success('Položka bola publikovaná.')
       } catch (err) {
         this.error = 'Publikovanie zlyhalo: ' + (err?.response?.data?.message || err?.message)
         toast.error(this.error)

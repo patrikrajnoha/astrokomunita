@@ -404,6 +404,7 @@ watch(
   () => route.fullPath,
   async () => {
     if (!isMobileViewport.value) return
+    closeDrawer()
     closeWidgetLayers()
     await warmSidebarConfig()
   },

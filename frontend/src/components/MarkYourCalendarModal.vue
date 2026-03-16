@@ -25,7 +25,7 @@
                   target="_blank"
                   rel="noopener"
                 >
-                  Pridat do Google Kalendara
+                  Pridať do Google Kalendára
                 </a>
                 <a
                   v-if="item.ics_url || item.calendar?.ics_url"

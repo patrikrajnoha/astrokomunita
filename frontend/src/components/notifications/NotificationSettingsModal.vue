@@ -5,7 +5,7 @@
         <transition name="prefs-pop">
           <section v-if="open" class="prefs-card" role="dialog" aria-modal="true" aria-labelledby="prefs-title">
             <header class="prefs-header">
-              <h2 id="prefs-title" class="prefs-title">Nastavenia notifikacii</h2>
+              <h2 id="prefs-title" class="prefs-title">Nastavenia notifikácií</h2>
               <button type="button" class="prefs-close" aria-label="Zavriet" @click="close">
                 <svg viewBox="0 0 20 20" fill="none">
                   <path d="M5 5l10 10" />
@@ -15,13 +15,13 @@
             </header>
 
             <p class="prefs-helper">
-              Vyberte typy notifikacii, ktore budete dostavat o svojich aktivitach, zaujmoch a odporucaniach.
+              Vyberte typy notifikácií, ktoré budete dostávať o svojich aktivitách, záujmoch a odporúčaniach.
             </p>
-            <p class="prefs-helper">Vyberte, ktore notifikacie chcete vidiet a ktore nie.</p>
+            <p class="prefs-helper">Vyberte, ktoré notifikácie chcete vidieť a ktoré nie.</p>
 
             <div v-if="error" class="prefs-error" role="alert">{{ error }}</div>
 
-            <div v-if="loading" class="prefs-loading">Nacitavam...</div>
+            <div v-if="loading" class="prefs-loading">Načítavam...</div>
             <div v-else class="prefs-list">
               <label
                 v-for="item in notificationTypes"
@@ -40,7 +40,7 @@
               </label>
 
               <label class="prefs-row" for="email-enabled">
-                <span class="prefs-label">Posielat aj na email</span>
+                <span class="prefs-label">Posielať aj na email</span>
                 <input
                   id="email-enabled"
                   v-model="form.email_enabled"
@@ -53,10 +53,10 @@
 
             <footer class="prefs-actions">
               <button type="button" class="prefs-btn prefs-btn-secondary" :disabled="saving" @click="close">
-                Zrusit
+                Zrušiť
               </button>
               <button type="button" class="prefs-btn prefs-btn-primary" :disabled="loading || saving" @click="save">
-                {{ saving ? 'Ukladam...' : 'Ulozit' }}
+                {{ saving ? 'Ukladám...' : 'Uložiť' }}
               </button>
             </footer>
           </section>
@@ -123,7 +123,7 @@ const load = async () => {
     form.in_app = normalizeInApp(payload.in_app)
     form.email_enabled = Boolean(payload.email_enabled)
   } catch (err) {
-    state.error = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa nacitat nastavenia.'
+    state.error = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa načítať nastavenia.'
   } finally {
     state.loading = false
   }
@@ -140,11 +140,11 @@ const save = async () => {
       in_app: { ...form.in_app },
       email_enabled: Boolean(form.email_enabled),
     })
-    toast.success('Nastavenia notifikacii boli ulozene.')
+    toast.success('Nastavenia notifikácií boli uložené.')
     emit('saved')
     close()
   } catch (err) {
-    state.error = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa ulozit nastavenia.'
+    state.error = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa uložiť nastavenia.'
   } finally {
     state.saving = false
   }

@@ -153,7 +153,7 @@ export function usePostComposerMediaPickers({
       const payload = res?.data?.data
       eventResults.value = Array.isArray(payload) ? payload : []
     } catch (e) {
-      eventError.value = e?.response?.data?.message || 'Nepodarilo sa nacitat udalosti.'
+      eventError.value = e?.response?.data?.message || 'Nepodarilo sa načítať udalosti.'
     } finally {
       eventLoading.value = false
     }
@@ -194,7 +194,7 @@ export function usePostComposerMediaPickers({
       })
       eventFollowed.value = true
     } catch (e) {
-      err.value = e?.response?.data?.message || 'Nepodarilo sa zapnut sledovanie udalosti.'
+      err.value = e?.response?.data?.message || 'Nepodarilo sa zapnúť sledovanie udalosti.'
     } finally {
       eventFollowLoading.value = false
     }

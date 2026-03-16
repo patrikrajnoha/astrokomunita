@@ -5,11 +5,11 @@
       <p>Zdroj: Open-Meteo</p>
     </header>
 
-    <div v-if="loading" class="state">Nacitavam data...</div>
+    <div v-if="loading" class="state">Načítavam dáta...</div>
 
     <div v-else-if="error" class="state stateError">
       <p>{{ error }}</p>
-      <button type="button" class="retryBtn" @click="fetchWeather">Skusit znova</button>
+      <button type="button" class="retryBtn" @click="fetchWeather">Skúsiť znova</button>
     </div>
 
     <div v-else-if="weather" class="body">
@@ -107,7 +107,7 @@ const fetchWeather = async () => {
     weather.value = response?.data || null
   } catch (err) {
     weather.value = null
-    error.value = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa nacitat podmienky.'
+    error.value = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa načítať podmienky.'
   } finally {
     loading.value = false
   }

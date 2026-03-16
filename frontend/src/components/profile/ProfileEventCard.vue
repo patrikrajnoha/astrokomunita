@@ -47,7 +47,7 @@
       <div class="eventCard__footer">
         <p class="eventCard__visibility">{{ visibilityLabel }}</p>
         <button type="button" class="eventCard__button" @click="$emit('open', event)">
-          Otvorit detail
+          Otvoriť detail
         </button>
       </div>
     </div>
@@ -77,12 +77,12 @@ defineEmits(['open'])
 
 const title = computed(() => {
   const value = eventDisplayTitle(props.event)
-  return value === '-' ? 'Bez nazvu udalosti' : value
+  return value === '-' ? 'Bez názvu udalosti' : value
 })
 
 const summary = computed(() => {
   const value = eventDisplayShort(props.event)
-  return value === '-' ? 'Popis doplnime neskor.' : value
+  return value === '-' ? 'Popis doplníme neskôr.' : value
 })
 
 const formattedDate = computed(() => formatDateRange(props.event))
@@ -112,32 +112,32 @@ const showPlanMeta = computed(() => hasPersonalNote.value || hasReminder.value |
 
 function mapType(type) {
   const types = {
-    meteor_shower: 'Meteoricky roj',
+    meteor_shower: 'Meteorický roj',
     eclipse_lunar: 'Zatmenie Mesiaca',
     eclipse_solar: 'Zatmenie Slnka',
-    planetary_event: 'Planetarny ukaz',
+    planetary_event: 'Planetárny úkaz',
     conjunction: 'Konjunkcia',
-    aurora: 'Polarna ziara',
-    comet: 'Kometa',
-    other: 'Udalost',
+    aurora: 'Polárna žiara',
+    comet: 'Kométa',
+    other: 'Udalosť',
   }
 
-  return types[type] || 'Udalost'
+  return types[type] || 'Udalosť'
 }
 
 function mapStatus(event) {
   const startRaw = event?.start_at || event?.starts_at || event?.max_at
-  if (!startRaw) return 'Termin caka'
+  if (!startRaw) return 'Termín čaká'
 
   const eventDateKey = formatEventDateKey(startRaw, EVENT_TIMEZONE)
-  if (!eventDateKey) return 'Termin caka'
+  if (!eventDateKey) return 'Termín čaká'
 
   const today = getEventNowPeriodDefaults(EVENT_TIMEZONE)
   const todayKey = `${today.year}-${String(today.month).padStart(2, '0')}-${String(today.day).padStart(2, '0')}`
 
   if (eventDateKey < todayKey) return 'Prebehlo'
   if (eventDateKey === todayKey) return 'Dnes'
-  return 'Planovane'
+  return 'Plánované'
 }
 
 function formatDateRange(event) {
@@ -146,7 +146,7 @@ function formatDateRange(event) {
 
   const startLabel = formatLongDate(startRaw)
   if (!startLabel) {
-    return 'Datum doplnime'
+    return 'Dátum doplníme'
   }
 
   const context = resolveEventTimeContext(event, EVENT_TIMEZONE)

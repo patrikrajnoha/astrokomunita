@@ -19,13 +19,13 @@ const items = ref([])
 const emptyState = computed(() => {
   if (props.mode === 'reviewed') {
     return {
-      title: 'Zatial nic',
+      title: 'Zatiaľ nič',
       description: 'Skontrolovane polozky sa zobrazia tu.',
     }
   }
 
   return {
-    title: 'Zatial nic',
+    title: 'Zatiaľ nič',
     description: 'Polozky na kontrolu sa zobrazia tu.',
   }
 })
@@ -43,7 +43,7 @@ async function load() {
     const res = await api.get('/admin/moderation/review-feed', { params })
     items.value = Array.isArray(res?.data) ? res.data : []
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat prehlad.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať prehľad.'
   } finally {
     loading.value = false
   }

@@ -341,7 +341,7 @@ export const useAuthStore = defineStore('auth', {
         const loginUser = response?.data || null
 
         if (!loginUser) {
-          const fallbackMessage = this.error?.message || 'Prihlasenie zlyhalo.'
+          const fallbackMessage = this.error?.message || 'Prihlásenie zlyhalo.'
           const loginFailure = new Error(fallbackMessage)
           loginFailure.authError = this.error
           throw loginFailure

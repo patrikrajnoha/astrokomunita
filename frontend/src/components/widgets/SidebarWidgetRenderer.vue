@@ -37,7 +37,7 @@
           </component>
         </li>
       </ul>
-      <p v-if="validLinks.length === 0" class="widgetHint">Zatial ziadne odkazy.</p>
+      <p v-if="validLinks.length === 0" class="widgetHint">Zatiaľ žiadne odkazy.</p>
     </template>
 
     <template v-else-if="widgetType === SIDEBAR_WIDGET_TYPES.CONTEST">

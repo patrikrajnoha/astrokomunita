@@ -10,7 +10,7 @@
       :style="frameStyle"
       role="button"
       tabindex="0"
-      :aria-label="blurred ? `Obrazok: ${resolvedPendingLabel}` : 'Otvorit cely obrazok'"
+      :aria-label="blurred ? `Obrázok: ${resolvedPendingLabel}` : 'Otvoriť celý obrázok'"
       @click.stop="openLightbox"
       @keydown.enter.prevent="openLightbox"
       @keydown.space.prevent="openLightbox"
@@ -48,7 +48,7 @@ import ImageLightbox from '@/components/media/ImageLightbox.vue'
 
 const props = defineProps({
   src: { type: String, required: true },
-  alt: { type: String, default: 'Priloha' },
+  alt: { type: String, default: 'Príloha' },
   maxHeightDesktop: { type: Number, default: 380 },
   maxHeightMobile: { type: Number, default: 300 },
   blurred: { type: Boolean, default: false },

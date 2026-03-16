@@ -2,11 +2,11 @@
   <div class="publishedTab">
     <div class="tabActions">
       <button class="actionbtn" @click="loadItems" :disabled="loading">
-        {{ loading ? 'Nacitavam...' : 'Obnovit zoznam' }}
+        {{ loading ? 'Načítavam...' : 'Obnoviť zoznam' }}
       </button>
     </div>
 
-    <div class="tabHint">Tu vidis RSS polozky, ktore boli automaticky alebo manualne publikovane.</div>
+    <div class="tabHint">Tu vidíš RSS položky, ktoré boli automaticky alebo manuálne publikované.</div>
 
     <div v-if="loading" class="panelLoading">
       <div class="skeleton h-4 w-3/4"></div>
@@ -15,13 +15,13 @@
     </div>
 
     <div v-else-if="error" class="state stateError">
-      <div class="stateTitle">Nepodarilo sa nacitat data</div>
+      <div class="stateTitle">Nepodarilo sa načítať dáta</div>
       <div class="stateText">{{ error }}</div>
-      <button class="ghostbtn" @click="loadItems">Skusit znova</button>
+      <button class="ghostbtn" @click="loadItems">Skúsiť znova</button>
     </div>
 
     <div v-else-if="items.length === 0" class="state">
-      <div class="stateTitle">Ziadne publikovane polozky</div>
+      <div class="stateTitle">Žiadne publikované položky</div>
     </div>
 
     <ul v-else class="postsList">
@@ -35,8 +35,8 @@
         <div v-if="item.summary" class="postSummary">{{ truncate(item.summary, 200) }}</div>
 
         <div class="postActions">
-          <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="ghostbtn">Otvorit zdroj</a>
-          <button class="ghostbtn danger" @click="rejectItem(item)">Presunut do rejected</button>
+          <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer" class="ghostbtn">Otvoriť zdroj</a>
+          <button class="ghostbtn danger" @click="rejectItem(item)">Presunúť do rejected</button>
         </div>
       </li>
     </ul>
@@ -69,7 +69,7 @@ export default {
         })
         this.items = res.data.data || []
       } catch (err) {
-        this.error = err?.response?.data?.message || err?.message || 'Nepodarilo sa nacitat polozky.'
+        this.error = err?.response?.data?.message || err?.message || 'Nepodarilo sa načítať položky.'
       } finally {
         this.loading = false
       }
@@ -77,18 +77,18 @@ export default {
 
     async rejectItem(item) {
       const note = await prompt({
-        title: 'Presunut do rejected',
-        message: 'Dovod presunu do rejected (volitelne):',
-        placeholder: 'Napis poznamku',
-        confirmText: 'Presunut do rejected',
-        cancelText: 'Zrusit',
+        title: 'Presunúť do rejected',
+        message: 'Dôvod presunu do rejected (voliteľne):',
+        placeholder: 'Napíš poznámku',
+        confirmText: 'Presunúť do rejected',
+        cancelText: 'Zrušiť',
         variant: 'danger',
       })
       if (note === null) return
       try {
         await api.post(`/admin/astrobot/items/${item.id}/reject`, { note })
         await this.loadItems()
-        toast.success('Polozka bola presunuta do rejected.')
+        toast.success('Položka bola presunutá do rejected.')
       } catch (err) {
         this.error = 'Akcia zlyhala: ' + (err?.response?.data?.message || err?.message)
         toast.error(this.error)

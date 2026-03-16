@@ -113,7 +113,7 @@ const loadTrending = async () => {
     const response = await http.get('/trending?limit=10')
     trending.value = normalizeTrending(response?.data)
   } catch {
-    error.value = 'Nepodarilo sa nacitat trending'
+    error.value = 'Nepodarilo sa načítať trending'
     trending.value = []
   } finally {
     isLoading.value = false

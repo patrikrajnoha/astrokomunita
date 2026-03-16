@@ -59,6 +59,14 @@ const { confirm } = useConfirm()
 const reportTarget = ref(null)
 const reportReason = ref('spam')
 const reportMessage = ref('')
+
+const reportOptions = [
+  { value: 'spam',       icon: '🚫', label: 'Spam' },
+  { value: 'abuse',      icon: '⚠️',  label: 'Nevhodný obsah' },
+  { value: 'misinfo',    icon: '📢', label: 'Dezinformácie' },
+  { value: 'harassment', icon: '😤', label: 'Obťažovanie' },
+  { value: 'other',      icon: '💬', label: 'Iné' },
+]
 const highlightedPostId = ref(null)
 const editingPostId = ref(null)
 const editContentDraft = ref('')
@@ -278,7 +286,7 @@ async function saveInlineEdit(post) {
     const message =
       status === 401 || status === 419
         ? 'Relacia vyprsala. Prihlas sa znova.'
-        : e?.response?.data?.message || 'Uprava prispevku zlyhala.'
+        : e?.response?.data?.message || 'Úprava príspevku zlyhala.'
     toastError(message)
   } finally {
     editSavingId.value = null
@@ -308,7 +316,7 @@ async function submitReport() {
       message: reportMessage.value || null,
     })
     currentFeed.value.err = ''
-    toastSuccess('Dakujeme, nahlasenie sme prijali.')
+    toastSuccess('Ďakujeme, nahlásenie sme prijali.')
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) currentFeed.value.err = 'Prihlas sa.'

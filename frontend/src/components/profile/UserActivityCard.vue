@@ -10,7 +10,7 @@
 
     <dl v-else class="activityList" data-testid="activity-values">
       <div class="activityRow">
-        <dt>Posledne prihlasenie</dt>
+        <dt>Posledné prihlásenie</dt>
         <dd data-testid="last-login">{{ formattedLastLogin }}</dd>
       </div>
       <div class="activityRow">
@@ -44,7 +44,7 @@ const formattedPostsCount = computed(() => formatCount(props.activity?.posts_cou
 const formattedParticipationsCount = computed(() => formatCount(props.activity?.event_participations_count))
 
 function formatLastLogin(value) {
-  if (!value) return 'Zatial nezaznamenane'
+  if (!value) return 'Zatiaľ nezaznamenané'
 
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return String(value)

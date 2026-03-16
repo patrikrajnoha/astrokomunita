@@ -28,6 +28,7 @@ export function resolveSidebarScopeFromPath(path) {
     normalized.startsWith('/observations') ||
     normalized.startsWith('/observing') ||
     normalized.startsWith('/calendar') ||
+    normalized.startsWith('/articles') ||
     normalized.startsWith('/clanky') ||
     normalized.startsWith('/learn') ||
     normalized.startsWith('/learning') ||

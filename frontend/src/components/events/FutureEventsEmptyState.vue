@@ -5,15 +5,15 @@ defineEmits(['show-all', 'reset-filters'])
 <template>
   <section class="future-empty">
     <div class="future-empty__content">
-      <h3 class="future-empty__title">Najblizsie obdobie je zatial prazdne.</h3>
+      <h3 class="future-empty__title">Najbližšie obdobie je zatiaľ prázdne.</h3>
       <p class="future-empty__text">
-        Skus rozsirit filtre alebo sa prepni na vsetky udalosti, ak chces pozriet aj archiv a
-        starsie pozorovania.
+        Skús rozšíriť filtre alebo sa prepni na všetky udalosti, ak chceš pozrieť aj archív a
+        staršie pozorovania.
       </p>
 
       <div class="future-empty__actions">
         <button class="future-empty__primary" type="button" @click="$emit('show-all')">
-          Zobrazit vsetky
+          Zobraziť všetky
         </button>
         <button class="future-empty__secondary" type="button" @click="$emit('reset-filters')">
           Reset filtrov

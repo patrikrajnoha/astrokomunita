@@ -54,7 +54,7 @@ const pollDurationSeconds = ref(86400)
 const fileInput = ref(null)
 const textareaRef = ref(null)
 
-const pollAttachmentDisabledHint = 'Pri ankete sa obrazky pridavaju iba ku konkretnym moznostiam.'
+const pollAttachmentDisabledHint = 'Pri ankete sa obrázky pridávajú iba ku konkrétnym možnostiam.'
 const isAttachmentDisabled = computed(() => pollEnabled.value)
 
 const isExpanded = computed(() => isFocused.value || content.value.trim().length > 0 || !!file.value || !!selectedGif.value || !!selectedEvent.value)
@@ -81,7 +81,7 @@ const isPollValid = computed(() => {
 const submitBlockReason = computed(() => {
   if (!pollEnabled.value) return ''
   if (!content.value.trim()) return 'Dopln otazku ankety do textu prispevku.'
-  if (!isPollValid.value) return 'Skontroluj moznosti ankety (2-4, max 25 znakov).'
+  if (!isPollValid.value) return 'Skontroluj možnosti ankety (2-4, max 25 znakov).'
   return ''
 })
 
@@ -264,7 +264,7 @@ function onFileChange(e) {
   }
 
   if (!isAllowedByMvp(f)) {
-    err.value = 'Nepovoleny typ suboru.'
+    err.value = 'Nepovolený typ súboru.'
     return
   }
 
@@ -320,7 +320,7 @@ async function submit() {
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) err.value = 'Pre publikovanie sa prihlas.'
-    else if (status === 422) err.value = firstValidationError(e, 'Skontroluj text, prilohu a poll moznosti.')
+    else if (status === 422) err.value = firstValidationError(e, 'Skontroluj text, prílohu a poll možnosti.')
     else err.value = e?.response?.data?.message || 'Publikovanie zlyhalo.'
   } finally {
     posting.value = false

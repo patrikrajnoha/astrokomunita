@@ -19,7 +19,7 @@
       <InlineStatus
         variant="error"
         :message="error"
-        action-label="Skusit znova"
+        action-label="Skúsiť znova"
         @action="fetchPayload"
       />
     </section>
@@ -28,7 +28,7 @@
       v-else-if="!payload?.available"
       mode="empty"
       title="Aurora watch je nedostupny"
-      message="NOAA OVATION forecast sa momentalne nepodarilo nacitat."
+      message="NOAA OVATION forecast sa momentálne nepodarilo načítať."
       compact
     />
 
@@ -159,7 +159,7 @@ async function fetchPayload() {
     error.value = (
       requestError?.response?.data?.message
       || requestError?.message
-      || 'Nepodarilo sa nacitat aurora watch.'
+      || 'Nepodarilo sa načítať aurora watch.'
     )
   } finally {
     loading.value = false

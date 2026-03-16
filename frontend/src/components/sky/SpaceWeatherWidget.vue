@@ -19,7 +19,7 @@
       <InlineStatus
         variant="error"
         :message="error"
-        action-label="Skusit znova"
+        action-label="Skúsiť znova"
         @action="fetchPayload"
       />
     </section>
@@ -28,7 +28,7 @@
       v-else-if="!payload?.available"
       mode="empty"
       title="Space weather je nedostupne"
-      message="NOAA SWPC data sa momentalne nepodarilo nacitat."
+      message="NOAA SWPC data sa momentálne nepodarilo načítať."
       compact
     />
 
@@ -137,7 +137,7 @@ async function fetchPayload() {
     error.value = (
       requestError?.response?.data?.message
       || requestError?.message
-      || 'Nepodarilo sa nacitat vesmirne pocasie.'
+      || 'Nepodarilo sa načítať vesmírne počasie.'
     )
   } finally {
     loading.value = false

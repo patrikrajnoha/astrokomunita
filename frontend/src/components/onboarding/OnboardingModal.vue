@@ -83,10 +83,10 @@
               :disabled="loading || selectedInterests.length === 0"
               @click="step = 2"
             >
-              Dalej
+              Ďalej
             </button>
             <button v-else type="button" class="btnPrimary" :disabled="loading" @click="emitFinish">
-              {{ loading ? 'Ukladam...' : 'Dokoncit' }}
+              {{ loading ? 'Ukladám...' : 'Dokončiť' }}
             </button>
           </div>
         </footer>
@@ -143,7 +143,7 @@ const showcaseContent = computed(() => {
       points: [
         'pocasie a seeing podla lokality',
         'mesiac, ISS a ukazy rychlo po ruke',
-        'vsetko vies neskor zmenit v nastaveniach',
+        'všetko vieš neskôr zmeniť v nastaveniach',
       ],
     }
   }

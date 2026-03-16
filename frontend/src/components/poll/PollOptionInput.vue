@@ -31,13 +31,13 @@
       <span class="counter">{{ remaining }}</span>
     </div>
 
-    <button v-if="option.imagePreviewUrl" type="button" class="iconBtn" :disabled="disabled" aria-label="Odstranit obrazok" @click="$emit('remove-image', index)">
+    <button v-if="option.imagePreviewUrl" type="button" class="iconBtn" :disabled="disabled" aria-label="Odstrániť obrázok" @click="$emit('remove-image', index)">
       x
     </button>
-    <button v-if="showAdd" type="button" class="iconBtn" :disabled="disabled" aria-label="Pridat moznost" @click="$emit('add-option')">
+    <button v-if="showAdd" type="button" class="iconBtn" :disabled="disabled" aria-label="Pridať možnosť" @click="$emit('add-option')">
       +
     </button>
-    <button v-if="canRemove" type="button" class="iconBtn" :disabled="disabled" aria-label="Odstranit moznost" @click="$emit('remove-option', index)">
+    <button v-if="canRemove" type="button" class="iconBtn" :disabled="disabled" aria-label="Odstrániť možnosť" @click="$emit('remove-option', index)">
       -
     </button>
   </div>
