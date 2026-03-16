@@ -52,8 +52,6 @@ services:
     volumes:
       - ./services/sky/app:/app/app
       - ./services/sky/data:/app/data
-    ports:
-      - "8010:8010"
     restart: unless-stopped
 
   frontend:
@@ -73,7 +71,7 @@ services:
     command: sh -lc "npm ci && npm run dev -- --host 0.0.0.0 --port 5174"
     ports:
       - "127.0.0.1:80:5174"
-      - "5174:5174"
+      - "127.0.0.1:5174:5174"
     depends_on:
       - backend
     restart: unless-stopped
@@ -86,7 +84,7 @@ services:
       APP_URL: http://127.0.0.1:8001
     command: sh -lc "if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --no-progress; fi && php artisan migrate --force && php artisan bots:sources:sync --quiet-summary && php artisan serve --host=0.0.0.0 --port=8001"
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     depends_on:
       mysql:
         condition: service_healthy
@@ -138,7 +136,7 @@ services:
     container_name: astrokomunita-reverb
     command: sh -lc "if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --no-progress; fi && php artisan reverb:start --host=0.0.0.0 --port=8080"
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       backend:
         condition: service_started
@@ -158,7 +156,7 @@ services:
       MYSQL_PASSWORD: astro
       MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3307:3306"
+      - "127.0.0.1:3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -166,6 +164,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+
+  adminer:
+    image: adminer:4.8.1-standalone
+    container_name: astrokomunita-adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+    ports:
+      - "127.0.0.1:8086:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
     restart: unless-stopped
 
   moderation:
@@ -183,16 +193,14 @@ services:
       MODERATION_IMAGE_FLAG_THRESHOLD: ${MODERATION_IMAGE_FLAG_THRESHOLD:-0.60}
       MODERATION_IMAGE_BLOCK_THRESHOLD: ${MODERATION_IMAGE_BLOCK_THRESHOLD:-0.85}
       MODERATION_IMAGE_MAX_BYTES: ${MODERATION_IMAGE_MAX_BYTES:-5242880}
-    ports:
-      - "8090:8090"
     restart: unless-stopped
 
   mailpit:
     image: axllent/mailpit:latest
     container_name: astrokomunita-mailpit
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
     restart: unless-stopped
 
   libretranslate:

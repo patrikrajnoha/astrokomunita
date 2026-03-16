@@ -37,4 +37,37 @@ class DockerComposeModerationConfigTest extends TestCase
         $this->assertStringContainsString('MODERATION_BASE_URL=http://moderation:8090', $contents);
         $this->assertStringNotContainsString('MODERATION_BASE_URL=http://127.0.0.1:8090', $contents);
     }
+
+    public function test_internal_services_are_not_published_on_host_ports(): void
+    {
+        $composePath = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'docker-compose.yml';
+        $compose = Yaml::parseFile($composePath);
+
+        $this->assertNull(data_get($compose, 'services.sky.ports'));
+        $this->assertNull(data_get($compose, 'services.moderation.ports'));
+    }
+
+    public function test_host_exposed_services_bind_to_loopback_only(): void
+    {
+        $composePath = dirname(__DIR__, 3) . DIRECTORY_SEPARATOR . 'docker-compose.yml';
+        $compose = Yaml::parseFile($composePath);
+
+        $expectedLoopbackPorts = [
+            'services.frontend.ports',
+            'services.backend.ports',
+            'services.reverb.ports',
+            'services.mysql.ports',
+            'services.adminer.ports',
+            'services.mailpit.ports',
+        ];
+
+        foreach ($expectedLoopbackPorts as $path) {
+            $ports = (array) data_get($compose, $path, []);
+            $this->assertNotEmpty($ports, "Expected ports for {$path}.");
+
+            foreach ($ports as $port) {
+                $this->assertStringStartsWith('127.0.0.1:', (string) $port);
+            }
+        }
+    }
 }
