@@ -35,6 +35,17 @@ class AstronomyPhraseNormalizerTest extends TestCase
         $this->assertSame("Prv\u{00E1} \u{0161}tvr\u{0165} Mesiaca", $badSkFirstQuarter);
     }
 
+    public function test_it_normalizes_directional_planet_titles_from_english_and_bad_slovak_shorthand(): void
+    {
+        $normalizer = app(AstronomyPhraseNormalizer::class);
+
+        $english = $normalizer->normalize('Mercury 3.4 N of Mars', 'sk');
+        $this->assertSame("Merk\u{00FA}r 3,4\u{00B0} severne od Marsu", $english);
+
+        $badSk = $normalizer->normalize("Ortu\u{0165} 3,4\u{00B0} s. \u{0161}. Marsu", 'sk');
+        $this->assertSame("Merk\u{00FA}r 3,4\u{00B0} severne od Marsu", $badSk);
+    }
+
     public function test_it_uses_original_title_fallback_when_mixed_language_remains(): void
     {
         $normalizer = app(AstronomyPhraseNormalizer::class);

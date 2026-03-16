@@ -17,18 +17,21 @@ class AdminEventTranslationBackfillTest extends TestCase
 
     private function configureTranslationProvider(): void
     {
-        config()->set('translation.default_provider', 'argos_microservice');
-        config()->set('translation.fallback_provider', '');
-        config()->set('translation.cache_enabled', false);
-        config()->set('translation.argos_microservice.base_url', 'http://translation.test');
-        config()->set('translation.argos_microservice.internal_token', 'token');
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'none');
+        config()->set('bots.translation.timeout_sec', 5);
+        config()->set('bots.translation.max_retries', 0);
+        config()->set('bots.translation.connect_timeout_sec', 3);
+        config()->set('bots.translation.libretranslate.url', 'http://translation.test');
+        config()->set('bots.translation.quality.enabled', false);
+        config()->set('bots.translation.post_edit.enabled', false);
 
         Http::fake([
             'http://translation.test/*' => function ($request) {
-                $sourceText = (string) data_get($request->data(), 'text', '');
+                $sourceText = (string) data_get($request->data(), 'q', '');
 
                 return Http::response([
-                    'translated' => 'SK:' . $sourceText,
+                    'translatedText' => 'SK:' . $sourceText,
                 ], 200);
             },
         ]);

@@ -101,6 +101,40 @@ class AstronomyPhraseNormalizer
         'pluto' => 'Pluto',
     ];
 
+    /**
+     * @var array<string,string>
+     */
+    private const OBJECT_GENITIVE_MAP = [
+        'mercury' => "Merk\u{00FA}ra",
+        'venus' => "Venu\u{0161}e",
+        'mars' => 'Marsu',
+        'jupiter' => 'Jupitera',
+        'saturn' => 'Saturna',
+        'uranus' => "Ur\u{00E1}na",
+        'neptune' => "Nept\u{00FA}na",
+        'pluto' => 'Pluta',
+        'moon' => 'Mesiaca',
+        'sun' => 'Slnka',
+    ];
+
+    /**
+     * @var array<string,string>
+     */
+    private const OBJECT_NOMINATIVE_MAP = [
+        'moon' => 'Mesiac',
+        'sun' => 'Slnko',
+    ];
+
+    /**
+     * @var array<string,string>
+     */
+    private const DIRECTION_LOCALIZED_MAP = [
+        'n' => 'severne',
+        's' => "ju\u{017E}ne",
+        'e' => "v\u{00FD}chodne",
+        'w' => "z\u{00E1}padne",
+    ];
+
     public function normalize(string $text, string $language): string
     {
         if (! $this->isSlovakLanguage($language)) {
@@ -111,6 +145,8 @@ class AstronomyPhraseNormalizer
         foreach (self::SK_PATTERNS as $pattern => $replacement) {
             $value = preg_replace($pattern, $replacement, $value) ?? $value;
         }
+
+        $value = $this->normalizeDirectionalTitle($value);
 
         return $value;
     }
@@ -208,6 +244,67 @@ class AstronomyPhraseNormalizer
         return trim($normalized);
     }
 
+    private function normalizeDirectionalTitle(string $text): string
+    {
+        $normalized = $this->normalizeInline($text);
+        if ($normalized === '') {
+            return $text;
+        }
+
+        $patterns = [
+            '/^(?<subject>.+?)\s+(?<distance>\d+(?:[.,]\d+)?)\s*(?:\x{00B0})?\s*(?<dir>[NSEW])\s+of\s+(?<target>.+)$/iu',
+            '/^(?<subject>.+?)\s+(?<distance>\d+(?:[.,]\d+)?)\s*(?:\x{00B0})?\s*(?<dir>(?:[NSEW]|north|south|east|west|severne|juzne|vychodne|zapadne|s\.?\s*(?:\x{0161}|s)\.?|j\.?\s*(?:\x{0161}|s)\.?|v\.?\s*d\.?|z\.?\s*d\.?))\s+(?:od\s+)?(?<target>.+)$/iu',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $normalized, $matches) !== 1) {
+                continue;
+            }
+
+            $formatted = $this->formatDirectionalTitle(
+                (string) ($matches['subject'] ?? ''),
+                (string) ($matches['distance'] ?? ''),
+                (string) ($matches['dir'] ?? ''),
+                (string) ($matches['target'] ?? '')
+            );
+
+            if ($formatted !== null) {
+                return $formatted;
+            }
+        }
+
+        return $text;
+    }
+
+    private function formatDirectionalTitle(string $subject, string $distance, string $directionToken, string $target): ?string
+    {
+        $directionKey = $this->directionKey($directionToken);
+        if ($directionKey === null) {
+            return null;
+        }
+
+        $localizedDirection = self::DIRECTION_LOCALIZED_MAP[$directionKey] ?? null;
+        if ($localizedDirection === null) {
+            return null;
+        }
+
+        $normalizedSubject = $this->localizeObjectNominative($subject);
+        $normalizedTarget = $this->localizeObjectGenitive($target);
+        $normalizedDistance = $this->normalizeAngleToken($distance);
+
+        if ($normalizedSubject === '' || $normalizedTarget === '' || $normalizedDistance === '') {
+            return null;
+        }
+
+        return sprintf(
+            "%s %s\u{00B0} %s od %s",
+            $normalizedSubject,
+            $normalizedDistance,
+            $localizedDirection,
+            $normalizedTarget
+        );
+    }
+
     private function hasSuspiciousEncodingArtifacts(string $text): bool
     {
         if ($text === '') {
@@ -226,6 +323,28 @@ class AstronomyPhraseNormalizer
         }
 
         return self::PLANET_LOCALIZED_MAP[$key] ?? null;
+    }
+
+    private function localizeObjectNominative(string $value): string
+    {
+        $key = $this->objectKey($value);
+        if ($key !== null) {
+            return self::PLANET_LOCALIZED_MAP[$key]
+                ?? self::OBJECT_NOMINATIVE_MAP[$key]
+                ?? $this->normalizeInline($value);
+        }
+
+        return $this->normalizeInline($value);
+    }
+
+    private function localizeObjectGenitive(string $value): string
+    {
+        $key = $this->objectKey($value);
+        if ($key !== null) {
+            return self::OBJECT_GENITIVE_MAP[$key] ?? $this->normalizeInline($value);
+        }
+
+        return $this->normalizeInline($value);
     }
 
     /**
@@ -352,16 +471,73 @@ class AstronomyPhraseNormalizer
         }
 
         return match ($normalized) {
-            'mercury', 'merkur', 'ortut', 'ortu' => 'mercury',
-            'venus', 'venusa' => 'venus',
-            'mars' => 'mars',
-            'jupiter' => 'jupiter',
-            'saturn' => 'saturn',
-            'uranus', 'uran' => 'uranus',
-            'neptune', 'neptun' => 'neptune',
-            'pluto' => 'pluto',
+            'mercury', 'merkur', 'merkura', 'ortut', 'ortu' => 'mercury',
+            'venus', 'venusa', 'venuse' => 'venus',
+            'mars', 'marsu' => 'mars',
+            'jupiter', 'jupitera' => 'jupiter',
+            'saturn', 'saturna' => 'saturn',
+            'uranus', 'uran', 'urana' => 'uranus',
+            'neptune', 'neptun', 'neptuna' => 'neptune',
+            'pluto', 'pluta' => 'pluto',
             default => null,
         };
+    }
+
+    private function objectKey(string $value): ?string
+    {
+        $planet = $this->planetKey($value);
+        if ($planet !== null) {
+            return $planet;
+        }
+
+        $normalized = mb_strtolower(trim($value), 'UTF-8');
+        if ($normalized === '') {
+            return null;
+        }
+
+        $normalized = preg_replace('/\s+/u', ' ', $normalized) ?? $normalized;
+        $normalized = trim($normalized);
+        $normalized = $this->asciiPlanetToken($normalized);
+        if ($normalized === '') {
+            return null;
+        }
+
+        return match ($normalized) {
+            'moon', 'mesiac', 'mesiaca' => 'moon',
+            'sun', 'slnko', 'slnka' => 'sun',
+            default => null,
+        };
+    }
+
+    private function directionKey(string $value): ?string
+    {
+        $normalized = mb_strtolower(trim($value), 'UTF-8');
+        if ($normalized === '') {
+            return null;
+        }
+
+        $ascii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized);
+        $normalized = $ascii !== false ? strtolower($ascii) : strtolower($normalized);
+        $normalized = preg_replace('/[^a-z]+/', '', $normalized) ?? $normalized;
+
+        return match ($normalized) {
+            'n', 'north', 'severne', 'ss' => 'n',
+            's', 'south', 'juzne', 'js' => 's',
+            'e', 'east', 'vychodne', 'vd' => 'e',
+            'w', 'west', 'zapadne', 'zd' => 'w',
+            default => null,
+        };
+    }
+
+    private function normalizeAngleToken(string $value): string
+    {
+        $normalized = trim($value);
+        if ($normalized === '') {
+            return '';
+        }
+
+        $normalized = preg_replace('/\s+/u', '', $normalized) ?? $normalized;
+        return str_replace('.', ',', $normalized);
     }
 
     private function asciiPlanetToken(string $value): string
