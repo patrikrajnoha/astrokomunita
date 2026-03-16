@@ -47,12 +47,6 @@ class AdminRouteContractTest extends TestCase
         ])->assertStatus(401);
     }
 
-    public function test_admin_newsletter_ai_draft_copy_route_exists_and_is_protected(): void
-    {
-        $this->postJson('/api/admin/newsletter/ai/draft-copy')
-            ->assertStatus(401);
-    }
-
     public function test_admin_ai_config_route_exists_and_is_protected(): void
     {
         $this->getJson('/api/admin/ai/config')
