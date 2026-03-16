@@ -99,16 +99,29 @@ const appShellChildren = [
     ],
   },
   {
-    path: 'clanky',
+    path: 'articles',
     name: 'learn',
     meta: { requiresAuth: false },
     component: () => import('../views/LearnView.vue'),
   },
   {
-    path: 'clanky/:slug',
+    path: 'articles/:slug',
     name: 'learn-detail',
     meta: { requiresAuth: false },
     component: () => import('../views/LearnDetailView.vue'),
+  },
+  {
+    path: 'clanky',
+    redirect: { name: 'learn' },
+  },
+  {
+    path: 'clanky/:slug',
+    redirect: (to) => ({
+      name: 'learn-detail',
+      params: { slug: to.params.slug },
+      query: to.query,
+      hash: to.hash,
+    }),
   },
   {
     path: 'learn',

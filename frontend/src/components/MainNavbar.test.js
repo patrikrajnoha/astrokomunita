@@ -41,7 +41,7 @@ const makeRouter = () =>
       { path: '/search', name: 'search', component: { template: '<div>search</div>' } },
       { path: '/events', name: 'events', component: { template: '<div>events</div>' } },
       { path: '/events/:id', name: 'event-detail', component: { template: '<div>event</div>' } },
-      { path: '/clanky', name: 'learn', component: { template: '<div>learn</div>' } },
+      { path: '/articles', name: 'learn', component: { template: '<div>learn</div>' } },
       { path: '/notifications', name: 'notifications', component: { template: '<div>notifications</div>' } },
       { path: '/profile', name: 'profile', component: { template: '<div>profile</div>' } },
       { path: '/settings', name: 'settings', component: { template: '<div>settings</div>' } },

@@ -11,8 +11,12 @@ const auth = useAuthStore()
 const notifications = useNotificationsStore()
 const route = useRoute()
 const router = useRouter()
-const { showBrandLogo } = defineProps({
+const { showBrandLogo, showCreateButton } = defineProps({
   showBrandLogo: {
+    type: Boolean,
+    default: true,
+  },
+  showCreateButton: {
     type: Boolean,
     default: true,
   },
@@ -267,12 +271,12 @@ const primaryLinks = computed(() => {
     },
     {
       key: 'learn',
-      to: '/clanky',
+      to: '/articles',
       label: 'Články',
       icon: 'V',
       iconOutline: navIcons.learn.outline,
       iconFilled: navIcons.learn.filled,
-      matchPrefix: '/clanky',
+      matchPrefix: '/articles',
     },
   ]
   if (auth.isAuthed) {
