@@ -29,20 +29,20 @@ describe('MoonPhasesWidget', () => {
       timezone: 'Europe/Bratislava',
       current_phase: 'full_moon',
       major_events: [
-        { key: 'last_quarter', label: 'Posledna stvrt', at: '2026-03-11T10:38:00+01:00', date: '2026-03-11', time: '10:38', is_current: false },
+        { key: 'last_quarter', label: 'Posledná štvrt', at: '2026-03-11T10:38:00+01:00', date: '2026-03-11', time: '10:38', is_current: false },
         { key: 'new_moon', label: 'Nov', at: '2026-03-19T02:23:00+01:00', date: '2026-03-19', time: '02:23', is_current: false },
-        { key: 'first_quarter', label: 'Prva stvrt', at: '2026-03-25T20:17:00+01:00', date: '2026-03-25', time: '20:17', is_current: false },
+        { key: 'first_quarter', label: 'Prvá štvrt', at: '2026-03-25T20:17:00+01:00', date: '2026-03-25', time: '20:17', is_current: false },
         { key: 'full_moon', label: 'Spln', at: '2026-04-02T04:11:00+02:00', date: '2026-04-02', time: '04:11', is_current: false },
       ],
       phases: [
         { key: 'new_moon', label: 'Nov', start_date: '2026-02-17', end_date: '2026-02-20', is_current: false },
-        { key: 'waxing_crescent', label: 'Dorastajuci kosacik', start_date: '2026-02-20', end_date: '2026-02-24', is_current: false },
-        { key: 'first_quarter', label: 'Prva stvrt', start_date: '2026-02-24', end_date: '2026-02-27', is_current: false },
-        { key: 'waxing_gibbous', label: 'Dorastajuci mesiac', start_date: '2026-02-27', end_date: '2026-03-03', is_current: false },
+        { key: 'waxing_crescent', label: 'Dorastajúci kosáčik', start_date: '2026-02-20', end_date: '2026-02-24', is_current: false },
+        { key: 'first_quarter', label: 'Prvá štvrt', start_date: '2026-02-24', end_date: '2026-02-27', is_current: false },
+        { key: 'waxing_gibbous', label: 'Dorastajúci mesiac', start_date: '2026-02-27', end_date: '2026-03-03', is_current: false },
         { key: 'full_moon', label: 'Spln', start_date: '2026-03-03', end_date: '2026-03-06', is_current: true },
-        { key: 'waning_gibbous', label: 'Ubudajuci mesiac', start_date: '2026-03-06', end_date: '2026-03-10', is_current: false },
-        { key: 'last_quarter', label: 'Posledna stvrt', start_date: '2026-03-10', end_date: '2026-03-13', is_current: false },
-        { key: 'waning_crescent', label: 'Ubudajuci kosacik', start_date: '2026-03-13', end_date: '2026-03-17', is_current: false },
+        { key: 'waning_gibbous', label: 'Ubúdajúci mesiac', start_date: '2026-03-06', end_date: '2026-03-10', is_current: false },
+        { key: 'last_quarter', label: 'Posledná štvrt', start_date: '2026-03-10', end_date: '2026-03-13', is_current: false },
+        { key: 'waning_crescent', label: 'Ubúdajúci kosáčik', start_date: '2026-03-13', end_date: '2026-03-17', is_current: false },
       ],
       source: {
         provider: 'USNO',
@@ -55,9 +55,9 @@ describe('MoonPhasesWidget', () => {
       year: 2026,
       timezone: 'Europe/Bratislava',
       events: [
-        { key: 'super_new_moon', label: 'Super New Moon', at: '2026-05-16T07:01:00+02:00', date: '2026-05-16', time: '07:01', note: 'Nov blizko perigea.' },
-        { key: 'blue_moon', label: 'Blue Moon', at: '2026-05-31T10:45:00+02:00', date: '2026-05-31', time: '10:45', note: 'Druhy spln v jednom kalendarnom mesiaci.' },
-        { key: 'micro_full_moon', label: 'Micro Full Moon', at: '2026-05-31T10:45:00+02:00', date: '2026-05-31', time: '10:45', note: 'Spln blizko apogea.' },
+        { key: 'super_new_moon', label: 'Super New Moon', at: '2026-05-16T07:01:00+02:00', date: '2026-05-16', time: '07:01', note: 'Nov blízko perigea.' },
+        { key: 'blue_moon', label: 'Blue Moon', at: '2026-05-31T10:45:00+02:00', date: '2026-05-31', time: '10:45', note: 'Druhý spln v jednom kalendárnom mesiaci.' },
+        { key: 'micro_full_moon', label: 'Micro Full Moon', at: '2026-05-31T10:45:00+02:00', date: '2026-05-31', time: '10:45', note: 'Spln blízko apogea.' },
       ],
       source: {
         moon_phases: {
@@ -145,16 +145,16 @@ describe('MoonPhasesWidget', () => {
     })
 
     expect(wrapper.findAll('.phaseEvent')).toHaveLength(4)
-    expect(wrapper.text()).toContain('Posledna stvrt')
+    expect(wrapper.text()).toContain('Posledná štvrt')
     expect(wrapper.text()).toContain('Nov')
     expect(wrapper.text()).toContain('10:38')
     expect(wrapper.text()).toContain('04:11')
     expect(wrapper.text()).toContain('Mesiac: 28%')
     expect(wrapper.text()).toContain('Smer Mesiaca:')
-    expect(wrapper.text()).toContain('Vzdialenost Mesiaca:')
-    expect(wrapper.text()).toContain('Dalsi vychod Mesiaca:')
+    expect(wrapper.text()).toContain('Vzdialenosť Mesiaca:')
+    expect(wrapper.text()).toContain('Ďalší východ Mesiaca:')
     expect(wrapper.findAll('.specialEventRow')).toHaveLength(3)
-    expect(wrapper.text()).toContain('Specialne lunarne udalosti v 2026')
+    expect(wrapper.text()).toContain('Špeciálne lunárne udalosti v 2026')
     expect(wrapper.text()).toContain('Super New Moon')
     expect(wrapper.text()).toContain('Blue Moon')
   })

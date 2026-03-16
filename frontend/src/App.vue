@@ -1,7 +1,7 @@
 <template>
   <div v-if="showInitError" class="appInitScreen appInitScreen--error">
     <div class="card">
-      <h1>Aplikacia sa nepodarila spustit</h1>
+      <h1>Aplikácia sa nepodarila spustiť</h1>
       <p>{{ initMessage }}</p>
       <pre v-if="showStack && initStack">{{ initStack }}</pre>
     </div>
@@ -9,8 +9,8 @@
 
   <div v-else-if="showLoading" class="appInitScreen">
     <div class="card">
-      <h1>Nacitavam aplikaciu...</h1>
-      <p>Inicializujem relaciu a smerovanie.</p>
+      <h1>Načítavam aplikáciu...</h1>
+      <p>Inicializujem reláciu a smerovanie.</p>
     </div>
   </div>
 
@@ -31,7 +31,7 @@ import { appInitState } from '@/bootstrap/appInitState'
 const showInitError = computed(() => Boolean(appInitState.initError))
 const showLoading = computed(() => appInitState.initializing && !showInitError.value)
 const showStack = computed(() => import.meta.env.DEV)
-const initMessage = computed(() => appInitState.initError?.message || 'Neznama chyba pri starte')
+const initMessage = computed(() => appInitState.initError?.message || 'Neznáma chyba pri štarte')
 const initStack = computed(() => appInitState.initError?.stack || '')
 </script>
 

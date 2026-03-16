@@ -90,12 +90,12 @@ const kpValueLabel = computed(() => {
   const value = kpIndex ?? estimated
   return value === null ? '-' : value.toFixed(1)
 })
-const noaaScaleLabel = computed(() => String(payload.value?.noaa_scale || 'Bez dat').trim() || 'Bez dat')
+const noaaScaleLabel = computed(() => String(payload.value?.noaa_scale || 'Bez dát').trim() || 'Bez dát')
 const geomagneticLevelLabel = computed(() => (
-  String(payload.value?.geomagnetic_level || 'Nezname').trim() || 'Nezname'
+  String(payload.value?.geomagnetic_level || 'Neznáme').trim() || 'Neznáme'
 ))
 const auroraLabel = computed(() => (
-  String(payload.value?.aurora?.watch_label || 'Bez dat').trim() || 'Bez dat'
+  String(payload.value?.aurora?.watch_label || 'Bez dát').trim() || 'Bez dát'
 ))
 const auroraDetail = computed(() => {
   const score = toFiniteNumber(payload.value?.aurora?.watch_score)

@@ -77,13 +77,13 @@ export function formatAstronomyTime(value, timeZone) {
 export function moonPhaseLabel(value) {
   const normalized = String(value || "").trim().toLowerCase();
   if (normalized === "new_moon") return "Nov";
-  if (normalized === "waxing_crescent") return "Dorastajuci kosacik";
-  if (normalized === "first_quarter") return "Prva stvrt";
-  if (normalized === "waxing_gibbous") return "Dorastajuci Mesiac";
+  if (normalized === "waxing_crescent") return "Dorastajúci kosáčik";
+  if (normalized === "first_quarter") return "Prvá štvrt";
+  if (normalized === "waxing_gibbous") return "Dorastajúci Mesiac";
   if (normalized === "full_moon") return "Spln";
-  if (normalized === "waning_gibbous") return "Ubudajuci Mesiac";
-  if (normalized === "last_quarter") return "Posledna stvrt";
-  if (normalized === "waning_crescent") return "Ubudajuci kosacik";
+  if (normalized === "waning_gibbous") return "Ubúdajúci Mesiac";
+  if (normalized === "last_quarter") return "Posledná štvrt";
+  if (normalized === "waning_crescent") return "Ubúdajúci kosáčik";
   return "-";
 }
 

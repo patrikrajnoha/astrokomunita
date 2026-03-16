@@ -62,14 +62,14 @@ const astronomy = ref(null)
 
 const phaseDictionary = {
   new_moon: 'Nov',
-  waxing_crescent: 'Dorastajuci kosacik',
-  first_quarter: 'Prva stvrt',
-  waxing_gibbous: 'Dorastajuci mesiac',
+  waxing_crescent: 'Dorastajúci kosáčik',
+  first_quarter: 'Prvá štvrt',
+  waxing_gibbous: 'Dorastajúci mesiac',
   full_moon: 'Spln',
-  waning_gibbous: 'Ubudajuci mesiac',
-  last_quarter: 'Posledna stvrt',
-  waning_crescent: 'Ubudajuci kosacik',
-  unknown: 'Nezname',
+  waning_gibbous: 'Ubúdajúci mesiac',
+  last_quarter: 'Posledná štvrt',
+  waning_crescent: 'Ubúdajúci kosáčik',
+  unknown: 'Neznáme',
 }
 
 const moonPhaseLabel = computed(() => {

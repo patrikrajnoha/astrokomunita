@@ -10,12 +10,12 @@ export const SKY_PHASE = Object.freeze({
 
 export const SKY_PHASE_LABELS = Object.freeze({
   [SKY_PHASE.LOCATION_REQUIRED]: 'Poloha chyba',
-  [SKY_PHASE.UNKNOWN]: 'Neznamy stav',
-  [SKY_PHASE.DAY]: 'Den',
-  [SKY_PHASE.CIVIL_TWILIGHT]: 'Obciansky sumrak',
-  [SKY_PHASE.NAUTICAL_TWILIGHT]: 'Nauticky sumrak',
-  [SKY_PHASE.ASTRONOMICAL_TWILIGHT]: 'Astronomicky sumrak',
-  [SKY_PHASE.ASTRONOMICAL_NIGHT]: 'Astronomicka noc',
+  [SKY_PHASE.UNKNOWN]: 'Neznámy stav',
+  [SKY_PHASE.DAY]: 'Deň',
+  [SKY_PHASE.CIVIL_TWILIGHT]: 'Občiansky súmrak',
+  [SKY_PHASE.NAUTICAL_TWILIGHT]: 'Náutický súmrak',
+  [SKY_PHASE.ASTRONOMICAL_TWILIGHT]: 'Astronomický súmrak',
+  [SKY_PHASE.ASTRONOMICAL_NIGHT]: 'Astronomická noc',
 })
 
 export function classifySkyPhase({ hasLocationCoords, sunAltitudeDeg }) {
