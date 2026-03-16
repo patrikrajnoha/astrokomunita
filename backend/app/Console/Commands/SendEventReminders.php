@@ -36,8 +36,11 @@ class SendEventReminders extends Command
 
                 $preferences = NotificationPreference::ensureForUser((int) $reminder->user_id);
                 $emailMap = $preferences->email();
-                $allowReminderEmail = (bool) $preferences->email_enabled
-                    && (bool) ($emailMap['event_reminder'] ?? false);
+                $allowReminderEmail = NotificationPreference::allowsEventReminderEmailForType(
+                    (bool) $preferences->email_enabled,
+                    $emailMap,
+                    $reminder->event->type ?? null,
+                );
 
                 if ($allowReminderEmail) {
                     $reminder->user->notify(new EventReminderNotification($reminder));
