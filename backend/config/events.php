@@ -57,9 +57,6 @@ return [
             'EVENTS_AI_LAST_RUN_CACHE_TTL_SECONDS',
             (int) env('EVENTS_AI_INSIGHTS_CACHE_TTL_SECONDS', 2_592_000)
         ),
-        'prime_insights_default_limit' => (int) env('EVENTS_AI_PRIME_INSIGHTS_DEFAULT_LIMIT', 5),
-        'prime_insights_max_limit' => (int) env('EVENTS_AI_PRIME_INSIGHTS_MAX_LIMIT', 10),
-        'prime_insights_lock_ttl_seconds' => (int) env('EVENTS_AI_PRIME_INSIGHTS_LOCK_TTL_SECONDS', 60),
         'humanized_pilot_enabled' => filter_var(env('EVENTS_AI_HUMANIZED_PILOT_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
         'humanized_temperature' => (float) env('EVENTS_AI_HUMANIZED_TEMPERATURE', 0.3),
         'humanized_num_predict' => (int) env('EVENTS_AI_HUMANIZED_NUM_PREDICT', 520),
@@ -68,7 +65,6 @@ return [
         'title_postedit_temperature' => (float) env('EVENTS_AI_TITLE_POSTEDIT_TEMPERATURE', 0.25),
         'title_postedit_num_predict' => (int) env('EVENTS_AI_TITLE_POSTEDIT_NUM_PREDICT', 120),
         'title_postedit_timeout' => (int) env('EVENTS_AI_TITLE_POSTEDIT_TIMEOUT', 25),
-        'newsletter_copy_draft_admin_enabled' => filter_var(env('EVENTS_AI_NEWSLETTER_COPY_DRAFT_ADMIN_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
     ],
     'astropixels' => [
         'min_year' => (int) env('EVENTS_ASTROPIXELS_MIN_YEAR', 2021),
@@ -108,6 +104,7 @@ return [
         'eclipse_solar',
         'conjunction',
         'planetary_event',
+        'aurora',
         'comet',
         'asteroid',
         'space_event',
