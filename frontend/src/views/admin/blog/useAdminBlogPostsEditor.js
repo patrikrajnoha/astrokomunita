@@ -84,8 +84,8 @@ export function useAdminBlogPostsEditor() {
     aiTagSuggestionsLoading.value
       ? "Navrhujem..."
       : hasAiSuggestionResult.value
-      ? "Navrhnut znova"
-      : "Navrhnut tagy"
+      ? "Navrhnúť znova"
+      : "Navrhnúť tagy"
   );
   const isDirty = computed(() => makeFormSnapshot() !== formSnapshot.value);
   const titleLength = computed(() => String(form.value.title || "").trim().length);
@@ -97,7 +97,7 @@ export function useAdminBlogPostsEditor() {
   const hasCover = computed(() => Boolean(coverPreview.value));
   const tagCount = computed(() => parseTagsInput().length);
   const titleSlugPreview = computed(() =>
-    slugifyHeading(form.value.title || "novy-clanok")
+    slugifyHeading(form.value.title || "nový-článok")
   );
   const contentTabIssues = computed(
     () => Number(titleLength.value === 0) + Number(contentWordCount.value < 80)
@@ -107,25 +107,25 @@ export function useAdminBlogPostsEditor() {
   const publishChecklist = computed(() => [
     {
       key: "title",
-      label: "Nadpis je vyplneny",
+      label: "Nadpis je vyplnený",
       done: titleLength.value >= 8,
       required: true,
     },
     {
       key: "content",
-      label: "Obsah ma aspon 80 slov",
+      label: "Obsah má aspoň 80 slov",
       done: contentWordCount.value >= 80,
       required: true,
     },
     {
       key: "tags",
-      label: "Clanok ma aspon 1 tag",
+      label: "Článok má aspoň 1 tag",
       done: tagCount.value > 0,
       required: false,
     },
     {
       key: "cover",
-      label: "Titulny obrazok je vybrany",
+      label: "Titulný obrázok je vybraný",
       done: hasCover.value,
       required: false,
     },
@@ -140,7 +140,7 @@ export function useAdminBlogPostsEditor() {
   const publishDisabledReason = computed(() => {
     if (canPublishNow.value) return "";
     const labels = publishMissingRequired.value.map((item) => item.label.toLowerCase());
-    return `Pred publikovanim dopln: ${labels.join(", ")}.`;
+    return `Pred publikovaním doplň: ${labels.join(", ")}.`;
   });
   const pageRangeLabel = computed(() => {
     const from = data.value?.from || 0;
@@ -303,10 +303,10 @@ export function useAdminBlogPostsEditor() {
   async function confirmDiscardChanges() {
     if (!isDirty.value) return true;
     return confirm({
-      title: "Zahodit zmeny?",
-      message: "Mas neulozene zmeny. Chces pokracovat bez ulozenia?",
-      confirmText: "Zahodit",
-      cancelText: "Ponechat",
+      title: "Zahodiť zmeny?",
+      message: "Máš neuložené zmeny. Chceš pokračovať bez uloženia?",
+      confirmText: "Zahodiť",
+      cancelText: "Ponechať",
       variant: "danger",
     });
   }
@@ -339,7 +339,7 @@ export function useAdminBlogPostsEditor() {
   async function publishNow() {
     if (!canPublishNow.value) {
       toast.error(
-        publishDisabledReason.value || "Pred publikovanim treba doplnit povinne polia."
+        publishDisabledReason.value || "Pred publikovaním treba doplniť povinné polia."
       );
       return;
     }
@@ -351,12 +351,12 @@ export function useAdminBlogPostsEditor() {
       .map((item) => `- ${item.label}`)
       .join("\n");
     const ok = await confirm({
-      title: "Publikovat clanok",
+      title: "Publikovať článok",
       message: missingRecommended.length
-        ? `Pred publikovanim odporucame doplnit:\n${missingRecommendedCopy}\n\nChces pokracovat a publikovat teraz?`
-        : "Clanok bude publikovany okamzite. Chces pokracovat?",
-      confirmText: "Publikovat",
-      cancelText: "Spat",
+        ? `Pred publikovaním odporúčame doplniť:\n${missingRecommendedCopy}\n\nChceš pokračovať a publikovať teraz?`
+        : "Článok bude publikovaný okamžite. Chceš pokračovať?",
+      confirmText: "Publikovať",
+      cancelText: "Späť",
     });
     if (!ok) return;
     setPublishNow();
@@ -367,11 +367,11 @@ export function useAdminBlogPostsEditor() {
     if (!selectedId.value) return;
 
     const ok = await confirm({
-      title: "Nepublikovat clanok",
+      title: "Nepublikovať článok",
       message:
-        "Clanok sa vrati medzi koncepty a nebude viditelny ako publikovany. Chces pokracovat?",
-      confirmText: "Nepublikovat",
-      cancelText: "Spat",
+        "Článok sa vráti medzi koncepty a nebude viditeľný ako publikovaný. Chceš pokračovať?",
+      confirmText: "Nepublikovať",
+      cancelText: "Späť",
     });
     if (!ok) return;
 
@@ -402,10 +402,10 @@ export function useAdminBlogPostsEditor() {
       }
 
       lastSavedAt.value = new Date();
-      toast.success("Clanok bol stiahnuty z publikacie.");
+      toast.success("Článok bol stiahnutý z publikácie.");
     } catch (e) {
       formError.value =
-        e?.response?.data?.message || "Nepodarilo sa zrusit publikovanie clanku.";
+        e?.response?.data?.message || "Nepodarilo sa zrušiť publikovanie článku.";
       toast.error(formError.value);
     } finally {
       saving.value = false;
@@ -486,7 +486,7 @@ export function useAdminBlogPostsEditor() {
       }
     } catch (e) {
       if (token !== loadToken.value) return;
-      error.value = e?.response?.data?.message || "Nepodarilo sa nacitat clanky.";
+      error.value = e?.response?.data?.message || "Nepodarilo sa načítať články.";
     } finally {
       if (token === loadToken.value) {
         loading.value = false;
@@ -537,10 +537,10 @@ export function useAdminBlogPostsEditor() {
 
       lastSavedAt.value = new Date();
       if (!silent) {
-        toast.success(wasEditing ? "Clanok bol ulozeny." : "Clanok bol vytvoreny.");
+        toast.success(wasEditing ? "Článok bol uložený." : "Článok bol vytvorený.");
       }
     } catch (e) {
-      const msg = e?.response?.data?.message || "Nepodarilo sa ulozit clanok.";
+      const msg = e?.response?.data?.message || "Nepodarilo sa uložiť článok.";
       const fieldErrors = e?.response?.data?.errors;
       if (!silent) {
         if (fieldErrors) {
@@ -569,7 +569,7 @@ export function useAdminBlogPostsEditor() {
 
     if (!hasMinimumContent) {
       aiTagSuggestionsError.value =
-        "Pre AI tagy dopln aspon kratky nadpis a obsah (min. 10 znakov).";
+        "Pre AI tagy doplň aspoň krátky nadpis a obsah (min. 10 znakov).";
       return false;
     }
 
@@ -577,7 +577,7 @@ export function useAdminBlogPostsEditor() {
 
     if (!isEditing.value || !selectedId.value) {
       aiTagSuggestionsError.value =
-        "Nepodarilo sa vytvorit koncept clanku pre AI navrh tagov.";
+        "Nepodarilo sa vytvoriť koncept článku pre AI návrh tagov.";
       return false;
     }
 
@@ -616,19 +616,19 @@ export function useAdminBlogPostsEditor() {
 
       if (aiTagSuggestions.value.length === 0) {
         if (response?.reason === "provider_error") {
-          aiTagSuggestionsError.value = "AI je docasne nedostupne.";
+          aiTagSuggestionsError.value = "AI je dočasne nedostupné.";
         } else if (response?.reason === "no_existing_tags") {
           aiTagSuggestionsError.value =
-            "Zatial nemas ziadne existujuce tagy. Prepni na 'Aj nove'.";
+            "Zatiaľ nemáš žiadne existujúce tagy. Prepni na 'Aj nové'.";
         } else {
           aiTagSuggestionsError.value = response?.fallback_used
-            ? "Nenasli sa vhodne fallback tagy."
-            : "Nenasli sa vhodne AI tagy.";
+            ? "Nenašli sa vhodné fallback tagy."
+            : "Nenašli sa vhodné AI tagy.";
         }
       }
     } catch (e) {
       aiTagSuggestionsError.value =
-        e?.response?.data?.message || "Nepodarilo sa navrhnut tagy.";
+        e?.response?.data?.message || "Nepodarilo sa navrhnúť tagy.";
     } finally {
       aiTagSuggestionsLoading.value = false;
     }
@@ -711,13 +711,13 @@ export function useAdminBlogPostsEditor() {
         const attachedExisting = Number(tagSync.attached_existing || 0);
         const addedTotal = Number(tagSync.added_total || 0);
         if (addedTotal <= 0) {
-          toast.success("Tagy uz boli priradene.");
+          toast.success("Tagy už boli priradené.");
         } else {
           const parts = [];
-          if (attachedExisting > 0) parts.push(`existujuce: ${attachedExisting}`);
-          if (createdNew > 0) parts.push(`nove: ${createdNew}`);
+          if (attachedExisting > 0) parts.push(`existujúce: ${attachedExisting}`);
+          if (createdNew > 0) parts.push(`nové: ${createdNew}`);
           const suffix = parts.length ? ` (${parts.join(", ")})` : "";
-          toast.success(`Tagy boli pridane${suffix}.`);
+          toast.success(`Tagy boli pridané${suffix}.`);
         }
       } else {
         const attachedAfterIds = Array.isArray(saved?.tags)
@@ -729,10 +729,10 @@ export function useAdminBlogPostsEditor() {
           0,
           attachedAfterIds.filter((id) => !attachedBeforeIds.includes(id)).length
         );
-        toast.success(addedCount > 0 ? `Tagy boli pridane (${addedCount}).` : "Tagy uz boli priradene.");
+        toast.success(addedCount > 0 ? `Tagy boli pridané (${addedCount}).` : "Tagy už boli priradené.");
       }
     } catch (e) {
-      formError.value = e?.response?.data?.message || "Nepodarilo sa pridat tagy.";
+      formError.value = e?.response?.data?.message || "Nepodarilo sa pridať tagy.";
       toast.error(formError.value);
     } finally {
       saving.value = false;
@@ -742,7 +742,7 @@ export function useAdminBlogPostsEditor() {
   async function saveCoverOnly() {
     if (!selectedId.value) return;
     if (!coverFile.value) {
-      formError.value = "Najprv vyber titulny obrazok.";
+      formError.value = "Najprv vyber titulný obrázok.";
       return;
     }
 
@@ -768,10 +768,10 @@ export function useAdminBlogPostsEditor() {
         syncFormSnapshot();
       }
       lastSavedAt.value = new Date();
-      toast.success("Titulny obrazok bol ulozeny.");
+      toast.success("Titulný obrázok bol uložený.");
     } catch (e) {
       formError.value =
-        e?.response?.data?.message || "Nepodarilo sa ulozit titulny obrazok.";
+        e?.response?.data?.message || "Nepodarilo sa uložiť titulný obrázok.";
       toast.error(formError.value);
     } finally {
       saving.value = false;
@@ -781,10 +781,10 @@ export function useAdminBlogPostsEditor() {
   async function remove() {
     if (!selectedId.value) return;
     const ok = await confirm({
-      title: "Vymazat clanok",
-      message: "Naozaj chces vymazat tento clanok?",
-      confirmText: "Vymazat",
-      cancelText: "Zrusit",
+      title: "Vymazať článok",
+      message: "Naozaj chceš vymazať tento článok?",
+      confirmText: "Vymazať",
+      cancelText: "Zrušiť",
       variant: "danger",
     });
     if (!ok) return;
@@ -796,9 +796,9 @@ export function useAdminBlogPostsEditor() {
       await blogPosts.adminDelete(selectedId.value);
       await startNewPost(true);
       await load();
-      toast.success("Clanok bol vymazany.");
+      toast.success("Článok bol vymazaný.");
     } catch (e) {
-      formError.value = e?.response?.data?.message || "Nepodarilo sa vymazat clanok.";
+      formError.value = e?.response?.data?.message || "Nepodarilo sa vymazať článok.";
       toast.error(formError.value);
     } finally {
       deleting.value = false;

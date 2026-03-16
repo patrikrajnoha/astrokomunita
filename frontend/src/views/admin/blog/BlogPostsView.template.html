@@ -1,440 +1,324 @@
-<div class="admin-blog admin-blog--simple">
-  <header class="simple-header">
-    <div class="simple-header__copy">
+<div class="admin-blog">
+  <header class="blog-header">
+    <div class="blog-header__title">
       <h1>Články</h1>
-      <p>Písanie bez rušenia: nadpis, obsah, uložiť.</p>
     </div>
-
-    <div class="command-right">
-      <div class="search-field">
-        <input
-          v-model="query"
-          type="search"
-          placeholder="Hľadať článok"
-        />
-        <button v-if="hasQuery" type="button" class="ghost clear-search" @click="clearQuery">
-          Vyčistiť
-        </button>
+    <div class="blog-header__actions">
+      <div class="search-wrap">
+        <input v-model="query" type="search" placeholder="Hľadať…" class="search-input" />
+        <button v-if="hasQuery" type="button" class="clear-btn ghost" @click="clearQuery" aria-label="Vyčistiť">×</button>
       </div>
 
-      <label class="select-field">
-        <span>Stav</span>
-        <select :value="status" :disabled="loading" @change="setStatusFilter($event.target.value)">
-          <option value="">Všetky</option>
-          <option value="draft">Koncepty</option>
-          <option value="scheduled">Naplánované</option>
-          <option value="published">Publikované</option>
-        </select>
-      </label>
+      <select :value="status" :disabled="loading" class="filter-select" @change="setStatusFilter($event.target.value)">
+        <option value="">Všetky stavy</option>
+        <option value="draft">Koncepty</option>
+        <option value="scheduled">Naplánované</option>
+        <option value="published">Publikované</option>
+      </select>
 
-      <button class="ghost" type="button" :disabled="loading" @click="load">Obnoviť</button>
-      <button class="primary" type="button" :disabled="saving || deleting" @click="openCreateModal">
-        Nový článok
+      <button class="btn-primary" type="button" :disabled="saving || deleting" @click="handleNewPost">
+        + Nový článok
       </button>
     </div>
   </header>
 
-  <div v-if="error" class="error">{{ error }}</div>
+  <div v-if="error" class="error-banner">{{ error }}</div>
 
-  <div class="simple-layout">
-    <aside class="panel list">
-      <div class="panel-head">
-        <div>
-          <h2>Zoznam článkov</h2>
-          <p class="muted">{{ pageRangeLabel }}</p>
-        </div>
+  <div class="blog-layout" :class="{ 'is-editing': isEditing, 'list-collapsed': isListCollapsed }">
+
+    <!-- ─── LIST SIDEBAR ─────────────────────────────────── -->
+    <aside class="article-list">
+      <div class="list-top">
+        <span class="muted small list-top-label">{{ pageRangeLabel }}</span>
+        <button class="ghost icon-btn" type="button" :disabled="loading" title="Obnoviť" @click="load">
+          <svg viewBox="0 0 20 20" fill="none" width="14" height="14" aria-hidden="true">
+            <path d="M4 10a6 6 0 1 0 1.1-3.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M4 6v4h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button
+          class="ghost icon-btn list-collapse-btn"
+          type="button"
+          :title="isListCollapsed ? 'Zobraziť zoznam' : 'Skryť zoznam'"
+          @click="isListCollapsed = !isListCollapsed"
+        >
+          <svg viewBox="0 0 20 20" fill="none" width="14" height="14" aria-hidden="true">
+            <path v-if="!isListCollapsed" d="M13 5l-5 5 5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            <path v-else d="M7 5l5 5-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
 
-      <div class="list-body">
-        <div v-if="loading" class="pad muted">Načítavam...</div>
+      <div class="list-scroll">
+        <div v-if="loading" class="list-state muted">Načítavam…</div>
 
-        <div v-else class="card-list">
+        <template v-else>
           <button
             v-for="post in posts"
             :key="post.id"
             type="button"
-            class="post-card"
-            :class="{ active: post.id === selectedId }"
-            @click="openPostModal(post)"
+            class="article-card"
+            :class="{ 'is-active': post.id === selectedId }"
+            @click="selectPost(post)"
           >
-            <div class="card-title">{{ post.title || '(Bez názvu)' }}</div>
-            <div class="card-meta card-meta--top">
-              <span>{{ formatDate(post.published_at || post.created_at) }}</span>
-              <span class="card-status" :class="`card-status--${computeStatus(post)}`">{{ statusLabel(computeStatus(post)) }}</span>
-            </div>
-            <div v-if="computeStatus(post) === 'published'" class="card-stats">
-              <span class="card-stat" :title="`Prečítania: ${formatMetricCount(postReadCount(post))}`">
-                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path
-                    d="M2 10C3.6 6.9 6.6 5 10 5C13.4 5 16.4 6.9 18 10C16.4 13.1 13.4 15 10 15C6.6 15 3.6 13.1 2 10Z"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5" />
-                </svg>
-                <span>{{ formatMetricCount(postReadCount(post)) }}</span>
+            <div class="ac-title">{{ post.title || '(Bez názvu)' }}</div>
+            <div class="ac-foot">
+              <span class="muted small">{{ formatDate(post.published_at || post.created_at) }}</span>
+              <span class="status-pill" :class="`status-pill--${computeStatus(post)}`">
+                {{ statusLabel(computeStatus(post)) }}
               </span>
-
-              <span class="card-stat" :title="`Kliky: ${formatMetricCount(postClickCount(post))}`">
-                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                  <path
-                    d="M10 3V17"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                  />
-                  <path
-                    d="M5 7L10 3L15 7"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M5 13L10 17L15 13"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
+            </div>
+            <div v-if="computeStatus(post) === 'published'" class="ac-stats">
+              <span class="stat-chip" :title="`Prečítania: ${formatMetricCount(postReadCount(post))}`">
+                <svg viewBox="0 0 20 20" fill="none" width="11" height="11" aria-hidden="true">
+                  <path d="M2 10C3.6 6.9 6.6 5 10 5C13.4 5 16.4 6.9 18 10C16.4 13.1 13.4 15 10 15C6.6 15 3.6 13.1 2 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="10" cy="10" r="2.3" stroke="currentColor" stroke-width="1.5"/>
                 </svg>
-                <span>{{ formatMetricCount(postClickCount(post)) }}</span>
+                {{ formatMetricCount(postReadCount(post)) }}
+              </span>
+              <span class="stat-chip" :title="`Kliky: ${formatMetricCount(postClickCount(post))}`">
+                <svg viewBox="0 0 20 20" fill="none" width="11" height="11" aria-hidden="true">
+                  <path d="M10 3V17M5 7l5-4 5 4M5 13l5 4 5-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {{ formatMetricCount(postClickCount(post)) }}
               </span>
             </div>
           </button>
 
-          <div v-if="posts.length === 0" class="empty">Nenašli sa žiadne články.</div>
-        </div>
+          <div v-if="posts.length === 0" class="list-state muted">Nenašli sa žiadne články.</div>
+        </template>
       </div>
 
-      <div class="pager">
-        <button class="ghost" type="button" :disabled="loading || page <= 1" @click="prevPage">
-          Predchádzajúca
-        </button>
-        <button
-          class="ghost"
-          type="button"
-          :disabled="loading || (data && page >= data.last_page)"
-          @click="nextPage"
-        >
-          Ďalšia
-        </button>
+      <div class="list-foot">
+        <button class="ghost pager-btn" type="button" :disabled="loading || page <= 1" @click="prevPage">‹</button>
+        <span class="muted small">{{ page }}</span>
+        <button class="ghost pager-btn" type="button" :disabled="loading || (data && page >= data.last_page)" @click="nextPage">›</button>
       </div>
     </aside>
 
-    <div
-      class="editor-shell"
-      :class="{ 'create-modal-open': isEditorModalOpen }"
-      @click.self="isEditorModalOpen && closeEditorModal()"
-    >
-      <section
-        class="panel editor"
-        :class="{ 'editor-modal': isEditorModalOpen }"
-        :role="isEditorModalOpen ? 'dialog' : undefined"
-        :aria-modal="isEditorModalOpen ? 'true' : undefined"
-      >
-        <div v-if="!isEditing && !isEditorModalOpen" class="editor-empty" aria-hidden="true">
-          <p class="editor-empty-hint">Vyber článok zo zoznamu alebo vytvor nový</p>
+    <!-- ─── EDITOR AREA ───────────────────────────────────── -->
+    <div class="editor-area">
+
+      <!-- Empty state -->
+      <div v-if="!isEditing" class="editor-empty">
+        <p class="muted">Vyber článok alebo vytvor nový</p>
+        <button class="btn-primary" type="button" @click="handleNewPost">+ Nový článok</button>
+      </div>
+
+      <template v-else>
+        <!-- Topbar -->
+        <div class="editor-bar">
+          <div class="editor-bar__left">
+            <button class="ghost mobile-back" type="button" @click="handleBack">← Späť</button>
+            <span class="save-state" :class="saveStateClass">{{ saveStateLabel }}</span>
+            <span v-if="selectedPost?.updated_at || selectedPost?.published_at" class="muted small editor-ts">
+              {{ formatDate(selectedPost?.updated_at || selectedPost?.published_at) }}
+            </span>
+          </div>
+          <div class="editor-bar__right">
+            <button class="ghost" type="button" :disabled="saving || deleting" @click="showPreview = !showPreview">
+              {{ showPreview ? 'Upraviť' : 'Náhľad' }}
+            </button>
+            <button
+              class="ghost"
+              type="button"
+              :class="{ 'is-active': isSettingsOpen }"
+              :disabled="saving || deleting"
+              @click="toggleSettings"
+            >
+              Nastavenia
+            </button>
+            <button class="ghost" type="button" :disabled="saving || deleting" @click="save">
+              {{ saving ? 'Ukladám…' : 'Uložiť' }}
+            </button>
+            <button
+              v-if="selectedStatus === 'draft'"
+              class="btn-primary"
+              type="button"
+              :disabled="saving || deleting || !canPublishNow"
+              :title="!canPublishNow ? publishDisabledReason : ''"
+              @click="publishNow"
+            >
+              Publikovať
+            </button>
+            <button
+              v-else
+              class="ghost"
+              type="button"
+              :disabled="saving || deleting"
+              @click="unpublish"
+            >
+              Zrušiť publikovanie
+            </button>
+          </div>
         </div>
 
-        <template v-else>
-          <div class="editor-topbar" :class="{ 'with-modal-close': isEditorModalOpen }">
-            <div class="editor-topbar-row">
-              <div class="editor-meta">
-                <span class="save-state" :class="saveStateClass">{{ saveStateLabel }}</span>
-                <span
-                  v-if="selectedPost?.updated_at || selectedPost?.published_at"
-                  class="muted editor-date"
-                >
-                  {{ formatDate(selectedPost?.updated_at || selectedPost?.published_at) }}
-                </span>
-              </div>
+        <p v-if="selectedStatus === 'draft' && !canPublishNow" class="publish-hint">
+          {{ publishDisabledReason }}
+        </p>
 
-              <button
-                v-if="isEditorModalOpen"
-                class="ghost editor-topbar-close"
-                type="button"
-                aria-label="Zavrieť popup tvorby článku"
-                :disabled="saving || deleting"
-                @click="closeEditorModal"
-              >
-                <span aria-hidden="true">×</span>
-              </button>
-            </div>
+        <div v-if="formError" class="error-banner" style="margin: 0 12px;">{{ formError }}</div>
 
-            <div class="editor-actions">
-              <div class="editor-actions__secondary">
-                <button
-                  class="ghost settings-toggle"
-                  type="button"
-                  :class="{ active: isSettingsModalOpen }"
-                  :disabled="saving || deleting"
-                  @click="toggleSettingsModal"
-                >
-                  {{ isSettingsModalOpen ? 'Zavrieť nastavenia' : 'Nastavenia' }}
-                </button>
-                <button
-                  class="ghost"
-                  type="button"
-                  :disabled="saving || deleting"
-                  @click="showPreview = !showPreview"
-                  v-if="isEditing"
-                >
-                  {{ showPreview ? 'Upraviť' : 'Náhľad' }}
-                </button>
-              </div>
+        <!-- Split: content + settings drawer -->
+        <div class="editor-split" :class="{ 'settings-open': isSettingsOpen }">
 
-              <div class="editor-actions__primary">
-                <button
-                  class="ghost"
-                  type="button"
-                  :disabled="saving || deleting"
-                  @click="save"
-                >
-                  {{ saving ? 'Ukladám...' : 'Uložiť' }}
-                </button>
-                <button
-                  v-if="selectedStatus === 'draft'"
-                  class="primary"
-                  type="button"
-                  :disabled="saving || deleting || !canPublishNow"
-                  :title="!canPublishNow ? publishDisabledReason : ''"
-                  @click="publishNow"
-                >
-                  Publikovať
-                </button>
-                <button
-                  v-if="isEditing && selectedStatus !== 'draft'"
-                  class="ghost"
-                  type="button"
-                  :disabled="saving || deleting"
-                  @click="unpublish"
-                >
-                  Zrušiť publikovanie
-                </button>
+          <!-- Content -->
+          <div class="editor-content">
+            <div class="title-block">
+              <input
+                v-model="form.title"
+                type="text"
+                class="title-input"
+                placeholder="Nadpis článku…"
+              />
+              <div class="title-meta">
+                <span :class="['char-counter', { 'is-warn': titleLength > 70 }]">{{ titleLength }}/70</span>
+                <span class="muted small">{{ contentWordCount }} slov</span>
+                <code class="slug-preview">/articles/{{ titleSlugPreview }}</code>
               </div>
             </div>
 
-            <p v-if="selectedStatus === 'draft' && !canPublishNow" class="publish-hint">
-              {{ publishDisabledReason }}
-            </p>
-          </div>
-
-          <div v-if="formError" class="error">{{ formError }}</div>
-
-          <div class="editor-body">
-            <div class="title-row">
-              <label class="field-block field-block--title">
-                <span>Nadpis článku</span>
-                <input
-                  v-model="form.title"
-                  type="text"
-                  class="title-input"
-                  placeholder="Napíš jasný nadpis"
-                />
-              </label>
-              <div class="title-metrics">
-                <span :class="['title-counter', { warn: titleLength > 70 }]">{{ titleLength }}/70</span>
-                <span class="muted">{{ contentWordCount }} slov</span>
-                <code class="title-slug">/clanky/{{ titleSlugPreview }}</code>
-              </div>
-            </div>
-
-            <div v-if="showPreview" class="preview">
-              <div class="preview-header">
-                <div class="preview-kicker">Náhľad</div>
-                <div class="preview-meta">{{ readTimeFor(form.content) }}</div>
+            <!-- Preview -->
+            <div v-if="showPreview" class="article-preview">
+              <div class="preview-top">
+                <span class="preview-label">Náhľad</span>
+                <span class="muted small">{{ readTimeFor(form.content) }}</span>
               </div>
               <h2 class="preview-title">{{ form.title || 'Bez názvu' }}</h2>
-
               <div v-if="coverPreview" class="preview-cover">
-                <img :src="coverPreview" alt="Cover preview" />
+                <img :src="coverPreview" alt="Cover" />
               </div>
-
-              <aside v-if="previewToc.length" class="preview-toc">
-                <div class="preview-toc-title">Obsah</div>
+              <aside v-if="previewToc.length >= 3" class="preview-toc">
+                <div class="toc-heading">Obsah</div>
                 <ul>
-                  <li v-for="item in previewToc" :key="item.id" :class="item.type">
-                    <span>{{ item.text }}</span>
-                  </li>
+                  <li v-for="item in previewToc" :key="item.id" :class="item.type">{{ item.text }}</li>
                 </ul>
               </aside>
-
-              <div class="preview-content preview-content--article" v-html="previewHtml"></div>
+              <div class="preview-body preview-content--article" v-html="previewHtml"></div>
             </div>
 
-            <template v-else>
-              <section class="tab-card document-card">
-                <label class="field-block">
-                  <span>Obsah článku</span>
-                  <ArticleRichEditor
-                    v-model="form.content"
-                    class="content-rich-editor content-rich-editor--minimal"
-                    :min-height="520"
-                    placeholder="Napíš obsah článku..."
-                  />
-                  <textarea
-                    v-model="form.content"
-                    rows="20"
-                    class="content-textarea content-textarea--minimal content-textarea--hidden"
-                    placeholder="Napíš obsah článku..."
-                    aria-hidden="true"
-                    tabindex="-1"
-                  />
-                </label>
-                <div class="hint-row">
-                  <span>{{ readTimeFor(form.content) }}</span>
-                  <span>{{ contentWordCount }} slov</span>
-                </div>
-
-                <div
-                  v-if="isSettingsModalOpen"
-                  class="settings-modal-overlay"
-                  role="dialog"
-                  aria-modal="true"
-                  @click.self="closeSettingsModal"
-                >
-                  <section class="settings-modal">
-                    <header class="settings-modal-head">
-                      <h3>Nastavenia článku</h3>
-                      <button class="ghost" type="button" @click="closeSettingsModal">Zavrieť</button>
-                    </header>
-
-                    <div class="settings-modal-body minimal-more-body">
-                      <label class="field-block">
-                        <span>Tagy (oddelené čiarkou)</span>
-                        <input
-                          v-model="tagsInput"
-                          type="text"
-                          placeholder="napr. planéty, kométy, pozorovanie"
-                        />
-                      </label>
-
-                      <section class="ai-tags-panel">
-                        <div class="ai-tags-head">
-                          <h4>AI: Navrhnúť tagy</h4>
-                          <span v-if="aiTagFallbackUsed" class="ai-tags-fallback">Fallback</span>
-                        </div>
-                        <p class="muted">AI číta nadpis a obsah článku.</p>
-
-                        <div class="ai-mode-toggle" role="group" aria-label="Režim návrhov tagov">
-                          <button
-                            type="button"
-                            class="ghost ai-mode-btn"
-                            :class="{ active: aiTagSuggestionMode === 'existing_only' }"
-                            :disabled="aiTagSuggestionsLoading || saving || deleting"
-                            @click="setAiTagSuggestionMode('existing_only')"
-                          >
-                            Len existujúce
-                          </button>
-                          <button
-                            type="button"
-                            class="ghost ai-mode-btn"
-                            :class="{ active: aiTagSuggestionMode === 'allow_new' }"
-                            :disabled="aiTagSuggestionsLoading || saving || deleting"
-                            @click="setAiTagSuggestionMode('allow_new')"
-                          >
-                            Aj nové
-                          </button>
-                        </div>
-
-                        <div class="ai-tags-actions">
-                          <button
-                            type="button"
-                            class="ghost"
-                            :disabled="aiTagSuggestionsLoading || saving || deleting"
-                            @click="suggestAiTags"
-                          >
-                            {{ aiSuggestActionLabel }}
-                          </button>
-                          <button
-                            type="button"
-                            class="primary"
-                            :disabled="!hasSelectedAiTagSuggestions || saving || deleting"
-                            @click="applySelectedAiTags"
-                          >
-                            Pridať vybrané
-                          </button>
-                        </div>
-
-                        <p v-if="aiTagSuggestionsError" class="ai-tags-error">{{ aiTagSuggestionsError }}</p>
-
-                        <div v-if="aiTagSuggestions.length" class="ai-tags-list">
-                          <label
-                            v-for="(item, index) in aiTagSuggestions"
-                            :key="`ai-minimal-tag-${item.id}-${item.name}-${index}`"
-                            class="ai-tag-option"
-                          >
-                            <input v-model="item.checked" type="checkbox" />
-                            <div class="ai-tag-copy">
-                              <div class="ai-tag-line">
-                                <strong>{{ item.name }}</strong>
-                                <span v-if="item.id === 0" class="ai-tag-badge">Nový tag</span>
-                              </div>
-                              <p>{{ item.reason }}</p>
-                            </div>
-                          </label>
-                        </div>
-                      </section>
-
-                      <label class="field-block">
-                        <span>Publikovať od</span>
-                        <input v-model="form.published_at" type="datetime-local" />
-                      </label>
-
-                      <div class="meta-actions">
-                        <button class="ghost" type="button" :disabled="saving || deleting" @click="setPublishNow">
-                          Nastaviť na teraz
-                        </button>
-                        <button
-                          class="ghost"
-                          type="button"
-                          :disabled="saving || deleting || !form.published_at"
-                          @click="form.published_at = ''"
-                        >
-                          Ponechať ako koncept
-                        </button>
-                      </div>
-
-                      <label class="field-block">
-                        <span>Titulný obrázok</span>
-                        <input type="file" accept="image/*" @change="onCoverChange" />
-                      </label>
-
-                      <div v-if="coverPreview" class="cover-preview">
-                        <img :src="coverPreview" alt="Cover preview" />
-                      </div>
-
-                      <div class="minimal-checks">
-                        <span
-                          v-for="item in publishChecklist"
-                          :key="`minimal-check-${item.key}`"
-                          class="minimal-chip"
-                          :class="{ done: item.done, required: item.required && !item.done }"
-                        >
-                          {{ item.done ? '✓' : '✗' }} {{ item.label }}
-                        </span>
-                      </div>
-
-                      <button
-                        v-if="isEditing"
-                        class="danger"
-                        type="button"
-                        :disabled="saving || deleting"
-                        @click="remove"
-                      >
-                        {{ deleting ? 'Mažem...' : 'Vymazať článok' }}
-                      </button>
-                    </div>
-                  </section>
-                </div>
-              </section>
-            </template>
+            <!-- Edit -->
+            <div v-else class="content-block">
+              <ArticleRichEditor
+                v-model="form.content"
+                class="content-rich-editor content-rich-editor--minimal"
+                :min-height="520"
+                placeholder="Napíš obsah článku…"
+              />
+              <div class="content-foot">
+                <span class="muted small">{{ readTimeFor(form.content) }}</span>
+                <span class="muted small">{{ contentWordCount }} slov</span>
+              </div>
+            </div>
           </div>
-        </template>
-      </section>
+
+          <!-- Settings drawer -->
+          <aside v-if="isSettingsOpen" class="settings-drawer" role="complementary" aria-label="Nastavenia článku">
+
+            <section class="drawer-section">
+              <h3>Tagy</h3>
+              <input v-model="tagsInput" type="text" placeholder="planéty, kométy, pozorovanie" />
+            </section>
+
+            <section class="drawer-section ai-section">
+              <div class="ai-head">
+                <h3>AI tagy</h3>
+                <span v-if="aiTagFallbackUsed" class="fallback-badge">Fallback</span>
+              </div>
+              <p class="muted small">Číta nadpis a obsah článku.</p>
+
+              <div class="mode-toggle" role="group">
+                <button
+                  type="button"
+                  class="ghost mode-btn"
+                  :class="{ 'is-active': aiTagSuggestionMode === 'existing_only' }"
+                  :disabled="aiTagSuggestionsLoading || saving || deleting"
+                  @click="setAiTagSuggestionMode('existing_only')"
+                >Len existujúce</button>
+                <button
+                  type="button"
+                  class="ghost mode-btn"
+                  :class="{ 'is-active': aiTagSuggestionMode === 'allow_new' }"
+                  :disabled="aiTagSuggestionsLoading || saving || deleting"
+                  @click="setAiTagSuggestionMode('allow_new')"
+                >Aj nové</button>
+              </div>
+
+              <div class="row-actions">
+                <button type="button" class="ghost" :disabled="aiTagSuggestionsLoading || saving || deleting" @click="suggestAiTags">
+                  {{ aiSuggestActionLabel }}
+                </button>
+                <button type="button" class="btn-primary" :disabled="!hasSelectedAiTagSuggestions || saving || deleting" @click="applySelectedAiTags">
+                  Pridať vybrané
+                </button>
+              </div>
+
+              <p v-if="aiTagSuggestionsError" class="error-text">{{ aiTagSuggestionsError }}</p>
+
+              <div v-if="aiTagSuggestions.length" class="ai-tag-list">
+                <label
+                  v-for="(item, index) in aiTagSuggestions"
+                  :key="`ai-tag-${item.id}-${index}`"
+                  class="ai-tag-item"
+                >
+                  <input v-model="item.checked" type="checkbox" />
+                  <div class="ai-tag-body">
+                    <div class="ai-tag-name">
+                      <strong>{{ item.name }}</strong>
+                      <span v-if="item.id === 0" class="new-badge">Nový</span>
+                    </div>
+                    <p class="muted small">{{ item.reason }}</p>
+                  </div>
+                </label>
+              </div>
+            </section>
+
+            <section class="drawer-section">
+              <h3>Publikovanie</h3>
+              <label class="field-label">
+                <span class="muted small">Dátum a čas</span>
+                <input v-model="form.published_at" type="datetime-local" />
+              </label>
+              <div class="row-actions">
+                <button class="ghost" type="button" :disabled="saving || deleting" @click="setPublishNow">Teraz</button>
+                <button class="ghost" type="button" :disabled="saving || deleting || !form.published_at" @click="form.published_at = ''">Ponechať ako koncept</button>
+              </div>
+            </section>
+
+            <section class="drawer-section">
+              <h3>Titulný obrázok</h3>
+              <input type="file" accept="image/*" @change="onCoverChange" />
+              <div v-if="coverPreview" class="cover-thumb">
+                <img :src="coverPreview" alt="Cover" />
+              </div>
+            </section>
+
+            <section class="drawer-section">
+              <h3>Kontrolný zoznam</h3>
+              <div class="checklist">
+                <span
+                  v-for="item in publishChecklist"
+                  :key="`chk-${item.key}`"
+                  class="check-chip"
+                  :class="{ done: item.done, required: item.required && !item.done }"
+                >{{ item.done ? '✓' : '✗' }} {{ item.label }}</span>
+              </div>
+            </section>
+
+            <section class="drawer-section drawer-section--danger">
+              <button
+                v-if="isEditing"
+                class="btn-danger"
+                type="button"
+                :disabled="saving || deleting"
+                @click="remove"
+              >{{ deleting ? 'Mažem…' : 'Vymazať článok' }}</button>
+            </section>
+
+          </aside>
+        </div>
+      </template>
     </div>
+
   </div>
 </div>
