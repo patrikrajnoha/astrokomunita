@@ -265,7 +265,7 @@ export default {
 
           return {
             key,
-            label: String(item?.label || PHASE_LABEL_MAP[key] || 'Neznama faza').trim(),
+            label: String(item?.label || PHASE_LABEL_MAP[key] || 'Neznáma fáza').trim(),
             at,
             date,
             time,
