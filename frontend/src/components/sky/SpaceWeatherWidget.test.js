@@ -63,7 +63,7 @@ describe('SpaceWeatherWidget', () => {
       },
       meta: { skipErrorToast: true },
     })
-    expect(wrapper.text()).toContain('Vesmirne pocasie')
+    expect(wrapper.text()).toContain('Vesmírne počasie')
     expect(wrapper.text()).toContain('6.0')
     expect(wrapper.text()).toContain('G2')
     expect(wrapper.text()).toContain('Vysoka sanca')
@@ -85,7 +85,7 @@ describe('SpaceWeatherWidget', () => {
           updated_at: '2026-03-14T21:52:00Z',
           aurora: {
             watch_score: 38,
-            watch_label: 'Slaba sanca',
+            watch_label: 'Slabá šanca',
             forecast_for: '2026-03-14T21:52:00Z',
           },
         },

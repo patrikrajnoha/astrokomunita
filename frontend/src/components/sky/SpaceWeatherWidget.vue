@@ -1,6 +1,6 @@
 <template>
   <section class="card panel">
-    <h3 class="panelTitle sidebarSection__header">Vesmirne pocasie</h3>
+    <h3 class="panelTitle sidebarSection__header">Vesmírne počasie</h3>
 
     <AsyncState
       v-if="showMissingLocation"

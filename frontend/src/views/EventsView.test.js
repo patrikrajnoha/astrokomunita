@@ -164,7 +164,7 @@ describe('EventsView', () => {
       tz: 'Europe/Bratislava',
     })
     expect(wrapper.text()).toContain('Aurora watch')
-    expect(wrapper.text()).toContain('Slaba sanca')
+    expect(wrapper.text()).toContain('Slabá šanca')
     expect(wrapper.text()).toContain('NOAA SWPC OVATION')
     expect(wrapper.text()).toContain('23/100')
 
