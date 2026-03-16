@@ -10,47 +10,67 @@
           </p>
         </header>
 
-        <transition name="onbStep" mode="out-in">
-          <section v-if="step === 1" key="step-1" class="onbStepSection">
-            <div class="chipWrap">
-              <button
-                v-for="item in interestsCatalog"
-                :key="item.key"
-                type="button"
-                class="chip"
-                :class="{ active: isSelected(item.key) }"
-                @click="toggleInterest(item.key)"
-              >
-                {{ item.label }}
-              </button>
-            </div>
-          </section>
-
-          <section v-else key="step-2" class="onbStepSection">
-            <label class="field">
-              <span class="fieldLabel">Mesto alebo obec</span>
-              <input
-                v-model.trim="locationLabel"
-                class="fieldInput"
-                type="text"
-                placeholder="Napriklad Bratislava"
-                autocomplete="off"
-                @focus="openSuggestions = true"
-              />
-            </label>
-
-            <ul v-if="openSuggestions && suggestions.length > 0" class="suggestions" role="listbox">
-              <li v-for="option in suggestions" :key="option.place_id">
-                <button type="button" class="suggestionItem" @click="selectLocation(option)">
-                  <span class="suggestionTitle">{{ option.label }}</span>
-                  <span v-if="option.country || option.timezone" class="suggestionMeta">
-                    {{ [option.country, option.timezone].filter(Boolean).join(' • ') }}
-                  </span>
+        <div class="onbBody">
+          <transition name="onbStep" mode="out-in">
+            <section v-if="step === 1" key="step-1" class="onbStepSection">
+              <p class="onbSectionIntro">Vyber si temy, ktore chces mat vo feede a vo widgetoch stale po ruke.</p>
+              <div class="chipWrap">
+                <button
+                  v-for="item in interestsCatalog"
+                  :key="item.key"
+                  type="button"
+                  class="chip"
+                  :class="{ active: isSelected(item.key) }"
+                  @click="toggleInterest(item.key)"
+                >
+                  {{ item.label }}
                 </button>
-              </li>
-            </ul>
-          </section>
-        </transition>
+              </div>
+            </section>
+
+            <section v-else key="step-2" class="onbStepSection">
+              <p class="onbSectionIntro">Tvoju lokalitu pouzijeme pre pocasie, seeing a dalsie pozorovacie widgety.</p>
+              <label class="field">
+                <span class="fieldLabel">Mesto alebo obec</span>
+                <input
+                  v-model.trim="locationLabel"
+                  class="fieldInput"
+                  type="text"
+                  placeholder="Napriklad Bratislava"
+                  autocomplete="off"
+                  @focus="openSuggestions = true"
+                />
+              </label>
+
+              <ul v-if="openSuggestions && suggestions.length > 0" class="suggestions" role="listbox">
+                <li v-for="option in suggestions" :key="option.place_id">
+                  <button type="button" class="suggestionItem" @click="selectLocation(option)">
+                    <span class="suggestionTitle">{{ option.label }}</span>
+                    <span v-if="option.country || option.timezone" class="suggestionMeta">
+                      {{ [option.country, option.timezone].filter(Boolean).join(' / ') }}
+                    </span>
+                  </button>
+                </li>
+              </ul>
+            </section>
+          </transition>
+
+          <aside class="onbShowcase" aria-label="Ukazka widgetov">
+            <p class="onbShowcaseEyebrow">Widgety na mieru</p>
+            <h2 class="onbShowcaseTitle">{{ showcaseContent.title }}</h2>
+            <p class="onbShowcaseText">{{ showcaseContent.body }}</p>
+            <OnboardingWidgetPreview class="onbShowcasePreview" />
+            <div class="onbShowcasePoints">
+              <span
+                v-for="point in showcaseContent.points"
+                :key="point"
+                class="onbShowcasePoint"
+              >
+                {{ point }}
+              </span>
+            </div>
+          </aside>
+        </div>
 
         <footer class="onbActions">
           <button type="button" class="btnGhost" :disabled="loading" @click="emitSkip">Preskocit</button>
@@ -78,6 +98,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { searchOnboardingLocations } from '@/services/events'
+import OnboardingWidgetPreview from '@/components/onboarding/OnboardingWidgetPreview.vue'
 
 const props = defineProps({
   loading: {
@@ -114,6 +135,29 @@ let debounceTimer = null
 let locationRequestId = 0
 
 const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+const showcaseContent = computed(() => {
+  if (step.value === 2) {
+    return {
+      title: 'Lokalita spravi widgety skutocne uzitocne.',
+      body: 'Po ulozeni budes mat v pravom paneli alebo v mobile presnejsie podmienky pre tvoje miesto.',
+      points: [
+        'pocasie a seeing podla lokality',
+        'mesiac, ISS a ukazy rychlo po ruke',
+        'vsetko vies neskor zmenit v nastaveniach',
+      ],
+    }
+  }
+
+  return {
+    title: 'Zaujmy menia to, co ti aplikacia prioritne ukazuje.',
+    body: 'Feed aj sidebar widgety sa pri prvom pouziti vedia lepsie trafit do toho, co chces sledovat.',
+    points: [
+      'relevantnejsi feed od prveho otvorenia',
+      'widgety pre ukazy, mesiac a oblohu',
+      'bez zbytocneho nastavovania navyse',
+    ],
+  }
+})
 
 function isSelected(key) {
   return selectedInterests.value.includes(key)
@@ -257,7 +301,7 @@ onBeforeUnmount(() => {
 }
 
 .onbModal {
-  width: min(100%, 640px);
+  width: min(100%, 860px);
   border-radius: 1rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
   background:
@@ -285,6 +329,86 @@ onBeforeUnmount(() => {
 .onbLead {
   margin: 0.4rem 0 0;
   color: var(--color-text-secondary);
+}
+
+.onbBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.onbStepSection,
+.onbShowcase {
+  min-width: 0;
+  border-radius: 0.95rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+}
+
+.onbStepSection {
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+  min-height: 100%;
+  padding: 0.95rem;
+  background: rgb(var(--color-bg-rgb) / 0.48);
+}
+
+.onbSectionIntro {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+}
+
+.onbShowcase {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  background:
+    radial-gradient(140% 120% at 100% 0%, rgb(var(--color-primary-rgb) / 0.16), transparent 55%),
+    rgb(var(--color-bg-rgb) / 0.56);
+}
+
+.onbShowcaseEyebrow,
+.onbShowcaseText {
+  margin: 0;
+}
+
+.onbShowcaseEyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.onbShowcaseTitle {
+  margin: 0;
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  line-height: 1.2;
+}
+
+.onbShowcaseText {
+  font-size: 0.84rem;
+  color: var(--color-text-secondary);
+}
+
+.onbShowcasePoints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.onbShowcasePoint {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.8rem;
+  border-radius: 999px;
+  padding: 0.26rem 0.62rem;
+  background: rgb(var(--color-primary-rgb) / 0.12);
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.18);
+  font-size: 0.75rem;
+  color: rgb(var(--color-surface-rgb) / 0.92);
 }
 
 .chipWrap {
@@ -449,6 +573,10 @@ onBeforeUnmount(() => {
   .onbModal {
     border-radius: 0.85rem;
     padding: 0.85rem;
+  }
+
+  .onbBody {
+    grid-template-columns: 1fr;
   }
 
   .onbActions {

@@ -34,7 +34,9 @@ class OnboardingPreferencesTest extends TestCase
             ->assertJsonPath('data.location_place_id', 'sk:bratislava')
             ->assertJsonPath('data.location_lat', 48.1486)
             ->assertJsonPath('data.location_lon', 17.1077)
-            ->assertJsonPath('data.onboarding_completed_at', $completedAt->toIso8601String());
+            ->assertJsonPath('data.onboarding_completed_at', $completedAt->toIso8601String())
+            ->assertJsonPath('data.sidebar_widget_keys', ['next_event', 'nasa_apod', 'search'])
+            ->assertJsonPath('data.sidebar_widget_overrides.home', ['next_event', 'nasa_apod', 'search']);
 
         $this->getJson('/api/me/preferences')
             ->assertOk()
@@ -43,7 +45,9 @@ class OnboardingPreferencesTest extends TestCase
             ->assertJsonPath('data.location_place_id', 'sk:bratislava')
             ->assertJsonPath('data.location_lat', 48.1486)
             ->assertJsonPath('data.location_lon', 17.1077)
-            ->assertJsonPath('data.onboarding_completed_at', $completedAt->toIso8601String());
+            ->assertJsonPath('data.onboarding_completed_at', $completedAt->toIso8601String())
+            ->assertJsonPath('data.sidebar_widget_keys', ['next_event', 'nasa_apod', 'search'])
+            ->assertJsonPath('data.sidebar_widget_overrides.home', ['next_event', 'nasa_apod', 'search']);
     }
 
     public function test_admin_user_preferences_can_be_saved_and_read(): void
@@ -63,13 +67,17 @@ class OnboardingPreferencesTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('data.has_preferences', true)
             ->assertJsonPath('data.interests', ['meteory'])
-            ->assertJsonPath('data.onboarding_completed_at', $completedAt->toIso8601String());
+            ->assertJsonPath('data.onboarding_completed_at', $completedAt->toIso8601String())
+            ->assertJsonPath('data.sidebar_widget_keys', ['next_event', 'nasa_apod', 'search'])
+            ->assertJsonPath('data.sidebar_widget_overrides.home', ['next_event', 'nasa_apod', 'search']);
 
         $this->getJson('/api/me/preferences')
             ->assertOk()
             ->assertJsonPath('data.has_preferences', true)
             ->assertJsonPath('data.onboarding_completed_at', $completedAt->toIso8601String())
-            ->assertJsonPath('data.interests', ['meteory']);
+            ->assertJsonPath('data.interests', ['meteory'])
+            ->assertJsonPath('data.sidebar_widget_keys', ['next_event', 'nasa_apod', 'search'])
+            ->assertJsonPath('data.sidebar_widget_overrides.home', ['next_event', 'nasa_apod', 'search']);
 
         $this->assertDatabaseHas('user_preferences', [
             'user_id' => $admin->id,

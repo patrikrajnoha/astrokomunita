@@ -35,6 +35,7 @@
       <h2 :id="titleId" class="tourTitle">{{ currentStep.title }}</h2>
       <p class="tourBody">{{ currentStep.body }}</p>
       <p class="tourTip">{{ currentStep.tip }}</p>
+      <OnboardingWidgetPreview v-if="showWidgetPreview" size="compact" />
       <p v-if="!isTargetAvailable" class="tourMissing">{{ currentStep.missingHint }}</p>
 
       <div class="tourStepDots" role="tablist" aria-label="Kroky tour">
@@ -88,6 +89,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useOnboardingTourStore } from '@/stores/onboardingTour'
+import OnboardingWidgetPreview from '@/components/onboarding/OnboardingWidgetPreview.vue'
 
 const tourStore = useOnboardingTourStore()
 const router = useRouter()
@@ -155,6 +157,7 @@ let rafHandle = 0
 
 const currentStep = computed(() => steps[currentStepIndex.value] || steps[0])
 const isLastStep = computed(() => currentStepIndex.value >= steps.length - 1)
+const showWidgetPreview = computed(() => currentStep.value?.id === 'conditions')
 const progressPercent = computed(() => {
   if (steps.length === 0) return 0
   return Math.round(((currentStepIndex.value + 1) / steps.length) * 100)

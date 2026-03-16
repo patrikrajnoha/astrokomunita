@@ -222,6 +222,7 @@
 
 .rightRail__content {
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .sidebar-dense {
@@ -334,7 +335,7 @@
 }
 
 .rightSidebarFooterLinks {
-  margin-top: var(--space-2);
+  margin-top: auto;
   padding-top: var(--space-4);
   border-top: 1px solid var(--divider-color);
   display: flex;
