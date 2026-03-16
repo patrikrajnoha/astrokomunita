@@ -400,7 +400,7 @@
         </RouterLink>
       </div>
     </div>
-    <div v-if="auth.isAuthed" ref="createPickerWrapperRef" class="relative mt-3 shrink-0">
+    <div v-if="auth.isAuthed && showCreateButton" ref="createPickerWrapperRef" class="relative mt-3 shrink-0">
       <button
         type="button"
         class="createTrigger"
