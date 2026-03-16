@@ -34,6 +34,7 @@ import {
   resolveSidebarComponent,
   resolveSidebarIcon,
 } from '@/sidebar/engine'
+import { resolvePreferredSidebarWidgetKeys } from '@/sidebar/preferences'
 
 const DynamicSidebar = defineAsyncComponent(() => import('@/components/DynamicSidebar.vue'))
 const CreatePostModal = defineAsyncComponent(() => import('@/components/CreatePostModal.vue'))
@@ -65,7 +66,14 @@ const legalLinks = [
   { to: '/terms', label: 'Podmienky' },
   { to: '/cookies', label: 'Cookies' },
 ]
-const currentSidebarScope = computed(() => resolveSidebarScopeFromPath(route.path || ''))
+const isNotFoundRoute = computed(() => route.name === 'not-found')
+const currentSidebarScope = computed(() => {
+  if (isNotFoundRoute.value) {
+    return DEFAULT_SIDEBAR_SCOPE
+  }
+
+  return resolveSidebarScopeFromPath(route.path || '')
+})
 const isAdminRoute = computed(() => String(route.path || '').startsWith('/admin'))
 const isSettingsRoute = computed(() => String(route.path || '').startsWith('/settings'))
 const showRightSidebar = computed(() => isAdminRoute.value || Boolean(currentSidebarScope.value))
@@ -96,21 +104,11 @@ const centerShellStyle = computed(() => {
 })
 const mainContentClass = computed(() => 'mx-auto w-full max-w-[640px]')
 const preferredSidebarWidgetKeys = computed(() => {
-  if (!auth.isAuthed || !preferences.loaded) return null
-  const scope = String(currentSidebarScope.value || DEFAULT_SIDEBAR_SCOPE)
-  if (typeof preferences.sidebarWidgetKeysForScope !== 'function') return null
-  const selected = preferences.sidebarWidgetKeysForScope(scope)
-  if (!Array.isArray(selected)) return null
-  if (selected.length > 0) return selected
-
-  const hasExplicitScopeOverride = typeof preferences.hasSidebarWidgetOverrideForScope === 'function'
-    ? preferences.hasSidebarWidgetOverrideForScope(scope)
-    : false
-  const hasExplicitGlobalOverride = typeof preferences.hasSidebarWidgetOverrideForScope === 'function'
-    ? preferences.hasSidebarWidgetOverrideForScope(DEFAULT_SIDEBAR_SCOPE)
-    : false
-
-  return hasExplicitScopeOverride || hasExplicitGlobalOverride ? [] : null
+  return resolvePreferredSidebarWidgetKeys({
+    isAuthed: auth.isAuthed,
+    preferences,
+    scope: currentSidebarScope.value || DEFAULT_SIDEBAR_SCOPE,
+  })
 })
 const enabledMobileSections = computed(() => (
   getEnabledSidebarSections(mobileSidebarSections.value, {

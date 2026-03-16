@@ -105,6 +105,7 @@ function makeRouter() {
       { path: '/settings', component: AppLayout },
       { path: '/u/:username', component: AppLayout },
       { path: '/privacy', component: AppLayout },
+      { path: '/:pathMatch(.*)*', name: 'not-found', component: AppLayout },
     ],
   })
 }
@@ -340,6 +341,25 @@ describe('AppLayout mark-your-calendar popup', () => {
 
     await flush()
 
+    expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
+  })
+
+  it('renders the right rail for not-found routes', async () => {
+    const router = makeRouter()
+    await router.push('/missing-page')
+    await router.isReady()
+
+    const wrapper = shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+
+    expect(router.currentRoute.value.name).toBe('not-found')
+    expect(wrapper.find('[data-testid="layout-left"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
   })
