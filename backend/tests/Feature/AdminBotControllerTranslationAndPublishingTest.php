@@ -46,6 +46,48 @@ class AdminBotControllerTranslationAndPublishingTest extends AdminBotControllerT
         $this->assertGreaterThanOrEqual(0, (int) $response->json('latency_ms'));
     }
 
+    public function test_admin_translation_test_endpoint_applies_requested_provider_model_and_temperature(): void
+    {
+        $this->actingAsAdmin();
+
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'none');
+        config()->set('bots.translation.quality.enabled', false);
+        config()->set('ai.ollama.base_url', 'http://ollama.test');
+        config()->set('ai.ollama.generate_path', '/api/generate');
+
+        Http::fake([
+            'http://ollama.test/*' => Http::response([
+                'model' => 'custom-model',
+                'response' => 'Toto je test prekladu.',
+                'done' => true,
+            ], 200),
+        ]);
+
+        $response = $this->postJson('/api/admin/bots/translation/test', [
+            'text' => 'This is a translation test.',
+            'provider' => 'ollama',
+            'model' => 'custom-model',
+            'temperature' => 0.4,
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('ok', true)
+            ->assertJsonPath('provider', 'ollama')
+            ->assertJsonPath('meta.requested_provider', 'ollama')
+            ->assertJsonPath('meta.requested_model', 'custom-model')
+            ->assertJsonPath('meta.requested_temperature', 0.4);
+
+        Http::assertSent(static function ($request): bool {
+            $payload = $request->data();
+
+            return $request->url() === 'http://ollama.test/api/generate'
+                && data_get($payload, 'model') === 'custom-model'
+                && (float) data_get($payload, 'options.temperature') === 0.4;
+        });
+    }
+
     public function test_admin_translation_test_endpoint_maps_timeout_to_structured_failure_reason(): void
     {
         $this->actingAsAdmin();

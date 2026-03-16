@@ -19,6 +19,7 @@ use App\Services\Bots\BotPostRetentionService;
 use App\Services\Bots\BotPostTranslationBackfillService;
 use App\Services\Bots\BotPublisherService;
 use App\Services\Bots\BotRunner;
+use App\Services\Bots\BotScheduleSyncService;
 use App\Services\Bots\BotSourceHealthPolicy;
 use App\Services\Bots\BotSourceHealthService;
 use App\Services\Bots\BotSourceSyncService;
@@ -46,6 +47,7 @@ class AdminBotController extends Controller
         private readonly BotTranslationServiceInterface $translationService,
         private readonly BotPostTranslationBackfillService $backfillService,
         private readonly BotSourceSyncService $botSourceSyncService,
+        private readonly BotScheduleSyncService $botScheduleSyncService,
         private readonly BotOverviewService $botOverviewService,
         private readonly BotSourceHealthPolicy $botSourceHealthPolicy,
         private readonly BotSourceHealthService $botSourceHealthService,
@@ -181,6 +183,9 @@ class AdminBotController extends Controller
 
     public function schedules(Request $request): JsonResponse
     {
+        $this->botSourceSyncService->syncDefaults();
+        $this->botScheduleSyncService->syncDefaults();
+
         $validated = $request->validate([
             'enabled' => 'nullable|boolean',
             'bot_user_id' => 'nullable|integer|min:1',
