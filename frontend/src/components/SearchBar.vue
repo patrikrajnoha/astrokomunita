@@ -1,6 +1,6 @@
 <template>
-  <form ref="rootRef" class="sidebarSearch relative" role="search" aria-label="Vyhladavanie" @submit.prevent="handleSubmit">
-    <label for="sidebar-search" class="sr-only">Vyhladat prispevky a pouzivatelov</label>
+  <form ref="rootRef" class="sidebarSearch relative" role="search" aria-label="Vyhľadávanie" @submit.prevent="handleSubmit">
+    <label for="sidebar-search" class="sr-only">Vyhľadať príspevky a používateľov</label>
 
     <div class="sidebarSearch__field relative">
       <span class="sidebarSearch__icon pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" aria-hidden="true">
@@ -33,7 +33,7 @@
           v-if="hasQuery"
           type="button"
           class="rounded-md p-0.5 text-[color:rgb(var(--color-text-secondary-rgb)/0.8)] transition-colors hover:text-[var(--color-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
-          aria-label="Vymazat vyhladavanie"
+          aria-label="Vymazať vyhľadávanie"
           @mousedown.prevent
           @click="clearQuery"
         >
@@ -61,7 +61,7 @@
         v-if="!hasSuggestions"
         class="px-2.5 py-2 text-[13px] text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]"
       >
-        {{ isLoading ? 'Nacitavam navrhy...' : 'Ziadne navrhy' }}
+        {{ isLoading ? 'Načítavam návrhy...' : 'Žiadne návrhy' }}
       </div>
 
       <button

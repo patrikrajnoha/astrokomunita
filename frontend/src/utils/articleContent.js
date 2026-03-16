@@ -11,6 +11,7 @@ const ALLOWED_TAGS = new Set([
   "em",
   "h2",
   "h3",
+  "img",
   "li",
   "ol",
   "p",
@@ -24,7 +25,6 @@ const FORBIDDEN_TAGS = new Set([
   "audio",
   "embed",
   "iframe",
-  "img",
   "object",
   "script",
   "style",
@@ -253,6 +253,13 @@ function sanitizeNode(node, context) {
       attrs.push('rel="noopener noreferrer"');
     }
     return `<a ${attrs.join(" ")}>${inner}</a>`;
+  }
+
+  if (tag === "img") {
+    const src = sanitizeHref(node.getAttribute("src"));
+    if (!src) return "";
+    const alt = escapeAttribute(node.getAttribute("alt") || "");
+    return `<img src="${escapeAttribute(src)}" alt="${alt}" />`;
   }
 
   if (tag === "span") {

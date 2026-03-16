@@ -4,7 +4,7 @@
       <header class="mb-3 flex items-center justify-between">
         <h2 class="text-sm font-semibold text-[var(--color-surface)]">Trendy</h2>
         <button type="button" class="text-xs text-[var(--color-primary)] transition hover:opacity-80" @click="emit('refresh')">
-          Obnovit
+          Obnoviť
         </button>
       </header>
 
@@ -26,7 +26,7 @@
         </RouterLink>
       </div>
 
-      <p v-else class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">Zatial bez trending poloziek.</p>
+      <p v-else class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">Zatiaľ bez trending položiek.</p>
     </section>
 
     <section class="p-4">
@@ -51,11 +51,11 @@
         </RouterLink>
       </div>
 
-      <p v-else class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">Odporucania pre ucty zatial nie su dostupne.</p>
+      <p v-else class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">Odporúčania pre účty zatiaľ nie sú dostupné.</p>
     </section>
 
     <section class="p-4">
-      <h2 class="mb-3 text-sm font-semibold text-[var(--color-surface)]">Popularne prispevky</h2>
+      <h2 class="mb-3 text-sm font-semibold text-[var(--color-surface)]">Populárne príspevky</h2>
 
       <div v-if="loadingPosts" class="space-y-2">
         <div v-for="index in 5" :key="`posts-skeleton-${index}`" class="h-14 animate-pulse rounded-lg bg-[color:rgb(var(--color-text-secondary-rgb)/0.2)]"></div>
@@ -70,12 +70,12 @@
         >
           <p class="line-clamp-2 text-sm text-[var(--color-surface)]">{{ snippet(post.content) }}</p>
           <p class="mt-1 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
-            {{ post.user?.name || 'Neznamy autor' }} • {{ post.likes_count || 0 }} lajkov
+            {{ post.user?.name || 'Neznámy autor' }} • {{ post.likes_count || 0 }} lajkov
           </p>
         </RouterLink>
       </div>
 
-      <p v-else class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">Popularne prispevky sa zatial nenasli.</p>
+      <p v-else class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">Populárne príspevky sa zatiaľ nenašli.</p>
     </section>
   </div>
 </template>

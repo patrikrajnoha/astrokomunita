@@ -5,11 +5,11 @@
       <p>Faza mesiaca a casy vychodu/zapadu</p>
     </header>
 
-    <div v-if="loading" class="state">Nacitavam data...</div>
+    <div v-if="loading" class="state">Načítavam dáta...</div>
 
     <div v-else-if="error" class="state stateError">
       <p>{{ error }}</p>
-      <button type="button" class="retryBtn" @click="fetchAstronomy">Skusit znova</button>
+      <button type="button" class="retryBtn" @click="fetchAstronomy">Skúsiť znova</button>
     </div>
 
     <div v-else-if="astronomy" class="body">
@@ -118,7 +118,7 @@ const fetchAstronomy = async () => {
     astronomy.value = response?.data || null
   } catch (err) {
     astronomy.value = null
-    error.value = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa nacitat astronomiu.'
+    error.value = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa načítať astronómiu.'
   } finally {
     loading.value = false
   }

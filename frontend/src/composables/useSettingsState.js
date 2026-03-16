@@ -280,7 +280,7 @@ export function useSettingsState() {
         message:
           extractFirstError(data.errors, 'new_email') ||
           extractFirstError(data.errors, 'code') ||
-          'Skontrolujte zvyraznene pole.',
+          'Skontrolujte zvýraznené pole.',
         fieldError:
           extractFirstError(data.errors, 'new_email') ||
           extractFirstError(data.errors, 'code') ||
@@ -299,7 +299,7 @@ export function useSettingsState() {
 
     if (!auth.user) {
       emailState.error = 'You are not signed in.'
-      emailState.error = 'Nie ste prihlaseny.'
+      emailState.error = 'Nie ste prihlásený.'
       return
     }
 
@@ -309,9 +309,9 @@ export function useSettingsState() {
       await auth.csrf()
       const response = await http.post('/account/email/verification/send', {})
       applyEmailStatus(response?.data?.data || {})
-      emailState.success = response?.data?.message || 'Overovaci kod bol odoslany.'
+      emailState.success = response?.data?.message || 'Overovací kód bol odoslaný.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Nepodarilo sa odoslat overovaci kod.')
+      const resolved = resolveEmailError(error, 'Nepodarilo sa odoslať overovací kód.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -323,12 +323,12 @@ export function useSettingsState() {
     resetEmailState()
 
     if (!auth.user) {
-      emailState.error = 'Nie ste prihlaseny.'
+      emailState.error = 'Nie ste prihlásený.'
       return
     }
 
     if (!emailForm.code) {
-      emailState.fieldError = 'Overovaci kod je povinny.'
+      emailState.fieldError = 'Overovací kód je povinný.'
       return
     }
 
@@ -342,9 +342,9 @@ export function useSettingsState() {
 
       applyEmailStatus(response?.data?.data || {})
       emailForm.code = ''
-      emailState.success = response?.data?.message || 'E-mail bol uspesne overeny.'
+      emailState.success = response?.data?.message || 'E-mail bol úspešne overený.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Nepodarilo sa overit overovaci kod.')
+      const resolved = resolveEmailError(error, 'Nepodarilo sa overiť overovací kód.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -356,12 +356,12 @@ export function useSettingsState() {
     resetEmailState()
 
     if (!auth.user) {
-      emailState.error = 'Nie ste prihlaseny.'
+      emailState.error = 'Nie ste prihlásený.'
       return
     }
 
     if (!emailForm.newEmail) {
-      emailState.fieldError = 'Novy e-mail je povinny.'
+      emailState.fieldError = 'Nový e-mail je povinný.'
       return
     }
 
@@ -375,9 +375,9 @@ export function useSettingsState() {
 
       applyEmailStatus(response?.data?.data || {})
       emailForm.newEmail = ''
-      emailState.success = response?.data?.message || 'Zmena e-mailu bola vyziadana.'
+      emailState.success = response?.data?.message || 'Zmena e-mailu bola vyziadaná.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Poziadavka na zmenu e-mailu zlyhala.')
+      const resolved = resolveEmailError(error, 'Požiadavka na zmenu e-mailu zlyhala.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -389,7 +389,7 @@ export function useSettingsState() {
     resetEmailState()
 
     if (!auth.user) {
-      emailState.error = 'Nie ste prihlaseny.'
+      emailState.error = 'Nie ste prihlásený.'
       return
     }
 
@@ -399,9 +399,9 @@ export function useSettingsState() {
       await auth.csrf()
       const response = await http.post('/account/email/change/confirm-current', {})
       applyEmailStatus(response?.data?.data || {})
-      emailState.success = response?.data?.message || 'Kod bol odoslany na aktualny e-mail.'
+      emailState.success = response?.data?.message || 'Kód bol odoslaný na aktuálny e-mail.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Nepodarilo sa odoslat kod na potvrdenie aktualneho e-mailu.')
+      const resolved = resolveEmailError(error, 'Nepodarilo sa odoslať kód na potvrdenie aktuálneho e-mailu.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -413,12 +413,12 @@ export function useSettingsState() {
     resetEmailState()
 
     if (!auth.user) {
-      emailState.error = 'Nie ste prihlaseny.'
+      emailState.error = 'Nie ste prihlásený.'
       return
     }
 
     if (!emailForm.currentCode) {
-      emailState.fieldError = 'Potvrdzovaci kod z aktualneho e-mailu je povinny.'
+      emailState.fieldError = 'Potvrdzovací kód z aktuálneho e-mailu je povinný.'
       return
     }
 
@@ -432,9 +432,9 @@ export function useSettingsState() {
 
       applyEmailStatus(response?.data?.data || {})
       emailForm.currentCode = ''
-      emailState.success = response?.data?.message || 'Aktualny e-mail bol potvrdeny.'
+      emailState.success = response?.data?.message || 'Aktuálny e-mail bol potvrdený.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Nepodarilo sa potvrdit kod z aktualneho e-mailu.')
+      const resolved = resolveEmailError(error, 'Nepodarilo sa potvrdiť kód z aktuálneho e-mailu.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -446,7 +446,7 @@ export function useSettingsState() {
     resetEmailState()
 
     if (!auth.user) {
-      emailState.error = 'Nie ste prihlaseny.'
+      emailState.error = 'Nie ste prihlásený.'
       return
     }
 
@@ -458,9 +458,9 @@ export function useSettingsState() {
       applyEmailStatus(response?.data?.data || {})
       emailForm.code = ''
       emailState.success =
-        response?.data?.message || 'Novy e-mail bol pouzity. Overte ho kodom odoslanym na novy e-mail.'
+        response?.data?.message || 'Nový e-mail bol použitý. Overte ho kódom odoslaným na nový e-mail.'
     } catch (error) {
-      const resolved = resolveEmailError(error, 'Nepodarilo sa pouzit novy e-mail.')
+      const resolved = resolveEmailError(error, 'Nepodarilo sa použiť nový e-mail.')
       emailState.error = resolved.message
       emailState.fieldError = resolved.fieldError
     } finally {
@@ -478,22 +478,22 @@ export function useSettingsState() {
     resetPasswordState()
 
     if (!auth.user) {
-      passwordState.error = 'Nie ste prihlaseny.'
+      passwordState.error = 'Nie ste prihlásený.'
       return
     }
 
     if (!passwordForm.current || !passwordForm.password || !passwordForm.confirm) {
-      passwordState.fieldError = 'Vsetky polia su povinne.'
+      passwordState.fieldError = 'Všetky polia sú povinné.'
       return
     }
 
     if (passwordForm.password.length < 8) {
-      passwordState.fieldError = 'Heslo musi mat aspon 8 znakov.'
+      passwordState.fieldError = 'Heslo musí mať aspoň 8 znakov.'
       return
     }
 
     if (passwordForm.password !== passwordForm.confirm) {
-      passwordState.fieldError = 'Hesla sa nezhoduju.'
+      passwordState.fieldError = 'Heslá sa nezhodujú.'
       return
     }
 
@@ -510,7 +510,7 @@ export function useSettingsState() {
       passwordForm.current = ''
       passwordForm.password = ''
       passwordForm.confirm = ''
-      passwordState.success = 'Heslo bolo zmenene.'
+      passwordState.success = 'Heslo bolo zmenené.'
     } catch (error) {
       const status = error?.response?.status
       const data = error?.response?.data
@@ -519,7 +519,7 @@ export function useSettingsState() {
         passwordState.fieldError =
           extractFirstError(data.errors, 'current_password') ||
           extractFirstError(data.errors, 'password') ||
-          'Skontrolujte zvyraznene polia.'
+          'Skontrolujte zvýraznené polia.'
       } else {
         passwordState.error = data?.message || 'Zmena hesla zlyhala.'
       }
@@ -534,7 +534,7 @@ export function useSettingsState() {
 
     try {
       if (!auth.user) {
-        throw new Error('Nie ste prihlaseny.')
+        throw new Error('Nie ste prihlásený.')
       }
 
       await auth.csrf()
@@ -543,7 +543,7 @@ export function useSettingsState() {
       router.push({ name: 'login' })
     } catch (error) {
       const data = error?.response?.data
-      deactivateState.error = data?.message || error?.message || 'Deaktivacia uctu zlyhala.'
+      deactivateState.error = data?.message || error?.message || 'Deaktivácia účtu zlyhala.'
     } finally {
       deactivateState.loading = false
     }
@@ -557,7 +557,7 @@ export function useSettingsState() {
       await auth.logout()
       await router.push({ name: 'login' })
     } catch (error) {
-      logoutState.error = error?.message || 'Odhlasenie zlyhalo.'
+      logoutState.error = error?.message || 'Odhlásenie zlyhalo.'
     } finally {
       logoutState.loading = false
     }
@@ -570,7 +570,7 @@ export function useSettingsState() {
 
     try {
       if (!auth.user) {
-        throw new Error('Nie ste prihlaseny.')
+        throw new Error('Nie ste prihlásený.')
       }
 
       await auth.csrf()
@@ -584,10 +584,10 @@ export function useSettingsState() {
         newsletter_subscribed: newsletterSubscribed.value,
       }
       newsletterState.success = newsletterSubscribed.value
-        ? 'Odber newslettera bol zapnuty.'
-        : 'Odber newslettera bol vypnuty.'
+        ? 'Odber newslettera bol zapnutý.'
+        : 'Odber newslettera bol vypnutý.'
     } catch (error) {
-      newsletterState.error = error?.response?.data?.message || error?.message || 'Aktualizacia newslettera zlyhala.'
+      newsletterState.error = error?.response?.data?.message || error?.message || 'Aktualizácia newslettera zlyhala.'
       newsletterSubscribed.value = Boolean(auth.user?.newsletter_subscribed)
     } finally {
       newsletterState.loading = false
@@ -677,7 +677,7 @@ export function useSettingsState() {
       applyExportSummary(normalizeExportSummary(data))
     } catch (error) {
       exportSummaryState.error =
-        error?.response?.data?.message || error?.userMessage || error?.message || 'Nacitavanie sumarizacie exportu zlyhalo.'
+        error?.response?.data?.message || error?.userMessage || error?.message || 'Načítavanie sumarizácie exportu zlyhalo.'
     } finally {
       exportSummaryState.loading = false
     }
@@ -742,12 +742,12 @@ export function useSettingsState() {
 
   const downloadViaAsyncJob = async () => {
     if (!String(exportForm.currentPassword || '').trim()) {
-      const error = new Error('Aktualne heslo je povinne pre export dat.')
-      error.userMessage = 'Zadajte aktualne heslo pre potvrdenie exportu.'
+      const error = new Error('Aktuálne heslo je povinné pre export dát.')
+      error.userMessage = 'Zadajte aktuálne heslo pre potvrdenie exportu.'
       throw error
     }
 
-    exportState.phase = 'Overujem heslo...'
+    exportState.phase = 'Overujem heslo...' 
     const created = await http.post(
       '/me/export/jobs',
       {
@@ -761,13 +761,13 @@ export function useSettingsState() {
     let job = created?.data && typeof created.data === 'object' ? created.data : null
     let jobId = Number(job?.id || 0)
     if (jobId <= 0) {
-      throw new Error('Export job nebol vytvoreny.')
+      throw new Error('Export job nebol vytvorený.')
     }
 
     const maxAttempts = 60
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       if (job?.status === 'ready' && job?.download_url) {
-        exportState.phase = 'Stahujem subor...'
+        exportState.phase = 'Sťahujem súbor...'
         return http.get(job.download_url, {
           responseType: 'blob',
           meta: { skipErrorToast: true },
@@ -792,8 +792,8 @@ export function useSettingsState() {
       }
     }
 
-    const timeoutError = new Error('Generovanie exportu trva dlhsie, skuste to o chvilu znova.')
-    timeoutError.userMessage = 'Generovanie exportu trva dlhsie, skuste to o chvilu znova.'
+    const timeoutError = new Error('Generovanie exportu trvá dlhšie, skúste to o chvíľu znova.')
+    timeoutError.userMessage = 'Generovanie exportu trvá dlhšie, skúste to o chvíľu znova.'
     throw timeoutError
   }
 
@@ -808,7 +808,7 @@ export function useSettingsState() {
   const downloadProfileExport = async () => {
     if (exportState.loading) return
     if (exportState.retryAfterSeconds > 0) {
-      exportState.error = `Prilis vela poziadaviek na export. Skuste to znova o ${formatRetryAfterLabel(exportState.retryAfterSeconds)}.`
+      exportState.error = `Príliš veľa požiadaviek na export. Skúste to znova o ${formatRetryAfterLabel(exportState.retryAfterSeconds)}.`
       return
     }
 
@@ -819,7 +819,7 @@ export function useSettingsState() {
 
     try {
       if (!auth.user) {
-        throw new Error('Nie ste prihlaseny.')
+        throw new Error('Nie ste prihlásený.')
       }
 
       let response = null
@@ -858,7 +858,7 @@ export function useSettingsState() {
       const postsCount = exportSummaryState.counts.posts_count
       const invitesTotal =
         exportSummaryState.counts.invites_received_count + exportSummaryState.counts.invites_sent_count
-      exportState.success = `Export bol stiahnuty (${sizeLabel}, ${postsCount} prispevkov, ${invitesTotal} pozvanok).`
+      exportState.success = `Export bol stiahnutý (${sizeLabel}, ${postsCount} príspevkov, ${invitesTotal} pozvánok).`
       exportForm.currentPassword = ''
       exportState.retryAfterSeconds = 0
       clearExportRetryCountdown()
@@ -870,7 +870,7 @@ export function useSettingsState() {
       } else if (status === 429) {
         const retryAfterSeconds = parseRetryAfterSeconds(error?.response?.headers)
         startExportRetryCountdown(retryAfterSeconds)
-        exportState.error = `Prilis vela poziadaviek na export. Skuste to znova o ${formatRetryAfterLabel(retryAfterSeconds)}.`
+        exportState.error = `Príliš veľa požiadaviek na export. Skúste to znova o ${formatRetryAfterLabel(retryAfterSeconds)}.`
       } else {
         exportState.error =
           error?.response?.data?.message || error?.userMessage || error?.message || 'Export dat zlyhal.'
@@ -928,7 +928,7 @@ export function useSettingsState() {
       if (!activity.value && fromAuth) {
         activity.value = fromAuth
       } else if (!activity.value) {
-        activityError.value = error?.response?.data?.message || 'Nacitavanie aktivity zlyhalo.'
+        activityError.value = error?.response?.data?.message || 'Načítavanie aktivity zlyhalo.'
       }
     } finally {
       activityLoading.value = false

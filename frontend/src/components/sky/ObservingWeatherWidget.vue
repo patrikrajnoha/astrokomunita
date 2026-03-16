@@ -19,7 +19,7 @@
       <InlineStatus
         variant="error"
         :message="errorMessage"
-        action-label="Skusit znova"
+        action-label="Skúsiť znova"
         @action="refreshBlock('weather')"
       />
     </section>
@@ -76,7 +76,7 @@ const showLoading = computed(() => weatherLoading.value && !weather.value)
 const showError = computed(() => Boolean(weatherError.value) && !weather.value)
 const errorMessage = computed(() => {
   const value = String(weatherError.value || '').trim()
-  return value || 'Nepodarilo sa nacitat pocasie.'
+  return value || 'Nepodarilo sa načítať počasie.'
 })
 
 const metrics = computed(() => ([

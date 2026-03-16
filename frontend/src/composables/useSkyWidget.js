@@ -309,14 +309,14 @@ export function useSkyWidget(options = {}) {
     return {
       window: `${formatTime(start, effectiveTz.value)} - ${formatTime(end, effectiveTz.value)}`,
       note: (observingScore.value ?? 0) >= 65
-        ? 'Najtmavsie okno po sumraku.'
+        ? 'Najtmavšie okno po súmraku.'
         : 'Najlepsie okno v ramci dneska.',
     }
   })
 
   const bestTimeLabel = computed(() => {
     if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED) {
-      return 'Nastav polohu pre vypocet.'
+      return 'Nastav polohu pre výpočet.'
     }
 
     if (skyPhase.value === SKY_PHASE.UNKNOWN) {
@@ -352,7 +352,7 @@ export function useSkyWidget(options = {}) {
     }
   })
 
-  const heroTitle = computed(() => (isDaylight.value ? 'Denne podmienky' : 'Astronomicke podmienky'))
+  const heroTitle = computed(() => (isDaylight.value ? 'Denné podmienky' : 'Astronomické podmienky'))
   const heroSubtitle = computed(() => {
     if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED) {
       return 'Poloha nie je nastavena. Nastav ju pre presny vypocet oblohy.'
@@ -394,16 +394,16 @@ export function useSkyWidget(options = {}) {
 
   const recommendationLine = computed(() => {
     if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED) {
-      return 'Nastav polohu, aby sme vedeli vyhodnotit podmienky.'
+      return 'Nastav polohu, aby sme vedeli vyhodnotiť podmienky.'
     }
     if (skyPhase.value === SKY_PHASE.UNKNOWN) {
       return 'Udaje su neuplne, skus obnovit widget.'
     }
     if (isDaylight.value) {
-      return 'Vhodne skor na planety pri zapade alebo ranne pozorovanie.'
+      return 'Vhodné skôr na planéty pri západe alebo ranné pozorovanie.'
     }
     if (isTwilightLimited.value) {
-      return 'Pockaj na hlbsiu tmu. Teraz su najlepsie jasne objekty a planety.'
+      return 'Počkaj na hlbšiu tmu. Teraz sú najlepšie jasné objekty a planéty.'
     }
 
     const moonIllumination = toFiniteNumber(astronomy.value?.moon_illumination_percent)
@@ -412,18 +412,18 @@ export function useSkyWidget(options = {}) {
 
     if ((observingScore.value ?? 0) >= 80) {
       return moonInterferes
-        ? 'Podmienky su vyborne, ale Mesiac moze rusit deep-sky.'
-        : 'Vyborne podmienky na deep-sky aj planety.'
+        ? 'Podmienky sú výborné, ale Mesiac môže rušiť deep-sky.'
+        : 'Výborné podmienky na deep-sky aj planéty.'
     }
     if ((observingScore.value ?? 0) >= 60) {
       return moonInterferes
-        ? 'Dobre na planety, deep-sky je ciastocne rusene Mesiacom.'
-        : 'Dobre podmienky na vacsinu jasnych objektov.'
+        ? 'Dobré na planéty, deep-sky je čiastočne rušené Mesiacom.'
+        : 'Dobré podmienky na väčšinu jasných objektov.'
     }
     if ((observingScore.value ?? 0) >= 40) {
-      return 'Priemerne podmienky. Zameraj sa na jasne objekty.'
+      return 'Priemerné podmienky. Zameraj sa na jasné objekty.'
     }
-    return 'Slabe podmienky. Vhodne skor na kratke orientacne pozorovanie.'
+    return 'Slabé podmienky. Vhodné skôr na krátke orientačné pozorovanie.'
   })
 
   const scoreFactors = computed(() => {
@@ -439,28 +439,28 @@ export function useSkyWidget(options = {}) {
         key: 'cloud',
         label: 'Oblacnost',
         value: cloud === null ? '-' : `${Math.round(cloud)}%`,
-        hint: cloud === null ? 'Udaje nie su dostupne.' : cloud <= 35 ? 'Nizka oblacnost pomaha pozorovaniu.' : cloud <= 65 ? 'Stredna oblacnost obmedzuje cast oblohy.' : 'Vysoka oblacnost silno obmedzuje pozorovanie.',
+        hint: cloud === null ? 'Údaje nie sú dostupné.' : cloud <= 35 ? 'Nízka oblačnosť pomáha pozorovaniu.' : cloud <= 65 ? 'Stredná oblačnosť obmedzuje časť oblohy.' : 'Vysoká oblačnosť silno obmedzuje pozorovanie.',
         tone: cloud === null ? 'neutral' : cloud <= 35 ? 'positive' : cloud <= 65 ? 'neutral' : 'negative',
       },
       {
         key: 'humidity',
         label: 'Vlhkost',
         value: humidity === null ? '-' : `${Math.round(humidity)}%`,
-        hint: humidity === null ? 'Udaje nie su dostupne.' : humidity <= 70 ? 'Dobry stav pre ostrejsi obraz.' : 'Vyssia vlhkost moze zhorsit kontrast.',
+        hint: humidity === null ? 'Údaje nie sú dostupné.' : humidity <= 70 ? 'Dobry stav pre ostrejsi obraz.' : 'Vyssia vlhkost moze zhorsit kontrast.',
         tone: humidity === null ? 'neutral' : humidity <= 70 ? 'positive' : 'negative',
       },
       {
         key: 'wind',
         label: 'Vietor',
         value: wind === null ? '-' : `${wind.toFixed(1)} km/h`,
-        hint: wind === null ? 'Udaje nie su dostupne.' : wind <= 15 ? 'Pokojny vzduch je vhodny na pozorovanie.' : wind <= 30 ? 'Mierny vietor moze zhorsit stabilitu obrazu.' : 'Silny vietor zhorsuje seeing aj komfort.',
+        hint: wind === null ? 'Údaje nie sú dostupné.' : wind <= 15 ? 'Pokojny vzduch je vhodny na pozorovanie.' : wind <= 30 ? 'Mierny vietor moze zhorsit stabilitu obrazu.' : 'Silny vietor zhorsuje seeing aj komfort.',
         tone: wind === null ? 'neutral' : wind <= 15 ? 'positive' : wind <= 30 ? 'neutral' : 'negative',
       },
       {
         key: 'moon',
         label: 'Mesiac',
         value: moonIllumination === null ? '-' : moonAltitude !== null && moonAltitude <= 0 ? `${Math.round(moonIllumination)}% | pod obzorom` : `${Math.round(moonIllumination)}%`,
-        hint: moonIllumination === null || moonAltitude === null ? 'Vplyv Mesiaca je nejasny.' : moonAltitude <= 0 ? 'Mesiac teraz nerusi tmavu oblohu.' : moonIllumination >= 70 ? 'Silne osvetlenie oblohy od Mesiaca.' : 'Mesiac ma iba mierny vplyv.',
+        hint: moonIllumination === null || moonAltitude === null ? 'Vplyv Mesiaca je nejasný.' : moonAltitude <= 0 ? 'Mesiac teraz neruší tmavú oblohu.' : moonIllumination >= 70 ? 'Silné osvetlenie oblohy od Mesiaca.' : 'Mesiac má iba mierny vplyv.',
         tone: moonIllumination === null || moonAltitude === null ? 'neutral' : moonAltitude <= 0 ? 'positive' : moonIllumination >= 70 ? 'negative' : 'neutral',
       },
       {
@@ -495,7 +495,7 @@ export function useSkyWidget(options = {}) {
 
   const issPrimaryLine = computed(() => {
     if (!hasLocationCoords.value) {
-      return 'Nastav polohu pre ISS prehlad.'
+      return 'Nastav polohu pre ISS prehľad.'
     }
 
     const passAt = formatIsoShort(issPreview.value?.next_pass_at, effectiveTz.value)
@@ -589,7 +589,7 @@ export function useSkyWidget(options = {}) {
   })
   const planetsMessageV15 = computed(() => {
     if (!hasLocationCoords.value) {
-      return 'Nastav polohu pre vypocet planet.'
+      return 'Nastav polohu pre výpočet planét.'
     }
 
     const reason = sanitizeLabel(planetsPayload.value?.reason)
@@ -859,7 +859,7 @@ export function useSkyWidget(options = {}) {
       weatherFetchedAt.value = resolvePayloadTimestamp(payload, ['updated_at', 'as_of']) || new Date()
     } catch (error) {
       if (token !== requestTokens.weather) return
-      weatherError.value = toFriendlyError(error, 'Nepodarilo sa nacitat pocasie.')
+      weatherError.value = toFriendlyError(error, 'Nepodarilo sa načítať počasie.')
     } finally {
       if (token === requestTokens.weather && !options.silent) {
         weatherLoading.value = false
@@ -905,7 +905,7 @@ export function useSkyWidget(options = {}) {
       astronomyFetchedAt.value = resolvePayloadTimestamp(payload, ['sample_at']) || new Date()
     } catch (error) {
       if (token !== requestTokens.astronomy) return
-      astronomyError.value = toFriendlyError(error, 'Nepodarilo sa nacitat astronomiu.')
+      astronomyError.value = toFriendlyError(error, 'Nepodarilo sa načítať astronómiu.')
     } finally {
       if (token === requestTokens.astronomy && !options.silent) {
         astronomyLoading.value = false
@@ -952,7 +952,7 @@ export function useSkyWidget(options = {}) {
     } catch (error) {
       if (token !== requestTokens.planets) return
       resetPlanetsPayload()
-      planetsError.value = toFriendlyError(error, 'Nepodarilo sa nacitat planety.')
+      planetsError.value = toFriendlyError(error, 'Nepodarilo sa načítať planéty.')
     } finally {
       if (token === requestTokens.planets && !options.silent) {
         planetsLoading.value = false
@@ -1436,8 +1436,8 @@ function sanitizeLabel(value) {
 function formatFreshness(value, tick) {
   if (!(value instanceof Date) || Number.isNaN(value.getTime())) return ''
   const minutes = Math.max(0, Math.round((tick - value.getTime()) / 60000))
-  if (minutes <= 0) return 'Aktualizovane prave teraz'
-  return `Aktualizovane pred ${minutes} min`
+  if (minutes <= 0) return 'Aktualizované práve teraz'
+  return `Aktualizované pred ${minutes} min`
 }
 
 function toFriendlyError(_error, fallback) {

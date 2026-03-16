@@ -116,7 +116,7 @@ const toEventItem = (event) => ({
 
 const toArticleItem = (article) => ({
   key: `a-${article.id}`,
-  to: `/clanky/${article.slug || article.id}`,
+  to: `/articles/${article.slug || article.id}`,
   kind: 'article',
   title: article.title || 'Článok',
   excerpt: postSnippet(article.excerpt || article.summary || '', 140),

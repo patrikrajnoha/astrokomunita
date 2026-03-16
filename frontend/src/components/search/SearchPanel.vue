@@ -9,7 +9,7 @@
           : 'text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] hover:text-[var(--color-surface)]'"
         @click="emit('update:mode', 'users')"
       >
-        Pouzivatelia
+        Používatelia
       </button>
       <button
         type="button"
@@ -19,12 +19,12 @@
           : 'text-[color:rgb(var(--color-text-secondary-rgb)/0.95)] hover:text-[var(--color-surface)]'"
         @click="emit('update:mode', 'posts')"
       >
-        Prispevky
+        Príspevky
       </button>
     </div>
 
     <form ref="rootRef" class="relative" role="search" @submit.prevent="onSubmit">
-      <label for="search-input-main" class="sr-only">Vyhladavanie</label>
+      <label for="search-input-main" class="sr-only">Vyhľadávanie</label>
 
       <div class="relative">
         <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:rgb(var(--color-text-secondary-rgb)/0.75)]" aria-hidden="true">
@@ -38,7 +38,7 @@
           ref="inputRef"
           v-model="localQuery"
           type="search"
-          :placeholder="mode === 'users' ? 'Hladat pouzivatelov...' : 'Hladat prispevky...'"
+          :placeholder="mode === 'users' ? 'Hľadať používateľov...' : 'Hľadať príspevky...'"
           autocomplete="off"
           class="w-full rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.35)] bg-[color:rgb(var(--color-bg-rgb)/0.78)] py-3 pl-9 pr-20 text-sm text-[var(--color-surface)] placeholder-[color:rgb(var(--color-text-secondary-rgb)/0.85)] transition focus:border-[var(--color-primary)] focus:outline-none focus:ring-2 focus:ring-[color:rgb(var(--color-primary-rgb)/0.24)]"
           role="combobox"
@@ -84,7 +84,7 @@
       </div>
 
       <p class="mt-2 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">
-        {{ mode === 'users' ? 'Tip: pouzi meno alebo @username.' : 'Tip: hladaj klucove slova v obsahu prispevkov.' }}
+        {{ mode === 'users' ? 'Tip: použi meno alebo @username.' : 'Tip: hľadaj kľúčové slová v obsahu príspevkov.' }}
       </p>
 
       <div
@@ -97,7 +97,7 @@
           v-if="!suggestions.length"
           class="px-3 py-2.5 text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]"
         >
-          {{ isLoadingSuggestions ? 'Nacitavam navrhy...' : 'Ziadne navrhy' }}
+          {{ isLoadingSuggestions ? 'Načítavam návrhy...' : 'Žiadne návrhy' }}
         </div>
 
         <button
@@ -222,7 +222,7 @@ const mapPostSuggestions = (payload) => {
   return items.slice(0, 8).map((post) => {
     const text = String(post.content || '').replace(/\s+/g, ' ').trim()
     const snippet = text.length > 84 ? `${text.slice(0, 84)}...` : text || '(Bez textu)'
-    const authorName = post.user?.name || 'Neznamy autor'
+    const authorName = post.user?.name || 'Neznámy autor'
     const authorHandle = post.user?.username ? `@${post.user.username}` : ''
 
     return {

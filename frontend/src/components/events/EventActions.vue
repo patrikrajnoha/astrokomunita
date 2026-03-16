@@ -14,8 +14,8 @@
       type="button"
       class="action action-star"
       :disabled="disabled"
-      title="Dalsia udalost (sipka vpravo)"
-      aria-label="Dalsia udalost, klavesa sipka vpravo"
+      title="Ďalšia udalosť (šípka vpravo)"
+      aria-label="Ďalšia udalosť, klávesa šípka vpravo"
       @click="$emit('favorite')"
     >
       {{ ICONS.star }}
@@ -24,8 +24,8 @@
       type="button"
       class="action action-calendar"
       :disabled="disabled"
-      title="Pridat do kalendara"
-      aria-label="Pridat udalost do kalendara"
+      title="Pridať do kalendára"
+      aria-label="Pridať udalosť do kalendára"
       @click="$emit('calendar')"
     >
       {{ ICONS.calendar }}

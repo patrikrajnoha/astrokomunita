@@ -2,7 +2,7 @@
   <section class="pollPanel" data-testid="poll-panel">
     <header class="panelHead">
       <h4>Anketa</h4>
-      <button class="closeBtn" type="button" :disabled="disabled" aria-label="Odstranit anketu" @click="$emit('remove-poll')">x</button>
+      <button class="closeBtn" type="button" :disabled="disabled" aria-label="Odstrániť anketu" @click="$emit('remove-poll')">x</button>
     </header>
 
     <div class="optionList">
@@ -28,7 +28,7 @@
       @update:model-value="(value) => $emit('update:durationSeconds', value)"
     />
 
-    <p class="hint">Otazka ankety je text prispevku.</p>
+    <p class="hint">Otázka ankety je text príspevku.</p>
   </section>
 </template>
 

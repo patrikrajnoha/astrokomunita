@@ -19,7 +19,7 @@
       <InlineStatus
         variant="error"
         :message="astronomyErrorMessage"
-        action-label="Skusit znova"
+        action-label="Skúsiť znova"
         @action="refreshBlock('astronomy')"
       />
     </section>
@@ -102,7 +102,7 @@ const showLoading = computed(() => astronomyLoading.value && !astronomy.value)
 const showAstronomyError = computed(() => Boolean(astronomyError.value) && !astronomy.value)
 const astronomyErrorMessage = computed(() => {
   const value = String(astronomyError.value || '').trim()
-  return value || 'Nepodarilo sa nacitat nocnu oblohu.'
+  return value || 'Nepodarilo sa načítať nočnú oblohu.'
 })
 
 const moonLine = computed(() => {
@@ -240,7 +240,7 @@ const planetsLine = computed(() => {
     return `dnes (odhad): ${todayEstimatedPlanetLabels.value.join(', ')}`
   }
 
-  return 'teraz ziadne'
+  return 'teraz žiadne'
 })
 
 const cometNames = computed(() => {

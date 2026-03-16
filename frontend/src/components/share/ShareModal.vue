@@ -230,7 +230,7 @@ async function onShareGenerated() {
   if (canShareFile.value && typeof navigator.share === 'function') {
     try {
       await navigator.share({
-        title: String(props.post?.title || 'Prispevok'),
+        title: String(props.post?.title || 'Príspevok'),
         text: 'Zdielam post z Astrokomunity',
         files: [generated.value.file],
       })

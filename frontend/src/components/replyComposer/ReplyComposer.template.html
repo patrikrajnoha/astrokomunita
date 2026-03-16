@@ -24,7 +24,7 @@
         </div>
 
         <div v-if="!auth.isAuthed" class="authHint">
-          Pre odoslanie reply sa prihlas.
+          Pre odoslanie komentára sa prihlás.
         </div>
 
         <div v-if="selectedGif" class="mediaCard mediaCard--gif">
@@ -142,7 +142,7 @@
           </div>
 
           <button class="actionbtn" type="button" :disabled="isSubmitDisabled" @click="submit">
-            {{ posting ? 'Odosielam...' : 'Odoslat reply' }}
+            {{ posting ? 'Odosielam...' : 'Odoslať' }}
           </button>
         </div>
 

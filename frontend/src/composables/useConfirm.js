@@ -1,10 +1,10 @@
 import { reactive } from 'vue'
 
 const defaultConfirmOptions = {
-  title: 'Potvrdit akciu',
+  title: 'Potvrdiť akciu',
   message: '',
-  confirmText: 'Potvrdit',
-  cancelText: 'Zrusit',
+  confirmText: 'Potvrdiť',
+  cancelText: 'Zrušiť',
   variant: 'default',
   closeOnBackdrop: true,
   closeOnEsc: true,
@@ -13,8 +13,8 @@ const defaultConfirmOptions = {
 const defaultPromptOptions = {
   title: 'Zadaj hodnotu',
   message: '',
-  confirmText: 'Potvrdit',
-  cancelText: 'Zrusit',
+  confirmText: 'Potvrdiť',
+  cancelText: 'Zrušiť',
   placeholder: '',
   initialValue: '',
   required: false,

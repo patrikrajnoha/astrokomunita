@@ -3,7 +3,7 @@
     <div v-if="!trimmedQuery" class="space-y-6">
       <section>
         <div class="mb-2 flex items-center justify-between">
-          <h2 class="text-sm font-semibold uppercase tracking-wide text-[color:rgb(var(--color-text-secondary-rgb)/0.92)]">Nedavne hladania</h2>
+          <h2 class="text-sm font-semibold uppercase tracking-wide text-[color:rgb(var(--color-text-secondary-rgb)/0.92)]">Nedávne hľadania</h2>
           <button
             v-if="recentSearches.length"
             type="button"
@@ -26,12 +26,12 @@
           </button>
         </div>
 
-        <p v-else class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">Zatial nemas ziadne nedavne hladania.</p>
+        <p v-else class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">Zatiaľ nemáš žiadne nedávne hľadania.</p>
       </section>
 
       <section>
         <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-[color:rgb(var(--color-text-secondary-rgb)/0.92)]">
-          {{ mode === 'users' ? 'Odporucane ucty' : 'Odporucane prispevky' }}
+          {{ mode === 'users' ? 'Odporúčané účty' : 'Odporúčané príspevky' }}
         </h2>
 
         <div v-if="recommendedLoading" class="space-y-2">
@@ -66,12 +66,12 @@
           >
             <p class="line-clamp-2 text-sm text-[var(--color-surface)]">{{ postSnippet(post.content) }}</p>
             <p class="mt-1 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
-              {{ post.user?.name || 'Neznamy autor' }} • {{ post.likes_count || 0 }} likes
+              {{ post.user?.name || 'Neznámy autor' }} • {{ post.likes_count || 0 }} likes
             </p>
           </RouterLink>
         </div>
 
-        <p v-else class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">Odporucania sa zatial nepodarilo nacitat.</p>
+        <p v-else class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.86)]">Odporúčania sa zatiaľ nepodarilo načítať.</p>
       </section>
     </div>
 
@@ -87,7 +87,7 @@
       <div v-else-if="results.length" class="space-y-2">
         <header class="flex items-center justify-between">
           <h2 class="text-sm font-semibold text-[var(--color-surface)]">Vysledky pre "{{ trimmedQuery }}"</h2>
-          <span class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.92)]">{{ results.length }} poloziek</span>
+          <span class="text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.92)]">{{ results.length }} položiek</span>
         </header>
 
         <div v-if="mode === 'users'" class="ui-list-divider">
@@ -113,7 +113,7 @@
             class="block px-0 py-3 transition hover:bg-[color:rgb(var(--color-bg-rgb)/0.28)]"
           >
             <div class="mb-1 text-xs text-[color:rgb(var(--color-text-secondary-rgb)/0.9)]">
-              {{ post.user?.name || 'Neznamy autor' }} • {{ formatDate(post.created_at) }}
+              {{ post.user?.name || 'Neznámy autor' }} • {{ formatDate(post.created_at) }}
             </div>
             <p class="line-clamp-3 text-sm text-[var(--color-surface)]">{{ postSnippet(post.content) }}</p>
           </RouterLink>
@@ -125,15 +125,15 @@
             class="w-full rounded-xl border border-[var(--divider-color)] bg-[color:rgb(var(--color-bg-rgb)/0.84)] px-3 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]"
             @click="loadMore"
           >
-            Nacitat viac
+            Načítať viac
           </button>
         </div>
       </div>
 
       <div v-else class="rounded-xl bg-[color:rgb(var(--color-bg-rgb)/0.44)] p-5 text-center">
-        <h3 class="mb-1 text-base font-semibold text-[var(--color-surface)]">Nic sme nenasli</h3>
+        <h3 class="mb-1 text-base font-semibold text-[var(--color-surface)]">Nič sme nenašli</h3>
         <p class="text-sm text-[color:rgb(var(--color-text-secondary-rgb)/0.88)]">
-          Skus iny vyraz, pridaj viac slov alebo prehod tab medzi Pouzivatelia a Prispevky.
+          Skús iný výraz, pridaj viac slov alebo prehod tab medzi Používatelia a Príspevky.
         </p>
       </div>
 
@@ -276,9 +276,9 @@ const postSnippet = (content) => {
 }
 
 const formatDate = (value) => {
-  if (!value) return 'Neznamy cas'
+  if (!value) return 'Neznámy čas'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Neznamy cas'
+  if (Number.isNaN(date.getTime())) return 'Neznámy čas'
   return date.toLocaleString('sk-SK', {
     day: '2-digit',
     month: '2-digit',
@@ -326,7 +326,7 @@ const fetchResults = async () => {
     if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') return
     results.value = []
     lastBatchLength.value = 0
-    errorMessage.value = 'Nepodarilo sa nacitat vysledky. Skus to prosim znova.'
+    errorMessage.value = 'Nepodarilo sa načítať výsledky. Skús to prosím znova.'
   } finally {
     isLoading.value = false
   }

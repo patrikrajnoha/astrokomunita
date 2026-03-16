@@ -186,8 +186,8 @@ const isPollValid = computed(() => {
 })
 const submitBlockReason = computed(() => {
   if (!pollEnabled.value) return ''
-  if (!content.value.trim()) return 'Dopln otazku ankety do textu prispevku.'
-  if (!isPollValid.value) return 'Skontroluj moznosti ankety (2-4, max 25 znakov).'
+  if (!content.value.trim()) return 'Doplň otázku ankety do textu príspevku.'
+  if (!isPollValid.value) return 'Skontroluj možnosti ankety (2-4, max 25 znakov).'
   return ''
 })
 const isSubmitDisabled = computed(() => {
@@ -291,7 +291,7 @@ function removeFile() {
 
 function pickFile() {
   if (pollEnabled.value) {
-    errorMessage.value = 'Pri ankete nie je mozne pridat obrazok alebo GIF.'
+    errorMessage.value = 'Pri ankete nie je možné pridať obrázok alebo GIF.'
     return
   }
   fileInput.value?.click()
@@ -307,11 +307,11 @@ function onFileChange(event) {
 
 function setSelectedImageFile(pickedFile) {
   if (pollEnabled.value) {
-    errorMessage.value = 'Pri ankete nie je mozne pridat obrazok alebo GIF.'
+    errorMessage.value = 'Pri ankete nie je možné pridať obrázok alebo GIF.'
     return false
   }
   if (!isImageFile(pickedFile)) {
-    errorMessage.value = 'Povolene su iba obrazky.'
+    errorMessage.value = 'Povolené sú iba obrázky.'
     return false
   }
   if (pickedFile.size > MAX_BYTES) {
@@ -434,7 +434,7 @@ async function onObservationSubmitted(payload) {
 
 function openGifModal() {
   if (pollEnabled.value) {
-    errorMessage.value = 'Pri ankete nie je mozne pridat obrazok alebo GIF.'
+    errorMessage.value = 'Pri ankete nie je možné pridať obrázok alebo GIF.'
     return
   }
   showEmoji.value = false
@@ -533,7 +533,7 @@ async function fetchEventResults(query) {
     })
     eventResults.value = Array.isArray(response?.data?.data) ? response.data.data : []
   } catch (error) {
-    eventError.value = error?.response?.data?.message || 'Nepodarilo sa nacitat udalosti.'
+    eventError.value = error?.response?.data?.message || 'Nepodarilo sa načítať udalosti.'
   } finally {
     eventLoading.value = false
   }
@@ -559,7 +559,7 @@ function togglePollFromMenu() {
 
 function enablePoll() {
   if (file.value || selectedGif.value) {
-    errorMessage.value = 'Anketu nie je mozne kombinovat s obrazkom alebo GIF.'
+    errorMessage.value = 'Anketu nie je možné kombinovať s obrázkom alebo GIF.'
     return
   }
   pollEnabled.value = true

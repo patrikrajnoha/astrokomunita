@@ -17,7 +17,7 @@ const props = defineProps({
   maxBytes: { type: Number, default: 5 * 1024 * 1024 },
   compact: { type: Boolean, default: false },
   autofocus: { type: Boolean, default: false },
-  placeholder: { type: String, default: 'Napis reply...' },
+  placeholder: { type: String, default: 'Napíš komentár...' },
 })
 
 const auth = useAuthStore()
@@ -285,13 +285,13 @@ function prettySize(bytes) {
 
 async function submit() {
   if (!auth.isAuthed) {
-    err.value = 'Pre odoslanie reply sa prihlas.'
+    err.value = 'Pre odoslanie komentára sa prihlás.'
     return
   }
 
   const trimmed = content.value.trim()
   if (!trimmed) {
-    err.value = 'Napis aspon kratku odpoved.'
+    err.value = 'Napíš aspoň krátku odpoveď.'
     return
   }
 
@@ -322,9 +322,9 @@ async function submit() {
     autoGrow()
   } catch (e) {
     const status = e?.response?.status
-    if (status === 401) err.value = 'Pre odoslanie reply sa prihlas.'
-    else if (status === 422) err.value = 'Skontroluj text (1-2000), prilohu a GIF.'
-    else err.value = e?.response?.data?.message || 'Odoslanie reply zlyhalo.'
+    if (status === 401) err.value = 'Pre odoslanie komentára sa prihlás.'
+    else if (status === 422) err.value = 'Skontroluj text (1–2000), prílohu a GIF.'
+    else err.value = e?.response?.data?.message || 'Odoslanie komentára zlyhalo.'
   } finally {
     posting.value = false
   }

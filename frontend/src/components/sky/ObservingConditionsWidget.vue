@@ -27,7 +27,7 @@
       <InlineStatus
         variant="error"
         :message="primaryErrorMessage"
-        action-label="Skusit znova"
+        action-label="Skúsiť znova"
         @action="refreshAll"
       />
     </section>
@@ -107,7 +107,7 @@ const primaryErrorMessage = computed(() => {
   const weatherMessage = String(weatherError.value || '').trim()
   if (weatherMessage) return weatherMessage
 
-  return 'Nepodarilo sa nacitat astronomicke podmienky.'
+  return 'Nepodarilo sa načítať astronomické podmienky.'
 })
 
 const hasScore = computed(() => Number.isFinite(observingScore.value))

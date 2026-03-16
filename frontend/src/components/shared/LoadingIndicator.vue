@@ -2,7 +2,7 @@
 const props = defineProps({
   text: {
     type: String,
-    default: 'Nacitavam...',
+    default: 'Načítavam...',
   },
   fullWidth: {
     type: Boolean,

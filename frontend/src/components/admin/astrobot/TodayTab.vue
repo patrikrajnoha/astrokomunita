@@ -2,19 +2,19 @@
   <div class="inboxTab">
     <div class="tabActions">
       <button class="actionbtn" @click="loadItems" :disabled="loading">
-        {{ loading ? 'Nacitavam...' : 'Obnovit inbox' }}
+        {{ loading ? 'Načítavam...' : 'Obnoviť inbox' }}
       </button>
       <input
         v-model="searchQuery"
         type="text"
-        placeholder="Hladat podla nazvu..."
+        placeholder="Hľadať podľa názvu..."
         class="searchInput"
       />
     </div>
 
     <div class="actionsHint">
-      <strong>Potrebuje kontrolu:</strong> tu su polozky, ktore sa nepublikovali automaticky. Môzes ich upravit,
-      publikovat alebo zamietnut.
+      <strong>Potrebuje kontrolu:</strong> tu sú položky, ktoré sa nepublikovali automaticky. Môžeš ich upraviť,
+      publikovať alebo zamietnuť.
     </div>
 
     <div v-if="loading" class="panelLoading">
@@ -26,12 +26,12 @@
     <div v-else-if="error" class="state stateError">
       <div class="stateTitle">Chyba</div>
       <div class="stateText">{{ error }}</div>
-      <button class="ghostbtn" @click="loadItems">Skusit znova</button>
+      <button class="ghostbtn" @click="loadItems">Skúsiť znova</button>
     </div>
 
     <div v-else-if="items.length === 0" class="state">
-      <div class="stateTitle">Inbox je prazdny</div>
-      <div class="stateText">Aktualne nie su ziadne polozky na manualnu kontrolu.</div>
+      <div class="stateTitle">Inbox je prázdny</div>
+      <div class="stateText">Aktuálne nie sú žiadne položky na manuálnu kontrolu.</div>
     </div>
 
     <ul v-else class="itemsList">
@@ -50,7 +50,7 @@
         </div>
 
         <div class="itemActions">
-          <button class="ghostbtn" @click="openEdit(item)">Upravit</button>
+          <button class="ghostbtn" @click="openEdit(item)">Upraviť</button>
           <button class="actionbtn" @click="publishItem(item)" :disabled="actionLoading[item.id] === 'publish'">
             {{ actionLoading[item.id] === 'publish' ? 'Publikujem...' : 'Publikovat' }}
           </button>
@@ -64,20 +64,20 @@
 
     <div v-if="pagination.last_page > 1" class="pagination">
       <button class="paginationBtn" :disabled="pagination.current_page === 1" @click="goToPage(pagination.current_page - 1)">
-        Predchadzajuca
+        Predchádzajúca
       </button>
       <span class="paginationInfo">
         Strana {{ pagination.current_page }} z {{ pagination.last_page }} (spolu {{ pagination.total }})
       </span>
       <button class="paginationBtn" :disabled="pagination.current_page === pagination.last_page" @click="goToPage(pagination.current_page + 1)">
-        Dalsia
+        Ďalšia
       </button>
     </div>
 
     <div v-if="editItem" class="modalOverlay" @click="closeEdit">
       <div class="modalCard" @click.stop>
         <div class="modalHeader">
-          <h2>Upravit polozku</h2>
+          <h2>Upraviť položku</h2>
           <button class="ghostbtn" @click="closeEdit">&times;</button>
         </div>
         <div class="modalBody">
@@ -90,8 +90,8 @@
             <textarea id="summary" v-model="editItem.summary" class="formTextarea" rows="5"></textarea>
           </div>
           <div class="modalActions">
-            <button class="actionbtn" @click="saveEdit">Ulozit</button>
-            <button class="ghostbtn" @click="closeEdit">Zrusit</button>
+            <button class="actionbtn" @click="saveEdit">Uložiť</button>
+            <button class="ghostbtn" @click="closeEdit">Zrušiť</button>
           </div>
         </div>
       </div>
@@ -163,7 +163,7 @@ export default {
           total: res.data.total || 0,
         }
       } catch (err) {
-        this.error = err?.response?.data?.message || err?.message || 'Nepodarilo sa nacitat inbox.'
+        this.error = err?.response?.data?.message || err?.message || 'Nepodarilo sa načítať inbox.'
       } finally {
         this.loading = false
       }
@@ -186,26 +186,26 @@ export default {
         })
         this.closeEdit()
         await this.loadItems()
-        toast.success('Polozka bola upravena.')
+        toast.success('Položka bola upravená.')
       } catch (err) {
-        this.error = 'Uprava zlyhala: ' + (err?.response?.data?.message || err?.message)
+        this.error = 'Úprava zlyhala: ' + (err?.response?.data?.message || err?.message)
         toast.error(this.error)
       }
     },
 
     async publishItem(item) {
       const ok = await confirm({
-        title: 'Publikovat polozku',
-        message: 'Publikovat tuto polozku?',
-        confirmText: 'Publikovat polozku',
-        cancelText: 'Zrusit',
+        title: 'Publikovať položku',
+        message: 'Publikovať túto položku?',
+        confirmText: 'Publikovať položku',
+        cancelText: 'Zrušiť',
       })
       if (!ok) return
       this.actionLoading[item.id] = 'publish'
       try {
         await api.post(`/admin/astrobot/items/${item.id}/publish`)
         await this.loadItems()
-        toast.success('Polozka bola publikovana.')
+        toast.success('Položka bola publikovaná.')
       } catch (err) {
         this.error = 'Publikovanie zlyhalo: ' + (err?.response?.data?.message || err?.message)
         toast.error(this.error)
@@ -216,18 +216,18 @@ export default {
 
     async rejectItem(item) {
       const note = await prompt({
-        title: 'Zamietnut polozku',
-        message: 'Dovod zamietnutia (volitelne):',
-        placeholder: 'Napis poznamku',
-        confirmText: 'Zamietnut polozku',
-        cancelText: 'Zrusit',
+        title: 'Zamietnuť položku',
+        message: 'Dôvod zamietnutia (voliteľne):',
+        placeholder: 'Napíš poznámku',
+        confirmText: 'Zamietnuť položku',
+        cancelText: 'Zrušiť',
       })
       if (note === null) return
       this.actionLoading[item.id] = 'reject'
       try {
         await api.post(`/admin/astrobot/items/${item.id}/reject`, { note })
         await this.loadItems()
-        toast.success('Polozka bola zamietnuta.')
+        toast.success('Položka bola zamietnutá.')
       } catch (err) {
         this.error = 'Zamietnutie zlyhalo: ' + (err?.response?.data?.message || err?.message)
         toast.error(this.error)

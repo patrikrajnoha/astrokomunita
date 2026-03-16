@@ -92,7 +92,7 @@
                 :checked="Boolean(displayValue(control))"
                 @change="updateControl(control, $event.target.checked)"
               />
-              <span>{{ Boolean(displayValue(control)) ? 'Zapnute' : 'Vypnute' }}</span>
+              <span>{{ Boolean(displayValue(control)) ? 'Zapnuté' : 'Vypnuté' }}</span>
             </label>
 
             <div class="defaultValue">Default: {{ describeControlDefault(control) }}</div>

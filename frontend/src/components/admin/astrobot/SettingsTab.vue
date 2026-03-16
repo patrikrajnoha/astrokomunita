@@ -42,7 +42,7 @@
           <li><strong>Zdroj:</strong> NASA News Release RSS</li>
           <li><strong>Deduplikacia:</strong> stable_key = GUID alebo hash(link + published_at)</li>
           <li><strong>Bot ucet:</strong> AstroBot (astrobot@astrokomunita.local)</li>
-          <li><strong>Kontrola:</strong> potreba iba pri rizikovych polozkach alebo ked je auto-publish vypnuty</li>
+          <li><strong>Kontrola:</strong> potrebná iba pri rizikových položkách alebo keď je auto-publish vypnutý</li>
         </ul>
       </div>
 

@@ -5,11 +5,11 @@
       <p>Zoradene podla vysky nad horizontom</p>
     </header>
 
-    <div v-if="loading" class="state">Nacitavam data...</div>
+    <div v-if="loading" class="state">Načítavam dáta...</div>
 
     <div v-else-if="error" class="state stateError">
       <p>{{ error }}</p>
-      <button type="button" class="retryBtn" @click="fetchPlanets">Skusit znova</button>
+      <button type="button" class="retryBtn" @click="fetchPlanets">Skúsiť znova</button>
     </div>
 
     <div v-else class="body">
@@ -105,7 +105,7 @@ const fetchPlanets = async () => {
     planetsPayload.value = response?.data || { planets: [], sample_at: null, sun_altitude_deg: null }
   } catch (err) {
     planetsPayload.value = { planets: [], sample_at: null, sun_altitude_deg: null }
-    error.value = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa nacitat planety.'
+    error.value = err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa načítať planéty.'
   } finally {
     loading.value = false
   }

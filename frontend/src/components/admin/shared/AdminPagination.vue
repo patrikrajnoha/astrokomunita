@@ -35,7 +35,7 @@ function setPage(page) {
         Predosla
       </button>
       <button type="button" :disabled="!canNext" class="adminPagination__btn" @click="setPage(meta.current_page + 1)">
-        Dalsia
+        Ďalšia
       </button>
     </div>
   </div>
