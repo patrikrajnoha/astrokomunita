@@ -8,6 +8,7 @@ use App\Models\ObservationMedia;
 use App\Models\User;
 use App\Policies\ObservationPolicy;
 use App\Services\Storage\MediaStorageService;
+use App\Support\PublicUserPayload;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 
@@ -19,6 +20,7 @@ class ObservationPayloadService
     public function __construct(
         private readonly MediaStorageService $mediaStorage,
         private readonly ObservationPolicy $policy,
+        private readonly PublicUserPayload $publicUsers,
     ) {
     }
 
@@ -78,13 +80,7 @@ class ObservationPayloadService
      */
     private function serializeUser(?User $user): ?array
     {
-        if (!$user) {
-            return null;
-        }
-
-        $data = $user->toArray();
-
-        return $this->ensureUserMediaUrls($data);
+        return $this->publicUsers->fromUser($user);
     }
 
     /**
@@ -147,32 +143,5 @@ class ObservationPayloadService
                 'created_at' => optional($item->created_at)?->toIso8601String(),
             ];
         })->values()->all();
-    }
-
-    /**
-     * @param array<string, mixed> $userData
-     * @return array<string, mixed>
-     */
-    private function ensureUserMediaUrls(array $userData): array
-    {
-        $avatarUrl = trim((string) ($userData['avatar_url'] ?? ''));
-        $avatarPath = trim((string) ($userData['avatar_path'] ?? ''));
-        if ($avatarUrl === '' && $avatarPath !== '') {
-            $resolvedAvatar = $this->mediaStorage->absoluteUrl($avatarPath);
-            if (is_string($resolvedAvatar) && trim($resolvedAvatar) !== '') {
-                $userData['avatar_url'] = $resolvedAvatar;
-            }
-        }
-
-        $coverUrl = trim((string) ($userData['cover_url'] ?? ''));
-        $coverPath = trim((string) ($userData['cover_path'] ?? ''));
-        if ($coverUrl === '' && $coverPath !== '') {
-            $resolvedCover = $this->mediaStorage->absoluteUrl($coverPath);
-            if (is_string($resolvedCover) && trim($resolvedCover) !== '') {
-                $userData['cover_url'] = $resolvedCover;
-            }
-        }
-
-        return $userData;
     }
 }

@@ -338,6 +338,37 @@ class PostService
         ];
     }
 
+    public function repairImageAttachmentVariants(Post $post): Post
+    {
+        $originalPath = trim((string) ($post->attachment_original_path ?? ''));
+        if ($originalPath === '') {
+            throw ValidationException::withMessages([
+                'attachment' => 'Post nema ulozenu povodnu obrazkovu prilohu.',
+            ]);
+        }
+
+        $originalMime = strtolower(trim((string) ($post->attachment_original_mime ?: $post->attachment_mime)));
+        if (!str_starts_with($originalMime, 'image/')) {
+            throw ValidationException::withMessages([
+                'attachment' => 'Post nema opravitelnu obrazkovu prilohu.',
+            ]);
+        }
+
+        $variants = $this->imageVariants->rebuildPostImageVariantsFromExistingOriginal(
+            originalPath: $originalPath,
+            originalMime: $originalMime,
+            postId: (int) $post->id,
+            mediaId: (int) $post->id,
+            userId: (int) $post->user_id,
+        );
+
+        $this->applyImageVariantsToPost($post, $variants);
+        $post->save();
+        $post->refresh();
+
+        return $post;
+    }
+
     private function resolveRootPost(Post $post): Post
     {
         if ($post->root_id) {
@@ -536,18 +567,7 @@ class PostService
                 userId: (int) $user->id
             );
 
-            $post->attachment_path = $variants['web_path'];
-            $post->attachment_web_path = $variants['web_path'];
-            $post->attachment_original_path = $variants['original_path'];
-            $post->attachment_mime = $variants['web_mime'];
-            $post->attachment_web_mime = $variants['web_mime'];
-            $post->attachment_original_mime = $variants['original_mime'];
-            $post->attachment_size = $variants['web_size'];
-            $post->attachment_web_size = $variants['web_size'];
-            $post->attachment_original_size = $variants['original_size'];
-            $post->attachment_web_width = $variants['width'];
-            $post->attachment_web_height = $variants['height'];
-            $post->attachment_variants_json = $variants['variants_json'];
+            $this->applyImageVariantsToPost($post, $variants);
         } else {
             $path = $this->mediaStorage->storePostAttachment($attachment, (int) $post->id);
             $size = (int) ($attachment->getSize() ?? 0);
@@ -572,6 +592,35 @@ class PostService
             : null;
         $post->attachment_is_blurred = $moderationEnabled && $isImageAttachment;
         $post->save();
+    }
+
+    /**
+     * @param array{
+     *   original_path:string,
+     *   web_path:string,
+     *   original_mime:string,
+     *   web_mime:string,
+     *   original_size:int,
+     *   web_size:int,
+     *   width:int|null,
+     *   height:int|null,
+     *   variants_json:array<string,mixed>
+     * } $variants
+     */
+    private function applyImageVariantsToPost(Post $post, array $variants): void
+    {
+        $post->attachment_path = $variants['web_path'];
+        $post->attachment_web_path = $variants['web_path'];
+        $post->attachment_original_path = $variants['original_path'];
+        $post->attachment_mime = $variants['web_mime'];
+        $post->attachment_web_mime = $variants['web_mime'];
+        $post->attachment_original_mime = $variants['original_mime'];
+        $post->attachment_size = $variants['web_size'];
+        $post->attachment_web_size = $variants['web_size'];
+        $post->attachment_original_size = $variants['original_size'];
+        $post->attachment_web_width = $variants['width'];
+        $post->attachment_web_height = $variants['height'];
+        $post->attachment_variants_json = $variants['variants_json'];
     }
 
     private function logModerationQueueDiagnostics(): void
