@@ -1355,31 +1355,46 @@ PROMPT;
 
     private function resolveModel(): string
     {
-        $configured = trim((string) config('events.ai.model', config('ai.ollama.model', 'mistral')));
+        $configured = trim((string) config(
+            'ai.blog_tag_suggestion.model',
+            config('events.ai.model', config('ai.ollama.model', 'mistral'))
+        ));
         return $configured !== '' ? $configured : 'mistral';
     }
 
     private function resolveTemperature(): float
     {
-        $configured = (float) config('events.ai.humanized_temperature', 0.25);
+        $configured = (float) config(
+            'ai.blog_tag_suggestion.temperature',
+            config('events.ai.humanized_temperature', 0.25)
+        );
         return max(0.1, min(0.3, $configured));
     }
 
     private function resolveMaxTokens(): int
     {
-        $configured = (int) config('events.ai.humanized_num_predict', 320);
+        $configured = (int) config(
+            'ai.blog_tag_suggestion.num_predict',
+            config('events.ai.humanized_num_predict', 320)
+        );
         return max(160, min(420, $configured));
     }
 
     private function resolveTimeoutSeconds(): int
     {
-        $configured = (int) config('events.ai.timeout', 40);
+        $configured = (int) config(
+            'ai.blog_tag_suggestion.timeout_seconds',
+            config('events.ai.timeout', 40)
+        );
         return max(5, min(90, $configured));
     }
 
     private function resolveRetryBackoffBaseMs(): int
     {
-        $configured = (int) config('events.ai.retry_backoff_base_ms', config('ai.ollama.retry_backoff_base_ms', 250));
+        $configured = (int) config(
+            'ai.blog_tag_suggestion.retry_backoff_base_ms',
+            config('events.ai.retry_backoff_base_ms', config('ai.ollama.retry_backoff_base_ms', 250))
+        );
         return max(50, $configured);
     }
 

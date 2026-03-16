@@ -70,7 +70,7 @@ class AiLastRunStoreTest extends TestCase
             Cache::shouldReceive('put')
                 ->once()
                 ->withArgs(function (string $key, array $payload, mixed $ttl) use ($expectedExpiryTimestamp): bool {
-                    return $key === 'admin:ai:last_run:newsletter_prime_insights'
+                    return $key === 'admin:ai:last_run:generic_feature'
                         && $payload['status'] === 'success'
                         && $ttl instanceof \DateTimeInterface
                         && $ttl->getTimestamp() === $expectedExpiryTimestamp;
@@ -78,7 +78,7 @@ class AiLastRunStoreTest extends TestCase
 
             $store = app(AiLastRunStore::class);
             $store->put(
-                featureName: 'newsletter_prime_insights',
+                featureName: 'generic_feature',
                 status: 'success',
                 latencyMs: 50,
                 entityId: null,
@@ -95,20 +95,20 @@ class AiLastRunStoreTest extends TestCase
 
         $store = app(AiLastRunStore::class);
         $payload = $store->put(
-            featureName: 'newsletter_copy_draft',
+            featureName: 'custom_preview',
             status: 'fallback',
             latencyMs: 91,
-            entityId: 'newsletter',
+            entityId: 'preview',
             retryCount: 1
         );
 
-        $this->assertSame('newsletter', $payload['entity_id']);
+        $this->assertSame('preview', $payload['entity_id']);
         $this->assertNull($payload['event_id']);
         $this->assertSame('fallback', $payload['status']);
 
         $this->assertSame(
             $payload,
-            Cache::get('admin:ai:last_run:newsletter_copy_draft:entity:newsletter')
+            Cache::get('admin:ai:last_run:custom_preview:entity:preview')
         );
     }
 }

@@ -172,7 +172,13 @@ class OllamaClient
      */
     private function resolveMaxRetries(array $options, array $config): int
     {
-        $configured = (int) ($options['max_retries'] ?? ($config['max_retries'] ?? 2));
+        $configured = $options['max_retries'] ?? $config['max_retries'] ?? null;
+        if ($configured === null) {
+            // Legacy alias kept for backward compatibility.
+            $configured = $options['retry'] ?? $config['retry'] ?? 2;
+        }
+
+        $configured = (int) $configured;
         return max(0, min(2, $configured));
     }
 
@@ -182,7 +188,13 @@ class OllamaClient
      */
     private function resolveRetryBackoffBaseMs(array $options, array $config): int
     {
-        $configured = (int) ($options['retry_backoff_base_ms'] ?? ($config['retry_backoff_base_ms'] ?? 250));
+        $configured = $options['retry_backoff_base_ms'] ?? $config['retry_backoff_base_ms'] ?? null;
+        if ($configured === null) {
+            // Legacy alias kept for backward compatibility.
+            $configured = $options['retry_sleep_ms'] ?? $config['retry_sleep_ms'] ?? 250;
+        }
+
+        $configured = (int) $configured;
         return max(50, $configured);
     }
 
