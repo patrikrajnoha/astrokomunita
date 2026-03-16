@@ -57,44 +57,65 @@ class ImageVariantService
             fclose($stream);
         }
 
-        $dimensions = $this->extractDimensions($sourcePath);
-        $variant = $this->buildWebVariant($sourcePath, $originalMime, $dimensions['width'], $dimensions['height']);
+        return $this->buildAndStorePostImageVariants(
+            sourcePath: $sourcePath,
+            originalMime: $originalMime,
+            originalPath: $originalPath,
+            postId: $postId,
+            mediaId: $mediaId,
+            userId: $userId,
+            originalSize: (int) ($uploadedFile->getSize() ?? 0),
+        );
+    }
 
-        $webPath = sprintf('%s/web.%s', $baseDirectory, $variant['extension']);
-        $this->mediaStorage->writePublic($webPath, $variant['contents']);
+    /**
+     * Rebuild the public web variant from an already stored original image.
+     *
+     * @return array{
+     *   original_path: string,
+     *   web_path: string,
+     *   original_mime: string,
+     *   web_mime: string,
+     *   original_size: int,
+     *   web_size: int,
+     *   width: int|null,
+     *   height: int|null,
+     *   variants_json: array<string, mixed>
+     * }
+     */
+    public function rebuildPostImageVariantsFromExistingOriginal(
+        string $originalPath,
+        string $originalMime,
+        int $postId,
+        int $mediaId,
+        int $userId
+    ): array {
+        $normalizedMime = $this->normalizeMime($originalMime);
+        if ($normalizedMime === null || !$this->isAllowedImageMime($normalizedMime)) {
+            throw ValidationException::withMessages([
+                'attachment' => 'Unsupported image format.',
+            ]);
+        }
 
         $privateDisk = Storage::disk($this->mediaStorage->privateDiskName());
-        $publicDisk = Storage::disk($this->mediaStorage->publicDiskName());
+        if (!$privateDisk->exists($originalPath)) {
+            throw new RuntimeException('Stored original image file is missing.');
+        }
 
-        $originalSize = (int) ($privateDisk->size($originalPath) ?: ($uploadedFile->getSize() ?? 0));
-        $webSize = (int) ($publicDisk->size($webPath) ?: strlen($variant['contents']));
-
-        return [
-            'original_path' => $originalPath,
-            'web_path' => $webPath,
-            'original_mime' => $originalMime,
-            'web_mime' => $variant['mime'],
-            'original_size' => $originalSize,
-            'web_size' => $webSize,
-            'width' => $variant['width'],
-            'height' => $variant['height'],
-            'variants_json' => [
-                'original' => [
-                    'path' => $originalPath,
-                    'mime' => $originalMime,
-                    'size' => $originalSize,
-                ],
-                'web' => [
-                    'path' => $webPath,
-                    'mime' => $variant['mime'],
-                    'size' => $webSize,
-                    'width' => $variant['width'],
-                    'height' => $variant['height'],
-                ],
-                'processed' => $variant['processed'],
-                'owner_user_id' => $userId,
-            ],
-        ];
+        $temporaryPath = $this->copyStoredFileToTemporaryPath($privateDisk, $originalPath);
+        try {
+            return $this->buildAndStorePostImageVariants(
+                sourcePath: $temporaryPath,
+                originalMime: $normalizedMime,
+                originalPath: $originalPath,
+                postId: $postId,
+                mediaId: $mediaId,
+                userId: $userId,
+                originalSize: (int) ($privateDisk->size($originalPath) ?: 0),
+            );
+        } finally {
+            @unlink($temporaryPath);
+        }
     }
 
     public function isAllowedImageMime(?string $mime): bool
@@ -412,5 +433,103 @@ class ImageVariantService
     private function mimeSupportsAlpha(string $mime): bool
     {
         return in_array($mime, ['image/png', 'image/webp'], true);
+    }
+
+    /**
+     * @return array{
+     *   original_path: string,
+     *   web_path: string,
+     *   original_mime: string,
+     *   web_mime: string,
+     *   original_size: int,
+     *   web_size: int,
+     *   width: int|null,
+     *   height: int|null,
+     *   variants_json: array<string, mixed>
+     * }
+     */
+    private function buildAndStorePostImageVariants(
+        string $sourcePath,
+        string $originalMime,
+        string $originalPath,
+        int $postId,
+        int $mediaId,
+        int $userId,
+        int $originalSize = 0
+    ): array {
+        $baseDirectory = sprintf('posts/%d/images/%d', $postId, $mediaId);
+        $dimensions = $this->extractDimensions($sourcePath);
+        $variant = $this->buildWebVariant($sourcePath, $originalMime, $dimensions['width'], $dimensions['height']);
+
+        $webPath = sprintf('%s/web.%s', $baseDirectory, $variant['extension']);
+        $this->mediaStorage->writePublic($webPath, $variant['contents']);
+
+        $privateDisk = Storage::disk($this->mediaStorage->privateDiskName());
+        $publicDisk = Storage::disk($this->mediaStorage->publicDiskName());
+
+        $resolvedOriginalSize = $originalSize > 0
+            ? $originalSize
+            : (int) ($privateDisk->size($originalPath) ?: 0);
+        $webSize = (int) ($publicDisk->size($webPath) ?: strlen($variant['contents']));
+
+        return [
+            'original_path' => $originalPath,
+            'web_path' => $webPath,
+            'original_mime' => $originalMime,
+            'web_mime' => $variant['mime'],
+            'original_size' => $resolvedOriginalSize,
+            'web_size' => $webSize,
+            'width' => $variant['width'],
+            'height' => $variant['height'],
+            'variants_json' => [
+                'original' => [
+                    'path' => $originalPath,
+                    'mime' => $originalMime,
+                    'size' => $resolvedOriginalSize,
+                ],
+                'web' => [
+                    'path' => $webPath,
+                    'mime' => $variant['mime'],
+                    'size' => $webSize,
+                    'width' => $variant['width'],
+                    'height' => $variant['height'],
+                ],
+                'processed' => $variant['processed'],
+                'owner_user_id' => $userId,
+            ],
+        ];
+    }
+
+    private function copyStoredFileToTemporaryPath(mixed $disk, string $path): string
+    {
+        $stream = $disk->readStream($path);
+        if ($stream === false) {
+            throw new RuntimeException('Unable to read stored original image stream.');
+        }
+
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'post-image-');
+        if ($temporaryPath === false) {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+
+            throw new RuntimeException('Unable to create temporary image file.');
+        }
+
+        $temporaryHandle = fopen($temporaryPath, 'wb');
+        if ($temporaryHandle === false) {
+            fclose($stream);
+            @unlink($temporaryPath);
+            throw new RuntimeException('Unable to open temporary image file for writing.');
+        }
+
+        try {
+            stream_copy_to_stream($stream, $temporaryHandle);
+        } finally {
+            fclose($stream);
+            fclose($temporaryHandle);
+        }
+
+        return $temporaryPath;
     }
 }
