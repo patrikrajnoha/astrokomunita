@@ -79,6 +79,20 @@ class EventDescriptionGeneratorService
                 ];
             }
 
+            $availableModels = $this->extractOllamaModelNames($response->json());
+            if ($availableModels !== [] && ! $this->isModelAvailable($model, $availableModels)) {
+                return [
+                    'ok' => false,
+                    'endpoint' => $endpoint,
+                    'model' => $model,
+                    'message' => sprintf(
+                        'Model "%s" is not available (available: %s).',
+                        $model,
+                        implode(', ', array_slice($availableModels, 0, 8))
+                    ),
+                ];
+            }
+
             return [
                 'ok' => true,
                 'endpoint' => $endpoint,
@@ -424,8 +438,6 @@ PROMPT;
             outputChars: $this->textLength($raw)
         );
 
-        // TODO(newsletter/admin-preview): consume insights for newsletter tips or admin AI preview
-        // once UI/storage pipeline is ready. We intentionally do not persist these fields yet.
         return [
             'description' => $description,
             'short' => $short,
@@ -953,5 +965,72 @@ PROMPT;
         return function_exists('mb_strlen')
             ? mb_strlen($value, 'UTF-8')
             : strlen($value);
+    }
+
+    /**
+     * @param mixed $payload
+     * @return list<string>
+     */
+    private function extractOllamaModelNames(mixed $payload): array
+    {
+        if (! is_array($payload)) {
+            return [];
+        }
+
+        $models = $payload['models'] ?? null;
+        if (! is_array($models)) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($models as $model) {
+            if (is_string($model)) {
+                $name = trim($model);
+            } elseif (is_array($model)) {
+                $name = trim((string) ($model['name'] ?? $model['model'] ?? ''));
+            } else {
+                $name = '';
+            }
+
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    /**
+     * @param list<string> $availableModels
+     */
+    private function isModelAvailable(string $configuredModel, array $availableModels): bool
+    {
+        $target = strtolower(trim($configuredModel));
+        if ($target === '') {
+            return true;
+        }
+
+        foreach ($availableModels as $available) {
+            $candidate = strtolower(trim($available));
+            if ($candidate === '') {
+                continue;
+            }
+
+            if ($candidate === $target) {
+                return true;
+            }
+
+            if (str_starts_with($candidate, $target . ':')) {
+                return true;
+            }
+
+            $targetBase = explode(':', $target, 2)[0];
+            $candidateBase = explode(':', $candidate, 2)[0];
+            if ($targetBase !== '' && $targetBase === $candidateBase) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

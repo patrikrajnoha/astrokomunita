@@ -326,6 +326,34 @@ TEXT;
         $this->assertSame('completed', $run->status);
     }
 
+    public function test_preflight_detects_missing_model_and_falls_back_to_template_when_requested(): void
+    {
+        $event = $this->createEvent('evt-desc-missing-model', 'First Quarter Moon');
+
+        config()->set('ai.ollama_base_url', 'http://ollama.test');
+        config()->set('ai.ollama.base_url', 'http://ollama.test');
+        config()->set('events.ai.model', 'mistral:latest');
+
+        Http::fake([
+            'http://ollama.test/api/tags' => Http::response([
+                'models' => [
+                    ['name' => 'llama3.2:latest'],
+                ],
+            ], 200),
+        ]);
+
+        $this->artisan('events:generate-descriptions --force --limit=1 --mode=ollama --fallback=base')
+            ->assertExitCode(0);
+
+        $event->refresh();
+        $this->assertNotNull($event->description);
+        $this->assertNotNull($event->short);
+
+        $run = DescriptionGenerationRun::query()->latest('id')->firstOrFail();
+        $this->assertSame('ollama', $run->requested_mode);
+        $this->assertSame('template', $run->effective_mode);
+    }
+
     public function test_mid_run_ollama_failures_do_not_abort_batch_and_return_exit_code_2(): void
     {
         $events = $this->createEvents(3);
@@ -333,7 +361,6 @@ TEXT;
         config()->set('ai.ollama_base_url', 'http://ollama.test');
         config()->set('ai.ollama.base_url', 'http://ollama.test');
         config()->set('ai.ollama_retry_attempts', 3);
-        config()->set('ai.ollama_retry_backoff_seconds', [0, 0, 0]);
 
         $generateCalls = 0;
         Http::fake(function (Request $request) use (&$generateCalls) {

@@ -445,7 +445,7 @@ class GenerateEventDescriptionsCommand extends Command
 
     private function resolveRetryAttempts(): int
     {
-        // OllamaClient owns transport retries/backoff for this pipeline.
+        // Keep CLI queue runs deterministic: one app-level attempt per event.
         return 1;
     }
 

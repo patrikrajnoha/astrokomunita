@@ -24,7 +24,7 @@ class StoreCandidateRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:2000'],
-            'event_type' => ['required', 'string', 'in:meteor_shower,eclipse,comet,planetary,aurora,other'],
+            'event_type' => ['required', 'string', 'in:meteor_shower,eclipse,comet,planetary_event,aurora,other'],
             'starts_at' => ['required', 'date', 'after:now'],
             'ends_at' => ['nullable', 'date', 'after:starts_at'],
             'source' => ['nullable', 'string', 'max:255'],
