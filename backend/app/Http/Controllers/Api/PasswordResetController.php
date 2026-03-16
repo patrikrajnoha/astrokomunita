@@ -157,7 +157,7 @@ class PasswordResetController extends Controller
         });
 
         return response()->json([
-            'message' => 'Heslo bolo uspesne obnovene. Teraz sa mozete prihlasit.',
+            'message' => 'Heslo bolo úspešne obnovené. Teraz sa môžete prihlásiť.',
         ]);
     }
 

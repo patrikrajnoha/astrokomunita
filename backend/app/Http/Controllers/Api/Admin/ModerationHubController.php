@@ -146,7 +146,7 @@ class ModerationHubController extends Controller
             $this->formatScore('nsfw', data_get($post->moderation_summary, 'attachment.nsfw_score')),
         ]);
 
-        $reason = 'Automaticka moderacia oznacila prispevok.';
+        $reason = 'Automatická moderácia označila príspevok.';
         if ($scores !== []) {
             $reason .= ' ' . implode(' ', $scores);
         }

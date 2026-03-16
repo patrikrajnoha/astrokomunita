@@ -275,7 +275,7 @@ class AuthController extends Controller
 
         if (! $request->hasValidSignature()) {
             return response()->json([
-                'message' => 'Overovaci odkaz je neplatny alebo expirovany.',
+                'message' => 'Overovací odkaz je neplatný alebo expirovaný.',
             ], 403);
         }
 
@@ -317,7 +317,7 @@ class AuthController extends Controller
 
         if (!$user) {
             return response()->json([
-                'message' => 'Neautentifikovany pouzivatel.',
+                'message' => 'Neautentifikovaný používateľ.',
             ], 401);
         }
 

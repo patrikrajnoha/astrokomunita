@@ -64,7 +64,7 @@ trait ManagesBotSources
         $source = BotSource::query()->find($sourceId);
         if (!$source) {
             return response()->json([
-                'message' => 'Zdroj bota sa nenasiel.',
+                'message' => 'Zdroj bota sa nenašiel.',
             ], 404);
         }
 
@@ -95,7 +95,7 @@ trait ManagesBotSources
         $source = BotSource::query()->find($sourceId);
         if (!$source) {
             return response()->json([
-                'message' => 'Zdroj bota sa nenasiel.',
+                'message' => 'Zdroj bota sa nenašiel.',
             ], 404);
         }
 
@@ -113,7 +113,7 @@ trait ManagesBotSources
         $source = BotSource::query()->find($sourceId);
         if (!$source) {
             return response()->json([
-                'message' => 'Zdroj bota sa nenasiel.',
+                'message' => 'Zdroj bota sa nenašiel.',
             ], 404);
         }
 
@@ -131,7 +131,7 @@ trait ManagesBotSources
         $source = BotSource::query()->find($sourceId);
         if (!$source) {
             return response()->json([
-                'message' => 'Zdroj bota sa nenasiel.',
+                'message' => 'Zdroj bota sa nenašiel.',
             ], 404);
         }
 

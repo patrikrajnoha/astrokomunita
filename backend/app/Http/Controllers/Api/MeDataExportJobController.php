@@ -71,7 +71,7 @@ class MeDataExportJobController extends Controller
         if (!$job) {
             return [
                 'status' => UserDataExportJob::STATUS_FAILED,
-                'message' => 'Export job sa nenasiel.',
+                'message' => 'Export job sa nenašiel.',
             ];
         }
 

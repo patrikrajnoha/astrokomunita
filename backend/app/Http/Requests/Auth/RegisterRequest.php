@@ -59,16 +59,16 @@ class RegisterRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'username.required' => 'Pouzivatelske meno je povinne.',
-            'username.min' => 'Pouzivatelske meno musi mat aspon 3 znaky.',
-            'username.max' => 'Pouzivatelske meno moze mat najviac 20 znakov.',
-            'username.regex' => 'Pouzivatelske meno moze obsahovat iba male pismena, cisla a podciarkovnik a musi zacinat pismenom.',
-            'username.unique' => 'Toto pouzivatelske meno je uz obsadene.',
-            'date_of_birth.required' => 'Datum narodenia je povinny.',
-            'date_of_birth.date' => 'Datum narodenia musi byt platny datum.',
-            'date_of_birth.before_or_equal' => 'Musis mat aspon 13 rokov.',
-            'turnstile_token.required' => 'Overenie proti botom je povinne.',
-            'turnstile_token.string' => 'Overenie proti botom je neplatne.',
+            'username.required' => 'Používateľské meno je povinné.',
+            'username.min' => 'Používateľské meno musí mať aspoň 3 znaky.',
+            'username.max' => 'Používateľské meno môže mať najviac 20 znakov.',
+            'username.regex' => 'Používateľské meno môže obsahovať iba malé písmená, čísla a podčiarknik a musí začínať písmenom.',
+            'username.unique' => 'Toto používateľské meno je už obsadené.',
+            'date_of_birth.required' => 'Dátum narodenia je povinný.',
+            'date_of_birth.date' => 'Dátum narodenia musí byť platný dátum.',
+            'date_of_birth.before_or_equal' => 'Musíš mať aspoň 13 rokov.',
+            'turnstile_token.required' => 'Overenie proti botom je povinné.',
+            'turnstile_token.string' => 'Overenie proti botom je neplatné.',
         ];
     }
 }

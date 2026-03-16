@@ -313,7 +313,7 @@ Pravidla:
    - how_to_observe: max 250 znakov
 5. NIKDY nemen cisla, datumy, casy ani nazvy objektov z factual packu.
 6. Ak informacia nie je vo factual packu, nepridavaj ju ako fakt.
-7. Mozes pridat iba vseobecne rady na pozorovanie (napr. tmave miesto, adaptacia zraku, stabilna atmosfera), bez konkretnych neoverenych tvrdeni.
+7. Môžeš pridať iba všeobecné rady na pozorovanie (napr. tmavé miesto, adaptácia zraku, stabilná atmosféra), bez konkrétnych neoverených tvrdení.
 
 Factual pack JSON:
 {$factualPackJson}

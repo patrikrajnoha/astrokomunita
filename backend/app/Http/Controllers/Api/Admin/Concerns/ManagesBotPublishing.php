@@ -24,7 +24,7 @@ trait ManagesBotPublishing
         $item = BotItem::query()->find($botItemId);
         if (!$item) {
             return response()->json([
-                'message' => 'Polozka bota sa nenasla.',
+                'message' => 'Položka bota sa nenašla.',
             ], 404);
         }
 
@@ -77,7 +77,7 @@ trait ManagesBotPublishing
         $run = BotRun::query()->find($runId);
         if (!$run) {
             return response()->json([
-                'message' => 'Beh sa nenasiel.',
+                'message' => 'Beh sa nenašiel.',
             ], 404);
         }
 
@@ -127,14 +127,14 @@ trait ManagesBotPublishing
         $item = BotItem::query()->find($botItemId);
         if (!$item) {
             return response()->json([
-                'message' => 'Polozka bota sa nenasla.',
+                'message' => 'Položka bota sa nenašla.',
             ], 404);
         }
 
         $postId = (int) ($item->post_id ?? 0);
         if ($postId <= 0) {
             return response()->json([
-                'message' => 'Polozka nema publikovany prispevok na vymazanie.',
+                'message' => 'Položka nemá publikovaný príspevok na vymazanie.',
             ], 422);
         }
 
@@ -146,7 +146,7 @@ trait ManagesBotPublishing
         $item = $this->markItemPostVymazaneManually($item, $postId);
 
         return response()->json([
-            'message' => 'Publikovany prispevok bol vymazany.',
+            'message' => 'Publikovaný príspevok bol vymazaný.',
             'item' => $this->serializeItem($item),
             'deleted_post_id' => $postId,
         ]);
@@ -184,7 +184,7 @@ trait ManagesBotPublishing
         $matchedCount = (clone $query)->count();
         if ($matchedCount <= 0) {
             return response()->json([
-                'message' => 'Pre vybrane filtre sa nenasli publikovane bot prispevky.',
+                'message' => 'Pre vybrané filtre sa nenašli publikované bot príspevky.',
                 'matched_items' => 0,
                 'deleted_posts' => 0,
                 'missing_posts' => 0,

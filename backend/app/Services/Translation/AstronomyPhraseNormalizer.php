@@ -216,7 +216,7 @@ class AstronomyPhraseNormalizer
         }
 
         return [
-            'title' => 'Astronomicka udalost',
+            'title' => 'Astronomická udalosť',
             'used_fallback' => true,
             'reason' => 'generic_fallback',
         ];

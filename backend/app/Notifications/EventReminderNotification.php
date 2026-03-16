@@ -33,11 +33,11 @@ class EventReminderNotification extends Notification implements ShouldQueue
             : '-';
 
         return (new MailMessage)
-            ->subject('Upozornenie na udalost')
-            ->line('Blizi sa udalost, ktoru sledujes.')
-            ->line('Udalost: ' . ($event?->title ?? '-'))
-            ->line('Zaciatok: ' . $startLabel)
-            ->action('Zobrazit detail', $this->eventUrl($event?->id));
+            ->subject('Upozornenie na udalosť')
+            ->line('Blíži sa udalosť, ktorú sleduješ.')
+            ->line('Udalosť: ' . ($event?->title ?? '-'))
+            ->line('Začiatok: ' . $startLabel)
+            ->action('Zobraziť detail', $this->eventUrl($event?->id));
     }
 
     private function eventUrl(?int $id): string

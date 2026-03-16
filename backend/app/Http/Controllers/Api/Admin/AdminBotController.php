@@ -282,7 +282,7 @@ class AdminBotController extends Controller
         $schedule = BotSchedule::query()->find($scheduleId);
         if (!$schedule) {
             return response()->json([
-                'message' => 'Plan bota sa nenasiel.',
+                'message' => 'Plán bota sa nenašiel.',
             ], 404);
         }
 
@@ -316,7 +316,7 @@ class AdminBotController extends Controller
         $schedule = BotSchedule::query()->find($scheduleId);
         if (!$schedule) {
             return response()->json([
-                'message' => 'Plan bota sa nenasiel.',
+                'message' => 'Plán bota sa nenašiel.',
             ], 404);
         }
 

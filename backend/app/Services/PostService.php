@@ -142,7 +142,7 @@ class PostService
     {
         if (is_array($pollInput) && $attachment) {
             throw ValidationException::withMessages([
-                'attachment' => 'Poll a prilohy sa nedaju kombinovat.',
+                'attachment' => 'Poll a prílohy sa nedajú kombinovať.',
             ]);
         }
 
@@ -343,14 +343,14 @@ class PostService
         $originalPath = trim((string) ($post->attachment_original_path ?? ''));
         if ($originalPath === '') {
             throw ValidationException::withMessages([
-                'attachment' => 'Post nema ulozenu povodnu obrazkovu prilohu.',
+                'attachment' => 'Post nemá uloženú pôvodnú obrazkovú prílohu.',
             ]);
         }
 
         $originalMime = strtolower(trim((string) ($post->attachment_original_mime ?: $post->attachment_mime)));
         if (!str_starts_with($originalMime, 'image/')) {
             throw ValidationException::withMessages([
-                'attachment' => 'Post nema opravitelnu obrazkovu prilohu.',
+                'attachment' => 'Post nemá opraviteľnú obrazkovú prílohu.',
             ]);
         }
 

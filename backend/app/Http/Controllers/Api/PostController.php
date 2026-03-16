@@ -30,7 +30,7 @@ class PostController extends Controller
 
         if ($request->query('scope') === 'me' && !$viewer) {
             return response()->json([
-                'message' => 'Neprihlaseny pouzivatel.',
+                'message' => 'Neprihlásený používateľ.',
             ], 401);
         }
 
@@ -82,13 +82,13 @@ class PostController extends Controller
 
         if (!$user) {
             return response()->json([
-                'message' => 'Neprihlaseny pouzivatel.',
+                'message' => 'Neprihlásený používateľ.',
             ], 401);
         }
 
         if (Gate::forUser($user)->denies('delete', $post)) {
             return response()->json([
-                'message' => 'Nemate opravnenie zmazat tento post.',
+                'message' => 'Nemáte oprávnenie zmazať tento post.',
             ], 403);
         }
 
@@ -103,13 +103,13 @@ class PostController extends Controller
 
         if (!$user) {
             return response()->json([
-                'message' => 'Neprihlaseny pouzivatel.',
+                'message' => 'Neprihlásený používateľ.',
             ], 401);
         }
 
         if (Gate::forUser($user)->denies('update', $post)) {
             return response()->json([
-                'message' => 'Nemate opravnenie upravit tento post.',
+                'message' => 'Nemáte oprávnenie upraviť tento post.',
             ], 403);
         }
 
@@ -173,7 +173,7 @@ class PostController extends Controller
 
         if (!$user) {
             return response()->json([
-                'message' => 'Neprihlaseny pouzivatel.',
+                'message' => 'Neprihlásený používateľ.',
             ], 401);
         }
 
@@ -186,7 +186,7 @@ class PostController extends Controller
 
         if (!$user) {
             return response()->json([
-                'message' => 'Neprihlaseny pouzivatel.',
+                'message' => 'Neprihlásený používateľ.',
             ], 401);
         }
 

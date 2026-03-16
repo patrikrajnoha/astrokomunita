@@ -65,7 +65,7 @@ class EventIcsService
                 $eventLines[] = 'DTEND:' . $window['end']->utc()->format('Ymd\\THis\\Z');
             }
 
-            $eventLines[] = 'SUMMARY:' . $this->escapeText((string) ($event->title ?? 'Udalost'));
+            $eventLines[] = 'SUMMARY:' . $this->escapeText((string) ($event->title ?? 'Udalosť'));
             $eventLines[] = 'DESCRIPTION:' . $this->escapeText($description);
 
             $location = trim((string) ($event->location ?? ''));

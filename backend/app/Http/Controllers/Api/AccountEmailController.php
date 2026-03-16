@@ -33,7 +33,7 @@ class AccountEmailController extends Controller
         $email = $this->normalizeEmail((string) ($user->email ?? ''));
 
         if ($email === '') {
-            return $this->errorResponse('Pouzivatel nema e-mailovu adresu.', 'EMAIL_MISSING', 422);
+            return $this->errorResponse('Používateľ nemá e-mailovú adresu.', 'EMAIL_MISSING', 422);
         }
 
         if ($user->hasVerifiedEmail()) {
@@ -87,7 +87,7 @@ class AccountEmailController extends Controller
         $email = $this->normalizeEmail((string) ($user->email ?? ''));
 
         if ($email === '') {
-            return $this->errorResponse('Pouzivatel nema e-mailovu adresu.', 'EMAIL_MISSING', 422);
+            return $this->errorResponse('Používateľ nemá e-mailovú adresu.', 'EMAIL_MISSING', 422);
         }
 
         $pendingApplied = $this->activePendingChangeRequest($user);
@@ -372,7 +372,7 @@ class AccountEmailController extends Controller
                 'ok' => false,
                 'status' => 422,
                 'error_code' => 'EMAIL_MISSING',
-                'message' => 'Pouzivatel nema e-mailovu adresu.',
+                'message' => 'Používateľ nemá e-mailovú adresu.',
             ];
         }
 
@@ -435,7 +435,7 @@ class AccountEmailController extends Controller
                 'ok' => false,
                 'status' => 500,
                 'error_code' => 'EMAIL_VERIFICATION_SEND_FAILED',
-                'message' => 'Nepodarilo sa odoslat overovaci e-mail.',
+                'message' => 'Nepodarilo sa odoslať overovací e-mail.',
             ];
         }
 

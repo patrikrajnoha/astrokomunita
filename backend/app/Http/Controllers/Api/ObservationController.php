@@ -34,7 +34,7 @@ class ObservationController extends Controller
 
         if ($mine && !$viewer) {
             return response()->json([
-                'message' => 'Neprihlaseny pouzivatel.',
+                'message' => 'Neprihlásený používateľ.',
             ], 401);
         }
 
@@ -115,13 +115,13 @@ class ObservationController extends Controller
 
         if (!$user) {
             return response()->json([
-                'message' => 'Neprihlaseny pouzivatel.',
+                'message' => 'Neprihlásený používateľ.',
             ], 401);
         }
 
         if (Gate::forUser($user)->denies('create', Observation::class)) {
             return response()->json([
-                'message' => 'Nemate opravnenie vytvorit pozorovanie.',
+                'message' => 'Nemáte oprávnenie vytvoriť pozorovanie.',
             ], 403);
         }
 
@@ -145,13 +145,13 @@ class ObservationController extends Controller
 
         if (!$user) {
             return response()->json([
-                'message' => 'Neprihlaseny pouzivatel.',
+                'message' => 'Neprihlásený používateľ.',
             ], 401);
         }
 
         if (Gate::forUser($user)->denies('update', $observation)) {
             return response()->json([
-                'message' => 'Nemate opravnenie upravit toto pozorovanie.',
+                'message' => 'Nemáte oprávnenie upraviť toto pozorovanie.',
             ], 403);
         }
 
@@ -176,13 +176,13 @@ class ObservationController extends Controller
 
         if (!$user) {
             return response()->json([
-                'message' => 'Neprihlaseny pouzivatel.',
+                'message' => 'Neprihlásený používateľ.',
             ], 401);
         }
 
         if (Gate::forUser($user)->denies('delete', $observation)) {
             return response()->json([
-                'message' => 'Nemate opravnenie zmazat toto pozorovanie.',
+                'message' => 'Nemáte oprávnenie zmazať toto pozorovanie.',
             ], 403);
         }
 

@@ -28,7 +28,7 @@ class ReportController extends Controller
         $honeypot = trim((string) ($validated['_hp'] ?? $validated['website'] ?? ''));
         if ($honeypot !== '') {
             return response()->json([
-                'message' => 'Neplatna poziadavka na nahlasenie.',
+                'message' => 'Neplatná požiadavka na nahlásenie.',
             ], 422);
         }
 
@@ -37,13 +37,13 @@ class ReportController extends Controller
         $targetPost = Post::query()->select('id', 'user_id')->findOrFail($postId);
         if ((int) $targetPost->user_id === (int) $user->id) {
             return response()->json([
-                'message' => 'Nemozete nahlasit vlastny prispevok.',
+                'message' => 'Nemôžete nahlásiť vlastný príspevok.',
             ], 403);
         }
 
         if (Gate::forUser($user)->denies('create', [Report::class, $targetPost])) {
             return response()->json([
-                'message' => 'Nemozete nahlasit vlastny prispevok.',
+                'message' => 'Nemôžete nahlásiť vlastný príspevok.',
             ], 403);
         }
 

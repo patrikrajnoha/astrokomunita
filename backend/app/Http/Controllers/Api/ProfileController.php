@@ -374,7 +374,7 @@ class ProfileController extends Controller
     private function ensureBotProfileEditAllowed(User $user): void
     {
         if ($user->isBot() && ! $user->isAdmin()) {
-            abort(403, 'Bot profily moze upravovat iba admin.');
+            abort(403, 'Bot profily môže upravovať iba admin.');
         }
     }
 }

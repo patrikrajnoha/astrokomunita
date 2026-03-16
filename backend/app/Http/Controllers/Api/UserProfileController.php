@@ -41,7 +41,7 @@ class UserProfileController extends Controller
             ->first();
 
         if (!$user) {
-            return response()->json(['message' => 'Pouzivatel sa nenasiel.'], 404);
+            return response()->json(['message' => 'Používateľ sa nenašiel.'], 404);
         }
 
         return response()->json($this->publicUsers->fromUser($user));
@@ -51,7 +51,7 @@ class UserProfileController extends Controller
     {
         $user = User::query()->select(['id', 'username'])->where('username', $username)->first();
         if (!$user) {
-            return response()->json(['message' => 'Pouzivatel sa nenasiel.'], 404);
+            return response()->json(['message' => 'Používateľ sa nenašiel.'], 404);
         }
 
         $perPage = (int) $request->query('per_page', 20);

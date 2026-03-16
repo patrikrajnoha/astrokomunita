@@ -44,7 +44,7 @@ class PollController extends Controller
         $option = $poll->options->firstWhere('id', $optionId);
         if (!$option) {
             return response()->json([
-                'message' => 'Neplatna moznost ankety.',
+                'message' => 'Neplatná možnosť ankety.',
             ], 422);
         }
 
