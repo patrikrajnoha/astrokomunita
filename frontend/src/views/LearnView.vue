@@ -30,10 +30,10 @@ const hasAnyPosts = computed(() => {
 
 const resultLabel = computed(() => {
   const total = totalResults.value
-  if (total === 0) return 'Ziadne vysledky'
-  if (total === 1) return '1 clanok'
-  if (total < 5) return `${total} clanky`
-  return `${total} clankov`
+  if (total === 0) return 'Žiadne výsledky'
+  if (total === 1) return '1 článok'
+  if (total < 5) return `${total} články`
+  return `${total} článkov`
 })
 
 function setMeta({ title, description }) {
@@ -72,14 +72,14 @@ function excerpt(text, limit = 180) {
 }
 
 function readTime(text) {
-  if (!text) return '1 min citania'
+  if (!text) return '1 min čítania'
   const words = stripHtml(String(text)).trim().split(/\s+/).filter(Boolean).length
   const minutes = Math.max(1, Math.round(words / 220))
-  return `${minutes} min citania`
+  return `${minutes} min čítania`
 }
 
 function postLink(post) {
-  return `/clanky/${post.slug || post.id}`
+  return `/articles/${post.slug || post.id}`
 }
 
 function stripHtml(text) {
@@ -115,7 +115,7 @@ async function load() {
       q: search.value || undefined,
     })
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Chyba pri nacitani clankov.'
+    error.value = e?.response?.data?.message || 'Chyba pri načítaní článkov.'
   } finally {
     loading.value = false
   }
@@ -167,11 +167,11 @@ watch(
     const tagLabel = selectedTag.value
       ? ` - ${tags.value.find((t) => t.slug === selectedTag.value)?.name || 'Tag'}`
       : ''
-    const searchLabel = search.value ? ` - Hladanie: ${search.value}` : ''
+    const searchLabel = search.value ? ` - Hľadanie: ${search.value}` : ''
 
     setMeta({
-      title: `Vzdelavanie${tagLabel}${searchLabel} | Astrokomunita`,
-      description: 'Miesto s clankami o astronomii, pozorovani a nocnej oblohe.',
+      title: `Vzdelávanie${tagLabel}${searchLabel} | Astrokomunita`,
+      description: 'Miesto s článkami o astronómii, pozorovaní a nočnej oblohe.',
     })
   },
   { immediate: true },

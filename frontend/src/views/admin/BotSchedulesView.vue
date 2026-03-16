@@ -45,7 +45,7 @@ const form = reactive({
 const canPrev = computed(() => Number(pagination.current_page || 1) > 1)
 const canNext = computed(() => Number(pagination.current_page || 1) < Number(pagination.last_page || 1))
 const summaryLine = computed(() => {
-  if (loading.value) return 'Nacitavam schedule zaznamy...'
+  if (loading.value) return 'Načítavam schedule záznamy...'
   return `${pagination.total} planov | strana ${pagination.current_page}/${pagination.last_page}`
 })
 
@@ -131,10 +131,10 @@ async function saveRow(row) {
 
 async function removeRow(row) {
   const approved = await confirm({
-    title: 'Vymazat schedule',
-    message: `Naozaj vymazat schedule #${row.id}?`,
-    confirmText: 'Vymazat',
-    cancelText: 'Zrusit',
+    title: 'Vymazať schedule',
+    message: `Naozaj vymazať schedule #${row.id}?`,
+    confirmText: 'Vymazať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!approved) return
@@ -175,22 +175,22 @@ onMounted(async () => {
 <template>
   <component
     :is="props.embedded ? 'section' : AdminPageShell"
-    v-bind="props.embedded ? {} : { title: 'Plany botov', subtitle: 'Sprava planov bez potreby nasadenia.' }"
+    v-bind="props.embedded ? {} : { title: 'Plány botov', subtitle: 'Správa plánov bez potreby nasadenia.' }"
     class="botSection"
   >
     <div v-if="props.embedded" class="embeddedHeader">
       <div>
-        <h2 class="embeddedTitle">Plany</h2>
+        <h2 class="embeddedTitle">Plány</h2>
         <p class="embeddedSubtitle">{{ summaryLine }}</p>
       </div>
       <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
-        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+        {{ loading ? 'Načítavam...' : 'Obnoviť' }}
       </button>
     </div>
 
     <template v-if="!props.embedded" #right-actions>
       <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
-        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+        {{ loading ? 'Načítavam...' : 'Obnoviť' }}
       </button>
     </template>
 
@@ -211,7 +211,7 @@ onMounted(async () => {
           <label class="field">
             <span>Zdroj (volitelne)</span>
             <select v-model="form.source_id">
-              <option value="">Vsetky povolene zdroje</option>
+              <option value="">Všetky povolené zdroje</option>
               <option v-for="source in sourceOptions" :key="source.id" :value="String(source.id)">
                 {{ source.key }}
               </option>
@@ -235,14 +235,14 @@ onMounted(async () => {
         </div>
 
         <div class="createActions">
-          <button class="actionBtn" type="button" :disabled="savingId === 'create'" @click="createSchedule">Vytvorit</button>
+          <button class="actionBtn" type="button" :disabled="savingId === 'create'" @click="createSchedule">Vytvoriť</button>
         </div>
       </div>
     </details>
 
     <section class="card tableCard">
       <p v-if="error" class="error">{{ error }}</p>
-      <p v-else-if="!loading && rows.length === 0" class="muted">Zatial nie su vytvorene schedules.</p>
+      <p v-else-if="!loading && rows.length === 0" class="muted">Zatiaľ nie sú vytvorené schedules.</p>
 
       <div v-else class="tableWrap">
         <table class="table">
@@ -281,7 +281,7 @@ onMounted(async () => {
               </td>
               <td>
                 <div class="rowActions">
-                  <button class="actionBtn" type="button" :disabled="savingId === row.id" @click="saveRow(row)">Ulozit</button>
+                  <button class="actionBtn" type="button" :disabled="savingId === row.id" @click="saveRow(row)">Uložiť</button>
                   <details class="rowMenu">
                     <summary>Viac</summary>
                     <div class="rowMenuBody">
@@ -291,7 +291,7 @@ onMounted(async () => {
                       >
                         Aktivita
                       </RouterLink>
-                      <button class="dangerBtn" type="button" :disabled="savingId === row.id" @click="removeRow(row)">Zmazat</button>
+                      <button class="dangerBtn" type="button" :disabled="savingId === row.id" @click="removeRow(row)">Zmazať</button>
                     </div>
                   </details>
                 </div>
@@ -304,7 +304,7 @@ onMounted(async () => {
       <div class="pager">
         <button class="ghostBtn" type="button" :disabled="loading || !canPrev" @click="prevPage">Predosla</button>
         <span class="muted">Strana {{ pagination.current_page }} / {{ pagination.last_page }} - {{ pagination.total }}</span>
-        <button class="ghostBtn" type="button" :disabled="loading || !canNext" @click="nextPage">Dalsia</button>
+        <button class="ghostBtn" type="button" :disabled="loading || !canNext" @click="nextPage">Ďalšia</button>
       </div>
     </section>
   </component>

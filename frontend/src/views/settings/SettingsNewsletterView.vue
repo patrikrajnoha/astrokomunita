@@ -1,7 +1,7 @@
 <template>
   <SettingsDetailShell
-    title="Tyzdenny newsletter"
-    subtitle="Dostavajte tyzdenny vyber udalosti, clankov a jeden astronomicky tip."
+    title="Týždenný newsletter"
+    subtitle="Dostávajte týždenný výber udalostí, článkov a jeden astronomický tip."
   >
     <InlineStatus
       v-if="newsletterState.success"
@@ -16,8 +16,8 @@
 
     <label class="toggle-box" for="settings-newsletter">
       <div class="toggle-meta">
-        <p class="toggle-title">{{ newsletterSubscribed ? 'Prihlaseny' : 'Neprihlaseny' }}</p>
-        <p class="toggle-hint">Toto mozete kedykolvek zmenit.</p>
+        <p class="toggle-title">{{ newsletterSubscribed ? 'Prihlásený' : 'Neprihlásený' }}</p>
+        <p class="toggle-hint">Toto môžete kedykoľvek zmeniť.</p>
       </div>
       <input
         id="settings-newsletter"

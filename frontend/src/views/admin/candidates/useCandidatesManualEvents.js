@@ -47,16 +47,16 @@ export function useCandidatesManualEvents({
     const errors = []
 
     if (!String(manualForm.value.title || '').trim()) {
-      errors.push('Nazov je povinny.')
+      errors.push('Názov je povinný.')
     }
     if (!manualForm.value.starts_at) {
-      errors.push('Cas zaciatku je povinny.')
+      errors.push('Čas začiatku je povinný.')
     }
     if (manualForm.value.starts_at && manualForm.value.ends_at) {
       const start = new Date(manualForm.value.starts_at)
       const end = new Date(manualForm.value.ends_at)
       if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end < start) {
-        errors.push('Koniec nemoze byt skor ako zaciatok.')
+        errors.push('Koniec nemôže byť skôr ako začiatok.')
       }
     }
 
@@ -203,10 +203,10 @@ export function useCandidatesManualEvents({
     if (!row?.id) return
 
     const ok = await confirm({
-      title: 'Zmazat draft',
-      message: `Zmazat draft "${row.title}"?`,
-      confirmText: 'Zmazat',
-      cancelText: 'Zrusit',
+      title: 'Zmazať draft',
+      message: `Zmazať draft "${row.title}"?`,
+      confirmText: 'Zmazať',
+      cancelText: 'Zrušiť',
       variant: 'danger',
     })
     if (!ok) return
@@ -219,7 +219,7 @@ export function useCandidatesManualEvents({
       if (manualData.value?.data) {
         manualData.value.data = manualData.value.data.filter((entry) => entry.id !== row.id)
       }
-      toast.success('Draft bol zmazany.')
+      toast.success('Draft bol zmazaný.')
     } catch (error) {
       manualError.value = error?.response?.data?.message || 'Mazanie zlyhalo'
       toast.error(manualError.value)
@@ -232,10 +232,10 @@ export function useCandidatesManualEvents({
     if (!row?.id) return
 
     const ok = await confirm({
-      title: 'Publikovat draft',
-      message: `Publikovat "${row.title}" do events?`,
-      confirmText: 'Publikovat',
-      cancelText: 'Zrusit',
+      title: 'Publikovať draft',
+      message: `Publikovať "${row.title}" do events?`,
+      confirmText: 'Publikovať',
+      cancelText: 'Zrušiť',
     })
     if (!ok) return
 
@@ -249,7 +249,7 @@ export function useCandidatesManualEvents({
         status: 'published',
         published_event_id: res.data?.data?.id ?? res.data?.id ?? null,
       })
-      toast.success('Draft bol publikovany.')
+      toast.success('Draft bol publikovaný.')
     } catch (error) {
       manualError.value = error?.response?.data?.message || 'Publish zlyhal'
       toast.error(manualError.value)

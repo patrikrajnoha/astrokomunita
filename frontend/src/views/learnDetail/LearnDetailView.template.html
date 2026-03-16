@@ -1,9 +1,9 @@
 
   <article class="detailPage" :class="{ 'detailPage--reading': isLongRead }">
-    <router-link class="backLink" to="/clanky">Spat na clanky</router-link>
+    <router-link class="backLink" to="/articles">Späť na články</router-link>
 
     <div v-if="error" class="state state--error">{{ error }}</div>
-    <div v-else-if="loading" class="state">Nacitavam clanok...</div>
+    <div v-else-if="loading" class="state">Načítavam článok...</div>
 
     <template v-else-if="post">
       <header class="header">
@@ -18,8 +18,15 @@
             <span v-for="tag in post.tags" :key="tag.id">{{ tag.name }}</span>
           </div>
 
-          <button class="shareBtn" type="button" @click="copyLink">
-            {{ copied ? 'Link skopirovany' : 'Kopirovat link' }}
+          <button class="shareBtn" :class="{ 'shareBtn--copied': copied }" type="button" @click="copyLink">
+            <svg v-if="!copied" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            {{ copied ? 'Skopírované' : 'Kopírovať link' }}
           </button>
         </div>
       </header>
@@ -31,7 +38,7 @@
 
         <div class="articleBody">
           <section v-if="showToc" class="toc">
-            <p class="toc__title">Obsah clanku</p>
+            <p class="toc__title">Obsah článku</p>
             <ul>
               <li v-for="item in tocItems" :key="item.id" :class="item.type">
                 <a :href="`#${item.id}`">{{ item.text }}</a>
@@ -47,7 +54,7 @@
 
       <section class="section comments">
         <div class="comments__head">
-          <h2>Komentare</h2>
+          <h2>Komentáre</h2>
           <span>{{ commentsData?.total || 0 }} celkom</span>
         </div>
 
@@ -57,19 +64,19 @@
           <textarea
             v-model="commentInput"
             rows="3"
-            placeholder="Napis komentar..."
+            placeholder="Napíš komentár..."
           ></textarea>
           <button
             type="button"
             :disabled="commentSubmitting || !commentInput.trim()"
             @click="submitComment"
           >
-            {{ commentSubmitting ? 'Odosielam...' : 'Pridat komentar' }}
+            {{ commentSubmitting ? 'Odosielam...' : 'Pridať komentár' }}
           </button>
         </div>
-        <p v-else class="comments__hint">Pre pridanie komentara sa prihlas.</p>
+        <p v-else class="comments__hint">Pre pridanie komentára sa prihlás.</p>
 
-        <p v-if="commentsLoading" class="comments__hint">Nacitavam komentare...</p>
+        <p v-if="commentsLoading" class="comments__hint">Načítavam komentáre...</p>
 
         <div v-else-if="comments.length" class="commentList">
           <article
@@ -80,7 +87,7 @@
           >
             <div class="commentItem__card">
               <p class="commentItem__meta">
-                <strong>{{ comment.user?.name || 'Pouzivatel' }}</strong>
+                <strong>{{ comment.user?.name || 'Používateľ' }}</strong>
                 <span>{{ formatDate(comment.created_at) }}</span>
               </p>
               <p class="commentItem__text">{{ comment.content }}</p>
@@ -90,17 +97,17 @@
                 class="commentItem__remove"
                 @click="removeComment(comment.id)"
               >
-                Zmazat
+                Zmazať
               </button>
             </div>
           </article>
         </div>
 
-        <p v-else class="comments__hint">Zatial bez komentarov.</p>
+        <p v-else class="comments__hint">Zatiaľ bez komentárov.</p>
 
         <div v-if="commentsData && commentsData.last_page > 1" class="commentsPager">
           <button type="button" :disabled="commentsLoading || commentPage <= 1" @click="prevComments">
-            Predosle
+            Predošlé
           </button>
           <p>Strana {{ commentsData.current_page }} z {{ commentsData.last_page }}</p>
           <button
@@ -108,15 +115,15 @@
             :disabled="commentsLoading || commentPage >= commentsData.last_page"
             @click="nextComments"
           >
-            Dalsie
+            Ďalšie
           </button>
         </div>
       </section>
 
       <section v-if="relatedLoading || related.length" class="section related">
         <div class="related__head">
-          <h2>Podobne clanky</h2>
-          <span v-if="relatedLoading">Nacitavam...</span>
+          <h2>Podobné články</h2>
+          <span v-if="relatedLoading">Načítavam...</span>
         </div>
 
         <div v-if="related.length" class="related__list">
@@ -130,7 +137,7 @@
             <span>{{ formatDate(item.published_at) }}</span>
           </router-link>
         </div>
-        <p v-else-if="!relatedLoading" class="related__empty">K tomuto clanku zatial nie su podobne temy.</p>
+        <p v-else-if="!relatedLoading" class="related__empty">K tomuto článku zatiaľ nie sú podobné témy.</p>
       </section>
     </template>
   </article>

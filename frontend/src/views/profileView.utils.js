@@ -60,7 +60,7 @@ export function attachedEventForPost(post) {
 
   return {
     id: fallbackId,
-    title: `Udalost #${fallbackId}`,
+    title: `Udalosť #${fallbackId}`,
     start_at: null,
     end_at: null,
   }

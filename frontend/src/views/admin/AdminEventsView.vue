@@ -23,7 +23,7 @@ async function load() {
     })
     data.value = res.data
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat udalosti.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať udalosti.'
   } finally {
     loading.value = false
   }
@@ -64,7 +64,7 @@ onMounted(load)
     <header class="adminEvents__header">
       <div>
         <h1 class="adminEvents__title">Udalosti</h1>
-        <p class="adminEvents__subtitle">Prehlad udalosti a rychly pristup k uprave.</p>
+        <p class="adminEvents__subtitle">Prehľad udalostí a rýchly prístup k úprave.</p>
       </div>
       <button
         type="button"
@@ -72,7 +72,7 @@ onMounted(load)
         :disabled="loading"
         @click="openCreate"
       >
-        Vytvorit udalost
+        Vytvoriť udalosť
       </button>
     </header>
 
@@ -80,14 +80,14 @@ onMounted(load)
       v-if="error"
       variant="error"
       :message="error"
-      action-label="Skusit znova"
+      action-label="Skúsiť znova"
       @action="load"
     />
 
     <AsyncState
       v-else-if="loading"
       mode="loading"
-      title="Nacitavam udalosti"
+      title="Načítavam udalosti"
       loading-style="skeleton"
       :skeleton-rows="5"
       compact
@@ -97,10 +97,10 @@ onMounted(load)
       <table class="adminEvents__table">
         <thead>
           <tr>
-            <th>Nazov</th>
+            <th>Názov</th>
             <th>Typ</th>
-            <th>Zaciatok</th>
-            <th>Viditelnost</th>
+            <th>Začiatok</th>
+            <th>Viditeľnosť</th>
             <th class="is-right">Akcia</th>
           </tr>
         </thead>
@@ -112,7 +112,7 @@ onMounted(load)
             <td>{{ ev.visibility === 1 ? 'public' : 'hidden' }}</td>
             <td class="is-right">
               <button type="button" class="ui-btn ui-btn--secondary" @click="openEdit(ev.id)">
-                Upravit
+                Upraviť
               </button>
             </td>
           </tr>
@@ -120,8 +120,8 @@ onMounted(load)
             <td colspan="5" class="adminEvents__emptyCell">
               <AsyncState
                 mode="empty"
-                title="Ziadne udalosti"
-                message="Skus upravit filtre alebo vytvor novu udalost."
+                title="Žiadne udalosti"
+                message="Skús upraviť filtre alebo vytvor novú udalosť."
                 compact
               />
             </td>
@@ -143,7 +143,7 @@ onMounted(load)
           :disabled="loading || page <= 1"
           @click="prevPage"
         >
-          Predchadzajuca
+          Predchádzajúca
         </button>
         <button
           type="button"
@@ -151,7 +151,7 @@ onMounted(load)
           :disabled="loading || page >= data.last_page"
           @click="nextPage"
         >
-          Dalsia
+          Ďalšia
         </button>
       </div>
     </footer>

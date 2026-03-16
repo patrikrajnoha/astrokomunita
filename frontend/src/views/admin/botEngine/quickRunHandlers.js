@@ -72,7 +72,7 @@ export function createQuickRunHandlers({
         }
       } catch (error) {
         failedCount++
-        lastErrorMessage = toErrorMessage(error, `Nepodarilo sa spustit zdroj "${source.key}".`)
+        lastErrorMessage = toErrorMessage(error, `Nepodarilo sa spustiť zdroj "${source.key}".`)
       }
     }
 

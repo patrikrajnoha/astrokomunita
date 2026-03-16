@@ -10,7 +10,7 @@
         <div v-else-if="error" class="grid h-full place-items-center gap-3 text-center text-[var(--color-danger)]">
           <p>{{ error }}</p>
           <button type="button" class="ui-pill ui-pill--secondary" @click="load">
-            Skusit znova
+            Skúsiť znova
           </button>
         </div>
 

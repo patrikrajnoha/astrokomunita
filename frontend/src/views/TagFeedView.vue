@@ -33,6 +33,14 @@ const reportReason = ref('spam')
 const reportMessage = ref('')
 const reportLoading = ref(false)
 
+const reportOptions = [
+  { value: 'spam',       icon: '🚫', label: 'Spam' },
+  { value: 'abuse',      icon: '⚠️',  label: 'Nevhodný obsah' },
+  { value: 'misinfo',    icon: '📢', label: 'Dezinformácie' },
+  { value: 'harassment', icon: '😤', label: 'Obťažovanie' },
+  { value: 'other',      icon: '💬', label: 'Iné' },
+]
+
 function resetFeedState() {
   items.value = []
   nextPageUrl.value = null
@@ -72,7 +80,7 @@ function closeReport(force = false) {
 function openReport(post) {
   if (!post?.id) return
   if (!auth.isAuthed) {
-    const message = 'Prihlas sa pre nahlasenie prispevku.'
+    const message = 'Prihlás sa pre nahlásenie príspevku.'
     error.value = message
     toast.warn(message)
     return
@@ -99,7 +107,7 @@ async function submitReport() {
       _hp: '',
     })
 
-    toast.success('Nahlasenie bolo odoslane. Dakujeme.')
+    toast.success('Nahlásenie bolo odoslané. Ďakujeme.')
     closeReport(true)
   } catch (e) {
     const status = e?.response?.status
@@ -107,10 +115,10 @@ async function submitReport() {
       status === 401
         ? 'Prihlas sa.'
         : status === 403
-          ? 'Svoj vlastny prispevok nemozes nahlasit.'
+          ? 'Vlastný príspevok nemôžeš nahlásiť.'
           : status === 409
-            ? 'Tento prispevok ste uz nahlasili.'
-            : e?.response?.data?.message || 'Nahlasenie sa nepodarilo odoslat.'
+            ? 'Tento príspevok ste už nahlásili.'
+            : e?.response?.data?.message || 'Nahlásenie sa nepodarilo odoslať.'
 
     error.value = message
     toast.warn(message)

@@ -1,12 +1,12 @@
 <template>
   <SettingsDetailShell
     title="E-mail"
-    subtitle="Stav overenia, overovaci kod a bezpecna zmena emailu."
+    subtitle="Stav overenia, overovací kód a bezpečná zmena emailu."
   >
     <div class="email-status-row" data-testid="settings-email-status">
-      <p class="email-value">{{ emailAccount.email || 'Email nie je nastaveny' }}</p>
+      <p class="email-value">{{ emailAccount.email || 'Email nie je nastavený' }}</p>
       <span class="email-badge" :class="emailAccount.verified ? 'is-verified' : 'is-unverified'">
-        {{ emailAccount.verified ? 'Overeny' : 'Neovereny' }}
+        {{ emailAccount.verified ? 'Overený' : 'Neoverený' }}
       </span>
     </div>
 
@@ -33,14 +33,14 @@
           emailState.sending
             ? 'Odosielam...'
             : emailAccount.secondsToResend > 0
-              ? `Opakovat o ${emailAccount.secondsToResend}s`
+              ? `Opakovať o ${emailAccount.secondsToResend}s`
               : emailAccount.verified
-                ? 'Uz overene'
-                : 'Odoslat overovaci kod'
+                ? 'Už overené'
+                : 'Odoslať overovací kód'
         }}
       </button>
 
-      <label class="field-label" for="settings-email-code">Overovaci kod</label>
+      <label class="field-label" for="settings-email-code">Overovací kód</label>
       <input
         id="settings-email-code"
         v-model.trim="emailForm.code"
@@ -58,12 +58,12 @@
         class="btn btn-primary"
         :disabled="emailState.confirming || emailAccount.verified || !emailForm.code"
       >
-        {{ emailState.confirming ? 'Potvrdzujem...' : 'Potvrdit kod' }}
+        {{ emailState.confirming ? 'Potvrdzujem...' : 'Potvrdiť kód' }}
       </button>
     </form>
 
     <form class="settings-form" @submit.prevent="requestEmailChange">
-      <label class="field-label" for="settings-email-new">Novy email</label>
+      <label class="field-label" for="settings-email-new">Nový email</label>
       <input
         id="settings-email-new"
         v-model.trim="emailForm.newEmail"
@@ -79,17 +79,17 @@
         class="btn btn-primary"
         :disabled="emailState.requestingChange || !emailForm.newEmail"
       >
-        {{ emailState.requestingChange ? 'Odosielam poziadavku...' : 'Poziadat o zmenu emailu' }}
+        {{ emailState.requestingChange ? 'Odosielam požiadavku...' : 'Požiadať o zmenu emailu' }}
       </button>
     </form>
 
     <div v-if="emailAccount.pendingEmailChange" class="pending-email-box">
       <p class="pending-email-title">
-        Cakajuca zmena emailu:
+        Čakajúca zmena emailu:
         <strong>{{ emailAccount.pendingEmailChange.new_email }}</strong>
       </p>
       <p class="pending-email-hint">
-        Najprv musis potvrdit kod z aktualneho emailu.
+        Najprv musíš potvrdiť kód z aktuálneho emailu.
       </p>
 
       <button
@@ -103,13 +103,13 @@
           emailState.confirmingCurrent
             ? 'Odosielam...'
             : emailAccount.pendingEmailChange.seconds_to_resend_current > 0
-              ? `Opakovat o ${emailAccount.pendingEmailChange.seconds_to_resend_current}s`
-              : 'Odoslat kod na aktualny email'
+              ? `Opakovať o ${emailAccount.pendingEmailChange.seconds_to_resend_current}s`
+              : 'Odoslať kód na aktuálny email'
         }}
       </button>
 
       <form class="settings-form" @submit.prevent="confirmCurrentEmailChangeCode">
-        <label class="field-label" for="settings-email-current-code">Kod z aktualneho emailu</label>
+        <label class="field-label" for="settings-email-current-code">Kód z aktuálneho emailu</label>
         <input
           id="settings-email-current-code"
           v-model.trim="emailForm.currentCode"
@@ -125,7 +125,7 @@
           class="btn btn-secondary"
           :disabled="emailState.confirmingCurrent || !emailForm.currentCode"
         >
-          {{ emailState.confirmingCurrent ? 'Potvrdzujem...' : 'Potvrdit kod z aktualneho emailu' }}
+          {{ emailState.confirmingCurrent ? 'Potvrdzujem...' : 'Potvrdiť kód z aktuálneho emailu' }}
         </button>
       </form>
 
@@ -136,7 +136,7 @@
         :disabled="emailState.applyingNew || !emailAccount.pendingEmailChange.current_email_confirmed_at"
         @click="applyNewEmailChange"
       >
-        {{ emailState.applyingNew ? 'Ukladam...' : 'Pouzit novy email a odoslat overovaci kod' }}
+        {{ emailState.applyingNew ? 'Ukladám...' : 'Použiť nový email a odoslať overovací kód' }}
       </button>
     </div>
   </SettingsDetailShell>

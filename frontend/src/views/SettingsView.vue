@@ -1,9 +1,9 @@
 <template>
   <div class="settings-page">
     <header class="settings-header">
-      <p class="settings-eyebrow">Ucet</p>
+      <p class="settings-eyebrow">Účet</p>
       <h1 class="settings-title">Nastavenia</h1>
-      <p class="settings-subtitle">Sprava uctu, bezpecnosti a sukromia.</p>
+      <p class="settings-subtitle">Správa účtu, bezpečnosti a súkromia.</p>
     </header>
 
     <router-view />

@@ -44,7 +44,7 @@ const hasActiveFilters = computed(() => {
 
 const summaryLine = computed(() => {
   const count = rows.value.length
-  if (loading.value) return 'Nacitavam zdroje...'
+  if (loading.value) return 'Načítavam zdroje...'
   if (hasActiveFilters.value) return `${count} zdrojov pre aktivne filtre`
   return `${count} zdrojov`
 })

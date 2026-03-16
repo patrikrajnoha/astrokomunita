@@ -1,11 +1,11 @@
 <template>
   <SettingsDetailShell
     title="Konfiguracia sidebaru"
-    subtitle="Nastavte si vlastne widgety pre globalny sidebar. Aktivne mozu byt najviac 3."
+    subtitle="Nastavte si vlastné widgety pre globálny sidebar. Aktívne môžu byť najviac 3."
   >
     <section class="settings-sidebar-builder">
       <header class="settings-sidebar-builder__header">
-        <h3 class="settings-sidebar-builder__title">Rozlozenie</h3>
+        <h3 class="settings-sidebar-builder__title">Rozloženie</h3>
         <p class="settings-sidebar-builder__meta">{{ headerMetaLine }}</p>
       </header>
 
@@ -15,7 +15,7 @@
             v-model="layoutSearch"
             type="text"
             class="field-input settings-sidebar-builder__search"
-            placeholder="Hladat polozky sidebaru"
+            placeholder="Hľadať položky sidebaru"
             :disabled="state.loadingScope"
           >
           <p class="settings-sidebar-builder__summary">{{ layoutSummary }}</p>
@@ -28,11 +28,11 @@
       <p v-if="visibleError" class="field-error">{{ visibleError }}</p>
 
       <div v-if="state.loadingScope" class="settings-sidebar-builder__loading">
-        Nacitavam konfiguraciu...
+        Načítavam konfiguráciu...
       </div>
 
       <div v-else-if="filteredSections.length === 0" class="settings-sidebar-builder__empty">
-        Ziadne polozky nevyhovuju filtru.
+        Žiadne položky nevyhovujú filtru.
       </div>
 
       <div v-else class="settings-sidebar-builder__rows">
@@ -43,7 +43,7 @@
           :class="{ disabled: !section.is_enabled }"
         >
           <div class="settings-sidebar-builder__row-copy">
-            <p class="settings-sidebar-builder__row-title">{{ section.title || 'Bez nazvu' }}</p>
+            <p class="settings-sidebar-builder__row-title">{{ section.title || 'Bez názvu' }}</p>
             <p class="settings-sidebar-builder__row-meta">{{ section.section_key }}</p>
           </div>
 
@@ -79,7 +79,7 @@
               >
               <span class="settings-sidebar-builder__slider"></span>
               <span class="settings-sidebar-builder__toggle-label">
-                {{ section.is_enabled ? 'Zapnute' : 'Vypnute' }}
+                {{ section.is_enabled ? 'Zapnuté' : 'Vypnuté' }}
               </span>
             </label>
           </div>
@@ -155,10 +155,10 @@ const readStoreOverrides = () => {
 }
 
 const saveStateLabel = computed(() => {
-  if (state.saving) return 'Ukladam...'
-  if (state.saveError) return 'Chyba pri automatickom ukladani'
-  if (state.lastSavedAt) return 'Ulozene automaticky'
-  return 'Pripravene'
+  if (state.saving) return 'Ukladám...'
+  if (state.saveError) return 'Chyba pri automatickom ukladaní'
+  if (state.lastSavedAt) return 'Uložené automaticky'
+  return 'Pripravené'
 })
 
 const saveStateTone = computed(() => {
@@ -168,7 +168,7 @@ const saveStateTone = computed(() => {
 })
 
 const headerMetaLine = computed(() => {
-  const label = 'Globalny sidebar'
+  const label = 'Globálny sidebar'
   return `${label} - ${saveStateLabel.value}`
 })
 
@@ -193,7 +193,7 @@ const enabledSectionsCount = computed(() => sections.value.filter((item) => item
 const layoutSummary = computed(() => {
   const total = sections.value.length
   const shown = filteredSections.value.length
-  return `${shown} z ${total} poloziek - ${enabledSectionsCount.value} aktivne`
+  return `${shown} z ${total} položiek - ${enabledSectionsCount.value} aktívne`
 })
 const enabledSectionKeys = computed(() => (
   sections.value
@@ -255,7 +255,7 @@ const loadScope = async (scope) => {
     const selectedKeys = hasScopeOverride(scope) ? localOverrides.value[scope] : null
     sections.value = applyScopeSelection(items, selectedKeys)
   } catch (error) {
-    state.scopeError = error?.response?.data?.message || 'Nepodarilo sa nacitat konfiguraciu sidebaru.'
+    state.scopeError = error?.response?.data?.message || 'Nepodarilo sa načítať konfiguráciu sidebaru.'
     sections.value = []
   } finally {
     state.loadingScope = false
@@ -281,7 +281,7 @@ const persistOverrides = async () => {
     localOverrides.value = readStoreOverrides()
     state.lastSavedAt = new Date().toISOString()
   } catch (error) {
-    const message = error?.response?.data?.message || preferences.error || 'Ulozenie konfiguracie zlyhalo.'
+    const message = error?.response?.data?.message || preferences.error || 'Uloženie konfigurácie zlyhalo.'
     state.saveError = message
   } finally {
     state.saving = false
@@ -316,7 +316,7 @@ const toggleSectionEnabled = (section, checked) => {
       (item) => item.is_enabled && item.section_key !== section.section_key,
     ).length
     if (currentlyEnabled >= MAX_ENABLED_SIDEBAR_WIDGETS) {
-      state.scopeError = `Na jeden sidebar mozu byt aktivne maximalne ${MAX_ENABLED_SIDEBAR_WIDGETS} widgety.`
+      state.scopeError = `Na jeden sidebar môžu byť aktívne maximálne ${MAX_ENABLED_SIDEBAR_WIDGETS} widgety.`
       return
     }
   }
@@ -380,7 +380,7 @@ onMounted(async () => {
       state.preferencesError = error?.userMessage
         || error?.response?.data?.message
         || preferences.error
-        || 'Nepodarilo sa nacitat preferencie.'
+        || 'Nepodarilo sa načítať preferencie.'
     }
   }
 

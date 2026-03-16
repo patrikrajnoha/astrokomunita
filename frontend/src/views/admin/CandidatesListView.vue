@@ -171,10 +171,10 @@ async function publishBySelectedMode() {
   }
 
   const ok = await confirm({
-    title: 'Publikovat podla rezimu',
-    message: `Naozaj publikovat ${labels[publishMode.value] || 'vybrane'} udalosti podla filtra? (max 1000 na typ)`,
-    confirmText: 'Publikovat',
-    cancelText: 'Zrusit',
+    title: 'Publikovať podľa režimu',
+    message: `Naozaj publikovať ${labels[publishMode.value] || 'vybrané'} udalosti podľa filtra? (max 1000 na typ)`,
+    confirmText: 'Publikovať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!ok) return
@@ -182,7 +182,7 @@ async function publishBySelectedMode() {
   loading.value = true
   error.value = null
   const modeSteps = publishMode.value === 'all' ? 2 : 1
-  startPublishProgress('Publikujem podla rezimu...', modeSteps)
+  startPublishProgress('Publikujem podľa režimu...', modeSteps)
   let completedSteps = 0
 
   try {
@@ -222,14 +222,14 @@ async function publishBySelectedMode() {
     const totalFailed = Number(crawledResult.failed || 0) + Number(manualResult.failed || 0)
 
     if (totalFailed > 0) {
-      toast.warn(`Publikovane spolu: ${totalPublished}, zlyhalo: ${totalFailed}.`)
+      toast.warn(`Publikované spolu: ${totalPublished}, zlyhalo: ${totalFailed}.`)
     } else {
-      toast.success(`Publikovanych spolu: ${totalPublished}.`)
+      toast.success(`Publikovaných spolu: ${totalPublished}.`)
     }
 
     await Promise.all([load(), loadManual()])
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Hromadne publikovanie podla rezimu zlyhalo'
+    error.value = e?.response?.data?.message || 'Hromadné publikovanie podľa režimu zlyhalo'
     toast.error(error.value)
   } finally {
     finishPublishProgress()

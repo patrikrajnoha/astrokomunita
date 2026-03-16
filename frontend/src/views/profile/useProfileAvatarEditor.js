@@ -215,7 +215,7 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
         avatarErr.value = data?.message || 'Ukladanie avatara zlyhalo.'
       }
 
-      toast.error('Avatar sa nepodarilo ulozit.')
+      toast.error('Avatar sa nepodarilo uložiť.')
     } finally {
       avatarSaving.value = false
     }
@@ -236,10 +236,10 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
     if (!auth.user || avatarRemoving.value || avatarUploading.value) return
 
     const approved = await confirm({
-      title: 'Odstranit profilovu fotku',
-      message: 'Naozaj chces odstranit profilovu fotku?',
-      confirmText: 'Odstranit',
-      cancelText: 'Zrusit',
+      title: 'Odstrániť profilovú fotku',
+      message: 'Naozaj chceš odstrániť profilovú fotku?',
+      confirmText: 'Odstrániť',
+      cancelText: 'Zrušiť',
       variant: 'danger',
     })
 
@@ -270,7 +270,7 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
 
       syncAvatarDraftFromUser()
       logAvatarProfileState('remove-image:success')
-      toast.success('Profilova fotka bola odstranena.')
+      toast.success('Profilová fotka bola odstránená.')
     } catch (e) {
       avatarDebug('ProfileView:remove-image:error', {
         status: e?.response?.status ?? null,
@@ -386,7 +386,7 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
         mediaErr.value =
           extractFirstError(data.errors, 'file') ||
           extractFirstError(data.errors, 'type') ||
-          'Skontroluj subor.'
+          'Skontroluj súbor.'
       } else {
         mediaErr.value = data?.message || 'Upload zlyhal.'
       }

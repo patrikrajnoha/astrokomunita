@@ -1,10 +1,10 @@
 <template>
   <SettingsDetailShell
-    title="Deaktivacia uctu"
-    subtitle="Tato akcia natrvalo odstrani ucet a odhlasi vas."
+    title="Deaktivácia účtu"
+    subtitle="Táto akcia natrvalo odstráni účet a odhlási vás."
     :danger="true"
   >
-    <p class="danger-note">Zmazanie uctu natrvalo odstrani aj vase prispevky a suvisiaci obsah.</p>
+    <p class="danger-note">Zmazanie účtu natrvalo odstráni aj vaše príspevky a súvisiaci obsah.</p>
 
     <InlineStatus
       v-if="deactivateState.error"
@@ -13,7 +13,7 @@
     />
 
     <div class="settings-form">
-      <label class="field-label" for="deactivate-confirm">Napiste DEACTIVATE pre potvrdenie</label>
+      <label class="field-label" for="deactivate-confirm">Napíšte DEACTIVATE pre potvrdenie</label>
       <input
         id="deactivate-confirm"
         v-model.trim="deactivateForm.confirm"
@@ -21,17 +21,17 @@
         placeholder="DEACTIVATE"
         class="field-input field-input-danger"
         :disabled="deactivateState.loading"
-        aria-label="Potvrdenie deaktivacie"
+        aria-label="Potvrdenie deaktivácie"
       />
 
       <button
         type="button"
         class="btn btn-danger"
         :disabled="deactivateState.loading || deactivateForm.confirm !== 'DEACTIVATE'"
-        aria-label="Deaktivovat ucet"
+        aria-label="Deaktivovať účet"
         @click="confirmDeactivate"
       >
-        {{ deactivateState.loading ? 'Deaktivujem...' : 'Deaktivovat ucet' }}
+        {{ deactivateState.loading ? 'Deaktivujem...' : 'Deaktivovať účet' }}
       </button>
     </div>
   </SettingsDetailShell>
@@ -50,10 +50,10 @@ async function confirmDeactivate() {
   if (deactivateState.loading || deactivateForm.confirm !== 'DEACTIVATE') return
 
   const approved = await confirm({
-    title: 'Deaktivovat ucet?',
-    message: 'Ucet a suvisiaci obsah sa natrvalo odstrania.',
-    confirmText: 'Deaktivovat ucet',
-    cancelText: 'Zrusit',
+    title: 'Deaktivovať účet?',
+    message: 'Účet a súvisiaci obsah sa natrvalo odstránia.',
+    confirmText: 'Deaktivovať účet',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
 

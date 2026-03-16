@@ -15,13 +15,13 @@ export const legacySettingsSectionToRouteName = {
 
 export const settingsGroups = [
   {
-    label: 'UCET',
+    label: 'ÚČET',
     items: [
       {
         key: 'email',
         routeName: 'settings.email',
         title: 'E-mail',
-        description: 'Stav overenia, overovaci kod a bezpecna zmena emailu.',
+        description: 'Stav overenia, overovací kód a bezpečná zmena emailu.',
         iconPaths: [
           'M4.5 6.25h15a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-9.5a1 1 0 0 1 1-1Z',
           'm4.25 7.75 7.75 5.5 7.75-5.5',
@@ -30,8 +30,8 @@ export const settingsGroups = [
       {
         key: 'newsletter',
         routeName: 'settings.newsletter',
-        title: 'Tyzdenny newsletter',
-        description: 'Dostavajte tyzdenny vyber udalosti, clankov a jeden astronomicky tip.',
+        title: 'Týždenný newsletter',
+        description: 'Dostávajte týždenný výber udalostí, článkov a jeden astronomický tip.',
         iconPaths: [
           'M4.5 5.5h15a1 1 0 0 1 1 1V17.5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z',
           'M8 10h8',
@@ -42,7 +42,7 @@ export const settingsGroups = [
         key: 'onboarding',
         routeName: 'settings.onboarding',
         title: 'Onboarding sprievodca',
-        description: 'Spustite interaktivny tour feedu, kalendara a panelu pozorovacich podmienok.',
+        description: 'Spustite interaktívny tour feedu, kalendára a panelu pozorovacích podmienok.',
         iconPaths: [
           'M12 3.5v4',
           'M12 16.5v4',
@@ -58,7 +58,7 @@ export const settingsGroups = [
         key: 'sidebar-widgets',
         routeName: 'settings.sidebar-widgets',
         title: 'Sidebar widgety',
-        description: 'Vyberte si vlastne widgety pre pravy panel a mobilne menu widgetov.',
+        description: 'Vyberte si vlastné widgety pre pravý panel a mobilné menu widgetov.',
         iconPaths: [
           'M4.5 6.5h7v5h-7z',
           'M12.5 6.5h7v8h-7z',
@@ -75,7 +75,7 @@ export const settingsGroups = [
         key: 'data-export',
         routeName: 'settings.data-export',
         title: 'Export dat',
-        description: 'Stiahnite profilove data vo formate JSON pre zalohu alebo GDPR poziadavky.',
+        description: 'Stiahnite profilové dáta vo formáte JSON pre zálohu alebo GDPR požiadavky.',
         iconPaths: [
           'M12 4.5v10.25',
           'm8.25 10.75-8.25 8.25-8.25-8.25',
@@ -85,8 +85,8 @@ export const settingsGroups = [
       {
         key: 'activity',
         routeName: 'settings.activity',
-        title: 'Aktivita pouzivatela',
-        description: 'Skontrolujte detaily nedavnej aktivity uctu iba ked je to potrebne.',
+        title: 'Aktivita používateľa',
+        description: 'Skontrolujte detaily nedávnej aktivity účtu iba keď je to potrebné.',
         iconPaths: [
           'M5 18.5h14',
           'M7.5 16V9.5',
@@ -97,13 +97,13 @@ export const settingsGroups = [
     ],
   },
   {
-    label: 'BEZPECNOST',
+    label: 'BEZPEČNOSŤ',
     items: [
       {
         key: 'password',
         routeName: 'settings.password',
         title: 'Zmena hesla',
-        description: 'Nastavte nove heslo pre svoj ucet.',
+        description: 'Nastavte nové heslo pre svoj účet.',
         iconPaths: [
           'M7.5 10.5V8a4.5 4.5 0 1 1 9 0v2.5',
           'M6 10.5h12a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1Z',
@@ -113,8 +113,8 @@ export const settingsGroups = [
       {
         key: 'deactivate',
         routeName: 'settings.deactivate',
-        title: 'Deaktivacia uctu',
-        description: 'Natrvalo odstrante ucet a odhlaste sa.',
+        title: 'Deaktivácia účtu',
+        description: 'Natrvalo odstráňte účet a odhláste sa.',
         iconPaths: [
           'M12 5.25 20.25 19H3.75L12 5.25Z',
           'M12 10.5v4.25',

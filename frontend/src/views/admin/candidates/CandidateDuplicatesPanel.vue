@@ -177,7 +177,7 @@ function onPerGroupInput(event) {
       </article>
     </div>
     <div v-else class="duplicatesPanel__empty">
-      {{ duplicateLoading ? 'Kontrolujem duplicity...' : 'Pre aktualny filter zatial nie su najdene zlucitelne duplicity.' }}
+      {{ duplicateLoading ? 'Kontrolujem duplicity...' : 'Pre aktuálny filter zatiaľ nie sú nájdené zlúčiteľné duplicity.' }}
     </div>
   </div>
 </template>

@@ -42,13 +42,13 @@ const canSaveSelection = computed(
 )
 
 function defaultNewsletterSubject() {
-  return 'Nebesky sprievodca: Tyzdenny newsletter'
+  return 'Nebeský sprievodca: Týždenný newsletter'
 }
 
 function defaultNewsletterIntro() {
   const start = preview.value?.week?.start || '-'
   const end = preview.value?.week?.end || '-'
-  return `Prehlad na tyzden ${start} az ${end}.`
+  return `Prehľad na týždeň ${start} až ${end}.`
 }
 
 function syncLocalCopyFieldsFromPreview() {
@@ -99,7 +99,7 @@ async function load() {
 
     syncLocalCopyFieldsFromPreview()
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa nacitat data newslettera.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa načítať dáta newslettera.'
   } finally {
     loading.value = false
   }
@@ -135,10 +135,10 @@ async function saveFeaturedEvents() {
       event_ids: selectedEventIds.value,
     })
 
-    success.value = 'Vybrane udalosti boli ulozene.'
+    success.value = 'Vybrané udalosti boli uložené.'
     await load()
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa ulozit vybrane udalosti.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa uložiť vybrané udalosti.'
   } finally {
     savingSelection.value = false
   }
@@ -165,7 +165,7 @@ async function triggerSend() {
 
     await load()
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa spustit odoslanie newslettera.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa spustiť odoslanie newslettera.'
   } finally {
     sending.value = false
   }
@@ -176,7 +176,7 @@ async function triggerPreviewSend() {
 
   const normalizedEmail = String(previewEmail.value || '').trim()
   if (!normalizedEmail) {
-    error.value = 'Email pre nahlad je povinny.'
+    error.value = 'Email pre náhľad je povinný.'
     success.value = ''
     return
   }
@@ -210,9 +210,9 @@ async function triggerPreviewSend() {
     const eventsCount = Number(data?.events_count || 0)
     const articlesCount = Number(data?.articles_count || 0)
 
-    success.value = `Nahlad odoslany na ${email} (${eventsCount} udalosti, ${articlesCount} clanky).`
+    success.value = `Náhľad odoslaný na ${email} (${eventsCount} udalostí, ${articlesCount} články).`
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa odoslat preview email.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa odoslať preview email.'
   } finally {
     previewSending.value = false
   }

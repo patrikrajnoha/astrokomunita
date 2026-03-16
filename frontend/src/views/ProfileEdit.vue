@@ -422,7 +422,7 @@ async function fillLocationFromLabel() {
   const label = String(form.locationLabel || '').trim()
   if (!label) {
     clearManualCoordinates()
-    fieldErr.locationLabel = 'Zadaj nazov mesta.'
+    fieldErr.locationLabel = 'Zadaj názov mesta.'
     return
   }
 
@@ -432,7 +432,7 @@ async function fillLocationFromLabel() {
 
   if (!resolved) {
     clearManualCoordinates()
-    fieldErr.locationLabel = 'Nepodarilo sa doplnit suradnice pre zadane mesto. Skus presnejsi nazov alebo GPS.'
+    fieldErr.locationLabel = 'Nepodarilo sa doplniť súradnice pre zadané mesto. Skús presnejší názov alebo GPS.'
     return
   }
 
@@ -490,7 +490,7 @@ async function validateLocationPayload() {
   if (form.locationMode === 'manual') {
     const locationLabel = String(form.locationLabel || '').trim()
     if (!locationLabel) {
-      fieldErr.locationLabel = 'Zadaj nazov mesta.'
+      fieldErr.locationLabel = 'Zadaj názov mesta.'
       return null
     }
 
@@ -502,7 +502,7 @@ async function validateLocationPayload() {
 
       if (!resolved) {
         clearManualCoordinates()
-        fieldErr.locationLabel = 'Nepodarilo sa doplnit suradnice pre zadane mesto. Skus presnejsi nazov alebo pouzi GPS.'
+        fieldErr.locationLabel = 'Nepodarilo sa doplniť súradnice pre zadané mesto. Skús presnejší názov alebo použi GPS.'
         return null
       }
 
@@ -515,12 +515,12 @@ async function validateLocationPayload() {
   let valid = true
 
   if (payload.latitude === null || payload.latitude < -90 || payload.latitude > 90) {
-    fieldErr.latitude = 'Latitude musi byt v rozsahu -90 az 90.'
+    fieldErr.latitude = 'Latitude musí byť v rozsahu -90 až 90.'
     valid = false
   }
 
   if (payload.longitude === null || payload.longitude < -180 || payload.longitude > 180) {
-    fieldErr.longitude = 'Longitude musi byt v rozsahu -180 az 180.'
+    fieldErr.longitude = 'Longitude musí byť v rozsahu -180 až 180.'
     valid = false
   }
 
@@ -530,7 +530,7 @@ async function validateLocationPayload() {
   }
 
   if (payload.location_label && payload.location_label.length > 80) {
-    fieldErr.locationLabel = 'Nazov polohy moze mat max 80 znakov.'
+    fieldErr.locationLabel = 'Názov polohy môže mať max 80 znakov.'
     valid = false
   }
 
@@ -643,7 +643,7 @@ async function save() {
   const locationDirty = !isEqualPayload(currentLocationPayload, savedLocationPayload)
 
   if (!profileDirty && !locationDirty) {
-    msg.value = 'Ziadne zmeny.'
+    msg.value = 'Žiadne zmeny.'
     return
   }
 
@@ -678,7 +678,7 @@ async function save() {
         const profileResponse = await http.patch('/profile', profilePayload)
         userPayload = profileResponse?.data || userPayload
       } catch (profileError) {
-        const fallback = locationDirty ? 'Poloha bola ulozena, ale profil sa nepodarilo ulozit.' : 'Ulozenie profilu zlyhalo.'
+        const fallback = locationDirty ? 'Poloha bola uložená, ale profil sa nepodarilo uložiť.' : 'Uloženie profilu zlyhalo.'
         applySaveError(profileError, fallback)
         return
       }

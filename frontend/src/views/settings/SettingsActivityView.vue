@@ -1,7 +1,7 @@
 <template>
   <SettingsDetailShell
-    title="Aktivita pouzivatela"
-    subtitle="Sekcia je standardne skryta. Otvorte ju iba ked ju potrebujete."
+    title="Aktivita používateľa"
+    subtitle="Sekcia je štandardne skrytá. Otvorte ju iba keď ju potrebujete."
   >
     <div class="settings-form">
       <button
@@ -11,7 +11,7 @@
         :disabled="activityLoading"
         @click="toggleActivitySection"
       >
-        {{ activityExpanded ? 'Skryt aktivitu' : 'Zobrazit aktivitu' }}
+        {{ activityExpanded ? 'Skryť aktivitu' : 'Zobraziť aktivitu' }}
       </button>
     </div>
 

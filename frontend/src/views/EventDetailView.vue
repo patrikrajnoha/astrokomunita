@@ -83,7 +83,7 @@ const title = computed(() => {
 })
 const description = computed(() => {
   const value = eventDisplayDescription(event.value)
-  return value === '-' ? 'Popis tejto udalosti zatial doplname.' : value
+  return value === '-' ? 'Popis tejto udalosti zatiaľ dopĺňame.' : value
 })
 const shouldCollapseDescription = computed(() => description.value.length > 320)
 const resolvedLocation = computed(() => resolveUserLocation(auth.user))

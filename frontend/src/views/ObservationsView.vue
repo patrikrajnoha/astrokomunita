@@ -6,7 +6,7 @@
         <p>Zaznamenane pozorovania s fotografiami a metadatami.</p>
       </div>
       <RouterLink class="create-link" to="/observations/new">
-        Pridat pozorovanie
+        Pridať pozorovanie
       </RouterLink>
     </header>
 
@@ -17,13 +17,13 @@
         :class="{ active: filters.mine }"
         @click="toggleMine"
       >
-        {{ filters.mine ? 'Moje' : 'Vsetky' }}
+        {{ filters.mine ? 'Moje' : 'Všetky' }}
       </button>
 
       <label class="filter-field">
-        <span>Udalost</span>
+        <span>Udalosť</span>
         <select v-model="filters.eventId" :disabled="eventsLoading" @change="applyFilters">
-          <option value="">Vsetky udalosti</option>
+          <option value="">Všetky udalosti</option>
           <option v-for="eventItem in events" :key="eventItem.id" :value="String(eventItem.id)">
             {{ eventItem.title }}
           </option>
@@ -33,24 +33,24 @@
       <label class="filter-field">
         <span>Zoradenie</span>
         <select v-model="filters.sort" @change="applyFilters">
-          <option value="newest">Najnovsie</option>
-          <option value="oldest">Najstarsie</option>
+          <option value="newest">Najnovšie</option>
+          <option value="oldest">Najstaršie</option>
         </select>
       </label>
     </div>
 
     <div v-if="!auth.isAuthed" class="state-card">
-      Prihlas sa pre zobrazenie pozorovani.
+      Prihlás sa pre zobrazenie pozorovaní.
     </div>
 
     <div v-else-if="isInitialLoading" class="state-card" data-testid="observations-loading">
-      Nacitavam pozorovania...
+      Načítavam pozorovania...
     </div>
 
     <div v-else-if="error" class="state-card state-error" data-testid="observations-error">
       <p>{{ error }}</p>
       <button type="button" class="retry-btn" @click="retryLoad">
-        Skusit znova
+        Skúsiť znova
       </button>
     </div>
 
@@ -70,12 +70,12 @@
 
     <div v-if="auth.isAuthed && nextPage" class="load-more">
       <button type="button" class="load-more-btn" :disabled="loading" @click="load(false)">
-        {{ isPaginating ? 'Nacitavam...' : 'Nacitat viac' }}
+        {{ isPaginating ? 'Načítavam...' : 'Načítať viac' }}
       </button>
     </div>
 
     <p v-if="isPaginating" class="paging-status">
-      Nacitavam dalsiu stranu...
+      Načítavam ďalšiu stranu...
     </p>
   </section>
 </template>
@@ -108,9 +108,9 @@ const filters = reactive({
 const isInitialLoading = computed(() => loading.value && items.value.length === 0)
 const isPaginating = computed(() => loading.value && items.value.length > 0)
 const emptyMessage = computed(() => {
-  if (!filters.mine) return 'Zatial nie su dostupne ziadne pozorovania.'
-  if (filters.eventId) return 'Pre tuto udalost zatial nemas ziadne pozorovania.'
-  return 'Zatial nemas ziadne pozorovania.'
+  if (!filters.mine) return 'Zatiaľ nie sú dostupné žiadne pozorovania.'
+  if (filters.eventId) return 'Pre túto udalosť zatiaľ nemáš žiadne pozorovania.'
+  return 'Zatiaľ nemáš žiadne pozorovania.'
 })
 
 function mergeUniqueById(existingItems, incomingItems) {

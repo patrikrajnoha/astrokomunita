@@ -10,7 +10,7 @@
         aria-label="Start onboarding tour"
         @click="startOnboardingTour"
       >
-        Spustit sprievodcu
+        Spustiť sprievodcu
       </button>
     </div>
   </SettingsDetailShell>
