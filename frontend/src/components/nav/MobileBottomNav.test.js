@@ -21,9 +21,9 @@ const makeRouter = () =>
         name: 'notifications',
         component: { template: '<div>notifications</div>' },
       },
-      { path: '/clanky', name: 'learn', component: { template: '<div>articles</div>' } },
+      { path: '/articles', name: 'learn', component: { template: '<div>articles</div>' } },
       {
-        path: '/clanky/:slug',
+        path: '/articles/:slug',
         name: 'learn-detail',
         component: { template: '<div>article detail</div>' },
       },
@@ -67,7 +67,7 @@ describe('MobileBottomNav', () => {
   })
 
   it('keeps Articles active for nested article routes', async () => {
-    const wrapper = await mountNavAt('/clanky/meteoricky-dazd')
+    const wrapper = await mountNavAt('/articles/meteoricky-dazd')
     const items = wrapper.findAll('[data-testid="mobile-bottom-nav-item"]')
     const articlesLink = items.find((item) => item.attributes('aria-label') === 'Články')
 
