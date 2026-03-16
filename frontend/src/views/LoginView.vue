@@ -13,15 +13,15 @@
       <template #hero>
         <AuthHeroPanel
           eyebrow="Prihlasovanie"
-          title="Prihlasenie"
-          subtitle="Pokracujte do svojho Astrokomunita uctu bezpecnym prihlasenim."
+          title="Prihlásenie"
+          subtitle="Pokračujte do svojho Astrokomunita účtu bezpečným prihlásením."
         />
       </template>
 
       <AuthFormSection
-        kicker="Ucet"
-        title="Vitajte spat"
-        description="Pouzite e-mail a heslo pre pristup k profilu a komunitnemu feedu."
+        kicker="Účet"
+        title="Vitajte späť"
+        description="Použite e-mail a heslo pre prístup k profilu a komunitnému feedu."
       >
         <form class="authForm" @submit.prevent="submit" novalidate>
           <AuthField
@@ -63,13 +63,13 @@
 
           <AuthAlert
             v-if="error"
-            title="Nepodarilo sa prihlasit"
+            title="Nepodarilo sa prihlásiť"
             :message="error"
           />
 
           <AuthAlert
             v-if="isBannedState"
-            title="Ucet je blokovany"
+            title="Účet je blokovaný"
             :message="bannedDetails"
           />
 
@@ -77,15 +77,15 @@
 
           <AuthActions
             :back-to="{ name: 'home' }"
-            back-label="Spat"
-            submit-label="Prihlasit sa"
-            loading-label="Prihlasujem..."
+            back-label="Späť"
+            submit-label="Prihlásiť sa"
+            loading-label="Prihlasuje sa..."
             :loading="authBusy"
           />
 
           <p class="authFootnote">
-            Potrebujete ucet?
-            <RouterLink class="authInlineLink" :to="registerLink">Vytvorit ucet</RouterLink>
+            Potrebujete účet?
+            <RouterLink class="authInlineLink" :to="registerLink">Vytvoriť účet</RouterLink>
           </p>
         </form>
       </AuthFormSection>
@@ -97,7 +97,7 @@
         class="loginSuccessOverlay"
         role="status"
         aria-live="polite"
-        aria-label="Prihlasenie uspesne, pripravujem presmerovanie"
+        aria-label="Prihlásenie úspešné, pripravujem presmerovanie"
       >
         <div class="loginSuccessOverlay__scene" aria-hidden="true">
           <div class="rain rain1"></div>
@@ -188,10 +188,10 @@ const forgotPasswordLink = computed(() => ({
   query: email.value ? { email: email.value } : undefined,
 }))
 
-const emailError = computed(() => (attempted.value && !email.value.trim() ? 'E-mail je povinny.' : ''))
-const passwordError = computed(() => (attempted.value && !password.value ? 'Heslo je povinne.' : ''))
+const emailError = computed(() => (attempted.value && !email.value.trim() ? 'E-mail je povinný.' : ''))
+const passwordError = computed(() => (attempted.value && !password.value ? 'Heslo je povinné.' : ''))
 const resetSuccessMessage = computed(() => (
-  route.query.reset === '1' ? 'Heslo bolo zmenene. Mozete sa prihlasit novym heslom.' : ''
+  route.query.reset === '1' ? 'Heslo bolo zmenené. Môžete sa prihlásiť novým heslom.' : ''
 ))
 const authBusy = computed(() => auth.loading || isAnimating.value)
 
@@ -694,7 +694,7 @@ async function submit() {
     stopRocketAnimation()
     showSuccessAnimation.value = false
     isAnimating.value = false
-    error.value = e?.response?.data?.message || e?.authError?.message || e?.message || 'Prihlasenie zlyhalo.'
+    error.value = e?.response?.data?.message || e?.authError?.message || e?.message || 'Prihlásenie zlyhalo.'
   }
 }
 

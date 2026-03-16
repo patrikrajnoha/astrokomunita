@@ -38,9 +38,9 @@ const dobDraftDay = ref(1)
 const dobDraftMonth = ref(1)
 const dobDraftYear = ref(2000)
 const stepItems = [
-  { id: 1, label: 'Profil', subtitle: 'Zakladne informacie' },
-  { id: 2, label: 'Konto', subtitle: 'Prihlasovacie udaje' },
-  { id: 3, label: 'Overenie', subtitle: 'Finalne potvrdenie' },
+  { id: 1, label: 'Profil', subtitle: 'Základné informácie' },
+  { id: 2, label: 'Konto', subtitle: 'Prihlasovacie údaje' },
+  { id: 3, label: 'Overenie', subtitle: 'Finálne potvrdenie' },
 ]
 const currentStep = ref(1)
 const stars = createStars(80)
@@ -59,14 +59,14 @@ const isLastStep = computed(() => currentStep.value === stepItems.length)
 const stepProgress = computed(() => (currentStep.value / stepItems.length) * 100)
 const turnstileEnabled = computed(() => turnstileSiteKey !== '')
 const turnstileHint = computed(() => {
-  if (turnstileState.value === 'error') return 'Overenie proti botom sa nepodarilo nacitat. Obnov stranku a skus to znova.'
-  if (turnstileState.value === 'expired') return 'Overenie proti botom vyprsalo. Potvrd ho prosim znova.'
+  if (turnstileState.value === 'error') return 'Overenie proti botom sa nepodarilo načítať. Obnov stránku a skús to znova.'
+  if (turnstileState.value === 'expired') return 'Overenie proti botom vypršalo. Potvrd ho prosím znova.'
   return ''
 })
 const submitTurnstileMessage = computed(() => {
-  if (!turnstileEnabled.value) return 'Bezpecnostne overenie nie je nastavene. Skus to prosim neskor.'
+  if (!turnstileEnabled.value) return 'Bezpečnostné overenie nie je nastavené. Skús to prosím neskôr.'
   if (turnstileToken.value) return ''
-  if (turnstileState.value === 'loading' || turnstileState.value === 'idle') return 'Nacitavam overenie...'
+  if (turnstileState.value === 'loading' || turnstileState.value === 'idle') return 'Načítavam overenie...'
   return ''
 })
 const isSubmitDisabled = computed(() => {
@@ -89,16 +89,16 @@ const yearOptions = computed(() => {
   return years
 })
 const monthOptions = [
-  { value: 1, label: 'Januar' },
-  { value: 2, label: 'Februar' },
+  { value: 1, label: 'Január' },
+  { value: 2, label: 'Február' },
   { value: 3, label: 'Marec' },
-  { value: 4, label: 'April' },
-  { value: 5, label: 'Maj' },
-  { value: 6, label: 'Jun' },
-  { value: 7, label: 'Jul' },
+  { value: 4, label: 'Apríl' },
+  { value: 5, label: 'Máj' },
+  { value: 6, label: 'Jún' },
+  { value: 7, label: 'Júl' },
   { value: 8, label: 'August' },
   { value: 9, label: 'September' },
-  { value: 10, label: 'Oktober' },
+  { value: 10, label: 'Október' },
   { value: 11, label: 'November' },
   { value: 12, label: 'December' },
 ]
@@ -257,7 +257,7 @@ function validateCurrentStep(step) {
 
 function validateStepOne() {
   if (!name.value.trim()) {
-    return 'Meno je povinne.'
+    return 'Meno je povinné.'
   }
 
   const usernameError = validateUsername(username.value)
@@ -271,7 +271,7 @@ function validateStepOne() {
   }
 
   if (usernameCheckState.value === 'checking') {
-    return 'Pockaj, kontrolujem dostupnost pouzivatelskeho mena.'
+    return 'Počkaj, kontrolujem dostupnosť používateľského mena.'
   }
 
   if (usernameReason.value === 'taken' || usernameReason.value === 'reserved' || usernameReason.value === 'invalid') {
@@ -288,19 +288,19 @@ function validateStepTwo() {
   }
 
   if (!password.value) {
-    return 'Heslo je povinne.'
+    return 'Heslo je povinné.'
   }
 
   if (password.value.length < 8) {
-    return 'Heslo musi mat aspon 8 znakov.'
+    return 'Heslo musí mať aspoň 8 znakov.'
   }
 
   if (!passwordConfirmation.value) {
-    return 'Potvrdenie hesla je povinne.'
+    return 'Potvrdenie hesla je povinné.'
   }
 
   if (password.value !== passwordConfirmation.value) {
-    return 'Hesla sa nezhoduju.'
+    return 'Heslá sa nezhodujú.'
   }
 
   return ''
@@ -308,11 +308,11 @@ function validateStepTwo() {
 
 function validateStepThree() {
   if (!turnstileEnabled.value) {
-    return 'Bezpecnostne overenie nie je nastavene. Skus to prosim neskor.'
+    return 'Bezpečnostné overenie nie je nastavené. Skús to prosím neskôr.'
   }
 
   if (turnstileEnabled.value && !turnstileToken.value) {
-    return turnstileHint.value || 'Nacitavam overenie...'
+    return turnstileHint.value || 'Načítavam overenie...'
   }
 
   return ''
@@ -353,15 +353,15 @@ const submit = async () => {
           {},
           { meta: { skipErrorToast: true } },
         )
-        toast.success('Poslali sme ti overovaci kod.')
+        toast.success('Poslali sme ti overovací kód.')
       } catch (sendError) {
         const sendStatus = Number(sendError?.response?.status || 0)
         const sendMessage = sendError?.response?.data?.message
 
         if (sendStatus === 429) {
-          toast.warn(sendMessage || 'Overovaci kod bol odoslany nedavno. Dokonc overenie v Nastaveniach.')
+          toast.warn(sendMessage || 'Overovací kód bol odoslaný nedávno. Dokonč overenie v Nastaveniach.')
         } else {
-          toast.warn('Nepodarilo sa poslat overovaci kod automaticky. Pokracuj v Nastaveniach > Email.')
+          toast.warn('Nepodarilo sa poslať overovací kód automaticky. Pokračuj v Nastaveniach > Email.')
         }
       }
 
@@ -373,12 +373,12 @@ const submit = async () => {
     const msg = e?.response?.data?.message
     const errors = e?.response?.data?.errors
     if (errors?.turnstile_token?.length) {
-      formError.value = 'Bezpecnostne overenie zlyhalo. Skus to prosim znova.'
+      formError.value = 'Bezpečnostné overenie zlyhalo. Skús to prosím znova.'
     } else if (errors) {
       const firstKey = Object.keys(errors)[0]
-      formError.value = errors[firstKey]?.[0] || msg || 'Registracia zlyhala.'
+      formError.value = errors[firstKey]?.[0] || msg || 'Registrácia zlyhala.'
     } else {
-      formError.value = msg || 'Registracia zlyhala.'
+      formError.value = msg || 'Registrácia zlyhala.'
     }
 
     if (turnstileWidgetId.value !== null && window.turnstile?.reset) {
@@ -484,33 +484,33 @@ function normalizeUsername(value) {
 function validateUsername(value) {
   const normalized = normalizeUsername(value)
 
-  if (!normalized) return 'Pouzivatelske meno je povinne.'
-  if (normalized.length < 3 || normalized.length > 20) return 'Pouzivatelske meno musi mat 3 az 20 znakov.'
-  if (!/^[a-z]/.test(normalized)) return 'Pouzivatelske meno musi zacinat pismenom.'
-  if (!/^[a-z][a-z0-9_]*$/.test(normalized)) return 'Pouzivatelske meno moze obsahovat iba male pismena, cisla a podciarkovnik.'
-  if (normalized.includes('__')) return 'Pouzivatelske meno nemoze obsahovat dvojite podciarkovniky.'
+  if (!normalized) return 'Používateľské meno je povinné.'
+  if (normalized.length < 3 || normalized.length > 20) return 'Používateľské meno musí mať 3 až 20 znakov.'
+  if (!/^[a-z]/.test(normalized)) return 'Používateľské meno musí začínať písmenom.'
+  if (!/^[a-z][a-z0-9_]*$/.test(normalized)) return 'Používateľské meno môže obsahovať iba malé písmená, čísla a podčiarknik.'
+  if (normalized.includes('__')) return 'Používateľské meno nemôže obsahovať dvojité podčiarknik.'
 
   return ''
 }
 
 function validateDateOfBirth(value) {
-  if (!value) return 'Datum narodenia je povinny.'
-  if (value > maxDateOfBirth.value) return 'Musis mat aspon 13 rokov.'
+  if (!value) return 'Dátum narodenia je povinný.'
+  if (value > maxDateOfBirth.value) return 'Musíš mať aspoň 13 rokov.'
   return ''
 }
 
 function validateEmail(value) {
   const normalized = String(value || '').trim()
-  if (!normalized) return 'E-mail je povinny.'
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return 'E-mail ma neplatny format.'
+  if (!normalized) return 'E-mail je povinný.'
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return 'E-mail má neplatný formát.'
   return ''
 }
 
 function usernameCheckReasonToMessage(reason) {
-  if (reason === 'ok') return 'Pouzivatelske meno je volne.'
-  if (reason === 'taken') return 'Toto pouzivatelske meno je uz obsadene.'
-  if (reason === 'reserved') return 'Toto pouzivatelske meno nie je povolene.'
-  if (reason === 'invalid') return 'Pouzivatelske meno ma neplatny format.'
+  if (reason === 'ok') return 'Používateľské meno je voľné.'
+  if (reason === 'taken') return 'Toto používateľské meno je už obsadené.'
+  if (reason === 'reserved') return 'Toto používateľské meno nie je povolené.'
+  if (reason === 'invalid') return 'Používateľské meno má neplatný formát.'
   return ''
 }
 

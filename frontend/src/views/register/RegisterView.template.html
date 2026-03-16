@@ -19,7 +19,7 @@
           komunite
         </h1>
         <p class="registerHeroSubtitle">
-          Sleduj udalosti, zapisuj pozorovania a buduj profil medzi nadsencami astronomie.
+          Sleduj udalosti, zapisuj pozorovania a buduj profil medzi nadšencami astronómie.
         </p>
       </div>
     </template>
@@ -29,14 +29,14 @@
 
       <section class="registerModal" role="dialog" aria-modal="true" aria-labelledby="registerTitle">
         <header class="registerHeader">
-          <p class="registerEyebrow">Vytvorenie uctu</p>
-          <h2 id="registerTitle" class="registerTitle">Registracia</h2>
+          <p class="registerEyebrow">Vytvorenie účtu</p>
+          <h2 id="registerTitle" class="registerTitle">Registrácia</h2>
           <p class="registerSubtitle">
             Krok {{ currentStep }} z {{ stepItems.length }}:
             {{ currentStepMeta.subtitle }}
           </p>
 
-          <ol class="stepList" aria-label="Priebeh registracie">
+          <ol class="stepList" aria-label="Priebeh registrácie">
             <li
               v-for="step in stepItems"
               :key="step.id"
@@ -61,11 +61,11 @@
       <section v-if="currentStep === 1" class="stepPanel" aria-label="Profil">
         <label class="field">
           <span class="label">Meno</span>
-          <input v-model.trim="name" type="text" class="input" autocomplete="name" placeholder="Ako ta mame volat?" />
+          <input v-model.trim="name" type="text" class="input" autocomplete="name" placeholder="Ako ťa máme volať?" />
         </label>
 
         <label class="field">
-          <span class="label">Pouzivatelske meno</span>
+          <span class="label">Používateľské meno</span>
           <input
             v-model="username"
             type="text"
@@ -78,7 +78,7 @@
         </label>
 
         <label class="field">
-          <span class="label">Datum narodenia</span>
+          <span class="label">Dátum narodenia</span>
           <div class="dobPicker">
             <div class="dobPickerGrid">
               <label class="dobPickerField">
@@ -100,7 +100,7 @@
                 </select>
               </label>
             </div>
-            <p v-if="dobDraftTooYoung" class="fieldHint isError">Musis mat aspon 13 rokov.</p>
+            <p v-if="dobDraftTooYoung" class="fieldHint isError">Musíš mať aspoň 13 rokov.</p>
           </div>
           <span v-if="dateOfBirthError" class="fieldHint isError">{{ dateOfBirthError }}</span>
         </label>
@@ -143,9 +143,9 @@
 
       <section v-else class="stepPanel" aria-label="Overenie">
         <div class="summaryBox">
-          <p class="summaryTitle">Skontroluj udaje</p>
+          <p class="summaryTitle">Skontroluj údaje</p>
           <p class="summaryLine"><span>Meno:</span> {{ name || '-' }}</p>
-          <p class="summaryLine"><span>Pouzivatel:</span> {{ username || '-' }}</p>
+          <p class="summaryLine"><span>Používateľ:</span> {{ username || '-' }}</p>
           <p class="summaryLine"><span>Email:</span> {{ email || '-' }}</p>
         </div>
 
@@ -173,10 +173,10 @@
               class="btnSecondary"
               @click="goToPreviousStep"
             >
-              Spat
+              Späť
             </button>
             <router-link v-else class="btnSecondary btnSecondaryLink" :to="loginLink">
-              Mam ucet
+              Mám účet
             </router-link>
 
             <button
@@ -186,7 +186,7 @@
               :disabled="auth.loading || usernameCheckState === 'checking'"
               @click="goToNextStep"
             >
-              Pokracovat
+              Pokračovať
             </button>
             <button
               v-else
@@ -194,7 +194,7 @@
               type="submit"
               :disabled="isSubmitDisabled"
             >
-              {{ auth.loading ? 'Registrujem...' : 'Dokoncit registraciu' }}
+              {{ auth.loading ? 'Registrujem...' : 'Dokončiť registráciu' }}
             </button>
           </div>
         </form>
