@@ -21,7 +21,10 @@ function normalizeType(type) {
 
 function buildToast(payload = {}, fallbackType = 'info', fallbackDuration) {
   const type = normalizeType(payload.type || fallbackType)
-  const message = String(payload.message || '').trim()
+  const rawMessage = payload.message
+  const message = rawMessage != null && typeof rawMessage !== 'object' && typeof rawMessage !== 'function'
+    ? String(rawMessage).trim()
+    : ''
   const duration =
     Number.isFinite(Number(payload.duration))
       ? Math.max(1200, Number(payload.duration))

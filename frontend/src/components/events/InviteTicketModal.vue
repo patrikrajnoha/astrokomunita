@@ -27,7 +27,6 @@ const message = ref('')
 const attendeeNameTouched = ref(false)
 const submitAttempted = ref(false)
 const showOptionalFields = ref(false)
-const showSecondaryActions = ref(false)
 const sending = ref(false)
 const createdInvite = ref(null)
 const submitError = ref('')
@@ -35,8 +34,8 @@ const submitSuccess = ref('')
 
 const attendeeNameValidation = computed(() => {
   const value = String(attendeeName.value || '').trim()
-  if (!value) return 'Meno na vstupenke je povinne.'
-  if (value.length > 80) return 'Meno na vstupenke moze mat najviac 80 znakov.'
+  if (!value) return 'Meno na vstupenke je povinné.'
+  if (value.length > 80) return 'Meno na vstupenke môže mať najviac 80 znakov.'
   return ''
 })
 
@@ -47,7 +46,7 @@ const attendeeNameError = computed(() => {
 
 const isSubmitDisabled = computed(() => sending.value || !props.event?.id)
 
-const eventTitle = computed(() => props.event?.title || 'Astronomicke podujatie')
+const eventTitle = computed(() => props.event?.title || 'Astronomické podujatie')
 
 const eventPlace = computed(() => {
   const maybePlace = String(props.event?.short || '').trim()
@@ -56,7 +55,7 @@ const eventPlace = computed(() => {
 
 const eventDateTime = computed(() => {
   const raw = props.event?.start_at || props.event?.max_at || props.event?.end_at
-  if (!raw) return 'Termin bude upresneny'
+  if (!raw) return 'Termín bude upresnený'
 
   const dateLabel = formatEventDate(raw, EVENT_TIMEZONE, {
     day: 'numeric',
@@ -84,7 +83,6 @@ watch(
     attendeeNameTouched.value = false
     submitAttempted.value = false
     showOptionalFields.value = false
-    showSecondaryActions.value = false
     submitError.value = ''
     submitSuccess.value = ''
   },
@@ -106,7 +104,7 @@ async function submitInvite() {
   }
 
   if (!props.event?.id) {
-    submitError.value = 'Chyba event na vytvorenie pozvanky.'
+    submitError.value = 'Chýba udalosť na vytvorenie pozvánky.'
     return
   }
 
@@ -123,11 +121,11 @@ async function submitInvite() {
     const data = response?.data?.data ?? response?.data ?? null
     createdInvite.value = data
 
-    submitSuccess.value = 'Pozvanka bola odoslana.'
-    toast.success('Pozvanka bola odoslana.')
+    submitSuccess.value = 'Pozvánka bola odoslaná.'
+    toast.success('Pozvánka bola odoslaná.')
     emit('created', data)
   } catch (error) {
-    submitError.value = error?.response?.data?.message || 'Nepodarilo sa odoslat pozvanku.'
+    submitError.value = error?.response?.data?.message || 'Nepodarilo sa odoslať pozvánku.'
   } finally {
     sending.value = false
   }
@@ -135,8 +133,8 @@ async function submitInvite() {
 
 async function shareTicket() {
   const url = resolveShareUrl()
-  const shareTitle = 'Vstupenka do Nebeskeho divadla'
-  const shareText = `Pozvanka pre ${attendeeNamePreview.value} na podujatie ${eventTitle.value}.`
+  const shareTitle = 'Vstupenka do Nebeského divadla'
+  const shareText = `Pozvánka pre ${attendeeNamePreview.value} na podujatie ${eventTitle.value}.`
 
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
@@ -153,9 +151,9 @@ async function shareTicket() {
 
   try {
     await copyText(url)
-    toast.info('Link na vstupenku bol skopirovany.')
+    toast.info('Link na vstupenku bol skopírovaný.')
   } catch {
-    toast.warn('Nepodarilo sa skopirovat link.')
+    toast.warn('Nepodarilo sa skopírovať link.')
   }
 }
 
@@ -181,29 +179,7 @@ function resolveShareUrl() {
 async function copyText(value) {
   const text = String(value || '')
   if (!text) return
-
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text)
-    return
-  }
-
-  if (typeof document === 'undefined') {
-    throw new Error('Clipboard unavailable')
-  }
-
-  const area = document.createElement('textarea')
-  area.value = text
-  area.setAttribute('readonly', '')
-  area.style.position = 'fixed'
-  area.style.left = '-9999px'
-  document.body.appendChild(area)
-  area.select()
-
-  try {
-    document.execCommand('copy')
-  } finally {
-    document.body.removeChild(area)
-  }
+  await navigator.clipboard.writeText(text)
 }
 </script>
 

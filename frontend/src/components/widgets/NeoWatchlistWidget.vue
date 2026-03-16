@@ -9,19 +9,19 @@
     </div>
 
     <div v-else-if="error" class="state stateError">
-      <div class="stateTitle">Nepodarilo sa nacitat NEO</div>
+      <div class="stateTitle">Nepodarilo sa načítať NEO</div>
       <div class="stateText">{{ error }}</div>
-      <button type="button" class="ghostBtn" @click="fetchPayload">Skusit znova</button>
+      <button type="button" class="ghostBtn" @click="fetchPayload">Skúsiť znova</button>
     </div>
 
     <div v-else-if="!payload?.available" class="state">
-      <div class="stateTitle">NEO data su nedostupne</div>
-      <div class="stateText">NASA JPL SBDB teraz nevracia pouzitelny watchlist.</div>
+      <div class="stateTitle">NEO dáta sú nedostupné</div>
+      <div class="stateText">NASA JPL SBDB teraz nevracia použiteľný watchlist.</div>
     </div>
 
     <div v-else-if="items.length === 0" class="state">
-      <div class="stateTitle">Watchlist je prazdny</div>
-      <div class="stateText">V aktualnom prehlade neboli ziadne blizke NEO objekty.</div>
+      <div class="stateTitle">Watchlist je prázdny</div>
+      <div class="stateText">V aktuálnom prehľade neboli žiadne blízke NEO objekty.</div>
     </div>
 
     <div v-else class="content">
@@ -32,7 +32,7 @@
       >
         <div class="rowHeader">
           <div class="rowTitle">{{ item.name }}</div>
-          <span class="flagBadge" :class="{ danger: item.pha }">{{ item.pha ? 'PHA' : 'NEO' }}</span>
+          <span class="flagBadge" :class="{ danger: item.pha }" :title="item.pha ? 'Potenciálne nebezpečný asteroid (PHA)' : 'Near-Earth Object'">{{ item.pha ? '⚠ PHA' : 'NEO' }}</span>
         </div>
 
         <p class="rowMeta">{{ formatMeta(item) }}</p>
@@ -85,7 +85,7 @@ export default {
       }
 
       if (updatedLabel !== '-') {
-        parts.push(`Aktualizovane: ${updatedLabel}`)
+        parts.push(`Aktualizované: ${updatedLabel}`)
       }
 
       return parts.join(' | ')
@@ -112,7 +112,7 @@ export default {
         error.value = (
           requestError?.response?.data?.message
           || requestError?.message
-          || 'Nepodarilo sa nacitat NEO watchlist.'
+          || 'Nepodarilo sa načítať NEO watchlist.'
         )
       } finally {
         loading.value = false
@@ -178,17 +178,17 @@ function formatMeta(item) {
   }
 
   if (moid) {
-    parts.push(`MOID ${moid}`)
+    parts.push(`Min. vzdial. ${moid}`)
   }
 
-  return parts.join(' | ') || 'Bez orbitalnych detailov'
+  return parts.join(' | ') || 'Bez orbitálnych detailov'
 }
 
 function formatDetail(item) {
   const parts = []
 
   if (item?.pha) {
-    parts.push('Potencialne nebezpecny objekt')
+    parts.push('Potenciálne nebezpečný objekt')
   }
 
   const diameter = formatDiameter(item?.diameter_km)

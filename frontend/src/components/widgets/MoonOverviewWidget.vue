@@ -5,7 +5,7 @@
     <AsyncState
       v-if="loading"
       mode="loading"
-      title="Nacitavam prehlad Mesiaca"
+      title="Načítavam prehľad Mesiaca"
       loading-style="skeleton"
       :skeleton-rows="2"
       compact
@@ -14,9 +14,9 @@
     <AsyncState
       v-else-if="error"
       mode="error"
-      title="Nepodarilo sa nacitat"
+      title="Nepodarilo sa načítať"
       :message="error"
-      action-label="Skusit znova"
+      action-label="Skúsiť znova"
       compact
       @action="fetchOverview"
     />
@@ -24,8 +24,8 @@
     <AsyncState
       v-else-if="!overview"
       mode="empty"
-      title="Prehlad Mesiaca je nedostupny"
-      message="Skus to neskor."
+      title="Prehľad Mesiaca je nedostupný"
+      message="Skús to neskôr."
       compact
     />
 
@@ -38,7 +38,7 @@
 
       <dl class="overviewStats">
         <div class="overviewRow">
-          <dt>Aktualny cas:</dt>
+          <dt>Aktuálny čas:</dt>
           <dd>{{ formatDateTime(overview.reference_at) }}</dd>
         </div>
         <div class="overviewRow">
@@ -46,23 +46,23 @@
           <dd>{{ overview.direction_line }}</dd>
         </div>
         <div class="overviewRow">
-          <dt>Vyska Mesiaca:</dt>
+          <dt>Výška Mesiaca:</dt>
           <dd>{{ overview.altitude_line }}</dd>
         </div>
         <div class="overviewRow">
-          <dt>Vzdialenost Mesiaca:</dt>
+          <dt>Vzdialenosť Mesiaca:</dt>
           <dd>{{ overview.distance_line }}</dd>
         </div>
         <div class="overviewRow">
-          <dt>Dalsi Nov:</dt>
+          <dt>Ďalší Nov:</dt>
           <dd>{{ formatDateTime(overview.next_new_moon_at) }}</dd>
         </div>
         <div class="overviewRow">
-          <dt>Dalsi Spln:</dt>
+          <dt>Ďalší Spln:</dt>
           <dd>{{ formatDateTime(overview.next_full_moon_at) }}</dd>
         </div>
         <div class="overviewRow">
-          <dt>Dalsi vychod Mesiaca:</dt>
+          <dt>Ďalší východ Mesiaca:</dt>
           <dd>{{ formatMoonriseLine(overview.next_moonrise_at) }}</dd>
         </div>
       </dl>
@@ -77,14 +77,14 @@ import { getMoonOverviewWidget } from '@/services/widgets'
 
 const PHASE_LABEL_MAP = {
   new_moon: 'Nov',
-  waxing_crescent: 'Dorastajuci kosacik',
-  first_quarter: 'Prva stvrt',
-  waxing_gibbous: 'Dorastajuci mesiac',
+  waxing_crescent: 'Dorastajúci kosáčik',
+  first_quarter: 'Prvá štvrt',
+  waxing_gibbous: 'Dorastajúci mesiac',
   full_moon: 'Spln',
-  waning_gibbous: 'Ubudajuci mesiac',
-  last_quarter: 'Posledna stvrt',
-  waning_crescent: 'Ubudajuci kosacik',
-  unknown: 'Neznama faza',
+  waning_gibbous: 'Ubúdajúci mesiac',
+  last_quarter: 'Posledná štvrt',
+  waning_crescent: 'Ubúdajúci kosáčik',
+  unknown: 'Neznáma fáza',
 }
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('sk-SK', {
@@ -190,7 +190,7 @@ export default {
         error.value =
           err?.response?.data?.message
           || err?.message
-          || 'Skus obnovit widget neskor.'
+          || 'Skús obnoviť widget neskôr.'
       } finally {
         loading.value = false
       }
@@ -301,6 +301,10 @@ function formatRelativeDateTimeLabel(value) {
   overflow: visible;
 }
 
+.moonOverviewCard {
+  container-type: inline-size;
+}
+
 .panel {
   display: grid;
   gap: 0.24rem;
@@ -317,11 +321,17 @@ function formatRelativeDateTimeLabel(value) {
 
 .overviewPanel {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: 1fr;
   gap: 0.48rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
   background: linear-gradient(180deg, rgb(var(--color-bg-rgb) / 0.18), rgb(var(--color-bg-rgb) / 0.1));
   padding: 0.42rem;
+}
+
+@container (min-width: 380px) {
+  .overviewPanel {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  }
 }
 
 .overviewVisual {
@@ -425,9 +435,4 @@ function formatRelativeDateTimeLabel(value) {
   text-align: left;
 }
 
-@media (max-width: 860px) {
-  .overviewPanel {
-    grid-template-columns: 1fr;
-  }
-}
 </style>

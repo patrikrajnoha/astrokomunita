@@ -535,47 +535,6 @@
   color: rgb(var(--color-text-secondary-rgb) / 0.92);
 }
 
-.settings-page .settings-sidebar-builder__scope-row {
-  display: grid;
-  gap: 0.32rem;
-}
-
-.settings-page .settings-sidebar-builder__scope-label {
-  font-size: 0.71rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-}
-
-.settings-page .settings-sidebar-builder__scope-tabs {
-  display: flex;
-  gap: 0.3rem;
-  overflow-x: auto;
-  padding-bottom: 0.14rem;
-}
-
-.settings-page .settings-sidebar-builder__scope-tab {
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
-  background: rgb(var(--color-bg-rgb) / 0.26);
-  color: rgb(var(--color-text-secondary-rgb) / 0.94);
-  font-size: 0.76rem;
-  font-weight: 700;
-  white-space: nowrap;
-  padding: 0.3rem 0.62rem;
-}
-
-.settings-page .settings-sidebar-builder__scope-tab.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.56);
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  color: var(--color-surface);
-}
-
-.settings-page .settings-sidebar-builder__scope-tab:disabled {
-  opacity: 0.58;
-}
-
 .settings-page .settings-sidebar-builder__toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

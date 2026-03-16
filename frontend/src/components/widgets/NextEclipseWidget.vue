@@ -1,10 +1,10 @@
 <template>
   <NextEventWidget
-    title="Najblizsie zatmenie"
+    title="Najbližšie zatmenie"
     endpoint="/events/widget/next-eclipse"
-    empty-title="Ziadne blizke zatmenie"
-    empty-text="V event databaze zatial nie je ziadne publikovane zatmenie."
-    browse-label="Vsetky udalosti"
+    empty-title="Žiadne blízke zatmenie"
+    empty-text="V event databáze zatiaľ nie je žiadne publikované zatmenie."
+    browse-label="Všetky udalosti"
     browse-to="/events?types=eclipse,eclipse_lunar,eclipse_solar"
   />
 </template>
