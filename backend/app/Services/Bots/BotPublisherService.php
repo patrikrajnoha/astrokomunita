@@ -8,12 +8,10 @@ use App\Enums\PostFeedKey;
 use App\Models\BotItem;
 use App\Models\BotSource;
 use App\Models\Post;
-use App\Models\User;
 use App\Services\Bots\Concerns\ManagesBotPublisherInternals;
 use App\Services\PostService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class BotPublisherService
 {
@@ -23,6 +21,7 @@ class BotPublisherService
         private readonly PostService $postService,
         private readonly BotActivityLogService $activityLogService,
         private readonly BotRateLimiterService $rateLimiterService,
+        private readonly BotIdentityUserSyncService $botIdentityUserSyncService,
     ) {
     }
 
@@ -139,7 +138,7 @@ class BotPublisherService
             $temporaryAttachmentPath = $downloaded['temporary_path'];
         }
 
-        $botUser = $this->ensureBotUser($botIdentity);
+        $botUser = $this->botIdentityUserSyncService->ensureBotUser($botIdentity);
         $content = $this->buildPostContent(
             $publishPayload['title'],
             $publishPayload['body'],
@@ -302,75 +301,6 @@ class BotPublisherService
         }
 
         return true;
-    }
-
-    private function ensureBotUser(string $botIdentity): User
-    {
-        $identity = strtolower(trim($botIdentity));
-        $profile = $this->botIdentityProfile($identity);
-        $targetUsername = $profile['username'];
-        $targetName = $profile['display_name'];
-        $candidateUsernames = array_values(array_unique(array_filter([$targetUsername, $identity])));
-
-        $user = User::query()
-            ->where('is_bot', true)
-            ->where(function ($query) use ($candidateUsernames): void {
-                $applied = false;
-                foreach ($candidateUsernames as $username) {
-                    if (!$applied) {
-                        $query->where('username', $username);
-                        $applied = true;
-                    } else {
-                        $query->orWhere('username', $username);
-                    }
-                }
-            })
-            ->orderBy('id')
-            ->first();
-
-        if (!$user) {
-            $user = User::query()->create([
-                'name' => $targetName,
-                'username' => $targetUsername,
-                'email' => null,
-                'bio' => 'Automated bot account',
-                'password' => Str::random(40),
-                'is_bot' => true,
-                'role' => User::ROLE_BOT,
-                'is_active' => true,
-            ]);
-
-            return $user;
-        }
-
-        $updates = [];
-        if ((string) $user->username !== $targetUsername) {
-            $updates['username'] = $targetUsername;
-        }
-        if (trim((string) $user->name) === '') {
-            $updates['name'] = $targetName;
-        }
-        if ((string) $user->email !== '') {
-            $updates['email'] = null;
-        }
-        if (!(bool) $user->is_bot) {
-            $updates['is_bot'] = true;
-        }
-        if ((string) $user->role !== User::ROLE_BOT) {
-            $updates['role'] = User::ROLE_BOT;
-        }
-        if (!(bool) $user->is_active) {
-            $updates['is_active'] = true;
-        }
-        if (trim((string) $user->bio) === '') {
-            $updates['bio'] = 'Automated bot account';
-        }
-
-        if ($updates !== []) {
-            $user->forceFill($updates)->save();
-        }
-
-        return $user->fresh() ?? $user;
     }
 
     private function buildPostContent(
