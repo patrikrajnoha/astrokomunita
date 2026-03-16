@@ -5,8 +5,8 @@
         type="button"
         class="rich-editor__tool"
         :disabled="disabled"
-        title="Tucne"
-        aria-label="Tucne"
+        title="Tučné"
+        aria-label="Tučné"
         @mousedown.prevent
         @click="applyCommand('bold')"
       >
@@ -17,16 +17,28 @@
         type="button"
         class="rich-editor__tool"
         :disabled="disabled"
-        title="Kurziva"
-        aria-label="Kurziva"
+        title="Kurzíva"
+        aria-label="Kurzíva"
         @mousedown.prevent
         @click="applyCommand('italic')"
       >
         <em>I</em>
       </button>
 
+      <button
+        type="button"
+        class="rich-editor__tool"
+        :disabled="disabled"
+        title="Vložiť obrázok"
+        aria-label="Vložiť obrázok"
+        @mousedown.prevent
+        @click="openImageDialog"
+      >
+        🖼
+      </button>
+
       <label class="rich-editor__format">
-        <span>Styl</span>
+        <span>Štýl</span>
         <select
           v-model="selectedBlockTag"
           :disabled="disabled"
@@ -44,7 +56,7 @@
       </label>
 
       <label class="rich-editor__size">
-        <span>Velkost</span>
+        <span>Veľkosť</span>
         <select
           v-model.number="selectedFontSize"
           :disabled="disabled"
@@ -60,6 +72,20 @@
           </option>
         </select>
       </label>
+    </div>
+
+    <div v-if="imageDialogVisible" class="rich-editor__image-dialog" @mousedown.stop>
+      <input
+        v-model="imageDialogUrl"
+        class="rich-editor__image-input"
+        type="url"
+        placeholder="https://..."
+        autofocus
+        @keydown.enter.prevent="confirmImageInsert"
+        @keydown.esc.prevent="imageDialogVisible = false"
+      />
+      <button type="button" class="rich-editor__tool" @click="confirmImageInsert">Vložiť</button>
+      <button type="button" class="rich-editor__tool" @click="imageDialogVisible = false">Zrušiť</button>
     </div>
 
     <div
@@ -93,11 +119,12 @@ import {
 
 const FONT_SIZE_OPTIONS = [14, 16, 18, 20, 24, 30, 36];
 const BLOCK_FORMAT_OPTIONS = [
-  { value: "p", label: "Odsek" },
   { value: "h2", label: "Nadpis 2" },
   { value: "h3", label: "Nadpis 3" },
+  { value: "ul", label: "• Odrážky" },
+  { value: "ol", label: "1. Číslovanie" },
 ];
-const BLOCK_FORMAT_TAGS = new Set(BLOCK_FORMAT_OPTIONS.map((option) => option.value));
+const BLOCK_FORMAT_TAGS = new Set(["p", "h2", "h3"]);
 
 const props = defineProps({
   modelValue: {
@@ -127,8 +154,10 @@ const editorRef = ref(null);
 const isEmpty = ref(true);
 const lastEmittedValue = ref("");
 const selectedFontSize = ref(16);
-const selectedBlockTag = ref("p");
+const selectedBlockTag = ref("");
 const selectionRange = ref(null);
+const imageDialogVisible = ref(false);
+const imageDialogUrl = ref("");
 
 const surfaceStyle = computed(() => ({
   minHeight: `${Math.max(160, Number(props.minHeight) || 280)}px`,
@@ -258,12 +287,13 @@ function resolveSelectionBlockTag() {
   while (node && node !== editor) {
     if (node.nodeType === ELEMENT_NODE) {
       const tag = String(node.nodeName || "").toLowerCase();
-      if (BLOCK_FORMAT_TAGS.has(tag)) {
-        return tag;
+      if (tag === "li") {
+        const parentTag = String(node.parentNode?.nodeName || "").toLowerCase();
+        if (parentTag === "ul" || parentTag === "ol") return parentTag;
       }
-      if (tag === "div" || tag === "section" || tag === "article") {
-        return "p";
-      }
+      if (tag === "ul" || tag === "ol") return tag;
+      if (BLOCK_FORMAT_TAGS.has(tag)) return tag;
+      if (tag === "div" || tag === "section" || tag === "article") return "p";
     }
     node = node.parentNode;
   }
@@ -278,13 +308,17 @@ function syncSelectionFormattingState() {
 function applyBlockFormat() {
   if (props.disabled) return;
 
-  const normalizedTag = BLOCK_FORMAT_TAGS.has(selectedBlockTag.value)
-    ? selectedBlockTag.value
-    : "p";
-
   restoreSelection();
   focusEditor();
-  document.execCommand("formatBlock", false, `<${normalizedTag}>`);
+
+  if (selectedBlockTag.value === "ul") {
+    document.execCommand("insertUnorderedList", false);
+  } else if (selectedBlockTag.value === "ol") {
+    document.execCommand("insertOrderedList", false);
+  } else if (BLOCK_FORMAT_TAGS.has(selectedBlockTag.value)) {
+    document.execCommand("formatBlock", false, `<${selectedBlockTag.value}>`);
+  }
+
   emitEditorValue();
   captureSelection();
   syncSelectionFormattingState();
@@ -368,6 +402,25 @@ function applyFontSize() {
   document.execCommand("styleWithCSS", false, true);
   document.execCommand("fontSize", false, "7");
   replaceLegacyFontTags(sizePx);
+  emitEditorValue();
+  captureSelection();
+}
+
+function openImageDialog() {
+  if (props.disabled) return;
+  captureSelection();
+  imageDialogUrl.value = "";
+  imageDialogVisible.value = true;
+}
+
+function confirmImageInsert() {
+  const url = imageDialogUrl.value.trim();
+  imageDialogVisible.value = false;
+  if (!url) return;
+
+  restoreSelection();
+  focusEditor();
+  document.execCommand("insertHTML", false, `<img src="${url}" alt="" />`);
   emitEditorValue();
   captureSelection();
 }
@@ -518,6 +571,34 @@ onBeforeUnmount(() => {
   background: rgb(var(--color-bg-rgb) / 0.72);
   color: inherit;
   padding: 0 8px;
+}
+
+.rich-editor__image-dialog {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--divider-color);
+  background: rgb(var(--color-bg-rgb) / 0.8);
+}
+
+.rich-editor__image-input {
+  flex: 1;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
+  border-radius: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.72);
+  color: inherit;
+  font-size: 13px;
+}
+
+.rich-editor__surface :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 8px 0;
+  display: block;
 }
 
 .rich-editor__surface {
