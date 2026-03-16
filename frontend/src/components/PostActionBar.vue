@@ -243,7 +243,18 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 }
 
 .action-btn--like.action-btn--bump {
-  animation: likePop 220ms ease;
+  animation: likePop 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.action-btn--like.action-btn--bump::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid var(--color-danger);
+  opacity: 0;
+  animation: likeRing 420ms ease-out both;
+  pointer-events: none;
 }
 
 .action-btn--bookmark.action-btn--bookmarked {
@@ -292,15 +303,17 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 }
 
 @keyframes likePop {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.15);
-  }
-  100% {
-    transform: scale(1);
-  }
+  0%   { transform: scale(1); }
+  15%  { transform: scale(0.8); }
+  45%  { transform: scale(1.35); }
+  65%  { transform: scale(0.95); }
+  82%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes likeRing {
+  0%   { opacity: 0.65; transform: scale(0.8); }
+  100% { opacity: 0;    transform: scale(2.4); }
 }
 
 @media (max-width: 640px) {
