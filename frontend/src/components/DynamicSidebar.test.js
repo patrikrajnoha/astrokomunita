@@ -87,6 +87,34 @@ describe('DynamicSidebar', () => {
     expect(fetchScopeMock).toHaveBeenCalledWith('events')
   })
 
+  it('uses the homepage widget fallback on home scope before preferences are loaded', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: DynamicSidebar },
+      ],
+    })
+
+    await router.push('/')
+    await router.isReady()
+
+    mount(DynamicSidebar, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(getEnabledSidebarSectionsMock).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        preferredSectionKeys: ['next_event', 'nasa_apod', 'search'],
+      }),
+    )
+  })
+
   it('requests bundled sidebar data for preloadable builtin widgets', async () => {
     fetchScopeMock.mockResolvedValue([
       { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA', order: 0, is_enabled: true },

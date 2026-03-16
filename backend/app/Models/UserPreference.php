@@ -13,6 +13,11 @@ class UserPreference extends Model
 {
     public const DEFAULT_BORTLE_CLASS = 6;
     public const MAX_SIDEBAR_WIDGETS_PER_SCOPE = 3;
+    public const DEFAULT_HOME_SIDEBAR_WIDGET_KEYS = [
+        'next_event',
+        'nasa_apod',
+        'search',
+    ];
 
     protected $fillable = [
         'user_id',
@@ -110,6 +115,16 @@ class UserPreference extends Model
     }
 
     /**
+     * @return list<string>
+     */
+    public function resolvedSidebarWidgetKeys(string $scope = SidebarSectionRegistry::SCOPE_HOME): array
+    {
+        $overrides = $this->resolvedSidebarWidgetOverrides();
+
+        return $overrides[$scope] ?? [];
+    }
+
+    /**
      * @return array<string, list<string>>
      */
     public function normalizedSidebarWidgetOverrides(): array
@@ -146,6 +161,21 @@ class UserPreference extends Model
         }
 
         return $result;
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public function resolvedSidebarWidgetOverrides(): array
+    {
+        $overrides = $this->normalizedSidebarWidgetOverrides();
+        if ($overrides !== []) {
+            return $overrides;
+        }
+
+        return [
+            SidebarSectionRegistry::SCOPE_HOME => self::DEFAULT_HOME_SIDEBAR_WIDGET_KEYS,
+        ];
     }
 
     /**

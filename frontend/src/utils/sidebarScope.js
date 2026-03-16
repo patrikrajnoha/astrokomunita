@@ -18,54 +18,30 @@ export {
 
 export function resolveSidebarScopeFromPath(path) {
   const normalized = typeof path === 'string' ? path : ''
-  const articleDetailPattern = /^\/(clanky|learn|learning)\/[^/?#]+/
 
   if (normalized === '/' || normalized === '') {
     return DEFAULT_SIDEBAR_SCOPE
   }
 
-  if (normalized.startsWith('/events')) {
-    return SIDEBAR_SCOPE.EVENTS
-  }
-
-  if (normalized.startsWith('/observations') || normalized.startsWith('/observing')) {
-    return SIDEBAR_SCOPE.OBSERVING
-  }
-
-  if (normalized.startsWith('/calendar')) {
-    return SIDEBAR_SCOPE.CALENDAR
-  }
-
-  if (articleDetailPattern.test(normalized)) {
-    return SIDEBAR_SCOPE.ARTICLE_DETAIL
-  }
-
-  if (normalized.startsWith('/clanky') || normalized.startsWith('/learn') || normalized.startsWith('/learning')) {
-    return SIDEBAR_SCOPE.LEARNING
-  }
-
-  if (normalized.startsWith('/search')) {
-    return SIDEBAR_SCOPE.SEARCH
-  }
-
-  if (normalized.startsWith('/notifications')) {
-    return SIDEBAR_SCOPE.NOTIFICATIONS
-  }
-
-  if (normalized.startsWith('/settings')) {
-    return SIDEBAR_SCOPE.SETTINGS
-  }
-
-  if (normalized.startsWith('/posts/')) {
-    return SIDEBAR_SCOPE.POST_DETAIL
-  }
-
-  if (normalized.startsWith('/profile')) {
-    return SIDEBAR_SCOPE.PROFILE
-  }
-
-  if (normalized.startsWith('/u/')) {
-    return SIDEBAR_SCOPE.PROFILE
+  if (
+    normalized.startsWith('/events') ||
+    normalized.startsWith('/observations') ||
+    normalized.startsWith('/observing') ||
+    normalized.startsWith('/calendar') ||
+    normalized.startsWith('/clanky') ||
+    normalized.startsWith('/learn') ||
+    normalized.startsWith('/learning') ||
+    normalized.startsWith('/search') ||
+    normalized.startsWith('/notifications') ||
+    normalized.startsWith('/settings') ||
+    normalized.startsWith('/posts/') ||
+    normalized.startsWith('/profile') ||
+    normalized.startsWith('/u/') ||
+    normalized.startsWith('/bookmarks') ||
+    normalized.startsWith('/tags/') ||
+    normalized.startsWith('/hashtags/')
+  ) {
+    return DEFAULT_SIDEBAR_SCOPE
   }
 
   return null

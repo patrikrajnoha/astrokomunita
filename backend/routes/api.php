@@ -52,7 +52,6 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\AdminPostController;
 use App\Http\Controllers\Api\Admin\ModerationQueueController;
 use App\Http\Controllers\Api\Admin\ModerationHubController;
-use App\Http\Controllers\Api\Admin\TranslationHealthController;
 use App\Http\Controllers\Api\Admin\AdminNewsletterController;
 use App\Http\Controllers\Api\Admin\AdminAiController;
 use App\Http\Controllers\Api\Admin\AuthSettingsController;
@@ -60,6 +59,7 @@ use App\Http\Controllers\Api\Admin\ContestController as AdminContestController;
 use App\Http\Controllers\Api\Admin\AdminStatsController;
 use App\Http\Controllers\Api\Admin\AdminBotController;
 use App\Http\Controllers\Api\Admin\PerformanceMetricsController;
+use App\Http\Controllers\Api\Admin\AdminSidebarConfigController;
 use App\Http\Controllers\Api\SidebarConfigController;
 use App\Http\Controllers\Api\SidebarDataController;
 use App\Http\Controllers\Api\SearchController;
@@ -372,6 +372,10 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
     ->prefix('admin')
     ->group(function () {
 
+        // Sidebar config (global defaults)
+        Route::get('/sidebar-config', [AdminSidebarConfigController::class, 'index']);
+        Route::put('/sidebar-config', [AdminSidebarConfigController::class, 'update']);
+
         // Dashboard
         Route::get('/dashboard', DashboardController::class);
         Route::get('/stats', [AdminStatsController::class, 'index']);
@@ -409,7 +413,6 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         Route::post('/event-sources/purge', [EventSourceController::class, 'purge']);
         Route::get('/event-sources/translation-artifacts/report', [EventSourceController::class, 'translationArtifactsReport']);
         Route::post('/event-sources/translation-artifacts/repair', [EventSourceController::class, 'translationArtifactsRepair']);
-        Route::get('/translation-health', TranslationHealthController::class);
         Route::get('/event-translation-health', EventTranslationHealthController::class);
         Route::get('/contests/hashtags-preview', [AdminContestController::class, 'hashtagsPreview']);
 
@@ -547,10 +550,6 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin.content'])
         // Newsletter (admin + editor)
         Route::get('/newsletter/preview', [AdminNewsletterController::class, 'preview']);
         Route::post('/newsletter/preview', [AdminNewsletterController::class, 'sendPreview'])->middleware('throttle:newsletter-preview');
-        Route::post('/newsletter/ai/prime-insights', [AdminAiController::class, 'primeNewsletterInsights'])
-            ->middleware(['admin', 'throttle:admin-ai']);
-        Route::post('/newsletter/ai/draft-copy', [AdminAiController::class, 'draftNewsletterCopy'])
-            ->middleware(['admin', 'throttle:admin-ai']);
         Route::post('/newsletter/feature-events', [AdminNewsletterController::class, 'featureEvents']);
         Route::post('/newsletter/send', [AdminNewsletterController::class, 'send'])->middleware('throttle:newsletter-send');
         Route::get('/newsletter/runs', [AdminNewsletterController::class, 'runs']);

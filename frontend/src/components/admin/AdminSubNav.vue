@@ -80,6 +80,11 @@ const adminIcons = {
     'M17.5 6.5l-11 11',
     'M4.75 12a7.25 7.25 0 1 0 14.5 0 7.25 7.25 0 0 0-14.5 0Z',
   ]),
+  sidebarConfig: createAdminIcon([
+    'M5.75 5.75h12.5v12.5H5.75z',
+    'M5.75 9.25h12.5',
+    'M9.25 9.25v9',
+  ]),
 }
 
 const overviewItem = {
@@ -154,6 +159,13 @@ const navGroups = computed(() => {
     {
       title: 'SYSTÉM',
       items: [
+        {
+          key: 'sidebar-config',
+          label: 'Predvolené widgety',
+          to: { name: 'admin.sidebar-config' },
+          iconKey: 'sidebarConfig',
+          routeNames: ['admin.sidebar-config'],
+        },
         {
           key: 'bots',
           label: 'Boti',

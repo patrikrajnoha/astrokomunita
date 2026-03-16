@@ -274,6 +274,12 @@ const appShellChildren = [
         component: () => import('@/views/admin/AdminDashboardView.vue'),
       },
       {
+        path: 'sidebar-config',
+        name: 'admin.sidebar-config',
+        meta: { adminSection: 'sidebar-config' },
+        component: () => import('@/views/admin/AdminSidebarConfigView.vue'),
+      },
+      {
         path: 'events/create',
         name: 'admin.events.create',
         meta: { adminSection: 'events', adminTab: 'published' },
@@ -555,6 +561,12 @@ const appShellChildren = [
       },
     ],
   },
+  {
+    path: ':pathMatch(.*)*',
+    name: 'not-found',
+    meta: { requiresAuth: false },
+    component: () => import('../views/NotFoundView.vue'),
+  },
 ]
 
 const router = createRouter({
@@ -606,11 +618,6 @@ const router = createRouter({
       name: 'onboarding',
       meta: { requiresAuth: true },
       component: () => import('../views/OnboardingView.vue'),
-    },
-    {
-      path: '/:pathMatch(.*)*',
-      name: 'not-found',
-      component: () => import('../views/NotFoundView.vue'),
     },
   ],
 })
