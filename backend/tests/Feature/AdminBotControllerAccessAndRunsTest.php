@@ -7,6 +7,7 @@ use App\Models\AppSetting;
 use App\Models\BotActivityLog;
 use App\Models\BotItem;
 use App\Models\BotRun;
+use App\Models\BotSchedule;
 use App\Models\BotSource;
 use App\Models\Post;
 use App\Models\User;
@@ -77,6 +78,9 @@ class AdminBotControllerAccessAndRunsTest extends AdminBotControllerTestCase
 
     public function test_admin_get_sources_auto_syncs_defaults_when_table_is_empty(): void
     {
+        BotSchedule::query()->delete();
+        BotSource::query()->delete();
+
         $this->assertSame(0, BotSource::query()->count());
         $this->actingAsAdmin();
 
@@ -93,14 +97,66 @@ class AdminBotControllerAccessAndRunsTest extends AdminBotControllerTestCase
         $this->assertSame(3, BotSource::query()->count());
     }
 
+    public function test_admin_get_schedules_auto_syncs_default_bot_schedules(): void
+    {
+        BotSchedule::query()->delete();
+        BotSource::query()->delete();
+
+        $this->assertSame(0, BotSource::query()->count());
+        $this->assertSame(0, BotSchedule::query()->count());
+        $this->actingAsAdmin();
+
+        $response = $this->getJson('/api/admin/bots/schedules');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('total', 3)
+            ->assertJsonCount(3, 'data');
+
+        $rows = collect($response->json('data'));
+        $sourceKeys = $rows->pluck('source.key')->all();
+        $usernamesBySource = $rows
+            ->mapWithKeys(fn (array $row): array => [
+                (string) data_get($row, 'source.key') => (string) data_get($row, 'bot_user.username'),
+            ])
+            ->all();
+
+        $this->assertContains('nasa_rss_breaking', $sourceKeys);
+        $this->assertContains('nasa_apod_daily', $sourceKeys);
+        $this->assertContains('wiki_onthisday_astronomy', $sourceKeys);
+        $this->assertSame('kozmobot', $usernamesBySource['nasa_rss_breaking'] ?? null);
+        $this->assertSame('stellarbot', $usernamesBySource['nasa_apod_daily'] ?? null);
+        $this->assertSame('kozmobot', $usernamesBySource['wiki_onthisday_astronomy'] ?? null);
+
+        $this->assertSame(3, BotSource::query()->count());
+        $this->assertSame(3, BotSchedule::query()->count());
+        $this->assertDatabaseHas('users', [
+            'username' => 'kozmobot',
+            'is_bot' => 1,
+            'role' => User::ROLE_BOT,
+        ]);
+        $this->assertDatabaseHas('users', [
+            'username' => 'stellarbot',
+            'is_bot' => 1,
+            'role' => User::ROLE_BOT,
+        ]);
+    }
+
     public function test_admin_get_overview_returns_bot_metrics_payload_shape(): void
     {
-        $botUser = User::factory()->create([
+        $botUser = User::query()->firstOrNew([
+            'username' => 'kozmobot',
+        ]);
+        $botUser->forceFill([
+            'name' => (string) ($botUser->name ?: 'Kozmo'),
+            'email' => null,
+            'password' => $botUser->password ?: 'secret',
             'is_bot' => true,
             'role' => User::ROLE_BOT,
-            'username' => 'kozmobot',
-            'email' => null,
-        ]);
+            'is_active' => true,
+            'is_admin' => false,
+            'requires_email_verification' => false,
+        ])->save();
 
         $source = $this->createRssSource('overview_source');
         Post::query()->create([
@@ -167,12 +223,15 @@ class AdminBotControllerAccessAndRunsTest extends AdminBotControllerTestCase
                         'max_attempts',
                         'window_sec',
                     ],
-                ]],
+            ]],
             ]);
 
-        $this->assertSame('kozmobot', (string) data_get($response->json(), 'bots.0.username'));
-        $this->assertSame(1, (int) data_get($response->json(), 'bots.0.posts_24h'));
-        $this->assertSame(1, (int) data_get($response->json(), 'bots.0.errors_24h'));
+        $overviewRow = collect($response->json('bots'))
+            ->firstWhere('username', 'kozmobot');
+
+        $this->assertIsArray($overviewRow);
+        $this->assertSame(1, (int) data_get($overviewRow, 'posts_24h'));
+        $this->assertSame(1, (int) data_get($overviewRow, 'errors_24h'));
     }
 
     public function test_admin_can_update_source_and_filter_sources_by_state(): void
@@ -310,6 +369,7 @@ class AdminBotControllerAccessAndRunsTest extends AdminBotControllerTestCase
     {
         $source = $this->createRssSource('admin_dry_run_source');
         $this->actingAsAdmin();
+        $initialPostCount = Post::query()->count();
 
         Http::fake([
             $source->url => Http::response($this->singleItemRss(), 200, ['Content-Type' => 'application/rss+xml']),
@@ -328,7 +388,7 @@ class AdminBotControllerAccessAndRunsTest extends AdminBotControllerTestCase
             ->assertJsonPath('meta.mode', 'dry')
             ->assertJsonPath('meta.publish_limit', 3);
 
-        $this->assertSame(0, Post::query()->count());
+        $this->assertSame($initialPostCount, Post::query()->count());
     }
 
     public function test_admin_post_run_recovers_stale_unfinished_run_before_starting_new_run(): void

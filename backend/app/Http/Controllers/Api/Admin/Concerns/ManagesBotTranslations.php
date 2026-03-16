@@ -21,6 +21,9 @@ trait ManagesBotTranslations
     {
         $validated = $request->validate([
             'text' => 'nullable|string|max:5000',
+            'provider' => 'nullable|string|in:auto,libretranslate,ollama',
+            'model' => 'nullable|string|max:120',
+            'temperature' => 'nullable|numeric|min:0|max:2',
         ]);
 
         $text = trim((string) ($validated['text'] ?? 'The Solar System contains eight planets orbiting the Sun.'));
@@ -28,7 +31,18 @@ trait ManagesBotTranslations
             $text = 'The Solar System contains eight planets orbiting the Sun.';
         }
 
+        $requestedProvider = strtolower(trim((string) ($validated['provider'] ?? 'auto')));
+        $requestedModel = trim((string) ($validated['model'] ?? ''));
+        $requestedTemperature = array_key_exists('temperature', $validated)
+            ? (float) $validated['temperature']
+            : null;
+
         $startedAt = microtime(true);
+        $restoreConfig = $this->applyTranslationTestOverrides(
+            requestedProvider: $requestedProvider,
+            requestedModel: $requestedModel,
+            requestedTemperature: $requestedTemperature
+        );
 
         try {
             $result = $this->translationService->translate($text, null, 'sk');
@@ -50,6 +64,8 @@ trait ManagesBotTranslations
                 'failure_reason' => $failureReason,
                 'error' => $this->truncateErrorText($e->getMessage(), 300),
             ], $statusCode);
+        } finally {
+            $restoreConfig();
         }
 
         $meta = is_array($result['meta'] ?? null) ? $result['meta'] : [];
@@ -77,8 +93,57 @@ trait ManagesBotTranslations
                 'model' => $this->nullableString(data_get($meta, 'model')),
                 'fallback_used' => (bool) data_get($meta, 'fallback_used', false),
                 'quality_retry_count' => (int) data_get($meta, 'quality_retry_count', 0),
+                'requested_provider' => $requestedProvider,
+                'requested_model' => $this->nullableString($requestedModel),
+                'requested_temperature' => $requestedTemperature,
             ],
         ]);
+    }
+
+    /**
+     * @return \Closure():void
+     */
+    private function applyTranslationTestOverrides(
+        string $requestedProvider,
+        string $requestedModel,
+        ?float $requestedTemperature
+    ): \Closure {
+        $keys = [
+            'bots.translation.primary',
+            'bots.translation.fallback',
+            'bots.translation.ollama.model',
+            'bots.translation_ollama_model',
+            'ai.ollama.model',
+            'bots.translation.ollama.temperature',
+            'bots.translation_ollama_temperature',
+        ];
+
+        $original = [];
+        foreach ($keys as $key) {
+            $original[$key] = config($key);
+        }
+
+        if ($requestedProvider !== '' && $requestedProvider !== 'auto') {
+            config()->set('bots.translation.primary', $requestedProvider);
+            config()->set('bots.translation.fallback', 'none');
+        }
+
+        if ($requestedModel !== '') {
+            config()->set('bots.translation.ollama.model', $requestedModel);
+            config()->set('bots.translation_ollama_model', $requestedModel);
+            config()->set('ai.ollama.model', $requestedModel);
+        }
+
+        if ($requestedTemperature !== null) {
+            config()->set('bots.translation.ollama.temperature', $requestedTemperature);
+            config()->set('bots.translation_ollama_temperature', $requestedTemperature);
+        }
+
+        return static function () use ($original): void {
+            foreach ($original as $key => $value) {
+                config()->set($key, $value);
+            }
+        };
     }
 
     public function translationHealth(): JsonResponse
