@@ -5,6 +5,7 @@ import { compressImageFileToMaxBytes } from '@/utils/imageCompression'
 import {
   AVATAR_COLORS,
   AVATAR_ICONS,
+  AVATAR_ICON_LABELS,
   coerceAvatarIndex,
   hashAvatarString,
   normalizeAvatarMode,
@@ -39,14 +40,7 @@ function applyAvatarSnapshot(draft, snapshot) {
 }
 
 function formatIconLabel(iconKey) {
-  const map = {
-    planet: 'Planeta',
-    star: 'Hviezda',
-    comet: 'Kometa',
-    constellation: 'Suhvezdie',
-    moon: 'Mesiac',
-  }
-  return map[iconKey] || iconKey
+  return AVATAR_ICON_LABELS[iconKey] || iconKey
 }
 
 function buildRandomAvatarSeed(userId) {

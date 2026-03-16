@@ -2,6 +2,7 @@ import api from '@/services/api'
 import {
   AVATAR_COLORS,
   AVATAR_ICONS,
+  LEGACY_AVATAR_ICON_COUNT,
   coerceAvatarIndex,
   normalizeAvatarMode,
   pickDeterministicAvatarIndex,
@@ -79,7 +80,7 @@ export function resolveAvatarState(user, overrides = {}) {
       overrides.iconIndex ?? user?.avatar_icon ?? user?.avatarIcon,
       AVATAR_ICONS,
     ) ??
-    pickDeterministicAvatarIndex(seed, 'icon', AVATAR_ICONS.length)
+    pickDeterministicAvatarIndex(seed, 'icon', Math.min(LEGACY_AVATAR_ICON_COUNT, AVATAR_ICONS.length))
 
   const usesImage = hasImage && mode === 'image'
   const state = {
