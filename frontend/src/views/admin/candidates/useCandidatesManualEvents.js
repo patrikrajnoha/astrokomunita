@@ -39,6 +39,7 @@ export function useCandidatesManualEvents({
     { value: 'eclipse_lunar', label: 'Zatmenie Mesiaca' },
     { value: 'eclipse_solar', label: 'Zatmenie Slnka' },
     { value: 'planetary_event', label: 'Planetarny ukaz' },
+    { value: 'aurora', label: 'Polarna ziara' },
     { value: 'other', label: 'Ina udalost' },
   ]
 

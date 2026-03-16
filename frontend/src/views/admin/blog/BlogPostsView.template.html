@@ -1,8 +1,8 @@
 <div class="admin-blog admin-blog--simple">
   <header class="simple-header">
     <div class="simple-header__copy">
-      <h1>Clanky</h1>
-      <p>Pisanie bez rusenia: nadpis, obsah, ulozit.</p>
+      <h1>Články</h1>
+      <p>Písanie bez rušenia: nadpis, obsah, uložiť.</p>
     </div>
 
     <div class="command-right">
@@ -10,51 +10,43 @@
         <input
           v-model="query"
           type="search"
-          placeholder="Hladat clanok"
+          placeholder="Hľadať článok"
         />
         <button v-if="hasQuery" type="button" class="ghost clear-search" @click="clearQuery">
-          Vycistit
+          Vyčistiť
         </button>
       </div>
 
       <label class="select-field">
         <span>Stav</span>
         <select :value="status" :disabled="loading" @change="setStatusFilter($event.target.value)">
-          <option value="">Vsetky</option>
+          <option value="">Všetky</option>
           <option value="draft">Koncepty</option>
-          <option value="scheduled">Naplanovane</option>
-          <option value="published">Publikovane</option>
+          <option value="scheduled">Naplánované</option>
+          <option value="published">Publikované</option>
         </select>
       </label>
 
-      <button class="ghost" type="button" :disabled="loading" @click="load">Obnovit</button>
+      <button class="ghost" type="button" :disabled="loading" @click="load">Obnoviť</button>
       <button class="primary" type="button" :disabled="saving || deleting" @click="openCreateModal">
-        Novy clanok
+        Nový článok
       </button>
     </div>
   </header>
 
-  <div class="system-status" aria-live="polite">
-    <span v-if="loading" class="status-chip is-loading">Nacitavam...</span>
-    <span v-else-if="saving" class="status-chip is-saving">Ukladam...</span>
-    <span v-else-if="deleting" class="status-chip is-danger">Mazem...</span>
-    <span v-else-if="isDirty" class="status-chip is-warning">Mas neulozene zmeny</span>
-    <span v-else class="status-chip is-success">Vsetko ulozene</span>
-  </div>
-
   <div v-if="error" class="error">{{ error }}</div>
 
-  <div class="simple-layout" :class="{ 'focus-grid': isFocusActive && !isEditorModalOpen }">
+  <div class="simple-layout">
     <aside class="panel list">
       <div class="panel-head">
         <div>
-          <h2>Zoznam clankov</h2>
+          <h2>Zoznam článkov</h2>
           <p class="muted">{{ pageRangeLabel }}</p>
         </div>
       </div>
 
       <div class="list-body">
-        <div v-if="loading" class="pad muted">Nacitavam...</div>
+        <div v-if="loading" class="pad muted">Načítavam...</div>
 
         <div v-else class="card-list">
           <button
@@ -65,13 +57,13 @@
             :class="{ active: post.id === selectedId }"
             @click="openPostModal(post)"
           >
-            <div class="card-title">{{ post.title || '(Bez nazvu)' }}</div>
+            <div class="card-title">{{ post.title || '(Bez názvu)' }}</div>
             <div class="card-meta card-meta--top">
               <span>{{ formatDate(post.published_at || post.created_at) }}</span>
-              <span class="card-status">{{ statusLabel(computeStatus(post)) }}</span>
+              <span class="card-status" :class="`card-status--${computeStatus(post)}`">{{ statusLabel(computeStatus(post)) }}</span>
             </div>
-            <div class="card-stats">
-              <span class="card-stat" :title="`Precitania: ${formatMetricCount(postReadCount(post))}`">
+            <div v-if="computeStatus(post) === 'published'" class="card-stats">
+              <span class="card-stat" :title="`Prečítania: ${formatMetricCount(postReadCount(post))}`">
                 <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
                   <path
                     d="M2 10C3.6 6.9 6.6 5 10 5C13.4 5 16.4 6.9 18 10C16.4 13.1 13.4 15 10 15C6.6 15 3.6 13.1 2 10Z"
@@ -113,13 +105,13 @@
             </div>
           </button>
 
-          <div v-if="posts.length === 0" class="empty">Nenasli sa ziadne clanky.</div>
+          <div v-if="posts.length === 0" class="empty">Nenašli sa žiadne články.</div>
         </div>
       </div>
 
       <div class="pager">
         <button class="ghost" type="button" :disabled="loading || page <= 1" @click="prevPage">
-          Predchadzajuca
+          Predchádzajúca
         </button>
         <button
           class="ghost"
@@ -127,7 +119,7 @@
           :disabled="loading || (data && page >= data.last_page)"
           @click="nextPage"
         >
-          Dalsia
+          Ďalšia
         </button>
       </div>
     </aside>
@@ -139,89 +131,90 @@
     >
       <section
         class="panel editor"
-        :class="{ 'focus-mode': isFocusActive, 'editor-modal': isEditorModalOpen }"
+        :class="{ 'editor-modal': isEditorModalOpen }"
         :role="isEditorModalOpen ? 'dialog' : undefined"
         :aria-modal="isEditorModalOpen ? 'true' : undefined"
       >
-        <div v-if="!isEditing && !isEditorModalOpen" class="editor-empty" aria-hidden="true"></div>
+        <div v-if="!isEditing && !isEditorModalOpen" class="editor-empty" aria-hidden="true">
+          <p class="editor-empty-hint">Vyber článok zo zoznamu alebo vytvor nový</p>
+        </div>
 
         <template v-else>
           <div class="editor-topbar" :class="{ 'with-modal-close': isEditorModalOpen }">
-            <div class="editor-meta">
-              <span class="save-state">{{ saveStateLabel }}</span>
-              <span
-                v-if="selectedPost?.updated_at || selectedPost?.published_at"
-                class="muted editor-date"
-              >
-                {{ formatDate(selectedPost?.updated_at || selectedPost?.published_at) }}
-              </span>
-            </div>
+            <div class="editor-topbar-row">
+              <div class="editor-meta">
+                <span class="save-state" :class="saveStateClass">{{ saveStateLabel }}</span>
+                <span
+                  v-if="selectedPost?.updated_at || selectedPost?.published_at"
+                  class="muted editor-date"
+                >
+                  {{ formatDate(selectedPost?.updated_at || selectedPost?.published_at) }}
+                </span>
+              </div>
 
-            <button
-              v-if="isEditorModalOpen"
-              class="ghost editor-topbar-close"
-              type="button"
-              aria-label="Zavriet popup tvorby clanku"
-              :disabled="saving || deleting"
-              @click="closeEditorModal"
-            >
-              <span aria-hidden="true">x</span>
-            </button>
-
-            <div class="editor-actions">
-              <button
-                class="ghost settings-toggle"
-                type="button"
-                :class="{ active: isSettingsModalOpen }"
-                :disabled="saving || deleting"
-                @click="toggleSettingsModal"
-              >
-                {{ isSettingsModalOpen ? 'Zavriet nastavenia' : 'Viac nastaveni' }}
-              </button>
-              <button
-                class="ghost"
-                type="button"
-                :disabled="saving || deleting"
-                @click="save"
-              >
-                {{ saving ? 'Ukladam...' : 'Ulozit' }}
-              </button>
-              <button
-                class="primary"
-                type="button"
-                :disabled="saving || deleting || (selectedStatus === 'draft' && !canPublishNow)"
-                :title="selectedStatus === 'draft' && !canPublishNow ? publishDisabledReason : ''"
-                @click="selectedStatus === 'draft' ? publishNow : save"
-              >
-                {{ selectedStatus === 'draft' ? 'Publikovat teraz' : 'Ulozit zmeny' }}
-              </button>
-              <button
-                v-if="isEditing"
-                class="ghost"
-                type="button"
-                :disabled="saving || deleting"
-                @click="showPreview = !showPreview"
-              >
-                {{ showPreview ? 'Upravit' : 'Nahlad' }}
-              </button>
-              <button
-                v-if="isEditing"
-                class="ghost focus-toggle"
-                type="button"
-                :class="{ active: isFocusActive }"
-                @click="toggleFocusMode"
-              >
-                {{ isFocusActive ? 'Koniec focusu' : 'Focus' }}
-              </button>
               <button
                 v-if="isEditorModalOpen"
-                class="ghost"
+                class="ghost editor-topbar-close"
                 type="button"
+                aria-label="Zavrieť popup tvorby článku"
                 :disabled="saving || deleting"
                 @click="closeEditorModal"
               >
-                Zavriet
+                <span aria-hidden="true">×</span>
               </button>
+            </div>
+
+            <div class="editor-actions">
+              <div class="editor-actions__secondary">
+                <button
+                  class="ghost settings-toggle"
+                  type="button"
+                  :class="{ active: isSettingsModalOpen }"
+                  :disabled="saving || deleting"
+                  @click="toggleSettingsModal"
+                >
+                  {{ isSettingsModalOpen ? 'Zavrieť nastavenia' : 'Nastavenia' }}
+                </button>
+                <button
+                  class="ghost"
+                  type="button"
+                  :disabled="saving || deleting"
+                  @click="showPreview = !showPreview"
+                  v-if="isEditing"
+                >
+                  {{ showPreview ? 'Upraviť' : 'Náhľad' }}
+                </button>
+              </div>
+
+              <div class="editor-actions__primary">
+                <button
+                  class="ghost"
+                  type="button"
+                  :disabled="saving || deleting"
+                  @click="save"
+                >
+                  {{ saving ? 'Ukladám...' : 'Uložiť' }}
+                </button>
+                <button
+                  v-if="selectedStatus === 'draft'"
+                  class="primary"
+                  type="button"
+                  :disabled="saving || deleting || !canPublishNow"
+                  :title="!canPublishNow ? publishDisabledReason : ''"
+                  @click="publishNow"
+                >
+                  Publikovať
+                </button>
+                <button
+                  v-if="isEditing && selectedStatus !== 'draft'"
+                  class="ghost"
+                  type="button"
+                  :disabled="saving || deleting"
+                  @click="unpublish"
+                >
+                  Zrušiť publikovanie
+                </button>
+              </div>
             </div>
 
             <p v-if="selectedStatus === 'draft' && !canPublishNow" class="publish-hint">
@@ -234,12 +227,12 @@
           <div class="editor-body">
             <div class="title-row">
               <label class="field-block field-block--title">
-                <span>Nadpis clanku</span>
+                <span>Nadpis článku</span>
                 <input
                   v-model="form.title"
                   type="text"
                   class="title-input"
-                  placeholder="Napis jasny nadpis"
+                  placeholder="Napíš jasný nadpis"
                 />
               </label>
               <div class="title-metrics">
@@ -251,10 +244,10 @@
 
             <div v-if="showPreview" class="preview">
               <div class="preview-header">
-                <div class="preview-kicker">Nahlad</div>
+                <div class="preview-kicker">Náhľad</div>
                 <div class="preview-meta">{{ readTimeFor(form.content) }}</div>
               </div>
-              <h2 class="preview-title">{{ form.title || 'Bez nazvu' }}</h2>
+              <h2 class="preview-title">{{ form.title || 'Bez názvu' }}</h2>
 
               <div v-if="coverPreview" class="preview-cover">
                 <img :src="coverPreview" alt="Cover preview" />
@@ -275,18 +268,18 @@
             <template v-else>
               <section class="tab-card document-card">
                 <label class="field-block">
-                  <span>Obsah clanku</span>
+                  <span>Obsah článku</span>
                   <ArticleRichEditor
                     v-model="form.content"
                     class="content-rich-editor content-rich-editor--minimal"
                     :min-height="520"
-                    placeholder="Napis obsah clanku..."
+                    placeholder="Napíš obsah článku..."
                   />
                   <textarea
                     v-model="form.content"
                     rows="20"
                     class="content-textarea content-textarea--minimal content-textarea--hidden"
-                    placeholder="Napis obsah clanku..."
+                    placeholder="Napíš obsah článku..."
                     aria-hidden="true"
                     tabindex="-1"
                   />
@@ -305,28 +298,28 @@
                 >
                   <section class="settings-modal">
                     <header class="settings-modal-head">
-                      <h3>Viac nastaveni</h3>
-                      <button class="ghost" type="button" @click="closeSettingsModal">Zavriet</button>
+                      <h3>Nastavenia článku</h3>
+                      <button class="ghost" type="button" @click="closeSettingsModal">Zavrieť</button>
                     </header>
 
                     <div class="settings-modal-body minimal-more-body">
                       <label class="field-block">
-                        <span>Tagy (oddelene ciarkou)</span>
+                        <span>Tagy (oddelené čiarkou)</span>
                         <input
                           v-model="tagsInput"
                           type="text"
-                          placeholder="napr. planety, komety, pozorovanie"
+                          placeholder="napr. planéty, kométy, pozorovanie"
                         />
                       </label>
 
                       <section class="ai-tags-panel">
                         <div class="ai-tags-head">
-                          <h4>AI: Navrhnut tagy</h4>
+                          <h4>AI: Navrhnúť tagy</h4>
                           <span v-if="aiTagFallbackUsed" class="ai-tags-fallback">Fallback</span>
                         </div>
-                        <p class="muted">AI cita nadpis a obsah clanku.</p>
+                        <p class="muted">AI číta nadpis a obsah článku.</p>
 
-                        <div class="ai-mode-toggle" role="group" aria-label="Rezim navrhov tagov">
+                        <div class="ai-mode-toggle" role="group" aria-label="Režim návrhov tagov">
                           <button
                             type="button"
                             class="ghost ai-mode-btn"
@@ -334,7 +327,7 @@
                             :disabled="aiTagSuggestionsLoading || saving || deleting"
                             @click="setAiTagSuggestionMode('existing_only')"
                           >
-                            Len existujuce
+                            Len existujúce
                           </button>
                           <button
                             type="button"
@@ -343,7 +336,7 @@
                             :disabled="aiTagSuggestionsLoading || saving || deleting"
                             @click="setAiTagSuggestionMode('allow_new')"
                           >
-                            Aj nove
+                            Aj nové
                           </button>
                         </div>
 
@@ -362,7 +355,7 @@
                             :disabled="!hasSelectedAiTagSuggestions || saving || deleting"
                             @click="applySelectedAiTags"
                           >
-                            Pridat vybrane
+                            Pridať vybrané
                           </button>
                         </div>
 
@@ -378,7 +371,7 @@
                             <div class="ai-tag-copy">
                               <div class="ai-tag-line">
                                 <strong>{{ item.name }}</strong>
-                                <span v-if="item.id === 0" class="ai-tag-badge">Novy tag</span>
+                                <span v-if="item.id === 0" class="ai-tag-badge">Nový tag</span>
                               </div>
                               <p>{{ item.reason }}</p>
                             </div>
@@ -387,13 +380,13 @@
                       </section>
 
                       <label class="field-block">
-                        <span>Publikovat od</span>
+                        <span>Publikovať od</span>
                         <input v-model="form.published_at" type="datetime-local" />
                       </label>
 
                       <div class="meta-actions">
                         <button class="ghost" type="button" :disabled="saving || deleting" @click="setPublishNow">
-                          Nastavit na teraz
+                          Nastaviť na teraz
                         </button>
                         <button
                           class="ghost"
@@ -401,12 +394,12 @@
                           :disabled="saving || deleting || !form.published_at"
                           @click="form.published_at = ''"
                         >
-                          Ponechat ako koncept
+                          Ponechať ako koncept
                         </button>
                       </div>
 
                       <label class="field-block">
-                        <span>Titulny obrazok</span>
+                        <span>Titulný obrázok</span>
                         <input type="file" accept="image/*" @change="onCoverChange" />
                       </label>
 
@@ -421,7 +414,7 @@
                           class="minimal-chip"
                           :class="{ done: item.done, required: item.required && !item.done }"
                         >
-                          {{ item.done ? 'OK' : '-' }} {{ item.label }}
+                          {{ item.done ? '✓' : '✗' }} {{ item.label }}
                         </span>
                       </div>
 
@@ -432,7 +425,7 @@
                         :disabled="saving || deleting"
                         @click="remove"
                       >
-                        {{ deleting ? 'Mazem...' : 'Vymazat clanok' }}
+                        {{ deleting ? 'Mažem...' : 'Vymazať článok' }}
                       </button>
                     </div>
                   </section>

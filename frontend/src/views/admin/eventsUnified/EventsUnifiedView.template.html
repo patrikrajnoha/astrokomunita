@@ -6,37 +6,33 @@
         <p>Kompaktný prehľad publikovaných a manuálnych udalostí.</p>
       </div>
       <div class="toolbar">
-        <button class="btn ghost" :disabled="translationActionLoading" @click="toggleTranslationTools">
-          {{ showTranslationTools ? 'Skryť nástroje' : 'Nástroje prekladu' }}
-        </button>
         <button class="btn primary" @click="openCreate">Nová udalosť</button>
       </div>
     </section>
 
-    <section v-if="showTranslationTools" class="panel toolsPanel">
-      <div class="toolsPanel__head">
-        <div>
-          <h2>Preklad kandidátov</h2>
-          <p>Náhľad alebo spustenie hromadného retranslate pre schválené položky.</p>
-        </div>
-        <div class="toolbar">
+    <details class="panel toolsPanel toolsDetails">
+      <summary class="toolsDetails__summary">
+        <span>Nástroje prekladu</span>
+        <div class="toolbar toolsDetails__toolbar" @click.stop>
           <button class="btn ghost" :disabled="translationActionLoading" @click="previewTranslationBackfill">Náhľad</button>
           <button class="btn ghost" :disabled="translationActionLoading" @click="runTranslationBackfill">Spustiť</button>
         </div>
-      </div>
+      </summary>
 
-      <div v-if="translationError" class="notice noticeError">{{ translationError }}</div>
-      <div v-else-if="translationSummary" class="notice noticeOk noticeCompact">
-        Kandidáti: {{ translationSummary.summary?.total_candidates ?? 0 }} |
-        Preložené: {{ translationSummary.summary?.translated ?? 0 }} |
-        Zlyhalo: {{ translationSummary.summary?.failed ?? 0 }} |
-        Eventy: {{ translationSummary.summary?.events_updated ?? 0 }} |
-        Dry run: {{ translationSummary.summary?.dry_run ? 'áno' : 'nie' }}
+      <div class="toolsDetails__body">
+        <p class="toolsPanel__hint">
+          Retranslate používaj po úpravách slovníka alebo pri zistení prekladových artefaktov.
+        </p>
+        <div v-if="translationError" class="notice noticeError">{{ translationError }}</div>
+        <div v-else-if="translationSummary" class="translationSummary">
+          <span class="translationSummary__item">Kandidáti: {{ translationSummary.summary?.total_candidates ?? 0 }}</span>
+          <span class="translationSummary__item translationSummary__item--ok">✓ {{ translationSummary.summary?.translated ?? 0 }} preložené</span>
+          <span class="translationSummary__item translationSummary__item--err">✕ {{ translationSummary.summary?.failed ?? 0 }} zlyhalo</span>
+          <span class="translationSummary__item">↑ {{ translationSummary.summary?.events_updated ?? 0 }} eventov</span>
+          <span v-if="translationSummary.summary?.dry_run" class="translationSummary__item translationSummary__item--warn">dry run</span>
+        </div>
       </div>
-      <p v-else class="toolsPanel__hint">
-        Retranslate používaj po úpravách slovníka alebo pri zistení prekladových artefaktov.
-      </p>
-    </section>
+    </details>
 
     <BaseModal
       v-model:open="isFormModalOpen"
@@ -46,31 +42,22 @@
       @close="closeForm"
     >
       <section class="formPanel">
-        <div class="formHead">
-          <details class="quickActions" open>
-            <summary class="quickActionsSummary">Rychle akcie</summary>
-            <div class="quickBtns">
-              <button class="btn tiny" type="button" @click="setStartNow">Začiatok teraz</button>
-              <button class="btn tiny" type="button" @click="setEndAfter(1)">Koniec +1h</button>
-              <button class="btn tiny" type="button" @click="setEndAfter(2)">Koniec +2h</button>
-              <button
-                v-if="aiEnabled"
-                class="btn tiny ghost"
-                type="button"
-                @click="showAdvancedAiInForm = !showAdvancedAiInForm"
-              >
-                {{ showAdvancedAiInForm ? 'Skryt AI opis' : 'AI opis' }}
-              </button>
-            </div>
-          </details>
+        <div v-if="aiEnabled" class="quickBtns">
+          <button
+            class="btn tiny ghost"
+            type="button"
+            @click="showAdvancedAiInForm = !showAdvancedAiInForm"
+          >
+            {{ showAdvancedAiInForm ? 'Skryť AI opis' : '✨ AI opis' }}
+          </button>
         </div>
 
       <template v-if="showAdvancedAiInForm">
         <AdminAiActionPanel
           v-if="aiPanelReady"
           class="aiPanelSpacer"
-          title="AI pomocnik"
-          description="Vylepsi opis udalosti bez zobrazenia internych detailov."
+          title="AI pomocník"
+          description="Vylepší opis udalosti bez zobrazenia interných detailov."
           action-label="Vylepšiť opis"
           :enabled="aiPanelEnabled"
           :status="aiActionStatus"
@@ -83,11 +70,11 @@
           @run="runAiGenerateDescription"
         >
           <p v-if="editingEventId <= 0" class="aiHint">
-            Najprv uloz udalost, potom mozes vylepsit opis.
+            Najprv ulož udalosť, potom môžeš vylepšiť opis.
           </p>
           <template v-else>
             <div v-if="aiActionNotice" class="aiNoticeRow">
-              <span class="aiNotice">Opis aktualizovany.</span>
+              <span class="aiNotice">Opis aktualizovaný.</span>
               <button
                 v-if="aiUndoSnapshot"
                 type="button"
@@ -98,7 +85,7 @@
               </button>
             </div>
             <span v-if="aiActionStatus === 'fallback'" class="aiBadge aiBadge--fallback">Použitý fallback</span>
-            <p class="aiHint"><strong>Kratky opis:</strong> {{ aiShortDraft || '-' }}</p>
+            <p class="aiHint"><strong>Krátky opis:</strong> {{ aiShortDraft || '-' }}</p>
             <p class="aiHint"><strong>Opis:</strong> {{ form.description || aiActionResult?.description || '-' }}</p>
           </template>
         </AdminAiActionPanel>
@@ -111,13 +98,22 @@
       <div v-if="formSuccess" class="notice noticeOk">{{ formSuccess }}</div>
 
       <form class="formGrid" @submit.prevent="submitForm">
-        <label class="field fieldWide">
-          <span>Názov *</span>
-          <input v-model="form.title" type="text" :disabled="formLoading" />
-        </label>
+        <div class="field fieldWide">
+          <div class="fieldLabel">
+            <span>Názov *</span>
+          </div>
+          <input
+            v-model="form.title"
+            type="text"
+            :disabled="formLoading"
+            :class="{ fieldInvalid: formSubmitAttempted && !form.title.trim() }"
+            placeholder="Zadaj názov udalosti"
+            autofocus
+          />
+        </div>
 
         <label class="field">
-          <span>Typ *</span>
+          <span>Typ</span>
           <select v-model="form.type" :disabled="formLoading">
             <option v-for="item in eventTypes" :key="item.value" :value="item.value">{{ item.label }}</option>
           </select>
@@ -130,37 +126,52 @@
             <option :value="0">Skryté</option>
           </select>
         </label>
+
         <label class="field fieldWide">
           <span>Ikona</span>
           <div class="iconPickerRow">
             <select v-model="form.icon_emoji" :disabled="formLoading">
-              <option value="">Automaticky podla typu</option>
+              <option value="">Automaticky podľa typu</option>
               <option v-for="item in eventIconOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
             </select>
-            <span class="iconPickerPreview" :title="`Nahlad ikony: ${selectedIconPreview}`">{{ selectedIconPreview }}</span>
+            <span class="iconPickerPreview" :title="`Náhľad ikony: ${selectedIconPreview}`">{{ selectedIconPreview }}</span>
           </div>
         </label>
 
-        <label class="field">
-          <span>Začiatok *</span>
-          <input v-model="form.start_at" type="datetime-local" :disabled="formLoading" />
-        </label>
+        <div class="field">
+          <div class="fieldLabel">
+            <span>Začiatok *</span>
+            <button class="btn tiny ghost" type="button" :disabled="formLoading" @click="setStartNow">teraz</button>
+          </div>
+          <input
+            v-model="form.start_at"
+            type="datetime-local"
+            :disabled="formLoading"
+            :class="{ fieldInvalid: formSubmitAttempted && !form.start_at }"
+          />
+        </div>
 
-        <label class="field">
-          <span>Koniec</span>
+        <div class="field">
+          <div class="fieldLabel">
+            <span>Koniec</span>
+            <div class="fieldLabelActions">
+              <button class="btn tiny ghost" type="button" :disabled="formLoading" @click="setEndAfter(1)">+1h</button>
+              <button class="btn tiny ghost" type="button" :disabled="formLoading" @click="setEndAfter(2)">+2h</button>
+            </div>
+          </div>
           <input v-model="form.end_at" type="datetime-local" :disabled="formLoading" />
-        </label>
+        </div>
 
         <label class="field fieldWide">
           <span>Popis</span>
-          <textarea v-model="form.description" rows="3" :disabled="formLoading"></textarea>
+          <textarea v-model="form.description" rows="3" :disabled="formLoading" placeholder="Voliteľný popis udalosti"></textarea>
         </label>
 
-        <div v-if="formErrors.length > 0" class="fieldWide notice noticeError">{{ formErrors[0] }}</div>
+        <div v-if="formSubmitAttempted && formErrors.length > 0" class="fieldWide notice noticeError">{{ formErrors[0] }}</div>
 
         <div class="formActions fieldWide">
           <button type="button" class="btn ghost" :disabled="formLoading" @click="closeForm">Zrušiť</button>
-          <button type="submit" class="btn primary" :disabled="formLoading || formErrors.length > 0">
+          <button type="submit" class="btn primary" :disabled="formLoading">
             {{ formLoading ? 'Ukladá sa...' : (isEdit ? 'Uložiť zmeny' : 'Vytvoriť') }}
           </button>
         </div>
@@ -182,6 +193,36 @@
             <option :value="50">50</option>
           </select>
         </label>
+      </div>
+
+      <div class="filterBar">
+        <input
+          v-model="searchQ"
+          class="filterBar__input"
+          placeholder="Hľadaj podľa názvu..."
+          :disabled="loading"
+          @keyup.enter="applySearch"
+        />
+        <select
+          class="filterBar__select"
+          :value="filterType"
+          :disabled="loading"
+          @change="applyTypeFilter($event.target.value)"
+        >
+          <option value="">Všetky typy</option>
+          <option v-for="item in eventTypes" :key="item.value" :value="item.value">{{ item.label }}</option>
+        </select>
+        <select
+          class="filterBar__select"
+          :value="filterVisibility"
+          :disabled="loading"
+          @change="applyVisibilityFilter($event.target.value)"
+        >
+          <option value="">Všetky stavy</option>
+          <option value="1">Verejné</option>
+          <option value="0">Skryté</option>
+        </select>
+        <button class="btn ghost filterBar__searchBtn" :disabled="loading" @click="applySearch">Hľadať</button>
       </div>
 
       <div v-if="error" class="notice noticeError">
@@ -212,15 +253,22 @@
                   <div v-if="event.description" class="sub">{{ event.description }}</div>
                 </td>
                 <td class="typeCell">
-                  <span class="pill pillType">{{ eventDisplayIcon(event) }} {{ event.type }}</span>
+                  <span class="pill pillType">{{ eventDisplayIcon(event) }} {{ eventTypeLabel(event.type) }}</span>
                 </td>
                 <td class="dateCell">{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</td>
                 <td>
-                  <span class="pill" :class="event.visibility === 1 ? 'ok' : 'muted'">
+                  <span class="pill" :class="event.visibility === 1 ? 'ok' : 'hidden'">
                     {{ event.visibility === 1 ? 'verejné' : 'skryté' }}
                   </span>
                 </td>
-                <td class="right">
+                <td class="right actionCell">
+                  <button
+                    class="btn tiny ghost"
+                    :title="event.visibility === 1 ? 'Skryť udalosť' : 'Zverejniť udalosť'"
+                    @click="toggleVisibility(event)"
+                  >
+                    {{ event.visibility === 1 ? 'Skryť' : 'Zverejniť' }}
+                  </button>
                   <button class="btn tiny" @click="openEdit(event)">Upraviť</button>
                 </td>
               </tr>
@@ -235,17 +283,24 @@
           <article v-for="event in data.data" :key="`mobile-event-${event.id}`" class="eventMobileCard">
             <div class="eventMobileCard__head">
               <span class="mono">#{{ event.id }}</span>
-              <span class="pill" :class="event.visibility === 1 ? 'ok' : 'muted'">
+              <span class="pill" :class="event.visibility === 1 ? 'ok' : 'hidden'">
                 {{ event.visibility === 1 ? 'verejné' : 'skryté' }}
               </span>
             </div>
             <div class="title">{{ event.title }}</div>
             <div v-if="event.description" class="sub">{{ event.description }}</div>
             <div class="eventMobileCard__meta">
-              <span class="pill">{{ eventDisplayIcon(event) }} {{ event.type }}</span>
+              <span class="pill">{{ eventDisplayIcon(event) }} {{ eventTypeLabel(event.type) }}</span>
               <span>{{ formatDate(event.start_at || event.starts_at || event.max_at) }}</span>
             </div>
             <div class="eventMobileCard__actions">
+              <button
+                class="btn tiny ghost"
+                :title="event.visibility === 1 ? 'Skryť udalosť' : 'Zverejniť udalosť'"
+                @click="toggleVisibility(event)"
+              >
+                {{ event.visibility === 1 ? 'Skryť' : 'Zverejniť' }}
+              </button>
               <button class="btn tiny" @click="openEdit(event)">Upraviť</button>
             </div>
           </article>
@@ -254,8 +309,8 @@
       </div>
 
       <div v-if="pagination" class="pager">
-        <button type="button" class="btn ghost" :disabled="!hasPrevPage" @click="prevPage">Pred</button>
-        <button type="button" class="btn ghost" :disabled="!hasNextPage" @click="nextPage">Ďalšia</button>
+        <button type="button" class="btn ghost" :disabled="!hasPrevPage" @click="prevPage">← Predchádzajúca</button>
+        <button type="button" class="btn ghost" :disabled="!hasNextPage" @click="nextPage">Nasledujúca →</button>
       </div>
     </section>
   </div>

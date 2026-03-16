@@ -16,7 +16,7 @@ export const EVENT_TYPES = {
   METEOR_SHOWER: 'meteor_shower',
   ECLIPSE: 'eclipse',
   COMET: 'comet',
-  PLANETARY: 'planetary',
+  PLANETARY: 'planetary_event',
   AURORA: 'aurora',
   OTHER: 'other'
 };

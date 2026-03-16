@@ -98,15 +98,15 @@
 }
 
 .status-chip.is-danger {
-  color: var(--text-muted);
+  color: var(--color-danger);
 }
 
 .status-chip.is-warning {
-  color: var(--text-muted);
+  color: var(--color-warning);
 }
 
 .status-chip.is-success {
-  color: var(--text-muted);
+  color: var(--color-success);
 }
 
 .error {
@@ -122,14 +122,6 @@
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
   gap: 12px;
   min-height: 72vh;
-}
-
-.simple-layout.focus-grid {
-  grid-template-columns: 1fr;
-}
-
-.simple-layout.focus-grid .list {
-  display: none;
 }
 
 .panel {
@@ -224,6 +216,18 @@
   letter-spacing: 0.01em;
 }
 
+.card-status--published {
+  border-color: rgb(var(--color-success-rgb) / 0.45);
+  background: rgb(var(--color-success-rgb) / 0.1);
+  color: var(--color-success);
+}
+
+.card-status--scheduled {
+  border-color: rgb(var(--color-warning-rgb) / 0.45);
+  background: rgb(var(--color-warning-rgb) / 0.1);
+  color: var(--color-warning);
+}
+
 .card-stats {
   display: flex;
   flex-wrap: wrap;
@@ -300,6 +304,13 @@
   gap: 8px;
 }
 
+.editor-topbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .editor-topbar.with-modal-close {
   padding-right: 56px;
 }
@@ -332,7 +343,15 @@
   min-height: 22px;
   font-size: 12px;
   font-weight: 500;
-  color: rgb(var(--color-surface-rgb) / 0.82);
+  color: var(--text-muted);
+}
+
+.save-state.is-dirty {
+  color: var(--color-warning);
+}
+
+.save-state.is-saved {
+  color: var(--color-success);
 }
 
 .editor-date {
@@ -341,8 +360,23 @@
 
 .editor-actions {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.editor-actions__secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.editor-actions__primary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
 }
 
 .settings-toggle.active {
@@ -358,7 +392,17 @@
 }
 
 .editor-empty {
-  display: none;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor-empty-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 .editor-body {
@@ -861,13 +905,21 @@ summary:focus-visible {
   }
 
   .editor-actions,
+  .editor-actions__secondary,
+  .editor-actions__primary,
   .meta-actions,
   .ai-tags-actions {
     display: grid;
     grid-template-columns: 1fr;
   }
 
+  .editor-actions__primary {
+    margin-left: 0;
+  }
+
   .editor-actions > *,
+  .editor-actions__secondary > *,
+  .editor-actions__primary > *,
   .meta-actions > *,
   .ai-tags-actions > * {
     width: 100%;

@@ -28,7 +28,6 @@ const {
   hasSelectedAiTagSuggestions,
   isDirty,
   isEditing,
-  isFocusActive,
   listDensity,
   loading,
   load,
@@ -54,6 +53,7 @@ const {
   remove,
   save,
   saveCoverOnly,
+  saveStateClass,
   saveStateLabel,
   saving,
   selectedId,
@@ -73,7 +73,7 @@ const {
   tagsInput,
   titleLength,
   titleSlugPreview,
-  toggleFocusMode,
+  unpublish,
 } = useAdminBlogPostsEditor();
 
 const isCreateModalOpen = ref(false);
@@ -84,14 +84,14 @@ const isEditorModalOpen = computed(
 );
 
 async function openCreateModal() {
-  const started = await startNewPost(false, false);
+  const started = await startNewPost(false);
   if (!started) return;
   isPostModalOpen.value = false;
   isCreateModalOpen.value = true;
 }
 
 async function closeCreateModal() {
-  const closed = await startNewPost(false, false);
+  const closed = await startNewPost(false);
   if (!closed) return;
   isCreateModalOpen.value = false;
   isPostModalOpen.value = false;
@@ -113,7 +113,7 @@ async function openPostModal(post) {
 }
 
 async function closePostModal() {
-  const closed = await startNewPost(false, false);
+  const closed = await startNewPost(false);
   if (!closed) return;
   isPostModalOpen.value = false;
   isSettingsModalOpen.value = false;

@@ -99,8 +99,64 @@
   opacity: 0.78;
 }
 
-.contextToggleRow {
-  margin-top: 8px;
+.observationDetails,
+.duplicatesDetails {
+  margin-top: 4px;
+}
+
+.observationDetails__summary,
+.duplicatesDetails__summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.observationDetails__summary::-webkit-details-marker,
+.duplicatesDetails__summary::-webkit-details-marker {
+  display: none;
+}
+
+.observationDetails .timeContextBar {
+  margin-top: 6px;
+}
+
+.duplicatesDetails > :not(summary) {
+  margin-top: 6px;
+}
+
+.toolbarDetails {
+  position: relative;
+}
+
+.toolbarDetails > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.toolbarDetails > summary::-webkit-details-marker {
+  display: none;
+}
+
+.toolbarDetails__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  min-width: 220px;
+  background: rgb(var(--color-bg-rgb) / 0.98);
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 10px;
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
+}
+
+.toolbarSelect--full,
+.toolbarButton--full {
+  width: 100%;
 }
 
 .runFilterBar {

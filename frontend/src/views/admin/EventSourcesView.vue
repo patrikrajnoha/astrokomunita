@@ -105,6 +105,16 @@ const enabledSourcesCount = computed(() => sources.value.filter((source) => Bool
 const supportedSourcesCount = computed(() => sources.value.filter((source) => Boolean(source?.manual_run_supported)).length)
 const selectedSourcesCount = computed(() => selectedKeys.value.length)
 const canClearSelection = computed(() => selectedKeys.value.length > 0 && !runningSelected.value)
+const allSelectableKeys = computed(() =>
+  sources.value
+    .filter((source) => !isSourceCheckboxDisabled(source))
+    .map((source) => source.key),
+)
+const isAllSelected = computed(
+  () =>
+    allSelectableKeys.value.length > 0 &&
+    allSelectableKeys.value.every((key) => selectedKeys.value.includes(key)),
+)
 const filteredSources = computed(() => {
   if (sourceFilter.value === 'selected') {
     const selectedSet = new Set(selectedKeys.value.map((key) => normalizeSourceKey(key)))
@@ -248,6 +258,15 @@ function rowRunDisabledReason(source) {
 function clearSelectedSources() {
   if (!canClearSelection.value) return
   selectedKeys.value = []
+}
+
+function toggleSelectAll() {
+  if (runningSelected.value) return
+  if (isAllSelected.value) {
+    selectedKeys.value = []
+  } else {
+    selectedKeys.value = [...allSelectableKeys.value]
+  }
 }
 
 function beginOperation() {

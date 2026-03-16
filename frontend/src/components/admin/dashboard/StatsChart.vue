@@ -6,6 +6,11 @@ const props = defineProps({
   metricKey: { type: String, default: 'new_posts' },
 })
 
+const PLOT_HEIGHT = 124
+const PLOT_TOP_PADDING = 10
+const PLOT_BOTTOM_PADDING = 12
+const POINT_STEP = 100
+
 const numberFormatter = new Intl.NumberFormat('sk-SK')
 const dateFormatter = new Intl.DateTimeFormat('sk-SK', {
   day: '2-digit',
@@ -14,8 +19,10 @@ const dateFormatter = new Intl.DateTimeFormat('sk-SK', {
 
 const normalized = computed(() => {
   const safe = Array.isArray(props.points) ? props.points : []
+
   return safe.map((point) => {
     const value = Number(point?.[props.metricKey] || 0)
+
     return {
       date: String(point?.date || ''),
       value: Number.isFinite(value) ? value : 0,
@@ -25,12 +32,13 @@ const normalized = computed(() => {
 
 const displayed = computed(() => {
   const safe = normalized.value
-  const maxBars = 12
-  if (safe.length <= maxBars) return safe
+  const maxPoints = 12
+  if (safe.length <= maxPoints) return safe
 
-  const step = Math.ceil(safe.length / maxBars)
+  const step = Math.ceil(safe.length / maxPoints)
   const sampled = safe.filter((_, index) => index % step === 0)
   const last = safe[safe.length - 1]
+
   if (sampled[sampled.length - 1]?.date !== last?.date) {
     sampled.push(last)
   }
@@ -41,18 +49,71 @@ const displayed = computed(() => {
 const labelStep = computed(() => {
   const count = displayed.value.length
   if (count <= 4) return 1
+
   return Math.ceil(count / 4)
 })
 
 const maxValue = computed(() => {
   const all = displayed.value.map((point) => point.value)
   const max = Math.max(0, ...all)
+
   return max > 0 ? max : 1
 })
 
 const yTicks = computed(() => {
   const values = [maxValue.value, Math.round(maxValue.value / 2), 0]
+
   return values.filter((tick, index) => values.indexOf(tick) === index)
+})
+
+const viewBoxWidth = computed(() => {
+  if (displayed.value.length <= 1) {
+    return POINT_STEP
+  }
+
+  return (displayed.value.length - 1) * POINT_STEP
+})
+
+const plotInnerHeight = computed(() => {
+  return PLOT_HEIGHT - PLOT_TOP_PADDING - PLOT_BOTTOM_PADDING
+})
+
+const plottedPoints = computed(() => {
+  const safe = displayed.value
+  if (!safe.length) return []
+
+  const width = viewBoxWidth.value
+  const maxIndex = Math.max(1, safe.length - 1)
+
+  return safe.map((point, index) => {
+    const x = safe.length === 1 ? width / 2 : (width / maxIndex) * index
+    const ratio = Math.max(0, Math.min(1, point.value / maxValue.value))
+    const y = PLOT_TOP_PADDING + (1 - ratio) * plotInnerHeight.value
+
+    return {
+      ...point,
+      x,
+      y,
+    }
+  })
+})
+
+const linePath = computed(() => {
+  if (!plottedPoints.value.length) return ''
+
+  return plottedPoints.value
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ')
+})
+
+const areaPath = computed(() => {
+  if (!plottedPoints.value.length) return ''
+
+  const first = plottedPoints.value[0]
+  const last = plottedPoints.value[plottedPoints.value.length - 1]
+  const baselineY = PLOT_HEIGHT - PLOT_BOTTOM_PADDING
+
+  return `${linePath.value} L ${last.x} ${baselineY} L ${first.x} ${baselineY} Z`
 })
 
 function formatValue(value) {
@@ -83,30 +144,54 @@ function formatTooltip(point) {
 function shouldShowLabel(index) {
   if (!Number.isFinite(index)) return false
   if (index === 0 || index === displayed.value.length - 1) return true
+
   return index % labelStep.value === 0
 }
 </script>
 
 <template>
   <div class="chartRoot" role="img" aria-label="Graf trendu">
-    <div v-if="!displayed.length" class="chartEmpty">Trend nie je dostupný.</div>
+    <div v-if="!displayed.length" class="chartEmpty">Trend nie je dostupny.</div>
     <div v-else class="chartGrid">
       <div class="yAxis">
         <span v-for="tick in yTicks" :key="`tick-${tick}`" class="yTick">{{
           formatValue(tick)
         }}</span>
       </div>
-      <div
-        class="bars"
-        :style="{ gridTemplateColumns: `repeat(${displayed.length}, minmax(0, 1fr))` }"
-      >
-        <div v-for="(point, index) in displayed" :key="point.date" class="barWrap">
-          <div
-            class="bar"
-            :style="{ height: `${Math.max(6, (point.value / maxValue) * 100)}%` }"
-            :title="formatTooltip(point)"
-          ></div>
-          <div class="xLabel">{{ shouldShowLabel(index) ? formatShortDate(point.date) : '' }}</div>
+
+      <div class="plotColumn">
+        <div class="plotArea">
+          <svg
+            class="chartSvg"
+            :viewBox="`0 0 ${viewBoxWidth} ${PLOT_HEIGHT}`"
+            preserveAspectRatio="none"
+          >
+            <path v-if="plottedPoints.length > 1" class="chartArea" :d="areaPath" />
+            <path
+              v-if="plottedPoints.length > 1"
+              class="chartLine"
+              :d="linePath"
+            />
+            <circle
+              v-for="point in plottedPoints"
+              :key="`point-${point.date}`"
+              class="chartPoint"
+              :cx="point.x"
+              :cy="point.y"
+              r="4"
+            >
+              <title>{{ formatTooltip(point) }}</title>
+            </circle>
+          </svg>
+        </div>
+
+        <div
+          class="xAxis"
+          :style="{ gridTemplateColumns: `repeat(${displayed.length}, minmax(0, 1fr))` }"
+        >
+          <div v-for="(point, index) in displayed" :key="point.date" class="xLabel">
+            {{ shouldShowLabel(index) ? formatShortDate(point.date) : '' }}
+          </div>
         </div>
       </div>
     </div>
@@ -128,13 +213,13 @@ function shouldShowLabel(index) {
 .chartGrid {
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr);
-  gap: 5px;
-  align-items: stretch;
+  gap: 6px;
+  align-items: start;
   min-width: 0;
 }
 
 .yAxis {
-  min-height: 108px;
+  height: 124px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -147,31 +232,51 @@ function shouldShowLabel(index) {
   font-variant-numeric: tabular-nums;
 }
 
-.bars {
-  min-height: 108px;
+.plotColumn {
   display: grid;
   gap: 5px;
-  align-items: end;
-  padding-top: 4px;
-  background-image: linear-gradient(
-    to top,
-    var(--divider-color) 1px,
-    transparent 1px
-  );
-  background-size: 100% 33.33%;
+  min-width: 0;
+}
+
+.plotArea {
+  position: relative;
+  height: 124px;
+  min-width: 0;
   border-bottom: 1px solid var(--divider-color);
+  background-image: linear-gradient(to top, var(--divider-color) 1px, transparent 1px);
+  background-size: 100% 33.33%;
+  overflow: hidden;
 }
 
-.barWrap {
-  display: grid;
-  gap: 3px;
-  align-items: end;
-}
-
-.bar {
+.chartSvg {
   width: 100%;
-  border-radius: 999px 999px 2px 2px;
-  background: rgb(var(--color-primary-rgb) / 0.78);
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.chartArea {
+  fill: rgb(var(--color-primary-rgb) / 0.14);
+}
+
+.chartLine {
+  fill: none;
+  stroke: rgb(var(--color-primary-rgb) / 0.95);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chartPoint {
+  fill: rgb(var(--color-bg-rgb));
+  stroke: rgb(var(--color-primary-rgb) / 1);
+  stroke-width: 2.5;
+}
+
+.xAxis {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
 }
 
 .xLabel {

@@ -52,44 +52,38 @@
         </div>
       </div>
 
-      <div class="contextToggleRow">
-        <button
-          type="button"
-          class="toolbarButton toolbarButton--ghost"
-          :disabled="loading"
-          @click="showObservationContext = !showObservationContext"
-        >
-          {{ showObservationContext ? 'Skryt podmienky pozorovania' : 'Zobrazit podmienky pozorovania' }}
-        </button>
-      </div>
-
-      <div v-if="showObservationContext" class="timeContextBar">
-        <div class="timeContextBar__item">
-          <span>Casove pasmo</span>
-          <strong>{{ timezoneInfoLabel }}</strong>
+      <details class="observationDetails">
+        <summary class="toolbarButton toolbarButton--ghost observationDetails__summary">
+          Podmienky pozorovania
+        </summary>
+        <div class="timeContextBar">
+          <div class="timeContextBar__item">
+            <span>Časové pásmo</span>
+            <strong>{{ timezoneInfoLabel }}</strong>
+          </div>
+          <div class="timeContextBar__item">
+            <span>Západ slnka</span>
+            <strong>
+              {{ astronomyContextAvailable ? formatAstronomyTime(astronomyContext?.sunset_at) : "-" }}
+            </strong>
+          </div>
+          <div class="timeContextBar__item">
+            <span>Koniec ob. súmraku</span>
+            <strong>
+              {{ astronomyContextAvailable ? formatAstronomyTime(astronomyContext?.civil_twilight_end_at) : "-" }}
+            </strong>
+          </div>
+          <div class="timeContextBar__item">
+            <span>Fáza Mesiaca</span>
+            <strong>
+              {{ astronomyContextAvailable ? moonPhaseLabel(astronomyContext?.moon_phase) : "-" }}
+            </strong>
+          </div>
+          <div v-if="astronomyContextLoading" class="timeContextBar__loading">
+            Načítavam astronomický kontext...
+          </div>
         </div>
-        <div class="timeContextBar__item">
-          <span>Zapad slnka</span>
-          <strong>
-            {{ astronomyContextAvailable ? formatAstronomyTime(astronomyContext?.sunset_at) : "-" }}
-          </strong>
-        </div>
-        <div class="timeContextBar__item">
-          <span>Koniec obcianskeho sumraku</span>
-          <strong>
-            {{ astronomyContextAvailable ? formatAstronomyTime(astronomyContext?.civil_twilight_end_at) : "-" }}
-          </strong>
-        </div>
-        <div class="timeContextBar__item">
-          <span>Faza Mesiaca</span>
-          <strong>
-            {{ astronomyContextAvailable ? moonPhaseLabel(astronomyContext?.moon_phase) : "-" }}
-          </strong>
-        </div>
-        <div v-if="astronomyContextLoading" class="timeContextBar__loading">
-          Nacitavam astronomicky kontext...
-        </div>
-      </div>
+      </details>
 
       <div v-if="runFilter" class="runFilterBar">
         <span class="runFilterChip">
@@ -133,52 +127,58 @@
 
       <div class="uxActionBar">
         <div class="uxActionBar__group">
-          <select v-model="publishMode" :disabled="loading" class="toolbarSelect">
-            <option value="crawled">Publikovat: Crawlovane</option>
-            <option value="manual">Publikovat: Manualne</option>
-            <option value="all">Publikovat: Oboje</option>
-          </select>
-          <button @click="publishBySelectedMode" :disabled="loading" class="toolbarButton toolbarButton--success">
-            Publikovat mode
+          <button
+            @click="publishAllVisiblePending"
+            :disabled="loading || visiblePendingCandidateIds.length === 0"
+            class="toolbarButton toolbarButton--success"
+            title="Publikuje všetky pending kandidáty viditeľné na tejto strane"
+          >
+            Publikovať viditeľné
           </button>
-          <button @click="publishAllByFilter" :disabled="loading" class="toolbarButton toolbarButton--success">
-            Publikovat filter
+          <button
+            @click="publishAllByFilter"
+            :disabled="loading"
+            class="toolbarButton toolbarButton--success"
+            title="Publikuje všetky pending kandidáty zodpovedajúce aktuálnemu filtru (aj na ďalších stranách)"
+          >
+            Publikovať podľa filtra
           </button>
-          <button @click="publishAllVisiblePending" :disabled="loading || visiblePendingCandidateIds.length === 0" class="toolbarButton toolbarButton--success">
-            Publikovat viditelne
-          </button>
+          <details class="toolbarDetails">
+            <summary class="toolbarButton toolbarButton--ghost">Ďalšie publikovanie ▾</summary>
+            <div class="toolbarDetails__menu">
+              <select v-model="publishMode" :disabled="loading" class="toolbarSelect toolbarSelect--full">
+                <option value="crawled">Iba crawlované</option>
+                <option value="manual">Iba manuálne</option>
+                <option value="all">Crawlované aj manuálne</option>
+              </select>
+              <button @click="publishBySelectedMode" :disabled="loading" class="toolbarButton toolbarButton--success toolbarButton--full">
+                Publikovať podľa módu
+              </button>
+            </div>
+          </details>
         </div>
         <div class="uxActionBar__group">
-          <button @click="retranslateByFilter" :disabled="loading" class="toolbarButton toolbarButton--primary">
-            Retr. filter
+          <button
+            @click="retranslateVisiblePending"
+            :disabled="loading || visiblePendingCandidateIds.length === 0"
+            class="toolbarButton toolbarButton--primary"
+            title="Spustí preklad pre viditeľné pending kandidáty"
+          >
+            Preložiť viditeľné
           </button>
-          <button @click="retranslateVisiblePending" :disabled="loading || visiblePendingCandidateIds.length === 0" class="toolbarButton toolbarButton--primary">
-            Retr. viditelne
+          <button
+            @click="retranslateByFilter"
+            :disabled="loading"
+            class="toolbarButton toolbarButton--primary"
+            title="Spustí preklad pre všetkých kandidátov zodpovedajúcich filtru"
+          >
+            Preložiť podľa filtra
           </button>
-          <button @click="clearFilters" :disabled="loading" class="toolbarButton toolbarButton--ghost">
-            Reset
+          <button @click="clearFilters" :disabled="loading" class="toolbarButton toolbarButton--ghost" title="Resetuje všetky filtre">
+            Resetovať filtre
           </button>
         </div>
       </div>
-
-      <CandidateDuplicatesPanel
-        :loading="loading"
-        :duplicate-loading="duplicateLoading"
-        :duplicate-merging="duplicateMerging"
-        :duplicate-dry-running="duplicateDryRunning"
-        :can-merge-duplicates="canMergeDuplicates"
-        :group-limit="duplicateGroupLimit"
-        :per-group="duplicatePerGroup"
-        :duplicate-summary="duplicateSummary"
-        :duplicate-groups="duplicateGroups"
-        :source-label="sourceLabel"
-        :format-date="formatDate"
-        @change-group-limit="duplicateGroupLimit = $event"
-        @change-per-group="duplicatePerGroup = $event"
-        @refresh="loadDuplicatePreview"
-        @dry-run="dryRunDuplicateMerge"
-        @merge="mergeDuplicateGroups"
-      />
 
       <div v-if="publishProgressActive" class="publishProgress">
         <div class="publishProgress__meta">
@@ -229,6 +229,30 @@
         @prev-page="prevPage"
         @next-page="nextPage"
       />
+
+      <details class="duplicatesDetails">
+        <summary class="toolbarButton toolbarButton--ghost duplicatesDetails__summary">
+          Správa duplikátov
+        </summary>
+        <CandidateDuplicatesPanel
+          :loading="loading"
+          :duplicate-loading="duplicateLoading"
+          :duplicate-merging="duplicateMerging"
+          :duplicate-dry-running="duplicateDryRunning"
+          :can-merge-duplicates="canMergeDuplicates"
+          :group-limit="duplicateGroupLimit"
+          :per-group="duplicatePerGroup"
+          :duplicate-summary="duplicateSummary"
+          :duplicate-groups="duplicateGroups"
+          :source-label="sourceLabel"
+          :format-date="formatDate"
+          @change-group-limit="duplicateGroupLimit = $event"
+          @change-per-group="duplicatePerGroup = $event"
+          @refresh="loadDuplicatePreview"
+          @dry-run="dryRunDuplicateMerge"
+          @merge="mergeDuplicateGroups"
+        />
+      </details>
 
       <BaseModal
         v-model:open="candidateDetailOpen"

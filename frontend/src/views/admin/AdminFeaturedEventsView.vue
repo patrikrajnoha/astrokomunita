@@ -22,6 +22,12 @@ const applyingFallback = ref(false)
 const refreshingFallback = ref(false)
 const error = ref('')
 const success = ref('')
+let successTimer = null
+function showSuccess(msg) {
+  success.value = msg
+  clearTimeout(successTimer)
+  successTimer = setTimeout(() => { success.value = '' }, 3000)
+}
 const featured = ref([])
 const fallbackPreview = ref([])
 const resolvedEvents = ref([])
@@ -36,6 +42,12 @@ const previewOpen = ref(false)
 
 const activeCount = computed(() => featured.value.filter((item) => item.is_active).length)
 const canAdd = computed(() => Number(selectedEventId.value) > 0 && !saving.value)
+const counterClass = computed(() => {
+  const ratio = activeCount.value / maxItems.value
+  if (ratio >= 1) return 'counter--full'
+  if (ratio >= 0.7) return 'counter--warn'
+  return 'counter--ok'
+})
 const modeBadgeText = computed(() => {
   return selectionMode.value === 'admin' ? 'Používa sa: Admin výber' : 'Používa sa: Auto fallback'
 })
@@ -102,7 +114,7 @@ async function addFeaturedEvent() {
     })
 
     selectedEventId.value = ''
-    success.value = 'Event bol pridaný do popup zoznamu.'
+    showSuccess('Udalosť bola pridaná do popup zoznamu.')
     await load()
   } catch (fetchError) {
     error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa pridať udalosť do výberu.'
@@ -143,10 +155,10 @@ async function toggleActive(item, checked) {
 
 async function removeItem(item) {
   const approved = await confirm({
-    title: 'Odstranit vybranu udalost?',
-    message: 'Udalost bude odstranena z popup zoznamu pre zvoleny mesiac.',
-    confirmText: 'Odstranit udalost',
-    cancelText: 'Zrusit',
+    title: 'Odstrániť vybranú udalosť?',
+    message: 'Udalosť bude odstránená z popup zoznamu pre zvolený mesiac.',
+    confirmText: 'Odstrániť udalosť',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
 
@@ -175,7 +187,7 @@ async function forceNow() {
       force_version: Number(response?.data?.force_version || settings.value.force_version),
       force_at: response?.data?.force_at || settings.value.force_at,
     }
-    success.value = 'Popup bol naplánovaný pre všetkých používateľov.'
+    showSuccess('Popup bol naplánovaný pre všetkých používateľov.')
   } catch (fetchError) {
     error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa vynútiť popup.'
   } finally {
@@ -200,7 +212,7 @@ async function useFallbackAsFeatured() {
 
   try {
     await applyFallbackAsFeatured({ month: selectedMonth.value })
-    success.value = 'Fallback výber bol uložený ako admin výber pre zvolený mesiac.'
+    showSuccess('Fallback výber bol uložený ako admin výber pre zvolený mesiac.')
     await load({ refreshFallback: true })
   } catch (fetchError) {
     error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa použiť fallback ako admin výber.'

@@ -1,3 +1,5 @@
+import { AVATAR_ICON_LABELS } from '@/constants/avatar'
+
 export function statusLabel(userRow) {
   if (!userRow?.is_active) return 'deaktivovany'
   if (userRow?.is_banned) return 'zablokovany'
@@ -49,15 +51,7 @@ export function formatDate(value) {
 }
 
 export function formatIconLabel(iconKey) {
-  const map = {
-    planet: 'Planeta',
-    star: 'Hviezda',
-    comet: 'Kometa',
-    constellation: 'Suhvezdie',
-    moon: 'Mesiac',
-  }
-
-  return map[iconKey] || iconKey
+  return AVATAR_ICON_LABELS[iconKey] || iconKey
 }
 
 export function resolveMediaErrorMessage(error, fallback = 'Aktualizacia media zlyhala.') {

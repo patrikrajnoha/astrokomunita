@@ -120,6 +120,7 @@ function candidateTypeLabel(value) {
   if (key === 'eclipse_lunar') return 'Zatmenie Mesiaca'
   if (key === 'eclipse_solar') return 'Zatmenie Slnka'
   if (key === 'planetary_event') return 'Planetárny úkaz'
+  if (key === 'aurora') return 'Polarna ziara'
   if (key === 'other') return 'Iná udalosť'
   if (key === '') return '-'
   return key.replaceAll('_', ' ')

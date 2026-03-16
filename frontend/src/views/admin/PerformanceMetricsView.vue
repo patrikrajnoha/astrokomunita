@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import { getMetrics, runMetrics } from '@/services/performance'
+import { getBotSources } from '@/services/api/admin/bots'
 import { useToast } from '@/composables/useToast'
 import { createDictionaryTranslator } from '@/i18n/dictionary'
 import { performanceMetricsMessages } from '@/i18n/adminPerformanceMetrics.messages'
@@ -19,12 +20,9 @@ const running = ref(false)
 const errorMessage = ref('')
 const metrics = ref({ logs: [], last_run_per_key: [], trend: [] })
 const selectedLog = ref(null)
-const lastRunResult = ref(null)
 const fieldErrors = ref({})
-const confirmLoadImpact = ref(false)
 const tableLimit = ref(10)
-const sortBy = ref('created_at')
-const sortDirection = ref('desc')
+const sortOrder = ref('created_at_desc')
 
 const form = ref({
   run: 'all',
@@ -38,9 +36,7 @@ const localeTag = computed(() => {
   return String(locale).toLowerCase() === 'sk' ? 'sk-SK' : locale
 })
 
-const botSources = [
-  { value: 'nasa_rss_breaking', label: 'nasa_rss_breaking' },
-]
+const botSources = ref([])
 
 const runOptions = computed(() => [
   { value: 'all', label: t('form.runType.options.all') },
@@ -54,15 +50,13 @@ const modeOptions = computed(() => [
   { value: 'no_cache', label: t('form.mode.options.no_cache') },
 ])
 
-const sortByOptions = computed(() => [
-  { value: 'created_at', label: t('form.sortBy.options.created_at') },
-  { value: 'avg_ms', label: t('form.sortBy.options.avg_ms') },
-  { value: 'p95_ms', label: t('form.sortBy.options.p95_ms') },
-])
-
-const sortDirectionOptions = computed(() => [
-  { value: 'desc', label: t('form.sortDirection.desc') },
-  { value: 'asc', label: t('form.sortDirection.asc') },
+const sortOrderOptions = computed(() => [
+  { value: 'created_at_desc', label: t('form.sortOrder.options.created_at_desc') },
+  { value: 'created_at_asc', label: t('form.sortOrder.options.created_at_asc') },
+  { value: 'avg_ms_asc', label: t('form.sortOrder.options.avg_ms_asc') },
+  { value: 'avg_ms_desc', label: t('form.sortOrder.options.avg_ms_desc') },
+  { value: 'p95_ms_asc', label: t('form.sortOrder.options.p95_ms_asc') },
+  { value: 'p95_ms_desc', label: t('form.sortOrder.options.p95_ms_desc') },
 ])
 
 const limitOptions = [10, 25, 50]
@@ -80,8 +74,9 @@ const allLogs = computed(() => (Array.isArray(metrics.value?.logs) ? metrics.val
 
 const sortedLogs = computed(() => {
   const rows = [...allLogs.value]
-  const field = sortBy.value
-  const direction = sortDirection.value === 'asc' ? 1 : -1
+  const lastUnderscore = sortOrder.value.lastIndexOf('_')
+  const field = sortOrder.value.slice(0, lastUnderscore)
+  const direction = sortOrder.value.slice(lastUnderscore + 1) === 'asc' ? 1 : -1
 
   return rows.sort((a, b) => {
     const left = normalizeSortValue(a, field)
@@ -102,7 +97,7 @@ const resultsSummary = computed(() => {
   const total = allLogs.value.length
   if (total <= 0) return t('cards.resultsMetaEmpty')
 
-  const newest = sortedLogs.value[0]
+  const newest = [...allLogs.value].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
   const latest = newest?.created_at ? formatDate(newest.created_at) : t('common.na')
   return t('cards.resultsMeta', { count: total, latest })
 })
@@ -117,12 +112,10 @@ const safeSampleSize = computed(() => {
 
 const runButtonLabel = computed(() => {
   if (running.value) return t('actions.running')
-  return t('actions.runBenchmark', {
-    count: safeSampleSize.value,
-  })
+  return t('actions.runBenchmark')
 })
 
-const runButtonDisabled = computed(() => running.value || !confirmLoadImpact.value)
+const runButtonDisabled = computed(() => running.value)
 
 const selectedLogDetail = computed(() => {
   if (!selectedLog.value) return null
@@ -406,7 +399,7 @@ async function runBenchmark() {
       bot_source: form.value.bot_source,
     }
 
-    lastRunResult.value = await runMetrics(payload)
+    await runMetrics(payload)
     toast.success(t('messages.runSuccess'))
     await loadMetrics()
   } catch (e) {
@@ -417,7 +410,21 @@ async function runBenchmark() {
   }
 }
 
+async function loadBotSources() {
+  try {
+    const response = await getBotSources()
+    const sources = Array.isArray(response?.data?.data) ? response.data.data : []
+    botSources.value = sources.map((s) => ({ value: s.key, label: s.key }))
+    if (botSources.value.length > 0 && !botSources.value.some((s) => s.value === form.value.bot_source)) {
+      form.value.bot_source = botSources.value[0].value
+    }
+  } catch {
+    // fallback — ponechaj prázdne pole, používateľ môže zadať manuálne
+  }
+}
+
 onMounted(() => {
+  loadBotSources()
   loadMetrics()
 })
 </script>

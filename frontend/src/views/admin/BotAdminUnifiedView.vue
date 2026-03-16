@@ -26,36 +26,31 @@ const overview = ref({
 const tabs = Object.freeze([
   {
     key: 'overview',
-    label: 'Prehlad',
-    subtitle: 'Rychly prehlad stavu bot pipeline.',
+    label: 'Prehľad',
     routeNames: ['admin.bots'],
     component: BotEngineDashboardView,
   },
   {
     key: 'sources',
     label: 'Zdroje',
-    subtitle: 'Zdravie zdrojov, cooldown a recovery.',
     routeNames: ['admin.bots.sources'],
     component: BotSourcesHealthView,
   },
   {
     key: 'schedules',
-    label: 'Plany',
-    subtitle: 'Intervaly behov a planovanie automatizacie.',
+    label: 'Plány',
     routeNames: ['admin.bots.schedules'],
     component: BotSchedulesView,
   },
   {
     key: 'engine',
     label: 'Modul',
-    subtitle: 'Run control, preklady a publish workflow.',
     routeNames: ['admin.bots.engine'],
     component: BotEngineView,
   },
   {
     key: 'activity',
     label: 'Aktivita',
-    subtitle: 'Audit a chronologia behov/publish akcii.',
     routeNames: ['admin.bots.activity'],
     component: BotActivityView,
   },
@@ -74,7 +69,7 @@ const systemStatus = computed(() => {
   const failing = Number(overall.value.failing_sources || 0)
   if (dead > 0) {
     return {
-      label: 'Kriticky',
+      label: 'Kritický',
       className: 'statusBadge statusBadge--danger',
     }
   }
@@ -93,7 +88,7 @@ const systemStatus = computed(() => {
 })
 
 const overviewMetaLine = computed(() => {
-  return `Stav ${systemStatus.value.label} | aktualizovane ${formatDateTime(overview.value?.generated_at)}`
+  return `Aktualizované ${formatDateTime(overview.value?.generated_at)}`
 })
 
 function formatDateTime(value) {
@@ -111,7 +106,7 @@ async function loadOverview() {
     const response = await getBotOverview()
     overview.value = response?.data || overview.value
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nacitanie bot overview zlyhalo.'
+    error.value = e?.response?.data?.message || 'Načítanie prehľadu botov zlyhalo.'
   } finally {
     loading.value = false
   }
@@ -123,14 +118,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <AdminPageShell title="Sprava botov" subtitle="Jednotne riadenie bot pipeline, zdrojov a behov.">
+  <AdminPageShell title="Správa botov" subtitle="Riadenie bot pipeline, zdrojov a behov.">
     <template #right-actions>
       <button class="actionBtn" type="button" :disabled="loading" @click="loadOverview">
-        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+        {{ loading ? 'Načítavam…' : 'Obnoviť' }}
       </button>
-      <RouterLink v-if="activeTab.key !== 'activity'" class="ghostBtn" :to="{ name: 'admin.bots.activity' }">
-        Aktivita
-      </RouterLink>
     </template>
 
     <section class="metaBar">
@@ -140,27 +132,27 @@ onMounted(() => {
 
     <section class="summaryWrap">
       <article class="summaryCard">
-        <p class="summaryLabel">Aktivne zdroje</p>
+        <p class="summaryLabel">Aktívne zdroje</p>
         <p class="summaryValue">{{ Number(overall.active_sources || 0) }}</p>
       </article>
 
       <article class="summaryCard">
-        <p class="summaryLabel">Chybove zdroje</p>
+        <p class="summaryLabel">Chybové zdroje</p>
         <p class="summaryValue">{{ Number(overall.failing_sources || 0) }}</p>
       </article>
 
       <article class="summaryCard">
-        <p class="summaryLabel">Neaktivne zdroje</p>
+        <p class="summaryLabel">Neaktívne zdroje</p>
         <p class="summaryValue">{{ Number(overall.dead_sources || 0) }}</p>
       </article>
 
       <article class="summaryCard">
-        <p class="summaryLabel">Cooldown skipy (24h)</p>
+        <p class="summaryLabel">Preskočenia cooldownu (24h)</p>
         <p class="summaryValue">{{ Number(overall.cooldown_skips_24h || 0) }}</p>
       </article>
 
       <article class="summaryCard">
-        <p class="summaryLabel">Spravovane boty</p>
+        <p class="summaryLabel">Spravované boty</p>
         <p class="summaryValue">{{ botsCount }}</p>
       </article>
     </section>
@@ -180,8 +172,6 @@ onMounted(() => {
           {{ tab.label }}
         </RouterLink>
       </nav>
-
-      <p class="activeModeHint">{{ activeTab.subtitle }}</p>
     </section>
 
     <div class="botWorkspace">
@@ -303,11 +293,6 @@ onMounted(() => {
   color: rgb(var(--color-surface-rgb) / 0.98);
 }
 
-.activeModeHint {
-  margin: 0;
-  font-size: 0.75rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-}
 
 .actionBtn,
 .ghostBtn {

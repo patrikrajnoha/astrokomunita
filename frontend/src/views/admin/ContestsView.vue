@@ -11,6 +11,9 @@ const copiedPostId = ref(null)
 let debounceTimer = null
 let copiedTimer = null
 
+const HASHTAG_PRESETS = [5, 12, 20]
+const POSTS_PRESETS = [3, 5, 10]
+
 const filters = ref({
   query: '',
   from: toDateInput(nowWithOffsetDays(-30)),
@@ -19,9 +22,14 @@ const filters = ref({
   posts_limit: 5,
 })
 
-const canSearch = computed(() => {
-  return Boolean(filters.value.from && filters.value.to)
-})
+const canSearch = computed(() => Boolean(filters.value.from && filters.value.to))
+
+const totalPostsCount = computed(() =>
+  hashtags.value.reduce((sum, tag) => sum + (tag.posts?.length ?? 0), 0)
+)
+
+const hashtagsWithPosts = computed(() => hashtags.value.filter((t) => t.posts?.length > 0))
+const hashtagsEmpty = computed(() => hashtags.value.filter((t) => !t.posts?.length))
 
 function nowWithOffsetDays(days) {
   const value = new Date()
@@ -45,6 +53,12 @@ function formatDate(value) {
   return date.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
+function countClass(count) {
+  if (!count) return 'count--zero'
+  if (count >= 10) return 'count--high'
+  return 'count--some'
+}
+
 async function loadPreview() {
   if (!canSearch.value) return
 
@@ -66,7 +80,7 @@ async function loadPreview() {
     hashtags.value = Array.isArray(response?.data?.data) ? response.data.data : []
   } catch (e) {
     if (currentRequest !== requestId.value) return
-    error.value = e?.response?.data?.message || 'Nacitavanie hashtagov zlyhalo.'
+    error.value = e?.response?.data?.message || 'Načítavanie hashtagov zlyhalo.'
     hashtags.value = []
   } finally {
     if (currentRequest === requestId.value) {
@@ -76,12 +90,8 @@ async function loadPreview() {
 }
 
 function queuePreviewLoad() {
-  if (debounceTimer) {
-    clearTimeout(debounceTimer)
-  }
-  debounceTimer = setTimeout(() => {
-    loadPreview()
-  }, 300)
+  clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(() => { loadPreview() }, 300)
 }
 
 watch(
@@ -92,37 +102,23 @@ watch(
     filters.value.hashtags_limit,
     filters.value.posts_limit,
   ],
-  () => {
-    queuePreviewLoad()
-  }
+  () => { queuePreviewLoad() }
 )
 
-onMounted(() => {
-  loadPreview()
-})
+onMounted(() => { loadPreview() })
 
 onBeforeUnmount(() => {
-  if (debounceTimer) {
-    clearTimeout(debounceTimer)
-  }
-  if (copiedTimer) {
-    clearTimeout(copiedTimer)
-  }
+  clearTimeout(debounceTimer)
+  clearTimeout(copiedTimer)
 })
 
 async function copyEmail(email, postId) {
   if (!email) return
-
   try {
     await navigator.clipboard.writeText(email)
     copiedPostId.value = postId
-
-    if (copiedTimer) {
-      clearTimeout(copiedTimer)
-    }
-    copiedTimer = setTimeout(() => {
-      copiedPostId.value = null
-    }, 1600)
+    clearTimeout(copiedTimer)
+    copiedTimer = setTimeout(() => { copiedPostId.value = null }, 1600)
   } catch {
     copiedPostId.value = null
   }
@@ -131,195 +127,306 @@ async function copyEmail(email, postId) {
 
 <template>
   <AdminPageShell
-    title="Hashtag preview"
-    subtitle="Vyhladavanie hashtagov podla nazvu a obdobia od-do. Zobrazuje aj prispevky, usera a email."
+    title="Súťaže — prehľad hashtagov"
+    subtitle="Vyhľadávanie hashtagov podľa názvu a obdobia od–do. Zobrazuje príspevky, používateľa a e-mail."
   >
-    <section class="panel">
-      <header class="panelHead">
-        <h2>Filtre</h2>
-        <button type="button" class="btn" :disabled="loading || !canSearch" @click="loadPreview">
-          {{ loading ? 'Nacitavam...' : 'Obnovit' }}
-        </button>
-      </header>
+    <div class="layout">
+      <!-- Filters sidebar -->
+      <aside class="filterPanel">
+        <div class="filterPanelHead">
+          <h2>Filtre</h2>
+          <button type="button" class="refreshBtn" :disabled="loading || !canSearch" :title="'Obnoviť'" @click="loadPreview">
+            {{ loading ? '…' : '↺' }}
+          </button>
+        </div>
 
-      <div class="formGrid">
-        <label>
-          <span>Hashtag nazov (bez #)</span>
-          <input
-            v-model.trim="filters.query"
-            type="text"
-            placeholder="napr. sutazim"
-            autocomplete="off"
-          />
-        </label>
+        <div class="formGrid">
+          <label class="fieldLabel">
+            <span>Hashtag (bez #)</span>
+            <input
+              v-model.trim="filters.query"
+              type="text"
+              placeholder="napr. sutazim"
+              autocomplete="off"
+            />
+          </label>
 
-        <label>
-          <span>Datum od</span>
-          <input v-model="filters.from" type="date" />
-        </label>
+          <label class="fieldLabel">
+            <span>Dátum od</span>
+            <input v-model="filters.from" type="date" />
+          </label>
 
-        <label>
-          <span>Datum do</span>
-          <input v-model="filters.to" type="date" />
-        </label>
+          <label class="fieldLabel">
+            <span>Dátum do</span>
+            <input v-model="filters.to" type="date" />
+          </label>
 
-        <label>
-          <span>Max hashtagov</span>
-          <input v-model.number="filters.hashtags_limit" type="number" min="1" max="30" />
-        </label>
-
-        <label>
-          <span>Max postov na hashtag</span>
-          <input v-model.number="filters.posts_limit" type="number" min="1" max="30" />
-        </label>
-      </div>
-    </section>
-
-    <section class="panel">
-      <header class="panelHead">
-        <h2>Live preview</h2>
-      </header>
-
-      <p v-if="error" class="error">{{ error }}</p>
-      <div v-else-if="loading" class="muted">Nacitavam preview...</div>
-      <div v-else-if="hashtags.length === 0" class="muted">Pre zvoleny filter sa nenasli hashtagy.</div>
-
-      <div v-else class="previewList">
-        <article v-for="item in hashtags" :key="item.id" class="tagCard">
-          <header class="tagHead">
-            <h3>#{{ item.name }}</h3>
-            <span class="count">{{ item.posts_count }} postov</span>
-          </header>
-
-          <div v-if="!item.posts || item.posts.length === 0" class="muted small">
-            Bez postov v zvolenom rozsahu.
-          </div>
-
-          <div v-else class="postList">
-            <article v-for="post in item.posts" :key="post.id" class="postCard">
-              <div class="postMeta">
-                <span class="metaStrong">Post #{{ post.id }}</span>
-                <span>{{ formatDate(post.created_at) }}</span>
-              </div>
-
-              <p class="postContent">{{ post.content }}</p>
-
-              <figure
-                v-if="post.media?.is_image && post.media?.attachment_url"
-                class="postImageWrap"
-              >
-                <img
-                  class="postImage"
-                  :src="post.media.attachment_url"
-                  alt="Prilozeny obrazok v prispevku"
-                  loading="lazy"
-                />
-              </figure>
-
-              <p class="userRow">
-                <strong>@{{ post.user?.username || 'unknown' }}</strong>
+          <div class="fieldLabel">
+            <span>Max hashtagov</span>
+            <div class="presetRow">
+              <input v-model.number="filters.hashtags_limit" type="number" min="1" max="30" class="numInput" />
+              <div class="presets">
                 <button
+                  v-for="p in HASHTAG_PRESETS"
+                  :key="p"
                   type="button"
-                  class="copyEmailBtn"
-                  :disabled="!post.user?.email"
-                  @click="copyEmail(post.user?.email, post.id)"
-                >
-                  {{
-                    copiedPostId === post.id
-                      ? 'Skopirovane'
-                      : (post.user?.email || 'bez emailu')
-                  }}
-                </button>
-              </p>
-            </article>
+                  class="presetBtn"
+                  :class="{ active: filters.hashtags_limit === p }"
+                  @click="filters.hashtags_limit = p"
+                >{{ p }}</button>
+              </div>
+            </div>
           </div>
-        </article>
+
+          <div class="fieldLabel">
+            <span>Max postov / hashtag</span>
+            <div class="presetRow">
+              <input v-model.number="filters.posts_limit" type="number" min="1" max="30" class="numInput" />
+              <div class="presets">
+                <button
+                  v-for="p in POSTS_PRESETS"
+                  :key="p"
+                  type="button"
+                  class="presetBtn"
+                  :class="{ active: filters.posts_limit === p }"
+                  @click="filters.posts_limit = p"
+                >{{ p }}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Results -->
+      <div class="resultsPanel">
+        <div class="resultsPanelHead">
+          <h2>Výsledky</h2>
+          <span v-if="!loading && hashtags.length > 0" class="summary">
+            {{ hashtags.length }} hashtagov · {{ totalPostsCount }} príspevkov
+          </span>
+        </div>
+
+        <p v-if="error" class="error">{{ error }}</p>
+        <div v-else-if="loading" class="muted">Načítavam výsledky...</div>
+        <div v-else-if="hashtags.length === 0" class="muted">Pre zvolený filter sa nenašli hashtagy.</div>
+
+        <div v-else class="previewList">
+          <!-- Tags with posts -->
+          <article v-for="item in hashtagsWithPosts" :key="item.id" class="tagCard">
+            <header class="tagHead">
+              <h3>#{{ item.name }}</h3>
+              <span class="count" :class="countClass(item.posts_count)">{{ item.posts_count }} postov</span>
+            </header>
+
+            <div class="postList">
+              <article v-for="post in item.posts" :key="post.id" class="postCard">
+                <div class="postMeta">
+                  <span class="metaStrong">Post #{{ post.id }}</span>
+                  <span class="metaMuted">{{ formatDate(post.created_at) }}</span>
+                </div>
+
+                <div class="postBody">
+                  <p class="postContent">{{ post.content }}</p>
+
+                  <figure
+                    v-if="post.media?.is_image && post.media?.attachment_url"
+                    class="postImageWrap"
+                  >
+                    <img
+                      class="postImage"
+                      :src="post.media.attachment_url"
+                      alt="Priložený obrázok"
+                      loading="lazy"
+                    />
+                  </figure>
+                </div>
+
+                <div class="userRow">
+                  <span class="username">@{{ post.user?.username || 'unknown' }}</span>
+                  <button
+                    type="button"
+                    class="copyEmailBtn"
+                    :class="{ copied: copiedPostId === post.id }"
+                    :disabled="!post.user?.email"
+                    @click="copyEmail(post.user?.email, post.id)"
+                  >
+                    <span v-if="copiedPostId === post.id">✓ Skopírované</span>
+                    <span v-else>{{ post.user?.email || 'bez e-mailu' }}</span>
+                  </button>
+                </div>
+              </article>
+            </div>
+          </article>
+
+          <!-- Tags without posts — dimmed -->
+          <div v-if="hashtagsEmpty.length > 0" class="emptyTagsSection">
+            <p class="muted emptyTagsLabel">Hashtagy bez príspevkov v zvolenom rozsahu ({{ hashtagsEmpty.length }})</p>
+            <div class="emptyTagsList">
+              <span v-for="item in hashtagsEmpty" :key="item.id" class="emptyTagChip">#{{ item.name }}</span>
+            </div>
+          </div>
+        </div>
       </div>
-    </section>
+    </div>
   </AdminPageShell>
 </template>
 
 <style scoped>
-.panel {
+.layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+/* Filter panel */
+.filterPanel {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
   border-radius: 12px;
   background: rgb(var(--color-bg-rgb) / 0.38);
-  padding: 14px;
+  padding: 12px;
+  position: sticky;
+  top: 12px;
 }
 
-.panelHead {
+.filterPanelHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-.panel h2 {
+.filterPanelHead h2 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.refreshBtn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  min-width: 28px;
+}
+
+.refreshBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .formGrid {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.formGrid label {
+.fieldLabel {
   display: grid;
-  gap: 6px;
-  font-size: 0.85rem;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: rgb(var(--color-surface-rgb) / 0.7);
 }
 
 input {
   width: 100%;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
   background: rgb(var(--color-bg-rgb) / 0.5);
   color: inherit;
-  padding: 8px 10px;
+  padding: 6px 9px;
+  font-size: 13px;
 }
 
-.btn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 10px;
-  padding: 7px 12px;
+.presetRow {
+  display: grid;
+  gap: 5px;
+}
+
+.numInput {
+  width: 100%;
+}
+
+.presets {
+  display: flex;
+  gap: 4px;
+}
+
+.presetBtn {
+  flex: 1;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  border-radius: 6px;
+  padding: 3px 0;
   background: transparent;
-  color: inherit;
+  color: rgb(var(--color-surface-rgb) / 0.65);
   cursor: pointer;
+  font-size: 11px;
 }
 
-.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+.presetBtn.active {
+  border-color: rgb(var(--color-primary-rgb) / 0.5);
+  background: rgb(var(--color-primary-rgb) / 0.14);
+  color: var(--color-primary);
+}
+
+.presetBtn:hover:not(.active) {
+  background: rgb(var(--color-surface-rgb) / 0.06);
+  color: inherit;
+}
+
+/* Results panel */
+.resultsPanel {
+  min-width: 0;
+}
+
+.resultsPanelHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.resultsPanelHead h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.summary {
+  font-size: 12px;
+  color: rgb(var(--color-surface-rgb) / 0.6);
+  padding: 3px 9px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.15);
+  border-radius: 999px;
 }
 
 .error {
   color: var(--color-danger);
+  font-size: 13px;
 }
 
 .muted {
-  opacity: 0.75;
-  font-size: 0.92rem;
-}
-
-.muted.small {
-  font-size: 0.84rem;
+  opacity: 0.7;
+  font-size: 0.88rem;
 }
 
 .previewList {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
+/* Tag card */
 .tagCard {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
   border-radius: 12px;
   background: rgb(var(--color-bg-rgb) / 0.5);
   padding: 12px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .tagHead {
@@ -331,28 +438,47 @@ input {
 
 .tagHead h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .count {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
   border-radius: 999px;
-  padding: 3px 9px;
-  font-size: 0.78rem;
+  padding: 2px 9px;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
+.count--zero {
+  opacity: 0.45;
+}
+
+.count--some {
+  border-color: rgb(var(--color-primary-rgb) / 0.35);
+  background: rgb(var(--color-primary-rgb) / 0.08);
+  color: var(--color-primary);
+}
+
+.count--high {
+  border-color: rgb(var(--color-success-rgb) / 0.4);
+  background: rgb(var(--color-success-rgb) / 0.1);
+  color: var(--color-success);
+}
+
+/* Post list */
 .postList {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .postCard {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 9px;
   background: rgb(var(--color-bg-rgb) / 0.45);
-  padding: 10px;
+  padding: 9px 10px;
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .postMeta {
@@ -360,72 +486,129 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 0.8rem;
-  opacity: 0.82;
 }
 
 .metaStrong {
+  font-size: 11px;
   font-weight: 600;
+  color: rgb(var(--color-surface-rgb) / 0.85);
+}
+
+.metaMuted {
+  font-size: 11px;
+  color: rgb(var(--color-surface-rgb) / 0.5);
+}
+
+.postBody {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
 }
 
 .postContent {
+  flex: 1;
   margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
   white-space: pre-wrap;
-  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .postImageWrap {
   margin: 0;
+  flex-shrink: 0;
 }
 
 .postImage {
   display: block;
-  width: 100%;
-  max-width: 460px;
-  border-radius: 10px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.15);
-  background: rgb(var(--color-bg-rgb) / 0.35);
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
   object-fit: cover;
 }
 
 .userRow {
-  margin: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
-  font-size: 0.85rem;
+}
+
+.username {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--color-surface-rgb) / 0.85);
 }
 
 .copyEmailBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 3px 10px;
   background: rgb(var(--color-bg-rgb) / 0.55);
   color: inherit;
   cursor: pointer;
-  font-size: 0.78rem;
+  font-size: 11px;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.copyEmailBtn.copied {
+  border-color: rgb(var(--color-success-rgb) / 0.5);
+  background: rgb(var(--color-success-rgb) / 0.12);
+  color: var(--color-success);
 }
 
 .copyEmailBtn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-@media (max-width: 980px) {
-  .formGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+/* Empty tags */
+.emptyTagsSection {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgb(var(--color-bg-rgb) / 0.25);
 }
 
-@media (max-width: 680px) {
-  .formGrid {
+.emptyTagsLabel {
+  margin: 0 0 8px;
+}
+
+.emptyTagsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.emptyTagChip {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+@media (max-width: 860px) {
+  .layout {
     grid-template-columns: 1fr;
   }
 
-  .postMeta {
-    flex-direction: column;
-    align-items: flex-start;
+  .filterPanel {
+    position: static;
+  }
+
+  .formGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .formGrid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -82,6 +82,7 @@ function candidateTypeLabel(value) {
   if (key === 'eclipse_lunar') return 'Zatmenie Mesiaca'
   if (key === 'eclipse_solar') return 'Zatmenie Slnka'
   if (key === 'planetary_event') return 'Planetárny úkaz'
+  if (key === 'aurora') return 'Polarna ziara'
   if (key === 'other') return 'Iná udalosť'
   if (key === '') return '-'
   return key.replaceAll('_', ' ')
@@ -184,14 +185,15 @@ function hiddenMatchedSourcesCount(candidate, max = 2) {
                   type="button"
                   :disabled="loading"
                   class="rowActionButton rowActionButton--primary"
-                  title="Retranslate"
+                  title="Spustí preklad znova"
                   @click="emit('retranslate-candidate', candidate)"
                 >
-                  Retr.
+                  Preložiť
                 </button>
                 <button
                   type="button"
                   class="rowActionButton rowActionButton--ghost"
+                  title="Zobraziť detail kandidáta"
                   @click="emit('open-candidate', candidate.id)"
                 >
                   Detail
@@ -260,13 +262,15 @@ function hiddenMatchedSourcesCount(candidate, max = 2) {
             type="button"
             :disabled="loading"
             class="rowActionButton rowActionButton--primary"
+            title="Spustí preklad znova"
             @click="emit('retranslate-candidate', candidate)"
           >
-            Retr.
+            Preložiť
           </button>
           <button
             type="button"
             class="rowActionButton rowActionButton--ghost"
+            title="Zobraziť detail kandidáta"
             @click="emit('open-candidate', candidate.id)"
           >
             Detail
@@ -290,7 +294,7 @@ function hiddenMatchedSourcesCount(candidate, max = 2) {
           class="toolbarButton toolbarButton--ghost"
           @click="emit('prev-page')"
         >
-          Pred
+          ← Predchádzajúca
         </button>
         <button
           type="button"
@@ -298,7 +302,7 @@ function hiddenMatchedSourcesCount(candidate, max = 2) {
           class="toolbarButton toolbarButton--ghost"
           @click="emit('next-page')"
         >
-          Dalsia
+          Nasledujúca →
         </button>
       </div>
     </div>
@@ -316,7 +320,7 @@ function hiddenMatchedSourcesCount(candidate, max = 2) {
 
 .candidatesTable {
   width: 100%;
-  min-width: 640px;
+  min-width: 720px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -330,6 +334,7 @@ function hiddenMatchedSourcesCount(candidate, max = 2) {
   font-size: 11px;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  white-space: nowrap;
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
   background: rgb(var(--color-surface-rgb) / 0.06);
   border-bottom: 1px solid var(--divider-color);
