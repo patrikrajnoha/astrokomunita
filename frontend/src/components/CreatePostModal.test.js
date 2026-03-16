@@ -118,10 +118,10 @@ describe('CreatePostModal GIF selection', () => {
     const categoryButtons = wrapper.findAll('button.emojiGroupBtn')
     expect(categoryButtons.length).toBeGreaterThanOrEqual(4)
 
-    const spaceCategory = categoryButtons.find((button) => button.text().includes('Vesmir'))
+    const spaceCategory = categoryButtons.find((button) => button.text().includes('Vesmír'))
     expect(Boolean(spaceCategory)).toBe(true)
     if (!spaceCategory) {
-      throw new Error('Vesmir category button not found in emoji picker')
+      throw new Error('Vesmír category button not found in emoji picker')
     }
 
     await spaceCategory.trigger('click')

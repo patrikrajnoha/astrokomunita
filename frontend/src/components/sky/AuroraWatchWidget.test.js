@@ -79,7 +79,7 @@ describe('AuroraWatchWidget', () => {
         initialPayload: {
           available: true,
           watch_score: 38,
-          watch_label: 'Slaba sanca',
+          watch_label: 'Slabá šanca',
           corridor_peak_score: 38,
           nearest_score: 12,
           forecast_for: '2026-03-14T21:52:00Z',
@@ -96,7 +96,7 @@ describe('AuroraWatchWidget', () => {
     await nextTick()
 
     expect(getMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Slaba sanca')
+    expect(wrapper.text()).toContain('Slabá šanca')
     expect(wrapper.text()).toContain('38/100')
   })
 

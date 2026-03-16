@@ -39,7 +39,7 @@ export const EVENT_REMINDER_PREFERENCE_ROWS = [
   {
     key: 'event_reminder_space',
     label: 'Misie a starty',
-    description: 'Vesmirne misie, starty a ine space eventy.',
+    description: 'Vesmírne misie, štarty a iné space eventy.',
   },
   {
     key: 'event_reminder_observing',

@@ -146,7 +146,7 @@ describe('DynamicSidebar', () => {
 
   it('passes observing context when bundling space weather widgets', async () => {
     fetchScopeMock.mockResolvedValue([
-      { kind: 'builtin', section_key: 'space_weather', title: 'Vesmirne pocasie', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'space_weather', title: 'Vesmírne počasie', order: 0, is_enabled: true },
       { kind: 'builtin', section_key: 'aurora_watch', title: 'Aurora watch', order: 1, is_enabled: true },
     ])
 

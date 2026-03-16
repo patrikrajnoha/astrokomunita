@@ -627,7 +627,7 @@ describe('AppLayout mark-your-calendar popup', () => {
     }
     sidebarConfigStore.fetchScope.mockResolvedValue([
       { kind: 'builtin', section_key: 'observing_conditions', title: 'Astronomicke podmienky', order: 0, is_enabled: true },
-      { kind: 'builtin', section_key: 'space_weather', title: 'Vesmirne pocasie', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'space_weather', title: 'Vesmírne počasie', order: 1, is_enabled: true },
       { kind: 'builtin', section_key: 'moon_phases', title: 'Fazy mesiaca', order: 2, is_enabled: true },
       { kind: 'builtin', section_key: 'neo_watchlist', title: 'NEO watchlist', order: 3, is_enabled: true },
     ])
