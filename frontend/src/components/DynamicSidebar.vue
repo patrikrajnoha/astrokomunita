@@ -29,6 +29,7 @@ import {
   getEnabledSidebarSections,
   resolveSidebarComponent,
 } from '@/sidebar/engine'
+import { resolvePreferredSidebarWidgetKeys } from '@/sidebar/preferences'
 
 const props = defineProps({
   observingLat: {
@@ -74,21 +75,11 @@ const hasObservingLocation = computed(() => {
   return toFiniteCoordinate(props.observingLat) !== null && toFiniteCoordinate(props.observingLon) !== null
 })
 const preferredSidebarWidgetKeys = computed(() => {
-  if (!auth.isAuthed || !preferences.loaded) return null
-  const scope = String(activeScope.value || DEFAULT_SIDEBAR_SCOPE)
-  if (typeof preferences.sidebarWidgetKeysForScope !== 'function') return null
-  const selected = preferences.sidebarWidgetKeysForScope(scope)
-  if (!Array.isArray(selected)) return null
-  if (selected.length > 0) return selected
-
-  const hasExplicitScopeOverride = typeof preferences.hasSidebarWidgetOverrideForScope === 'function'
-    ? preferences.hasSidebarWidgetOverrideForScope(scope)
-    : false
-  const hasExplicitGlobalOverride = typeof preferences.hasSidebarWidgetOverrideForScope === 'function'
-    ? preferences.hasSidebarWidgetOverrideForScope(DEFAULT_SIDEBAR_SCOPE)
-    : false
-
-  return hasExplicitScopeOverride || hasExplicitGlobalOverride ? [] : null
+  return resolvePreferredSidebarWidgetKeys({
+    isAuthed: auth.isAuthed,
+    preferences,
+    scope: activeScope.value || DEFAULT_SIDEBAR_SCOPE,
+  })
 })
 
 const renderedSections = computed(() => {

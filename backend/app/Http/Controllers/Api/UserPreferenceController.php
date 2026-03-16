@@ -22,21 +22,7 @@ class UserPreferenceController extends Controller
         $preferences = $user->eventPreference;
 
         return response()->json([
-            'data' => [
-                'event_types' => $preferences?->normalizedEventTypes() ?? [],
-                'interests' => $preferences?->normalizedInterests() ?? [],
-                'region' => $preferences?->regionEnum()->value ?? RegionScope::Global->value,
-                'location_label' => $preferences?->location_label,
-                'location_place_id' => $preferences?->location_place_id,
-                'location_lat' => $preferences?->location_lat,
-                'location_lon' => $preferences?->location_lon,
-                'onboarding_completed_at' => $preferences?->onboardingCompletedAtIso(),
-                'bortle_class' => $preferences?->resolvedBortleClass() ?? UserPreference::DEFAULT_BORTLE_CLASS,
-                'sidebar_widget_keys' => $preferences?->normalizedSidebarWidgetKeys() ?? [],
-                'sidebar_widget_overrides' => $preferences?->normalizedSidebarWidgetOverrides() ?? [],
-                'has_preferences' => (bool) $preferences,
-                'updated_at' => optional($preferences?->updated_at)?->toIso8601String(),
-            ],
+            'data' => $this->preferencesPayload($preferences),
             'meta' => [
                 'supported_event_types' => EventType::values(),
                 'supported_regions' => RegionScope::values(),
@@ -144,21 +130,7 @@ class UserPreferenceController extends Controller
         $preferences->save();
 
         return response()->json([
-            'data' => [
-                'event_types' => $preferences->normalizedEventTypes(),
-                'interests' => $preferences->normalizedInterests(),
-                'region' => $preferences->regionEnum()->value,
-                'location_label' => $preferences->location_label,
-                'location_place_id' => $preferences->location_place_id,
-                'location_lat' => $preferences->location_lat,
-                'location_lon' => $preferences->location_lon,
-                'onboarding_completed_at' => $preferences->onboardingCompletedAtIso(),
-                'bortle_class' => $preferences->resolvedBortleClass(),
-                'sidebar_widget_keys' => $preferences->normalizedSidebarWidgetKeys(),
-                'sidebar_widget_overrides' => $preferences->normalizedSidebarWidgetOverrides(),
-                'has_preferences' => true,
-                'updated_at' => optional($preferences->updated_at)?->toIso8601String(),
-            ],
+            'data' => $this->preferencesPayload($preferences),
             'meta' => [
                 'supported_event_types' => EventType::values(),
                 'supported_regions' => RegionScope::values(),
@@ -181,5 +153,29 @@ class UserPreferenceController extends Controller
             ],
             SidebarSectionRegistry::sections(),
         ));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function preferencesPayload(?UserPreference $preferences): array
+    {
+        $resolvedPreferences = $preferences ?? new UserPreference();
+
+        return [
+            'event_types' => $resolvedPreferences->normalizedEventTypes(),
+            'interests' => $resolvedPreferences->normalizedInterests(),
+            'region' => $resolvedPreferences->regionEnum()->value,
+            'location_label' => $resolvedPreferences->location_label,
+            'location_place_id' => $resolvedPreferences->location_place_id,
+            'location_lat' => $resolvedPreferences->location_lat,
+            'location_lon' => $resolvedPreferences->location_lon,
+            'onboarding_completed_at' => $resolvedPreferences->onboardingCompletedAtIso(),
+            'bortle_class' => $resolvedPreferences->resolvedBortleClass(),
+            'sidebar_widget_keys' => $resolvedPreferences->resolvedSidebarWidgetKeys(),
+            'sidebar_widget_overrides' => $resolvedPreferences->resolvedSidebarWidgetOverrides(),
+            'has_preferences' => (bool) $preferences,
+            'updated_at' => optional($preferences?->updated_at)?->toIso8601String(),
+        ];
     }
 }

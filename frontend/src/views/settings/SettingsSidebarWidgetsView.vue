@@ -1,7 +1,7 @@
 <template>
   <SettingsDetailShell
     title="Konfiguracia sidebaru"
-    subtitle="Nastavte si vlastne widgety pre jednotlive kontexty aplikacie. Aktivne mozu byt najviac 3."
+    subtitle="Nastavte si vlastne widgety pre globalny sidebar. Aktivne mozu byt najviac 3."
   >
     <section class="settings-sidebar-builder">
       <header class="settings-sidebar-builder__header">
@@ -94,18 +94,13 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import SettingsDetailShell from '@/components/settings/SettingsDetailShell.vue'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
-import {
-  DEFAULT_SIDEBAR_SCOPE,
-  SIDEBAR_SCOPE,
-} from '@/generated/sidebarScopes'
+import { DEFAULT_SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
 import { MAX_ENABLED_SIDEBAR_WIDGETS, normalizeSidebarSections } from '@/sidebar/engine'
-import { createScopeTabs } from '@/views/admin/sidebarConfig/sidebarConfigView.constants'
 
-const scopeTabs = createScopeTabs(SIDEBAR_SCOPE)
 const preferences = useEventPreferencesStore()
 const sidebarConfigStore = useSidebarConfigStore()
+const SIDEBAR_CUSTOMIZATION_SCOPE = DEFAULT_SIDEBAR_SCOPE
 
-const activeScope = ref(DEFAULT_SIDEBAR_SCOPE)
 const sections = ref([])
 const layoutSearch = ref('')
 const localOverrides = ref({})
@@ -151,9 +146,9 @@ const hasScopeOverride = (scope) => {
 
 const readStoreOverrides = () => {
   const normalized = normalizeOverrides(preferences.sidebarWidgetOverrides)
-  if (!Object.prototype.hasOwnProperty.call(normalized, 'home') && Array.isArray(preferences.sidebarWidgetKeys)) {
+  if (!Object.prototype.hasOwnProperty.call(normalized, SIDEBAR_CUSTOMIZATION_SCOPE) && Array.isArray(preferences.sidebarWidgetKeys)) {
     if (preferences.sidebarWidgetKeys.length > 0) {
-      normalized.home = normalizeWidgetKeys(preferences.sidebarWidgetKeys)
+      normalized[SIDEBAR_CUSTOMIZATION_SCOPE] = normalizeWidgetKeys(preferences.sidebarWidgetKeys)
     }
   }
   return normalized
@@ -173,8 +168,7 @@ const saveStateTone = computed(() => {
 })
 
 const headerMetaLine = computed(() => {
-  const tab = scopeTabs.find((item) => item.value === activeScope.value)
-  const label = tab?.label || 'Domov'
+  const label = 'Globalny sidebar'
   return `${label} - ${saveStateLabel.value}`
 })
 
@@ -186,15 +180,6 @@ const filteredSections = computed(() => {
     const haystack = `${String(item.title || '')} ${String(item.section_key || '')}`.toLowerCase()
     return haystack.includes(query)
   })
-})
-
-const visibleScopeTabs = computed(() => {
-  const supportedScopes = Array.isArray(preferences.supportedSidebarScopes)
-    ? new Set(preferences.supportedSidebarScopes)
-    : null
-
-  if (!supportedScopes || supportedScopes.size === 0) return scopeTabs
-  return scopeTabs.filter((tab) => supportedScopes.has(tab.value))
 })
 
 const visibleError = computed(() => {
@@ -290,7 +275,7 @@ const persistOverrides = async () => {
     const payloadOverrides = normalizeOverrides(localOverrides.value)
     await preferences.savePreferences({
       sidebar_widget_overrides: payloadOverrides,
-      sidebar_widget_keys: payloadOverrides.home || [],
+      sidebar_widget_keys: payloadOverrides[SIDEBAR_CUSTOMIZATION_SCOPE] || [],
     })
 
     localOverrides.value = readStoreOverrides()
@@ -316,7 +301,7 @@ const updateLocalOverrideFromSections = () => {
 
   localOverrides.value = {
     ...localOverrides.value,
-    [activeScope.value]: selectedKeys,
+    [SIDEBAR_CUSTOMIZATION_SCOPE]: selectedKeys,
   }
 
   sections.value = applyScopeSelection(sections.value, selectedKeys)
@@ -326,7 +311,7 @@ const updateLocalOverrideFromSections = () => {
 const toggleSectionEnabled = (section, checked) => {
   const nextEnabled = Boolean(checked)
 
-    if (nextEnabled) {
+  if (nextEnabled) {
     const currentlyEnabled = sections.value.filter(
       (item) => item.is_enabled && item.section_key !== section.section_key,
     ).length
@@ -374,7 +359,7 @@ const moveSection = (section, direction) => {
   state.scopeError = ''
   localOverrides.value = {
     ...localOverrides.value,
-    [activeScope.value]: keys,
+    [SIDEBAR_CUSTOMIZATION_SCOPE]: keys,
   }
   sections.value = applyScopeSelection(sections.value, keys)
   void persistOverrides()
@@ -384,12 +369,6 @@ const isToggleDisabled = (section) => {
   if (state.loadingScope || state.saving) return true
   if (section.is_enabled) return false
   return enabledSectionsCount.value >= MAX_ENABLED_SIDEBAR_WIDGETS
-}
-
-const switchScope = async (scope) => {
-  if (scope === activeScope.value || state.loadingScope) return
-  activeScope.value = scope
-  await loadScope(scope)
 }
 
 onMounted(async () => {
@@ -405,11 +384,7 @@ onMounted(async () => {
     }
   }
 
-  if (!visibleScopeTabs.value.some((tab) => tab.value === activeScope.value) && visibleScopeTabs.value.length > 0) {
-    activeScope.value = visibleScopeTabs.value[0].value
-  }
-
   localOverrides.value = readStoreOverrides()
-  await loadScope(activeScope.value)
+  await loadScope(SIDEBAR_CUSTOMIZATION_SCOPE)
 })
 </script>
