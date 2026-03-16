@@ -58,20 +58,20 @@ export function useCandidatesCrawledBatchActions({
     if (!candidate?.id || String(candidate?.status || '') !== 'pending') return
 
     const ok = await confirm({
-      title: 'Publikovat kandidata',
-      message: `Publikovat "${candidateDisplayTitle(candidate)}" do udalosti?`,
-      confirmText: 'Publikovat',
-      cancelText: 'Zrusit',
+      title: 'Publikovať kandidáta',
+      message: `Publikovať "${candidateDisplayTitle(candidate)}" do udalosti?`,
+      confirmText: 'Publikovať',
+      cancelText: 'Zrušiť',
     })
     if (!ok) return
 
     loading.value = true
     error.value = null
-    startPublishProgress('Publikovanie kandidata...', 1)
+    startPublishProgress('Publikovanie kandidáta...', 1)
     try {
       await eventCandidates.approve(candidate.id)
       advancePublishProgress(1, 1)
-      toast.success('Kandidat bol publikovany.')
+      toast.success('Kandidát bol publikovaný.')
       await load()
     } catch (e) {
       error.value = e?.response?.data?.message || 'Publikovanie zlyhalo'
@@ -89,7 +89,7 @@ export function useCandidatesCrawledBatchActions({
     error.value = null
     try {
       await eventCandidates.retranslate(candidate.id)
-      toast.success('Retranslate spusteny.')
+      toast.success('Retranslate spustený.')
       await load()
     } catch (e) {
       error.value = e?.response?.data?.message || 'Retranslate zlyhal'
@@ -102,15 +102,15 @@ export function useCandidatesCrawledBatchActions({
   async function publishAllVisiblePending() {
     const ids = visiblePendingCandidateIds.value
     if (ids.length === 0) {
-      toast.warn('Na tejto stranke nie su ziadni pending kandidati.')
+      toast.warn('Na tejto stránke nie sú žiadni pending kandidáti.')
       return
     }
 
     const ok = await confirm({
-      title: 'Publikovat vsetko',
-      message: `Naozaj publikovat ${ids.length} pending kandidatov na aktualnej stranke?`,
-      confirmText: 'Publikovat',
-      cancelText: 'Zrusit',
+      title: 'Publikovať všetko',
+      message: `Naozaj publikovať ${ids.length} pending kandidátov na aktuálnej stránke?`,
+      confirmText: 'Publikovať',
+      cancelText: 'Zrušiť',
       variant: 'danger',
     })
     if (!ok) return
@@ -123,7 +123,7 @@ export function useCandidatesCrawledBatchActions({
     const total = ids.length
 
     try {
-      startPublishProgress('Publikujem viditelnych kandidatov...', total)
+      startPublishProgress('Publikujem viditeľných kandidátov...', total)
       let doneCount = 0
       for (const candidateId of ids) {
         try {
@@ -137,14 +137,14 @@ export function useCandidatesCrawledBatchActions({
       }
 
       if (failCount === 0) {
-        toast.success(`Publikovanych ${successCount} kandidatov.`)
+        toast.success(`Publikovaných ${successCount} kandidátov.`)
       } else {
-        toast.warn(`Publikovane: ${successCount}, zlyhalo: ${failCount}.`)
+        toast.warn(`Publikované: ${successCount}, zlyhalo: ${failCount}.`)
       }
 
       await load()
     } catch (e) {
-      error.value = e?.response?.data?.message || 'Hromadne publikovanie zlyhalo'
+      error.value = e?.response?.data?.message || 'Hromadné publikovanie zlyhalo'
       toast.error(error.value)
     } finally {
       finishPublishProgress()
@@ -154,29 +154,29 @@ export function useCandidatesCrawledBatchActions({
 
   async function publishAllByFilter() {
     const ok = await confirm({
-      title: 'Publikovat vsetko podla filtra',
-      message: 'Naozaj publikovat vsetky pending udalosti podla aktualneho filtra? (max 1000)',
-      confirmText: 'Publikovat',
-      cancelText: 'Zrusit',
+      title: 'Publikovať všetko podľa filtra',
+      message: 'Naozaj publikovať všetky pending udalosti podľa aktuálneho filtra? (max 1000)',
+      confirmText: 'Publikovať',
+      cancelText: 'Zrušiť',
       variant: 'danger',
     })
     if (!ok) return
 
     loading.value = true
     error.value = null
-    startPublishProgress('Publikujem podla filtra...', 1)
+    startPublishProgress('Publikujem podľa filtra...', 1)
 
     try {
       const result = await eventCandidates.approveBatch(createBatchPayloadFromParams(buildParams()))
       advancePublishProgress(1, 1)
       if (result.failed > 0) {
-        toast.warn(`Publikovane: ${result.published}, zlyhalo: ${result.failed}.`)
+        toast.warn(`Publikované: ${result.published}, zlyhalo: ${result.failed}.`)
       } else {
-        toast.success(`Publikovanych ${result.published} kandidatov.`)
+        toast.success(`Publikovaných ${result.published} kandidátov.`)
       }
       await load()
     } catch (e) {
-      error.value = e?.response?.data?.message || 'Hromadne publikovanie podla filtra zlyhalo'
+      error.value = e?.response?.data?.message || 'Hromadné publikovanie podľa filtra zlyhalo'
       toast.error(error.value)
     } finally {
       finishPublishProgress()
@@ -187,15 +187,15 @@ export function useCandidatesCrawledBatchActions({
   async function retranslateVisiblePending() {
     const ids = visiblePendingCandidateIds.value
     if (ids.length === 0) {
-      toast.warn('Na tejto stranke nie su ziadni pending kandidati.')
+      toast.warn('Na tejto stránke nie sú žiadni pending kandidáti.')
       return
     }
 
     const ok = await confirm({
-      title: 'Prelozit znova viditelnych',
-      message: `Spustit novy preklad pre ${ids.length} pending kandidatov na aktualnej stranke?`,
-      confirmText: 'Spustit',
-      cancelText: 'Zrusit',
+      title: 'Preložiť znova viditeľných',
+      message: `Spustiť nový preklad pre ${ids.length} pending kandidátov na aktuálnej stránke?`,
+      confirmText: 'Spustiť',
+      cancelText: 'Zrušiť',
     })
     if (!ok) return
 
@@ -216,14 +216,14 @@ export function useCandidatesCrawledBatchActions({
       }
 
       if (failCount === 0) {
-        toast.success(`Preklad bol spusteny pre ${successCount} kandidatov.`)
+        toast.success(`Preklad bol spustený pre ${successCount} kandidátov.`)
       } else {
-        toast.warn(`Preklad spusteny: ${successCount}, zlyhalo: ${failCount}.`)
+        toast.warn(`Preklad spustený: ${successCount}, zlyhalo: ${failCount}.`)
       }
 
       await load()
     } catch (e) {
-      error.value = e?.response?.data?.message || 'Hromadny retranslate zlyhal'
+      error.value = e?.response?.data?.message || 'Hromadný retranslate zlyhal'
       toast.error(error.value)
     } finally {
       loading.value = false
@@ -232,10 +232,10 @@ export function useCandidatesCrawledBatchActions({
 
   async function retranslateByFilter() {
     const ok = await confirm({
-      title: 'Prelozit znova podla filtra',
-      message: 'Spustit novy preklad pre kandidatov podla aktualneho filtra? (max 1000)',
-      confirmText: 'Spustit',
-      cancelText: 'Zrusit',
+      title: 'Preložiť znova podľa filtra',
+      message: 'Spustiť nový preklad pre kandidátov podľa aktuálneho filtra? (max 1000)',
+      confirmText: 'Spustiť',
+      cancelText: 'Zrušiť',
     })
     if (!ok) return
 
@@ -245,13 +245,13 @@ export function useCandidatesCrawledBatchActions({
     try {
       const result = await eventCandidates.retranslateBatch(createBatchPayloadFromParams(buildParams()))
       if (result.failed > 0) {
-        toast.warn(`Retranslate podla filtra: queued ${result.queued}, failed ${result.failed}.`)
+        toast.warn(`Retranslate podľa filtra: queued ${result.queued}, failed ${result.failed}.`)
       } else {
-        toast.success(`Retranslate podla filtra: queued ${result.queued}.`)
+        toast.success(`Retranslate podľa filtra: queued ${result.queued}.`)
       }
       await load()
     } catch (e) {
-      error.value = e?.response?.data?.message || 'Hromadny retranslate podla filtra zlyhal'
+      error.value = e?.response?.data?.message || 'Hromadný retranslate podľa filtra zlyhal'
       toast.error(error.value)
     } finally {
       loading.value = false

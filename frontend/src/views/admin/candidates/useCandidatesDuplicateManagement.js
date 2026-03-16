@@ -81,10 +81,10 @@ export function useCandidatesDuplicateManagement({
     const plannedCandidates = Number(duplicateSummary.value?.duplicate_candidates || 0)
 
     const ok = await confirm({
-      title: 'Zlucit duplicity',
-      message: `Oznacit duplicity ako duplicate? Skupiny: ${plannedGroups}, kandidati: ${plannedCandidates}.`,
-      confirmText: 'Zlucit',
-      cancelText: 'Zrusit',
+      title: 'Zlúčiť duplicity',
+      message: `Označiť duplicity ako duplicate? Skupiny: ${plannedGroups}, kandidáti: ${plannedCandidates}.`,
+      confirmText: 'Zlúčiť',
+      cancelText: 'Zrušiť',
       variant: 'danger',
     })
     if (!ok) return

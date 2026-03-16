@@ -1,10 +1,10 @@
 
   <section class="learnPage">
     <header class="hero">
-      <p class="hero__eyebrow">Clanky</p>
-      <h1 class="hero__title">Nocna obloha</h1>
+      <p class="hero__eyebrow">Články</p>
+      <h1 class="hero__title">Nočná obloha</h1>
       <p class="hero__text">
-        Prakticke temy, kratke vysvetlenia a citatelny obsah bez balastu.
+        Praktické témy, krátke vysvetlenia a čitateľný obsah bez balastu.
       </p>
     </header>
 
@@ -13,10 +13,10 @@
         <input
           v-model="searchInput"
           type="text"
-          placeholder="Hladat temu alebo klucove slovo"
-          aria-label="Hladat v clankoch"
+          placeholder="Hľadať tému alebo kľúčové slovo"
+          aria-label="Hľadať v článkoch"
         />
-        <button type="submit">Hladat</button>
+        <button type="submit">Hľadať</button>
       </form>
 
       <div v-if="tags.length" class="tags">
@@ -26,7 +26,7 @@
           type="button"
           @click="selectTag('')"
         >
-          Vsetko
+          Všetko
         </button>
         <button
           v-for="tag in tags"
@@ -49,7 +49,7 @@
           class="clearBtn"
           @click="clearSearch"
         >
-          Zrusit filtre
+          Zrušiť filtre
         </button>
       </div>
 
@@ -85,10 +85,10 @@
               :alt="featuredPost.title"
               loading="lazy"
             />
-            <span v-else>Odporucany clanok</span>
+            <span v-else>Odporúčaný článok</span>
           </router-link>
           <div class="featured__body">
-            <p class="featured__label">Odporucane</p>
+            <p class="featured__label">Odporúčané</p>
             <h2>
               <router-link :to="postLink(featuredPost)">{{ featuredPost.title }}</router-link>
             </h2>
@@ -98,12 +98,12 @@
               {{ featuredPost.user?.name || 'Redakcia' }} ·
               {{ readTime(featuredPost.content) }}
             </p>
-            <router-link class="featured__cta" :to="postLink(featuredPost)">Citat clanok &rarr;</router-link>
+            <router-link class="featured__cta" :to="postLink(featuredPost)">Čítať článok &rarr;</router-link>
           </div>
         </article>
 
         <div v-if="listPosts.length" class="postList">
-          <article v-for="post in listPosts" :key="post.id" class="postItem" role="link" tabindex="0" @click="$router.push(postLink(post))" @keydown.enter="$router.push(postLink(post))"
+          <article v-for="post in listPosts" :key="post.id" class="postItem" role="link" tabindex="0" @click="$router.push(postLink(post))" @keydown.enter="$router.push(postLink(post))">
             <router-link v-if="post.cover_image_url" class="postItem__thumb" :to="postLink(post)">
               <img :src="post.cover_image_url" :alt="post.title" loading="lazy" />
             </router-link>
@@ -118,26 +118,26 @@
                 <span>{{ readTime(post.content) }}</span>
               </div>
             </div>
-            <router-link class="postItem__open" :to="postLink(post)">Citat</router-link>
+            <router-link class="postItem__open" :to="postLink(post)">Čítať</router-link>
           </article>
         </div>
 
         <div v-if="!hasAnyPosts" class="state">
-          <p class="state__title">Zatial bez vysledkov</p>
-          <p class="state__text">Skus iny vyraz alebo zrus filter tagu.</p>
+          <p class="state__title">Zatiaľ bez výsledkov</p>
+          <p class="state__text">Skús iný výraz alebo zruš filter tagu.</p>
         </div>
       </template>
 
       <div v-if="data && data.last_page > 1" class="pager">
         <p>Strana {{ data.current_page }} z {{ data.last_page }}</p>
         <div class="pager__actions">
-          <button type="button" :disabled="loading || page <= 1" @click="prevPage">&larr; Predosla</button>
+          <button type="button" :disabled="loading || page <= 1" @click="prevPage">&larr; Predošlá</button>
           <button
             type="button"
             :disabled="loading || page >= data.last_page"
             @click="nextPage"
           >
-            Dalsia &rarr;
+            Ďalšia &rarr;
           </button>
         </div>
       </div>

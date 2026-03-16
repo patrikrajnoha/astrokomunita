@@ -216,7 +216,7 @@ const translationHealthTone = computed(() => {
 const translationHealthTitle = computed(() => {
   if (translationHealthLoading.value) return 'Kontrolujem stav prekladu...'
   if (!translationHealth.value) return 'Preklad je momentalne nedostupny.'
-  if (translationHealth.value?.translation?.events_enabled === false) return 'Preklad je vypnuty v konfiguracii.'
+  if (translationHealth.value?.translation?.events_enabled === false) return 'Preklad je vypnutý v konfigurácii.'
   return 'Preklad je funkcny.'
 })
 

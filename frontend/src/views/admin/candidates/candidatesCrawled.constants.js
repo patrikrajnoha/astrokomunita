@@ -1,6 +1,6 @@
 export const TIME_PRESET_OPTIONS = [
   { value: 'none', label: 'Vsetko' },
-  { value: 'week', label: 'Tyzden' },
+  { value: 'week', label: 'Týždeň' },
   { value: 'month', label: 'Mesiac' },
   { value: 'year', label: 'Rok' },
   { value: 'next_7_days', label: 'Najblizsich 7 dni' },

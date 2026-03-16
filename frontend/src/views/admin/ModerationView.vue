@@ -4,10 +4,10 @@ import api from '@/services/api'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 
 const tabs = [
-  { id: 'pending', label: 'Caka' },
-  { id: 'flagged', label: 'Nahlasene' },
-  { id: 'blocked', label: 'Blokovane' },
-  { id: 'reviewed', label: 'Skontrolovane' },
+  { id: 'pending', label: 'Čaká' },
+  { id: 'flagged', label: 'Nahlásené' },
+  { id: 'blocked', label: 'Blokované' },
+  { id: 'reviewed', label: 'Skontrolované' },
 ]
 
 const activeTab = ref('pending')
@@ -53,7 +53,7 @@ async function loadQueue() {
 
     await loadDetail(selectedId.value)
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat moderacnu frontu.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať moderačnú frontu.'
   } finally {
     loading.value = false
   }
@@ -66,7 +66,7 @@ async function loadDetail(id) {
     const res = await api.get(`/admin/moderation/${id}`)
     detail.value = res.data
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat detail moderacie.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať detail moderácie.'
   }
 }
 
@@ -85,7 +85,7 @@ async function act(action) {
     note.value = ''
     await loadQueue()
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa aktualizovat stav moderacie.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa aktualizovať stav moderácie.'
   } finally {
     actionLoading.value = false
   }
@@ -107,7 +107,7 @@ async function loadModerationHealth() {
       status: 'down',
       checkedAt: e?.response?.data?.checked_at || null,
       device: null,
-      error: e?.response?.data?.error?.message || 'Moderacna sluzba je nedostupna.',
+      error: e?.response?.data?.error?.message || 'Moderačná služba je nedostupná.',
     }
   } finally {
     healthLoading.value = false
@@ -154,20 +154,20 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <AdminPageShell title="Moderacia" subtitle="Automaticka fronta pre prispevky a prilohy.">
+  <AdminPageShell title="Moderacia" subtitle="Automatická fronta pre príspevky a prílohy.">
     <div class="healthBar">
       <div class="healthState">
         <span class="dot" :class="`is-${moderationHealth.status}`" />
         <strong>
-          Moderacna sluzba:
-          {{ moderationHealth.status === 'running' ? 'bezi' : moderationHealth.status === 'checking' ? 'kontrolujem...' : 'mimo prevadzky' }}
+          Moderačná služba:
+          {{ moderationHealth.status === 'running' ? 'beží' : moderationHealth.status === 'checking' ? 'kontrolujem...' : 'mimo prevádzky' }}
         </strong>
         <span v-if="moderationHealth.device" class="meta">({{ moderationHealth.device }})</span>
       </div>
       <div class="healthMeta">
-        <span class="meta" v-if="moderationHealth.checkedAt">Posledna kontrola: {{ formatDate(moderationHealth.checkedAt) }}</span>
+        <span class="meta" v-if="moderationHealth.checkedAt">Posledná kontrola: {{ formatDate(moderationHealth.checkedAt) }}</span>
         <button class="tab" type="button" :disabled="healthLoading" @click="loadModerationHealth">
-          {{ healthLoading ? 'Kontrolujem...' : 'Obnovit stav' }}
+          {{ healthLoading ? 'Kontrolujem...' : 'Obnoviť stav' }}
         </button>
       </div>
     </div>
@@ -191,8 +191,8 @@ onUnmounted(() => {
 
     <div class="layout">
       <section class="queue">
-        <div v-if="loading" class="hint">Nacitavam moderacnu frontu...</div>
-        <div v-else-if="!items.length" class="hint">Ziadne polozky.</div>
+        <div v-if="loading" class="hint">Načítavam moderačnú frontu...</div>
+        <div v-else-if="!items.length" class="hint">Žiadne položky.</div>
         <button
           v-for="item in items"
           :key="item.id"
@@ -232,16 +232,16 @@ onUnmounted(() => {
             v-model="note"
             class="note"
             rows="3"
-            placeholder="Poznamka admina"
+            placeholder="Poznámka admina"
           />
 
           <div class="actions">
-            <button class="btn" type="button" :disabled="actionLoading" @click="act('approve')">Schvalit</button>
-            <button class="btn danger" type="button" :disabled="actionLoading" @click="act('reject')">Zamietnut</button>
+            <button class="btn" type="button" :disabled="actionLoading" @click="act('approve')">Schváliť</button>
+            <button class="btn danger" type="button" :disabled="actionLoading" @click="act('reject')">Zamietnuť</button>
           </div>
 
           <h4>Logy</h4>
-          <div v-if="!detail.logs?.length" class="hint">Zatial bez logov.</div>
+          <div v-if="!detail.logs?.length" class="hint">Zatiaľ bez logov.</div>
           <div v-for="log in detail.logs" :key="log.id" class="logItem">
             <div class="row">
               <span>{{ log.entity_type }}</span>

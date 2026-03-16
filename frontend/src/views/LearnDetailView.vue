@@ -75,9 +75,9 @@ const articleWordCount = computed(() => {
 
 const readTime = computed(() => {
   const words = articleWordCount.value
-  if (!words) return '1 min citania'
+  if (!words) return '1 min čítania'
   const minutes = Math.max(1, Math.round(words / 220))
-  return `${minutes} min citania`
+  return `${minutes} min čítania`
 })
 
 const isLongRead = computed(() => articleWordCount.value >= 500)
@@ -91,7 +91,7 @@ const metaParts = computed(() => {
   ]
 
   if (typeof post.value.views === 'number') {
-    parts.push(`${post.value.views} zobrazeni`)
+    parts.push(`${post.value.views} zobrazení`)
   }
 
   return parts
@@ -148,7 +148,7 @@ const showToc = computed(() => {
 })
 
 function postLink(value) {
-  return `/clanky/${value.slug || value.id}`
+  return `/articles/${value.slug || value.id}`
 }
 
 async function loadRelated() {
@@ -176,7 +176,7 @@ async function loadComments() {
       withDepth: 1,
     })
   } catch (e) {
-    commentsError.value = e?.response?.data?.message || 'Komentare sa nepodarilo nacitat.'
+    commentsError.value = e?.response?.data?.message || 'Komentáre sa nepodarilo načítať.'
   } finally {
     commentsLoading.value = false
   }
@@ -184,7 +184,7 @@ async function loadComments() {
 
 async function load() {
   if (!slug.value) {
-    error.value = 'Neplatny clanok.'
+    error.value = 'Neplatný článok.'
     return
   }
 
@@ -200,15 +200,15 @@ async function load() {
     post.value = payload
 
     setMeta({
-      title: `${payload?.title || 'Clanok'} | Astrokomunita`,
-      description: excerpt(payload?.content || '', 160) || 'Clanok o astronomii a pozorovani oblohy.',
+      title: `${payload?.title || 'Článok'} | Astrokomunita`,
+      description: excerpt(payload?.content || '', 160) || 'Článok o astronómii a pozorovaní oblohy.',
       image: payload?.cover_image_url || null,
     })
 
     loadComments()
     loadRelated()
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Clanok sa nepodarilo nacitat.'
+    error.value = e?.response?.data?.message || 'Článok sa nepodarilo načítať.'
   } finally {
     loading.value = false
   }
@@ -216,7 +216,7 @@ async function load() {
 
 async function submitComment() {
   if (!auth.isAuthed) {
-    commentsError.value = 'Pre pridanie komentara sa prihlas.'
+    commentsError.value = 'Pre pridanie komentára sa prihlás.'
     return
   }
 
@@ -232,7 +232,7 @@ async function submitComment() {
     commentPage.value = 1
     await loadComments()
   } catch (e) {
-    commentsError.value = e?.response?.data?.message || 'Komentar sa nepodarilo odoslat.'
+    commentsError.value = e?.response?.data?.message || 'Komentár sa nepodarilo odoslať.'
   } finally {
     commentSubmitting.value = false
   }
@@ -245,7 +245,7 @@ async function removeComment(id) {
     await blogComments.remove(slug.value, id)
     await loadComments()
   } catch (e) {
-    commentsError.value = e?.response?.data?.message || 'Komentar sa nepodarilo zmazat.'
+    commentsError.value = e?.response?.data?.message || 'Komentár sa nepodarilo zmazať.'
   }
 }
 

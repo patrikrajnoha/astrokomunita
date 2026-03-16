@@ -89,22 +89,22 @@ const accountInfoRows = computed(() => {
   if (!user.value) return []
 
   return [
-    { key: 'id', label: 'ID pouzivatela', value: user.value.id ?? '-' },
+    { key: 'id', label: 'ID používateľa', value: user.value.id ?? '-' },
     { key: 'email', label: 'E-mail', value: user.value.email || '-' },
-    { key: 'username', label: 'Pouzivatelske meno', value: user.value.username ? `@${user.value.username}` : '-' },
+    { key: 'username', label: 'Používateľské meno', value: user.value.username ? `@${user.value.username}` : '-' },
     { key: 'role', label: 'Rola', value: roleText.value },
     { key: 'status', label: 'Stav', value: statusText.value },
-    { key: 'created_at', label: 'Vytvoreny', value: formatDate(user.value.created_at) },
-    { key: 'banned_at', label: 'Zablokovany od', value: formatDate(user.value.banned_at) },
-    { key: 'ban_reason', label: 'Dovod blokacie', value: user.value.ban_reason || '-' },
+    { key: 'created_at', label: 'Vytvorený', value: formatDate(user.value.created_at) },
+    { key: 'banned_at', label: 'Zablokovaný od', value: formatDate(user.value.banned_at) },
+    { key: 'ban_reason', label: 'Dôvod blokacie', value: user.value.ban_reason || '-' },
   ]
 })
 
 const reportColumns = [
   { key: 'type', label: 'Typ' },
-  { key: 'reason', label: 'Dovod' },
+  { key: 'reason', label: 'Dôvod' },
   { key: 'status', label: 'Stav' },
-  { key: 'created_at', label: 'Vytvorene' },
+  { key: 'created_at', label: 'Vytvorené' },
   { key: 'actions', label: 'Akcie', align: 'right' },
 ]
 
@@ -178,7 +178,7 @@ async function loadUser() {
     clearPendingMedia('avatar')
     clearPendingMedia('cover')
   } catch (e) {
-    userError.value = e?.response?.data?.message || 'Nepodarilo sa nacitat pouzivatela.'
+    userError.value = e?.response?.data?.message || 'Nepodarilo sa načítať používateľa.'
   } finally {
     userLoading.value = false
   }
@@ -204,7 +204,7 @@ async function loadReports() {
     const res = await api.get(`/admin/users/${userId.value}/reports`, { params })
     reportsData.value = res.data
   } catch (e) {
-    reportsError.value = e?.response?.data?.message || 'Nepodarilo sa nacitat reporty.'
+    reportsError.value = e?.response?.data?.message || 'Nepodarilo sa načítať reporty.'
   } finally {
     reportsLoading.value = false
   }
@@ -223,11 +223,11 @@ function updateUser(updated) {
 async function banUser() {
   if (!user.value || !canModerateAccount.value) return
   const reason = await prompt({
-    title: 'Zablokovat pouzivatela',
-    message: `Zadajte dovod blokacie pre ${subjectLabel(user.value)}.`,
-    confirmText: 'Zablokovat',
-    cancelText: 'Zrusit',
-    placeholder: 'Dovod blokacie...',
+    title: 'Zablokovať používateľa',
+    message: `Zadajte dôvod blokacie pre ${subjectLabel(user.value)}.`,
+    confirmText: 'Zablokovať',
+    cancelText: 'Zrušiť',
+    placeholder: 'Dôvod blokacie...',
     required: true,
     multiline: true,
     variant: 'danger',
@@ -237,7 +237,7 @@ async function banUser() {
   try {
     const res = await api.patch(`/admin/users/${user.value.id}/ban`, { reason: String(reason).trim() })
     updateUser(res.data)
-    toast.success('Pouzivatel bol zablokovany.')
+    toast.success('Používateľ bol zablokovaný.')
   } catch (e) {
     userError.value = e?.response?.data?.message || 'Blokovanie zlyhalo.'
     toast.error(userError.value)
@@ -247,17 +247,17 @@ async function banUser() {
 async function unbanUser() {
   if (!user.value || !canModerateAccount.value) return
   const ok = await confirm({
-    title: 'Odblokovat pouzivatela',
-    message: `Odblokovat pouzivatela ${subjectLabel(user.value)}?`,
-    confirmText: 'Odblokovat',
-    cancelText: 'Zrusit',
+    title: 'Odblokovať používateľa',
+    message: `Odblokovať používateľa ${subjectLabel(user.value)}?`,
+    confirmText: 'Odblokovať',
+    cancelText: 'Zrušiť',
   })
   if (!ok) return
 
   try {
     const res = await api.post(`/admin/users/${user.value.id}/unban`)
     updateUser(res.data)
-    toast.success('Pouzivatel bol odblokovany.')
+    toast.success('Používateľ bol odblokovaný.')
   } catch (e) {
     userError.value = e?.response?.data?.message || 'Odblokovanie zlyhalo.'
     toast.error(userError.value)
@@ -267,10 +267,10 @@ async function unbanUser() {
 async function deactivateUser() {
   if (!user.value || !canModerateAccount.value || !user.value.is_active) return
   const ok = await confirm({
-    title: 'Deaktivovat pouzivatela',
-    message: `Deaktivovat pouzivatela ${subjectLabel(user.value)}?`,
-    confirmText: 'Deaktivovat',
-    cancelText: 'Zrusit',
+    title: 'Deaktivovať používateľa',
+    message: `Deaktivovať používateľa ${subjectLabel(user.value)}?`,
+    confirmText: 'Deaktivovať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!ok) return
@@ -278,9 +278,9 @@ async function deactivateUser() {
   try {
     const res = await api.post(`/admin/users/${user.value.id}/deactivate`)
     updateUser(res.data)
-    toast.success('Pouzivatel bol deaktivovany.')
+    toast.success('Používateľ bol deaktivovaný.')
   } catch (e) {
-    userError.value = e?.response?.data?.message || 'Deaktivacia zlyhala.'
+    userError.value = e?.response?.data?.message || 'Deaktivácia zlyhala.'
     toast.error(userError.value)
   }
 }
@@ -288,19 +288,19 @@ async function deactivateUser() {
 async function reactivateUser() {
   if (!user.value || !canModerateAccount.value || user.value.is_active) return
   const ok = await confirm({
-    title: 'Reaktivovat pouzivatela',
-    message: `Reaktivovat pouzivatela ${subjectLabel(user.value)}?`,
-    confirmText: 'Reaktivovat',
-    cancelText: 'Zrusit',
+    title: 'Reaktivovať používateľa',
+    message: `Reaktivovať používateľa ${subjectLabel(user.value)}?`,
+    confirmText: 'Reaktivovať',
+    cancelText: 'Zrušiť',
   })
   if (!ok) return
 
   try {
     const res = await api.post(`/admin/users/${user.value.id}/reactivate`)
     updateUser(res.data)
-    toast.success('Pouzivatel bol reaktivovany.')
+    toast.success('Používateľ bol reaktivovaný.')
   } catch (e) {
-    userError.value = e?.response?.data?.message || 'Reaktivacia zlyhala.'
+    userError.value = e?.response?.data?.message || 'Reaktivácia zlyhala.'
     toast.error(userError.value)
   }
 }
@@ -308,10 +308,10 @@ async function reactivateUser() {
 async function resetProfile() {
   if (!user.value || !canUseDangerActions.value) return
   const ok = await confirm({
-    title: 'Resetovat profil',
-    message: `Resetovat profil pre ${subjectLabel(user.value)}?`,
-    confirmText: 'Resetovat',
-    cancelText: 'Zrusit',
+    title: 'Resetovať profil',
+    message: `Resetovať profil pre ${subjectLabel(user.value)}?`,
+    confirmText: 'Resetovať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!ok) return
@@ -319,7 +319,7 @@ async function resetProfile() {
   try {
     const res = await api.post(`/admin/users/${user.value.id}/reset-profile`)
     updateUser(res.data)
-    toast.success('Profil bol resetovany.')
+    toast.success('Profil bol resetovaný.')
   } catch (e) {
     userError.value = e?.response?.data?.message || 'Reset profilu zlyhal.'
     toast.error(userError.value)
@@ -333,13 +333,13 @@ async function updateEditorRole(nextRole) {
     const res = await api.patch(`/admin/users/${user.value.id}/role`, { role: nextRole })
     updateUser(res.data)
     clearStatsCache()
-    toast.success(nextRole === 'editor' ? 'Rola editor bola pridana.' : 'Rola editor bola odobrata.')
+    toast.success(nextRole === 'editor' ? 'Rola editor bola pridaná.' : 'Rola editor bola odobratá.')
   } catch (e) {
     const status = Number(e?.response?.status || 0)
     if (status === 403) {
-      userError.value = 'Nemate opravnenie menit roly.'
+      userError.value = 'Nemáte oprávnenie meniť roly.'
     } else if (status === 422) {
-      userError.value = e?.response?.data?.message || 'Zmena roly je neplatna.'
+      userError.value = e?.response?.data?.message || 'Zmena roly je neplatná.'
     } else {
       userError.value = e?.response?.data?.message || 'Zmena roly zlyhala.'
     }
@@ -358,9 +358,9 @@ async function saveProfile() {
   try {
     const res = await api.patch(`/admin/users/${user.value.id}/profile`, payload)
     updateUser(res.data)
-    toast.success('Profil bol aktualizovany.')
+    toast.success('Profil bol aktualizovaný.')
   } catch (e) {
-    userError.value = e?.response?.data?.message || 'Aktualizacia profilu zlyhala.'
+    userError.value = e?.response?.data?.message || 'Aktualizácia profilu zlyhala.'
     toast.error(userError.value)
   }
 }
@@ -369,16 +369,16 @@ async function reportAction(report, action) {
   if (!report?.id) return
 
   const isHide = action === 'hide'
-  const title = isHide ? 'Skryt nahlaseny obsah?' : 'Potvrdit akciu?'
+  const title = isHide ? 'Skryť nahlásený obsah?' : 'Potvrdiť akciu?'
   const message = isHide
-    ? 'Nahlaseny obsah bude skryty pre ostatnych pouzivatelov.'
-    : `Naozaj vykonat "${action}"?`
+    ? 'Nahlásený obsah bude skrytý pre ostatných používateľov.'
+    : `Naozaj vykonať "${action}"?`
 
   const ok = await confirm({
     title,
     message,
-    confirmText: isHide ? 'Skryt obsah' : 'Potvrdit',
-    cancelText: 'Zrusit',
+    confirmText: isHide ? 'Skryť obsah' : 'Potvrdiť',
+    cancelText: 'Zrušiť',
     variant: isHide ? 'danger' : 'default',
   })
   if (!ok) return

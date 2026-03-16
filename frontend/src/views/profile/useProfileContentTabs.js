@@ -68,10 +68,10 @@ export function useProfileContentTabs({
   ))
   const globalEmptyTitle = computed(() => (
     activeTab.value === 'events'
-      ? 'Zatial nesledujes ziadne udalosti'
+      ? 'Zatiaľ nesleduješ žiadne udalosti'
       : activeTab.value === 'observations'
-        ? 'Zatial ziadne pozorovania'
-        : 'Zatial ziadny obsah'
+        ? 'Zatiaľ žiadne pozorovania'
+        : 'Zatiaľ žiadny obsah'
   ))
   const globalEmptyMessage = computed(() => (
     activeTab.value === 'events'
@@ -81,12 +81,12 @@ export function useProfileContentTabs({
         : 'Tento feed je momentalne prazdny.'
   ))
   const globalEmptyActionLabel = computed(() => (
-    activeTab.value === 'observations' ? 'Pridat pozorovanie' : ''
+    activeTab.value === 'observations' ? 'Pridať pozorovanie' : ''
   ))
   const eventSegmentEmptyTitle = computed(() => (
     activeEventSegment.value === 'planned'
-      ? 'Zatial nemas planovane udalosti'
-      : 'Zatial nemas udalosti v sledovani'
+      ? 'Zatiaľ nemáš plánované udalosti'
+      : 'Zatiaľ nemáš udalosti v sledovaní'
   ))
   const eventSegmentEmptyMessage = computed(() => (
     activeEventSegment.value === 'planned'
@@ -140,7 +140,7 @@ export function useProfileContentTabs({
     if (!post?.id || pinLoadingId.value) return
 
     if (!canPinProfilePost(post)) {
-      actionErr.value = 'Mozes pripnut iba svoj hlavny prispevok.'
+      actionErr.value = 'Môžeš pripnúť iba svoj hlavný príspevok.'
       return
     }
 
@@ -169,13 +169,13 @@ export function useProfileContentTabs({
       }
 
       actionMsg.value = wasPinned
-        ? 'Prispevok bol odopnuty z profilu.'
-        : 'Prispevok bol pripnuty na profile.'
+        ? 'Príspevok bol odopnutý z profilu.'
+        : 'Príspevok bol pripnutý na profile.'
     } catch (e) {
       const status = e?.response?.status
-      if (status === 401) actionErr.value = 'Prihlas sa.'
-      else if (status === 403) actionErr.value = 'Nemas opravnenie.'
-      else if (status === 422) actionErr.value = e?.response?.data?.message || 'Pripnut sa da iba hlavny prispevok.'
+      if (status === 401) actionErr.value = 'Prihlás sa.'
+      else if (status === 403) actionErr.value = 'Nemáš oprávnenie.'
+      else if (status === 422) actionErr.value = e?.response?.data?.message || 'Pripnúť sa dá iba hlavný príspevok.'
       else actionErr.value = e?.response?.data?.message || 'Zmena pripnutia zlyhala.'
     } finally {
       pinLoadingId.value = null
@@ -185,10 +185,10 @@ export function useProfileContentTabs({
   async function deletePost(post) {
     if (!post?.id || deleteLoadingId.value) return
     const ok = await confirm({
-      title: 'Vymazat prispevok',
-      message: 'Naozaj chces vymazat tento prispevok?',
-      confirmText: 'Vymazat',
-      cancelText: 'Zrusit',
+      title: 'Vymazať príspevok',
+      message: 'Naozaj chceš vymazať tento príspevok?',
+      confirmText: 'Vymazať',
+      cancelText: 'Zrušiť',
       variant: 'danger',
     })
     if (!ok) return
@@ -213,12 +213,12 @@ export function useProfileContentTabs({
         pinnedPost.value = null
       }
 
-      actionMsg.value = 'Prispevok bol vymazany.'
+      actionMsg.value = 'Príspevok bol vymazaný.'
       await loadCounts()
     } catch (e) {
       const status = e?.response?.status
-      if (status === 401) actionErr.value = 'Prihlas sa.'
-      else if (status === 403) actionErr.value = 'Nemas opravnenie.'
+      if (status === 401) actionErr.value = 'Prihlás sa.'
+      else if (status === 403) actionErr.value = 'Nemáš oprávnenie.'
       else actionErr.value = e?.response?.data?.message || 'Mazanie zlyhalo.'
     } finally {
       deleteLoadingId.value = null

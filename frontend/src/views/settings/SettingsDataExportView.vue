@@ -1,7 +1,7 @@
 <template>
   <SettingsDetailShell
     title="Export dat"
-    subtitle="Stiahnite profilove data vo formate JSON pre zalohu alebo GDPR poziadavky."
+    subtitle="Stiahnite profilové dáta vo formáte JSON pre zálohu alebo GDPR požiadavky."
   >
     <InlineStatus
       v-if="exportState.success"
@@ -19,7 +19,7 @@
         v-if="exportSummaryState.loading"
         class="export-summary-loading"
       >
-        Nacitavam rozsah exportu...
+        Načítavam rozsah exportu...
       </p>
       <p
         v-else-if="exportSummaryState.error"
@@ -29,13 +29,13 @@
       </p>
       <template v-else-if="exportSummaryState.loaded">
         <p class="export-summary-size">
-          Odhad velkosti: <strong>{{ formatExportBytes(exportSummaryState.estimatedBytes) }}</strong>
+          Odhad veľkosti: <strong>{{ formatExportBytes(exportSummaryState.estimatedBytes) }}</strong>
         </p>
         <p class="export-summary-counts">
           Prispevky: {{ exportSummaryState.counts.posts_count }} |
-          Pozvanky: {{ exportSummaryState.counts.invites_received_count + exportSummaryState.counts.invites_sent_count }} |
+          Pozvánky: {{ exportSummaryState.counts.invites_received_count + exportSummaryState.counts.invites_sent_count }} |
           Pripomienky: {{ exportSummaryState.counts.reminders_count }} |
-          Sledovane udalosti: {{ exportSummaryState.counts.followed_events_count }} |
+          Sledované udalosti: {{ exportSummaryState.counts.followed_events_count }} |
           Bookmarky: {{ exportSummaryState.counts.bookmarks_count }}
         </p>
       </template>
@@ -46,7 +46,7 @@
         class="field-label"
         for="settings-export-password"
       >
-        Potvrdte aktualnym heslom
+        Potvrďte aktuálnym heslom
       </label>
       <input
         id="settings-export-password"
@@ -55,27 +55,27 @@
         type="password"
         autocomplete="current-password"
         :disabled="exportState.loading"
-        placeholder="Zadajte aktualne heslo"
+        placeholder="Zadajte aktuálne heslo"
       />
       <button
         id="settings-export-button"
         type="button"
         class="btn btn-primary"
         :disabled="exportState.loading || exportState.retryAfterSeconds > 0"
-        aria-label="Exportovat profilove data"
+        aria-label="Exportovať profilové dáta"
         @click="downloadProfileExport"
       >
         {{
           exportState.loading
             ? exportState.phase || 'Pripravujem export...'
             : exportState.retryAfterSeconds > 0
-              ? `Skuste znova o ${exportState.retryAfterSeconds}s`
-              : 'Exportovat moj profil'
+              ? `Skúste znova o ${exportState.retryAfterSeconds}s`
+              : 'Exportovať môj profil'
         }}
       </button>
       <p class="export-note">
-        Obsahuje profil, newsletter, notifikacne nastavenia, aktivitu, prispevky, prijate aj odoslane pozvanky,
-        pripomienky, sledovane udalosti a bookmarky.
+        Obsahuje profil, newsletter, notifikačné nastavenia, aktivitu, príspevky, prijaté aj odoslané pozvánky,
+        pripomienky, sledované udalosti a záložky.
       </p>
     </div>
   </SettingsDetailShell>

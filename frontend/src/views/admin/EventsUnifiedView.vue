@@ -402,10 +402,10 @@ async function previewTranslationBackfill() {
 
 async function runTranslationBackfill() {
   const approved = await confirm({
-    title: 'Spustit retranslate',
+    title: 'Spustiť retranslate',
     message: 'Naozaj spustit retranslate schvalenych udalosti?',
     confirmText: 'Spustit',
-    cancelText: 'Zrusit',
+    cancelText: 'Zrušiť',
   })
   if (!approved) return
   await requestTranslationBackfill(false)

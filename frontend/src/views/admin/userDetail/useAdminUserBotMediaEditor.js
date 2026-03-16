@@ -271,7 +271,7 @@ export function useAdminUserBotMediaEditor({
     }
 
     if ((uploadFile?.size || 0) > PROFILE_MEDIA_UPLOAD_MAX_BYTES) {
-      throw new Error('Vybrany obrazok je prilis velky. Maximalna velkost je 20 MB.')
+      throw new Error('Vybraný obrázok je príliš veľký. Maximálna veľkosť je 20 MB.')
     }
 
     return uploadFile

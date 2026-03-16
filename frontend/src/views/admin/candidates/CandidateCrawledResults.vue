@@ -118,9 +118,9 @@ function hiddenMatchedSourcesCount(candidate, max = 2) {
         <thead>
           <tr>
             <th>ID</th>
-            <th>Nazov</th>
+            <th>Názov</th>
             <th>Zdroj / typ</th>
-            <th>Zaciatok / stav</th>
+            <th>Začiatok / stav</th>
             <th v-if="showConfidenceColumn">Skore zdrojov</th>
             <th>Akcie</th>
           </tr>
@@ -204,7 +204,7 @@ function hiddenMatchedSourcesCount(candidate, max = 2) {
 
           <tr v-if="data.data.length === 0">
             <td :colspan="showConfidenceColumn ? 6 : 5" class="tableEmpty">
-              Ziadne kandidaty pre aktualny filter.
+              Žiadne kandidáty pre aktuálny filter.
             </td>
           </tr>
         </tbody>
@@ -278,7 +278,7 @@ function hiddenMatchedSourcesCount(candidate, max = 2) {
         </div>
       </article>
       <div v-if="data.data.length === 0" class="tableEmpty">
-        Ziadne kandidaty pre aktualny filter.
+        Žiadne kandidáty pre aktuálny filter.
       </div>
     </div>
 

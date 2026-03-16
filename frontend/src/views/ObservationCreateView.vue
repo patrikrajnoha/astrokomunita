@@ -12,7 +12,7 @@
     <form v-else class="form-card" :class="{ 'form-card--embedded': embedded }" @submit.prevent="submit">
       <div class="field-grid field-grid--main" :class="{ 'field-grid--main-embedded': embedded }">
         <label class="field field--span-full">
-          <span>Nazov *</span>
+          <span>Názov *</span>
           <input v-model="form.title" type="text" maxlength="255" required>
         </label>
 
@@ -68,12 +68,12 @@
         <span>Publikovat vo verejnom feede</span>
       </label>
       <p v-if="form.isPublic" class="field-help">
-        {{ embedded ? 'Verejne pozorovanie sa vytvori aj vo feede.' : 'Verejne pozorovanie sa automaticky vytvori aj ako prispevok vo feede.' }}
+        {{ embedded ? 'Verejné pozorovanie sa vytvorí aj vo feede.' : 'Verejné pozorovanie sa automaticky vytvorí aj ako príspevok vo feede.' }}
       </p>
 
       <label v-if="form.isPublic" class="field field-check field-check--nested">
         <input v-model="openPostAfterCreate" type="checkbox">
-        <span>Po ulozeni otvorit vytvoreny prispevok</span>
+        <span>Po uložení otvoriť vytvorený príspevok</span>
       </label>
 
       <label class="field">
@@ -141,10 +141,10 @@ const error = ref('')
 const openPostAfterCreate = ref(true)
 const submitLabel = computed(() => {
   if (saving.value) return 'Ukladam...'
-  if (form.isPublic && openPostAfterCreate.value) return 'Vytvorit a otvorit prispevok'
-  return 'Vytvorit pozorovanie'
+  if (form.isPublic && openPostAfterCreate.value) return 'Vytvoriť a otvoriť príspevok'
+  return 'Vytvoriť pozorovanie'
 })
-const cancelLabel = computed(() => (props.embedded ? 'Spat na prispevok' : 'Spat'))
+const cancelLabel = computed(() => (props.embedded ? 'Späť na príspevok' : 'Späť'))
 
 watch(
   () => form.isPublic,

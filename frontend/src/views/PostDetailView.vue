@@ -53,6 +53,14 @@ const reportTarget = ref(null)
 const reportReason = ref('spam')
 const reportMessage = ref('')
 const reportNotice = ref('')
+
+const reportOptions = [
+  { value: 'spam',       icon: '🚫', label: 'Spam' },
+  { value: 'abuse',      icon: '⚠️',  label: 'Nevhodný obsah' },
+  { value: 'misinfo',    icon: '📢', label: 'Dezinformácie' },
+  { value: 'harassment', icon: '😤', label: 'Obťažovanie' },
+  { value: 'other',      icon: '💬', label: 'Iné' },
+]
 const editingPostId = ref(null)
 const editContentDraft = ref('')
 const editSavingId = ref(null)
@@ -273,7 +281,7 @@ function menuItemsForPost(post) {
   }
 
   if (canAdminEditBotPost(post)) {
-    items.push({ key: 'edit', label: 'Upravit', danger: false })
+    items.push({ key: 'edit', label: 'Upraviť', danger: false })
   }
 
   return items
@@ -361,7 +369,7 @@ async function saveInlineEdit(post) {
     const message =
       status === 401 || status === 419
         ? 'Relacia vyprsala. Prihlas sa znova.'
-        : e?.response?.data?.message || 'Uprava prispevku zlyhala.'
+        : e?.response?.data?.message || 'Úprava príspevku zlyhala.'
     reportNotice.value = message
     toastError(message)
   } finally {
@@ -414,7 +422,7 @@ async function submitReport() {
       reason: reportReason.value,
       message: reportMessage.value || null,
     })
-    reportNotice.value = 'Dakujeme, nahlasenie sme prijali.'
+    reportNotice.value = 'Ďakujeme, nahlásenie sme prijali.'
   } catch (e) {
     const status = e?.response?.status
     if (status === 401) reportNotice.value = 'Prihlas sa.'
@@ -472,7 +480,7 @@ async function loadPost() {
     error.value =
       e?.response?.data?.message ||
       e?.message ||
-      'Prispevok sa nepodarilo nacitat.'
+      'Príspevok sa nepodarilo načítať.'
   } finally {
     loading.value = false
   }

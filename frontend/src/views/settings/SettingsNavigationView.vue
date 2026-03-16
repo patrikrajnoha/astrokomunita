@@ -35,8 +35,14 @@
           :disabled="logoutState.loading"
           @click="confirmLogout"
         >
-          <span class="settings-logout-icon" aria-hidden="true">L</span>
-          <span class="settings-logout-label">{{ logoutState.loading ? 'Odhlasujem...' : 'Odhlasit sa' }}</span>
+          <span class="settings-logout-icon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </span>
+          <span class="settings-logout-label">{{ logoutState.loading ? 'Odhlasujem...' : 'Odhlásiť sa' }}</span>
         </button>
       </div>
       <p v-if="logoutState.error" class="field-error">{{ logoutState.error }}</p>
@@ -57,10 +63,10 @@ async function confirmLogout() {
   if (logoutState.loading) return
 
   const approved = await confirm({
-    title: 'Odhlasit sa?',
-    message: 'Budete odhlaseny z tohto zariadenia.',
-    confirmText: 'Odhlasit sa',
-    cancelText: 'Zrusit',
+    title: 'Odhlásiť sa?',
+    message: 'Budete odhlásený z tohto zariadenia.',
+    confirmText: 'Odhlásiť sa',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
 

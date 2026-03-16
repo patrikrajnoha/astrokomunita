@@ -147,10 +147,10 @@ const {
 async function confirmPublishToAstroFeed() {
   return Boolean(
     await confirm({
-      title: 'Publikovat do AstroFeedu',
-      message: 'Naozaj publikovat tuto polozku do AstroFeedu?',
-      confirmText: 'Publikovat',
-      cancelText: 'Zrusit',
+      title: 'Publikovať do AstroFeedu',
+      message: 'Naozaj publikovať túto položku do AstroFeedu?',
+      confirmText: 'Publikovať',
+      cancelText: 'Zrušiť',
     }),
   )
 }
@@ -208,10 +208,10 @@ function closeItemPreview() {
 async function confirmDeletePublishedPost() {
   return Boolean(
     await confirm({
-      title: 'Vymazat publikovany prispevok',
-      message: 'Naozaj vymazat publikovany bot prispevok z feedu?',
-      confirmText: 'Vymazat',
-      cancelText: 'Zrusit',
+      title: 'Vymazať publikovaný príspevok',
+      message: 'Naozaj vymazať publikovaný bot príspevok z feedu?',
+      confirmText: 'Vymazať',
+      cancelText: 'Zrušiť',
       variant: 'danger',
     }),
   )
@@ -220,10 +220,10 @@ async function confirmDeletePublishedPost() {
 async function confirmBackfillTranslation() {
   return Boolean(
     await confirm({
-      title: 'Doplnit preklad',
-      message: 'Doplnit preklad aj do uz publikovanych prispevkov?',
-      confirmText: 'Doplnit',
-      cancelText: 'Zrusit',
+      title: 'Doplniť preklad',
+      message: 'Doplniť preklad aj do už publikovaných príspevkov?',
+      confirmText: 'Doplniť',
+      cancelText: 'Zrušiť',
     }),
   )
 }
@@ -231,10 +231,10 @@ async function confirmBackfillTranslation() {
 async function confirmDeleteAllBotPosts() {
   return Boolean(
     await confirm({
-      title: 'Hromadne mazanie',
-      message: 'Naozaj vymazat vsetky publikovane bot prispevky podla aktualneho filtra?',
-      confirmText: 'Vymazat',
-      cancelText: 'Zrusit',
+      title: 'Hromadné mazanie',
+      message: 'Naozaj vymazať všetky publikované bot príspevky podľa aktuálneho filtra?',
+      confirmText: 'Vymazať',
+      cancelText: 'Zrušiť',
       variant: 'danger',
     }),
   )
@@ -292,6 +292,6 @@ onBeforeUnmount(() => {
 <template src="./botEngine/BotEngineView.template.html"></template>
 
 <style scoped src="./botEngine/BotEngineView.css"></style>
-
+
 
 

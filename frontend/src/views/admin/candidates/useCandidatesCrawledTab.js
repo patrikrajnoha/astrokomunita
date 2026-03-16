@@ -209,7 +209,7 @@ export function useCandidatesCrawledTab({
     try {
       candidateDetail.value = await eventCandidates.get(candidateId)
     } catch (fetchError) {
-      candidateDetailError.value = fetchError?.response?.data?.message || 'Detail kandidata sa nepodarilo nacitat.'
+      candidateDetailError.value = fetchError?.response?.data?.message || 'Detail kandidáta sa nepodarilo načítať.'
     } finally {
       candidateDetailLoading.value = false
     }

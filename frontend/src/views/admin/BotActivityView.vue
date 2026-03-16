@@ -47,7 +47,7 @@ const hasActiveFilters = computed(() => {
 })
 
 const summaryLine = computed(() => {
-  if (loading.value) return 'Nacitavam aktivitu...'
+  if (loading.value) return 'Načítavam aktivitu...'
   return `${pagination.total} zaznamov | strana ${pagination.current_page}/${pagination.last_page}`
 })
 
@@ -177,35 +177,35 @@ watch(
         <p class="embeddedSubtitle">{{ summaryLine }}</p>
       </div>
       <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
-        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+        {{ loading ? 'Načítavam...' : 'Obnoviť' }}
       </button>
     </div>
 
     <template v-if="!props.embedded" #right-actions>
       <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
-        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+        {{ loading ? 'Načítavam...' : 'Obnoviť' }}
       </button>
     </template>
 
     <section class="card filterCard">
       <div class="filterRow">
         <label class="field field--search">
-          <input v-model="filters.sourceKey" type="text" placeholder="Hladat podla source key" />
+          <input v-model="filters.sourceKey" type="text" placeholder="Hľadať podľa source key" />
         </label>
 
         <label class="field field--compact">
           <span>Bot</span>
           <select v-model="filters.bot_identity">
-            <option value="">Vsetky</option>
+            <option value="">Všetky</option>
             <option value="kozmo">Kozmo</option>
             <option value="stela">Stela</option>
           </select>
         </label>
 
         <label class="field field--compact">
-          <span>Vysledok</span>
+          <span>Výsledok</span>
           <select v-model="filters.outcome">
-            <option value="">Vsetky</option>
+            <option value="">Všetky</option>
             <option value="success">success</option>
             <option value="partial">partial</option>
             <option value="published">published</option>
@@ -215,18 +215,18 @@ watch(
         </label>
 
         <div class="filterActions">
-          <button class="actionBtn" type="button" :disabled="loading" @click="applyFilters">Filtrovat</button>
-          <button v-if="hasActiveFilters" class="ghostBtn" type="button" :disabled="loading" @click="resetFilters">Vycistit</button>
+          <button class="actionBtn" type="button" :disabled="loading" @click="applyFilters">Filtrovať</button>
+          <button v-if="hasActiveFilters" class="ghostBtn" type="button" :disabled="loading" @click="resetFilters">Vyčistiť</button>
         </div>
       </div>
 
       <details class="advancedFilters">
-        <summary>Pokrocile filtre</summary>
+        <summary>Pokročilé filtre</summary>
         <div class="advancedFiltersBody">
           <label class="field field--compact">
             <span>Akcia</span>
             <select v-model="filters.action">
-              <option value="">Vsetky</option>
+              <option value="">Všetky</option>
               <option value="run">run</option>
               <option value="publish">publish</option>
             </select>
@@ -245,20 +245,20 @@ watch(
 
     <section class="card tableCard">
       <p v-if="error" class="error">{{ error }}</p>
-      <p v-else-if="!loading && rows.length === 0" class="muted">Ziadne logy pre zadane filtre.</p>
+      <p v-else-if="!loading && rows.length === 0" class="muted">Žiadne logy pre zadané filtre.</p>
 
       <div v-else class="tableWrap">
         <table class="activityTable">
           <thead>
             <tr>
-              <th>Cas</th>
+              <th>Čas</th>
               <th>Bot</th>
               <th>Zdroj</th>
               <th>Akcia</th>
-              <th>Vysledok</th>
+              <th>Výsledok</th>
               <th>Item/Post</th>
-              <th>Dovod</th>
-              <th>Sprava</th>
+              <th>Dôvod</th>
+              <th>Správa</th>
             </tr>
           </thead>
           <tbody>
@@ -291,7 +291,7 @@ watch(
           Strana {{ pagination.current_page }} / {{ pagination.last_page }} - {{ pagination.total }} zaznamov
         </span>
         <button class="ghostBtn" type="button" :disabled="loading || !canNext" @click="nextPage">
-          Dalsia
+          Ďalšia
         </button>
       </div>
     </section>

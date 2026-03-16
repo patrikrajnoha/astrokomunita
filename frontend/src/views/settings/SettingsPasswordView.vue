@@ -1,7 +1,7 @@
 <template>
   <SettingsDetailShell
     title="Zmena hesla"
-    subtitle="Nastavte nove heslo pre svoj ucet."
+    subtitle="Nastavte nové heslo pre svoj účet."
   >
     <InlineStatus
       v-if="passwordState.success"
@@ -15,7 +15,7 @@
     />
 
     <form class="settings-form" @submit.prevent="submitPassword">
-      <label class="field-label" for="current-password">Aktualne heslo</label>
+      <label class="field-label" for="current-password">Aktuálne heslo</label>
       <input
         id="current-password"
         v-model="passwordForm.current"
@@ -27,26 +27,26 @@
         required
       />
 
-      <label class="field-label" for="new-password">Nove heslo</label>
+      <label class="field-label" for="new-password">Nové heslo</label>
       <input
         id="new-password"
         v-model="passwordForm.password"
         type="password"
         autocomplete="new-password"
-        placeholder="Nove heslo"
+        placeholder="Nové heslo"
         class="field-input"
         :disabled="passwordState.loading"
         required
         minlength="8"
       />
 
-      <label class="field-label" for="confirm-password">Potvrdte nove heslo</label>
+      <label class="field-label" for="confirm-password">Potvrďte nové heslo</label>
       <input
         id="confirm-password"
         v-model="passwordForm.confirm"
         type="password"
         autocomplete="new-password"
-        placeholder="Potvrdte nove heslo"
+        placeholder="Potvrďte nové heslo"
         class="field-input"
         :disabled="passwordState.loading"
         required
@@ -61,9 +61,9 @@
         type="submit"
         class="btn btn-primary"
         :disabled="passwordState.loading"
-        aria-label="Aktualizovat heslo"
+        aria-label="Aktualizovať heslo"
       >
-        {{ passwordState.loading ? 'Aktualizujem...' : 'Aktualizovat heslo' }}
+        {{ passwordState.loading ? 'Aktualizujem...' : 'Aktualizovať heslo' }}
       </button>
     </form>
   </SettingsDetailShell>

@@ -203,10 +203,10 @@ const loadPosts = async (page = 1, { force = false } = {}) => {
     }
 
     if (page === 1) {
-      error.value = 'Nepodarilo sa nacitat prispevky'
+      error.value = 'Nepodarilo sa načítať príspevky'
       posts.value = []
     } else {
-      toast.warn('Nepodarilo sa nacitat dalsie prispevky.')
+      toast.warn('Nepodarilo sa načítať ďalšie príspevky.')
     }
   } finally {
     if (requestId === requestSequence.value) {

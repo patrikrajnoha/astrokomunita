@@ -27,10 +27,10 @@ let searchDebounce = null
 
 const columns = [
   { key: 'type', label: 'Typ' },
-  { key: 'target', label: 'Ciel' },
-  { key: 'reason', label: 'Dovod' },
+  { key: 'target', label: 'Cieľ' },
+  { key: 'reason', label: 'Dôvod' },
   { key: 'status', label: 'Stav' },
-  { key: 'created_at', label: 'Vytvorene' },
+  { key: 'created_at', label: 'Vytvorené' },
   { key: 'actions', label: 'Akcie', align: 'right' },
 ]
 
@@ -112,7 +112,7 @@ async function load() {
     const res = await api.get('/admin/reports', { params })
     data.value = res.data
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat reporty.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať reporty.'
   } finally {
     loading.value = false
   }
@@ -135,28 +135,28 @@ async function act(report, action) {
   const isDestructive = isDelete || isBan
 
   const title = isDelete
-    ? 'Zmazat obsah?'
+    ? 'Zmazať obsah?'
     : isBan
-      ? 'Zablokovat pouzivatela?'
-      : 'Potvrdit akciu?'
+      ? 'Zablokovať používateľa?'
+      : 'Potvrdiť akciu?'
 
   const message = isDelete
-    ? 'Obsah bude natrvalo odstraneny.'
+    ? 'Obsah bude natrvalo odstránený.'
     : isBan
-      ? 'Pouzivatel bude zablokovany.'
-      : `Naozaj chces vykonat akciu "${action}"?`
+      ? 'Používateľ bude zablokovaný.'
+      : `Naozaj chceš vykonať akciu "${action}"?`
 
   const confirmText = isDelete
-    ? 'Zmazat obsah'
+    ? 'Zmazať obsah'
     : isBan
-      ? 'Zablokovat'
-      : 'Potvrdit'
+      ? 'Zablokovať'
+      : 'Potvrdiť'
 
   const ok = await confirm({
     title,
     message,
     confirmText,
-    cancelText: 'Zrusit',
+    cancelText: 'Zrušiť',
     variant: isDestructive ? 'danger' : 'default',
   })
   if (!ok) return
@@ -257,20 +257,20 @@ load()
 </script>
 
 <template>
-  <AdminPageShell title="Reporty" subtitle="Moderacna fronta (MVP).">
+  <AdminPageShell title="Reporty" subtitle="Moderačná fronta (MVP).">
     <div v-if="error" class="adminAlert">
       {{ error }}
     </div>
 
     <AdminToolbar :loading="loading">
       <template #search>
-        <label class="fieldLabel" for="reports-search">Hladat</label>
+        <label class="fieldLabel" for="reports-search">Hľadať</label>
         <input
           id="reports-search"
           v-model="searchInput"
           :disabled="loading"
           type="search"
-          placeholder="Hladat reporty..."
+          placeholder="Hľadať reporty..."
           class="fieldInput"
         />
       </template>
@@ -311,7 +311,7 @@ load()
       </template>
 
       <template #actions>
-        <button type="button" class="btn ghost" :disabled="loading" @click="refresh">Obnovit</button>
+        <button type="button" class="btn ghost" :disabled="loading" @click="refresh">Obnoviť</button>
       </template>
     </AdminToolbar>
 
@@ -319,8 +319,8 @@ load()
       :columns="columns"
       :rows="rows"
       :loading="loading"
-      empty-title="Nenasli sa ziadne reporty"
-      empty-description="Skuste upravit filtre."
+      empty-title="Nenašli sa žiadne reporty"
+      empty-description="Skúste upraviť filtre."
       :can-clear-filters="hasActiveFilters"
       @clear-filters="clearFilters"
     >
@@ -342,11 +342,11 @@ load()
 
       <template #[`cell(actions)`]="{ row }">
         <div class="rowActions">
-          <button class="btn action" :disabled="loading" @click="act(row, 'hide')">Skryt</button>
-          <button class="btn action" :disabled="loading" @click="act(row, 'delete')">Zmazat</button>
-          <button class="btn action subtle" :disabled="loading" @click="act(row, 'warn')">Upozornit</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'hide')">Skryť</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'delete')">Zmazať</button>
+          <button class="btn action subtle" :disabled="loading" @click="act(row, 'warn')">Upozorniť</button>
           <button class="btn action" :disabled="loading" @click="act(row, 'ban')">Ban</button>
-          <button class="btn action" :disabled="loading" @click="act(row, 'dismiss')">Zamietnut</button>
+          <button class="btn action" :disabled="loading" @click="act(row, 'dismiss')">Zamietnuť</button>
         </div>
       </template>
     </AdminDataTable>

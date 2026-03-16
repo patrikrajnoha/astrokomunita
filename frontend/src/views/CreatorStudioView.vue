@@ -14,7 +14,7 @@
       <div class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] p-6">
         <h2 class="text-lg font-semibold text-[var(--color-surface)]">Koncepty</h2>
         <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
-          Spravujte pripravovane pribehy a prispevky.
+          Spravujte pripravované príbehy a príspevky.
         </p>
         <button
           type="button"

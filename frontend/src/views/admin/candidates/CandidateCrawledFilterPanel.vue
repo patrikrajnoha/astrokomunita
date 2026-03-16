@@ -192,7 +192,7 @@ function triggerSearch() {
       </div>
 
       <div v-if="showWeekFilter" class="filterField">
-        <label>Tyzden</label>
+        <label>Týždeň</label>
         <input
           v-model.number="filterWeekModel"
           type="number"
@@ -205,7 +205,7 @@ function triggerSearch() {
 
       <div class="filterActions">
         <button type="button" :disabled="loading" class="toolbarButton toolbarButton--primary" @click="triggerSearch">
-          Hladat
+          Hľadať
         </button>
         <button
           type="button"
@@ -213,7 +213,7 @@ function triggerSearch() {
           class="toolbarButton toolbarButton--ghost"
           @click="showAdvancedFiltersModel = !showAdvancedFiltersModel"
         >
-          {{ showAdvancedFiltersModel ? 'Skryt pokrocile' : 'Pokrocile filtre' }}
+          {{ showAdvancedFiltersModel ? 'Skryť pokročilé' : 'Pokročilé filtre' }}
         </button>
       </div>
 
@@ -221,7 +221,7 @@ function triggerSearch() {
         <div class="filterField">
           <label>Typ</label>
           <select v-model="typeModel" :disabled="loading" class="filterInput">
-            <option value="">vsetky</option>
+            <option value="">všetky</option>
             <option value="eclipse_lunar">Zatmenie Mesiaca</option>
             <option value="eclipse_solar">Zatmenie Slnka</option>
             <option value="meteor_shower">Meteoricky roj</option>

@@ -127,7 +127,7 @@ function resolveEventTypePresentation(eventItem) {
   if (customIcon) {
     return {
       icon: customIcon,
-      label: 'Vlastna ikona udalosti',
+      label: 'Vlastná ikona udalosti',
     }
   }
 
@@ -137,7 +137,7 @@ function resolveEventTypePresentation(eventItem) {
   if (looksLikeMoonEvent(type, title)) {
     return {
       icon: '🌙',
-      label: 'Udalost suvisiaca s Mesiacom',
+      label: 'Udalosť súvisiaca s Mesiacom',
     }
   }
 

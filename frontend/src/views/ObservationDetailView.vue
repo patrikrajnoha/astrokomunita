@@ -3,7 +3,7 @@
     <AsyncState
       v-if="loading"
       mode="loading"
-      title="Nacitavam pozorovanie..."
+      title="Načítavam pozorovanie..."
       loading-style="skeleton"
       :skeleton-rows="4"
       compact
@@ -13,7 +13,7 @@
       mode="error"
       title="Nastala chyba"
       :message="error"
-      action-label="Skusit znova"
+      action-label="Skúsiť znova"
       @action="loadObservation"
     />
 
@@ -35,10 +35,10 @@
             Zoznam
           </button>
           <button v-if="isOwner" type="button" class="ui-pill ui-pill--secondary" @click="toggleEdit">
-            {{ editing ? 'Zrusit upravu' : 'Upravit' }}
+            {{ editing ? 'Zrušiť úpravu' : 'Upraviť' }}
           </button>
           <button v-if="isOwner" type="button" class="ui-pill ui-pill--danger" :disabled="deleting" @click="removeObservation">
-            {{ deleting ? 'Mazem...' : 'Zmazat' }}
+            {{ deleting ? 'Mažem...' : 'Zmazať' }}
           </button>
         </div>
       </header>
@@ -52,10 +52,10 @@
       <ObservationCard :observation="observation" :clickable="false" />
 
       <section v-if="editing" class="edit-card">
-        <h2>Uprava pozorovania</h2>
+        <h2>Úprava pozorovania</h2>
 
         <label class="field">
-          <span>Nazov *</span>
+          <span>Názov *</span>
           <input v-model="form.title" type="text" maxlength="255" required>
         </label>
 
@@ -65,12 +65,12 @@
         </label>
 
         <label class="field">
-          <span>Pozorovane *</span>
+          <span>Pozorované *</span>
           <input v-model="form.observedAt" type="datetime-local" required>
         </label>
 
         <label class="field">
-          <span>Prepojena udalost</span>
+          <span>Prepojená udalosť</span>
           <select v-model="form.eventId">
             <option value="">Bez udalosti</option>
             <option v-for="eventItem in events" :key="eventItem.id" :value="String(eventItem.id)">
@@ -85,11 +85,11 @@
             <input v-model="form.locationName" type="text" maxlength="255">
           </label>
           <label class="field">
-            <span>Zemepisna sirka</span>
+            <span>Zemepisná šírka</span>
             <input v-model="form.locationLat" type="number" step="0.0000001" min="-90" max="90">
           </label>
           <label class="field">
-            <span>Zemepisna dlzka</span>
+            <span>Zemepisná dĺžka</span>
             <input v-model="form.locationLng" type="number" step="0.0000001" min="-180" max="180">
           </label>
         </div>
@@ -111,7 +111,7 @@
         </label>
 
         <div v-if="Array.isArray(observation.media) && observation.media.length > 0" class="existing-media">
-          <h3>Existujuce fotky</h3>
+          <h3>Existujúce fotky</h3>
           <label v-for="mediaItem in observation.media" :key="mediaItem.id" class="media-toggle">
             <input
               type="checkbox"
@@ -119,12 +119,12 @@
               @change="toggleRemoveMedia(mediaItem.id)"
             >
             <img :src="mediaItem.url" alt="Observation image" loading="lazy">
-            <span>Odstranit</span>
+            <span>Odstrániť</span>
           </label>
         </div>
 
         <label class="field">
-          <span>Pridat nove fotografie</span>
+          <span>Pridať nové fotografie</span>
           <input type="file" accept="image/*" multiple @change="onFilesChange">
         </label>
 
@@ -135,9 +135,9 @@
         <InlineStatus v-if="saveError" variant="error" :message="saveError" />
 
         <div class="edit-actions">
-          <button type="button" class="ui-pill ui-pill--secondary" :disabled="saving" @click="toggleEdit">Zrusit</button>
+          <button type="button" class="ui-pill ui-pill--secondary" :disabled="saving" @click="toggleEdit">Zrušiť</button>
           <button type="button" class="ui-pill ui-pill--primary" :disabled="saving" @click="saveChanges">
-            {{ saving ? 'Ukladam...' : 'Ulozit zmeny' }}
+            {{ saving ? 'Ukladám...' : 'Uložiť zmeny' }}
           </button>
         </div>
       </section>
@@ -200,7 +200,7 @@ const isOwner = computed(() => {
 const eventLinkId = computed(() => Number(observation.value?.event?.id || observation.value?.event_id || 0))
 const eventLinkLabel = computed(() => {
   const title = String(observation.value?.event?.title || '').trim()
-  return title ? `Udalost: ${title}` : 'Otvorit udalost'
+  return title ? `Udalosť: ${title}` : 'Otvoriť udalosť'
 })
 
 async function loadObservation() {
@@ -316,8 +316,8 @@ async function saveChanges() {
     observation.value = response?.data || observation.value
     editing.value = false
     hydrateFormFromObservation()
-    saveSuccess.value = 'Pozorovanie bolo aktualizovane.'
-    toastSuccess('Pozorovanie bolo aktualizovane.')
+    saveSuccess.value = 'Pozorovanie bolo aktualizované.'
+    toastSuccess('Pozorovanie bolo aktualizované.')
   } catch (requestError) {
     saveError.value = extractObservationError(requestError, 'Ulozenie zlyhalo.')
   } finally {
@@ -329,10 +329,10 @@ async function removeObservation() {
   if (!isOwner.value || deleting.value || !observation.value) return
 
   const ok = await confirm({
-    title: 'Zmazat pozorovanie?',
-    message: 'Tuto akciu uz nie je mozne vratit.',
-    confirmText: 'Zmazat',
-    cancelText: 'Zrusit',
+    title: 'Zmazať pozorovanie?',
+    message: 'Túto akciu už nie je možné vrátiť.',
+    confirmText: 'Zmazať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!ok) return
@@ -341,7 +341,7 @@ async function removeObservation() {
   try {
     await auth.csrf()
     await deleteObservation(observation.value.id)
-    toastSuccess('Pozorovanie bolo zmazane.')
+    toastSuccess('Pozorovanie bolo zmazané.')
     router.push('/observations')
   } catch (requestError) {
     error.value = extractObservationError(requestError, 'Mazanie zlyhalo.')

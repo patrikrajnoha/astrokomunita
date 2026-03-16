@@ -61,7 +61,7 @@ function openRunCandidates() {
 
 async function loadRun() {
   if (!Number.isFinite(runId.value) || runId.value <= 0) {
-    error.value = 'Neplatne ID crawl runu.'
+    error.value = 'Neplatné ID crawl runu.'
     return
   }
 
@@ -72,7 +72,7 @@ async function loadRun() {
     const response = await getCrawlRun(runId.value)
     run.value = response?.data || null
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa nacitat crawl run.'
+    error.value = fetchError?.response?.data?.message || fetchError?.userMessage || 'Nepodarilo sa načítať crawl run.'
   } finally {
     loading.value = false
   }
@@ -91,7 +91,7 @@ onMounted(loadRun)
     />
 
     <div v-if="error" class="alert">{{ error }}</div>
-    <div v-if="loading" class="muted">Nacitavam run...</div>
+    <div v-if="loading" class="muted">Načítavam run...</div>
 
     <template v-else-if="run">
       <section class="card">

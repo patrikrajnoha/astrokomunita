@@ -41,7 +41,7 @@
         <InlineStatus
           variant="error"
           :message="error || 'Nastala chyba pri nacitani notifikacii.'"
-          action-label="Skusit znova"
+          action-label="Skúsiť znova"
           class="w-full max-w-lg"
           @action="retry"
         />
@@ -129,7 +129,7 @@
           class="mx-4 mt-4 ui-pill ui-pill--secondary text-xs uppercase tracking-wide"
           @click="retrySkyPreferences"
         >
-          Skusit znova
+          Skúsiť znova
         </button>
 
         <div v-if="preferencesLoading" class="space-y-3 px-4 py-4" aria-hidden="true">
@@ -221,7 +221,7 @@
           class="mx-4 mt-4 ui-pill ui-pill--secondary text-xs uppercase tracking-wide"
           @click="retryDeliveryPreferences"
         >
-          Skusit znova
+          Skúsiť znova
         </button>
 
         <div v-if="deliveryPreferencesLoading" class="space-y-3 px-4 py-4" aria-hidden="true">
@@ -408,7 +408,7 @@ async function fetchDeliveryPreferences() {
     deliveryPreferencesError.value =
       error?.response?.data?.message ||
       error?.message ||
-      'Nepodarilo sa nacitat event reminder nastavenia.'
+      'Nepodarilo sa načítať event reminder nastavenia.'
   } finally {
     deliveryPreferencesLoading.value = false
   }
@@ -425,7 +425,7 @@ async function persistDeliveryPreferences(nextPreferences) {
     deliveryPreferencesError.value =
       error?.response?.data?.message ||
       error?.message ||
-      'Nepodarilo sa ulozit event reminder nastavenia.'
+      'Nepodarilo sa uložiť event reminder nastavenia.'
   } finally {
     deliveryPreferencesLoading.value = false
   }
@@ -497,7 +497,7 @@ const formatIcon = (item) => {
 const formatTitle = (item) => {
   if (item.type === 'post_liked') {
     const name = item.data?.actor_name || item.data?.actor_username || 'Niekto'
-    return `${name} lajkol tvoj prispevok`
+    return `${name} lajkol tvoj príspevok`
   }
   if (item.type === 'event_reminder') {
     return 'Pripomienka udalosti'
@@ -526,10 +526,10 @@ const formatSubtitle = (item) => {
     return username || 'Aktivita v komunite'
   }
   if (item.type === 'event_reminder') {
-    return item.data?.event_title || 'Udalost sa zacina uz coskoro'
+    return item.data?.event_title || 'Udalosť sa začína už čoskoro'
   }
   if (item.type === 'contest_winner') {
-    return item.data?.contest_name || 'Vitaz sutaze'
+    return item.data?.contest_name || 'Víťaz súťaže'
   }
   if (item.type === 'event_invite') {
     const inviter = item.data?.actor_name || item.data?.actor_username

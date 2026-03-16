@@ -7,14 +7,14 @@
             v-if="auth?.isAuthed && activeTab === 'for_you'"
             type="button"
             class="composerTrigger"
-            aria-label="Novy prispevok"
+            aria-label="Nový príspevok"
             @click="onComposerTriggerClick"
           >
             <span class="triggerAvatar" aria-hidden="true">
               <UserAvatar class="triggerAvatarImg" :user="auth?.user" :size="40" :alt="auth?.user?.name || 'avatar'" />
             </span>
             <span class="triggerText">Čo je nové na oblohe?</span>
-            <span class="triggerCta" data-shortcut-image aria-label="Pridat obrazok">
+            <span class="triggerCta" data-shortcut-image aria-label="Pridať obrázok">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7" />
                 <path d="m7 15 3.2-3.2a1 1 0 0 1 1.4 0L14 14l2-2a1 1 0 0 1 1.4 0L20 14.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />

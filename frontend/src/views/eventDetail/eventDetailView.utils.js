@@ -128,35 +128,35 @@ export function parseDate(value) {
 export function mapType(type) {
   const types = {
     meteors: 'Meteory',
-    meteor_shower: 'Meteoricky roj',
+    meteor_shower: 'Meteorický roj',
     eclipse_lunar: 'Zatmenie Mesiaca',
     eclipse_solar: 'Zatmenie Slnka',
-    planetary_event: 'Planetarny jav',
+    planetary_event: 'Planetárny jav',
     conjunction: 'Konjunkcia',
-    aurora: 'Polarna ziara',
-    comet: 'Kometa',
+    aurora: 'Polárna žiara',
+    comet: 'Kométa',
     asteroid: 'Asteroid',
     mission: 'Misia',
-    other: 'Udalost',
+    other: 'Udalosť',
   }
 
-  return types[type] || 'Udalost'
+  return types[type] || 'Udalosť'
 }
 
 export function mapStatus(item) {
   const startRaw = item?.start_at || item?.starts_at || item?.max_at
-  if (!startRaw) return 'Termin caka'
+  if (!startRaw) return 'Termín čaká'
 
   const start = parseDate(startRaw)
-  if (!start) return 'Termin caka'
+  if (!start) return 'Termín čaká'
 
   const eventDayKey = formatDateKey(start, EVENT_TIMEZONE)
   const todayKey = formatDateKey(new Date(), EVENT_TIMEZONE)
-  if (!eventDayKey || !todayKey) return 'Termin caka'
+  if (!eventDayKey || !todayKey) return 'Termín čaká'
 
   if (eventDayKey < todayKey) return 'Prebehlo'
   if (eventDayKey === todayKey) return 'Dnes'
-  return 'Planovane'
+  return 'Plánované'
 }
 
 export function mapVisibility(value) {

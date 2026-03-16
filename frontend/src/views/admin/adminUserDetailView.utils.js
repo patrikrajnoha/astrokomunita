@@ -1,8 +1,8 @@
 import { AVATAR_ICON_LABELS } from '@/constants/avatar'
 
 export function statusLabel(userRow) {
-  if (!userRow?.is_active) return 'deaktivovany'
-  if (userRow?.is_banned) return 'zablokovany'
+  if (!userRow?.is_active) return 'deaktivovaný'
+  if (userRow?.is_banned) return 'zablokovaný'
   return 'aktivny'
 }
 
@@ -29,7 +29,7 @@ export function roleClass(userRow) {
 }
 
 export function subjectLabel(userRow) {
-  if (!userRow) return 'pouzivatela'
+  if (!userRow) return 'používateľa'
   if (userRow.email) return userRow.email
   if (userRow.username) return `@${userRow.username}`
   if (userRow.name) return userRow.name
@@ -37,10 +37,10 @@ export function subjectLabel(userRow) {
 }
 
 export function reportType(report) {
-  if (!report?.target_type) return 'prispevok'
+  if (!report?.target_type) return 'príspevok'
   const parts = String(report.target_type).split('\\')
   const value = (parts[parts.length - 1] || 'post').toLowerCase()
-  if (value === 'post') return 'prispevok'
+  if (value === 'post') return 'príspevok'
   return value
 }
 
