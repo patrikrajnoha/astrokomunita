@@ -59,8 +59,6 @@ const editSavingId = ref(null)
 const likeLoadingIds = ref(new Set())
 const likeBumpId = ref(null)
 const shareTarget = ref(null)
-const lastTrackedViewKey = ref('')
-let viewAnimationFrame = null
 let highlightReplyTimer = null
 
 const apiBaseUrl = api?.defaults?.baseURL || ''
@@ -69,6 +67,14 @@ const attachmentDownloadSrc = (item) => resolveAttachmentDownloadSrc(item, apiBa
 const postGifUrl = (item) => resolvePostGifUrl(item, apiBaseUrl)
 const isBotPost = (item) => resolveIsBotPost(item)
 const canAdminEditBotPost = (item) => resolveCanAdminEditBotPost(item, auth.user)
+
+function goBack() {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/')
+  }
+}
 
 function openProfile(user) {
   const username = user?.username
@@ -396,68 +402,6 @@ function onPollLoginRequired() {
   reportNotice.value = 'Prihlas sa pre hlasovanie.'
 }
 
-function stopViewAnimation() {
-  if (viewAnimationFrame !== null) {
-    cancelAnimationFrame(viewAnimationFrame)
-    viewAnimationFrame = null
-  }
-}
-
-function animateRootViewsTo(targetViews) {
-  if (!root.value) return
-
-  const target = Number(targetViews)
-  if (!Number.isFinite(target)) return
-
-  const start = Number(root.value.views ?? 0)
-  if (!Number.isFinite(start) || start === target) {
-    root.value.views = target
-    return
-  }
-
-  stopViewAnimation()
-
-  const durationMs = 220
-  const startedAt = performance.now()
-
-  const tick = (now) => {
-    if (!root.value) {
-      stopViewAnimation()
-      return
-    }
-
-    const progress = Math.min(1, (now - startedAt) / durationMs)
-    const eased = 1 - Math.pow(1 - progress, 3)
-    root.value.views = Math.round(start + (target - start) * eased)
-
-    if (progress < 1) {
-      viewAnimationFrame = requestAnimationFrame(tick)
-      return
-    }
-
-    viewAnimationFrame = null
-  }
-
-  viewAnimationFrame = requestAnimationFrame(tick)
-}
-
-async function registerPostView(postId) {
-  if (!postId) return
-
-  const key = String(postId)
-  if (lastTrackedViewKey.value === key) return
-  lastTrackedViewKey.value = key
-
-  try {
-    const res = await api.post(`/posts/${postId}/view`)
-    const nextViews = Number(res?.data?.views)
-    if (Number.isFinite(nextViews) && root.value) {
-      animateRootViewsTo(nextViews)
-    }
-  } catch {
-    // Intentionally silent: view tracking must never block UI.
-  }
-}
 
 async function submitReport() {
   const post = reportTarget.value
@@ -482,11 +426,14 @@ async function submitReport() {
 }
 
 async function loadPost() {
-  loading.value = true
+  const hasSeed = root.value !== null
+  if (!hasSeed) loading.value = true
   error.value = ''
-  post.value = null
-  root.value = null
-  replies.value = []
+  if (!hasSeed) {
+    post.value = null
+    root.value = null
+    replies.value = []
+  }
   activeReplyId.value = null
   highlightReplyId.value = null
   clearReplyHighlightTimer()
@@ -521,7 +468,6 @@ async function loadPost() {
       replies.value = rootReplies
     }
 
-    void registerPostView(root.value?.id ?? route.params.id)
   } catch (e) {
     error.value =
       e?.response?.data?.message ||
@@ -533,17 +479,28 @@ async function loadPost() {
 }
 
 onMounted(() => {
+  const seed = window.history.state?.seedPost
+  if (seed && String(seed.id) === String(route.params.id)) {
+    post.value = seed
+    root.value = seed
+    loading.value = false
+    if (seed.id) bookmarks.hydrateFromPosts([seed])
+  }
   loadPost()
 })
 
 onBeforeUnmount(() => {
-  stopViewAnimation()
   clearReplyHighlightTimer()
 })
 
 watch(
   () => route.params.id,
-  () => loadPost()
+  () => {
+    post.value = null
+    root.value = null
+    replies.value = []
+    loadPost()
+  }
 )
 
 const repliesCount = computed(() => {

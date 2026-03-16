@@ -1,10 +1,10 @@
   <main class="eventDetailPage">
     <header class="eventDetailTopbar">
-      <button type="button" class="backButton" @click="goBack">&larr; Spat</button>
+      <button type="button" class="backButton" @click="goBack">&larr; Späť</button>
       <p class="topbarTitle">{{ pageHeaderTitle }}</p>
     </header>
 
-    <section v-if="loading" class="loadingState" aria-label="Nacitavam detail udalosti">
+    <section v-if="loading" class="loadingState" aria-label="Načítavam detail udalosti">
       <div class="loadingCard">
         <div class="loadingLine loadingLine--chips"></div>
         <div class="loadingLine loadingLine--title"></div>
@@ -24,21 +24,21 @@
           <span class="missingEventStar"></span>
         </div>
 
-        <div class="missingEventBadge">Event nenajdeny</div>
-        <h1 class="missingEventTitle">Tato udalost uz neexistuje.</h1>
+        <div class="missingEventBadge">Udalosť nenájdená</div>
+        <h1 class="missingEventTitle">Táto udalosť už neexistuje.</h1>
         <p class="missingEventText">
-          Odkaz je neplatny alebo bol event odstraneny. Skus otvorit aktualny zoznam udalosti.
+          Odkaz je neplatný alebo bola udalosť odstránená. Skús otvoriť aktuálny zoznam udalostí.
         </p>
 
         <div class="missingEventActions">
           <button type="button" class="missingEventButton missingEventButton--ghost" @click="goBack">
-            Spat
+            Späť
           </button>
           <button type="button" class="missingEventButton missingEventButton--primary" @click="goToEvents">
-            Vsetky udalosti
+            Všetky udalosti
           </button>
           <button type="button" class="missingEventButton" @click="loadEvent">
-            Skusit znova
+            Skúsiť znova
           </button>
         </div>
       </article>
@@ -48,7 +48,7 @@
       <InlineStatus
         variant="error"
         :message="error"
-        action-label="Skusit znova"
+        action-label="Skúsiť znova"
         @action="loadEvent"
       />
     </section>
@@ -76,7 +76,7 @@
             <p class="eventMeta">{{ metaLine }}</p>
           </div>
 
-          <section class="eventSection eventTimeBlock" aria-label="Cas udalosti">
+          <section class="eventSection eventTimeBlock" aria-label="Čas udalosti">
             <p class="eventSection__label">Kedy</p>
             <p class="eventTimeBlock__primary">{{ primaryObservationLine }}</p>
             <p
@@ -96,7 +96,7 @@
               class="locationButton"
               @click="goToLocationSettings"
             >
-              Nastavit polohu
+              Nastaviť polohu
             </button>
           </section>
 
@@ -125,7 +125,7 @@
               class="descriptionToggle"
               @click="descriptionExpanded = !descriptionExpanded"
             >
-              {{ descriptionExpanded ? 'Zobrazit menej' : 'Zobrazit viac' }}
+              {{ descriptionExpanded ? 'Zobraziť menej' : 'Zobraziť viac' }}
             </button>
           </section>
 
@@ -139,6 +139,15 @@
               {{ planButtonLabel }}
             </button>
 
+            <button
+              type="button"
+              class="planButton followButton"
+              :class="{ 'followButton--active': isFollowed }"
+              @click="handleFollowToggle"
+            >
+              {{ followActionLabel }}
+            </button>
+
             <DropdownMenu
               class="menuRoot"
               :items="menuItems"
@@ -148,8 +157,8 @@
             >
               <template #trigger>
                 <span class="menuTrigger">
-                  <span class="menuTrigger__label">Akcie</span>
-                  <span class="menuTrigger__caret" aria-hidden="true">v</span>
+                  <span class="menuTrigger__label">Viac</span>
+                  <span class="menuTrigger__caret" aria-hidden="true">▾</span>
                 </span>
               </template>
             </DropdownMenu>
@@ -162,7 +171,7 @@
               :disabled="!canGoPrev || swipeNavigating"
               @click="goToAdjacentEvent('prev')"
             >
-              &larr; Predosla
+              &larr; Predošlá
             </button>
             <p class="swipeHint">
               {{ swipeHint }}
@@ -173,7 +182,7 @@
               :disabled="!canGoNext || swipeNavigating"
               @click="goToAdjacentEvent('next')"
             >
-              Dalsia &rarr;
+              Ďalšia &rarr;
             </button>
           </div>
         </div>
@@ -184,39 +193,39 @@
 
     <BaseModal
       v-model:open="planModalOpen"
-      title="Naplanovat udalost"
+      title="Naplánovať udalosť"
       test-id="event-plan-modal"
       close-test-id="event-plan-modal-close"
     >
       <template #description>
-        <p class="planModalHint">Osobny plan ostane pri tejto planovanej udalosti.</p>
+        <p class="planModalHint">Osobný plán ostane pri tejto plánovanej udalosti.</p>
       </template>
 
       <form class="planForm" @submit.prevent="savePlan">
         <label class="planField">
-          <span class="planField__label">Poznamka</span>
+          <span class="planField__label">Poznámka</span>
           <textarea
             v-model="planForm.personal_note"
             class="planField__textarea"
             rows="3"
             maxlength="4000"
-            placeholder="Napriklad: vyhliadka, vybava, koho beriem so sebou."
+            placeholder="Napríklad: vyhliadka, výbava, koho beriem so sebou."
           />
         </label>
 
         <label class="planField">
-          <span class="planField__label">Pripomenut</span>
+          <span class="planField__label">Pripomenúť</span>
           <select v-model="planForm.reminder_mode" class="planField__input">
             <option value="none">Bez pripomienky</option>
             <option value="one_hour_before" :disabled="!canUseReminderPresets">1 hodinu pred</option>
-            <option value="same_day_morning" :disabled="!canUseReminderPresets">V den udalosti rano</option>
-            <option value="day_before" :disabled="!canUseReminderPresets">Den vopred</option>
-            <option value="custom">Vlastny cas</option>
+            <option value="same_day_morning" :disabled="!canUseReminderPresets">V deň udalosti ráno</option>
+            <option value="day_before" :disabled="!canUseReminderPresets">Deň vopred</option>
+            <option value="custom">Vlastný čas</option>
           </select>
         </label>
 
         <label v-if="planForm.reminder_mode === 'custom'" class="planField">
-          <span class="planField__label">Cas pripomienky</span>
+          <span class="planField__label">Čas pripomienky</span>
           <input
             v-model="planForm.reminder_custom_at"
             class="planField__input"
@@ -225,7 +234,7 @@
         </label>
 
         <label class="planField">
-          <span class="planField__label">Cas pozorovania (volitelne)</span>
+          <span class="planField__label">Čas pozorovania (voliteľne)</span>
           <input
             v-model="planForm.planned_time"
             class="planField__input"
@@ -234,13 +243,13 @@
         </label>
 
         <label class="planField">
-          <span class="planField__label">Miesto pozorovania (volitelne)</span>
+          <span class="planField__label">Miesto pozorovania (voliteľne)</span>
           <input
             v-model="planForm.planned_location_label"
             class="planField__input"
             type="text"
             maxlength="160"
-            placeholder="Napriklad: Hradza, observatorium, kopec za mestom"
+            placeholder="Napríklad: Hrádza, observatórium, kopec za mestom"
           />
         </label>
 
@@ -252,10 +261,10 @@
 
         <div class="planActions">
           <button type="button" class="planGhostButton" :disabled="planSaving" @click="planModalOpen = false">
-            Zrusit
+            Zrušiť
           </button>
           <button type="submit" class="planSaveButton" :disabled="planSaving">
-            {{ planSaving ? 'Ukladam...' : 'Ulozit plan' }}
+            {{ planSaving ? 'Ukladám...' : 'Uložiť plán' }}
           </button>
         </div>
       </form>

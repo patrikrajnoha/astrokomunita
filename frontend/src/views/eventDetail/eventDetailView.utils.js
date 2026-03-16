@@ -133,6 +133,7 @@ export function mapType(type) {
     eclipse_solar: 'Zatmenie Slnka',
     planetary_event: 'Planetarny jav',
     conjunction: 'Konjunkcia',
+    aurora: 'Polarna ziara',
     comet: 'Kometa',
     asteroid: 'Asteroid',
     mission: 'Misia',

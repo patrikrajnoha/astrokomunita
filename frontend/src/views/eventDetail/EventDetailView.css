@@ -208,17 +208,18 @@
 
 .descriptionToggle {
   width: fit-content;
-  border: 0;
-  background: transparent;
-  color: rgb(214 231 255 / 0.88);
-  font-size: 0.86rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.04);
+  color: rgb(214 231 255 / 0.9);
+  font-size: 0.82rem;
   font-weight: 600;
-  padding: 0;
+  padding: 0.34rem 0.78rem;
 }
 
 .eventCtaRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0.7rem;
   padding-top: 0.2rem;
@@ -248,6 +249,19 @@
   color: rgb(247 250 255 / 0.98);
   letter-spacing: -0.008em;
   box-shadow: 0 12px 24px rgb(var(--color-primary-rgb) / 0.12);
+}
+
+.followButton {
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+  background: rgb(255 255 255 / 0.04);
+  color: rgb(255 255 255 / 0.86);
+  white-space: nowrap;
+}
+
+.followButton--active {
+  border-color: rgb(74 222 128 / 0.28);
+  background: rgb(74 222 128 / 0.08);
+  color: rgb(187 247 208 / 0.96);
 }
 
 .planButton:disabled,
@@ -617,8 +631,12 @@
   }
 
   .eventCtaRow {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 0.55rem;
+  }
+
+  .planButton--primary {
+    grid-column: 1 / -1;
   }
 
   .menuRoot {

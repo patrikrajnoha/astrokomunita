@@ -97,32 +97,30 @@ const metaLine = computed(() =>
 )
 const isFollowed = computed(() => eventFollows.isFollowed(eventId.value))
 const followButtonLabel = computed(() => {
-  if (!auth.isAuthed) return 'Prihlasit sa pre sledovanie'
-  return isFollowed.value ? 'Sledujes' : 'Sledovat'
+  if (!auth.isAuthed) return 'Prihlásiť sa'
+  return isFollowed.value ? 'Sleduješ' : 'Sledovať'
 })
 const followActionLabel = computed(() => {
   if (!auth.isAuthed) return followButtonLabel.value
-  if (eventFollows.isLoading(eventId.value)) return 'Ukladam...'
+  if (eventFollows.isLoading(eventId.value)) return 'Ukladám...'
   return followButtonLabel.value
 })
 const hasSavedPlan = computed(() => Boolean(event.value?.plan?.has_data))
-const planButtonLabel = computed(() => (hasSavedPlan.value ? 'Upravit plan' : 'Naplanovat pozorovanie'))
+const planButtonLabel = computed(() => (hasSavedPlan.value ? 'Upraviť plán' : 'Naplánovať pozorovanie'))
 const pageHeaderTitle = computed(() => (event.value ? typeLabel.value : 'Detail udalosti'))
 const menuItems = computed(() => {
   if (auth.isAuthed) {
     return [
-      { key: 'follow', label: followActionLabel.value },
-      { key: 'invite', label: 'Pozvat' },
-      { key: 'calendar', label: 'Pridat do kalendara' },
-      { key: 'share', label: 'Zdielat odkaz' },
+      { key: 'invite', label: 'Pozvať' },
+      { key: 'calendar', label: 'Pridať do kalendára' },
+      { key: 'share', label: 'Zdieľať odkaz' },
     ]
   }
 
   return [
-    { key: 'login-follow', label: followButtonLabel.value },
-    { key: 'login-invite', label: 'Prihlasit sa pre pozvanie' },
-    { key: 'calendar', label: 'Pridat do kalendara' },
-    { key: 'share', label: 'Zdielat odkaz' },
+    { key: 'login-invite', label: 'Prihlásiť sa pre pozvanie' },
+    { key: 'calendar', label: 'Pridať do kalendára' },
+    { key: 'share', label: 'Zdieľať odkaz' },
   ]
 })
 const viewingWindowStart = computed(() => parseDate(viewingForecast.value.viewingWindow?.start_at))
@@ -143,27 +141,27 @@ const resolvedReminderAt = computed(() => {
 })
 const recommendedPlanHint = computed(() => {
   if (viewingWindowLabel.value) {
-    return `Odporucane sledovanie: ${viewingWindowLabel.value}`
+    return `Odporúčané sledovanie: ${viewingWindowLabel.value}`
   }
 
   const fallback = sanitizeLocationText(event.value?.recommended_viewing_label)
-  return fallback ? `Odporucane sledovanie: ${fallback}` : ''
+  return fallback ? `Odporúčané sledovanie: ${fallback}` : ''
 })
 const eventTimeContext = computed(() => resolveEventTimeContext(event.value, EVENT_TIMEZONE))
 const primaryObservationLine = computed(() => {
   if (viewingForecast.value.loading && !viewingWindowLabel.value) {
-    return 'Odporucany cas: nacitavam'
+    return 'Odporúčaný čas: načítavam...'
   }
 
   if (viewingForecast.value.missingLocation) {
-    return 'Odporucany cas: nastav polohu'
+    return 'Odporúčaný čas: nastav polohu'
   }
 
   if (viewingWindowLabel.value) {
-    return `Odporucany cas: ${viewingWindowLabel.value}`
+    return `Odporúčaný čas: ${viewingWindowLabel.value}`
   }
 
-  return 'Odporucany cas: upresnime'
+  return 'Odporúčaný čas: upresnime'
 })
 const secondaryEventTimeLabel = computed(() => {
   const context = eventTimeContext.value
@@ -189,7 +187,7 @@ const secondaryEventTimeAriaLabel = computed(() => {
     return secondaryEventTimeLabel.value
   }
 
-  return `${secondaryEventTimeLabel.value} (${eventTimeContext.value.timezoneLabelShort}), cas v ${eventTimeContext.value.timezoneLabelLong}`
+  return `${secondaryEventTimeLabel.value} (${eventTimeContext.value.timezoneLabelShort}), čas v ${eventTimeContext.value.timezoneLabelLong}`
 })
 const showViewingWindowMicrocopy = computed(() => {
   const phenomenonAt = resolvePhenomenonDate(event.value)
@@ -208,10 +206,10 @@ const canGoPrev = computed(() => Number.isInteger(adjacentEventIds.value.prev))
 const canGoNext = computed(() => Number.isInteger(adjacentEventIds.value.next))
 const canSwipe = computed(() => canGoPrev.value || canGoNext.value)
 const swipeHint = computed(() => {
-  if (!canSwipe.value) return 'V tomto obdobi nie je dalsia udalost.'
-  if (!canGoPrev.value) return 'Potiahni dolava pre dalsiu udalost.'
-  if (!canGoNext.value) return 'Potiahni doprava pre predoslu udalost.'
-  return 'Potiahni dolava alebo doprava pre prechod medzi udalostami.'
+  if (!canSwipe.value) return 'V tomto období nie je ďalšia udalosť.'
+  if (!canGoPrev.value) return 'Potiahni doľava pre ďalšiu udalosť.'
+  if (!canGoNext.value) return 'Potiahni doprava pre predošlú udalosť.'
+  return 'Potiahni doľava alebo doprava pre prechod medzi udalosťami.'
 })
 const eventCardStyle = computed(() => {
   if (!canSwipe.value) return {}
@@ -276,7 +274,7 @@ function goToEvents() {
 
 async function loadEvent() {
   if (!Number.isFinite(eventId.value)) {
-    error.value = 'Neplatny identifikator udalosti.'
+    error.value = 'Neplatný identifikátor udalosti.'
     missingEvent.value = false
     loading.value = false
     return
@@ -311,7 +309,7 @@ async function loadEvent() {
     error.value =
       requestError?.response?.data?.message ||
       requestError?.userMessage ||
-      'Nepodarilo sa nacitat detail udalosti.'
+      'Nepodarilo sa načítať detail udalosti.'
   } finally {
     loading.value = false
   }
@@ -380,15 +378,15 @@ async function handleFollowToggle() {
   try {
     const followed = await eventFollows.toggle(event.value.id)
     if (followed) {
-      toast.success('Udalost teraz sledujes.')
+      toast.success('Udalosť teraz sleduješ.')
     } else {
-      toast.info('Udalost uz nesledujes.')
+      toast.info('Udalosť už nesleduješ.')
     }
   } catch (toggleError) {
     toast.error(
       toggleError?.response?.data?.message ||
         toggleError?.userMessage ||
-        'Nepodarilo sa upravit sledovanie.',
+        'Nepodarilo sa upraviť sledovanie.',
     )
   }
 }
@@ -435,12 +433,12 @@ async function savePlan() {
     eventFollows.setFollowed(event.value.id, true)
     eventFollows.revision += 1
     planModalOpen.value = false
-    toast.success('Plan udalosti bol ulozeny.')
+    toast.success('Plán udalosti bol uložený.')
   } catch (saveError) {
     planError.value =
       saveError?.response?.data?.message ||
       saveError?.userMessage ||
-      'Nepodarilo sa ulozit plan.'
+      'Nepodarilo sa uložiť plán.'
   } finally {
     planSaving.value = false
   }
@@ -510,12 +508,12 @@ async function downloadCalendarIcs() {
     anchor.click()
     anchor.remove()
     URL.revokeObjectURL(objectUrl)
-    toast.success('Kalendar bol stiahnuty.')
+    toast.success('Kalendár bol stiahnutý.')
   } catch (downloadError) {
     toast.error(
       downloadError?.response?.data?.message ||
         downloadError?.userMessage ||
-        'Nepodarilo sa stiahnut kalendar.',
+        'Nepodarilo sa stiahnuť kalendár.',
     )
   }
 }
@@ -525,9 +523,9 @@ async function copyEventLink() {
 
   try {
     await copyText(url)
-    toast.success('Odkaz na udalost bol skopirovany.')
+    toast.success('Odkaz na udalosť bol skopírovaný.')
   } catch (copyError) {
-    toast.error(copyError?.message || 'Nepodarilo sa skopirovat odkaz.')
+    toast.error(copyError?.message || 'Nepodarilo sa skopírovať odkaz.')
   }
 }
 

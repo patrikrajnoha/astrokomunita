@@ -41,7 +41,7 @@
         </button>
       </div>
 
-      <div class="resultBar">
+      <div v-if="!loading && data" class="resultBar">
         <p>{{ resultLabel }}</p>
         <button
           v-if="selectedTag || search"
@@ -55,8 +55,25 @@
 
       <div v-if="error" class="state state--error">{{ error }}</div>
 
-      <div v-if="loading" class="loadingRows">
-        <div v-for="row in 5" :key="`learn-loading-${row}`" class="loadingRows__item"></div>
+      <div v-if="loading" class="loadingSkeleton">
+        <div class="skeletonFeatured">
+          <div class="skeletonThumbLg skeleton"></div>
+          <div class="skeletonBody">
+            <div class="skeleton skeletonLine skeletonLine--xs"></div>
+            <div class="skeleton skeletonLine skeletonLine--lg"></div>
+            <div class="skeleton skeletonLine skeletonLine--md"></div>
+            <div class="skeleton skeletonLine skeletonLine--sm"></div>
+          </div>
+        </div>
+        <div class="skeletonList">
+          <div v-for="row in 4" :key="`sk-${row}`" class="skeletonItem">
+            <div class="skeletonThumbSm skeleton"></div>
+            <div class="skeletonBody">
+              <div class="skeleton skeletonLine skeletonLine--md"></div>
+              <div class="skeleton skeletonLine skeletonLine--sm"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <template v-else>
@@ -81,11 +98,12 @@
               {{ featuredPost.user?.name || 'Redakcia' }} ·
               {{ readTime(featuredPost.content) }}
             </p>
+            <router-link class="featured__cta" :to="postLink(featuredPost)">Citat clanok &rarr;</router-link>
           </div>
         </article>
 
         <div v-if="listPosts.length" class="postList">
-          <article v-for="post in listPosts" :key="post.id" class="postItem">
+          <article v-for="post in listPosts" :key="post.id" class="postItem" role="link" tabindex="0" @click="$router.push(postLink(post))" @keydown.enter="$router.push(postLink(post))"
             <router-link v-if="post.cover_image_url" class="postItem__thumb" :to="postLink(post)">
               <img :src="post.cover_image_url" :alt="post.title" loading="lazy" />
             </router-link>
@@ -113,13 +131,13 @@
       <div v-if="data && data.last_page > 1" class="pager">
         <p>Strana {{ data.current_page }} z {{ data.last_page }}</p>
         <div class="pager__actions">
-          <button type="button" :disabled="loading || page <= 1" @click="prevPage">Predosla</button>
+          <button type="button" :disabled="loading || page <= 1" @click="prevPage">&larr; Predosla</button>
           <button
             type="button"
             :disabled="loading || page >= data.last_page"
             @click="nextPage"
           >
-            Dalsia
+            Dalsia &rarr;
           </button>
         </div>
       </div>

@@ -1,8 +1,8 @@
 <div class="events-page">
   <section class="hero">
     <div class="hero-inner">
-      <h1 class="hero-title">Astronomicke udalosti</h1>
-      <p class="hero-subtitle">Najblizsie ukazy aj archiv na jednom mieste.</p>
+      <h1 class="hero-title">Astronomické udalosti</h1>
+      <p class="hero-subtitle">Najbližšie úkazy aj archív na jednom mieste.</p>
 
       <div v-if="!isCalendarView" class="hero-stats" role="status" aria-live="polite">
         <p class="hero-stat"><strong>{{ totalEvents }}</strong> {{ totalEventsLabel }}</p>
@@ -12,7 +12,7 @@
       <section
         v-if="!isCalendarView && visibleLiveHighlights.length > 0"
         class="hero-live-grid"
-        aria-label="Zive signaly oblohy"
+        aria-label="Živé signály oblohy"
       >
         <LiveSkySignalCard
           v-for="signal in visibleLiveHighlights"
@@ -28,7 +28,7 @@
     <section class="filter-panel">
       <div class="toolbar-row">
         <div class="toolbar-segments">
-          <div class="segmented-control" role="tablist" aria-label="Zobrazenie udalosti">
+          <div class="segmented-control" role="tablist" aria-label="Zobrazenie udalostí">
             <button
               class="segment-btn"
               :class="{ active: !isCalendarView }"
@@ -43,7 +43,7 @@
               type="button"
               @click="setView('calendar')"
             >
-              Kalendar
+              Kalendár
             </button>
           </div>
 
@@ -51,7 +51,7 @@
             v-if="!isCalendarView"
             class="segmented-control"
             role="tablist"
-            aria-label="Casovy rozsah udalosti"
+            aria-label="Časový rozsah udalostí"
           >
             <button
               v-for="option in scopeOptions"
@@ -78,7 +78,7 @@
               <path d="M6 10h8" />
               <path d="M8 15h4" />
             </svg>
-            <span>{{ filtersOpen ? 'Skryt filtre' : 'Zobrazit filtre' }}</span>
+            <span>{{ filtersOpen ? 'Skryť filtre' : 'Zobraziť filtre' }}</span>
           </button>
 
           <button
@@ -87,14 +87,14 @@
             type="button"
             @click="resetFilters"
           >
-            Zrusit vsetko
+            Zrušiť všetko
           </button>
         </div>
       </div>
 
       <template v-if="!isCalendarView">
         <div v-if="filtersOpen" class="filters-content">
-          <div class="quick-period-row" role="group" aria-label="Rychly vyber obdobia">
+          <div class="quick-period-row" role="group" aria-label="Rýchly výber obdobia">
             <button
               v-for="preset in quickPeriodPresets"
               :key="preset.key"
@@ -107,7 +107,7 @@
             </button>
           </div>
 
-          <div class="filter-row" role="tablist" aria-label="Filtre typu udalosti">
+          <div class="filter-row" role="tablist" aria-label="Filtre typu udalostí">
             <button
               v-for="option in typeFilterOptions"
               :key="option.value"
@@ -132,8 +132,8 @@
               <span>Obdobie</span>
               <select v-model="selectedPeriod" @change="onPeriodSelectionChanged">
                 <option value="month">Mesiac</option>
-                <option value="week">Tyzden</option>
-                <option value="year">Vsetko v roku</option>
+                <option value="week">Týždeň</option>
+                <option value="year">Všetko v roku</option>
               </select>
             </label>
 
@@ -147,35 +147,35 @@
             </label>
 
             <label v-if="selectedPeriod === 'week'" class="filter-field">
-              <span>ISO tyzden</span>
+              <span>Týždeň</span>
               <select v-model.number="selectedWeek" @change="onPeriodSelectionChanged">
                 <option v-for="week in weekOptions" :key="week" :value="week">{{ week }}</option>
               </select>
             </label>
 
             <label class="filter-field search-field">
-              <span>Hladaj</span>
+              <span>Hľadaj</span>
               <div class="search-input-wrap">
                 <input
                   v-model.trim="searchQuery"
                   type="search"
-                  placeholder="Nazov, popis alebo klucove slovo"
+                  placeholder="Názov, popis alebo kľúčové slovo"
                   autocomplete="off"
                 />
                 <button
                   v-if="searchQuery"
                   class="search-clear-btn"
                   type="button"
-                  aria-label="Vymazat hladanie"
+                  aria-label="Vymazať hľadanie"
                   @click="clearSearchQuery"
                 >
-                  x
+                  ×
                 </button>
               </div>
             </label>
 
             <label class="filter-field">
-              <span>Region</span>
+              <span>Región</span>
               <select v-model="selectedRegion">
                 <option
                   v-for="option in regionOptions"
@@ -187,17 +187,17 @@
               </select>
             </label>
 
-            <button class="secondary-btn" type="button" @click="resetFilters">Reset filtrov</button>
+            <button class="secondary-btn" type="button" @click="resetFilters">Resetovať filtre</button>
           </div>
         </div>
 
         <div class="filters-summary">
           <p class="filter-meta">
-            Vysledkov: <strong>{{ totalEvents }}</strong>
+            Výsledkov: <strong>{{ totalEvents }}</strong>
             <span v-if="hasPagination"> &middot; Strana {{ currentPage }} z {{ lastPage }}</span>
           </p>
 
-          <div v-if="activeFilterChips.length > 0" class="active-filters" aria-label="Aktivne filtre">
+          <div v-if="activeFilterChips.length > 0" class="active-filters" aria-label="Aktívne filtre">
             <button
               v-for="chip in activeFilterChips"
               :key="chip.key"
@@ -206,11 +206,11 @@
               @click="removeActiveFilter(chip.key)"
             >
               <span>{{ chip.label }}</span>
-              <span aria-hidden="true">x</span>
+              <span aria-hidden="true">×</span>
             </button>
 
             <button class="filter-chip filter-chip-clear" type="button" @click="resetFilters">
-              Zrusit vsetko
+              Zrušiť všetko
             </button>
           </div>
         </div>
@@ -224,7 +224,7 @@
     <AsyncState
       v-else-if="loading"
       mode="loading"
-      title="Nacitavam udalosti"
+      title="Načítavam udalosti"
       loading-style="skeleton"
       :skeleton-rows="5"
       compact
@@ -234,7 +234,7 @@
       <InlineStatus
         variant="error"
         :message="error"
-        action-label="Skusit znova"
+        action-label="Skúsiť znova"
         @action="fetchEvents"
       />
     </section>
@@ -257,10 +257,10 @@
         <button
           class="realtime-banner-dismiss"
           type="button"
-          aria-label="Skryt banner novych udalosti"
+          aria-label="Skryť banner nových udalostí"
           @click="dismissRealtimeBanner"
         >
-          x
+          ×
         </button>
       </div>
 
@@ -275,8 +275,8 @@
           <div class="card-content">
             <div class="card-header">
               <div class="card-heading">
-                <span v-if="isEventFresh(eventItem.id)" class="fresh-pill">Nove</span>
-                <h3 class="card-title" :title="eventDisplayTitle(eventItem)">{{ eventDisplayTitle(eventItem) }}</h3>
+                <span v-if="isEventFresh(eventItem.id)" class="fresh-pill">Nové</span>
+                <h3 class="card-title" :title="formatEventCardTitle(eventItem)">{{ formatEventCardTitle(eventItem) }}</h3>
               </div>
 
               <span
@@ -318,9 +318,6 @@
               {{ eventCardSummary(eventItem) }}
             </p>
 
-            <div class="card-footer">
-              <span class="open-label">Detail &rarr;</span>
-            </div>
           </div>
         </RouterLink>
       </div>
@@ -336,7 +333,7 @@
             :disabled="loading || currentPage <= 1"
             @click="prevPage"
           >
-            Predosla
+            ← Predošlá
           </button>
           <button
             class="pager-btn"
@@ -344,7 +341,7 @@
             :disabled="loading || currentPage >= lastPage"
             @click="nextPage"
           >
-            Dalsia
+            Ďalšia →
           </button>
         </div>
       </div>
@@ -357,12 +354,12 @@
     />
 
     <div v-else-if="!isCalendarView && !loading && !error" class="state-card state-empty">
-      <h3>{{ selectedScope === 'past' ? 'Ziadne minule udalosti' : 'Ziadne udalosti' }}</h3>
+      <h3>{{ selectedScope === 'past' ? 'Žiadne minulé udalosti' : 'Žiadne udalosti' }}</h3>
       <p v-if="activeFilterChips.length > 0">
-        Skus odstranit aktivne filtre po jednom alebo zrusit vsetko.
+        Skús odstrániť aktívne filtre po jednom alebo zrušiť všetko.
       </p>
-      <p v-else>Skus upravit filtre, zmenit scope alebo rozsirit vyhladavanie.</p>
-      <button class="secondary-btn" type="button" @click="resetFilters">Vymazat filtre</button>
+      <p v-else>Skús upraviť filtre, zmeniť rozsah alebo rozšíriť vyhľadávanie.</p>
+      <button class="secondary-btn" type="button" @click="resetFilters">Vymazať filtre</button>
     </div>
   </main>
 </div>

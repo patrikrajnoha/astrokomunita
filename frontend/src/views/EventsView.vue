@@ -23,7 +23,7 @@ import {
   getEventNowPeriodDefaults,
 } from '@/utils/eventTime'
 import { getEcho, initEcho } from '@/realtime/echo'
-import { eventDisplayTitle } from '@/utils/translatedFields'
+
 import { resolveObservingContext } from '@/utils/observingContext'
 import {
   eventCardSummary,
@@ -33,6 +33,7 @@ import {
   eventTypeIcon,
   eventTypeIconLabel,
   formatCardDate,
+  formatEventCardTitle,
   regionLabel,
   shouldShowRegion,
   typeLabel,
@@ -75,28 +76,28 @@ let liveHighlightsRequestToken = 0
 const freshTimeouts = new Map()
 
 const scopeOptions = [
-  { value: 'future', label: 'Nadchadzajuce' },
-  { value: 'past', label: 'Minule' },
-  { value: 'all', label: 'Vsetky' },
+  { value: 'future', label: 'Nadchádzajúce' },
+  { value: 'past', label: 'Minulé' },
+  { value: 'all', label: 'Všetky' },
 ]
 
 const typeFilterOptions = [
-  { value: 'all', label: 'Vsetky' },
-  { value: 'meteors', label: 'Meteoricke roje' },
+  { value: 'all', label: 'Všetky' },
+  { value: 'meteors', label: 'Meteorické roje' },
   { value: 'eclipses', label: 'Zatmenia' },
   { value: 'conjunctions', label: 'Konjunkcie' },
   { value: 'comets', label: 'Komety' },
 ]
 
 const regionOptions = [
-  { value: 'all', label: 'Vsetky regiony' },
+  { value: 'all', label: 'Všetky regióny' },
   { value: 'sk', label: 'Slovensko' },
-  { value: 'eu', label: 'Europa' },
-  { value: 'global', label: 'Globalne' },
+  { value: 'eu', label: 'Európa' },
+  { value: 'global', label: 'Globálne' },
 ]
 
 const quickPeriodPresetDefinitions = [
-  { key: 'this-week', label: 'Tento tyzden', period: 'week' },
+  { key: 'this-week', label: 'Tento týždeň', period: 'week' },
   { key: 'this-month', label: 'Tento mesiac', period: 'month' },
   { key: 'this-year', label: 'Tento rok', period: 'year' },
 ]
@@ -107,16 +108,16 @@ const typeLabelByValue = Object.fromEntries(
 const regionLabelByValue = Object.fromEntries(regionOptions.map((option) => [option.value, option.label]))
 
 const monthOptions = [
-  { value: 1, label: 'Januar' },
-  { value: 2, label: 'Februar' },
+  { value: 1, label: 'Január' },
+  { value: 2, label: 'Február' },
   { value: 3, label: 'Marec' },
-  { value: 4, label: 'April' },
-  { value: 5, label: 'Maj' },
-  { value: 6, label: 'Jun' },
-  { value: 7, label: 'Jul' },
+  { value: 4, label: 'Apríl' },
+  { value: 5, label: 'Máj' },
+  { value: 6, label: 'Jún' },
+  { value: 7, label: 'Júl' },
   { value: 8, label: 'August' },
   { value: 9, label: 'September' },
-  { value: 10, label: 'Oktober' },
+  { value: 10, label: 'Október' },
   { value: 11, label: 'November' },
   { value: 12, label: 'December' },
 ]
@@ -164,7 +165,7 @@ const shouldUseFutureEmptyState = computed(
 )
 const realtimeBannerLabel = computed(() => {
   const count = pendingRealtimeIds.value.length
-  const noun = count === 1 ? 'Nova udalost' : 'Nove udalosti'
+  const noun = count === 1 ? 'Nová udalosť' : 'Nové udalosti'
   return `${noun} (${count})`
 })
 const weekOptions = computed(() => Array.from({ length: 53 }, (_, idx) => idx + 1))
@@ -221,14 +222,14 @@ const activeFilterChips = computed(() => {
   if (selectedRegion.value !== 'all') {
     chips.push({
       key: 'region',
-      label: `Region: ${regionLabelByValue[selectedRegion.value] || selectedRegion.value}`,
+      label: `Región: ${regionLabelByValue[selectedRegion.value] || selectedRegion.value}`,
     })
   }
 
   if (searchQuery.value) {
     chips.push({
       key: 'search',
-      label: `Hladat: ${searchQuery.value}`,
+      label: `Hľadať: ${searchQuery.value}`,
     })
   }
 
@@ -244,7 +245,7 @@ function normalizePeriod(value) {
 }
 
 function scopeDisplayLabel(scope) {
-  return scopeOptions.find((option) => option.value === scope)?.label || 'Nadchadzajuce'
+  return scopeOptions.find((option) => option.value === scope)?.label || 'Nadchádzajúce'
 }
 
 function monthDisplayLabel(month) {
@@ -252,7 +253,7 @@ function monthDisplayLabel(month) {
 }
 
 function formatPeriodSummaryLabel({ period, year, month, week }) {
-  if (period === 'week') return `Tyzden ${week}/${year}`
+  if (period === 'week') return `Týždeň ${week}/${year}`
   if (period === 'year') return `Rok ${year}`
   return `${monthDisplayLabel(month)} ${year}`
 }
@@ -386,7 +387,7 @@ async function fetchEvents() {
     eventResponse.value = response?.data || { data: [] }
   } catch (err) {
     error.value =
-      err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa nacitat udalosti.'
+      err?.response?.data?.message || err?.userMessage || 'Nepodarilo sa načítať udalosti.'
     eventResponse.value = { data: [] }
   } finally {
     loading.value = false

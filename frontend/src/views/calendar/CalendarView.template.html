@@ -8,25 +8,25 @@
             <div class="month-meta">{{ yearLabel }}</div>
           </div>
           <div class="month-actions">
-            <button type="button" class="nav-btn" @click="prevMonth">&lsaquo;</button>
+            <button type="button" class="nav-btn" aria-label="Predošlý rok" @click="prevYear">&laquo;</button>
+            <button type="button" class="nav-btn" aria-label="Predošlý mesiac" @click="prevMonth">&lsaquo;</button>
             <button type="button" class="nav-btn" @click="goToToday">Dnes</button>
-            <button type="button" class="nav-btn" @click="nextMonth">&rsaquo;</button>
-            <button type="button" class="nav-btn" @click="prevYear">&laquo;</button>
-            <button type="button" class="nav-btn" @click="nextYear">&raquo;</button>
+            <button type="button" class="nav-btn" aria-label="Nasledujúci mesiac" @click="nextMonth">&rsaquo;</button>
+            <button type="button" class="nav-btn" aria-label="Nasledujúci rok" @click="nextYear">&raquo;</button>
           </div>
         </header>
 
-        <p v-if="loading" class="month-meta">Nacitavam udalosti...</p>
+        <p v-if="loading" class="month-meta">Načítavam udalosti...</p>
         <p v-else-if="error" class="month-meta" style="color: var(--color-danger)">{{ error }}</p>
 
         <div class="dow-grid">
-          <span class="dow sun">S</span>
-          <span class="dow">M</span>
-          <span class="dow">T</span>
-          <span class="dow">W</span>
-          <span class="dow">T</span>
-          <span class="dow">F</span>
-          <span class="dow sun">S</span>
+          <span class="dow">Po</span>
+          <span class="dow">Ut</span>
+          <span class="dow">St</span>
+          <span class="dow">Št</span>
+          <span class="dow">Pi</span>
+          <span class="dow">So</span>
+          <span class="dow sun">Ne</span>
         </div>
 
         <div class="days-grid">
@@ -53,7 +53,7 @@
       <aside class="right">
         <header class="list-header">
           <div class="list-title">{{ selectedLabel }}</div>
-          <div class="list-subtitle">{{ selectedEvents.length }} udalosti</div>
+          <div class="list-subtitle">{{ selectedEventsCountLabel }}</div>
         </header>
 
         <ul class="event-list">
@@ -69,12 +69,12 @@
           >
             <span :class="['dot', typeDot(event.type)]" aria-hidden="true"></span>
             <div>
-              <div class="event-title">{{ event.title }}</div>
+              <div class="event-title">{{ prependStarLabel(event.title) }}</div>
               <div class="event-time">{{ formatEventTime(event) }}</div>
             </div>
           </li>
           <li v-if="selectedEvents.length === 0" class="event-empty">
-            Ziadne udalosti v tento den.
+            Žiadne udalosti v tento deň.
           </li>
         </ul>
       </aside>
