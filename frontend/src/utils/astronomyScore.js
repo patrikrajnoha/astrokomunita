@@ -63,7 +63,7 @@ function buildReasons(input) {
   const reasons = []
 
   if (input.phase === 'daylight') {
-    reasons.push('Denne svetlo')
+    reasons.push('Denné svetlo')
   } else if (input.phase === 'twilight') {
     reasons.push('Sumrak')
   }

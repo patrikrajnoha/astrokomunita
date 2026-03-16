@@ -9,11 +9,11 @@ import { appInitState, setInitError, setInitializing, setMounted } from '@/boots
 import { useAuthStore } from '@/stores/auth'
 
 function formatError(errorLike) {
-  if (!errorLike) return { message: 'Neznama chyba', stack: '' }
+  if (!errorLike) return { message: 'Neznáma chyba', stack: '' }
 
   if (errorLike instanceof Error) {
     return {
-      message: errorLike.message || 'Neznama chyba',
+      message: errorLike.message || 'Neznáma chyba',
       stack: errorLike.stack || '',
     }
   }
@@ -21,7 +21,7 @@ function formatError(errorLike) {
   if (typeof errorLike === 'object') {
     const anyError = errorLike
     return {
-      message: String(anyError.message || anyError.reason || 'Neznama chyba'),
+      message: String(anyError.message || anyError.reason || 'Neznáma chyba'),
       stack: String(anyError.stack || anyError.reason?.stack || ''),
     }
   }
@@ -60,7 +60,7 @@ function ensureFatalOverlay(errorLike, source = 'runtime') {
   overlay.style.overflow = 'auto'
 
   const title = document.createElement('h1')
-  title.textContent = 'Aplikacia sa nepodarilo spustit'
+  title.textContent = 'Aplikácia sa nepodarila spustiť'
   title.style.margin = '0 0 12px'
   title.style.fontSize = '18px'
 
@@ -90,7 +90,7 @@ function attachGlobalDiagnostics() {
   }
 
   window.onunhandledrejection = function onUnhandledRejection(event) {
-    const reason = event?.reason || new Error('Nespracovane odmietnutie slubu')
+    const reason = event?.reason || new Error('Nespracované odmietnutie sľubu')
     console.error('[APP ERROR] unhandledrejection', reason)
     ensureFatalOverlay(reason, 'unhandledrejection')
   }

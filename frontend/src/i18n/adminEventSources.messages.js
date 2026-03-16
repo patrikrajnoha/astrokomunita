@@ -6,7 +6,7 @@ export const adminEventSourcesMessages = {
     },
     common: {
       never: 'Nikdy',
-      unknown: 'Nezname',
+      unknown: 'Neznáme',
       na: '-',
     },
     progress: {

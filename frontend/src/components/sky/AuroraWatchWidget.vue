@@ -92,7 +92,7 @@ const effectiveTz = computed(() => {
 })
 const showMissingLocation = computed(() => numericLat.value === null || numericLon.value === null)
 const sourceLabel = computed(() => String(payload.value?.source?.label || 'NOAA SWPC OVATION').trim() || 'NOAA SWPC OVATION')
-const watchLabel = computed(() => String(payload.value?.watch_label || 'Bez dat').trim() || 'Bez dat')
+const watchLabel = computed(() => String(payload.value?.watch_label || 'Bez dát').trim() || 'Bez dát')
 const watchScore = computed(() => toFiniteNumber(payload.value?.watch_score))
 const watchScoreLabel = computed(() => {
   const score = watchScore.value

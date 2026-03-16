@@ -55,12 +55,12 @@ const props = defineProps({
 })
 
 const toneClass = computed(() => `is-${String(props.signal?.tone || 'neutral').trim() || 'neutral'}`)
-const badgeLabel = computed(() => String(props.signal?.badge || 'Zive teraz').trim() || 'Zive teraz')
+const badgeLabel = computed(() => String(props.signal?.badge || 'Živé teraz').trim() || 'Živé teraz')
 const titleLabel = computed(() => String(props.signal?.title || 'Live signal').trim() || 'Live signal')
-const statusLabel = computed(() => String(props.signal?.status_label || 'Bez dat').trim() || 'Bez dat')
+const statusLabel = computed(() => String(props.signal?.status_label || 'Bez dát').trim() || 'Bez dát')
 const summaryLabel = computed(() => String(props.signal?.summary || '').trim())
 const detailLabel = computed(() => String(props.signal?.detail || '').trim())
-const sourceLabel = computed(() => String(props.signal?.source?.label || 'Neznamy zdroj').trim() || 'Neznamy zdroj')
+const sourceLabel = computed(() => String(props.signal?.source?.label || 'Neznámy zdroj').trim() || 'Neznámy zdroj')
 const sourceUrl = computed(() => String(props.signal?.source?.url || '').trim())
 const scoreLabel = computed(() => {
   const value = Number(props.signal?.status_score)

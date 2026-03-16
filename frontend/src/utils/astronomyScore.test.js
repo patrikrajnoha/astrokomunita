@@ -46,7 +46,7 @@ describe('calculateAstronomyScore', () => {
 
     expect(result.phase).toBe('daylight')
     expect(result.score).toBeNull()
-    expect(result.reasons).toContain('Denne svetlo')
+    expect(result.reasons).toContain('Denné svetlo')
   })
 
   it('caps twilight score to 40 points', () => {

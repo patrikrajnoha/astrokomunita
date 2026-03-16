@@ -248,15 +248,15 @@ export function useSkyWidget(options = {}) {
 
   const scorePresentation = computed(() => {
     if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED) {
-      return { label: 'Poloha nenastavena', tone: 'neutral' }
+      return { label: 'Poloha nenastavená', tone: 'neutral' }
     }
 
     if (skyPhase.value === SKY_PHASE.UNKNOWN) {
-      return { label: 'Nezname', tone: 'neutral' }
+      return { label: 'Neznáme', tone: 'neutral' }
     }
 
     if (isDaylight.value) {
-      return { label: 'Denne svetlo', tone: 'day' }
+      return { label: 'Denné svetlo', tone: 'day' }
     }
 
     if (skyPhase.value === SKY_PHASE.CIVIL_TWILIGHT || skyPhase.value === SKY_PHASE.NAUTICAL_TWILIGHT) {
@@ -476,8 +476,8 @@ export function useSkyWidget(options = {}) {
       factors.unshift({
         key: 'phase',
         label: 'Stav oblohy',
-        value: 'Denne svetlo',
-        hint: 'Astronomicke pozorovanie je cez den limitovane.',
+        value: 'Denné svetlo',
+        hint: 'Astronomické pozorovanie je cez deň limitované.',
         tone: 'negative',
       })
     } else if (isTwilightLimited.value) {

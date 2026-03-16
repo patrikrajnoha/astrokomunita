@@ -110,8 +110,8 @@ const moonLine = computed(() => {
   const illumination = toFiniteNumber(astronomy.value?.moon_illumination_percent)
 
   if (illumination === null) {
-    if (phase === 'Neznama faza') {
-      return 'docasne nedostupne'
+    if (phase === 'Neznáma fáza') {
+      return 'dočasne nedostupné'
     }
 
     return phase
@@ -295,17 +295,17 @@ const ephemerisSourceHint = computed(() => {
 function translateMoonPhase(value) {
   const map = {
     new_moon: 'Nov',
-    waxing_crescent: 'Dorastajuci kosacik',
-    first_quarter: 'Prva stvrt',
-    waxing_gibbous: 'Dorastajuci mesiac',
+    waxing_crescent: 'Dorastajúci kosáčik',
+    first_quarter: 'Prvá štvrt',
+    waxing_gibbous: 'Dorastajúci mesiac',
     full_moon: 'Spln',
-    waning_gibbous: 'Ubudajuci mesiac',
-    last_quarter: 'Posledna stvrt',
-    waning_crescent: 'Ubudajuci kosacik',
+    waning_gibbous: 'Ubúdajúci mesiac',
+    last_quarter: 'Posledná štvrt',
+    waning_crescent: 'Ubúdajúci kosáčik',
   }
 
   const key = String(value || '').trim().toLowerCase()
-  return map[key] || 'Neznama faza'
+  return map[key] || 'Neznáma fáza'
 }
 
 function toFiniteNumber(value) {
