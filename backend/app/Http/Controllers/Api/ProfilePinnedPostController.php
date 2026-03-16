@@ -21,19 +21,19 @@ class ProfilePinnedPostController extends Controller
 
         if (!$user) {
             return response()->json([
-                'message' => 'Neprihlaseny pouzivatel.',
+                'message' => 'Neprihlásený používateľ.',
             ], 401);
         }
 
         if ((int) $post->user_id !== (int) $user->id) {
             return response()->json([
-                'message' => 'Mozes pripnut iba svoj prispevok.',
+                'message' => 'Môžeš pripnúť iba svoj príspevok.',
             ], 403);
         }
 
         if ($post->parent_id !== null) {
             return response()->json([
-                'message' => 'Pripnut sa da iba hlavny prispevok.',
+                'message' => 'Pripnúť sa dá iba hlavný príspevok.',
             ], 422);
         }
 
@@ -64,13 +64,13 @@ class ProfilePinnedPostController extends Controller
 
         if (!$user) {
             return response()->json([
-                'message' => 'Neprihlaseny pouzivatel.',
+                'message' => 'Neprihlásený používateľ.',
             ], 401);
         }
 
         if ((int) $post->user_id !== (int) $user->id) {
             return response()->json([
-                'message' => 'Mozes odopnut iba svoj prispevok.',
+                'message' => 'Môžeš odopnúť iba svoj príspevok.',
             ], 403);
         }
 

@@ -26,7 +26,7 @@ class UpdateNotificationPreferencesRequest extends FormRequest
 
                     $unknown = array_values(array_diff(array_keys($value), $allowed));
                     if ($unknown !== []) {
-                        $fail('Neznamy typ notifikacie: ' . implode(', ', $unknown));
+                        $fail('Neznámy typ notifikácie: ' . implode(', ', $unknown));
                     }
                 },
             ],
@@ -41,7 +41,7 @@ class UpdateNotificationPreferencesRequest extends FormRequest
 
                     $unknown = array_values(array_diff(array_keys($value), $allowed));
                     if ($unknown !== []) {
-                        $fail('Neznamy email typ notifikacie: ' . implode(', ', $unknown));
+                        $fail('Neznámy email typ notifikácie: ' . implode(', ', $unknown));
                     }
                 },
             ],

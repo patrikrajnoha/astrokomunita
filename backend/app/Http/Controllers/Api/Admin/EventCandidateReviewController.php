@@ -372,7 +372,7 @@ class EventCandidateReviewController extends Controller
         if ($translatedTitle === '') {
             return response()->json([
                 'ok' => false,
-                'message' => 'Prelozeny nadpis je povinny.',
+                'message' => 'Preložený nadpis je povinný.',
             ], 422);
         }
 

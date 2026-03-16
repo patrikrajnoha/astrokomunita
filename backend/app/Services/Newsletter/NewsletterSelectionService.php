@@ -262,21 +262,21 @@ class NewsletterSelectionService
         $startRaw = (string) ($first['start_at'] ?? '');
         $timezone = (string) config('events.timezone', config('app.timezone', 'UTC'));
 
-        $startLabel = 'buduci tyzden';
+        $startLabel = 'budúci týždeň';
         if ($startRaw !== '') {
             try {
                 $startLabel = CarbonImmutable::parse($startRaw)->setTimezone($timezone)->translatedFormat('d. m. Y H:i');
             } catch (\Throwable) {
-                $startLabel = 'buduci tyzden';
+                $startLabel = 'budúci týždeň';
             }
         }
 
         $insightSnippet = $this->resolveInsightSnippet($first, $adminPreview);
         if ($insightSnippet !== null) {
-            return "Astronomicky tip tyzdna: Pri udalosti \"{$title}\" okolo {$startLabel} {$insightSnippet}";
+            return "Astronomický tip týždňa: Pri udalosti \"{$title}\" okolo {$startLabel} {$insightSnippet}";
         }
 
-        return "Astronomicky tip tyzdna: Pri udalosti \"{$title}\" okolo {$startLabel} vyhladajte tmavsie miesto mimo mesta, nechajte oci adaptovat sa aspon 20 minut a pripravte si plan B pre pripad oblakov.";
+        return "Astronomický tip týždňa: Pri udalosti \"{$title}\" okolo {$startLabel} vyhľadajte tmavšie miesto mimo mesta, nechajte oči adaptovať sa aspoň 20 minút a pripravte si plán B pre prípad oblakov.";
     }
 
     /**
@@ -329,7 +329,7 @@ class NewsletterSelectionService
         }
 
         if ($howToObserve !== '' && $whyInteresting !== '') {
-            return "{$howToObserve} Preco je to zaujimave: {$whyInteresting}";
+            return "{$howToObserve} Prečo je to zaujímavé: {$whyInteresting}";
         }
 
         return $howToObserve !== '' ? $howToObserve : $whyInteresting;
@@ -375,7 +375,7 @@ class NewsletterSelectionService
     {
         $tips = config('newsletter.fallback_tips', []);
         if (! is_array($tips) || $tips === []) {
-            return 'Astronomicky tip tyzdna: Sledujte predpoved pocasia, vyberte si tmavsiu lokalitu a vezmite si jednoduchu mapu oblohy alebo aplikaciu na orientaciu.';
+            return 'Astronomický tip týždňa: Sledujte predpoveď počasia, vyberte si tmavšiu lokalitu a vezmite si jednoduchú mapu oblohy alebo aplikáciu na orientáciu.';
         }
 
         $seed = (int) CarbonImmutable::now()->format('W');

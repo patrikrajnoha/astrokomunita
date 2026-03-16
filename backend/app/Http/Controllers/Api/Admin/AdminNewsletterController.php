@@ -112,7 +112,7 @@ class AdminNewsletterController extends Controller
         if (! $sent) {
             return response()->json([
                 'ok' => false,
-                'message' => 'E-mail s nahladom sa nepodarilo odoslat.',
+                'message' => 'E-mail s náhľadom sa nepodarilo odoslať.',
             ], 422);
         }
 

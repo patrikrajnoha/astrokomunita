@@ -132,7 +132,7 @@ class EventSourceController extends Controller
                 $results[] = [
                     'source_key' => $key,
                     'status' => 'missing',
-                    'message' => 'Neznamy zdroj udalosti.',
+                    'message' => 'Neznámy zdroj udalostí.',
                 ];
                 continue;
             }

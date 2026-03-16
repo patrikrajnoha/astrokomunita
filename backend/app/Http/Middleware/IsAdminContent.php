@@ -14,7 +14,7 @@ class IsAdminContent
 
         if (! $user) {
             return response()->json([
-                'message' => 'Neautentifikovany pouzivatel',
+                'message' => 'Neautentifikovaný používateľ',
             ], 401);
         }
 

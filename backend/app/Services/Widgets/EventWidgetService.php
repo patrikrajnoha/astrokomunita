@@ -44,7 +44,7 @@ class EventWidgetService
                 ])->values()->all(),
                 'source' => [
                     'provider' => 'astrokomunita_events',
-                    'label' => 'Databaza udalosti',
+                    'label' => 'Databáza udalostí',
                     'url' => '/events',
                 ],
                 'generated_at' => now()->toIso8601String(),
@@ -98,7 +98,7 @@ class EventWidgetService
         if (! $event) {
             return [
                 'data' => null,
-                'message' => 'Nenasli sa ziadne udalosti.',
+                'message' => 'Nenašli sa žiadne udalosti.',
             ];
         }
 
@@ -125,7 +125,7 @@ class EventWidgetService
                 'data' => $event ? $this->mapSpotlightEvent($event) : null,
                 'source' => [
                     'provider' => 'astrokomunita_events',
-                    'label' => 'Databaza udalosti',
+                    'label' => 'Databáza udalostí',
                     'url' => '/events',
                 ],
                 'generated_at' => now()->toIso8601String(),

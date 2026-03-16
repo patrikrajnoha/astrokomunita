@@ -14,7 +14,7 @@ class MeDataExportJobDownloadController extends Controller
     {
         if (! $request->hasValidSignature(false)) {
             return response()->json([
-                'message' => 'Download link je neplatny alebo expirovany.',
+                'message' => 'Download link je neplatný alebo expirovaný.',
             ], 403);
         }
 
@@ -40,7 +40,7 @@ class MeDataExportJobDownloadController extends Controller
         $disk = Storage::disk('local');
         if (! $disk->exists((string) $job->file_path)) {
             return response()->json([
-                'message' => 'Export subor sa nenasiel.',
+                'message' => 'Export súbor sa nenašiel.',
             ], 404);
         }
 

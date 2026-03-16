@@ -36,13 +36,13 @@ class EventInviteService
 
             if ($inviteeUserId && $inviteeUserId === (int) $inviter->id) {
                 throw ValidationException::withMessages([
-                    'invitee_user_id' => ['Nemozes pozvat sam seba.'],
+                    'invitee_user_id' => ['Nemôžeš pozvať sám seba.'],
                 ]);
             }
 
             if ($inviteeEmail && strcasecmp($inviteeEmail, (string) $inviter->email) === 0) {
                 throw ValidationException::withMessages([
-                    'invitee_email' => ['Nemozes pozvat sam seba.'],
+                    'invitee_email' => ['Nemôžeš pozvať sám seba.'],
                 ]);
             }
 
@@ -101,7 +101,7 @@ class EventInviteService
     {
         if (!in_array($status, [EventInviteStatus::Accepted, EventInviteStatus::Declined], true)) {
             throw ValidationException::withMessages([
-                'status' => ['Neplatny stav odpovede pozvanky.'],
+                'status' => ['Neplatný stav odpovede pozvánky.'],
             ]);
         }
 
@@ -113,7 +113,7 @@ class EventInviteService
 
             if ($currentStatus && $currentStatus !== EventInviteStatus::Pending) {
                 throw ValidationException::withMessages([
-                    'status' => ['Na tuto pozvanku uz bolo odpovedane.'],
+                    'status' => ['Na túto pozvánku už bolo odpovedané.'],
                 ]);
             }
 

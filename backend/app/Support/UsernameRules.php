@@ -26,12 +26,12 @@ class UsernameRules
                 $normalized = self::normalize((string) $value);
 
                 if (str_contains($normalized, '__')) {
-                    $fail('Pouzivatelske meno nemoze obsahovat dvojite podciarkovniky.');
+                    $fail('Používateľské meno nemôže obsahovať dvojité podčiarkníky.');
                     return;
                 }
 
                 if (self::isReserved($normalized)) {
-                    $fail('Toto pouzivatelske meno nie je povolene.');
+                    $fail('Toto používateľské meno nie je povolené.');
                 }
             },
             Rule::unique('users', 'username')->ignore($ignoreUserId),
