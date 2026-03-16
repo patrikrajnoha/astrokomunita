@@ -225,11 +225,14 @@
   border-radius: 0.72rem;
   border: 1px solid rgb(var(--color-danger-rgb) / 0.42);
   background: rgb(var(--color-danger-rgb) / 0.16);
-  color: rgb(var(--text-primary-rgb) / 0.9);
+  color: rgb(var(--color-danger-rgb) / 0.9);
   display: grid;
   place-items: center;
-  font-size: 0.78rem;
-  font-weight: 700;
+}
+
+.settings-page .settings-logout-icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
 }
 
 .settings-page .settings-logout-label {
