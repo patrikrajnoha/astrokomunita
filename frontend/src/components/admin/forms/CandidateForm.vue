@@ -40,7 +40,7 @@
             <option value="meteor_shower">Meteorický dážď</option>
             <option value="eclipse">Zatmenie</option>
             <option value="comet">Kométa</option>
-            <option value="planetary">Planetárny úkaz</option>
+            <option value="planetary_event">Planetárny úkaz</option>
             <option value="aurora">Polárna žiara</option>
             <option value="other">Iné</option>
           </select>

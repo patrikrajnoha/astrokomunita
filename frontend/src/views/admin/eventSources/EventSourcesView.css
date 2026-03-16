@@ -115,9 +115,8 @@
 }
 
 .runPanel__maintenanceBody {
-  grid-template-columns: repeat(2, minmax(0, auto));
-  align-items: center;
-  justify-content: space-between;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
 }
 
 .qualityPanel__actions {
@@ -155,10 +154,11 @@
 .btn-danger {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
   border-radius: 8px;
-  padding: 6px 9px;
+  padding: 3px 8px;
   background: transparent;
   color: inherit;
-  min-height: 34px;
+  font-size: 11px;
+  min-height: 26px;
 }
 
 .primaryBtn {
@@ -305,13 +305,24 @@
 .table td {
   text-align: left;
   border-bottom: 1px solid var(--divider-color);
-  padding: 5px 6px;
+  padding: 3px 5px;
   vertical-align: middle;
 }
 
 .table th {
   font-size: 11px;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
+}
+
+.table .noWrap {
+  white-space: nowrap;
+}
+
+.inlineRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
 .table .tight {
@@ -325,8 +336,9 @@
   border-radius: 999px;
   border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
   background: transparent;
-  padding: 1px 7px;
-  font-size: 12px;
+  padding: 1px 6px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .sourceBadge--astropixels {
@@ -349,9 +361,10 @@
   align-items: center;
   border-radius: 999px;
   border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  padding: 1px 7px;
-  font-size: 12px;
+  padding: 1px 5px;
+  font-size: 11px;
   background: transparent;
+  white-space: nowrap;
 }
 
 .pill--success {
@@ -377,16 +390,59 @@
 .counterRow {
   display: flex;
   align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-  font-size: 12px;
+  gap: 2px;
+  flex-wrap: nowrap;
+  font-size: 11px;
+}
+
+.counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 3px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.counter--fetched {
+  color: rgb(var(--color-text-secondary-rgb) / 0.85);
+}
+
+.counter--created {
+  border-color: rgb(22 163 74 / 0.22);
+  background: rgb(22 163 74 / 0.06);
+  color: rgb(21 128 61);
+}
+
+.counter--updated {
+  border-color: rgb(59 130 246 / 0.22);
+  background: rgb(59 130 246 / 0.06);
+  color: rgb(29 78 216);
+}
+
+.counter--skipped {
+  color: rgb(var(--color-text-secondary-rgb) / 0.6);
+}
+
+.counter--done {
+  border-color: rgb(22 163 74 / 0.22);
+  background: rgb(22 163 74 / 0.06);
+  color: rgb(21 128 61);
+}
+
+.counter--failed {
+  border-color: rgb(220 38 38 / 0.22);
+  background: rgb(220 38 38 / 0.06);
+  color: rgb(185 28 28);
 }
 
 .actionRow {
   display: flex;
   align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
+  gap: 5px;
+  flex-wrap: nowrap;
 }
 
 .sourceMobileCard,
@@ -480,6 +536,7 @@
     grid-template-columns: 1fr;
     display: grid;
     align-items: stretch;
+    gap: 8px;
   }
 
   .field,

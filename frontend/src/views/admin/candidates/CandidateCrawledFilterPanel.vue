@@ -152,21 +152,12 @@ function triggerSearch() {
       </div>
 
       <div class="filterField">
-        <label>Na stranku</label>
+        <label>Na stránku</label>
         <select v-model.number="perPageModel" :disabled="loading" class="filterInput">
           <option :value="10">10</option>
           <option :value="20">20</option>
           <option :value="50">50</option>
           <option :value="100">100</option>
-        </select>
-      </div>
-
-      <div class="filterField">
-        <label>Stav</label>
-        <select v-model="statusModel" :disabled="loading" class="filterInput">
-          <option value="pending">Pending</option>
-          <option value="approved">Schvalene</option>
-          <option value="rejected">Zamietnute</option>
         </select>
       </div>
 
@@ -235,6 +226,7 @@ function triggerSearch() {
             <option value="eclipse_solar">Zatmenie Slnka</option>
             <option value="meteor_shower">Meteoricky roj</option>
             <option value="planetary_event">Planetarny ukaz</option>
+            <option value="aurora">Polarna ziara</option>
             <option value="observation_window">Pozorovacie okno</option>
             <option value="other">Ina udalost</option>
           </select>
@@ -242,13 +234,13 @@ function triggerSearch() {
 
         <div class="filterField">
           <label>Zdroj</label>
-          <input
-            v-model="sourceModel"
-            :disabled="loading"
-            placeholder="astropixels / imo / nasa / nasa_wts"
-            class="filterInput"
-            @keyup.enter="triggerSearch"
-          />
+          <select v-model="sourceModel" :disabled="loading" class="filterInput">
+            <option value="">Všetky zdroje</option>
+            <option value="astropixels">AstroPixels</option>
+            <option value="imo">IMO</option>
+            <option value="nasa">NASA</option>
+            <option value="nasa_wts">NASA WTS</option>
+          </select>
         </div>
       </template>
     </div>

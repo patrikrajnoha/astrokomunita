@@ -22,6 +22,8 @@ const loading = ref(false)
 const error = ref('')
 const searchInput = ref('')
 const search = ref('')
+const filterRole = ref('')
+const filterStatus = ref('')
 const page = ref(1)
 const perPage = ref(20)
 const data = ref(null)
@@ -33,22 +35,25 @@ let searchDebounce = null
 
 const rows = computed(() => data.value?.data || [])
 const totalUsers = computed(() => Number(data.value?.total || 0))
-const hasActiveFilters = computed(() => Boolean(search.value))
+const hasActiveFilters = computed(() => Boolean(search.value || filterRole.value || filterStatus.value))
 const showSkeleton = computed(() => loading.value && rows.value.length === 0)
 const isCurrentActorAdmin = computed(() => Boolean(auth.isAdmin))
 const shouldShowPagination = computed(() => Number(data.value?.last_page || 1) > 1)
+const currentPage = computed(() => Number(data.value?.current_page || page.value))
+const lastPage = computed(() => Number(data.value?.last_page || 1))
+
 const manageAccountInfoRows = computed(() => {
   if (!manageUser.value) return []
 
   return [
-    { key: 'id', label: 'ID pouzivatela', value: manageUser.value.id ?? '-' },
+    { key: 'id', label: 'ID používateľa', value: manageUser.value.id ?? '-' },
     { key: 'email', label: 'E-mail', value: userEmail(manageUser.value) },
-    { key: 'username', label: 'Pouzivatelske meno', value: manageUser.value.username ? `@${manageUser.value.username}` : '-' },
+    { key: 'username', label: 'Používateľské meno', value: manageUser.value.username ? `@${manageUser.value.username}` : '-' },
     { key: 'role', label: 'Rola', value: roleLabel(manageUser.value) },
     { key: 'status', label: 'Stav', value: statusLabel(manageUser.value) },
-    { key: 'created_at', label: 'Vytvoreny', value: formatDate(manageUser.value.created_at) },
-    { key: 'banned_at', label: 'Zablokovany od', value: formatDate(manageUser.value.banned_at) },
-    { key: 'ban_reason', label: 'Dovod blokacie', value: manageUser.value.ban_reason || '-' },
+    { key: 'created_at', label: 'Vytvorený', value: formatDate(manageUser.value.created_at) },
+    { key: 'banned_at', label: 'Zablokovaný od', value: formatDate(manageUser.value.banned_at) },
+    { key: 'ban_reason', label: 'Dôvod blokovania', value: manageUser.value.ban_reason || '-' },
   ]
 })
 
@@ -71,11 +76,15 @@ function readQuery(query) {
   const qSearch = typeof query.search === 'string' ? query.search : ''
   const qPage = parsePositiveInt(query.page, 1)
   const qPerPage = parsePositiveInt(query.per_page, 20)
+  const qRole = typeof query.role === 'string' ? query.role : ''
+  const qStatus = typeof query.status === 'string' ? query.status : ''
 
   searchInput.value = qSearch
   search.value = qSearch
   page.value = qPage
   perPage.value = qPerPage
+  filterRole.value = qRole
+  filterStatus.value = qStatus
 }
 
 function buildQuery() {
@@ -84,9 +93,9 @@ function buildQuery() {
     per_page: String(perPage.value),
   }
 
-  if (search.value) {
-    query.search = search.value
-  }
+  if (search.value) query.search = search.value
+  if (filterRole.value) query.role = filterRole.value
+  if (filterStatus.value) query.status = filterStatus.value
 
   return query
 }
@@ -96,6 +105,8 @@ function currentQuery() {
     page: String(parsePositiveInt(route.query.page, 1)),
     per_page: String(parsePositiveInt(route.query.per_page, 20)),
     search: typeof route.query.search === 'string' ? route.query.search : '',
+    role: typeof route.query.role === 'string' ? route.query.role : '',
+    status: typeof route.query.status === 'string' ? route.query.status : '',
   }
 }
 
@@ -107,6 +118,8 @@ function syncQueryWithState() {
     next.page === now.page
     && next.per_page === now.per_page
     && (next.search || '') === now.search
+    && (next.role || '') === now.role
+    && (next.status || '') === now.status
   ) {
     return
   }
@@ -182,15 +195,12 @@ function userHandle(user) {
 }
 
 function userEmail(user) {
-  if (isBotAccount(user)) {
-    return '-'
-  }
-
+  if (isBotAccount(user)) return '-'
   return String(user?.email || '-')
 }
 
 function botAccountHint() {
-  return 'Automatizovany ucet - e-mail je zamerne prazdny.'
+  return 'Automatizovaný účet — e-mail je zámerne prázdny.'
 }
 
 async function load() {
@@ -203,14 +213,14 @@ async function load() {
       per_page: perPage.value,
     }
 
-    if (search.value) {
-      params.search = search.value
-    }
+    if (search.value) params.search = search.value
+    if (filterRole.value) params.role = filterRole.value
+    if (filterStatus.value) params.status = filterStatus.value
 
     const res = await api.get('/admin/users', { params })
     data.value = res.data
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat pouzivatelov.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať používateľov.'
   } finally {
     loading.value = false
   }
@@ -224,7 +234,6 @@ function updateRow(updated) {
     userRows[idx] = { ...userRows[idx], ...updated }
     return userRows[idx]
   }
-
   return updated
 }
 
@@ -236,20 +245,12 @@ function syncManageUser(updated) {
 
 function openUserDetail(user) {
   if (!user?.id) return
-
-  router.push({
-    name: 'admin.users.detail',
-    params: { id: user.id },
-  })
+  router.push({ name: 'admin.users.detail', params: { id: user.id } })
 }
 
 function openPublicProfile(user) {
   if (!user?.username) return
-
-  router.push({
-    name: 'user-profile',
-    params: { username: user.username },
-  })
+  router.push({ name: 'user-profile', params: { username: user.username } })
 }
 
 async function banUser(user) {
@@ -257,11 +258,11 @@ async function banUser(user) {
 
   const targetLabel = user.email || userName(user)
   const reason = await prompt({
-    title: 'Zablokovat pouzivatela',
-    message: `Zadajte dovod blokacie pre ${targetLabel}.`,
-    confirmText: 'Zablokovat',
-    cancelText: 'Zrusit',
-    placeholder: 'Dovod blokacie...',
+    title: 'Zablokovať používateľa',
+    message: `Zadajte dôvod blokovania pre ${targetLabel}.`,
+    confirmText: 'Zablokovať',
+    cancelText: 'Zrušiť',
+    placeholder: 'Dôvod blokovania...',
     required: true,
     multiline: true,
     variant: 'danger',
@@ -273,7 +274,7 @@ async function banUser(user) {
     const res = await api.patch(`/admin/users/${user.id}/ban`, { reason: String(reason).trim() })
     const updated = updateRow(res.data)
     syncManageUser(updated)
-    toast.success('Pouzivatel bol zablokovany.')
+    toast.success('Používateľ bol zablokovaný.')
   } catch (e) {
     error.value = e?.response?.data?.message || 'Blokovanie zlyhalo.'
     toast.error(error.value)
@@ -285,10 +286,10 @@ async function unbanUser(user) {
 
   const targetLabel = user.email || userName(user)
   const ok = await confirm({
-    title: 'Odblokovat pouzivatela',
-    message: `Odblokovat pouzivatela ${targetLabel}?`,
-    confirmText: 'Odblokovat',
-    cancelText: 'Zrusit',
+    title: 'Odblokovať používateľa',
+    message: `Odblokovať používateľa ${targetLabel}?`,
+    confirmText: 'Odblokovať',
+    cancelText: 'Zrušiť',
   })
 
   if (!ok) return
@@ -297,7 +298,7 @@ async function unbanUser(user) {
     const res = await api.post(`/admin/users/${user.id}/unban`)
     const updated = updateRow(res.data)
     syncManageUser(updated)
-    toast.success('Pouzivatel bol odblokovany.')
+    toast.success('Používateľ bol odblokovaný.')
   } catch (e) {
     error.value = e?.response?.data?.message || 'Odblokovanie zlyhalo.'
     toast.error(error.value)
@@ -309,10 +310,10 @@ async function deactivateUser(user) {
 
   const targetLabel = user.email || userName(user)
   const ok = await confirm({
-    title: 'Deaktivovat pouzivatela',
-    message: `Deaktivovat pouzivatela ${targetLabel}?`,
-    confirmText: 'Deaktivovat',
-    cancelText: 'Zrusit',
+    title: 'Deaktivovať používateľa',
+    message: `Deaktivovať používateľa ${targetLabel}?`,
+    confirmText: 'Deaktivovať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
 
@@ -322,9 +323,9 @@ async function deactivateUser(user) {
     const res = await api.post(`/admin/users/${user.id}/deactivate`)
     const updated = updateRow(res.data)
     syncManageUser(updated)
-    toast.success('Pouzivatel bol deaktivovany.')
+    toast.success('Používateľ bol deaktivovaný.')
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Deaktivacia zlyhala.'
+    error.value = e?.response?.data?.message || 'Deaktivácia zlyhala.'
     toast.error(error.value)
   }
 }
@@ -333,10 +334,10 @@ async function reactivateUser(user) {
   if (!user || isSelf(user) || user.is_active) return
 
   const ok = await confirm({
-    title: 'Reaktivovat pouzivatela',
-    message: `Reaktivovat pouzivatela ${user.email || userName(user)}?`,
-    confirmText: 'Reaktivovat',
-    cancelText: 'Zrusit',
+    title: 'Reaktivovať používateľa',
+    message: `Reaktivovať používateľa ${user.email || userName(user)}?`,
+    confirmText: 'Reaktivovať',
+    cancelText: 'Zrušiť',
   })
 
   if (!ok) return
@@ -345,9 +346,9 @@ async function reactivateUser(user) {
     const res = await api.post(`/admin/users/${user.id}/reactivate`)
     const updated = updateRow(res.data)
     syncManageUser(updated)
-    toast.success('Pouzivatel bol reaktivovany.')
+    toast.success('Používateľ bol reaktivovaný.')
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Reaktivacia zlyhala.'
+    error.value = e?.response?.data?.message || 'Reaktivácia zlyhala.'
     toast.error(error.value)
   }
 }
@@ -357,10 +358,10 @@ async function resetProfile(user) {
 
   const targetLabel = user.email || userName(user)
   const ok = await confirm({
-    title: 'Resetovat profil',
-    message: `Resetovat profil pre ${targetLabel}?`,
-    confirmText: 'Resetovat',
-    cancelText: 'Zrusit',
+    title: 'Resetovať profil',
+    message: `Resetovať profil pre ${targetLabel}?`,
+    confirmText: 'Resetovať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
 
@@ -370,7 +371,7 @@ async function resetProfile(user) {
     const res = await api.post(`/admin/users/${user.id}/reset-profile`)
     const updated = updateRow(res.data)
     syncManageUser(updated)
-    toast.success('Profil bol resetovany.')
+    toast.success('Profil bol resetovaný.')
   } catch (e) {
     error.value = e?.response?.data?.message || 'Reset profilu zlyhal.'
     toast.error(error.value)
@@ -385,13 +386,13 @@ async function updateEditorRole(user, nextRole) {
     const updated = updateRow(res.data)
     syncManageUser(updated)
     clearStatsCache()
-    toast.success(nextRole === 'editor' ? 'Rola editora pridana.' : 'Rola editora odobrata.')
+    toast.success(nextRole === 'editor' ? 'Rola editora pridaná.' : 'Rola editora odobratá.')
   } catch (e) {
     const status = Number(e?.response?.status || 0)
     if (status === 403) {
-      error.value = 'Nemate opravnenie menit roly.'
+      error.value = 'Nemáte oprávnenie meniť roly.'
     } else if (status === 422) {
-      error.value = e?.response?.data?.message || 'Zmena roly je neplatna.'
+      error.value = e?.response?.data?.message || 'Zmena roly je neplatná.'
     } else {
       error.value = e?.response?.data?.message || 'Zmena roly zlyhala.'
     }
@@ -410,7 +411,7 @@ async function loadManageUser(userId) {
     manageUser.value = res.data
     updateRow(res.data)
   } catch (e) {
-    manageModalError.value = e?.response?.data?.message || 'Nepodarilo sa nacitat detail pouzivatela.'
+    manageModalError.value = e?.response?.data?.message || 'Nepodarilo sa načítať detail používateľa.'
   } finally {
     manageModalLoading.value = false
   }
@@ -439,35 +440,35 @@ function rowActionItems(user) {
   const canManage = canManageAccount(user)
 
   if (user.username) {
-    items.push({ key: 'view', label: 'Zobrazit profil' })
+    items.push({ key: 'view', label: 'Zobraziť profil' })
   }
 
-  items.push({ key: 'manage', label: 'Sprava uctu' })
+  items.push({ key: 'manage', label: 'Správa účtu' })
 
   const targetRole = String(user.role || '').toLowerCase()
-  const canToggleEditorRole = canManage && targetRole !== 'bot' && targetRole !== 'admin'
+  const canToggle = canManage && targetRole !== 'bot' && targetRole !== 'admin'
 
-  if (canToggleEditorRole) {
+  if (canToggle) {
     if (targetRole === 'user') {
-      items.push({ key: 'grant-editor', label: 'Pridat rolu editor' })
+      items.push({ key: 'grant-editor', label: 'Pridať rolu editor' })
     } else if (targetRole === 'editor') {
-      items.push({ key: 'remove-editor', label: 'Odobrat rolu editor' })
+      items.push({ key: 'remove-editor', label: 'Odobrať rolu editor' })
     }
   }
 
   if (canManage) {
     if (user.is_banned) {
-      items.push({ key: 'unban', label: 'Odblokovat ucet' })
+      items.push({ key: 'unban', label: 'Odblokovať účet' })
     } else {
-      items.push({ key: 'ban', label: 'Zablokovat ucet', danger: true })
+      items.push({ key: 'ban', label: 'Zablokovať účet', danger: true })
     }
 
     if (user.is_active) {
-      items.push({ key: 'deactivate', label: 'Deaktivovat ucet', danger: true })
+      items.push({ key: 'deactivate', label: 'Deaktivovať účet', danger: true })
     } else {
-      items.push({ key: 'reactivate', label: 'Reaktivovat ucet' })
+      items.push({ key: 'reactivate', label: 'Reaktivovať účet' })
     }
-    items.push({ key: 'reset', label: 'Resetovat profil', danger: true })
+    items.push({ key: 'reset', label: 'Resetovať profil', danger: true })
   }
 
   return items
@@ -476,54 +477,22 @@ function rowActionItems(user) {
 async function onRowActionSelect(user, item) {
   if (loading.value || !item?.key) return
 
-  if (item.key === 'view') {
-    openPublicProfile(user)
-    return
-  }
-
-  if (item.key === 'manage') {
-    openManageUserModal(user)
-    return
-  }
-
-  if (item.key === 'ban') {
-    await banUser(user)
-    return
-  }
-
-  if (item.key === 'unban') {
-    await unbanUser(user)
-    return
-  }
-
-  if (item.key === 'deactivate') {
-    await deactivateUser(user)
-    return
-  }
-
-  if (item.key === 'reactivate') {
-    await reactivateUser(user)
-    return
-  }
-
-  if (item.key === 'reset') {
-    await resetProfile(user)
-    return
-  }
-
-  if (item.key === 'grant-editor') {
-    await updateEditorRole(user, 'editor')
-    return
-  }
-
-  if (item.key === 'remove-editor') {
-    await updateEditorRole(user, 'user')
-  }
+  if (item.key === 'view') { openPublicProfile(user); return }
+  if (item.key === 'manage') { openManageUserModal(user); return }
+  if (item.key === 'ban') { await banUser(user); return }
+  if (item.key === 'unban') { await unbanUser(user); return }
+  if (item.key === 'deactivate') { await deactivateUser(user); return }
+  if (item.key === 'reactivate') { await reactivateUser(user); return }
+  if (item.key === 'reset') { await resetProfile(user); return }
+  if (item.key === 'grant-editor') { await updateEditorRole(user, 'editor'); return }
+  if (item.key === 'remove-editor') { await updateEditorRole(user, 'user') }
 }
 
 function clearFilters() {
   searchInput.value = ''
   search.value = ''
+  filterRole.value = ''
+  filterStatus.value = ''
   page.value = 1
 }
 
@@ -540,9 +509,7 @@ function retryLoad() {
 
 watch(
   () => route.query,
-  (query) => {
-    readQuery(query)
-  },
+  (query) => { readQuery(query) },
 )
 
 watch(searchInput, (value) => {
@@ -555,7 +522,7 @@ watch(searchInput, (value) => {
   }, 350)
 })
 
-watch([search, page, perPage], () => {
+watch([search, filterRole, filterStatus, page, perPage], () => {
   syncQueryWithState()
   load()
 })

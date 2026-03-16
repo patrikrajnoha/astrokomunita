@@ -15,6 +15,7 @@ const editingEvent = ref(null)
 const formLoading = ref(false)
 const formError = ref('')
 const formSuccess = ref('')
+const formSubmitAttempted = ref(false)
 const translationActionLoading = ref(false)
 const translationError = ref('')
 const translationSummary = ref(null)
@@ -38,6 +39,7 @@ const eventTypes = [
   { value: 'eclipse_lunar', label: 'Zatmenie Mesiaca' },
   { value: 'eclipse_solar', label: 'Zatmenie Slnka' },
   { value: 'planetary_event', label: 'Planetárny úkaz' },
+  { value: 'aurora', label: 'Polarna ziara' },
   { value: 'other', label: 'Iná udalosť' },
 ]
 
@@ -60,6 +62,7 @@ const defaultEventTypeIcons = {
   eclipse_solar: '\u{1F30E}',
   conjunction: '\u{1FA90}',
   planetary_event: '\u{1FA90}',
+  aurora: '\u{1F30C}',
   comet: '\u2604\uFE0F',
   asteroid: '\u{1F6F0}\uFE0F',
   mission: '\u{1F680}',
@@ -76,6 +79,10 @@ const form = ref({
   visibility: 1,
 })
 
+const searchQ = ref('')
+const filterType = ref('')
+const filterVisibility = ref('')
+
 const {
   loading,
   error,
@@ -87,6 +94,8 @@ const {
   prevPage,
   perPage,
   setPerPage,
+  setSearch,
+  setFilter,
   refresh,
 } = useAdminTable(
   async (params) => {
@@ -103,7 +112,7 @@ const isFormModalOpen = computed({
     if (!open) closeForm()
   },
 })
-const formModalTitle = computed(() => (isEdit.value ? 'Upravit udalost' : 'Nova udalost'))
+const formModalTitle = computed(() => (isEdit.value ? 'Upraviť udalosť' : 'Nová udalosť'))
 const editingEventId = computed(() => Number(editingEvent.value?.id || 0))
 const aiEnabled = computed(() => Boolean(aiConfig.value?.events_ai_humanized_enabled))
 const aiPanelEnabled = computed(() => aiEnabled.value && editingEventId.value > 0)
@@ -141,6 +150,36 @@ const formErrors = computed(() => {
 
   return errors
 })
+
+function eventTypeLabel(type) {
+  const found = eventTypes.find((t) => t.value === String(type || '').trim())
+  return found ? found.label : String(type || '-')
+}
+
+function applySearch() {
+  setSearch(searchQ.value)
+}
+
+function applyTypeFilter(value) {
+  filterType.value = value
+  setFilter('type', value || undefined)
+}
+
+function applyVisibilityFilter(value) {
+  filterVisibility.value = value
+  setFilter('visibility', value !== '' ? Number(value) : undefined)
+}
+
+async function toggleVisibility(event) {
+  const newVisibility = event.visibility === 1 ? 0 : 1
+  try {
+    await http.put(`/admin/events/${event.id}`, { ...event, visibility: newVisibility })
+    event.visibility = newVisibility
+  } catch (err) {
+    // silently ignore — refresh will fix state
+    await refresh()
+  }
+}
 
 function normalizeAiStatus(value, fallback = 'idle') {
   const normalized = String(value || '').trim().toLowerCase()
@@ -208,6 +247,7 @@ function openCreate() {
   }
   formError.value = ''
   formSuccess.value = ''
+  formSubmitAttempted.value = false
   aiActionError.value = ''
   aiActionStatus.value = 'idle'
   aiActionResult.value = null
@@ -234,6 +274,7 @@ function openEdit(event) {
   }
   formError.value = ''
   formSuccess.value = ''
+  formSubmitAttempted.value = false
   aiActionError.value = ''
   aiActionStatus.value = 'idle'
   aiActionResult.value = null
@@ -251,6 +292,7 @@ function closeForm() {
   mode.value = 'list'
   formError.value = ''
   formSuccess.value = ''
+  formSubmitAttempted.value = false
   aiActionError.value = ''
   aiActionStatus.value = 'idle'
   aiActionResult.value = null
@@ -295,8 +337,8 @@ function setEndAfter(hours) {
 }
 
 async function submitForm() {
+  formSubmitAttempted.value = true
   if (formErrors.value.length > 0) {
-    formError.value = formErrors.value[0]
     return
   }
 

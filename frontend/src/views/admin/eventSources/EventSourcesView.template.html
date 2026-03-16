@@ -15,14 +15,6 @@
         <span class="statCard__label">{{ t('stats.supportedSources') }}</span>
         <strong class="statCard__value">{{ supportedSourcesCount }}</strong>
       </article>
-      <article class="statCard">
-        <span class="statCard__label">{{ t('stats.selectedSources') }}</span>
-        <strong class="statCard__value">{{ selectedSourcesCount }}</strong>
-      </article>
-      <article class="statCard">
-        <span class="statCard__label">{{ t('stats.translationQueue') }}</span>
-        <strong class="statCard__value">{{ translationQueueTotal }}</strong>
-      </article>
     </section>
 
     <section v-if="isBusy || progressValue > 0" class="progressPanel" data-testid="crawl-progress-panel">
@@ -40,20 +32,6 @@
         </div>
 
         <div class="runPanel__primary">
-          <label class="field field--grow" for="run-year">
-            <span>{{ t('runPanel.year') }}</span>
-            <input
-              id="run-year"
-              v-model.number="year"
-              type="number"
-              :min="runYearMin"
-              :max="runYearMax"
-              :disabled="runningSelected"
-              @input="yearTouched = true"
-            />
-            <span class="muted">{{ runYearHint }}</span>
-          </label>
-
           <button
             type="button"
             class="primaryBtn runPanel__runBtn"
@@ -66,8 +44,21 @@
         </div>
 
         <details class="runPanel__maintenance">
-          <summary class="compactSummary">Udrzba a cistenie</summary>
+          <summary class="compactSummary">{{ t('runPanel.maintenanceTitle') }}</summary>
           <div class="runPanel__maintenanceBody">
+            <label class="field" for="run-year">
+              <span>{{ t('runPanel.year') }}</span>
+              <input
+                id="run-year"
+                v-model.number="year"
+                type="number"
+                :min="runYearMin"
+                :max="runYearMax"
+                :disabled="runningSelected"
+                @input="yearTouched = true"
+              />
+              <span class="muted">{{ runYearHint }}</span>
+            </label>
             <label class="switchLabel" for="purge-dry-run">
               <input id="purge-dry-run" v-model="purgeDryRun" type="checkbox" :disabled="purging" />
               <span>{{ t('runPanel.purgeDryRun') }}</span>
@@ -111,7 +102,7 @@
         </div>
 
         <details class="qualityPanel__tools">
-          <summary class="compactSummary">Nastroje kvality</summary>
+          <summary class="compactSummary">{{ t('quality.toolsTitle') }}</summary>
 
           <div class="qualityPanel__toolsBody">
             <div class="qualityPanel__actions">
@@ -232,12 +223,22 @@
           <table class="table compact">
             <thead>
               <tr>
-                <th aria-label="Vyber zdroja">{{ t('sources.columns.select') }}</th>
+                <th class="tight">
+                  <input
+                    type="checkbox"
+                    :checked="isAllSelected"
+                    :indeterminate="selectedSourcesCount > 0 && !isAllSelected"
+                    :disabled="runningSelected || allSelectableKeys.length === 0"
+                    :title="isAllSelected ? t('sources.deselectAll') : t('sources.selectAll')"
+                    @change="toggleSelectAll"
+                  />
+                </th>
                 <th>{{ t('sources.columns.source') }}</th>
                 <th>{{ t('sources.columns.status') }}</th>
                 <th>{{ t('sources.columns.lastRun') }}</th>
                 <th>{{ t('sources.columns.counters') }}</th>
-                <th>{{ t('sources.columns.actions') }}</th>
+                <th>{{ t('sources.columns.enabled') }}</th>
+                <th>{{ t('sources.columns.run') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -265,9 +266,9 @@
                   <span class="pill" :class="`pill--${sourceStatusTone(source)}`">{{ sourceStatusLabel(source) }}</span>
                 </td>
 
-                <td>
-                  <div class="stackTiny">
-                    <span>{{ formatDate(findLatestRunForSource(source.key)?.started_at) }}</span>
+                <td class="noWrap">
+                  <div class="inlineRow">
+                    <span class="muted">{{ formatDate(findLatestRunForSource(source.key)?.started_at) }}</span>
                     <span class="pill" :class="`pill--${runStatusTone(runStatusLabel(findLatestRunForSource(source.key)))}`">
                       {{ runStatusLabel(findLatestRunForSource(source.key)) }}
                     </span>
@@ -276,37 +277,37 @@
 
                 <td>
                   <div class="counterRow">
-                    <span>F {{ runCounters(findLatestRunForSource(source.key)).fetched }}</span>
-                    <span>C {{ runCounters(findLatestRunForSource(source.key)).created }}</span>
-                    <span>U {{ runCounters(findLatestRunForSource(source.key)).updated }}</span>
-                    <span>S {{ runCounters(findLatestRunForSource(source.key)).skipped }}</span>
+                    <span class="counter counter--fetched" :title="t('counters.fetched')">↓ {{ runCounters(findLatestRunForSource(source.key)).fetched }}</span>
+                    <span class="counter counter--created" :title="t('counters.created')">+ {{ runCounters(findLatestRunForSource(source.key)).created }}</span>
+                    <span class="counter counter--updated" :title="t('counters.updated')">↺ {{ runCounters(findLatestRunForSource(source.key)).updated }}</span>
+                    <span class="counter counter--skipped" :title="t('counters.skipped')">– {{ runCounters(findLatestRunForSource(source.key)).skipped }}</span>
                   </div>
                 </td>
 
-                <td>
-                  <div class="actionRow">
-                    <label :for="`source-enabled-${source.id}`" class="switchLabel">
-                      <input
-                        :id="`source-enabled-${source.id}`"
-                        :checked="source.is_enabled"
-                        type="checkbox"
-                        :disabled="runningSelected"
-                        @change="toggleSource(source, $event.target.checked)"
-                      />
-                      <span>{{ source.is_enabled ? t('sources.switchOn') : t('sources.switchOff') }}</span>
-                    </label>
+                <td class="tight">
+                  <label :for="`source-enabled-${source.id}`" class="switchLabel">
+                    <input
+                      :id="`source-enabled-${source.id}`"
+                      :checked="source.is_enabled"
+                      type="checkbox"
+                      :disabled="runningSelected"
+                      @change="toggleSource(source, $event.target.checked)"
+                    />
+                    <span>{{ source.is_enabled ? t('sources.switchOn') : t('sources.switchOff') }}</span>
+                  </label>
+                </td>
 
-                    <button
-                      type="button"
-                      class="ghostBtn"
-                      :data-testid="`run-source-${normalizeSourceKey(source.key)}`"
-                      :disabled="isRowRunDisabled(source)"
-                      :title="rowRunDisabledReason(source)"
-                      @click="runSingleSource(source)"
-                    >
-                      {{ runningByKey[normalizeSourceKey(source.key)] ? t('sources.runLoading') : t('sources.runIdle') }}
-                    </button>
-                  </div>
+                <td class="tight">
+                  <button
+                    type="button"
+                    class="ghostBtn"
+                    :data-testid="`run-source-${normalizeSourceKey(source.key)}`"
+                    :disabled="isRowRunDisabled(source)"
+                    :title="rowRunDisabledReason(source)"
+                    @click="runSingleSource(source)"
+                  >
+                    {{ runningByKey[normalizeSourceKey(source.key)] ? t('sources.runLoading') : t('sources.runIdle') }}
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -341,10 +342,10 @@
             </div>
 
             <div class="counterRow">
-              <span>F {{ runCounters(findLatestRunForSource(source.key)).fetched }}</span>
-              <span>C {{ runCounters(findLatestRunForSource(source.key)).created }}</span>
-              <span>U {{ runCounters(findLatestRunForSource(source.key)).updated }}</span>
-              <span>S {{ runCounters(findLatestRunForSource(source.key)).skipped }}</span>
+              <span class="counter counter--fetched" :title="t('counters.fetched')">↓ {{ runCounters(findLatestRunForSource(source.key)).fetched }}</span>
+              <span class="counter counter--created" :title="t('counters.created')">+ {{ runCounters(findLatestRunForSource(source.key)).created }}</span>
+              <span class="counter counter--updated" :title="t('counters.updated')">↺ {{ runCounters(findLatestRunForSource(source.key)).updated }}</span>
+              <span class="counter counter--skipped" :title="t('counters.skipped')">– {{ runCounters(findLatestRunForSource(source.key)).skipped }}</span>
             </div>
 
             <div class="sourceMobileCard__actions">
@@ -401,37 +402,36 @@
             </thead>
             <tbody>
               <tr v-for="run in recentRuns" :key="run.id">
-                <td>{{ formatDate(run.started_at) }}</td>
-                <td>
+                <td class="noWrap">{{ formatDate(run.started_at) }}</td>
+                <td class="noWrap">
                   <span class="sourceBadge" :class="sourceToneClass(run.source_name)">{{ sourceLabel(run.source_name) }}</span>
                 </td>
-                <td>{{ run.year || t('common.na') }}</td>
-                <td>
+                <td class="noWrap">{{ run.year || t('common.na') }}</td>
+                <td class="noWrap">
                   <span class="pill" :class="`pill--${runStatusTone(run.status)}`">{{ run.status || t('common.unknown') }}</span>
                 </td>
-                <td>
+                <td class="noWrap">
                   <div class="counterRow">
-                    <span>F {{ runCounters(run).fetched }}</span>
-                    <span>C {{ runCounters(run).created }}</span>
-                    <span>U {{ runCounters(run).updated }}</span>
-                    <span>S {{ runCounters(run).skipped }}</span>
+                    <span class="counter counter--fetched" :title="t('counters.fetched')">↓ {{ runCounters(run).fetched }}</span>
+                    <span class="counter counter--created" :title="t('counters.created')">+ {{ runCounters(run).created }}</span>
+                    <span class="counter counter--updated" :title="t('counters.updated')">↺ {{ runCounters(run).updated }}</span>
+                    <span class="counter counter--skipped" :title="t('counters.skipped')">– {{ runCounters(run).skipped }}</span>
                   </div>
                 </td>
-                <td>
-                  <div v-if="runTranslation(run).total > 0" class="stackTiny">
-                    <span class="pill" :class="`pill--${runTranslationQualityTone(run)}`">
-                      {{ runTranslationQualityLabel(run) }}
-                    </span>
-                    <div class="counterRow">
-                      <span>D {{ runTranslation(run).done }}</span>
-                      <span>F {{ runTranslation(run).failed }}</span>
-                      <span>P {{ runTranslation(run).pending }}</span>
-                    </div>
-                    <span class="muted">{{ t('runs.translationForm', { mode: runTranslationModeLabel(run) }) }}</span>
+                <td class="noWrap">
+                  <div
+                    v-if="runTranslation(run).total > 0"
+                    class="counterRow"
+                    :title="t('runs.translationForm', { mode: runTranslationModeLabel(run) })"
+                  >
+                    <span class="pill pill--compact" :class="`pill--${runTranslationQualityTone(run)}`">{{ runTranslationQualityLabel(run) }}</span>
+                    <span class="counter counter--done" :title="t('counters.done')">✓ {{ runTranslation(run).done }}</span>
+                    <span class="counter counter--failed" :title="t('counters.failed')">✕ {{ runTranslation(run).failed }}</span>
+                    <span class="counter counter--skipped" :title="t('counters.pending')">… {{ runTranslation(run).pending }}</span>
                   </div>
                   <span v-else class="muted">{{ t('common.na') }}</span>
                 </td>
-                <td>
+                <td class="noWrap">
                   <div class="actionRow">
                     <button type="button" class="ghostBtn" @click="viewRunCandidates(run)">{{ t('runs.candidates') }}</button>
                     <button type="button" class="ghostBtn" @click="openRunDetails(run)">{{ t('runs.detail') }}</button>
@@ -455,10 +455,10 @@
             </div>
 
             <div class="counterRow">
-              <span>F {{ runCounters(run).fetched }}</span>
-              <span>C {{ runCounters(run).created }}</span>
-              <span>U {{ runCounters(run).updated }}</span>
-              <span>S {{ runCounters(run).skipped }}</span>
+              <span class="counter counter--fetched" :title="t('counters.fetched')">↓ {{ runCounters(run).fetched }}</span>
+              <span class="counter counter--created" :title="t('counters.created')">+ {{ runCounters(run).created }}</span>
+              <span class="counter counter--updated" :title="t('counters.updated')">↺ {{ runCounters(run).updated }}</span>
+              <span class="counter counter--skipped" :title="t('counters.skipped')">– {{ runCounters(run).skipped }}</span>
             </div>
 
             <div v-if="runTranslation(run).total > 0" class="runMobileCard__translation">
@@ -466,9 +466,9 @@
                 {{ runTranslationQualityLabel(run) }}
               </span>
               <div class="counterRow">
-                <span>D {{ runTranslation(run).done }}</span>
-                <span>F {{ runTranslation(run).failed }}</span>
-                <span>P {{ runTranslation(run).pending }}</span>
+                <span class="counter counter--done" :title="t('counters.done')">✓ {{ runTranslation(run).done }}</span>
+                <span class="counter counter--failed" :title="t('counters.failed')">✕ {{ runTranslation(run).failed }}</span>
+                <span class="counter counter--skipped" :title="t('counters.pending')">… {{ runTranslation(run).pending }}</span>
               </div>
               <span class="muted">{{ t('runs.translationForm', { mode: runTranslationModeLabel(run) }) }}</span>
             </div>

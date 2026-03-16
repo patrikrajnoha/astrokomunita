@@ -37,6 +37,7 @@ const types = [
   { value: 'eclipse_lunar', label: 'Zatmenie (L)' },
   { value: 'eclipse_solar', label: 'Zatmenie (S)' },
   { value: 'planetary_event', label: 'Konjunkcia' },
+  { value: 'aurora', label: 'Polarna ziara' },
   { value: 'other', label: 'Iné' },
 ]
 

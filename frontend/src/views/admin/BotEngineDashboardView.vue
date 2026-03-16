@@ -55,10 +55,10 @@ const retentionAllowedHours = computed(() => {
   const values = Array.isArray(retention.value?.allowed_hours) ? retention.value.allowed_hours : []
   return values.filter((value) => Number.isInteger(Number(value)) && Number(value) > 0)
 })
-const retentionStatusLabel = computed(() => (retentionForm.value.enabled ? 'Zapnute' : 'Vypnute'))
+const retentionStatusLabel = computed(() => (retentionForm.value.enabled ? 'Zapnuté' : 'Vypnuté'))
 const dashboardMetaLine = computed(() => {
   const windowHours = Number(payload.value?.window_hours || 24)
-  return `Okno ${windowHours}h | aktualizovane ${formatDateTime(payload.value?.generated_at)}`
+  return `Okno ${windowHours}h · aktualizované ${formatDateTime(payload.value?.generated_at)}`
 })
 
 function formatDateTime(value) {
@@ -86,7 +86,7 @@ async function load() {
     const response = await getBotOverview()
     payload.value = response?.data || payload.value
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nacitanie bot overview zlyhalo.'
+    error.value = e?.response?.data?.message || 'Načítanie prehľadu botov zlyhalo.'
   } finally {
     loading.value = false
   }
@@ -113,7 +113,7 @@ async function loadRetentionSettings() {
       auto_delete_after_hours: selectedHours,
     }
   } catch (e) {
-    toast.error(e?.response?.data?.message || 'Nacitanie retention nastaveni zlyhalo.')
+    toast.error(e?.response?.data?.message || 'Načítanie retention nastavení zlyhalo.')
   } finally {
     retentionLoading.value = false
   }
@@ -141,9 +141,9 @@ async function saveRetentionSettings() {
       enabled: retention.value.enabled,
       auto_delete_after_hours: retention.value.auto_delete_after_hours,
     }
-    toast.success('Nastavenie auto mazania bot prispevkov bolo ulozene.')
+    toast.success('Nastavenie automatického mazania bolo uložené.')
   } catch (e) {
-    toast.error(e?.response?.data?.message || 'Ulozenie retention nastaveni zlyhalo.')
+    toast.error(e?.response?.data?.message || 'Uloženie retention nastavení zlyhalo.')
   } finally {
     retentionSaving.value = false
   }
@@ -153,10 +153,10 @@ async function deleteAllPublishedBotPosts() {
   if (deletingAllPosts.value) return
 
   const approved = await confirm({
-    title: 'Vymazat bot prispevky',
-    message: 'Naozaj vymazat publikovane bot prispevky?',
-    confirmText: 'Vymazat',
-    cancelText: 'Zrusit',
+    title: 'Vymazať príspevky botov',
+    message: 'Naozaj vymazať všetky publikované príspevky botov?',
+    confirmText: 'Vymazať',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!approved) return
@@ -166,11 +166,11 @@ async function deleteAllPublishedBotPosts() {
     const response = await deleteAllBotPosts({})
     const result = response?.data || {}
     toast.success(
-      `Vymazane posty: ${Number(result.deleted_posts || 0)} | bez postu: ${Number(result.missing_posts || 0)} | chyby: ${Number(result.failed_items || 0)}.`,
+      `Vymazané: ${Number(result.deleted_posts || 0)} · chýbajúce: ${Number(result.missing_posts || 0)} · chyby: ${Number(result.failed_items || 0)}.`,
     )
     await Promise.all([load(), loadRetentionSettings()])
   } catch (e) {
-    toast.error(e?.response?.data?.message || 'Mazanie bot prispevkov zlyhalo.')
+    toast.error(e?.response?.data?.message || 'Mazanie príspevkov botov zlyhalo.')
   } finally {
     deletingAllPosts.value = false
   }
@@ -180,10 +180,10 @@ async function runCleanupNow() {
   if (retentionRunning.value) return
 
   const approved = await confirm({
-    title: 'Spustit cleanup',
-    message: 'Spustit okamzite vymazanie bot prispevkov podla retention pravidla?',
-    confirmText: 'Spustit',
-    cancelText: 'Zrusit',
+    title: 'Spustiť cleanup',
+    message: 'Spustiť okamžité mazanie príspevkov botov podľa retention pravidla?',
+    confirmText: 'Spustiť',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!approved) return
@@ -193,7 +193,7 @@ async function runCleanupNow() {
     const response = await runBotPostRetentionCleanup({ limit: 200 })
     const result = response?.data?.data || {}
     toast.success(
-      `Cleanup hotovy: vymazane ${Number(result.deleted_posts || 0)} posty, chyby ${Number(result.failed_items || 0)}.`,
+      `Cleanup dokončený: vymazané ${Number(result.deleted_posts || 0)}, chyby ${Number(result.failed_items || 0)}.`,
     )
     await load()
   } catch (e) {

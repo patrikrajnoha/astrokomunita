@@ -5,52 +5,49 @@
     class="botSection"
   >
     <div v-if="props.embedded" class="embeddedHeader">
-      <div>
-        <h2 class="embeddedTitle">Prehlad</h2>
-        <p class="embeddedSubtitle">{{ dashboardMetaLine }}</p>
-      </div>
+      <p class="embeddedSubtitle">{{ dashboardMetaLine }}</p>
       <button type="button" class="actionBtn" :disabled="loading" @click="load">
-        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+        {{ loading ? 'Načítavam…' : 'Obnoviť' }}
       </button>
     </div>
 
     <template v-if="!props.embedded" #right-actions>
       <button type="button" class="actionBtn" :disabled="loading" @click="load">
-        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
+        {{ loading ? 'Načítavam…' : 'Obnoviť' }}
       </button>
     </template>
 
-    <section class="cards">
+    <section v-if="!props.embedded" class="cards">
       <article class="card metricCard">
-        <p class="metricLabel">Aktivne zdroje</p>
+        <p class="metricLabel">Aktívne zdroje</p>
         <p class="metricValue">{{ Number(overall.active_sources || 0) }}</p>
       </article>
       <article class="card metricCard">
-        <p class="metricLabel">Chybove zdroje</p>
+        <p class="metricLabel">Chybové zdroje</p>
         <p class="metricValue">{{ Number(overall.failing_sources || 0) }}</p>
       </article>
       <article class="card metricCard">
-        <p class="metricLabel">Neaktivne zdroje</p>
+        <p class="metricLabel">Neaktívne zdroje</p>
         <p class="metricValue">{{ Number(overall.dead_sources || 0) }}</p>
       </article>
       <article class="card metricCard">
-        <p class="metricLabel">Preskocenia cooldownu (24h)</p>
+        <p class="metricLabel">Preskočenia cooldownu (24h)</p>
         <p class="metricValue">{{ Number(overall.cooldown_skips_24h || 0) }}</p>
       </article>
     </section>
 
     <section v-if="!props.embedded" class="card quickLinks">
       <RouterLink :to="{ name: 'admin.bots.sources' }" class="quickLink">Zdravie zdrojov</RouterLink>
-      <RouterLink :to="{ name: 'admin.bots.schedules' }" class="quickLink">Plany</RouterLink>
-      <RouterLink :to="{ name: 'admin.bots.engine' }" class="quickLink">Ovladanie modulu</RouterLink>
+      <RouterLink :to="{ name: 'admin.bots.schedules' }" class="quickLink">Plány</RouterLink>
+      <RouterLink :to="{ name: 'admin.bots.engine' }" class="quickLink">Ovládanie modulu</RouterLink>
     </section>
 
     <section class="card retentionCard">
       <div class="retentionHead">
         <div>
-          <h3>Cistenie bot prispevkov</h3>
+          <h3>Čistenie príspevkov botov</h3>
           <p class="muted retentionHint">
-            Scheduler bezi {{ retention.scheduled_frequency || 'hourly' }}. Cleanup maze iba prispevky starsie ako zvoleny limit.
+            Scheduler beží {{ retention.scheduled_frequency || 'hourly' }}. Maže iba príspevky staršie ako zvolený limit.
           </p>
         </div>
         <span class="retentionStatus" :class="{ 'retentionStatus--on': retentionForm.enabled }">
@@ -65,11 +62,11 @@
             type="checkbox"
             :disabled="retentionLoading || retentionSaving"
           />
-          <span>Zapnut automaticke mazanie</span>
+          <span>Zapnúť automatické mazanie</span>
         </label>
 
         <label class="retentionField">
-          <span>Odstranit po</span>
+          <span>Odstrániť po</span>
           <select
             v-model.number="retentionForm.auto_delete_after_hours"
             :disabled="retentionLoading || retentionSaving || !retentionForm.enabled"
@@ -86,12 +83,12 @@
           :disabled="retentionLoading || retentionSaving"
           @click="saveRetentionSettings"
         >
-          {{ retentionSaving ? 'Ukladam...' : 'Ulozit' }}
+          {{ retentionSaving ? 'Ukladám…' : 'Uložiť' }}
         </button>
       </div>
 
       <details class="retentionAdvanced">
-        <summary>Pokrocile akcie</summary>
+        <summary>Pokročilé akcie</summary>
         <div class="retentionDangerActions">
           <button
             type="button"
@@ -99,7 +96,7 @@
             :disabled="retentionRunning"
             @click="runCleanupNow"
           >
-            {{ retentionRunning ? 'Spustam...' : 'Spustit cleanup teraz' }}
+            {{ retentionRunning ? 'Spúšťam…' : 'Spustiť cleanup teraz' }}
           </button>
           <button
             type="button"
@@ -107,7 +104,7 @@
             :disabled="deletingAllPosts"
             @click="deleteAllPublishedBotPosts"
           >
-            {{ deletingAllPosts ? 'Mazem...' : 'Vymazat bot prispevky' }}
+            {{ deletingAllPosts ? 'Mažem…' : 'Vymazať príspevky botov' }}
           </button>
         </div>
       </details>
@@ -115,17 +112,17 @@
 
     <section class="card">
       <p v-if="error" class="error">{{ error }}</p>
-      <p v-else-if="!loading && bots.length === 0" class="muted">Zatial nie su dostupne bot metriky.</p>
+      <p v-else-if="!loading && bots.length === 0" class="muted">Zatiaľ nie sú dostupné metriky botov.</p>
 
       <div v-else class="tableWrap tableWrap--botsOverview">
         <table class="table botsOverviewTable">
           <thead>
             <tr>
               <th>Bot</th>
-              <th>Last activity</th>
-              <th>Posts (24h)</th>
-              <th>Duplicates (24h)</th>
-              <th>Failures (24h)</th>
+              <th>Posledná aktivita</th>
+              <th>Príspevky (24h)</th>
+              <th>Duplikáty (24h)</th>
+              <th>Chyby (24h)</th>
               <th>Rate limit</th>
               <th>Akcia</th>
             </tr>
@@ -150,7 +147,7 @@
                   class="activityLink"
                   :to="{ name: 'admin.bots.activity', query: { bot_identity: row.bot_identity || undefined } }"
                 >
-                  Zobrazit aktivitu
+                  Zobraziť aktivitu
                 </RouterLink>
               </td>
             </tr>

@@ -49,13 +49,6 @@
       </div>
 
       <div class="runFooter">
-        <label class="field field--checkbox">
-          <span class="checkboxRow">
-            <input v-model="confirmLoadImpact" type="checkbox" data-testid="confirm-load-checkbox" />
-            <span>{{ t('form.confirmLoad.label') }}</span>
-          </span>
-        </label>
-
         <div class="runActions">
           <button class="runBtn" :disabled="runButtonDisabled" data-testid="run-benchmark-btn" @click="runBenchmark">
             <span class="btnContent">
@@ -67,15 +60,6 @@
       </div>
 
       <p v-if="running" class="progressText" data-testid="run-progress">{{ t('form.progress') }}</p>
-
-      <section v-if="lastRunResult" class="resultCard">
-        <strong>{{ t('messages.resultStored') }}</strong>
-        <p>{{ t('messages.resultHint') }}</p>
-        <details>
-          <summary>{{ t('actions.showRawResult') }}</summary>
-          <pre class="resultBox">{{ JSON.stringify(lastRunResult, null, 2) }}</pre>
-        </details>
-      </section>
     </section>
 
     <section v-if="errorMessage" class="errorCard">
@@ -99,18 +83,9 @@
         </label>
 
         <label class="toolbarField">
-          <span>{{ t('form.sortBy.label') }}</span>
-          <select v-model="sortBy" data-testid="results-sort-by">
-            <option v-for="option in sortByOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
-
-        <label class="toolbarField">
-          <span>{{ t('form.sortDirection.label') }}</span>
-          <select v-model="sortDirection" data-testid="results-sort-direction">
-            <option v-for="option in sortDirectionOptions" :key="option.value" :value="option.value">
+          <span>{{ t('form.sortOrder.label') }}</span>
+          <select v-model="sortOrder" data-testid="results-sort-order">
+            <option v-for="option in sortOrderOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>

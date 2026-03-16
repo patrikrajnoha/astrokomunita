@@ -458,6 +458,47 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(wrapper.text()).not.toContain("Vyber clanok alebo vytvor novy");
   });
 
+  it("removes Focus action and shows direct article actions in editor", async () => {
+    const wrapper = mount(BlogPostsView);
+    await flush();
+    await flush();
+
+    await wrapper.find("button.post-card").trigger("click");
+    await flush();
+
+    const actionLabels = wrapper
+      .findAll(".editor-actions button")
+      .map((button) => button.text().trim());
+
+    expect(actionLabels).not.toContain("Focus");
+    expect(actionLabels).toContain("Ulozit");
+    expect(actionLabels).toContain("Nepublikovat");
+    expect(actionLabels).toContain("Odstranit");
+  });
+
+  it('click on "Nepublikovat" updates article back to draft', async () => {
+    const wrapper = mount(BlogPostsView);
+    await flush();
+    await flush();
+
+    await wrapper.find("button.post-card").trigger("click");
+    await flush();
+
+    const unpublishButton = wrapper
+      .findAll("button")
+      .find((button) => button.text().toLowerCase() === "nepublikovat");
+
+    expect(unpublishButton).toBeTruthy();
+    await unpublishButton.trigger("click");
+    await flush();
+    await flush();
+
+    expect(adminUpdateMock).toHaveBeenCalledWith(7, {
+      published_at: null,
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Clanok bol stiahnuty z publikacie.");
+  });
+
   it("prevents publish for incomplete draft and shows clear reason", async () => {
     const wrapper = mount(BlogPostsView);
     await flush();
@@ -469,7 +510,7 @@ describe("BlogPostsView AI tag suggestions", () => {
 
     const publishButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("publikovat teraz"));
+      .find((button) => button.text().toLowerCase() === "publikovat");
 
     expect(publishButton).toBeTruthy();
     expect(publishButton.attributes("disabled")).toBeDefined();

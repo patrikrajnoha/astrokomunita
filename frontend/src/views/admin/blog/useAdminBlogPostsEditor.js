@@ -45,7 +45,6 @@ export function useAdminBlogPostsEditor() {
   const coverPreview = ref("");
   const tagsInput = ref("");
   const showPreview = ref(false);
-  const focusMode = ref(false);
   const listDensity = ref(getInitialListDensity(LIST_DENSITY_STORAGE_KEY));
   const query = ref("");
   const activeTab = ref("content");
@@ -66,7 +65,6 @@ export function useAdminBlogPostsEditor() {
 
   const posts = computed(() => data.value?.data || []);
   const hasQuery = computed(() => query.value.trim() !== "");
-  const isFocusActive = computed(() => focusMode.value);
   const isEditing = computed(() => !!selectedId.value);
   const selectedPost = computed(() => selectedPostRecord.value);
   const selectedStatus = computed(() => {
@@ -158,16 +156,23 @@ export function useAdminBlogPostsEditor() {
     return true;
   });
   const saveStateLabel = computed(() => {
-    if (saving.value) return "Ukladam...";
-    if (isDirty.value) return "Neulozene zmeny";
+    if (saving.value) return "Ukladám...";
+    if (isDirty.value) return "Neuložené zmeny";
     if (lastSavedAt.value instanceof Date && !Number.isNaN(lastSavedAt.value.getTime())) {
       const at = lastSavedAt.value.toLocaleTimeString("sk-SK", {
         hour: "2-digit",
         minute: "2-digit",
       });
-      return `Ulozene ${at}`;
+      return `Uložené ${at}`;
     }
     return "Bez zmien";
+  });
+
+  const saveStateClass = computed(() => {
+    if (saving.value) return "is-saving";
+    if (isDirty.value) return "is-dirty";
+    if (lastSavedAt.value instanceof Date && !Number.isNaN(lastSavedAt.value.getTime())) return "is-saved";
+    return "";
   });
 
   function toMetricCount(value) {
@@ -306,13 +311,12 @@ export function useAdminBlogPostsEditor() {
     });
   }
 
-  async function startNewPost(force = false, shouldEnableFocus = true) {
+  async function startNewPost(force = false) {
     if (!force) {
       const ok = await confirmDiscardChanges();
       if (!ok) return false;
     }
     applyEmptyForm();
-    focusMode.value = Boolean(shouldEnableFocus);
     return true;
   }
 
@@ -357,6 +361,55 @@ export function useAdminBlogPostsEditor() {
     if (!ok) return;
     setPublishNow();
     await save();
+  }
+
+  async function unpublish() {
+    if (!selectedId.value) return;
+
+    const ok = await confirm({
+      title: "Nepublikovat clanok",
+      message:
+        "Clanok sa vrati medzi koncepty a nebude viditelny ako publikovany. Chces pokracovat?",
+      confirmText: "Nepublikovat",
+      cancelText: "Spat",
+    });
+    if (!ok) return;
+
+    saving.value = true;
+    formError.value = null;
+
+    try {
+      const saved = await blogPosts.adminUpdate(selectedId.value, {
+        published_at: null,
+      });
+
+      form.value.published_at = "";
+
+      if (saved?.id) {
+        selectedPostRecord.value = saved;
+      }
+
+      await load();
+      if (saved?.id) {
+        const found = posts.value.find((post) => post.id === saved.id);
+        if (found) {
+          await selectPost(found, true);
+        } else {
+          syncFormSnapshot();
+        }
+      } else {
+        syncFormSnapshot();
+      }
+
+      lastSavedAt.value = new Date();
+      toast.success("Clanok bol stiahnuty z publikacie.");
+    } catch (e) {
+      formError.value =
+        e?.response?.data?.message || "Nepodarilo sa zrusit publikovanie clanku.";
+      toast.error(formError.value);
+    } finally {
+      saving.value = false;
+    }
   }
 
   function setStatusFilter(value) {
@@ -741,7 +794,7 @@ export function useAdminBlogPostsEditor() {
 
     try {
       await blogPosts.adminDelete(selectedId.value);
-      await startNewPost(true, false);
+      await startNewPost(true);
       await load();
       toast.success("Clanok bol vymazany.");
     } catch (e) {
@@ -775,11 +828,6 @@ export function useAdminBlogPostsEditor() {
     const key = String(event.key || "").toLowerCase();
     const combo = event.ctrlKey || event.metaKey;
 
-    if (key === "escape" && focusMode.value) {
-      focusMode.value = false;
-      return;
-    }
-
     if (!combo) return;
 
     if (key === "s") {
@@ -796,10 +844,6 @@ export function useAdminBlogPostsEditor() {
         publishNow();
       }
     }
-  }
-
-  function toggleFocusMode() {
-    focusMode.value = !focusMode.value;
   }
 
   watch(query, () => {
@@ -847,7 +891,6 @@ export function useAdminBlogPostsEditor() {
     data,
     deleting,
     error,
-    focusMode,
     form,
     formatMetricCount,
     formError,
@@ -857,7 +900,6 @@ export function useAdminBlogPostsEditor() {
     hasSelectedAiTagSuggestions,
     isDirty,
     isEditing,
-    isFocusActive,
     listDensity,
     load,
     mediaTabIssues,
@@ -884,6 +926,7 @@ export function useAdminBlogPostsEditor() {
     remove,
     save,
     saveCoverOnly,
+    saveStateClass,
     saveStateLabel,
     saving,
     selectedId,
@@ -903,6 +946,6 @@ export function useAdminBlogPostsEditor() {
     tagsInput,
     titleLength,
     titleSlugPreview,
-    toggleFocusMode,
+    unpublish,
   };
 }

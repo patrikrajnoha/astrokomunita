@@ -68,6 +68,118 @@
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
 }
 
+.toolsDetails {
+  padding: 0;
+  overflow: visible;
+}
+
+.toolsDetails__summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.toolsDetails__summary::-webkit-details-marker {
+  display: none;
+}
+
+.toolsDetails__body {
+  border-top: 1px solid var(--divider-color);
+  padding: 8px 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.toolsDetails__toolbar {
+  flex-wrap: nowrap;
+}
+
+.translationSummary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.translationSummary__item {
+  font-size: 12px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.translationSummary__item--ok {
+  border-color: rgb(22 163 74 / 0.28);
+  background: rgb(22 163 74 / 0.08);
+  color: rgb(21 128 61);
+}
+
+.translationSummary__item--err {
+  border-color: rgb(220 38 38 / 0.28);
+  background: rgb(220 38 38 / 0.07);
+  color: rgb(185 28 28);
+}
+
+.translationSummary__item--warn {
+  border-color: rgb(245 158 11 / 0.35);
+  background: rgb(245 158 11 / 0.1);
+}
+
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.filterBar__input {
+  flex: 1 1 180px;
+  min-width: 0;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
+  border-radius: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.78);
+  color: inherit;
+  padding: 5px 9px;
+  font-size: 12px;
+  min-height: 32px;
+}
+
+.filterBar__select {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.22);
+  border-radius: 8px;
+  background: rgb(var(--color-bg-rgb) / 0.78);
+  color: inherit;
+  padding: 5px 8px;
+  font-size: 12px;
+  min-height: 32px;
+  color-scheme: dark;
+}
+
+.filterBar__searchBtn {
+  white-space: nowrap;
+}
+
+.actionCell {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.eventMobileCard__actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
 .toolbar {
   display: flex;
   gap: 6px;
@@ -210,6 +322,7 @@
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .quickActions {
@@ -264,6 +377,29 @@
 .field span {
   font-size: 11px;
   opacity: 0.82;
+}
+
+.fieldLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 18px;
+}
+
+.fieldLabel span {
+  font-size: 11px;
+  opacity: 0.82;
+}
+
+.fieldLabelActions {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.fieldInvalid {
+  border-color: rgb(239 68 68 / 0.55) !important;
+  background: rgb(239 68 68 / 0.04) !important;
 }
 
 .fieldWide {
@@ -472,6 +608,12 @@
   background: rgb(22 163 74 / 0.12);
 }
 
+.pill.hidden {
+  border-color: rgb(239 68 68 / 0.28);
+  background: rgb(239 68 68 / 0.07);
+  opacity: 0.85;
+}
+
 .pill.muted {
   opacity: 0.75;
 }
@@ -507,7 +649,7 @@
 
 .compactTable th:nth-child(6),
 .compactTable td:nth-child(6) {
-  width: 88px;
+  width: 148px;
 }
 
 .typeCell .pillType {
@@ -550,8 +692,19 @@
   }
 
   .eventMobileCard__actions .btn {
-    width: 100%;
+    flex: 1 1 auto;
     text-align: center;
+  }
+
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filterBar__input,
+  .filterBar__select,
+  .filterBar__searchBtn {
+    width: 100%;
   }
 }
 

@@ -1,14 +1,16 @@
 
-  <AdminPageShell class="usersPageShell" title="Pouzivatelia">
+  <AdminPageShell class="usersPageShell" title="Používatelia">
     <div class="usersView">
       <div v-if="error" class="usersErrorBanner" role="alert">
         <span>{{ error }}</span>
-        <button type="button" class="errorRetryBtn" :disabled="loading" @click="retryLoad">Skusit znova</button>
+        <button type="button" class="errorRetryBtn" :disabled="loading" @click="retryLoad">Skúsiť znova</button>
       </div>
 
       <div v-if="showSkeleton" class="usersSkeleton" aria-hidden="true">
         <div class="usersSkeletonToolbar">
           <span class="skeletonBlock is-wide"></span>
+          <span class="skeletonBlock is-short"></span>
+          <span class="skeletonBlock is-short"></span>
           <span class="skeletonBlock is-short"></span>
         </div>
         <div class="usersSkeletonTable">
@@ -17,9 +19,9 @@
       </div>
 
       <template v-else>
-        <section class="usersFilters" aria-label="Filtre pouzivatelov">
-          <label class="usersFiltersLabel" for="users-search">Hladaj pouzivatelov</label>
-          <div class="usersFiltersRow">
+        <section class="usersFilters" aria-label="Filtre používateľov">
+          <label class="usersFiltersLabel" for="users-search">Hľadaj používateľov</label>
+          <div class="usersFiltersRow usersFiltersRow--search">
             <div class="searchInputWrap">
               <span class="searchIcon" aria-hidden="true">
                 <svg viewBox="0 0 20 20" fill="none">
@@ -32,7 +34,7 @@
                 v-model="searchInput"
                 :disabled="loading"
                 type="text"
-                placeholder="Hladaj pouzivatelov..."
+                placeholder="Hľadaj používateľov..."
                 autocomplete="off"
                 class="usersSearchInput"
               />
@@ -40,13 +42,44 @@
                 v-if="searchInput"
                 type="button"
                 class="searchClearBtn"
-                aria-label="Vymazat hladanie"
+                aria-label="Vymazať hľadanie"
                 :disabled="loading"
                 @click="clearSearch"
               >
-                <span aria-hidden="true">x</span>
+                <span aria-hidden="true">×</span>
               </button>
             </div>
+          </div>
+
+          <div class="usersFiltersRow usersFiltersRow--selects">
+            <select
+              v-model="filterRole"
+              :disabled="loading"
+              class="filterSelect"
+              aria-label="Filtrovať podľa roly"
+              @change="page = 1"
+            >
+              <option value="">Všetky roly</option>
+              <option value="admin">Admin</option>
+              <option value="editor">Editor</option>
+              <option value="user">Používateľ</option>
+              <option value="bot">Bot</option>
+            </select>
+
+            <select
+              v-model="filterStatus"
+              :disabled="loading"
+              class="filterSelect"
+              aria-label="Filtrovať podľa stavu"
+              @change="page = 1"
+            >
+              <option value="">Všetky stavy</option>
+              <option value="active">Aktívny</option>
+              <option value="banned">Zablokovaný</option>
+              <option value="inactive">Neaktívny</option>
+            </select>
+
+            <div class="filtersSpacer"></div>
 
             <select
               id="users-per-page"
@@ -62,12 +95,12 @@
           </div>
         </section>
 
-        <section class="usersTableWrap" aria-label="Tabulka pouzivatelov">
+        <section class="usersTableWrap" aria-label="Tabuľka používateľov">
           <div class="usersTableScroll">
             <table class="usersTable">
               <thead>
                 <tr>
-                  <th class="col-user">Pouzivatel</th>
+                  <th class="col-user">Používateľ</th>
                   <th class="col-email">E-mail</th>
                   <th class="col-role">Rola</th>
                   <th class="col-status">Stav</th>
@@ -77,8 +110,8 @@
               <tbody>
                 <tr v-if="!rows.length">
                   <td colspan="5" class="usersEmptyState">
-                    <div class="usersEmptyTitle">Nenasli sa ziadni pouzivatelia</div>
-                    <div class="usersEmptyText">Skuste upravit filtre.</div>
+                    <div class="usersEmptyTitle">Nenašli sa žiadni používatelia</div>
+                    <div class="usersEmptyText">Skúste upraviť filtre.</div>
                     <button
                       v-if="hasActiveFilters"
                       type="button"
@@ -86,7 +119,7 @@
                       :disabled="loading"
                       @click="clearFilters"
                     >
-                      Vycistit hladanie
+                      Vyčistiť filtre
                     </button>
                   </td>
                 </tr>
@@ -103,7 +136,7 @@
                   @keydown.enter.prevent="openUserDetail(row)"
                   @keydown.space.prevent="openUserDetail(row)"
                 >
-                  <td data-label="Pouzivatel" class="col-user">
+                  <td data-label="Používateľ" class="col-user">
                     <div class="userCell">
                       <RouterLink
                         :to="{ name: 'admin.users.detail', params: { id: row.id } }"
@@ -142,14 +175,8 @@
 
                   <td data-label="E-mail" class="col-email">
                     <div class="emailCell">
-                      <span class="truncateText" :title="userEmail(row)">{{ userEmail(row) }}</span>
-                      <span
-                        v-if="isBotAccount(row)"
-                        class="botAccountHint"
-                        :title="botAccountHint()"
-                      >
-                        (bot ucet)
-                      </span>
+                      <span v-if="isBotAccount(row)" class="badge roleBadge is-bot botEmailBadge" :title="botAccountHint()">bot účet</span>
+                      <span v-else class="truncateText" :title="userEmail(row)">{{ userEmail(row) }}</span>
                     </div>
                   </td>
 
@@ -177,11 +204,11 @@
                       <DropdownMenu
                         :items="rowActionItems(row)"
                         :label="`Akcie pre ${userName(row)}`"
-                        menu-label="Akcie pouzivatela"
+                        menu-label="Akcie používateľa"
                         @select="onRowActionSelect(row, $event)"
                       >
                         <template #trigger>
-                          <span class="rowMenuTrigger" aria-hidden="true">...</span>
+                          <span class="rowMenuTrigger" aria-hidden="true">⋮</span>
                         </template>
                       </DropdownMenu>
                     </div>
@@ -193,14 +220,20 @@
         </section>
 
         <div v-if="shouldShowPagination" class="usersPaginationFooter">
-          <div class="usersPaginationMeta">Spolu pouzivatelov: {{ totalUsers }}</div>
+          <div class="usersPaginationMeta">
+            <span>Celkom: {{ totalUsers }}</span>
+            <span class="paginationPageIndicator">Strana {{ currentPage }} z {{ lastPage }}</span>
+          </div>
           <AdminPagination :meta="data" @page-change="page = $event" />
+        </div>
+        <div v-else-if="totalUsers > 0" class="usersPaginationFooter">
+          <div class="usersPaginationMeta">Celkom: {{ totalUsers }}</div>
         </div>
       </template>
 
       <BaseModal
         :open="manageModalOpen"
-        title="Sprava uctu"
+        title="Správa účtu"
         compact
         test-id="manage-account-modal"
         close-test-id="manage-account-modal-close"
@@ -214,7 +247,7 @@
 
         <div class="manageModalContent">
           <p v-if="manageModalError" class="manageModalError">{{ manageModalError }}</p>
-          <p v-else-if="manageModalLoading" class="manageModalLoading">Nacitavam detail pouzivatela...</p>
+          <p v-else-if="manageModalLoading" class="manageModalLoading">Načítavam detail používateľa...</p>
 
           <template v-else-if="manageUser">
             <section class="manageIdentityCard">
@@ -234,45 +267,42 @@
 
               <div class="manageIdentityActions">
                 <button
-                  v-if="manageUser.username"
                   type="button"
-                  class="manageActionBtn"
-                  @click="openPublicProfile(manageUser); closeManageUserModal(false)"
-                >
-                  Zobrazit profil
-                </button>
-
-                <button
-                  type="button"
-                  class="manageActionBtn"
+                  class="manageActionBtn manageActionBtn--primary"
                   @click="openUserDetail(manageUser); closeManageUserModal(false)"
                 >
-                  Otvorit detail
+                  Otvoriť detail
+                </button>
+                <button
+                  v-if="manageUser.username"
+                  type="button"
+                  class="manageActionBtn manageActionBtn--ghost"
+                  @click="openPublicProfile(manageUser); closeManageUserModal(false)"
+                >
+                  Zobraziť profil
                 </button>
               </div>
             </section>
 
             <div class="manageDetailGrid">
               <section class="manageDetailCard">
-                <h4 class="manageCardTitle">Informacie o ucte</h4>
+                <h4 class="manageCardTitle">Informácie o účte</h4>
                 <dl class="manageInfoList">
-                  <div v-for="item in manageAccountInfoRows" :key="item.key" class="manageInfoItem">
-                    <dt>{{ item.label }}</dt>
-                    <dd>{{ item.value }}</dd>
-                  </div>
+                  <template v-for="item in manageAccountInfoRows" :key="item.key">
+                    <div v-if="item.value && item.value !== '–' && item.value !== '-'" class="manageInfoItem">
+                      <dt>{{ item.label }}</dt>
+                      <dd>{{ item.value }}</dd>
+                    </div>
+                  </template>
                 </dl>
               </section>
 
               <section class="manageDetailCard">
-                <h4 class="manageCardTitle">Opravnenia a roly</h4>
+                <h4 class="manageCardTitle">Oprávnenia a roly</h4>
                 <div class="manageRoleRows">
                   <div class="manageRoleRow">
-                    <span>Aktualna rola</span>
+                    <span>Aktuálna rola</span>
                     <span class="badge roleBadge" :class="roleClass(manageUser)">{{ roleLabel(manageUser) }}</span>
-                  </div>
-                  <div class="manageRoleRow">
-                    <span>Stav editor</span>
-                    <span>{{ roleLabel(manageUser) === 'editor' ? 'Pouzivatel je editor' : 'Pouzivatel nie je editor' }}</span>
                   </div>
                 </div>
 
@@ -283,30 +313,30 @@
                     class="manageActionBtn"
                     @click="updateEditorRole(manageUser, 'editor')"
                   >
-                    Pridat rolu editor
+                    Pridať rolu editor
                   </button>
 
                   <button
                     v-if="String(manageUser.role || '').toLowerCase() === 'editor'"
                     type="button"
-                    class="manageActionBtn"
+                    class="manageActionBtn is-danger"
                     @click="updateEditorRole(manageUser, 'user')"
                   >
-                    Odobrat rolu editor
+                    Odobrať rolu editor
                   </button>
                 </div>
               </section>
 
-              <section class="manageDetailCard">
-                <h4 class="manageCardTitle">Moderacia</h4>
-                <div v-if="canManageAccount(manageUser)" class="manageModalActions">
+              <section class="manageDetailCard manageFullCard">
+                <h4 class="manageCardTitle">Moderácia</h4>
+                <div v-if="canManageAccount(manageUser)" class="manageModalActions manageModalActions--row">
                   <button
                     v-if="!manageUser.is_banned"
                     type="button"
                     class="manageActionBtn is-danger"
                     @click="banUser(manageUser)"
                   >
-                    Zablokovat ucet
+                    Zablokovať účet
                   </button>
 
                   <button
@@ -315,7 +345,7 @@
                     class="manageActionBtn"
                     @click="unbanUser(manageUser)"
                   >
-                    Odblokovat ucet
+                    Odblokovať účet
                   </button>
 
                   <button
@@ -324,7 +354,7 @@
                     class="manageActionBtn is-danger"
                     @click="deactivateUser(manageUser)"
                   >
-                    Deaktivovat ucet
+                    Deaktivovať účet
                   </button>
 
                   <button
@@ -333,22 +363,22 @@
                     class="manageActionBtn"
                     @click="reactivateUser(manageUser)"
                   >
-                    Reaktivovat ucet
+                    Reaktivovať účet
                   </button>
                 </div>
 
-                <p v-else class="manageReadonlyHint">Pre tento ucet nie su moderacne write akcie povolene.</p>
+                <p v-else class="manageReadonlyHint">Pre tento účet nie sú moderačné akcie povolené.</p>
               </section>
 
               <section v-if="canManageAccount(manageUser)" class="manageDetailCard manageDangerCard">
-                <h4 class="manageCardTitle">Danger zone</h4>
+                <h4 class="manageCardTitle">Kritické akcie</h4>
                 <div class="manageModalActions">
                   <button
                     type="button"
                     class="manageActionBtn is-danger"
                     @click="resetProfile(manageUser)"
                   >
-                    Resetovat profil
+                    Resetovať profil
                   </button>
                 </div>
               </section>
