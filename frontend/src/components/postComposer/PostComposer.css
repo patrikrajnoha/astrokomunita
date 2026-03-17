@@ -73,7 +73,7 @@
   overflow-y: auto;
   line-height: 1.5;
   font-size: 0.98rem;
-  transition: min-height 0.2s ease, border-color 0.2s ease;
+  transition: min-height var(--motion-base), border-color var(--motion-base);
 }
 
 .composerInput::placeholder {
@@ -92,7 +92,7 @@
 .mediaCard {
   position: relative;
   border: 1px solid var(--soft-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--panel);
 }
@@ -130,14 +130,14 @@
   align-items: center;
   gap: 0.6rem;
   border: 1px solid var(--soft-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--panel);
   padding: 0.55rem 0.65rem;
 }
 
 .pollEditor {
   border: 1px solid var(--soft-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--panel);
   padding: 0.6rem;
   display: grid;
@@ -256,17 +256,22 @@
 }
 
 .fileRemove {
-  border: 1px solid rgb(var(--color-danger-rgb) / 0.5);
+  border: none;
   border-radius: var(--radius-pill);
-  background: rgb(var(--color-danger-rgb) / 0.15);
-  color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-white);
   padding: 8px 12px;
   font-size: 12px;
+  transition: opacity 160ms ease;
+}
+
+.fileRemove:hover:not(:disabled) {
+  opacity: 0.85;
 }
 
 .eventAttachCard {
   border: 1px solid var(--soft-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--panel);
   padding: 0.65rem;
   display: flex;
@@ -297,18 +302,26 @@
 .eventRemoveBtn {
   border-radius: var(--radius-pill);
   min-height: 36px;
-  border: 1px solid var(--soft-border);
-  background: rgb(var(--color-bg-rgb) / 0.35);
-  color: var(--surface);
+  border: none;
   font-size: 14px;
   font-weight: 500;
   padding: 8px 14px;
+  transition: opacity 160ms ease;
 }
 
 .eventCalendarBtn {
-  border-color: rgb(var(--color-accent-rgb) / 0.5);
-  background: rgb(var(--color-accent-rgb) / 0.16);
-  color: var(--color-text-primary);
+  background: rgb(var(--color-accent-rgb) / 0.18);
+  color: var(--color-accent);
+}
+
+.eventRemoveBtn {
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
+}
+
+.eventCalendarBtn:hover:not(:disabled),
+.eventRemoveBtn:hover:not(:disabled) {
+  opacity: 0.85;
 }
 
 .actionsBar {
@@ -343,28 +356,33 @@
 }
 
 .publishBtn {
-  border: 1px solid rgb(var(--color-accent-rgb) / 0.45);
+  border: none;
   background: var(--color-accent);
   color: var(--color-white);
-  padding: 8px 14px;
+  padding: 8px 16px;
 }
 
 .actionIconBtn {
   width: 36px;
   height: 36px;
   border-radius: 999px;
-  border: 1px solid var(--color-border);
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  color: var(--surface);
+  border: none;
+  background: transparent;
+  color: var(--color-btn-secondary-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.actionIconBtn:hover:not(:disabled) {
+  background: var(--interactive-hover);
+  color: var(--color-text-primary);
 }
 
 .actionIconBtn--active {
-  border-color: rgb(var(--color-primary-rgb) / 0.68);
-  color: rgb(var(--color-primary-rgb) / 1);
-  background: rgb(var(--color-primary-rgb) / 0.13);
+  background: rgb(var(--color-accent-rgb) / 0.2);
+  color: var(--color-accent);
 }
 
 .actionIcon {
@@ -399,7 +417,7 @@
 }
 
 .counter.warn {
-  color: rgb(250 204 21);
+  color: var(--color-warning);
 }
 
 .counter.bad {
@@ -423,7 +441,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-medium);
-  max-width: 300px;
+  max-width: min(300px, calc(100vw - 1rem));
   overflow: hidden;
 }
 
@@ -466,8 +484,8 @@
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--color-text-primary);
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
 }
 
 .modalInput {

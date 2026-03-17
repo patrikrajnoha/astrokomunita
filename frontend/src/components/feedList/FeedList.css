@@ -50,7 +50,7 @@
 .feed-tabs {
   display: flex;
   background: rgb(var(--color-bg-rgb) / 0.5);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   padding: 4px;
   gap: 4px;
 }
@@ -63,9 +63,9 @@
   color: var(--color-text-secondary);
   font-size: 0.9rem;
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color var(--motion-base), color var(--motion-base);
   min-height: 44px;
 }
 
@@ -267,7 +267,7 @@
 }
 
 .post-card {
-  background: #151d28;
+  background: var(--color-bg-main);
   border: 0;
   border-bottom: 1px solid var(--divider-color);
   border-radius: 0;
@@ -285,7 +285,7 @@
 }
 
 .post-card:hover {
-  background: #1b2532;
+  background: var(--interactive-hover);
 }
 
 .post-card:active {
@@ -307,7 +307,7 @@
     transform: translateY(0) scale(1);
   }
   100% {
-    background: #151d28;
+    background: var(--color-bg-main);
   }
 }
 
@@ -322,11 +322,11 @@
 
 /* AstroBot posts */
 .post-card--astrobot {
-  background: #151d28;
+  background: var(--color-bg-main);
 }
 
 .post-card--astrobot:hover {
-  background: #1b2532;
+  background: var(--interactive-hover);
 }
 
 /* Post Layout */
@@ -518,10 +518,10 @@
   background: none;
   border: none;
   padding: 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color var(--motion-base), color var(--motion-base);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -665,7 +665,7 @@
   text-decoration: none;
   font-size: 0.78rem;
   font-weight: 500;
-  transition: all 0.2s ease;
+  transition: opacity var(--motion-base), text-decoration var(--motion-base);
   opacity: 0.95;
 }
 
@@ -758,13 +758,12 @@
   background: rgb(var(--bg-app-rgb) / 0.24);
   color: var(--text-primary);
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: background-color var(--motion-base), border-color var(--motion-base);
 }
 
 .file-attachment:hover {
-  border-color: rgb(var(--primary-rgb) / 0.3);
-  background: rgb(var(--bg-app-rgb) / 0.34);
-  transform: translateY(-1px);
+  border-color: rgb(var(--color-accent-rgb) / 0.3);
+  background: var(--interactive-hover);
 }
 
 .file-icon {
@@ -1302,8 +1301,8 @@
   .action-btn {
     padding: 0.24rem 0.34rem;
     font-size: 0.72rem;
-    min-height: 32px;
-    min-width: 32px;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .action-count {

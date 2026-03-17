@@ -60,30 +60,26 @@
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid var(--color-border);
+  border: none;
   border-radius: var(--radius-sm);
   padding: 8px 10px;
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  background: rgb(var(--bg-surface-rgb) / 0.88);
+  background: transparent;
   transition:
-    border-color var(--motion-fast),
     background-color var(--motion-fast),
-    color var(--motion-fast),
-    transform 120ms ease;
+    color var(--motion-fast);
 }
 
 .adminSubNav__item:hover {
-  border-color: rgb(var(--color-accent-rgb) / 0.45);
+  background: var(--color-nav-hover);
   color: var(--color-text-primary);
-  transform: translateY(-1px);
 }
 
 .adminSubNav__item.active {
   background: rgb(var(--color-accent-rgb) / 0.16);
-  border-color: rgb(var(--color-accent-rgb) / 0.56);
   color: var(--color-text-primary);
 }
 
@@ -102,12 +98,12 @@
 }
 
 .adminSubNav__item--danger {
-  border-color: rgb(var(--color-danger-rgb) / 0.36);
+  color: var(--color-danger);
 }
 
 .adminSubNav__item--danger.active {
   background: rgb(var(--color-danger-rgb) / 0.18);
-  border-color: rgb(var(--color-danger-rgb) / 0.62);
+  color: var(--color-danger);
 }
 
 .adminSubNav__item:focus-visible {
@@ -145,31 +141,27 @@
 
 .adminSubNav__collapseToggle {
   width: 34px;
-  border: 1px solid var(--color-border);
+  border: none;
   border-radius: var(--radius-sm);
-  background: rgb(var(--bg-surface-rgb) / 0.88);
-  color: var(--color-text-secondary);
+  background: transparent;
+  color: var(--color-text-muted);
   display: grid;
   place-items: center;
   font-size: 0.86rem;
   line-height: 1;
   cursor: pointer;
   transition:
-    border-color var(--motion-fast),
     background-color var(--motion-fast),
-    color var(--motion-fast),
-    transform 120ms ease;
+    color var(--motion-fast);
 }
 
 .adminSubNav__collapseToggle:hover {
-  border-color: rgb(var(--color-accent-rgb) / 0.45);
+  background: var(--color-nav-hover);
   color: var(--color-text-primary);
-  transform: translateY(-1px);
 }
 
 .adminSubNav__collapseToggle.active {
-  border-color: rgb(var(--color-accent-rgb) / 0.58);
-  color: var(--color-text-primary);
+  color: var(--color-accent);
   background: rgb(var(--color-accent-rgb) / 0.16);
 }
 

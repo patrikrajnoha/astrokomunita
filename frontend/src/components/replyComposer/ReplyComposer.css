@@ -2,12 +2,12 @@
 .card {
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.4);
   background: rgb(var(--color-bg-rgb) / 0.5);
-  border-radius: 1.1rem;
+  border-radius: var(--radius-xl);
   padding: 0.8rem;
 }
 
 .card.compact {
-  border-radius: 0.95rem;
+  border-radius: var(--radius-lg);
   padding: 0.68rem;
   background: rgb(var(--color-bg-rgb) / 0.44);
 }
@@ -73,7 +73,7 @@
 .input {
   width: 100%;
   padding: 0.62rem 0.72rem;
-  border-radius: 0.82rem;
+  border-radius: var(--radius-md);
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.56);
   background: rgb(var(--color-bg-rgb) / 0.36);
   color: var(--color-surface);
@@ -121,7 +121,7 @@
 }
 
 .authHint {
-  border-radius: 0.75rem;
+  border-radius: var(--radius-md);
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.34);
   background: rgb(var(--color-bg-rgb) / 0.22);
   padding: 0.42rem 0.56rem;
@@ -132,7 +132,7 @@
 .mediaCard {
   position: relative;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.4);
-  border-radius: 0.84rem;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: rgb(var(--color-bg-rgb) / 0.3);
 }
@@ -172,7 +172,7 @@
   justify-content: space-between;
   gap: 0.55rem;
   padding: 0.6rem 0.68rem;
-  border-radius: 0.82rem;
+  border-radius: var(--radius-md);
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
   background: rgb(var(--color-bg-rgb) / 0.3);
 }
@@ -185,7 +185,7 @@
 }
 
 .clip {
-  border-radius: 0.52rem;
+  border-radius: var(--radius-sm);
   padding: 0.12rem 0.3rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
   color: var(--color-text-secondary);
@@ -215,7 +215,7 @@
 
 .fileRemove {
   padding: 0.34rem 0.58rem;
-  border-radius: 0.64rem;
+  border-radius: var(--radius-sm);
   border: 1px solid rgb(var(--color-danger-rgb) / 0.5);
   background: rgb(var(--color-danger-rgb) / 0.12);
   color: var(--color-danger);
@@ -259,7 +259,7 @@
   left: 0;
   bottom: calc(100% + 0.45rem);
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  border-radius: 0.78rem;
+  border-radius: var(--radius-md);
   background: rgb(var(--color-bg-rgb) / 0.96);
   box-shadow: 0 14px 30px rgb(var(--color-bg-rgb) / 0.42);
   padding: 0.38rem;
@@ -272,16 +272,16 @@
 .emojiBtn {
   width: 1.9rem;
   height: 1.9rem;
-  border: 1px solid transparent;
+  border: none;
   border-radius: 0.55rem;
   background: transparent;
   font-size: 1rem;
   line-height: 1;
+  transition: background-color 160ms ease;
 }
 
 .emojiBtn:hover {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.4);
-  background: rgb(var(--color-bg-rgb) / 0.55);
+  background: var(--interactive-hover);
 }
 
 .fileInput {
@@ -292,13 +292,13 @@
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.36);
+  border: none;
   background: transparent;
-  color: rgb(var(--color-surface-rgb) / 0.9);
+  color: var(--color-btn-secondary-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
 .iconBtn svg {
@@ -307,14 +307,13 @@
 }
 
 .iconBtn.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.75);
-  background: rgb(var(--color-primary-rgb) / 0.14);
-  color: rgb(var(--color-primary-rgb) / 1);
+  background: rgb(var(--color-accent-rgb) / 0.2);
+  color: var(--color-accent);
 }
 
 .iconBtn:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.55);
-  background: rgb(var(--color-primary-rgb) / 0.08);
+  background: var(--interactive-hover);
+  color: var(--color-text-primary);
 }
 
 .iconBtn:disabled {
@@ -324,25 +323,22 @@
 
 .actionbtn {
   padding: 0.5rem 0.76rem;
-  border-radius: 0.72rem;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.64);
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  color: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-accent);
+  color: var(--color-white);
   font-size: 0.82rem;
   font-weight: 800;
-  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+  transition: background-color 160ms ease, opacity 160ms ease;
 }
 
-.actionbtn:hover {
-  background: rgb(var(--color-primary-rgb) / 0.28);
-  border-color: rgb(var(--color-primary-rgb) / 0.8);
-  transform: translateY(-1px);
+.actionbtn:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
 }
 
 .actionbtn:disabled {
   opacity: 0.52;
   cursor: not-allowed;
-  transform: none;
 }
 
 .err {
@@ -364,7 +360,7 @@
   width: min(100%, 620px);
   max-height: 80vh;
   overflow: auto;
-  border-radius: 14px;
+  border-radius: var(--radius-xl);
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
   background: rgb(var(--color-bg-rgb) / 0.96);
   padding: 0.8rem;

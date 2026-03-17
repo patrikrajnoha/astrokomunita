@@ -114,15 +114,20 @@
 .primaryBtn,
 .tertiaryBtn {
   border-radius: 999px;
-  border: 1px solid transparent;
+  border: none;
   padding: 0.58rem 0.95rem;
   font-size: 0.83rem;
   font-weight: 700;
+  transition: opacity 160ms ease;
 }
 
 .primaryBtn {
-  background: rgb(var(--color-primary-rgb) / 0.88);
-  color: rgb(6 14 24);
+  background: var(--color-accent);
+  color: var(--color-white);
+}
+
+.primaryBtn:hover:not(:disabled) {
+  background: var(--accent-primary-hover);
 }
 
 .primaryBtn:disabled {
@@ -131,10 +136,13 @@
 }
 
 .tertiaryBtn {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.24);
-  color: var(--color-surface);
-  background: rgb(var(--color-bg-rgb) / 0.62);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   font-weight: 600;
+}
+
+.tertiaryBtn:hover:not(:disabled) {
+  opacity: 0.85;
 }
 
 .closeBtn {
@@ -142,21 +150,21 @@
   width: 2rem;
   height: 2rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(255 255 255 / 0.05);
-  color: rgb(var(--color-surface-rgb) / 0.72);
+  border: none;
+  background: transparent;
+  color: var(--color-btn-secondary-text);
   font-size: 1.1rem;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background-color 120ms ease, color 120ms ease;
 }
 
 .closeBtn:hover {
-  background: rgb(255 255 255 / 0.1);
-  color: var(--color-surface);
+  background: var(--interactive-hover);
+  color: var(--color-text-primary);
 }
 
 .successBanner {

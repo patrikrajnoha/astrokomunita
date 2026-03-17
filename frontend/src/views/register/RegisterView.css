@@ -2,7 +2,7 @@
 .registerView {
   height: 100dvh;
   min-height: 100dvh;
-  background: #151d28;
+  background: var(--color-bg-main);
   position: relative;
   overflow: hidden;
 }
@@ -29,7 +29,7 @@
   width: min(100%, 540px);
   display: grid;
   gap: 1rem;
-  color: #e6f2ff;
+  color: var(--auth-text);
 }
 
 .registerHeroLogo {
@@ -44,11 +44,11 @@
   font-size: clamp(2rem, 4.4vw, 3.8rem);
   line-height: 1.05;
   letter-spacing: -0.03em;
-  color: #e6f2ff;
+  color: var(--auth-text);
 }
 
 .registerHeroTitleAccent {
-  color: #0f73ff;
+  color: var(--color-accent);
   font-weight: 800;
 }
 
@@ -57,7 +57,7 @@
   max-width: 33ch;
   font-size: 1rem;
   line-height: 1.55;
-  color: rgb(230 242 255 / 0.72);
+  color: var(--auth-text-muted);
 }
 
 .registerPage {
@@ -146,7 +146,7 @@
   margin: 0;
   font-size: clamp(1.25rem, 2.2vw, 1.55rem);
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--color-text-primary);
 }
 
 .registerSubtitle {

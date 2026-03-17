@@ -37,14 +37,19 @@
 
 .errorRetryBtn {
   min-height: 30px;
-  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.64);
+  border: none;
   border-radius: 999px;
   padding: 0 10px;
-  background: rgb(var(--color-bg-main-rgb) / 0.65);
-  color: inherit;
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  transition: opacity 160ms ease;
+}
+
+.errorRetryBtn:hover:not(:disabled) {
+  opacity: 0.85;
 }
 
 .usersSkeleton {
@@ -139,14 +144,15 @@
 
 .searchIcon {
   position: absolute;
-  left: 12px;
+  left: 10px;
   top: 50%;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   transform: translateY(-50%);
   color: rgb(var(--color-text-secondary-rgb) / 0.84);
   pointer-events: none;
   z-index: 1;
+  flex-shrink: 0;
 }
 
 .searchIcon svg {
@@ -167,7 +173,7 @@
 
 .usersSearchInput {
   width: 100%;
-  padding: 0 34px 0 40px;
+  padding: 0 34px 0 36px;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: textfield;
@@ -183,10 +189,6 @@
 .usersSearchInput::-webkit-search-results-decoration {
   -webkit-appearance: none;
   appearance: none;
-}
-
-.searchInputWrap .usersSearchInput {
-  padding-left: 38px;
 }
 
 .filterSelect {
@@ -548,13 +550,18 @@
 .emptyClearBtn {
   margin-top: 10px;
   min-height: 30px;
-  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.64);
+  border: none;
   border-radius: 999px;
   padding: 0 10px;
-  background: rgb(var(--color-bg-surface-rgb) / 0.74);
-  color: var(--color-text-primary);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   font-size: 11px;
   cursor: pointer;
+  transition: opacity 160ms ease;
+}
+
+.emptyClearBtn:hover:not(:disabled) {
+  opacity: 0.85;
 }
 
 .usersPaginationFooter {
@@ -741,41 +748,36 @@
 
 .manageActionBtn {
   min-height: 34px;
-  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.62);
+  border: none;
   border-radius: 10px;
   padding: 0 12px;
-  background: rgb(var(--color-bg-surface-rgb) / 0.74);
-  color: var(--color-text-primary);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   text-align: left;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  transition: opacity 160ms ease;
 }
 
-.manageActionBtn:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.45);
+.manageActionBtn:hover:not(:disabled) {
+  opacity: 0.85;
 }
 
 .manageActionBtn--primary {
-  border-color: rgb(var(--color-primary-rgb) / 0.4);
-  background: rgb(var(--color-primary-rgb) / 0.14);
-  color: rgb(var(--color-primary-rgb) / 0.98);
-}
-
-.manageActionBtn--primary:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.6);
-  background: rgb(var(--color-primary-rgb) / 0.2);
+  background: var(--color-accent);
+  color: var(--color-white);
 }
 
 .manageActionBtn--ghost {
-  background: rgb(var(--color-bg-light-rgb) / 0.12);
+  background: transparent;
+  color: var(--color-btn-secondary-text);
 }
 
 .manageActionBtn.is-danger {
-  color: rgb(var(--color-danger-rgb) / 0.96);
-  border-color: rgb(var(--color-danger-rgb) / 0.34);
-  background: rgb(var(--color-danger-rgb) / 0.1);
+  background: var(--color-danger);
+  color: var(--color-white);
 }
 
 .manageModalActions--row {
