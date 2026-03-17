@@ -23,6 +23,7 @@ backend/.phpunit.result.cache
 # IDE
 .vscode
 .idea
+.claude/
 
 # Local debug scripts
 backend/debug_astrobot.php
