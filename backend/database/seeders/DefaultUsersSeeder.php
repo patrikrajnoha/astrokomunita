@@ -43,7 +43,7 @@ class DefaultUsersSeeder extends Seeder
                 'role' => User::ROLE_BOT,
             ],
             [
-                'name' => 'Stellar',
+                'name' => 'Stela',
                 'username' => 'stellarbot',
                 'email' => null,
                 'password' => Str::random(40),
@@ -139,7 +139,7 @@ class DefaultUsersSeeder extends Seeder
         $stellar = User::query()->where('username', 'stellarbot')->first();
         if (! $stellar) {
             $legacy->forceFill([
-                'name' => 'Stellar',
+                'name' => 'Stela',
                 'username' => 'stellarbot',
                 'email' => null,
                 'is_bot' => true,

@@ -38,6 +38,10 @@ class User extends Authenticatable implements MustVerifyEmail
         });
 
         static::deleting(function (User $user): void {
+            if ($user->isBot()) {
+                throw new \RuntimeException('Bot accounts cannot be deleted.');
+            }
+
             try {
                 app(UserCleanupService::class)->cleanupUserMedia($user);
             } catch (\Throwable $e) {
