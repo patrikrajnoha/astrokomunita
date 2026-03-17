@@ -183,7 +183,7 @@ const isActive = (item) => {
 
 .mobileBottomNav__item {
   position: relative;
-  min-height: 3.55rem;
+  min-height: 2.75rem;
   border-radius: 1rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0);
   background: transparent;
@@ -192,7 +192,7 @@ const isActive = (item) => {
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 0.25rem;
+  gap: 0;
   padding: 0.28rem 0.16rem;
   transition:
     background-color 160ms ease,
@@ -230,16 +230,7 @@ const isActive = (item) => {
 }
 
 .mobileBottomNav__item.is-active::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: 0.28rem;
-  width: 1.2rem;
-  height: 0.18rem;
-  border-radius: var(--radius-pill);
-  transform: translateX(-50%);
-  background: rgb(var(--color-text-primary-rgb) / 0.95);
-  opacity: 0.9;
+  display: none;
 }
 
 .mobileBottomNav__iconWrap {
@@ -279,11 +270,7 @@ const isActive = (item) => {
 }
 
 .mobileBottomNav__label {
-  font-size: clamp(0.6rem, 2.25vw, 0.68rem);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.01em;
-  text-wrap: balance;
+  display: none;
 }
 
 @keyframes mobileDockEnter {

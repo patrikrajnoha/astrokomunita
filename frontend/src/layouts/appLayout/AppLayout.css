@@ -65,8 +65,8 @@
 
 .sheetDialog {
   position: fixed;
-  right: 0.65rem;
-  left: 0.65rem;
+  right: max(0.65rem, env(safe-area-inset-right));
+  left: max(0.65rem, env(safe-area-inset-left));
   bottom: max(0.65rem, env(safe-area-inset-bottom));
   z-index: 79;
   max-height: 85vh;
@@ -218,6 +218,25 @@
   display: flex;
   flex-direction: column;
   min-height: 100%;
+  padding-top: var(--space-6);
+}
+
+.rightRailBaseline {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .rightRailBaseline {
+    display: block;
+    position: sticky;
+    top: 0;
+    height: var(--control-height-lg);
+    margin-inline: -0.875rem;
+    border-bottom: 1px solid var(--divider-color);
+    background: var(--bg-app);
+    z-index: 10;
+    flex-shrink: 0;
+  }
 }
 
 .rightRail__content {
@@ -411,5 +430,49 @@
 
   .desktopFrame--admin {
     column-gap: 0.5rem;
+  }
+}
+
+.sidebarGuestAuth {
+  display: flex;
+  gap: 0.55rem;
+  width: 100%;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--divider-color);
+  margin-top: 0.75rem;
+}
+
+.sidebarGuestAuth__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.sidebarGuestAuth__btn.ui-pill--primary {
+  background: #0F73FF;
+  color: #FFFFFF;
+}
+
+.sidebarGuestAuth__btn.ui-pill--primary:hover {
+  background: #0D66E6;
+  opacity: 1;
+}
+
+.sidebarGuestAuth__btn.ui-pill--secondary {
+  background: #222E3F;
+  color: #ABB8C9;
+}
+
+.sidebarGuestAuth__btn.ui-pill--secondary:hover {
+  background: #2a3850;
+  opacity: 1;
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .sheetDialog {
+    max-height: 95vh;
   }
 }

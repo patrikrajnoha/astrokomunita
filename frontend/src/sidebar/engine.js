@@ -332,7 +332,10 @@ export const getEnabledSidebarSections = (items, options = {}) => {
   const hasPreferredSectionKeys = Array.isArray(options?.preferredSectionKeys)
   const preferredSectionKeys = normalizePreferredSectionKeys(options?.preferredSectionKeys)
   const enabledSource = normalized.filter((item) => item.is_enabled)
-  const sectionByKey = new Map(normalized.map((item) => [String(item?.section_key || ''), item]))
+  const sectionByKey = new Map(
+    (hasPreferredSectionKeys && options?.allowUserPreferenceOverride ? normalized : enabledSource)
+      .map((item) => [String(item?.section_key || ''), item]),
+  )
   const enabledItems = hasPreferredSectionKeys
     ? preferredSectionKeys
       .map((key) => sectionByKey.get(key))

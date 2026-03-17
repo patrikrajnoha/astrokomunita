@@ -1,12 +1,10 @@
 
   <section class="searchPage w-full min-w-0 text-[var(--color-surface)]" data-testid="search-page-root">
     <div class="searchPage__shell w-full min-w-0 px-3 py-4 sm:px-4 sm:py-5 md:py-6" data-testid="search-page-shell">
-      <header class="searchPage__intro" aria-label="Hľadanie">
-        <h1 class="searchPage__title">Hľadanie</h1>
-        <p class="searchPage__subtitle">
-          Zadaj kľúčové slovo a rýchlo nájdi to, čo hľadáš.
-        </p>
-      </header>
+      <PageHeader
+        title="Hľadanie"
+        description="Zadaj kľúčové slovo a rýchlo nájdi to, čo hľadáš."
+      />
 
       <section class="searchPage__toolbar" data-testid="search-page-toolbar">
         <SearchBar

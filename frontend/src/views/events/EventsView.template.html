@@ -1,9 +1,9 @@
 <div class="events-page">
-  <section class="hero">
-    <div class="hero-inner">
-      <h1 class="hero-title">Astronomické udalosti</h1>
-      <p class="hero-subtitle">Najbližšie úkazy aj archív na jednom mieste.</p>
-
+  <PageHeader
+    title="Astronomické udalosti"
+    description="Najbližšie úkazy aj archív na jednom mieste."
+  >
+    <template #meta>
       <div v-if="!isCalendarView" class="hero-stats" role="status" aria-live="polite">
         <p class="hero-stat"><strong>{{ totalEvents }}</strong> {{ totalEventsLabel }}</p>
         <p class="hero-stat hero-stat-muted">{{ resultContextLabel }}</p>
@@ -21,8 +21,8 @@
           :time-zone="effectiveLiveHighlightTimezone"
         />
       </section>
-    </div>
-  </section>
+    </template>
+  </PageHeader>
 
   <main class="content-wrap">
     <section class="filter-panel">

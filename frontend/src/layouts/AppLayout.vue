@@ -27,6 +27,7 @@ import {
   dispatchPostCreated,
   parseStringValue,
 } from './appLayout/appLayout.utils'
+import { usePwaInstall } from '@/composables/usePwaInstall'
 import { resolveObservingContext } from '@/utils/observingContext'
 import {
   getEnabledSidebarSections,
@@ -52,8 +53,7 @@ const { showToast } = useToast()
 const mobileSidebarSections = ref([])
 const mobileWidgetMenuOpenState = ref(false)
 const mobileWidgetSheetOpenState = ref(false)
-const deferredInstallPrompt = ref(null)
-const canInstall = ref(false)
+const { canInstall, installApp, handleBeforeInstallPrompt, handleInstalled } = usePwaInstall()
 const isMobileViewport = ref(false)
 const fabBottomOffset = computed(() => (canInstall.value ? 82 : 16))
 const showMobileBottomNav = computed(() => isMobileViewport.value && !isAdminRoute.value)
@@ -350,32 +350,6 @@ const handleKeydown = (event) => {
 
   if (isDrawerOpen.value) {
     closeDrawer()
-  }
-}
-
-const handleBeforeInstallPrompt = (event) => {
-  event.preventDefault()
-  deferredInstallPrompt.value = event
-  canInstall.value = true
-}
-
-const handleInstalled = () => {
-  deferredInstallPrompt.value = null
-  canInstall.value = false
-}
-
-const installApp = async () => {
-  const promptEvent = deferredInstallPrompt.value
-  if (!promptEvent) return
-
-  try {
-    await promptEvent.prompt()
-    await promptEvent.userChoice
-  } catch (error) {
-    console.warn('Install prompt failed:', error)
-  } finally {
-    deferredInstallPrompt.value = null
-    canInstall.value = false
   }
 }
 

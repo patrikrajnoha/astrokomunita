@@ -82,11 +82,21 @@ const preferredSidebarWidgetKeys = computed(() => {
   })
 })
 
+const hasUserPreferenceOverride = computed(() => {
+  if (!auth.isAuthed || !preferences.loaded) return false
+  return (
+    typeof preferences.hasSidebarWidgetOverrideForScope === 'function' &&
+    (preferences.hasSidebarWidgetOverrideForScope(activeScope.value || DEFAULT_SIDEBAR_SCOPE) ||
+      preferences.hasSidebarWidgetOverrideForScope(DEFAULT_SIDEBAR_SCOPE))
+  )
+})
+
 const renderedSections = computed(() => {
   return getEnabledSidebarSections(currentItems.value, {
     isGuest: isGuest.value,
     collapseObservingForMissingLocation: !isGuest.value && !hasObservingLocation.value,
     preferredSectionKeys: preferredSidebarWidgetKeys.value,
+    allowUserPreferenceOverride: hasUserPreferenceOverride.value,
   }).filter((section) => Boolean(resolveSidebarComponent(section)))
 })
 const renderedBuiltinSectionKeySet = computed(() => {

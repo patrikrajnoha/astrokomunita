@@ -1,33 +1,32 @@
 <template>
   <section class="min-h-screen bg-[linear-gradient(180deg,rgb(var(--bg-app-rgb)/0.98)_0%,rgb(var(--bg-app-rgb)/0.95)_48%,rgb(var(--bg-surface-rgb)/0.94)_100%)] text-[var(--text-primary)]">
     <div class="mx-auto flex min-h-screen w-full max-w-5xl flex-col">
-      <header class="flex items-center justify-between px-5 pb-5 pt-6 sm:px-8">
-        <h1 class="text-3xl font-black tracking-tight sm:text-4xl">Notifikácie</h1>
-        <div class="flex items-center gap-2">
-          <button
-            v-if="items.length"
-            type="button"
-            class="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--text-primary)]"
-            @click="markAll"
-          >
-            Označiť všetko
-          </button>
-        <button
-          data-testid="open-notification-settings"
-          class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
-          type="button"
-          @click="openSettingsModal"
-        >
-          <span class="sr-only">Otvoriť nastavenia notifikácií</span>
-          <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3.2"></circle>
-            <path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.56V20.5a2 2 0 0 1-4 0v-.08a1.7 1.7 0 0 0-1-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1H3.5a2 2 0 0 1 0-4h.08a1.7 1.7 0 0 0 1.56-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.56V3.5a2 2 0 0 1 4 0v.08a1.7 1.7 0 0 0 1 1.56h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.56 1H20.5a2 2 0 0 1 0 4h-.08a1.7 1.7 0 0 0-1.56 1z"></path>
-          </svg>
-        </button>
-        </div>
-      </header>
-
-      <div class="border-b border-[var(--divider-color)]"></div>
+      <div class="px-5 pt-6 pb-2 sm:px-8">
+        <PageHeader title="Notifikácie">
+          <template #actions>
+            <button
+              v-if="items.length"
+              type="button"
+              class="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--text-primary)]"
+              @click="markAll"
+            >
+              Označiť všetko
+            </button>
+            <button
+              data-testid="open-notification-settings"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+              type="button"
+              @click="openSettingsModal"
+            >
+              <span class="sr-only">Otvoriť nastavenia notifikácií</span>
+              <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3.2"></circle>
+                <path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.56V20.5a2 2 0 0 1-4 0v-.08a1.7 1.7 0 0 0-1-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1H3.5a2 2 0 0 1 0-4h.08a1.7 1.7 0 0 0 1.56-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.56V3.5a2 2 0 0 1 4 0v.08a1.7 1.7 0 0 0 1 1.56h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.56 1H20.5a2 2 0 0 1 0 4h-.08a1.7 1.7 0 0 0-1.56 1z"></path>
+              </svg>
+            </button>
+          </template>
+        </PageHeader>
+      </div>
 
       <div v-if="isInitialLoading" class="mx-auto w-full max-w-3xl space-y-3 px-5 py-7 sm:px-8" data-testid="notifications-page-loading">
         <div
@@ -287,6 +286,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PageHeader from '@/components/ui/PageHeader.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
 import {
