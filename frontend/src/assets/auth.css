@@ -7,8 +7,8 @@
   --auth-text-subtle: rgb(230 242 255 / 0.56);
   --auth-divider: rgb(230 242 255 / 0.14);
   --auth-border: rgb(230 242 255 / 0.18);
-  --auth-border-strong: rgb(1 166 255 / 0.58);
-  --auth-accent: #01a6ff;
+  --auth-border-strong: rgb(15 115 255 / 0.58);
+  --auth-accent: #0F73FF;
   --auth-danger: #eb2452;
   --auth-danger-soft: rgb(235 36 82 / 0.16);
 }
@@ -63,7 +63,7 @@
   font-weight: 720;
   line-height: 1.02;
   letter-spacing: -0.04em;
-  color: var(--auth-text);
+  color: var(--auth-accent);
   text-wrap: balance;
 }
 
@@ -100,7 +100,7 @@
   font-size: clamp(1.5rem, 1.8vw, 2rem);
   font-weight: 660;
   line-height: 1.18;
-  color: var(--auth-text);
+  color: var(--auth-accent);
 }
 
 .authFormSection__description {
@@ -148,7 +148,7 @@
 
 .authField__control:focus-within {
   border-color: var(--auth-border-strong);
-  box-shadow: 0 0 0 3px rgb(1 166 255 / 0.24);
+  box-shadow: 0 0 0 3px rgb(15 115 255 / 0.24);
   background: rgb(29 34 40 / 0.92);
 }
 
@@ -211,7 +211,7 @@
 
 .authInlineLink:focus-visible {
   border-radius: 999px;
-  outline: 2px solid rgb(1 166 255 / 0.82);
+  outline: 2px solid rgb(15 115 255 / 0.82);
   outline-offset: 2px;
 }
 
@@ -236,7 +236,7 @@
   font-size: 0.76rem;
   font-weight: 700;
   color: var(--auth-text);
-  background: rgb(1 166 255 / 0.3);
+  background: rgb(15 115 255 / 0.3);
 }
 
 .authAlert__body {
@@ -292,7 +292,7 @@
 
 .authButton:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgb(1 166 255 / 0.3);
+  box-shadow: 0 0 0 3px rgb(15 115 255 / 0.3);
 }
 
 .authButton:disabled {
@@ -302,25 +302,24 @@
 }
 
 .authButton--secondary {
-  background: rgb(29 34 40 / 0.92);
-  border-color: var(--auth-border);
-  color: var(--auth-text-muted);
+  background: var(--color-btn-secondary-bg);
+  border-color: transparent;
+  color: var(--color-btn-secondary-text);
 }
 
 .authButton--secondary:hover:not(:disabled) {
-  background: rgb(29 34 40 / 1);
-  border-color: rgb(230 242 255 / 0.32);
-  color: var(--auth-text);
+  background: rgb(var(--color-btn-secondary-bg-rgb) / 0.75);
+  color: var(--color-text-primary);
 }
 
 .authButton--primary {
   background: var(--auth-accent);
-  border-color: rgb(1 166 255 / 0.72);
-  color: #ffffff;
+  border-color: transparent;
+  color: var(--color-white);
 }
 
 .authButton--primary:hover:not(:disabled) {
-  background: #22b3ff;
+  background: var(--color-primary-hover);
 }
 
 .authButton:active:not(:disabled) {
