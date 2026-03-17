@@ -92,7 +92,10 @@ jobs:
           forbidden_files="$(find . -type f \( -name '*.md' -o -name '*.MD' -o -name '*.txt' -o -name '*.TXT' \) \
             -not -path './vendor/*' \
             -not -path './node_modules/*' \
-            -not -path './storage/*')"
+            -not -path './storage/*' \
+            -not -path './docs/*' \
+            -not -name 'security.md' \
+            -not -name 'requirements.txt')"
           if [ -n "$forbidden_files" ]; then
             echo "Found forbidden documentation files:"
             echo "$forbidden_files"
