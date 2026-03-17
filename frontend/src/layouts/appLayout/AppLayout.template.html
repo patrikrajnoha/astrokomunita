@@ -90,7 +90,7 @@
                 : isAdminRoute
                   ? 'px-2 py-4 md:px-3 lg:px-4 xl:px-2 2xl:px-3'
                   : isHomeFeedRoute
-                    ? 'px-4 pt-2 pb-6 md:px-8 md:pt-2 md:pb-6 xl:px-2 xl:pt-1 xl:pb-4 2xl:px-4 2xl:pt-1 2xl:pb-4'
+                    ? 'px-4 pt-2 pb-6 md:px-8 md:pt-2 md:pb-6 xl:px-2 xl:pt-0 xl:pb-4 2xl:px-4 2xl:pt-0 2xl:pb-4'
                     : 'px-4 py-6 md:px-8 xl:px-2 2xl:px-4',
             ]"
             data-testid="layout-center"
@@ -112,10 +112,11 @@
             data-tour="conditions"
             :class="[
               'rightRail h-screen overflow-y-auto overflow-x-hidden bg-[var(--bg-app)] xl:sticky xl:top-0',
-              'w-[20.5rem] px-3.5 pb-3.5 pt-6',
+              'w-[20.5rem] px-3.5 pb-3.5 pt-0',
               'border-l border-[var(--divider-color)]',
             ]"
           >
+            <div v-if="isHomeFeedRoute" class="rightRailBaseline" aria-hidden="true"></div>
             <div class="rightRail__inner">
               <div
                 class="rightRail__content"
@@ -130,6 +131,14 @@
                   :observing-tz="observingTz"
                   :observing-location-name="observingLocationName"
                 />
+                <div v-if="!auth.isAuthed && !isAdminRoute" class="sidebarGuestAuth" data-testid="sidebar-guest-auth">
+                  <RouterLink to="/register" class="ui-pill ui-pill--primary sidebarGuestAuth__btn" aria-label="Vytvoriť účet">
+                    Vytvoriť účet
+                  </RouterLink>
+                  <RouterLink to="/login" class="ui-pill ui-pill--secondary sidebarGuestAuth__btn" aria-label="Prihlásiť sa">
+                    Prihlásiť sa
+                  </RouterLink>
+                </div>
               </div>
 
               <div class="rightSidebarFooterLinks" data-testid="right-sidebar-legal-links">

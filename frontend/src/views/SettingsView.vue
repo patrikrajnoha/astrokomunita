@@ -1,10 +1,10 @@
 <template>
   <div class="settings-page">
-    <header class="settings-header">
-      <p class="settings-eyebrow">Účet</p>
-      <h1 class="settings-title">Nastavenia</h1>
-      <p class="settings-subtitle">Správa účtu, bezpečnosti a súkromia.</p>
-    </header>
+    <PageHeader
+      eyebrow="Účet"
+      title="Nastavenia"
+      description="Správa účtu, bezpečnosti a súkromia."
+    />
 
     <router-view />
   </div>
@@ -12,6 +12,7 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted, provide } from 'vue'
+import PageHeader from '@/components/ui/PageHeader.vue'
 import { settingsContextKey } from '@/composables/settingsContext'
 import { useSettingsState } from '@/composables/useSettingsState'
 import '@/assets/settings.css'

@@ -4,6 +4,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import PageHeader from '@/components/ui/PageHeader.vue'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import CalendarView from './CalendarView.vue'
 import FutureEventsEmptyState from '@/components/events/FutureEventsEmptyState.vue'

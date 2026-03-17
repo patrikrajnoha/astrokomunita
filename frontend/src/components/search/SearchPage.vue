@@ -3,6 +3,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import PageHeader from '@/components/ui/PageHeader.vue'
 import SearchBar from '@/components/search/SearchBar.vue'
 import SearchEmptyState from '@/components/search/SearchEmptyState.vue'
 import SearchResultCard from '@/components/search/SearchResultCard.vue'

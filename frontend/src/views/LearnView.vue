@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { blogPosts } from '@/services/blogPosts'
+import PageHeader from '@/components/ui/PageHeader.vue'
 
 const loading = ref(false)
 const error = ref('')

@@ -383,22 +383,6 @@
         </a>
       </RouterLink>
 
-      <div v-if="!auth.isAuthed" class="guestAuthActions mt-2 shrink-0" data-testid="guest-auth-actions">
-        <RouterLink
-          to="/register"
-          class="ui-pill ui-pill--primary guestAuthActions__btn guestAuthActions__btn--register"
-          aria-label="Vytvorit ucet"
-        >
-          Vytvorit ucet
-        </RouterLink>
-        <RouterLink
-          to="/login"
-          class="ui-pill ui-pill--secondary guestAuthActions__btn"
-          aria-label="Prihlasit sa"
-        >
-          Prihlasit sa
-        </RouterLink>
-      </div>
     </div>
     <div v-if="auth.isAuthed && showCreateButton" ref="createPickerWrapperRef" class="relative mt-3 shrink-0">
       <button
