@@ -170,7 +170,7 @@
 
 .ui-page-title {
   margin: 0;
-  color: var(--color-text-primary);
+  color: var(--color-accent);
   font-size: clamp(1.3rem, 1.6vw, 1.65rem);
   font-weight: 700;
   line-height: var(--line-height-tight);
@@ -223,10 +223,10 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 8px 14px;
+  padding: 8px 16px;
   min-height: 36px;
   border-radius: var(--radius-pill);
-  border: 1px solid transparent;
+  border: none;
   font-size: 14px;
   font-weight: 500;
   line-height: 1;
@@ -235,10 +235,7 @@
   transition:
     background-color 160ms ease,
     color 160ms ease,
-    transform 160ms ease,
-    opacity 160ms ease,
-    box-shadow 160ms ease,
-    border-color 160ms ease;
+    opacity 160ms ease;
 }
 
 :where(
@@ -262,7 +259,7 @@
   .ghostbtn,
   .more-btn
 ):hover:not(:disabled):not([aria-disabled='true']) {
-  transform: translateY(-1px);
+  opacity: 0.88;
 }
 
 :where(
@@ -286,7 +283,8 @@
   .ghostbtn,
   .more-btn
 ):active:not(:disabled):not([aria-disabled='true']) {
-  transform: scale(0.98);
+  transform: scale(0.97);
+  opacity: 1;
 }
 
 :where(
@@ -364,11 +362,11 @@
 :where(.ui-btn--primary, .ui-pill--primary, .btn-primary, .actionBtn--primary, .actionbtn, .publishBtn) {
   background: var(--color-accent);
   color: var(--color-white);
-  border-color: rgb(var(--color-accent-rgb) / 0.45);
 }
 
 :where(.ui-btn--primary, .ui-pill--primary, .btn-primary, .actionBtn--primary, .actionbtn, .publishBtn):hover:not(:disabled) {
   background: var(--accent-primary-hover);
+  opacity: 1;
 }
 
 :where(
@@ -380,9 +378,8 @@
   .adminPagination__btn,
   .adminTable__clearBtn
 ) {
-  background: rgb(var(--bg-surface-rgb) / 0.86);
-  color: var(--color-text-primary);
-  border-color: var(--color-border);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
 }
 
 :where(
@@ -394,29 +391,29 @@
   .adminPagination__btn,
   .adminTable__clearBtn
 ):hover:not(:disabled) {
-  background: var(--interactive-hover);
-  border-color: var(--color-border-strong);
+  background: rgb(var(--color-btn-secondary-bg-rgb) / 0.75);
+  color: var(--color-text-primary);
+  opacity: 1;
 }
 
 :where(.ui-btn--ghost, .ui-pill--ghost, .btn-ghost, .btn.ghost, .ghostbtn) {
   background: transparent;
   color: var(--color-text-primary);
-  border-color: transparent;
 }
 
 :where(.ui-btn--ghost, .ui-pill--ghost, .btn-ghost, .btn.ghost, .ghostbtn):hover:not(:disabled) {
   background: var(--interactive-hover);
-  border-color: var(--color-border);
+  opacity: 1;
 }
 
 :where(.ui-btn--danger, .ui-pill--danger, .btn-danger, .actionBtn--danger, .btn.confirm.danger) {
   background: var(--color-danger);
   color: var(--color-white);
-  border-color: rgb(var(--color-danger-rgb) / 0.6);
 }
 
 :where(.ui-btn--danger, .ui-pill--danger, .btn-danger, .actionBtn--danger, .btn.confirm.danger):hover:not(:disabled) {
   background: var(--color-danger-hover);
+  opacity: 1;
 }
 
 .btn-danger {
@@ -430,12 +427,11 @@
   background: var(--color-danger);
   color: var(--color-white);
   font-weight: 500;
-  transition: all 160ms ease;
+  transition: background-color 160ms ease, opacity 160ms ease;
 }
 
 .btn-danger:hover:not(:disabled):not([aria-disabled='true']) {
-  transform: none;
-  filter: brightness(1.1);
+  background: var(--color-danger-hover);
 }
 
 .btn-cancel {
@@ -445,23 +441,21 @@
   gap: 6px;
   padding: 12px 24px;
   border-radius: 999px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-surface);
-  color: var(--color-text-primary);
+  border: none;
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   font-weight: 500;
-  transition: all 160ms ease;
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
 .btn-cancel:hover:not(:disabled):not([aria-disabled='true']) {
-  transform: none;
-  border-color: var(--color-border-strong);
-  background: var(--interactive-hover);
+  background: rgb(var(--color-btn-secondary-bg-rgb) / 0.75);
+  color: var(--color-text-primary);
 }
 
 :where(.ui-btn--subtle) {
   background: rgb(var(--bg-surface-rgb) / 0.5);
   color: var(--color-text-primary);
-  border-color: var(--color-border);
 }
 
 :where(.ui-btn--icon, .ui-pill--icon, .iconBtn, .actionIconBtn, .mediaRemove, .modalClose) {
@@ -519,7 +513,7 @@
   .mobileBottomNav__item,
   .feedSwitcher__tab
 ):hover {
-  transform: translateY(-1px);
+  background-color: var(--interactive-hover);
 }
 
 :where(
@@ -534,7 +528,7 @@
   .mobileBottomNav__item,
   .feedSwitcher__tab
 ):active {
-  transform: scale(0.995);
+  transform: scale(0.99);
 }
 
 :where(.ui-badge, .badge, .chip) {
