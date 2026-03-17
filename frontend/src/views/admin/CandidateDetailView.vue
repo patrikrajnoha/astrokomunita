@@ -89,9 +89,9 @@ function translationStatusKey(value) {
 
 function translationStatusLabel(value) {
   const status = translationStatusKey(value)
-  if (status === 'success') return 'PreloĹľenĂ©'
+  if (status === 'success') return 'Preložené'
   if (status === 'error') return 'Zlyhalo'
-  return 'ÄŚakĂˇ'
+  return 'Čaká'
 }
 
 function translationStatusClass(value) {
@@ -116,7 +116,7 @@ async function load() {
       translated_description: candidateDisplayDescription(candidate.value) || '',
     }
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || 'Chyba pri naÄŤĂ­tanĂ­ detailu'
+    error.value = fetchError?.response?.data?.message || 'Chyba pri načítaní detailu'
   } finally {
     loading.value = false
   }
@@ -126,10 +126,10 @@ async function approve() {
   if (!candidate.value) return
 
   const ok = await confirm({
-    title: 'SchvĂˇliĹĄ kandidĂˇta',
-    message: 'Naozaj chceĹˇ schvĂˇliĹĄ tohto kandidĂˇta?',
-    confirmText: 'SchvĂˇliĹĄ',
-    cancelText: 'ZruĹˇiĹĄ',
+    title: 'Schváliť kandidáta',
+    message: 'Naozaj chceš schváliť tohto kandidáta?',
+    confirmText: 'Schváliť',
+    cancelText: 'Zrušiť',
   })
   if (!ok) return
 
@@ -137,10 +137,10 @@ async function approve() {
   error.value = null
   try {
     await eventCandidates.approve(candidate.value.id)
-    toast.success('KandidĂˇt bol schvĂˇlenĂ˝.')
+    toast.success('Kandidát bol schválený.')
     router.push(candidateListRoute.value)
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || 'SchvĂˇlenie zlyhalo'
+    error.value = fetchError?.response?.data?.message || 'Schválenie zlyhalo'
     toast.error(error.value)
   } finally {
     loading.value = false
@@ -151,10 +151,10 @@ async function reject() {
   if (!candidate.value) return
 
   const ok = await confirm({
-    title: 'ZamietnuĹĄ kandidĂˇta',
-    message: 'Naozaj chceĹˇ zamietnuĹĄ tohto kandidĂˇta?',
-    confirmText: 'ZamietnuĹĄ',
-    cancelText: 'ZruĹˇiĹĄ',
+    title: 'Zamietnuť kandidáta',
+    message: 'Naozaj chceš zamietnuť tohto kandidáta?',
+    confirmText: 'Zamietnuť',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
   if (!ok) return
@@ -163,7 +163,7 @@ async function reject() {
   error.value = null
   try {
     await eventCandidates.reject(candidate.value.id)
-    toast.success('KandidĂˇt bol zamietnutĂ˝.')
+    toast.success('Kandidát bol zamietnutý.')
     router.push(candidateListRoute.value)
   } catch (fetchError) {
     error.value = fetchError?.response?.data?.message || 'Zamietnutie zlyhalo'
@@ -190,11 +190,11 @@ async function retranslate() {
       || response?.candidate?.translation_fallback_used,
     )
 
-    retranslateMessage.value = fallbackUsed ? 'PouĹľitĂ˝ fallback' : 'DokonÄŤenĂ©'
-    toast.success('Preklad bol znovu spustenĂ˝.')
+    retranslateMessage.value = fallbackUsed ? 'Použitý fallback' : 'Dokončené'
+    toast.success('Preklad bol znovu spustený.')
     await load()
   } catch (fetchError) {
-    retranslateError.value = 'Nepodarilo sa preloĹľiĹĄ znova.'
+    retranslateError.value = 'Nepodarilo sa preložiť znova.'
     retranslateRawStatus.value = Number(fetchError?.response?.status || 0) || null
     error.value = fetchError?.response?.data?.message || 'Retranslate zlyhal'
     toast.error(retranslateError.value)
@@ -217,7 +217,7 @@ async function saveTranslationEdit() {
 
   const title = String(translationForm.value.translated_title || '').trim()
   if (!title) {
-    toast.error('PreloĹľenĂ˝ nĂˇzov je povinnĂ˝.')
+    toast.error('Preložený názov je povinný.')
     return
   }
 
@@ -228,11 +228,11 @@ async function saveTranslationEdit() {
       translated_title: title,
       translated_description: String(translationForm.value.translated_description || '').trim() || null,
     })
-    toast.success('Preklad bol uloĹľenĂ˝.')
+    toast.success('Preklad bol uložený.')
     showTranslationEditor.value = false
     await load()
   } catch (fetchError) {
-    error.value = fetchError?.response?.data?.message || 'UloĹľenie prekladu zlyhalo'
+    error.value = fetchError?.response?.data?.message || 'Uloženie prekladu zlyhalo'
     toast.error(error.value)
   } finally {
     loading.value = false
@@ -246,14 +246,14 @@ onMounted(load)
   <div class="candidateDetailView">
     <AdminSectionHeader
       section="events"
-      :title="`Detail kandidĂˇta #${id}`"
-      back-label="SpĂ¤ĹĄ na kandidĂˇtov"
+      :title="`Detail kandidáta #${id}`"
+      back-label="Späť na kandidátov"
       :back-to="candidateListRoute"
     />
 
     <header class="candidateDetailView__hero">
       <div class="candidateDetailView__heroMain">
-        <h1 class="candidateDetailView__title">KandidĂˇt #{{ id }}</h1>
+        <h1 class="candidateDetailView__title">Kandidát #{{ id }}</h1>
         <p v-if="candidate" class="candidateDetailView__subtitle">
           {{ candidateDisplayTitle(candidate) }}
         </p>
@@ -269,7 +269,7 @@ onMounted(load)
       {{ error }}
     </p>
     <p v-if="loading" class="candidateDetailView__alert candidateDetailView__alert--loading">
-      NaÄŤĂ­tavam...
+      Načítavam...
     </p>
 
     <div v-if="candidate && !loading" class="candidateDetailView__sections">
@@ -285,15 +285,15 @@ onMounted(load)
             <span class="detailValueMuted">(raw: {{ candidate.raw_type || '-' }})</span>
           </div>
 
-          <div class="detailLabel">SkrĂˇtenĂ˝ popis</div><div class="detailValue">{{ candidateDisplayShort(candidate) }}</div>
+          <div class="detailLabel">Skrátený popis</div><div class="detailValue">{{ candidateDisplayShort(candidate) }}</div>
 
-          <div class="detailLabel">KanonickĂ˝ kÄľĂşÄŤ</div>
+          <div class="detailLabel">Kanonický kľúč</div>
           <div class="detailValue detailValue--break">{{ candidate.canonical_key || '-' }}</div>
 
-          <div class="detailLabel">DĂ´veryhodnosĹĄ</div>
+          <div class="detailLabel">Dôveryhodnosť</div>
           <div class="detailValue">{{ formatConfidence(candidate.confidence_score) }}</div>
 
-          <div class="detailLabel">SpĂˇrovanĂ© zdroje</div>
+          <div class="detailLabel">Spárované zdroje</div>
           <div class="detailValue badgesRow">
             <span
               v-for="src in matchedSources"
@@ -306,8 +306,8 @@ onMounted(load)
             <span v-if="matchedSources.length === 0" class="detailValueMuted">-</span>
           </div>
 
-          <div class="detailLabel">VytvorenĂ©</div><div class="detailValue">{{ formatDate(candidate.created_at) }}</div>
-          <div class="detailLabel">AktualizovanĂ©</div><div class="detailValue">{{ formatDate(candidate.updated_at) }}</div>
+          <div class="detailLabel">Vytvorené</div><div class="detailValue">{{ formatDate(candidate.created_at) }}</div>
+          <div class="detailLabel">Aktualizované</div><div class="detailValue">{{ formatDate(candidate.updated_at) }}</div>
         </div>
       </section>
 
@@ -337,16 +337,16 @@ onMounted(load)
             </span>
           </div>
 
-          <div class="detailLabel">PoslednĂˇ chyba</div>
+          <div class="detailLabel">Posledná chyba</div>
           <div class="detailValue">{{ candidate.translation_error || '-' }}</div>
 
-          <div class="detailLabel">PreloĹľenĂ© o</div>
+          <div class="detailLabel">Preložené o</div>
           <div class="detailValue">{{ formatDate(candidate.translated_at) }}</div>
 
-          <div class="detailLabel">FinĂˇlny nĂˇzov (SK)</div>
+          <div class="detailLabel">Finálny názov (SK)</div>
           <div class="detailValue">{{ candidateDisplayTitle(candidate) }}</div>
 
-          <div class="detailLabel">FinĂˇlny popis (SK)</div>
+          <div class="detailLabel">Finálny popis (SK)</div>
           <div class="detailValue">{{ candidateDisplayDescription(candidate) }}</div>
         </div>
 
@@ -357,25 +357,25 @@ onMounted(load)
             :disabled="loading"
             @click="openTranslationEditor"
           >
-            UpraviĹĄ preklad
+            Upraviť preklad
           </button>
         </div>
 
         <div v-if="showTranslationEditor" class="editorCard">
-          <div class="editorCard__title">RuÄŤnĂˇ Ăşprava prekladu</div>
+          <div class="editorCard__title">Ručná úprava prekladu</div>
           <input
             v-model="translationForm.translated_title"
             type="text"
             class="input"
             :disabled="loading"
-            placeholder="PreloĹľenĂ˝ nĂˇzov"
+            placeholder="Preložený názov"
           />
           <textarea
             v-model="translationForm.translated_description"
             rows="5"
             class="input textarea"
             :disabled="loading"
-            placeholder="PreloĹľenĂ˝ popis"
+            placeholder="Preložený popis"
           ></textarea>
           <div class="editorCard__actions">
             <button
@@ -384,7 +384,7 @@ onMounted(load)
               :disabled="loading"
               @click="showTranslationEditor = false"
             >
-              ZruĹˇiĹĄ
+              Zrušiť
             </button>
             <button
               type="button"
@@ -392,14 +392,14 @@ onMounted(load)
               :disabled="loading"
               @click="saveTranslationEdit"
             >
-              UloĹľiĹĄ preklad
+              Uložiť preklad
             </button>
           </div>
         </div>
       </section>
 
       <section class="card">
-        <h3 class="card__title">ÄŚas</h3>
+        <h3 class="card__title">Čas</h3>
 
         <div class="detailGrid">
           <div class="timezoneInfo">
@@ -415,14 +415,14 @@ onMounted(load)
         <h3 class="card__title">Zdroj</h3>
 
         <div class="detailGrid">
-          <div class="detailLabel">NĂˇzov zdroja</div>
+          <div class="detailLabel">Názov zdroja</div>
           <div class="detailValue">
             <span class="chip" :class="sourceToneClass(candidate.source_name)">{{ sourceLabel(candidate.source_name) }}</span>
           </div>
 
           <div class="detailLabel">URL zdroja</div>
           <div class="detailValue">
-            <a class="sourceLink" :href="candidate.source_url" target="_blank" rel="noreferrer">otvoriĹĄ zdroj</a>
+            <a class="sourceLink" :href="candidate.source_url" target="_blank" rel="noreferrer">otvoriť zdroj</a>
           </div>
 
           <div class="detailLabel">UID zdroja</div><div class="detailValue detailValue--break">{{ candidate.source_uid }}</div>
@@ -430,7 +430,7 @@ onMounted(load)
       </section>
 
       <section class="card">
-        <h3 class="card__title">ModerĂˇcia</h3>
+        <h3 class="card__title">Moderácia</h3>
 
         <div class="actionsRow">
           <button
@@ -438,7 +438,7 @@ onMounted(load)
             @click="approve"
             :disabled="!canReview()"
           >
-            PublikovaĹĄ
+            Publikovať
           </button>
 
           <button
@@ -446,7 +446,7 @@ onMounted(load)
             @click="reject"
             :disabled="!canReview()"
           >
-            ZamietnuĹĄ
+            Zamietnuť
           </button>
         </div>
       </section>
@@ -459,7 +459,7 @@ onMounted(load)
             class="btn btn--ghost"
             @click="showRaw = !showRaw"
           >
-            {{ showRaw ? 'SkryĹĄ' : 'ZobraziĹĄ' }}
+            {{ showRaw ? 'Skryť' : 'Zobraziť' }}
           </button>
         </div>
 
