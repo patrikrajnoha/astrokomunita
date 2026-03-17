@@ -107,23 +107,25 @@
   justify-content: space-between;
   gap: 8px;
   min-height: 34px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  border: none;
   border-radius: 999px;
-  background: rgb(var(--color-surface-rgb) / 0.04);
-  color: rgb(var(--color-surface-rgb) / 0.94);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   padding: 0 12px;
   font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
 .quickPill:hover:not(:disabled) {
-  border-color: rgb(var(--color-primary-rgb) / 0.36);
+  background: var(--color-nav-hover);
+  color: var(--color-text-primary);
 }
 
 .quickPill--active {
-  border-color: rgb(var(--color-primary-rgb) / 0.42);
-  background: rgb(var(--color-primary-rgb) / 0.14);
+  background: rgb(var(--color-accent-rgb) / 0.2);
+  color: var(--color-accent);
 }
 
 .quickPill:disabled {
@@ -154,35 +156,33 @@
   min-height: 34px;
   border-radius: 9px;
   padding: 0 11px;
-  border: 1px solid transparent;
+  border: none;
   line-height: 1;
   font-size: 0.75rem;
   font-weight: 700;
   cursor: pointer;
+  transition: background-color 160ms ease, opacity 160ms ease;
 }
 
 .runBtn {
-  border-color: rgb(var(--color-primary-rgb) / 0.45);
-  background: rgb(var(--color-primary-rgb) / 0.18);
-  color: rgb(var(--color-surface-rgb) / 0.98);
+  background: var(--color-accent);
+  color: var(--color-white);
 }
 
 .ghostBtn {
-  border-color: rgb(var(--color-surface-rgb) / 0.2);
-  background: rgb(var(--color-surface-rgb) / 0.03);
-  color: rgb(var(--color-surface-rgb) / 0.94);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
 }
 
 .dangerBtn {
-  border-color: rgb(248 113 113 / 0.38);
-  background: rgb(248 113 113 / 0.14);
-  color: rgb(254 202 202);
+  background: var(--color-danger);
+  color: var(--color-white);
 }
 
 .runBtn:hover:not(:disabled),
 .ghostBtn:hover:not(:disabled),
 .dangerBtn:hover:not(:disabled) {
-  transform: translateY(-1px);
+  opacity: 0.88;
 }
 
 .runBtn:disabled,
@@ -296,12 +296,17 @@
   min-width: 30px;
   height: 30px;
   min-height: 30px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  border: none;
   border-radius: 999px;
-  background: rgb(var(--color-surface-rgb) / 0.04);
-  color: rgb(var(--color-surface-rgb) / 0.92);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   padding: 0;
   cursor: pointer;
+  transition: opacity 160ms ease;
+}
+
+.iconBtn:hover:not(:disabled) {
+  opacity: 0.8;
 }
 
 .iconBtn svg {

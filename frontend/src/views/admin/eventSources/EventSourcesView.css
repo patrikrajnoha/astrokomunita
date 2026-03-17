@@ -148,10 +148,7 @@
 }
 
 .field input,
-.field select,
-.ghostBtn,
-.primaryBtn,
-.btn-danger {
+.field select {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
   border-radius: 8px;
   padding: 3px 8px;
@@ -161,20 +158,43 @@
   min-height: 26px;
 }
 
+.ghostBtn,
+.primaryBtn,
+.btn-danger {
+  border: none;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 11px;
+  min-height: 26px;
+  cursor: pointer;
+  transition: opacity 160ms ease;
+}
+
 .primaryBtn {
-  border-color: rgb(var(--color-primary-rgb) / 0.26);
-  background: rgb(var(--color-primary-rgb) / 0.1);
+  background: var(--color-accent);
+  color: var(--color-white);
+}
+
+.ghostBtn {
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
 }
 
 .btn-danger {
-  border-color: rgb(220 38 38 / 0.26);
-  background: rgb(220 38 38 / 0.08);
+  background: var(--color-danger);
+  color: var(--color-white);
+}
+
+.ghostBtn:hover:not(:disabled),
+.primaryBtn:hover:not(:disabled),
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.85;
 }
 
 .ghostBtn:disabled,
 .primaryBtn:disabled,
 .btn-danger:disabled {
-  opacity: 0.58;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 

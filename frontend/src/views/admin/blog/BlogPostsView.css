@@ -21,33 +21,35 @@
 /* ── Shared buttons ─────────────────────────── */
 button {
   min-height: 34px;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: 8px;
-  background: rgb(var(--color-text-secondary-rgb) / 0.05);
-  color: inherit;
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   padding: 0 12px;
   cursor: pointer;
   font-size: 13px;
   line-height: 1;
+  transition: opacity 160ms ease;
 }
-button.ghost   { background: transparent; }
+button.ghost {
+  background: transparent;
+  color: var(--color-btn-secondary-text);
+}
 .btn-primary {
-  border-color: rgb(var(--color-primary-rgb) / 0.55);
-  background: rgb(var(--color-primary-rgb) / 0.18);
-  color: var(--color-primary);
+  background: var(--color-accent);
+  color: var(--color-white);
 }
 .btn-danger {
-  border-color: rgb(var(--color-danger-rgb) / 0.45);
-  background: rgb(var(--color-danger-rgb) / 0.12);
-  color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-white);
   width: 100%;
 }
-button:hover:not(:disabled) { border-color: var(--border-strong); }
+button:hover:not(:disabled) { opacity: 0.85; }
+button.ghost:hover:not(:disabled) { background: var(--color-nav-hover); opacity: 1; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 button.is-active {
-  border-color: rgb(var(--color-primary-rgb) / 0.4);
-  background: rgb(var(--color-primary-rgb) / 0.14);
-  color: var(--color-primary);
+  background: rgb(var(--color-accent-rgb) / 0.2);
+  color: var(--color-accent);
 }
 
 input:focus-visible,
@@ -71,8 +73,9 @@ button:focus-visible {
 }
 .blog-header__title h1 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.18;
 }
 .blog-header__actions {
   display: flex;
@@ -535,12 +538,14 @@ button:focus-visible {
   border-radius: 999px;
   padding: 0 9px;
   font-size: 11px;
-  border: 1px solid transparent;
+  border: none;
+  background: transparent;
+  color: var(--color-btn-secondary-text);
 }
 .mode-btn.is-active {
-  border-color: rgb(var(--color-primary-rgb) / 0.45);
-  background: rgb(var(--color-primary-rgb) / 0.15);
-  color: var(--color-primary);
+  background: rgb(var(--color-accent-rgb) / 0.2);
+  color: var(--color-accent);
+  opacity: 1;
 }
 .ai-tag-list { display: grid; gap: 6px; }
 .ai-tag-item {

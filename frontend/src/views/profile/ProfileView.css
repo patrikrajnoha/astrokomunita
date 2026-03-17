@@ -22,18 +22,16 @@
   width: var(--control-height-lg);
   height: var(--control-height-lg);
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border-default);
-  background: var(--bg-surface-2);
-  color: var(--text-primary);
+  border: none;
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   font-weight: 700;
-  transition: background-color var(--motion-fast), border-color var(--motion-fast), transform var(--motion-fast), box-shadow var(--motion-fast);
+  transition: background-color var(--motion-fast), color var(--motion-fast);
 }
 .iconBtn:hover {
-  border-color: rgb(var(--primary-rgb) / 0.4);
   background: var(--interactive-hover);
-  transform: translateY(-1px);
+  color: var(--color-text-primary);
 }
-.iconBtn:active { transform: translateY(1px); }
 .iconBtn:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -48,7 +46,7 @@
   border-radius: var(--radius-xl);
   overflow: hidden;
   margin-top: var(--space-3);
-  background: #151d28;
+  background: var(--color-card);
 }
 
 .cover {
@@ -127,22 +125,20 @@
 .mediaBtn {
   position: absolute;
   border-radius: 999px;
-  border: 1px solid var(--border-default);
-  background: var(--bg-surface-2);
-  color: var(--text-primary);
+  border: none;
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   font-weight: 700;
   padding: 0.35rem 0.6rem;
   font-size: var(--font-size-xs);
   opacity: 0;
-  transition: opacity var(--motion-fast), background-color var(--motion-fast), border-color var(--motion-fast), transform var(--motion-fast);
+  transition: opacity var(--motion-fast), background-color var(--motion-fast);
   z-index: 2;
 }
 .mediaBtn:hover {
-  border-color: rgb(var(--primary-rgb) / 0.38);
   background: var(--interactive-hover);
-  transform: translateY(-1px);
+  color: var(--color-text-primary);
 }
-.mediaBtn:active { transform: translateY(1px); }
 .mediaBtn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
@@ -314,8 +310,8 @@
 }
 
 .modeBtn.active {
-  background: rgb(var(--primary-rgb) / 0.18);
-  color: var(--text-primary);
+  background: rgb(var(--color-accent-rgb) / 0.2);
+  color: var(--color-accent);
 }
 
 .avatarPreviewWrap {
@@ -371,26 +367,22 @@
 }
 
 .avatarChoice {
-  border: 1px solid var(--border);
+  border: none;
   border-radius: 1rem;
   padding: 0.48rem 0.42rem;
   min-height: 84px;
-  background:
-    linear-gradient(180deg, rgb(var(--bg-surface-rgb) / 0.7), rgb(var(--bg-app-rgb) / 0.34));
+  background: var(--color-btn-secondary-bg);
   display: grid;
   justify-items: center;
   align-content: start;
   gap: 0.34rem;
-  color: var(--text-primary);
-  box-shadow: inset 0 1px 0 rgb(var(--text-primary-rgb) / 0.04);
-  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+  color: var(--color-btn-secondary-text);
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
 .avatarChoice:hover {
-  border-color: rgb(var(--primary-rgb) / 0.36);
-  background:
-    linear-gradient(180deg, rgb(var(--bg-surface-rgb) / 0.84), rgb(var(--primary-rgb) / 0.08));
-  transform: translateY(-1px);
+  background: var(--interactive-hover);
+  color: var(--color-text-primary);
 }
 
 .avatarChoice:focus-visible {
@@ -399,12 +391,8 @@
 }
 
 .avatarChoice.active {
-  border-color: rgb(var(--primary-rgb) / 0.8);
-  background:
-    linear-gradient(180deg, rgb(var(--primary-rgb) / 0.18), rgb(var(--primary-rgb) / 0.08));
-  box-shadow:
-    inset 0 0 0 1px rgb(var(--primary-rgb) / 0.26),
-    0 10px 24px rgb(var(--bg-app-rgb) / 0.18);
+  background: rgb(var(--color-accent-rgb) / 0.2);
+  color: var(--color-accent);
 }
 
 .choiceAvatar {

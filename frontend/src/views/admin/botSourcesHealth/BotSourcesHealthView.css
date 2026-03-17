@@ -88,23 +88,29 @@
 .actionBtn,
 .ghostBtn,
 .toggleBtn {
+  border: none;
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
+  transition: opacity 160ms ease;
 }
 
 .actionBtn {
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  color: var(--color-surface);
+  background: var(--color-accent);
+  color: var(--color-white);
 }
 
 .ghostBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
-  background: transparent;
-  color: rgb(var(--color-surface-rgb) / 0.95);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
+}
+
+.actionBtn:hover:not(:disabled),
+.ghostBtn:hover:not(:disabled),
+.toggleBtn:hover:not(:disabled) {
+  opacity: 0.88;
 }
 
 .editorCard {
@@ -199,9 +205,8 @@
 }
 
 .toggleBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
-  background: rgb(var(--color-bg-rgb) / 0.35);
-  color: var(--color-surface);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
 }
 
 .rowActions {
@@ -217,13 +222,19 @@
 
 .rowMenu > summary {
   list-style: none;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
+  border: none;
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
+  transition: opacity 160ms ease;
+}
+
+.rowMenu > summary:hover {
+  opacity: 0.85;
 }
 
 .rowMenu > summary::-webkit-details-marker {

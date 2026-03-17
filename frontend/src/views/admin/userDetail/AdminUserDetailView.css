@@ -655,54 +655,55 @@
 
 .btn {
   min-height: 34px;
-  border: 1px solid transparent;
+  border: none;
   border-radius: 10px;
   padding: 0 12px;
-  background: rgb(var(--color-primary-rgb) / 0.9);
-  color: rgb(var(--color-bg-rgb) / 1);
+  background: var(--color-accent);
+  color: var(--color-white);
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
-  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition: background-color 160ms ease, opacity 160ms ease;
 }
 
 .btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  background: rgb(var(--color-primary-rgb) / 1);
+  background: var(--accent-primary-hover);
 }
 
 .btn.subtle {
-  background: rgb(var(--color-surface-rgb) / 0.08);
-  color: inherit;
-  border-color: rgb(var(--color-surface-rgb) / 0.2);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
 }
 
-.btn.outline {
-  background: transparent;
-  color: inherit;
-  border-color: rgb(var(--color-surface-rgb) / 0.2);
+.btn.subtle:hover:not(:disabled) {
+  opacity: 0.85;
+  background: var(--color-btn-secondary-bg);
 }
 
+.btn.outline,
 .btn.ghost {
   background: transparent;
-  color: inherit;
-  border-color: rgb(var(--color-surface-rgb) / 0.16);
+  color: var(--color-btn-secondary-text);
+}
+
+.btn.outline:hover:not(:disabled),
+.btn.ghost:hover:not(:disabled) {
+  background: var(--interactive-hover);
+  color: var(--color-text-primary);
 }
 
 .btn.danger {
-  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.16);
-  color: rgb(var(--color-danger-rgb, 239 68 68));
-  border-color: rgb(var(--color-danger-rgb, 239 68 68) / 0.42);
+  background: var(--color-danger);
+  color: var(--color-white);
 }
 
 .btn.danger:hover:not(:disabled) {
-  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.24);
+  background: var(--color-danger-hover);
 }
 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  transform: none;
 }
 
 @media (max-width: 980px) {

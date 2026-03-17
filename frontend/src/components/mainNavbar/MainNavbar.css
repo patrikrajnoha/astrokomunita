@@ -49,9 +49,8 @@
 }
 
 .navItem:hover {
-  background: var(--interactive-hover);
+  background: var(--color-nav-hover);
   color: var(--color-text-primary);
-  transform: translateY(-1px);
 }
 
 .navItem.active {
@@ -129,28 +128,24 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border: 1px solid rgb(var(--color-accent-rgb) / 0.45);
+  border: none;
   border-radius: var(--radius-pill);
-  background: rgb(var(--color-accent-rgb) / 0.9);
+  background: var(--color-accent);
   color: var(--color-white);
-  padding: 8px 14px;
+  padding: 8px 16px;
   font-size: var(--font-size-md);
   font-weight: 600;
   transition:
-    border-color var(--motion-fast),
     background-color var(--motion-fast),
-    color var(--motion-fast),
-    transform 120ms ease;
+    opacity var(--motion-fast);
 }
 
 .createTrigger:hover {
-  border-color: rgb(var(--color-accent-rgb) / 0.55);
-  background: var(--color-primary-hover);
-  transform: translateY(-1px);
+  background: var(--accent-primary-hover);
 }
 
 .createTrigger:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 .createTrigger:focus-visible {
@@ -174,22 +169,21 @@
 
 .createPickerItem {
   width: 100%;
-  border: 1px solid var(--color-border);
+  border: none;
   border-radius: var(--radius-pill);
-  background: rgb(var(--bg-app-rgb) / 0.46);
-  color: var(--color-text-primary);
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   min-height: var(--control-height-md);
   font-size: 14px;
   font-weight: 500;
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  padding: 0.45rem 0.6rem;
+  padding: 0.45rem 0.8rem;
   text-align: left;
   transition:
-    border-color var(--motion-fast),
     background-color var(--motion-fast),
-    transform 120ms ease;
+    color var(--motion-fast);
 }
 
 .createPickerItem + .createPickerItem {
@@ -197,9 +191,8 @@
 }
 
 .createPickerItem:hover {
-  border-color: rgb(var(--color-accent-rgb) / 0.55);
-  background: rgb(var(--color-accent-rgb) / 0.14);
-  transform: translateY(-1px);
+  background: rgb(var(--color-accent-rgb) / 0.2);
+  color: var(--color-white);
 }
 
 .createPickerItem:focus-visible {
@@ -236,16 +229,25 @@
   text-align: center;
 }
 
+.guestAuthActions__btn {
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
+  border: none;
+  border-radius: 999px;
+}
+
+.guestAuthActions__btn:hover:not(:disabled):not([aria-disabled='true']) {
+  opacity: 0.88;
+}
+
 .guestAuthActions__btn--register {
-  background: #1699f4;
-  border-color: #4fb2f7;
-  color: #04233a;
+  background: var(--color-accent);
+  color: var(--color-white);
 }
 
 .guestAuthActions__btn--register:hover:not(:disabled):not([aria-disabled='true']) {
-  background: #108be4;
-  border-color: #66bdfa;
-  color: #031c2f;
+  background: var(--accent-primary-hover);
+  opacity: 1;
 }
 
 @keyframes badge-bounce {
