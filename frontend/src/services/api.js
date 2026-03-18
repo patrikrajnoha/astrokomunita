@@ -21,6 +21,27 @@ const api = axios.create({
   },
 })
 
+// Separate client for CSRF cookie — must hit the root (not /api)
+const csrfClient = axios.create({
+  baseURL: normalizedApiBaseUrl || '',
+  withCredentials: true,
+  withXSRFToken: true,
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
+})
+
+async function refreshCsrf() {
+  await csrfClient.get('/sanctum/csrf-cookie')
+  // Edge / Windows: axios doesn't always pick up the updated cookie automatically
+  if (typeof document !== 'undefined') {
+    const row = document.cookie.split('; ').find((r) => r.startsWith('XSRF-TOKEN='))
+    const xsrf = row ? decodeURIComponent(row.split('=')[1]) : null
+    if (xsrf) {
+      api.defaults.headers.common['X-XSRF-TOKEN'] = xsrf
+    }
+  }
+}
+
 const authProbeClient = axios.create({
   baseURL: apiBaseUrl,
   timeout: 6000,
@@ -262,6 +283,16 @@ api.interceptors.response.use(
     }
 
     logDevAuthDiagnostic(error, status)
+
+    // Auto-refresh CSRF and retry once on 419 before showing any error
+    if (status === 419 && !error?.config?._csrfRetried) {
+      try {
+        await refreshCsrf()
+        return api({ ...error.config, _csrfRetried: true })
+      } catch {
+        // refresh failed — fall through to toast
+      }
+    }
 
     if (!suppressToast) {
       if (status === 422) {
