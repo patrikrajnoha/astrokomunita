@@ -93,7 +93,7 @@ class SkySpaceWeatherService
         if ($aurora === null) {
             return $this->auroraBasePayload(false) + [
                 'watch_score' => null,
-                'watch_label' => 'Bez dat',
+                'watch_label' => 'Bez dát',
                 'corridor_peak_score' => null,
                 'nearest_score' => null,
                 'forecast_for' => null,
@@ -348,28 +348,28 @@ class SkySpaceWeatherService
         }
 
         if ($kpValue < 6.0) {
-            return 'Mensia burka';
+            return 'Menšia búrka';
         }
 
         if ($kpValue < 7.0) {
-            return 'Stredna burka';
+            return 'Stredná búrka';
         }
 
         if ($kpValue < 8.0) {
-            return 'Silna burka';
+            return 'Silná búrka';
         }
 
         if ($kpValue < 9.0) {
-            return 'Velmi silna burka';
+            return 'Veľmi silná búrka';
         }
 
-        return 'Extremna burka';
+        return 'Extrémna búrka';
     }
 
     private function noaaScale(?float $kpValue): string
     {
         if ($kpValue === null) {
-            return 'Bez dat';
+            return 'Bez dát';
         }
 
         if ($kpValue < 5.0) {
@@ -398,18 +398,18 @@ class SkySpaceWeatherService
     private function auroraWatchLabel(int $score): string
     {
         if ($score >= 70) {
-            return 'Vysoka sanca';
+            return 'Vysoká šanca';
         }
 
         if ($score >= 40) {
-            return 'Zvysena sanca';
+            return 'Zvýšená šanca';
         }
 
         if ($score >= 15) {
-            return 'Slaba sanca';
+            return 'Slabá šanca';
         }
 
-        return 'Velmi nizka sanca';
+        return 'Veľmi nízka šanca';
     }
 
     private function timeoutSeconds(): int

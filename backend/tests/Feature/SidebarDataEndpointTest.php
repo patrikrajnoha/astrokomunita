@@ -216,7 +216,7 @@ XML;
             now()->addMinutes(5)
         );
         Cache::put(
-            'sky_visible_planets:48.148600:17.107700:Europe/Bratislava:2026-03-15',
+            'sky_visible_planets:48.148600:17.107700:Europe/Bratislava:' . $nowLocal->format('Y-m-d'),
             [
                 'planets' => [
                     [

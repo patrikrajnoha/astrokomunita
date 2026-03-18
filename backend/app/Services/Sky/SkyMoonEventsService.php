@@ -161,11 +161,15 @@ class SkyMoonEventsService
         $events = [];
 
         foreach ([$year - 1, $year, $year + 1] as $candidateYear) {
-            $payload = $this->http->getJson(
-                'usno_moon_phases',
-                $this->resolveMoonPhasesYearEndpointUrl(),
-                ['year' => $candidateYear]
-            );
+            try {
+                $payload = $this->http->getJson(
+                    'usno_moon_phases',
+                    $this->resolveMoonPhasesYearEndpointUrl(),
+                    ['year' => $candidateYear]
+                );
+            } catch (\Throwable) {
+                continue;
+            }
 
             $rows = data_get($payload, 'phasedata');
             if (!is_array($rows)) {
