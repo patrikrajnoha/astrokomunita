@@ -186,15 +186,12 @@
 
                   <td data-label="Stav" class="col-status">
                     <div class="statusCell">
-                      <span class="badge statusBadge" :class="statusClass(row)">
-                        {{ statusLabel(row) }}
-                      </span>
                       <span
-                        v-if="row.is_banned && row.ban_reason"
-                        class="banReasonPreview"
-                        :title="row.ban_reason"
+                        class="badge statusBadge"
+                        :class="statusClass(row)"
+                        :title="row.is_banned && row.ban_reason ? row.ban_reason : undefined"
                       >
-                        {{ banReasonPreview(row) }}
+                        {{ statusLabel(row) }}
                       </span>
                     </div>
                   </td>

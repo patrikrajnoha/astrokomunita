@@ -1,22 +1,22 @@
   <AdminPageShell
-    title="Detail pouzivatela"
+    title="Detail používateľa"
     :subtitle="profileIdentifier"
   >
     <AdminSectionHeader
       section="community"
-      title="Detail pouzivatela"
-      back-label="Spat na pouzivatelov"
+      title="Detail používateľa"
+      back-label="Späť na používateľov"
       :back-to="usersListRoute"
     />
 
     <div v-if="userError" class="adminAlert">{{ userError }}</div>
-    <div v-if="!user && userLoading" class="sectionCard loadingCard">Nacitavam detail pouzivatela...</div>
+    <div v-if="!user && userLoading" class="sectionCard loadingCard">Načítavam detail používateľa...</div>
 
     <template v-else-if="user">
       <section class="identityHeader sectionCard">
         <div class="identityMain">
           <div class="avatar identityAvatar">
-            <UserAvatar class="avatarImg" :user="user" :alt="`${user?.name || 'Pouzivatel'} avatar`" />
+            <UserAvatar class="avatarImg" :user="user" :alt="`${user?.name || 'Používateľ'} avatar`" />
           </div>
           <div class="identityText">
             <h2 class="identityName">{{ user?.name || 'Pouzivatel' }}</h2>
@@ -33,7 +33,7 @@
             :to="{ name: 'user-profile', params: { username: user.username } }"
             class="btn subtle"
           >
-            Zobrazit verejny profil
+            Zobraziť verejný profil
           </RouterLink>
         </div>
       </section>
@@ -42,7 +42,7 @@
         <section class="sectionCard profileSection">
           <header class="sectionHeader">
             <h3>Profil</h3>
-            <p class="sectionSubline">Editovatelne polia pouzivatelskeho profilu.</p>
+            <p class="sectionSubline">Editovateľné polia používateľského profilu.</p>
           </header>
 
           <div v-if="canEditProfile" class="formGrid">
@@ -71,21 +71,21 @@
                 :disabled="userLoading"
                 @click="saveProfile"
               >
-                Ulozit zmeny
+                Uložiť zmeny
               </button>
             </div>
           </div>
 
           <div v-else class="readonlyHint">
-            Tento profil nie je mozne upravovat cez admin UI.
+            Tento profil nie je možné upravovať cez admin UI.
           </div>
 
           <div v-if="isBotTarget" class="botMediaGrid">
             <section class="botMediaCard profileCardLike">
               <div class="avatarCardHead">
                 <div>
-                  <h4 class="avatarCardTitle">Profilovy avatar</h4>
-                  <p class="avatarCardSub">Fotka alebo generovany avatar.</p>
+                  <h4 class="avatarCardTitle">Profilový avatar</h4>
+                  <p class="avatarCardSub">Fotka alebo generovaný avatar.</p>
                 </div>
                 <button
                   v-if="canUploadBotMedia"
@@ -95,7 +95,7 @@
                   :disabled="mediaActionBusy"
                   @click="openAvatarEditor"
                 >
-                  Upravit
+                  Upraviť
                 </button>
               </div>
 
@@ -109,8 +109,8 @@
                   />
                 </div>
                 <div class="avatarCardInfo">
-                  <div class="avatarModePill">{{ persistedAvatarMode === 'generated' ? 'Rezim Avatar' : 'Rezim Fotka' }}</div>
-                  <p class="avatarHint avatarCardHint">Bez fotky sa pouzije fallback avatar.</p>
+                  <div class="avatarModePill">{{ persistedAvatarMode === 'generated' ? 'Režim Avatar' : 'Režim Fotka' }}</div>
+                  <p class="avatarHint avatarCardHint">Bez fotky sa použije fallback avatar.</p>
                 </div>
               </div>
 
@@ -121,8 +121,8 @@
             <section class="botMediaCard profileCardLike">
               <div class="avatarCardHead">
                 <div>
-                  <h4 class="avatarCardTitle">Titulna fotka</h4>
-                  <p class="avatarCardSub">Nahraj alebo odstran titulnu fotku bota.</p>
+                  <h4 class="avatarCardTitle">Titulná fotka</h4>
+                  <p class="avatarCardSub">Nahraj alebo odstráň titulnú fotku bota.</p>
                 </div>
                 <button
                   v-if="canUploadBotMedia"
@@ -132,7 +132,7 @@
                   :disabled="mediaActionBusy"
                   @click="openCoverEditor"
                 >
-                  Upravit
+                  Upraviť
                 </button>
               </div>
 
@@ -153,7 +153,7 @@
         <aside class="sidePanel">
           <details class="sectionCard sideCard" open>
             <summary class="sideSummary">
-              <span>Informacie o ucte</span>
+              <span>Informácie o účte</span>
               <small>{{ statusText }}</small>
             </summary>
             <div class="sideBody">
@@ -168,20 +168,20 @@
 
           <details class="sectionCard sideCard">
             <summary class="sideSummary">
-              <span>Opravnenia a roly</span>
+              <span>Oprávnenia a roly</span>
               <small>{{ roleText }}</small>
             </summary>
             <div class="sideBody">
-              <p class="sectionSubline">Aktualna rola a moznost spravy roly editor.</p>
+              <p class="sectionSubline">Aktuálna rola a možnosť správy roly editor.</p>
               <div class="accountInfoItem">
-                <dt>Aktualna rola</dt>
+                <dt>Aktuálna rola</dt>
                 <dd>
                   <span class="statusBadge roleBadge" :class="roleClass(user)">{{ roleText }}</span>
                 </dd>
               </div>
               <div class="accountInfoItem">
                 <dt>Stav editor</dt>
-                <dd>{{ roleText === 'editor' ? 'Pouzivatel je editor' : 'Pouzivatel nie je editor' }}</dd>
+                <dd>{{ roleText === 'editor' ? 'Používateľ je editor' : 'Používateľ nie je editor' }}</dd>
               </div>
               <div v-if="canToggleEditorRole" class="actionStack">
                 <button
@@ -190,7 +190,7 @@
                   :disabled="userLoading"
                   @click="updateEditorRole('editor')"
                 >
-                  Pridat rolu editor
+                  Pridať rolu editor
                 </button>
                 <button
                   v-else
@@ -198,7 +198,7 @@
                   :disabled="userLoading"
                   @click="updateEditorRole('user')"
                 >
-                  Odobrat rolu editor
+                  Odobrať rolu editor
                 </button>
               </div>
             </div>
@@ -206,11 +206,11 @@
 
           <details class="sectionCard sideCard moderationCard" open>
             <summary class="sideSummary">
-              <span>Moderacia</span>
-              <small>{{ user?.is_banned ? 'Blokovany' : 'Bez blokacie' }}</small>
+              <span>Moderácia</span>
+              <small>{{ user?.is_banned ? 'Blokovaný' : 'Bez blokácie' }}</small>
             </summary>
             <div class="sideBody">
-              <p class="sectionSubline">Reverzibilne akcie pre stav uctu.</p>
+              <p class="sectionSubline">Reverzibilné akcie pre stav účtu.</p>
               <div v-if="canModerateAccount" class="actionStack">
                 <button
                   v-if="!user?.is_banned"
@@ -218,7 +218,7 @@
                   :disabled="userLoading"
                   @click="banUser"
                 >
-                  Zablokovat ucet
+                  Zablokovať účet
                 </button>
                 <button
                   v-else
@@ -226,7 +226,7 @@
                   :disabled="userLoading"
                   @click="unbanUser"
                 >
-                  Odblokovat ucet
+                  Odblokovať účet
                 </button>
 
                 <button
@@ -234,17 +234,17 @@
                   :disabled="userLoading || !user?.is_active"
                   @click="deactivateUser"
                 >
-                  Deaktivovat ucet
+                  Deaktivovať účet
                 </button>
                 <button
                   class="btn subtle"
                   :disabled="userLoading || user?.is_active"
                   @click="reactivateUser"
                 >
-                  Reaktivovat ucet
+                  Reaktivovať účet
                 </button>
               </div>
-              <p v-else class="readonlyHint">Pre tento ucet nie su moderacne write akcie povolene.</p>
+              <p v-else class="readonlyHint">Pre tento účet nie sú moderačné write akcie povolené.</p>
             </div>
           </details>
 
@@ -254,12 +254,12 @@
             data-testid="danger-zone"
           >
             <summary class="sideSummary">
-              <span>Danger zone</span>
-              <small>Nevratne akcie</small>
+              <span>Nebezpečná zóna</span>
+              <small>Nevratné akcie</small>
             </summary>
             <div class="sideBody">
-              <p class="sectionSubline">Nevratne operacie nad profilom.</p>
-              <button class="btn danger" :disabled="userLoading" @click="resetProfile">Resetovat profil</button>
+              <p class="sectionSubline">Nevratné operácie nad profilom.</p>
+              <button class="btn danger" :disabled="userLoading" @click="resetProfile">Resetovať profil</button>
             </div>
           </details>
         </aside>
@@ -268,16 +268,16 @@
       <BaseModal
         v-if="isBotTarget"
         v-model:open="avatarModalOpen"
-        title="Upravit profilovy avatar"
+        title="Upraviť profilový avatar"
         test-id="admin-bot-avatar-modal"
         close-test-id="admin-bot-avatar-modal-close"
       >
         <template #description>
-          <p class="avatarCardSub avatarModalSub">Vyber si fotku alebo personalizovany avatar.</p>
+          <p class="avatarCardSub avatarModalSub">Vyber si fotku alebo personalizovaný avatar.</p>
         </template>
 
         <div class="avatarEditorBody">
-          <div class="avatarModeSwitch" role="tablist" aria-label="Rezim profiloveho avatara">
+          <div class="avatarModeSwitch" role="tablist" aria-label="Režim profilového avatara">
             <button
               type="button"
               class="modeBtn"
@@ -313,7 +313,7 @@
                 :alt="`${user?.name || 'Bot'} avatar`"
               />
             </div>
-            <p class="avatarHint">Pri mode Fotka bez obrazka ostava fallback avatar.</p>
+            <p class="avatarHint">Pri móde Fotka bez obrázka ostáva fallback avatar.</p>
           </div>
 
           <div v-if="avatarErr" class="msg err avatarMsg">{{ avatarErr }}</div>
@@ -327,7 +327,7 @@
                 :disabled="mediaActionBusy"
                 @click="openBotMediaPicker('avatar')"
               >
-                {{ avatarUploading ? 'Nahravam...' : 'Nahrat fotku' }}
+                {{ avatarUploading ? 'Nahrávam...' : 'Nahrať fotku' }}
               </button>
               <button
                 type="button"
@@ -336,7 +336,7 @@
                 :disabled="mediaActionBusy"
                 @click="markAvatarImageForRemoval"
               >
-                {{ avatarRemoving ? 'Odstranujem...' : 'Odstranit fotku' }}
+                {{ avatarRemoving ? 'Odstraňujem...' : 'Odstrániť fotku' }}
               </button>
               <input
                 ref="avatarInput"
@@ -348,7 +348,7 @@
                 @change="onBotMediaChange('avatar', $event)"
               />
             </div>
-            <p class="avatarHint">Odporucana velkost: aspon 512x512 px, JPG/PNG/WebP, max 3 MB.</p>
+            <p class="avatarHint">Odporúčaná veľkosť: aspoň 512×512 px, JPG/PNG/WebP, max 3 MB.</p>
           </template>
 
           <template v-else>
@@ -396,7 +396,7 @@
 
             <div class="avatarActionRow">
               <button type="button" class="btn outline" :disabled="mediaActionBusy" @click="randomizeAvatar">
-                Nahodne
+                Náhodne
               </button>
               <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="resetGeneratedAvatar">
                 Reset
@@ -406,7 +406,7 @@
 
           <div class="avatarActionRow avatarActionRowSave">
             <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="closeAvatarEditor">
-              Zavriet
+              Zavrieť
             </button>
             <button
               type="button"
@@ -415,7 +415,7 @@
               :disabled="mediaActionBusy"
               @click="saveAvatarPreferences"
             >
-              {{ avatarSaving ? 'Ukladam...' : 'Ulozit' }}
+              {{ avatarSaving ? 'Ukladám...' : 'Uložiť' }}
             </button>
           </div>
         </div>
@@ -424,12 +424,12 @@
       <BaseModal
         v-if="isBotTarget"
         v-model:open="coverModalOpen"
-        title="Upravit titulnu fotku"
+        title="Upraviť titulnú fotku"
         test-id="admin-bot-cover-modal"
         close-test-id="admin-bot-cover-modal-close"
       >
         <template #description>
-          <p class="avatarCardSub avatarModalSub">Zmen titulnu fotku alebo pouzi fallback pozadie.</p>
+          <p class="avatarCardSub avatarModalSub">Zmeň titulnú fotku alebo použi fallback pozadie.</p>
         </template>
 
         <div class="coverEditorBody">
@@ -450,7 +450,7 @@
               :disabled="mediaActionBusy"
               @click="openBotMediaPicker('cover')"
             >
-              {{ coverUploading ? 'Nahravam...' : 'Nahrat fotku' }}
+              {{ coverUploading ? 'Nahrávam...' : 'Nahrať fotku' }}
             </button>
             <button
               type="button"
@@ -459,7 +459,7 @@
               :disabled="mediaActionBusy"
               @click="markCoverForRemoval"
             >
-              {{ coverRemoving ? 'Odstranujem...' : 'Odstranit fotku' }}
+              {{ coverRemoving ? 'Odstraňujem...' : 'Odstrániť fotku' }}
             </button>
             <input
               ref="coverInput"
@@ -476,7 +476,7 @@
 
           <div class="avatarActionRow avatarActionRowSave">
             <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="closeCoverEditor">
-              Zavriet
+              Zavrieť
             </button>
             <button
               type="button"
@@ -485,7 +485,7 @@
               :disabled="mediaActionBusy"
               @click="saveCoverEditor"
             >
-              {{ coverSaving ? 'Ukladam...' : 'Ulozit' }}
+              {{ coverSaving ? 'Ukladám...' : 'Uložiť' }}
             </button>
           </div>
         </div>
@@ -494,7 +494,7 @@
       <section class="sectionCard reportsSection">
         <header class="sectionHeader">
           <h3>Reporty</h3>
-          <p class="sectionSubline">Nahlasenia spojene s obsahom tohto pouzivatela.</p>
+          <p class="sectionSubline">Nahlásenia spojené s obsahom tohto používateľa.</p>
         </header>
         <div v-if="reportsError" class="adminAlert">{{ reportsError }}</div>
 
@@ -506,14 +506,14 @@
           <div class="reportsFiltersBody">
             <AdminToolbar :loading="reportsLoading">
               <template #search>
-                <label class="fieldLabel" for="user-reports-search">Hladat</label>
+                <label class="fieldLabel" for="user-reports-search">Hľadať</label>
                 <input
                   id="user-reports-search"
                   v-model="reportsSearchInput"
                   type="search"
                   class="fieldInput"
                   :disabled="reportsLoading"
-                  placeholder="Hladat reporty..."
+                  placeholder="Hľadať reporty..."
                 />
               </template>
 
@@ -553,9 +553,9 @@
               </template>
 
               <template #actions>
-                <button type="button" class="btn subtle" :disabled="reportsLoading" @click="loadReports">Obnovit</button>
+                <button type="button" class="btn subtle" :disabled="reportsLoading" @click="loadReports">Obnoviť</button>
                 <button type="button" class="btn subtle" :disabled="reportsLoading" @click="clearReportFilters">
-                  Vycistit filtre
+                  Vyčistiť filtre
                 </button>
               </template>
             </AdminToolbar>
@@ -566,8 +566,8 @@
           :columns="reportColumns"
           :rows="reportRows"
           :loading="reportsLoading"
-          empty-title="Ziadne reporty pre tohto pouzivatela"
-          empty-description="Aktualnym filtrom nezodpoveda ziaden report."
+          empty-title="Žiadne reporty pre tohto používateľa"
+          empty-description="Aktuálnym filtrom nezodpovedá žiadny report."
         >
           <template #[`cell(type)`]="{ row }">
             <span class="statusBadge">{{ reportType(row) }}</span>
@@ -588,11 +588,11 @@
                 :to="{ name: 'post-detail', params: { id: row.target.id } }"
                 class="btn subtle"
               >
-                Zobrazit
+                Zobraziť
               </RouterLink>
-              <button class="btn subtle" :disabled="reportsLoading" @click="reportAction(row, 'hide')">Vyriesit</button>
+              <button class="btn subtle" :disabled="reportsLoading" @click="reportAction(row, 'hide')">Vyriešiť</button>
               <button class="btn subtle" :disabled="reportsLoading" @click="reportAction(row, 'dismiss')">
-                Zamietnut
+                Zamietnuť
               </button>
             </div>
           </template>

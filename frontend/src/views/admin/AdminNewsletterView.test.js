@@ -77,7 +77,7 @@ describe('AdminNewsletterView', () => {
     expect(getNewsletterPreviewMock).toHaveBeenCalledTimes(1)
     expect(getNewsletterRunsMock).toHaveBeenCalledTimes(1)
     expect(getEventsMock).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('Manualny workflow')
+    expect(wrapper.text()).toContain('Manualne odoslanie')
     expect(wrapper.text()).toContain('Lunar eclipse')
     expect(wrapper.text()).toContain('Sky guide')
     expect(wrapper.findAll('.aiPanel')).toHaveLength(0)
@@ -89,11 +89,11 @@ describe('AdminNewsletterView', () => {
     await flush()
 
     expect(wrapper.get('input[type="email"]').exists()).toBe(true)
-    expect(wrapper.get('input.copyInput').element.value).toBe('Nebesky sprievodca: Tyzdenny newsletter')
+    expect(wrapper.get('input.copyInput').element.value).toBe('Nebeský sprievodca: Týždenný newsletter')
 
     const textareas = wrapper.findAll('textarea.copyTextarea')
     expect(textareas).toHaveLength(2)
-    expect(textareas[0].element.value).toBe('Prehlad na tyzden 2026-02-23 az 2026-03-01.')
+    expect(textareas[0].element.value).toBe('Prehľad na týždeň 2026-02-23 až 2026-03-01.')
     expect(textareas[1].element.value).toBe('Use darker skies.')
   })
 
@@ -114,8 +114,8 @@ describe('AdminNewsletterView', () => {
 
     expect(sendNewsletterPreviewMock).toHaveBeenCalledWith({
       email: 'preview@example.com',
-      subject_override: 'Nebesky sprievodca: Tyzdenny newsletter',
-      intro_override: 'Prehlad na tyzden 2026-02-23 az 2026-03-01.',
+      subject_override: 'Nebeský sprievodca: Týždenný newsletter',
+      intro_override: 'Prehľad na týždeň 2026-02-23 až 2026-03-01.',
       tip_override: 'Use darker skies.',
     })
   })

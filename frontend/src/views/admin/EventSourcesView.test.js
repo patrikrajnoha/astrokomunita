@@ -197,7 +197,7 @@ describe('EventSourcesView', () => {
     expect(wrapper.text()).toContain('Kvalita prekladov')
     expect(wrapper.text()).toContain('Podozriv')
     expect(wrapper.text()).toContain('Probl')
-    expect(wrapper.text()).toContain('D 2')
+    expect(wrapper.text()).toContain('✓ 2')
     expect(wrapper.text()).toContain('Forma: title+popis')
   })
 
@@ -241,7 +241,7 @@ describe('EventSourcesView', () => {
 
     expect(wrapper.find('[data-testid="source-row-imo"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="source-row-nasa"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Zobrazene: 1 / 2')
+    expect(wrapper.text()).toContain('Zobrazené: 1 / 2')
   })
 
   it('filters sources table to selected rows only', async () => {
@@ -258,7 +258,7 @@ describe('EventSourcesView', () => {
 
     expect(wrapper.find('[data-testid="source-row-imo"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="source-row-nasa"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Zobrazene: 1 / 2')
+    expect(wrapper.text()).toContain('Zobrazené: 1 / 2')
   })
 
   it('clears selected sources from toolbar action', async () => {
@@ -317,7 +317,7 @@ describe('EventSourcesView', () => {
 
     const confirmButton = queryBody('[data-testid="confirm-modal-confirm"]')
     expect(confirmButton).not.toBeNull()
-    expect(confirmButton.textContent).toContain('Vymazat')
+    expect(confirmButton.textContent).toContain('Vymazať')
     expect(confirmButton.disabled).toBe(false)
     confirmButton.click()
     await flush()
