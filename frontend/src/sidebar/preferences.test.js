@@ -2,22 +2,22 @@ import { describe, expect, it, vi } from 'vitest'
 import { resolvePreferredSidebarWidgetKeys } from '@/sidebar/preferences'
 
 describe('resolvePreferredSidebarWidgetKeys', () => {
-  it('uses home defaults for guests on the homepage', () => {
+  it('returns null for guests so admin-configured widgets are shown', () => {
     expect(resolvePreferredSidebarWidgetKeys({
       isAuthed: false,
       preferences: null,
       scope: 'home',
-    })).toEqual(['next_event', 'nasa_apod', 'search'])
+    })).toBeNull()
   })
 
-  it('uses home defaults while signed-in preferences are not loaded yet', () => {
+  it('returns null while signed-in preferences are not loaded yet', () => {
     expect(resolvePreferredSidebarWidgetKeys({
       isAuthed: true,
       preferences: {
         loaded: false,
       },
       scope: 'home',
-    })).toEqual(['next_event', 'nasa_apod', 'search'])
+    })).toBeNull()
   })
 
   it('preserves an explicit empty override when preferences are loaded', () => {

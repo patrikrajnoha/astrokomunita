@@ -72,6 +72,7 @@ async function fetchMoonWidget<T>(endpoint: string, query: MoonPhasesWidgetQuery
 export type UpcomingEventWidgetItem = {
   id: number
   title: string
+  type: string | null
   slug: string | null
   start_at: string | null
 }

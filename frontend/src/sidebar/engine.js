@@ -15,9 +15,6 @@ export const OBSERVING_SECTION_KEYS = Object.freeze([
   'aurora_watch',
   'night_sky',
   'iss_pass',
-  'moon_phases',
-  'moon_overview',
-  'moon_events',
 ])
 export const GUEST_OBSERVING_PROMPT_SECTION_KEY = 'guest_observing_prompt'
 

@@ -1,11 +1,5 @@
 import { DEFAULT_SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
 
-export const DEFAULT_HOME_PREFERRED_SECTION_KEYS = Object.freeze([
-  'next_event',
-  'nasa_apod',
-  'search',
-])
-
 export const resolvePreferredSidebarWidgetKeys = ({
   isAuthed = false,
   preferences = null,
@@ -36,9 +30,6 @@ export const resolvePreferredSidebarWidgetKeys = ({
     }
   }
 
-  if (normalizedScope === DEFAULT_SIDEBAR_SCOPE) {
-    return [...DEFAULT_HOME_PREFERRED_SECTION_KEYS]
-  }
-
+  // No user preference — let the admin-configured enabled widgets decide
   return null
 }
