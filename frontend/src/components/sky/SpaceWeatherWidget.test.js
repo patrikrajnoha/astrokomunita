@@ -27,18 +27,18 @@ describe('SpaceWeatherWidget', () => {
     vi.useRealTimers()
   })
 
-  it('loads NOAA SWPC payload and renders kp plus aurora summary', async () => {
+  it('loads NOAA SWPC payload and renders verdict plus compact summary', async () => {
     getMock.mockResolvedValue({
       data: {
         available: true,
         kp_index: 6,
         estimated_kp: 6.33,
-        geomagnetic_level: 'Stredna burka',
+        geomagnetic_level: 'Stredná búrka',
         noaa_scale: 'G2',
         updated_at: '2026-03-14T21:52:00Z',
         aurora: {
           watch_score: 72,
-          watch_label: 'Vysoka sanca',
+          watch_label: 'Vysoká šanca',
           forecast_for: '2026-03-14T21:52:00Z',
         },
       },
@@ -64,10 +64,9 @@ describe('SpaceWeatherWidget', () => {
       meta: { skipErrorToast: true },
     })
     expect(wrapper.text()).toContain('Vesmírne počasie')
-    expect(wrapper.text()).toContain('6.0')
-    expect(wrapper.text()).toContain('G2')
-    expect(wrapper.text()).toContain('Vysoka sanca')
-    expect(wrapper.text()).toContain('Zdroj: NOAA SWPC')
+    expect(wrapper.text()).toContain('Stredná búrka')
+    expect(wrapper.text()).toContain('Kp 6')
+    expect(wrapper.text()).not.toContain('šanca')
   })
 
   it('uses bundled payload and skips the standalone request', async () => {
@@ -80,7 +79,7 @@ describe('SpaceWeatherWidget', () => {
           available: true,
           kp_index: 5,
           estimated_kp: 5.33,
-          geomagnetic_level: 'Mensia burka',
+          geomagnetic_level: 'Menšia búrka',
           noaa_scale: 'G1',
           updated_at: '2026-03-14T21:52:00Z',
           aurora: {
@@ -96,8 +95,9 @@ describe('SpaceWeatherWidget', () => {
     await nextTick()
 
     expect(getMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('5.0')
-    expect(wrapper.text()).toContain('G1')
+    expect(wrapper.text()).toContain('Menšia búrka')
+    expect(wrapper.text()).toContain('Kp 5')
+    expect(wrapper.text()).not.toContain('šanca')
   })
 
   it('shows a missing-location state and skips the request without coordinates', async () => {
@@ -113,6 +113,6 @@ describe('SpaceWeatherWidget', () => {
     await nextTick()
 
     expect(getMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Poloha nie je nastavena')
+    expect(wrapper.text()).toContain('Poloha nie je nastavená')
   })
 })

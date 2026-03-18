@@ -1,45 +1,47 @@
 <template>
-  <section class="card panel observingWeather">
-    <h3 class="panelTitle sidebarSection__header">Pocasie pre pozorovanie</h3>
+  <section class="panel">
+    <h3 class="panelTitle sidebarSection__header">Počasie pre pozorovanie</h3>
 
-    <div v-if="showLoading" class="panelLoading">
-      <div class="skeleton h-8 w-full"></div>
-      <div class="skeleton h-8 w-full"></div>
+    <!-- Loading -->
+    <div v-if="showLoading" class="skeletonStack">
+      <div class="skeleton skW55"></div>
+      <div class="skeleton skW40"></div>
     </div>
 
-    <AsyncState
-      v-else-if="!hasLocationCoords"
-      mode="empty"
-      title="Poloha nie je nastavena"
-      message="Nastav polohu pre lokalne pocasie."
-      compact
-    />
+    <!-- No location -->
+    <div v-else-if="!hasLocationCoords" class="stateBox">
+      <div class="stateName">Poloha nie je nastavená</div>
+      <div class="stateSub">Nastav polohu pre lokálne počasie.</div>
+    </div>
 
-    <section v-else-if="showError" class="state stateError">
-      <InlineStatus
-        variant="error"
-        :message="errorMessage"
-        action-label="Skúsiť znova"
-        @action="refreshBlock('weather')"
-      />
-    </section>
+    <!-- Error -->
+    <div v-else-if="showError" class="stateBox">
+      <div class="stateError">{{ errorMessage }}</div>
+      <button type="button" class="retryBtn" @click="refreshBlock('weather')">Skúsiť znova</button>
+    </div>
 
+    <!-- Data -->
     <div v-else class="weatherBody">
-      <div class="metricGrid">
-        <article v-for="metric in metrics" :key="metric.key" class="metricItem">
-          <p class="metricLabel">{{ metric.label }}</p>
-          <p class="metricValue">{{ metric.value }}</p>
-        </article>
+      <!-- Verdict: primary, cloud-based -->
+      <div class="verdict" :class="`verdict--${verdictTone}`">{{ verdictText }}</div>
+
+      <!-- Compact data line: cloud · wind · temp -->
+      <div class="dataLine">
+        <span>☁️ {{ formattedMetrics.cloud }}</span>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>💨 {{ formattedMetrics.wind }}</span>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>🌡️ {{ formattedMetrics.temp }}</span>
       </div>
-      <p class="sourceLine">Zdroj: {{ weatherSourceLabel }} | Aktualizovane: {{ weatherUpdatedLabel }}</p>
+
+      <!-- Updated -->
+      <div v-if="weatherUpdatedLabel" class="updatedLine">Aktualizované {{ weatherUpdatedLabel }}</div>
     </div>
   </section>
 </template>
 
 <script setup>
 import { computed, toRef } from 'vue'
-import AsyncState from '@/components/ui/AsyncState.vue'
-import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useSkyWidget } from '@/composables/useSkyWidget'
 
 const props = defineProps({
@@ -57,7 +59,6 @@ const {
   weatherError,
   formattedMetrics,
   hasLocationCoords,
-  weatherSourceLabel,
   weatherUpdatedLabel,
   refreshBlock,
 } = useSkyWidget({
@@ -74,29 +75,30 @@ const {
 
 const showLoading = computed(() => weatherLoading.value && !weather.value)
 const showError = computed(() => Boolean(weatherError.value) && !weather.value)
-const errorMessage = computed(() => {
-  const value = String(weatherError.value || '').trim()
-  return value || 'Nepodarilo sa načítať počasie.'
+const errorMessage = computed(() => String(weatherError.value || '').trim() || 'Nepodarilo sa načítať počasie.')
+
+const verdictTone = computed(() => {
+  const cloud = weather.value?.cloud_percent
+  if (cloud === null || cloud === undefined || !Number.isFinite(Number(cloud))) return 'neutral'
+  const c = Number(cloud)
+  if (c <= 20) return 'excellent'
+  if (c <= 40) return 'good'
+  if (c <= 65) return 'fair'
+  return 'poor'
 })
 
-const metrics = computed(() => ([
-  { key: 'cloud', label: 'Oblacnost', value: formattedMetrics.value.cloud },
-  { key: 'wind', label: 'Vietor', value: formattedMetrics.value.wind },
-  { key: 'temp', label: 'Teplota', value: formattedMetrics.value.temp },
-  { key: 'humidity', label: 'Vlhkost', value: formattedMetrics.value.humidity },
-]))
+const VERDICT_TEXT = {
+  excellent: 'Jasná obloha',
+  good:      'Väčšinou jasno',
+  fair:      'Čiastočne oblačno',
+  poor:      'Zamračené',
+  neutral:   'Dáta nedostupné',
+}
+
+const verdictText = computed(() => VERDICT_TEXT[verdictTone.value] ?? 'Dáta nedostupné')
 </script>
 
 <style scoped>
-.card {
-  position: relative;
-  border: 0;
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  overflow: visible;
-}
-
 .panel {
   display: grid;
   gap: 0.28rem;
@@ -111,74 +113,117 @@ const metrics = computed(() => ([
   margin: 0;
 }
 
-.weatherBody {
+/* ── Skeleton ── */
+.skeletonStack {
   display: grid;
-  gap: 0.24rem;
-}
-
-.metricGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.24rem;
-}
-
-.metricItem {
-  border: 1px solid var(--divider-color);
-  border-radius: 0.56rem;
-  background: rgb(var(--color-bg-rgb) / 0.22);
-  padding: 0.34rem 0.4rem;
-  min-width: 0;
-}
-
-.metricLabel,
-.metricValue {
-  margin: 0;
-}
-
-.metricLabel {
-  font-size: 0.64rem;
-  color: var(--color-text-secondary);
-}
-
-.metricValue {
-  margin-top: 0.08rem;
-  font-size: 0.77rem;
-  line-height: 1.2;
-  font-weight: 700;
-  color: var(--color-surface);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sourceLine {
-  margin: 0;
-  font-size: 0.68rem;
-  color: var(--color-text-secondary);
-}
-
-.panelLoading {
-  display: grid;
-  gap: 0.2rem;
+  gap: 0.28rem;
 }
 
 .skeleton {
+  height: 0.72rem;
+  border-radius: 0.25rem;
   background: linear-gradient(
     90deg,
-    rgb(var(--color-text-secondary-rgb) / 0.08),
-    rgb(var(--color-text-secondary-rgb) / 0.16),
-    rgb(var(--color-text-secondary-rgb) / 0.08)
+    rgb(var(--color-text-secondary-rgb) / 0.07),
+    rgb(var(--color-text-secondary-rgb) / 0.14),
+    rgb(var(--color-text-secondary-rgb) / 0.07)
   );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
-  border-radius: 0;
 }
 
+.skW55 { width: 55%; }
+.skW40 { width: 40%; }
+
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
+  0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 
-.h-8 { height: 2rem; }
-.w-full { width: 100%; }
+/* ── State ── */
+.stateBox {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.stateName {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-surface);
+  line-height: 1.22;
+}
+
+.stateSub {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+.stateError {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-danger, #f87171);
+  line-height: 1.3;
+}
+
+.retryBtn {
+  display: inline;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: rgb(var(--color-primary-rgb) / 0.85);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.retryBtn:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+/* ── Weather body ── */
+.weatherBody {
+  display: grid;
+  gap: 0.18rem;
+}
+
+/* Verdict */
+.verdict {
+  font-size: 1.08rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.verdict--excellent { color: rgb(52 211 153); }
+.verdict--good      { color: rgb(110 231 183); }
+.verdict--fair      { color: rgb(251 146 60); }
+.verdict--poor      { color: rgb(248 113 113); }
+.verdict--neutral   { color: var(--color-text-secondary); }
+
+/* Compact data line */
+.dataLine {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.22rem;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.sep {
+  opacity: 0.35;
+  font-size: 0.66rem;
+}
+
+/* Updated */
+.updatedLine {
+  color: var(--color-text-secondary);
+  font-size: 0.66rem;
+  opacity: 0.6;
+  line-height: 1.2;
+}
 </style>

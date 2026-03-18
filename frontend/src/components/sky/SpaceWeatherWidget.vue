@@ -5,14 +5,14 @@
     <AsyncState
       v-if="showMissingLocation"
       mode="empty"
-      title="Poloha nie je nastavena"
-      message="Nastav polohu pre lokalny aurora watch."
+      title="Poloha nie je nastavená"
+      message="Nastav polohu pre lokálne vesmírne počasie."
       compact
     />
 
     <div v-else-if="loading" class="panelLoading">
       <div class="skeleton h-8 w-full"></div>
-      <div class="skeleton h-8 w-full"></div>
+      <div class="skeleton h-5 w-full"></div>
     </div>
 
     <section v-else-if="error" class="state stateError">
@@ -27,39 +27,43 @@
     <AsyncState
       v-else-if="!payload?.available"
       mode="empty"
-      title="Space weather je nedostupne"
-      message="NOAA SWPC data sa momentálne nepodarilo načítať."
+      title="Vesmírne počasie je nedostupné"
+      message="NOAA SWPC dáta sa momentálne nepodarilo načítať."
       compact
     />
 
-    <div v-else class="content">
-      <div class="heroRow">
-        <div>
-          <p class="metricLabel">Planetarny Kp index</p>
-          <p class="heroValue">{{ kpValueLabel }}</p>
-        </div>
-        <span class="scaleBadge">{{ noaaScaleLabel }}</span>
+    <div v-else class="sw-content">
+      <div class="sw-headline" :class="verdictToneClass">
+        <svg class="sw-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          <circle cx="8" cy="8" r="2.8"/>
+          <line x1="8" y1="1" x2="8" y2="3.2"/>
+          <line x1="8" y1="12.8" x2="8" y2="15"/>
+          <line x1="1" y1="8" x2="3.2" y2="8"/>
+          <line x1="12.8" y1="8" x2="15" y2="8"/>
+          <line x1="3.05" y1="3.05" x2="4.6" y2="4.6"/>
+          <line x1="11.4" y1="11.4" x2="12.95" y2="12.95"/>
+          <line x1="12.95" y1="3.05" x2="11.4" y2="4.6"/>
+          <line x1="4.6" y1="11.4" x2="3.05" y2="12.95"/>
+        </svg>
+        <span>{{ verdict }}</span>
       </div>
 
-      <div class="metricGrid">
-        <article class="metricItem">
-          <p class="metricLabel">Geomagneticka aktivita</p>
-          <p class="metricValue">{{ geomagneticLevelLabel }}</p>
-        </article>
-        <article class="metricItem">
-          <p class="metricLabel">Aurora watch</p>
-          <p class="metricValue">{{ auroraLabel }}</p>
-        </article>
-      </div>
+      <p class="sw-detail">
+        <abbr
+          v-if="kpRounded !== null"
+          class="detail-kp"
+          title="Kp index = geomagnetická aktivita (0–9)"
+        >Kp {{ kpRounded }}</abbr>
+        <span v-else>—</span>
+      </p>
 
-      <p v-if="auroraDetail" class="detailLine">{{ auroraDetail }}</p>
-      <p class="sourceLine">Zdroj: NOAA SWPC | Aktualizovane: {{ updatedLabel }}</p>
+      <p v-if="updatedLabel !== '-'" class="widget-footer">Aktualizované {{ updatedLabel }}</p>
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
 import api from '@/services/api'
@@ -76,6 +80,7 @@ const payload = ref(null)
 const loading = ref(true)
 const error = ref('')
 const hydratedFromBundle = ref(false)
+let pendingAbort = null
 
 const numericLat = computed(() => toFiniteCoordinate(props.lat, -90, 90))
 const numericLon = computed(() => toFiniteCoordinate(props.lon, -180, 180))
@@ -84,30 +89,36 @@ const effectiveTz = computed(() => {
   return candidate || 'Europe/Bratislava'
 })
 const showMissingLocation = computed(() => numericLat.value === null || numericLon.value === null)
-const kpValueLabel = computed(() => {
+
+const kpRounded = computed(() => {
   const kpIndex = toFiniteNumber(payload.value?.kp_index)
   const estimated = toFiniteNumber(payload.value?.estimated_kp)
   const value = kpIndex ?? estimated
-  return value === null ? '-' : value.toFixed(1)
+  return value === null ? null : Math.round(value)
 })
-const noaaScaleLabel = computed(() => String(payload.value?.noaa_scale || 'Bez dát').trim() || 'Bez dát')
-const geomagneticLevelLabel = computed(() => (
-  String(payload.value?.geomagnetic_level || 'Neznáme').trim() || 'Neznáme'
-))
-const auroraLabel = computed(() => (
-  String(payload.value?.aurora?.watch_label || 'Bez dát').trim() || 'Bez dát'
-))
-const auroraDetail = computed(() => {
-  const score = toFiniteNumber(payload.value?.aurora?.watch_score)
-  const forecastFor = formatTime(payload.value?.aurora?.forecast_for, effectiveTz.value)
 
-  if (score === null) {
-    return forecastFor === '-' ? '' : `Predikcia pre ${forecastFor}`
-  }
-
-  const base = `Skore severne od teba: ${Math.round(score)}/100`
-  return forecastFor === '-' ? base : `${base} | Predikcia pre ${forecastFor}`
+const verdict = computed(() => {
+  const raw = String(payload.value?.geomagnetic_level || '').trim()
+  const normalized = raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  if (normalized.includes('extrem')) return 'Extrémna búrka'
+  if (normalized.includes('velmi silna')) return 'Veľmi silná búrka'
+  if (normalized.includes('silna')) return 'Silná búrka'
+  if (normalized.includes('stredna')) return 'Stredná búrka'
+  if (normalized.includes('mensia') || normalized.includes('menša')) return 'Menšia búrka'
+  if (normalized.includes('aktiv')) return 'Mierna aktivita'
+  if (normalized.includes('pokoj')) return 'Pokojné podmienky'
+  return raw || 'Bez dát'
 })
+
+const verdictToneClass = computed(() => {
+  const v = verdict.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  if (v.includes('extrem') || v.includes('velmi silna')) return 'is-intense'
+  if (v.includes('silna') || v.includes('stredna')) return 'is-strong'
+  if (v.includes('mensia') || v.includes('aktiv')) return 'is-moderate'
+  return 'is-calm'
+})
+
+
 const updatedLabel = computed(() => formatTime(payload.value?.updated_at, effectiveTz.value))
 
 async function fetchPayload() {
@@ -117,6 +128,10 @@ async function fetchPayload() {
     error.value = ''
     return
   }
+
+  pendingAbort?.abort()
+  const controller = new AbortController()
+  pendingAbort = controller
 
   loading.value = true
   error.value = ''
@@ -128,11 +143,13 @@ async function fetchPayload() {
         lon: numericLon.value,
         tz: effectiveTz.value,
       },
+      signal: controller.signal,
       meta: { skipErrorToast: true },
     })
 
     payload.value = response?.data || null
   } catch (requestError) {
+    if (requestError?.name === 'AbortError' || requestError?.code === 'ERR_CANCELED') return
     payload.value = null
     error.value = (
       requestError?.response?.data?.message
@@ -140,9 +157,15 @@ async function fetchPayload() {
       || 'Nepodarilo sa načítať vesmírne počasie.'
     )
   } finally {
-    loading.value = false
+    if (pendingAbort === controller) {
+      loading.value = false
+    }
   }
 }
+
+onBeforeUnmount(() => {
+  pendingAbort?.abort()
+})
 
 function applyPayload(nextPayload) {
   payload.value = nextPayload && typeof nextPayload === 'object' ? nextPayload : null
@@ -235,7 +258,7 @@ function formatTime(value, timeZone) {
 
 .panel {
   display: grid;
-  gap: 0.28rem;
+  gap: 0.5rem;
   min-width: 0;
 }
 
@@ -243,109 +266,98 @@ function formatTime(value, timeZone) {
   margin: 0;
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.84rem;
-  line-height: 1.2;
+  font-size: 0.88rem;
+  line-height: 1.22;
 }
 
-.content {
+/* ── Content card ── */
+.sw-content {
   display: grid;
-  gap: 0.28rem;
+  gap: 0.22rem;
+  padding: 0.56rem 0.6rem;
+  border-radius: 0.64rem;
+  background: rgb(var(--color-bg-rgb) / 0.18);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.12);
 }
 
-.heroRow {
+/* ── Verdict headline ── */
+.sw-headline {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.metricGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.24rem;
-}
-
-.metricItem {
-  border: 1px solid var(--divider-color);
-  border-radius: 0.56rem;
-  background: rgb(var(--color-bg-rgb) / 0.22);
-  padding: 0.34rem 0.4rem;
-  min-width: 0;
-}
-
-.metricLabel,
-.metricValue,
-.heroValue,
-.detailLine,
-.sourceLine {
-  margin: 0;
-}
-
-.metricLabel {
-  font-size: 0.64rem;
-  color: var(--color-text-secondary);
-}
-
-.metricValue,
-.heroValue {
-  margin-top: 0.08rem;
+  gap: 0.4rem;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.2;
   color: var(--color-surface);
-  font-weight: 700;
+}
+
+.sw-headline.is-calm     { color: rgb(96 165 250); }
+.sw-headline.is-moderate { color: rgb(245 158 11); }
+.sw-headline.is-strong   { color: rgb(249 115 22); }
+.sw-headline.is-intense  { color: rgb(167 139 250); }
+
+/* ── Sun icon ── */
+.sw-icon {
+  flex-shrink: 0;
+  width: 0.95rem;
+  height: 0.95rem;
+  opacity: 0.85;
+}
+
+/* ── Compact data line ── */
+.sw-detail {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
   line-height: 1.2;
 }
 
-.metricValue {
-  font-size: 0.77rem;
+.detail-kp {
+  font-size: 0.66rem;
+  font-weight: 400;
+  opacity: 0.52;
+  text-decoration: none;
+  cursor: help;
 }
 
-.heroValue {
-  font-size: 1rem;
-}
-
-.scaleBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2.5rem;
-  padding: 0.22rem 0.44rem;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.4);
-  background: rgb(var(--color-primary-rgb) / 0.14);
-  color: var(--color-surface);
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1.1;
-  border-radius: 999px;
-}
-
-.detailLine,
-.sourceLine {
-  font-size: 0.68rem;
+/* ── Footer ── */
+.widget-footer {
+  margin: 0.18rem 0 0;
   color: var(--color-text-secondary);
-  line-height: 1.3;
+  font-size: 0.62rem;
+  line-height: 1.2;
+  opacity: 0.55;
+  text-align: right;
 }
 
+/* ── Loading skeleton ── */
 .panelLoading {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.22rem;
+  padding: 0.56rem 0.6rem;
+  border-radius: 0.64rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.08);
 }
 
 .skeleton {
+  border-radius: 0.25rem;
   background: linear-gradient(
     90deg,
-    rgb(var(--color-text-secondary-rgb) / 0.08),
-    rgb(var(--color-text-secondary-rgb) / 0.16),
-    rgb(var(--color-text-secondary-rgb) / 0.08)
+    rgb(var(--color-text-secondary-rgb) / 0.07),
+    rgb(var(--color-text-secondary-rgb) / 0.14),
+    rgb(var(--color-text-secondary-rgb) / 0.07)
   );
   background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
-  border-radius: 0;
+  animation: shimmer 1.4s infinite;
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
+  0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 
-.h-8 { height: 2rem; }
+.h-8   { height: 1.1rem; }
+.h-5   { height: 0.75rem; }
 .w-full { width: 100%; }
 </style>

@@ -32,7 +32,7 @@ describe('AuroraWatchWidget', () => {
       data: {
         available: true,
         watch_score: 72,
-        watch_label: 'Vysoka sanca',
+        watch_label: 'Vysoká šanca',
         corridor_peak_score: 72,
         nearest_score: 4,
         forecast_for: '2026-03-14T21:52:00Z',
@@ -64,10 +64,9 @@ describe('AuroraWatchWidget', () => {
       meta: { skipErrorToast: true },
     })
     expect(wrapper.text()).toContain('Aurora watch')
-    expect(wrapper.text()).toContain('Vysoka sanca')
-    expect(wrapper.text()).toContain('72/100')
-    expect(wrapper.text()).toContain('NOAA SWPC OVATION')
-    expect(wrapper.text()).toContain('Koridor severne od teba: 72/100')
+    expect(wrapper.text()).toContain('Vysoká šanca')
+    expect(wrapper.text()).toContain('72 / 100')
+    expect(wrapper.text()).toContain('Severný koridor')
   })
 
   it('uses bundled aurora payload and skips the standalone request', async () => {
@@ -97,7 +96,8 @@ describe('AuroraWatchWidget', () => {
 
     expect(getMock).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Slabá šanca')
-    expect(wrapper.text()).toContain('38/100')
+    expect(wrapper.text()).toContain('38 / 100')
+    expect(wrapper.text()).toContain('Severný koridor')
   })
 
   it('shows a missing-location state and skips the request without coordinates', async () => {
@@ -113,6 +113,6 @@ describe('AuroraWatchWidget', () => {
     await nextTick()
 
     expect(getMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Poloha nie je nastavena')
+    expect(wrapper.text()).toContain('Poloha nie je nastavená')
   })
 })

@@ -1,66 +1,57 @@
 <template>
-  <section class="card panel nightSky">
-    <h3 class="panelTitle sidebarSection__header">Nocna obloha</h3>
+  <section class="panel">
+    <div class="panelTitle sidebarSection__header">Dnes na oblohe</div>
 
-    <div v-if="showLoading" class="panelLoading">
-      <div class="skeleton h-8 w-full"></div>
-      <div class="skeleton h-8 w-4/5"></div>
+    <!-- Loading -->
+    <div v-if="showLoading" class="skeletonStack">
+      <div class="skeleton skW60"></div>
+      <div class="skeleton skW45"></div>
+      <div class="skeleton skW50"></div>
     </div>
 
-    <AsyncState
-      v-else-if="!hasLocationCoords"
-      mode="empty"
-      title="Poloha nie je nastavena"
-      message="Nastav polohu pre nocnu oblohu."
-      compact
-    />
+    <!-- No location -->
+    <div v-else-if="!hasLocationCoords" class="stateBox">
+      <div class="stateName">Poloha nie je nastavená</div>
+      <div class="stateSub">Nastav polohu pre nočnú oblohu.</div>
+    </div>
 
-    <section v-else-if="showAstronomyError" class="state stateError">
-      <InlineStatus
-        variant="error"
-        :message="astronomyErrorMessage"
-        action-label="Skúsiť znova"
-        @action="refreshBlock('astronomy')"
-      />
-    </section>
+    <!-- Error -->
+    <div v-else-if="showAstronomyError" class="stateBox">
+      <div class="stateError">{{ astronomyErrorMessage }}</div>
+      <button type="button" class="retryBtn" @click="refreshBlock('astronomy')">Skúsiť znova</button>
+    </div>
 
+    <!-- Content -->
     <div v-else class="nightBody">
-      <div class="statRow">
-        <span>Mesiac</span>
-        <strong>{{ moonLine }}</strong>
+      <!-- Planets: primary, one per row -->
+      <div v-if="planetRows.length" class="planetList">
+        <div v-for="planet in planetRows" :key="planet.name" class="planetRow">
+          <span class="planetIcon" aria-hidden="true">🪐</span>
+          <span class="planetName">{{ planet.name }}</span>
+          <span v-if="planet.window" class="planetWindow">{{ planet.window }}</span>
+        </div>
+      </div>
+      <div v-else class="noPlanets">🪐 Dnes žiadne planéty</div>
+
+      <!-- Moon: compact -->
+      <div class="moonLine">
+        <span aria-hidden="true">{{ moonEmoji }}</span>
+        <span v-if="moonIllumination !== null">{{ moonIllumination }}%</span>
+        <span v-if="moonIllumination !== null && moonPhaseLabel" class="sep" aria-hidden="true">·</span>
+        <span>{{ moonPhaseLabel }}</span>
       </div>
 
-      <div v-if="showBortle" class="statRow">
-        <span>Svetelne znecistenie</span>
-        <strong>{{ bortleLine }}</strong>
+      <!-- Conditions: human label -->
+      <div v-if="conditionsLabel" class="conditionsLine">
+        <span aria-hidden="true">🌃</span>
+        <span>{{ conditionsLabel }}</span>
       </div>
-
-      <div class="statRow">
-        <span>Viditelne planety</span>
-        <strong>{{ planetsLine }}</strong>
-      </div>
-
-      <div v-if="showComets" class="statRow">
-        <span>Komety (JPL)</span>
-        <strong>{{ cometsLine }}</strong>
-      </div>
-
-      <div v-if="showAsteroids" class="statRow">
-        <span>Asteroidy (JPL)</span>
-        <strong>{{ asteroidsLine }}</strong>
-      </div>
-
-      <p v-if="ephemerisSourceLine" class="sourceLine" :title="ephemerisSourceHint">
-        Zdroj: {{ ephemerisSourceLine }}
-      </p>
     </div>
   </section>
 </template>
 
 <script setup>
 import { computed, toRef } from 'vue'
-import AsyncState from '@/components/ui/AsyncState.vue'
-import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useSkyWidget } from '@/composables/useSkyWidget'
 
 const props = defineProps({
@@ -77,14 +68,8 @@ const {
   astronomyLoading,
   astronomyError,
   lightPollution,
-  lightPollutionLine,
-  lightPollutionMetaLine,
-  lightPollutionEstimateLine,
   planetCandidates,
   planetsDisplayList,
-  ephemeris,
-  ephemerisError,
-  ephemerisLoading,
   hasLocationCoords,
   refreshBlock,
 } = useSkyWidget({
@@ -95,83 +80,63 @@ const {
   bundlePending: toRef(props, 'bundlePending'),
   includeWeather: false,
   includeIss: false,
-  includeEphemeris: true,
+  includeEphemeris: false,
 })
 
 const showLoading = computed(() => astronomyLoading.value && !astronomy.value)
 const showAstronomyError = computed(() => Boolean(astronomyError.value) && !astronomy.value)
-const astronomyErrorMessage = computed(() => {
-  const value = String(astronomyError.value || '').trim()
-  return value || 'Nepodarilo sa načítať nočnú oblohu.'
+const astronomyErrorMessage = computed(() => (
+  String(astronomyError.value || '').trim() || 'Nepodarilo sa načítať nočnú oblohu.'
+))
+
+// ── Moon ──────────────────────────────────────────────────────────────────
+
+const MOON_EMOJIS = {
+  new_moon:        '🌑',
+  waxing_crescent: '🌒',
+  first_quarter:   '🌓',
+  waxing_gibbous:  '🌔',
+  full_moon:       '🌕',
+  waning_gibbous:  '🌖',
+  last_quarter:    '🌗',
+  waning_crescent: '🌘',
+}
+
+const MOON_PHASES = {
+  new_moon:        'Nov',
+  waxing_crescent: 'Dorastajúci kosáčik',
+  first_quarter:   'Prvá štvrt',
+  waxing_gibbous:  'Dorastajúci mesiac',
+  full_moon:       'Spln',
+  waning_gibbous:  'Ubúdajúci mesiac',
+  last_quarter:    'Posledná štvrt',
+  waning_crescent: 'Ubúdajúci kosáčik',
+}
+
+const moonEmoji = computed(() => MOON_EMOJIS[astronomy.value?.moon_phase] || '🌑')
+const moonPhaseLabel = computed(() => MOON_PHASES[astronomy.value?.moon_phase] || '')
+const moonIllumination = computed(() => {
+  const v = toFiniteNumber(astronomy.value?.moon_illumination_percent)
+  return v !== null ? Math.round(v) : null
 })
 
-const moonLine = computed(() => {
-  const phase = translateMoonPhase(astronomy.value?.moon_phase)
-  const illumination = toFiniteNumber(astronomy.value?.moon_illumination_percent)
+// ── Conditions ────────────────────────────────────────────────────────────
 
-  if (illumination === null) {
-    if (phase === 'Neznáma fáza') {
-      return 'dočasne nedostupné'
-    }
-
-    return phase
-  }
-
-  return `${phase} | ${Math.round(illumination)}%`
+const conditionsLabel = computed(() => {
+  const bortle = toFiniteNumber(lightPollution.value?.bortle_class)
+  if (bortle === null) return ''
+  if (bortle <= 2) return 'Výborné podmienky'
+  if (bortle <= 4) return 'Dobré podmienky'
+  if (bortle <= 5) return 'Stredné podmienky'
+  if (bortle <= 7) return 'Horšie podmienky'
+  return 'Silné znečistenie'
 })
 
-const showBortle = computed(() => {
-  if (lightPollutionUnavailable.value) return true
-  return String(lightPollutionLine.value || '').trim() !== '' || String(lightPollutionMetaLine.value || '').trim() !== ''
-})
-
-const lightPollutionUnavailable = computed(() => {
-  const reason = String(lightPollution.value?.reason || '').trim().toLowerCase()
-  return reason.includes('light_pollution_provider_')
-})
-
-const lightPollutionUsingCached = computed(() => {
-  const source = String(lightPollution.value?.source || '').trim().toLowerCase()
-  const reason = String(lightPollution.value?.reason || '').trim().toLowerCase()
-  return source === 'light_pollution_cached' || reason === 'using_cached_data'
-})
-
-const bortleLine = computed(() => {
-  if (lightPollutionUnavailable.value) {
-    return 'realne data docasne nedostupne'
-  }
-
-  const base = String(lightPollutionLine.value || '').trim()
-  const meta = String(lightPollutionMetaLine.value || '').trim()
-  const isEstimate = String(lightPollutionEstimateLine.value || '').trim() !== ''
-
-  if (lightPollutionUsingCached.value) {
-    const snapshot = base && meta ? `${base} | ${meta}` : (base || meta || '')
-    return snapshot ? `${snapshot} | posledne dostupne` : 'posledne dostupne'
-  }
-
-  if (base && meta) return isEstimate ? `${base} | ${meta} | odhad` : `${base} | ${meta}`
-  const fallback = base || meta
-  if (!fallback) return isEstimate ? 'odhad podla lokality' : '-'
-  return isEstimate ? `${fallback} | odhad` : fallback
-})
-
-const visiblePlanetLabels = computed(() => {
-  const list = Array.isArray(planetsDisplayList.value) ? planetsDisplayList.value : []
-  return list
-    .filter((planet) => planet?.isVisible)
-    .map((planet) => {
-      const name = String(planet?.name || '').trim()
-      const bestTimeWindow = String(planet?.bestTimeWindow || '').trim()
-      return formatPlanetWithWindow(name, bestTimeWindow)
-    })
-    .filter((label) => label)
-    .slice(0, 4)
-})
+// ── Planets ───────────────────────────────────────────────────────────────
 
 const MIN_TODAY_ELONGATION_DEG = 20
 
-function collectTodayPlanets(rows, strategy = 'confirmed', limit = 4) {
+function collectTodayPlanets(rows, strategy = 'confirmed', limit = 3) {
   const sourceRows = Array.isArray(rows) ? rows : []
   const planets = []
   const seen = new Set()
@@ -192,121 +157,31 @@ function collectTodayPlanets(rows, strategy = 'confirmed', limit = 4) {
     if (strategy === 'estimated' && (hasBestWindow || !hasUsefulElongation)) continue
 
     seen.add(key)
-    planets.push({
-      name,
-      bestTimeWindow,
-    })
-
+    planets.push({ name, window: bestTimeWindow })
     if (planets.length >= limit) break
   }
 
   return planets
 }
 
-function formatPlanetWithWindow(name, bestTimeWindow) {
-  const normalizedName = String(name || '').trim()
-  const normalizedWindow = String(bestTimeWindow || '').trim()
-  if (!normalizedName) return ''
-  if (!normalizedWindow) return normalizedName
-  return `${normalizedName} (${normalizedWindow})`
-}
+const planetRows = computed(() => {
+  // Priority 1: currently visible (planetsDisplayList from useSkyWidget)
+  const visibleNow = (Array.isArray(planetsDisplayList.value) ? planetsDisplayList.value : [])
+    .filter((p) => p?.isVisible)
+    .map((p) => ({ name: String(p?.name || '').trim(), window: String(p?.bestTimeWindow || '').trim() }))
+    .filter((p) => p.name)
+    .slice(0, 3)
+  if (visibleNow.length > 0) return visibleNow
 
-const todayPlanets = computed(() => {
-  return collectTodayPlanets(planetCandidates.value, 'confirmed', 4)
+  // Priority 2: today (confirmed best_time_window)
+  const confirmed = collectTodayPlanets(planetCandidates.value, 'confirmed', 3)
+  if (confirmed.length > 0) return confirmed
+
+  // Priority 3: estimated (elongation only, no window)
+  return collectTodayPlanets(planetCandidates.value, 'estimated', 3)
 })
 
-const todayPlanetLabels = computed(() => {
-  return todayPlanets.value
-    .map((planet) => formatPlanetWithWindow(planet?.name, planet?.bestTimeWindow))
-    .filter((label) => label)
-})
-
-const todayEstimatedPlanetLabels = computed(() => {
-  return collectTodayPlanets(planetCandidates.value, 'estimated', 4)
-    .map((planet) => String(planet?.name || '').trim())
-    .filter((name) => name)
-})
-
-const planetsLine = computed(() => {
-  if (visiblePlanetLabels.value.length > 0) {
-    return visiblePlanetLabels.value.join(', ')
-  }
-
-  if (todayPlanetLabels.value.length > 0) {
-    return `dnes: ${todayPlanetLabels.value.join(', ')}`
-  }
-
-  if (todayEstimatedPlanetLabels.value.length > 0) {
-    return `dnes (odhad): ${todayEstimatedPlanetLabels.value.join(', ')}`
-  }
-
-  return 'teraz žiadne'
-})
-
-const cometNames = computed(() => {
-  const rows = Array.isArray(ephemeris.value?.comets) ? ephemeris.value.comets : []
-  return rows
-    .map((row) => String(row?.name || '').trim())
-    .filter((name) => name)
-    .slice(0, 2)
-})
-
-const asteroidNames = computed(() => {
-  const rows = Array.isArray(ephemeris.value?.asteroids) ? ephemeris.value.asteroids : []
-  return rows
-    .map((row) => String(row?.name || '').trim())
-    .filter((name) => name)
-    .slice(0, 2)
-})
-
-const showComets = computed(() => cometNames.value.length > 0)
-const showAsteroids = computed(() => asteroidNames.value.length > 0)
-const cometsLine = computed(() => cometNames.value.join(', '))
-const asteroidsLine = computed(() => asteroidNames.value.join(', '))
-
-const ephemerisSourceLine = computed(() => {
-  if (ephemerisLoading.value && !showComets.value && !showAsteroids.value) {
-    return ''
-  }
-
-  if (ephemerisError.value) {
-    return ''
-  }
-
-  const source = ephemeris.value?.source
-  const planets = String(source?.planets || '').trim()
-  const smallBodies = String(source?.small_bodies || '').trim()
-  if (planets === 'jpl_horizons' && smallBodies === 'jpl_sbddb') return 'NASA JPL'
-  if (planets === 'jpl_horizons') return 'JPL Horizons'
-  if (smallBodies === 'jpl_sbddb') return 'JPL SBDDB'
-  return ''
-})
-
-const ephemerisSourceHint = computed(() => {
-  const source = ephemeris.value?.source
-  const planets = String(source?.planets || '').trim()
-  const smallBodies = String(source?.small_bodies || '').trim()
-  const parts = []
-  if (planets === 'jpl_horizons') parts.push('Planety: JPL Horizons')
-  if (smallBodies === 'jpl_sbddb') parts.push('Male telesa: JPL SBDDB')
-  return parts.join(' | ')
-})
-
-function translateMoonPhase(value) {
-  const map = {
-    new_moon: 'Nov',
-    waxing_crescent: 'Dorastajúci kosáčik',
-    first_quarter: 'Prvá štvrt',
-    waxing_gibbous: 'Dorastajúci mesiac',
-    full_moon: 'Spln',
-    waning_gibbous: 'Ubúdajúci mesiac',
-    last_quarter: 'Posledná štvrt',
-    waning_crescent: 'Ubúdajúci kosáčik',
-  }
-
-  const key = String(value || '').trim().toLowerCase()
-  return map[key] || 'Neznáma fáza'
-}
+// ── Helpers ───────────────────────────────────────────────────────────────
 
 function toFiniteNumber(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -316,96 +191,167 @@ function toFiniteNumber(value) {
   }
   return null
 }
-
 </script>
 
 <style scoped>
-.card {
-  position: relative;
-  border: 0;
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  overflow: visible;
-}
-
 .panel {
   display: grid;
-  gap: 0.28rem;
+  gap: 0.32rem;
   min-width: 0;
 }
 
 .panelTitle {
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.84rem;
-  line-height: 1.2;
+  font-size: 0.88rem;
+  line-height: 1.22;
   margin: 0;
 }
 
-.nightBody {
+/* ── Skeleton ── */
+.skeletonStack {
   display: grid;
-  gap: 0.22rem;
-}
-
-.statRow {
-  display: flex;
-  gap: 0.45rem;
-  align-items: baseline;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--divider-color);
-  padding-bottom: 0.2rem;
-}
-
-.statRow:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
-.statRow span {
-  font-size: 0.68rem;
-  color: var(--color-text-secondary);
-}
-
-.statRow strong {
-  font-size: 0.74rem;
-  line-height: 1.25;
-  color: var(--color-surface);
-  text-align: right;
-  font-weight: 700;
-  max-width: 72%;
-  overflow-wrap: anywhere;
-}
-
-.sourceLine {
-  margin: 0;
-  font-size: 0.68rem;
-  color: var(--color-text-secondary);
-}
-
-.panelLoading {
-  display: grid;
-  gap: 0.2rem;
+  gap: 0.28rem;
 }
 
 .skeleton {
+  height: 0.72rem;
+  border-radius: 0.25rem;
   background: linear-gradient(
     90deg,
-    rgb(var(--color-text-secondary-rgb) / 0.08),
-    rgb(var(--color-text-secondary-rgb) / 0.16),
-    rgb(var(--color-text-secondary-rgb) / 0.08)
+    rgb(var(--color-text-secondary-rgb) / 0.07),
+    rgb(var(--color-text-secondary-rgb) / 0.14),
+    rgb(var(--color-text-secondary-rgb) / 0.07)
   );
   background-size: 200% 100%;
   animation: shimmer 1.2s infinite;
-  border-radius: 0;
 }
 
+.skW60 { width: 60%; }
+.skW45 { width: 45%; }
+.skW50 { width: 50%; }
+
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
+  0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 
-.h-8 { height: 2rem; }
-.w-4\/5 { width: 80%; }
-.w-full { width: 100%; }
+/* ── States ── */
+.stateBox {
+  display: grid;
+  gap: 0.16rem;
+}
+
+.stateName {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-surface);
+  line-height: 1.22;
+}
+
+.stateSub {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+.stateError {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-danger, #f87171);
+  line-height: 1.3;
+}
+
+.retryBtn {
+  display: inline;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: rgb(var(--color-primary-rgb) / 0.85);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.retryBtn:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+/* ── Night body ── */
+.nightBody {
+  display: grid;
+  gap: 0.24rem;
+}
+
+/* Planets */
+.planetList {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.planetRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.planetIcon {
+  font-size: 0.78rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.planetName {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-surface);
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.planetWindow {
+  color: var(--color-text-secondary);
+  font-size: 0.70rem;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.noPlanets {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+/* Moon compact */
+.moonLine {
+  display: flex;
+  align-items: baseline;
+  gap: 0.22rem;
+  font-size: 0.74rem;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+.moonLine .sep {
+  opacity: 0.35;
+  font-size: 0.66rem;
+}
+
+/* Conditions */
+.conditionsLine {
+  display: flex;
+  align-items: baseline;
+  gap: 0.22rem;
+  font-size: 0.74rem;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
 </style>

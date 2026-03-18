@@ -10,7 +10,7 @@ vi.mock('@/services/api', () => ({
   },
 }))
 
-function astronomyPayload() {
+function astronomyPayload(overrides = {}) {
   return {
     data: {
       moon_phase: 'full_moon',
@@ -20,28 +20,15 @@ function astronomyPayload() {
       sunrise_at: '2026-03-08T06:18:00+01:00',
       sunset_at: '2026-03-08T17:46:00+01:00',
       civil_twilight_end_at: '2026-03-08T18:20:00+01:00',
+      ...overrides,
     },
   }
 }
 
-function dayAstronomyPayload() {
+function planetsPayload(planets = []) {
   return {
     data: {
-      moon_phase: 'waxing_crescent',
-      moon_illumination_percent: 32,
-      sample_at: '2026-03-08T13:10:00+01:00',
-      sun_altitude_deg: 28.4,
-      sunrise_at: '2026-03-08T06:18:00+01:00',
-      sunset_at: '2026-03-08T17:46:00+01:00',
-      civil_twilight_end_at: '2026-03-08T18:20:00+01:00',
-    },
-  }
-}
-
-function planetsPayload() {
-  return {
-    data: {
-      planets: [],
+      planets,
       sample_at: '2026-03-08T20:10:00+01:00',
       sun_altitude_deg: -22.4,
       source: 'jpl_horizons',
@@ -49,14 +36,14 @@ function planetsPayload() {
   }
 }
 
-function ephemerisPayload() {
+function lightPollutionPayload(bortleClass = 5) {
   return {
     data: {
-      planets: [],
-      comets: [],
-      asteroids: [],
-      source: null,
-      sample_at: '2026-03-08T20:10:00+01:00',
+      bortle_class: bortleClass,
+      brightness_value: 0.32,
+      confidence: 'med',
+      source: 'light_pollution_viirs',
+      reason: null,
     },
   }
 }
@@ -65,7 +52,7 @@ async function wait(ms = 400) {
   await vi.advanceTimersByTimeAsync(ms)
 }
 
-describe('NightSkyWidget light pollution sources', () => {
+describe('NightSkyWidget', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-08T20:10:00+01:00'))
@@ -76,165 +63,111 @@ describe('NightSkyWidget light pollution sources', () => {
     vi.useRealTimers()
   })
 
-  it('renders VIIRS light pollution payload when backend provides it', async () => {
+  it('renders planet rows with time window and compact moon + conditions', async () => {
     getMock.mockImplementation(async (url) => {
       if (url === '/sky/astronomy') return astronomyPayload()
-      if (url === '/sky/light-pollution') {
-        return {
-          data: {
-            bortle_class: 8,
-            brightness_value: 0.875,
-            confidence: 'med',
-            source: 'light_pollution_viirs',
-            reason: null,
-          },
-        }
-      }
+      if (url === '/sky/light-pollution') return lightPollutionPayload(5)
+      if (url === '/sky/visible-planets') return planetsPayload([
+        { name: 'Jupiter', altitude_deg: 64.7, elongation_deg: 132.1, best_time_window: '19:40-23:10' },
+        { name: 'Mars', altitude_deg: 18.3, elongation_deg: 73.4, best_time_window: '20:15-01:10' },
+      ])
+      return { data: {} }
+    })
+
+    const wrapper = mount(NightSkyWidget, {
+      props: { lat: 48.1481, lon: 17.11, tz: 'Europe/Bratislava' },
+    })
+
+    await wait()
+
+    // Planets displayed
+    expect(wrapper.text()).toContain('Jupiter')
+    expect(wrapper.text()).toContain('19:40-23:10')
+    expect(wrapper.text()).toContain('Mars')
+    expect(wrapper.text()).toContain('20:15-01:10')
+
+    // Moon: emoji + illumination + phase
+    expect(wrapper.text()).toContain('🌕')
+    expect(wrapper.text()).toContain('99%')
+    expect(wrapper.text()).toContain('Spln')
+
+    // Conditions: Bortle 5 → Stredné podmienky
+    expect(wrapper.text()).toContain('Stredné podmienky')
+
+    // No old table labels
+    expect(wrapper.text()).not.toContain('Svetelne znecistenie')
+    expect(wrapper.text()).not.toContain('Bortle')
+    expect(wrapper.text()).not.toContain('Viditelne planety')
+  })
+
+  it('shows Výborné podmienky for dark sky (Bortle ≤ 2)', async () => {
+    getMock.mockImplementation(async (url) => {
+      if (url === '/sky/astronomy') return astronomyPayload()
+      if (url === '/sky/light-pollution') return lightPollutionPayload(2)
       if (url === '/sky/visible-planets') return planetsPayload()
-      if (url === '/sky/ephemeris') return ephemerisPayload()
       return { data: {} }
     })
 
     const wrapper = mount(NightSkyWidget, {
-      props: { lat: 48.3064, lon: 18.0764, tz: 'Europe/Bratislava' },
+      props: { lat: 48.1482, lon: 17.11, tz: 'Europe/Bratislava' },
     })
 
     await wait()
 
-    expect(wrapper.text()).toContain('Svetelne znecistenie')
-    expect(wrapper.text()).toContain('Bortle')
-    expect(wrapper.text()).not.toContain('odhad')
-    expect(wrapper.text()).not.toContain('realne data docasne nedostupne')
+    expect(wrapper.text()).toContain('Výborné podmienky')
   })
 
-  it('shows unavailable light pollution when backend returns unavailable payload', async () => {
+  it('shows Silné znečistenie for high Bortle (≥ 8)', async () => {
     getMock.mockImplementation(async (url) => {
       if (url === '/sky/astronomy') return astronomyPayload()
-      if (url === '/sky/light-pollution') {
-        return {
-          data: {
-            bortle_class: null,
-            brightness_value: null,
-            confidence: 'low',
-            source: 'light_pollution_provider',
-            reason: 'light_pollution_provider_unavailable',
-          },
-        }
-      }
+      if (url === '/sky/light-pollution') return lightPollutionPayload(8)
       if (url === '/sky/visible-planets') return planetsPayload()
-      if (url === '/sky/ephemeris') return ephemerisPayload()
       return { data: {} }
     })
 
     const wrapper = mount(NightSkyWidget, {
-      props: { lat: 48.1487, lon: 17.1077, tz: 'Europe/Bratislava' },
+      props: { lat: 48.1483, lon: 17.11, tz: 'Europe/Bratislava' },
     })
 
     await wait()
 
-    expect(wrapper.text()).toContain('Svetelne znecistenie')
-    expect(wrapper.text()).toContain('realne data docasne nedostupne')
-    expect(wrapper.text()).not.toContain('odhad')
+    expect(wrapper.text()).toContain('Silné znečistenie')
   })
 
-  it('shows today planets fallback when no planet is visible right now', async () => {
-    getMock.mockImplementation(async (url) => {
-      if (url === '/sky/astronomy') return dayAstronomyPayload()
-      if (url === '/sky/light-pollution') {
-        return {
-          data: {
-            bortle_class: 5,
-            brightness_value: 0.32,
-            confidence: 'med',
-            source: 'light_pollution_viirs',
-            reason: null,
-          },
-        }
-      }
-      if (url === '/sky/visible-planets') {
-        return {
-          data: {
-            planets: [
-              { name: 'Mars', elongation_deg: 74.0, best_time_window: '20:15-01:10' },
-              { name: 'Jupiter', elongation_deg: 91.2, best_time_window: '19:40-23:10' },
-              { name: 'Venusa', elongation_deg: 12.4 },
-            ],
-            sample_at: '2026-03-08T13:10:00+01:00',
-            sun_altitude_deg: 28.4,
-            source: 'jpl_horizons',
-          },
-        }
-      }
-      if (url === '/sky/ephemeris') return ephemerisPayload()
-      return { data: {} }
-    })
-
-    const wrapper = mount(NightSkyWidget, {
-      props: { lat: 48.1488, lon: 17.1077, tz: 'Europe/Bratislava' },
-    })
-
-    await wait()
-
-    expect(wrapper.text()).toContain('Viditelne planety')
-    expect(wrapper.text()).toContain('dnes:')
-    expect(wrapper.text()).toContain('Mars (20:15-01:10)')
-    expect(wrapper.text()).toContain('Jupiter (19:40-23:10)')
-    expect(wrapper.text()).not.toContain('teraz ziadne')
-  })
-
-  it('shows best-time windows for planets that are visible right now', async () => {
+  it('shows "žiadne planéty" when no planet data is available', async () => {
     getMock.mockImplementation(async (url) => {
       if (url === '/sky/astronomy') return astronomyPayload()
-      if (url === '/sky/light-pollution') {
-        return {
-          data: {
-            bortle_class: 5,
-            brightness_value: 0.32,
-            confidence: 'med',
-            source: 'light_pollution_viirs',
-            reason: null,
-          },
-        }
-      }
-      if (url === '/sky/visible-planets') {
-        return {
-          data: {
-            planets: [
-              { name: 'Jupiter', altitude_deg: 64.7, elongation_deg: 132.1, best_time_window: '19:40-23:10' },
-              { name: 'Mars', altitude_deg: 18.3, elongation_deg: 73.4, best_time_window: '20:15-01:10' },
-              { name: 'Saturn', altitude_deg: 8.0, elongation_deg: 48.0, best_time_window: '19:10-20:00' },
-            ],
-            sample_at: '2026-03-08T20:10:00+01:00',
-            sun_altitude_deg: -22.4,
-            source: 'jpl_horizons',
-          },
-        }
-      }
-      if (url === '/sky/ephemeris') return ephemerisPayload()
+      if (url === '/sky/light-pollution') return lightPollutionPayload(6)
+      if (url === '/sky/visible-planets') return planetsPayload([])
       return { data: {} }
     })
 
     const wrapper = mount(NightSkyWidget, {
-      props: { lat: 48.1489, lon: 17.1077, tz: 'Europe/Bratislava' },
+      props: { lat: 48.1484, lon: 17.11, tz: 'Europe/Bratislava' },
     })
 
     await wait()
 
-    expect(wrapper.text()).toContain('Viditelne planety')
-    expect(wrapper.text()).toContain('Jupiter (19:40-23:10)')
-    expect(wrapper.text()).toContain('Mars (20:15-01:10)')
+    expect(wrapper.text()).toContain('žiadne planéty')
   })
 
-  it('uses bundled night-sky payload without refetching bundled blocks', async () => {
-    getMock.mockImplementation(async (url) => {
-      if (url === '/sky/ephemeris') return ephemerisPayload()
-      return { data: {} }
+  it('shows no-location state when coords are missing', async () => {
+    const wrapper = mount(NightSkyWidget, {
+      props: { lat: null, lon: null, tz: 'Europe/Bratislava' },
     })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Poloha nie je nastavená')
+  })
+
+  it('uses bundled payload without re-fetching bundled blocks', async () => {
+    getMock.mockImplementation(async () => ({ data: {} }))
 
     const wrapper = mount(NightSkyWidget, {
       props: {
-        lat: 48.1489,
-        lon: 17.1077,
+        lat: 48.15,
+        lon: 17.11,
         tz: 'Europe/Bratislava',
         initialPayload: {
           astronomy: astronomyPayload().data,
@@ -247,8 +180,8 @@ describe('NightSkyWidget light pollution sources', () => {
             source: 'jpl_horizons',
           },
           light_pollution: {
-            bortle_class: 5,
-            brightness_value: 0.32,
+            bortle_class: 4,
+            brightness_value: 0.2,
             confidence: 'med',
             source: 'light_pollution_viirs',
             reason: null,
@@ -266,51 +199,10 @@ describe('NightSkyWidget light pollution sources', () => {
     expect(requestedUrls).not.toContain('/sky/astronomy')
     expect(requestedUrls).not.toContain('/sky/visible-planets')
     expect(requestedUrls).not.toContain('/sky/light-pollution')
-    expect(requestedUrls.every((url) => url === '/sky/ephemeris')).toBe(true)
-    expect(wrapper.text()).toContain('Bortle')
-    expect(wrapper.text()).toContain('Jupiter (19:40-23:10)')
-  })
 
-  it('marks fallback as estimate when only elongation-based candidates are available', async () => {
-    getMock.mockImplementation(async (url) => {
-      if (url === '/sky/astronomy') return dayAstronomyPayload()
-      if (url === '/sky/light-pollution') {
-        return {
-          data: {
-            bortle_class: 5,
-            brightness_value: 0.32,
-            confidence: 'med',
-            source: 'light_pollution_viirs',
-            reason: null,
-          },
-        }
-      }
-      if (url === '/sky/visible-planets') {
-        return {
-          data: {
-            planets: [
-              { name: 'Mars', elongation_deg: 74.0 },
-              { name: 'Jupiter', elongation_deg: 91.2 },
-              { name: 'Venusa', elongation_deg: 12.4 },
-            ],
-            sample_at: '2026-03-08T13:10:00+01:00',
-            sun_altitude_deg: 28.4,
-            source: 'jpl_horizons',
-          },
-        }
-      }
-      if (url === '/sky/ephemeris') return ephemerisPayload()
-      return { data: {} }
-    })
-
-    const wrapper = mount(NightSkyWidget, {
-      props: { lat: 48.1486, lon: 17.1077, tz: 'Europe/Bratislava' },
-    })
-
-    await wait()
-
-    expect(wrapper.text()).toContain('Viditelne planety')
-    expect(wrapper.text()).toContain('dnes (odhad): Mars, Jupiter')
-    expect(wrapper.text()).not.toContain('teraz ziadne')
+    expect(wrapper.text()).toContain('Jupiter')
+    expect(wrapper.text()).toContain('19:40-23:10')
+    // Bortle 4 → Dobré podmienky
+    expect(wrapper.text()).toContain('Dobré podmienky')
   })
 })
