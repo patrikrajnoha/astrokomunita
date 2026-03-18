@@ -1,19 +1,5 @@
 <template>
   <div class="trackerMap">
-    <header class="mapTop">
-      <div class="legend">
-        <span class="legendItem">
-          <span class="legendDot iss"></span>
-          ISS
-        </span>
-        <span class="legendItem">
-          <span class="legendDot observer"></span>
-          Tvoja poloha
-        </span>
-      </div>
-      <span v-if="distanceKm !== null" class="distanceBadge">{{ distanceLabel }}</span>
-    </header>
-
     <div class="mapFrame">
       <div class="cardinal north">N</div>
       <div class="cardinal south">S</div>
@@ -78,8 +64,10 @@
         <circle v-if="showObserver" :cx="obsX" :cy="obsY" r="2.5" class="observerDot" />
 
         <!-- ISS dot with glow -->
-        <circle v-if="showTracker" :cx="issX" :cy="issY" r="4.5" class="issDotGlow" />
-        <circle v-if="showTracker" :cx="issX" :cy="issY" r="2.8" class="issDot" />
+        <circle v-if="showTracker" :cx="issX" :cy="issY" r="9" class="issDotGlow3" />
+        <circle v-if="showTracker" :cx="issX" :cy="issY" r="5.5" class="issDotGlow2" />
+        <circle v-if="showTracker" :cx="issX" :cy="issY" r="3" class="issDotGlow" />
+        <circle v-if="showTracker" :cx="issX" :cy="issY" r="2" class="issDot" />
       </svg>
 
       <div
@@ -95,15 +83,10 @@
         v-if="showTracker"
         class="marker issMarker"
         :style="{ left: `${trackerX}%`, top: `${trackerY}%` }"
-        :title="trackerTitle"
+        title="ISS"
       >
         <span class="markerLabel">ISS</span>
       </div>
-    </div>
-
-    <div class="mapMeta">
-      <p class="metaPrimary">{{ primaryLine }}</p>
-      <p v-if="secondaryLine" class="metaSecondary">{{ secondaryLine }}</p>
     </div>
   </div>
 </template>
@@ -171,52 +154,6 @@ const orbitSegments = computed(() => {
   return computeOrbitSegments(trackerLatNum.value, trackerLonNum.value)
 })
 
-const distanceKm = computed(() => {
-  if (!showTracker.value || !showObserver.value) return null
-  return greatCircleKm(observerLatNum.value, observerLonNum.value, trackerLatNum.value, trackerLonNum.value)
-})
-
-const bearingDeg = computed(() => {
-  if (!showTracker.value || !showObserver.value) return null
-  return initialBearing(observerLatNum.value, observerLonNum.value, trackerLatNum.value, trackerLonNum.value)
-})
-
-const directionLabel = computed(() => {
-  if (!Number.isFinite(bearingDeg.value)) return ''
-  return bearingToCompass(bearingDeg.value)
-})
-
-const trackerCoordLabel = computed(() => {
-  if (!showTracker.value) return '-'
-  return formatCoordinatePair(trackerLatNum.value, trackerLonNum.value)
-})
-
-const distanceLabel = computed(() => {
-  if (!Number.isFinite(distanceKm.value)) return ''
-  return `~${formatDistance(distanceKm.value)} km`
-})
-
-const sampleTimeLabel = computed(() => formatSample(props.trackerSampleAt))
-
-const primaryLine = computed(() => {
-  if (showTracker.value && showObserver.value) {
-    const direction = directionLabel.value ? `${directionLabel.value} | ` : ''
-    return `ISS je ${direction}${distanceLabel.value} od teba`
-  }
-  if (showTracker.value) {
-    return `ISS poloha: ${trackerCoordLabel.value}`
-  }
-  return 'Live poloha ISS je docasne nedostupna.'
-})
-
-const secondaryLine = computed(() => {
-  if (!showTracker.value) return ''
-  const sample = sampleTimeLabel.value
-  return sample ? `Snimka: ${sample} | ${trackerCoordLabel.value}` : trackerCoordLabel.value
-})
-
-const trackerTitle = computed(() => `ISS tracker: ${trackerCoordLabel.value}`)
-
 // --- ISS orbit track computation ---
 function computeOrbitSegments(lat0, lon0) {
   const INC = ISS_INCLINATION_DEG * Math.PI / 180
@@ -275,121 +212,12 @@ function toFiniteNumber(value) {
   }
   return null
 }
-
-function formatSample(value) {
-  const parsed = new Date(String(value || '').trim())
-  if (Number.isNaN(parsed.getTime())) return ''
-  return new Intl.DateTimeFormat('sk-SK', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(parsed)
-}
-
-function formatCoordinatePair(lat, lon) {
-  return `${formatLat(lat)}, ${formatLon(lon)}`
-}
-
-function formatLat(value) {
-  const suffix = value >= 0 ? 'N' : 'S'
-  return `${Math.abs(value).toFixed(2)}${suffix}`
-}
-
-function formatLon(value) {
-  const suffix = value >= 0 ? 'E' : 'W'
-  return `${Math.abs(value).toFixed(2)}${suffix}`
-}
-
-function formatDistance(value) {
-  if (!Number.isFinite(value)) return '-'
-  if (value < 1000) return String(Math.round(value))
-  return `${(value / 1000).toFixed(1)}k`
-}
-
-function greatCircleKm(lat1, lon1, lat2, lon2) {
-  const R = 6371
-  const phi1 = toRadians(lat1)
-  const phi2 = toRadians(lat2)
-  const dPhi = toRadians(lat2 - lat1)
-  const dLambda = toRadians(lon2 - lon1)
-  const a = Math.sin(dPhi / 2) ** 2 + Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
-function initialBearing(lat1, lon1, lat2, lon2) {
-  const phi1 = toRadians(lat1)
-  const phi2 = toRadians(lat2)
-  const lambda1 = toRadians(lon1)
-  const lambda2 = toRadians(lon2)
-  const y = Math.sin(lambda2 - lambda1) * Math.cos(phi2)
-  const x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(lambda2 - lambda1)
-  return (toDegrees(Math.atan2(y, x)) + 360) % 360
-}
-
-function bearingToCompass(value) {
-  const sectors = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
-  return sectors[Math.round(((value % 360) + 360) % 360 / 45) % 8]
-}
-
-function toRadians(value) { return (value * Math.PI) / 180 }
-function toDegrees(value) { return (value * 180) / Math.PI }
 </script>
 
 <style scoped>
 .trackerMap {
-  display: grid;
-  gap: 0.34rem;
-  border: 1px solid var(--divider-color);
-  border-radius: 0.62rem;
-  padding: 0.38rem;
-  background: rgb(var(--color-bg-rgb) / 0.35);
-}
-
-.mapTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.4rem;
-}
-
-.legend {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.36rem;
-}
-
-.legendItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.22rem;
-  font-size: 0.62rem;
-  color: var(--color-text-secondary);
-}
-
-.legendDot {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.95);
-}
-
-.legendDot.iss {
-  background: rgb(var(--color-primary-rgb) / 0.95);
-}
-
-.legendDot.observer {
-  background: rgb(var(--color-surface-rgb) / 0.88);
-}
-
-.distanceBadge {
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: var(--color-surface);
-  padding: 0.12rem 0.34rem;
-  border-radius: 999px;
-  background: rgb(var(--color-primary-rgb) / 0.18);
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.42);
+  border-radius: 0.54rem;
+  overflow: hidden;
 }
 
 .mapFrame {
@@ -404,7 +232,7 @@ function toDegrees(value) { return (value * 180) / Math.PI }
   z-index: 4;
   font-size: 0.58rem;
   font-weight: 700;
-  color: rgb(var(--color-surface-rgb) / 0.6);
+  color: rgb(var(--color-surface-rgb) / 0.5);
   text-shadow: 0 1px 1px rgb(var(--color-bg-rgb) / 0.7);
   pointer-events: none;
 }
@@ -428,43 +256,43 @@ function toDegrees(value) { return (value * 180) / Math.PI }
 }
 
 .gridLine {
-  stroke: rgb(var(--color-text-secondary-rgb) / 0.14);
-  stroke-width: 0.4;
+  stroke: rgb(var(--color-text-secondary-rgb) / 0.07);
+  stroke-width: 0.35;
   fill: none;
 }
 
 .gridLine.equator {
-  stroke: rgb(var(--color-text-secondary-rgb) / 0.28);
+  stroke: rgb(var(--color-text-secondary-rgb) / 0.16);
 }
 
 .gridLine.prime {
-  stroke: rgb(var(--color-text-secondary-rgb) / 0.22);
+  stroke: rgb(var(--color-text-secondary-rgb) / 0.11);
 }
 
 .incLine {
-  stroke: rgb(var(--color-primary-rgb) / 0.18);
+  stroke: rgb(var(--color-primary-rgb) / 0.14);
   stroke-width: 0.5;
   stroke-dasharray: 4 3;
   fill: none;
 }
 
 .continent {
-  fill: rgb(var(--color-surface-rgb) / 0.14);
-  stroke: rgb(var(--color-surface-rgb) / 0.38);
+  fill: rgb(var(--color-surface-rgb) / 0.12);
+  stroke: rgb(var(--color-surface-rgb) / 0.28);
   stroke-width: 0.55;
   stroke-linejoin: round;
 }
 
 .orbitTrack {
   fill: none;
-  stroke: rgb(var(--color-primary-rgb) / 0.55);
+  stroke: rgb(var(--color-primary-rgb) / 0.5);
   stroke-width: 0.7;
   stroke-dasharray: 3 2;
   stroke-linecap: round;
 }
 
 .pathLine {
-  stroke: rgb(var(--color-primary-rgb) / 0.75);
+  stroke: rgb(var(--color-primary-rgb) / 0.7);
   stroke-width: 0.8;
   stroke-dasharray: 3 1.5;
   fill: none;
@@ -474,8 +302,16 @@ function toDegrees(value) { return (value * 180) / Math.PI }
   fill: rgb(var(--color-primary-rgb) / 0.9);
 }
 
+.issDotGlow3 {
+  fill: rgb(var(--color-primary-rgb) / 0.06);
+}
+
+.issDotGlow2 {
+  fill: rgb(var(--color-primary-rgb) / 0.16);
+}
+
 .issDotGlow {
-  fill: rgb(var(--color-primary-rgb) / 0.25);
+  fill: rgb(var(--color-primary-rgb) / 0.35);
 }
 
 .issDot {
@@ -515,34 +351,11 @@ function toDegrees(value) { return (value * 180) / Math.PI }
 
 .issMarker .markerLabel {
   background: rgb(var(--color-primary-rgb) / 0.92);
-  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.2);
+  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.18);
 }
 
 .observerMarker .markerLabel {
-  background: rgb(var(--color-surface-rgb) / 0.24);
-  box-shadow: 0 0 0 3px rgb(var(--color-surface-rgb) / 0.12);
-}
-
-/* --- Meta text --- */
-
-.mapMeta {
-  display: grid;
-  gap: 0.08rem;
-}
-
-.metaPrimary,
-.metaSecondary {
-  margin: 0;
-  font-size: 0.64rem;
-  line-height: 1.2;
-}
-
-.metaPrimary {
-  color: var(--color-surface);
-  font-weight: 700;
-}
-
-.metaSecondary {
-  color: var(--color-text-secondary);
+  background: rgb(var(--color-surface-rgb) / 0.22);
+  box-shadow: 0 0 0 3px rgb(var(--color-surface-rgb) / 0.1);
 }
 </style>
