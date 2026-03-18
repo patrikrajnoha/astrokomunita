@@ -585,7 +585,9 @@ export function useSkyWidget(options = {}) {
     if (!shouldShowPlanetsListV15.value) return ''
 
     const count = planetsDisplayListV15.value.length
-    return count === 1 ? '1 objekt je vhodny na pozorovanie.' : `${count} objekty su vhodne na pozorovanie.`
+    if (count === 1) return '1 objekt je vhodný na pozorovanie.'
+    if (count <= 4) return `${count} objekty sú vhodné na pozorovanie.`
+    return `${count} objektov je vhodných na pozorovanie.`
   })
   const planetsMessageV15 = computed(() => {
     if (!hasLocationCoords.value) {
