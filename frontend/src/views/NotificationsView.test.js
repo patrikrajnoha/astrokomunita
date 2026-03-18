@@ -125,7 +125,7 @@ describe('NotificationsView', () => {
     await flush()
 
     expect(document.body.querySelector('[data-testid="notification-settings-modal"]')).not.toBeNull()
-    expect(document.body.textContent).toContain('Nastavenia notifikacii')
+    expect(document.body.textContent).toContain('Nastavenia notifikácií')
     expect(getMock).toHaveBeenCalledWith('/me/notifications/preferences', {
       meta: { requiresAuth: true, skipErrorToast: true },
     })
@@ -167,7 +167,7 @@ describe('NotificationsView', () => {
     await flush()
 
     expect(document.body.querySelector('[data-testid="notification-settings-modal"]')).not.toBeNull()
-    expect(document.body.textContent).toContain('Nastavenia notifikacii')
+    expect(document.body.textContent).toContain('Nastavenia notifikácií')
     expect(getMock).toHaveBeenCalledWith('/me/notifications/preferences', {
       meta: { requiresAuth: true, skipErrorToast: true },
     })
@@ -200,7 +200,7 @@ describe('NotificationsView', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Pripomienky udalosti')
+    expect(document.body.textContent).toContain('Pripomienky udalostí')
     expect(document.body.textContent).toContain('Meteory a roje')
     expect(document.body.textContent).toContain('Zatmenia')
 

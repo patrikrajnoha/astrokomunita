@@ -3,7 +3,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import DropdownMenu from '@/components/shared/DropdownMenu.vue'
 import InviteTicketModal from '@/components/events/InviteTicketModal.vue'
 import EventViewingWindowForecast from '@/components/events/EventViewingWindowForecast.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
@@ -150,18 +149,26 @@ const recommendedPlanHint = computed(() => {
 const eventTimeContext = computed(() => resolveEventTimeContext(event.value, EVENT_TIMEZONE))
 const primaryObservationLine = computed(() => {
   if (viewingForecast.value.loading && !viewingWindowLabel.value) {
-    return 'Odporúčaný čas: načítavam...'
+    return 'načítavam...'
   }
 
   if (viewingForecast.value.missingLocation) {
-    return 'Odporúčaný čas: nastav polohu'
+    return 'nastav polohu'
   }
 
   if (viewingWindowLabel.value) {
-    return `Odporúčaný čas: ${viewingWindowLabel.value}`
+    return viewingWindowLabel.value
   }
 
-  return 'Odporúčaný čas: upresnime'
+  return 'upresnime'
+})
+
+const verdictLine = computed(() => {
+  const summary = viewingForecast.value.summary
+  if (!summary?.rating || !summary?.label_sk) return ''
+  const icons = { good: '🟢', avg: '🟡', bad: '❌' }
+  const icon = icons[summary.rating] || '🟡'
+  return `${icon} ${summary.label_sk}`
 })
 const secondaryEventTimeLabel = computed(() => {
   const context = eventTimeContext.value

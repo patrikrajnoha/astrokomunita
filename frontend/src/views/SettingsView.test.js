@@ -323,7 +323,7 @@ describe('SettingsView', () => {
     expect(httpMock.get).toHaveBeenCalledWith('/account/email', {
       meta: { skipErrorToast: true },
     })
-    expect(wrapper.find('[data-testid="settings-email-status"]').text()).toContain('Overeny')
+    expect(wrapper.find('[data-testid="settings-email-status"]').text()).toContain('Overený')
     expect(wrapper.find('[data-testid="settings-email-status"]').text()).toContain('tester@example.com')
   })
 
@@ -454,9 +454,9 @@ describe('SettingsView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Prilis vela poziadaviek na export. Skuste to znova o 42 s.')
+    expect(wrapper.text()).toContain('Príliš veľa požiadaviek na export. Skúste to znova o 42 s.')
     expect(wrapper.get('#settings-export-button').attributes('disabled')).toBeDefined()
-    expect(wrapper.get('#settings-export-button').text()).toContain('Skuste znova o 42s')
+    expect(wrapper.get('#settings-export-button').text()).toContain('Skúste znova o 42s')
 
     wrapper.unmount()
   })

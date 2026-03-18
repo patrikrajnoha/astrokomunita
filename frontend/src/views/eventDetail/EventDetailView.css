@@ -217,16 +217,65 @@
   padding: 0.34rem 0.78rem;
 }
 
+.eventVerdict {
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0.52rem 0.72rem;
+  border-radius: 0.72rem;
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid rgb(255 255 255 / 0.06);
+}
+
+.eventVerdict--good {
+  background: rgb(52 211 153 / 0.1);
+  border-color: rgb(52 211 153 / 0.18);
+  color: rgb(209 250 229 / 0.96);
+}
+
+.eventVerdict--avg {
+  background: rgb(251 191 36 / 0.1);
+  border-color: rgb(251 191 36 / 0.18);
+  color: rgb(254 243 199 / 0.96);
+}
+
+.eventVerdict--bad {
+  background: rgb(248 113 113 / 0.1);
+  border-color: rgb(248 113 113 / 0.18);
+  color: rgb(254 226 226 / 0.96);
+}
+
 .eventCtaRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.7rem;
   padding-top: 0.2rem;
 }
 
-.planButton,
-.swipeNavButton {
+.eventSecondaryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  padding-top: 0.1rem;
+}
+
+.secondaryAction {
+  border: none;
+  background: none;
+  color: rgb(255 255 255 / 0.44);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.secondaryAction:hover {
+  color: rgb(255 255 255 / 0.72);
+}
+
+.planButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -264,8 +313,7 @@
   color: rgb(187 247 208 / 0.96);
 }
 
-.planButton:disabled,
-.swipeNavButton:disabled {
+.planButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -274,18 +322,28 @@
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  border-top: 1px solid var(--divider-color);
-  padding-top: 0.9rem;
+  padding-top: 0.6rem;
 }
 
-.swipeNavButton {
+.swipeNavLink {
   flex: 0 0 auto;
-  min-height: 2.65rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
-  background: rgb(255 255 255 / 0.03);
-  color: rgb(255 255 255 / 0.84);
-  font-size: 0.82rem;
-  padding: 0 0.82rem;
+  border: none;
+  background: none;
+  color: rgb(255 255 255 / 0.48);
+  font-size: 0.84rem;
+  font-weight: 500;
+  padding: 0;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.swipeNavLink:not(:disabled):hover {
+  color: rgb(255 255 255 / 0.78);
+}
+
+.swipeNavLink:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
 }
 
 .swipeHint {
@@ -297,61 +355,6 @@
   text-align: center;
 }
 
-.menuRoot {
-  justify-self: end;
-}
-
-.menuTrigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.42rem;
-  font-size: 0.9rem;
-  font-weight: 650;
-  line-height: 1;
-}
-
-.menuTrigger__label {
-  letter-spacing: -0.006em;
-}
-
-.menuTrigger__caret {
-  font-size: 0.72rem;
-  opacity: 0.82;
-}
-
-.menuRoot :deep(.dropdownTrigger) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 7.25rem;
-  min-height: 3rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
-  background: rgb(255 255 255 / 0.06);
-  color: rgb(255 255 255 / 0.92);
-  padding: 0 0.95rem;
-}
-
-.menuRoot :deep(.dropdownTrigger:hover) {
-  background: rgb(255 255 255 / 0.07);
-  color: rgb(255 255 255 / 0.98);
-}
-
-.menuRoot :deep(.dropdownMenu) {
-  min-width: 12rem;
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.14);
-  background: rgb(18 25 36 / 0.98);
-  box-shadow: 0 18px 36px rgb(0 0 0 / 0.24);
-}
-
-.menuRoot :deep(.dropdownItem) {
-  color: rgb(255 255 255 / 0.88);
-  padding: 0.6rem 0.72rem;
-}
-
-.menuRoot :deep(.dropdownItem:hover) {
-  background: rgb(255 255 255 / 0.08);
-}
 
 .missingEventState {
   display: grid;
@@ -639,27 +642,9 @@
     grid-column: 1 / -1;
   }
 
-  .menuRoot {
-    width: 100%;
-    justify-self: stretch;
-  }
-
-  .planButton,
-  .swipeNavButton,
-  .menuRoot :deep(.dropdownTrigger) {
+  .planButton {
     min-height: 2.9rem;
     height: 2.9rem;
-  }
-
-  .menuRoot :deep(.dropdownTrigger) {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .eventSwipeRow {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
   }
 
   .missingEventCard {
@@ -676,9 +661,4 @@
     width: 100%;
   }
 
-  .swipeHint {
-    grid-column: 1 / -1;
-    order: -1;
-    text-align: left;
-  }
 }

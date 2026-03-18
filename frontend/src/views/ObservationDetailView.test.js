@@ -89,7 +89,7 @@ describe('ObservationDetailView event chip', () => {
 
     const wrapper = await mountView()
     const chip = wrapper.get('.event-chip')
-    expect(chip.text()).toContain('Udalost: Planetarna konjunkcia')
+    expect(chip.text()).toContain('Udalosť: Planetarna konjunkcia')
     expect(chip.attributes('href')).toBe('/events/42')
   })
 
@@ -103,7 +103,7 @@ describe('ObservationDetailView event chip', () => {
 
     const wrapper = await mountView()
     const chip = wrapper.get('.event-chip')
-    expect(chip.text()).toContain('Otvorit udalost')
+    expect(chip.text()).toContain('Otvoriť udalosť')
     expect(chip.attributes('href')).toBe('/events/99')
   })
 

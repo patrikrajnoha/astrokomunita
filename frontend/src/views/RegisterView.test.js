@@ -73,7 +73,7 @@ async function completeRegisterWizard(wrapper, {
   await wait(450)
   await flush()
 
-  const stepOneNext = wrapper.findAll('button').find((button) => button.text() === 'Pokracovat')
+  const stepOneNext = wrapper.findAll('button').find((button) => button.text() === 'Pokračovať')
   await stepOneNext.trigger('click')
   await flush()
 
@@ -82,7 +82,7 @@ async function completeRegisterWizard(wrapper, {
   await passwordInputs[0].setValue(password)
   await passwordInputs[1].setValue(password)
 
-  const stepTwoNext = wrapper.findAll('button').find((button) => button.text() === 'Pokracovat')
+  const stepTwoNext = wrapper.findAll('button').find((button) => button.text() === 'Pokračovať')
   await stepTwoNext.trigger('click')
   await flush()
 
@@ -127,7 +127,7 @@ describe('RegisterView', () => {
       name: 'settings.email',
       query: { redirect: '/' },
     })
-    expect(toastSuccessMock).toHaveBeenCalledWith('Poslali sme ti overovaci kod.')
+    expect(toastSuccessMock).toHaveBeenCalledWith('Poslali sme ti overovací kód.')
   })
 
   it('still redirects to Settings when auto-send is rate-limited', async () => {

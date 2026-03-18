@@ -48,9 +48,6 @@
             </li>
           </ol>
 
-          <div class="stepTrack" aria-hidden="true">
-            <span class="stepTrackFill" :style="{ width: `${stepProgress}%` }"></span>
-          </div>
         </header>
 
         <form class="card" @submit.prevent="submit" novalidate>
@@ -82,7 +79,7 @@
           <div class="dobPicker">
             <div class="dobPickerGrid">
               <label class="dobPickerField">
-                <span>Den</span>
+                <span>Deň</span>
                 <select v-model.number="dobDraftDay" class="dobSelect">
                   <option v-for="d in dayOptions" :key="d" :value="d">{{ d }}</option>
                 </select>
@@ -102,7 +99,7 @@
             </div>
             <p v-if="dobDraftTooYoung" class="fieldHint isError">Musíš mať aspoň 13 rokov.</p>
           </div>
-          <span v-if="dateOfBirthError" class="fieldHint isError">{{ dateOfBirthError }}</span>
+          <span v-else-if="dateOfBirthError" class="fieldHint isError">{{ dateOfBirthError }}</span>
         </label>
       </section>
 
@@ -147,6 +144,7 @@
           <p class="summaryLine"><span>Meno:</span> {{ name || '-' }}</p>
           <p class="summaryLine"><span>Používateľ:</span> {{ username || '-' }}</p>
           <p class="summaryLine"><span>Email:</span> {{ email || '-' }}</p>
+          <p class="summaryLine"><span>Dátum narodenia:</span> {{ dobDraftDay && dobDraftMonth && dobDraftYear ? `${dobDraftDay}. ${dobDraftMonth}. ${dobDraftYear}` : '-' }}</p>
         </div>
 
         <div v-if="turnstileEnabled" class="field">

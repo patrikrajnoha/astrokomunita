@@ -1,15 +1,15 @@
   <div class="wrap" :class="{ embedded }">
     <header v-if="!embedded" class="top">
-      <button class="iconBtn" @click="back" aria-label="Spat">&larr;</button>
+      <button class="iconBtn" @click="back" aria-label="Späť">&larr;</button>
       <h1 class="title">Profil</h1>
     </header>
 
-    <div v-if="!auth.initialized" class="state muted">Nacitavam...</div>
-    <div v-else-if="!auth.user" class="state err">Nie si prihlaseny.</div>
+    <div v-if="!auth.initialized" class="state muted">Načítavam...</div>
+    <InlineStatus v-else-if="!auth.user" variant="error" message="Nie si prihlásený." />
 
     <form v-else class="card form" @submit.prevent>
-      <div v-if="msg" class="msg ok">{{ msg }}</div>
-      <div v-if="err" class="msg err">{{ err }}</div>
+      <InlineStatus v-if="msg" variant="success" :message="msg" />
+      <InlineStatus v-else-if="err" variant="error" :message="err" />
 
       <div class="profileGrid">
         <div class="field">
@@ -41,12 +41,12 @@
 
         <div class="quickActions">
           <button class="btn ghost" type="button" @click="useMyLocation" :disabled="saving || geolocating || resolvingLocation">
-            {{ geolocating ? 'Ziskavam GPS...' : 'Pouzit GPS' }}
+            {{ geolocating ? 'Získavam GPS...' : 'Použiť GPS' }}
           </button>
         </div>
 
         <div class="field">
-          <label>Nazov mesta</label>
+          <label>Názov mesta</label>
           <div class="locationNameRow">
             <input
               class="input"
@@ -58,29 +58,27 @@
               @keyup.enter="fillLocationFromLabel"
             />
             <button class="btn ghost fillLocationBtn" type="button" @click="fillLocationFromLabel" :disabled="saving || geolocating || resolvingLocation">
-              {{ resolvingLocation ? 'Doplnam...' : 'Doplnit' }}
+              {{ resolvingLocation ? 'Dopĺňam...' : 'Doplniť' }}
             </button>
           </div>
-          <p class="hint">Tip: Zadaj nazov mesta a klikni Doplnit. Suradnice doplnime automaticky na pozadi.</p>
+          <p class="hint">Súradnice doplníme automaticky z názvu mesta alebo GPS.</p>
           <p v-if="fieldErr.locationLabel" class="fieldErr">{{ fieldErr.locationLabel }}</p>
           <p v-if="fieldErr.locationSource" class="fieldErr">{{ fieldErr.locationSource }}</p>
         </div>
 
-        <p v-if="form.locationMode === 'gps'" class="hint">Nazov polohy sa prebera z GPS.</p>
-        <p class="hint">Suradnice sa pouzivaju interne pre pocasie a nocnu oblohu.</p>
         <p v-if="fieldErr.latitude || fieldErr.longitude || fieldErr.timezone" class="fieldErr">
-          Skontroluj zadanu polohu alebo pouzi GPS.
+          Skontroluj zadanú polohu alebo použi GPS.
         </p>
       </section>
 
       <div class="actionsBar">
-        <p class="hint actionsState">{{ hasChanges ? 'Mas neulozene zmeny.' : 'Vsetko ulozene.' }}</p>
+        <p class="hint actionsState">{{ hasChanges ? 'Máš neuložené zmeny.' : 'Všetko uložené.' }}</p>
         <div class="actionsButtons">
           <button class="btn ghost" type="button" @click="resetForm" :disabled="saving || !hasChanges">
-            Obnovit
+            Obnoviť
           </button>
           <button class="btn" type="button" @click="save" :disabled="saving || resolvingLocation || !hasChanges">
-            {{ saving ? 'Ukladam...' : 'Ulozit' }}
+            {{ saving ? 'Ukladám...' : 'Uložiť' }}
           </button>
         </div>
       </div>

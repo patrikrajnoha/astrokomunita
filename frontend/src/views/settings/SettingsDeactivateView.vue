@@ -1,11 +1,9 @@
 <template>
   <SettingsDetailShell
     title="Deaktivácia účtu"
-    subtitle="Táto akcia natrvalo odstráni účet a odhlási vás."
+    subtitle="Táto akcia natrvalo odstráni účet, všetky príspevky a súvisiaci obsah."
     :danger="true"
   >
-    <p class="danger-note">Zmazanie účtu natrvalo odstráni aj vaše príspevky a súvisiaci obsah.</p>
-
     <InlineStatus
       v-if="deactivateState.error"
       variant="error"
@@ -13,12 +11,12 @@
     />
 
     <div class="settings-form">
-      <label class="field-label" for="deactivate-confirm">Napíšte DEACTIVATE pre potvrdenie</label>
+      <label class="field-label" for="deactivate-confirm">Napíšte VYMAZAŤ pre potvrdenie</label>
       <input
         id="deactivate-confirm"
         v-model.trim="deactivateForm.confirm"
         type="text"
-        placeholder="DEACTIVATE"
+        placeholder="VYMAZAŤ"
         class="field-input field-input-danger"
         :disabled="deactivateState.loading"
         aria-label="Potvrdenie deaktivácie"
@@ -27,7 +25,7 @@
       <button
         type="button"
         class="btn btn-danger"
-        :disabled="deactivateState.loading || deactivateForm.confirm !== 'DEACTIVATE'"
+        :disabled="deactivateState.loading || deactivateForm.confirm !== 'VYMAZAŤ'"
         aria-label="Deaktivovať účet"
         @click="confirmDeactivate"
       >
@@ -47,7 +45,7 @@ const { deactivateForm, deactivateState, submitDeactivate } = useSettingsContext
 const { confirm } = useConfirm()
 
 async function confirmDeactivate() {
-  if (deactivateState.loading || deactivateForm.confirm !== 'DEACTIVATE') return
+  if (deactivateState.loading || deactivateForm.confirm !== 'VYMAZAŤ') return
 
   const approved = await confirm({
     title: 'Deaktivovať účet?',
