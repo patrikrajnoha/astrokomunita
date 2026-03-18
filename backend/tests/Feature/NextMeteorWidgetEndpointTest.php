@@ -31,7 +31,7 @@ class NextMeteorWidgetEndpointTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.id', $meteor->id)
             ->assertJsonPath('data.type', 'meteor_shower')
-            ->assertJsonPath('source.label', 'Databaza udalosti');
+            ->assertJsonPath('source.label', 'Databáza udalostí');
     }
 
     public function test_endpoint_returns_null_when_no_upcoming_meteor_event_exists(): void
@@ -44,7 +44,7 @@ class NextMeteorWidgetEndpointTest extends TestCase
         $this->getJson('/api/events/widget/next-meteor-shower')
             ->assertOk()
             ->assertJsonPath('data', null)
-            ->assertJsonPath('source.label', 'Databaza udalosti');
+            ->assertJsonPath('source.label', 'Databáza udalostí');
     }
 
     public function test_endpoint_cache_is_invalidated_when_future_meteor_event_is_created(): void

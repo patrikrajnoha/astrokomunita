@@ -117,11 +117,15 @@ class SkyMoonPhasesService
         $years = [$referenceYear - 1, $referenceYear, $referenceYear + 1];
 
         foreach ($years as $year) {
-            $payload = $this->http->getJson(
-                'usno_moon_phases',
-                $this->resolveYearEndpointUrl(),
-                ['year' => $year]
-            );
+            try {
+                $payload = $this->http->getJson(
+                    'usno_moon_phases',
+                    $this->resolveYearEndpointUrl(),
+                    ['year' => $year]
+                );
+            } catch (\Throwable) {
+                continue;
+            }
 
             $rows = data_get($payload, 'phasedata');
             if (!is_array($rows)) {

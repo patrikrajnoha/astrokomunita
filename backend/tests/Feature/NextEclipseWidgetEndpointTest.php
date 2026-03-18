@@ -37,7 +37,7 @@ class NextEclipseWidgetEndpointTest extends TestCase
             ])
             ->assertJsonPath('data.id', $futureSolar->id)
             ->assertJsonPath('data.type', 'eclipse_solar')
-            ->assertJsonPath('source.label', 'Databaza udalosti');
+            ->assertJsonPath('source.label', 'Databáza udalostí');
 
         $keys = array_keys($response->json('data'));
         sort($keys);
@@ -54,7 +54,7 @@ class NextEclipseWidgetEndpointTest extends TestCase
         $this->getJson('/api/events/widget/next-eclipse')
             ->assertOk()
             ->assertJsonPath('data', null)
-            ->assertJsonPath('source.label', 'Databaza udalosti');
+            ->assertJsonPath('source.label', 'Databáza udalostí');
     }
 
     private function createManualEvent(string $title, string $sourceUid, string $type, Carbon $startAt, int $visibility = 1): Event
