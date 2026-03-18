@@ -35,9 +35,9 @@ describe('SearchResults', () => {
 
     await nextTick()
 
-    expect(wrapper.text()).toContain('Nedavne hladania')
+    expect(wrapper.text()).toContain('Nedávne hľadania')
     expect(wrapper.text()).toContain('mars')
-    expect(wrapper.text()).toContain('Odporucane ucty')
+    expect(wrapper.text()).toContain('Odporúčané účty')
     expect(wrapper.text()).toContain('Marek Nova')
   })
 
@@ -97,6 +97,6 @@ describe('SearchResults', () => {
     await nextTick()
 
     expect(window.localStorage.getItem('search_recent_queries')).toBeNull()
-    expect(wrapper.text()).toContain('Zatial nemas ziadne nedavne hladania.')
+    expect(wrapper.text()).toContain('Zatiaľ nemáš žiadne nedávne hľadania.')
   })
 })

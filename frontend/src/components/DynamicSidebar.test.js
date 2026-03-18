@@ -35,6 +35,7 @@ vi.mock('@/stores/eventPreferences', () => ({
 }))
 
 vi.mock('@/sidebar/engine', () => ({
+  GUEST_OBSERVING_PROMPT_SECTION_KEY: 'guest_observing_prompt',
   getEnabledSidebarSections: getEnabledSidebarSectionsMock,
   resolveSidebarComponent: resolveSidebarComponentMock,
 }))
@@ -84,10 +85,10 @@ describe('DynamicSidebar', () => {
     await flush()
     await flush()
 
-    expect(fetchScopeMock).toHaveBeenCalledWith('events')
+    expect(fetchScopeMock).toHaveBeenCalledWith('home')
   })
 
-  it('uses the homepage widget fallback on home scope before preferences are loaded', async () => {
+  it('passes null preferredSectionKeys on home scope so admin-configured widgets are shown', async () => {
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
@@ -110,7 +111,7 @@ describe('DynamicSidebar', () => {
     expect(getEnabledSidebarSectionsMock).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        preferredSectionKeys: ['next_event', 'nasa_apod', 'search'],
+        preferredSectionKeys: null,
       }),
     )
   })

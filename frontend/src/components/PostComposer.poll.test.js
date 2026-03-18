@@ -45,7 +45,7 @@ describe('PostComposer poll mode', () => {
 
     const attachButton = wrapper.find('button[aria-label="Pridat prilohu"]')
     expect(attachButton.attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('Pri ankete sa obrazky pridavaju iba ku konkretnym moznostiam.')
+    expect(wrapper.text()).toContain('Pri ankete sa obrázky pridávajú iba ku konkrétnym možnostiam.')
   })
 
   it('adds options up to 4', async () => {
@@ -53,7 +53,7 @@ describe('PostComposer poll mode', () => {
 
     await wrapper.find('button[aria-label="Pridat anketu"]').trigger('click')
 
-    const addButton = () => wrapper.find('button[aria-label="Pridat moznost"]')
+    const addButton = () => wrapper.find('button[aria-label="Pridať možnosť"]')
 
     await addButton().trigger('click')
     await addButton().trigger('click')

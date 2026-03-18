@@ -46,7 +46,7 @@ describe('ObservationCard event chip', () => {
     }))
 
     const link = wrapper.get('.observation-event-link')
-    expect(link.text()).toContain('Udalost: Totalne zatmenie Mesiaca')
+    expect(link.text()).toContain('Udalosť: Totalne zatmenie Mesiaca')
     expect(link.attributes('href')).toBe('/events/42')
   })
 
@@ -57,7 +57,7 @@ describe('ObservationCard event chip', () => {
     }))
 
     const link = wrapper.get('.observation-event-link')
-    expect(link.text()).toContain('Otvorit udalost')
+    expect(link.text()).toContain('Otvoriť udalosť')
     expect(link.attributes('href')).toBe('/events/77')
   })
 

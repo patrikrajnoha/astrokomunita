@@ -69,12 +69,12 @@ describe('RightObservingSidebar', () => {
   })
 
   it('maps routes to observing/sidebar scopes', () => {
-    expect(resolveSidebarScopeFromPath('/events')).toBe('events')
-    expect(resolveSidebarScopeFromPath('/observations')).toBe('observing')
-    expect(resolveSidebarScopeFromPath('/observing/sky-summary')).toBe('observing')
-    expect(resolveSidebarScopeFromPath('/articles')).toBe('learning')
-    expect(resolveSidebarScopeFromPath('/articles/neptun')).toBe('article_detail')
-    expect(resolveSidebarScopeFromPath('/settings')).toBe('settings')
+    expect(resolveSidebarScopeFromPath('/events')).toBe('home')
+    expect(resolveSidebarScopeFromPath('/observations')).toBe('home')
+    expect(resolveSidebarScopeFromPath('/observing/sky-summary')).toBe('home')
+    expect(resolveSidebarScopeFromPath('/articles')).toBe('home')
+    expect(resolveSidebarScopeFromPath('/articles/neptun')).toBe('home')
+    expect(resolveSidebarScopeFromPath('/settings')).toBe('home')
   })
 
   it('renders compact summary content', async () => {
@@ -84,12 +84,12 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.text()).toContain('Astronomicke podmienky')
-    expect(wrapper.text()).toContain('/100')
-    expect(wrapper.text()).toContain('Vyborne')
-    expect(wrapper.text()).toContain('Jasno')
-    expect(wrapper.text()).toContain('Mesiac 77%')
-    expect(wrapper.text()).toContain('Najlepsie okno')
+    expect(wrapper.text()).toContain('Astronomické podmienky')
+    expect(wrapper.text()).toContain('/ 100')
+    expect(wrapper.text()).toContain('Výborné podmienky')
+    expect(wrapper.text()).toContain('Jasno · 9.4 °C')
+    expect(wrapper.text()).not.toContain('Mesiac')
+    expect(wrapper.text()).toContain('Práve prebieha')
   })
 
   it('renders bundled summary payload without extra sky requests', async () => {
@@ -110,9 +110,9 @@ describe('RightObservingSidebar', () => {
     await wait()
 
     expect(getMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('/100')
+    expect(wrapper.text()).toContain('/ 100')
     expect(wrapper.text()).toContain('Jasno')
-    expect(wrapper.text()).toContain('Mesiac 77%')
+    expect(wrapper.text()).not.toContain('Mesiac')
   })
 
   it('routes to profile location editor from location action', async () => {
@@ -134,7 +134,7 @@ describe('RightObservingSidebar', () => {
     await wait()
 
     expect(getMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Poloha nie je nastavena')
+    expect(wrapper.text()).toContain('Poloha nie je nastavená')
   })
 
   it('treats out-of-range coordinates as missing location and avoids API calls', async () => {
@@ -145,10 +145,10 @@ describe('RightObservingSidebar', () => {
     await wait()
 
     expect(getMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Poloha nie je nastavena')
+    expect(wrapper.text()).toContain('Poloha nie je nastavená')
   })
 
-  it('renders moon dash when illumination is null', async () => {
+  it('does not show moon data (handled by separate moon widget)', async () => {
     getMock.mockImplementation(async (url) => {
       if (url === '/sky/weather') return weatherPayload()
       if (url === '/sky/astronomy') {
@@ -168,6 +168,7 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.text()).toContain('Mesiac -')
+    expect(wrapper.text()).not.toContain('Mesiac')
+    expect(wrapper.text()).toContain('Jasno')
   })
 })

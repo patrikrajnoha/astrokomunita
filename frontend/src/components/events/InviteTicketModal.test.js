@@ -61,11 +61,11 @@ describe('InviteTicketModal', () => {
     const wrapper = makeWrapper()
 
     await wrapper.find('[data-testid="send-invite-btn"]').trigger('click')
-    expect(wrapper.text()).toContain('Meno na vstupenke je povinne.')
+    expect(wrapper.text()).toContain('Meno na vstupenke je povinné.')
 
     await wrapper.find('[data-testid="attendee-name-input"]').setValue('A'.repeat(81))
     await wrapper.find('[data-testid="send-invite-btn"]').trigger('click')
-    expect(wrapper.text()).toContain('Meno na vstupenke moze mat najviac 80 znakov.')
+    expect(wrapper.text()).toContain('Meno na vstupenke môže mať najviac 80 znakov.')
   })
 
   it('calls create invite endpoint with expected payload', async () => {
@@ -103,7 +103,6 @@ describe('InviteTicketModal', () => {
 
     const wrapper = makeWrapper()
     await wrapper.find('[data-testid="attendee-name-input"]').setValue('Marek')
-    await wrapper.find('.menuBtn').trigger('click')
     await wrapper.find('[data-testid="share-ticket-btn"]').trigger('click')
 
     expect(shareMock).toHaveBeenCalledTimes(1)
@@ -117,7 +116,6 @@ describe('InviteTicketModal', () => {
     })
 
     const wrapper = makeWrapper()
-    await wrapper.find('.menuBtn').trigger('click')
     await wrapper.find('[data-testid="print-ticket-btn"]').trigger('click')
 
     expect(printMock).toHaveBeenCalledTimes(1)

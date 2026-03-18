@@ -18,7 +18,7 @@
     </div>
 
     <p v-else-if="showMissingLocation" class="forecastStrip__empty">
-      Predpoved zobrazime po ulozeni polohy.
+      Predpoveď zobrazíme po uložení polohy.
     </p>
 
     <div v-else-if="summary" class="forecastStrip__metrics" role="list">
@@ -30,21 +30,9 @@
         <span class="forecastMetric__icon" aria-hidden="true">&#127788;</span>
         <span>{{ formatMeasure(summary.wind_ms, 'm/s') }}</span>
       </span>
-      <span class="forecastMetric" role="listitem">
-        <span class="forecastMetric__icon" aria-hidden="true">&#127777;</span>
-        <span>{{ formatTemperature(summary.temp_c) }}</span>
-      </span>
-      <span class="forecastMetric" role="listitem">
-        <span class="forecastMetric__icon" aria-hidden="true">&#128167;</span>
-        <span>{{ formatPercent(summary.humidity_pct) }}</span>
-      </span>
-      <span class="forecastMetric" role="listitem">
-        <span class="forecastMetric__icon" aria-hidden="true">&#9730;</span>
-        <span>{{ formatPercent(summary.precip_pct) }}</span>
-      </span>
     </div>
 
-    <p v-else class="forecastStrip__empty">Predpoved pre toto okno nie je dostupna.</p>
+    <p v-else class="forecastStrip__empty">Predpoveď pre toto okno nie je dostupná.</p>
   </section>
 </template>
 
@@ -240,9 +228,7 @@ function formatMeasure(value, unit) {
 .forecastStrip {
   display: grid;
   gap: 0.5rem;
-  padding: 0.8rem 0;
-  border-top: 1px solid var(--divider-color);
-  border-bottom: 1px solid var(--divider-color);
+  padding: 0.5rem 0;
 }
 
 .forecastStrip__top {

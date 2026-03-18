@@ -35,6 +35,7 @@ function makeRouter() {
       { path: '/admin/bots/schedules', name: 'admin.bots.schedules', component: { template: '<div>bot-schedules</div>' } },
       { path: '/admin/bots/activity', name: 'admin.bots.activity', component: { template: '<div>bot-activity</div>' } },
       { path: '/admin/performance-metrics', name: 'admin.performance-metrics', component: { template: '<div>performance</div>' } },
+      { path: '/admin/sidebar-config', name: 'admin.sidebar-config', component: { template: '<div>sidebar-config</div>' } },
       { path: '/admin/:pathMatch(.*)*', component: { template: '<div>admin-any</div>' } },
     ],
   })
