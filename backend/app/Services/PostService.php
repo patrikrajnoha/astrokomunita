@@ -519,15 +519,6 @@ class PostService
             return PostBotIdentity::STELA->value;
         }
 
-        $email = strtolower(trim((string) $user->email));
-        if (str_contains($email, PostBotIdentity::KOZMO->value)) {
-            return PostBotIdentity::KOZMO->value;
-        }
-
-        if (str_contains($email, PostBotIdentity::STELA->value) || str_contains($email, 'stellarbot')) {
-            return PostBotIdentity::STELA->value;
-        }
-
         return null;
     }
 

@@ -113,7 +113,7 @@ class GenerateUserDataExportJob implements ShouldQueue
                 'file_path' => $filePath,
                 'file_name' => $fileName,
                 'size_bytes' => (int) filesize($absolutePath),
-                'checksum_sha256' => (string) ($payload['checksum_sha256'] ?? hash('sha256', $json)),
+                'checksum_sha256' => hash_file('sha256', $absolutePath),
                 'completed_at' => now(),
                 'expires_at' => now()->addDay(),
             ])->save();

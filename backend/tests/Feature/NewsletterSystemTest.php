@@ -468,7 +468,7 @@ class NewsletterSystemTest extends TestCase
         $tip = (string) data_get($response->json(), 'data.astronomical_tip', '');
         $this->assertStringContainsString('Pozorujte z tmavsieho miesta', $tip);
         $this->assertStringContainsString('20 minut', $tip);
-        $this->assertStringContainsString('Preco je to zaujimave', $tip);
+        $this->assertStringContainsString('Prečo je to zaujímavé', $tip);
         $this->assertStringNotContainsString('2026-03-10T11:32:00+00:00', $tip);
         $this->assertStringNotContainsString('UTC', $tip);
         $this->assertStringNotContainsString('+00:00', $tip);
@@ -494,7 +494,7 @@ class NewsletterSystemTest extends TestCase
             ->assertOk();
 
         $tip = (string) data_get($response->json(), 'data.astronomical_tip', '');
-        $this->assertStringContainsString('vyhladajte tmavsie miesto mimo mesta', $tip);
+        $this->assertStringContainsString('vyhľadajte tmavšie miesto mimo mesta', $tip);
     }
 
     public function test_admin_preview_tip_ignores_stale_insights_after_event_change(): void
@@ -527,7 +527,7 @@ class NewsletterSystemTest extends TestCase
             ->assertOk();
 
         $tip = (string) data_get($response->json(), 'data.astronomical_tip', '');
-        $this->assertStringContainsString('vyhladajte tmavsie miesto mimo mesta', $tip);
+        $this->assertStringContainsString('vyhľadajte tmavšie miesto mimo mesta', $tip);
         $this->assertStringNotContainsString('Pomaha porovnat jas Mesiaca', $tip);
     }
 

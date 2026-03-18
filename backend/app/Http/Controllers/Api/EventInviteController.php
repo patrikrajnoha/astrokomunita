@@ -26,8 +26,8 @@ class EventInviteController extends Controller
         $this->authorize('create', [EventInvite::class, $event]);
 
         $validated = $request->validate([
-            'invitee_user_id' => ['nullable', 'integer', 'exists:users,id', 'required_without:invitee_email'],
-            'invitee_email' => ['nullable', 'string', 'email:rfc', 'max:255', 'required_without:invitee_user_id'],
+            'invitee_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'invitee_email' => ['nullable', 'string', 'email:rfc', 'max:255'],
             'attendee_name' => ['required', 'string', 'max:80'],
             'message' => ['nullable', 'string', 'max:240'],
         ]);

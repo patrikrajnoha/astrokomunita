@@ -30,8 +30,8 @@ class EventReminderNotificationTest extends TestCase
 
         $mail = (new EventReminderNotification($reminder))->toMail(new \stdClass());
 
-        $this->assertSame('Upozornenie na udalost', $mail->subject);
-        $this->assertContains('Zaciatok: 06.07.2026 20:00', $mail->introLines);
+        $this->assertSame('Upozornenie na udalosť', $mail->subject);
+        $this->assertContains('Začiatok: 06.07.2026 20:00', $mail->introLines);
         $this->assertSame('https://astro.test/events/42', $mail->actionUrl);
     }
 }
