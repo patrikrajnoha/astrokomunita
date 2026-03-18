@@ -27,7 +27,7 @@ describe('NextEventWidget', () => {
     vi.useRealTimers()
   })
 
-  it('renders type, countdown, and source transparency for the next event', async () => {
+  it('renders type label, compact date, countdown and link for the next event', async () => {
     getMock.mockResolvedValue({
       data: {
         data: {
@@ -58,10 +58,17 @@ describe('NextEventWidget', () => {
     await nextTick()
 
     expect(getMock).toHaveBeenCalledWith('/events/next')
-    expect(wrapper.text()).toContain('Perzeidy')
+
+    // Type label is the primary identifier (no verbose DB title)
     expect(wrapper.text()).toContain('Meteory')
+
+    // Countdown
     expect(wrapper.text()).toContain('Za 2 dni')
-    expect(wrapper.text()).toContain('Zdroj: IMO')
+
+    // No source attribution
+    expect(wrapper.text()).not.toContain('Zdroj:')
+
+    // Entire card links to event detail
     expect(wrapper.find('a[href="/events/42"]').exists()).toBe(true)
   })
 
@@ -95,7 +102,7 @@ describe('NextEventWidget', () => {
     await nextTick()
 
     expect(getMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Zatmenie')
     expect(wrapper.text()).toContain('Zatmenie Slnka')
+    expect(wrapper.find('a[href="/events/7"]').exists()).toBe(true)
   })
 })

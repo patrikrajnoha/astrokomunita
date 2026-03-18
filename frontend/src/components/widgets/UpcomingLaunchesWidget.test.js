@@ -53,10 +53,8 @@ describe('UpcomingLaunchesWidget', () => {
 
     expect(getMock).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Falcon 9 Block 5')
-    expect(wrapper.text()).toContain('Starlink Group 17-24')
+    expect(wrapper.text()).not.toContain('Starlink Group 17-24')
     expect(wrapper.text()).toContain('SpaceX')
-    expect(wrapper.text()).toContain('Go')
-    expect(wrapper.text()).toContain('Zdroj: The Space Devs Launch Library 2')
   })
 
   it('fetches launches when no bundle payload is provided', async () => {

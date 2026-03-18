@@ -2,44 +2,69 @@
   <section class="card panel">
     <div class="panelTitle sidebarSection__header">{{ title }}</div>
 
-    <div v-if="loading" class="panelLoading">
-      <div class="skeleton h-4 w-4/5"></div>
-      <div class="skeleton h-10 w-full"></div>
-      <div class="skeleton h-10 w-full"></div>
+    <div v-if="loading" class="neo-list">
+      <div v-for="i in 3" :key="i" class="skeleton-row">
+        <div class="skeleton sk-name"></div>
+        <div class="skeleton sk-distance"></div>
+        <div class="skeleton sk-orbit"></div>
+      </div>
     </div>
 
-    <div v-else-if="error" class="state stateError">
-      <div class="stateTitle">Nepodarilo sa načítať NEO</div>
-      <div class="stateText">{{ error }}</div>
-      <button type="button" class="ghostBtn" @click="fetchPayload">Skúsiť znova</button>
+    <div v-else-if="error" class="state state--error">
+      <div class="state-title">Nepodarilo sa načítať NEO</div>
+      <div class="state-text">{{ error }}</div>
+      <button type="button" class="retry-btn" @click="fetchPayload">Skúsiť znova</button>
     </div>
 
     <div v-else-if="!payload?.available" class="state">
-      <div class="stateTitle">NEO dáta sú nedostupné</div>
-      <div class="stateText">NASA JPL SBDB teraz nevracia použiteľný watchlist.</div>
+      <div class="state-title">NEO dáta nedostupné</div>
+      <div class="state-text">NASA JPL SBDB nevracia použiteľný watchlist.</div>
     </div>
 
     <div v-else-if="items.length === 0" class="state">
-      <div class="stateTitle">Watchlist je prázdny</div>
-      <div class="stateText">V aktuálnom prehľade neboli žiadne blízke NEO objekty.</div>
+      <div class="state-title">Watchlist je prázdny</div>
+      <div class="state-text">V prehľade neboli žiadne blízke NEO objekty.</div>
     </div>
 
-    <div v-else class="content">
+    <div v-else class="neo-list">
       <article
         v-for="item in items"
         :key="itemKey(item)"
-        class="neoRow"
+        class="neo-row"
       >
-        <div class="rowHeader">
-          <div class="rowTitle">{{ item.name }}</div>
-          <span class="flagBadge" :class="{ danger: item.pha }" :title="item.pha ? 'Potenciálne nebezpečný asteroid (PHA)' : 'Near-Earth Object'">{{ item.pha ? '⚠ PHA' : 'NEO' }}</span>
+        <div class="neo-row__body">
+          <div class="neo-name">
+            <svg
+              v-if="item.pha"
+              class="warn-icon"
+              viewBox="0 0 12 11"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.3"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+              title="Potenciálne nebezpečný asteroid"
+              aria-label="Potenciálne nebezpečný asteroid"
+            >
+              <path d="M6 1L11.2 10H.8L6 1Z"/>
+              <line x1="6" y1="4.2" x2="6" y2="6.8"/>
+              <circle cx="6" cy="8.4" r="0.55" fill="currentColor" stroke="none"/>
+            </svg>
+            <span class="name-text" :title="item.name">{{ item.name }}</span>
+          </div>
+          <div class="neo-distance" :class="proximityClass(item.moid_au)">
+            <span class="dist-label">{{ proximityLabel(item.moid_au) }}</span>
+            <span class="dist-sep">·</span>
+            <span class="dist-raw">{{ formatMoid(item.moid_au) }}</span>
+          </div>
+          <div v-if="orbitLabel(item)" class="neo-orbit">{{ orbitLabel(item) }}</div>
         </div>
-
-        <p class="rowMeta">{{ formatMeta(item) }}</p>
-        <p v-if="formatDetail(item)" class="rowDetail">{{ formatDetail(item) }}</p>
+        <svg class="row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
       </article>
 
-      <p v-if="metaLine" class="metaLine">{{ metaLine }}</p>
+      <p v-if="updatedLabel !== '-'" class="widget-footer">Aktualizované {{ updatedLabel }}</p>
     </div>
   </section>
 </template>
@@ -72,24 +97,21 @@ export default {
 
     const items = computed(() => {
       const rows = Array.isArray(payload.value?.items) ? payload.value.items : []
-      return rows.slice(0, 3)
+      return [...rows]
+        .sort((a, b) => {
+          const aVal = Number(a?.moid_au)
+          const bVal = Number(b?.moid_au)
+          const aOk = Number.isFinite(aVal)
+          const bOk = Number.isFinite(bVal)
+          if (aOk && bOk) return aVal - bVal
+          if (aOk) return -1
+          if (bOk) return 1
+          return 0
+        })
+        .slice(0, 3)
     })
 
-    const metaLine = computed(() => {
-      const sourceLabel = String(payload.value?.source?.label || 'NASA JPL SBDB').trim()
-      const updatedLabel = formatTime(payload.value?.updated_at)
-      const parts = []
-
-      if (sourceLabel) {
-        parts.push(`Zdroj: ${sourceLabel}`)
-      }
-
-      if (updatedLabel !== '-') {
-        parts.push(`Aktualizované: ${updatedLabel}`)
-      }
-
-      return parts.join(' | ')
-    })
+    const updatedLabel = computed(() => formatTime(payload.value?.updated_at))
 
     const applyPayload = (nextPayload) => {
       payload.value = nextPayload && typeof nextPayload === 'object' ? nextPayload : null
@@ -153,11 +175,13 @@ export default {
       fetchPayload,
       items,
       loading,
-      metaLine,
       payload,
+      updatedLabel,
       itemKey,
-      formatMeta,
-      formatDetail,
+      formatMoid,
+      orbitLabel,
+      proximityLabel,
+      proximityClass,
     }
   },
 }
@@ -168,57 +192,35 @@ function itemKey(item) {
   return designation || name
 }
 
-function formatMeta(item) {
-  const parts = []
-  const orbitLabel = String(item?.orbit_class_label || item?.orbit_class_code || '').trim()
-  const moid = formatMoid(item?.moid_au)
-
-  if (orbitLabel) {
-    parts.push(orbitLabel)
-  }
-
-  if (moid) {
-    parts.push(`Min. vzdial. ${moid}`)
-  }
-
-  return parts.join(' | ') || 'Bez orbitálnych detailov'
+function orbitLabel(item) {
+  return String(item?.orbit_class_label || item?.orbit_class_code || '').trim()
 }
 
-function formatDetail(item) {
-  const parts = []
+function proximityLabel(value) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return 'Vzdialenosť neznáma'
+  if (numeric < 0.002) return 'Veľmi blízko'
+  if (numeric < 0.05) return 'Blízko'
+  return 'Ďaleko'
+}
 
-  if (item?.pha) {
-    parts.push('Potenciálne nebezpečný objekt')
-  }
-
-  const diameter = formatDiameter(item?.diameter_km)
-  if (diameter) {
-    parts.push(`Priemer ~${diameter}`)
-  }
-
-  return parts.join(' | ')
+function proximityClass(value) {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return 'dist--unknown'
+  if (numeric < 0.002) return 'dist--very-close'
+  if (numeric < 0.05) return 'dist--close'
+  return 'dist--far'
 }
 
 function formatMoid(value) {
   const numeric = Number(value)
-  if (!Number.isFinite(numeric)) return ''
+  if (!Number.isFinite(numeric)) return '— AU'
 
   if (numeric < 0.01) {
     return `${numeric.toFixed(4)} AU`
   }
 
   return `${numeric.toFixed(3)} AU`
-}
-
-function formatDiameter(value) {
-  const numeric = Number(value)
-  if (!Number.isFinite(numeric) || numeric <= 0) return ''
-
-  if (numeric < 1) {
-    return `${Math.round(numeric * 1000)} m`
-  }
-
-  return `${numeric.toFixed(1)} km`
 }
 
 function formatTime(value) {
@@ -252,7 +254,7 @@ function formatTime(value) {
 
 .panel {
   display: grid;
-  gap: 0.24rem;
+  gap: 0.5rem;
   min-width: 0;
 }
 
@@ -263,128 +265,203 @@ function formatTime(value) {
   line-height: 1.22;
 }
 
-.panelLoading,
-.content {
+/* ── NEO list ── */
+.neo-list {
   display: grid;
-  gap: 0.24rem;
+  gap: 0.3rem;
 }
 
-.neoRow {
-  display: grid;
-  gap: 0.14rem;
-  padding: 0.38rem 0.44rem;
-  border: 1px solid var(--divider-color);
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  border-radius: 0.56rem;
-}
-
-.rowHeader {
+/* ── NEO row ── */
+.neo-row {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.rowTitle {
-  color: var(--color-surface);
-  font-size: 0.8rem;
-  font-weight: 700;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-
-.flagBadge {
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-width: 2.15rem;
-  padding: 0.16rem 0.34rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.36);
-  background: rgb(var(--color-primary-rgb) / 0.14);
-  color: var(--color-surface);
-  font-size: 0.66rem;
-  font-weight: 800;
-  line-height: 1.1;
+  gap: 0.5rem;
+  padding: 0.56rem 0.6rem;
+  border-radius: 0.64rem;
+  background: rgb(var(--color-bg-rgb) / 0.18);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.12);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  min-width: 0;
 }
 
-.flagBadge.danger {
-  border-color: rgb(var(--color-danger-rgb) / 0.42);
-  background: rgb(var(--color-danger-rgb) / 0.14);
+.neo-row:hover {
+  background: rgb(var(--color-primary-rgb) / 0.07);
+  border-color: rgb(var(--color-primary-rgb) / 0.22);
 }
 
-.rowMeta,
-.rowDetail,
-.metaLine {
-  margin: 0;
+.neo-row__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.18rem;
 }
 
-.rowMeta,
-.rowDetail,
-.metaLine,
-.stateText {
-  color: var(--color-text-secondary);
-  font-size: 0.7rem;
-  line-height: 1.28;
+/* ── Name line ── */
+.neo-name {
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
 }
 
-.stateTitle {
+.warn-icon {
+  flex-shrink: 0;
+  width: 0.72rem;
+  height: 0.72rem;
+  color: var(--color-warning);
+  opacity: 0.85;
+}
+
+.name-text {
   color: var(--color-surface);
   font-size: 0.82rem;
-  font-weight: 800;
-  line-height: 1.24;
+  font-weight: 700;
+  line-height: 1.22;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.stateError .stateTitle,
-.stateError .stateText {
-  color: var(--color-danger);
+/* ── Distance ── */
+.neo-distance {
+  display: flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
-.ghostBtn {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  min-height: 1.68rem;
-  padding: 0.24rem 0.48rem;
-  border: 0;
-  box-sizing: border-box;
-  text-align: center;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  font-size: 0.72rem;
-  line-height: 1.12;
-  border-radius: 0 !important;
-  color: var(--color-surface);
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  box-shadow: inset 0 0 0 1px var(--color-text-secondary);
+.dist-label {
+  font-weight: 600;
 }
 
-.ghostBtn:hover {
-  color: var(--color-surface);
-  background: rgb(var(--color-primary-rgb) / 0.08);
-  box-shadow: inset 0 0 0 1px var(--color-primary);
-  transform: none;
+.dist-sep {
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.dist-raw {
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  font-weight: 400;
+}
+
+.dist--very-close .dist-label { color: var(--color-warning); }
+.dist--very-close .dist-raw   { color: rgb(var(--color-warning-rgb) / 0.65); }
+.dist--close .dist-label      { color: var(--color-surface); }
+.dist--far .dist-label        { color: var(--color-text-secondary); }
+.dist--unknown .dist-label    { color: var(--color-text-secondary); }
+
+/* ── Orbit group ── */
+.neo-orbit {
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Chevron ── */
+.row-chevron {
+  flex-shrink: 0;
+  width: 0.7rem;
+  height: 0.7rem;
+  color: var(--color-text-secondary);
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
+}
+
+.neo-row:hover .row-chevron {
+  opacity: 0.75;
+}
+
+/* ── Skeleton loading ── */
+.skeleton-row {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.56rem 0.6rem;
+  border-radius: 0.64rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.08);
 }
 
 .skeleton {
+  border-radius: 0.25rem;
   background: linear-gradient(
     90deg,
-    rgb(var(--color-text-secondary-rgb) / 0.08),
-    rgb(var(--color-text-secondary-rgb) / 0.16),
-    rgb(var(--color-text-secondary-rgb) / 0.08)
+    rgb(var(--color-text-secondary-rgb) / 0.07),
+    rgb(var(--color-text-secondary-rgb) / 0.14),
+    rgb(var(--color-text-secondary-rgb) / 0.07)
   );
   background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
-  border-radius: 0;
+  animation: shimmer 1.4s infinite;
 }
 
+.sk-name     { height: 0.75rem; width: 78%; }
+.sk-distance { height: 0.65rem; width: 35%; }
+.sk-orbit    { height: 0.6rem;  width: 28%; }
+
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
+  0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 
-.h-4 { height: 1rem; }
-.h-10 { height: 2.5rem; }
-.w-4\/5 { width: 80%; }
-.w-full { width: 100%; }
+/* ── States ── */
+.state {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.1rem 0;
+}
+
+.state-title {
+  color: var(--color-surface);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.24;
+}
+
+.state-text {
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  line-height: 1.28;
+  margin: 0;
+}
+
+.state--error .state-title,
+.state--error .state-text {
+  color: var(--color-danger);
+}
+
+/* ── Retry button ── */
+.retry-btn {
+  display: inline-block;
+  margin-top: 0.2rem;
+  padding: 0.22rem 0.56rem;
+  border-radius: 0.36rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.retry-btn:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.5);
+  color: var(--color-surface);
+}
+
+/* ── Footer ── */
+.widget-footer {
+  margin: 0.1rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.62rem;
+  line-height: 1.2;
+  opacity: 0.55;
+  text-align: right;
+}
 </style>
