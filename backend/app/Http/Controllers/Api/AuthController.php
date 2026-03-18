@@ -52,9 +52,15 @@ class AuthController extends Controller
             ], 403);
         }
 
+        try {
+            $activity = $this->activityService->getActivity($user);
+        } catch (\Throwable) {
+            $activity = null;
+        }
+
         return response()->json([
             ...$user->toArray(),
-            'activity' => $this->activityService->getActivity($user),
+            'activity' => $activity,
         ]);
     }
 
@@ -146,7 +152,14 @@ class AuthController extends Controller
         if (! $attempted) {
             if ($this->attemptLegacyPlaintextLogin($credentials['email'], $credentials['password'], $remember)) {
                 $request->session()->regenerate();
-                return response()->json($request->user());
+
+                $loggedInUser = $request->user();
+                if ($loggedInUser && ($loggedInUser->isBanned() || ! $loggedInUser->is_active)) {
+                    Auth::guard('web')->logoutCurrentDevice();
+                    return response()->json(['message' => 'Váš účet je zablokovaný.'], 403);
+                }
+
+                return response()->json($loggedInUser);
             }
 
             return response()->json([
@@ -156,7 +169,13 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return response()->json($request->user());
+        $loggedInUser = $request->user();
+        if ($loggedInUser && ($loggedInUser->isBanned() || ! $loggedInUser->is_active)) {
+            Auth::guard('web')->logoutCurrentDevice();
+            return response()->json(['message' => 'Váš účet je zablokovaný.'], 403);
+        }
+
+        return response()->json($loggedInUser);
     }
 
     private function ensureDefaultUsersForLocal(): void
