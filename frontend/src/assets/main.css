@@ -4,6 +4,25 @@
 @import "./base.css";
 @import "./auth.css";
 
+/*
+ * Tailwind v4 @theme — mapuje brand farby na utility triedy.
+ * Použitie v templates: bg-app, text-vivid, bg-hover, text-muted,
+ * bg-secondary-btn, bg-danger, bg-surface, atď.
+ */
+@theme {
+  --color-app:              #151d28;
+  --color-surface:          #1d2228;
+  --color-hover:            #1c2736;
+  --color-vivid:            #0F73FF;
+  --color-vivid-hover:      #0d65e6;
+  --color-vivid-active:     #0a5ecc;
+  --color-muted:            #ABB8C9;
+  --color-secondary-btn:    #222E3F;
+  --color-secondary-btn-hover: #2a3a52;
+  --color-danger:           #EB2452;
+  --color-danger-hover:     #f1456c;
+}
+
 .ui-divider,
 .ui-divider-bottom {
   border-bottom: 1px solid var(--divider-color);
@@ -259,7 +278,8 @@
   .ghostbtn,
   .more-btn
 ):hover:not(:disabled):not([aria-disabled='true']) {
-  opacity: 0.88;
+  /* Fallback — individual variants override this below */
+  background-color: var(--interactive-hover);
 }
 
 :where(
@@ -391,9 +411,8 @@
   .adminPagination__btn,
   .adminTable__clearBtn
 ):hover:not(:disabled) {
-  background: rgb(var(--color-btn-secondary-bg-rgb) / 0.75);
+  background: #2a3a52;
   color: var(--color-text-primary);
-  opacity: 1;
 }
 
 :where(.ui-btn--ghost, .ui-pill--ghost, .btn-ghost, .btn.ghost, .ghostbtn) {
@@ -606,6 +625,148 @@
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+/*
+ * Tailwind komponentné triedy pre tlačidlá.
+ * Použitie: <button class="btn-primary">Text</button>
+ *           <button class="btn-secondary">Text</button>
+ *           <button class="btn-ghost">Text</button>
+ *           <button class="btn-danger">Text</button>
+ * Všetky majú: žiadny border, žiadny shadow, veľký radius, čisté farby.
+ */
+@layer components {
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    min-height: 40px;
+    border-radius: 999px;
+    border: none;
+    background: #0F73FF;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 160ms ease, transform 120ms ease;
+    box-shadow: none;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: #0d65e6;
+  }
+  .btn-primary:active:not(:disabled) {
+    background: #0a5ecc;
+    transform: scale(0.97);
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    min-height: 40px;
+    border-radius: 999px;
+    border: none;
+    background: #222E3F;
+    color: #ABB8C9;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 160ms ease, color 160ms ease, transform 120ms ease;
+    box-shadow: none;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: #2a3a52;
+    color: #ffffff;
+  }
+  .btn-secondary:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    min-height: 40px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: #ABB8C9;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 160ms ease, color 160ms ease, transform 120ms ease;
+    box-shadow: none;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: #1c2736;
+    color: #ffffff;
+  }
+  .btn-ghost:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    min-height: 40px;
+    border-radius: 999px;
+    border: none;
+    background: #EB2452;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 160ms ease, transform 120ms ease;
+    box-shadow: none;
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: #f1456c;
+  }
+  .btn-danger:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  /* Spoločné disabled stav */
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-ghost:disabled,
+  .btn-danger:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Veľkostné varianty */
+  .btn-sm {
+    padding: 6px 14px;
+    min-height: 32px;
+    font-size: 12px;
+  }
+  .btn-lg {
+    padding: 13px 28px;
+    min-height: 48px;
+    font-size: 15px;
+  }
+  .btn-full {
+    width: 100%;
   }
 }
 
