@@ -91,6 +91,6 @@ describe('ResetPasswordView', () => {
     await flush()
 
     expect(httpMock.post).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.')
+    expect(wrapper.text()).toContain('Formát kódu musí byť XXXXX-XXXXX.')
   })
 })

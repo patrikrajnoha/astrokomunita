@@ -9,16 +9,16 @@ export function useProfileContentTabs({
   confirm,
 }) {
   const tabs = [
-    { key: 'posts', label: 'Prispevky', kind: 'roots' },
+    { key: 'posts', label: 'Príspevky', kind: 'roots' },
     { key: 'observations', label: 'Pozorovania', kind: 'observations' },
     { key: 'events', label: 'Udalosti', kind: 'events' },
-    { key: 'bookmarks', label: 'Zalozky', kind: 'bookmarks' },
-    { key: 'media', label: 'Media', kind: 'media' },
-    { key: 'likes', label: 'Paci sa', kind: 'likes' },
+    { key: 'bookmarks', label: 'Záložky', kind: 'bookmarks' },
+    { key: 'media', label: 'Médiá', kind: 'media' },
+    { key: 'likes', label: 'Páči sa', kind: 'likes' },
   ]
   const eventSegments = [
-    { key: 'planned', label: 'Planovane' },
-    { key: 'following', label: 'Sledujes' },
+    { key: 'planned', label: 'Plánované' },
+    { key: 'following', label: 'Sleduješ' },
   ]
 
   const stats = reactive({ posts: '--', replies: '--', media: '--' })
@@ -75,10 +75,10 @@ export function useProfileContentTabs({
   ))
   const globalEmptyMessage = computed(() => (
     activeTab.value === 'events'
-      ? 'Sleduj udalost a zobrazime ju tu.'
+      ? 'Sleduj udalosť a zobrazíme ju tu.'
       : activeTab.value === 'observations'
-        ? 'Pridaj prve pozorovanie a zobrazime ho tu.'
-        : 'Tento feed je momentalne prazdny.'
+        ? 'Pridaj prvé pozorovanie a zobrazíme ho tu.'
+        : 'Tento feed je momentálne prázdny.'
   ))
   const globalEmptyActionLabel = computed(() => (
     activeTab.value === 'observations' ? 'Pridať pozorovanie' : ''
@@ -90,8 +90,8 @@ export function useProfileContentTabs({
   ))
   const eventSegmentEmptyMessage = computed(() => (
     activeEventSegment.value === 'planned'
-      ? 'Pridaj k udalosti poznamku, pripomienku alebo cas a zobrazime ju medzi planovanymi.'
-      : 'Sleduj udalost a zobrazime ju v segmente Sledujes.'
+      ? 'Pridaj k udalosti poznámku, pripomienku alebo čas a zobrazíme ju medzi plánovanými.'
+      : 'Sleduj udalosť a zobrazíme ju v segmente Sleduješ.'
   ))
 
   function setActiveTab(key) {
@@ -283,7 +283,10 @@ export function useProfileContentTabs({
     try {
       if (tab.kind === 'observations') {
         const page = reset ? 1 : Number(state.next || 0)
-        if (!page) return
+        if (!page) {
+          state.loaded = true
+          return
+        }
 
         const { data } = await listObservations({
           mine: 1,
@@ -350,7 +353,7 @@ export function useProfileContentTabs({
     } catch (e) {
       const status = e?.response?.status
       if (status === 401) state.err = 'Prihlas sa.'
-      else state.err = e?.response?.data?.message || 'Nacitanie zlyhalo.'
+      else state.err = e?.response?.data?.message || 'Načítanie zlyhalo.'
     } finally {
       state.loading = false
     }

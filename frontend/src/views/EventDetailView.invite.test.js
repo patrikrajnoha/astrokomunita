@@ -172,16 +172,16 @@ describe('EventDetailView', () => {
 
     const { wrapper } = await mountView()
 
-    expect(wrapper.text()).toContain('Prihlasit sa pre sledovanie')
+    expect(wrapper.text()).toContain('Prihlásiť sa')
     expect(wrapper.text()).not.toContain('Diskusia')
   })
 
   it('shows follow CTA to authenticated users and toggles to followed state', async () => {
     const { wrapper } = await mountView()
 
-    expect(wrapper.text()).toContain('Sledovat')
+    expect(wrapper.text()).toContain('Sledovať')
 
-    const followButton = wrapper.find('.dropdown-item-stub[data-key="follow"]')
+    const followButton = wrapper.find('.followButton')
 
     expect(followButton.exists()).toBe(true)
 
@@ -190,14 +190,14 @@ describe('EventDetailView', () => {
 
     expect(authStore.csrf).toHaveBeenCalledTimes(1)
     expect(followEventMock).toHaveBeenCalledWith(12)
-    expect(wrapper.text()).toContain('Sledujes')
+    expect(wrapper.text()).toContain('Sleduješ')
   })
 
   it('exposes ICS and share actions in the overflow menu', async () => {
     const { wrapper } = await mountView()
 
-    expect(wrapper.text()).toContain('Pridat do kalendara')
-    expect(wrapper.text()).toContain('Zdielat odkaz')
+    expect(wrapper.text()).toContain('Pridať do kalendára')
+    expect(wrapper.text()).toContain('Zdieľať odkaz')
   })
 
   it('clarifies daytime maximum when viewing opens after sunset', async () => {
@@ -213,7 +213,7 @@ describe('EventDetailView', () => {
     const { wrapper } = await mountView()
     const rendered = wrapper.text()
 
-    expect(rendered).toContain('Odporucany cas: 18:16 - 22:16')
+    expect(rendered).toContain('18:16 - 22:16')
     expect(rendered).not.toContain('Maximum javu je cez den.')
     expect(rendered).not.toContain('Cas "Maximum" znamena astronomicky vrchol javu')
   })
@@ -289,7 +289,7 @@ describe('EventDetailView', () => {
 
     const planButton = wrapper
       .findAll('button')
-      .find((button) => button.text().includes('Naplanovat pozorovanie'))
+      .find((button) => button.text().includes('Naplánovať pozorovanie'))
 
     expect(planButton).toBeTruthy()
 
@@ -318,8 +318,8 @@ describe('EventDetailView', () => {
     const { wrapper } = await mountView('/events/404')
 
     expect(wrapper.find('.missingEventCard').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Tato udalost uz neexistuje.')
-    expect(wrapper.text()).toContain('Vsetky udalosti')
+    expect(wrapper.text()).toContain('Táto udalosť už neexistuje.')
+    expect(wrapper.text()).toContain('Všetky udalosti')
     expect(wrapper.find('[data-testid="inline-status"]').exists()).toBe(false)
   })
 

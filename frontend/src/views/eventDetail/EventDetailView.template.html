@@ -76,8 +76,12 @@
             <p class="eventMeta">{{ metaLine }}</p>
           </div>
 
+          <div v-if="verdictLine" class="eventVerdict" :class="`eventVerdict--${viewingForecast.summary?.rating || 'avg'}`">
+            {{ verdictLine }}
+          </div>
+
           <section class="eventSection eventTimeBlock" aria-label="Čas udalosti">
-            <p class="eventSection__label">Kedy</p>
+            <p class="eventSection__label">Najlepší čas</p>
             <p class="eventTimeBlock__primary">{{ primaryObservationLine }}</p>
             <p
               v-if="secondaryEventTimeLabel"
@@ -147,27 +151,18 @@
             >
               {{ followActionLabel }}
             </button>
+          </div>
 
-            <DropdownMenu
-              class="menuRoot"
-              :items="menuItems"
-              label="Akcie udalosti"
-              menu-label="Akcie udalosti"
-              @select="handleMenuSelect"
-            >
-              <template #trigger>
-                <span class="menuTrigger">
-                  <span class="menuTrigger__label">Viac</span>
-                  <span class="menuTrigger__caret" aria-hidden="true">▾</span>
-                </span>
-              </template>
-            </DropdownMenu>
+          <div class="eventSecondaryActions">
+            <button v-if="auth.isAuthed" type="button" class="secondaryAction" @click="handleInvite">Pozvať</button>
+            <button type="button" class="secondaryAction" @click="handleMenuSelect({ key: 'calendar' })">Pridať do kalendára</button>
+            <button type="button" class="secondaryAction" @click="handleMenuSelect({ key: 'share' })">Zdieľať odkaz</button>
           </div>
 
           <div class="eventSwipeRow">
             <button
               type="button"
-              class="swipeNavButton"
+              class="swipeNavLink"
               :disabled="!canGoPrev || swipeNavigating"
               @click="goToAdjacentEvent('prev')"
             >
@@ -178,7 +173,7 @@
             </p>
             <button
               type="button"
-              class="swipeNavButton"
+              class="swipeNavLink"
               :disabled="!canGoNext || swipeNavigating"
               @click="goToAdjacentEvent('next')"
             >

@@ -380,6 +380,6 @@ describe('ProfileEdit', () => {
     await flush()
 
     expect(wrapper.find('input[type="number"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Nepodarilo sa doplnit suradnice pre zadane mesto.')
+    expect(wrapper.text()).toContain('Nepodarilo sa doplniť súradnice pre zadané mesto.')
   })
 })

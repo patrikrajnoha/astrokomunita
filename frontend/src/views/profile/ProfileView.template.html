@@ -21,7 +21,7 @@
         v-if="!auth.user"
         mode="empty"
         title="Profil je dostupný po prihlásení"
-        message="Prihlas sa a uvidíš svoje príspevky, pozorovania, médiá a záložky."
+        message="Prihlás sa a uvidíš svoje príspevky, pozorovania, médiá a záložky."
         action-label="Prihlásiť sa"
         compact
         @action="goLogin"
@@ -126,11 +126,13 @@
             <span>Príspevky</span>
           </div>
           <div class="stat ui-profile-stat">
-            <strong>{{ tabState.observations.total || '--' }}</strong>
+            <strong v-if="tabState.observations.total !== null">{{ tabState.observations.total }}</strong>
+            <strong v-else class="ui-skeleton" aria-hidden="true" style="width:2ch;display:inline-block;">&ZeroWidthSpace;</strong>
             <span>Pozorovania</span>
           </div>
           <div class="stat ui-profile-stat">
-            <strong>{{ tabState.events.total || '--' }}</strong>
+            <strong v-if="tabState.events.total !== null">{{ tabState.events.total }}</strong>
+            <strong v-else class="ui-skeleton" aria-hidden="true" style="width:2ch;display:inline-block;">&ZeroWidthSpace;</strong>
             <span>Sledované udalosti</span>
           </div>
         </div>

@@ -145,15 +145,15 @@
             class="border-b border-[var(--divider-color)] px-4 py-3 text-sm text-[var(--text-primary)]"
             role="status"
           >
-            Nastavenia sky alertov su docasne nedostupne. Skus znova.
+            Nastavenia sky alertov sú dočasne nedostupné. Skús znova.
           </p>
 
           <label
             class="flex items-center justify-between gap-4 border-b border-[var(--divider-color)] bg-[color:rgb(var(--bg-surface-2-rgb)/0.32)] px-4 py-4"
           >
             <div class="min-w-0">
-              <p class="text-sm font-semibold text-[var(--text-primary)]">Upozornit ma pri vybornych podmienkach</p>
-              <p class="mt-1 text-xs text-[var(--text-secondary)]">Dostanes upozornenie, ked bude obloha vhodna na pozorovanie.</p>
+              <p class="text-sm font-semibold text-[var(--text-primary)]">Upozorniť ma pri výborných podmienkach</p>
+              <p class="mt-1 text-xs text-[var(--text-secondary)]">Dostaneš upozornenie, keď bude obloha vhodná na pozorovanie.</p>
             </div>
             <button
               type="button"
@@ -171,8 +171,8 @@
             class="flex items-center justify-between gap-4 bg-[color:rgb(var(--bg-surface-2-rgb)/0.32)] px-4 py-4"
           >
             <div class="min-w-0">
-              <p class="text-sm font-semibold text-[var(--text-primary)]">Upozornit ma na ISS prelet</p>
-              <p class="mt-1 text-xs text-[var(--text-secondary)]">Dostanes upozornenie pred dalsim dobre viditelnym preletom ISS.</p>
+              <p class="text-sm font-semibold text-[var(--text-primary)]">Upozorniť ma na ISS prelet</p>
+              <p class="mt-1 text-xs text-[var(--text-secondary)]">Dostaneš upozornenie pred ďalším dobre viditeľným preletom ISS.</p>
             </div>
             <button
               type="button"
@@ -237,7 +237,7 @@
             class="border-b border-[var(--divider-color)] px-4 py-3 text-sm text-[var(--text-primary)]"
             role="status"
           >
-            Event reminder nastavenia su docasne nedostupne. Skus znova.
+            Event reminder nastavenia sú dočasne nedostupné. Skús znova.
           </p>
 
           <div v-else class="divide-y divide-[var(--divider-color)]">
@@ -503,21 +503,21 @@ const formatTitle = (item) => {
     return 'Pripomienka udalosti'
   }
   if (item.type === 'contest_winner') {
-    return 'Vyhral si sutaz'
+    return 'Vyhral si súťaž'
   }
   if (item.type === 'event_invite') {
-    return 'Prisla ti pozvanka na udalost'
+    return 'Prišla ti pozvánka na udalosť'
   }
   if (item.type === 'account_restricted') {
-    return 'Ucet bol obmedzeny'
+    return 'Účet bol obmedzený'
   }
   if (item.type === 'iss_pass_alert') {
-    return 'ISS prelet uz coskoro'
+    return 'ISS prelet už čoskoro'
   }
   if (item.type === 'good_conditions_alert') {
-    return 'Vyborne podmienky na pozorovanie'
+    return 'Výborné podmienky na pozorovanie'
   }
-  return 'Notifikacia'
+  return 'Notifikácia'
 }
 
 const formatSubtitle = (item) => {
@@ -534,21 +534,21 @@ const formatSubtitle = (item) => {
   if (item.type === 'event_invite') {
     const inviter = item.data?.actor_name || item.data?.actor_username
     const title = item.data?.event_title
-    if (inviter && title) return `${inviter} ta pozval na ${title}`
-    if (inviter) return `${inviter} ta pozval na udalost`
-    return title || 'Bol si pozvany na udalost'
+    if (inviter && title) return `${inviter} ťa pozval na ${title}`
+    if (inviter) return `${inviter} ťa pozval na udalosť`
+    return title || 'Bol si pozvaný na udalosť'
   }
   if (item.type === 'account_restricted') {
-    return item.data?.reason || 'Pre viac informacii kontaktuj podporu.'
+    return item.data?.reason || 'Pre viac informácií kontaktuj podporu.'
   }
   if (item.type === 'iss_pass_alert') {
-    return item.data?.next_pass_at ? `Dalsi prelet: ${formatClock(item.data.next_pass_at)}` : 'Prelet pride uz coskoro.'
+    return item.data?.next_pass_at ? `Ďalší prelet: ${formatClock(item.data.next_pass_at)}` : 'Prelet príde už čoskoro.'
   }
   if (item.type === 'good_conditions_alert') {
     const score = Number(item.data?.observing_score)
-    return Number.isFinite(score) ? `Skore podmienok ${Math.round(score)}/100.` : 'Podmienky na oblohe vyzeraju dnes vyborne.'
+    return Number.isFinite(score) ? `Skóre podmienok ${Math.round(score)}/100.` : 'Podmienky na oblohe vyzerajú dnes výborne.'
   }
-  return 'Nova aktivita'
+  return 'Nová aktivita'
 }
 
 const formatTime = (item) => {

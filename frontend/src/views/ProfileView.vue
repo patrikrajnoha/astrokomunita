@@ -42,7 +42,7 @@ const eventFollows = useEventFollowsStore()
 const { confirm } = useConfirm()
 const toast = useToast()
 
-const copyLabel = ref('Kopirovat link')
+const copyLabel = ref('Kopírovať link')
 const profileEditModalOpen = ref(false)
 const {
   AVATAR_COLORS,
@@ -159,17 +159,17 @@ function profilePostMenuItems(post) {
       key: 'pin',
       label:
         pinLoadingId.value === post.id
-          ? 'Ukladam...'
+          ? 'Ukladám...'
           : isPinnedOnProfile(post)
-            ? 'Odopnut'
-            : 'Pripnut',
+            ? 'Odopnúť'
+            : 'Pripnúť',
       danger: false,
     })
   }
 
   items.push({
     key: 'delete',
-    label: deleteLoadingId.value === post.id ? 'Mazem...' : 'Vymazat',
+    label: deleteLoadingId.value === post.id ? 'Mažem...' : 'Vymazať',
     danger: true,
   })
 
@@ -193,7 +193,8 @@ function onProfilePostMenuSelect(item, post) {
 
 function onGlobalEmptyAction() {
   if (activeTab.value === 'observations') {
-    router.push('/observations/new')
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(new CustomEvent('post:composer:open', { detail: { action: 'observation' } }))
   }
 }
 
@@ -234,7 +235,7 @@ function formatEventRange(startAt, endAt) {
   const startLabel = formatShortEventDate(startAt, true)
   const endLabel = formatShortEventDate(endAt, true)
 
-  if (!startLabel && !endLabel) return 'Datum upresnime'
+  if (!startLabel && !endLabel) return 'Dátum upresnime'
   if (startLabel && !endLabel) return startLabel
   if (!startLabel && endLabel) return endLabel
 
@@ -258,12 +259,12 @@ async function copyProfileLink() {
   const url = `${window.location.origin}/profile`
   try {
     await navigator.clipboard.writeText(url)
-    copyLabel.value = 'Skopirovane'
+    copyLabel.value = 'Skopírované'
   } catch {
-    copyLabel.value = 'Nepodarilo sa kopirovat'
+    copyLabel.value = 'Nepodarilo sa kopírovať'
   }
   setTimeout(() => {
-    copyLabel.value = 'Kopirovat link'
+    copyLabel.value = 'Kopírovať link'
   }, 1500)
 }
 

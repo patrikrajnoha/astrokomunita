@@ -9,7 +9,7 @@
       :message="passwordState.success"
     />
     <InlineStatus
-      v-if="passwordState.error"
+      v-else-if="passwordState.error"
       variant="error"
       :message="passwordState.error"
     />

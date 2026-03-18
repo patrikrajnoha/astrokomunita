@@ -1,12 +1,12 @@
 <template>
   <section class="observation-create-page" :class="{ 'observation-create-page--embedded': embedded }">
     <header v-if="!embedded">
-      <h1>Nove pozorovanie</h1>
-      <p>Vytvor zaznam pozorovania, pridaj fotografie a publikuj ho do feedu.</p>
+      <h1>Nové pozorovanie</h1>
+      <p>Vytvor záznam pozorovania, pridaj fotografie a publikuj ho do feedu.</p>
     </header>
 
     <div v-if="!auth.isAuthed" class="state-card">
-      <InlineStatus variant="info" message="Prihlas sa pre vytvorenie pozorovania." />
+      <InlineStatus variant="info" message="Prihlás sa pre vytvorenie pozorovania." />
     </div>
 
     <form v-else class="form-card" :class="{ 'form-card--embedded': embedded }" @submit.prevent="submit">
@@ -17,12 +17,12 @@
         </label>
 
         <label class="field">
-          <span>Pozorovane *</span>
+          <span>Pozorované *</span>
           <input v-model="form.observedAt" type="datetime-local" required>
         </label>
 
         <label class="field">
-          <span>Prepojena udalost</span>
+          <span>Prepojená udalosť</span>
           <select v-model="form.eventId">
             <option value="">Bez udalosti</option>
             <option v-for="eventItem in events" :key="eventItem.id" :value="String(eventItem.id)">
@@ -32,19 +32,14 @@
         </label>
       </div>
 
-      <label v-if="!embedded" class="field">
+      <label class="field">
         <span>Popis</span>
-        <textarea v-model="form.description" rows="4" maxlength="5000"></textarea>
+        <textarea v-model="form.description" :rows="embedded ? 3 : 4" maxlength="5000"></textarea>
       </label>
 
       <details class="optional-section">
-        <summary class="optional-section__summary">Volitelne detaily</summary>
+        <summary class="optional-section__summary">Voliteľné detaily</summary>
         <div class="optional-section__body">
-          <label v-if="embedded" class="field">
-            <span>Popis</span>
-            <textarea v-model="form.description" rows="3" maxlength="5000"></textarea>
-          </label>
-
           <div class="field-grid field-grid--compact">
             <label class="field">
               <span>Lokalita</span>
@@ -65,7 +60,7 @@
 
       <label class="field field-check">
         <input v-model="form.isPublic" type="checkbox">
-        <span>Publikovat vo verejnom feede</span>
+        <span>Publikovať vo verejnom feede</span>
       </label>
       <p v-if="form.isPublic" class="field-help">
         {{ embedded ? 'Verejné pozorovanie sa vytvorí aj vo feede.' : 'Verejné pozorovanie sa automaticky vytvorí aj ako príspevok vo feede.' }}
@@ -184,12 +179,12 @@ async function submit() {
   error.value = ''
   const observedAtIso = fromDateTimeLocal(form.observedAt)
   if (!observedAtIso) {
-    error.value = 'Zadaj platny datum a cas pozorovania.'
+    error.value = 'Zadaj platný dátum a čas pozorovania.'
     return
   }
 
   if (selectedImages.value.length === 0) {
-    error.value = 'Pridaj aspon jednu fotografiu.'
+    error.value = 'Pridaj aspoň jednu fotografiu.'
     return
   }
 
@@ -214,7 +209,7 @@ async function submit() {
     const feedPostId = Number(response?.data?.feed_post_id || 0)
 
     if (form.isPublic && openPostAfterCreate.value && feedPostId > 0) {
-      toastSuccess('Pozorovanie bolo vytvorene a publikovane vo feede.')
+      toastSuccess('Pozorovanie bolo vytvorené a publikované vo feede.')
       if (props.embedded) {
         emit('submitted', {
           observationId,
@@ -228,7 +223,7 @@ async function submit() {
       return
     }
 
-    toastSuccess('Pozorovanie bolo vytvorene.')
+    toastSuccess('Pozorovanie bolo vytvorené.')
     if (props.embedded) {
       emit('submitted', {
         observationId,
@@ -245,7 +240,7 @@ async function submit() {
 
     router.push('/observations')
   } catch (requestError) {
-    error.value = extractObservationError(requestError, 'Ulozenie zlyhalo.')
+    error.value = extractObservationError(requestError, 'Uloženie zlyhalo.')
   } finally {
     saving.value = false
   }

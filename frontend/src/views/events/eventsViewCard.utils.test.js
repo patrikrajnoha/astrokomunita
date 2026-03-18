@@ -10,7 +10,7 @@ describe('eventsViewCard utils', () => {
     }
 
     expect(eventTypeIcon(eventItem)).toBe('\u{1F319}')
-    expect(eventTypeIconLabel(eventItem)).toBe('Vlastna ikona udalosti')
+    expect(eventTypeIconLabel(eventItem)).toBe('Vlastná ikona udalosti')
   })
 
   it('falls back to type-based icon when custom icon is missing', () => {

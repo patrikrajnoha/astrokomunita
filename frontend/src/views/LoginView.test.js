@@ -99,7 +99,7 @@ describe('LoginView', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Ucet je blokovany')
+    expect(wrapper.text()).toContain('Účet je blokovaný')
     expect(wrapper.text()).toContain('Repeated abusive behavior.')
     expect(wrapper.text()).toContain('Blokovane:')
   })

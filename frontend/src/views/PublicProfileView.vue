@@ -21,10 +21,10 @@ const loading = ref(true)
 const err = ref('')
 
 const tabs = [
-  { key: 'posts', label: 'Prispevky', kind: 'roots' },
+  { key: 'posts', label: 'Príspevky', kind: 'roots' },
   { key: 'replies', label: 'Odpovede', kind: 'replies' },
   { key: 'observations', label: 'Pozorovania', kind: 'observations' },
-  { key: 'media', label: 'Media', kind: 'media' },
+  { key: 'media', label: 'Médiá', kind: 'media' },
 ]
 
 const stats = reactive({ posts: '--', replies: '--', media: '--' })
@@ -37,7 +37,7 @@ const tabState = reactive({
   media: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
 })
 
-const copyLabel = ref('Kopirovat link')
+const copyLabel = ref('Kopírovať link')
 
 const username = computed(() => String(route.params.username || '').trim())
 const encodedUsername = computed(() => encodeURIComponent(username.value))
@@ -130,12 +130,12 @@ async function copyProfileLink() {
   const url = `${window.location.origin}/u/${encodedUsername.value}`
   try {
     await navigator.clipboard.writeText(url)
-    copyLabel.value = 'Skopirovane'
+    copyLabel.value = 'Skopírované'
   } catch {
-    copyLabel.value = 'Nepodarilo sa kopirovat'
+    copyLabel.value = 'Nepodarilo sa kopírovať'
   }
   setTimeout(() => {
-    copyLabel.value = 'Kopirovat link'
+    copyLabel.value = 'Kopírovať link'
   }, 1500)
 }
 
@@ -156,7 +156,7 @@ async function loadUser() {
   } catch (e) {
     const status = e?.response?.status
     if (status === 404) err.value = 'Profil neexistuje.'
-    else err.value = e?.response?.data?.message || 'Nacitanie profilu zlyhalo.'
+    else err.value = e?.response?.data?.message || 'Načítanie profilu zlyhalo.'
   } finally {
     loading.value = false
   }
@@ -180,35 +180,37 @@ async function loadCounts() {
     { key: 'media', kind: 'media' },
   ]
 
-  for (const k of kinds) {
-    try {
-      const { data } = await http.get(`/users/${encodedUsername.value}/posts`, {
-        params: { kind: k.kind, per_page: 1 },
-      })
+  const userId = Number(user.value?.id || 0)
 
+  const [postsResult, repliesResult, mediaResult, obsResult] = await Promise.allSettled([
+    http.get(`/users/${encodedUsername.value}/posts`, { params: { kind: 'roots', per_page: 1 } }),
+    http.get(`/users/${encodedUsername.value}/posts`, { params: { kind: 'replies', per_page: 1 } }),
+    http.get(`/users/${encodedUsername.value}/posts`, { params: { kind: 'media', per_page: 1 } }),
+    Number.isInteger(userId) && userId > 0
+      ? listObservations({ user_id: userId, page: 1, per_page: 1 })
+      : Promise.reject(new Error('no user id')),
+  ])
+
+  const results = [postsResult, repliesResult, mediaResult]
+  for (let i = 0; i < kinds.length; i++) {
+    const k = kinds[i]
+    const result = results[i]
+    if (result.status === 'fulfilled') {
+      const data = result.value?.data
       const total = Number.isFinite(data?.total) ? data.total : data?.data?.length || 0
       stats[k.key] = String(total)
-      if (tabState[k.key]) {
-        tabState[k.key].total = String(total)
-      }
-    } catch {
+      if (tabState[k.key]) tabState[k.key].total = String(total)
+    } else {
       stats[k.key] = '--'
-      if (tabState[k.key]) {
-        tabState[k.key].total = '--'
-      }
+      if (tabState[k.key]) tabState[k.key].total = '--'
     }
   }
 
-  try {
-    const userId = Number(user.value?.id || 0)
-    if (Number.isInteger(userId) && userId > 0) {
-      const { data } = await listObservations({ user_id: userId, page: 1, per_page: 1 })
-      const total = Number.isFinite(data?.total) ? data.total : data?.data?.length || 0
-      tabState.observations.total = String(total)
-    } else {
-      tabState.observations.total = '--'
-    }
-  } catch {
+  if (obsResult.status === 'fulfilled') {
+    const data = obsResult.value?.data
+    const total = Number.isFinite(data?.total) ? data.total : data?.data?.length || 0
+    tabState.observations.total = String(total)
+  } else {
     tabState.observations.total = '--'
   }
 }
@@ -262,7 +264,7 @@ async function loadTab(key, reset = true) {
     state.total = Number.isFinite(data?.total) ? String(data.total) : state.total
     state.loaded = true
   } catch (e) {
-    state.err = e?.response?.data?.message || 'Nacitanie zlyhalo.'
+    state.err = e?.response?.data?.message || 'Načítanie zlyhalo.'
   } finally {
     state.loading = false
   }

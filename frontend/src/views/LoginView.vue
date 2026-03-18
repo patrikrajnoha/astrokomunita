@@ -68,7 +68,7 @@
           />
 
           <AuthAlert
-            v-if="isBannedState"
+            v-else-if="isBannedState"
             title="Účet je blokovaný"
             :message="bannedDetails"
           />
@@ -208,10 +208,10 @@ const bannedDetails = computed(() => {
     bannedAt = Number.isNaN(parsed.getTime()) ? String(bannedAtRaw) : parsed.toLocaleString()
   }
 
-  if (reason && bannedAt) return `Dovod: ${reason}. Blokovane: ${bannedAt}.`
-  if (reason) return `Dovod: ${reason}.`
-  if (bannedAt) return `Blokovane: ${bannedAt}.`
-  return 'Tento ucet je blokovany.'
+  if (reason && bannedAt) return `Dôvod: ${reason}. Blokované: ${bannedAt}.`
+  if (reason) return `Dôvod: ${reason}.`
+  if (bannedAt) return `Blokované: ${bannedAt}.`
+  return 'Tento účet je blokovaný.'
 })
 
 onBeforeUnmount(() => {

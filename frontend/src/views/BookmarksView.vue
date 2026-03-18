@@ -1,8 +1,8 @@
 <template>
   <section class="bookmarks-view">
     <header class="bookmarks-header">
-      <h1 class="bookmarks-title">Zalozky</h1>
-      <p class="bookmarks-subtitle">Prispevky, ktore si si ulozil na neskor.</p>
+      <h1 class="bookmarks-title">Záložky</h1>
+      <p class="bookmarks-subtitle">Príspevky, ktoré si si uložil na neskôr.</p>
     </header>
 
     <FeedList mode="bookmarks" />
@@ -20,14 +20,14 @@ import FeedList from '@/components/FeedList.vue'
 }
 
 .bookmarks-header {
-  padding: 0.2rem 0.25rem;
+  padding: var(--space-1) var(--space-2);
 }
 
 .bookmarks-title {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: var(--page-heading-size);
   font-weight: 800;
-  color: var(--color-surface);
+  color: var(--color-text-primary);
 }
 
 .bookmarks-subtitle {

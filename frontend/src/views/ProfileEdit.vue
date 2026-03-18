@@ -6,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import http from '@/services/api'
 import { searchOnboardingLocations } from '@/services/events'
+import InlineStatus from '@/components/ui/InlineStatus.vue'
 
 const props = defineProps({
   embedded: {
@@ -71,7 +72,7 @@ const fieldErr = reactive({
 
 const locationModeLabel = computed(() => {
   if (form.locationMode === 'gps') return 'GPS'
-  return 'Rucne'
+  return 'Ručne'
 })
 
 const embedded = computed(() => props.embedded)
@@ -437,7 +438,7 @@ async function fillLocationFromLabel() {
   }
 
   applyManualResolvedLocation(resolved)
-  msg.value = `Poloha nastavena: ${resolved.label}.`
+  msg.value = `Poloha nastavená: ${resolved.label}.`
 }
 
 function buildProfilePayload(state) {
@@ -483,7 +484,7 @@ function resetForm() {
   if (!savedState.value) return
   clearErrors()
   applyState(savedState.value)
-  msg.value = 'Zmeny zrusene.'
+  msg.value = 'Zmeny zrušené.'
 }
 
 async function validateLocationPayload() {
@@ -667,7 +668,7 @@ async function save() {
         const locationResponse = await http.patch('/me/location', locationPayload)
         userPayload = locationResponse?.data || userPayload
       } catch (locationError) {
-        const fallback = profileDirty ? 'Ulozenie polohy zlyhalo. Profil nebol ulozeny.' : 'Ulozenie polohy zlyhalo.'
+        const fallback = profileDirty ? 'Uloženie polohy zlyhalo. Profil nebol uložený.' : 'Uloženie polohy zlyhalo.'
         applySaveError(locationError, fallback)
         return
       }
@@ -701,14 +702,14 @@ async function save() {
     }
 
     if (profileDirty && locationDirty) {
-      msg.value = 'Profil a poloha ulozene.'
+      msg.value = 'Profil a poloha uložené.'
     } else if (profileDirty) {
-      msg.value = 'Profil ulozeny.'
+      msg.value = 'Profil uložený.'
     } else {
-      msg.value = 'Poloha ulozena.'
+      msg.value = 'Poloha uložená.'
     }
   } catch (saveError) {
-    applySaveError(saveError, 'Ulozenie zlyhalo.')
+    applySaveError(saveError, 'Uloženie zlyhalo.')
   } finally {
     saving.value = false
   }
@@ -718,7 +719,7 @@ async function useMyLocation() {
   clearErrors()
 
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
-    err.value = 'Geolokacia nie je podporovana. Zadaj mesto rucne.'
+    err.value = 'Geolokácia nie je podporovaná. Zadaj mesto ručne.'
     return
   }
 
@@ -735,7 +736,7 @@ async function useMyLocation() {
     const lat = Number(position?.coords?.latitude)
     const lon = Number(position?.coords?.longitude)
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-      err.value = 'Nepodarilo sa ziskat GPS suradnice.'
+      err.value = 'Nepodarilo sa získať GPS súradnice.'
       return
     }
 
@@ -747,9 +748,9 @@ async function useMyLocation() {
     if (!form.locationLabel.trim() || normalizeSource(savedState.value?.locationMode) === 'gps') {
       form.locationLabel = 'Moja poloha'
     }
-    msg.value = 'GPS suradnice nastavene.'
+    msg.value = 'GPS súradnice nastavené.'
   } catch {
-    err.value = 'GPS zlyhalo. Skus to znovu alebo zadaj mesto rucne.'
+    err.value = 'GPS zlyhalo. Skús to znovu alebo zadaj mesto ručne.'
   } finally {
     geolocating.value = false
   }
