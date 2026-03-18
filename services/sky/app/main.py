@@ -386,11 +386,24 @@ def iss_preview(
 
     next_visible = next((item for item in passes if item["is_visible"] and item["set_at"] >= local_now), None)
     if next_visible is None:
-        return {"available": False}
+        result: dict[str, object] = {"available": False}
+        try:
+            t_now = ts.now()
+            geocentric = satellite.at(t_now)
+            subpoint = wgs84.subpoint(geocentric)
+            result["current_position"] = {
+                "lat": round(float(subpoint.latitude.degrees), 6),
+                "lon": round(float(subpoint.longitude.degrees), 6),
+                "sample_at": datetime.now(timezone.utc).isoformat(),
+                "source": "tle",
+            }
+        except Exception:
+            pass
+        return result
 
     duration_sec = max(0, int(round((next_visible["set_at"] - next_visible["rise_at"]).total_seconds())))
 
-    return {
+    result: dict[str, object] = {
         "available": True,
         "next_pass_at": next_visible["rise_at"].isoformat(),
         "duration_sec": duration_sec,
@@ -400,6 +413,21 @@ def iss_preview(
         "direction_start": next_visible["direction_start"],
         "direction_end": next_visible["direction_end"],
     }
+
+    try:
+        t_now = ts.now()
+        geocentric = satellite.at(t_now)
+        subpoint = wgs84.subpoint(geocentric)
+        result["current_position"] = {
+            "lat": round(float(subpoint.latitude.degrees), 6),
+            "lon": round(float(subpoint.longitude.degrees), 6),
+            "sample_at": datetime.now(timezone.utc).isoformat(),
+            "source": "tle",
+        }
+    except Exception:
+        pass
+
+    return result
 
 
 def build_moon_payload(observer, location, local_date: date_cls, local_tz: ZoneInfo) -> dict:

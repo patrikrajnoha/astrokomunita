@@ -119,6 +119,11 @@ class SkyIssPreviewService
         $tracker = $this->normalizeTrackerResponse($responses['tracker'] ?? null, $tz);
 
         $payload = $response->json();
+
+        // If WhereTheISS is unavailable, fall back to TLE-computed position from the microservice.
+        if ($tracker === null && is_array($payload)) {
+            $tracker = $this->normalizeCurrentPositionFallback($payload['current_position'] ?? null, $tz);
+        }
         if (!is_array($payload)) {
             $basePayload = ['available' => false];
             return $this->attachEnrichedMetadata($basePayload, $dataSources, $satellite, $tracker);
@@ -235,6 +240,33 @@ class SkyIssPreviewService
         }
 
         return $result;
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function normalizeCurrentPositionFallback(mixed $data, string $tz): ?array
+    {
+        if (!is_array($data)) {
+            return null;
+        }
+
+        $lat = $this->toFloat($data['lat'] ?? null);
+        $lon = $this->toFloat($data['lon'] ?? null);
+        if ($lat === null || $lon === null) {
+            return null;
+        }
+
+        $sampleAt = is_string($data['sample_at'] ?? null)
+            ? $this->toIso8601((string) $data['sample_at'], $tz)
+            : null;
+
+        return [
+            'source' => 'tle',
+            'lat' => round($lat, 6),
+            'lon' => round($lon, 6),
+            'sample_at' => $sampleAt ?? CarbonImmutable::now($tz)->toIso8601String(),
+        ];
     }
 
     /**
