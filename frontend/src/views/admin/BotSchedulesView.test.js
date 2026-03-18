@@ -79,7 +79,7 @@ describe('BotSchedulesView', () => {
 
     const createButton = wrapper
       .findAll('button')
-      .find((node) => node.text().toLowerCase().includes('vytvorit'))
+      .find((node) => node.text().toLowerCase().includes('vytvoriť'))
     await createButton.trigger('click')
     await flush()
 

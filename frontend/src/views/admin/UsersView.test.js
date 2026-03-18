@@ -133,13 +133,13 @@ describe('UsersView', () => {
     await flush()
 
     const botRow = wrapper.get('[data-row-id="4"]')
-    expect(botRow.find('.roleBadge').text()).toBe('bot')
-    expect(botRow.find('.col-email .truncateText').text()).toBe('-')
+    expect(botRow.find('.col-role .roleBadge').text()).toBe('bot')
+    expect(botRow.find('.col-email .truncateText').exists()).toBe(false)
     expect(botRow.find('.default-avatar').exists()).toBe(true)
 
-    const hint = botRow.get('.botAccountHint')
-    expect(hint.text()).toBe('(bot ucet)')
-    expect(hint.attributes('title')).toContain('Automatizovany ucet')
+    const hint = botRow.get('.botEmailBadge')
+    expect(hint.text()).toBe('bot účet')
+    expect(hint.attributes('title')).toContain('Automatizovaný účet')
 
     const regularRow = wrapper.get('[data-row-id="9"]')
     expect(regularRow.find('.col-email .truncateText').text()).toBe('regular@example.test')
@@ -165,11 +165,11 @@ describe('UsersView', () => {
     await flush()
 
     const botMenu = document.body.querySelector('[role="menu"]')
-    expect(botMenu?.textContent || '').toContain('Sprava uctu')
-    expect(botMenu?.textContent || '').toContain('Zablokovat ucet')
-    expect(botMenu?.textContent || '').toContain('Deaktivovat ucet')
-    expect(botMenu?.textContent || '').toContain('Resetovat profil')
-    expect(botMenu?.textContent || '').not.toContain('Pridat rolu editor')
+    expect(botMenu?.textContent || '').toContain('Správa účtu')
+    expect(botMenu?.textContent || '').toContain('Zablokovať účet')
+    expect(botMenu?.textContent || '').toContain('Deaktivovať účet')
+    expect(botMenu?.textContent || '').toContain('Resetovať profil')
+    expect(botMenu?.textContent || '').not.toContain('Pridať rolu editor')
 
     await botRow.find('.dropdownTrigger').trigger('click')
     await flush()
@@ -179,12 +179,12 @@ describe('UsersView', () => {
     await flush()
 
     const regularMenu = document.body.querySelector('[role="menu"]')
-    expect(regularMenu?.textContent || '').toContain('Zobrazit profil')
-    expect(regularMenu?.textContent || '').toContain('Sprava uctu')
-    expect(regularMenu?.textContent || '').toContain('Pridat rolu editor')
-    expect(regularMenu?.textContent || '').toContain('Zablokovat ucet')
-    expect(regularMenu?.textContent || '').toContain('Deaktivovat ucet')
-    expect(regularMenu?.textContent || '').toContain('Resetovat profil')
+    expect(regularMenu?.textContent || '').toContain('Zobraziť profil')
+    expect(regularMenu?.textContent || '').toContain('Správa účtu')
+    expect(regularMenu?.textContent || '').toContain('Pridať rolu editor')
+    expect(regularMenu?.textContent || '').toContain('Zablokovať účet')
+    expect(regularMenu?.textContent || '').toContain('Deaktivovať účet')
+    expect(regularMenu?.textContent || '').toContain('Resetovať profil')
   })
 
   it('allows row-click navigation to user detail for both bot and non-bot accounts', async () => {
@@ -240,7 +240,7 @@ describe('UsersView', () => {
     await flush()
 
     const manageItem = [...document.body.querySelectorAll('[role="menuitem"]')]
-      .find((node) => (node.textContent || '').includes('Sprava uctu'))
+      .find((node) => (node.textContent || '').includes('Správa účtu'))
 
     expect(manageItem).toBeTruthy()
     manageItem?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -249,7 +249,7 @@ describe('UsersView', () => {
 
     const modal = document.body.querySelector('[data-testid="manage-account-modal"]')
     expect(modal).toBeTruthy()
-    expect(modal?.textContent || '').toContain('Sprava uctu')
+    expect(modal?.textContent || '').toContain('Správa účtu')
     expect(modal?.textContent || '').toContain('Regular')
     expect(apiGetMock).toHaveBeenCalledWith('/admin/users/9')
 

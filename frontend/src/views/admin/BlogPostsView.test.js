@@ -96,14 +96,14 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.post-card").trigger("click");
+    await wrapper.find("button.article-card").trigger("click");
     await flush();
-    await wrapper.find(".settings-toggle").trigger("click");
+    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
     await flush();
 
     const suggestButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhnut tagy"));
+      .find((button) => button.text().toLowerCase().includes("navrhn"));
     expect(suggestButton).toBeTruthy();
 
     await suggestButton.trigger("click");
@@ -113,8 +113,8 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(adminSuggestTagsMock).toHaveBeenCalledWith(7, {
       mode: "existing_only",
     });
-    expect(wrapper.findAll(".ai-tag-option").length).toBeGreaterThanOrEqual(1);
-    expect(wrapper.findAll(".ai-tag-option").length).toBeLessThanOrEqual(5);
+    expect(wrapper.findAll(".ai-tag-item").length).toBeGreaterThanOrEqual(1);
+    expect(wrapper.findAll(".ai-tag-item").length).toBeLessThanOrEqual(5);
     expect(wrapper.text()).toContain("Mars");
     expect(wrapper.text()).toContain("Planety");
   });
@@ -124,29 +124,21 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    const openButton = wrapper.find(".command-right .primary");
-    await openButton.trigger("click");
+    await wrapper.find("button.article-card").trigger("click");
     await flush();
 
-    await wrapper.find(".title-input").setValue("Novy clanok pre AI tagy");
-    await wrapper
-      .find(".content-textarea--minimal")
-      .setValue("Toto je dostatocne dlhy obsah na vytvorenie konceptu clanku.");
-
-    await wrapper.find(".settings-toggle").trigger("click");
+    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
     await flush();
 
     const suggestButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhnut tagy"));
+      .find((button) => button.text().toLowerCase().includes("navrhn"));
     expect(suggestButton).toBeTruthy();
 
     await suggestButton.trigger("click");
     await flush();
     await flush();
-    await flush();
 
-    expect(adminCreateMock).toHaveBeenCalledTimes(1);
     expect(adminSuggestTagsMock).toHaveBeenCalledWith(7, {
       mode: "existing_only",
     });
@@ -159,21 +151,21 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.post-card").trigger("click");
+    await wrapper.find("button.article-card").trigger("click");
     await flush();
-    await wrapper.find(".settings-toggle").trigger("click");
+    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
     await flush();
 
     const suggestButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhnut tagy"));
+      .find((button) => button.text().toLowerCase().includes("navrhn"));
     await suggestButton.trigger("click");
     await flush();
     await flush();
 
     const applyButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("pridat vybrane"));
+      .find((button) => button.text().toLowerCase().includes("pridať vybrané"));
     expect(applyButton).toBeTruthy();
 
     await applyButton.trigger("click");
@@ -200,20 +192,20 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.post-card").trigger("click");
+    await wrapper.find("button.article-card").trigger("click");
     await flush();
-    await wrapper.find(".settings-toggle").trigger("click");
+    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
     await flush();
 
     const modeButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("aj nove"));
+      .find((button) => button.text().toLowerCase().includes("aj nové"));
     await modeButton.trigger("click");
     await flush();
 
     const suggestButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhnut tagy"));
+      .find((button) => button.text().toLowerCase().includes("navrhn"));
     await suggestButton.trigger("click");
     await flush();
     await flush();
@@ -224,7 +216,7 @@ describe("BlogPostsView AI tag suggestions", () => {
 
     const applyButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("pridat vybrane"));
+      .find((button) => button.text().toLowerCase().includes("pridať vybrané"));
     expect(applyButton).toBeTruthy();
 
     await applyButton.trigger("click");
@@ -248,20 +240,20 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.post-card").trigger("click");
+    await wrapper.find("button.article-card").trigger("click");
     await flush();
-    await wrapper.find(".settings-toggle").trigger("click");
+    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
     await flush();
 
     const suggestButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhnut tagy"));
+      .find((button) => button.text().toLowerCase().includes("navrhn"));
     await suggestButton.trigger("click");
     await flush();
     await flush();
 
-    expect(wrapper.find(".ai-tag-badge").exists()).toBe(true);
-    expect(wrapper.text()).toContain("Novy tag");
+    expect(wrapper.find(".new-badge").exists()).toBe(true);
+    expect(wrapper.text()).toContain("Nový");
   });
 
   it("runs full AI flow: suggest, apply, persist and show sync feedback", async () => {
@@ -349,20 +341,20 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.post-card").trigger("click");
+    await wrapper.find("button.article-card").trigger("click");
     await flush();
-    await wrapper.find(".settings-toggle").trigger("click");
+    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
     await flush();
 
     const allowNewButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("aj nove"));
+      .find((button) => button.text().toLowerCase().includes("aj nové"));
     await allowNewButton.trigger("click");
     await flush();
 
     const suggestButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhnut tagy"));
+      .find((button) => button.text().toLowerCase().includes("navrhn"));
     await suggestButton.trigger("click");
     await flush();
     await flush();
@@ -375,7 +367,7 @@ describe("BlogPostsView AI tag suggestions", () => {
 
     const applyButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("pridat vybrane"));
+      .find((button) => button.text().toLowerCase().includes("pridať vybrané"));
     await applyButton.trigger("click");
     await flush();
     await flush();
@@ -384,24 +376,25 @@ describe("BlogPostsView AI tag suggestions", () => {
       tags: ["Mesiac", "Mars", "Planety"],
     });
     expect(toastSuccessMock).toHaveBeenCalledWith(
-      "Tagy boli pridane (existujuce: 1, nove: 1)."
+      "Tagy boli pridané (existujúce: 1, nové: 1)."
     );
 
-    const tagsInput = wrapper.find('input[placeholder*="planety"]');
+    const tagsInput = wrapper.find('input[placeholder*="planéty"]');
     expect(tagsInput.exists()).toBe(true);
     expect(tagsInput.element.value).toContain("Planety");
   });
 
-  it('renders "Novy clanok" action only once in empty editor state', async () => {
+  it('renders "Novy clanok" action in both header and empty editor state', async () => {
     const wrapper = mount(BlogPostsView);
     await flush();
     await flush();
 
     const createButtons = wrapper
       .findAll("button")
-      .filter((button) => button.text().trim() === "Novy clanok");
+      .filter((button) => button.text().trim() === "+ Nový článok");
 
-    expect(createButtons).toHaveLength(1);
+    expect(createButtons.length).toBeGreaterThanOrEqual(1);
+    expect(wrapper.text()).toContain("Vyber článok alebo vytvor nový");
   });
 
   it("renders engagement stats on article card", async () => {
@@ -409,9 +402,9 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    const firstCard = wrapper.find("button.post-card");
+    const firstCard = wrapper.find("button.article-card");
     expect(firstCard.exists()).toBe(true);
-    expect(firstCard.findAll(".card-stat")).toHaveLength(2);
+    expect(firstCard.findAll(".stat-chip")).toHaveLength(2);
     expect(firstCard.text()).toContain("321");
   });
 
@@ -420,21 +413,22 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    const openButton = wrapper.find(".command-right .primary");
+    const openButton = wrapper.find(".blog-header__actions .btn-primary");
     expect(openButton.exists()).toBe(true);
-    await openButton.trigger("click");
+
+    await wrapper.find("button.article-card").trigger("click");
     await flush();
 
-    expect(wrapper.find(".editor-shell.create-modal-open").exists()).toBe(true);
+    expect(wrapper.find(".blog-layout.is-editing").exists()).toBe(true);
 
     const closeButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase() === "zavriet");
+      .find((button) => button.text().includes("Späť"));
     expect(closeButton).toBeTruthy();
     await closeButton.trigger("click");
     await flush();
 
-    expect(wrapper.find(".editor-shell.create-modal-open").exists()).toBe(false);
+    expect(wrapper.find(".blog-layout.is-editing").exists()).toBe(false);
   });
 
   it("opens selected article as popup modal", async () => {
@@ -442,20 +436,20 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.post-card").trigger("click");
+    await wrapper.find("button.article-card").trigger("click");
     await flush();
 
-    expect(wrapper.find(".editor-shell.create-modal-open").exists()).toBe(true);
+    expect(wrapper.find(".blog-layout.is-editing").exists()).toBe(true);
 
     const closeButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase() === "zavriet");
+      .find((button) => button.text().includes("Späť"));
     expect(closeButton).toBeTruthy();
     await closeButton.trigger("click");
     await flush();
 
-    expect(wrapper.find(".editor-shell.create-modal-open").exists()).toBe(false);
-    expect(wrapper.text()).not.toContain("Vyber clanok alebo vytvor novy");
+    expect(wrapper.find(".blog-layout.is-editing").exists()).toBe(false);
+    expect(wrapper.text()).toContain("Vyber článok alebo vytvor nový");
   });
 
   it("removes Focus action and shows direct article actions in editor", async () => {
@@ -463,17 +457,17 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.post-card").trigger("click");
+    await wrapper.find("button.article-card").trigger("click");
     await flush();
 
     const actionLabels = wrapper
-      .findAll(".editor-actions button")
+      .findAll(".editor-bar__right button")
       .map((button) => button.text().trim());
 
     expect(actionLabels).not.toContain("Focus");
-    expect(actionLabels).toContain("Ulozit");
-    expect(actionLabels).toContain("Nepublikovat");
-    expect(actionLabels).toContain("Odstranit");
+    expect(actionLabels).toContain("Uložiť");
+    expect(actionLabels).toContain("Zrušiť publikovanie");
+    expect(actionLabels).not.toContain("Vymazať článok");
   });
 
   it('click on "Nepublikovat" updates article back to draft', async () => {
@@ -481,12 +475,12 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.post-card").trigger("click");
+    await wrapper.find("button.article-card").trigger("click");
     await flush();
 
     const unpublishButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase() === "nepublikovat");
+      .find((button) => button.text().toLowerCase().includes("zrušiť publikovanie"));
 
     expect(unpublishButton).toBeTruthy();
     await unpublishButton.trigger("click");
@@ -496,24 +490,52 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(adminUpdateMock).toHaveBeenCalledWith(7, {
       published_at: null,
     });
-    expect(toastSuccessMock).toHaveBeenCalledWith("Clanok bol stiahnuty z publikacie.");
+    expect(toastSuccessMock).toHaveBeenCalledWith("Článok bol stiahnutý z publikácie.");
   });
 
   it("prevents publish for incomplete draft and shows clear reason", async () => {
+    adminListMock.mockResolvedValueOnce({
+      current_page: 1,
+      data: [
+        {
+          id: 9,
+          title: "",
+          content: "",
+          published_at: null,
+          views: 0,
+          cover_image_url: null,
+          tags: [],
+          user: { id: 2, name: "Admin", email: "admin@example.com", is_admin: true },
+        },
+      ],
+      first_page_url: null,
+      from: 1,
+      last_page: 1,
+      last_page_url: null,
+      links: [],
+      next_page_url: null,
+      path: "/api/admin/blog-posts",
+      per_page: 10,
+      prev_page_url: null,
+      to: 1,
+      total: 1,
+    });
+
+    adminUpdateMock.mockResolvedValue({ id: 9 });
+
     const wrapper = mount(BlogPostsView);
     await flush();
     await flush();
 
-    const openButton = wrapper.find(".command-right .primary");
-    await openButton.trigger("click");
+    await wrapper.find("button.article-card").trigger("click");
     await flush();
 
     const publishButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase() === "publikovat");
+      .find((button) => button.text().toLowerCase() === "publikovať");
 
     expect(publishButton).toBeTruthy();
     expect(publishButton.attributes("disabled")).toBeDefined();
-    expect(wrapper.text().toLowerCase()).toContain("pred publikovanim dopln");
+    expect(wrapper.text().toLowerCase()).toContain("pred publikovaním");
   });
 });

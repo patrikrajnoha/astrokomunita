@@ -86,9 +86,9 @@ describe('PerformanceMetricsView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Vykonnostne metriky')
+    expect(wrapper.text()).toContain('Výkonnostné metriky')
     expect(wrapper.text()).toContain('Spustenie benchmarku')
-    expect(wrapper.text()).toContain('Najnovsie vysledky')
+    expect(wrapper.text()).toContain('Najnovšie výsledky')
     expect(wrapper.text()).toContain('events_list_200')
   })
 
@@ -108,11 +108,7 @@ describe('PerformanceMetricsView', () => {
     await flush()
 
     const button = wrapper.find('[data-testid="run-benchmark-btn"]')
-    const confirmCheckbox = wrapper.find('[data-testid="confirm-load-checkbox"]')
 
-    expect(button.attributes('disabled')).toBeDefined()
-
-    await confirmCheckbox.setValue(true)
     expect(button.attributes('disabled')).toBeUndefined()
 
     await button.trigger('click')
@@ -121,7 +117,7 @@ describe('PerformanceMetricsView', () => {
     expect(runMetricsMock).toHaveBeenCalledTimes(1)
     expect(button.attributes('disabled')).toBeDefined()
     expect(wrapper.find('[data-testid="run-progress"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Spustam benchmark...')
+    expect(wrapper.text()).toContain('Spúšťam benchmark')
 
     pendingRun.resolve({
       status: 'ok',
@@ -152,6 +148,6 @@ describe('PerformanceMetricsView', () => {
 
     const emptyState = wrapper.find('[data-testid="empty-state"]')
     expect(emptyState.exists()).toBe(true)
-    expect(emptyState.text()).toContain('Zatial nie su k dispozicii ziadne vysledky benchmarku.')
+    expect(emptyState.text()).toContain('Zatiaľ nie sú k dispozícii žiadne výsledky.')
   })
 })
