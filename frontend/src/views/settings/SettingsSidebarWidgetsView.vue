@@ -1,91 +1,103 @@
 <template>
   <SettingsDetailShell
-    title="Konfiguracia sidebaru"
-    subtitle="Nastavte si vlastné widgety pre globálny sidebar. Aktívne môžu byť najviac 3."
+    title="Konfigurácia sidebaru"
+    subtitle="Vyber max 3 widgety, ktoré sa ti zobrazia v sidebari."
   >
-    <section class="settings-sidebar-builder">
-      <header class="settings-sidebar-builder__header">
-        <h3 class="settings-sidebar-builder__title">Rozloženie</h3>
-        <p class="settings-sidebar-builder__meta">{{ headerMetaLine }}</p>
+    <div class="widgetEditor">
+      <header class="widgetEditor__header">
+        <span v-if="saveStateLabel" class="saveState" :class="saveStateTone">{{ saveStateLabel }}</span>
       </header>
 
-      <div class="settings-sidebar-builder__toolbar">
-        <div class="settings-sidebar-builder__search-wrap">
-          <input
-            v-model="layoutSearch"
-            type="text"
-            class="field-input settings-sidebar-builder__search"
-            placeholder="Hľadať položky sidebaru"
-            :disabled="state.loadingScope"
+      <p v-if="visibleError" class="fieldError">{{ visibleError }}</p>
+      <div v-if="state.loadingScope" class="stateHint">Načítavam konfiguráciu...</div>
+
+      <template v-else>
+        <!-- ACTIVE ZONE -->
+        <section class="widgetZone">
+          <p class="widgetZone__label">
+            Aktívne
+            <span
+              class="widgetZone__count"
+              :class="{ 'widgetZone__count--full': activeWidgets.length >= MAX_ENABLED }"
+            >
+              {{ activeWidgets.length }}/{{ MAX_ENABLED }}
+            </span>
+          </p>
+
+          <div
+            class="widgetZone__list widgetZone__list--active"
+            :class="{ 'widgetZone__list--dropping': dragOverZone === 'active' }"
+            @dragover.prevent="dragOverZone = 'active'"
+            @dragleave="onActiveLeave"
+            @drop.prevent="onDrop('active')"
           >
-          <p class="settings-sidebar-builder__summary">{{ layoutSummary }}</p>
-        </div>
-        <span class="settings-sidebar-builder__save-state" :class="saveStateTone">
-          {{ saveStateLabel }}
-        </span>
-      </div>
-
-      <p v-if="visibleError" class="field-error">{{ visibleError }}</p>
-
-      <div v-if="state.loadingScope" class="settings-sidebar-builder__loading">
-        Načítavam konfiguráciu...
-      </div>
-
-      <div v-else-if="filteredSections.length === 0" class="settings-sidebar-builder__empty">
-        Žiadne položky nevyhovujú filtru.
-      </div>
-
-      <div v-else class="settings-sidebar-builder__rows">
-        <article
-          v-for="section in filteredSections"
-          :key="section.section_key"
-          class="settings-sidebar-builder__row"
-          :class="{ disabled: !section.is_enabled }"
-        >
-          <div class="settings-sidebar-builder__row-copy">
-            <p class="settings-sidebar-builder__row-title">{{ section.title || 'Bez názvu' }}</p>
-            <p class="settings-sidebar-builder__row-meta">{{ section.section_key }}</p>
-          </div>
-
-          <div class="settings-sidebar-builder__row-actions">
-            <div class="settings-sidebar-builder__order-controls">
+            <article
+              v-for="widget in activeWidgets"
+              :key="widget.section_key"
+              class="widgetCard widgetCard--active"
+              :class="{
+                'widgetCard--dragging': dragKey === widget.section_key,
+                'widgetCard--dragOver': dragOverKey === widget.section_key && dragKey !== widget.section_key,
+              }"
+              draggable="true"
+              @dragstart="onDragStart($event, widget, 'active')"
+              @dragend="onDragEnd"
+              @dragenter.prevent="dragOverKey = widget.section_key"
+            >
+              <span class="widgetCard__handle" aria-hidden="true">⠿</span>
+              <span class="widgetCard__name">{{ widget.title }}</span>
               <button
-                :id="`settings-widget-move-up-${section.section_key}`"
                 type="button"
-                class="settings-sidebar-builder__order-btn"
-                :disabled="isMoveDisabled(section, 'up')"
-                @click="moveSection(section, 'up')"
-              >
-                ▲
-              </button>
-              <button
-                :id="`settings-widget-move-down-${section.section_key}`"
-                type="button"
-                class="settings-sidebar-builder__order-btn"
-                :disabled="isMoveDisabled(section, 'down')"
-                @click="moveSection(section, 'down')"
-              >
-                ▼
-              </button>
+                class="widgetCard__remove"
+                title="Odstrániť"
+                @click="disableWidget(widget)"
+              >✕</button>
+            </article>
+
+            <div v-if="activeWidgets.length === 0" class="widgetZone__empty">
+              Pretiahnite sem widget
             </div>
-
-            <label class="settings-sidebar-builder__toggle" :for="`settings-widget-${section.section_key}`">
-              <input
-                :id="`settings-widget-${section.section_key}`"
-                :checked="section.is_enabled"
-                type="checkbox"
-                :disabled="isToggleDisabled(section)"
-                @change="toggleSectionEnabled(section, $event.target.checked)"
-              >
-              <span class="settings-sidebar-builder__slider"></span>
-              <span class="settings-sidebar-builder__toggle-label">
-                {{ section.is_enabled ? 'Zapnuté' : 'Vypnuté' }}
-              </span>
-            </label>
           </div>
-        </article>
-      </div>
-    </section>
+        </section>
+
+        <!-- AVAILABLE ZONE -->
+        <section class="widgetZone">
+          <p class="widgetZone__label">Dostupné</p>
+
+          <input
+            v-model="search"
+            type="text"
+            class="widgetSearch"
+            placeholder="Hľadať widget..."
+          >
+
+          <div
+            class="widgetZone__list"
+            :class="{ 'widgetZone__list--dropping': dragOverZone === 'available' }"
+            @dragover.prevent="dragOverZone = 'available'"
+            @dragleave="dragOverZone = null"
+            @drop.prevent="onDrop('available')"
+          >
+            <article
+              v-for="widget in filteredAvailable"
+              :key="widget.section_key"
+              class="widgetCard"
+              :class="{ 'widgetCard--dragging': dragKey === widget.section_key }"
+              draggable="true"
+              @dragstart="onDragStart($event, widget, 'available')"
+              @dragend="onDragEnd"
+            >
+              <span class="widgetCard__handle" aria-hidden="true">⠿</span>
+              <span class="widgetCard__name">{{ widget.title }}</span>
+            </article>
+
+            <div v-if="filteredAvailable.length === 0" class="widgetZone__empty">
+              {{ search ? 'Žiadne výsledky' : 'Všetky widgety sú aktívne' }}
+            </div>
+          </div>
+        </section>
+      </template>
+    </div>
   </SettingsDetailShell>
 </template>
 
@@ -97,13 +109,19 @@ import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 import { DEFAULT_SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
 import { MAX_ENABLED_SIDEBAR_WIDGETS, normalizeSidebarSections } from '@/sidebar/engine'
 
+const MAX_ENABLED = MAX_ENABLED_SIDEBAR_WIDGETS
+
 const preferences = useEventPreferencesStore()
 const sidebarConfigStore = useSidebarConfigStore()
-const SIDEBAR_CUSTOMIZATION_SCOPE = DEFAULT_SIDEBAR_SCOPE
 
 const sections = ref([])
-const layoutSearch = ref('')
-const localOverrides = ref({})
+const search = ref('')
+
+// Drag state
+const dragKey = ref(null)
+const dragFrom = ref(null)
+const dragOverKey = ref(null)
+const dragOverZone = ref(null)
 
 const state = reactive({
   loadingScope: false,
@@ -116,70 +134,17 @@ const state = reactive({
 
 let saveQueued = false
 
-const normalizeWidgetKeys = (value) => {
-  if (!Array.isArray(value)) return []
-
-  return Array.from(new Set(
-    value
-      .map((item) => String(item || '').trim())
-      .filter(Boolean),
-  )).slice(0, MAX_ENABLED_SIDEBAR_WIDGETS)
-}
-
-const normalizeOverrides = (value) => {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
-
-  const normalized = {}
-  Object.entries(value).forEach(([scope, keys]) => {
-    const normalizedScope = String(scope || '').trim()
-    if (!normalizedScope) return
-
-    normalized[normalizedScope] = normalizeWidgetKeys(keys)
-  })
-
-  return normalized
-}
-
-const hasScopeOverride = (scope) => {
-  return Object.prototype.hasOwnProperty.call(localOverrides.value, scope)
-}
-
-const readStoreOverrides = () => {
-  const normalized = normalizeOverrides(preferences.sidebarWidgetOverrides)
-  if (!Object.prototype.hasOwnProperty.call(normalized, SIDEBAR_CUSTOMIZATION_SCOPE) && Array.isArray(preferences.sidebarWidgetKeys)) {
-    if (preferences.sidebarWidgetKeys.length > 0) {
-      normalized[SIDEBAR_CUSTOMIZATION_SCOPE] = normalizeWidgetKeys(preferences.sidebarWidgetKeys)
-    }
-  }
-  return normalized
-}
-
 const saveStateLabel = computed(() => {
   if (state.saving) return 'Ukladám...'
-  if (state.saveError) return 'Chyba pri automatickom ukladaní'
-  if (state.lastSavedAt) return 'Uložené automaticky'
-  return 'Pripravené'
+  if (state.saveError) return 'Chyba pri ukladaní'
+  if (state.lastSavedAt) return 'Uložené'
+  return ''
 })
 
 const saveStateTone = computed(() => {
-  if (state.saving) return 'is-saving'
-  if (state.saveError) return 'is-error'
-  return 'is-saved'
-})
-
-const headerMetaLine = computed(() => {
-  const label = 'Globálny sidebar'
-  return `${label} - ${saveStateLabel.value}`
-})
-
-const filteredSections = computed(() => {
-  const query = String(layoutSearch.value || '').trim().toLowerCase()
-  if (!query) return sections.value
-
-  return sections.value.filter((item) => {
-    const haystack = `${String(item.title || '')} ${String(item.section_key || '')}`.toLowerCase()
-    return haystack.includes(query)
-  })
+  if (state.saving) return 'saveState--saving'
+  if (state.saveError) return 'saveState--error'
+  return 'saveState--saved'
 })
 
 const visibleError = computed(() => {
@@ -188,63 +153,107 @@ const visibleError = computed(() => {
   return state.preferencesError
 })
 
-const enabledSectionsCount = computed(() => sections.value.filter((item) => item.is_enabled).length)
+const activeWidgets = computed(() =>
+  sections.value.filter((s) => s.is_enabled).sort((a, b) => a.order - b.order),
+)
 
-const layoutSummary = computed(() => {
-  const total = sections.value.length
-  const shown = filteredSections.value.length
-  return `${shown} z ${total} položiek - ${enabledSectionsCount.value} aktívne`
+const availableWidgets = computed(() =>
+  sections.value.filter((s) => !s.is_enabled),
+)
+
+const filteredAvailable = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  if (!q) return availableWidgets.value
+  return availableWidgets.value.filter((s) => s.title.toLowerCase().includes(q))
 })
-const enabledSectionKeys = computed(() => (
-  sections.value
-    .filter((item) => item.is_enabled)
-    .map((item) => item.section_key)
-))
 
-const applyScopeSelection = (items, selectedKeys) => {
-  const normalizedItems = normalizeSidebarSections(items)
-    .filter((item) => item.kind === 'builtin')
-    .map((item) => ({
-      section_key: String(item.section_key || ''),
-      title: String(item.title || ''),
-      order: Number.isFinite(Number(item.order)) ? Number(item.order) : 0,
-      is_enabled: Boolean(item.is_enabled),
-    }))
-    .sort((left, right) => left.order - right.order)
+// ── Drag & Drop ───────────────────────────────────────────────────────────────
 
-  const hasExplicitSelection = Array.isArray(selectedKeys)
-  const normalizedSelectedKeys = normalizeWidgetKeys(selectedKeys)
-  const selectedKeySet = new Set(normalizedSelectedKeys)
+function onDragStart(e, widget, zone) {
+  dragKey.value = widget.section_key
+  dragFrom.value = zone
+  dragOverKey.value = null
+  e.dataTransfer.effectAllowed = 'move'
+  e.dataTransfer.setData('text/plain', widget.section_key)
+}
 
-  if (hasExplicitSelection) {
-    const toggledItems = normalizedItems.map((item) => ({
-      ...item,
-      is_enabled: selectedKeySet.has(item.section_key),
-    }))
+function onDragEnd() {
+  dragKey.value = null
+  dragFrom.value = null
+  dragOverKey.value = null
+  dragOverZone.value = null
+}
 
-    const keyedItems = new Map(toggledItems.map((item) => [item.section_key, item]))
-    const enabledBySelectionOrder = normalizedSelectedKeys
-      .map((key) => keyedItems.get(key))
-      .filter(Boolean)
-    const disabledInDefaultOrder = toggledItems.filter((item) => !selectedKeySet.has(item.section_key))
+function onActiveLeave(e) {
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    dragOverZone.value = null
+  }
+}
 
-    return [...enabledBySelectionOrder, ...disabledInDefaultOrder]
+function onDrop(zone) {
+  const key = dragKey.value
+  const from = dragFrom.value
+  const overKey = dragOverKey.value
+
+  if (!key) { onDragEnd(); return }
+
+  if (zone === 'active') {
+    if (from === 'available') {
+      if (activeWidgets.value.length >= MAX_ENABLED) {
+        state.scopeError = `Môžu byť aktívne najviac ${MAX_ENABLED} widgety.`
+        onDragEnd()
+        return
+      }
+      state.scopeError = ''
+      const widget = sections.value.find((s) => s.section_key === key)
+      if (widget) {
+        widget.is_enabled = true
+        rebuildOrder()
+      }
+    } else if (from === 'active' && overKey && overKey !== key) {
+      reorderActive(key, overKey)
+    }
+  } else if (zone === 'available' && from === 'active') {
+    state.scopeError = ''
+    const widget = sections.value.find((s) => s.section_key === key)
+    if (widget) {
+      widget.is_enabled = false
+      rebuildOrder()
+    }
   }
 
-  let enabledCount = 0
-  return normalizedItems.map((item) => {
-    if (!item.is_enabled) {
-      return item
-    }
-
-    if (enabledCount >= MAX_ENABLED_SIDEBAR_WIDGETS) {
-      return { ...item, is_enabled: false }
-    }
-
-    enabledCount += 1
-    return item
-  })
+  void persistOverrides()
+  onDragEnd()
 }
+
+function reorderActive(fromKey, toKey) {
+  const enabled = sections.value.filter((s) => s.is_enabled).sort((a, b) => a.order - b.order)
+  const fromIdx = enabled.findIndex((s) => s.section_key === fromKey)
+  const toIdx = enabled.findIndex((s) => s.section_key === toKey)
+  if (fromIdx < 0 || toIdx < 0) return
+
+  const reordered = [...enabled]
+  const [moved] = reordered.splice(fromIdx, 1)
+  reordered.splice(toIdx, 0, moved)
+
+  const disabled = sections.value.filter((s) => !s.is_enabled)
+  sections.value = [...reordered, ...disabled].map((s, i) => ({ ...s, order: i }))
+}
+
+function rebuildOrder() {
+  const enabled = sections.value.filter((s) => s.is_enabled).sort((a, b) => a.order - b.order)
+  const disabled = sections.value.filter((s) => !s.is_enabled)
+  sections.value = [...enabled, ...disabled].map((s, i) => ({ ...s, order: i }))
+}
+
+function disableWidget(widget) {
+  state.scopeError = ''
+  widget.is_enabled = false
+  rebuildOrder()
+  void persistOverrides()
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
 
 const loadScope = async (scope) => {
   state.loadingScope = true
@@ -252,14 +261,45 @@ const loadScope = async (scope) => {
 
   try {
     const items = await sidebarConfigStore.fetchScope(scope, { force: true })
-    const selectedKeys = hasScopeOverride(scope) ? localOverrides.value[scope] : null
-    sections.value = applyScopeSelection(items, selectedKeys)
-  } catch (error) {
-    state.scopeError = error?.response?.data?.message || 'Nepodarilo sa načítať konfiguráciu sidebaru.'
+    const normalizedItems = normalizeSidebarSections(items)
+      .filter((item) => item.kind === 'builtin')
+      .map((item) => ({
+        section_key: item.section_key,
+        title: item.title,
+        order: item.order,
+        is_enabled: item.is_enabled,
+      }))
+      .sort((a, b) => a.order - b.order)
+
+    // Apply user overrides if they exist
+    const overrideKeys = getUserOverrideKeys(scope)
+    if (overrideKeys !== null) {
+      const keySet = new Set(overrideKeys)
+      const keyedItems = new Map(normalizedItems.map((item) => [item.section_key, item]))
+      const enabledByOrder = overrideKeys.map((k) => keyedItems.get(k)).filter(Boolean).map((item) => ({ ...item, is_enabled: true }))
+      const disabled = normalizedItems.filter((item) => !keySet.has(item.section_key)).map((item) => ({ ...item, is_enabled: false }))
+      sections.value = [...enabledByOrder, ...disabled].map((s, i) => ({ ...s, order: i }))
+    } else {
+      sections.value = normalizedItems
+    }
+  } catch (err) {
+    state.scopeError = err?.response?.data?.message || 'Nepodarilo sa načítať konfiguráciu sidebaru.'
     sections.value = []
   } finally {
     state.loadingScope = false
   }
+}
+
+function getUserOverrideKeys(scope) {
+  const overrides = preferences.sidebarWidgetOverrides
+  if (!overrides || typeof overrides !== 'object') return null
+  if (Object.prototype.hasOwnProperty.call(overrides, scope)) {
+    return Array.isArray(overrides[scope]) ? overrides[scope] : null
+  }
+  if (scope === DEFAULT_SIDEBAR_SCOPE && Array.isArray(preferences.sidebarWidgetKeys) && preferences.sidebarWidgetKeys.length > 0) {
+    return preferences.sidebarWidgetKeys
+  }
+  return null
 }
 
 const persistOverrides = async () => {
@@ -272,20 +312,24 @@ const persistOverrides = async () => {
   state.saveError = ''
 
   try {
-    const payloadOverrides = normalizeOverrides(localOverrides.value)
+    const selectedKeys = activeWidgets.value.map((s) => s.section_key)
+
+    const payloadOverrides = {
+      ...(preferences.sidebarWidgetOverrides || {}),
+      [DEFAULT_SIDEBAR_SCOPE]: selectedKeys,
+    }
+
     await preferences.savePreferences({
       sidebar_widget_overrides: payloadOverrides,
-      sidebar_widget_keys: payloadOverrides[SIDEBAR_CUSTOMIZATION_SCOPE] || [],
+      sidebar_widget_keys: selectedKeys,
     })
 
-    localOverrides.value = readStoreOverrides()
     state.lastSavedAt = new Date().toISOString()
-  } catch (error) {
-    const message = error?.response?.data?.message || preferences.error || 'Uloženie konfigurácie zlyhalo.'
+  } catch (err) {
+    const message = err?.response?.data?.message || preferences.error || 'Uloženie konfigurácie zlyhalo.'
     state.saveError = message
   } finally {
     state.saving = false
-
     if (saveQueued) {
       saveQueued = false
       await persistOverrides()
@@ -293,98 +337,198 @@ const persistOverrides = async () => {
   }
 }
 
-const updateLocalOverrideFromSections = () => {
-  const selectedKeys = sections.value
-    .filter((item) => item.is_enabled)
-    .map((item) => item.section_key)
-    .slice(0, MAX_ENABLED_SIDEBAR_WIDGETS)
-
-  localOverrides.value = {
-    ...localOverrides.value,
-    [SIDEBAR_CUSTOMIZATION_SCOPE]: selectedKeys,
-  }
-
-  sections.value = applyScopeSelection(sections.value, selectedKeys)
-  return selectedKeys
-}
-
-const toggleSectionEnabled = (section, checked) => {
-  const nextEnabled = Boolean(checked)
-
-  if (nextEnabled) {
-    const currentlyEnabled = sections.value.filter(
-      (item) => item.is_enabled && item.section_key !== section.section_key,
-    ).length
-    if (currentlyEnabled >= MAX_ENABLED_SIDEBAR_WIDGETS) {
-      state.scopeError = `Na jeden sidebar môžu byť aktívne maximálne ${MAX_ENABLED_SIDEBAR_WIDGETS} widgety.`
-      return
-    }
-  }
-
-  state.scopeError = ''
-  section.is_enabled = nextEnabled
-  updateLocalOverrideFromSections()
-  void persistOverrides()
-}
-
-const canMoveSection = (section, direction) => {
-  if (!section?.is_enabled) return false
-  const keys = enabledSectionKeys.value
-  const index = keys.indexOf(section.section_key)
-  if (index < 0) return false
-  if (direction === 'up') return index > 0
-  if (direction === 'down') return index < keys.length - 1
-  return false
-}
-
-const isMoveDisabled = (section, direction) => {
-  if (state.loadingScope || state.saving) return true
-  return !canMoveSection(section, direction)
-}
-
-const moveSection = (section, direction) => {
-  if (isMoveDisabled(section, direction)) return
-
-  const keys = [...enabledSectionKeys.value]
-  const index = keys.indexOf(section.section_key)
-  if (index < 0) return
-
-  const swapIndex = direction === 'up' ? index - 1 : index + 1
-  if (swapIndex < 0 || swapIndex >= keys.length) return
-
-  const current = keys[index]
-  keys[index] = keys[swapIndex]
-  keys[swapIndex] = current
-
-  state.scopeError = ''
-  localOverrides.value = {
-    ...localOverrides.value,
-    [SIDEBAR_CUSTOMIZATION_SCOPE]: keys,
-  }
-  sections.value = applyScopeSelection(sections.value, keys)
-  void persistOverrides()
-}
-
-const isToggleDisabled = (section) => {
-  if (state.loadingScope || state.saving) return true
-  if (section.is_enabled) return false
-  return enabledSectionsCount.value >= MAX_ENABLED_SIDEBAR_WIDGETS
-}
-
 onMounted(async () => {
   if (!preferences.loaded) {
     try {
       await preferences.fetchPreferences(true)
       state.preferencesError = ''
-    } catch (error) {
-      state.preferencesError = error?.userMessage
-        || error?.response?.data?.message
-        || preferences.error
-        || 'Nepodarilo sa načítať preferencie.'
+    } catch (err) {
+      state.preferencesError = err?.response?.data?.message || preferences.error || 'Nepodarilo sa načítať preferencie.'
     }
   }
 
-  localOverrides.value = readStoreOverrides()
-  await loadScope(SIDEBAR_CUSTOMIZATION_SCOPE)
+  await loadScope(DEFAULT_SIDEBAR_SCOPE)
 })
 </script>
+
+<style scoped>
+.widgetEditor {
+  max-width: 520px;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.widgetEditor__header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 1.2rem;
+}
+
+.saveState {
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.saveState--saving { color: var(--color-primary); }
+.saveState--error  { color: var(--color-danger, #e53e3e); }
+.saveState--saved  { color: var(--color-success, #22c55e); }
+
+.fieldError {
+  margin: 0;
+  color: var(--color-danger, #e53e3e);
+  font-size: 0.82rem;
+}
+
+.stateHint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* ── Zones ── */
+.widgetZone {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.widgetZone__label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.widgetZone__count {
+  font-size: 0.7rem;
+  padding: 0.08rem 0.42rem;
+  border-radius: 999px;
+  background: rgb(var(--color-text-secondary-rgb, 148 163 184) / 0.12);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.widgetZone__count--full {
+  background: rgb(var(--color-primary-rgb, 59 130 246) / 0.16);
+  color: var(--color-primary);
+}
+
+.widgetZone__list {
+  display: grid;
+  gap: 0.36rem;
+  min-height: 3.2rem;
+  border-radius: 0.65rem;
+  padding: 0.35rem;
+  border: 1.5px dashed transparent;
+  transition: border-color 0.14s, background 0.14s;
+}
+
+.widgetZone__list--active {
+  border-color: rgb(var(--color-text-secondary-rgb, 148 163 184) / 0.16);
+  background: rgb(var(--color-bg-rgb, 15 23 42) / 0.25);
+}
+
+.widgetZone__list--dropping {
+  border-color: var(--color-primary) !important;
+  background: rgb(var(--color-primary-rgb, 59 130 246) / 0.06) !important;
+}
+
+.widgetZone__empty {
+  padding: 0.85rem 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0.7;
+}
+
+/* ── Cards ── */
+.widgetCard {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.68rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--divider-color);
+  background: var(--color-card, rgb(var(--color-bg-rgb, 15 23 42) / 0.55));
+  cursor: grab;
+  user-select: none;
+  transition: box-shadow 0.14s, opacity 0.14s, transform 0.12s;
+}
+
+.widgetCard:active {
+  cursor: grabbing;
+}
+
+.widgetCard--dragging {
+  opacity: 0.35;
+}
+
+.widgetCard--dragOver {
+  box-shadow: 0 0 0 2px var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.widgetCard__handle {
+  color: var(--text-secondary);
+  opacity: 0.45;
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.widgetCard__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--color-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.widgetCard__remove {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  opacity: 0.45;
+  font-size: 0.68rem;
+  cursor: pointer;
+  padding: 0.18rem 0.3rem;
+  border-radius: 0.28rem;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: opacity 0.12s, color 0.12s;
+}
+
+.widgetCard__remove:hover {
+  opacity: 1;
+  color: var(--color-danger, #e53e3e);
+}
+
+/* ── Search ── */
+.widgetSearch {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--divider-color);
+  border-radius: var(--radius-md, 0.5rem);
+  background: rgb(var(--color-bg-rgb, 15 23 42) / 0.4);
+  color: var(--color-surface);
+  font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.widgetSearch::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.65;
+}
+
+.widgetSearch:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+</style>

@@ -76,6 +76,16 @@ describe('sidebar engine constraints', () => {
     ])
   })
 
+  it('does not collapse moon widgets into guest observing prompt', () => {
+    const enabled = getEnabledSidebarSections([
+      { kind: 'builtin', section_key: 'moon_phases', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'next_event', order: 1, is_enabled: true },
+    ], { isGuest: true })
+
+    expect(enabled).toHaveLength(2)
+    expect(enabled.map((item) => item.section_key)).toEqual(['moon_phases', 'next_event'])
+  })
+
   it('filters enabled widgets by preferred section keys', () => {
     const enabled = getEnabledSidebarSections([
       { kind: 'builtin', section_key: 'search', order: 0, is_enabled: true },
@@ -102,7 +112,7 @@ describe('sidebar engine constraints', () => {
       { kind: 'builtin', section_key: 'search', order: 0, is_enabled: false },
       { kind: 'builtin', section_key: 'nasa_apod', order: 1, is_enabled: false },
       { kind: 'builtin', section_key: 'moon_phases', order: 2, is_enabled: true },
-    ], { preferredSectionKeys: ['search', 'nasa_apod'] })
+    ], { preferredSectionKeys: ['search', 'nasa_apod'], allowUserPreferenceOverride: true })
 
     expect(enabled).toHaveLength(2)
     expect(enabled.map((item) => item.section_key)).toEqual(['search', 'nasa_apod'])
