@@ -383,34 +383,20 @@
         </a>
       </RouterLink>
 
-    </div>
-    <div v-if="auth.isAuthed && showCreateButton" ref="createPickerWrapperRef" class="relative mt-3 shrink-0">
-      <button
-        type="button"
-        class="createTrigger"
-        aria-label="Nový obsah"
-        aria-haspopup="menu"
-        :aria-expanded="isCreatePickerOpen ? 'true' : 'false'"
-        aria-controls="create-content-menu"
-        data-testid="create-content-trigger"
-        @click="toggleCreatePicker"
-      >
-        <svg
-          class="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
+      <div v-if="auth.isAuthed && showCreateButton" ref="createPickerWrapperRef" class="relative mt-5">
+        <button
+          type="button"
+          class="createTrigger"
+          aria-label="Nový obsah"
+          aria-haspopup="menu"
+          :aria-expanded="isCreatePickerOpen ? 'true' : 'false'"
+          aria-controls="create-content-menu"
+          data-testid="create-content-trigger"
+          @click="toggleCreatePicker"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="1.8"
-            d="M16.862 4.487a2.1 2.1 0 1 1 2.971 2.971L8.25 19.04 4 20l.959-4.25 11.903-11.263zM19.5 14.25v4.125A1.625 1.625 0 0 1 17.875 20H5.625A1.625 1.625 0 0 1 4 18.375V6.125A1.625 1.625 0 0 1 5.625 4.5H9.75"
-          />
-        </svg>
-        <span class="navLabel">Nový obsah</span>
-      </button>
+          <span aria-hidden="true" class="createPlusIcon">+</span>
+          <span>Nový</span>
+        </button>
 
       <div
         v-if="isCreatePickerOpen"
@@ -484,6 +470,7 @@
           </span>
           <span>Udalosť</span>
         </button>
+      </div>
       </div>
     </div>
   </nav>

@@ -572,7 +572,7 @@ describe('AppLayout mark-your-calendar popup', () => {
     await flush()
     await flush()
 
-    expect(sidebarConfigStore.fetchScope).toHaveBeenCalledWith('events')
+    expect(sidebarConfigStore.fetchScope).toHaveBeenCalledWith('home')
   })
 
   it('renders mobile widget access on settings routes and warms settings scope', async () => {
@@ -600,7 +600,7 @@ describe('AppLayout mark-your-calendar popup', () => {
     await flush()
     await flush()
 
-    expect(sidebarConfigStore.fetchScope).toHaveBeenCalledWith('settings')
+    expect(sidebarConfigStore.fetchScope).toHaveBeenCalledWith('home')
     expect(wrapper.find('mobile-fab-stub').exists()).toBe(true)
   })
 

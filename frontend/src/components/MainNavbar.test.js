@@ -142,15 +142,10 @@ describe('MainNavbar active route state', () => {
     expect(wrapper.find('.navScroll a[aria-label="Nastavenia"]').exists()).toBe(false)
   })
 
-  it('shows guest auth actions for unauthenticated users', async () => {
+  it('does not show guest auth actions in the navbar (moved to AppLayout)', async () => {
     const wrapper = await mountNavbarAt('/')
-    const links = wrapper.get('[data-testid="guest-auth-actions"]').findAll('a')
 
-    expect(links).toHaveLength(2)
-    expect(links[0].attributes('href')).toBe('/register')
-    expect(links[0].text()).toBe('Vytvorit ucet')
-    expect(links[1].attributes('href')).toBe('/login')
-    expect(links[1].text()).toBe('Prihlasit sa')
+    expect(wrapper.find('[data-testid="guest-auth-actions"]').exists()).toBe(false)
   })
 
   it('shows Nastavenia for authenticated users', async () => {

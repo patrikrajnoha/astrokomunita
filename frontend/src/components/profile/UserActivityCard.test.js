@@ -17,7 +17,7 @@ describe('UserActivityCard', () => {
 
     expect(wrapper.get('[data-testid="posts-count"]').text()).toContain('123')
     expect(wrapper.get('[data-testid="participations-count"]').text()).toContain('7')
-    expect(wrapper.get('[data-testid="last-login"]').text()).not.toContain('Zatial nezaznamenane')
+    expect(wrapper.get('[data-testid="last-login"]').text()).not.toContain('Zatiaľ nezaznamenané')
   })
 
   it('renders fallback when last login is null', () => {
@@ -32,7 +32,7 @@ describe('UserActivityCard', () => {
       },
     })
 
-    expect(wrapper.get('[data-testid="last-login"]').text()).toBe('Zatial nezaznamenane')
+    expect(wrapper.get('[data-testid="last-login"]').text()).toBe('Zatiaľ nezaznamenané')
   })
 
   it('renders loading skeleton', () => {

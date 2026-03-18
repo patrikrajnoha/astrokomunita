@@ -78,14 +78,14 @@ describe('OnboardingTour', () => {
     expect(wrapper.get('.tourTitle').text()).toBe('Pozorovacie podmienky')
     expect(wrapper.find('.widgetPreview').exists()).toBe(true)
     expect(wrapper.findAll('.widgetPreviewItem')).toHaveLength(3)
-    expect(wrapper.text()).toContain('Pocasie a seeing')
-    expect(wrapper.text()).toContain('Faza a udalosti')
+    expect(wrapper.text()).toContain('Počasie a seeing')
+    expect(wrapper.text()).toContain('Fáza a udalosti')
   })
 
   it('does not render widget preview on non-widget steps', async () => {
     const wrapper = await mountTour(0)
 
-    expect(wrapper.get('.tourTitle').text()).toBe('Komunitny feed')
+    expect(wrapper.get('.tourTitle').text()).toBe('Komunitný feed')
     expect(wrapper.find('.widgetPreview').exists()).toBe(false)
   })
 })

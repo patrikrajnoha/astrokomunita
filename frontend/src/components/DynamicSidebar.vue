@@ -26,6 +26,7 @@ import {
 } from '@/composables/useSidebarWidgetBundle'
 import { DEFAULT_SIDEBAR_SCOPE, resolveSidebarScopeFromPath } from '@/utils/sidebarScope'
 import {
+  GUEST_OBSERVING_PROMPT_SECTION_KEY,
   getEnabledSidebarSections,
   resolveSidebarComponent,
 } from '@/sidebar/engine'
@@ -233,6 +234,17 @@ watch(
     await syncScope(scope)
   },
   { immediate: true },
+)
+
+// Re-fetch when the admin invalidates the scope cache (delete byScope[scope]).
+// Only acts when we already have loaded data — prevents a double-fetch on initial mount.
+watch(
+  () => activeScope.value ? sidebarConfigStore.byScope?.[activeScope.value] : undefined,
+  async (cached) => {
+    if (!cached && activeScope.value && isDesktop.value && currentItems.value.length > 0) {
+      await syncScope(activeScope.value)
+    }
+  },
 )
 
 watch(
