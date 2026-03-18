@@ -51,8 +51,26 @@ describe('ObservingWeatherWidget bundle hydration', () => {
     await wait()
 
     expect(getMock).not.toHaveBeenCalled()
+    // Cloud-based verdict: 32% → "good" → Väčšinou jasno
+    expect(wrapper.text()).toContain('Väčšinou jasno')
+    // Compact data line includes cloud %
     expect(wrapper.text()).toContain('32%')
+    // Wind in compact line
     expect(wrapper.text()).toContain('13.0 km/h')
-    expect(wrapper.text()).toContain('Zdroj: open-meteo')
+    // No source attribution
+    expect(wrapper.text()).not.toContain('Zdroj:')
+  })
+
+  it('shows no-location state when coords are missing', async () => {
+    const wrapper = mount(ObservingWeatherWidget, {
+      props: {
+        lat: null,
+        lon: null,
+      },
+    })
+
+    await wait()
+
+    expect(wrapper.text()).toContain('Poloha nie je nastavená')
   })
 })

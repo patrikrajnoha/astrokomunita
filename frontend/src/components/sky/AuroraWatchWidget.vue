@@ -5,8 +5,8 @@
     <AsyncState
       v-if="showMissingLocation"
       mode="empty"
-      title="Poloha nie je nastavena"
-      message="Nastav polohu pre lokalny aurora watch."
+      title="Poloha nie je nastavená"
+      message="Nastav polohu pre lokálny aurora watch."
       compact
     />
 
@@ -27,46 +27,32 @@
     <AsyncState
       v-else-if="!payload?.available"
       mode="empty"
-      title="Aurora watch je nedostupny"
+      title="Aurora watch je nedostupný"
       message="NOAA OVATION forecast sa momentálne nepodarilo načítať."
       compact
     />
 
-    <div v-else class="content">
-      <div class="heroRow">
-        <div>
-          <p class="metricLabel">Lokalna sanca</p>
-          <p class="heroValue">{{ watchLabel }}</p>
-        </div>
-        <span class="scoreBadge" :class="scoreToneClass">{{ watchScoreLabel }}</span>
+    <div v-else class="aurora-content">
+      <div class="aurora-headline" :class="scoreToneClass">
+        <svg class="aurora-icon" viewBox="0 0 22 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          <path d="M1 6 Q5.5 1 11 6 Q16.5 11 21 6"/>
+          <path d="M3 9.5 Q7 5.5 11 9 Q15 12.5 19 9.5" stroke-width="1" opacity="0.5"/>
+          <path d="M2 2.5 Q6 -0.5 11 2.5 Q16 5.5 20 2.5" stroke-width="1" opacity="0.3"/>
+        </svg>
+        <span>{{ watchLabel }}</span>
       </div>
 
-      <div class="metricGrid">
-        <article class="metricItem">
-          <p class="metricLabel">Predikcia pre</p>
-          <p class="metricValue">
-            <time v-if="forecastDateTime" :datetime="forecastDateTime">{{ forecastLabel }}</time>
-            <span v-else>{{ forecastLabel }}</span>
-          </p>
-        </article>
-        <article class="metricItem">
-          <p class="metricLabel">Model</p>
-          <p class="metricValue">{{ inferenceLabel }}</p>
-        </article>
-      </div>
+      <p class="aurora-score">{{ watchScoreLabel }}</p>
 
-      <p v-if="detailLine" class="detailLine">{{ detailLine }}</p>
-      <p class="sourceLine">
-        Zdroj: {{ sourceLabel }} | Aktualizovane:
-        <time v-if="updatedDateTime" :datetime="updatedDateTime">{{ updatedLabel }}</time>
-        <span v-else>{{ updatedLabel }}</span>
-      </p>
+      <p v-if="contextLabel" class="aurora-context">{{ contextLabel }}</p>
+
+      <p v-if="updatedLabel !== '-'" class="widget-footer">Aktualizované {{ updatedLabel }}</p>
     </div>
   </section>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
 import api from '@/services/api'
@@ -83,6 +69,7 @@ const payload = ref(null)
 const loading = ref(true)
 const error = ref('')
 const hydratedFromBundle = ref(false)
+let pendingAbort = null
 
 const numericLat = computed(() => toFiniteCoordinate(props.lat, -90, 90))
 const numericLon = computed(() => toFiniteCoordinate(props.lon, -180, 180))
@@ -91,12 +78,11 @@ const effectiveTz = computed(() => {
   return candidate || 'Europe/Bratislava'
 })
 const showMissingLocation = computed(() => numericLat.value === null || numericLon.value === null)
-const sourceLabel = computed(() => String(payload.value?.source?.label || 'NOAA SWPC OVATION').trim() || 'NOAA SWPC OVATION')
 const watchLabel = computed(() => String(payload.value?.watch_label || 'Bez dát').trim() || 'Bez dát')
 const watchScore = computed(() => toFiniteNumber(payload.value?.watch_score))
 const watchScoreLabel = computed(() => {
   const score = watchScore.value
-  return score === null ? '-' : `${Math.round(score)}/100`
+  return score === null ? '— / 100' : `${Math.round(score)} / 100`
 })
 const scoreToneClass = computed(() => {
   const score = watchScore.value
@@ -107,29 +93,12 @@ const scoreToneClass = computed(() => {
   if (score >= 15) return 'is-low'
   return 'is-muted'
 })
-const forecastDateTime = computed(() => normalizeTimestamp(payload.value?.forecast_for))
-const forecastLabel = computed(() => formatDateTime(forecastDateTime.value, effectiveTz.value))
 const updatedDateTime = computed(() => normalizeTimestamp(payload.value?.updated_at || payload.value?.observed_at))
 const updatedLabel = computed(() => formatTime(updatedDateTime.value, effectiveTz.value))
-const inferenceLabel = computed(() => {
+const contextLabel = computed(() => {
   const inference = String(payload.value?.inference || '').trim()
-  if (inference === 'poleward_corridor_peak') return 'Severny koridor'
-  return inference || 'NOAA grid'
-})
-const detailLine = computed(() => {
-  const corridorScore = toFiniteNumber(payload.value?.corridor_peak_score)
-  const nearestScore = toFiniteNumber(payload.value?.nearest_score)
-  const parts = []
-
-  if (corridorScore !== null) {
-    parts.push(`Koridor severne od teba: ${Math.round(corridorScore)}/100`)
-  }
-
-  if (nearestScore !== null) {
-    parts.push(`Najblizsia bunka: ${Math.round(nearestScore)}/100`)
-  }
-
-  return parts.join(' | ')
+  if (inference === 'poleward_corridor_peak') return 'Severný koridor'
+  return ''
 })
 
 async function fetchPayload() {
@@ -139,6 +108,10 @@ async function fetchPayload() {
     error.value = ''
     return
   }
+
+  pendingAbort?.abort()
+  const controller = new AbortController()
+  pendingAbort = controller
 
   loading.value = true
   error.value = ''
@@ -150,11 +123,13 @@ async function fetchPayload() {
         lon: numericLon.value,
         tz: effectiveTz.value,
       },
+      signal: controller.signal,
       meta: { skipErrorToast: true },
     })
 
     payload.value = response?.data || null
   } catch (requestError) {
+    if (requestError?.name === 'AbortError' || requestError?.code === 'ERR_CANCELED') return
     payload.value = null
     error.value = (
       requestError?.response?.data?.message
@@ -162,9 +137,15 @@ async function fetchPayload() {
       || 'Nepodarilo sa načítať aurora watch.'
     )
   } finally {
-    loading.value = false
+    if (pendingAbort === controller) {
+      loading.value = false
+    }
   }
 }
+
+onBeforeUnmount(() => {
+  pendingAbort?.abort()
+})
 
 function applyPayload(nextPayload) {
   payload.value = nextPayload && typeof nextPayload === 'object' ? nextPayload : null
@@ -229,32 +210,6 @@ function normalizeTimestamp(value) {
   return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString()
 }
 
-function formatDateTime(value, timeZone) {
-  if (!value) return '-'
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return '-'
-
-  try {
-    return new Intl.DateTimeFormat('sk-SK', {
-      timeZone,
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(parsed)
-  } catch {
-    return new Intl.DateTimeFormat('sk-SK', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(parsed)
-  }
-}
-
 function formatTime(value, timeZone) {
   if (!value) return '-'
 
@@ -290,7 +245,7 @@ function formatTime(value, timeZone) {
 
 .panel {
   display: grid;
-  gap: 0.28rem;
+  gap: 0.5rem;
   min-width: 0;
 }
 
@@ -298,128 +253,97 @@ function formatTime(value, timeZone) {
   margin: 0;
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.84rem;
-  line-height: 1.2;
+  font-size: 0.88rem;
+  line-height: 1.22;
 }
 
-.content {
+/* ── Content ── */
+.aurora-content {
   display: grid;
-  gap: 0.28rem;
+  gap: 0.22rem;
+  padding: 0.56rem 0.6rem;
+  border-radius: 0.64rem;
+  background: rgb(var(--color-bg-rgb) / 0.18);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.12);
 }
 
-.heroRow {
+/* ── Headline ── */
+.aurora-headline {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.metricGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.24rem;
-}
-
-.metricItem {
-  border: 1px solid var(--divider-color);
-  border-radius: 0.56rem;
-  background: rgb(var(--color-bg-rgb) / 0.22);
-  padding: 0.34rem 0.4rem;
-  min-width: 0;
-}
-
-.metricLabel,
-.metricValue,
-.heroValue,
-.detailLine,
-.sourceLine {
-  margin: 0;
-}
-
-.metricLabel {
-  font-size: 0.64rem;
-  color: var(--color-text-secondary);
-}
-
-.metricValue,
-.heroValue {
-  margin-top: 0.08rem;
+  gap: 0.4rem;
   color: var(--color-surface);
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 800;
   line-height: 1.2;
 }
 
-.metricValue {
-  font-size: 0.77rem;
+.aurora-headline.is-high  { color: rgb(72 187 120); }
+.aurora-headline.is-medium { color: rgb(245 158 11); }
+.aurora-headline.is-low   { color: var(--color-surface); }
+.aurora-headline.is-muted { color: var(--color-text-secondary); }
+
+.aurora-icon {
+  flex-shrink: 0;
+  width: 1.15rem;
+  height: 0.65rem;
+  opacity: 0.85;
 }
 
-.heroValue {
-  font-size: 1rem;
-}
-
-.scoreBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 3.5rem;
-  padding: 0.22rem 0.44rem;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.4);
-  color: var(--color-surface);
-  font-size: 0.72rem;
-  font-weight: 700;
-  line-height: 1.1;
-  border-radius: 999px;
-}
-
-.scoreBadge.is-high {
-  background: rgb(72 187 120 / 0.18);
-  border-color: rgb(72 187 120 / 0.45);
-}
-
-.scoreBadge.is-medium {
-  background: rgb(245 158 11 / 0.18);
-  border-color: rgb(245 158 11 / 0.45);
-}
-
-.scoreBadge.is-low {
-  background: rgb(96 165 250 / 0.18);
-  border-color: rgb(96 165 250 / 0.45);
-}
-
-.scoreBadge.is-muted {
-  background: rgb(var(--color-primary-rgb) / 0.14);
-  border-color: rgb(var(--color-primary-rgb) / 0.4);
-}
-
-.detailLine,
-.sourceLine {
-  font-size: 0.68rem;
+/* ── Score ── */
+.aurora-score {
+  margin: 0;
   color: var(--color-text-secondary);
-  line-height: 1.3;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
+/* ── Context ── */
+.aurora-context {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  line-height: 1.25;
+  opacity: 0.75;
+}
+
+/* ── Footer ── */
+.widget-footer {
+  margin: 0.18rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.62rem;
+  line-height: 1.2;
+  opacity: 0.55;
+  text-align: right;
+}
+
+/* ── Loading skeleton ── */
 .panelLoading {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.22rem;
+  padding: 0.56rem 0.6rem;
+  border-radius: 0.64rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.08);
 }
 
 .skeleton {
+  border-radius: 0.25rem;
   background: linear-gradient(
     90deg,
-    rgb(var(--color-text-secondary-rgb) / 0.08),
-    rgb(var(--color-text-secondary-rgb) / 0.16),
-    rgb(var(--color-text-secondary-rgb) / 0.08)
+    rgb(var(--color-text-secondary-rgb) / 0.07),
+    rgb(var(--color-text-secondary-rgb) / 0.14),
+    rgb(var(--color-text-secondary-rgb) / 0.07)
   );
   background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
-  border-radius: 0;
+  animation: shimmer 1.4s infinite;
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
+  0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 
-.h-8 { height: 2rem; }
+.h-8   { height: 1.1rem; }
 .w-full { width: 100%; }
 </style>
