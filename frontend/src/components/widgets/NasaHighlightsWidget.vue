@@ -1,61 +1,45 @@
 <template>
-  <section v-if="nasaEnabled" class="card panel">
+  <section v-if="nasaEnabled" class="panel">
     <div class="panelTitle sidebarSection__header">{{ title }}</div>
 
-    <div v-if="loading" class="panelLoading">
-      <div class="skeleton nasaThumb"></div>
-      <div class="skeleton h-4 w-4/5"></div>
-      <div class="skeleton h-4 w-2/3"></div>
+    <!-- Loading -->
+    <div v-if="loading" class="skeletonCard">
+      <div class="skeleton skImg"></div>
+      <div class="skeleton skW70"></div>
+      <div class="skeleton skW50"></div>
     </div>
 
-    <div v-else-if="!nasaItem || !nasaItem.available" class="state">
-      <div class="stateText">NASA novinky sú momentálne nedostupné.</div>
+    <!-- Unavailable -->
+    <div v-else-if="!nasaItem || !nasaItem.available" class="stateText">
+      NASA novinky sú momentálne nedostupné.
     </div>
 
-    <div v-else class="nasaCard">
-      <a
-        class="nasaImageLink"
-        :href="nasaItem.link"
-        target="_blank"
-        rel="noopener noreferrer"
-        :aria-label="`Otvoriť NASA detail: ${nasaItem.title}`"
-      >
-        <div class="nasaImageWrap">
-          <img
-            :src="nasaItem.image_url"
-            :alt="nasaItem.title"
-            loading="lazy"
-          />
-        </div>
-      </a>
-
-      <a
-        class="nasaTitleLink"
-        :href="nasaItem.link"
-        target="_blank"
-        rel="noopener noreferrer"
-        :aria-label="`Otvoriť NASA detail: ${nasaItem.title}`"
-      >
-        <div class="nasaTitle">{{ nasaItem.title }}</div>
-      </a>
-      <div
-        v-if="nasaItem.excerpt"
-        class="nasaExcerpt"
-        :class="{ 'nasaExcerpt--expanded': isExcerptExpanded }"
-      >
-        {{ nasaItem.excerpt }}
+    <!-- Card -->
+    <a
+      v-else
+      class="nasaCard"
+      :href="nasaItem.link"
+      target="_blank"
+      rel="noopener noreferrer"
+      :aria-label="`Otvoriť: ${nasaItem.title}`"
+    >
+      <!-- Hero image -->
+      <div class="nasaImg">
+        <img :src="nasaItem.image_url" :alt="nasaItem.title" loading="lazy" />
       </div>
-      <button
-        v-if="hasExpandableExcerpt"
-        type="button"
-        class="nasaExcerptToggle"
-        :aria-expanded="isExcerptExpanded ? 'true' : 'false'"
-        @click="toggleExcerpt"
-      >
-        {{ isExcerptExpanded ? '↑ Skryť text' : '↓ Zobraziť celý text' }}
-      </button>
-      <p v-if="metaLine" class="metaLine">{{ metaLine }}</p>
-    </div>
+
+      <!-- Title -->
+      <div class="nasaTitle">{{ nasaItem.title }}</div>
+
+      <!-- Description (2 lines max) -->
+      <div v-if="nasaItem.excerpt" class="nasaDesc">{{ nasaItem.excerpt }}</div>
+
+      <!-- CTA + updated -->
+      <div class="nasaFooter">
+        <span class="nasaCta">Čítať →</span>
+        <span v-if="updatedLabel" class="nasaUpdated">Aktualizované {{ updatedLabel }}</span>
+      </div>
+    </a>
   </section>
 </template>
 
@@ -63,7 +47,11 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import api from '@/services/api'
 
-const EXCERPT_TOGGLE_THRESHOLD = 140
+const TIME_FMT = new Intl.DateTimeFormat('sk-SK', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+})
 
 export default {
   name: 'NasaHighlightsWidget',
@@ -84,65 +72,33 @@ export default {
   setup(props) {
     const nasaItem = ref(null)
     const loading = ref(false)
-    const error = ref(null)
     const hydratedFromBundle = ref(false)
-    const isExcerptExpanded = ref(false)
 
-    const nasaEnabled = computed(() => {
-      return (
-        import.meta.env.VITE_FEATURE_NASA_IOTD !== 'false' &&
-        import.meta.env.VITE_FEATURE_NASA_IOTD !== '0'
-      )
-    })
-    const hasExpandableExcerpt = computed(() => (
-      String(nasaItem.value?.excerpt || '').trim().length > EXCERPT_TOGGLE_THRESHOLD
+    const nasaEnabled = computed(() => (
+      import.meta.env.VITE_FEATURE_NASA_IOTD !== 'false' &&
+      import.meta.env.VITE_FEATURE_NASA_IOTD !== '0'
     ))
 
-    const metaLine = computed(() => {
-      const sourceLabel = String(nasaItem.value?.source?.label || 'NASA').trim()
-      const updatedLabel = formatTime(nasaItem.value?.updated_at)
-      const parts = []
-
-      if (sourceLabel) {
-        parts.push(`Zdroj: ${sourceLabel}`)
-      }
-
-      if (updatedLabel !== '-') {
-        parts.push(`Aktualizované: ${updatedLabel}`)
-      }
-
-      return parts.join(' | ')
+    const updatedLabel = computed(() => {
+      const raw = String(nasaItem.value?.updated_at || '').trim()
+      if (!raw) return ''
+      const d = new Date(raw)
+      if (Number.isNaN(d.getTime())) return ''
+      try { return TIME_FMT.format(d) } catch { return '' }
     })
 
     const applyPayload = (payload) => {
-      if (payload && payload.available) {
-        nasaItem.value = payload
-      } else {
-        nasaItem.value = null
-      }
-
-      isExcerptExpanded.value = false
-      error.value = null
+      nasaItem.value = payload?.available ? payload : null
       loading.value = false
       hydratedFromBundle.value = true
     }
 
-    const toggleExcerpt = () => {
-      isExcerptExpanded.value = !isExcerptExpanded.value
-    }
-
     const fetchNasaIotd = async () => {
       loading.value = true
-      error.value = null
       nasaItem.value = null
-
       try {
         applyPayload((await api.get('/nasa/iotd'))?.data)
-      } catch (err) {
-        error.value =
-          err?.response?.data?.message ||
-          err?.message ||
-          'Nepodarilo sa načítať NASA novinky.'
+      } catch {
         nasaItem.value = null
       } finally {
         loading.value = false
@@ -151,11 +107,7 @@ export default {
 
     watch(
       () => props.initialPayload,
-      (payload) => {
-        if (payload !== undefined) {
-          applyPayload(payload)
-        }
-      },
+      (payload) => { if (payload !== undefined) applyPayload(payload) },
       { immediate: true },
     )
 
@@ -168,66 +120,23 @@ export default {
     )
 
     onMounted(() => {
-      if (!nasaEnabled.value) {
-        return
-      }
-
+      if (!nasaEnabled.value) return
       if (props.initialPayload !== undefined || props.bundlePending) {
-        if (props.bundlePending && props.initialPayload === undefined) {
-          loading.value = true
-        }
+        if (props.bundlePending && props.initialPayload === undefined) loading.value = true
         return
       }
-
       fetchNasaIotd()
     })
 
-    return {
-      nasaItem,
-      loading,
-      error,
-      nasaEnabled,
-      metaLine,
-      hasExpandableExcerpt,
-      isExcerptExpanded,
-      toggleExcerpt,
-      fetchNasaIotd,
-    }
+    return { nasaItem, loading, nasaEnabled, updatedLabel, fetchNasaIotd }
   },
-}
-
-function formatTime(value) {
-  const raw = String(value || '').trim()
-  if (!raw) return '-'
-
-  const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return '-'
-
-  try {
-    return new Intl.DateTimeFormat('sk-SK', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(parsed)
-  } catch {
-    return '-'
-  }
 }
 </script>
 
 <style scoped>
-.card {
-  position: relative;
-  border: 0;
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  overflow: visible;
-}
-
 .panel {
   display: grid;
-  gap: 0.24rem;
+  gap: 0.28rem;
   min-width: 0;
 }
 
@@ -238,156 +147,120 @@ function formatTime(value) {
   line-height: 1.22;
 }
 
-.panelLoading {
+/* ── Skeleton ── */
+.skeletonCard {
   display: grid;
-  gap: var(--sb-gap-xs, 0.3rem);
+  gap: 0.28rem;
 }
 
+.skeleton {
+  border-radius: 0.25rem;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-text-secondary-rgb) / 0.07),
+    rgb(var(--color-text-secondary-rgb) / 0.14),
+    rgb(var(--color-text-secondary-rgb) / 0.07)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+.skImg  { width: 100%; aspect-ratio: 16 / 9; border-radius: 0.4rem; }
+.skW70  { height: 0.72rem; width: 70%; }
+.skW50  { height: 0.68rem; width: 50%; }
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Unavailable ── */
+.stateText {
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+/* ── Card (entire card is a link) ── */
 .nasaCard {
   display: grid;
-  gap: 0.18rem;
+  gap: 0.22rem;
+  text-decoration: none;
   min-width: 0;
 }
 
-.nasaThumb {
+.nasaImg {
   width: 100%;
-  aspect-ratio: 16 / 8.8;
-  border-radius: 0;
-}
-
-.nasaImageWrap {
-  width: 100%;
-  aspect-ratio: 16 / 9.6;
-  max-height: 150px;
-  border-radius: 0;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.4rem;
   overflow: hidden;
-  border: 1px solid var(--divider-color);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.1);
 }
 
-.nasaImageLink {
-  display: block;
-}
-
-.nasaTitleLink {
-  display: block;
-  color: inherit;
-  text-decoration: none;
-}
-
-.nasaTitleLink:hover .nasaTitle,
-.nasaTitleLink:focus-visible .nasaTitle {
-  color: rgb(var(--color-primary-rgb) / 0.96);
-}
-
-.nasaImageWrap img {
+.nasaImg img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: opacity 0.14s ease;
+}
+
+.nasaCard:hover .nasaImg img {
+  opacity: 0.88;
 }
 
 .nasaTitle {
-  font-size: 0.86rem;
-  font-weight: 800;
+  font-size: 0.82rem;
+  font-weight: 700;
   color: var(--color-surface);
-  line-height: 1.18;
+  line-height: 1.2;
   display: -webkit-box;
-  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  transition: color 0.12s ease;
 }
 
-.nasaExcerpt {
+.nasaCard:hover .nasaTitle {
+  color: var(--color-primary);
+}
+
+.nasaDesc {
   color: var(--color-text-secondary);
-  font-size: 0.7rem;
-  line-height: 1.2;
+  font-size: 0.70rem;
+  line-height: 1.28;
   display: -webkit-box;
-  line-clamp: 3;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  word-break: break-word;
-  overflow-wrap: anywhere;
 }
 
-.nasaExcerpt--expanded {
-  display: block;
-  line-clamp: unset;
-  -webkit-line-clamp: unset;
-  -webkit-box-orient: initial;
-  overflow: visible;
+/* ── Footer: CTA + updated ── */
+.nasaFooter {
+  display: flex;
+  align-items: baseline;
+  gap: 0.44rem;
+  margin-top: 0.06rem;
 }
 
-.nasaExcerptToggle {
-  justify-self: start;
-  padding: 0.1rem 0;
-  border: 0;
-  background: transparent;
+.nasaCta {
   color: rgb(var(--color-primary-rgb) / 0.85);
   font-size: 0.72rem;
   font-weight: 600;
-  line-height: 1.2;
-  text-decoration: none;
-  cursor: pointer;
-  letter-spacing: 0.01em;
+  flex-shrink: 0;
+  transition: color 0.12s ease;
 }
 
-.nasaExcerptToggle:hover,
-.nasaExcerptToggle:focus-visible {
-  color: rgb(var(--color-primary-rgb) / 0.96);
+.nasaCard:hover .nasaCta {
+  color: var(--color-primary);
 }
 
-.metaLine {
-  margin: 0;
+.nasaUpdated {
   color: var(--color-text-secondary);
-  font-size: 0.68rem;
-  line-height: 1.25;
-}
-
-.stateText {
-  color: var(--color-text-secondary);
-  font-size: 0.78rem;
-  line-height: 1.28;
-}
-
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    rgb(var(--color-text-secondary-rgb) / 0.08),
-    rgb(var(--color-text-secondary-rgb) / 0.16),
-    rgb(var(--color-text-secondary-rgb) / 0.08)
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.2s infinite;
-  border-radius: 0;
-}
-
-.nasaCard,
-.nasaImageWrap,
-.nasaImageWrap img {
-  border-radius: 0 !important;
-}
-
-.nasaCard * {
-  border-radius: 0 !important;
-  min-width: 0;
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.h-4 { height: 1rem; }
-.w-4\/5 { width: 80%; }
-.w-2\/3 { width: 66.666667%; }
-
-@media (max-width: 420px) {
-  .nasaImageWrap {
-    max-height: 130px;
-  }
+  font-size: 0.66rem;
+  opacity: 0.65;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

@@ -1,15 +1,13 @@
 <template>
-  <section class="card panel moonEventsCard">
+  <section class="card panel">
     <div class="panelTitle sidebarSection__header">{{ title }}</div>
 
-    <AsyncState
-      v-if="loading"
-      mode="loading"
-      title="Načítavam lunárne udalosti"
-      loading-style="skeleton"
-      :skeleton-rows="4"
-      compact
-    />
+    <div v-if="loading" class="event-list">
+      <div v-for="i in 3" :key="i" class="skeleton-row">
+        <div class="skeleton sk-name"></div>
+        <div class="skeleton sk-date"></div>
+      </div>
+    </div>
 
     <AsyncState
       v-else-if="error"
@@ -22,30 +20,33 @@
     />
 
     <AsyncState
-      v-else-if="!events.length"
+      v-else-if="!upcomingEvents.length"
       mode="empty"
-      title="Žiadne lunárne udalosti"
-      message="Pre tento rok nie sú dostupné špeciálne lunárne udalosti."
+      title="Žiadne blížiace sa udalosti"
+      message="Pre tento rok nie sú ďalšie špeciálne lunárne udalosti."
       compact
     />
 
-    <section v-else class="eventsPanel">
-      <div class="eventsTitle">Špeciálne lunárne udalosti v {{ yearLabel }}</div>
-
-      <ul class="eventsList" role="list" aria-label="Špeciálne lunárne udalosti">
-        <li
-          v-for="event in events"
-          :key="`${event.key}-${event.at || event.label}`"
-          class="eventRow"
-        >
-          <span class="eventLabel">{{ event.label }}</span>
-          <span v-if="formatEventDateTime(event)" class="eventWhen">
-            : {{ formatEventDateTime(event) }}
-          </span>
-          <span v-if="event.note" class="eventNote"> ({{ event.note }})</span>
-        </li>
-      </ul>
-    </section>
+    <div v-else class="event-list">
+      <article
+        v-for="event in upcomingEvents"
+        :key="`${event.key}-${event.at || event.label}`"
+        class="event-row"
+      >
+        <div class="event-row__body">
+          <div class="event-name">
+            <span class="event-icon" aria-hidden="true">{{ eventIcon(event.key) }}</span>
+            <span class="event-label">{{ event.label }}</span>
+          </div>
+          <div v-if="formatCompactDateTime(event)" class="event-when">
+            {{ formatCompactDateTime(event) }}
+          </div>
+        </div>
+        <svg class="row-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </article>
+    </div>
   </section>
 </template>
 
@@ -54,9 +55,9 @@ import { computed, onMounted, ref } from 'vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
 import { getMoonEventsWidget } from '@/services/widgets'
 
-const DATE_FORMATTER = new Intl.DateTimeFormat('sk-SK', {
+const SHORT_DATE_FORMATTER = new Intl.DateTimeFormat('sk-SK', {
   day: 'numeric',
-  month: 'long',
+  month: 'short',
   timeZone: 'UTC',
 })
 
@@ -68,7 +69,7 @@ export default {
   props: {
     title: {
       type: String,
-      default: 'Lunárne udalosti',
+      default: 'Najbližšie lunárne udalosti',
     },
     lat: {
       type: [Number, String],
@@ -91,7 +92,6 @@ export default {
     const events = ref([])
     const loading = ref(true)
     const error = ref('')
-    const year = ref(new Date().getFullYear())
 
     const buildQuery = () => {
       const query = {}
@@ -100,21 +100,10 @@ export default {
       const tz = String(props.tz || '').trim()
       const requestedYear = resolveYearFromDate(props.date)
 
-      if (Number.isFinite(lat)) {
-        query.lat = lat
-      }
-
-      if (Number.isFinite(lon)) {
-        query.lon = lon
-      }
-
-      if (tz) {
-        query.tz = tz
-      }
-
-      if (Number.isInteger(requestedYear)) {
-        query.year = requestedYear
-      }
+      if (Number.isFinite(lat)) query.lat = lat
+      if (Number.isFinite(lon)) query.lon = lon
+      if (tz) query.tz = tz
+      if (Number.isInteger(requestedYear)) query.year = requestedYear
 
       return query
     }
@@ -126,9 +115,6 @@ export default {
       try {
         const payload = await getMoonEventsWidget(buildQuery())
         events.value = normalizeEvents(payload?.events)
-        year.value = Number.isFinite(Number(payload?.year))
-          ? Number(payload.year)
-          : resolveYearFromDate(props.date, new Date().getFullYear())
       } catch (err) {
         events.value = []
         error.value =
@@ -140,18 +126,18 @@ export default {
       }
     }
 
-    const yearLabel = computed(() => {
-      return Number.isFinite(Number(year.value))
-        ? Number(year.value)
-        : new Date().getFullYear()
+    const upcomingEvents = computed(() => {
+      const todayStr = new Date().toISOString().slice(0, 10)
+      return events.value
+        .filter((e) => e.date && e.date >= todayStr)
+        .slice(0, 3)
     })
 
-    const formatEventDateTime = (event) => {
-      const dateLabel = formatDate(event?.date || extractIsoDate(event?.at || ''))
-      const timeLabel = sanitizeTime(event?.time || extractIsoTime(event?.at || ''))
-
-      if (dateLabel && timeLabel) return `${dateLabel}, ${timeLabel}`
-      return dateLabel || timeLabel || ''
+    const formatCompactDateTime = (event) => {
+      const datePart = formatShortDate(event?.date || extractIsoDate(event?.at || ''))
+      const timePart = sanitizeTime(event?.time || extractIsoTime(event?.at || ''))
+      if (datePart && timePart) return `${datePart} · ${timePart}`
+      return datePart || timePart || ''
     }
 
     onMounted(() => {
@@ -159,14 +145,22 @@ export default {
     })
 
     return {
-      events,
+      upcomingEvents,
       loading,
       error,
-      yearLabel,
       fetchEvents,
-      formatEventDateTime,
+      formatCompactDateTime,
+      eventIcon,
     }
   },
+}
+
+function eventIcon(key) {
+  const k = String(key || '').toLowerCase()
+  if (k.includes('black') || (k.includes('new') && !k.includes('blue'))) return '🌑'
+  if (k.includes('blue')) return '🌕'
+  if (k.includes('full') || k.includes('super') || k.includes('micro') || k.includes('wolf') || k.includes('harvest')) return '🌕'
+  return '🌙'
 }
 
 function normalizeEvents(rows) {
@@ -184,7 +178,6 @@ function normalizeEvents(rows) {
       return {
         key: String(item?.key || '').trim(),
         label,
-        note: String(item?.note || '').trim(),
         at,
         date,
         time,
@@ -221,14 +214,12 @@ function resolveYearFromDate(value, fallbackYear = new Date().getFullYear()) {
   if (!match) return fallbackYear
 
   const year = Number(match[1])
-  if (!Number.isInteger(year) || year < 1700 || year > 2100) {
-    return fallbackYear
-  }
+  if (!Number.isInteger(year) || year < 1700 || year > 2100) return fallbackYear
 
   return year
 }
 
-function formatDate(value) {
+function formatShortDate(value) {
   const text = String(value || '').trim()
   if (!text) return ''
 
@@ -241,7 +232,7 @@ function formatDate(value) {
   if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return ''
 
   try {
-    return DATE_FORMATTER.format(new Date(Date.UTC(year, month - 1, day)))
+    return SHORT_DATE_FORMATTER.format(new Date(Date.UTC(year, month - 1, day)))
   } catch {
     return ''
   }
@@ -260,7 +251,7 @@ function formatDate(value) {
 
 .panel {
   display: grid;
-  gap: 0.24rem;
+  gap: 0.5rem;
   min-width: 0;
 }
 
@@ -268,49 +259,113 @@ function formatDate(value) {
   margin: 0;
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.84rem;
-  line-height: 1.2;
+  font-size: 0.88rem;
+  line-height: 1.22;
 }
 
-.eventsPanel {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
-  background: rgb(var(--color-bg-rgb) / 0.15);
-  padding: 0.44rem 0.5rem;
+/* ── Event list ── */
+.event-list {
   display: grid;
-  gap: 0.28rem;
+  gap: 0.3rem;
 }
 
-.eventsTitle {
-  margin: 0;
+/* ── Event row ── */
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.56rem 0.6rem;
+  border-radius: 0.64rem;
+  background: rgb(var(--color-bg-rgb) / 0.18);
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.12);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  min-width: 0;
+}
+
+.event-row:hover {
+  background: rgb(var(--color-primary-rgb) / 0.07);
+  border-color: rgb(var(--color-primary-rgb) / 0.22);
+}
+
+.event-row__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.18rem;
+}
+
+/* ── Name line ── */
+.event-name {
+  display: flex;
+  align-items: center;
+  gap: 0.36rem;
+  min-width: 0;
+}
+
+.event-icon {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.event-label {
   color: var(--color-surface);
-  font-weight: 800;
-  font-size: 0.76rem;
-  line-height: 1.2;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.22;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.eventsList {
-  margin: 0;
-  padding: 0 0 0 1rem;
-  display: grid;
-  gap: 0.2rem;
-}
-
-.eventRow {
+/* ── Date / time line ── */
+.event-when {
   color: var(--color-text-secondary);
-  font-size: 0.71rem;
+  font-size: 0.68rem;
   line-height: 1.25;
 }
 
-.eventLabel {
-  color: var(--color-surface);
-  font-weight: 700;
-}
-
-.eventWhen {
+/* ── Chevron ── */
+.row-chevron {
+  flex-shrink: 0;
+  width: 0.7rem;
+  height: 0.7rem;
   color: var(--color-text-secondary);
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
 }
 
-.eventNote {
-  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+.event-row:hover .row-chevron {
+  opacity: 0.75;
+}
+
+/* ── Skeleton loading ── */
+.skeleton-row {
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.56rem 0.6rem;
+  border-radius: 0.64rem;
+  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.08);
+}
+
+.skeleton {
+  border-radius: 0.25rem;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-text-secondary-rgb) / 0.07),
+    rgb(var(--color-text-secondary-rgb) / 0.14),
+    rgb(var(--color-text-secondary-rgb) / 0.07)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+.sk-name { height: 0.75rem; width: 68%; }
+.sk-date { height: 0.6rem;  width: 45%; }
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 </style>

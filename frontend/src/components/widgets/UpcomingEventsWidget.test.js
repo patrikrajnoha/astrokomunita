@@ -19,19 +19,16 @@ describe('UpcomingEventsWidget', () => {
     mockGetUpcomingEventsWidget.mockReset()
     mockGetUpcomingEventsWidget.mockResolvedValue({
       items: [
-        { id: 11, title: 'Event A', slug: null, start_at: '2026-02-20T23:30:00Z' },
-        { id: 12, title: 'Event B', slug: null, start_at: '2026-02-21T18:00:00Z' },
-        { id: 13, title: 'Event C', slug: null, start_at: '2026-02-22T18:00:00Z' },
-        { id: 14, title: 'Event D', slug: null, start_at: '2026-02-23T18:00:00Z' },
+        { id: 11, title: 'Event A', type: 'meteor_shower', slug: null, start_at: '2026-02-21T18:00:00Z' },
+        { id: 12, title: 'Event B', type: 'eclipse_solar', slug: null, start_at: '2026-02-22T18:00:00Z' },
+        { id: 13, title: 'Event C', type: 'aurora', slug: null, start_at: '2026-02-23T18:00:00Z' },
+        { id: 14, title: 'Event D', type: null, slug: null, start_at: '2026-02-24T18:00:00Z' },
       ],
-      source: {
-        label: 'Databaza udalosti',
-      },
       generated_at: '2026-02-16T12:00:00Z',
     })
   })
 
-  it('calls API once on mount and renders event links with source metadata', async () => {
+  it('calls API once on mount and renders event rows with date, icon and title', async () => {
     const wrapper = mount(UpcomingEventsWidget, {
       global: {
         stubs: {
@@ -49,12 +46,23 @@ describe('UpcomingEventsWidget', () => {
     expect(mockGetUpcomingEventsWidget).toHaveBeenCalledTimes(1)
     expect(wrapper.findAll('.eventItem')).toHaveLength(4)
 
+    // Event links
+    expect(wrapper.find('a[href="/events/11"]').exists()).toBe(true)
+
+    // Compact date format (sk-SK — test env may render numeric month)
+    expect(wrapper.text()).toMatch(/21\. (feb|2\.)/)
+
+    // Type icon for meteor_shower
+    expect(wrapper.text()).toContain('☄️')
+
+    // Show all footer link
     const showMoreLink = wrapper.find('a[href="/events"]')
     expect(showMoreLink.exists()).toBe(true)
-    expect(showMoreLink.text()).toContain('Vsetky udalosti')
-    expect(wrapper.find('a[href="/events/11"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Zdroj: Databaza udalosti')
-    expect(wrapper.text()).toMatch(/21\.\s?2\.\s?2026/)
+    expect(showMoreLink.text()).toContain('Zobraziť všetko')
+
+    // No source metadata
+    expect(wrapper.text()).not.toContain('Databáza udalostí')
+    expect(wrapper.text()).not.toContain('Zdroj')
   })
 
   it('uses bundled payload and skips standalone widget fetch', async () => {
@@ -62,11 +70,8 @@ describe('UpcomingEventsWidget', () => {
       props: {
         initialPayload: {
           items: [
-            { id: 21, title: 'Bundled event', slug: null, start_at: '2026-02-24T18:00:00Z' },
+            { id: 21, title: 'Bundled event', type: 'aurora', slug: null, start_at: '2026-02-24T18:00:00Z' },
           ],
-          source: {
-            label: 'Databaza udalosti',
-          },
           generated_at: '2026-02-16T12:00:00Z',
         },
       },

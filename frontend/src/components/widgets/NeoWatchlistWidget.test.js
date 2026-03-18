@@ -49,9 +49,9 @@ describe('NeoWatchlistWidget', () => {
 
     expect(getMock).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('99942 Apophis')
-    expect(wrapper.text()).toContain('PHA')
+    expect(wrapper.text()).toContain('Veľmi blízko')
+    expect(wrapper.text()).toContain('0.0003 AU')
     expect(wrapper.text()).toContain('Apollo')
-    expect(wrapper.text()).toContain('Zdroj: NASA JPL SBDB')
   })
 
   it('fetches the watchlist when no bundle payload is provided', async () => {
@@ -84,6 +84,8 @@ describe('NeoWatchlistWidget', () => {
       meta: { skipErrorToast: true },
     })
     expect(wrapper.text()).toContain('2001 FO32')
-    expect(wrapper.text()).toContain('NEO')
+    expect(wrapper.text()).toContain('Blízko')
+    expect(wrapper.text()).toContain('0.0035 AU')
+    expect(wrapper.text()).toContain('Apollo')
   })
 })

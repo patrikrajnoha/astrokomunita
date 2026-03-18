@@ -27,7 +27,7 @@ describe('NasaHighlightsWidget', () => {
         initialPayload: {
           available: true,
           title: 'NASA bundled',
-          excerpt: 'Bundled excerpt',
+          excerpt: 'Bundled excerpt text.',
           image_url: 'https://example.com/image.jpg',
           link: 'https://www.nasa.gov/example',
           updated_at: '2026-02-16T12:00:00Z',
@@ -43,24 +43,22 @@ describe('NasaHighlightsWidget', () => {
 
     expect(getMock).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('NASA bundled')
-    expect(wrapper.text()).toContain('Zdroj: NASA IOTD RSS')
+    expect(wrapper.text()).toContain('Bundled excerpt text.')
+    expect(wrapper.text()).toContain('Čítať →')
+    expect(wrapper.text()).toContain('Aktualizované')
+    // No source label in footer
+    expect(wrapper.text()).not.toContain('Zdroj:')
+    // No expand toggle
+    expect(wrapper.find('button').exists()).toBe(false)
+    // Entire card is a link
+    expect(wrapper.find('a.nasaCard').exists()).toBe(true)
   })
 
-  it('toggles the full excerpt instead of rendering the external CTA button', async () => {
-    const excerpt = 'Skore ranne slnecne svetlo osvetluje zapadnu stenu tohto nemenovaneho kratera a zanechava hlboke tiene na zemi i vo vnutri. Obraz bol urobeny 30. augusta 2023 LROC.'
-
+  it('shows unavailable state when payload has available: false', async () => {
     const wrapper = mount(NasaHighlightsWidget, {
       props: {
         initialPayload: {
-          available: true,
-          title: 'Dobre rano, Mesiac',
-          excerpt,
-          image_url: 'https://example.com/image.jpg',
-          link: 'https://www.nasa.gov/example',
-          updated_at: '2026-02-16T12:00:00Z',
-          source: {
-            label: 'NASA IOTD RSS',
-          },
+          available: false,
         },
       },
     })
@@ -68,16 +66,7 @@ describe('NasaHighlightsWidget', () => {
     await flushPromises()
     await nextTick()
 
-    const toggle = wrapper.get('button.nasaExcerptToggle')
-    const excerptNode = wrapper.get('.nasaExcerpt')
-
-    expect(wrapper.text()).not.toContain('Zobrazit na NASA.gov')
-    expect(toggle.text()).toBe('Zobrazit cely text')
-    expect(excerptNode.classes()).not.toContain('nasaExcerpt--expanded')
-
-    await toggle.trigger('click')
-
-    expect(wrapper.get('button.nasaExcerptToggle').text()).toBe('Skryt text')
-    expect(wrapper.get('.nasaExcerpt').classes()).toContain('nasaExcerpt--expanded')
+    expect(wrapper.text()).toContain('nedostupné')
+    expect(wrapper.find('a.nasaCard').exists()).toBe(false)
   })
 })

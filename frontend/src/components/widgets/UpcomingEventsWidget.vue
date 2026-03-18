@@ -1,64 +1,54 @@
 <template>
-  <section class="card panel">
+  <section class="panel">
     <div class="panelTitle sidebarSection__header">{{ title }}</div>
 
-    <AsyncState
-      v-if="loading"
-      mode="loading"
-      title="Načítavam udalosti"
-      loading-style="skeleton"
-      :skeleton-rows="4"
-      compact
-    />
-
-    <AsyncState
-      v-else-if="error"
-      mode="error"
-      :title="loadErrorTitle"
-      :message="error"
-      action-label="Skúsiť znova"
-      compact
-      @action="fetchItems"
-    />
-
-    <AsyncState
-      v-else-if="!items.length"
-      mode="empty"
-      title="Žiadne blízke udalosti"
-      message="Skús pozrieť kalendár alebo obnoviť dáta neskôr."
-      compact
-    />
-
-    <div v-else class="eventsViewport">
-      <transition-group tag="ul" name="fade" class="eventsList">
-        <li v-for="event in items" :key="event.id" class="eventItem">
-          <router-link class="eventLink" :to="`/events/${event.id}`">
-            <time class="eventDate" :datetime="event.start_at || undefined">{{ formatDate(event.start_at) }}</time>
-            <div class="eventTitle">{{ event.title }}</div>
-          </router-link>
-        </li>
-      </transition-group>
+    <!-- Loading: 4 skeleton rows -->
+    <div v-if="loading" class="skeletonStack">
+      <div class="skeleton skW52"></div>
+      <div class="skeleton skW66"></div>
+      <div class="skeleton skW44"></div>
+      <div class="skeleton skW58"></div>
     </div>
 
-    <p v-if="metaLine" class="metaLine">{{ metaLine }}</p>
-
-    <div class="panelActions">
-      <router-link class="upcomingMoreLink" :to="showMoreTo">{{ showMoreLabel }}</router-link>
+    <!-- Error -->
+    <div v-else-if="error" class="stateBox">
+      <div class="stateError">{{ loadErrorTitle }}</div>
+      <button type="button" class="retryBtn" @click="fetchItems">Skúsiť znova</button>
     </div>
+
+    <!-- Empty -->
+    <p v-else-if="!items.length" class="emptyText">Žiadne blízke udalosti.</p>
+
+    <!-- List: date · icon title — max 4 items -->
+    <ul v-else class="eventsList">
+      <li v-for="event in items.slice(0, 4)" :key="event.id" class="eventItem">
+        <router-link :to="`/events/${event.id}`" class="eventRow">
+          <time class="eventRowDate" :datetime="event.start_at || undefined">{{ shortDate(event.start_at) }}</time>
+          <span class="eventRowSep" aria-hidden="true">·</span>
+          <span class="eventRowIcon" aria-hidden="true">{{ eventIcon(event.type) }}</span>
+          <span class="eventRowTitle">{{ event.title }}</span>
+        </router-link>
+      </li>
+    </ul>
+
+    <!-- Footer link -->
+    <router-link class="showAllLink" :to="showMoreTo">{{ showMoreLabel }}</router-link>
   </section>
 </template>
 
 <script>
 import { onMounted, ref, watch } from 'vue'
-import AsyncState from '@/components/ui/AsyncState.vue'
 import { getUpcomingEventsWidget } from '@/services/widgets'
-import { EVENT_TIMEZONE, formatEventDate } from '@/utils/eventTime'
+import { EVENT_TIMEZONE } from '@/utils/eventTime'
+
+const SHORT_DATE = new Intl.DateTimeFormat('sk-SK', {
+  day: 'numeric',
+  month: 'short',
+  timeZone: EVENT_TIMEZONE,
+})
 
 export default {
   name: 'UpcomingEventsWidget',
-  components: {
-    AsyncState,
-  },
   props: {
     title: {
       type: String,
@@ -66,7 +56,7 @@ export default {
     },
     showMoreLabel: {
       type: String,
-      default: 'Všetky udalosti',
+      default: 'Zobraziť všetko →',
     },
     showMoreTo: {
       type: String,
@@ -89,16 +79,10 @@ export default {
     const items = ref([])
     const loading = ref(true)
     const error = ref('')
-    const sourceLabel = ref('')
-    const updatedAt = ref('')
-    const metaLine = ref('')
     const hydratedFromBundle = ref(false)
 
     const applyPayload = (payload) => {
       items.value = Array.isArray(payload?.items) ? payload.items.slice(0, 4) : []
-      sourceLabel.value = String(payload?.source?.label || 'Databáza udalostí').trim()
-      updatedAt.value = String(payload?.generated_at || '').trim()
-      metaLine.value = buildMetaLine(sourceLabel.value, updatedAt.value)
       error.value = ''
       loading.value = false
       hydratedFromBundle.value = true
@@ -107,32 +91,26 @@ export default {
     const fetchItems = async () => {
       loading.value = true
       error.value = ''
-
       try {
         applyPayload(await getUpcomingEventsWidget())
       } catch (err) {
-        error.value = err?.response?.data?.message || err?.message || 'Skus to neskor.'
-        metaLine.value = ''
+        error.value = err?.response?.data?.message || err?.message || 'Skús to neskôr.'
       } finally {
         loading.value = false
       }
     }
 
-    const formatDate = (value) => {
-      return formatEventDate(value, EVENT_TIMEZONE, {
-        day: 'numeric',
-        month: 'numeric',
-        year: 'numeric',
-      })
+    const shortDate = (value) => {
+      const raw = String(value || '').trim()
+      if (!raw) return '-'
+      const d = new Date(raw)
+      if (Number.isNaN(d.getTime())) return '-'
+      try { return SHORT_DATE.format(d) } catch { return '-' }
     }
 
     watch(
       () => props.initialPayload,
-      (payload) => {
-        if (payload !== undefined) {
-          applyPayload(payload)
-        }
-      },
+      (payload) => { if (payload !== undefined) applyPayload(payload) },
       { immediate: true },
     )
 
@@ -146,89 +124,113 @@ export default {
 
     onMounted(() => {
       if (props.initialPayload !== undefined || props.bundlePending) {
-        if (props.bundlePending && props.initialPayload === undefined) {
-          loading.value = true
-        }
+        if (props.bundlePending && props.initialPayload === undefined) loading.value = true
         return
       }
-
       fetchItems()
     })
 
-    return {
-      items,
-      loading,
-      error,
-      fetchItems,
-      formatDate,
-      metaLine,
-    }
+    return { items, loading, error, fetchItems, shortDate, eventIcon }
   },
 }
 
-function buildMetaLine(sourceLabel, updatedAt) {
-  const parts = []
-  const normalizedSource = String(sourceLabel || '').trim()
-  const updatedLabel = formatTime(updatedAt)
-
-  if (normalizedSource) {
-    parts.push(`Zdroj: ${normalizedSource}`)
-  }
-
-  if (updatedLabel !== '-') {
-    parts.push(`Aktualizované: ${updatedLabel}`)
-  }
-
-  return parts.join(' | ')
-}
-
-function formatTime(value) {
-  const raw = String(value || '').trim()
-  if (!raw) return '-'
-
-  const parsed = new Date(raw)
-  if (Number.isNaN(parsed.getTime())) return '-'
-
-  try {
-    return new Intl.DateTimeFormat('sk-SK', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(parsed)
-  } catch {
-    return '-'
-  }
+function eventIcon(type) {
+  const t = String(type || '').trim().toLowerCase()
+  if (t === 'eclipse_solar')                    return '🌑'
+  if (t === 'eclipse_lunar')                    return '🌕'
+  if (t === 'meteor_shower' || t === 'meteors') return '☄️'
+  if (t === 'aurora')                           return '🌌'
+  if (t === 'comet')                            return '☄️'
+  if (t === 'asteroid')                         return '🪨'
+  if (t === 'planetary_event' || t === 'conjunction') return '🪐'
+  if (t === 'space_event' || t === 'mission')   return '🚀'
+  if (t === 'observation_window')               return '🔭'
+  return '✨'
 }
 </script>
 
 <style scoped>
-.card {
-  position: relative;
-  border: 0;
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  overflow: visible;
-}
-
 .panel {
   display: grid;
-  gap: 0.24rem;
+  gap: 0.36rem;
   min-width: 0;
 }
 
 .panelTitle {
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.84rem;
-  line-height: 1.2;
+  font-size: 0.88rem;
+  line-height: 1.22;
+  margin: 0;
 }
 
-.eventsViewport {
-  min-height: 4.6rem;
-  min-width: 0;
+/* ── Skeleton ── */
+.skeletonStack {
+  display: grid;
+  gap: 0.32rem;
 }
 
+.skeleton {
+  height: 0.68rem;
+  border-radius: 0.25rem;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-text-secondary-rgb) / 0.07),
+    rgb(var(--color-text-secondary-rgb) / 0.14),
+    rgb(var(--color-text-secondary-rgb) / 0.07)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+.skW52 { width: 52%; }
+.skW66 { width: 66%; }
+.skW44 { width: 44%; }
+.skW58 { width: 58%; }
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── State boxes ── */
+.stateBox {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.stateError {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-danger, #f87171);
+  line-height: 1.3;
+}
+
+.retryBtn {
+  display: inline;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: rgb(var(--color-primary-rgb) / 0.85);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.retryBtn:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+/* ── Event list ── */
 .eventsList {
   list-style: none;
   margin: 0;
@@ -239,109 +241,70 @@ function formatTime(value) {
 
 .eventItem {
   display: block;
-  border-bottom: 1px solid var(--divider-color);
-  padding: 0;
-  border-radius: 0;
 }
 
-.eventItem:last-child {
-  border-bottom: none;
-}
-
-.eventLink {
-  display: grid;
-  grid-template-columns: 4.2rem minmax(0, 1fr);
-  align-items: start;
-  column-gap: 0.36rem;
-  row-gap: 0;
-  padding: 0.3rem 0;
-  color: inherit;
+/* Single-line row: date · icon title */
+.eventRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.26rem;
   text-decoration: none;
+  padding: 0.24rem 0;
+  min-width: 0;
 }
 
-.eventLink:hover,
-.eventLink:focus-visible {
-  color: inherit;
-}
-
-.eventDate {
+.eventRowDate {
   color: var(--color-text-secondary);
-  font-size: 0.72rem;
-  line-height: 1.15;
+  font-size: 0.70rem;
+  font-weight: 400;
   white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.2;
 }
 
-.eventTitle {
-  color: var(--color-surface);
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1.16;
-  display: -webkit-box;
-  line-clamp: 2;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-.metaLine {
-  margin: 0;
+.eventRowSep {
   color: var(--color-text-secondary);
   font-size: 0.68rem;
-  line-height: 1.25;
+  opacity: 0.35;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
-.panelActions {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  padding-top: 0;
-  margin-top: 0.04rem;
+.eventRowIcon {
+  font-size: 0.76rem;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
-.upcomingMoreLink {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  color: var(--color-primary);
-  font-size: 0.72rem;
+.eventRowTitle {
+  color: var(--color-surface);
+  font-size: 0.78rem;
   font-weight: 600;
+  line-height: 1.18;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 0.12s ease;
+}
+
+.eventRow:hover .eventRowTitle {
+  color: var(--color-primary);
+}
+
+/* ── Footer link ── */
+.showAllLink {
+  color: rgb(var(--color-primary-rgb) / 0.75);
+  font-size: 0.70rem;
+  font-weight: 500;
   text-decoration: none;
-  line-height: 1.12;
-  text-align: center;
-  padding: 0.24rem 0.48rem;
-  min-height: 1.68rem;
-  border-radius: 0 !important;
-  box-sizing: border-box;
-  background: rgb(var(--color-bg-rgb) / 0.2);
-  box-shadow: inset 0 0 0 1px var(--color-text-secondary);
-  transition: background-color var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
+  line-height: 1.2;
+  transition: color 0.12s ease;
 }
 
-.upcomingMoreLink:hover {
-  color: var(--color-text-primary);
-  background: rgb(var(--color-primary-rgb) / 0.08);
-  box-shadow: inset 0 0 0 1px var(--color-primary);
-  transform: none;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 180ms ease, transform 180ms ease-out;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(2px);
-}
-
-.eventsViewport,
-.eventsList,
-.eventItem,
-.eventLink,
-.upcomingMoreLink {
-  border-radius: 0 !important;
+.showAllLink:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 </style>

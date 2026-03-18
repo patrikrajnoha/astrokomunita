@@ -1,247 +1,164 @@
 <template>
-  <section class="card panel moonOverviewCard">
+  <section class="panel moonNow">
     <div class="panelTitle sidebarSection__header">{{ title }}</div>
 
-    <AsyncState
-      v-if="loading"
-      mode="loading"
-      title="Načítavam prehľad Mesiaca"
-      loading-style="skeleton"
-      :skeleton-rows="2"
-      compact
-    />
+    <!-- Loading -->
+    <div v-if="loading" class="skeletonStack">
+      <div class="skeleton skW55"></div>
+      <div class="skeleton skW28"></div>
+      <div class="skeleton skW42"></div>
+    </div>
 
-    <AsyncState
-      v-else-if="error"
-      mode="error"
-      title="Nepodarilo sa načítať"
-      :message="error"
-      action-label="Skúsiť znova"
-      compact
-      @action="fetchOverview"
-    />
+    <!-- Error -->
+    <div v-else-if="error" class="errorState">
+      <span class="errorText">{{ error }}</span>
+      <button type="button" class="retryBtn" @click="fetchOverview">Skúsiť znova</button>
+    </div>
 
-    <AsyncState
-      v-else-if="!overview"
-      mode="empty"
-      title="Prehľad Mesiaca je nedostupný"
-      message="Skús to neskôr."
-      compact
-    />
+    <!-- No data -->
+    <p v-else-if="!rawData" class="emptyText">Dáta Mesiaca sú nedostupné.</p>
 
-    <section v-else class="overviewPanel">
-      <div class="overviewVisual">
-        <span class="overviewDisc" :class="`overviewDisc--${overview.moon_phase}`" aria-hidden="true"></span>
-        <div class="overviewMainLine">Mesiac: {{ overview.illumination_label }}</div>
-        <div class="overviewSubLine">{{ overview.phase_label }}</div>
+    <!-- Content -->
+    <div v-else class="moonBody">
+      <!-- 1: Phase emoji + name (primary) -->
+      <div class="moonHero">
+        <span class="moonEmoji" aria-hidden="true">{{ phaseEmoji }}</span>
+        <span class="moonPhase">{{ phaseName }}</span>
       </div>
 
-      <dl class="overviewStats">
-        <div class="overviewRow">
-          <dt>Aktuálny čas:</dt>
-          <dd>{{ formatDateTime(overview.reference_at) }}</dd>
-        </div>
-        <div class="overviewRow">
-          <dt>Smer Mesiaca:</dt>
-          <dd>{{ overview.direction_line }}</dd>
-        </div>
-        <div class="overviewRow">
-          <dt>Výška Mesiaca:</dt>
-          <dd>{{ overview.altitude_line }}</dd>
-        </div>
-        <div class="overviewRow">
-          <dt>Vzdialenosť Mesiaca:</dt>
-          <dd>{{ overview.distance_line }}</dd>
-        </div>
-        <div class="overviewRow">
-          <dt>Ďalší Nov:</dt>
-          <dd>{{ formatDateTime(overview.next_new_moon_at) }}</dd>
-        </div>
-        <div class="overviewRow">
-          <dt>Ďalší Spln:</dt>
-          <dd>{{ formatDateTime(overview.next_full_moon_at) }}</dd>
-        </div>
-        <div class="overviewRow">
-          <dt>Ďalší východ Mesiaca:</dt>
-          <dd>{{ formatMoonriseLine(overview.next_moonrise_at) }}</dd>
-        </div>
-      </dl>
-    </section>
+      <!-- 2: Illumination (secondary) -->
+      <p v-if="illuminationLabel" class="moonIllum">{{ illuminationLabel }}</p>
+
+      <!-- 3: Visibility status — key differentiator from MoonPhasesWidget -->
+      <p v-if="visibilityLabel" class="moonVis">{{ visibilityLabel }}</p>
+
+      <!-- 4: One closest upcoming major event -->
+      <p v-if="nextEventLabel" class="moonNext">{{ nextEventLabel }}</p>
+    </div>
   </section>
 </template>
 
-<script>
-import { onMounted, ref } from 'vue'
-import AsyncState from '@/components/ui/AsyncState.vue'
+<script setup>
+import { computed, onMounted, ref } from 'vue'
 import { getMoonOverviewWidget } from '@/services/widgets'
 
-const PHASE_LABEL_MAP = {
-  new_moon: 'Nov',
+const PHASE_LABELS = {
+  new_moon:        'Nov',
   waxing_crescent: 'Dorastajúci kosáčik',
-  first_quarter: 'Prvá štvrt',
-  waxing_gibbous: 'Dorastajúci mesiac',
-  full_moon: 'Spln',
-  waning_gibbous: 'Ubúdajúci mesiac',
-  last_quarter: 'Posledná štvrt',
+  first_quarter:   'Prvá štvrt',
+  waxing_gibbous:  'Dorastajúci mesiac',
+  full_moon:       'Spln',
+  waning_gibbous:  'Ubúdajúci mesiac',
+  last_quarter:    'Posledná štvrt',
   waning_crescent: 'Ubúdajúci kosáčik',
-  unknown: 'Neznáma fáza',
 }
 
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('sk-SK', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
-
-const TIME_FORMATTER = new Intl.DateTimeFormat('sk-SK', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
-
-const DEGREE_FORMATTER = new Intl.NumberFormat('sk-SK', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
-
-const NUMBER_FORMATTER = new Intl.NumberFormat('sk-SK')
-
-const DIRECTION_ARROW_MAP = {
-  N: '\u2191',
-  NE: '\u2197',
-  E: '\u2192',
-  SE: '\u2198',
-  S: '\u2193',
-  SW: '\u2199',
-  W: '\u2190',
-  NW: '\u2196',
+const PHASE_EMOJIS = {
+  new_moon:        '🌑',
+  waxing_crescent: '🌒',
+  first_quarter:   '🌓',
+  waxing_gibbous:  '🌔',
+  full_moon:       '🌕',
+  waning_gibbous:  '🌖',
+  last_quarter:    '🌗',
+  waning_crescent: '🌘',
 }
 
-export default {
-  name: 'MoonOverviewWidget',
-  components: {
-    AsyncState,
-  },
-  props: {
-    title: {
-      type: String,
-      default: 'Mesiac teraz',
-    },
-    lat: {
-      type: [Number, String],
-      default: null,
-    },
-    lon: {
-      type: [Number, String],
-      default: null,
-    },
-    tz: {
-      type: String,
-      default: '',
-    },
-    date: {
-      type: String,
-      default: '',
-    },
-  },
-  setup(props) {
-    const overview = ref(null)
-    const loading = ref(true)
-    const error = ref('')
+const SHORT_DATE = new Intl.DateTimeFormat('sk-SK', { day: 'numeric', month: 'short' })
 
-    const buildQuery = () => {
-      const query = {}
-      const lat = Number(props.lat)
-      const lon = Number(props.lon)
-      const tz = String(props.tz || '').trim()
-      const date = String(props.date || '').trim()
+const props = defineProps({
+  title: { type: String, default: 'Mesiac teraz' },
+  lat:   { type: [Number, String], default: null },
+  lon:   { type: [Number, String], default: null },
+  tz:    { type: String, default: '' },
+  date:  { type: String, default: '' },
+})
 
-      if (Number.isFinite(lat)) {
-        query.lat = lat
-      }
+const rawData = ref(null)
+const loading = ref(true)
+const error   = ref('')
 
-      if (Number.isFinite(lon)) {
-        query.lon = lon
-      }
+async function fetchOverview() {
+  loading.value = true
+  error.value   = ''
 
-      if (tz) {
-        query.tz = tz
-      }
+  const query = {}
+  const lat = Number(props.lat)
+  const lon = Number(props.lon)
+  const tz  = String(props.tz   || '').trim()
+  const date = String(props.date || '').trim()
 
-      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        query.date = date
-      }
+  if (Number.isFinite(lat)) query.lat  = lat
+  if (Number.isFinite(lon)) query.lon  = lon
+  if (tz)                   query.tz   = tz
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) query.date = date
 
-      return query
-    }
-
-    const fetchOverview = async () => {
-      loading.value = true
-      error.value = ''
-
-      try {
-        const payload = await getMoonOverviewWidget(buildQuery())
-        overview.value = normalizeMoonOverview(payload)
-      } catch (err) {
-        overview.value = null
-        error.value =
-          err?.response?.data?.message
-          || err?.message
-          || 'Skús obnoviť widget neskôr.'
-      } finally {
-        loading.value = false
-      }
-    }
-
-    const formatDateTime = (value) => formatDateTimeLabel(value)
-    const formatMoonriseLine = (value) => formatRelativeDateTimeLabel(value)
-
-    onMounted(() => {
-      fetchOverview()
-    })
-
-    return {
-      overview,
-      loading,
-      error,
-      fetchOverview,
-      formatDateTime,
-      formatMoonriseLine,
-    }
-  },
-}
-
-function normalizeMoonOverview(payload) {
-  const phaseKey = String(payload?.moon_phase || 'unknown').trim().toLowerCase()
-  const illumination = toFiniteNumber(payload?.moon_illumination_percent)
-  const azimuth = toFiniteNumber(payload?.moon_azimuth_deg)
-  const altitude = toFiniteNumber(payload?.moon_altitude_deg)
-  const distanceKm = toFiniteNumber(payload?.moon_distance_km)
-  const direction = String(payload?.moon_direction || '').trim().toUpperCase()
-
-  const azimuthLabel = azimuth === null ? '-' : `${DEGREE_FORMATTER.format(azimuth)}\u00B0`
-  const directionArrow = DIRECTION_ARROW_MAP[direction] || ''
-  const directionLabel = direction ? `${direction}${directionArrow ? ` ${directionArrow}` : ''}` : '-'
-  const altitudeLabel = altitude === null ? '-' : `${DEGREE_FORMATTER.format(altitude)}\u00B0`
-  const distanceLabel = distanceKm === null ? '-' : `${NUMBER_FORMATTER.format(Math.round(distanceKm))} km`
-  const illuminationLabel = illumination === null ? '-' : `${Math.round(illumination)}%`
-
-  return {
-    reference_at: String(payload?.reference_at || '').trim(),
-    moon_phase: phaseKey || 'unknown',
-    phase_label: PHASE_LABEL_MAP[phaseKey] || PHASE_LABEL_MAP.unknown,
-    illumination_label: illuminationLabel,
-    direction_line: `${azimuthLabel} ${directionLabel}`.trim(),
-    altitude_line: altitudeLabel,
-    distance_line: distanceLabel,
-    next_new_moon_at: String(payload?.next_new_moon_at || '').trim(),
-    next_full_moon_at: String(payload?.next_full_moon_at || '').trim(),
-    next_moonrise_at: String(payload?.next_moonrise_at || '').trim(),
+  try {
+    rawData.value = await getMoonOverviewWidget(query)
+  } catch (err) {
+    rawData.value = null
+    error.value   = err?.response?.data?.message || err?.message || 'Skús obnoviť widget neskôr.'
+  } finally {
+    loading.value = false
   }
 }
+
+onMounted(fetchOverview)
+
+// ── Phase ──────────────────────────────────────────────────────────────────────
+
+const phaseKey = computed(() => String(rawData.value?.moon_phase || '').trim().toLowerCase())
+const phaseEmoji = computed(() => PHASE_EMOJIS[phaseKey.value] ?? '🌙')
+const phaseName  = computed(() => PHASE_LABELS[phaseKey.value]  ?? 'Neznáma fáza')
+
+// ── Illumination ───────────────────────────────────────────────────────────────
+
+const illuminationLabel = computed(() => {
+  const v = toFiniteNumber(rawData.value?.moon_illumination_percent)
+  return v === null ? '' : `${Math.round(v)}%`
+})
+
+// ── Visibility — altitude-based, unique to this widget ────────────────────────
+
+const visibilityLabel = computed(() => {
+  const alt = toFiniteNumber(rawData.value?.moon_altitude_deg)
+  if (alt === null) return ''
+  if (alt > 5)  return 'Nad obzorom'
+  if (alt >= 0) return 'Nízko nad obzorom'
+  return 'Pod horizontom'
+})
+
+// ── Next closest major event (new or full moon — whichever comes first) ────────
+
+const nextEventLabel = computed(() => {
+  const newRaw  = String(rawData.value?.next_new_moon_at  || '').trim()
+  const fullRaw = String(rawData.value?.next_full_moon_at || '').trim()
+
+  const validDate = (s) => {
+    if (!s) return null
+    const d = new Date(s)
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+
+  const newMoon  = validDate(newRaw)
+  const fullMoon = validDate(fullRaw)
+
+  if (!newMoon && !fullMoon) return ''
+
+  let closer, label
+  if (!newMoon)            { closer = fullMoon; label = 'Spln' }
+  else if (!fullMoon)      { closer = newMoon;  label = 'Nov'  }
+  else if (newMoon <= fullMoon) { closer = newMoon;  label = 'Nov'  }
+  else                     { closer = fullMoon; label = 'Spln' }
+
+  try {
+    return `${label} · ${SHORT_DATE.format(closer)}`
+  } catch {
+    return ''
+  }
+})
+
+// ── Helper ─────────────────────────────────────────────────────────────────────
 
 function toFiniteNumber(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -251,188 +168,142 @@ function toFiniteNumber(value) {
   }
   return null
 }
-
-function formatDateTimeLabel(value) {
-  const text = String(value || '').trim()
-  if (!text) return '-'
-
-  const date = new Date(text)
-  if (Number.isNaN(date.getTime())) return '-'
-
-  try {
-    return DATE_TIME_FORMATTER.format(date)
-  } catch {
-    return '-'
-  }
-}
-
-function formatRelativeDateTimeLabel(value) {
-  const text = String(value || '').trim()
-  if (!text) return '-'
-
-  const date = new Date(text)
-  if (Number.isNaN(date.getTime())) return '-'
-
-  const now = new Date()
-  const localToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const targetDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-  const diffDays = Math.round((targetDay.getTime() - localToday.getTime()) / 86400000)
-  const timeLabel = TIME_FORMATTER.format(date)
-
-  if (diffDays === 0) {
-    return `Dnes, ${timeLabel}`
-  }
-
-  if (diffDays === 1) {
-    return `Zajtra, ${timeLabel}`
-  }
-
-  return formatDateTimeLabel(text)
-}
 </script>
 
 <style scoped>
-.card {
-  position: relative;
-  border: 0;
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  overflow: visible;
-}
-
-.moonOverviewCard {
-  container-type: inline-size;
-}
-
 .panel {
   display: grid;
-  gap: 0.24rem;
+  gap: 0.3rem;
   min-width: 0;
 }
 
 .panelTitle {
-  margin: 0;
   font-weight: 800;
   color: var(--color-surface);
-  font-size: 0.84rem;
-  line-height: 1.2;
+  font-size: 0.88rem;
+  line-height: 1.22;
+  margin: 0;
 }
 
-.overviewPanel {
+/* ── Skeleton ── */
+.skeletonStack {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.48rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
-  background: linear-gradient(180deg, rgb(var(--color-bg-rgb) / 0.18), rgb(var(--color-bg-rgb) / 0.1));
-  padding: 0.42rem;
+  gap: 0.28rem;
+  margin-top: 0.08rem;
 }
 
-@container (min-width: 380px) {
-  .overviewPanel {
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  }
+.skeleton {
+  height: 0.72rem;
+  border-radius: 0.25rem;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--color-text-secondary-rgb) / 0.07),
+    rgb(var(--color-text-secondary-rgb) / 0.14),
+    rgb(var(--color-text-secondary-rgb) / 0.07)
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
 }
 
-.overviewVisual {
-  background: rgb(var(--color-surface-rgb, 255 255 255) / 0.06);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
+.skW55 { width: 55%; height: 1rem; }
+.skW28 { width: 28%; }
+.skW42 { width: 42%; }
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Error / empty ── */
+.errorState {
   display: grid;
-  justify-items: center;
-  align-content: center;
   gap: 0.2rem;
-  padding: 0.4rem 0.35rem;
 }
 
-.overviewDisc {
-  inline-size: 3rem;
-  block-size: 3rem;
-  border-radius: 999px;
-  border: 0.18rem solid rgb(var(--color-surface-rgb, 255 255 255) / 0.85);
-  background: #050810;
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+.errorText {
+  font-size: 0.76rem;
+  color: var(--color-danger, #f87171);
+  line-height: 1.3;
 }
 
-.overviewDisc--new_moon {
-  background: #050810;
-}
-
-.overviewDisc--waxing_crescent {
-  background: radial-gradient(circle at 70% 50%, #eef2fa 34%, #050810 36%);
-}
-
-.overviewDisc--first_quarter {
-  background: linear-gradient(90deg, #050810 50%, #eef2fa 50%);
-}
-
-.overviewDisc--waxing_gibbous {
-  background: radial-gradient(circle at 35% 50%, #050810 34%, #eef2fa 36%);
-}
-
-.overviewDisc--full_moon {
-  background: radial-gradient(circle at 38% 34%, #fff 0%, #eef2fa 74%, #d8dfee 100%);
-}
-
-.overviewDisc--waning_gibbous {
-  background: radial-gradient(circle at 65% 50%, #050810 34%, #eef2fa 36%);
-}
-
-.overviewDisc--last_quarter {
-  background: linear-gradient(90deg, #eef2fa 50%, #050810 50%);
-}
-
-.overviewDisc--waning_crescent {
-  background: radial-gradient(circle at 30% 50%, #eef2fa 34%, #050810 36%);
-}
-
-.overviewMainLine {
-  color: var(--color-surface);
-  font-size: 1.04rem;
-  font-weight: 800;
-  line-height: 1.1;
-}
-
-.overviewSubLine {
-  color: rgb(var(--color-primary-rgb) / 0.9);
-  font-size: 0.73rem;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.overviewStats {
-  margin: 0;
+.retryBtn {
+  display: inline;
+  background: none;
+  border: none;
   padding: 0;
-  display: grid;
-  align-content: start;
-}
-
-.overviewRow {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: 0.45rem;
-  align-items: baseline;
-  border-bottom: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  padding: 0.2rem 0;
-}
-
-.overviewRow:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
-.overviewRow dt {
-  margin: 0;
-  color: var(--color-surface);
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-.overviewRow dd {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: 0.71rem;
-  line-height: 1.2;
+  cursor: pointer;
+  color: rgb(var(--color-primary-rgb) / 0.85);
+  font-size: 0.74rem;
+  font-weight: 600;
   text-align: left;
 }
 
+.retryBtn:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+
+/* ── Content ── */
+.moonBody {
+  display: grid;
+  row-gap: 0;
+  margin-top: 0.06rem;
+}
+
+/* 1: Phase hero */
+.moonHero {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.16rem;
+}
+
+.moonEmoji {
+  font-size: 1.48rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.moonPhase {
+  color: var(--color-surface);
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+/* 2: Illumination */
+.moonIllum {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: rgb(var(--color-surface-rgb) / 0.58);
+  line-height: 1.2;
+}
+
+/* 3: Visibility */
+.moonVis {
+  margin: 0;
+  margin-top: 0.22rem;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  line-height: 1.26;
+}
+
+/* 4: Next event */
+.moonNext {
+  margin: 0;
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  line-height: 1.26;
+  opacity: 0.75;
+}
 </style>
