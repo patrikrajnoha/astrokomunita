@@ -86,7 +86,7 @@ class AuthPasswordResetTest extends TestCase
             'password_confirmation' => 'new-password-123',
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'Heslo bolo uspesne obnovene. Teraz sa mozete prihlasit.');
+            ->assertJsonPath('message', 'Heslo bolo úspešne obnovené. Teraz sa môžete prihlásiť.');
 
         $user->refresh();
         $this->assertTrue(Hash::check('new-password-123', (string) $user->password));
