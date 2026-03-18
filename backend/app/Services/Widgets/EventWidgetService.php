@@ -33,12 +33,13 @@ class EventWidgetService
                 ->orderBy('start_at')
                 ->orderBy('id')
                 ->limit(4)
-                ->get(['id', 'title', 'start_at']);
+                ->get(['id', 'title', 'type', 'start_at']);
 
             return [
                 'items' => $items->map(static fn (Event $event): array => [
                     'id' => (int) $event->id,
                     'title' => (string) $event->title,
+                    'type' => (string) $event->type,
                     'slug' => null,
                     'start_at' => optional($event->start_at)?->toIso8601String(),
                 ])->values()->all(),

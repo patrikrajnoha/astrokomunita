@@ -50,11 +50,11 @@ class UpcomingEventsWidgetEndpointTest extends TestCase
         $topLevelKeys = array_keys($response->json());
         sort($topLevelKeys);
         $this->assertSame(['generated_at', 'items', 'source'], $topLevelKeys);
-        $this->assertSame('Databaza udalosti', $response->json('source.label'));
+        $this->assertSame('Databáza udalostí', $response->json('source.label'));
 
         $itemKeys = array_keys($items[0]);
         sort($itemKeys);
-        $this->assertSame(['id', 'slug', 'start_at', 'title'], $itemKeys);
+        $this->assertSame(['id', 'slug', 'start_at', 'title', 'type'], $itemKeys);
     }
 
     public function test_endpoint_response_is_cached_until_events_change(): void

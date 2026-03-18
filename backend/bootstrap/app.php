@@ -54,7 +54,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             if ($throwable instanceof ValidationException) {
                 return ApiResponse::error(
-                    'The given data was invalid.',
+                    'Zadané údaje sú neplatné.',
                     $throwable->errors(),
                     $throwable->status
                 );

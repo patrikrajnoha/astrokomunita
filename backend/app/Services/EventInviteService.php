@@ -171,10 +171,13 @@ class EventInviteService
 
     private function generateToken(): string
     {
-        do {
+        for ($i = 0; $i < 10; $i++) {
             $token = Str::random(64);
-        } while (EventInvite::query()->where('token', $token)->exists());
+            if (!EventInvite::query()->where('token', $token)->exists()) {
+                return $token;
+            }
+        }
 
-        return $token;
+        throw new \RuntimeException('Failed to generate a unique invite token.');
     }
 }

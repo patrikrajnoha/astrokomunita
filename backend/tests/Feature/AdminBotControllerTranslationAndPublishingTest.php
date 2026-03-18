@@ -551,7 +551,7 @@ class AdminBotControllerTranslationAndPublishingTest extends AdminBotControllerT
 
         $this->deleteJson('/api/admin/bots/items/' . $item->id . '/post')
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Polozka nema publikovany prispevok na vymazanie.');
+            ->assertJsonPath('message', 'Položka nemá publikovaný príspevok na vymazanie.');
     }
 
     public function test_admin_can_get_and_update_bot_post_retention_settings(): void

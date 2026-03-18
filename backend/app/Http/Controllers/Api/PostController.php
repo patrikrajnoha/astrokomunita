@@ -113,7 +113,7 @@ class PostController extends Controller
             ], 403);
         }
 
-        if (!$this->canAdminEditBotPost($user, $post)) {
+        if ($this->isBotPost($post) && !$this->canAdminEditBotPost($user, $post)) {
             return response()->json([
                 'message' => 'Tento post nie je povolene upravovat.',
             ], 403);
@@ -127,7 +127,7 @@ class PostController extends Controller
         $content = trim((string) $validated['content']);
 
         $post->content = $content;
-        $post->meta = $this->updatedBotMetaAfterEdit($post, $content);
+        $post->meta = $this->updatedBotMetaAfterEdit($post, $content, $validated['edit_variant'] ?? null);
         $post->save();
 
         $post->refresh();
@@ -243,23 +243,22 @@ class PostController extends Controller
         return $request->user() ?? $request->user('sanctum');
     }
 
+    private function isBotPost(Post $post): bool
+    {
+        $authorKind = $post->author_kind;
+
+        return $authorKind instanceof PostAuthorKind
+            ? $authorKind === PostAuthorKind::BOT
+            : strtolower((string) $authorKind) === PostAuthorKind::BOT->value;
+    }
+
     private function canAdminEditBotPost(User $user, Post $post): bool
     {
         if (!$user->isAdmin()) {
             return false;
         }
 
-        $authorKind = $post->author_kind;
         $identity = $post->bot_identity;
-
-        $isBotAuthor = $authorKind instanceof PostAuthorKind
-            ? $authorKind === PostAuthorKind::BOT
-            : strtolower((string) $authorKind) === PostAuthorKind::BOT->value;
-
-        if (!$isBotAuthor) {
-            return false;
-        }
-
         $normalizedIdentity = $identity instanceof PostBotIdentity
             ? $identity->value
             : strtolower(trim((string) $identity));
@@ -270,11 +269,11 @@ class PostController extends Controller
         ], true);
     }
 
-    private function updatedBotMetaAfterEdit(Post $post, string $content): array
+    private function updatedBotMetaAfterEdit(Post $post, string $content, ?string $editVariant): array
     {
         $meta = is_array($post->meta) ? $post->meta : [];
 
-        if ($meta === []) {
+        if ($meta === [] || $editVariant !== 'translated') {
             return $meta;
         }
 

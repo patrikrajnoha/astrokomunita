@@ -142,6 +142,8 @@ class ProfileController extends Controller
 
                 $user->delete();
             });
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 403);
         } catch (\Throwable $e) {
             Log::error('Failed to delete user account.', [
                 'user_id' => $user?->id,

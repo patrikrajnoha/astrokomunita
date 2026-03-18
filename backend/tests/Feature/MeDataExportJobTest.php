@@ -156,6 +156,6 @@ class MeDataExportJobTest extends TestCase
 
         $this->get('/api/me/export/jobs/' . $jobId . '/download')
             ->assertStatus(403)
-            ->assertJsonPath('message', 'Download link je neplatny alebo expirovany.');
+            ->assertJsonPath('message', 'Download link je neplatný alebo expirovaný.');
     }
 }
